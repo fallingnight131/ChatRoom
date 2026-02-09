@@ -6,6 +6,7 @@ class QLineEdit;
 class QPushButton;
 class QLabel;
 class QTabWidget;
+class QWidget;
 
 /// 登录/注册对话框
 class LoginDialog : public QDialog {
@@ -40,6 +41,9 @@ private:
     QLineEdit   *m_loginPass      = nullptr;
     QPushButton *m_loginBtn       = nullptr;
     QLabel      *m_loginStatus    = nullptr;
+    QPushButton *m_advancedBtn    = nullptr;
+    QLabel      *m_hostLabel      = nullptr;
+    QLabel      *m_portLabel      = nullptr;
 
     // 注册页
     QLineEdit   *m_regUser        = nullptr;
@@ -51,4 +55,7 @@ private:
     int          m_userId         = 0;
     QString      m_username;
     bool         m_connected      = false;
+
+    enum PendingAction { None, Login, Register };
+    PendingAction m_pendingAction  = None;
 };

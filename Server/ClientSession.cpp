@@ -2,6 +2,7 @@
 #include "Protocol.h"
 
 #include <QJsonDocument>
+#include <QThread>
 #include <QDebug>
 
 ClientSession::ClientSession(qintptr socketDescriptor, QObject *parent)
@@ -45,12 +46,22 @@ void ClientSession::setAuthenticated(int userId, const QString &username) {
 }
 
 void ClientSession::disconnectFromServer() {
+    if (QThread::currentThread() != this->thread()) {
+        QMetaObject::invokeMethod(this, "disconnectFromServer", Qt::QueuedConnection);
+        return;
+    }
     if (m_socket && m_socket->state() == QAbstractSocket::ConnectedState) {
         m_socket->disconnectFromHost();
     }
 }
 
 void ClientSession::sendMessage(const QJsonObject &msg) {
+    if (QThread::currentThread() != this->thread()) {
+        // 跨线程调用，转发到 session 所在线程执行
+        QMetaObject::invokeMethod(this, "sendMessage", Qt::QueuedConnection,
+                                  Q_ARG(QJsonObject, msg));
+        return;
+    }
     if (!m_socket || m_socket->state() != QAbstractSocket::ConnectedState)
         return;
 

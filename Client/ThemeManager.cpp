@@ -115,6 +115,7 @@ QString ThemeManager::lightStyleSheet() const {
             border-radius: 4px;
             padding: 6px;
             background: white;
+            color: #333333;
         }
         QLineEdit:focus {
             border-color: #1976d2;

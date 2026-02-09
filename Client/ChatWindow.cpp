@@ -42,6 +42,7 @@ ChatWindow::ChatWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     setWindowTitle("Qt聊天室");
+    setWindowFlags(Qt::Window | Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint);
     resize(1000, 700);
 
     setupUi();

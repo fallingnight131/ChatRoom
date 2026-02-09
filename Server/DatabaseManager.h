@@ -41,11 +41,7 @@ private:
     QString hashPassword(const QString &password, const QString &salt);
     QString generateSalt();
 
-    QString m_host     = "localhost";
-    int     m_port     = 3306;
-    QString m_dbName   = "chatroom";
-    QString m_user     = "root";
-    QString m_password = "";
+    QString m_dbPath;   // SQLite 数据库文件路径
 
     QMutex m_initMutex;
     bool   m_initialized = false;

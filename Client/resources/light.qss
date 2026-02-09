@@ -108,6 +108,7 @@ QLineEdit {
     border-radius: 6px;
     padding: 8px;
     background: white;
+    color: #333333;
     font-size: 13px;
 }
 

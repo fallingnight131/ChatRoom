@@ -15,7 +15,8 @@ LoginDialog::LoginDialog(QWidget *parent)
     : QDialog(parent)
 {
     setWindowTitle("Qt聊天室 - 登录");
-    setFixedSize(400, 360);
+    setWindowFlags(Qt::Dialog | Qt::WindowMinimizeButtonHint | Qt::WindowCloseButtonHint);
+    setMinimumWidth(400);
     setupUi();
 
     auto *net = NetworkManager::instance();
@@ -34,24 +35,52 @@ void LoginDialog::setupUi() {
     auto *loginPage   = new QWidget;
     auto *loginLayout = new QFormLayout(loginPage);
 
-    m_loginHost = new QLineEdit("127.0.0.1");
-    m_loginPort = new QLineEdit(QString::number(Protocol::DEFAULT_PORT));
     m_loginUser = new QLineEdit;
     m_loginPass = new QLineEdit;
     m_loginPass->setEchoMode(QLineEdit::Password);
+    m_loginUser->setMinimumHeight(32);
+    m_loginPass->setMinimumHeight(32);
     m_loginBtn  = new QPushButton("登 录");
+    m_loginBtn->setMinimumHeight(36);
     m_loginStatus = new QLabel;
     m_loginStatus->setStyleSheet("color: red;");
 
-    loginLayout->addRow("服务器:", m_loginHost);
-    loginLayout->addRow("端口:",   m_loginPort);
+    m_loginUser->setPlaceholderText("请输入用户名");
+    m_loginPass->setPlaceholderText("请输入密码");
+
+    m_loginHost = new QLineEdit("127.0.0.1");
+    m_loginPort = new QLineEdit(QString::number(Protocol::DEFAULT_PORT));
+
     loginLayout->addRow("用户名:", m_loginUser);
     loginLayout->addRow("密码:",   m_loginPass);
     loginLayout->addRow(m_loginBtn);
     loginLayout->addRow(m_loginStatus);
 
-    m_loginUser->setPlaceholderText("请输入用户名");
-    m_loginPass->setPlaceholderText("请输入密码");
+    // 高级设置（折叠）
+    m_advancedBtn = new QPushButton("▶ 高级设置");
+    m_advancedBtn->setFlat(true);
+    m_advancedBtn->setCursor(Qt::PointingHandCursor);
+    m_advancedBtn->setStyleSheet("text-align:left; color:#666; font-size:12px; padding:2px 0;");
+
+    m_hostLabel = new QLabel("服务器:");
+    m_portLabel = new QLabel("端口:");
+
+    loginLayout->addRow(m_advancedBtn);
+    loginLayout->addRow(m_hostLabel, m_loginHost);
+    loginLayout->addRow(m_portLabel, m_loginPort);
+
+    // 默认隐藏
+    m_hostLabel->hide(); m_loginHost->hide();
+    m_portLabel->hide(); m_loginPort->hide();
+
+    connect(m_advancedBtn, &QPushButton::clicked, this, [this]() {
+        bool show = !m_loginHost->isVisible();
+        m_hostLabel->setVisible(show);
+        m_loginHost->setVisible(show);
+        m_portLabel->setVisible(show);
+        m_loginPort->setVisible(show);
+        m_advancedBtn->setText(show ? "▼ 高级设置" : "▶ 高级设置");
+    });
 
     connect(m_loginBtn, &QPushButton::clicked, this, &LoginDialog::onLogin);
     connect(m_loginPass, &QLineEdit::returnPressed, this, &LoginDialog::onLogin);
@@ -93,12 +122,15 @@ void LoginDialog::connectToServer() {
     QString host = m_loginHost->text().trimmed();
     quint16 port = m_loginPort->text().toUShort();
     if (host.isEmpty() || port == 0) {
-        m_loginStatus->setText("请输入有效的服务器地址和端口");
+        QLabel *status = (m_pendingAction == Register) ? m_regStatus : m_loginStatus;
+        status->setText("请输入有效的服务器地址和端口（在高级设置中）");
         return;
     }
 
-    m_loginStatus->setText("正在连接...");
+    QLabel *status = (m_pendingAction == Register) ? m_regStatus : m_loginStatus;
+    status->setText("正在连接服务器...");
     m_loginBtn->setEnabled(false);
+    m_regBtn->setEnabled(false);
     NetworkManager::instance()->connectToServer(host, port);
 }
 
@@ -119,8 +151,9 @@ void LoginDialog::onLogin() {
 
     if (!m_connected) {
         // 需要先连接
+        m_pendingAction = Login;
         connectToServer();
-        // 连接成功后会触发 onConnected → 再发发登录请求
+        // 连接成功后会触发 onConnected → 再发登录请求
         m_username = user; // 暂存
         return;
     }
@@ -134,15 +167,25 @@ void LoginDialog::onLogin() {
 
 void LoginDialog::onConnected() {
     m_connected = true;
-    m_loginStatus->setText("已连接，正在登录...");
 
-    // 如果是登录触发的连接，自动发送登录请求
-    QString user = m_loginUser->text().trimmed();
-    QString pass = m_loginPass->text();
-    if (!user.isEmpty() && !pass.isEmpty()) {
-        NetworkManager::instance()->sendMessage(
-            Protocol::makeLoginReq(user, pass));
+    if (m_pendingAction == Login) {
+        m_loginStatus->setText("已连接，正在登录...");
+        QString user = m_loginUser->text().trimmed();
+        QString pass = m_loginPass->text();
+        if (!user.isEmpty() && !pass.isEmpty()) {
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeLoginReq(user, pass));
+        }
+    } else if (m_pendingAction == Register) {
+        m_regStatus->setText("已连接，正在注册...");
+        QString user = m_regUser->text().trimmed();
+        QString pass = m_regPass->text();
+        if (!user.isEmpty() && !pass.isEmpty()) {
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeRegisterReq(user, pass));
+        }
     }
+    m_pendingAction = None;
 }
 
 void LoginDialog::onConnectionError(const QString &error) {
@@ -192,20 +235,21 @@ void LoginDialog::onRegister() {
 
     if (!m_connected) {
         // 使用登录页的连接信息
+        m_pendingAction = Register;
         connectToServer();
+        return;
     }
 
     m_regStatus->setText("正在注册...");
     m_regBtn->setEnabled(false);
 
-    // 若未连接，需要等连接建立后再注册; 这里简化为直接发送
-    // 如果连接还在建立中，消息会被 NetworkManager 缓存或丢弃
     NetworkManager::instance()->sendMessage(
         Protocol::makeRegisterReq(user, pass));
 }
 
 void LoginDialog::onRegisterResponse(bool success, const QString &error) {
     m_regBtn->setEnabled(true);
+    m_loginBtn->setEnabled(true);
     if (success) {
         m_regStatus->setStyleSheet("color: green;");
         m_regStatus->setText("注册成功！请切换到登录页面");

@@ -1,0 +1,45 @@
+# ========== 构建产物 ==========
+release/
+debug/
+build/
+*.o
+*.obj
+*.exe
+*.dll
+*.a
+*.lib
+*.pdb
+*.ilk
+*.exp
+
+# ========== Qt/qmake 生成文件 ==========
+Makefile
+Makefile.*
+.qmake.stash
+*.pro.user
+*.pro.user.*
+moc_*.cpp
+moc_*.h
+moc_predefs.h
+qrc_*.cpp
+ui_*.h
+object_script.*
+
+# ========== SQLite 数据库 ==========
+*.db
+*.db-wal
+*.db-shm
+
+# ========== IDE ==========
+.vscode/
+.vs/
+*.swp
+*.swo
+*~
+
+# ========== 系统文件 ==========
+Thumbs.db
+.DS_Store
+
+# ========== 不再使用的 MySQL 驱动构建目录 ==========
+mysql_driver_build/

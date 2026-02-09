@@ -3,6 +3,7 @@
 #include "Message.h"
 
 #include <QPainter>
+#include <QPainterPath>
 #include <QApplication>
 #include <QDateTime>
 #include <QTextDocument>

@@ -8,21 +8,18 @@
 #include <QDebug>
 #include <QDateTime>
 #include <QJsonObject>
+#include <QCoreApplication>
+#include <QDir>
 
 DatabaseManager::DatabaseManager(QObject *parent)
     : QObject(parent)
 {
-    // 可通过环境变量配置数据库
-    if (qEnvironmentVariableIsSet("CHATROOM_DB_HOST"))
-        m_host = qEnvironmentVariable("CHATROOM_DB_HOST");
-    if (qEnvironmentVariableIsSet("CHATROOM_DB_PORT"))
-        m_port = qEnvironmentVariable("CHATROOM_DB_PORT").toInt();
-    if (qEnvironmentVariableIsSet("CHATROOM_DB_NAME"))
-        m_dbName = qEnvironmentVariable("CHATROOM_DB_NAME");
-    if (qEnvironmentVariableIsSet("CHATROOM_DB_USER"))
-        m_user = qEnvironmentVariable("CHATROOM_DB_USER");
-    if (qEnvironmentVariableIsSet("CHATROOM_DB_PASS"))
-        m_password = qEnvironmentVariable("CHATROOM_DB_PASS");
+    // 默认将数据库文件放在可执行文件同目录
+    m_dbPath = QCoreApplication::applicationDirPath() + "/chatroom.db";
+
+    // 可通过环境变量覆盖路径
+    if (qEnvironmentVariableIsSet("CHATROOM_DB_PATH"))
+        m_dbPath = qEnvironmentVariable("CHATROOM_DB_PATH");
 }
 
 DatabaseManager::~DatabaseManager() = default;
@@ -38,15 +35,16 @@ QSqlDatabase DatabaseManager::getConnection() {
         return db;
     }
 
-    QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL", connName);
-    db.setHostName(m_host);
-    db.setPort(m_port);
-    db.setDatabaseName(m_dbName);
-    db.setUserName(m_user);
-    db.setPassword(m_password);
+    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE", connName);
+    db.setDatabaseName(m_dbPath);
 
     if (!db.open()) {
-        qCritical() << "[DB] 连接失败:" << db.lastError().text();
+        qCritical() << "[DB] SQLite 打开失败:" << db.lastError().text();
+    } else {
+        // 启用 WAL 模式以提高并发性能，启用外键约束
+        QSqlQuery q(db);
+        q.exec("PRAGMA journal_mode=WAL");
+        q.exec("PRAGMA foreign_keys=ON");
     }
     return db;
 }
@@ -62,76 +60,81 @@ bool DatabaseManager::initialize() {
 
     // 创建用户表
     q.exec("CREATE TABLE IF NOT EXISTS users ("
-           "  id INT AUTO_INCREMENT PRIMARY KEY,"
-           "  username VARCHAR(50) UNIQUE NOT NULL,"
-           "  password_hash VARCHAR(128) NOT NULL,"
-           "  salt VARCHAR(64) NOT NULL,"
+           "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+           "  username TEXT UNIQUE NOT NULL,"
+           "  password_hash TEXT NOT NULL,"
+           "  salt TEXT NOT NULL,"
            "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
            "  last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-           ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+           ")");
 
     if (q.lastError().isValid())
         qWarning() << "[DB] 创建 users 表错误:" << q.lastError().text();
 
     // 创建房间表
     q.exec("CREATE TABLE IF NOT EXISTS rooms ("
-           "  id INT AUTO_INCREMENT PRIMARY KEY,"
-           "  name VARCHAR(100) NOT NULL,"
-           "  creator_id INT NOT NULL,"
+           "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+           "  name TEXT NOT NULL,"
+           "  creator_id INTEGER NOT NULL,"
            "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
            "  FOREIGN KEY (creator_id) REFERENCES users(id)"
-           ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+           ")");
 
     // 房间成员表
     q.exec("CREATE TABLE IF NOT EXISTS room_members ("
-           "  room_id INT NOT NULL,"
-           "  user_id INT NOT NULL,"
+           "  room_id INTEGER NOT NULL,"
+           "  user_id INTEGER NOT NULL,"
            "  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
            "  PRIMARY KEY (room_id, user_id),"
-           "  FOREIGN KEY (room_id) REFERENCES rooms(id),"
-           "  FOREIGN KEY (user_id) REFERENCES users(id)"
-           ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+           "  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,"
+           "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+           ")");
 
     // 消息表
     q.exec("CREATE TABLE IF NOT EXISTS messages ("
-           "  id INT AUTO_INCREMENT PRIMARY KEY,"
-           "  room_id INT NOT NULL,"
-           "  user_id INT NOT NULL,"
+           "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+           "  room_id INTEGER NOT NULL,"
+           "  user_id INTEGER NOT NULL,"
            "  content TEXT,"
-           "  content_type VARCHAR(20) DEFAULT 'text',"
-           "  file_name VARCHAR(256) DEFAULT '',"
-           "  file_size BIGINT DEFAULT 0,"
-           "  file_id INT DEFAULT 0,"
-           "  recalled BOOLEAN DEFAULT FALSE,"
+           "  content_type TEXT DEFAULT 'text',"
+           "  file_name TEXT DEFAULT '',"
+           "  file_size INTEGER DEFAULT 0,"
+           "  file_id INTEGER DEFAULT 0,"
+           "  recalled INTEGER DEFAULT 0,"
            "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
-           "  FOREIGN KEY (room_id) REFERENCES rooms(id),"
-           "  FOREIGN KEY (user_id) REFERENCES users(id)"
-           ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+           "  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,"
+           "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+           ")");
+
+    // 消息索引
+    q.exec("CREATE INDEX IF NOT EXISTS idx_msg_room_time ON messages(room_id, created_at)");
 
     // 文件表
     q.exec("CREATE TABLE IF NOT EXISTS files ("
-           "  id INT AUTO_INCREMENT PRIMARY KEY,"
-           "  room_id INT NOT NULL,"
-           "  user_id INT NOT NULL,"
-           "  file_name VARCHAR(256) NOT NULL,"
-           "  file_path VARCHAR(512) NOT NULL,"
-           "  file_size BIGINT DEFAULT 0,"
-           "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
-           ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+           "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+           "  room_id INTEGER NOT NULL,"
+           "  user_id INTEGER NOT NULL,"
+           "  file_name TEXT NOT NULL,"
+           "  file_path TEXT NOT NULL,"
+           "  file_size INTEGER DEFAULT 0,"
+           "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+           "  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,"
+           "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+           ")");
 
     // 创建默认大厅
     q.prepare("SELECT id FROM rooms WHERE id = 1");
     q.exec();
     if (!q.next()) {
         // 确保有一个系统用户
-        q.prepare("INSERT IGNORE INTO users (id, username, password_hash, salt) VALUES (1, 'system', '', '')");
+        q.prepare("INSERT OR IGNORE INTO users (id, username, password_hash, salt) VALUES (1, 'system', '', '')");
         q.exec();
-        q.prepare("INSERT INTO rooms (id, name, creator_id) VALUES (1, '大厅', 1)");
+        q.prepare("INSERT OR IGNORE INTO rooms (id, name, creator_id) VALUES (1, '大厅', 1)");
         q.exec();
     }
 
     m_initialized = true;
-    qInfo() << "[DB] 数据库初始化完成";
+    qInfo() << "[DB] SQLite 数据库初始化完成，路径:" << m_dbPath;
     return true;
 }
 
@@ -217,7 +220,7 @@ bool DatabaseManager::joinRoom(int roomId, int userId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
-    q.prepare("INSERT IGNORE INTO room_members (room_id, user_id) VALUES (?, ?)");
+    q.prepare("INSERT OR IGNORE INTO room_members (room_id, user_id) VALUES (?, ?)");
     q.addBindValue(roomId);
     q.addBindValue(userId);
     return q.exec();
@@ -275,7 +278,7 @@ QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 befo
                   " WHERE m.room_id = ?";
 
     if (beforeTimestamp > 0)
-        sql += " AND m.created_at < FROM_UNIXTIME(? / 1000)";
+        sql += " AND m.created_at < datetime(? / 1000, 'unixepoch')";
 
     sql += " ORDER BY m.created_at DESC LIMIT ?";
 
@@ -295,7 +298,7 @@ QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 befo
         msg["fileName"]    = q.value(3).toString();
         msg["fileSize"]    = static_cast<double>(q.value(4).toLongLong());
         msg["fileId"]      = q.value(5).toInt();
-        msg["recalled"]    = q.value(6).toBool();
+        msg["recalled"]    = q.value(6).toInt() != 0;
         msg["timestamp"]   = q.value(7).toDateTime().toMSecsSinceEpoch();
         msg["sender"]      = q.value(8).toString();
         msg["roomId"]      = roomId;
@@ -309,7 +312,7 @@ bool DatabaseManager::recallMessage(int messageId, int userId, int timeLimitSec)
     QSqlQuery q(db);
 
     // 检查消息存在性、所有权和时间
-    q.prepare("SELECT user_id, created_at FROM messages WHERE id = ? AND recalled = FALSE");
+    q.prepare("SELECT user_id, created_at FROM messages WHERE id = ? AND recalled = 0");
     q.addBindValue(messageId);
     q.exec();
 
@@ -322,7 +325,7 @@ bool DatabaseManager::recallMessage(int messageId, int userId, int timeLimitSec)
     if (createdAt.secsTo(QDateTime::currentDateTime()) > timeLimitSec) return false;
 
     // 执行撤回
-    q.prepare("UPDATE messages SET recalled = TRUE, content = '此消息已被撤回' WHERE id = ?");
+    q.prepare("UPDATE messages SET recalled = 1, content = '此消息已被撤回' WHERE id = ?");
     q.addBindValue(messageId);
     return q.exec();
 }

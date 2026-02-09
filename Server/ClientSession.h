@@ -17,11 +17,11 @@ public:
     bool    isAuthenticated() const { return m_authenticated; }
 
     void setAuthenticated(int userId, const QString &username);
-    void disconnectFromServer();
 
 public slots:
     void init();
     void sendMessage(const QJsonObject &msg);
+    void disconnectFromServer();
 
 signals:
     void authenticated(ClientSession *session);
