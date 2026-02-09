@@ -1,0 +1,123 @@
+#pragma once
+
+#include <QMainWindow>
+#include <QMap>
+
+class QListView;
+class QListWidget;
+class QListWidgetItem;
+class QTextEdit;
+class QPushButton;
+class QSplitter;
+class QLabel;
+class QStackedWidget;
+class QAction;
+class QMenu;
+
+class MessageModel;
+class MessageDelegate;
+class EmojiPicker;
+class ThemeManager;
+class TrayManager;
+
+/// 主聊天窗口 —— MVC 架构的 View/Controller 层
+class ChatWindow : public QMainWindow {
+    Q_OBJECT
+public:
+    explicit ChatWindow(QWidget *parent = nullptr);
+    ~ChatWindow() override;
+
+    void setCurrentUser(int userId, const QString &username);
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
+    void moveEvent(QMoveEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
+    bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
+
+private slots:
+    // 房间操作
+    void onCreateRoom();
+    void onJoinRoom();
+    void onRoomCreated(bool success, int roomId, const QString &name, const QString &error);
+    void onRoomJoined(bool success, int roomId, const QString &name, const QString &error);
+    void onRoomListReceived(const QJsonArray &rooms);
+    void onRoomSelected(QListWidgetItem *item);
+
+    // 消息
+    void onSendMessage();
+    void onChatMessage(const QJsonObject &msg);
+    void onSystemMessage(const QJsonObject &msg);
+    void onHistoryReceived(int roomId, const QJsonArray &messages);
+
+    // 用户列表
+    void onUserListReceived(int roomId, const QStringList &users);
+    void onUserJoined(int roomId, const QString &username);
+    void onUserLeft(int roomId, const QString &username);
+
+    // 文件
+    void onSendFile();
+    void onSendImage();
+    void onFileNotify(const QJsonObject &data);
+    void onFileDownloadReady(const QJsonObject &data);
+
+    // 撤回
+    void onRecallMessage();
+    void onRecallResponse(bool success, int messageId, const QString &error);
+    void onRecallNotify(int messageId, int roomId, const QString &username);
+
+    // 表情
+    void onEmojiSelected(const QString &emoji);
+    void onShowEmojiPicker();
+
+    // 主题
+    void onToggleTheme();
+
+    // 连接状态
+    void onConnected();
+    void onDisconnected();
+    void onReconnecting(int attempt);
+
+    // 消息气泡右键菜单
+    void onMessageContextMenu(const QPoint &pos);
+
+    // 贴边隐藏
+    void checkEdgeHide();
+
+private:
+    void setupUi();
+    void setupMenuBar();
+    void connectSignals();
+    void switchRoom(int roomId);
+    void requestRoomList();
+    MessageModel *getOrCreateModel(int roomId);
+
+    // --- UI 组件 ---
+    QSplitter    *m_splitter       = nullptr;
+    QListWidget  *m_roomList       = nullptr;
+    QListView    *m_messageView    = nullptr;
+    QListWidget  *m_userList       = nullptr;
+    QTextEdit    *m_inputEdit      = nullptr;
+    QPushButton  *m_sendBtn        = nullptr;
+    QPushButton  *m_emojiBtn       = nullptr;
+    QPushButton  *m_fileBtn        = nullptr;
+    QPushButton  *m_imageBtn       = nullptr;
+    QLabel       *m_statusLabel    = nullptr;
+    QLabel       *m_roomTitle      = nullptr;
+    EmojiPicker  *m_emojiPicker    = nullptr;
+    TrayManager  *m_trayManager    = nullptr;
+
+    // --- 数据 ---
+    int     m_userId     = 0;
+    QString m_username;
+    int     m_currentRoomId = -1;
+
+    QMap<int, MessageModel*>  m_models;     // roomId -> MessageModel
+    MessageDelegate          *m_delegate = nullptr;
+
+    // 贴边隐藏
+    QTimer  *m_edgeTimer  = nullptr;
+    bool     m_edgeHidden = false;
+    enum EdgeSide { NoEdge, LeftEdge, RightEdge, TopEdge };
+    EdgeSide m_edgeSide   = NoEdge;
+};
