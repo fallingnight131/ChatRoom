@@ -210,6 +210,15 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
     else if (type == Protocol::MsgType::FILE_DOWNLOAD_RSP) {
         emit fileDownloadReady(data);
     }
+    else if (type == Protocol::MsgType::FILE_UPLOAD_START_RSP) {
+        emit uploadStartResponse(data);
+    }
+    else if (type == Protocol::MsgType::FILE_UPLOAD_CHUNK_RSP) {
+        emit uploadChunkResponse(data);
+    }
+    else if (type == Protocol::MsgType::FILE_DOWNLOAD_CHUNK_RSP) {
+        emit downloadChunkResponse(data);
+    }
     else if (type == Protocol::MsgType::RECALL_RSP) {
         emit recallResponse(data["success"].toBool(),
                             data["messageId"].toInt(),

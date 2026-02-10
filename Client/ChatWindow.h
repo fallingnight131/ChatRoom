@@ -2,7 +2,9 @@
 
 #include <QMainWindow>
 #include <QMap>
+#include <QSet>
 #include <QJsonArray>
+#include "Protocol.h"
 
 class QListView;
 class QListWidget;
@@ -89,6 +91,11 @@ private slots:
     // 消息气泡右键菜单
     void onMessageContextMenu(const QPoint &pos);
 
+    // 大文件分块传输
+    void onUploadStartResponse(const QJsonObject &data);
+    void onUploadChunkResponse(const QJsonObject &data);
+    void onDownloadChunkResponse(const QJsonObject &data);
+
     // 贴边隐藏
     void checkEdgeHide();
 
@@ -99,6 +106,9 @@ private:
     void switchRoom(int roomId);
     void requestRoomList();
     MessageModel *getOrCreateModel(int roomId);
+    void startChunkedUpload(const QString &filePath);
+    void sendNextChunk();
+    void startChunkedDownload(int fileId, const QString &fileName, qint64 fileSize);
 
     // --- UI 组件 ---
     QSplitter    *m_splitter       = nullptr;
@@ -123,6 +133,27 @@ private:
     QMap<int, MessageModel*>  m_models;     // roomId -> MessageModel
     MessageDelegate          *m_delegate = nullptr;
     QMap<int, bool>           m_adminRooms; // roomId -> isAdmin
+    QSet<int>                 m_joinedRooms; // 已加入过的房间（用于显示加入提示）
+
+    // --- 大文件分块上传状态 ---
+    struct ChunkedUpload {
+        QString filePath;
+        QString uploadId;
+        qint64 fileSize = 0;
+        qint64 offset   = 0;
+        int    chunkSize = Protocol::FILE_CHUNK_SIZE;
+    };
+    ChunkedUpload m_upload;
+
+    // --- 大文件分块下载状态 ---
+    struct ChunkedDownload {
+        int fileId = 0;
+        QString fileName;
+        qint64 fileSize = 0;
+        qint64 offset   = 0;
+        QByteArray buffer;
+    };
+    ChunkedDownload m_download;
 
     // 贴边隐藏
     QTimer  *m_edgeTimer  = nullptr;

@@ -64,6 +64,10 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
+    // 断开栈上 LoginDialog 与 NetworkManager 的连接，
+    // 避免强制下线后重新登录时，旧 Dialog 仍响应 loginResponse 创建重复窗口
+    QObject::disconnect(NetworkManager::instance(), nullptr, &loginDialog, nullptr);
+
     int ret = app.exec();
 
     delete chatWindow;

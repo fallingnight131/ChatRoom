@@ -126,6 +126,14 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleFileSend(session, msg);
     } else if (type == Protocol::MsgType::FILE_DOWNLOAD_REQ) {
         handleFileDownload(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::FILE_UPLOAD_START) {
+        handleFileUploadStart(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::FILE_UPLOAD_CHUNK) {
+        handleFileUploadChunk(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::FILE_UPLOAD_END) {
+        handleFileUploadEnd(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::FILE_DOWNLOAD_CHUNK_REQ) {
+        handleFileDownloadChunk(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::RECALL_REQ) {
         handleRecall(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::SET_ADMIN_REQ) {
@@ -246,21 +254,36 @@ void ChatServer::handleJoinRoom(ClientSession *session, const QJsonObject &data)
     QJsonObject rspData;
 
     if (m_roomMgr->roomExists(roomId)) {
+        bool alreadyInRoom = m_roomMgr->isUserInRoom(roomId, session->userId());
+
         m_roomMgr->addUserToRoom(roomId, session->userId(), session->username());
         m_db->joinRoom(roomId, session->userId());
+
+        // 对于系统创建的房间（creator_id <= 1），如果还没有任何管理员
+        // 则自动将首个加入的真实用户设为管理员
+        if (!alreadyInRoom && !m_db->isRoomAdmin(roomId, session->userId())) {
+            if (!m_db->hasAnyAdmin(roomId)) {
+                m_db->setRoomAdmin(roomId, session->userId(), true);
+                qInfo() << "[Server] 自动将" << session->username()
+                         << "设为房间" << roomId << "管理员";
+            }
+        }
 
         rspData["success"]  = true;
         rspData["roomId"]   = roomId;
         rspData["roomName"] = m_roomMgr->roomName(roomId);
         rspData["isAdmin"]  = m_db->isRoomAdmin(roomId, session->userId());
+        rspData["newJoin"]  = !alreadyInRoom;
 
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::JOIN_ROOM_RSP, rspData));
 
-        // 通知房间其他成员
-        QJsonObject notifyData;
-        notifyData["roomId"]   = roomId;
-        notifyData["username"] = session->username();
-        broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_JOINED, notifyData), session);
+        // 仅在用户首次加入时通知房间其他成员
+        if (!alreadyInRoom) {
+            QJsonObject notifyData;
+            notifyData["roomId"]   = roomId;
+            notifyData["username"] = session->username();
+            broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_JOINED, notifyData), session);
+        }
     } else {
         rspData["success"] = false;
         rspData["error"]   = QStringLiteral("房间不存在");
@@ -392,6 +415,157 @@ void ChatServer::handleFileDownload(ClientSession *session, const QJsonObject &d
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_RSP, rspData));
 }
 
+// ==================== 大文件分块传输 ====================
+
+void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int roomId       = data["roomId"].toInt();
+    QString fileName = data["fileName"].toString();
+    qint64 fileSize  = static_cast<qint64>(data["fileSize"].toDouble());
+
+    QJsonObject rspData;
+
+    if (fileSize > Protocol::MAX_LARGE_FILE) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("文件超过大小限制");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
+        return;
+    }
+
+    // 生成上传ID和临时文件路径
+    QString uploadId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+
+    QDir dir("server_files");
+    if (!dir.exists()) dir.mkpath(".");
+    QString safeName = QString::number(QDateTime::currentMSecsSinceEpoch()) + "_" + fileName;
+    QString filePath = dir.filePath(safeName);
+
+    auto *file = new QFile(filePath);
+    if (!file->open(QIODevice::WriteOnly)) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("服务器无法创建文件");
+        delete file;
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
+        return;
+    }
+
+    UploadState state;
+    state.roomId   = roomId;
+    state.userId   = session->userId();
+    state.username = session->username();
+    state.fileName = fileName;
+    state.filePath = filePath;
+    state.fileSize = fileSize;
+    state.received = 0;
+    state.file     = file;
+    m_uploads[uploadId] = state;
+
+    rspData["success"]  = true;
+    rspData["uploadId"] = uploadId;
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
+
+    qInfo() << "[Server] 大文件上传开始:" << fileName << fileSize << "bytes, uploadId:" << uploadId;
+}
+
+void ChatServer::handleFileUploadChunk(ClientSession *session, const QJsonObject &data) {
+    Q_UNUSED(session)
+    QString uploadId = data["uploadId"].toString();
+
+    QJsonObject rspData;
+    rspData["uploadId"] = uploadId;
+
+    if (!m_uploads.contains(uploadId)) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("无效的上传ID");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_CHUNK_RSP, rspData));
+        return;
+    }
+
+    UploadState &state = m_uploads[uploadId];
+    QByteArray chunk = QByteArray::fromBase64(data["chunkData"].toString().toLatin1());
+
+    if (state.file && state.file->isOpen()) {
+        state.file->write(chunk);
+        state.received += chunk.size();
+    }
+
+    rspData["success"]  = true;
+    rspData["received"] = static_cast<double>(state.received);
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_CHUNK_RSP, rspData));
+}
+
+void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &data) {
+    QString uploadId = data["uploadId"].toString();
+
+    if (!m_uploads.contains(uploadId)) return;
+
+    UploadState state = m_uploads.take(uploadId);
+    if (state.file) {
+        state.file->close();
+        delete state.file;
+    }
+
+    // 保存文件信息到数据库
+    int fileId = m_db->saveFile(state.roomId, state.userId, state.fileName, state.filePath, state.fileSize);
+    int msgId = m_db->saveMessage(state.roomId, state.userId, state.fileName, "file",
+                                   state.fileName, state.fileSize, fileId);
+
+    // 通知房间所有成员有新文件
+    QJsonObject notifyData;
+    notifyData["id"]          = msgId;
+    notifyData["roomId"]      = state.roomId;
+    notifyData["sender"]      = state.username;
+    notifyData["fileName"]    = state.fileName;
+    notifyData["fileSize"]    = static_cast<double>(state.fileSize);
+    notifyData["fileId"]      = fileId;
+    notifyData["contentType"] = QStringLiteral("file");
+    notifyData["content"]     = state.fileName;
+
+    broadcastToRoom(state.roomId, Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, notifyData));
+
+    qInfo() << "[Server] 大文件上传完成:" << state.fileName << state.fileSize << "bytes";
+    Q_UNUSED(session)
+}
+
+void ChatServer::handleFileDownloadChunk(ClientSession *session, const QJsonObject &data) {
+    int fileId    = data["fileId"].toInt();
+    qint64 offset = static_cast<qint64>(data["offset"].toDouble());
+    int chunkSize = data["chunkSize"].toInt();
+    if (chunkSize <= 0) chunkSize = Protocol::FILE_CHUNK_SIZE;
+
+    QString filePath = m_db->getFilePath(fileId);
+    QJsonObject rspData;
+    rspData["fileId"] = fileId;
+
+    if (filePath.isEmpty()) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("文件记录不存在");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_RSP, rspData));
+        return;
+    }
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("文件不存在");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_RSP, rspData));
+        return;
+    }
+
+    file.seek(offset);
+    QByteArray chunk = file.read(chunkSize);
+    file.close();
+
+    rspData["success"]   = true;
+    rspData["offset"]    = static_cast<double>(offset);
+    rspData["chunkData"] = QString::fromLatin1(chunk.toBase64());
+    rspData["chunkSize"] = chunk.size();
+    rspData["fileSize"]  = static_cast<double>(file.size());
+
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_RSP, rspData));
+}
+
 // ==================== 消息撤回 ====================
 
 void ChatServer::handleRecall(ClientSession *session, const QJsonObject &data) {
@@ -438,10 +612,10 @@ void ChatServer::handleSetAdmin(ClientSession *session, const QJsonObject &data)
     rspData["roomId"] = roomId;
     rspData["username"] = targetUser;
 
-    // 只有房间创建者可以设置管理员
-    if (!m_db->isRoomCreator(roomId, session->userId())) {
+    // 管理员可以设置其他管理员（不再仅限创建者）
+    if (!m_db->isRoomAdmin(roomId, session->userId())) {
         rspData["success"] = false;
-        rspData["error"] = QStringLiteral("只有房间创建者可以设置管理员");
+        rspData["error"] = QStringLiteral("只有管理员可以设置其他管理员");
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_RSP, rspData));
         return;
     }

@@ -6,6 +6,7 @@
 #include <QJsonDocument>
 #include <QByteArray>
 #include <QDataStream>
+#include <QIODevice>
 #include <QDateTime>
 #include <QUuid>
 
@@ -18,7 +19,9 @@ constexpr int HEARTBEAT_INTERVAL_MS  = 30000;   // 30秒心跳
 constexpr int HEARTBEAT_TIMEOUT_MS   = 90000;   // 90秒超时
 constexpr int RECONNECT_INTERVAL_MS  = 5000;    // 5秒重连
 constexpr int RECALL_TIME_LIMIT_SEC  = 120;     // 2分钟撤回限制
-constexpr int FILE_CHUNK_SIZE        = 65536;   // 64KB分块
+constexpr int FILE_CHUNK_SIZE        = 4 * 1024 * 1024; // 4MB 分块（base64 后 ~5.3MB）
+constexpr qint64 MAX_SMALL_FILE      = 8 * 1024 * 1024; // <=8MB 走老协议直传
+constexpr qint64 MAX_LARGE_FILE      = 4LL * 1024 * 1024 * 1024; // 4GB 上限
 
 // ==================== 消息类型 ====================
 namespace MsgType {
@@ -48,11 +51,20 @@ namespace MsgType {
     inline const QString HISTORY_REQ      = QStringLiteral("HISTORY_REQ");
     inline const QString HISTORY_RSP      = QStringLiteral("HISTORY_RSP");
 
-    // 文件传输
+    // 文件传输（小文件直传）
     inline const QString FILE_SEND        = QStringLiteral("FILE_SEND");
     inline const QString FILE_NOTIFY      = QStringLiteral("FILE_NOTIFY");
     inline const QString FILE_DOWNLOAD_REQ= QStringLiteral("FILE_DOWNLOAD_REQ");
     inline const QString FILE_DOWNLOAD_RSP= QStringLiteral("FILE_DOWNLOAD_RSP");
+
+    // 大文件分块传输
+    inline const QString FILE_UPLOAD_START  = QStringLiteral("FILE_UPLOAD_START");
+    inline const QString FILE_UPLOAD_START_RSP = QStringLiteral("FILE_UPLOAD_START_RSP");
+    inline const QString FILE_UPLOAD_CHUNK  = QStringLiteral("FILE_UPLOAD_CHUNK");
+    inline const QString FILE_UPLOAD_CHUNK_RSP = QStringLiteral("FILE_UPLOAD_CHUNK_RSP");
+    inline const QString FILE_UPLOAD_END   = QStringLiteral("FILE_UPLOAD_END");
+    inline const QString FILE_DOWNLOAD_CHUNK_REQ = QStringLiteral("FILE_DOWNLOAD_CHUNK_REQ");
+    inline const QString FILE_DOWNLOAD_CHUNK_RSP = QStringLiteral("FILE_DOWNLOAD_CHUNK_RSP");
 
     // 消息撤回
     inline const QString RECALL_REQ       = QStringLiteral("RECALL_REQ");
@@ -102,7 +114,7 @@ inline bool unpack(QByteArray &buffer, QJsonObject &msg) {
     quint32 len = 0;
     stream >> len;
 
-    if (len > 10 * 1024 * 1024) { // 单消息上限 10MB
+    if (len > 50 * 1024 * 1024) { // 单消息上限 50MB（支持大块传输）
         buffer.clear();
         return false;
     }

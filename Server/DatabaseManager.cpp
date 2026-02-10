@@ -328,8 +328,8 @@ bool DatabaseManager::recallMessage(int messageId, int userId, int timeLimitSec)
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
-    // 检查消息存在性、所有权和时间
-    q.prepare("SELECT user_id, created_at FROM messages WHERE id = ? AND recalled = 0");
+    // 检查消息存在性
+    q.prepare("SELECT user_id, created_at, room_id FROM messages WHERE id = ? AND recalled = 0");
     q.addBindValue(messageId);
     q.exec();
 
@@ -337,9 +337,15 @@ bool DatabaseManager::recallMessage(int messageId, int userId, int timeLimitSec)
 
     int ownerId = q.value(0).toInt();
     QDateTime createdAt = q.value(1).toDateTime();
+    int roomId = q.value(2).toInt();
 
-    if (ownerId != userId) return false;
-    if (createdAt.secsTo(QDateTime::currentDateTime()) > timeLimitSec) return false;
+    // 管理员可以撤回任何消息（不受时间和owner限制）
+    bool isAdmin = isRoomAdmin(roomId, userId);
+    if (!isAdmin) {
+        // 普通用户：只能撤回自己的消息，且有时间限制
+        if (ownerId != userId) return false;
+        if (createdAt.secsTo(QDateTime::currentDateTime()) > timeLimitSec) return false;
+    }
 
     // 执行撤回
     q.prepare("UPDATE messages SET recalled = 1, content = '此消息已被撤回' WHERE id = ?");
@@ -444,6 +450,24 @@ QList<int> DatabaseManager::getRoomAdmins(int roomId) {
             admins.append(uid);
     }
     return admins;
+}
+
+bool DatabaseManager::hasAnyAdmin(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    // 检查是否有真实用户（userId > 1）是创建者
+    q.prepare("SELECT creator_id FROM rooms WHERE id = ?");
+    q.addBindValue(roomId);
+    q.exec();
+    if (q.next() && q.value(0).toInt() > 1)
+        return true;
+
+    // 检查 room_admins 表
+    q.prepare("SELECT 1 FROM room_admins WHERE room_id = ? LIMIT 1");
+    q.addBindValue(roomId);
+    q.exec();
+    return q.next();
 }
 
 // ==================== 管理员操作 - 删除消息 ====================

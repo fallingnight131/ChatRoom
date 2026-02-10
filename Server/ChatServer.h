@@ -5,6 +5,7 @@
 #include <QSet>
 #include <QMutex>
 #include <QJsonObject>
+#include <QFile>
 
 class ClientSession;
 class DatabaseManager;
@@ -52,6 +53,10 @@ private:
     void handleHistory(ClientSession *session, const QJsonObject &data);
     void handleFileSend(ClientSession *session, const QJsonObject &msg);
     void handleFileDownload(ClientSession *session, const QJsonObject &data);
+    void handleFileUploadStart(ClientSession *session, const QJsonObject &data);
+    void handleFileUploadChunk(ClientSession *session, const QJsonObject &data);
+    void handleFileUploadEnd(ClientSession *session, const QJsonObject &data);
+    void handleFileDownloadChunk(ClientSession *session, const QJsonObject &data);
     void handleRecall(ClientSession *session, const QJsonObject &data);
     void handleSetAdmin(ClientSession *session, const QJsonObject &data);
     void handleDeleteMessages(ClientSession *session, const QJsonObject &data);
@@ -61,4 +66,17 @@ private:
 
     mutable QMutex m_mutex;
     QMap<QString, ClientSession*> m_sessions;  // username -> session
+
+    // 大文件上传临时状态
+    struct UploadState {
+        int roomId = 0;
+        int userId = 0;
+        QString username;
+        QString fileName;
+        QString filePath;    // 临时文件路径
+        qint64 fileSize = 0;
+        qint64 received = 0;
+        QFile *file = nullptr;
+    };
+    QMap<QString, UploadState> m_uploads;  // uploadId -> state
 };

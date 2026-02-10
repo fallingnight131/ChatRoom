@@ -40,6 +40,7 @@ public:
     bool isRoomAdmin(int roomId, int userId);
     bool isRoomCreator(int roomId, int userId);
     bool setRoomAdmin(int roomId, int userId, bool isAdmin);
+    bool hasAnyAdmin(int roomId);
     QList<int> getRoomAdmins(int roomId);
 
     // 管理员操作 - 删除消息

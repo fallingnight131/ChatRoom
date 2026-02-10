@@ -28,6 +28,7 @@
 #include <QCloseEvent>
 #include <QClipboard>
 #include <QTimer>
+#include <QPixmapCache>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QApplication>
@@ -247,6 +248,11 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::fileNotify,       this, &ChatWindow::onFileNotify);
     connect(net, &NetworkManager::fileDownloadReady, this, &ChatWindow::onFileDownloadReady);
 
+    // 大文件分块传输
+    connect(net, &NetworkManager::uploadStartResponse, this, &ChatWindow::onUploadStartResponse);
+    connect(net, &NetworkManager::uploadChunkResponse, this, &ChatWindow::onUploadChunkResponse);
+    connect(net, &NetworkManager::downloadChunkResponse, this, &ChatWindow::onDownloadChunkResponse);
+
     // 撤回
     connect(net, &NetworkManager::recallResponse, this, &ChatWindow::onRecallResponse);
     connect(net, &NetworkManager::recallNotify,   this, &ChatWindow::onRecallNotify);
@@ -326,6 +332,14 @@ void ChatWindow::onRoomJoined(bool success, int roomId, const QString &name, con
         }
 found:
         switchRoom(roomId);
+
+        // 首次加入时显示自己的加入提示
+        if (!m_joinedRooms.contains(roomId)) {
+            m_joinedRooms.insert(roomId);
+            Message sysMsg = Message::createSystemMessage(roomId,
+                QString("你加入了聊天室 %1").arg(name));
+            getOrCreateModel(roomId)->addMessage(sysMsg);
+        }
     } else {
         QMessageBox::warning(this, "加入失败", error);
     }
@@ -342,10 +356,21 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
         m_roomList->addItem(item);
     }
 
-    // 自动加入大厅
-    if (m_roomList->count() > 0) {
-        int firstRoomId = m_roomList->item(0)->data(Qt::UserRole).toInt();
-        NetworkManager::instance()->sendMessage(Protocol::makeJoinRoomReq(firstRoomId));
+    // 自动加入房间：优先恢复到之前的房间，否则加入第一个
+    int targetRoomId = -1;
+    if (m_currentRoomId > 0) {
+        for (int i = 0; i < m_roomList->count(); ++i) {
+            if (m_roomList->item(i)->data(Qt::UserRole).toInt() == m_currentRoomId) {
+                targetRoomId = m_currentRoomId;
+                break;
+            }
+        }
+    }
+    if (targetRoomId < 0 && m_roomList->count() > 0) {
+        targetRoomId = m_roomList->item(0)->data(Qt::UserRole).toInt();
+    }
+    if (targetRoomId > 0) {
+        NetworkManager::instance()->sendMessage(Protocol::makeJoinRoomReq(targetRoomId));
     }
 }
 
@@ -499,7 +524,10 @@ void ChatWindow::onUserListReceived(int roomId, const QStringList &users) {
 
 void ChatWindow::onUserJoined(int roomId, const QString &username) {
     if (roomId == m_currentRoomId) {
-        m_userList->addItem(username);
+        // 避免重复添加
+        if (m_userList->findItems(username, Qt::MatchExactly).isEmpty()) {
+            m_userList->addItem(username);
+        }
 
         // 添加系统消息
         Message sysMsg = Message::createSystemMessage(roomId,
@@ -528,25 +556,35 @@ void ChatWindow::onSendFile() {
     QString filePath = QFileDialog::getOpenFileName(this, "选择文件");
     if (filePath.isEmpty()) return;
 
+    QFileInfo fi(filePath);
+    if (!fi.exists()) return;
+
+    if (fi.size() > Protocol::MAX_LARGE_FILE) {
+        QMessageBox::warning(this, "错误",
+            QString("文件大小不能超过%1GB").arg(Protocol::MAX_LARGE_FILE / 1024 / 1024 / 1024));
+        return;
+    }
+
+    // 大文件走分块传输
+    if (fi.size() > Protocol::MAX_SMALL_FILE) {
+        startChunkedUpload(filePath);
+        return;
+    }
+
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
         QMessageBox::warning(this, "错误", "无法打开文件");
         return;
     }
 
-    if (file.size() > 10 * 1024 * 1024) {
-        QMessageBox::warning(this, "错误", "文件大小不能超过10MB");
-        return;
-    }
-
     QByteArray data = file.readAll();
-    QFileInfo fi(filePath);
+    file.close();
 
     QJsonObject msgData;
     msgData["roomId"]   = m_currentRoomId;
     msgData["fileName"] = fi.fileName();
     msgData["fileSize"] = static_cast<double>(fi.size());
-    msgData["fileData"] = QString::fromUtf8(data.toBase64());
+    msgData["fileData"] = QString::fromLatin1(data.toBase64());
 
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FILE_SEND, msgData));
@@ -558,25 +596,28 @@ void ChatWindow::onSendImage() {
     if (m_currentRoomId < 0) return;
 
     QString filePath = QFileDialog::getOpenFileName(this, "选择图片",
-        QString(), "图片 (*.png *.jpg *.jpeg *.gif *.bmp)");
+        QString(), "图片 (*.png *.jpg *.jpeg *.gif *.bmp *.webp)");
     if (filePath.isEmpty()) return;
 
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) return;
+    QFileInfo fi(filePath);
+    if (!fi.exists()) return;
 
-    if (file.size() > 5 * 1024 * 1024) {
-        QMessageBox::warning(this, "错误", "图片大小不能超过5MB");
+    if (fi.size() > Protocol::MAX_SMALL_FILE) {
+        QMessageBox::warning(this, "错误",
+            QString("图片大小不能超过%1MB").arg(Protocol::MAX_SMALL_FILE / 1024 / 1024));
         return;
     }
 
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) return;
     QByteArray data = file.readAll();
-    QFileInfo fi(filePath);
+    file.close();
 
     QJsonObject msgData;
     msgData["roomId"]   = m_currentRoomId;
     msgData["fileName"] = fi.fileName();
     msgData["fileSize"] = static_cast<double>(fi.size());
-    msgData["fileData"] = QString::fromUtf8(data.toBase64());
+    msgData["fileData"] = QString::fromLatin1(data.toBase64());
 
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FILE_SEND, msgData));
@@ -605,11 +646,17 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
 
     // 自动下载缓存文件（类似微信，接收后自动缓存）
     if (!FileCache::instance()->isCached(fileId)) {
-        QJsonObject reqData;
-        reqData["fileId"]   = fileId;
-        reqData["fileName"] = fileName;
-        NetworkManager::instance()->sendMessage(
-            Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_REQ, reqData));
+        qint64 fSize = static_cast<qint64>(data["fileSize"].toDouble());
+        if (fSize > Protocol::MAX_SMALL_FILE) {
+            // 大文件用分块下载
+            startChunkedDownload(fileId, fileName, fSize);
+        } else {
+            QJsonObject reqData;
+            reqData["fileId"]   = fileId;
+            reqData["fileName"] = fileName;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_REQ, reqData));
+        }
     }
 }
 
@@ -628,10 +675,12 @@ void ChatWindow::onFileDownloadReady(const QJsonObject &data) {
     if (!localPath.isEmpty()) {
         m_statusLabel->setText("文件已缓存: " + fileName);
 
-        // 如果是图片，强制刷新视图以更新图片预览和行高
+        // 如果是图片，清除旧的 QPixmapCache 并强制刷新视图
         QString lower = fileName.toLower();
         if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")
             || lower.endsWith(".gif") || lower.endsWith(".bmp") || lower.endsWith(".webp")) {
+            // 清除旧的 pixmap 缓存，使用新文件数据
+            QPixmapCache::remove(QString("msgimg_%1").arg(fileId));
             // 通知所有模型该消息数据已变化，触发 sizeHint 重新计算
             for (auto it = m_models.begin(); it != m_models.end(); ++it) {
                 int row = it.value()->findMessageByFileId(fileId);
@@ -647,6 +696,148 @@ void ChatWindow::onFileDownloadReady(const QJsonObject &data) {
     }
 }
 
+// ==================== 大文件分块传输 ====================
+
+void ChatWindow::startChunkedUpload(const QString &filePath) {
+    QFileInfo fi(filePath);
+    m_upload.filePath  = filePath;
+    m_upload.fileSize  = fi.size();
+    m_upload.offset    = 0;
+    m_upload.uploadId.clear();
+
+    // 发送上传开始请求
+    QJsonObject data;
+    data["roomId"]   = m_currentRoomId;
+    data["fileName"] = fi.fileName();
+    data["fileSize"] = static_cast<double>(fi.size());
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START, data));
+
+    m_statusLabel->setText(QString("准备上传: %1 (%2)")
+        .arg(fi.fileName())
+        .arg(QLocale().formattedDataSize(fi.size())));
+}
+
+void ChatWindow::onUploadStartResponse(const QJsonObject &data) {
+    if (!data["success"].toBool()) {
+        QMessageBox::warning(this, "上传失败", data["error"].toString());
+        return;
+    }
+    m_upload.uploadId = data["uploadId"].toString();
+    sendNextChunk();
+}
+
+void ChatWindow::sendNextChunk() {
+    QFile file(m_upload.filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, "错误", "无法读取文件");
+        return;
+    }
+
+    file.seek(m_upload.offset);
+    QByteArray chunk = file.read(m_upload.chunkSize);
+    file.close();
+
+    if (chunk.isEmpty()) return;
+
+    QJsonObject data;
+    data["uploadId"] = m_upload.uploadId;
+    data["offset"]   = static_cast<double>(m_upload.offset);
+    data["chunkData"] = QString::fromLatin1(chunk.toBase64());
+    data["chunkSize"] = chunk.size();
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_CHUNK, data));
+
+    m_upload.offset += chunk.size();
+    int progress = static_cast<int>(m_upload.offset * 100 / m_upload.fileSize);
+    m_statusLabel->setText(QString("上传中 %1%...").arg(progress));
+}
+
+void ChatWindow::onUploadChunkResponse(const QJsonObject &data) {
+    if (!data["success"].toBool()) {
+        QMessageBox::warning(this, "上传失败", data["error"].toString());
+        return;
+    }
+
+    if (m_upload.offset >= m_upload.fileSize) {
+        // 所有块发送完毕，通知服务器结束
+        QJsonObject endData;
+        endData["uploadId"] = m_upload.uploadId;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_END, endData));
+        m_statusLabel->setText("文件上传完成");
+    } else {
+        sendNextChunk();
+    }
+}
+
+void ChatWindow::startChunkedDownload(int fileId, const QString &fileName, qint64 fileSize) {
+    m_download.fileId   = fileId;
+    m_download.fileName = fileName;
+    m_download.fileSize = fileSize;
+    m_download.offset   = 0;
+    m_download.buffer.clear();
+    m_download.buffer.reserve(static_cast<int>(qMin(fileSize, (qint64)100 * 1024 * 1024)));
+
+    // 请求第一个块
+    QJsonObject data;
+    data["fileId"]   = fileId;
+    data["offset"]   = 0.0;
+    data["chunkSize"] = Protocol::FILE_CHUNK_SIZE;
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_REQ, data));
+
+    m_statusLabel->setText(QString("下载中 %1...").arg(fileName));
+}
+
+void ChatWindow::onDownloadChunkResponse(const QJsonObject &data) {
+    if (!data["success"].toBool()) {
+        m_statusLabel->setText("下载失败: " + data["error"].toString());
+        return;
+    }
+
+    QByteArray chunk = QByteArray::fromBase64(data["chunkData"].toString().toLatin1());
+    m_download.buffer.append(chunk);
+    m_download.offset += chunk.size();
+
+    int progress = static_cast<int>(m_download.offset * 100 / m_download.fileSize);
+    m_statusLabel->setText(QString("下载中 %1%...").arg(progress));
+
+    if (m_download.offset >= m_download.fileSize) {
+        // 下载完毕，缓存
+        QString localPath = FileCache::instance()->cacheFile(
+            m_download.fileId, m_download.fileName, m_download.buffer);
+        if (!localPath.isEmpty()) {
+            m_statusLabel->setText("文件已缓存: " + m_download.fileName);
+
+            // 刷新图片预览
+            QString lower = m_download.fileName.toLower();
+            if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")
+                || lower.endsWith(".gif") || lower.endsWith(".bmp") || lower.endsWith(".webp")) {
+                QPixmapCache::remove(QString("msgimg_%1").arg(m_download.fileId));
+                for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+                    int row = it.value()->findMessageByFileId(m_download.fileId);
+                    if (row >= 0) {
+                        QModelIndex idx = it.value()->index(row, 0);
+                        emit it.value()->dataChanged(idx, idx);
+                    }
+                }
+                m_messageView->doItemsLayout();
+                m_messageView->viewport()->update();
+            }
+        }
+        m_download.buffer.clear();
+    } else {
+        // 继续请求下一个块
+        QJsonObject reqData;
+        reqData["fileId"]   = m_download.fileId;
+        reqData["offset"]   = static_cast<double>(m_download.offset);
+        reqData["chunkSize"] = Protocol::FILE_CHUNK_SIZE;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_REQ, reqData));
+    }
+}
+
 // ==================== 消息撤回 ====================
 
 void ChatWindow::onRecallMessage() {
@@ -657,11 +848,6 @@ void ChatWindow::onRecallMessage() {
 
     MessageModel *model = getOrCreateModel(m_currentRoomId);
     const Message &msg = model->messageAt(idx.row());
-
-    if (msg.sender() != m_username) {
-        QMessageBox::warning(this, "提示", "只能撤回自己的消息");
-        return;
-    }
 
     NetworkManager::instance()->sendMessage(
         Protocol::makeRecallReq(msg.id(), m_currentRoomId));
@@ -686,8 +872,10 @@ void ChatWindow::onAdminStatusChanged(int roomId, bool isAdmin) {
     m_adminRooms[roomId] = isAdmin;
     if (roomId == m_currentRoomId) {
         m_roomTitle->setText(m_roomTitle->text().remove(QStringLiteral(" [管理员]")));
-        if (isAdmin)
+        if (isAdmin) {
             m_roomTitle->setText(m_roomTitle->text() + QStringLiteral(" [管理员]"));
+            m_statusLabel->setText(QStringLiteral("提示: 右键消息或用户列表可使用管理功能"));
+        }
     }
 }
 
@@ -799,8 +987,13 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
         }
     }
 
+    // 普通用户可以撤回自己2分钟内的消息
     if (msg.sender() == m_username && !msg.recalled()) {
-        menu.addAction("撤回消息", this, &ChatWindow::onRecallMessage);
+        // 检查2分钟内的消息
+        int secs = msg.timestamp().secsTo(QDateTime::currentDateTime());
+        if (secs <= Protocol::RECALL_TIME_LIMIT_SEC) {
+            menu.addAction("撤回消息", this, &ChatWindow::onRecallMessage);
+        }
     }
 
     menu.addAction("复制文本", [&msg] {
@@ -811,6 +1004,14 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
     if (m_adminRooms.value(m_currentRoomId, false) && !msg.recalled()) {
         menu.addSeparator();
         QMenu *adminMenu = menu.addMenu("管理员操作");
+
+        // 管理员撤回消息（无时间限制，可撤回任何人的消息）
+        int recallMsgId = msg.id();
+        int recallRoomId = m_currentRoomId;
+        adminMenu->addAction("撤回此消息", [this, recallMsgId, recallRoomId] {
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeRecallReq(recallMsgId, recallRoomId));
+        });
 
         // 删除这条消息
         int msgId = msg.id();
@@ -886,11 +1087,8 @@ void ChatWindow::onConnected() {
     m_statusLabel->setText("已连接");
     m_statusLabel->setStyleSheet("color: green;");
 
-    // 重连后自动重新加入之前的房间
-    if (m_currentRoomId > 0) {
-        NetworkManager::instance()->sendMessage(
-            Protocol::makeJoinRoomReq(m_currentRoomId));
-    }
+    // 重连后请求房间列表，onRoomListReceived 会自动加入合适的房间
+    // 不再额外发送 JOIN_ROOM_REQ，避免重复加入
     requestRoomList();
 }
 

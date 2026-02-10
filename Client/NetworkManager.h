@@ -53,6 +53,11 @@ signals:
     void fileNotify(const QJsonObject &data);
     void fileDownloadReady(const QJsonObject &data);
 
+    // 大文件分块传输
+    void uploadStartResponse(const QJsonObject &data);
+    void uploadChunkResponse(const QJsonObject &data);
+    void downloadChunkResponse(const QJsonObject &data);
+
     // 撤回
     void recallResponse(bool success, int messageId, const QString &error);
     void recallNotify(int messageId, int roomId, const QString &username);

@@ -62,6 +62,13 @@ void RoomManager::removeUserFromRoom(int roomId, int userId) {
         m_rooms[roomId].members.remove(userId);
 }
 
+bool RoomManager::isUserInRoom(int roomId, int userId) const {
+    QMutexLocker locker(&m_mutex);
+    if (m_rooms.contains(roomId))
+        return m_rooms[roomId].members.contains(userId);
+    return false;
+}
+
 QStringList RoomManager::usersInRoom(int roomId) const {
     QMutexLocker locker(&m_mutex);
     QStringList list;
