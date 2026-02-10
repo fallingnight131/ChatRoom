@@ -71,6 +71,15 @@ signals:
     void deleteMsgsResponse(bool success, int roomId, int deletedCount, const QString &mode, const QString &error);
     void deleteMsgsNotify(int roomId, const QString &mode, const QJsonArray &messageIds);
 
+    // 头像
+    void avatarUploadResponse(bool success, const QString &error);
+    void avatarGetResponse(const QString &username, const QByteArray &avatarData);
+    void avatarUpdateNotify(const QString &username, const QByteArray &avatarData);
+
+    // 房间设置
+    void roomSettingsResponse(int roomId, bool success, qint64 maxFileSize, const QString &error);
+    void roomSettingsNotify(int roomId, qint64 maxFileSize);
+
 private slots:
     void onConnected();
     void onDisconnected();

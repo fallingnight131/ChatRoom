@@ -6,6 +6,7 @@
 #include "ThemeManager.h"
 #include "TrayManager.h"
 #include "FileCache.h"
+#include "AvatarCropDialog.h"
 #include "Protocol.h"
 #include "Message.h"
 
@@ -36,7 +37,18 @@
 #include <QScrollBar>
 #include <QFile>
 #include <QFileInfo>
+#include <QKeyEvent>
+#include <QBuffer>
+#include <QPainter>
+#include <QPainterPath>
 #include <QDebug>
+
+// 静态头像缓存
+QMap<QString, QPixmap> ChatWindow::s_avatarCache;
+
+QPixmap ChatWindow::avatarForUser(const QString &username) {
+    return s_avatarCache.value(username);
+}
 
 // ==================== 构造/析构 ====================
 
@@ -71,6 +83,27 @@ void ChatWindow::setCurrentUser(int userId, const QString &username) {
     m_username = username;
     setWindowTitle(QString("Qt聊天室 - %1").arg(username));
     requestRoomList();
+
+    // 请求自己的头像
+    requestAvatar(username);
+}
+
+// ==================== 事件过滤器 (Enter发送) ====================
+
+bool ChatWindow::eventFilter(QObject *watched, QEvent *event) {
+    if (watched == m_inputEdit && event->type() == QEvent::KeyPress) {
+        auto *keyEvent = static_cast<QKeyEvent*>(event);
+        if (keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) {
+            if (keyEvent->modifiers() & Qt::ShiftModifier) {
+                // Shift+Enter -> 换行
+                return false; // 让 QTextEdit 处理
+            }
+            // 纯 Enter -> 发送消息
+            onSendMessage();
+            return true; // 拦截，不插入换行
+        }
+    }
+    return QMainWindow::eventFilter(watched, event);
 }
 
 // ==================== UI 构建 ====================
@@ -89,6 +122,22 @@ void ChatWindow::setupUi() {
     auto *leftPanel = new QWidget;
     auto *leftLayout = new QVBoxLayout(leftPanel);
     leftLayout->setContentsMargins(4, 4, 4, 4);
+
+    // 头像区域
+    auto *avatarLayout = new QHBoxLayout;
+    m_avatarPreview = new QLabel;
+    m_avatarPreview->setFixedSize(40, 40);
+    m_avatarPreview->setStyleSheet("border: 1px solid #ccc; border-radius: 20px; background: #ddd;");
+    m_avatarPreview->setScaledContents(true);
+    m_avatarPreview->setAlignment(Qt::AlignCenter);
+    m_avatarPreview->setText("头像");
+
+    m_avatarBtn = new QPushButton("更换头像");
+    m_avatarBtn->setFixedHeight(28);
+    m_avatarBtn->setToolTip("点击更换头像");
+    avatarLayout->addWidget(m_avatarPreview);
+    avatarLayout->addWidget(m_avatarBtn, 1);
+    leftLayout->addLayout(avatarLayout);
 
     auto *roomLabel = new QLabel("聊天室");
     roomLabel->setStyleSheet("font-weight: bold; font-size: 14px; padding: 4px;");
@@ -157,7 +206,18 @@ void ChatWindow::setupUi() {
     auto *sendLayout = new QHBoxLayout;
     m_inputEdit = new QTextEdit;
     m_inputEdit->setMaximumHeight(80);
-    m_inputEdit->setPlaceholderText("输入消息...");
+    m_inputEdit->setPlaceholderText("输入消息... (Enter发送, Shift+Enter换行)");
+    m_inputEdit->installEventFilter(this);
+    m_inputEdit->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_inputEdit, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
+        QMenu *menu = m_inputEdit->createStandardContextMenu();
+        menu->addSeparator();
+        menu->addAction("插入换行", [this] {
+            m_inputEdit->insertPlainText("\n");
+        });
+        menu->exec(m_inputEdit->mapToGlobal(pos));
+        delete menu;
+    });
     m_sendBtn = new QPushButton("发送");
     m_sendBtn->setFixedSize(80, 60);
     m_sendBtn->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; "
@@ -268,10 +328,20 @@ void ChatWindow::connectSignals() {
     connect(m_emojiBtn,    &QPushButton::clicked, this, &ChatWindow::onShowEmojiPicker);
     connect(m_imageBtn,    &QPushButton::clicked, this, &ChatWindow::onSendImage);
     connect(m_fileBtn,     &QPushButton::clicked, this, &ChatWindow::onSendFile);
+    connect(m_avatarBtn,   &QPushButton::clicked, this, &ChatWindow::onChangeAvatar);
     connect(m_roomList,    &QListWidget::itemClicked, this, &ChatWindow::onRoomSelected);
     connect(m_emojiPicker, &EmojiPicker::emojiSelected, this, &ChatWindow::onEmojiSelected);
     connect(m_messageView, &QListView::customContextMenuRequested, this, &ChatWindow::onMessageContextMenu);
     connect(m_userList,    &QListWidget::customContextMenuRequested, this, &ChatWindow::onUserContextMenu);
+
+    // 头像
+    connect(net, &NetworkManager::avatarUploadResponse, this, &ChatWindow::onAvatarUploadResponse);
+    connect(net, &NetworkManager::avatarGetResponse,    this, &ChatWindow::onAvatarGetResponse);
+    connect(net, &NetworkManager::avatarUpdateNotify,   this, &ChatWindow::onAvatarUpdateNotify);
+
+    // 房间设置
+    connect(net, &NetworkManager::roomSettingsResponse, this, &ChatWindow::onRoomSettingsResponse);
+    connect(net, &NetworkManager::roomSettingsNotify,   this, &ChatWindow::onRoomSettingsNotify);
 
     // 双击打开文件/图片
     connect(m_messageView, &QListView::doubleClicked, this, [this](const QModelIndex &idx) {
@@ -518,6 +588,11 @@ void ChatWindow::onUserListReceived(int roomId, const QStringList &users) {
             if (u == m_username)
                 item->setForeground(Qt::blue);
             m_userList->addItem(item);
+
+            // 请求未缓存用户的头像
+            if (!s_avatarCache.contains(u)) {
+                requestAvatar(u);
+            }
         }
     }
 }
@@ -935,6 +1010,21 @@ void ChatWindow::onUserContextMenu(const QPoint &pos) {
             Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
     });
 
+    menu.addSeparator();
+    menu.addAction(QStringLiteral("设置文件大小上限..."), [this] {
+        bool ok;
+        double sizeMB = QInputDialog::getDouble(this, "设置文件大小上限",
+            "请输入允许的最大文件大小（MB，0表示无限制）:",
+            0.0, 0.0, 1024.0, 1, &ok);
+        if (!ok) return;
+        qint64 sizeBytes = static_cast<qint64>(sizeMB * 1024 * 1024);
+        QJsonObject data;
+        data["roomId"] = m_currentRoomId;
+        data["maxFileSize"] = static_cast<double>(sizeBytes);
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
+    });
+
     menu.exec(m_userList->viewport()->mapToGlobal(pos));
 }
 
@@ -1126,6 +1216,114 @@ void ChatWindow::resizeEvent(QResizeEvent *event) {
 
 bool ChatWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr *result) {
     return QMainWindow::nativeEvent(eventType, message, result);
+}
+
+// ==================== 头像功能 ====================
+
+void ChatWindow::onChangeAvatar() {
+    QString filePath = QFileDialog::getOpenFileName(this, "选择头像图片", QString(),
+        "图片文件 (*.png *.jpg *.jpeg *.bmp *.gif)");
+    if (filePath.isEmpty()) return;
+
+    QPixmap img(filePath);
+    if (img.isNull()) {
+        QMessageBox::warning(this, "错误", "无法加载图片");
+        return;
+    }
+
+    AvatarCropDialog dlg(img, this);
+    if (dlg.exec() != QDialog::Accepted) return;
+
+    QPixmap cropped = dlg.croppedAvatar();
+    if (cropped.isNull()) return;
+
+    // 转为 PNG 字节数据
+    QByteArray pngData;
+    QBuffer buf(&pngData);
+    buf.open(QIODevice::WriteOnly);
+    cropped.save(&buf, "PNG");
+    buf.close();
+
+    if (pngData.size() > 256 * 1024) {
+        QMessageBox::warning(this, "提示", "头像数据过大，请选择更小的图片或裁剪区域");
+        return;
+    }
+
+    // 发送上传请求
+    QJsonObject data;
+    data["avatarData"] = QString::fromLatin1(pngData.toBase64());
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::AVATAR_UPLOAD_REQ, data));
+}
+
+void ChatWindow::onAvatarUploadResponse(bool success, const QString &error) {
+    if (success) {
+        m_statusLabel->setText("头像上传成功");
+        // 请求自己的头像以更新缓存
+        requestAvatar(m_username);
+    } else {
+        QMessageBox::warning(this, "头像上传失败", error);
+    }
+}
+
+void ChatWindow::onAvatarGetResponse(const QString &username, const QByteArray &avatarData) {
+    if (avatarData.isEmpty()) return;
+    cacheAvatar(username, avatarData);
+}
+
+void ChatWindow::onAvatarUpdateNotify(const QString &username, const QByteArray &avatarData) {
+    if (avatarData.isEmpty()) return;
+    cacheAvatar(username, avatarData);
+}
+
+void ChatWindow::cacheAvatar(const QString &username, const QByteArray &data) {
+    QPixmap px;
+    px.loadFromData(data);
+    if (px.isNull()) return;
+
+    s_avatarCache[username] = px;
+
+    // 如果是自己的头像，更新预览
+    if (username == m_username && m_avatarPreview) {
+        QPixmap scaled = px.scaled(48, 48, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+        // 裁剪为圆形
+        QPixmap circle(48, 48);
+        circle.fill(Qt::transparent);
+        QPainter painter(&circle);
+        painter.setRenderHint(QPainter::Antialiasing);
+        QPainterPath path;
+        path.addEllipse(0, 0, 48, 48);
+        painter.setClipPath(path);
+        painter.drawPixmap(0, 0, scaled);
+        painter.end();
+        m_avatarPreview->setPixmap(circle);
+    }
+
+    // 刷新消息列表以显示新头像
+    if (m_messageView && m_messageView->model()) {
+        m_messageView->viewport()->update();
+    }
+}
+
+void ChatWindow::requestAvatar(const QString &username) {
+    QJsonObject data;
+    data["username"] = username;
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::AVATAR_GET_REQ, data));
+}
+
+// ==================== 房间设置 ====================
+
+void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFileSize, const QString &error) {
+    if (success) {
+        m_roomMaxFileSize[roomId] = maxFileSize;
+    } else {
+        QMessageBox::warning(this, "设置失败", error);
+    }
+}
+
+void ChatWindow::onRoomSettingsNotify(int roomId, qint64 maxFileSize) {
+    m_roomMaxFileSize[roomId] = maxFileSize;
 }
 
 // ==================== 贴边隐藏 ====================

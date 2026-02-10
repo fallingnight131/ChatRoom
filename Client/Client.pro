@@ -16,7 +16,8 @@ SOURCES += \
     EmojiPicker.cpp \
     ThemeManager.cpp \
     TrayManager.cpp \
-    FileCache.cpp
+    FileCache.cpp \
+    AvatarCropDialog.cpp
 
 HEADERS += \
     NetworkManager.h \
@@ -27,7 +28,8 @@ HEADERS += \
     EmojiPicker.h \
     ThemeManager.h \
     TrayManager.h \
-    FileCache.h
+    FileCache.h \
+    AvatarCropDialog.h
 
 RESOURCES += \
     resources/resources.qrc

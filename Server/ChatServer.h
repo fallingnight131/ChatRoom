@@ -60,6 +60,9 @@ private:
     void handleRecall(ClientSession *session, const QJsonObject &data);
     void handleSetAdmin(ClientSession *session, const QJsonObject &data);
     void handleDeleteMessages(ClientSession *session, const QJsonObject &data);
+    void handleRoomSettings(ClientSession *session, const QJsonObject &data);
+    void handleAvatarUpload(ClientSession *session, const QJsonObject &data);
+    void handleAvatarGet(ClientSession *session, const QJsonObject &data);
 
     DatabaseManager *m_db       = nullptr;
     RoomManager     *m_roomMgr  = nullptr;

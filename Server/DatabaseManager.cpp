@@ -131,6 +131,21 @@ bool DatabaseManager::initialize() {
            "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
            ")");
 
+    // 房间设置表
+    q.exec("CREATE TABLE IF NOT EXISTS room_settings ("
+           "  room_id INTEGER PRIMARY KEY,"
+           "  max_file_size INTEGER DEFAULT 0,"
+           "  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE"
+           ")");
+
+    // 用户头像表
+    q.exec("CREATE TABLE IF NOT EXISTS user_avatars ("
+           "  user_id INTEGER PRIMARY KEY,"
+           "  avatar_data BLOB,"
+           "  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+           "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+           ")");
+
     // 创建默认大厅
     q.prepare("SELECT id FROM rooms WHERE id = 1");
     q.exec();
@@ -388,6 +403,19 @@ QString DatabaseManager::getFilePath(int fileId) {
     return {};
 }
 
+QString DatabaseManager::getFileName(int fileId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    q.prepare("SELECT file_name FROM files WHERE id = ?");
+    q.addBindValue(fileId);
+    q.exec();
+
+    if (q.next())
+        return q.value(0).toString();
+    return {};
+}
+
 // ==================== 管理员管理 ====================
 
 bool DatabaseManager::isRoomAdmin(int roomId, int userId) {
@@ -522,4 +550,61 @@ int DatabaseManager::deleteMessagesAfter(int roomId, const QDateTime &after) {
     if (q.exec())
         return q.numRowsAffected();
     return -1;
+}
+
+// ==================== 房间设置 ====================
+
+qint64 DatabaseManager::getRoomMaxFileSize(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT max_file_size FROM room_settings WHERE room_id = ?");
+    q.addBindValue(roomId);
+    q.exec();
+    if (q.next())
+        return q.value(0).toLongLong();
+    return 0; // 0 表示无限制
+}
+
+bool DatabaseManager::setRoomMaxFileSize(int roomId, qint64 maxSize) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("INSERT OR REPLACE INTO room_settings (room_id, max_file_size) VALUES (?, ?)");
+    q.addBindValue(roomId);
+    q.addBindValue(maxSize);
+    return q.exec();
+}
+
+// ==================== 用户头像 ====================
+
+QByteArray DatabaseManager::getUserAvatar(int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT avatar_data FROM user_avatars WHERE user_id = ?");
+    q.addBindValue(userId);
+    q.exec();
+    if (q.next())
+        return q.value(0).toByteArray();
+    return {};
+}
+
+bool DatabaseManager::setUserAvatar(int userId, const QByteArray &avatarData) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("INSERT OR REPLACE INTO user_avatars (user_id, avatar_data, updated_at) "
+              "VALUES (?, ?, CURRENT_TIMESTAMP)");
+    q.addBindValue(userId);
+    q.addBindValue(avatarData);
+    return q.exec();
+}
+
+QByteArray DatabaseManager::getUserAvatarByName(const QString &username) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT a.avatar_data FROM user_avatars a "
+              "JOIN users u ON a.user_id = u.id WHERE u.username = ?");
+    q.addBindValue(username);
+    q.exec();
+    if (q.next())
+        return q.value(0).toByteArray();
+    return {};
 }

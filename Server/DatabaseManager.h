@@ -35,6 +35,7 @@ public:
     int     saveFile(int roomId, int userId, const QString &fileName,
                      const QString &filePath, qint64 fileSize);
     QString getFilePath(int fileId);
+    QString getFileName(int fileId);
 
     // 管理员管理
     bool isRoomAdmin(int roomId, int userId);
@@ -48,6 +49,15 @@ public:
     int  deleteAllMessages(int roomId);
     int  deleteMessagesBefore(int roomId, const QDateTime &before);
     int  deleteMessagesAfter(int roomId, const QDateTime &after);
+
+    // 房间设置
+    qint64 getRoomMaxFileSize(int roomId);
+    bool   setRoomMaxFileSize(int roomId, qint64 maxSize);
+
+    // 用户头像
+    QByteArray getUserAvatar(int userId);
+    bool       setUserAvatar(int userId, const QByteArray &avatarData);
+    QByteArray getUserAvatarByName(const QString &username);
 
 private:
     QSqlDatabase getConnection();

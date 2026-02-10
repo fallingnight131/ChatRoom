@@ -32,11 +32,15 @@ public:
 
     void setCurrentUser(int userId, const QString &username);
 
+    /// 获取用户头像缓存
+    static QPixmap avatarForUser(const QString &username);
+
 protected:
     void closeEvent(QCloseEvent *event) override;
     void moveEvent(QMoveEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     bool nativeEvent(const QByteArray &eventType, void *message, qintptr *result) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
     // 房间操作
@@ -96,6 +100,16 @@ private slots:
     void onUploadChunkResponse(const QJsonObject &data);
     void onDownloadChunkResponse(const QJsonObject &data);
 
+    // 头像
+    void onChangeAvatar();
+    void onAvatarUploadResponse(bool success, const QString &error);
+    void onAvatarGetResponse(const QString &username, const QByteArray &avatarData);
+    void onAvatarUpdateNotify(const QString &username, const QByteArray &avatarData);
+
+    // 房间设置
+    void onRoomSettingsResponse(int roomId, bool success, qint64 maxFileSize, const QString &error);
+    void onRoomSettingsNotify(int roomId, qint64 maxFileSize);
+
     // 贴边隐藏
     void checkEdgeHide();
 
@@ -109,6 +123,8 @@ private:
     void startChunkedUpload(const QString &filePath);
     void sendNextChunk();
     void startChunkedDownload(int fileId, const QString &fileName, qint64 fileSize);
+    void cacheAvatar(const QString &username, const QByteArray &data);
+    void requestAvatar(const QString &username);
 
     // --- UI 组件 ---
     QSplitter    *m_splitter       = nullptr;
@@ -120,8 +136,10 @@ private:
     QPushButton  *m_emojiBtn       = nullptr;
     QPushButton  *m_fileBtn        = nullptr;
     QPushButton  *m_imageBtn       = nullptr;
+    QPushButton  *m_avatarBtn      = nullptr;
     QLabel       *m_statusLabel    = nullptr;
     QLabel       *m_roomTitle      = nullptr;
+    QLabel       *m_avatarPreview  = nullptr;
     EmojiPicker  *m_emojiPicker    = nullptr;
     TrayManager  *m_trayManager    = nullptr;
 
@@ -134,6 +152,10 @@ private:
     MessageDelegate          *m_delegate = nullptr;
     QMap<int, bool>           m_adminRooms; // roomId -> isAdmin
     QSet<int>                 m_joinedRooms; // 已加入过的房间（用于显示加入提示）
+    QMap<int, qint64>         m_roomMaxFileSize; // roomId -> maxFileSize
+
+    // 头像缓存（静态，供 MessageDelegate 使用）
+    static QMap<QString, QPixmap> s_avatarCache;
 
     // --- 大文件分块上传状态 ---
     struct ChunkedUpload {

@@ -2,6 +2,7 @@
 #include "MessageModel.h"
 #include "Message.h"
 #include "FileCache.h"
+#include "ChatWindow.h"
 
 #include <QPainter>
 #include <QPainterPath>
@@ -109,7 +110,7 @@ void MessageDelegate::drawTextBubble(QPainter *painter, const QStyleOptionViewIt
     timeFont.setPointSize(timeFont.pointSize() - 2);
     QFontMetrics tfm(timeFont);
 
-    int senderH = isMine ? 0 : sfm.height() + 2;
+    int senderH = sfm.height() + 2;
     int bubbleW = qMax(textRect.width() + m_padding * 2,
                        tfm.horizontalAdvance(timeStr) + m_padding * 2);
     bubbleW = qMax(bubbleW, sfm.horizontalAdvance(sender) + m_padding * 2);
@@ -127,17 +128,28 @@ void MessageDelegate::drawTextBubble(QPainter *painter, const QStyleOptionViewIt
     int avatarY = rect.top() + m_margin;
     int bubbleY = rect.top() + m_margin;
 
-    // 绘制头像（文字头像）
+    // 绘制头像
     QRect avatarRect(avatarX, avatarY, m_avatarSize, m_avatarSize);
-    painter->setPen(Qt::NoPen);
-    quint32 hash = qHash(sender);
-    QColor avatarColor = QColor::fromHsl(hash % 360, 150, 130);
-    painter->setBrush(avatarColor);
-    painter->drawRoundedRect(avatarRect, m_avatarSize / 2, m_avatarSize / 2);
-    painter->setPen(Qt::white);
-    painter->setFont(option.font);
-    painter->drawText(avatarRect, Qt::AlignCenter,
-                      sender.isEmpty() ? "?" : sender.left(1).toUpper());
+    QPixmap avatarPix = ChatWindow::avatarForUser(sender);
+    if (!avatarPix.isNull()) {
+        QPixmap scaled = avatarPix.scaled(m_avatarSize, m_avatarSize,
+            Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+        QPainterPath clipPath;
+        clipPath.addEllipse(avatarRect);
+        painter->setClipPath(clipPath);
+        painter->drawPixmap(avatarRect, scaled);
+        painter->setClipping(false);
+    } else {
+        painter->setPen(Qt::NoPen);
+        quint32 hash = qHash(sender);
+        QColor avatarColor = QColor::fromHsl(hash % 360, 150, 130);
+        painter->setBrush(avatarColor);
+        painter->drawRoundedRect(avatarRect, m_avatarSize / 2, m_avatarSize / 2);
+        painter->setPen(Qt::white);
+        painter->setFont(option.font);
+        painter->drawText(avatarRect, Qt::AlignCenter,
+                          sender.isEmpty() ? "?" : sender.left(1).toUpper());
+    }
 
     // 绘制气泡
     QRect bubbleRect(bubbleX, bubbleY, bubbleW, bubbleH);
@@ -158,14 +170,12 @@ void MessageDelegate::drawTextBubble(QPainter *painter, const QStyleOptionViewIt
     }
     painter->drawPath(triangle);
 
-    // 绘制发送者名字（他人消息）
+    // 绘制发送者名字
     int textY = bubbleY + m_padding;
-    if (!isMine) {
-        painter->setPen(m_senderColor);
-        painter->setFont(senderFont);
-        painter->drawText(bubbleX + m_padding, textY + sfm.ascent(), sender);
-        textY += senderH;
-    }
+    painter->setPen(m_senderColor);
+    painter->setFont(senderFont);
+    painter->drawText(bubbleX + m_padding, textY + sfm.ascent(), sender);
+    textY += senderH;
 
     // 绘制消息内容
     painter->setPen(isMine ? m_myTextColor : m_otherTextColor);
@@ -286,14 +296,25 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
 
     // 头像
     QRect avatarRect(avatarX, avatarY, m_avatarSize, m_avatarSize);
-    painter->setPen(Qt::NoPen);
-    quint32 hash = qHash(sender);
-    QColor avatarColor = QColor::fromHsl(hash % 360, 150, 130);
-    painter->setBrush(avatarColor);
-    painter->drawRoundedRect(avatarRect, m_avatarSize / 2, m_avatarSize / 2);
-    painter->setPen(Qt::white);
-    painter->setFont(option.font);
-    painter->drawText(avatarRect, Qt::AlignCenter, sender.left(1).toUpper());
+    QPixmap avatarPix = ChatWindow::avatarForUser(sender);
+    if (!avatarPix.isNull()) {
+        QPixmap scaled = avatarPix.scaled(m_avatarSize, m_avatarSize,
+            Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+        QPainterPath clipPath;
+        clipPath.addEllipse(avatarRect);
+        painter->setClipPath(clipPath);
+        painter->drawPixmap(avatarRect, scaled);
+        painter->setClipping(false);
+    } else {
+        painter->setPen(Qt::NoPen);
+        quint32 hash = qHash(sender);
+        QColor avatarColor = QColor::fromHsl(hash % 360, 150, 130);
+        painter->setBrush(avatarColor);
+        painter->drawRoundedRect(avatarRect, m_avatarSize / 2, m_avatarSize / 2);
+        painter->setPen(Qt::white);
+        painter->setFont(option.font);
+        painter->drawText(avatarRect, Qt::AlignCenter, sender.left(1).toUpper());
+    }
 
     // 文件气泡
     QRect bubbleRect(bubbleX, bubbleY, bubbleW, bubbleH);
@@ -351,7 +372,7 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
     QFont senderFont = option.font;
     senderFont.setPointSize(senderFont.pointSize() - 1);
     QFontMetrics sfm(senderFont);
-    int senderH = isMine ? 0 : sfm.height() + 4;
+    int senderH = sfm.height() + 4;
 
     QFont timeFont = option.font;
     timeFont.setPointSize(timeFont.pointSize() - 2);
@@ -373,14 +394,25 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
 
     // 头像
     QRect avatarRect(avatarX, avatarY, m_avatarSize, m_avatarSize);
-    painter->setPen(Qt::NoPen);
-    quint32 hash = qHash(sender);
-    QColor avatarColor = QColor::fromHsl(hash % 360, 150, 130);
-    painter->setBrush(avatarColor);
-    painter->drawRoundedRect(avatarRect, m_avatarSize / 2, m_avatarSize / 2);
-    painter->setPen(Qt::white);
-    painter->setFont(option.font);
-    painter->drawText(avatarRect, Qt::AlignCenter, sender.left(1).toUpper());
+    QPixmap avatarPix = ChatWindow::avatarForUser(sender);
+    if (!avatarPix.isNull()) {
+        QPixmap scaled = avatarPix.scaled(m_avatarSize, m_avatarSize,
+            Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+        QPainterPath clipPath;
+        clipPath.addEllipse(avatarRect);
+        painter->setClipPath(clipPath);
+        painter->drawPixmap(avatarRect, scaled);
+        painter->setClipping(false);
+    } else {
+        painter->setPen(Qt::NoPen);
+        quint32 hash = qHash(sender);
+        QColor avatarColor = QColor::fromHsl(hash % 360, 150, 130);
+        painter->setBrush(avatarColor);
+        painter->drawRoundedRect(avatarRect, m_avatarSize / 2, m_avatarSize / 2);
+        painter->setPen(Qt::white);
+        painter->setFont(option.font);
+        painter->drawText(avatarRect, Qt::AlignCenter, sender.left(1).toUpper());
+    }
 
     // 气泡背景
     QRect bubbleRect(bubbleX, bubbleY, bubbleW, bubbleH);
@@ -404,12 +436,10 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
     int contentY = bubbleY + m_padding;
 
     // 发送者名字
-    if (!isMine) {
-        painter->setPen(m_senderColor);
-        painter->setFont(senderFont);
-        painter->drawText(bubbleX + m_padding, contentY + sfm.ascent(), sender);
-        contentY += senderH;
-    }
+    painter->setPen(m_senderColor);
+    painter->setFont(senderFont);
+    painter->drawText(bubbleX + m_padding, contentY + sfm.ascent(), sender);
+    contentY += senderH;
 
     // 图片
     if (!pix.isNull()) {
@@ -483,14 +513,12 @@ QSize MessageDelegate::textBubbleSize(const QStyleOptionViewItem &option,
         // 图片文件：计算图片预览尺寸
         if (isImageFile(fileName) && FileCache::instance()->isCached(fileId)) {
             QPixmap pix = loadCachedImage(fileId, fileName);
-            int imgW = pix.isNull() ? 120 : pix.width();
             int imgH = pix.isNull() ? 120 : pix.height();
 
-            bool isMine = index.data(MessageModel::IsMineRole).toBool();
             QFont senderFont = option.font;
             senderFont.setPointSize(senderFont.pointSize() - 1);
             QFontMetrics sfm(senderFont);
-            int senderH = isMine ? 0 : sfm.height() + 4;
+            int senderH = sfm.height() + 4;
 
             QFont timeFont = option.font;
             timeFont.setPointSize(timeFont.pointSize() - 2);
@@ -504,7 +532,6 @@ QSize MessageDelegate::textBubbleSize(const QStyleOptionViewItem &option,
     }
 
     QString content = index.data(MessageModel::ContentRole).toString();
-    bool isMine = index.data(MessageModel::IsMineRole).toBool();
 
     int bubbleMaxW = qMin(m_maxBubbleWidth, option.rect.width() - m_avatarSize - m_margin * 4);
 
@@ -519,7 +546,7 @@ QSize MessageDelegate::textBubbleSize(const QStyleOptionViewItem &option,
     QFont senderFont = option.font;
     senderFont.setPointSize(senderFont.pointSize() - 1);
     QFontMetrics sfm(senderFont);
-    int senderH = isMine ? 0 : sfm.height() + 2;
+    int senderH = sfm.height() + 2;
 
     QFont timeFont = option.font;
     timeFont.setPointSize(timeFont.pointSize() - 2);

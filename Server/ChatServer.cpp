@@ -140,6 +140,12 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleSetAdmin(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::DELETE_MSGS_REQ) {
         handleDeleteMessages(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::ROOM_SETTINGS_REQ) {
+        handleRoomSettings(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::AVATAR_UPLOAD_REQ) {
+        handleAvatarUpload(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::AVATAR_GET_REQ) {
+        handleAvatarGet(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::HEARTBEAT) {
         session->sendMessage(Protocol::makeHeartbeatAck());
     }
@@ -355,6 +361,17 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
     qint64 fileSize   = static_cast<qint64>(data["fileSize"].toDouble());
     QString fileData  = data["fileData"].toString(); // base64
 
+    // 检查房间文件大小限制
+    qint64 maxSize = m_db->getRoomMaxFileSize(roomId);
+    if (maxSize > 0 && fileSize > maxSize) {
+        QJsonObject rsp;
+        rsp["roomId"] = roomId;
+        rsp["success"] = false;
+        rsp["error"] = QString("文件大小超过房间限制(%1MB)").arg(maxSize / 1024 / 1024);
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, rsp));
+        return;
+    }
+
     // 保存文件到服务器磁盘
     QDir dir("server_files");
     if (!dir.exists()) dir.mkpath(".");
@@ -394,6 +411,7 @@ void ChatServer::handleFileDownload(ClientSession *session, const QJsonObject &d
     QString filePath = m_db->getFilePath(fileId);
     QJsonObject rspData;
 
+    QString dbFileName = m_db->getFileName(fileId);
     if (!filePath.isEmpty()) {
         QFile file(filePath);
         if (file.open(QIODevice::ReadOnly)) {
@@ -401,8 +419,8 @@ void ChatServer::handleFileDownload(ClientSession *session, const QJsonObject &d
             file.close();
             rspData["success"]  = true;
             rspData["fileId"]   = fileId;
-            rspData["fileName"] = data["fileName"].toString();
-            rspData["fileData"] = QString::fromUtf8(content.toBase64());
+            rspData["fileName"] = dbFileName.isEmpty() ? data["fileName"].toString() : dbFileName;
+            rspData["fileData"] = QString::fromLatin1(content.toBase64());
         } else {
             rspData["success"] = false;
             rspData["error"]   = QStringLiteral("文件不存在");
@@ -429,6 +447,15 @@ void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject
     if (fileSize > Protocol::MAX_LARGE_FILE) {
         rspData["success"] = false;
         rspData["error"]   = QStringLiteral("文件超过大小限制");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
+        return;
+    }
+
+    // 检查房间文件大小限制
+    qint64 maxSize = m_db->getRoomMaxFileSize(roomId);
+    if (maxSize > 0 && fileSize > maxSize) {
+        rspData["success"] = false;
+        rspData["error"] = QString("文件大小超过房间限制(%1MB)").arg(maxSize / 1024 / 1024);
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
         return;
     }
@@ -590,6 +617,12 @@ void ChatServer::handleRecall(ClientSession *session, const QJsonObject &data) {
         notifyData["roomId"]    = roomId;
         notifyData["username"]  = session->username();
         broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::RECALL_NOTIFY, notifyData));
+
+        // 如果是管理员撤回他人消息，广播系统提醒
+        if (m_db->isRoomAdmin(roomId, session->userId())) {
+            broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
+                {{"roomId", roomId}, {"content", QString("管理员 %1 撤回了一条消息").arg(session->username())}}));
+        }
     } else {
         rspData["success"] = false;
         rspData["error"]   = QStringLiteral("无法撤回（超时或非本人消息）");
@@ -646,6 +679,13 @@ void ChatServer::handleSetAdmin(ClientSession *session, const QJsonObject &data)
     notifyData["roomId"] = roomId;
     notifyData["isAdmin"] = setAdmin;
     sendToUser(targetUser, Protocol::makeMessage(Protocol::MsgType::ADMIN_STATUS, notifyData));
+
+    // 广播系统消息通知全体
+    QString sysContent = setAdmin
+        ? QString("管理员 %1 已将 %2 设为管理员").arg(session->username(), targetUser)
+        : QString("管理员 %1 已取消 %2 的管理员权限").arg(session->username(), targetUser);
+    broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
+        {{"roomId", roomId}, {"content", sysContent}}));
 }
 
 void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject &data) {
@@ -704,6 +744,123 @@ void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject 
         notifyData["messageIds"] = data["messageIds"].toArray();
     }
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_NOTIFY, notifyData), session);
+
+    // 广播系统消息通知全体
+    QString sysContent;
+    if (mode == "all")
+        sysContent = QString("管理员 %1 清空了所有聊天记录").arg(session->username());
+    else if (mode == "selected")
+        sysContent = QString("管理员 %1 删除了 %2 条消息").arg(session->username()).arg(deletedCount);
+    else if (mode == "before")
+        sysContent = QString("管理员 %1 删除了 %2 条旧消息").arg(session->username()).arg(deletedCount);
+    else
+        sysContent = QString("管理员 %1 删除了 %2 条近期消息").arg(session->username()).arg(deletedCount);
+    broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
+        {{"roomId", roomId}, {"content", sysContent}}));
+}
+
+// ==================== 房间设置 ====================
+
+void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int roomId = data["roomId"].toInt();
+    QJsonObject rspData;
+    rspData["roomId"] = roomId;
+
+    // 设置操作需要管理员权限
+    if (data.contains("maxFileSize")) {
+        if (!m_db->isRoomAdmin(roomId, session->userId())) {
+            rspData["success"] = false;
+            rspData["error"] = QStringLiteral("您没有管理员权限");
+            session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
+            return;
+        }
+
+        qint64 maxFileSize = static_cast<qint64>(data["maxFileSize"].toDouble());
+        m_db->setRoomMaxFileSize(roomId, maxFileSize);
+
+        rspData["success"] = true;
+        rspData["maxFileSize"] = static_cast<double>(maxFileSize);
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
+
+        // 通知房间所有人
+        QJsonObject notifyData;
+        notifyData["roomId"] = roomId;
+        notifyData["maxFileSize"] = static_cast<double>(maxFileSize);
+        broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_NOTIFY, notifyData));
+
+        // 系统消息
+        QString sizeStr = maxFileSize > 0
+            ? QString("%1MB").arg(maxFileSize / 1024 / 1024)
+            : QStringLiteral("无限制");
+        broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
+            {{"roomId", roomId}, {"content", QString("管理员 %1 设置了文件大小上限: %2")
+                .arg(session->username(), sizeStr)}}));
+    } else {
+        // 查询设置
+        rspData["success"] = true;
+        rspData["maxFileSize"] = static_cast<double>(m_db->getRoomMaxFileSize(roomId));
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
+    }
+}
+
+// ==================== 头像功能 ====================
+
+void ChatServer::handleAvatarUpload(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    QString avatarBase64 = data["avatarData"].toString();
+    QByteArray avatarData = QByteArray::fromBase64(avatarBase64.toLatin1());
+
+    QJsonObject rspData;
+
+    if (avatarData.size() > 256 * 1024) { // 限制 256KB
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("头像数据过大，请选择较小的图片");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::AVATAR_UPLOAD_RSP, rspData));
+        return;
+    }
+
+    if (m_db->setUserAvatar(session->userId(), avatarData)) {
+        rspData["success"] = true;
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::AVATAR_UPLOAD_RSP, rspData));
+
+        // 通知所有人头像已更新（通过所有房间广播）
+        QJsonObject notifyData;
+        notifyData["username"] = session->username();
+        notifyData["avatarData"] = avatarBase64;
+
+        // 向所有在线用户广播头像更新
+        QMutexLocker locker(&m_mutex);
+        for (auto it = m_sessions.begin(); it != m_sessions.end(); ++it) {
+            if (it.key() != session->username()) {
+                QMetaObject::invokeMethod(it.value(), "sendMessage", Qt::QueuedConnection,
+                    Q_ARG(QJsonObject, Protocol::makeMessage(Protocol::MsgType::AVATAR_UPDATE_NOTIFY, notifyData)));
+            }
+        }
+    } else {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("保存头像失败");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::AVATAR_UPLOAD_RSP, rspData));
+    }
+}
+
+void ChatServer::handleAvatarGet(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    QString username = data["username"].toString();
+    QByteArray avatarData = m_db->getUserAvatarByName(username);
+
+    QJsonObject rspData;
+    rspData["username"] = username;
+    if (!avatarData.isEmpty()) {
+        rspData["success"] = true;
+        rspData["avatarData"] = QString::fromLatin1(avatarData.toBase64());
+    } else {
+        rspData["success"] = false;
+    }
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::AVATAR_GET_RSP, rspData));
 }
 
 // ==================== 广播/实现 ====================

@@ -259,4 +259,27 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                               data["mode"].toString(),
                               data["messageIds"].toArray());
     }
+    else if (type == Protocol::MsgType::AVATAR_UPLOAD_RSP) {
+        emit avatarUploadResponse(data["success"].toBool(), data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::AVATAR_GET_RSP) {
+        QByteArray avatarData;
+        if (data["success"].toBool())
+            avatarData = QByteArray::fromBase64(data["avatarData"].toString().toLatin1());
+        emit avatarGetResponse(data["username"].toString(), avatarData);
+    }
+    else if (type == Protocol::MsgType::AVATAR_UPDATE_NOTIFY) {
+        QByteArray avatarData = QByteArray::fromBase64(data["avatarData"].toString().toLatin1());
+        emit avatarUpdateNotify(data["username"].toString(), avatarData);
+    }
+    else if (type == Protocol::MsgType::ROOM_SETTINGS_RSP) {
+        emit roomSettingsResponse(data["roomId"].toInt(),
+                                  data["success"].toBool(),
+                                  static_cast<qint64>(data["maxFileSize"].toDouble()),
+                                  data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::ROOM_SETTINGS_NOTIFY) {
+        emit roomSettingsNotify(data["roomId"].toInt(),
+                                static_cast<qint64>(data["maxFileSize"].toDouble()));
+    }
 }

@@ -87,6 +87,18 @@ namespace MsgType {
     inline const QString DELETE_MSGS_REQ  = QStringLiteral("DELETE_MSGS_REQ");  // 删除消息
     inline const QString DELETE_MSGS_RSP  = QStringLiteral("DELETE_MSGS_RSP");
     inline const QString DELETE_MSGS_NOTIFY = QStringLiteral("DELETE_MSGS_NOTIFY"); // 通知其他人
+
+    // 房间设置
+    inline const QString ROOM_SETTINGS_REQ  = QStringLiteral("ROOM_SETTINGS_REQ");
+    inline const QString ROOM_SETTINGS_RSP  = QStringLiteral("ROOM_SETTINGS_RSP");
+    inline const QString ROOM_SETTINGS_NOTIFY = QStringLiteral("ROOM_SETTINGS_NOTIFY");
+
+    // 头像
+    inline const QString AVATAR_UPLOAD_REQ  = QStringLiteral("AVATAR_UPLOAD_REQ");
+    inline const QString AVATAR_UPLOAD_RSP  = QStringLiteral("AVATAR_UPLOAD_RSP");
+    inline const QString AVATAR_GET_REQ     = QStringLiteral("AVATAR_GET_REQ");
+    inline const QString AVATAR_GET_RSP     = QStringLiteral("AVATAR_GET_RSP");
+    inline const QString AVATAR_UPDATE_NOTIFY = QStringLiteral("AVATAR_UPDATE_NOTIFY");
 }
 
 // ==================== 数据包帧: [4字节长度][JSON数据] ====================
