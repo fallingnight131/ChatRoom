@@ -87,6 +87,12 @@ private slots:
     // 主题
     void onToggleTheme();
 
+    // 注销
+    void onLogout();
+
+    // 设置
+    void onChangeCacheDir();
+
     // 连接状态
     void onConnected();
     void onDisconnected();
@@ -180,6 +186,7 @@ private:
     // 贴边隐藏
     QTimer  *m_edgeTimer  = nullptr;
     bool     m_edgeHidden = false;
+    bool     m_forceQuit  = false;  // 菜单退出时强制关闭（不最小化到托盘）
     enum EdgeSide { NoEdge, LeftEdge, RightEdge, TopEdge };
     EdgeSide m_edgeSide   = NoEdge;
 };

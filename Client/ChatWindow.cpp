@@ -82,6 +82,10 @@ void ChatWindow::setCurrentUser(int userId, const QString &username) {
     m_userId   = userId;
     m_username = username;
     setWindowTitle(QString("Qt聊天室 - %1").arg(username));
+
+    // 设置用户缓存目录（以用户名隔离）
+    FileCache::instance()->setUsername(username);
+
     requestRoomList();
 
     // 请求自己的头像
@@ -265,10 +269,18 @@ void ChatWindow::setupUi() {
 
 void ChatWindow::setupMenuBar() {
     auto *fileMenu = menuBar()->addMenu("文件(&F)");
-    fileMenu->addAction("退出(&Q)", this, &QWidget::close, QKeySequence::Quit);
+    fileMenu->addAction("注销(&L)", this, &ChatWindow::onLogout);
+    fileMenu->addSeparator();
+    fileMenu->addAction("退出(&Q)", [this] {
+        m_forceQuit = true;
+        close();
+    }, QKeySequence::Quit);
 
     auto *viewMenu = menuBar()->addMenu("视图(&V)");
     viewMenu->addAction("切换主题(&T)", this, &ChatWindow::onToggleTheme, QKeySequence("Ctrl+T"));
+
+    auto *settingsMenu = menuBar()->addMenu("设置(&S)");
+    settingsMenu->addAction("缓存路径(&C)...", this, &ChatWindow::onChangeCacheDir);
 
     auto *helpMenu = menuBar()->addMenu("帮助(&H)");
     helpMenu->addAction("关于(&A)", [this] {
@@ -538,6 +550,9 @@ void ChatWindow::onChatMessage(const QJsonObject &msg) {
 void ChatWindow::onSystemMessage(const QJsonObject &msg) {
     Message message = Message::fromJson(msg);
     message.setIsMine(false);
+    message.setContentType(Message::System);
+    if (message.sender().isEmpty())
+        message.setSender(QStringLiteral("System"));
 
     int roomId = message.roomId();
     MessageModel *model = getOrCreateModel(roomId);
@@ -1095,14 +1110,6 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
         menu.addSeparator();
         QMenu *adminMenu = menu.addMenu("管理员操作");
 
-        // 管理员撤回消息（无时间限制，可撤回任何人的消息）
-        int recallMsgId = msg.id();
-        int recallRoomId = m_currentRoomId;
-        adminMenu->addAction("撤回此消息", [this, recallMsgId, recallRoomId] {
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeRecallReq(recallMsgId, recallRoomId));
-        });
-
         // 删除这条消息
         int msgId = msg.id();
         adminMenu->addAction("删除此消息", [this, msgId] {
@@ -1195,8 +1202,13 @@ void ChatWindow::onReconnecting(int attempt) {
 // ==================== 窗口事件 ====================
 
 void ChatWindow::closeEvent(QCloseEvent *event) {
-    // 最小化到托盘而不是关闭
-    if (m_trayManager && m_trayManager->isAvailable()) {
+    if (m_forceQuit) {
+        // 菜单退出：断开网络并彻底退出（含系统托盘）
+        NetworkManager::instance()->disconnectFromServer();
+        event->accept();
+        qApp->quit();
+    } else if (m_trayManager && m_trayManager->isAvailable()) {
+        // 点击 X：最小化到托盘
         hide();
         m_trayManager->showNotification("Qt聊天室", "程序已最小化到系统托盘");
         event->ignore();
@@ -1324,6 +1336,34 @@ void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFile
 
 void ChatWindow::onRoomSettingsNotify(int roomId, qint64 maxFileSize) {
     m_roomMaxFileSize[roomId] = maxFileSize;
+}
+
+// ==================== 注销 ====================
+
+void ChatWindow::onLogout() {
+    if (QMessageBox::question(this, "注销", "确定要注销当前账号吗？")
+        != QMessageBox::Yes) return;
+
+    // 断开网络连接
+    NetworkManager::instance()->disconnectFromServer();
+
+    // 隐藏当前窗口
+    hide();
+
+    // 通知 main 重新显示登录界面
+    // 通过发送 forceOffline 信号触发 main.cpp 的重登录流程
+    emit NetworkManager::instance()->forceOffline("用户主动注销");
+}
+
+// ==================== 设置 ====================
+
+void ChatWindow::onChangeCacheDir() {
+    QString currentDir = FileCache::instance()->cacheDir();
+    QString newDir = QFileDialog::getExistingDirectory(this, "选择缓存目录", currentDir);
+    if (newDir.isEmpty() || newDir == currentDir) return;
+
+    FileCache::instance()->setCacheDir(newDir, m_username);
+    m_statusLabel->setText(QString("缓存目录已更改为: %1").arg(newDir));
 }
 
 // ==================== 贴边隐藏 ====================

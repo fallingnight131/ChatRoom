@@ -28,5 +28,5 @@ private:
     explicit ThemeManager(QObject *parent = nullptr);
     static ThemeManager *s_instance;
 
-    Theme m_theme = Light;
+    Theme m_theme = Dark;
 };

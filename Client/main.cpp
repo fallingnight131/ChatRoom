@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
 
     ChatWindow *chatWindow = nullptr;
 
-    // 强制下线处理
+    // 强制下线处理（包括异地登录和用户主动注销）
     QObject::connect(NetworkManager::instance(), &NetworkManager::forceOffline,
                      [&](const QString &reason) {
         if (chatWindow) {
@@ -33,7 +33,11 @@ int main(int argc, char *argv[]) {
             chatWindow->deleteLater();
             chatWindow = nullptr;
         }
-        QMessageBox::warning(nullptr, "异地登录", reason);
+
+        // 主动注销不需要弹出警告
+        if (reason != "用户主动注销") {
+            QMessageBox::warning(nullptr, "异地登录", reason);
+        }
 
         // 重新显示登录对话框
         LoginDialog *loginDialog = new LoginDialog;

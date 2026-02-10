@@ -5,6 +5,7 @@
 #include <QFileInfo>
 #include <QDesktopServices>
 #include <QUrl>
+#include <QSettings>
 #include <QDebug>
 
 FileCache *FileCache::s_instance = nullptr;
@@ -18,29 +19,66 @@ FileCache *FileCache::instance() {
 FileCache::FileCache(QObject *parent)
     : QObject(parent)
 {
-    // 缓存目录: AppData/Local/QtChatRoom/cache/
-    m_cacheDir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
-                 + "/cache";
+    // 从设置中读取用户自定义的缓存目录
+    QSettings settings;
+    m_baseDir = settings.value("cache/baseDir").toString();
+    if (m_baseDir.isEmpty()) {
+        m_baseDir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+                    + "/cache";
+    }
+
+    // 初始使用 baseDir（无用户名隔离），登录后会调用 setUsername
+    m_cacheDir = m_baseDir;
     QDir dir(m_cacheDir);
     if (!dir.exists())
         dir.mkpath(".");
 
-    // 扫描已有缓存
+    scanCacheDir();
+    qDebug() << "[FileCache] 缓存目录:" << m_cacheDir << "已缓存文件:" << m_cache.size();
+}
+
+void FileCache::scanCacheDir() {
+    QMutexLocker locker(&m_mutex);
+    m_cache.clear();
     QDir cacheDir(m_cacheDir);
     for (const QFileInfo &fi : cacheDir.entryInfoList(QDir::Files)) {
-        // 文件名格式: fileId_originalName
         QString name = fi.fileName();
         int sep = name.indexOf('_');
         if (sep > 0) {
             bool ok;
             int fileId = name.left(sep).toInt(&ok);
             if (ok) {
-                QMutexLocker locker(&m_mutex);
                 m_cache[fileId] = fi.absoluteFilePath();
             }
         }
     }
-    qDebug() << "[FileCache] 缓存目录:" << m_cacheDir << "已缓存文件:" << m_cache.size();
+}
+
+void FileCache::setUsername(const QString &username) {
+    m_username = username;
+    // 在 baseDir 下创建用户专属子目录
+    m_cacheDir = m_baseDir + "/" + username;
+    QDir dir(m_cacheDir);
+    if (!dir.exists())
+        dir.mkpath(".");
+    scanCacheDir();
+    qDebug() << "[FileCache] 用户缓存目录:" << m_cacheDir;
+}
+
+void FileCache::setCacheDir(const QString &baseDir, const QString &username) {
+    m_baseDir = baseDir;
+    m_username = username;
+    m_cacheDir = m_baseDir + "/" + m_username;
+    QDir dir(m_cacheDir);
+    if (!dir.exists())
+        dir.mkpath(".");
+
+    // 保存到设置
+    QSettings settings;
+    settings.setValue("cache/baseDir", m_baseDir);
+
+    scanCacheDir();
+    qDebug() << "[FileCache] 缓存目录已更改:" << m_cacheDir;
 }
 
 QString FileCache::cachedFilePath(int fileId) const {

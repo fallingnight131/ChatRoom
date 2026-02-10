@@ -49,6 +49,8 @@ public:
     void setRecalled(bool v) { m_recalled = v; }
     void setIsMine(bool v) { m_isMine = v; }
     void setImageData(const QByteArray &d) { m_imageData = d; }
+    void setContentType(ContentType t) { m_contentType = t; }
+    void setSender(const QString &s) { m_sender = s; }
 
     static QString contentTypeToString(ContentType t);
     static ContentType stringToContentType(const QString &s);

@@ -618,11 +618,7 @@ void ChatServer::handleRecall(ClientSession *session, const QJsonObject &data) {
         notifyData["username"]  = session->username();
         broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::RECALL_NOTIFY, notifyData));
 
-        // 如果是管理员撤回他人消息，广播系统提醒
-        if (m_db->isRoomAdmin(roomId, session->userId())) {
-            broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
-                {{"roomId", roomId}, {"content", QString("管理员 %1 撤回了一条消息").arg(session->username())}}));
-        }
+        // 管理员撤回不再发额外系统消息，撤回通知已足够
     } else {
         rspData["success"] = false;
         rspData["error"]   = QStringLiteral("无法撤回（超时或非本人消息）");

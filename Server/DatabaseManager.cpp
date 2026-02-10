@@ -352,15 +352,10 @@ bool DatabaseManager::recallMessage(int messageId, int userId, int timeLimitSec)
 
     int ownerId = q.value(0).toInt();
     QDateTime createdAt = q.value(1).toDateTime();
-    int roomId = q.value(2).toInt();
 
-    // 管理员可以撤回任何消息（不受时间和owner限制）
-    bool isAdmin = isRoomAdmin(roomId, userId);
-    if (!isAdmin) {
-        // 普通用户：只能撤回自己的消息，且有时间限制
-        if (ownerId != userId) return false;
-        if (createdAt.secsTo(QDateTime::currentDateTime()) > timeLimitSec) return false;
-    }
+    // 所有用户（包括管理员）只能撤回自己的消息，且有时间限制
+    if (ownerId != userId) return false;
+    if (createdAt.secsTo(QDateTime::currentDateTime()) > timeLimitSec) return false;
 
     // 执行撤回
     q.prepare("UPDATE messages SET recalled = 1, content = '此消息已被撤回' WHERE id = ?");
