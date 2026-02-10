@@ -117,6 +117,10 @@ private slots:
     void onRoomSettingsResponse(int roomId, bool success, qint64 maxFileSize, const QString &error);
     void onRoomSettingsNotify(int roomId, qint64 maxFileSize);
 
+    // 删除聊天室
+    void onDeleteRoomResponse(bool success, int roomId, const QString &roomName, const QString &error);
+    void onDeleteRoomNotify(int roomId, const QString &roomName, const QString &operatorName);
+
     // 贴边隐藏
     void checkEdgeHide();
 

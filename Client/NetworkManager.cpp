@@ -282,4 +282,15 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         emit roomSettingsNotify(data["roomId"].toInt(),
                                 static_cast<qint64>(data["maxFileSize"].toDouble()));
     }
+    else if (type == Protocol::MsgType::DELETE_ROOM_RSP) {
+        emit deleteRoomResponse(data["success"].toBool(),
+                                data["roomId"].toInt(),
+                                data["roomName"].toString(),
+                                data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::DELETE_ROOM_NOTIFY) {
+        emit deleteRoomNotify(data["roomId"].toInt(),
+                              data["roomName"].toString(),
+                              data["operator"].toString());
+    }
 }

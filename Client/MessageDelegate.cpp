@@ -26,22 +26,20 @@ MessageDelegate::MessageDelegate(QObject *parent)
 }
 
 void MessageDelegate::updateThemeColors(bool isDark) {
+    // 气泡和气泡内文字保持原始配色，不随主题变化
+    m_myBubbleColor    = QColor(149, 236, 105);     // 微信绿
+    m_otherBubbleColor = QColor(255, 255, 255);     // 白色
+    m_myTextColor      = Qt::black;
+    m_otherTextColor   = Qt::black;
+
     if (isDark) {
-        m_myBubbleColor    = QColor(56, 115, 68);       // 深绿气泡
-        m_otherBubbleColor = QColor(60, 60, 80);        // 深灰蓝气泡
         m_systemColor      = QColor(80, 80, 100);
-        m_myTextColor      = QColor(220, 220, 220);
-        m_otherTextColor   = QColor(210, 210, 210);
-        m_senderColor      = QColor(140, 180, 250);     // 浅蓝色名字
+        m_senderColor      = QColor(100, 100, 100);
         m_timeColor        = QColor(140, 140, 160);
-        m_fileBgColor      = QColor(50, 60, 75);
+        m_fileBgColor      = QColor(230, 240, 250);
     } else {
-        m_myBubbleColor    = QColor(149, 236, 105);     // 微信绿
-        m_otherBubbleColor = QColor(255, 255, 255);     // 白色
         m_systemColor      = QColor(200, 200, 200);
-        m_myTextColor      = Qt::black;
-        m_otherTextColor   = Qt::black;
-        m_senderColor      = QColor(100, 100, 100);     // 灰色名字
+        m_senderColor      = QColor(100, 100, 100);
         m_timeColor        = QColor(150, 150, 150);
         m_fileBgColor      = QColor(230, 240, 250);
     }

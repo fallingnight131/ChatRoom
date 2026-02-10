@@ -357,6 +357,10 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::roomSettingsResponse, this, &ChatWindow::onRoomSettingsResponse);
     connect(net, &NetworkManager::roomSettingsNotify,   this, &ChatWindow::onRoomSettingsNotify);
 
+    // 删除聊天室
+    connect(net, &NetworkManager::deleteRoomResponse, this, &ChatWindow::onDeleteRoomResponse);
+    connect(net, &NetworkManager::deleteRoomNotify,   this, &ChatWindow::onDeleteRoomNotify);
+
     // 双击打开文件/图片
     connect(m_messageView, &QListView::doubleClicked, this, [this](const QModelIndex &idx) {
         int contentType = idx.data(MessageModel::ContentTypeRole).toInt();
@@ -610,8 +614,6 @@ void ChatWindow::onUserListReceived(int roomId, const QStringList &users) {
         m_userList->clear();
         for (const QString &u : users) {
             auto *item = new QListWidgetItem(u);
-            if (u == m_username)
-                item->setForeground(Qt::blue);
             m_userList->addItem(item);
 
             // 请求未缓存用户的头像
@@ -1035,6 +1037,15 @@ void ChatWindow::onUserContextMenu(const QPoint &pos) {
             Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
     });
 
+    menu.addAction(QStringLiteral("取消管理员"), [this, targetUser] {
+        QJsonObject data;
+        data["roomId"] = m_currentRoomId;
+        data["username"] = targetUser;
+        data["isAdmin"] = false;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
+    });
+
     menu.exec(m_userList->viewport()->mapToGlobal(pos));
 }
 
@@ -1062,6 +1073,34 @@ void ChatWindow::onRoomContextMenu(const QPoint &pos) {
         data["maxFileSize"] = static_cast<double>(sizeBytes);
         NetworkManager::instance()->sendMessage(
             Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
+    });
+
+    menu.addSeparator();
+
+    // 获取房间名称（从列表项提取）
+    QString roomName;
+    for (int i = 0; i < m_roomList->count(); ++i) {
+        if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
+            roomName = m_roomList->item(i)->text();
+            // 去掉 "[id] " 前缀
+            int idx = roomName.indexOf("] ");
+            if (idx >= 0) roomName = roomName.mid(idx + 2);
+            break;
+        }
+    }
+
+    menu.addAction(QStringLiteral("删除聊天室"), [this, roomId, roomName] {
+        QString input = QInputDialog::getText(this, "确认删除",
+            QString("此操作不可恢复！\n请输入聊天室名称 \"%1\" 确认删除:").arg(roomName));
+        if (input.trimmed() != roomName) {
+            if (!input.isEmpty())
+                QMessageBox::warning(this, "删除失败", "输入的名称不匹配，删除已取消");
+            return;
+        }
+        QJsonObject data;
+        data["roomId"] = roomId;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::DELETE_ROOM_REQ, data));
     });
 
     menu.exec(m_roomList->viewport()->mapToGlobal(pos));
@@ -1360,6 +1399,54 @@ void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFile
 
 void ChatWindow::onRoomSettingsNotify(int roomId, qint64 maxFileSize) {
     m_roomMaxFileSize[roomId] = maxFileSize;
+}
+
+// ==================== 删除聊天室 ====================
+
+void ChatWindow::onDeleteRoomResponse(bool success, int roomId, const QString &roomName, const QString &error) {
+    if (success) {
+        QMessageBox::information(this, "删除成功", QString("聊天室 \"%1\" 已被删除").arg(roomName));
+        // 从房间列表中移除
+        for (int i = 0; i < m_roomList->count(); ++i) {
+            if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
+                delete m_roomList->takeItem(i);
+                break;
+            }
+        }
+        // 如果当前正在该房间，切换到第一个房间
+        if (m_currentRoomId == roomId) {
+            if (m_roomList->count() > 0) {
+                m_roomList->setCurrentRow(0);
+                onRoomSelected(m_roomList->item(0));
+            } else {
+                m_currentRoomId = -1;
+            }
+        }
+    } else {
+        QMessageBox::warning(this, "删除失败", error);
+    }
+}
+
+void ChatWindow::onDeleteRoomNotify(int roomId, const QString &roomName, const QString &operatorName) {
+    Q_UNUSED(operatorName);
+    // 从房间列表中移除
+    for (int i = 0; i < m_roomList->count(); ++i) {
+        if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
+            delete m_roomList->takeItem(i);
+            break;
+        }
+    }
+    // 如果当前正在该房间，切换到第一个房间
+    if (m_currentRoomId == roomId) {
+        QMessageBox::information(this, "聊天室已删除",
+            QString("聊天室 \"%1\" 已被管理员删除").arg(roomName));
+        if (m_roomList->count() > 0) {
+            m_roomList->setCurrentRow(0);
+            onRoomSelected(m_roomList->item(0));
+        } else {
+            m_currentRoomId = -1;
+        }
+    }
 }
 
 // ==================== 注销 ====================

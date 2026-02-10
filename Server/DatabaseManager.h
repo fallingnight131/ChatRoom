@@ -22,6 +22,9 @@ public:
     int  createRoom(const QString &name, int creatorId);
     bool joinRoom(int roomId, int userId);
     QJsonArray getAllRooms();
+    QJsonArray getUserJoinedRooms(int userId);
+    bool deleteRoom(int roomId);
+    QString getRoomName(int roomId);
 
     // 消息管理
     int  saveMessage(int roomId, int userId, const QString &content,

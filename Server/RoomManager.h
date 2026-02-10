@@ -18,6 +18,7 @@ public:
 
     // 房间操作
     void addRoom(int roomId, const QString &name, int creatorId);
+    void removeRoom(int roomId);
     bool roomExists(int roomId) const;
     QString roomName(int roomId) const;
     QMap<int, QString> allRooms() const;

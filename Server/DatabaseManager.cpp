@@ -146,17 +146,6 @@ bool DatabaseManager::initialize() {
            "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
            ")");
 
-    // 创建默认大厅
-    q.prepare("SELECT id FROM rooms WHERE id = 1");
-    q.exec();
-    if (!q.next()) {
-        // 确保有一个系统用户
-        q.prepare("INSERT OR IGNORE INTO users (id, username, password_hash, salt) VALUES (1, 'system', '', '')");
-        q.exec();
-        q.prepare("INSERT OR IGNORE INTO rooms (id, name, creator_id) VALUES (1, '大厅', 1)");
-        q.exec();
-    }
-
     m_initialized = true;
     qInfo() << "[DB] SQLite 数据库初始化完成，路径:" << m_dbPath;
     return true;
@@ -265,6 +254,47 @@ QJsonArray DatabaseManager::getAllRooms() {
         arr.append(room);
     }
     return arr;
+}
+
+QJsonArray DatabaseManager::getUserJoinedRooms(int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    q.prepare("SELECT r.id, r.name, r.creator_id FROM rooms r "
+              "JOIN room_members rm ON r.id = rm.room_id "
+              "WHERE rm.user_id = ? ORDER BY r.id");
+    q.addBindValue(userId);
+    q.exec();
+
+    QJsonArray arr;
+    while (q.next()) {
+        QJsonObject room;
+        room["roomId"]    = q.value(0).toInt();
+        room["roomName"]  = q.value(1).toString();
+        room["creatorId"] = q.value(2).toInt();
+        arr.append(room);
+    }
+    return arr;
+}
+
+bool DatabaseManager::deleteRoom(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    // CASCADE 会自动删除 room_members, messages, files, room_admins, room_settings
+    q.prepare("DELETE FROM rooms WHERE id = ?");
+    q.addBindValue(roomId);
+    return q.exec();
+}
+
+QString DatabaseManager::getRoomName(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT name FROM rooms WHERE id = ?");
+    q.addBindValue(roomId);
+    q.exec();
+    if (q.next())
+        return q.value(0).toString();
+    return {};
 }
 
 // ==================== 消息管理 ====================

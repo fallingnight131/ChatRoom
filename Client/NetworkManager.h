@@ -80,6 +80,10 @@ signals:
     void roomSettingsResponse(int roomId, bool success, qint64 maxFileSize, const QString &error);
     void roomSettingsNotify(int roomId, qint64 maxFileSize);
 
+    // 删除聊天室
+    void deleteRoomResponse(bool success, int roomId, const QString &roomName, const QString &error);
+    void deleteRoomNotify(int roomId, const QString &roomName, const QString &operatorName);
+
 private slots:
     void onConnected();
     void onDisconnected();

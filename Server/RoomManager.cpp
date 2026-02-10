@@ -32,6 +32,11 @@ void RoomManager::addRoom(int roomId, const QString &name, int creatorId) {
     m_rooms[roomId] = info;
 }
 
+void RoomManager::removeRoom(int roomId) {
+    QMutexLocker locker(&m_mutex);
+    m_rooms.remove(roomId);
+}
+
 bool RoomManager::roomExists(int roomId) const {
     QMutexLocker locker(&m_mutex);
     return m_rooms.contains(roomId);

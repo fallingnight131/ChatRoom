@@ -142,6 +142,8 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleDeleteMessages(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::ROOM_SETTINGS_REQ) {
         handleRoomSettings(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::DELETE_ROOM_REQ) {
+        handleDeleteRoom(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::AVATAR_UPLOAD_REQ) {
         handleAvatarUpload(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::AVATAR_GET_REQ) {
@@ -201,6 +203,16 @@ void ChatServer::handleRegister(ClientSession *session, const QJsonObject &data)
             rspData["success"]  = true;
             rspData["userId"]   = userId;
             rspData["username"] = username;
+
+            // 注册成功后自动创建个人聊天室
+            QString roomName = QString("%1的聊天室").arg(username);
+            int roomId = m_db->createRoom(roomName, userId);
+            if (roomId > 0) {
+                m_roomMgr->addRoom(roomId, roomName, userId);
+                m_db->joinRoom(roomId, userId);
+                m_db->setRoomAdmin(roomId, userId, true);
+                qInfo() << "[Server] 为用户" << username << "创建了个人聊天室 ID:" << roomId;
+            }
         } else {
             rspData["success"] = false;
             rspData["error"]   = QStringLiteral("用户名已存在");
@@ -310,14 +322,8 @@ void ChatServer::handleLeaveRoom(ClientSession *session, const QJsonObject &data
 }
 
 void ChatServer::handleRoomList(ClientSession *session) {
-    QJsonArray roomArr;
-    auto rooms = m_roomMgr->allRooms();
-    for (auto it = rooms.constBegin(); it != rooms.constEnd(); ++it) {
-        QJsonObject r;
-        r["roomId"]   = it.key();
-        r["roomName"] = it.value();
-        roomArr.append(r);
-    }
+    // 只返回用户已加入的房间
+    QJsonArray roomArr = m_db->getUserJoinedRooms(session->userId());
     QJsonObject rspData;
     rspData["rooms"] = roomArr;
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_LIST_RSP, rspData));
@@ -798,6 +804,54 @@ void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &d
         rspData["success"] = true;
         rspData["maxFileSize"] = static_cast<double>(m_db->getRoomMaxFileSize(roomId));
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
+    }
+}
+
+// ==================== 删除聊天室 ====================
+
+void ChatServer::handleDeleteRoom(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int roomId = data["roomId"].toInt();
+    QJsonObject rspData;
+    rspData["roomId"] = roomId;
+
+    // 检查房间是否存在
+    QString roomName = m_db->getRoomName(roomId);
+    if (roomName.isEmpty()) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("聊天室不存在");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::DELETE_ROOM_RSP, rspData));
+        return;
+    }
+
+    // 检查管理员权限
+    if (!m_db->isRoomAdmin(roomId, session->userId())) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("您没有管理员权限");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::DELETE_ROOM_RSP, rspData));
+        return;
+    }
+
+    // 通知房间所有在线成员（在删除前发送）
+    QJsonObject notifyData;
+    notifyData["roomId"] = roomId;
+    notifyData["roomName"] = roomName;
+    notifyData["operator"] = session->username();
+    broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::DELETE_ROOM_NOTIFY, notifyData));
+
+    // 从数据库删除（CASCADE 会清理 room_members, messages, files, room_admins, room_settings）
+    if (m_db->deleteRoom(roomId)) {
+        // 从内存缓存中移除
+        m_roomMgr->removeRoom(roomId);
+
+        rspData["success"] = true;
+        rspData["roomName"] = roomName;
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::DELETE_ROOM_RSP, rspData));
+    } else {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("删除聊天室失败");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::DELETE_ROOM_RSP, rspData));
     }
 }
 
