@@ -206,6 +206,7 @@ void LoginDialog::onLoginResponse(bool success, const QString &error, int userId
     } else {
         m_loginStatus->setText("登录失败: " + error);
         m_loginBtn->setEnabled(true);
+        m_regBtn->setEnabled(true);
     }
 }
 

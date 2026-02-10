@@ -72,11 +72,7 @@ void ChatServer::incomingConnection(qintptr socketDescriptor) {
 
 void ChatServer::onClientAuthenticated(ClientSession *session) {
     QMutexLocker locker(&m_mutex);
-    // 踢掉旧连接
-    if (m_sessions.contains(session->username())) {
-        ClientSession *old = m_sessions[session->username()];
-        old->disconnectFromServer();
-    }
+    // 踢出已在 handleLogin 中处理，这里直接注册
     m_sessions[session->username()] = session;
     qInfo() << "[Server] 用户认证成功:" << session->username();
 }
@@ -89,8 +85,8 @@ void ChatServer::onClientDisconnected(ClientSession *session) {
             m_sessions.remove(username);
     }
 
-    // 通知该用户所在的所有房间
-    if (!username.isEmpty()) {
+    // 被踢出的 session 不清理房间（新的 session 会继承房间状态）
+    if (!username.isEmpty() && !session->isKicked()) {
         QList<int> rooms = m_roomMgr->userRooms(session->userId());
         for (int roomId : rooms) {
             m_roomMgr->removeUserFromRoom(roomId, session->userId());
@@ -132,6 +128,10 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleFileDownload(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::RECALL_REQ) {
         handleRecall(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::SET_ADMIN_REQ) {
+        handleSetAdmin(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::DELETE_MSGS_REQ) {
+        handleDeleteMessages(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::HEARTBEAT) {
         session->sendMessage(Protocol::makeHeartbeatAck());
     }
@@ -147,6 +147,20 @@ void ChatServer::handleLogin(ClientSession *session, const QJsonObject &data) {
 
     QJsonObject rspData;
     if (userId > 0) {
+        // 踢掉旧连接：先发送强制下线通知，再断开
+        {
+            QMutexLocker locker(&m_mutex);
+            if (m_sessions.contains(username)) {
+                ClientSession *old = m_sessions[username];
+                QJsonObject kickData;
+                kickData["reason"] = QStringLiteral("您的账号在其他地方登录，当前连接已被断开");
+                old->sendMessage(Protocol::makeMessage(Protocol::MsgType::FORCE_OFFLINE, kickData));
+                // 标记旧 session 为已踢出，避免断开时清理房间
+                old->setKicked(true);
+                old->disconnectFromServer();
+                m_sessions.remove(username);
+            }
+        }
         session->setAuthenticated(userId, username);
         rspData["success"]  = true;
         rspData["userId"]   = userId;
@@ -238,6 +252,7 @@ void ChatServer::handleJoinRoom(ClientSession *session, const QJsonObject &data)
         rspData["success"]  = true;
         rspData["roomId"]   = roomId;
         rspData["roomName"] = m_roomMgr->roomName(roomId);
+        rspData["isAdmin"]  = m_db->isRoomAdmin(roomId, session->userId());
 
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::JOIN_ROOM_RSP, rspData));
 
@@ -409,6 +424,115 @@ void ChatServer::handleRecall(ClientSession *session, const QJsonObject &data) {
 }
 
 // ==================== 广播/发送 ====================
+
+// ==================== 管理员功能 ====================
+
+void ChatServer::handleSetAdmin(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int roomId = data["roomId"].toInt();
+    QString targetUser = data["username"].toString();
+    bool setAdmin = data["isAdmin"].toBool(true);
+
+    QJsonObject rspData;
+    rspData["roomId"] = roomId;
+    rspData["username"] = targetUser;
+
+    // 只有房间创建者可以设置管理员
+    if (!m_db->isRoomCreator(roomId, session->userId())) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("只有房间创建者可以设置管理员");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_RSP, rspData));
+        return;
+    }
+
+    // 查找目标用户 ID
+    int targetUserId = 0;
+    {
+        QMutexLocker locker(&m_mutex);
+        if (m_sessions.contains(targetUser)) {
+            targetUserId = m_sessions[targetUser]->userId();
+        }
+    }
+    if (targetUserId <= 0) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("用户不在线");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_RSP, rspData));
+        return;
+    }
+
+    m_db->setRoomAdmin(roomId, targetUserId, setAdmin);
+
+    rspData["success"] = true;
+    rspData["isAdmin"] = setAdmin;
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_RSP, rspData));
+
+    // 通知目标用户其管理员状态变更
+    QJsonObject notifyData;
+    notifyData["roomId"] = roomId;
+    notifyData["isAdmin"] = setAdmin;
+    sendToUser(targetUser, Protocol::makeMessage(Protocol::MsgType::ADMIN_STATUS, notifyData));
+}
+
+void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int roomId = data["roomId"].toInt();
+    QString mode = data["mode"].toString(); // "selected", "all", "before", "after"
+
+    QJsonObject rspData;
+    rspData["roomId"] = roomId;
+
+    // 验证管理员权限
+    if (!m_db->isRoomAdmin(roomId, session->userId())) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("您没有管理员权限");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_RSP, rspData));
+        return;
+    }
+
+    int deletedCount = 0;
+
+    if (mode == "selected") {
+        // 删除选定的消息
+        QList<int> ids;
+        for (const QJsonValue &v : data["messageIds"].toArray())
+            ids.append(v.toInt());
+        if (m_db->deleteMessages(roomId, ids))
+            deletedCount = ids.size();
+    } else if (mode == "all") {
+        // 清空所有消息
+        deletedCount = m_db->deleteAllMessages(roomId);
+    } else if (mode == "before") {
+        // 删除某时间之前的消息
+        qint64 ts = static_cast<qint64>(data["timestamp"].toDouble());
+        QDateTime dt = QDateTime::fromMSecsSinceEpoch(ts);
+        deletedCount = m_db->deleteMessagesBefore(roomId, dt);
+    } else if (mode == "after") {
+        // 删除某时间之后的消息
+        qint64 ts = static_cast<qint64>(data["timestamp"].toDouble());
+        QDateTime dt = QDateTime::fromMSecsSinceEpoch(ts);
+        deletedCount = m_db->deleteMessagesAfter(roomId, dt);
+    }
+
+    rspData["success"] = true;
+    rspData["deletedCount"] = deletedCount;
+    rspData["mode"] = mode;
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_RSP, rspData));
+
+    // 通知房间所有成员刷新消息
+    QJsonObject notifyData;
+    notifyData["roomId"] = roomId;
+    notifyData["mode"] = mode;
+    notifyData["deletedCount"] = deletedCount;
+    notifyData["operator"] = session->username();
+    if (mode == "selected") {
+        notifyData["messageIds"] = data["messageIds"].toArray();
+    }
+    broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_NOTIFY, notifyData), session);
+}
+
+// ==================== 广播/实现 ====================
 
 void ChatServer::broadcastToRoom(int roomId, const QJsonObject &msg, ClientSession *exclude) {
     QStringList users = m_roomMgr->usersInRoom(roomId);

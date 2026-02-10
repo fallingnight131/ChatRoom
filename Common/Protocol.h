@@ -66,6 +66,15 @@ namespace MsgType {
     // 通知
     inline const QString USER_JOINED      = QStringLiteral("USER_JOINED");
     inline const QString USER_LEFT        = QStringLiteral("USER_LEFT");
+    inline const QString FORCE_OFFLINE    = QStringLiteral("FORCE_OFFLINE");
+
+    // 管理员功能
+    inline const QString SET_ADMIN_REQ    = QStringLiteral("SET_ADMIN_REQ");
+    inline const QString SET_ADMIN_RSP    = QStringLiteral("SET_ADMIN_RSP");
+    inline const QString ADMIN_STATUS     = QStringLiteral("ADMIN_STATUS");     // 通知用户管理员状态
+    inline const QString DELETE_MSGS_REQ  = QStringLiteral("DELETE_MSGS_REQ");  // 删除消息
+    inline const QString DELETE_MSGS_RSP  = QStringLiteral("DELETE_MSGS_RSP");
+    inline const QString DELETE_MSGS_NOTIFY = QStringLiteral("DELETE_MSGS_NOTIFY"); // 通知其他人
 }
 
 // ==================== 数据包帧: [4字节长度][JSON数据] ====================

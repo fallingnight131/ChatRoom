@@ -93,3 +93,11 @@ int MessageModel::findMessageRow(int messageId) const {
     }
     return -1;
 }
+
+int MessageModel::findMessageByFileId(int fileId) const {
+    for (int i = 0; i < m_messages.size(); ++i) {
+        if (m_messages[i].fileId() == fileId)
+            return i;
+    }
+    return -1;
+}

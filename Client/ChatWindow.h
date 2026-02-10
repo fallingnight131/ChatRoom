@@ -2,6 +2,7 @@
 
 #include <QMainWindow>
 #include <QMap>
+#include <QJsonArray>
 
 class QListView;
 class QListWidget;
@@ -66,6 +67,13 @@ private slots:
     void onRecallResponse(bool success, int messageId, const QString &error);
     void onRecallNotify(int messageId, int roomId, const QString &username);
 
+    // 管理员
+    void onAdminStatusChanged(int roomId, bool isAdmin);
+    void onSetAdminResponse(bool success, int roomId, const QString &username, const QString &error);
+    void onDeleteMsgsResponse(bool success, int roomId, int deletedCount, const QString &mode, const QString &error);
+    void onDeleteMsgsNotify(int roomId, const QString &mode, const QJsonArray &messageIds);
+    void onUserContextMenu(const QPoint &pos);
+
     // 表情
     void onEmojiSelected(const QString &emoji);
     void onShowEmojiPicker();
@@ -114,6 +122,7 @@ private:
 
     QMap<int, MessageModel*>  m_models;     // roomId -> MessageModel
     MessageDelegate          *m_delegate = nullptr;
+    QMap<int, bool>           m_adminRooms; // roomId -> isAdmin
 
     // 贴边隐藏
     QTimer  *m_edgeTimer  = nullptr;

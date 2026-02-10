@@ -1,12 +1,15 @@
 #include "MessageDelegate.h"
 #include "MessageModel.h"
 #include "Message.h"
+#include "FileCache.h"
 
 #include <QPainter>
 #include <QPainterPath>
 #include <QApplication>
 #include <QDateTime>
 #include <QTextDocument>
+#include <QPixmapCache>
+#include <QFileInfo>
 
 MessageDelegate::MessageDelegate(QObject *parent)
     : QStyledItemDelegate(parent)
@@ -19,6 +22,20 @@ MessageDelegate::MessageDelegate(QObject *parent)
     , m_timeColor(QColor(150, 150, 150))
     , m_fileBgColor(QColor(230, 240, 250))
 {
+}
+
+/// 智能时间格式化：今天只显示时间，昨天显示"昨天 HH:mm"，其他显示完整日期
+static QString formatSmartTime(const QDateTime &dt) {
+    QDate today = QDate::currentDate();
+    QDate msgDate = dt.date();
+    if (msgDate == today)
+        return dt.toString("HH:mm");
+    else if (msgDate == today.addDays(-1))
+        return QStringLiteral("昨天 ") + dt.toString("HH:mm");
+    else if (msgDate.year() == today.year())
+        return dt.toString("M月d日 HH:mm");
+    else
+        return dt.toString("yyyy/M/d HH:mm");
 }
 
 void MessageDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
@@ -87,7 +104,7 @@ void MessageDelegate::drawTextBubble(QPainter *painter, const QStyleOptionViewIt
     senderFont.setPointSize(senderFont.pointSize() - 1);
     QFontMetrics sfm(senderFont);
 
-    QString timeStr = time.toString("HH:mm");
+    QString timeStr = formatSmartTime(time);
     QFont timeFont = option.font;
     timeFont.setPointSize(timeFont.pointSize() - 2);
     QFontMetrics tfm(timeFont);
@@ -195,10 +212,51 @@ void MessageDelegate::drawSystemMessage(QPainter *painter, const QStyleOptionVie
 
 // ==================== 文件消息 ====================
 
+bool MessageDelegate::isImageFile(const QString &fileName) {
+    static const QStringList exts = {"png", "jpg", "jpeg", "gif", "bmp", "webp", "ico", "svg"};
+    return exts.contains(QFileInfo(fileName).suffix().toLower());
+}
+
+bool MessageDelegate::isVideoFile(const QString &fileName) {
+    static const QStringList exts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
+    return exts.contains(QFileInfo(fileName).suffix().toLower());
+}
+
+QPixmap MessageDelegate::loadCachedImage(int fileId, const QString &fileName) const {
+    QString cacheKey = QString("msgimg_%1").arg(fileId);
+    QPixmap pix;
+    if (QPixmapCache::find(cacheKey, &pix))
+        return pix;
+
+    QString path = FileCache::instance()->cachedFilePath(fileId);
+    if (path.isEmpty()) return QPixmap();
+
+    if (!pix.load(path)) return QPixmap();
+
+    // 缩放到合适大小
+    if (pix.width() > m_maxImageWidth || pix.height() > m_maxImageHeight) {
+        pix = pix.scaled(m_maxImageWidth, m_maxImageHeight,
+                         Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    }
+    QPixmapCache::insert(cacheKey, pix);
+    return pix;
+}
+
 void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewItem &option,
                                       const QModelIndex &index, bool isMine) const {
-    QString sender   = index.data(MessageModel::SenderRole).toString();
     QString fileName = index.data(MessageModel::FileNameRole).toString();
+    int fileId       = index.data(MessageModel::FileIdRole).toInt();
+
+    // 图片消息：内联预览
+    if (isImageFile(fileName) && FileCache::instance()->isCached(fileId)) {
+        drawImageBubble(painter, option, index, isMine);
+        return;
+    }
+
+    // 视频消息：显示特殊图标
+    bool isVideo = isVideoFile(fileName);
+
+    QString sender   = index.data(MessageModel::SenderRole).toString();
     qint64 fileSize  = index.data(MessageModel::FileSizeRole).toLongLong();
     QDateTime time   = index.data(MessageModel::TimestampRole).toDateTime();
 
@@ -245,14 +303,14 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
 
     // 文件图标
     painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(66, 133, 244));
+    painter->setBrush(isVideo ? QColor(220, 80, 60) : QColor(66, 133, 244));
     QRect iconRect(bubbleX + 12, bubbleY + 15, 40, 40);
     painter->drawRoundedRect(iconRect, 6, 6);
     painter->setPen(Qt::white);
     QFont iconFont = option.font;
     iconFont.setPointSize(16);
     painter->setFont(iconFont);
-    painter->drawText(iconRect, Qt::AlignCenter, "📄");
+    painter->drawText(iconRect, Qt::AlignCenter, isVideo ? QStringLiteral("\u25B6") : QStringLiteral("\U0001F4C4"));
 
     // 文件名
     painter->setPen(Qt::black);
@@ -269,10 +327,118 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
     painter->drawText(bubbleX + 60, bubbleY + 48, sizeStr);
 
     // 时间
-    QString timeStr = time.toString("HH:mm");
+    QString timeStr = formatSmartTime(time);
     QFontMetrics tfm(smallFont);
     painter->drawText(bubbleX + bubbleW - m_padding - tfm.horizontalAdvance(timeStr),
                       bubbleY + bubbleH - 8, timeStr);
+}
+
+// ==================== 图片预览气泡 ====================
+
+void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewItem &option,
+                                       const QModelIndex &index, bool isMine) const {
+    QString sender   = index.data(MessageModel::SenderRole).toString();
+    QString fileName = index.data(MessageModel::FileNameRole).toString();
+    int fileId       = index.data(MessageModel::FileIdRole).toInt();
+    QDateTime time   = index.data(MessageModel::TimestampRole).toDateTime();
+
+    QRect rect = option.rect;
+    QPixmap pix = loadCachedImage(fileId, fileName);
+
+    int imgW = pix.isNull() ? 120 : pix.width();
+    int imgH = pix.isNull() ? 120 : pix.height();
+
+    QFont senderFont = option.font;
+    senderFont.setPointSize(senderFont.pointSize() - 1);
+    QFontMetrics sfm(senderFont);
+    int senderH = isMine ? 0 : sfm.height() + 4;
+
+    QFont timeFont = option.font;
+    timeFont.setPointSize(timeFont.pointSize() - 2);
+    QFontMetrics tfm(timeFont);
+
+    int bubbleW = imgW + m_padding * 2;
+    int bubbleH = senderH + imgH + tfm.height() + m_padding * 2 + 6;
+
+    int avatarX, bubbleX;
+    if (isMine) {
+        avatarX = rect.right() - m_margin - m_avatarSize;
+        bubbleX = avatarX - m_margin - bubbleW;
+    } else {
+        avatarX = rect.left() + m_margin;
+        bubbleX = avatarX + m_avatarSize + m_margin;
+    }
+    int avatarY = rect.top() + m_margin;
+    int bubbleY = rect.top() + m_margin;
+
+    // 头像
+    QRect avatarRect(avatarX, avatarY, m_avatarSize, m_avatarSize);
+    painter->setPen(Qt::NoPen);
+    quint32 hash = qHash(sender);
+    QColor avatarColor = QColor::fromHsl(hash % 360, 150, 130);
+    painter->setBrush(avatarColor);
+    painter->drawRoundedRect(avatarRect, m_avatarSize / 2, m_avatarSize / 2);
+    painter->setPen(Qt::white);
+    painter->setFont(option.font);
+    painter->drawText(avatarRect, Qt::AlignCenter, sender.left(1).toUpper());
+
+    // 气泡背景
+    QRect bubbleRect(bubbleX, bubbleY, bubbleW, bubbleH);
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(isMine ? m_myBubbleColor : m_otherBubbleColor);
+    painter->drawRoundedRect(bubbleRect, m_bubbleRadius, m_bubbleRadius);
+
+    // 小三角
+    QPainterPath triangle;
+    if (isMine) {
+        triangle.moveTo(bubbleRect.right(), bubbleRect.top() + 14);
+        triangle.lineTo(bubbleRect.right() + 8, bubbleRect.top() + 18);
+        triangle.lineTo(bubbleRect.right(), bubbleRect.top() + 22);
+    } else {
+        triangle.moveTo(bubbleRect.left(), bubbleRect.top() + 14);
+        triangle.lineTo(bubbleRect.left() - 8, bubbleRect.top() + 18);
+        triangle.lineTo(bubbleRect.left(), bubbleRect.top() + 22);
+    }
+    painter->drawPath(triangle);
+
+    int contentY = bubbleY + m_padding;
+
+    // 发送者名字
+    if (!isMine) {
+        painter->setPen(m_senderColor);
+        painter->setFont(senderFont);
+        painter->drawText(bubbleX + m_padding, contentY + sfm.ascent(), sender);
+        contentY += senderH;
+    }
+
+    // 图片
+    if (!pix.isNull()) {
+        QRect imgRect(bubbleX + m_padding, contentY, imgW, imgH);
+        // 圆角裁剪
+        QPainterPath clipPath;
+        clipPath.addRoundedRect(imgRect, 6, 6);
+        painter->setClipPath(clipPath);
+        painter->drawPixmap(imgRect, pix);
+        painter->setClipping(false);
+    } else {
+        // 加载中占位
+        QRect placeholder(bubbleX + m_padding, contentY, imgW, imgH);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(220, 220, 220));
+        painter->drawRoundedRect(placeholder, 6, 6);
+        painter->setPen(m_timeColor);
+        painter->setFont(option.font);
+        painter->drawText(placeholder, Qt::AlignCenter, "加载中...");
+    }
+
+    // 时间
+    QString timeStr = formatSmartTime(time);
+    painter->setPen(m_timeColor);
+    painter->setFont(timeFont);
+    painter->drawText(QRect(bubbleX + m_padding,
+                            bubbleY + bubbleH - m_padding - tfm.height(),
+                            bubbleW - m_padding * 2, tfm.height()),
+                      Qt::AlignRight, timeStr);
 }
 
 // ==================== 已撤回消息 ====================
@@ -311,6 +477,29 @@ QSize MessageDelegate::textBubbleSize(const QStyleOptionViewItem &option,
     int contentType = index.data(MessageModel::ContentTypeRole).toInt();
 
     if (contentType == static_cast<int>(Message::File)) {
+        QString fileName = index.data(MessageModel::FileNameRole).toString();
+        int fileId       = index.data(MessageModel::FileIdRole).toInt();
+
+        // 图片文件：计算图片预览尺寸
+        if (isImageFile(fileName) && FileCache::instance()->isCached(fileId)) {
+            QPixmap pix = loadCachedImage(fileId, fileName);
+            int imgW = pix.isNull() ? 120 : pix.width();
+            int imgH = pix.isNull() ? 120 : pix.height();
+
+            bool isMine = index.data(MessageModel::IsMineRole).toBool();
+            QFont senderFont = option.font;
+            senderFont.setPointSize(senderFont.pointSize() - 1);
+            QFontMetrics sfm(senderFont);
+            int senderH = isMine ? 0 : sfm.height() + 4;
+
+            QFont timeFont = option.font;
+            timeFont.setPointSize(timeFont.pointSize() - 2);
+            QFontMetrics tfm(timeFont);
+
+            int h = senderH + imgH + tfm.height() + m_padding * 2 + 6 + m_margin * 2;
+            return QSize(option.rect.width(), qMax(h, m_avatarSize + m_margin * 2));
+        }
+
         return QSize(option.rect.width(), 70 + m_margin * 2);
     }
 

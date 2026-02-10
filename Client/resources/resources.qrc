@@ -3,4 +3,7 @@
         <file alias="light.qss">light.qss</file>
         <file alias="dark.qss">dark.qss</file>
     </qresource>
+    <qresource prefix="/icons">
+        <file alias="app.png">app_icon.png</file>
+    </qresource>
 </RCC>

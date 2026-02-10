@@ -181,6 +181,10 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                         data["roomId"].toInt(),
                         data["roomName"].toString(),
                         data["error"].toString());
+        // 加入成功时也通知管理员状态
+        if (data["success"].toBool() && data.contains("isAdmin")) {
+            emit adminStatusChanged(data["roomId"].toInt(), data["isAdmin"].toBool());
+        }
     }
     else if (type == Protocol::MsgType::ROOM_LIST_RSP) {
         emit roomListReceived(data["rooms"].toArray());
@@ -215,5 +219,35 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         emit recallNotify(data["messageId"].toInt(),
                           data["roomId"].toInt(),
                           data["username"].toString());
+    }
+    else if (type == Protocol::MsgType::FORCE_OFFLINE) {
+        emit forceOffline(data["reason"].toString());
+        // 禁止自动重连
+        m_autoReconnect = false;
+        if (m_socket) {
+            m_socket->disconnect();
+            m_socket->close();
+        }
+    }
+    else if (type == Protocol::MsgType::ADMIN_STATUS) {
+        emit adminStatusChanged(data["roomId"].toInt(), data["isAdmin"].toBool());
+    }
+    else if (type == Protocol::MsgType::SET_ADMIN_RSP) {
+        emit setAdminResponse(data["success"].toBool(),
+                              data["roomId"].toInt(),
+                              data["username"].toString(),
+                              data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::DELETE_MSGS_RSP) {
+        emit deleteMsgsResponse(data["success"].toBool(),
+                                data["roomId"].toInt(),
+                                data["deletedCount"].toInt(),
+                                data["mode"].toString(),
+                                data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::DELETE_MSGS_NOTIFY) {
+        emit deleteMsgsNotify(data["roomId"].toInt(),
+                              data["mode"].toString(),
+                              data["messageIds"].toArray());
     }
 }

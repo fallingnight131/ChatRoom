@@ -17,6 +17,8 @@ public:
     bool    isAuthenticated() const { return m_authenticated; }
 
     void setAuthenticated(int userId, const QString &username);
+    void setKicked(bool v) { m_kicked = v; }
+    bool isKicked() const  { return m_kicked; }
 
 public slots:
     void init();
@@ -44,4 +46,5 @@ private:
     int         m_userId        = 0;
     QString     m_username;
     bool        m_authenticated = false;
+    bool        m_kicked        = false;
 };

@@ -15,7 +15,8 @@ SOURCES += \
     MessageDelegate.cpp \
     EmojiPicker.cpp \
     ThemeManager.cpp \
-    TrayManager.cpp
+    TrayManager.cpp \
+    FileCache.cpp
 
 HEADERS += \
     NetworkManager.h \
@@ -25,7 +26,10 @@ HEADERS += \
     MessageDelegate.h \
     EmojiPicker.h \
     ThemeManager.h \
-    TrayManager.h
+    TrayManager.h \
+    FileCache.h
 
 RESOURCES += \
     resources/resources.qrc
+
+RC_ICONS = resources/app_icon.ico

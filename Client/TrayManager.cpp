@@ -15,7 +15,7 @@ TrayManager::TrayManager(QMainWindow *mainWindow, QObject *parent)
         return;
 
     m_trayIcon = new QSystemTrayIcon(this);
-    m_trayIcon->setIcon(qApp->style()->standardIcon(QStyle::SP_ComputerIcon));
+    m_trayIcon->setIcon(QIcon(":/icons/app.png"));
     m_trayIcon->setToolTip("Qt聊天室");
 
     // 托盘菜单
@@ -27,8 +27,9 @@ TrayManager::TrayManager(QMainWindow *mainWindow, QObject *parent)
     });
     m_trayMenu->addSeparator();
     m_trayMenu->addAction("退出", [this] {
-        m_mainWindow->close();
-        qApp->quit();
+        // 先主动断开网络连接，通知服务器用户离开
+        extern void cleanupAndQuit();
+        cleanupAndQuit();
     });
 
     m_trayIcon->setContextMenu(m_trayMenu);

@@ -53,6 +53,8 @@ private:
     void handleFileSend(ClientSession *session, const QJsonObject &msg);
     void handleFileDownload(ClientSession *session, const QJsonObject &data);
     void handleRecall(ClientSession *session, const QJsonObject &data);
+    void handleSetAdmin(ClientSession *session, const QJsonObject &data);
+    void handleDeleteMessages(ClientSession *session, const QJsonObject &data);
 
     DatabaseManager *m_db       = nullptr;
     RoomManager     *m_roomMgr  = nullptr;

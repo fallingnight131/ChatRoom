@@ -5,6 +5,7 @@
 #include "EmojiPicker.h"
 #include "ThemeManager.h"
 #include "TrayManager.h"
+#include "FileCache.h"
 #include "Protocol.h"
 #include "Message.h"
 
@@ -134,16 +135,16 @@ void ChatWindow::setupUi() {
 
     // 工具栏
     auto *toolLayout = new QHBoxLayout;
-    m_emojiBtn = new QPushButton("😊");
-    m_emojiBtn->setFixedSize(32, 32);
+    m_emojiBtn = new QPushButton("表情");
+    m_emojiBtn->setFixedHeight(32);
     m_emojiBtn->setToolTip("表情");
 
-    m_imageBtn = new QPushButton("🖼");
-    m_imageBtn->setFixedSize(32, 32);
+    m_imageBtn = new QPushButton("图片");
+    m_imageBtn->setFixedHeight(32);
     m_imageBtn->setToolTip("发送图片");
 
-    m_fileBtn = new QPushButton("📎");
-    m_fileBtn->setFixedSize(32, 32);
+    m_fileBtn = new QPushButton("文件");
+    m_fileBtn->setFixedHeight(32);
     m_fileBtn->setToolTip("发送文件");
 
     toolLayout->addWidget(m_emojiBtn);
@@ -179,6 +180,7 @@ void ChatWindow::setupUi() {
 
     m_userList = new QListWidget;
     m_userList->setMinimumWidth(140);
+    m_userList->setContextMenuPolicy(Qt::CustomContextMenu);
     rightLayout->addWidget(m_userList);
 
     // 组装
@@ -249,6 +251,12 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::recallResponse, this, &ChatWindow::onRecallResponse);
     connect(net, &NetworkManager::recallNotify,   this, &ChatWindow::onRecallNotify);
 
+    // 管理员
+    connect(net, &NetworkManager::adminStatusChanged, this, &ChatWindow::onAdminStatusChanged);
+    connect(net, &NetworkManager::setAdminResponse,   this, &ChatWindow::onSetAdminResponse);
+    connect(net, &NetworkManager::deleteMsgsResponse, this, &ChatWindow::onDeleteMsgsResponse);
+    connect(net, &NetworkManager::deleteMsgsNotify,   this, &ChatWindow::onDeleteMsgsNotify);
+
     // UI 交互
     connect(m_sendBtn,     &QPushButton::clicked, this, &ChatWindow::onSendMessage);
     connect(m_emojiBtn,    &QPushButton::clicked, this, &ChatWindow::onShowEmojiPicker);
@@ -257,6 +265,18 @@ void ChatWindow::connectSignals() {
     connect(m_roomList,    &QListWidget::itemClicked, this, &ChatWindow::onRoomSelected);
     connect(m_emojiPicker, &EmojiPicker::emojiSelected, this, &ChatWindow::onEmojiSelected);
     connect(m_messageView, &QListView::customContextMenuRequested, this, &ChatWindow::onMessageContextMenu);
+    connect(m_userList,    &QListWidget::customContextMenuRequested, this, &ChatWindow::onUserContextMenu);
+
+    // 双击打开文件/图片
+    connect(m_messageView, &QListView::doubleClicked, this, [this](const QModelIndex &idx) {
+        int contentType = idx.data(MessageModel::ContentTypeRole).toInt();
+        if (contentType != static_cast<int>(Message::File)) return;
+
+        int fileId = idx.data(MessageModel::FileIdRole).toInt();
+        if (FileCache::instance()->isCached(fileId)) {
+            FileCache::openWithSystem(FileCache::instance()->cachedFilePath(fileId));
+        }
+    });
 }
 
 // ==================== 房间操作 ====================
@@ -560,18 +580,21 @@ void ChatWindow::onSendImage() {
 
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FILE_SEND, msgData));
+
+    m_statusLabel->setText("图片发送中...");
 }
 
 void ChatWindow::onFileNotify(const QJsonObject &data) {
     int roomId = data["roomId"].toInt();
+    int fileId = data["fileId"].toInt();
+    QString fileName = data["fileName"].toString();
+    QString sender   = data["sender"].toString();
+
     Message msg = Message::createFileMessage(
-        roomId,
-        data["sender"].toString(),
-        data["fileName"].toString(),
-        static_cast<qint64>(data["fileSize"].toDouble()),
-        data["fileId"].toInt());
+        roomId, sender, fileName,
+        static_cast<qint64>(data["fileSize"].toDouble()), fileId);
     msg.setId(data["id"].toInt());
-    msg.setIsMine(data["sender"].toString() == m_username);
+    msg.setIsMine(sender == m_username);
 
     getOrCreateModel(roomId)->addMessage(msg);
 
@@ -579,23 +602,48 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
         QTimer::singleShot(50, [this] { m_messageView->scrollToBottom(); });
     }
     m_statusLabel->setText("文件传输完成");
+
+    // 自动下载缓存文件（类似微信，接收后自动缓存）
+    if (!FileCache::instance()->isCached(fileId)) {
+        QJsonObject reqData;
+        reqData["fileId"]   = fileId;
+        reqData["fileName"] = fileName;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_REQ, reqData));
+    }
 }
 
 void ChatWindow::onFileDownloadReady(const QJsonObject &data) {
     if (!data["success"].toBool()) {
-        QMessageBox::warning(this, "下载失败", data["error"].toString());
+        m_statusLabel->setText("文件下载失败: " + data["error"].toString());
         return;
     }
 
+    int fileId = data["fileId"].toInt();
     QString fileName = data["fileName"].toString();
-    QString savePath = QFileDialog::getSaveFileName(this, "保存文件", fileName);
-    if (savePath.isEmpty()) return;
+    QByteArray fileData = QByteArray::fromBase64(data["fileData"].toString().toUtf8());
 
-    QFile file(savePath);
-    if (file.open(QIODevice::WriteOnly)) {
-        file.write(QByteArray::fromBase64(data["fileData"].toString().toUtf8()));
-        file.close();
-        QMessageBox::information(this, "成功", "文件已保存到: " + savePath);
+    // 缓存到本地
+    QString localPath = FileCache::instance()->cacheFile(fileId, fileName, fileData);
+    if (!localPath.isEmpty()) {
+        m_statusLabel->setText("文件已缓存: " + fileName);
+
+        // 如果是图片，强制刷新视图以更新图片预览和行高
+        QString lower = fileName.toLower();
+        if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")
+            || lower.endsWith(".gif") || lower.endsWith(".bmp") || lower.endsWith(".webp")) {
+            // 通知所有模型该消息数据已变化，触发 sizeHint 重新计算
+            for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+                int row = it.value()->findMessageByFileId(fileId);
+                if (row >= 0) {
+                    QModelIndex idx = it.value()->index(row, 0);
+                    emit it.value()->dataChanged(idx, idx);
+                }
+            }
+            // 强制当前视图重新布局以更新行高
+            m_messageView->doItemsLayout();
+            m_messageView->viewport()->update();
+        }
     }
 }
 
@@ -632,6 +680,76 @@ void ChatWindow::onRecallNotify(int messageId, int roomId, const QString &userna
     model->recallMessage(messageId);
 }
 
+// ==================== 管理员功能 ====================
+
+void ChatWindow::onAdminStatusChanged(int roomId, bool isAdmin) {
+    m_adminRooms[roomId] = isAdmin;
+    if (roomId == m_currentRoomId) {
+        m_roomTitle->setText(m_roomTitle->text().remove(QStringLiteral(" [管理员]")));
+        if (isAdmin)
+            m_roomTitle->setText(m_roomTitle->text() + QStringLiteral(" [管理员]"));
+    }
+}
+
+void ChatWindow::onSetAdminResponse(bool success, int roomId, const QString &username, const QString &error) {
+    Q_UNUSED(roomId)
+    if (success)
+        m_statusLabel->setText(QStringLiteral("已设置 %1 为管理员").arg(username));
+    else
+        QMessageBox::warning(this, "设置管理员失败", error);
+}
+
+void ChatWindow::onDeleteMsgsResponse(bool success, int roomId, int deletedCount, const QString &mode, const QString &error) {
+    Q_UNUSED(mode)
+    if (success) {
+        m_statusLabel->setText(QStringLiteral("已删除 %1 条消息").arg(deletedCount));
+        // 重新加载历史消息
+        MessageModel *model = getOrCreateModel(roomId);
+        model->clear();
+        NetworkManager::instance()->sendMessage(Protocol::makeHistoryReq(roomId, 50));
+    } else {
+        QMessageBox::warning(this, "删除消息失败", error);
+    }
+}
+
+void ChatWindow::onDeleteMsgsNotify(int roomId, const QString &mode, const QJsonArray &messageIds) {
+    MessageModel *model = getOrCreateModel(roomId);
+    if (mode == "selected") {
+        // 仅移除指定消息 — 简单起见直接重新加载
+        model->clear();
+        NetworkManager::instance()->sendMessage(Protocol::makeHistoryReq(roomId, 50));
+    } else {
+        // all / before / after — 直接清空并重新加载
+        Q_UNUSED(messageIds)
+        model->clear();
+        NetworkManager::instance()->sendMessage(Protocol::makeHistoryReq(roomId, 50));
+    }
+    m_statusLabel->setText("管理员清理了消息记录");
+}
+
+void ChatWindow::onUserContextMenu(const QPoint &pos) {
+    if (m_currentRoomId < 0) return;
+    if (!m_adminRooms.value(m_currentRoomId, false)) return; // 非管理员无菜单
+
+    QListWidgetItem *item = m_userList->itemAt(pos);
+    if (!item) return;
+
+    QString targetUser = item->text();
+    if (targetUser == m_username) return; // 不能对自己操作
+
+    QMenu menu(this);
+    menu.addAction(QStringLiteral("设为管理员"), [this, targetUser] {
+        QJsonObject data;
+        data["roomId"] = m_currentRoomId;
+        data["username"] = targetUser;
+        data["isAdmin"] = true;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
+    });
+
+    menu.exec(m_userList->viewport()->mapToGlobal(pos));
+}
+
 // ==================== 表情 ====================
 
 void ChatWindow::onShowEmojiPicker() {
@@ -659,13 +777,26 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
     QMenu menu(this);
 
     if (msg.contentType() == Message::File) {
-        menu.addAction("下载文件", [this, &msg] {
-            QJsonObject data;
-            data["fileId"]   = msg.fileId();
-            data["fileName"] = msg.fileName();
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_REQ, data));
-        });
+        int fileId = msg.fileId();
+        if (FileCache::instance()->isCached(fileId)) {
+            menu.addAction("打开文件", [fileId] {
+                QString path = FileCache::instance()->cachedFilePath(fileId);
+                FileCache::openWithSystem(path);
+            });
+            menu.addAction("打开所在文件夹", [fileId] {
+                QString path = FileCache::instance()->cachedFilePath(fileId);
+                QFileInfo fi(path);
+                FileCache::openWithSystem(fi.absolutePath());
+            });
+        } else {
+            menu.addAction("下载文件", [this, &msg] {
+                QJsonObject data;
+                data["fileId"]   = msg.fileId();
+                data["fileName"] = msg.fileName();
+                NetworkManager::instance()->sendMessage(
+                    Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_REQ, data));
+            });
+        }
     }
 
     if (msg.sender() == m_username && !msg.recalled()) {
@@ -675,6 +806,69 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
     menu.addAction("复制文本", [&msg] {
         QApplication::clipboard()->setText(msg.content());
     });
+
+    // 管理员功能
+    if (m_adminRooms.value(m_currentRoomId, false) && !msg.recalled()) {
+        menu.addSeparator();
+        QMenu *adminMenu = menu.addMenu("管理员操作");
+
+        // 删除这条消息
+        int msgId = msg.id();
+        adminMenu->addAction("删除此消息", [this, msgId] {
+            QJsonObject data;
+            data["roomId"] = m_currentRoomId;
+            data["mode"] = QStringLiteral("selected");
+            QJsonArray ids;
+            ids.append(msgId);
+            data["messageIds"] = ids;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_REQ, data));
+        });
+
+        adminMenu->addSeparator();
+
+        // 清空所有消息
+        adminMenu->addAction("清空所有消息", [this] {
+            if (QMessageBox::question(this, "确认", "确定要清空所有聊天记录吗？\n此操作不可恢复！")
+                == QMessageBox::Yes) {
+                QJsonObject data;
+                data["roomId"] = m_currentRoomId;
+                data["mode"] = QStringLiteral("all");
+                NetworkManager::instance()->sendMessage(
+                    Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_REQ, data));
+            }
+        });
+
+        // 删除N天前的消息
+        adminMenu->addAction("删除N天前的消息...", [this] {
+            bool ok;
+            int days = QInputDialog::getInt(this, "删除旧消息",
+                "删除多少天前的消息:", 7, 1, 365, 1, &ok);
+            if (!ok) return;
+            QDateTime cutoff = QDateTime::currentDateTime().addDays(-days);
+            QJsonObject data;
+            data["roomId"] = m_currentRoomId;
+            data["mode"] = QStringLiteral("before");
+            data["timestamp"] = static_cast<double>(cutoff.toMSecsSinceEpoch());
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_REQ, data));
+        });
+
+        // 删除N天内的消息
+        adminMenu->addAction("删除最近N天的消息...", [this] {
+            bool ok;
+            int days = QInputDialog::getInt(this, "删除近期消息",
+                "删除最近几天的消息:", 1, 1, 365, 1, &ok);
+            if (!ok) return;
+            QDateTime cutoff = QDateTime::currentDateTime().addDays(-days);
+            QJsonObject data;
+            data["roomId"] = m_currentRoomId;
+            data["mode"] = QStringLiteral("after");
+            data["timestamp"] = static_cast<double>(cutoff.toMSecsSinceEpoch());
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_REQ, data));
+        });
+    }
 
     menu.exec(m_messageView->viewport()->mapToGlobal(pos));
 }

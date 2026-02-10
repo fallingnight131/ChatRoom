@@ -57,6 +57,15 @@ signals:
     void recallResponse(bool success, int messageId, const QString &error);
     void recallNotify(int messageId, int roomId, const QString &username);
 
+    // 强制下线
+    void forceOffline(const QString &reason);
+
+    // 管理员
+    void adminStatusChanged(int roomId, bool isAdmin);
+    void setAdminResponse(bool success, int roomId, const QString &username, const QString &error);
+    void deleteMsgsResponse(bool success, int roomId, int deletedCount, const QString &mode, const QString &error);
+    void deleteMsgsNotify(int roomId, const QString &mode, const QJsonArray &messageIds);
+
 private slots:
     void onConnected();
     void onDisconnected();

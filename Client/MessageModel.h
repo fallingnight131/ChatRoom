@@ -36,6 +36,7 @@ public:
 
     const Message &messageAt(int row) const;
     int findMessageRow(int messageId) const;
+    int findMessageByFileId(int fileId) const;
 
 private:
     QList<Message> m_messages;

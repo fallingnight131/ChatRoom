@@ -36,6 +36,18 @@ public:
                      const QString &filePath, qint64 fileSize);
     QString getFilePath(int fileId);
 
+    // 管理员管理
+    bool isRoomAdmin(int roomId, int userId);
+    bool isRoomCreator(int roomId, int userId);
+    bool setRoomAdmin(int roomId, int userId, bool isAdmin);
+    QList<int> getRoomAdmins(int roomId);
+
+    // 管理员操作 - 删除消息
+    bool deleteMessages(int roomId, const QList<int> &messageIds);
+    int  deleteAllMessages(int roomId);
+    int  deleteMessagesBefore(int roomId, const QDateTime &before);
+    int  deleteMessagesAfter(int roomId, const QDateTime &after);
+
 private:
     QSqlDatabase getConnection();
     QString hashPassword(const QString &password, const QString &salt);

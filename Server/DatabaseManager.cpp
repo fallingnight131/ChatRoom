@@ -122,6 +122,15 @@ bool DatabaseManager::initialize() {
            "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
            ")");
 
+    // 房间管理员表
+    q.exec("CREATE TABLE IF NOT EXISTS room_admins ("
+           "  room_id INTEGER NOT NULL,"
+           "  user_id INTEGER NOT NULL,"
+           "  PRIMARY KEY (room_id, user_id),"
+           "  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,"
+           "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+           ")");
+
     // 创建默认大厅
     q.prepare("SELECT id FROM rooms WHERE id = 1");
     q.exec();
@@ -272,7 +281,9 @@ QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 befo
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
-    QString sql = "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id,"
+    // 用子查询取最新N条（DESC），再按时间正序排列（ASC）
+    QString sql = "SELECT * FROM ("
+                  "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id,"
                   "       m.recalled, m.created_at, u.username"
                   " FROM messages m JOIN users u ON m.user_id = u.id"
                   " WHERE m.room_id = ?";
@@ -280,7 +291,8 @@ QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 befo
     if (beforeTimestamp > 0)
         sql += " AND m.created_at < datetime(? / 1000, 'unixepoch')";
 
-    sql += " ORDER BY m.created_at DESC LIMIT ?";
+    sql += " ORDER BY m.created_at DESC LIMIT ?"
+           ") ORDER BY created_at ASC";
 
     q.prepare(sql);
     q.addBindValue(roomId);
@@ -299,7 +311,12 @@ QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 befo
         msg["fileSize"]    = static_cast<double>(q.value(4).toLongLong());
         msg["fileId"]      = q.value(5).toInt();
         msg["recalled"]    = q.value(6).toInt() != 0;
-        msg["timestamp"]   = q.value(7).toDateTime().toMSecsSinceEpoch();
+
+        // SQLite CURRENT_TIMESTAMP 存储 UTC 时间，需明确指定 TimeSpec
+        QDateTime dt = q.value(7).toDateTime();
+        dt.setTimeSpec(Qt::UTC);
+        msg["timestamp"]   = dt.toMSecsSinceEpoch();
+
         msg["sender"]      = q.value(8).toString();
         msg["roomId"]      = roomId;
         arr.append(msg);
@@ -363,4 +380,122 @@ QString DatabaseManager::getFilePath(int fileId) {
     if (q.next())
         return q.value(0).toString();
     return {};
+}
+
+// ==================== 管理员管理 ====================
+
+bool DatabaseManager::isRoomAdmin(int roomId, int userId) {
+    // 房间创建者自动拥有管理员权限
+    if (isRoomCreator(roomId, userId))
+        return true;
+
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT 1 FROM room_admins WHERE room_id = ? AND user_id = ?");
+    q.addBindValue(roomId);
+    q.addBindValue(userId);
+    q.exec();
+    return q.next();
+}
+
+bool DatabaseManager::isRoomCreator(int roomId, int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT 1 FROM rooms WHERE id = ? AND creator_id = ?");
+    q.addBindValue(roomId);
+    q.addBindValue(userId);
+    q.exec();
+    return q.next();
+}
+
+bool DatabaseManager::setRoomAdmin(int roomId, int userId, bool isAdmin) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    if (isAdmin) {
+        q.prepare("INSERT OR IGNORE INTO room_admins (room_id, user_id) VALUES (?, ?)");
+    } else {
+        q.prepare("DELETE FROM room_admins WHERE room_id = ? AND user_id = ?");
+    }
+    q.addBindValue(roomId);
+    q.addBindValue(userId);
+    return q.exec();
+}
+
+QList<int> DatabaseManager::getRoomAdmins(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    // 包含创建者和显式管理员
+    q.prepare("SELECT creator_id FROM rooms WHERE id = ?");
+    q.addBindValue(roomId);
+    q.exec();
+
+    QList<int> admins;
+    if (q.next())
+        admins.append(q.value(0).toInt());
+
+    q.prepare("SELECT user_id FROM room_admins WHERE room_id = ?");
+    q.addBindValue(roomId);
+    q.exec();
+    while (q.next()) {
+        int uid = q.value(0).toInt();
+        if (!admins.contains(uid))
+            admins.append(uid);
+    }
+    return admins;
+}
+
+// ==================== 管理员操作 - 删除消息 ====================
+
+bool DatabaseManager::deleteMessages(int roomId, const QList<int> &messageIds) {
+    if (messageIds.isEmpty()) return true;
+
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    QStringList placeholders;
+    for (int i = 0; i < messageIds.size(); ++i)
+        placeholders.append("?");
+
+    QString sql = QString("DELETE FROM messages WHERE room_id = ? AND id IN (%1)")
+                      .arg(placeholders.join(","));
+    q.prepare(sql);
+    q.addBindValue(roomId);
+    for (int id : messageIds)
+        q.addBindValue(id);
+
+    return q.exec();
+}
+
+int DatabaseManager::deleteAllMessages(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("DELETE FROM messages WHERE room_id = ?");
+    q.addBindValue(roomId);
+    if (q.exec())
+        return q.numRowsAffected();
+    return -1;
+}
+
+int DatabaseManager::deleteMessagesBefore(int roomId, const QDateTime &before) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("DELETE FROM messages WHERE room_id = ? AND created_at < ?");
+    q.addBindValue(roomId);
+    q.addBindValue(before.toUTC().toString("yyyy-MM-dd HH:mm:ss"));
+    if (q.exec())
+        return q.numRowsAffected();
+    return -1;
+}
+
+int DatabaseManager::deleteMessagesAfter(int roomId, const QDateTime &after) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("DELETE FROM messages WHERE room_id = ? AND created_at > ?");
+    q.addBindValue(roomId);
+    q.addBindValue(after.toUTC().toString("yyyy-MM-dd HH:mm:ss"));
+    if (q.exec())
+        return q.numRowsAffected();
+    return -1;
 }

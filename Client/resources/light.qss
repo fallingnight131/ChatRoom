@@ -9,12 +9,14 @@ QListWidget, QListView {
     border: 1px solid #e0e0e0;
     border-radius: 6px;
     font-size: 13px;
+    color: #333333;
     outline: none;
 }
 
 QListWidget::item {
     padding: 8px 10px;
     border-bottom: 1px solid #f0f0f0;
+    color: #333333;
 }
 
 QListWidget::item:selected {
@@ -33,6 +35,7 @@ QTextEdit {
     border-radius: 6px;
     padding: 6px;
     font-size: 13px;
+    color: #333333;
     selection-background-color: #bbdefb;
 }
 
@@ -50,7 +53,7 @@ QPushButton {
     border-radius: 6px;
     padding: 8px 16px;
     font-size: 13px;
-    color: #333;
+    color: #333333;
 }
 
 QPushButton:hover {
@@ -65,15 +68,18 @@ QMenuBar {
     background-color: #ffffff;
     border-bottom: 1px solid #e0e0e0;
     padding: 2px;
+    color: #333333;
 }
 
 QMenuBar::item {
     padding: 4px 12px;
     border-radius: 4px;
+    color: #333333;
 }
 
 QMenuBar::item:selected {
     background-color: #e3f2fd;
+    color: #1565c0;
 }
 
 QMenu {
@@ -81,15 +87,24 @@ QMenu {
     border: 1px solid #e0e0e0;
     border-radius: 6px;
     padding: 4px;
+    color: #333333;
 }
 
 QMenu::item {
     padding: 6px 24px;
     border-radius: 4px;
+    color: #333333;
 }
 
 QMenu::item:selected {
     background-color: #e3f2fd;
+    color: #1565c0;
+}
+
+QMenu::separator {
+    height: 1px;
+    background: #e0e0e0;
+    margin: 4px 8px;
 }
 
 QStatusBar {
@@ -154,4 +169,16 @@ QScrollBar::handle:vertical:hover {
 QScrollBar::add-line:vertical,
 QScrollBar::sub-line:vertical {
     height: 0;
+}
+
+/* 输入对话框 */
+QInputDialog QLabel {
+    color: #333333;
+}
+QInputDialog QLineEdit {
+    color: #333333;
+}
+QInputDialog QSpinBox {
+    color: #333333;
+    background: white;
 }
