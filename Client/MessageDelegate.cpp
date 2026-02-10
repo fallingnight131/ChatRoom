@@ -3,6 +3,7 @@
 #include "Message.h"
 #include "FileCache.h"
 #include "ChatWindow.h"
+#include "ThemeManager.h"
 
 #include <QPainter>
 #include <QPainterPath>
@@ -14,15 +15,36 @@
 
 MessageDelegate::MessageDelegate(QObject *parent)
     : QStyledItemDelegate(parent)
-    , m_myBubbleColor(QColor(149, 236, 105))     // 微信绿
-    , m_otherBubbleColor(QColor(255, 255, 255))   // 白色
-    , m_systemColor(QColor(200, 200, 200))
-    , m_myTextColor(Qt::black)
-    , m_otherTextColor(Qt::black)
-    , m_senderColor(QColor(100, 100, 100))
-    , m_timeColor(QColor(150, 150, 150))
-    , m_fileBgColor(QColor(230, 240, 250))
 {
+    // 根据当前主题初始化颜色
+    updateThemeColors(ThemeManager::instance()->currentTheme() == ThemeManager::Dark);
+
+    // 监听主题变更
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this, [this](ThemeManager::Theme t) {
+        updateThemeColors(t == ThemeManager::Dark);
+    });
+}
+
+void MessageDelegate::updateThemeColors(bool isDark) {
+    if (isDark) {
+        m_myBubbleColor    = QColor(56, 115, 68);       // 深绿气泡
+        m_otherBubbleColor = QColor(60, 60, 80);        // 深灰蓝气泡
+        m_systemColor      = QColor(80, 80, 100);
+        m_myTextColor      = QColor(220, 220, 220);
+        m_otherTextColor   = QColor(210, 210, 210);
+        m_senderColor      = QColor(140, 180, 250);     // 浅蓝色名字
+        m_timeColor        = QColor(140, 140, 160);
+        m_fileBgColor      = QColor(50, 60, 75);
+    } else {
+        m_myBubbleColor    = QColor(149, 236, 105);     // 微信绿
+        m_otherBubbleColor = QColor(255, 255, 255);     // 白色
+        m_systemColor      = QColor(200, 200, 200);
+        m_myTextColor      = Qt::black;
+        m_otherTextColor   = Qt::black;
+        m_senderColor      = QColor(100, 100, 100);     // 灰色名字
+        m_timeColor        = QColor(150, 150, 150);
+        m_fileBgColor      = QColor(230, 240, 250);
+    }
 }
 
 /// 智能时间格式化：今天只显示时间，昨天显示"昨天 HH:mm"，其他显示完整日期
@@ -44,11 +66,13 @@ void MessageDelegate::paint(QPainter *painter, const QStyleOptionViewItem &optio
     painter->save();
     painter->setRenderHint(QPainter::Antialiasing);
 
+    bool isDark = ThemeManager::instance()->currentTheme() == ThemeManager::Dark;
+
     // 绘制选中/悬停背景
     if (option.state & QStyle::State_Selected) {
-        painter->fillRect(option.rect, QColor(220, 235, 255, 80));
+        painter->fillRect(option.rect, isDark ? QColor(80, 90, 120, 80) : QColor(220, 235, 255, 80));
     } else if (option.state & QStyle::State_MouseOver) {
-        painter->fillRect(option.rect, QColor(240, 245, 250, 60));
+        painter->fillRect(option.rect, isDark ? QColor(60, 65, 85, 60) : QColor(240, 245, 250, 60));
     }
 
     bool recalled = index.data(MessageModel::RecalledRole).toBool();
@@ -212,10 +236,12 @@ void MessageDelegate::drawSystemMessage(QPainter *painter, const QStyleOptionVie
                  textW, textH);
 
     painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(200, 200, 200, 100));
+    QColor sysBg = m_systemColor;
+    sysBg.setAlpha(100);
+    painter->setBrush(sysBg);
     painter->drawRoundedRect(bgRect, 8, 8);
 
-    painter->setPen(QColor(130, 130, 130));
+    painter->setPen(m_timeColor);
     painter->setFont(font);
     painter->drawText(bgRect, Qt::AlignCenter, content);
 }
@@ -334,7 +360,7 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
     painter->drawText(iconRect, Qt::AlignCenter, isVideo ? QStringLiteral("\u25B6") : QStringLiteral("\U0001F4C4"));
 
     // 文件名
-    painter->setPen(Qt::black);
+    painter->setPen(isMine ? m_myTextColor : m_otherTextColor);
     painter->setFont(option.font);
     QFontMetrics fm(option.font);
     QString elidedName = fm.elidedText(fileName, Qt::ElideMiddle, bubbleW - 80);
@@ -454,7 +480,7 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
         // 加载中占位
         QRect placeholder(bubbleX + m_padding, contentY, imgW, imgH);
         painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(220, 220, 220));
+        painter->setBrush(m_fileBgColor);
         painter->drawRoundedRect(placeholder, 6, 6);
         painter->setPen(m_timeColor);
         painter->setFont(option.font);
@@ -492,10 +518,12 @@ void MessageDelegate::drawRecalledMessage(QPainter *painter, const QStyleOptionV
                  textW, textH);
 
     painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(255, 235, 200, 120));
+    QColor recalledBg = m_systemColor;
+    recalledBg.setAlpha(80);
+    painter->setBrush(recalledBg);
     painter->drawRoundedRect(bgRect, 8, 8);
 
-    painter->setPen(QColor(180, 140, 80));
+    painter->setPen(m_timeColor);
     painter->setFont(font);
     painter->drawText(bgRect, Qt::AlignCenter, text);
 }

@@ -79,6 +79,7 @@ private slots:
     void onDeleteMsgsResponse(bool success, int roomId, int deletedCount, const QString &mode, const QString &error);
     void onDeleteMsgsNotify(int roomId, const QString &mode, const QJsonArray &messageIds);
     void onUserContextMenu(const QPoint &pos);
+    void onRoomContextMenu(const QPoint &pos);
 
     // 表情
     void onEmojiSelected(const QString &emoji);

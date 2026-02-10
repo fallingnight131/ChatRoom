@@ -134,7 +134,7 @@ bool DatabaseManager::initialize() {
     // 房间设置表
     q.exec("CREATE TABLE IF NOT EXISTS room_settings ("
            "  room_id INTEGER PRIMARY KEY,"
-           "  max_file_size INTEGER DEFAULT 0,"
+           "  max_file_size INTEGER DEFAULT 4294967296,"
            "  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE"
            ")");
 
@@ -352,10 +352,11 @@ bool DatabaseManager::recallMessage(int messageId, int userId, int timeLimitSec)
 
     int ownerId = q.value(0).toInt();
     QDateTime createdAt = q.value(1).toDateTime();
+    createdAt.setTimeSpec(Qt::UTC);  // SQLite CURRENT_TIMESTAMP 存储 UTC
 
     // 所有用户（包括管理员）只能撤回自己的消息，且有时间限制
     if (ownerId != userId) return false;
-    if (createdAt.secsTo(QDateTime::currentDateTime()) > timeLimitSec) return false;
+    if (createdAt.secsTo(QDateTime::currentDateTimeUtc()) > timeLimitSec) return false;
 
     // 执行撤回
     q.prepare("UPDATE messages SET recalled = 1, content = '此消息已被撤回' WHERE id = ?");
@@ -557,7 +558,7 @@ qint64 DatabaseManager::getRoomMaxFileSize(int roomId) {
     q.exec();
     if (q.next())
         return q.value(0).toLongLong();
-    return 0; // 0 表示无限制
+    return 4LL * 1024 * 1024 * 1024; // 默认 4GB
 }
 
 bool DatabaseManager::setRoomMaxFileSize(int roomId, qint64 maxSize) {

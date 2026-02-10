@@ -15,6 +15,9 @@ public:
     QSize sizeHint(const QStyleOptionViewItem &option,
                    const QModelIndex &index) const override;
 
+public slots:
+    void updateThemeColors(bool isDark);
+
 private:
     void drawTextBubble(QPainter *painter, const QStyleOptionViewItem &option,
                         const QModelIndex &index, bool isMine) const;

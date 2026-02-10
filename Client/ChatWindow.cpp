@@ -149,6 +149,7 @@ void ChatWindow::setupUi() {
 
     m_roomList = new QListWidget;
     m_roomList->setMinimumWidth(160);
+    m_roomList->setContextMenuPolicy(Qt::CustomContextMenu);
     leftLayout->addWidget(m_roomList);
 
     auto *roomBtnLayout = new QHBoxLayout;
@@ -342,6 +343,7 @@ void ChatWindow::connectSignals() {
     connect(m_fileBtn,     &QPushButton::clicked, this, &ChatWindow::onSendFile);
     connect(m_avatarBtn,   &QPushButton::clicked, this, &ChatWindow::onChangeAvatar);
     connect(m_roomList,    &QListWidget::itemClicked, this, &ChatWindow::onRoomSelected);
+    connect(m_roomList,    &QListWidget::customContextMenuRequested, this, &ChatWindow::onRoomContextMenu);
     connect(m_emojiPicker, &EmojiPicker::emojiSelected, this, &ChatWindow::onEmojiSelected);
     connect(m_messageView, &QListView::customContextMenuRequested, this, &ChatWindow::onMessageContextMenu);
     connect(m_userList,    &QListWidget::customContextMenuRequested, this, &ChatWindow::onUserContextMenu);
@@ -490,6 +492,14 @@ void ChatWindow::switchRoom(int roomId) {
     // 如果模型为空，请求历史
     if (model->rowCount() == 0) {
         NetworkManager::instance()->sendMessage(Protocol::makeHistoryReq(roomId, 50));
+    }
+
+    // 请求房间设置（文件大小上限等）
+    {
+        QJsonObject settingsReq;
+        settingsReq["roomId"] = roomId;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, settingsReq));
     }
 
     // 滚动到底部
@@ -1025,22 +1035,36 @@ void ChatWindow::onUserContextMenu(const QPoint &pos) {
             Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
     });
 
-    menu.addSeparator();
-    menu.addAction(QStringLiteral("设置文件大小上限..."), [this] {
+    menu.exec(m_userList->viewport()->mapToGlobal(pos));
+}
+
+void ChatWindow::onRoomContextMenu(const QPoint &pos) {
+    QListWidgetItem *item = m_roomList->itemAt(pos);
+    if (!item) return;
+
+    int roomId = item->data(Qt::UserRole).toInt();
+
+    // 只有管理员可以修改设置
+    if (!m_adminRooms.value(roomId, false)) return;
+
+    QMenu menu(this);
+    menu.addAction(QStringLiteral("修改文件大小上限..."), [this, roomId] {
+        // 获取当前值（MB）
+        double currentMB = m_roomMaxFileSize.value(roomId, 4LL * 1024 * 1024 * 1024) / (1024.0 * 1024.0);
         bool ok;
         double sizeMB = QInputDialog::getDouble(this, "设置文件大小上限",
             "请输入允许的最大文件大小（MB，0表示无限制）:",
-            0.0, 0.0, 1024.0, 1, &ok);
+            currentMB, 0.0, 4096.0, 0, &ok);
         if (!ok) return;
         qint64 sizeBytes = static_cast<qint64>(sizeMB * 1024 * 1024);
         QJsonObject data;
-        data["roomId"] = m_currentRoomId;
+        data["roomId"] = roomId;
         data["maxFileSize"] = static_cast<double>(sizeBytes);
         NetworkManager::instance()->sendMessage(
             Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
     });
 
-    menu.exec(m_userList->viewport()->mapToGlobal(pos));
+    menu.exec(m_roomList->viewport()->mapToGlobal(pos));
 }
 
 // ==================== 表情 ====================
