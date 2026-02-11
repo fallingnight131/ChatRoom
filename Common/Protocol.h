@@ -101,6 +101,11 @@ namespace MsgType {
     inline const QString DELETE_ROOM_RSP    = QStringLiteral("DELETE_ROOM_RSP");
     inline const QString DELETE_ROOM_NOTIFY = QStringLiteral("DELETE_ROOM_NOTIFY");
 
+    // 重命名房间
+    inline const QString RENAME_ROOM_REQ    = QStringLiteral("RENAME_ROOM_REQ");
+    inline const QString RENAME_ROOM_RSP    = QStringLiteral("RENAME_ROOM_RSP");
+    inline const QString RENAME_ROOM_NOTIFY = QStringLiteral("RENAME_ROOM_NOTIFY");
+
     // 头像
     inline const QString AVATAR_UPLOAD_REQ  = QStringLiteral("AVATAR_UPLOAD_REQ");
     inline const QString AVATAR_UPLOAD_RSP  = QStringLiteral("AVATAR_UPLOAD_RSP");

@@ -297,6 +297,26 @@ QString DatabaseManager::getRoomName(int roomId) {
     return {};
 }
 
+bool DatabaseManager::renameRoom(int roomId, const QString &newName) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("UPDATE rooms SET name = ? WHERE id = ?");
+    q.addBindValue(newName);
+    q.addBindValue(roomId);
+    return q.exec();
+}
+
+int DatabaseManager::getRoomMemberCount(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT COUNT(*) FROM room_members WHERE room_id = ?");
+    q.addBindValue(roomId);
+    q.exec();
+    if (q.next())
+        return q.value(0).toInt();
+    return 0;
+}
+
 bool DatabaseManager::isUserInRoom(int roomId, int userId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
@@ -494,10 +514,6 @@ QString DatabaseManager::getFileName(int fileId) {
 // ==================== 管理员管理 ====================
 
 bool DatabaseManager::isRoomAdmin(int roomId, int userId) {
-    // 房间创建者自动拥有管理员权限
-    if (isRoomCreator(roomId, userId))
-        return true;
-
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
     q.prepare("SELECT 1 FROM room_admins WHERE room_id = ? AND user_id = ?");
@@ -535,22 +551,14 @@ QList<int> DatabaseManager::getRoomAdmins(int roomId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
-    // 包含创建者和显式管理员
-    q.prepare("SELECT creator_id FROM rooms WHERE id = ?");
+    // 只查询 room_admins 表中的显式管理员
+    q.prepare("SELECT user_id FROM room_admins WHERE room_id = ?");
     q.addBindValue(roomId);
     q.exec();
 
     QList<int> admins;
-    if (q.next())
-        admins.append(q.value(0).toInt());
-
-    q.prepare("SELECT user_id FROM room_admins WHERE room_id = ?");
-    q.addBindValue(roomId);
-    q.exec();
     while (q.next()) {
-        int uid = q.value(0).toInt();
-        if (!admins.contains(uid))
-            admins.append(uid);
+        admins.append(q.value(0).toInt());
     }
     return admins;
 }
@@ -559,14 +567,7 @@ bool DatabaseManager::hasAnyAdmin(int roomId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
-    // 检查是否有真实用户（userId > 1）是创建者
-    q.prepare("SELECT creator_id FROM rooms WHERE id = ?");
-    q.addBindValue(roomId);
-    q.exec();
-    if (q.next() && q.value(0).toInt() > 1)
-        return true;
-
-    // 检查 room_admins 表
+    // 只检查 room_admins 表
     q.prepare("SELECT 1 FROM room_admins WHERE room_id = ? LIMIT 1");
     q.addBindValue(roomId);
     q.exec();

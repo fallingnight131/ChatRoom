@@ -302,4 +302,14 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                               data["roomName"].toString(),
                               data["operator"].toString());
     }
+    else if (type == Protocol::MsgType::RENAME_ROOM_RSP) {
+        emit renameRoomResponse(data["success"].toBool(),
+                                data["roomId"].toInt(),
+                                data["newName"].toString(),
+                                data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::RENAME_ROOM_NOTIFY) {
+        emit renameRoomNotify(data["roomId"].toInt(),
+                              data["newName"].toString());
+    }
 }

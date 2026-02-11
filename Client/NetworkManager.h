@@ -87,6 +87,10 @@ signals:
     void deleteRoomResponse(bool success, int roomId, const QString &roomName, const QString &error);
     void deleteRoomNotify(int roomId, const QString &roomName, const QString &operatorName);
 
+    // 重命名聊天室
+    void renameRoomResponse(bool success, int roomId, const QString &newName, const QString &error);
+    void renameRoomNotify(int roomId, const QString &newName);
+
 private slots:
     void onConnected();
     void onDisconnected();

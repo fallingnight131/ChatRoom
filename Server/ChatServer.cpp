@@ -8,6 +8,7 @@
 #include <QThread>
 #include <QJsonArray>
 #include <QCryptographicHash>
+#include <QRandomGenerator>
 #include <QDebug>
 #include <QFile>
 #include <QDir>
@@ -159,6 +160,8 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleRoomSettings(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::DELETE_ROOM_REQ) {
         handleDeleteRoom(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::RENAME_ROOM_REQ) {
+        handleRenameRoom(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::AVATAR_UPLOAD_REQ) {
         handleAvatarUpload(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::AVATAR_GET_REQ) {
@@ -320,21 +323,59 @@ void ChatServer::handleLeaveRoom(ClientSession *session, const QJsonObject &data
     if (!session->isAuthenticated()) return;
 
     int roomId = data["roomId"].toInt();
+    int userId = session->userId();
 
     // 从内存中移除（在线跟踪）
-    m_roomMgr->removeUserFromRoom(roomId, session->userId());
+    m_roomMgr->removeUserFromRoom(roomId, userId);
 
-    // 从 DB 中移除（持久化成员关系）
-    m_db->leaveRoom(roomId, session->userId());
+    // 检查该用户是否是管理员
+    bool wasAdmin = m_db->isRoomAdmin(roomId, userId);
 
-    // 移除管理员状态
-    m_db->setRoomAdmin(roomId, session->userId(), false);
+    // 移除管理员状态（issue 1: 离开即解除管理员）
+    m_db->setRoomAdmin(roomId, userId, false);
 
-    // 通知房间剩余成员
+    // 从 DB 中移除成员关系
+    m_db->leaveRoom(roomId, userId);
+
+    // 通知房间剩余成员该用户离开
     QJsonObject notifyData;
     notifyData["roomId"]   = roomId;
     notifyData["username"] = session->username();
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_LEFT, notifyData));
+
+    // 检查房间是否还有成员（issue 2: 最后一人离开自动解散）
+    int memberCount = m_db->getRoomMemberCount(roomId);
+    if (memberCount == 0) {
+        // 没有成员了，自动删除房间
+        m_db->deleteRoom(roomId);
+        m_roomMgr->removeRoom(roomId);
+        qInfo() << "[Server] 聊天室" << roomId << "因无成员自动解散";
+    } else if (wasAdmin) {
+        // issue 4: 如果离开的是管理员，检查房间是否还有管理员
+        QList<int> admins = m_db->getRoomAdmins(roomId);
+        if (admins.isEmpty()) {
+            // 没有管理员了，随机指派一个成员为管理员
+            QJsonArray members = m_db->getRoomMembers(roomId);
+            if (!members.isEmpty()) {
+                int randomIdx = QRandomGenerator::global()->bounded(members.size());
+                QJsonObject randomMember = members[randomIdx].toObject();
+                int newAdminId = randomMember["userId"].toInt();
+                QString newAdminName = randomMember["username"].toString();
+
+                m_db->setRoomAdmin(roomId, newAdminId, true);
+
+                // 通知新管理员
+                QJsonObject adminNotify;
+                adminNotify["roomId"] = roomId;
+                adminNotify["isAdmin"] = true;
+                sendToUser(newAdminName, Protocol::makeMessage(Protocol::MsgType::ADMIN_STATUS, adminNotify));
+
+                // 广播系统消息
+                broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
+                    {{"roomId", roomId}, {"content", QString("%1 已被自动指定为管理员").arg(newAdminName)}}));
+            }
+        }
+    }
 
     // 发送响应给离开的用户
     QJsonObject rspData;
@@ -684,12 +725,22 @@ void ChatServer::handleSetAdmin(ClientSession *session, const QJsonObject &data)
     rspData["roomId"] = roomId;
     rspData["username"] = targetUser;
 
-    // 管理员可以设置其他管理员（不再仅限创建者）
-    if (!m_db->isRoomAdmin(roomId, session->userId())) {
-        rspData["success"] = false;
-        rspData["error"] = QStringLiteral("只有管理员可以设置其他管理员");
-        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_RSP, rspData));
-        return;
+    if (setAdmin) {
+        // 授权管理员：需要自己是管理员
+        if (!m_db->isRoomAdmin(roomId, session->userId())) {
+            rspData["success"] = false;
+            rspData["error"] = QStringLiteral("只有管理员可以授权其他管理员");
+            session->sendMessage(Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_RSP, rspData));
+            return;
+        }
+    } else {
+        // 解除管理员：只能解除自己的
+        if (targetUser != session->username()) {
+            rspData["success"] = false;
+            rspData["error"] = QStringLiteral("不能解除其他管理员的权限，只能解除自己的");
+            session->sendMessage(Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_RSP, rspData));
+            return;
+        }
     }
 
     // 查找目标用户 ID（支持离线用户）
@@ -716,9 +767,41 @@ void ChatServer::handleSetAdmin(ClientSession *session, const QJsonObject &data)
     // 广播系统消息通知全体
     QString sysContent = setAdmin
         ? QString("管理员 %1 已将 %2 设为管理员").arg(session->username(), targetUser)
-        : QString("管理员 %1 已取消 %2 的管理员权限").arg(session->username(), targetUser);
+        : QString("%1 已主动放弃管理员权限").arg(targetUser);
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
         {{"roomId", roomId}, {"content", sysContent}}));
+
+    // 如果解除自己管理员后房间没有管理员了，随机指派一个
+    if (!setAdmin) {
+        QList<int> admins = m_db->getRoomAdmins(roomId);
+        if (admins.isEmpty()) {
+            QJsonArray members = m_db->getRoomMembers(roomId);
+            if (!members.isEmpty()) {
+                // 排除自己（如果自己还在房间）
+                QJsonArray candidates;
+                for (const QJsonValue &v : members) {
+                    if (v.toObject()["userId"].toInt() != session->userId())
+                        candidates.append(v);
+                }
+                if (candidates.isEmpty()) candidates = members;
+
+                int randomIdx = QRandomGenerator::global()->bounded(candidates.size());
+                QJsonObject randomMember = candidates[randomIdx].toObject();
+                int newAdminId = randomMember["userId"].toInt();
+                QString newAdminName = randomMember["username"].toString();
+
+                m_db->setRoomAdmin(roomId, newAdminId, true);
+
+                QJsonObject adminNotify;
+                adminNotify["roomId"] = roomId;
+                adminNotify["isAdmin"] = true;
+                sendToUser(newAdminName, Protocol::makeMessage(Protocol::MsgType::ADMIN_STATUS, adminNotify));
+
+                broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
+                    {{"roomId", roomId}, {"content", QString("%1 已被自动指定为管理员").arg(newAdminName)}}));
+            }
+        }
+    }
 }
 
 void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject &data) {
@@ -793,6 +876,53 @@ void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject 
 }
 
 // ==================== 房间设置 ====================
+
+// ==================== 重命名聊天室 ====================
+
+void ChatServer::handleRenameRoom(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int roomId = data["roomId"].toInt();
+    QString newName = data["newName"].toString().trimmed();
+
+    QJsonObject rspData;
+    rspData["roomId"] = roomId;
+
+    if (newName.isEmpty()) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("房间名称不能为空");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::RENAME_ROOM_RSP, rspData));
+        return;
+    }
+
+    if (!m_db->isRoomAdmin(roomId, session->userId())) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("只有管理员可以修改房间名称");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::RENAME_ROOM_RSP, rspData));
+        return;
+    }
+
+    QString oldName = m_db->getRoomName(roomId);
+    m_db->renameRoom(roomId, newName);
+
+    // 更新内存缓存
+    m_roomMgr->addRoom(roomId, newName, 0); // 更新名称
+
+    rspData["success"] = true;
+    rspData["newName"] = newName;
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::RENAME_ROOM_RSP, rspData));
+
+    // 通知房间所有成员
+    QJsonObject notifyData;
+    notifyData["roomId"] = roomId;
+    notifyData["newName"] = newName;
+    broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::RENAME_ROOM_NOTIFY, notifyData));
+
+    // 系统消息
+    broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
+        {{"roomId", roomId}, {"content", QString("管理员 %1 将聊天室名称修改为 \"%2\"")
+            .arg(session->username(), newName)}}));
+}
 
 void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &data) {
     if (!session->isAuthenticated()) return;

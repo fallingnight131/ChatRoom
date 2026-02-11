@@ -24,6 +24,7 @@
 #include <QToolBar>
 #include <QStatusBar>
 #include <QInputDialog>
+#include <QLineEdit>
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QCloseEvent>
@@ -363,6 +364,10 @@ void ChatWindow::connectSignals() {
     // 删除聊天室
     connect(net, &NetworkManager::deleteRoomResponse, this, &ChatWindow::onDeleteRoomResponse);
     connect(net, &NetworkManager::deleteRoomNotify,   this, &ChatWindow::onDeleteRoomNotify);
+
+    // 重命名聊天室
+    connect(net, &NetworkManager::renameRoomResponse, this, &ChatWindow::onRenameRoomResponse);
+    connect(net, &NetworkManager::renameRoomNotify,   this, &ChatWindow::onRenameRoomNotify);
 
     // 双击打开文件/图片
     connect(m_messageView, &QListView::doubleClicked, this, [this](const QModelIndex &idx) {
@@ -1038,8 +1043,20 @@ void ChatWindow::onUserContextMenu(const QPoint &pos) {
     QString targetUser = item->data(Qt::UserRole).toString();
     QMenu menu(this);
 
-    // 右键自己的名字，显示“退出聊天室”
+    // 右键自己的名字
     if (targetUser == m_username) {
+        // 管理员可以放弃自己的管理员权限
+        if (m_adminRooms.value(m_currentRoomId, false)) {
+            menu.addAction(QStringLiteral("放弃管理员权限"), [this] {
+                QJsonObject data;
+                data["roomId"] = m_currentRoomId;
+                data["username"] = m_username;
+                data["isAdmin"] = false;
+                NetworkManager::instance()->sendMessage(
+                    Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
+            });
+            menu.addSeparator();
+        }
         menu.addAction(QStringLiteral("退出聊天室"), [this] {
             leaveRoom(m_currentRoomId);
         });
@@ -1047,22 +1064,13 @@ void ChatWindow::onUserContextMenu(const QPoint &pos) {
         return;
     }
 
-    // 管理员可以对其他用户操作
+    // 管理员可以对其他用户授权（不能取消他人管理员）
     if (m_adminRooms.value(m_currentRoomId, false)) {
         menu.addAction(QStringLiteral("设为管理员"), [this, targetUser] {
             QJsonObject data;
             data["roomId"] = m_currentRoomId;
             data["username"] = targetUser;
             data["isAdmin"] = true;
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
-        });
-
-        menu.addAction(QStringLiteral("取消管理员"), [this, targetUser] {
-            QJsonObject data;
-            data["roomId"] = m_currentRoomId;
-            data["username"] = targetUser;
-            data["isAdmin"] = false;
             NetworkManager::instance()->sendMessage(
                 Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
         });
@@ -1089,6 +1097,29 @@ void ChatWindow::onRoomContextMenu(const QPoint &pos) {
     if (m_adminRooms.value(roomId, false)) {
         menu.addSeparator();
 
+        // 获取房间名称
+        QString roomName;
+        for (int i = 0; i < m_roomList->count(); ++i) {
+            if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
+                roomName = m_roomList->item(i)->text();
+                int idx = roomName.indexOf("] ");
+                if (idx >= 0) roomName = roomName.mid(idx + 2);
+                break;
+            }
+        }
+
+        menu.addAction(QStringLiteral("修改聊天室名称..."), [this, roomId, roomName] {
+            bool ok;
+            QString newName = QInputDialog::getText(this, "修改聊天室名称",
+                "请输入新的聊天室名称:", QLineEdit::Normal, roomName, &ok);
+            if (!ok || newName.trimmed().isEmpty()) return;
+            QJsonObject data;
+            data["roomId"] = roomId;
+            data["newName"] = newName.trimmed();
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::RENAME_ROOM_REQ, data));
+        });
+
         menu.addAction(QStringLiteral("修改文件大小上限..."), [this, roomId] {
             double currentMB = m_roomMaxFileSize.value(roomId, 4LL * 1024 * 1024 * 1024) / (1024.0 * 1024.0);
             bool ok;
@@ -1105,17 +1136,6 @@ void ChatWindow::onRoomContextMenu(const QPoint &pos) {
         });
 
         menu.addSeparator();
-
-        // 获取房间名称
-        QString roomName;
-        for (int i = 0; i < m_roomList->count(); ++i) {
-            if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
-                roomName = m_roomList->item(i)->text();
-                int idx = roomName.indexOf("] ");
-                if (idx >= 0) roomName = roomName.mid(idx + 2);
-                break;
-            }
-        }
 
         menu.addAction(QStringLiteral("删除聊天室"), [this, roomId, roomName] {
             QString input = QInputDialog::getText(this, "确认删除",
@@ -1402,7 +1422,7 @@ void ChatWindow::addUserListItem(const QString &username, bool isAdmin, bool isO
     item->setData(Qt::UserRole, username);
     item->setData(Qt::UserRole + 1, isAdmin);
     item->setData(Qt::UserRole + 2, isOnline);
-    item->setSizeHint(QSize(0, 30));
+    item->setSizeHint(QSize(0, 36));
 
     m_userList->addItem(item);
     updateUserListItemWidget(item);
@@ -1420,12 +1440,12 @@ void ChatWindow::updateUserListItemWidget(QListWidgetItem *item) {
 
     auto *widget = new QWidget;
     auto *layout = new QHBoxLayout(widget);
-    layout->setContentsMargins(4, 2, 4, 2);
+    layout->setContentsMargins(4, 4, 4, 4);
     layout->setSpacing(4);
 
     auto *nameLabel = new QLabel(username);
     if (isAdmin) {
-        nameLabel->setStyleSheet("color: #DAA520; font-weight: bold;");
+        nameLabel->setStyleSheet("color: #C5A200;");
     }
 
     auto *statusLabel = new QLabel(isOnline ? "在线" : "离线");
@@ -1603,6 +1623,31 @@ void ChatWindow::onDeleteRoomNotify(int roomId, const QString &roomName, const Q
             onRoomSelected(m_roomList->item(0));
         } else {
             m_currentRoomId = -1;
+        }
+    }
+}
+
+// ==================== 重命名聊天室 ====================
+
+void ChatWindow::onRenameRoomResponse(bool success, int roomId, const QString &newName, const QString &error) {
+    if (success) {
+        // 更新房间列表中的名称
+        for (int i = 0; i < m_roomList->count(); ++i) {
+            if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
+                m_roomList->item(i)->setText(QString("[%1] %2").arg(roomId).arg(newName));
+                break;
+            }
+        }
+    } else {
+        QMessageBox::warning(this, "修改失败", error);
+    }
+}
+
+void ChatWindow::onRenameRoomNotify(int roomId, const QString &newName) {
+    for (int i = 0; i < m_roomList->count(); ++i) {
+        if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
+            m_roomList->item(i)->setText(QString("[%1] %2").arg(roomId).arg(newName));
+            break;
         }
     }
 }

@@ -126,6 +126,10 @@ private slots:
     void onDeleteRoomResponse(bool success, int roomId, const QString &roomName, const QString &error);
     void onDeleteRoomNotify(int roomId, const QString &roomName, const QString &operatorName);
 
+    // 重命名聊天室
+    void onRenameRoomResponse(bool success, int roomId, const QString &newName, const QString &error);
+    void onRenameRoomNotify(int roomId, const QString &newName);
+
     // 贴边隐藏
     void checkEdgeHide();
 

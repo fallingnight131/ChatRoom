@@ -25,6 +25,8 @@ public:
     QJsonArray getUserJoinedRooms(int userId);
     bool deleteRoom(int roomId);
     QString getRoomName(int roomId);
+    bool renameRoom(int roomId, const QString &newName);
+    int getRoomMemberCount(int roomId);
     bool isUserInRoom(int roomId, int userId);
     QJsonArray getRoomMembers(int roomId);
     bool leaveRoom(int roomId, int userId);
