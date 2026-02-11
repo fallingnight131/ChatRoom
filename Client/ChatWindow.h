@@ -135,6 +135,10 @@ private slots:
     void onGetRoomPasswordResponse(bool success, int roomId, const QString &password, bool hasPassword, const QString &error);
     void onJoinRoomNeedPassword(int roomId);
 
+    // 踢人
+    void onKickUserResponse(bool success, int roomId, const QString &username, const QString &error);
+    void onKickedFromRoom(int roomId, const QString &roomName, const QString &operatorName);
+
     // 贴边隐藏
     void checkEdgeHide();
 

@@ -65,6 +65,7 @@ private:
     void handleRenameRoom(ClientSession *session, const QJsonObject &data);
     void handleSetRoomPassword(ClientSession *session, const QJsonObject &data);
     void handleGetRoomPassword(ClientSession *session, const QJsonObject &data);
+    void handleKickUser(ClientSession *session, const QJsonObject &data);
     void handleAvatarUpload(ClientSession *session, const QJsonObject &data);
     void handleAvatarGet(ClientSession *session, const QJsonObject &data);
 

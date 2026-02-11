@@ -330,4 +330,15 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                                      data["hasPassword"].toBool(),
                                      data["error"].toString());
     }
+    else if (type == Protocol::MsgType::KICK_USER_RSP) {
+        emit kickUserResponse(data["success"].toBool(),
+                              data["roomId"].toInt(),
+                              data["username"].toString(),
+                              data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::KICK_USER_NOTIFY) {
+        emit kickedFromRoom(data["roomId"].toInt(),
+                            data["roomName"].toString(),
+                            data["operator"].toString());
+    }
 }

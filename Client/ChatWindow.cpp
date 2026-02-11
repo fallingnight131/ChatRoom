@@ -374,6 +374,10 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::getRoomPasswordResponse, this, &ChatWindow::onGetRoomPasswordResponse);
     connect(net, &NetworkManager::joinRoomNeedPassword,    this, &ChatWindow::onJoinRoomNeedPassword);
 
+    // 踢人
+    connect(net, &NetworkManager::kickUserResponse,  this, &ChatWindow::onKickUserResponse);
+    connect(net, &NetworkManager::kickedFromRoom,    this, &ChatWindow::onKickedFromRoom);
+
     // 双击打开文件/图片
     connect(m_messageView, &QListView::doubleClicked, this, [this](const QModelIndex &idx) {
         int contentType = idx.data(MessageModel::ContentTypeRole).toInt();
@@ -1074,16 +1078,34 @@ void ChatWindow::onUserContextMenu(const QPoint &pos) {
         return;
     }
 
-    // 管理员可以对其他用户授权（不能取消他人管理员）
+    // 管理员可以对其他用户操作
     if (m_adminRooms.value(m_currentRoomId, false)) {
-        menu.addAction(QStringLiteral("设为管理员"), [this, targetUser] {
-            QJsonObject data;
-            data["roomId"] = m_currentRoomId;
-            data["username"] = targetUser;
-            data["isAdmin"] = true;
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
-        });
+        bool targetIsAdmin = false;
+        QListWidgetItem *targetItem = findUserListItem(targetUser);
+        if (targetItem)
+            targetIsAdmin = targetItem->data(Qt::UserRole + 1).toBool();
+
+        if (!targetIsAdmin) {
+            menu.addAction(QStringLiteral("设为管理员"), [this, targetUser] {
+                QJsonObject data;
+                data["roomId"] = m_currentRoomId;
+                data["username"] = targetUser;
+                data["isAdmin"] = true;
+                NetworkManager::instance()->sendMessage(
+                    Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
+            });
+
+            menu.addAction(QStringLiteral("踢出聊天室"), [this, targetUser] {
+                if (QMessageBox::question(this, "确认",
+                        QString("确定要将 %1 踢出聊天室吗？").arg(targetUser))
+                    != QMessageBox::Yes) return;
+                QJsonObject data;
+                data["roomId"] = m_currentRoomId;
+                data["username"] = targetUser;
+                NetworkManager::instance()->sendMessage(
+                    Protocol::makeMessage(Protocol::MsgType::KICK_USER_REQ, data));
+            });
+        }
     }
 
     if (!menu.isEmpty())
@@ -1660,12 +1682,18 @@ void ChatWindow::onDeleteRoomNotify(int roomId, const QString &roomName, const Q
 
 void ChatWindow::onRenameRoomResponse(bool success, int roomId, const QString &newName, const QString &error) {
     if (success) {
-        // 更新房间列表中的名称
+        QString displayText = QString("[%1] %2").arg(roomId).arg(newName);
         for (int i = 0; i < m_roomList->count(); ++i) {
             if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
-                m_roomList->item(i)->setText(QString("[%1] %2").arg(roomId).arg(newName));
+                m_roomList->item(i)->setText(displayText);
                 break;
             }
+        }
+        if (roomId == m_currentRoomId) {
+            QString title = displayText;
+            if (m_adminRooms.value(roomId, false))
+                title += QStringLiteral(" [管理员]");
+            m_roomTitle->setText(title);
         }
     } else {
         QMessageBox::warning(this, "修改失败", error);
@@ -1673,11 +1701,18 @@ void ChatWindow::onRenameRoomResponse(bool success, int roomId, const QString &n
 }
 
 void ChatWindow::onRenameRoomNotify(int roomId, const QString &newName) {
+    QString displayText = QString("[%1] %2").arg(roomId).arg(newName);
     for (int i = 0; i < m_roomList->count(); ++i) {
         if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
-            m_roomList->item(i)->setText(QString("[%1] %2").arg(roomId).arg(newName));
+            m_roomList->item(i)->setText(displayText);
             break;
         }
+    }
+    if (roomId == m_currentRoomId) {
+        QString title = displayText;
+        if (m_adminRooms.value(roomId, false))
+            title += QStringLiteral(" [管理员]");
+        m_roomTitle->setText(title);
     }
 }
 
@@ -1718,6 +1753,38 @@ void ChatWindow::onJoinRoomNeedPassword(int roomId) {
     data["password"] = password;
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::JOIN_ROOM_REQ, data));
+}
+
+// ==================== 踢人 ====================
+
+void ChatWindow::onKickUserResponse(bool success, int roomId, const QString &username, const QString &error) {
+    Q_UNUSED(roomId)
+    if (success) {
+        m_statusLabel->setText(QStringLiteral("已将 %1 踢出聊天室").arg(username));
+    } else {
+        QMessageBox::warning(this, "踢人失败", error);
+    }
+}
+
+void ChatWindow::onKickedFromRoom(int roomId, const QString &roomName, const QString &operatorName) {
+    // 如果当前正在该房间，切走
+    if (m_currentRoomId == roomId) {
+        m_currentRoomId = -1;
+        m_roomTitle->setText("请选择一个聊天室");
+        m_userList->clear();
+    }
+
+    // 从房间列表移除
+    for (int i = 0; i < m_roomList->count(); ++i) {
+        if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
+            delete m_roomList->takeItem(i);
+            break;
+        }
+    }
+    m_adminRooms.remove(roomId);
+
+    QMessageBox::warning(this, "被踢出聊天室",
+        QStringLiteral("您已被管理员 %1 踢出聊天室 \"%2\"").arg(operatorName, roomName));
 }
 
 // ==================== 注销 ====================

@@ -166,6 +166,8 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleSetRoomPassword(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::GET_ROOM_PASSWORD_REQ) {
         handleGetRoomPassword(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::KICK_USER_REQ) {
+        handleKickUser(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::AVATAR_UPLOAD_REQ) {
         handleAvatarUpload(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::AVATAR_GET_REQ) {
@@ -798,6 +800,28 @@ void ChatServer::handleSetAdmin(ClientSession *session, const QJsonObject &data)
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
         {{"roomId", roomId}, {"content", sysContent}}));
 
+    // 广播更新后的用户列表给所有房间成员，确保管理员颜色实时刷新
+    {
+        QJsonArray members = m_db->getRoomMembers(roomId);
+        QList<int> adminIds = m_db->getRoomAdmins(roomId);
+        QJsonArray userArr;
+        {
+            QMutexLocker locker(&m_mutex);
+            for (const QJsonValue &v : members) {
+                QJsonObject member = v.toObject();
+                QJsonObject userObj;
+                userObj["username"] = member["username"].toString();
+                userObj["isAdmin"]  = adminIds.contains(member["userId"].toInt());
+                userObj["isOnline"] = m_sessions.contains(member["username"].toString());
+                userArr.append(userObj);
+            }
+        }
+        QJsonObject listData;
+        listData["roomId"] = roomId;
+        listData["users"]  = userArr;
+        broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_LIST_RSP, listData));
+    }
+
     // 如果解除自己管理员后房间没有管理员了，随机指派一个
     if (!setAdmin) {
         QList<int> admins = m_db->getRoomAdmins(roomId);
@@ -826,6 +850,25 @@ void ChatServer::handleSetAdmin(ClientSession *session, const QJsonObject &data)
 
                 broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
                     {{"roomId", roomId}, {"content", QString("%1 已被自动指定为管理员").arg(newAdminName)}}));
+
+                // 广播更新后的用户列表
+                QList<int> newAdminIds = m_db->getRoomAdmins(roomId);
+                QJsonArray userArr2;
+                {
+                    QMutexLocker locker(&m_mutex);
+                    for (const QJsonValue &v2 : members) {
+                        QJsonObject m2 = v2.toObject();
+                        QJsonObject u2;
+                        u2["username"] = m2["username"].toString();
+                        u2["isAdmin"]  = newAdminIds.contains(m2["userId"].toInt());
+                        u2["isOnline"] = m_sessions.contains(m2["username"].toString());
+                        userArr2.append(u2);
+                    }
+                }
+                QJsonObject listData2;
+                listData2["roomId"] = roomId;
+                listData2["users"]  = userArr2;
+                broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_LIST_RSP, listData2));
             }
         }
     }
@@ -1000,6 +1043,67 @@ void ChatServer::handleGetRoomPassword(ClientSession *session, const QJsonObject
     rspData["password"] = password;
     rspData["hasPassword"] = !password.isEmpty();
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::GET_ROOM_PASSWORD_RSP, rspData));
+}
+
+void ChatServer::handleKickUser(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int roomId = data["roomId"].toInt();
+    QString targetUser = data["username"].toString();
+
+    QJsonObject rspData;
+    rspData["roomId"] = roomId;
+    rspData["username"] = targetUser;
+
+    // 验证管理员权限
+    if (!m_db->isRoomAdmin(roomId, session->userId())) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("只有管理员可以踢人");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::KICK_USER_RSP, rspData));
+        return;
+    }
+
+    // 查找目标用户
+    int targetUserId = m_db->getUserIdByName(targetUser);
+    if (targetUserId <= 0) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("用户不存在");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::KICK_USER_RSP, rspData));
+        return;
+    }
+
+    // 不能踢管理员
+    if (m_db->isRoomAdmin(roomId, targetUserId)) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("不能踢出管理员");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::KICK_USER_RSP, rspData));
+        return;
+    }
+
+    // 从内存和DB中移除
+    m_roomMgr->removeUserFromRoom(roomId, targetUserId);
+    m_db->leaveRoom(roomId, targetUserId);
+
+    // 通知被踢用户
+    QString roomName = m_db->getRoomName(roomId);
+    QJsonObject kickNotify;
+    kickNotify["roomId"] = roomId;
+    kickNotify["roomName"] = roomName;
+    kickNotify["operator"] = session->username();
+    sendToUser(targetUser, Protocol::makeMessage(Protocol::MsgType::KICK_USER_NOTIFY, kickNotify));
+
+    // 通知房间成员该用户被踢出
+    QJsonObject leftData;
+    leftData["roomId"]   = roomId;
+    leftData["username"] = targetUser;
+    broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_LEFT, leftData));
+
+    // 系统消息
+    broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
+        {{"roomId", roomId}, {"content", QString("管理员 %1 将 %2 踢出了聊天室").arg(session->username(), targetUser)}}));
+
+    rspData["success"] = true;
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::KICK_USER_RSP, rspData));
 }
 
 void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &data) {

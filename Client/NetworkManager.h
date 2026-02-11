@@ -93,6 +93,8 @@ signals:
     void setRoomPasswordResponse(bool success, int roomId, bool hasPassword, const QString &error);
     void getRoomPasswordResponse(bool success, int roomId, const QString &password, bool hasPassword, const QString &error);
     void joinRoomNeedPassword(int roomId);
+    void kickUserResponse(bool success, int roomId, const QString &username, const QString &error);
+    void kickedFromRoom(int roomId, const QString &roomName, const QString &operatorName);
 
 private slots:
     void onConnected();
