@@ -42,6 +42,7 @@ namespace MsgType {
     inline const QString JOIN_ROOM_REQ    = QStringLiteral("JOIN_ROOM_REQ");
     inline const QString JOIN_ROOM_RSP    = QStringLiteral("JOIN_ROOM_RSP");
     inline const QString LEAVE_ROOM       = QStringLiteral("LEAVE_ROOM");
+    inline const QString LEAVE_ROOM_RSP   = QStringLiteral("LEAVE_ROOM_RSP");
     inline const QString ROOM_LIST_REQ    = QStringLiteral("ROOM_LIST_REQ");
     inline const QString ROOM_LIST_RSP    = QStringLiteral("ROOM_LIST_RSP");
     inline const QString USER_LIST_REQ    = QStringLiteral("USER_LIST_REQ");
@@ -78,6 +79,8 @@ namespace MsgType {
     // 通知
     inline const QString USER_JOINED      = QStringLiteral("USER_JOINED");
     inline const QString USER_LEFT        = QStringLiteral("USER_LEFT");
+    inline const QString USER_ONLINE      = QStringLiteral("USER_ONLINE");
+    inline const QString USER_OFFLINE     = QStringLiteral("USER_OFFLINE");
     inline const QString FORCE_OFFLINE    = QStringLiteral("FORCE_OFFLINE");
 
     // 管理员功能

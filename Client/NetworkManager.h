@@ -42,9 +42,12 @@ signals:
     void roomCreated(bool success, int roomId, const QString &roomName, const QString &error);
     void roomJoined(bool success, int roomId, const QString &roomName, const QString &error);
     void roomListReceived(const QJsonArray &rooms);
-    void userListReceived(int roomId, const QStringList &users);
+    void userListReceived(int roomId, const QJsonArray &users);
     void userJoined(int roomId, const QString &username);
     void userLeft(int roomId, const QString &username);
+    void userOnline(int roomId, const QString &username);
+    void userOffline(int roomId, const QString &username);
+    void leaveRoomResponse(bool success, int roomId);
 
     // 历史消息
     void historyReceived(int roomId, const QJsonArray &messages);

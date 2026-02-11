@@ -297,6 +297,55 @@ QString DatabaseManager::getRoomName(int roomId) {
     return {};
 }
 
+bool DatabaseManager::isUserInRoom(int roomId, int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?");
+    q.addBindValue(roomId);
+    q.addBindValue(userId);
+    q.exec();
+    return q.next();
+}
+
+QJsonArray DatabaseManager::getRoomMembers(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT u.id, u.username FROM room_members rm "
+              "JOIN users u ON rm.user_id = u.id "
+              "WHERE rm.room_id = ? ORDER BY u.username");
+    q.addBindValue(roomId);
+    q.exec();
+
+    QJsonArray arr;
+    while (q.next()) {
+        QJsonObject user;
+        user["userId"]   = q.value(0).toInt();
+        user["username"] = q.value(1).toString();
+        arr.append(user);
+    }
+    return arr;
+}
+
+bool DatabaseManager::leaveRoom(int roomId, int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("DELETE FROM room_members WHERE room_id = ? AND user_id = ?");
+    q.addBindValue(roomId);
+    q.addBindValue(userId);
+    return q.exec();
+}
+
+int DatabaseManager::getUserIdByName(const QString &username) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT id FROM users WHERE username = ?");
+    q.addBindValue(username);
+    q.exec();
+    if (q.next())
+        return q.value(0).toInt();
+    return -1;
+}
+
 // ==================== 消息管理 ====================
 
 int DatabaseManager::saveMessage(int roomId, int userId, const QString &content,

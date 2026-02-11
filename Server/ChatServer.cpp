@@ -71,29 +71,44 @@ void ChatServer::incomingConnection(qintptr socketDescriptor) {
 // ==================== 会话事件 ====================
 
 void ChatServer::onClientAuthenticated(ClientSession *session) {
-    QMutexLocker locker(&m_mutex);
-    // 踢出已在 handleLogin 中处理，这里直接注册
-    m_sessions[session->username()] = session;
+    {
+        QMutexLocker locker(&m_mutex);
+        m_sessions[session->username()] = session;
+    }
     qInfo() << "[Server] 用户认证成功:" << session->username();
+
+    // 将用户加入其所有房间的内存缓存，并广播 USER_ONLINE
+    QJsonArray rooms = m_db->getUserJoinedRooms(session->userId());
+    for (const QJsonValue &v : rooms) {
+        int roomId = v.toObject()["roomId"].toInt();
+        m_roomMgr->addUserToRoom(roomId, session->userId(), session->username());
+        QJsonObject data;
+        data["roomId"]   = roomId;
+        data["username"] = session->username();
+        broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_ONLINE, data), session);
+    }
 }
 
 void ChatServer::onClientDisconnected(ClientSession *session) {
     QString username = session->username();
+    int userId = session->userId();
     {
         QMutexLocker locker(&m_mutex);
         if (m_sessions.value(username) == session)
             m_sessions.remove(username);
     }
 
-    // 被踢出的 session 不清理房间（新的 session 会继承房间状态）
+    // 被踢出的 session 不广播（新的 session 会继承房间状态）
     if (!username.isEmpty() && !session->isKicked()) {
-        QList<int> rooms = m_roomMgr->userRooms(session->userId());
-        for (int roomId : rooms) {
-            m_roomMgr->removeUserFromRoom(roomId, session->userId());
+        // 从 DB 获取用户所有房间，广播 USER_OFFLINE（不是 USER_LEFT）
+        QJsonArray rooms = m_db->getUserJoinedRooms(userId);
+        for (const QJsonValue &v : rooms) {
+            int roomId = v.toObject()["roomId"].toInt();
+            m_roomMgr->removeUserFromRoom(roomId, userId);
             QJsonObject data;
             data["roomId"]   = roomId;
             data["username"] = username;
-            broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_LEFT, data));
+            broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_OFFLINE, data));
         }
     }
 
@@ -258,6 +273,7 @@ void ChatServer::handleCreateRoom(ClientSession *session, const QJsonObject &dat
         rspData["success"]  = true;
         rspData["roomId"]   = roomId;
         rspData["roomName"] = roomName;
+        rspData["isAdmin"]  = true; // 创建者自动为管理员
     } else {
         rspData["success"] = false;
         rspData["error"]   = QStringLiteral("创建房间失败");
@@ -272,31 +288,22 @@ void ChatServer::handleJoinRoom(ClientSession *session, const QJsonObject &data)
     QJsonObject rspData;
 
     if (m_roomMgr->roomExists(roomId)) {
-        bool alreadyInRoom = m_roomMgr->isUserInRoom(roomId, session->userId());
+        // 检查 DB 持久化成员资格
+        bool alreadyMember = m_db->isUserInRoom(roomId, session->userId());
 
         m_roomMgr->addUserToRoom(roomId, session->userId(), session->username());
         m_db->joinRoom(roomId, session->userId());
-
-        // 对于系统创建的房间（creator_id <= 1），如果还没有任何管理员
-        // 则自动将首个加入的真实用户设为管理员
-        if (!alreadyInRoom && !m_db->isRoomAdmin(roomId, session->userId())) {
-            if (!m_db->hasAnyAdmin(roomId)) {
-                m_db->setRoomAdmin(roomId, session->userId(), true);
-                qInfo() << "[Server] 自动将" << session->username()
-                         << "设为房间" << roomId << "管理员";
-            }
-        }
 
         rspData["success"]  = true;
         rspData["roomId"]   = roomId;
         rspData["roomName"] = m_roomMgr->roomName(roomId);
         rspData["isAdmin"]  = m_db->isRoomAdmin(roomId, session->userId());
-        rspData["newJoin"]  = !alreadyInRoom;
+        rspData["newJoin"]  = !alreadyMember;
 
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::JOIN_ROOM_RSP, rspData));
 
         // 仅在用户首次加入时通知房间其他成员
-        if (!alreadyInRoom) {
+        if (!alreadyMember) {
             QJsonObject notifyData;
             notifyData["roomId"]   = roomId;
             notifyData["username"] = session->username();
@@ -313,12 +320,27 @@ void ChatServer::handleLeaveRoom(ClientSession *session, const QJsonObject &data
     if (!session->isAuthenticated()) return;
 
     int roomId = data["roomId"].toInt();
+
+    // 从内存中移除（在线跟踪）
     m_roomMgr->removeUserFromRoom(roomId, session->userId());
 
+    // 从 DB 中移除（持久化成员关系）
+    m_db->leaveRoom(roomId, session->userId());
+
+    // 移除管理员状态
+    m_db->setRoomAdmin(roomId, session->userId(), false);
+
+    // 通知房间剩余成员
     QJsonObject notifyData;
     notifyData["roomId"]   = roomId;
     notifyData["username"] = session->username();
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_LEFT, notifyData));
+
+    // 发送响应给离开的用户
+    QJsonObject rspData;
+    rspData["roomId"]  = roomId;
+    rspData["success"] = true;
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::LEAVE_ROOM_RSP, rspData));
 }
 
 void ChatServer::handleRoomList(ClientSession *session) {
@@ -331,11 +353,26 @@ void ChatServer::handleRoomList(ClientSession *session) {
 
 void ChatServer::handleUserList(ClientSession *session, const QJsonObject &data) {
     int roomId = data["roomId"].toInt();
-    QStringList users = onlineUsersInRoom(roomId);
+
+    // 从 DB 获取所有房间成员
+    QJsonArray members = m_db->getRoomMembers(roomId);
+    QList<int> admins = m_db->getRoomAdmins(roomId);
 
     QJsonArray userArr;
-    for (const QString &u : users)
-        userArr.append(u);
+    {
+        QMutexLocker locker(&m_mutex);
+        for (const QJsonValue &v : members) {
+            QJsonObject member = v.toObject();
+            QString username = member["username"].toString();
+            int userId = member["userId"].toInt();
+
+            QJsonObject userObj;
+            userObj["username"] = username;
+            userObj["isAdmin"]  = admins.contains(userId);
+            userObj["isOnline"] = m_sessions.contains(username);
+            userArr.append(userObj);
+        }
+    }
 
     QJsonObject rspData;
     rspData["roomId"] = roomId;
@@ -655,17 +692,11 @@ void ChatServer::handleSetAdmin(ClientSession *session, const QJsonObject &data)
         return;
     }
 
-    // 查找目标用户 ID
-    int targetUserId = 0;
-    {
-        QMutexLocker locker(&m_mutex);
-        if (m_sessions.contains(targetUser)) {
-            targetUserId = m_sessions[targetUser]->userId();
-        }
-    }
+    // 查找目标用户 ID（支持离线用户）
+    int targetUserId = m_db->getUserIdByName(targetUser);
     if (targetUserId <= 0) {
         rspData["success"] = false;
-        rspData["error"] = QStringLiteral("用户不在线");
+        rspData["error"] = QStringLiteral("用户不存在");
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_RSP, rspData));
         return;
     }
@@ -676,7 +707,7 @@ void ChatServer::handleSetAdmin(ClientSession *session, const QJsonObject &data)
     rspData["isAdmin"] = setAdmin;
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_RSP, rspData));
 
-    // 通知目标用户其管理员状态变更
+    // 通知目标用户其管理员状态变更（如果在线）
     QJsonObject notifyData;
     notifyData["roomId"] = roomId;
     notifyData["isAdmin"] = setAdmin;

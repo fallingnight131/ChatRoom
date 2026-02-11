@@ -58,9 +58,11 @@ private slots:
     void onHistoryReceived(int roomId, const QJsonArray &messages);
 
     // 用户列表
-    void onUserListReceived(int roomId, const QStringList &users);
+    void onUserListReceived(int roomId, const QJsonArray &users);
     void onUserJoined(int roomId, const QString &username);
     void onUserLeft(int roomId, const QString &username);
+    void onUserOnline(int roomId, const QString &username);
+    void onUserOffline(int roomId, const QString &username);
 
     // 文件
     void onSendFile();
@@ -117,6 +119,9 @@ private slots:
     void onRoomSettingsResponse(int roomId, bool success, qint64 maxFileSize, const QString &error);
     void onRoomSettingsNotify(int roomId, qint64 maxFileSize);
 
+    // 退出聊天室
+    void onLeaveRoomResponse(bool success, int roomId);
+
     // 删除聊天室
     void onDeleteRoomResponse(bool success, int roomId, const QString &roomName, const QString &error);
     void onDeleteRoomNotify(int roomId, const QString &roomName, const QString &operatorName);
@@ -136,6 +141,10 @@ private:
     void startChunkedDownload(int fileId, const QString &fileName, qint64 fileSize);
     void cacheAvatar(const QString &username, const QByteArray &data);
     void requestAvatar(const QString &username);
+    void leaveRoom(int roomId);
+    void addUserListItem(const QString &username, bool isAdmin, bool isOnline);
+    void updateUserListItemWidget(QListWidgetItem *item);
+    QListWidgetItem* findUserListItem(const QString &username);
 
     // --- UI 组件 ---
     QSplitter    *m_splitter       = nullptr;

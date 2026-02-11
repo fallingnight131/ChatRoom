@@ -175,6 +175,9 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                          data["roomId"].toInt(),
                          data["roomName"].toString(),
                          data["error"].toString());
+        if (data["success"].toBool() && data.contains("isAdmin")) {
+            emit adminStatusChanged(data["roomId"].toInt(), data["isAdmin"].toBool());
+        }
     }
     else if (type == Protocol::MsgType::JOIN_ROOM_RSP) {
         emit roomJoined(data["success"].toBool(),
@@ -190,16 +193,22 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         emit roomListReceived(data["rooms"].toArray());
     }
     else if (type == Protocol::MsgType::USER_LIST_RSP) {
-        QStringList users;
-        for (const QJsonValue &v : data["users"].toArray())
-            users.append(v.toString());
-        emit userListReceived(data["roomId"].toInt(), users);
+        emit userListReceived(data["roomId"].toInt(), data["users"].toArray());
     }
     else if (type == Protocol::MsgType::USER_JOINED) {
         emit userJoined(data["roomId"].toInt(), data["username"].toString());
     }
     else if (type == Protocol::MsgType::USER_LEFT) {
         emit userLeft(data["roomId"].toInt(), data["username"].toString());
+    }
+    else if (type == Protocol::MsgType::USER_ONLINE) {
+        emit userOnline(data["roomId"].toInt(), data["username"].toString());
+    }
+    else if (type == Protocol::MsgType::USER_OFFLINE) {
+        emit userOffline(data["roomId"].toInt(), data["username"].toString());
+    }
+    else if (type == Protocol::MsgType::LEAVE_ROOM_RSP) {
+        emit leaveRoomResponse(data["success"].toBool(), data["roomId"].toInt());
     }
     else if (type == Protocol::MsgType::HISTORY_RSP) {
         emit historyReceived(data["roomId"].toInt(), data["messages"].toArray());

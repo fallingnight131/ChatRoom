@@ -240,7 +240,7 @@ void ChatWindow::setupUi() {
     auto *rightLayout = new QVBoxLayout(rightPanel);
     rightLayout->setContentsMargins(4, 4, 4, 4);
 
-    auto *userLabel = new QLabel("在线用户");
+    auto *userLabel = new QLabel("聊天室成员");
     userLabel->setStyleSheet("font-weight: bold; font-size: 14px; padding: 4px;");
     rightLayout->addWidget(userLabel);
 
@@ -311,6 +311,9 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::userListReceived,this, &ChatWindow::onUserListReceived);
     connect(net, &NetworkManager::userJoined,      this, &ChatWindow::onUserJoined);
     connect(net, &NetworkManager::userLeft,        this, &ChatWindow::onUserLeft);
+    connect(net, &NetworkManager::userOnline,      this, &ChatWindow::onUserOnline);
+    connect(net, &NetworkManager::userOffline,     this, &ChatWindow::onUserOffline);
+    connect(net, &NetworkManager::leaveRoomResponse, this, &ChatWindow::onLeaveRoomResponse);
 
     // 消息
     connect(net, &NetworkManager::chatMessageReceived,   this, &ChatWindow::onChatMessage);
@@ -609,17 +612,16 @@ void ChatWindow::onHistoryReceived(int roomId, const QJsonArray &messages) {
 
 // ==================== 用户列表 ====================
 
-void ChatWindow::onUserListReceived(int roomId, const QStringList &users) {
+void ChatWindow::onUserListReceived(int roomId, const QJsonArray &users) {
     if (roomId == m_currentRoomId) {
         m_userList->clear();
-        for (const QString &u : users) {
-            auto *item = new QListWidgetItem(u);
-            m_userList->addItem(item);
+        for (const QJsonValue &v : users) {
+            QJsonObject userObj = v.toObject();
+            QString username = userObj["username"].toString();
+            bool isAdmin = userObj["isAdmin"].toBool();
+            bool isOnline = userObj["isOnline"].toBool();
 
-            // 请求未缓存用户的头像
-            if (!s_avatarCache.contains(u)) {
-                requestAvatar(u);
-            }
+            addUserListItem(username, isAdmin, isOnline);
         }
     }
 }
@@ -627,11 +629,11 @@ void ChatWindow::onUserListReceived(int roomId, const QStringList &users) {
 void ChatWindow::onUserJoined(int roomId, const QString &username) {
     if (roomId == m_currentRoomId) {
         // 避免重复添加
-        if (m_userList->findItems(username, Qt::MatchExactly).isEmpty()) {
-            m_userList->addItem(username);
+        if (!findUserListItem(username)) {
+            addUserListItem(username, false, true);
         }
 
-        // 添加系统消息
+        // 添加系统消息：成员加入聊天室
         Message sysMsg = Message::createSystemMessage(roomId,
             QString("%1 加入了聊天室").arg(username));
         getOrCreateModel(roomId)->addMessage(sysMsg);
@@ -640,12 +642,14 @@ void ChatWindow::onUserJoined(int roomId, const QString &username) {
 
 void ChatWindow::onUserLeft(int roomId, const QString &username) {
     if (roomId == m_currentRoomId) {
-        auto items = m_userList->findItems(username, Qt::MatchExactly);
-        for (auto *item : items)
+        // 从列表中移除
+        QListWidgetItem *item = findUserListItem(username);
+        if (item)
             delete m_userList->takeItem(m_userList->row(item));
 
+        // 添加系统消息：成员退出聊天室
         Message sysMsg = Message::createSystemMessage(roomId,
-            QString("%1 离开了聊天室").arg(username));
+            QString("%1 退出了聊天室").arg(username));
         getOrCreateModel(roomId)->addMessage(sysMsg);
     }
 }
@@ -983,10 +987,18 @@ void ChatWindow::onAdminStatusChanged(int roomId, bool isAdmin) {
 
 void ChatWindow::onSetAdminResponse(bool success, int roomId, const QString &username, const QString &error) {
     Q_UNUSED(roomId)
-    if (success)
-        m_statusLabel->setText(QStringLiteral("已设置 %1 为管理员").arg(username));
-    else
+    if (success) {
+        m_statusLabel->setText(QStringLiteral("已设置 %1 的管理员状态").arg(username));
+        // 刷新用户列表以更新管理员标识
+        if (roomId == m_currentRoomId) {
+            QJsonObject userData;
+            userData["roomId"] = roomId;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::USER_LIST_REQ, userData));
+        }
+    } else {
         QMessageBox::warning(this, "设置管理员失败", error);
+    }
 }
 
 void ChatWindow::onDeleteMsgsResponse(bool success, int roomId, int deletedCount, const QString &mode, const QString &error) {
@@ -1019,34 +1031,45 @@ void ChatWindow::onDeleteMsgsNotify(int roomId, const QString &mode, const QJson
 
 void ChatWindow::onUserContextMenu(const QPoint &pos) {
     if (m_currentRoomId < 0) return;
-    if (!m_adminRooms.value(m_currentRoomId, false)) return; // 非管理员无菜单
 
     QListWidgetItem *item = m_userList->itemAt(pos);
     if (!item) return;
 
-    QString targetUser = item->text();
-    if (targetUser == m_username) return; // 不能对自己操作
-
+    QString targetUser = item->data(Qt::UserRole).toString();
     QMenu menu(this);
-    menu.addAction(QStringLiteral("设为管理员"), [this, targetUser] {
-        QJsonObject data;
-        data["roomId"] = m_currentRoomId;
-        data["username"] = targetUser;
-        data["isAdmin"] = true;
-        NetworkManager::instance()->sendMessage(
-            Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
-    });
 
-    menu.addAction(QStringLiteral("取消管理员"), [this, targetUser] {
-        QJsonObject data;
-        data["roomId"] = m_currentRoomId;
-        data["username"] = targetUser;
-        data["isAdmin"] = false;
-        NetworkManager::instance()->sendMessage(
-            Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
-    });
+    // 右键自己的名字，显示“退出聊天室”
+    if (targetUser == m_username) {
+        menu.addAction(QStringLiteral("退出聊天室"), [this] {
+            leaveRoom(m_currentRoomId);
+        });
+        menu.exec(m_userList->viewport()->mapToGlobal(pos));
+        return;
+    }
 
-    menu.exec(m_userList->viewport()->mapToGlobal(pos));
+    // 管理员可以对其他用户操作
+    if (m_adminRooms.value(m_currentRoomId, false)) {
+        menu.addAction(QStringLiteral("设为管理员"), [this, targetUser] {
+            QJsonObject data;
+            data["roomId"] = m_currentRoomId;
+            data["username"] = targetUser;
+            data["isAdmin"] = true;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
+        });
+
+        menu.addAction(QStringLiteral("取消管理员"), [this, targetUser] {
+            QJsonObject data;
+            data["roomId"] = m_currentRoomId;
+            data["username"] = targetUser;
+            data["isAdmin"] = false;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
+        });
+    }
+
+    if (!menu.isEmpty())
+        menu.exec(m_userList->viewport()->mapToGlobal(pos));
 }
 
 void ChatWindow::onRoomContextMenu(const QPoint &pos) {
@@ -1055,53 +1078,59 @@ void ChatWindow::onRoomContextMenu(const QPoint &pos) {
 
     int roomId = item->data(Qt::UserRole).toInt();
 
-    // 只有管理员可以修改设置
-    if (!m_adminRooms.value(roomId, false)) return;
-
     QMenu menu(this);
-    menu.addAction(QStringLiteral("修改文件大小上限..."), [this, roomId] {
-        // 获取当前值（MB）
-        double currentMB = m_roomMaxFileSize.value(roomId, 4LL * 1024 * 1024 * 1024) / (1024.0 * 1024.0);
-        bool ok;
-        double sizeMB = QInputDialog::getDouble(this, "设置文件大小上限",
-            "请输入允许的最大文件大小（MB，0表示无限制）:",
-            currentMB, 0.0, 4096.0, 0, &ok);
-        if (!ok) return;
-        qint64 sizeBytes = static_cast<qint64>(sizeMB * 1024 * 1024);
-        QJsonObject data;
-        data["roomId"] = roomId;
-        data["maxFileSize"] = static_cast<double>(sizeBytes);
-        NetworkManager::instance()->sendMessage(
-            Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
+
+    // 所有用户可以退出聊天室
+    menu.addAction(QStringLiteral("退出聊天室"), [this, roomId] {
+        leaveRoom(roomId);
     });
 
-    menu.addSeparator();
+    // 管理员操作
+    if (m_adminRooms.value(roomId, false)) {
+        menu.addSeparator();
 
-    // 获取房间名称（从列表项提取）
-    QString roomName;
-    for (int i = 0; i < m_roomList->count(); ++i) {
-        if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
-            roomName = m_roomList->item(i)->text();
-            // 去掉 "[id] " 前缀
-            int idx = roomName.indexOf("] ");
-            if (idx >= 0) roomName = roomName.mid(idx + 2);
-            break;
+        menu.addAction(QStringLiteral("修改文件大小上限..."), [this, roomId] {
+            double currentMB = m_roomMaxFileSize.value(roomId, 4LL * 1024 * 1024 * 1024) / (1024.0 * 1024.0);
+            bool ok;
+            double sizeMB = QInputDialog::getDouble(this, "设置文件大小上限",
+                "请输入允许的最大文件大小（MB，0表示无限制）:",
+                currentMB, 0.0, 4096.0, 0, &ok);
+            if (!ok) return;
+            qint64 sizeBytes = static_cast<qint64>(sizeMB * 1024 * 1024);
+            QJsonObject data;
+            data["roomId"] = roomId;
+            data["maxFileSize"] = static_cast<double>(sizeBytes);
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
+        });
+
+        menu.addSeparator();
+
+        // 获取房间名称
+        QString roomName;
+        for (int i = 0; i < m_roomList->count(); ++i) {
+            if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
+                roomName = m_roomList->item(i)->text();
+                int idx = roomName.indexOf("] ");
+                if (idx >= 0) roomName = roomName.mid(idx + 2);
+                break;
+            }
         }
+
+        menu.addAction(QStringLiteral("删除聊天室"), [this, roomId, roomName] {
+            QString input = QInputDialog::getText(this, "确认删除",
+                QString("此操作不可恢复！\n请输入聊天室名称 \"%1\" 确认删除:").arg(roomName));
+            if (input.trimmed() != roomName) {
+                if (!input.isEmpty())
+                    QMessageBox::warning(this, "删除失败", "输入的名称不匹配，删除已取消");
+                return;
+            }
+            QJsonObject data;
+            data["roomId"] = roomId;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::DELETE_ROOM_REQ, data));
+        });
     }
-
-    menu.addAction(QStringLiteral("删除聊天室"), [this, roomId, roomName] {
-        QString input = QInputDialog::getText(this, "确认删除",
-            QString("此操作不可恢复！\n请输入聊天室名称 \"%1\" 确认删除:").arg(roomName));
-        if (input.trimmed() != roomName) {
-            if (!input.isEmpty())
-                QMessageBox::warning(this, "删除失败", "输入的名称不匹配，删除已取消");
-            return;
-        }
-        QJsonObject data;
-        data["roomId"] = roomId;
-        NetworkManager::instance()->sendMessage(
-            Protocol::makeMessage(Protocol::MsgType::DELETE_ROOM_REQ, data));
-    });
 
     menu.exec(m_roomList->viewport()->mapToGlobal(pos));
 }
@@ -1291,6 +1320,135 @@ void ChatWindow::resizeEvent(QResizeEvent *event) {
 
 bool ChatWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr *result) {
     return QMainWindow::nativeEvent(eventType, message, result);
+}
+
+// ==================== 在线状态更新 ====================
+
+void ChatWindow::onUserOnline(int roomId, const QString &username) {
+    if (roomId == m_currentRoomId) {
+        QListWidgetItem *item = findUserListItem(username);
+        if (item) {
+            item->setData(Qt::UserRole + 2, true);
+            updateUserListItemWidget(item);
+        }
+    }
+}
+
+void ChatWindow::onUserOffline(int roomId, const QString &username) {
+    if (roomId == m_currentRoomId) {
+        QListWidgetItem *item = findUserListItem(username);
+        if (item) {
+            item->setData(Qt::UserRole + 2, false);
+            updateUserListItemWidget(item);
+        }
+    }
+}
+
+// ==================== 退出聊天室 ====================
+
+void ChatWindow::leaveRoom(int roomId) {
+    // 获取房间名称
+    QString roomName;
+    for (int i = 0; i < m_roomList->count(); ++i) {
+        if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
+            roomName = m_roomList->item(i)->text();
+            break;
+        }
+    }
+
+    if (QMessageBox::question(this, "退出聊天室",
+            QString("确定要退出聊天室 %1 吗？").arg(roomName))
+        != QMessageBox::Yes) return;
+
+    NetworkManager::instance()->sendMessage(Protocol::makeLeaveRoom(roomId));
+}
+
+void ChatWindow::onLeaveRoomResponse(bool success, int roomId) {
+    if (success) {
+        // 从房间列表中移除
+        for (int i = 0; i < m_roomList->count(); ++i) {
+            if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
+                delete m_roomList->takeItem(i);
+                break;
+            }
+        }
+        // 清理数据
+        if (m_models.contains(roomId)) {
+            delete m_models.take(roomId);
+        }
+        m_adminRooms.remove(roomId);
+        m_joinedRooms.remove(roomId);
+        m_roomMaxFileSize.remove(roomId);
+
+        // 切换到另一个房间
+        if (m_currentRoomId == roomId) {
+            if (m_roomList->count() > 0) {
+                m_roomList->setCurrentRow(0);
+                onRoomSelected(m_roomList->item(0));
+            } else {
+                m_currentRoomId = -1;
+                m_roomTitle->setText("请选择一个聊天室");
+                m_userList->clear();
+                m_messageView->setModel(nullptr);
+            }
+        }
+    }
+}
+
+// ==================== 用户列表辅助方法 ====================
+
+void ChatWindow::addUserListItem(const QString &username, bool isAdmin, bool isOnline) {
+    auto *item = new QListWidgetItem;
+    item->setData(Qt::UserRole, username);
+    item->setData(Qt::UserRole + 1, isAdmin);
+    item->setData(Qt::UserRole + 2, isOnline);
+    item->setSizeHint(QSize(0, 30));
+
+    m_userList->addItem(item);
+    updateUserListItemWidget(item);
+
+    // 请求未缓存用户的头像
+    if (!s_avatarCache.contains(username)) {
+        requestAvatar(username);
+    }
+}
+
+void ChatWindow::updateUserListItemWidget(QListWidgetItem *item) {
+    QString username = item->data(Qt::UserRole).toString();
+    bool isAdmin = item->data(Qt::UserRole + 1).toBool();
+    bool isOnline = item->data(Qt::UserRole + 2).toBool();
+
+    auto *widget = new QWidget;
+    auto *layout = new QHBoxLayout(widget);
+    layout->setContentsMargins(4, 2, 4, 2);
+    layout->setSpacing(4);
+
+    auto *nameLabel = new QLabel(username);
+    if (isAdmin) {
+        nameLabel->setStyleSheet("color: #DAA520; font-weight: bold;");
+    }
+
+    auto *statusLabel = new QLabel(isOnline ? "在线" : "离线");
+    if (isOnline) {
+        statusLabel->setStyleSheet("color: green; font-size: 11px;");
+    } else {
+        statusLabel->setStyleSheet("color: gray; font-size: 11px;");
+    }
+    statusLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+    layout->addWidget(nameLabel);
+    layout->addStretch();
+    layout->addWidget(statusLabel);
+
+    m_userList->setItemWidget(item, widget);
+}
+
+QListWidgetItem* ChatWindow::findUserListItem(const QString &username) {
+    for (int i = 0; i < m_userList->count(); ++i) {
+        if (m_userList->item(i)->data(Qt::UserRole).toString() == username)
+            return m_userList->item(i);
+    }
+    return nullptr;
 }
 
 // ==================== 头像功能 ====================

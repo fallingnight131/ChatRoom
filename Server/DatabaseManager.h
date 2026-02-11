@@ -25,6 +25,10 @@ public:
     QJsonArray getUserJoinedRooms(int userId);
     bool deleteRoom(int roomId);
     QString getRoomName(int roomId);
+    bool isUserInRoom(int roomId, int userId);
+    QJsonArray getRoomMembers(int roomId);
+    bool leaveRoom(int roomId, int userId);
+    int getUserIdByName(const QString &username);
 
     // 消息管理
     int  saveMessage(int roomId, int userId, const QString &content,
