@@ -180,13 +180,18 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         }
     }
     else if (type == Protocol::MsgType::JOIN_ROOM_RSP) {
-        emit roomJoined(data["success"].toBool(),
-                        data["roomId"].toInt(),
-                        data["roomName"].toString(),
-                        data["error"].toString());
-        // 加入成功时也通知管理员状态
-        if (data["success"].toBool() && data.contains("isAdmin")) {
-            emit adminStatusChanged(data["roomId"].toInt(), data["isAdmin"].toBool());
+        bool success = data["success"].toBool();
+        if (!success && data["needPassword"].toBool()) {
+            emit joinRoomNeedPassword(data["roomId"].toInt());
+        } else {
+            emit roomJoined(success,
+                            data["roomId"].toInt(),
+                            data["roomName"].toString(),
+                            data["error"].toString());
+            // 加入成功时也通知管理员状态
+            if (success && data.contains("isAdmin")) {
+                emit adminStatusChanged(data["roomId"].toInt(), data["isAdmin"].toBool());
+            }
         }
     }
     else if (type == Protocol::MsgType::ROOM_LIST_RSP) {
@@ -311,5 +316,18 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
     else if (type == Protocol::MsgType::RENAME_ROOM_NOTIFY) {
         emit renameRoomNotify(data["roomId"].toInt(),
                               data["newName"].toString());
+    }
+    else if (type == Protocol::MsgType::SET_ROOM_PASSWORD_RSP) {
+        emit setRoomPasswordResponse(data["success"].toBool(),
+                                     data["roomId"].toInt(),
+                                     data["hasPassword"].toBool(),
+                                     data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::GET_ROOM_PASSWORD_RSP) {
+        emit getRoomPasswordResponse(data["success"].toBool(),
+                                     data["roomId"].toInt(),
+                                     data["password"].toString(),
+                                     data["hasPassword"].toBool(),
+                                     data["error"].toString());
     }
 }

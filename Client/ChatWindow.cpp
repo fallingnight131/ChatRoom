@@ -369,6 +369,11 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::renameRoomResponse, this, &ChatWindow::onRenameRoomResponse);
     connect(net, &NetworkManager::renameRoomNotify,   this, &ChatWindow::onRenameRoomNotify);
 
+    // 聊天室密码
+    connect(net, &NetworkManager::setRoomPasswordResponse, this, &ChatWindow::onSetRoomPasswordResponse);
+    connect(net, &NetworkManager::getRoomPasswordResponse, this, &ChatWindow::onGetRoomPasswordResponse);
+    connect(net, &NetworkManager::joinRoomNeedPassword,    this, &ChatWindow::onJoinRoomNeedPassword);
+
     // 双击打开文件/图片
     connect(m_messageView, &QListView::doubleClicked, this, [this](const QModelIndex &idx) {
         int contentType = idx.data(MessageModel::ContentTypeRole).toInt();
@@ -987,6 +992,11 @@ void ChatWindow::onAdminStatusChanged(int roomId, bool isAdmin) {
             m_roomTitle->setText(m_roomTitle->text() + QStringLiteral(" [管理员]"));
             m_statusLabel->setText(QStringLiteral("提示: 右键消息或用户列表可使用管理功能"));
         }
+        // 刷新用户列表以实时更新管理员名字颜色
+        QJsonObject userData;
+        userData["roomId"] = roomId;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::USER_LIST_REQ, userData));
     }
 }
 
@@ -1133,6 +1143,25 @@ void ChatWindow::onRoomContextMenu(const QPoint &pos) {
             data["maxFileSize"] = static_cast<double>(sizeBytes);
             NetworkManager::instance()->sendMessage(
                 Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
+        });
+
+        menu.addAction(QStringLiteral("设置/修改密码..."), [this, roomId] {
+            bool ok;
+            QString password = QInputDialog::getText(this, "设置聊天室密码",
+                "请输入聊天室密码（留空表示取消密码）:", QLineEdit::Normal, "", &ok);
+            if (!ok) return;
+            QJsonObject data;
+            data["roomId"] = roomId;
+            data["password"] = password;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::SET_ROOM_PASSWORD_REQ, data));
+        });
+
+        menu.addAction(QStringLiteral("查看当前密码"), [this, roomId] {
+            QJsonObject data;
+            data["roomId"] = roomId;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::GET_ROOM_PASSWORD_REQ, data));
         });
 
         menu.addSeparator();
@@ -1650,6 +1679,45 @@ void ChatWindow::onRenameRoomNotify(int roomId, const QString &newName) {
             break;
         }
     }
+}
+
+// ==================== 聊天室密码 ====================
+
+void ChatWindow::onSetRoomPasswordResponse(bool success, int roomId, bool hasPassword, const QString &error) {
+    Q_UNUSED(roomId)
+    if (success) {
+        m_statusLabel->setText(hasPassword ? QStringLiteral("聊天室密码已设置")
+                                           : QStringLiteral("聊天室密码已取消"));
+    } else {
+        QMessageBox::warning(this, "设置密码失败", error);
+    }
+}
+
+void ChatWindow::onGetRoomPasswordResponse(bool success, int roomId, const QString &password, bool hasPassword, const QString &error) {
+    Q_UNUSED(roomId)
+    if (success) {
+        if (hasPassword) {
+            QMessageBox::information(this, "聊天室密码",
+                QString("当前聊天室密码为: %1").arg(password));
+        } else {
+            QMessageBox::information(this, "聊天室密码", "当前聊天室未设置密码");
+        }
+    } else {
+        QMessageBox::warning(this, "查看密码失败", error);
+    }
+}
+
+void ChatWindow::onJoinRoomNeedPassword(int roomId) {
+    bool ok;
+    QString password = QInputDialog::getText(this, "需要密码",
+        "该聊天室需要密码才能加入，请输入密码:", QLineEdit::Password, "", &ok);
+    if (!ok || password.isEmpty()) return;
+
+    QJsonObject data;
+    data["roomId"] = roomId;
+    data["password"] = password;
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::JOIN_ROOM_REQ, data));
 }
 
 // ==================== 注销 ====================

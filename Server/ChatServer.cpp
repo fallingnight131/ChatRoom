@@ -162,6 +162,10 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleDeleteRoom(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::RENAME_ROOM_REQ) {
         handleRenameRoom(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::SET_ROOM_PASSWORD_REQ) {
+        handleSetRoomPassword(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::GET_ROOM_PASSWORD_REQ) {
+        handleGetRoomPassword(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::AVATAR_UPLOAD_REQ) {
         handleAvatarUpload(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::AVATAR_GET_REQ) {
@@ -273,6 +277,7 @@ void ChatServer::handleCreateRoom(ClientSession *session, const QJsonObject &dat
         m_roomMgr->addRoom(roomId, roomName, session->userId());
         m_roomMgr->addUserToRoom(roomId, session->userId(), session->username());
         m_db->joinRoom(roomId, session->userId());
+        m_db->setRoomAdmin(roomId, session->userId(), true); // 创建者写入管理员表
         rspData["success"]  = true;
         rspData["roomId"]   = roomId;
         rspData["roomName"] = roomName;
@@ -293,6 +298,28 @@ void ChatServer::handleJoinRoom(ClientSession *session, const QJsonObject &data)
     if (m_roomMgr->roomExists(roomId)) {
         // 检查 DB 持久化成员资格
         bool alreadyMember = m_db->isUserInRoom(roomId, session->userId());
+
+        // 首次加入时检查密码
+        if (!alreadyMember && m_db->roomHasPassword(roomId)) {
+            QString providedPwd = data["password"].toString();
+            QString roomPwd = m_db->getRoomPassword(roomId);
+            if (providedPwd.isEmpty()) {
+                rspData["success"] = false;
+                rspData["roomId"]  = roomId;
+                rspData["needPassword"] = true;
+                rspData["error"]   = QStringLiteral("该聊天室需要密码才能加入");
+                session->sendMessage(Protocol::makeMessage(Protocol::MsgType::JOIN_ROOM_RSP, rspData));
+                return;
+            }
+            if (providedPwd != roomPwd) {
+                rspData["success"] = false;
+                rspData["roomId"]  = roomId;
+                rspData["needPassword"] = true;
+                rspData["error"]   = QStringLiteral("密码错误");
+                session->sendMessage(Protocol::makeMessage(Protocol::MsgType::JOIN_ROOM_RSP, rspData));
+                return;
+            }
+        }
 
         m_roomMgr->addUserToRoom(roomId, session->userId(), session->username());
         m_db->joinRoom(roomId, session->userId());
@@ -922,6 +949,57 @@ void ChatServer::handleRenameRoom(ClientSession *session, const QJsonObject &dat
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
         {{"roomId", roomId}, {"content", QString("管理员 %1 将聊天室名称修改为 \"%2\"")
             .arg(session->username(), newName)}}));
+}
+
+void ChatServer::handleSetRoomPassword(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int roomId = data["roomId"].toInt();
+    QString password = data["password"].toString(); // 空字符串表示取消密码
+
+    QJsonObject rspData;
+    rspData["roomId"] = roomId;
+
+    if (!m_db->isRoomAdmin(roomId, session->userId())) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("只有管理员可以设置聊天室密码");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::SET_ROOM_PASSWORD_RSP, rspData));
+        return;
+    }
+
+    m_db->setRoomPassword(roomId, password);
+
+    rspData["success"] = true;
+    rspData["hasPassword"] = !password.isEmpty();
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::SET_ROOM_PASSWORD_RSP, rspData));
+
+    // 广播系统消息
+    QString sysContent = password.isEmpty()
+        ? QString("管理员 %1 已取消聊天室密码").arg(session->username())
+        : QString("管理员 %1 已设置/修改聊天室密码").arg(session->username());
+    broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
+        {{"roomId", roomId}, {"content", sysContent}}));
+}
+
+void ChatServer::handleGetRoomPassword(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int roomId = data["roomId"].toInt();
+    QJsonObject rspData;
+    rspData["roomId"] = roomId;
+
+    if (!m_db->isRoomAdmin(roomId, session->userId())) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("只有管理员可以查看聊天室密码");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::GET_ROOM_PASSWORD_RSP, rspData));
+        return;
+    }
+
+    QString password = m_db->getRoomPassword(roomId);
+    rspData["success"] = true;
+    rspData["password"] = password;
+    rspData["hasPassword"] = !password.isEmpty();
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::GET_ROOM_PASSWORD_RSP, rspData));
 }
 
 void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &data) {

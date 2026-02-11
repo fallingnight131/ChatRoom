@@ -90,6 +90,9 @@ signals:
     // 重命名聊天室
     void renameRoomResponse(bool success, int roomId, const QString &newName, const QString &error);
     void renameRoomNotify(int roomId, const QString &newName);
+    void setRoomPasswordResponse(bool success, int roomId, bool hasPassword, const QString &error);
+    void getRoomPasswordResponse(bool success, int roomId, const QString &password, bool hasPassword, const QString &error);
+    void joinRoomNeedPassword(int roomId);
 
 private slots:
     void onConnected();

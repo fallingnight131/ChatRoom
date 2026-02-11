@@ -28,6 +28,11 @@ public:
     bool renameRoom(int roomId, const QString &newName);
     int getRoomMemberCount(int roomId);
     bool isUserInRoom(int roomId, int userId);
+
+    // 房间密码
+    bool setRoomPassword(int roomId, const QString &password);
+    QString getRoomPassword(int roomId);
+    bool roomHasPassword(int roomId);
     QJsonArray getRoomMembers(int roomId);
     bool leaveRoom(int roomId, int userId);
     int getUserIdByName(const QString &username);

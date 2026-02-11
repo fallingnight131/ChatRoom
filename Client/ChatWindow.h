@@ -130,6 +130,11 @@ private slots:
     void onRenameRoomResponse(bool success, int roomId, const QString &newName, const QString &error);
     void onRenameRoomNotify(int roomId, const QString &newName);
 
+    // 聊天室密码
+    void onSetRoomPasswordResponse(bool success, int roomId, bool hasPassword, const QString &error);
+    void onGetRoomPasswordResponse(bool success, int roomId, const QString &password, bool hasPassword, const QString &error);
+    void onJoinRoomNeedPassword(int roomId);
+
     // 贴边隐藏
     void checkEdgeHide();
 

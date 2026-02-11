@@ -76,6 +76,7 @@ bool DatabaseManager::initialize() {
            "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
            "  name TEXT NOT NULL,"
            "  creator_id INTEGER NOT NULL,"
+           "  password TEXT DEFAULT NULL,"
            "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
            "  FOREIGN KEY (creator_id) REFERENCES users(id)"
            ")");
@@ -683,4 +684,38 @@ QByteArray DatabaseManager::getUserAvatarByName(const QString &username) {
     if (q.next())
         return q.value(0).toByteArray();
     return {};
+}
+
+bool DatabaseManager::setRoomPassword(int roomId, const QString &password) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    if (password.isEmpty()) {
+        q.prepare("UPDATE rooms SET password = NULL WHERE id = ?");
+        q.addBindValue(roomId);
+    } else {
+        q.prepare("UPDATE rooms SET password = ? WHERE id = ?");
+        q.addBindValue(password);
+        q.addBindValue(roomId);
+    }
+    return q.exec();
+}
+
+QString DatabaseManager::getRoomPassword(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT password FROM rooms WHERE id = ?");
+    q.addBindValue(roomId);
+    q.exec();
+    if (q.next())
+        return q.value(0).toString();
+    return {};
+}
+
+bool DatabaseManager::roomHasPassword(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT password FROM rooms WHERE id = ? AND password IS NOT NULL AND password != ''");
+    q.addBindValue(roomId);
+    q.exec();
+    return q.next();
 }
