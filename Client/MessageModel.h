@@ -20,7 +20,9 @@ public:
         FileSizeRole,
         FileIdRole,
         ImageDataRole,
-        RoomIdRole
+        RoomIdRole,
+        DownloadStateRole,
+        DownloadProgressRole
     };
 
     explicit MessageModel(QObject *parent = nullptr);
@@ -37,6 +39,7 @@ public:
     const Message &messageAt(int row) const;
     int findMessageRow(int messageId) const;
     int findMessageByFileId(int fileId) const;
+    void updateDownloadProgress(int fileId, int state, double progress);
 
 private:
     QList<Message> m_messages;

@@ -27,8 +27,11 @@ private:
                         const QModelIndex &index, bool isMine) const;
     void drawImageBubble(QPainter *painter, const QStyleOptionViewItem &option,
                          const QModelIndex &index, bool isMine) const;
+    void drawVideoBubble(QPainter *painter, const QStyleOptionViewItem &option,
+                         const QModelIndex &index, bool isMine) const;
     void drawRecalledMessage(QPainter *painter, const QStyleOptionViewItem &option,
                               const QModelIndex &index) const;
+    void drawPieProgress(QPainter *painter, const QRect &rect, double progress) const;
 
     QSize textBubbleSize(const QStyleOptionViewItem &option,
                          const QModelIndex &index) const;

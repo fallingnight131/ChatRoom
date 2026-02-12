@@ -30,6 +30,8 @@ QVariant MessageModel::data(const QModelIndex &index, int role) const {
     case FileIdRole:      return msg.fileId();
     case ImageDataRole:   return msg.imageData();
     case RoomIdRole:      return msg.roomId();
+    case DownloadStateRole:    return static_cast<int>(msg.downloadState());
+    case DownloadProgressRole: return msg.downloadProgress();
     }
     return {};
 }
@@ -48,6 +50,8 @@ QHash<int, QByteArray> MessageModel::roleNames() const {
         { FileIdRole,      "fileId" },
         { ImageDataRole,   "imageData" },
         { RoomIdRole,      "roomId" },
+        { DownloadStateRole, "downloadState" },
+        { DownloadProgressRole, "downloadProgress" },
     };
 }
 
@@ -100,4 +104,16 @@ int MessageModel::findMessageByFileId(int fileId) const {
             return i;
     }
     return -1;
+}
+
+void MessageModel::updateDownloadProgress(int fileId, int state, double progress) {
+    for (int i = 0; i < m_messages.size(); ++i) {
+        if (m_messages[i].fileId() == fileId) {
+            m_messages[i].setDownloadState(static_cast<Message::DownloadState>(state));
+            m_messages[i].setDownloadProgress(progress);
+            QModelIndex idx = index(i);
+            emit dataChanged(idx, idx, { DownloadStateRole, DownloadProgressRole });
+            break;
+        }
+    }
 }

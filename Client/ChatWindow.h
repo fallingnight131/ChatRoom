@@ -47,7 +47,7 @@ private slots:
     void onCreateRoom();
     void onJoinRoom();
     void onRoomCreated(bool success, int roomId, const QString &name, const QString &error);
-    void onRoomJoined(bool success, int roomId, const QString &name, const QString &error);
+    void onRoomJoined(bool success, int roomId, const QString &name, const QString &error, bool newJoin);
     void onRoomListReceived(const QJsonArray &rooms);
     void onRoomSelected(QListWidgetItem *item);
 
@@ -152,6 +152,10 @@ private:
     void startChunkedUpload(const QString &filePath);
     void sendNextChunk();
     void startChunkedDownload(int fileId, const QString &fileName, qint64 fileSize);
+    void triggerFileDownload(int fileId, const QString &fileName, qint64 fileSize);
+    void processNextDownload();
+    void updateAllModelsDownloadProgress(int fileId, int state, double progress);
+    void onFileDownloadComplete(int fileId, const QString &fileName, const QByteArray &data);
     void cacheAvatar(const QString &username, const QByteArray &data);
     void requestAvatar(const QString &username);
     void leaveRoom(int roomId);
@@ -200,7 +204,7 @@ private:
     };
     ChunkedUpload m_upload;
 
-    // --- 大文件分块下载状态 ---
+    // --- 大文件分块下载状态（支持多文件队列） ---
     struct ChunkedDownload {
         int fileId = 0;
         QString fileName;
@@ -208,7 +212,9 @@ private:
         qint64 offset   = 0;
         QByteArray buffer;
     };
-    ChunkedDownload m_download;
+    QMap<int, ChunkedDownload> m_downloads;  // fileId -> download state
+    QList<int> m_downloadQueue;              // 等待下载的 fileId 队列
+    int m_activeDownloadId = 0;              // 当前正在分块下载的 fileId（0=无）
 
     // 贴边隐藏
     QTimer  *m_edgeTimer  = nullptr;

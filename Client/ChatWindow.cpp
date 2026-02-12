@@ -378,7 +378,32 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::kickUserResponse,  this, &ChatWindow::onKickUserResponse);
     connect(net, &NetworkManager::kickedFromRoom,    this, &ChatWindow::onKickedFromRoom);
 
-    // 双击打开文件/图片
+    // 单击文件消息：触发下载（非图片文件）或打开图片预览
+    connect(m_messageView, &QListView::clicked, this, [this](const QModelIndex &idx) {
+        int contentType = idx.data(MessageModel::ContentTypeRole).toInt();
+        if (contentType != static_cast<int>(Message::File)) return;
+
+        int fileId = idx.data(MessageModel::FileIdRole).toInt();
+        if (fileId <= 0) return;
+
+        QString fileName = idx.data(MessageModel::FileNameRole).toString();
+        qint64 fileSize  = idx.data(MessageModel::FileSizeRole).toLongLong();
+
+        // 已缓存 → 用系统打开
+        if (FileCache::instance()->isCached(fileId)) {
+            FileCache::openWithSystem(FileCache::instance()->cachedFilePath(fileId));
+            return;
+        }
+
+        // 正在下载中 → 忽略
+        int dlState = idx.data(MessageModel::DownloadStateRole).toInt();
+        if (dlState == Message::Downloading) return;
+
+        // 未下载 → 触发下载
+        triggerFileDownload(fileId, fileName, fileSize);
+    });
+
+    // 双击打开已缓存的文件/图片
     connect(m_messageView, &QListView::doubleClicked, this, [this](const QModelIndex &idx) {
         int contentType = idx.data(MessageModel::ContentTypeRole).toInt();
         if (contentType != static_cast<int>(Message::File)) return;
@@ -423,7 +448,7 @@ void ChatWindow::onRoomCreated(bool success, int roomId, const QString &name, co
     }
 }
 
-void ChatWindow::onRoomJoined(bool success, int roomId, const QString &name, const QString &error) {
+void ChatWindow::onRoomJoined(bool success, int roomId, const QString &name, const QString &error, bool newJoin) {
     if (success) {
         // 检查是否已在列表中
         for (int i = 0; i < m_roomList->count(); ++i) {
@@ -438,12 +463,14 @@ void ChatWindow::onRoomJoined(bool success, int roomId, const QString &name, con
 found:
         switchRoom(roomId);
 
-        // 首次加入时显示自己的加入提示
-        if (!m_joinedRooms.contains(roomId)) {
+        // 仅在用户真正首次加入时显示提示（由服务端判断）
+        if (newJoin) {
             m_joinedRooms.insert(roomId);
             Message sysMsg = Message::createSystemMessage(roomId,
                 QString("你加入了聊天室 %1").arg(name));
             getOrCreateModel(roomId)->addMessage(sysMsg);
+        } else {
+            m_joinedRooms.insert(roomId);
         }
     } else {
         QMessageBox::warning(this, "加入失败", error);
@@ -604,6 +631,10 @@ void ChatWindow::onSystemMessage(const QJsonObject &msg) {
 void ChatWindow::onHistoryReceived(int roomId, const QJsonArray &messages) {
     MessageModel *model = getOrCreateModel(roomId);
 
+    // 用于收集需要自动下载的图片
+    struct PendingImage { int fileId; QString fileName; qint64 fileSize; };
+    QList<PendingImage> pendingImages;
+
     QList<Message> msgList;
     for (const QJsonValue &v : messages) {
         QJsonObject obj = v.toObject();
@@ -617,6 +648,22 @@ void ChatWindow::onHistoryReceived(int roomId, const QJsonArray &messages) {
         wrapper["data"] = obj;
         m = Message::fromJson(wrapper);
         m.setIsMine(m.sender() == m_username);
+
+        // 为文件消息设置下载状态
+        if (m.contentType() == Message::File && m.fileId() > 0) {
+            if (FileCache::instance()->isCached(m.fileId())) {
+                m.setDownloadState(Message::Downloaded);
+                m.setDownloadProgress(1.0);
+            } else {
+                // 图片文件加入自动下载队列
+                static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
+                QString suffix = QFileInfo(m.fileName()).suffix().toLower();
+                if (imgExts.contains(suffix)) {
+                    pendingImages.append({m.fileId(), m.fileName(), m.fileSize()});
+                }
+            }
+        }
+
         msgList.append(m);
     }
 
@@ -626,6 +673,13 @@ void ChatWindow::onHistoryReceived(int roomId, const QJsonArray &messages) {
         QTimer::singleShot(50, [this] {
             m_messageView->scrollToBottom();
         });
+    }
+
+    // 自动下载历史中未缓存的图片
+    for (const auto &img : pendingImages) {
+        if (!FileCache::instance()->isCached(img.fileId)) {
+            triggerFileDownload(img.fileId, img.fileName, img.fileSize);
+        }
     }
 }
 
@@ -755,70 +809,48 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
     int fileId = data["fileId"].toInt();
     QString fileName = data["fileName"].toString();
     QString sender   = data["sender"].toString();
+    qint64 fSize = static_cast<qint64>(data["fileSize"].toDouble());
 
     Message msg = Message::createFileMessage(
-        roomId, sender, fileName,
-        static_cast<qint64>(data["fileSize"].toDouble()), fileId);
+        roomId, sender, fileName, fSize, fileId);
     msg.setId(data["id"].toInt());
     msg.setIsMine(sender == m_username);
+
+    // 判断是否为图片文件
+    static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
+    QString suffix = QFileInfo(fileName).suffix().toLower();
+    bool isImage = imgExts.contains(suffix);
+
+    // 已缓存则标记为已下载
+    if (FileCache::instance()->isCached(fileId)) {
+        msg.setDownloadState(Message::Downloaded);
+        msg.setDownloadProgress(1.0);
+    }
 
     getOrCreateModel(roomId)->addMessage(msg);
 
     if (roomId == m_currentRoomId) {
         QTimer::singleShot(50, [this] { m_messageView->scrollToBottom(); });
     }
-    m_statusLabel->setText("文件传输完成");
 
-    // 自动下载缓存文件（类似微信，接收后自动缓存）
-    if (!FileCache::instance()->isCached(fileId)) {
-        qint64 fSize = static_cast<qint64>(data["fileSize"].toDouble());
-        if (fSize > Protocol::MAX_SMALL_FILE) {
-            // 大文件用分块下载
-            startChunkedDownload(fileId, fileName, fSize);
-        } else {
-            QJsonObject reqData;
-            reqData["fileId"]   = fileId;
-            reqData["fileName"] = fileName;
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_REQ, reqData));
-        }
+    // 仅图片文件自动下载缓存，其余文件需要用户点击下载
+    if (isImage && !FileCache::instance()->isCached(fileId)) {
+        triggerFileDownload(fileId, fileName, fSize);
     }
 }
 
 void ChatWindow::onFileDownloadReady(const QJsonObject &data) {
     if (!data["success"].toBool()) {
+        int failId = data["fileId"].toInt();
         m_statusLabel->setText("文件下载失败: " + data["error"].toString());
+        updateAllModelsDownloadProgress(failId, Message::NotDownloaded, 0.0);
         return;
     }
 
     int fileId = data["fileId"].toInt();
     QString fileName = data["fileName"].toString();
     QByteArray fileData = QByteArray::fromBase64(data["fileData"].toString().toUtf8());
-
-    // 缓存到本地
-    QString localPath = FileCache::instance()->cacheFile(fileId, fileName, fileData);
-    if (!localPath.isEmpty()) {
-        m_statusLabel->setText("文件已缓存: " + fileName);
-
-        // 如果是图片，清除旧的 QPixmapCache 并强制刷新视图
-        QString lower = fileName.toLower();
-        if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")
-            || lower.endsWith(".gif") || lower.endsWith(".bmp") || lower.endsWith(".webp")) {
-            // 清除旧的 pixmap 缓存，使用新文件数据
-            QPixmapCache::remove(QString("msgimg_%1").arg(fileId));
-            // 通知所有模型该消息数据已变化，触发 sizeHint 重新计算
-            for (auto it = m_models.begin(); it != m_models.end(); ++it) {
-                int row = it.value()->findMessageByFileId(fileId);
-                if (row >= 0) {
-                    QModelIndex idx = it.value()->index(row, 0);
-                    emit it.value()->dataChanged(idx, idx);
-                }
-            }
-            // 强制当前视图重新布局以更新行高
-            m_messageView->doItemsLayout();
-            m_messageView->viewport()->update();
-        }
-    }
+    onFileDownloadComplete(fileId, fileName, fileData);
 }
 
 // ==================== 大文件分块传输 ====================
@@ -896,67 +928,144 @@ void ChatWindow::onUploadChunkResponse(const QJsonObject &data) {
     }
 }
 
-void ChatWindow::startChunkedDownload(int fileId, const QString &fileName, qint64 fileSize) {
-    m_download.fileId   = fileId;
-    m_download.fileName = fileName;
-    m_download.fileSize = fileSize;
-    m_download.offset   = 0;
-    m_download.buffer.clear();
-    m_download.buffer.reserve(static_cast<int>(qMin(fileSize, (qint64)100 * 1024 * 1024)));
+// ==================== 文件下载管理 ====================
 
-    // 请求第一个块
+void ChatWindow::triggerFileDownload(int fileId, const QString &fileName, qint64 fileSize) {
+    if (FileCache::instance()->isCached(fileId)) return;
+
+    // 标记为下载中
+    updateAllModelsDownloadProgress(fileId, Message::Downloading, 0.0);
+
+    if (fileSize > Protocol::MAX_SMALL_FILE) {
+        // 大文件走分块下载
+        startChunkedDownload(fileId, fileName, fileSize);
+    } else {
+        // 小文件直接请求
+        QJsonObject reqData;
+        reqData["fileId"]   = fileId;
+        reqData["fileName"] = fileName;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_REQ, reqData));
+        m_statusLabel->setText(QString("下载中 %1...").arg(fileName));
+    }
+}
+
+void ChatWindow::processNextDownload() {
+    if (m_downloadQueue.isEmpty()) return;
+    int nextId = m_downloadQueue.takeFirst();
+    if (!m_downloads.contains(nextId)) return;
+
+    m_activeDownloadId = nextId;
+    ChunkedDownload &dl = m_downloads[nextId];
     QJsonObject data;
-    data["fileId"]   = fileId;
+    data["fileId"]   = nextId;
     data["offset"]   = 0.0;
     data["chunkSize"] = Protocol::FILE_CHUNK_SIZE;
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_REQ, data));
+    m_statusLabel->setText(QString("下载中 %1...").arg(dl.fileName));
+}
 
-    m_statusLabel->setText(QString("下载中 %1...").arg(fileName));
+void ChatWindow::updateAllModelsDownloadProgress(int fileId, int state, double progress) {
+    for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+        it.value()->updateDownloadProgress(fileId, state, progress);
+    }
+    // 强制视图刷新
+    m_messageView->viewport()->update();
+}
+
+void ChatWindow::onFileDownloadComplete(int fileId, const QString &fileName, const QByteArray &data) {
+    // 缓存到本地
+    QString localPath = FileCache::instance()->cacheFile(fileId, fileName, data);
+    if (localPath.isEmpty()) return;
+
+    m_statusLabel->setText(QString("文件已缓存: %1").arg(fileName));
+
+    // 更新所有模型中该文件的下载状态
+    updateAllModelsDownloadProgress(fileId, Message::Downloaded, 1.0);
+
+    // 如果是图片，清除 QPixmapCache 并强制刷新视图
+    static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
+    QString suffix = QFileInfo(fileName).suffix().toLower();
+    if (imgExts.contains(suffix)) {
+        QPixmapCache::remove(QString("msgimg_%1").arg(fileId));
+        for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+            int row = it.value()->findMessageByFileId(fileId);
+            if (row >= 0) {
+                QModelIndex idx = it.value()->index(row, 0);
+                emit it.value()->dataChanged(idx, idx);
+            }
+        }
+        m_messageView->doItemsLayout();
+        m_messageView->viewport()->update();
+    }
+}
+
+void ChatWindow::startChunkedDownload(int fileId, const QString &fileName, qint64 fileSize) {
+    ChunkedDownload dl;
+    dl.fileId   = fileId;
+    dl.fileName = fileName;
+    dl.fileSize = fileSize;
+    dl.offset   = 0;
+    dl.buffer.clear();
+    dl.buffer.reserve(static_cast<int>(qMin(fileSize, (qint64)100 * 1024 * 1024)));
+    m_downloads[fileId] = dl;
+
+    // 如果没有正在进行的分块下载，立即开始
+    if (m_activeDownloadId == 0) {
+        m_activeDownloadId = fileId;
+        QJsonObject data;
+        data["fileId"]   = fileId;
+        data["offset"]   = 0.0;
+        data["chunkSize"] = Protocol::FILE_CHUNK_SIZE;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_REQ, data));
+        m_statusLabel->setText(QString("下载中 %1...").arg(fileName));
+    } else {
+        // 已有分块下载在进行，加入队列
+        if (!m_downloadQueue.contains(fileId))
+            m_downloadQueue.append(fileId);
+    }
 }
 
 void ChatWindow::onDownloadChunkResponse(const QJsonObject &data) {
+    int fileId = data["fileId"].toInt();
+
     if (!data["success"].toBool()) {
         m_statusLabel->setText("下载失败: " + data["error"].toString());
+        updateAllModelsDownloadProgress(fileId, Message::NotDownloaded, 0.0);
+        m_downloads.remove(fileId);
+        if (m_activeDownloadId == fileId) {
+            m_activeDownloadId = 0;
+            processNextDownload();
+        }
         return;
     }
 
+    if (!m_downloads.contains(fileId)) return;
+    ChunkedDownload &dl = m_downloads[fileId];
+
     QByteArray chunk = QByteArray::fromBase64(data["chunkData"].toString().toLatin1());
-    m_download.buffer.append(chunk);
-    m_download.offset += chunk.size();
+    dl.buffer.append(chunk);
+    dl.offset += chunk.size();
 
-    int progress = static_cast<int>(m_download.offset * 100 / m_download.fileSize);
-    m_statusLabel->setText(QString("下载中 %1%...").arg(progress));
+    double progress = static_cast<double>(dl.offset) / dl.fileSize;
+    updateAllModelsDownloadProgress(fileId, Message::Downloading, progress);
+    m_statusLabel->setText(QString("下载中 %1%...").arg(static_cast<int>(progress * 100)));
 
-    if (m_download.offset >= m_download.fileSize) {
-        // 下载完毕，缓存
-        QString localPath = FileCache::instance()->cacheFile(
-            m_download.fileId, m_download.fileName, m_download.buffer);
-        if (!localPath.isEmpty()) {
-            m_statusLabel->setText("文件已缓存: " + m_download.fileName);
-
-            // 刷新图片预览
-            QString lower = m_download.fileName.toLower();
-            if (lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")
-                || lower.endsWith(".gif") || lower.endsWith(".bmp") || lower.endsWith(".webp")) {
-                QPixmapCache::remove(QString("msgimg_%1").arg(m_download.fileId));
-                for (auto it = m_models.begin(); it != m_models.end(); ++it) {
-                    int row = it.value()->findMessageByFileId(m_download.fileId);
-                    if (row >= 0) {
-                        QModelIndex idx = it.value()->index(row, 0);
-                        emit it.value()->dataChanged(idx, idx);
-                    }
-                }
-                m_messageView->doItemsLayout();
-                m_messageView->viewport()->update();
-            }
+    if (dl.offset >= dl.fileSize) {
+        // 下载完毕
+        onFileDownloadComplete(fileId, dl.fileName, dl.buffer);
+        m_downloads.remove(fileId);
+        if (m_activeDownloadId == fileId) {
+            m_activeDownloadId = 0;
+            processNextDownload();
         }
-        m_download.buffer.clear();
     } else {
         // 继续请求下一个块
         QJsonObject reqData;
-        reqData["fileId"]   = m_download.fileId;
-        reqData["offset"]   = static_cast<double>(m_download.offset);
+        reqData["fileId"]   = fileId;
+        reqData["offset"]   = static_cast<double>(dl.offset);
         reqData["chunkSize"] = Protocol::FILE_CHUNK_SIZE;
         NetworkManager::instance()->sendMessage(
             Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_REQ, reqData));

@@ -16,6 +16,12 @@ public:
         System
     };
 
+    enum DownloadState {
+        NotDownloaded = 0,
+        Downloading   = 1,
+        Downloaded    = 2
+    };
+
     Message() = default;
 
     // --- 工厂方法 ---
@@ -43,6 +49,8 @@ public:
     int fileId() const { return m_fileId; }
     QByteArray imageData() const { return m_imageData; }
     bool isMine() const { return m_isMine; }
+    DownloadState downloadState() const { return m_downloadState; }
+    double downloadProgress() const { return m_downloadProgress; }
 
     // --- Setters ---
     void setId(int id) { m_id = id; }
@@ -51,6 +59,8 @@ public:
     void setImageData(const QByteArray &d) { m_imageData = d; }
     void setContentType(ContentType t) { m_contentType = t; }
     void setSender(const QString &s) { m_sender = s; }
+    void setDownloadState(DownloadState s) { m_downloadState = s; }
+    void setDownloadProgress(double p) { m_downloadProgress = p; }
 
     static QString contentTypeToString(ContentType t);
     static ContentType stringToContentType(const QString &s);
@@ -68,4 +78,6 @@ private:
     int         m_fileId      = 0;
     QByteArray  m_imageData;
     bool        m_isMine      = false;
+    DownloadState m_downloadState = NotDownloaded;
+    double      m_downloadProgress = 0.0;
 };

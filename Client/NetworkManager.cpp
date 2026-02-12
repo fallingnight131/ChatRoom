@@ -187,7 +187,8 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
             emit roomJoined(success,
                             data["roomId"].toInt(),
                             data["roomName"].toString(),
-                            data["error"].toString());
+                            data["error"].toString(),
+                            data["newJoin"].toBool());
             // 加入成功时也通知管理员状态
             if (success && data.contains("isAdmin")) {
                 emit adminStatusChanged(data["roomId"].toInt(), data["isAdmin"].toBool());

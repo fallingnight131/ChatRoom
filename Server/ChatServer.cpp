@@ -536,10 +536,12 @@ void ChatServer::handleFileDownload(ClientSession *session, const QJsonObject &d
             rspData["fileData"] = QString::fromLatin1(content.toBase64());
         } else {
             rspData["success"] = false;
+            rspData["fileId"]  = fileId;
             rspData["error"]   = QStringLiteral("文件不存在");
         }
     } else {
         rspData["success"] = false;
+        rspData["fileId"]  = fileId;
         rspData["error"]   = QStringLiteral("文件记录不存在");
     }
 

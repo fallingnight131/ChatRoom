@@ -247,7 +247,7 @@ void MessageDelegate::drawSystemMessage(QPainter *painter, const QStyleOptionVie
 // ==================== 文件消息 ====================
 
 bool MessageDelegate::isImageFile(const QString &fileName) {
-    static const QStringList exts = {"png", "jpg", "jpeg", "gif", "bmp", "webp", "ico", "svg"};
+    static const QStringList exts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
     return exts.contains(QFileInfo(fileName).suffix().toLower());
 }
 
@@ -276,19 +276,61 @@ QPixmap MessageDelegate::loadCachedImage(int fileId, const QString &fileName) co
     return pix;
 }
 
+// ==================== 饼状进度条 ====================
+
+void MessageDelegate::drawPieProgress(QPainter *painter, const QRect &rect, double progress) const {
+    // 半透明遮罩
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(0, 0, 0, 120));
+    painter->drawRoundedRect(rect, 6, 6);
+
+    // 饼状进度
+    int pieSize = qMin(rect.width(), rect.height()) / 2;
+    pieSize = qMin(pieSize, 48);
+    QRect pieRect(rect.center().x() - pieSize / 2,
+                  rect.center().y() - pieSize / 2,
+                  pieSize, pieSize);
+
+    // 背景圆
+    painter->setBrush(QColor(255, 255, 255, 60));
+    painter->drawEllipse(pieRect);
+
+    // 进度扇形
+    painter->setBrush(QColor(76, 175, 80));  // 绿色
+    int startAngle = 90 * 16;  // 从12点方向开始
+    int spanAngle = -static_cast<int>(progress * 360 * 16);
+    painter->drawPie(pieRect, startAngle, spanAngle);
+
+    // 中心百分比文字
+    painter->setPen(Qt::white);
+    QFont pFont = painter->font();
+    pFont.setPointSize(pieSize > 30 ? 9 : 7);
+    pFont.setBold(true);
+    painter->setFont(pFont);
+    painter->drawText(pieRect, Qt::AlignCenter, QString("%1%").arg(static_cast<int>(progress * 100)));
+}
+
 void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewItem &option,
                                       const QModelIndex &index, bool isMine) const {
     QString fileName = index.data(MessageModel::FileNameRole).toString();
     int fileId       = index.data(MessageModel::FileIdRole).toInt();
+    int dlState      = index.data(MessageModel::DownloadStateRole).toInt();
+    double dlProgress = index.data(MessageModel::DownloadProgressRole).toDouble();
+    bool cached = FileCache::instance()->isCached(fileId);
 
-    // 图片消息：内联预览
-    if (isImageFile(fileName) && FileCache::instance()->isCached(fileId)) {
+    // 图片消息：内联预览（已缓存或正在下载中显示占位图）
+    if (isImageFile(fileName)) {
         drawImageBubble(painter, option, index, isMine);
         return;
     }
 
-    // 视频消息：显示特殊图标
-    bool isVideo = isVideoFile(fileName);
+    // 视频消息：特殊显示
+    if (isVideoFile(fileName)) {
+        drawVideoBubble(painter, option, index, isMine);
+        return;
+    }
+
+    // ---------- 普通文件消息气泡 ----------
 
     QString sender   = index.data(MessageModel::SenderRole).toString();
     qint64 fileSize  = index.data(MessageModel::FileSizeRole).toLongLong();
@@ -346,16 +388,37 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
     painter->setBrush(m_fileBgColor);
     painter->drawRoundedRect(bubbleRect, m_bubbleRadius, m_bubbleRadius);
 
-    // 文件图标
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(isVideo ? QColor(220, 80, 60) : QColor(66, 133, 244));
+    // 文件图标区域
     QRect iconRect(bubbleX + 12, bubbleY + 15, 40, 40);
-    painter->drawRoundedRect(iconRect, 6, 6);
-    painter->setPen(Qt::white);
-    QFont iconFont = option.font;
-    iconFont.setPointSize(16);
-    painter->setFont(iconFont);
-    painter->drawText(iconRect, Qt::AlignCenter, isVideo ? QStringLiteral("\u25B6") : QStringLiteral("\U0001F4C4"));
+
+    if (dlState == Message::Downloading) {
+        // 正在下载 → 图标区域显示饼状进度
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(66, 133, 244, 60));
+        painter->drawRoundedRect(iconRect, 6, 6);
+        drawPieProgress(painter, iconRect, dlProgress);
+    } else if (!cached && dlState != Message::Downloaded) {
+        // 未下载 → 显示下载箭头图标（蓝底白色↓）
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(66, 133, 244));
+        painter->drawRoundedRect(iconRect, 6, 6);
+        painter->setPen(Qt::white);
+        QFont iconFont = option.font;
+        iconFont.setPointSize(18);
+        iconFont.setBold(true);
+        painter->setFont(iconFont);
+        painter->drawText(iconRect, Qt::AlignCenter, QStringLiteral("\u2913")); // ⤓ 下载箭头
+    } else {
+        // 已下载 → 正常文件图标
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(66, 133, 244));
+        painter->drawRoundedRect(iconRect, 6, 6);
+        painter->setPen(Qt::white);
+        QFont iconFont = option.font;
+        iconFont.setPointSize(16);
+        painter->setFont(iconFont);
+        painter->drawText(iconRect, Qt::AlignCenter, QStringLiteral("\U0001F4C4"));
+    }
 
     // 文件名
     painter->setPen(isMine ? m_myTextColor : m_otherTextColor);
@@ -364,34 +427,46 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
     QString elidedName = fm.elidedText(fileName, Qt::ElideMiddle, bubbleW - 80);
     painter->drawText(bubbleX + 60, bubbleY + 28, elidedName);
 
-    // 文件大小
+    // 文件大小 + 状态文字
     QFont smallFont = option.font;
     smallFont.setPointSize(smallFont.pointSize() - 2);
     painter->setFont(smallFont);
     painter->setPen(m_timeColor);
-    painter->drawText(bubbleX + 60, bubbleY + 48, sizeStr);
+    QString statusStr = sizeStr;
+    if (dlState == Message::Downloading) {
+        statusStr += QString("  下载中 %1%").arg(static_cast<int>(dlProgress * 100));
+    } else if (!cached && dlState != Message::Downloaded) {
+        statusStr += QStringLiteral("  点击下载");
+        painter->setPen(QColor(66, 133, 244));  // 蓝色提示
+    }
+    painter->drawText(bubbleX + 60, bubbleY + 48, statusStr);
 
     // 时间
+    painter->setPen(m_timeColor);
     QString timeStr = formatSmartTime(time);
     QFontMetrics tfm(smallFont);
     painter->drawText(bubbleX + bubbleW - m_padding - tfm.horizontalAdvance(timeStr),
                       bubbleY + bubbleH - 8, timeStr);
 }
 
-// ==================== 图片预览气泡 ====================
+// ==================== 视频消息气泡 ====================
 
-void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewItem &option,
+void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewItem &option,
                                        const QModelIndex &index, bool isMine) const {
     QString sender   = index.data(MessageModel::SenderRole).toString();
     QString fileName = index.data(MessageModel::FileNameRole).toString();
     int fileId       = index.data(MessageModel::FileIdRole).toInt();
+    qint64 fileSize  = index.data(MessageModel::FileSizeRole).toLongLong();
     QDateTime time   = index.data(MessageModel::TimestampRole).toDateTime();
+    int dlState      = index.data(MessageModel::DownloadStateRole).toInt();
+    double dlProgress = index.data(MessageModel::DownloadProgressRole).toDouble();
+    bool cached = FileCache::instance()->isCached(fileId);
 
     QRect rect = option.rect;
-    QPixmap pix = loadCachedImage(fileId, fileName);
 
-    int imgW = pix.isNull() ? 120 : pix.width();
-    int imgH = pix.isNull() ? 120 : pix.height();
+    // 视频缩略图尺寸（固定比例 16:9）
+    int thumbW = m_maxImageWidth;
+    int thumbH = static_cast<int>(thumbW * 9.0 / 16.0);
 
     QFont senderFont = option.font;
     senderFont.setPointSize(senderFont.pointSize() - 1);
@@ -402,8 +477,8 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
     timeFont.setPointSize(timeFont.pointSize() - 2);
     QFontMetrics tfm(timeFont);
 
-    int bubbleW = imgW + m_padding * 2;
-    int bubbleH = senderH + imgH + tfm.height() + m_padding * 2 + 6;
+    int bubbleW = thumbW + m_padding * 2;
+    int bubbleH = senderH + thumbH + tfm.height() + m_padding * 2 + 6;
 
     int avatarX, bubbleX;
     if (isMine) {
@@ -465,24 +540,187 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
     painter->drawText(bubbleX + m_padding, contentY + sfm.ascent(), sender);
     contentY += senderH;
 
-    // 图片
+    // 视频缩略图区域（深灰占位）
+    QRect thumbRect(bubbleX + m_padding, contentY, thumbW, thumbH);
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(40, 40, 40));
+    QPainterPath thumbClip;
+    thumbClip.addRoundedRect(thumbRect, 6, 6);
+    painter->setClipPath(thumbClip);
+    painter->drawRect(thumbRect);
+    painter->setClipping(false);
+
+    if (dlState == Message::Downloading) {
+        // 下载中 → 饼状进度
+        drawPieProgress(painter, thumbRect, dlProgress);
+    } else {
+        // 播放按钮（白色半透明圆 + ▶）
+        int playSize = 48;
+        QRect playRect(thumbRect.center().x() - playSize / 2,
+                       thumbRect.center().y() - playSize / 2,
+                       playSize, playSize);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(0, 0, 0, 140));
+        painter->drawEllipse(playRect);
+        painter->setPen(Qt::white);
+        QFont playFont = option.font;
+        playFont.setPointSize(20);
+        painter->setFont(playFont);
+        painter->drawText(playRect, Qt::AlignCenter, QStringLiteral("\u25B6")); // ▶
+
+        // 文件大小标签
+        QString sizeStr;
+        if (fileSize < 1024 * 1024)
+            sizeStr = QString("%1 KB").arg(fileSize / 1024.0, 0, 'f', 1);
+        else
+            sizeStr = QString("%1 MB").arg(fileSize / (1024.0 * 1024.0), 0, 'f', 1);
+
+        QFont labelFont = option.font;
+        labelFont.setPointSize(labelFont.pointSize() - 2);
+        painter->setFont(labelFont);
+        QFontMetrics lfm(labelFont);
+
+        // 文件名 + 大小在缩略图底部
+        QString label = (!cached && dlState != Message::Downloaded)
+                        ? sizeStr + QStringLiteral("  点击下载")
+                        : sizeStr;
+        int labelW = lfm.horizontalAdvance(label) + 12;
+        int labelH = lfm.height() + 4;
+        QRect labelRect(thumbRect.left() + 4,
+                        thumbRect.bottom() - labelH - 4,
+                        labelW, labelH);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(0, 0, 0, 160));
+        painter->drawRoundedRect(labelRect, 4, 4);
+        painter->setPen(Qt::white);
+        painter->drawText(labelRect, Qt::AlignCenter, label);
+    }
+
+    // 时间
+    QString timeStr = formatSmartTime(time);
+    painter->setPen(m_timeColor);
+    painter->setFont(timeFont);
+    painter->drawText(QRect(bubbleX + m_padding,
+                            bubbleY + bubbleH - m_padding - tfm.height(),
+                            bubbleW - m_padding * 2, tfm.height()),
+                      Qt::AlignRight, timeStr);
+}
+
+// ==================== 图片预览气泡 ====================
+
+void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewItem &option,
+                                       const QModelIndex &index, bool isMine) const {
+    QString sender   = index.data(MessageModel::SenderRole).toString();
+    QString fileName = index.data(MessageModel::FileNameRole).toString();
+    int fileId       = index.data(MessageModel::FileIdRole).toInt();
+    QDateTime time   = index.data(MessageModel::TimestampRole).toDateTime();
+    int dlState      = index.data(MessageModel::DownloadStateRole).toInt();
+    double dlProgress = index.data(MessageModel::DownloadProgressRole).toDouble();
+    bool cached = FileCache::instance()->isCached(fileId);
+
+    QRect rect = option.rect;
+    QPixmap pix = cached ? loadCachedImage(fileId, fileName) : QPixmap();
+
+    int imgW = pix.isNull() ? 120 : pix.width();
+    int imgH = pix.isNull() ? 120 : pix.height();
+
+    QFont senderFont = option.font;
+    senderFont.setPointSize(senderFont.pointSize() - 1);
+    QFontMetrics sfm(senderFont);
+    int senderH = sfm.height() + 4;
+
+    QFont timeFont = option.font;
+    timeFont.setPointSize(timeFont.pointSize() - 2);
+    QFontMetrics tfm(timeFont);
+
+    int bubbleW = imgW + m_padding * 2;
+    int bubbleH = senderH + imgH + tfm.height() + m_padding * 2 + 6;
+
+    int avatarX, bubbleX;
+    if (isMine) {
+        avatarX = rect.right() - m_margin - m_avatarSize;
+        bubbleX = avatarX - m_margin - bubbleW;
+    } else {
+        avatarX = rect.left() + m_margin;
+        bubbleX = avatarX + m_avatarSize + m_margin;
+    }
+    int avatarY = rect.top() + m_margin;
+    int bubbleY = rect.top() + m_margin;
+
+    // 头像
+    QRect avatarRect(avatarX, avatarY, m_avatarSize, m_avatarSize);
+    QPixmap avatarPix = ChatWindow::avatarForUser(sender);
+    if (!avatarPix.isNull()) {
+        QPixmap scaled = avatarPix.scaled(m_avatarSize, m_avatarSize,
+            Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+        QPainterPath clipPath;
+        clipPath.addEllipse(avatarRect);
+        painter->setClipPath(clipPath);
+        painter->drawPixmap(avatarRect, scaled);
+        painter->setClipping(false);
+    } else {
+        painter->setPen(Qt::NoPen);
+        quint32 hash = qHash(sender);
+        QColor avatarColor = QColor::fromHsl(hash % 360, 150, 130);
+        painter->setBrush(avatarColor);
+        painter->drawRoundedRect(avatarRect, m_avatarSize / 2, m_avatarSize / 2);
+        painter->setPen(Qt::white);
+        painter->setFont(option.font);
+        painter->drawText(avatarRect, Qt::AlignCenter, sender.left(1).toUpper());
+    }
+
+    // 气泡背景
+    QRect bubbleRect(bubbleX, bubbleY, bubbleW, bubbleH);
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(isMine ? m_myBubbleColor : m_otherBubbleColor);
+    painter->drawRoundedRect(bubbleRect, m_bubbleRadius, m_bubbleRadius);
+
+    // 小三角
+    QPainterPath trianglePath;
+    if (isMine) {
+        trianglePath.moveTo(bubbleRect.right(), bubbleRect.top() + 14);
+        trianglePath.lineTo(bubbleRect.right() + 8, bubbleRect.top() + 18);
+        trianglePath.lineTo(bubbleRect.right(), bubbleRect.top() + 22);
+    } else {
+        trianglePath.moveTo(bubbleRect.left(), bubbleRect.top() + 14);
+        trianglePath.lineTo(bubbleRect.left() - 8, bubbleRect.top() + 18);
+        trianglePath.lineTo(bubbleRect.left(), bubbleRect.top() + 22);
+    }
+    painter->drawPath(trianglePath);
+
+    int contentY = bubbleY + m_padding;
+
+    // 发送者名字
+    painter->setPen(m_senderColor);
+    painter->setFont(senderFont);
+    painter->drawText(bubbleX + m_padding, contentY + sfm.ascent(), sender);
+    contentY += senderH;
+
+    // 图片区域
+    QRect imgRect(bubbleX + m_padding, contentY, imgW, imgH);
+
     if (!pix.isNull()) {
-        QRect imgRect(bubbleX + m_padding, contentY, imgW, imgH);
-        // 圆角裁剪
+        // 已缓存图片 → 正常显示
         QPainterPath clipPath;
         clipPath.addRoundedRect(imgRect, 6, 6);
         painter->setClipPath(clipPath);
         painter->drawPixmap(imgRect, pix);
         painter->setClipping(false);
     } else {
-        // 加载中占位
-        QRect placeholder(bubbleX + m_padding, contentY, imgW, imgH);
+        // 占位背景
         painter->setPen(Qt::NoPen);
         painter->setBrush(m_fileBgColor);
-        painter->drawRoundedRect(placeholder, 6, 6);
-        painter->setPen(m_timeColor);
-        painter->setFont(option.font);
-        painter->drawText(placeholder, Qt::AlignCenter, "加载中...");
+        painter->drawRoundedRect(imgRect, 6, 6);
+
+        if (dlState == Message::Downloading) {
+            // 图片下载中 → 显示饼状进度
+            drawPieProgress(painter, imgRect, dlProgress);
+        } else {
+            // 等待下载
+            painter->setPen(m_timeColor);
+            painter->setFont(option.font);
+            painter->drawText(imgRect, Qt::AlignCenter, QStringLiteral("加载中..."));
+        }
     }
 
     // 时间
@@ -536,10 +774,41 @@ QSize MessageDelegate::textBubbleSize(const QStyleOptionViewItem &option,
         QString fileName = index.data(MessageModel::FileNameRole).toString();
         int fileId       = index.data(MessageModel::FileIdRole).toInt();
 
-        // 图片文件：计算图片预览尺寸
-        if (isImageFile(fileName) && FileCache::instance()->isCached(fileId)) {
-            QPixmap pix = loadCachedImage(fileId, fileName);
-            int imgH = pix.isNull() ? 120 : pix.height();
+        // 图片文件：使用图片预览尺寸（无论是否已缓存，保持统一高度）
+        if (isImageFile(fileName)) {
+            if (FileCache::instance()->isCached(fileId)) {
+                QPixmap pix = loadCachedImage(fileId, fileName);
+                int imgH = pix.isNull() ? 120 : pix.height();
+
+                QFont senderFont = option.font;
+                senderFont.setPointSize(senderFont.pointSize() - 1);
+                QFontMetrics sfm(senderFont);
+                int senderH = sfm.height() + 4;
+
+                QFont timeFont = option.font;
+                timeFont.setPointSize(timeFont.pointSize() - 2);
+                QFontMetrics tfmm(timeFont);
+
+                int h = senderH + imgH + tfmm.height() + m_padding * 2 + 6 + m_margin * 2;
+                return QSize(option.rect.width(), qMax(h, m_avatarSize + m_margin * 2));
+            }
+            // 未缓存图片：占位高度
+            int placeholderH = 120;
+            QFont senderFont = option.font;
+            senderFont.setPointSize(senderFont.pointSize() - 1);
+            QFontMetrics sfm(senderFont);
+            int senderH = sfm.height() + 4;
+            QFont timeFont = option.font;
+            timeFont.setPointSize(timeFont.pointSize() - 2);
+            QFontMetrics tfmm(timeFont);
+            int h = senderH + placeholderH + tfmm.height() + m_padding * 2 + 6 + m_margin * 2;
+            return QSize(option.rect.width(), qMax(h, m_avatarSize + m_margin * 2));
+        }
+
+        // 视频文件：16:9 缩略图尺寸
+        if (isVideoFile(fileName)) {
+            int thumbW = m_maxImageWidth;
+            int thumbH = static_cast<int>(thumbW * 9.0 / 16.0);
 
             QFont senderFont = option.font;
             senderFont.setPointSize(senderFont.pointSize() - 1);
@@ -548,12 +817,13 @@ QSize MessageDelegate::textBubbleSize(const QStyleOptionViewItem &option,
 
             QFont timeFont = option.font;
             timeFont.setPointSize(timeFont.pointSize() - 2);
-            QFontMetrics tfm(timeFont);
+            QFontMetrics tfmm(timeFont);
 
-            int h = senderH + imgH + tfm.height() + m_padding * 2 + 6 + m_margin * 2;
+            int h = senderH + thumbH + tfmm.height() + m_padding * 2 + 6 + m_margin * 2;
             return QSize(option.rect.width(), qMax(h, m_avatarSize + m_margin * 2));
         }
 
+        // 普通文件
         return QSize(option.rect.width(), 70 + m_margin * 2);
     }
 

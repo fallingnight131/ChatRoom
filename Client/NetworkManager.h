@@ -40,7 +40,7 @@ signals:
 
     // 房间
     void roomCreated(bool success, int roomId, const QString &roomName, const QString &error);
-    void roomJoined(bool success, int roomId, const QString &roomName, const QString &error);
+    void roomJoined(bool success, int roomId, const QString &roomName, const QString &error, bool newJoin = false);
     void roomListReceived(const QJsonArray &rooms);
     void userListReceived(int roomId, const QJsonArray &users);
     void userJoined(int roomId, const QString &username);
