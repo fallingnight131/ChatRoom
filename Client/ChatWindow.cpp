@@ -795,6 +795,15 @@ void ChatWindow::onSendFile() {
     msgData["fileSize"] = static_cast<double>(fi.size());
     msgData["fileData"] = QString::fromLatin1(data.toBase64());
 
+    // 视频文件：生成缩略图一并发送
+    static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
+    if (vidExts.contains(fi.suffix().toLower())) {
+        QByteArray thumbData = generateVideoThumbnailData(filePath);
+        if (!thumbData.isEmpty()) {
+            msgData["thumbnail"] = QString::fromLatin1(thumbData.toBase64());
+        }
+    }
+
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FILE_SEND, msgData));
 
@@ -853,6 +862,25 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
     static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
     QString suffix = QFileInfo(fileName).suffix().toLower();
     bool isImage = imgExts.contains(suffix);
+    static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
+    bool isVideo = vidExts.contains(suffix);
+
+    // 接收到服务器转发的视频缩略图 → 保存到本地缓存
+    if (isVideo && data.contains("thumbnail")) {
+        QByteArray thumbData = QByteArray::fromBase64(data["thumbnail"].toString().toLatin1());
+        if (!thumbData.isEmpty()) {
+            QString cacheDir = FileCache::instance()->cacheDir();
+            QDir(cacheDir).mkpath(".");
+            QString thumbPath = cacheDir + QString("/thumb_%1.jpg").arg(fileId);
+            QFile tf(thumbPath);
+            if (tf.open(QIODevice::WriteOnly)) {
+                tf.write(thumbData);
+                tf.close();
+                qInfo() << "[VideoThumb] 从服务器接收缩略图已保存:" << thumbPath;
+                QPixmapCache::remove(QString("vidthumb_%1").arg(fileId));
+            }
+        }
+    }
 
     // 发送者自己的文件：直接从本地复制到缓存，无需下载
     if (sender == m_username && m_pendingSentFiles.contains(fileName)) {
@@ -862,10 +890,14 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
             if (!cached.isEmpty()) {
                 msg.setDownloadState(Message::Downloaded);
                 msg.setDownloadProgress(1.0);
-                // 视频文件生成缩略图
-                static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
-                if (vidExts.contains(suffix)) {
-                    generateVideoThumbnail(fileId, cached);
+                // 发送者的视频缩略图已在发送时本地生成，
+                // 如果上面的 thumbnail 字段不存在时再从视频生成
+                if (isVideo) {
+                    QString thumbPath = FileCache::instance()->cacheDir()
+                                        + QString("/thumb_%1.jpg").arg(fileId);
+                    if (!QFile::exists(thumbPath)) {
+                        generateVideoThumbnail(fileId, cached);
+                    }
                 }
             }
         }
@@ -911,9 +943,16 @@ void ChatWindow::startChunkedUpload(const QString &filePath) {
     m_upload.fileSize  = fi.size();
     m_upload.offset    = 0;
     m_upload.uploadId.clear();
+    m_upload.thumbnailData.clear();
 
     // 记录发送的文件路径
     m_pendingSentFiles[fi.fileName()] = filePath;
+
+    // 视频文件：预生成缩略图，等上传完成时一并发送
+    static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
+    if (vidExts.contains(fi.suffix().toLower())) {
+        m_upload.thumbnailData = generateVideoThumbnailData(filePath);
+    }
 
     // 发送上传开始请求
     QJsonObject data;
@@ -979,6 +1018,11 @@ void ChatWindow::onUploadChunkResponse(const QJsonObject &data) {
         // 所有块发送完毕，通知服务器结束
         QJsonObject endData;
         endData["uploadId"] = m_upload.uploadId;
+        // 携带视频缩略图（如果有）
+        if (!m_upload.thumbnailData.isEmpty()) {
+            endData["thumbnail"] = QString::fromLatin1(m_upload.thumbnailData.toBase64());
+            m_upload.thumbnailData.clear();
+        }
         NetworkManager::instance()->sendMessage(
             Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_END, endData));
         m_statusLabel->setText("文件上传完成");
@@ -1072,8 +1116,35 @@ void ChatWindow::onFileDownloadComplete(int fileId, const QString &fileName, con
 }
 
 void ChatWindow::generateVideoThumbnail(int fileId, const QString &videoPath) {
+    QByteArray jpegData = generateVideoThumbnailData(videoPath);
+    if (jpegData.isEmpty()) return;
+
+    // 保存缩略图
+    QString cacheDir = FileCache::instance()->cacheDir();
+    QDir(cacheDir).mkpath(".");
+    QString thumbPath = cacheDir + QString("/thumb_%1.jpg").arg(fileId);
+    QFile f(thumbPath);
+    if (f.open(QIODevice::WriteOnly)) {
+        f.write(jpegData);
+        f.close();
+        qInfo() << "[VideoThumb] 缩略图已保存:" << thumbPath;
+    }
+
+    // 刷新视图
+    QPixmapCache::remove(QString("vidthumb_%1").arg(fileId));
+    for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+        int row = it.value()->findMessageByFileId(fileId);
+        if (row >= 0) {
+            QModelIndex idx = it.value()->index(row, 0);
+            emit it.value()->dataChanged(idx, idx);
+        }
+    }
+    m_messageView->viewport()->update();
+}
+
+QByteArray ChatWindow::generateVideoThumbnailData(const QString &videoPath) {
 #ifdef Q_OS_WIN
-    // 使用 Windows Shell API 获取资源管理器中显示的视频缩略图
+    QByteArray result;
     HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     bool needUninit = SUCCEEDED(hr);
 
@@ -1088,14 +1159,13 @@ void ChatWindow::generateVideoThumbnail(int fileId, const QString &videoPath) {
         hr = factory->GetImage(size, SIIGBF_THUMBNAILONLY | SIIGBF_BIGGERSIZEOK, &hBitmap);
 
         if (SUCCEEDED(hr) && hBitmap) {
-            // 将 HBITMAP 转换为 QImage
             BITMAP bm;
             GetObject(hBitmap, sizeof(BITMAP), &bm);
 
             BITMAPINFOHEADER bi = {};
             bi.biSize = sizeof(BITMAPINFOHEADER);
             bi.biWidth = bm.bmWidth;
-            bi.biHeight = -bm.bmHeight; // top-down
+            bi.biHeight = -bm.bmHeight;
             bi.biPlanes = 1;
             bi.biBitCount = 32;
             bi.biCompression = BI_RGB;
@@ -1108,32 +1178,19 @@ void ChatWindow::generateVideoThumbnail(int fileId, const QString &videoPath) {
             DeleteObject(hBitmap);
 
             if (!img.isNull()) {
-                // 保存缩略图
-                QString cacheDir = FileCache::instance()->cacheDir();
-                QDir(cacheDir).mkpath(".");
-                QString thumbPath = cacheDir + QString("/thumb_%1.jpg").arg(fileId);
-                img.save(thumbPath, "JPEG", 85);
-                qInfo() << "[VideoThumb] Shell API 缩略图已保存:" << thumbPath << img.size();
-
-                // 刷新视图
-                QPixmapCache::remove(QString("vidthumb_%1").arg(fileId));
-                for (auto it = m_models.begin(); it != m_models.end(); ++it) {
-                    int row = it.value()->findMessageByFileId(fileId);
-                    if (row >= 0) {
-                        QModelIndex idx = it.value()->index(row, 0);
-                        emit it.value()->dataChanged(idx, idx);
-                    }
-                }
-                m_messageView->viewport()->update();
+                QBuffer buf(&result);
+                buf.open(QIODevice::WriteOnly);
+                img.save(&buf, "JPEG", 85);
             }
         }
         factory->Release();
     }
 
     if (needUninit) CoUninitialize();
+    return result;
 #else
-    Q_UNUSED(fileId)
     Q_UNUSED(videoPath)
+    return {};
 #endif
 }
 

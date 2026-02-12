@@ -158,6 +158,7 @@ private:
     void updateAllModelsDownloadProgress(int fileId, int state, double progress);
     void onFileDownloadComplete(int fileId, const QString &fileName, const QByteArray &data);
     void generateVideoThumbnail(int fileId, const QString &videoPath);
+    QByteArray generateVideoThumbnailData(const QString &videoPath);
     void cacheAvatar(const QString &username, const QByteArray &data);
     void requestAvatar(const QString &username);
     void leaveRoom(int roomId);
@@ -203,6 +204,7 @@ private:
         qint64 fileSize = 0;
         qint64 offset   = 0;
         int    chunkSize = Protocol::FILE_CHUNK_SIZE;
+        QByteArray thumbnailData; // 视频缩略图 JPEG 数据
     };
     ChunkedUpload m_upload;
 

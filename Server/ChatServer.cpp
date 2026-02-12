@@ -533,6 +533,11 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
     notifyData["contentType"] = QStringLiteral("file");
     notifyData["content"]     = fileName;
 
+    // 转发视频缩略图（如果客户端提供了）
+    if (data.contains("thumbnail")) {
+        notifyData["thumbnail"] = data["thumbnail"];
+    }
+
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, notifyData));
 }
 
@@ -681,6 +686,11 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
     notifyData["fileId"]      = fileId;
     notifyData["contentType"] = QStringLiteral("file");
     notifyData["content"]     = state.fileName;
+
+    // 转发视频缩略图（客户端在 FILE_UPLOAD_END 中提供）
+    if (data.contains("thumbnail")) {
+        notifyData["thumbnail"] = data["thumbnail"];
+    }
 
     broadcastToRoom(state.roomId, Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, notifyData));
 

@@ -151,24 +151,59 @@ QTabBar::tab:selected {
 }
 
 QScrollBar:vertical {
-    background: transparent;
-    width: 8px;
+    background: #e8e8e8;
+    width: 10px;
+    border-radius: 5px;
     margin: 0;
 }
 
 QScrollBar::handle:vertical {
-    background: #c0c0c0;
-    border-radius: 4px;
+    background: #888888;
+    border-radius: 5px;
     min-height: 30px;
 }
 
 QScrollBar::handle:vertical:hover {
-    background: #a0a0a0;
+    background: #6e6e6e;
+}
+
+QScrollBar::handle:vertical:pressed {
+    background: #555555;
 }
 
 QScrollBar::add-line:vertical,
 QScrollBar::sub-line:vertical {
     height: 0;
+}
+
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+QScrollBar:horizontal {
+    background: #e8e8e8;
+    height: 10px;
+    border-radius: 5px;
+}
+
+QScrollBar::handle:horizontal {
+    background: #888888;
+    border-radius: 5px;
+    min-width: 30px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: #6e6e6e;
+}
+
+QScrollBar::handle:horizontal:pressed {
+    background: #555555;
+}
+
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal {
+    width: 0;
 }
 
 /* 输入对话框 */
