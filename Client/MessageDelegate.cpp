@@ -7,11 +7,13 @@
 
 #include <QPainter>
 #include <QPainterPath>
+#include <QLinearGradient>
 #include <QApplication>
 #include <QDateTime>
 #include <QTextDocument>
 #include <QPixmapCache>
 #include <QFileInfo>
+#include <QFile>
 
 MessageDelegate::MessageDelegate(QObject *parent)
     : QStyledItemDelegate(parent)
@@ -271,6 +273,27 @@ QPixmap MessageDelegate::loadCachedImage(int fileId, const QString &fileName) co
     if (pix.width() > m_maxImageWidth || pix.height() > m_maxImageHeight) {
         pix = pix.scaled(m_maxImageWidth, m_maxImageHeight,
                          Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    }
+    QPixmapCache::insert(cacheKey, pix);
+    return pix;
+}
+
+QPixmap MessageDelegate::loadVideoThumbnail(int fileId) const {
+    QString cacheKey = QString("vidthumb_%1").arg(fileId);
+    QPixmap pix;
+    if (QPixmapCache::find(cacheKey, &pix))
+        return pix;
+
+    // 从磁盘加载缩略图文件
+    QString thumbPath = FileCache::instance()->cacheDir()
+                        + QString("/thumb_%1.jpg").arg(fileId);
+    if (!QFile::exists(thumbPath)) return QPixmap();
+
+    if (!pix.load(thumbPath)) return QPixmap();
+
+    // 缩放到合适大小
+    if (pix.width() > m_maxImageWidth) {
+        pix = pix.scaledToWidth(m_maxImageWidth, Qt::SmoothTransformation);
     }
     QPixmapCache::insert(cacheKey, pix);
     return pix;
@@ -540,14 +563,55 @@ void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewI
     painter->drawText(bubbleX + m_padding, contentY + sfm.ascent(), sender);
     contentY += senderH;
 
-    // 视频缩略图区域（深灰占位）
+    // 视频缩略图区域
     QRect thumbRect(bubbleX + m_padding, contentY, thumbW, thumbH);
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(QColor(40, 40, 40));
     QPainterPath thumbClip;
     thumbClip.addRoundedRect(thumbRect, 6, 6);
     painter->setClipPath(thumbClip);
-    painter->drawRect(thumbRect);
+
+    // 尝试加载真实缩略图
+    QPixmap thumbPix = loadVideoThumbnail(fileId);
+    if (!thumbPix.isNull()) {
+        // 有缩略图 → 绘制缩略图（居中裁剪到 16:9）
+        QPixmap scaled = thumbPix.scaled(thumbW, thumbH,
+            Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+        int sx = (scaled.width() - thumbW) / 2;
+        int sy = (scaled.height() - thumbH) / 2;
+        painter->drawPixmap(thumbRect, scaled, QRect(sx, sy, thumbW, thumbH));
+    } else {
+        // 无缩略图 → 渐变占位 + 胶片装饰
+        QLinearGradient grad(thumbRect.topLeft(), thumbRect.bottomRight());
+        grad.setColorAt(0, QColor(45, 55, 72));
+        grad.setColorAt(1, QColor(26, 32, 44));
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(grad);
+        painter->drawRect(thumbRect);
+
+        // 胶片条纹
+        painter->setBrush(QColor(0, 0, 0, 80));
+        int stripH = 6;
+        for (int sx = thumbRect.left(); sx < thumbRect.right(); sx += 16) {
+            painter->drawRect(sx, thumbRect.top(), 10, stripH);
+            painter->drawRect(sx, thumbRect.bottom() - stripH + 1, 10, stripH);
+        }
+
+        // 文件名标签
+        QFont nameFont = option.font;
+        nameFont.setPointSize(nameFont.pointSize() - 2);
+        QFontMetrics nfm(nameFont);
+        QString shortName = nfm.elidedText(fileName, Qt::ElideMiddle, thumbW - 20);
+        int nameW = nfm.horizontalAdvance(shortName) + 12;
+        int nameH = nfm.height() + 4;
+        QRect nameRect(thumbRect.center().x() - nameW / 2,
+                       thumbRect.bottom() - nameH - 10,
+                       nameW, nameH);
+        painter->setBrush(QColor(0, 0, 0, 140));
+        painter->drawRoundedRect(nameRect, 3, 3);
+        painter->setPen(QColor(200, 200, 200));
+        painter->setFont(nameFont);
+        painter->drawText(nameRect, Qt::AlignCenter, shortName);
+    }
+
     painter->setClipping(false);
 
     if (dlState == Message::Downloading) {

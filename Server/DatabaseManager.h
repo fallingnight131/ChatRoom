@@ -4,6 +4,7 @@
 #include <QSqlDatabase>
 #include <QJsonArray>
 #include <QMutex>
+#include <QPair>
 
 /// 数据库管理器 —— 线程安全，使用每线程独立连接
 class DatabaseManager : public QObject {
@@ -63,6 +64,14 @@ public:
     int  deleteAllMessages(int roomId);
     int  deleteMessagesBefore(int roomId, const QDateTime &before);
     int  deleteMessagesAfter(int roomId, const QDateTime &after);
+
+    // 查询消息关联的文件ID和路径（用于删除前清理）
+    QList<QPair<int, QString>> getFileInfoForMessages(int roomId, const QList<int> &messageIds);
+    QList<QPair<int, QString>> getAllFileInfoForRoom(int roomId);
+    QList<QPair<int, QString>> getFileInfoBeforeTime(int roomId, const QDateTime &before);
+    QList<QPair<int, QString>> getFileInfoAfterTime(int roomId, const QDateTime &after);
+    // 从files表删除记录
+    bool deleteFileRecords(const QList<int> &fileIds);
 
     // 房间设置
     qint64 getRoomMaxFileSize(int roomId);

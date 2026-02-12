@@ -267,12 +267,14 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                                 data["roomId"].toInt(),
                                 data["deletedCount"].toInt(),
                                 data["mode"].toString(),
+                                data["deletedFileIds"].toArray(),
                                 data["error"].toString());
     }
     else if (type == Protocol::MsgType::DELETE_MSGS_NOTIFY) {
         emit deleteMsgsNotify(data["roomId"].toInt(),
                               data["mode"].toString(),
-                              data["messageIds"].toArray());
+                              data["messageIds"].toArray(),
+                              data["deletedFileIds"].toArray());
     }
     else if (type == Protocol::MsgType::AVATAR_UPLOAD_RSP) {
         emit avatarUploadResponse(data["success"].toBool(), data["error"].toString());

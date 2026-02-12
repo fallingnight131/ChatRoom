@@ -78,8 +78,8 @@ private slots:
     // 管理员
     void onAdminStatusChanged(int roomId, bool isAdmin);
     void onSetAdminResponse(bool success, int roomId, const QString &username, const QString &error);
-    void onDeleteMsgsResponse(bool success, int roomId, int deletedCount, const QString &mode, const QString &error);
-    void onDeleteMsgsNotify(int roomId, const QString &mode, const QJsonArray &messageIds);
+    void onDeleteMsgsResponse(bool success, int roomId, int deletedCount, const QString &mode, const QJsonArray &deletedFileIds, const QString &error);
+    void onDeleteMsgsNotify(int roomId, const QString &mode, const QJsonArray &messageIds, const QJsonArray &deletedFileIds);
     void onUserContextMenu(const QPoint &pos);
     void onRoomContextMenu(const QPoint &pos);
 
@@ -95,6 +95,7 @@ private slots:
 
     // 设置
     void onChangeCacheDir();
+    void onClearCache();
 
     // 连接状态
     void onConnected();
@@ -156,6 +157,7 @@ private:
     void processNextDownload();
     void updateAllModelsDownloadProgress(int fileId, int state, double progress);
     void onFileDownloadComplete(int fileId, const QString &fileName, const QByteArray &data);
+    void generateVideoThumbnail(int fileId, const QString &videoPath);
     void cacheAvatar(const QString &username, const QByteArray &data);
     void requestAvatar(const QString &username);
     void leaveRoom(int roomId);

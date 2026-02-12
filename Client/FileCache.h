@@ -33,10 +33,20 @@ public:
     /// 用系统默认应用打开文件
     static bool openWithSystem(const QString &filePath);
 
+    /// 删除指定文件的本地缓存
+    void removeFile(int fileId);
+
+    /// 获取缓存目录总大小（字节）
+    qint64 totalCacheSize() const;
+
+    /// 清除所有缓存文件
+    void clearAllCache();
+
 private:
     explicit FileCache(QObject *parent = nullptr);
     static FileCache *s_instance;
-    void scanCacheDir();
+    void loadIndex();
+    void saveIndex();
 
     mutable QMutex m_mutex;
     QMap<int, QString> m_cache;  // fileId -> local path

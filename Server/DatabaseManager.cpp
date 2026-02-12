@@ -629,6 +629,106 @@ int DatabaseManager::deleteMessagesAfter(int roomId, const QDateTime &after) {
     return -1;
 }
 
+// ==================== 文件清理辅助方法 ====================
+
+QList<QPair<int, QString>> DatabaseManager::getFileInfoForMessages(int roomId, const QList<int> &messageIds) {
+    QList<QPair<int, QString>> result;
+    if (messageIds.isEmpty()) return result;
+
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    QStringList placeholders;
+    for (int i = 0; i < messageIds.size(); ++i)
+        placeholders.append("?");
+
+    QString sql = QString("SELECT DISTINCT m.file_id, f.file_path FROM messages m "
+                          "JOIN files f ON m.file_id = f.id "
+                          "WHERE m.room_id = ? AND m.file_id > 0 AND m.id IN (%1)")
+                      .arg(placeholders.join(","));
+    q.prepare(sql);
+    q.addBindValue(roomId);
+    for (int id : messageIds)
+        q.addBindValue(id);
+
+    if (q.exec()) {
+        while (q.next())
+            result.append({q.value(0).toInt(), q.value(1).toString()});
+    }
+    return result;
+}
+
+QList<QPair<int, QString>> DatabaseManager::getAllFileInfoForRoom(int roomId) {
+    QList<QPair<int, QString>> result;
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    q.prepare("SELECT DISTINCT m.file_id, f.file_path FROM messages m "
+              "JOIN files f ON m.file_id = f.id "
+              "WHERE m.room_id = ? AND m.file_id > 0");
+    q.addBindValue(roomId);
+
+    if (q.exec()) {
+        while (q.next())
+            result.append({q.value(0).toInt(), q.value(1).toString()});
+    }
+    return result;
+}
+
+QList<QPair<int, QString>> DatabaseManager::getFileInfoBeforeTime(int roomId, const QDateTime &before) {
+    QList<QPair<int, QString>> result;
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    q.prepare("SELECT DISTINCT m.file_id, f.file_path FROM messages m "
+              "JOIN files f ON m.file_id = f.id "
+              "WHERE m.room_id = ? AND m.file_id > 0 AND m.created_at < ?");
+    q.addBindValue(roomId);
+    q.addBindValue(before.toUTC().toString("yyyy-MM-dd HH:mm:ss"));
+
+    if (q.exec()) {
+        while (q.next())
+            result.append({q.value(0).toInt(), q.value(1).toString()});
+    }
+    return result;
+}
+
+QList<QPair<int, QString>> DatabaseManager::getFileInfoAfterTime(int roomId, const QDateTime &after) {
+    QList<QPair<int, QString>> result;
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    q.prepare("SELECT DISTINCT m.file_id, f.file_path FROM messages m "
+              "JOIN files f ON m.file_id = f.id "
+              "WHERE m.room_id = ? AND m.file_id > 0 AND m.created_at > ?");
+    q.addBindValue(roomId);
+    q.addBindValue(after.toUTC().toString("yyyy-MM-dd HH:mm:ss"));
+
+    if (q.exec()) {
+        while (q.next())
+            result.append({q.value(0).toInt(), q.value(1).toString()});
+    }
+    return result;
+}
+
+bool DatabaseManager::deleteFileRecords(const QList<int> &fileIds) {
+    if (fileIds.isEmpty()) return true;
+
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    QStringList placeholders;
+    for (int i = 0; i < fileIds.size(); ++i)
+        placeholders.append("?");
+
+    QString sql = QString("DELETE FROM files WHERE id IN (%1)").arg(placeholders.join(","));
+    q.prepare(sql);
+    for (int id : fileIds)
+        q.addBindValue(id);
+
+    return q.exec();
+}
+
 // ==================== 房间设置 ====================
 
 qint64 DatabaseManager::getRoomMaxFileSize(int roomId) {

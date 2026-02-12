@@ -99,6 +99,24 @@ void ChatServer::onClientDisconnected(ClientSession *session) {
             m_sessions.remove(username);
     }
 
+    // 清理该用户进行中的上传状态
+    QList<QString> staleUploads;
+    for (auto it = m_uploads.begin(); it != m_uploads.end(); ++it) {
+        if (it.value().userId == userId)
+            staleUploads.append(it.key());
+    }
+    for (const QString &uploadId : staleUploads) {
+        UploadState state = m_uploads.take(uploadId);
+        if (state.file) {
+            state.file->close();
+            delete state.file;
+        }
+        // 删除不完整的文件
+        if (!state.filePath.isEmpty())
+            QFile::remove(state.filePath);
+        qInfo() << "[Server] 清理断连用户上传:" << state.fileName;
+    }
+
     // 被踢出的 session 不广播（新的 session 会继承房间状态）
     if (!username.isEmpty() && !session->isKicked()) {
         // 从 DB 获取用户所有房间，广播 USER_OFFLINE（不是 USER_LEFT）
@@ -893,28 +911,47 @@ void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject 
         return;
     }
 
+    // 先查询待删除消息关联的文件，以便清理
+    QList<QPair<int, QString>> fileInfos;
     int deletedCount = 0;
 
     if (mode == "selected") {
-        // 删除选定的消息
         QList<int> ids;
         for (const QJsonValue &v : data["messageIds"].toArray())
             ids.append(v.toInt());
+        fileInfos = m_db->getFileInfoForMessages(roomId, ids);
         if (m_db->deleteMessages(roomId, ids))
             deletedCount = ids.size();
     } else if (mode == "all") {
-        // 清空所有消息
+        fileInfos = m_db->getAllFileInfoForRoom(roomId);
         deletedCount = m_db->deleteAllMessages(roomId);
     } else if (mode == "before") {
-        // 删除某时间之前的消息
         qint64 ts = static_cast<qint64>(data["timestamp"].toDouble());
         QDateTime dt = QDateTime::fromMSecsSinceEpoch(ts);
+        fileInfos = m_db->getFileInfoBeforeTime(roomId, dt);
         deletedCount = m_db->deleteMessagesBefore(roomId, dt);
     } else if (mode == "after") {
-        // 删除某时间之后的消息
         qint64 ts = static_cast<qint64>(data["timestamp"].toDouble());
         QDateTime dt = QDateTime::fromMSecsSinceEpoch(ts);
+        fileInfos = m_db->getFileInfoAfterTime(roomId, dt);
         deletedCount = m_db->deleteMessagesAfter(roomId, dt);
+    }
+
+    // 清理文件：从 files 表删除记录 + 从磁盘删除物理文件
+    if (!fileInfos.isEmpty()) {
+        QList<int> fileIds;
+        QJsonArray deletedFileIds;
+        for (const auto &info : fileInfos) {
+            fileIds.append(info.first);
+            deletedFileIds.append(info.first);
+            // 删除磁盘文件
+            if (!info.second.isEmpty()) {
+                QFile::remove(info.second);
+                qInfo() << "[Server] 已删除文件:" << info.second;
+            }
+        }
+        m_db->deleteFileRecords(fileIds);
+        rspData["deletedFileIds"] = deletedFileIds;
     }
 
     rspData["success"] = true;
@@ -931,6 +968,9 @@ void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject 
     if (mode == "selected") {
         notifyData["messageIds"] = data["messageIds"].toArray();
     }
+    // 也把删除的 fileIds 发给其他客户端
+    if (rspData.contains("deletedFileIds"))
+        notifyData["deletedFileIds"] = rspData["deletedFileIds"];
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_NOTIFY, notifyData), session);
 
     // 广播系统消息通知全体

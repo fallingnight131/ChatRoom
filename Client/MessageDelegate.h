@@ -42,6 +42,8 @@ private:
     static bool isVideoFile(const QString &fileName);
     /// 加载缓存图片（带 QPixmapCache）
     QPixmap loadCachedImage(int fileId, const QString &fileName) const;
+    /// 加载视频缩略图（带 QPixmapCache）
+    QPixmap loadVideoThumbnail(int fileId) const;
 
     // 颜色常量
     QColor m_myBubbleColor;

@@ -39,10 +39,15 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QKeyEvent>
+#include <QWheelEvent>
 #include <QBuffer>
 #include <QPainter>
 #include <QPainterPath>
+#include <QMediaPlayer>
+#include <QVideoSink>
+#include <QVideoFrame>
 #include <QDebug>
+#include <memory>
 
 // 静态头像缓存
 QMap<QString, QPixmap> ChatWindow::s_avatarCache;
@@ -107,6 +112,16 @@ bool ChatWindow::eventFilter(QObject *watched, QEvent *event) {
             onSendMessage();
             return true; // 拦截，不插入换行
         }
+    }
+    // 消息列表滚轮减速：每次滚动像素量减小
+    if (watched == m_messageView->viewport() && event->type() == QEvent::Wheel) {
+        auto *wheelEvent = static_cast<QWheelEvent*>(event);
+        int delta = wheelEvent->angleDelta().y();
+        // 原始距离除以 3 ，实现慢速滚动
+        int pixels = -delta / 3;
+        m_messageView->verticalScrollBar()->setValue(
+            m_messageView->verticalScrollBar()->value() + pixels);
+        return true; // 拦截默认的快速滚动
     }
     return QMainWindow::eventFilter(watched, event);
 }
@@ -179,6 +194,9 @@ void ChatWindow::setupUi() {
     m_messageView->setContextMenuPolicy(Qt::CustomContextMenu);
     m_messageView->setWordWrap(true);
     m_messageView->setSpacing(2);
+
+    // 安装事件过滤器以拦截滚轮事件
+    m_messageView->viewport()->installEventFilter(this);
 
     m_delegate = new MessageDelegate(this);
     m_messageView->setItemDelegate(m_delegate);
@@ -283,6 +301,7 @@ void ChatWindow::setupMenuBar() {
 
     auto *settingsMenu = menuBar()->addMenu("设置(&S)");
     settingsMenu->addAction("缓存路径(&C)...", this, &ChatWindow::onChangeCacheDir);
+    settingsMenu->addAction("清除缓存(&X)...", this, &ChatWindow::onClearCache);
 
     auto *helpMenu = menuBar()->addMenu("帮助(&H)");
     helpMenu->addAction("关于(&A)", [this] {
@@ -378,7 +397,7 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::kickUserResponse,  this, &ChatWindow::onKickUserResponse);
     connect(net, &NetworkManager::kickedFromRoom,    this, &ChatWindow::onKickedFromRoom);
 
-    // 单击文件消息：触发下载（非图片文件）或打开图片预览
+    // 单击文件消息：触发下载（仅限未缓存文件）
     connect(m_messageView, &QListView::clicked, this, [this](const QModelIndex &idx) {
         int contentType = idx.data(MessageModel::ContentTypeRole).toInt();
         if (contentType != static_cast<int>(Message::File)) return;
@@ -386,18 +405,15 @@ void ChatWindow::connectSignals() {
         int fileId = idx.data(MessageModel::FileIdRole).toInt();
         if (fileId <= 0) return;
 
-        QString fileName = idx.data(MessageModel::FileNameRole).toString();
-        qint64 fileSize  = idx.data(MessageModel::FileSizeRole).toLongLong();
-
-        // 已缓存 → 用系统打开
-        if (FileCache::instance()->isCached(fileId)) {
-            FileCache::openWithSystem(FileCache::instance()->cachedFilePath(fileId));
-            return;
-        }
+        // 已缓存 → 不响应单击（双击打开）
+        if (FileCache::instance()->isCached(fileId)) return;
 
         // 正在下载中 → 忽略
         int dlState = idx.data(MessageModel::DownloadStateRole).toInt();
         if (dlState == Message::Downloading) return;
+
+        QString fileName = idx.data(MessageModel::FileNameRole).toString();
+        qint64 fileSize  = idx.data(MessageModel::FileSizeRole).toLongLong();
 
         // 未下载 → 触发下载
         triggerFileDownload(fileId, fileName, fileSize);
@@ -519,6 +535,9 @@ void ChatWindow::switchRoom(int roomId) {
 
     // 获取或创建模型
     MessageModel *model = getOrCreateModel(roomId);
+
+    // 临时禁用视图更新，防止切换房间时的闪烁
+    m_messageView->setUpdatesEnabled(false);
     m_messageView->setModel(model);
 
     // 更新房间标题
@@ -550,10 +569,11 @@ void ChatWindow::switchRoom(int roomId) {
             Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, settingsReq));
     }
 
-    // 滚动到底部
-    QTimer::singleShot(100, [this] {
+    // 滚动到底部并恢复视图更新（使用 0ms 定时器等待布局完成）
+    QTimer::singleShot(0, [this] {
         if (m_messageView->model() && m_messageView->model()->rowCount() > 0)
             m_messageView->scrollToBottom();
+        m_messageView->setUpdatesEnabled(true);
     });
 }
 
@@ -667,11 +687,16 @@ void ChatWindow::onHistoryReceived(int roomId, const QJsonArray &messages) {
         msgList.append(m);
     }
 
+    bool isCurrent = (roomId == m_currentRoomId);
+    if (isCurrent)
+        m_messageView->setUpdatesEnabled(false);
+
     model->prependMessages(msgList);
 
-    if (roomId == m_currentRoomId) {
-        QTimer::singleShot(50, [this] {
+    if (isCurrent) {
+        QTimer::singleShot(0, [this] {
             m_messageView->scrollToBottom();
+            m_messageView->setUpdatesEnabled(true);
         });
     }
 
@@ -986,6 +1011,7 @@ void ChatWindow::onFileDownloadComplete(int fileId, const QString &fileName, con
 
     // 如果是图片，清除 QPixmapCache 并强制刷新视图
     static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
+    static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
     QString suffix = QFileInfo(fileName).suffix().toLower();
     if (imgExts.contains(suffix)) {
         QPixmapCache::remove(QString("msgimg_%1").arg(fileId));
@@ -999,6 +1025,99 @@ void ChatWindow::onFileDownloadComplete(int fileId, const QString &fileName, con
         m_messageView->doItemsLayout();
         m_messageView->viewport()->update();
     }
+
+    // 如果是视频，生成缩略图
+    if (vidExts.contains(suffix)) {
+        generateVideoThumbnail(fileId, localPath);
+    }
+}
+
+void ChatWindow::generateVideoThumbnail(int fileId, const QString &videoPath) {
+    // 使用 QMediaPlayer + QVideoSink 抓取视频帧作为缩略图
+    auto *player = new QMediaPlayer(this);
+    auto *sink = new QVideoSink(this);
+    player->setVideoOutput(sink);
+    player->setSource(QUrl::fromLocalFile(videoPath));
+
+    // 用 shared_ptr<bool> 防止多次触发
+    auto grabbed = std::make_shared<bool>(false);
+    auto seeked = std::make_shared<bool>(false);
+
+    // 当收到视频帧时截取
+    connect(sink, &QVideoSink::videoFrameChanged, this,
+            [this, player, sink, fileId, grabbed, seeked](const QVideoFrame &frame) {
+        if (*grabbed) return;
+        if (!frame.isValid()) return;
+
+        QImage img = frame.toImage();
+        if (img.isNull()) return;
+
+        // 如果还没有seek过，并且已经在播放中，尝试seek到更好的位置
+        if (!*seeked && player->duration() > 0) {
+            *seeked = true;
+            qint64 seekPos = qMin((qint64)1000, player->duration() / 10);
+            if (seekPos > 100) {
+                player->setPosition(seekPos);
+                return; // 等待seek后的帧
+            }
+        }
+
+        *grabbed = true;
+
+        // 保存缩略图到缓存目录
+        QString thumbPath = FileCache::instance()->cacheDir()
+                            + QString("/thumb_%1.jpg").arg(fileId);
+        if (img.width() > 480) {
+            img = img.scaledToWidth(480, Qt::SmoothTransformation);
+        }
+        img.save(thumbPath, "JPEG", 85);
+
+        qInfo() << "[VideoThumb] 已保存缩略图:" << thumbPath << img.size();
+
+        // 清除旧的缩略图缓存并刷新视图
+        QPixmapCache::remove(QString("vidthumb_%1").arg(fileId));
+        for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+            int row = it.value()->findMessageByFileId(fileId);
+            if (row >= 0) {
+                QModelIndex idx = it.value()->index(row, 0);
+                emit it.value()->dataChanged(idx, idx);
+            }
+        }
+        m_messageView->viewport()->update();
+
+        // 清理资源
+        player->stop();
+        player->deleteLater();
+        sink->deleteLater();
+    });
+
+    // 当媒体加载完成后开始播放（不用 pause，直接播放等待帧到达）
+    connect(player, &QMediaPlayer::mediaStatusChanged, this,
+            [player, grabbed](QMediaPlayer::MediaStatus status) {
+        if (*grabbed) return;
+        if (status == QMediaPlayer::LoadedMedia ||
+            status == QMediaPlayer::BufferedMedia) {
+            player->play();
+        }
+    });
+
+    // 错误处理
+    connect(player, &QMediaPlayer::errorOccurred, this,
+            [player, sink, fileId](QMediaPlayer::Error error, const QString &errorString) {
+        qWarning() << "[VideoThumb] 错误 fileId=" << fileId << error << errorString;
+        player->deleteLater();
+        sink->deleteLater();
+    });
+
+    // 超时防护：5秒后如果还没抓到帧，清理资源
+    QTimer::singleShot(5000, this, [player, sink, grabbed]() {
+        if (!*grabbed) {
+            qWarning() << "[VideoThumb] 超时未获取到帧";
+            player->stop();
+            player->deleteLater();
+            sink->deleteLater();
+        }
+    });
 }
 
 void ChatWindow::startChunkedDownload(int fileId, const QString &fileName, qint64 fileSize) {
@@ -1097,6 +1216,21 @@ void ChatWindow::onRecallResponse(bool success, int messageId, const QString &er
 void ChatWindow::onRecallNotify(int messageId, int roomId, const QString &username) {
     Q_UNUSED(username)
     MessageModel *model = getOrCreateModel(roomId);
+
+    // 清除该消息的文件缓存
+    int row = model->findMessageRow(messageId);
+    if (row >= 0) {
+        const Message &msg = model->messageAt(row);
+        if (msg.contentType() == Message::File && msg.fileId() > 0) {
+            FileCache::instance()->removeFile(msg.fileId());
+            QPixmapCache::remove(QString("msgimg_%1").arg(msg.fileId()));
+            // 删除视频缩略图
+            QPixmapCache::remove(QString("vidthumb_%1").arg(msg.fileId()));
+            QString thumbPath = FileCache::instance()->cacheDir() + QString("/thumb_%1.jpg").arg(msg.fileId());
+            QFile::remove(thumbPath);
+        }
+    }
+
     model->recallMessage(messageId);
 }
 
@@ -1134,10 +1268,19 @@ void ChatWindow::onSetAdminResponse(bool success, int roomId, const QString &use
     }
 }
 
-void ChatWindow::onDeleteMsgsResponse(bool success, int roomId, int deletedCount, const QString &mode, const QString &error) {
+void ChatWindow::onDeleteMsgsResponse(bool success, int roomId, int deletedCount, const QString &mode, const QJsonArray &deletedFileIds, const QString &error) {
     Q_UNUSED(mode)
     if (success) {
         m_statusLabel->setText(QStringLiteral("已删除 %1 条消息").arg(deletedCount));
+        // 只清除服务端返回的被删除文件的缓存
+        for (const QJsonValue &v : deletedFileIds) {
+            int fid = v.toInt();
+            FileCache::instance()->removeFile(fid);
+            QPixmapCache::remove(QString("msgimg_%1").arg(fid));
+            QPixmapCache::remove(QString("vidthumb_%1").arg(fid));
+            QString thumbPath = FileCache::instance()->cacheDir() + QString("/thumb_%1.jpg").arg(fid);
+            QFile::remove(thumbPath);
+        }
         // 重新加载历史消息
         MessageModel *model = getOrCreateModel(roomId);
         model->clear();
@@ -1147,18 +1290,25 @@ void ChatWindow::onDeleteMsgsResponse(bool success, int roomId, int deletedCount
     }
 }
 
-void ChatWindow::onDeleteMsgsNotify(int roomId, const QString &mode, const QJsonArray &messageIds) {
+void ChatWindow::onDeleteMsgsNotify(int roomId, const QString &mode, const QJsonArray &messageIds, const QJsonArray &deletedFileIds) {
+    Q_UNUSED(mode)
+    Q_UNUSED(messageIds)
     MessageModel *model = getOrCreateModel(roomId);
-    if (mode == "selected") {
-        // 仅移除指定消息 — 简单起见直接重新加载
-        model->clear();
-        NetworkManager::instance()->sendMessage(Protocol::makeHistoryReq(roomId, 50));
-    } else {
-        // all / before / after — 直接清空并重新加载
-        Q_UNUSED(messageIds)
-        model->clear();
-        NetworkManager::instance()->sendMessage(Protocol::makeHistoryReq(roomId, 50));
+
+    // 只清除服务端返回的被删除文件的缓存
+    for (const QJsonValue &v : deletedFileIds) {
+        int fid = v.toInt();
+        FileCache::instance()->removeFile(fid);
+        QPixmapCache::remove(QString("msgimg_%1").arg(fid));
+        QPixmapCache::remove(QString("vidthumb_%1").arg(fid));
+        QString thumbPath = FileCache::instance()->cacheDir() + QString("/thumb_%1.jpg").arg(fid);
+        QFile::remove(thumbPath);
     }
+
+    // 重新加载历史消息
+    model->clear();
+    NetworkManager::instance()->sendMessage(Protocol::makeHistoryReq(roomId, 50));
+
     m_statusLabel->setText("管理员清理了消息记录");
 }
 
@@ -1927,6 +2077,42 @@ void ChatWindow::onChangeCacheDir() {
 
     FileCache::instance()->setCacheDir(newDir, m_username);
     m_statusLabel->setText(QString("缓存目录已更改为: %1").arg(newDir));
+}
+
+void ChatWindow::onClearCache() {
+    qint64 cacheSize = FileCache::instance()->totalCacheSize();
+    QString sizeText = QLocale().formattedDataSize(cacheSize);
+
+    auto result = QMessageBox::question(this, "清除缓存",
+        QString("当前账号 [%1] 的缓存大小为 %2\n\n"
+                "清除后将删除所有已下载的文件和图片缓存，\n"
+                "需要时会重新从服务器下载。\n\n"
+                "确定要清除缓存吗？")
+            .arg(m_username, sizeText),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+
+    if (result != QMessageBox::Yes) return;
+
+    // 清除 QPixmapCache 中所有图片和视频缩略图
+    QPixmapCache::clear();
+
+    // 清除磁盘缓存
+    FileCache::instance()->clearAllCache();
+
+    // 重新加载当前房间消息（触发UI刷新）
+    if (m_currentRoomId > 0) {
+        MessageModel *model = getOrCreateModel(m_currentRoomId);
+        // 通知视图刷新以更新下载状态
+        for (int i = 0; i < model->rowCount(); ++i) {
+            const Message &msg = model->messageAt(i);
+            if (msg.contentType() == Message::File && msg.fileId() > 0) {
+                model->updateDownloadProgress(msg.fileId(), Message::NotDownloaded, 0.0);
+            }
+        }
+        m_messageView->viewport()->update();
+    }
+
+    m_statusLabel->setText(QString("已清除 %1 缓存").arg(sizeText));
 }
 
 // ==================== 贴边隐藏 ====================
