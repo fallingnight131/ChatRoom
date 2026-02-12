@@ -206,6 +206,9 @@ private:
     };
     ChunkedUpload m_upload;
 
+    // 发送文件的本地路径记录（用于收到 FILE_NOTIFY 时直接缓存）
+    QMap<QString, QString> m_pendingSentFiles; // fileName -> localPath
+
     // --- 大文件分块下载状态（支持多文件队列） ---
     struct ChunkedDownload {
         int fileId = 0;

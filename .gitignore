@@ -43,3 +43,7 @@ Thumbs.db
 
 # ========== 不再使用的 MySQL 驱动构建目录 ==========
 mysql_driver_build/
+
+# ========== 存储数据 ==========
+data/
+server_files/

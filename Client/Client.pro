@@ -35,3 +35,5 @@ RESOURCES += \
     resources/resources.qrc
 
 RC_ICONS = resources/app_icon.ico
+
+win32: LIBS += -lole32 -luuid -lgdi32

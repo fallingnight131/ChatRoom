@@ -21,6 +21,9 @@ public:
     /// 将文件数据保存到本地缓存，返回本地路径
     QString cacheFile(int fileId, const QString &fileName, const QByteArray &data);
 
+    /// 从本地文件复制到缓存（用于发送者直接缓存，避免大文件全部读入内存）
+    QString cacheFromLocal(int fileId, const QString &fileName, const QString &sourcePath);
+
     /// 获取缓存目录
     QString cacheDir() const;
 
@@ -41,6 +44,9 @@ public:
 
     /// 清除所有缓存文件
     void clearAllCache();
+
+    /// 获取所有已缓存的文件ID列表
+    QMap<int, QString> allCachedFileIds() const;
 
 private:
     explicit FileCache(QObject *parent = nullptr);

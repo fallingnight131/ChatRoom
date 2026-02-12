@@ -43,11 +43,13 @@
 #include <QBuffer>
 #include <QPainter>
 #include <QPainterPath>
-#include <QMediaPlayer>
-#include <QVideoSink>
-#include <QVideoFrame>
 #include <QDebug>
-#include <memory>
+
+#ifdef Q_OS_WIN
+#include <Windows.h>
+#include <ShlObj.h>
+#include <ShObjIdl.h>
+#endif
 
 // 静态头像缓存
 QMap<QString, QPixmap> ChatWindow::s_avatarCache;
@@ -784,6 +786,9 @@ void ChatWindow::onSendFile() {
     QByteArray data = file.readAll();
     file.close();
 
+    // 记录发送的文件路径，用于收到 FILE_NOTIFY 时直接缓存
+    m_pendingSentFiles[fi.fileName()] = filePath;
+
     QJsonObject msgData;
     msgData["roomId"]   = m_currentRoomId;
     msgData["fileName"] = fi.fileName();
@@ -817,6 +822,9 @@ void ChatWindow::onSendImage() {
     QByteArray data = file.readAll();
     file.close();
 
+    // 记录发送的文件路径
+    m_pendingSentFiles[fi.fileName()] = filePath;
+
     QJsonObject msgData;
     msgData["roomId"]   = m_currentRoomId;
     msgData["fileName"] = fi.fileName();
@@ -845,6 +853,23 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
     static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
     QString suffix = QFileInfo(fileName).suffix().toLower();
     bool isImage = imgExts.contains(suffix);
+
+    // 发送者自己的文件：直接从本地复制到缓存，无需下载
+    if (sender == m_username && m_pendingSentFiles.contains(fileName)) {
+        QString localPath = m_pendingSentFiles.take(fileName);
+        if (QFile::exists(localPath)) {
+            QString cached = FileCache::instance()->cacheFromLocal(fileId, fileName, localPath);
+            if (!cached.isEmpty()) {
+                msg.setDownloadState(Message::Downloaded);
+                msg.setDownloadProgress(1.0);
+                // 视频文件生成缩略图
+                static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
+                if (vidExts.contains(suffix)) {
+                    generateVideoThumbnail(fileId, cached);
+                }
+            }
+        }
+    }
 
     // 已缓存则标记为已下载
     if (FileCache::instance()->isCached(fileId)) {
@@ -887,6 +912,9 @@ void ChatWindow::startChunkedUpload(const QString &filePath) {
     m_upload.offset    = 0;
     m_upload.uploadId.clear();
 
+    // 记录发送的文件路径
+    m_pendingSentFiles[fi.fileName()] = filePath;
+
     // 发送上传开始请求
     QJsonObject data;
     data["roomId"]   = m_currentRoomId;
@@ -910,6 +938,12 @@ void ChatWindow::onUploadStartResponse(const QJsonObject &data) {
 }
 
 void ChatWindow::sendNextChunk() {
+    if (m_upload.uploadId.isEmpty()) {
+        qWarning() << "[Upload] uploadId 为空，无法发送分块";
+        QMessageBox::warning(this, "上传失败", "上传ID无效，请重试");
+        return;
+    }
+
     QFile file(m_upload.filePath);
     if (!file.open(QIODevice::ReadOnly)) {
         QMessageBox::warning(this, "错误", "无法读取文件");
@@ -1002,7 +1036,12 @@ void ChatWindow::updateAllModelsDownloadProgress(int fileId, int state, double p
 void ChatWindow::onFileDownloadComplete(int fileId, const QString &fileName, const QByteArray &data) {
     // 缓存到本地
     QString localPath = FileCache::instance()->cacheFile(fileId, fileName, data);
-    if (localPath.isEmpty()) return;
+    if (localPath.isEmpty()) {
+        // 缓存失败，恢复为未下载状态以允许重试
+        updateAllModelsDownloadProgress(fileId, Message::NotDownloaded, 0.0);
+        m_statusLabel->setText(QString("文件缓存失败: %1").arg(fileName));
+        return;
+    }
 
     m_statusLabel->setText(QString("文件已缓存: %1").arg(fileName));
 
@@ -1033,91 +1072,69 @@ void ChatWindow::onFileDownloadComplete(int fileId, const QString &fileName, con
 }
 
 void ChatWindow::generateVideoThumbnail(int fileId, const QString &videoPath) {
-    // 使用 QMediaPlayer + QVideoSink 抓取视频帧作为缩略图
-    auto *player = new QMediaPlayer(this);
-    auto *sink = new QVideoSink(this);
-    player->setVideoOutput(sink);
-    player->setSource(QUrl::fromLocalFile(videoPath));
+#ifdef Q_OS_WIN
+    // 使用 Windows Shell API 获取资源管理器中显示的视频缩略图
+    HRESULT hr = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    bool needUninit = SUCCEEDED(hr);
 
-    // 用 shared_ptr<bool> 防止多次触发
-    auto grabbed = std::make_shared<bool>(false);
-    auto seeked = std::make_shared<bool>(false);
+    IShellItemImageFactory *factory = nullptr;
+    hr = SHCreateItemFromParsingName(
+        reinterpret_cast<LPCWSTR>(QDir::toNativeSeparators(videoPath).utf16()),
+        nullptr, IID_PPV_ARGS(&factory));
 
-    // 当收到视频帧时截取
-    connect(sink, &QVideoSink::videoFrameChanged, this,
-            [this, player, sink, fileId, grabbed, seeked](const QVideoFrame &frame) {
-        if (*grabbed) return;
-        if (!frame.isValid()) return;
+    if (SUCCEEDED(hr) && factory) {
+        HBITMAP hBitmap = nullptr;
+        SIZE size = {480, 270};
+        hr = factory->GetImage(size, SIIGBF_THUMBNAILONLY | SIIGBF_BIGGERSIZEOK, &hBitmap);
 
-        QImage img = frame.toImage();
-        if (img.isNull()) return;
+        if (SUCCEEDED(hr) && hBitmap) {
+            // 将 HBITMAP 转换为 QImage
+            BITMAP bm;
+            GetObject(hBitmap, sizeof(BITMAP), &bm);
 
-        // 如果还没有seek过，并且已经在播放中，尝试seek到更好的位置
-        if (!*seeked && player->duration() > 0) {
-            *seeked = true;
-            qint64 seekPos = qMin((qint64)1000, player->duration() / 10);
-            if (seekPos > 100) {
-                player->setPosition(seekPos);
-                return; // 等待seek后的帧
+            BITMAPINFOHEADER bi = {};
+            bi.biSize = sizeof(BITMAPINFOHEADER);
+            bi.biWidth = bm.bmWidth;
+            bi.biHeight = -bm.bmHeight; // top-down
+            bi.biPlanes = 1;
+            bi.biBitCount = 32;
+            bi.biCompression = BI_RGB;
+
+            QImage img(bm.bmWidth, bm.bmHeight, QImage::Format_ARGB32);
+            HDC hdc = GetDC(nullptr);
+            GetDIBits(hdc, hBitmap, 0, bm.bmHeight, img.bits(),
+                     reinterpret_cast<BITMAPINFO*>(&bi), DIB_RGB_COLORS);
+            ReleaseDC(nullptr, hdc);
+            DeleteObject(hBitmap);
+
+            if (!img.isNull()) {
+                // 保存缩略图
+                QString cacheDir = FileCache::instance()->cacheDir();
+                QDir(cacheDir).mkpath(".");
+                QString thumbPath = cacheDir + QString("/thumb_%1.jpg").arg(fileId);
+                img.save(thumbPath, "JPEG", 85);
+                qInfo() << "[VideoThumb] Shell API 缩略图已保存:" << thumbPath << img.size();
+
+                // 刷新视图
+                QPixmapCache::remove(QString("vidthumb_%1").arg(fileId));
+                for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+                    int row = it.value()->findMessageByFileId(fileId);
+                    if (row >= 0) {
+                        QModelIndex idx = it.value()->index(row, 0);
+                        emit it.value()->dataChanged(idx, idx);
+                    }
+                }
+                m_messageView->viewport()->update();
             }
         }
+        factory->Release();
+    }
 
-        *grabbed = true;
-
-        // 保存缩略图到缓存目录
-        QString thumbPath = FileCache::instance()->cacheDir()
-                            + QString("/thumb_%1.jpg").arg(fileId);
-        if (img.width() > 480) {
-            img = img.scaledToWidth(480, Qt::SmoothTransformation);
-        }
-        img.save(thumbPath, "JPEG", 85);
-
-        qInfo() << "[VideoThumb] 已保存缩略图:" << thumbPath << img.size();
-
-        // 清除旧的缩略图缓存并刷新视图
-        QPixmapCache::remove(QString("vidthumb_%1").arg(fileId));
-        for (auto it = m_models.begin(); it != m_models.end(); ++it) {
-            int row = it.value()->findMessageByFileId(fileId);
-            if (row >= 0) {
-                QModelIndex idx = it.value()->index(row, 0);
-                emit it.value()->dataChanged(idx, idx);
-            }
-        }
-        m_messageView->viewport()->update();
-
-        // 清理资源
-        player->stop();
-        player->deleteLater();
-        sink->deleteLater();
-    });
-
-    // 当媒体加载完成后开始播放（不用 pause，直接播放等待帧到达）
-    connect(player, &QMediaPlayer::mediaStatusChanged, this,
-            [player, grabbed](QMediaPlayer::MediaStatus status) {
-        if (*grabbed) return;
-        if (status == QMediaPlayer::LoadedMedia ||
-            status == QMediaPlayer::BufferedMedia) {
-            player->play();
-        }
-    });
-
-    // 错误处理
-    connect(player, &QMediaPlayer::errorOccurred, this,
-            [player, sink, fileId](QMediaPlayer::Error error, const QString &errorString) {
-        qWarning() << "[VideoThumb] 错误 fileId=" << fileId << error << errorString;
-        player->deleteLater();
-        sink->deleteLater();
-    });
-
-    // 超时防护：5秒后如果还没抓到帧，清理资源
-    QTimer::singleShot(5000, this, [player, sink, grabbed]() {
-        if (!*grabbed) {
-            qWarning() << "[VideoThumb] 超时未获取到帧";
-            player->stop();
-            player->deleteLater();
-            sink->deleteLater();
-        }
-    });
+    if (needUninit) CoUninitialize();
+#else
+    Q_UNUSED(fileId)
+    Q_UNUSED(videoPath)
+#endif
 }
 
 void ChatWindow::startChunkedDownload(int fileId, const QString &fileName, qint64 fileSize) {
@@ -2099,18 +2116,17 @@ void ChatWindow::onClearCache() {
     // 清除磁盘缓存
     FileCache::instance()->clearAllCache();
 
-    // 重新加载当前房间消息（触发UI刷新）
-    if (m_currentRoomId > 0) {
-        MessageModel *model = getOrCreateModel(m_currentRoomId);
-        // 通知视图刷新以更新下载状态
+    // 重置 **所有** 房间模型中文件消息的下载状态为未下载
+    for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+        MessageModel *model = it.value();
         for (int i = 0; i < model->rowCount(); ++i) {
             const Message &msg = model->messageAt(i);
             if (msg.contentType() == Message::File && msg.fileId() > 0) {
                 model->updateDownloadProgress(msg.fileId(), Message::NotDownloaded, 0.0);
             }
         }
-        m_messageView->viewport()->update();
     }
+    m_messageView->viewport()->update();
 
     m_statusLabel->setText(QString("已清除 %1 缓存").arg(sizeText));
 }

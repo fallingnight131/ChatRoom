@@ -121,6 +121,11 @@ bool FileCache::isCached(int fileId) const {
 }
 
 QString FileCache::cacheFile(int fileId, const QString &fileName, const QByteArray &data) {
+    // 确保缓存目录存在（防止外部删除后写入失败）
+    QDir dir(m_cacheDir);
+    if (!dir.exists())
+        dir.mkpath(".");
+
     QString safeName = QString("%1_%2").arg(fileId).arg(fileName);
     QString filePath = m_cacheDir + "/" + safeName;
 
@@ -142,6 +147,39 @@ QString FileCache::cacheFile(int fileId, const QString &fileName, const QByteArr
 
 QString FileCache::cacheDir() const {
     return m_cacheDir;
+}
+
+QString FileCache::cacheFromLocal(int fileId, const QString &fileName, const QString &sourcePath) {
+    // 确保缓存目录存在
+    QDir dir(m_cacheDir);
+    if (!dir.exists())
+        dir.mkpath(".");
+
+    QString safeName = QString("%1_%2").arg(fileId).arg(fileName);
+    QString destPath = m_cacheDir + "/" + safeName;
+
+    // 如果源文件和目标相同，直接记录
+    if (QFileInfo(sourcePath).absoluteFilePath() == QFileInfo(destPath).absoluteFilePath()) {
+        QMutexLocker locker(&m_mutex);
+        m_cache[fileId] = destPath;
+        saveIndex();
+        return destPath;
+    }
+
+    // 先删除旧文件
+    if (QFile::exists(destPath))
+        QFile::remove(destPath);
+
+    if (QFile::copy(sourcePath, destPath)) {
+        QMutexLocker locker(&m_mutex);
+        m_cache[fileId] = destPath;
+        saveIndex();
+        qDebug() << "[FileCache] 已从本地复制到缓存:" << destPath;
+        return destPath;
+    }
+
+    qWarning() << "[FileCache] 本地复制到缓存失败:" << sourcePath << "->" << destPath;
+    return {};
 }
 
 bool FileCache::openWithSystem(const QString &filePath) {
@@ -186,4 +224,9 @@ void FileCache::clearAllCache() {
     m_cache.clear();
     saveIndex();
     qInfo() << "[FileCache] 已清除所有缓存";
+}
+
+QMap<int, QString> FileCache::allCachedFileIds() const {
+    QMutexLocker locker(&m_mutex);
+    return m_cache;
 }
