@@ -593,6 +593,11 @@ void ChatWindow::onSystemMessage(const QJsonObject &msg) {
         QTimer::singleShot(50, [this] {
             m_messageView->scrollToBottom();
         });
+        // 系统消息可能涉及管理员变更等，刷新用户列表以确保实时更新
+        QJsonObject userData;
+        userData["roomId"] = m_currentRoomId;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::USER_LIST_REQ, userData));
     }
 }
 

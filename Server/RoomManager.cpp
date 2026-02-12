@@ -37,6 +37,12 @@ void RoomManager::removeRoom(int roomId) {
     m_rooms.remove(roomId);
 }
 
+void RoomManager::renameRoom(int roomId, const QString &newName) {
+    QMutexLocker locker(&m_mutex);
+    if (m_rooms.contains(roomId))
+        m_rooms[roomId].name = newName;
+}
+
 bool RoomManager::roomExists(int roomId) const {
     QMutexLocker locker(&m_mutex);
     return m_rooms.contains(roomId);

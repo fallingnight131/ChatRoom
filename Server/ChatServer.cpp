@@ -976,7 +976,7 @@ void ChatServer::handleRenameRoom(ClientSession *session, const QJsonObject &dat
     m_db->renameRoom(roomId, newName);
 
     // 更新内存缓存
-    m_roomMgr->addRoom(roomId, newName, 0); // 更新名称
+    m_roomMgr->renameRoom(roomId, newName);
 
     rspData["success"] = true;
     rspData["newName"] = newName;
