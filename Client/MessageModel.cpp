@@ -117,3 +117,14 @@ void MessageModel::updateDownloadProgress(int fileId, int state, double progress
         }
     }
 }
+
+void MessageModel::removeMessageByFileId(int fileId) {
+    for (int i = 0; i < m_messages.size(); ++i) {
+        if (m_messages[i].fileId() == fileId) {
+            beginRemoveRows(QModelIndex(), i, i);
+            m_messages.removeAt(i);
+            endRemoveRows();
+            break;
+        }
+    }
+}

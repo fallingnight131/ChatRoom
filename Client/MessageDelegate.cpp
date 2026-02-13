@@ -333,6 +333,24 @@ void MessageDelegate::drawPieProgress(QPainter *painter, const QRect &rect, doub
     painter->drawText(pieRect, Qt::AlignCenter, QString("%1%").arg(static_cast<int>(progress * 100)));
 }
 
+// ==================== 暂停覆盖图标 ====================
+
+void MessageDelegate::drawPauseOverlay(QPainter *painter, const QRect &rect) const {
+    // 在饼状进度中央叠加暂停图标（两条竖线）
+    int iconSize = qMin(rect.width(), rect.height()) / 3;
+    iconSize = qBound(12, iconSize, 28);
+    int cx = rect.center().x();
+    int cy = rect.center().y();
+    int barW = iconSize / 4;
+    int barH = iconSize;
+    int gap = barW;
+
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(QColor(255, 255, 255, 220));
+    painter->drawRoundedRect(cx - barW - gap / 2, cy - barH / 2, barW, barH, 2, 2);
+    painter->drawRoundedRect(cx + gap / 2, cy - barH / 2, barW, barH, 2, 2);
+}
+
 void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewItem &option,
                                       const QModelIndex &index, bool isMine) const {
     QString fileName = index.data(MessageModel::FileNameRole).toString();
@@ -414,12 +432,24 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
     // 文件图标区域
     QRect iconRect(bubbleX + 12, bubbleY + 15, 40, 40);
 
-    if (dlState == Message::Downloading) {
-        // 正在下载 → 图标区域显示饼状进度
+    if (dlState == Message::Downloading || dlState == Message::Paused) {
+        // 下载中 / 下载暂停 → 图标区域显示饼状进度
         painter->setPen(Qt::NoPen);
         painter->setBrush(QColor(66, 133, 244, 60));
         painter->drawRoundedRect(iconRect, 6, 6);
         drawPieProgress(painter, iconRect, dlProgress);
+        if (dlState == Message::Paused) {
+            drawPauseOverlay(painter, iconRect);
+        }
+    } else if (dlState == Message::Uploading || dlState == Message::UploadPaused) {
+        // 上传中 / 上传暂停 → 饼状进度（橙色底）
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor(255, 152, 0, 60));
+        painter->drawRoundedRect(iconRect, 6, 6);
+        drawPieProgress(painter, iconRect, dlProgress);
+        if (dlState == Message::UploadPaused) {
+            drawPauseOverlay(painter, iconRect);
+        }
     } else if (!cached && dlState != Message::Downloaded) {
         // 未下载 → 显示下载箭头图标（蓝底白色↓）
         painter->setPen(Qt::NoPen);
@@ -458,6 +488,12 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
     QString statusStr = sizeStr;
     if (dlState == Message::Downloading) {
         statusStr += QString("  下载中 %1%").arg(static_cast<int>(dlProgress * 100));
+    } else if (dlState == Message::Paused) {
+        statusStr += QString("  已暂停 %1%").arg(static_cast<int>(dlProgress * 100));
+    } else if (dlState == Message::Uploading) {
+        statusStr += QString("  上传中 %1%").arg(static_cast<int>(dlProgress * 100));
+    } else if (dlState == Message::UploadPaused) {
+        statusStr += QString("  上传已暂停 %1%").arg(static_cast<int>(dlProgress * 100));
     } else if (!cached && dlState != Message::Downloaded) {
         statusStr += QStringLiteral("  点击下载");
         painter->setPen(QColor(66, 133, 244));  // 蓝色提示
@@ -614,9 +650,13 @@ void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewI
 
     painter->setClipping(false);
 
-    if (dlState == Message::Downloading) {
-        // 下载中 → 饼状进度
+    if (dlState == Message::Downloading || dlState == Message::Paused
+        || dlState == Message::Uploading || dlState == Message::UploadPaused) {
+        // 传输中 → 饼状进度
         drawPieProgress(painter, thumbRect, dlProgress);
+        if (dlState == Message::Paused || dlState == Message::UploadPaused) {
+            drawPauseOverlay(painter, thumbRect);
+        }
     } else {
         // 播放按钮（白色半透明圆 + ▶）
         int playSize = 48;
@@ -776,9 +816,18 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
         painter->setBrush(m_fileBgColor);
         painter->drawRoundedRect(imgRect, 6, 6);
 
-        if (dlState == Message::Downloading) {
-            // 图片下载中 → 显示饼状进度
+        if (dlState == Message::Downloading || dlState == Message::Paused) {
+            // 图片下载中/暂停 → 显示饼状进度
             drawPieProgress(painter, imgRect, dlProgress);
+            if (dlState == Message::Paused) {
+                drawPauseOverlay(painter, imgRect);
+            }
+        } else if (dlState == Message::Uploading || dlState == Message::UploadPaused) {
+            // 图片上传中/暂停 → 显示饼状进度
+            drawPieProgress(painter, imgRect, dlProgress);
+            if (dlState == Message::UploadPaused) {
+                drawPauseOverlay(painter, imgRect);
+            }
         } else {
             // 等待下载
             painter->setPen(m_timeColor);

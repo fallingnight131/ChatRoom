@@ -68,6 +68,7 @@ private:
     void handleKickUser(ClientSession *session, const QJsonObject &data);
     void handleAvatarUpload(ClientSession *session, const QJsonObject &data);
     void handleAvatarGet(ClientSession *session, const QJsonObject &data);
+    void handleFileUploadCancel(ClientSession *session, const QJsonObject &data);
 
     DatabaseManager *m_db       = nullptr;
     RoomManager     *m_roomMgr  = nullptr;

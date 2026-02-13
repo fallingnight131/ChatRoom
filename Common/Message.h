@@ -19,7 +19,10 @@ public:
     enum DownloadState {
         NotDownloaded = 0,
         Downloading   = 1,
-        Downloaded    = 2
+        Downloaded    = 2,
+        Paused        = 3,   // 下载已暂停
+        Uploading     = 4,   // 上传中
+        UploadPaused  = 5    // 上传已暂停
     };
 
     Message() = default;

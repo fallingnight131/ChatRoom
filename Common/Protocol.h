@@ -66,6 +66,7 @@ namespace MsgType {
     inline const QString FILE_UPLOAD_END   = QStringLiteral("FILE_UPLOAD_END");
     inline const QString FILE_DOWNLOAD_CHUNK_REQ = QStringLiteral("FILE_DOWNLOAD_CHUNK_REQ");
     inline const QString FILE_DOWNLOAD_CHUNK_RSP = QStringLiteral("FILE_DOWNLOAD_CHUNK_RSP");
+    inline const QString FILE_UPLOAD_CANCEL      = QStringLiteral("FILE_UPLOAD_CANCEL");
 
     // 消息撤回
     inline const QString RECALL_REQ       = QStringLiteral("RECALL_REQ");

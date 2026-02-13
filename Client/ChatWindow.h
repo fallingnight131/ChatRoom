@@ -152,8 +152,14 @@ private:
     MessageModel *getOrCreateModel(int roomId);
     void startChunkedUpload(const QString &filePath);
     void sendNextChunk();
+    void pauseUpload();
+    void resumeUpload();
+    void cancelUpload();
     void startChunkedDownload(int fileId, const QString &fileName, qint64 fileSize);
     void triggerFileDownload(int fileId, const QString &fileName, qint64 fileSize);
+    void pauseDownload(int fileId);
+    void resumeDownload(int fileId);
+    void cancelDownload(int fileId);
     void processNextDownload();
     void updateAllModelsDownloadProgress(int fileId, int state, double progress);
     void onFileDownloadComplete(int fileId, const QString &fileName, const QByteArray &data);
@@ -207,6 +213,9 @@ private:
         QByteArray thumbnailData; // 视频缩略图 JPEG 数据
     };
     ChunkedUpload m_upload;
+    bool m_uploadPaused = false;
+    int m_uploadingFileId = 0;   // 正在上传的消息 fileId（用于 UI 进度显示）
+    QString m_uploadingFileName; // 正在上传的文件名
 
     // 发送文件的本地路径记录（用于收到 FILE_NOTIFY 时直接缓存）
     QMap<QString, QString> m_pendingSentFiles; // fileName -> localPath

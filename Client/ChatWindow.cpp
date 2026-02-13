@@ -399,7 +399,7 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::kickUserResponse,  this, &ChatWindow::onKickUserResponse);
     connect(net, &NetworkManager::kickedFromRoom,    this, &ChatWindow::onKickedFromRoom);
 
-    // 单击文件消息：触发下载（仅限未缓存文件）
+    // 单击文件消息：触发下载 / 暂停 / 恢复 / 取消上传下载
     connect(m_messageView, &QListView::clicked, this, [this](const QModelIndex &idx) {
         int contentType = idx.data(MessageModel::ContentTypeRole).toInt();
         if (contentType != static_cast<int>(Message::File)) return;
@@ -410,15 +410,57 @@ void ChatWindow::connectSignals() {
         // 已缓存 → 不响应单击（双击打开）
         if (FileCache::instance()->isCached(fileId)) return;
 
-        // 正在下载中 → 忽略
         int dlState = idx.data(MessageModel::DownloadStateRole).toInt();
-        if (dlState == Message::Downloading) return;
+
+        // 上传中 → 暂停上传
+        if (dlState == Message::Uploading) {
+            pauseUpload();
+            return;
+        }
+        // 上传暂停 → 恢复上传
+        if (dlState == Message::UploadPaused) {
+            resumeUpload();
+            return;
+        }
+        // 下载中 → 暂停下载
+        if (dlState == Message::Downloading) {
+            pauseDownload(fileId);
+            return;
+        }
+        // 下载暂停 → 恢复下载
+        if (dlState == Message::Paused) {
+            resumeDownload(fileId);
+            return;
+        }
 
         QString fileName = idx.data(MessageModel::FileNameRole).toString();
         qint64 fileSize  = idx.data(MessageModel::FileSizeRole).toLongLong();
 
         // 未下载 → 触发下载
         triggerFileDownload(fileId, fileName, fileSize);
+    });
+
+    // 右键文件消息：取消上传/下载
+    m_messageView->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_messageView, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
+        QModelIndex idx = m_messageView->indexAt(pos);
+        if (!idx.isValid()) return;
+        int contentType = idx.data(MessageModel::ContentTypeRole).toInt();
+        if (contentType != static_cast<int>(Message::File)) return;
+        int fileId = idx.data(MessageModel::FileIdRole).toInt();
+        if (fileId <= 0) return;
+        int dlState = idx.data(MessageModel::DownloadStateRole).toInt();
+
+        QMenu menu(this);
+        if (dlState == Message::Downloading || dlState == Message::Paused) {
+            menu.addAction("取消下载", [this, fileId] { cancelDownload(fileId); });
+        }
+        if (dlState == Message::Uploading || dlState == Message::UploadPaused) {
+            menu.addAction("取消上传", [this] { cancelUpload(); });
+        }
+        if (!menu.isEmpty()) {
+            menu.exec(m_messageView->viewport()->mapToGlobal(pos));
+        }
     });
 
     // 双击打开已缓存的文件/图片
@@ -884,6 +926,12 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
 
     // 发送者自己的文件：直接从本地复制到缓存，无需下载
     if (sender == m_username && m_pendingSentFiles.contains(fileName)) {
+        // 移除临时上传消息
+        if (m_uploadingFileId != 0) {
+            getOrCreateModel(roomId)->removeMessageByFileId(m_uploadingFileId);
+            m_uploadingFileId = 0;
+        }
+
         QString localPath = m_pendingSentFiles.take(fileName);
         if (QFile::exists(localPath)) {
             QString cached = FileCache::instance()->cacheFromLocal(fileId, fileName, localPath);
@@ -938,12 +986,35 @@ void ChatWindow::onFileDownloadReady(const QJsonObject &data) {
 // ==================== 大文件分块传输 ====================
 
 void ChatWindow::startChunkedUpload(const QString &filePath) {
+    // 检查是否有正在进行的上传
+    if (!m_upload.uploadId.isEmpty()) {
+        QMessageBox::warning(this, "上传提示",
+            QString("当前正在上传 \"%1\"，请等待上传完成或取消后再上传新文件。")
+                .arg(m_uploadingFileName));
+        return;
+    }
+
     QFileInfo fi(filePath);
     m_upload.filePath  = filePath;
     m_upload.fileSize  = fi.size();
     m_upload.offset    = 0;
     m_upload.uploadId.clear();
     m_upload.thumbnailData.clear();
+    m_uploadPaused = false;
+    m_uploadingFileName = fi.fileName();
+
+    // 生成临时负数 fileId 用于上传进度显示
+    static int s_tempFileId = 0;
+    m_uploadingFileId = --s_tempFileId; // -1, -2, -3, ...
+
+    // 添加临时上传消息到模型（显示上传进度）
+    Message uploadMsg = Message::createFileMessage(
+        m_currentRoomId, m_username, fi.fileName(), fi.size(), m_uploadingFileId);
+    uploadMsg.setIsMine(true);
+    uploadMsg.setDownloadState(Message::Uploading);
+    uploadMsg.setDownloadProgress(0.0);
+    getOrCreateModel(m_currentRoomId)->addMessage(uploadMsg);
+    QTimer::singleShot(50, [this] { m_messageView->scrollToBottom(); });
 
     // 记录发送的文件路径
     m_pendingSentFiles[fi.fileName()] = filePath;
@@ -1004,13 +1075,21 @@ void ChatWindow::sendNextChunk() {
         Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_CHUNK, data));
 
     m_upload.offset += chunk.size();
-    int progress = static_cast<int>(m_upload.offset * 100 / m_upload.fileSize);
-    m_statusLabel->setText(QString("上传中 %1%...").arg(progress));
+    double progress = static_cast<double>(m_upload.offset) / m_upload.fileSize;
+    m_statusLabel->setText(QString("上传中 %1%...").arg(static_cast<int>(progress * 100)));
+
+    // 更新 UI 进度（如果有对应的消息）
+    if (m_uploadingFileId != 0) {
+        updateAllModelsDownloadProgress(m_uploadingFileId, Message::Uploading, progress);
+    }
 }
 
 void ChatWindow::onUploadChunkResponse(const QJsonObject &data) {
     if (!data["success"].toBool()) {
         QMessageBox::warning(this, "上传失败", data["error"].toString());
+        m_upload.uploadId.clear();
+        m_uploadingFileId = 0;
+        m_uploadingFileName.clear();
         return;
     }
 
@@ -1026,12 +1105,110 @@ void ChatWindow::onUploadChunkResponse(const QJsonObject &data) {
         NetworkManager::instance()->sendMessage(
             Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_END, endData));
         m_statusLabel->setText("文件上传完成");
+        m_upload.uploadId.clear();
+        m_uploadingFileId = 0;
+        m_uploadingFileName.clear();
+    } else if (m_uploadPaused) {
+        // 上传暂停 — 不继续发送下一块
+        m_statusLabel->setText(QString("上传已暂停 %1%")
+            .arg(static_cast<int>(m_upload.offset * 100 / m_upload.fileSize)));
     } else {
         sendNextChunk();
     }
 }
 
+void ChatWindow::pauseUpload() {
+    if (m_upload.uploadId.isEmpty()) return;
+    m_uploadPaused = true;
+    if (m_uploadingFileId != 0) {
+        double progress = static_cast<double>(m_upload.offset) / m_upload.fileSize;
+        updateAllModelsDownloadProgress(m_uploadingFileId, Message::UploadPaused, progress);
+    }
+    m_statusLabel->setText(QString("上传已暂停 %1%")
+        .arg(static_cast<int>(m_upload.offset * 100 / m_upload.fileSize)));
+}
+
+void ChatWindow::resumeUpload() {
+    if (m_upload.uploadId.isEmpty()) return;
+    m_uploadPaused = false;
+    if (m_uploadingFileId != 0) {
+        double progress = static_cast<double>(m_upload.offset) / m_upload.fileSize;
+        updateAllModelsDownloadProgress(m_uploadingFileId, Message::Uploading, progress);
+    }
+    sendNextChunk();
+}
+
+void ChatWindow::cancelUpload() {
+    if (m_upload.uploadId.isEmpty()) return;
+
+    // 通知服务器取消
+    QJsonObject data;
+    data["uploadId"] = m_upload.uploadId;
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_CANCEL, data));
+
+    // 清除本地上传状态
+    if (m_uploadingFileId != 0) {
+        updateAllModelsDownloadProgress(m_uploadingFileId, Message::NotDownloaded, 0.0);
+    }
+    m_upload.uploadId.clear();
+    m_upload.thumbnailData.clear();
+    m_uploadPaused = false;
+    m_uploadingFileId = 0;
+    m_uploadingFileName.clear();
+    m_statusLabel->setText("上传已取消");
+}
+
 // ==================== 文件下载管理 ====================
+
+void ChatWindow::pauseDownload(int fileId) {
+    if (!m_downloads.contains(fileId)) return;
+    double progress = static_cast<double>(m_downloads[fileId].offset) / m_downloads[fileId].fileSize;
+    updateAllModelsDownloadProgress(fileId, Message::Paused, progress);
+    // 对于活跃下载：标记为暂停，不再请求下一块（onDownloadChunkResponse 会检查）
+    // 对于队列中的：只需标记状态即可
+    m_statusLabel->setText("下载已暂停");
+}
+
+void ChatWindow::resumeDownload(int fileId) {
+    if (!m_downloads.contains(fileId)) return;
+    ChunkedDownload &dl = m_downloads[fileId];
+    double progress = static_cast<double>(dl.offset) / dl.fileSize;
+    updateAllModelsDownloadProgress(fileId, Message::Downloading, progress);
+
+    if (m_activeDownloadId == fileId) {
+        // 当前是活跃下载，继续请求下一块
+        QJsonObject reqData;
+        reqData["fileId"]   = fileId;
+        reqData["offset"]   = static_cast<double>(dl.offset);
+        reqData["chunkSize"] = Protocol::FILE_CHUNK_SIZE;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_REQ, reqData));
+        m_statusLabel->setText(QString("下载中 %1%...").arg(static_cast<int>(progress * 100)));
+    } else if (m_activeDownloadId == 0) {
+        // 没有活跃下载，立即启动
+        m_activeDownloadId = fileId;
+        QJsonObject reqData;
+        reqData["fileId"]   = fileId;
+        reqData["offset"]   = static_cast<double>(dl.offset);
+        reqData["chunkSize"] = Protocol::FILE_CHUNK_SIZE;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_REQ, reqData));
+        m_statusLabel->setText(QString("下载中 %1%...").arg(static_cast<int>(progress * 100)));
+    }
+    // 否则仍在队列中等待
+}
+
+void ChatWindow::cancelDownload(int fileId) {
+    updateAllModelsDownloadProgress(fileId, Message::NotDownloaded, 0.0);
+    m_downloads.remove(fileId);
+    m_downloadQueue.removeAll(fileId);
+    if (m_activeDownloadId == fileId) {
+        m_activeDownloadId = 0;
+        processNextDownload();
+    }
+    m_statusLabel->setText("下载已取消");
+}
 
 void ChatWindow::triggerFileDownload(int fileId, const QString &fileName, qint64 fileSize) {
     if (FileCache::instance()->isCached(fileId)) return;
@@ -1243,6 +1420,27 @@ void ChatWindow::onDownloadChunkResponse(const QJsonObject &data) {
     dl.offset += chunk.size();
 
     double progress = static_cast<double>(dl.offset) / dl.fileSize;
+
+    // 检查是否在追加数据期间被暂停了
+    // 用当前模型状态判断（pauseDownload 会设为 Paused）
+    bool isPaused = false;
+    for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+        int row = it.value()->findMessageByFileId(fileId);
+        if (row >= 0) {
+            const Message &msg = it.value()->messageAt(row);
+            if (msg.downloadState() == Message::Paused) {
+                isPaused = true;
+                break;
+            }
+        }
+    }
+
+    if (isPaused) {
+        // 暂停状态：数据已保存到 buffer，但不继续请求
+        updateAllModelsDownloadProgress(fileId, Message::Paused, progress);
+        return;
+    }
+
     updateAllModelsDownloadProgress(fileId, Message::Downloading, progress);
     m_statusLabel->setText(QString("下载中 %1%...").arg(static_cast<int>(progress * 100)));
 

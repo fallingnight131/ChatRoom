@@ -32,6 +32,7 @@ private:
     void drawRecalledMessage(QPainter *painter, const QStyleOptionViewItem &option,
                               const QModelIndex &index) const;
     void drawPieProgress(QPainter *painter, const QRect &rect, double progress) const;
+    void drawPauseOverlay(QPainter *painter, const QRect &rect) const;
 
     QSize textBubbleSize(const QStyleOptionViewItem &option,
                          const QModelIndex &index) const;

@@ -166,6 +166,8 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleFileUploadChunk(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::FILE_UPLOAD_END) {
         handleFileUploadEnd(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::FILE_UPLOAD_CANCEL) {
+        handleFileUploadCancel(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::FILE_DOWNLOAD_CHUNK_REQ) {
         handleFileDownloadChunk(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::RECALL_REQ) {
@@ -696,6 +698,22 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
 
     qInfo() << "[Server] 大文件上传完成:" << state.fileName << state.fileSize << "bytes";
     Q_UNUSED(session)
+}
+
+void ChatServer::handleFileUploadCancel(ClientSession *session, const QJsonObject &data) {
+    Q_UNUSED(session)
+    QString uploadId = data["uploadId"].toString();
+    if (!m_uploads.contains(uploadId)) return;
+
+    UploadState state = m_uploads.take(uploadId);
+    if (state.file) {
+        state.file->close();
+        delete state.file;
+    }
+    // 删除不完整的文件
+    if (!state.filePath.isEmpty())
+        QFile::remove(state.filePath);
+    qInfo() << "[Server] 上传已取消:" << state.fileName;
 }
 
 void ChatServer::handleFileDownloadChunk(ClientSession *session, const QJsonObject &data) {

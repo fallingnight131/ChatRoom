@@ -40,6 +40,7 @@ public:
     int findMessageRow(int messageId) const;
     int findMessageByFileId(int fileId) const;
     void updateDownloadProgress(int fileId, int state, double progress);
+    void removeMessageByFileId(int fileId);
 
 private:
     QList<Message> m_messages;
