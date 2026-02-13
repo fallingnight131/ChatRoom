@@ -433,19 +433,29 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
     QRect iconRect(bubbleX + 12, bubbleY + 15, 40, 40);
 
     if (dlState == Message::Downloading || dlState == Message::Paused) {
-        // 下载中 / 下载暂停 → 图标区域显示饼状进度
+        // 下载中 / 下载暂停 → 图标区域显示文件图标 + 饼状进度叠加
         painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(66, 133, 244, 60));
+        painter->setBrush(QColor(66, 133, 244));
         painter->drawRoundedRect(iconRect, 6, 6);
+        painter->setPen(Qt::white);
+        QFont iconFont = option.font;
+        iconFont.setPointSize(16);
+        painter->setFont(iconFont);
+        painter->drawText(iconRect, Qt::AlignCenter, QStringLiteral("\u2913")); // ⤓
         drawPieProgress(painter, iconRect, dlProgress);
         if (dlState == Message::Paused) {
             drawPauseOverlay(painter, iconRect);
         }
     } else if (dlState == Message::Uploading || dlState == Message::UploadPaused) {
-        // 上传中 / 上传暂停 → 饼状进度（橙色底）
+        // 上传中 / 上传暂停 → 文件图标 + 饼状进度叠加
         painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(255, 152, 0, 60));
+        painter->setBrush(QColor(255, 152, 0));
         painter->drawRoundedRect(iconRect, 6, 6);
+        painter->setPen(Qt::white);
+        QFont iconFont = option.font;
+        iconFont.setPointSize(16);
+        painter->setFont(iconFont);
+        painter->drawText(iconRect, Qt::AlignCenter, QStringLiteral("\u2191")); // ↑ 上传箭头
         drawPieProgress(painter, iconRect, dlProgress);
         if (dlState == Message::UploadPaused) {
             drawPauseOverlay(painter, iconRect);

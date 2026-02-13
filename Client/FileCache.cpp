@@ -190,7 +190,11 @@ void FileCache::removeFile(int fileId) {
     QMutexLocker locker(&m_mutex);
     if (m_cache.contains(fileId)) {
         QString path = m_cache[fileId];
-        QFile::remove(path);
+        QFile file(path);
+        file.setPermissions(QFile::ReadUser | QFile::WriteUser);
+        if (!file.remove()) {
+            qWarning() << "[FileCache] 无法删除缓存文件:" << path << file.errorString();
+        }
         m_cache.remove(fileId);
         saveIndex();
         qDebug() << "[FileCache] 已删除缓存:" << path;
@@ -212,12 +216,19 @@ qint64 FileCache::totalCacheSize() const {
 void FileCache::clearAllCache() {
     QMutexLocker locker(&m_mutex);
 
-    // 删除缓存目录下的所有文件
+    // 删除缓存目录下的所有文件（保留 cache_index.json）
     QDir dir(m_cacheDir);
     if (dir.exists()) {
         const QStringList files = dir.entryList(QDir::Files | QDir::NoDotAndDotDot);
         for (const QString &f : files) {
-            dir.remove(f);
+            if (f == "cache_index.json") continue;
+            QString fullPath = dir.absoluteFilePath(f);
+            // 尝试设置文件为可写后再删除
+            QFile file(fullPath);
+            file.setPermissions(QFile::ReadUser | QFile::WriteUser);
+            if (!file.remove()) {
+                qWarning() << "[FileCache] 无法删除文件:" << fullPath << file.errorString();
+            }
         }
     }
 

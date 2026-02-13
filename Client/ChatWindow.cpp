@@ -926,10 +926,16 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
 
     // 发送者自己的文件：直接从本地复制到缓存，无需下载
     if (sender == m_username && m_pendingSentFiles.contains(fileName)) {
-        // 移除临时上传消息
+        // 移除临时上传消息（大文件分块上传时存在临时消息）
         if (m_uploadingFileId != 0) {
             getOrCreateModel(roomId)->removeMessageByFileId(m_uploadingFileId);
+            // 清理临时缩略图
+            QString tempThumb = FileCache::instance()->cacheDir()
+                                + QString("/thumb_%1.jpg").arg(m_uploadingFileId);
+            QFile::remove(tempThumb);
+            QPixmapCache::remove(QString("vidthumb_%1").arg(m_uploadingFileId));
             m_uploadingFileId = 0;
+            m_uploadingFileName.clear();
         }
 
         QString localPath = m_pendingSentFiles.take(fileName);
@@ -1023,6 +1029,17 @@ void ChatWindow::startChunkedUpload(const QString &filePath) {
     static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
     if (vidExts.contains(fi.suffix().toLower())) {
         m_upload.thumbnailData = generateVideoThumbnailData(filePath);
+        // 保存缩略图到本地缓存（使用临时 fileId），以便上传期间显示缩略图背景
+        if (!m_upload.thumbnailData.isEmpty()) {
+            QString cacheDir = FileCache::instance()->cacheDir();
+            QDir(cacheDir).mkpath(".");
+            QString thumbPath = cacheDir + QString("/thumb_%1.jpg").arg(m_uploadingFileId);
+            QFile tf(thumbPath);
+            if (tf.open(QIODevice::WriteOnly)) {
+                tf.write(m_upload.thumbnailData);
+                tf.close();
+            }
+        }
     }
 
     // 发送上传开始请求
@@ -1104,10 +1121,10 @@ void ChatWindow::onUploadChunkResponse(const QJsonObject &data) {
         }
         NetworkManager::instance()->sendMessage(
             Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_END, endData));
-        m_statusLabel->setText("文件上传完成");
+        m_statusLabel->setText("文件上传完成，等待服务器确认...");
         m_upload.uploadId.clear();
-        m_uploadingFileId = 0;
-        m_uploadingFileName.clear();
+        // 注意：不清除 m_uploadingFileId 和 m_uploadingFileName
+        // 等 FILE_NOTIFY 到达时再清除并移除临时上传消息
     } else if (m_uploadPaused) {
         // 上传暂停 — 不继续发送下一块
         m_statusLabel->setText(QString("上传已暂停 %1%")
@@ -1147,9 +1164,17 @@ void ChatWindow::cancelUpload() {
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_CANCEL, data));
 
-    // 清除本地上传状态
+    // 清除本地上传状态 — 移除临时消息
     if (m_uploadingFileId != 0) {
-        updateAllModelsDownloadProgress(m_uploadingFileId, Message::NotDownloaded, 0.0);
+        // 从所有模型中移除临时上传消息
+        for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+            it.value()->removeMessageByFileId(m_uploadingFileId);
+        }
+        // 清理临时缩略图
+        QString tempThumb = FileCache::instance()->cacheDir()
+                            + QString("/thumb_%1.jpg").arg(m_uploadingFileId);
+        QFile::remove(tempThumb);
+        QPixmapCache::remove(QString("vidthumb_%1").arg(m_uploadingFileId));
     }
     m_upload.uploadId.clear();
     m_upload.thumbnailData.clear();
