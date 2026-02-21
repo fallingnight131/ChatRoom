@@ -57,3 +57,7 @@ WebClient/*.local
 # ========== 日志 ==========
 *.log
 npm-debug.log*
+
+# ========== 其他 ==========
+*.zip
+*.tar.gz

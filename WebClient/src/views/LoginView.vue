@@ -17,6 +17,12 @@
           <label>WebSocket 端口</label>
           <input class="input" v-model.number="serverPort" type="number" placeholder="9528" />
         </div>
+        <div class="input-group">
+          <label class="checkbox-label">
+            <input type="checkbox" v-model="useProxy" />
+            通过 Nginx 代理连接 (路径: /ws)
+          </label>
+        </div>
       </div>
 
       <div class="input-group">
@@ -87,6 +93,7 @@ const errorMsg = ref('')
 const showServerConfig = ref(false)
 const serverHost = ref(userStore.serverHost)
 const serverPort = ref(userStore.serverPort)
+const useProxy = ref(userStore.wsPath === '/ws')
 
 function doLogin() {
   if (!username.value || !password.value) {
@@ -95,8 +102,9 @@ function doLogin() {
   }
   errorMsg.value = ''
   loading.value = true
-  userStore.setServer(serverHost.value, serverPort.value)
-  chatWs.connect(serverHost.value, serverPort.value)
+  const path = useProxy.value ? '/ws' : ''
+  userStore.setServer(serverHost.value, serverPort.value, path)
+  chatWs.connect(serverHost.value, serverPort.value, path)
 }
 
 function doRegister() {
@@ -110,8 +118,9 @@ function doRegister() {
   }
   errorMsg.value = ''
   loading.value = true
-  userStore.setServer(serverHost.value, serverPort.value)
-  chatWs.connect(serverHost.value, serverPort.value)
+  const path = useProxy.value ? '/ws' : ''
+  userStore.setServer(serverHost.value, serverPort.value, path)
+  chatWs.connect(serverHost.value, serverPort.value, path)
 }
 
 // WebSocket 事件处理
@@ -244,6 +253,19 @@ onUnmounted(() => {
   padding: 12px;
   margin-bottom: 16px;
   background: var(--bg-primary);
+}
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
 }
 
 /* ========== 移动端适配 ========== */

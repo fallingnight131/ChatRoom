@@ -12,16 +12,19 @@ export const useUserStore = defineStore('user', {
     darkMode: localStorage.getItem('darkMode') !== 'false',
     serverHost: localStorage.getItem('serverHost') || '127.0.0.1',
     serverPort: parseInt(localStorage.getItem('serverPort') || '9528'),
+    wsPath: localStorage.getItem('wsPath') || '',
     // 缓存其他用户头像
     avatarCache: {},   // username -> base64
   }),
 
   actions: {
-    setServer(host, port) {
+    setServer(host, port, path = '') {
       this.serverHost = host
       this.serverPort = port
+      this.wsPath = path
       localStorage.setItem('serverHost', host)
       localStorage.setItem('serverPort', String(port))
+      localStorage.setItem('wsPath', path)
     },
 
     toggleDarkMode() {

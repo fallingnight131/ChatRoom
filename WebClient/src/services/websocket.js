@@ -78,8 +78,17 @@ class ChatWebSocket {
   }
 
   // 连接服务器
-  connect(host = '127.0.0.1', port = DEFAULT_PORT) {
-    this.url = `ws://${host}:${port}`
+  // host: 服务器地址, port: WebSocket端口, path: 路径(用于Nginx反向代理, 如 '/ws')
+  connect(host = '127.0.0.1', port = DEFAULT_PORT, path = '') {
+    // 自动检测协议 (https -> wss, http -> ws)
+    const protocol = (typeof location !== 'undefined' && location.protocol === 'https:') ? 'wss' : 'ws'
+    if (path) {
+      // 通过 Nginx 反向代理 (path 模式, 如 ws://host/ws)
+      this.url = `${protocol}://${host}${port && port !== 80 && port !== 443 ? ':' + port : ''}${path}`
+    } else {
+      // 直连 WebSocket 端口
+      this.url = `${protocol}://${host}:${port}`
+    }
     this.autoReconnect = true
     this.reconnectCount = 0
     this._doConnect()
