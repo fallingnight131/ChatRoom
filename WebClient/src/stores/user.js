@@ -10,9 +10,9 @@ export const useUserStore = defineStore('user', {
     displayName: '',   // 昵称
     avatarData: '',    // base64
     darkMode: localStorage.getItem('darkMode') !== 'false',
-    serverHost: localStorage.getItem('serverHost') || '127.0.0.1',
-    serverPort: parseInt(localStorage.getItem('serverPort') || '9528'),
-    wsPath: localStorage.getItem('wsPath') || '',
+    serverHost: localStorage.getItem('serverHost') || 'fallingnight.cn',
+    serverPort: parseInt(localStorage.getItem('serverPort') || '443'),
+    wsPath: localStorage.getItem('wsPath') || '/ws',
     // 缓存其他用户头像
     avatarCache: {},   // username -> base64
   }),

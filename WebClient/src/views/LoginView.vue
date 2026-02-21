@@ -11,11 +11,11 @@
       <div class="server-config" v-if="showServerConfig">
         <div class="input-group">
           <label>服务器地址</label>
-          <input class="input" v-model="serverHost" placeholder="127.0.0.1" />
+          <input class="input" v-model="serverHost" placeholder="fallingnight.cn" />
         </div>
         <div class="input-group">
           <label>WebSocket 端口</label>
-          <input class="input" v-model.number="serverPort" type="number" placeholder="9528" />
+          <input class="input" v-model.number="serverPort" type="number" placeholder="443" />
         </div>
         <div class="input-group">
           <label class="checkbox-label">
