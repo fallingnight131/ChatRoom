@@ -18,6 +18,7 @@ public:
     // 用户管理
     int  registerUser(const QString &uniqueId, const QString &displayName, const QString &password);
     int  authenticateUser(const QString &uniqueId, const QString &password);
+    bool changePassword(int userId, const QString &oldPassword, const QString &newPassword);
     QString getDisplayName(int userId);
     QString getDisplayNameByUid(const QString &uniqueId);
     bool setDisplayName(int userId, const QString &newDisplayName);

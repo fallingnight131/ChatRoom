@@ -258,6 +258,31 @@ int DatabaseManager::authenticateUser(const QString &username, const QString &pa
     return -1;
 }
 
+bool DatabaseManager::changePassword(int userId, const QString &oldPassword, const QString &newPassword) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    // 验证旧密码
+    q.prepare("SELECT password_hash, salt FROM users WHERE id = ?");
+    q.addBindValue(userId);
+    q.exec();
+    if (!q.next()) return false;
+
+    QString oldHash = q.value(0).toString();
+    QString oldSalt = q.value(1).toString();
+    if (hashPassword(oldPassword, oldSalt) != oldHash) return false;
+
+    // 生成新盐值和哈希
+    QString newSalt = generateSalt();
+    QString newHash = hashPassword(newPassword, newSalt);
+
+    q.prepare("UPDATE users SET password_hash = ?, salt = ? WHERE id = ?");
+    q.addBindValue(newHash);
+    q.addBindValue(newSalt);
+    q.addBindValue(userId);
+    return q.exec();
+}
+
 QString DatabaseManager::getDisplayName(int userId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);

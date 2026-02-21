@@ -200,6 +200,8 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleChangeNickname(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::CHANGE_UID_REQ) {
         handleChangeUid(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::CHANGE_PASSWORD_REQ) {
+        handleChangePassword(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::HEARTBEAT) {
         session->sendMessage(Protocol::makeHeartbeatAck());
     }
@@ -1511,6 +1513,28 @@ void ChatServer::handleChangeUid(ClientSession *session, const QJsonObject &data
     }
 
     qInfo() << "[Server] 用户ID已修改:" << oldUid << "->" << newUid;
+}
+
+void ChatServer::handleChangePassword(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    QString oldPassword = data["oldPassword"].toString();
+    QString newPassword = data["newPassword"].toString();
+    QJsonObject rspData;
+
+    if (newPassword.length() < 4) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("新密码至少4个字符");
+    } else {
+        bool ok = m_db->changePassword(session->userId(), oldPassword, newPassword);
+        if (ok) {
+            rspData["success"] = true;
+        } else {
+            rspData["success"] = false;
+            rspData["error"]   = QStringLiteral("旧密码不正确");
+        }
+    }
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::CHANGE_PASSWORD_RSP, rspData));
 }
 
 void ChatServer::broadcastToRoom(int roomId, const QJsonObject &msg, ClientSession *exclude) {

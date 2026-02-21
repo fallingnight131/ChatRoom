@@ -367,4 +367,8 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                               data["newUid"].toString(),
                               data["displayName"].toString());
     }
+    else if (type == Protocol::MsgType::CHANGE_PASSWORD_RSP) {
+        emit changePasswordResponse(data["success"].toBool(),
+                                     data["error"].toString());
+    }
 }

@@ -7,6 +7,8 @@
 #include "TrayManager.h"
 #include "FileCache.h"
 #include "AvatarCropDialog.h"
+#include "RoomSettingsDialog.h"
+#include "ProfileDialog.h"
 #include "Protocol.h"
 #include "Message.h"
 
@@ -87,6 +89,7 @@ void ChatWindow::setCurrentUser(int userId, const QString &username, const QStri
     m_username = username;
     m_displayName = displayName;
     setWindowTitle(QString("Qt聊天室 - %1").arg(displayName));
+    m_nicknameLabel->setText(displayName);
 
     // 设置用户缓存目录（以用户uniqueId隔离）
     FileCache::instance()->setUsername(username);
@@ -151,11 +154,11 @@ void ChatWindow::setupUi() {
     m_avatarPreview->setAlignment(Qt::AlignCenter);
     m_avatarPreview->setText("头像");
 
-    m_avatarBtn = new QPushButton("更换头像");
-    m_avatarBtn->setFixedHeight(28);
-    m_avatarBtn->setToolTip("点击更换头像");
+    m_nicknameLabel = new QLabel;
+    m_nicknameLabel->setStyleSheet("font-weight: bold; font-size: 13px; padding-left: 6px;");
+    m_nicknameLabel->setWordWrap(true);
     avatarLayout->addWidget(m_avatarPreview);
-    avatarLayout->addWidget(m_avatarBtn, 1);
+    avatarLayout->addWidget(m_nicknameLabel, 1);
     leftLayout->addLayout(avatarLayout);
 
     auto *roomLabel = new QLabel("聊天室");
@@ -184,7 +187,19 @@ void ChatWindow::setupUi() {
 
     m_roomTitle = new QLabel("请选择一个聊天室");
     m_roomTitle->setStyleSheet("font-weight: bold; font-size: 16px; padding: 8px;");
-    centerLayout->addWidget(m_roomTitle);
+
+    m_roomSettingsBtn = new QPushButton("···");
+    m_roomSettingsBtn->setFixedSize(32, 32);
+    m_roomSettingsBtn->setToolTip("聊天室设置");
+    m_roomSettingsBtn->setStyleSheet("QPushButton { border: none; font-size: 18px; font-weight: bold; }"
+                                      "QPushButton:hover { background-color: rgba(0,0,0,0.1); border-radius: 4px; }");
+    m_roomSettingsBtn->setVisible(false); // 未选择房间时隐藏
+
+    auto *titleLayout = new QHBoxLayout;
+    titleLayout->setContentsMargins(0, 0, 0, 0);
+    titleLayout->addWidget(m_roomTitle, 1);
+    titleLayout->addWidget(m_roomSettingsBtn);
+    centerLayout->addLayout(titleLayout);
 
     m_messageView = new QListView;
     m_messageView->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
@@ -299,8 +314,7 @@ void ChatWindow::setupMenuBar() {
     viewMenu->addAction("切换主题(&T)", this, &ChatWindow::onToggleTheme, QKeySequence("Ctrl+T"));
 
     auto *settingsMenu = menuBar()->addMenu("设置(&S)");
-    settingsMenu->addAction("修改昵称(&N)...", this, &ChatWindow::onChangeNickname);
-    settingsMenu->addAction("修改用户ID(&I)...", this, &ChatWindow::onChangeUid);
+    settingsMenu->addAction("修改个人信息(&P)...", this, &ChatWindow::showProfileDialog);
     settingsMenu->addSeparator();
     settingsMenu->addAction("缓存路径(&C)...", this, &ChatWindow::onChangeCacheDir);
     settingsMenu->addAction("清除缓存(&X)...", this, &ChatWindow::onClearCache);
@@ -366,7 +380,9 @@ void ChatWindow::connectSignals() {
     connect(m_emojiBtn,    &QPushButton::clicked, this, &ChatWindow::onShowEmojiPicker);
     connect(m_imageBtn,    &QPushButton::clicked, this, &ChatWindow::onSendImage);
     connect(m_fileBtn,     &QPushButton::clicked, this, &ChatWindow::onSendFile);
-    connect(m_avatarBtn,   &QPushButton::clicked, this, &ChatWindow::onChangeAvatar);
+    connect(m_roomSettingsBtn, &QPushButton::clicked, this, [this] {
+        if (m_currentRoomId > 0) showRoomSettingsDialog(m_currentRoomId);
+    });
     connect(m_roomList,    &QListWidget::itemClicked, this, &ChatWindow::onRoomSelected);
     connect(m_roomList,    &QListWidget::customContextMenuRequested, this, &ChatWindow::onRoomContextMenu);
     connect(m_emojiPicker, &EmojiPicker::emojiSelected, this, &ChatWindow::onEmojiSelected);
@@ -580,6 +596,7 @@ void ChatWindow::switchRoom(int roomId) {
             break;
         }
     }
+    m_roomSettingsBtn->setVisible(true);
 
     // 请求用户列表和历史消息
     QJsonObject userData;
@@ -1671,91 +1688,9 @@ void ChatWindow::onRoomContextMenu(const QPoint &pos) {
 
     QMenu menu(this);
 
-    // 查看聊天室ID
-    menu.addAction(QStringLiteral("查看聊天室ID"), [this, roomId] {
-        QMessageBox::information(this, "聊天室ID", QString("聊天室ID: %1").arg(roomId));
+    menu.addAction(QStringLiteral("聊天室设置"), [this, roomId] {
+        showRoomSettingsDialog(roomId);
     });
-
-    // 所有用户可以退出聊天室
-    menu.addAction(QStringLiteral("退出聊天室"), [this, roomId] {
-        leaveRoom(roomId);
-    });
-
-    // 管理员操作
-    if (m_adminRooms.value(roomId, false)) {
-        menu.addSeparator();
-
-        // 获取房间名称
-        QString roomName;
-        for (int i = 0; i < m_roomList->count(); ++i) {
-            if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
-                roomName = m_roomList->item(i)->text();
-                break;
-            }
-        }
-
-        menu.addAction(QStringLiteral("修改聊天室名称..."), [this, roomId, roomName] {
-            bool ok;
-            QString newName = QInputDialog::getText(this, "修改聊天室名称",
-                "请输入新的聊天室名称:", QLineEdit::Normal, roomName, &ok);
-            if (!ok || newName.trimmed().isEmpty()) return;
-            QJsonObject data;
-            data["roomId"] = roomId;
-            data["newName"] = newName.trimmed();
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeMessage(Protocol::MsgType::RENAME_ROOM_REQ, data));
-        });
-
-        menu.addAction(QStringLiteral("修改文件大小上限..."), [this, roomId] {
-            double currentMB = m_roomMaxFileSize.value(roomId, 4LL * 1024 * 1024 * 1024) / (1024.0 * 1024.0);
-            bool ok;
-            double sizeMB = QInputDialog::getDouble(this, "设置文件大小上限",
-                "请输入允许的最大文件大小（MB，0表示无限制）:",
-                currentMB, 0.0, 4096.0, 0, &ok);
-            if (!ok) return;
-            qint64 sizeBytes = static_cast<qint64>(sizeMB * 1024 * 1024);
-            QJsonObject data;
-            data["roomId"] = roomId;
-            data["maxFileSize"] = static_cast<double>(sizeBytes);
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
-        });
-
-        menu.addAction(QStringLiteral("设置/修改密码..."), [this, roomId] {
-            bool ok;
-            QString password = QInputDialog::getText(this, "设置聊天室密码",
-                "请输入聊天室密码（留空表示取消密码）:", QLineEdit::Normal, "", &ok);
-            if (!ok) return;
-            QJsonObject data;
-            data["roomId"] = roomId;
-            data["password"] = password;
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeMessage(Protocol::MsgType::SET_ROOM_PASSWORD_REQ, data));
-        });
-
-        menu.addAction(QStringLiteral("查看当前密码"), [this, roomId] {
-            QJsonObject data;
-            data["roomId"] = roomId;
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeMessage(Protocol::MsgType::GET_ROOM_PASSWORD_REQ, data));
-        });
-
-        menu.addSeparator();
-
-        menu.addAction(QStringLiteral("删除聊天室"), [this, roomId, roomName] {
-            QString input = QInputDialog::getText(this, "确认删除",
-                QString("此操作不可恢复！\n请输入聊天室名称 \"%1\" 确认删除:").arg(roomName));
-            if (input.trimmed() != roomName) {
-                if (!input.isEmpty())
-                    QMessageBox::warning(this, "删除失败", "输入的名称不匹配，删除已取消");
-                return;
-            }
-            QJsonObject data;
-            data["roomId"] = roomId;
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeMessage(Protocol::MsgType::DELETE_ROOM_REQ, data));
-        });
-    }
 
     menu.exec(m_roomList->viewport()->mapToGlobal(pos));
 }
@@ -2194,6 +2129,7 @@ void ChatWindow::cacheAvatar(const QString &username, const QByteArray &data) {
         painter.drawPixmap(0, 0, scaled);
         painter.end();
         m_avatarPreview->setPixmap(circle);
+        if (m_profileDialog) m_profileDialog->updateAvatar(px);
     }
 
     // 刷新消息列表以显示新头像
@@ -2380,30 +2316,15 @@ void ChatWindow::onKickedFromRoom(int roomId, const QString &roomName, const QSt
 
 // ==================== 修改昵称 ====================
 
-void ChatWindow::onChangeNickname() {
-    bool ok;
-    QString newName = QInputDialog::getText(this, "修改昵称",
-        QString("当前昵称: %1\n\n请输入新昵称 (1-20个字符):").arg(m_displayName),
-        QLineEdit::Normal, m_displayName, &ok);
-    if (!ok || newName.trimmed().isEmpty()) return;
-    newName = newName.trimmed();
-    if (newName.length() > 20) {
-        QMessageBox::warning(this, "错误", "昵称不能超过20个字符");
-        return;
-    }
-    if (newName == m_displayName) return;
-
-    QJsonObject data;
-    data["displayName"] = newName;
-    NetworkManager::instance()->sendMessage(
-        Protocol::makeMessage(Protocol::MsgType::CHANGE_NICKNAME_REQ, data));
-}
+// ==================== 修改昵称 ====================
 
 void ChatWindow::onChangeNicknameResponse(bool success, const QString &newDisplayName, const QString &error) {
     if (success) {
         m_displayName = newDisplayName;
         setWindowTitle(QString("Qt聊天室 - %1").arg(m_displayName));
+        m_nicknameLabel->setText(m_displayName);
         m_statusLabel->setText(QString("昵称已修改为: %1").arg(m_displayName));
+        if (m_profileDialog) m_profileDialog->updateDisplayName(m_displayName);
     } else {
         QMessageBox::warning(this, "修改昵称失败", error);
     }
@@ -2425,27 +2346,6 @@ void ChatWindow::onNicknameChangeNotify(int roomId, const QString &username, con
 }
 
 // ==================== 修改用户ID ====================
-
-void ChatWindow::onChangeUid() {
-    bool ok;
-    QString newUid = QInputDialog::getText(this, "修改用户ID",
-        QString("当前用户ID: %1\n\n请输入新的用户ID (6-20位字母/数字/下划线):\n注意：每月只能修改一次").arg(m_username),
-        QLineEdit::Normal, m_username, &ok);
-    if (!ok || newUid.trimmed().isEmpty()) return;
-    newUid = newUid.trimmed();
-
-    QRegularExpression idRegex("^[a-zA-Z0-9_]{6,20}$");
-    if (!idRegex.match(newUid).hasMatch()) {
-        QMessageBox::warning(this, "错误", "用户ID必须为6-20位字母/数字/下划线");
-        return;
-    }
-    if (newUid == m_username) return;
-
-    QJsonObject data;
-    data["newUid"] = newUid;
-    NetworkManager::instance()->sendMessage(
-        Protocol::makeMessage(Protocol::MsgType::CHANGE_UID_REQ, data));
-}
 
 void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const QString &newUid, const QString &error) {
     if (success) {
@@ -2470,6 +2370,7 @@ void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const 
             NetworkManager::instance()->currentUserId(), newUid);
 
         m_statusLabel->setText(QString("用户ID已修改为: %1").arg(newUid));
+        if (m_profileDialog) m_profileDialog->updateUid(newUid);
         QMessageBox::information(this, "修改成功",
             QString("用户ID已从 %1 修改为 %2").arg(oldUid, newUid));
     } else {
@@ -2496,6 +2397,58 @@ void ChatWindow::onUidChangeNotify(int roomId, const QString &oldUid, const QStr
     for (auto it = m_models.begin(); it != m_models.end(); ++it) {
         it.value()->updateSenderUid(oldUid, newUid);
     }
+}
+
+// ==================== 聊天室设置对话框 ====================
+
+void ChatWindow::showRoomSettingsDialog(int roomId) {
+    // 获取房间名称
+    QString roomName;
+    for (int i = 0; i < m_roomList->count(); ++i) {
+        if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
+            roomName = m_roomList->item(i)->text();
+            break;
+        }
+    }
+
+    bool isAdmin = m_adminRooms.value(roomId, false);
+    qint64 maxFileSize = m_roomMaxFileSize.value(roomId, 4LL * 1024 * 1024 * 1024);
+
+    auto *dlg = new RoomSettingsDialog(roomId, roomName, isAdmin, maxFileSize, this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+
+    connect(dlg, &RoomSettingsDialog::leaveRoomRequested, this, [this](int rid) {
+        NetworkManager::instance()->sendMessage(Protocol::makeLeaveRoom(rid));
+    });
+    connect(dlg, &RoomSettingsDialog::deleteRoomRequested, this, [this](int rid, const QString &) {
+        QJsonObject data;
+        data["roomId"] = rid;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::DELETE_ROOM_REQ, data));
+    });
+
+    dlg->open();
+}
+
+// ==================== 个人信息对话框 ====================
+
+void ChatWindow::showProfileDialog() {
+    if (m_profileDialog) {
+        m_profileDialog->raise();
+        m_profileDialog->activateWindow();
+        return;
+    }
+
+    QPixmap avatar = s_avatarCache.value(m_username);
+    m_profileDialog = new ProfileDialog(m_userId, m_username, m_displayName, avatar, this);
+    m_profileDialog->setAttribute(Qt::WA_DeleteOnClose);
+
+    connect(m_profileDialog, &ProfileDialog::changeAvatarRequested, this, &ChatWindow::onChangeAvatar);
+    connect(m_profileDialog, &QObject::destroyed, this, [this] {
+        m_profileDialog = nullptr;
+    });
+
+    m_profileDialog->show();
 }
 
 // ==================== 注销 ====================

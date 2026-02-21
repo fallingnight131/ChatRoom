@@ -22,6 +22,7 @@ class MessageDelegate;
 class EmojiPicker;
 class ThemeManager;
 class TrayManager;
+class ProfileDialog;
 
 /// 主聊天窗口 —— MVC 架构的 View/Controller 层
 class ChatWindow : public QMainWindow {
@@ -141,14 +142,16 @@ private slots:
     void onKickedFromRoom(int roomId, const QString &roomName, const QString &operatorName);
 
     // 昵称修改
-    void onChangeNickname();
     void onChangeNicknameResponse(bool success, const QString &newDisplayName, const QString &error);
     void onNicknameChangeNotify(int roomId, const QString &username, const QString &newDisplayName);
 
     // 用户ID修改
-    void onChangeUid();
     void onChangeUidResponse(bool success, const QString &oldUid, const QString &newUid, const QString &error);
     void onUidChangeNotify(int roomId, const QString &oldUid, const QString &newUid, const QString &displayName);
+
+    // 个人信息 / 聊天室设置
+    void showProfileDialog();
+    void showRoomSettingsDialog(int roomId);
 
 
 private:
@@ -193,6 +196,9 @@ private:
     QPushButton  *m_avatarBtn      = nullptr;
     QLabel       *m_statusLabel    = nullptr;
     QLabel       *m_roomTitle      = nullptr;
+    QLabel       *m_nicknameLabel  = nullptr;
+    QPushButton  *m_roomSettingsBtn = nullptr;
+    ProfileDialog *m_profileDialog = nullptr;
     QLabel       *m_avatarPreview  = nullptr;
     EmojiPicker  *m_emojiPicker    = nullptr;
     TrayManager  *m_trayManager    = nullptr;

@@ -71,6 +71,7 @@ private:
     void handleFileUploadCancel(ClientSession *session, const QJsonObject &data);
     void handleChangeNickname(ClientSession *session, const QJsonObject &data);
     void handleChangeUid(ClientSession *session, const QJsonObject &data);
+    void handleChangePassword(ClientSession *session, const QJsonObject &data);
 
     /// 根据文件名返回类型子目录 ("Image", "Video", "File")
     static QString fileTypeSubDir(const QString &fileName);

@@ -17,7 +17,9 @@ SOURCES += \
     ThemeManager.cpp \
     TrayManager.cpp \
     FileCache.cpp \
-    AvatarCropDialog.cpp
+    AvatarCropDialog.cpp \
+    RoomSettingsDialog.cpp \
+    ProfileDialog.cpp
 
 HEADERS += \
     NetworkManager.h \
@@ -29,7 +31,9 @@ HEADERS += \
     ThemeManager.h \
     TrayManager.h \
     FileCache.h \
-    AvatarCropDialog.h
+    AvatarCropDialog.h \
+    RoomSettingsDialog.h \
+    ProfileDialog.h
 
 RESOURCES += \
     resources/resources.qrc

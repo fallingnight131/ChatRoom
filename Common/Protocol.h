@@ -134,6 +134,10 @@ namespace MsgType {
     inline const QString CHANGE_UID_REQ         = QStringLiteral("CHANGE_UID_REQ");
     inline const QString CHANGE_UID_RSP         = QStringLiteral("CHANGE_UID_RSP");
     inline const QString UID_CHANGE_NOTIFY      = QStringLiteral("UID_CHANGE_NOTIFY");
+
+    // 修改密码
+    inline const QString CHANGE_PASSWORD_REQ    = QStringLiteral("CHANGE_PASSWORD_REQ");
+    inline const QString CHANGE_PASSWORD_RSP    = QStringLiteral("CHANGE_PASSWORD_RSP");
 }
 
 // ==================== 数据包帧: [4字节长度][JSON数据] ====================

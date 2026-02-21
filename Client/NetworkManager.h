@@ -104,6 +104,9 @@ signals:
     void changeUidResponse(bool success, const QString &oldUid, const QString &newUid, const QString &error);
     void uidChangeNotify(int roomId, const QString &oldUid, const QString &newUid, const QString &displayName);
 
+    // 修改密码
+    void changePasswordResponse(bool success, const QString &error);
+
 private slots:
     void onConnected();
     void onDisconnected();
