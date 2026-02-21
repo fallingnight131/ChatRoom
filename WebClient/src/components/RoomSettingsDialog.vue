@@ -238,4 +238,33 @@ onUnmounted(() => {
   padding: 6px 10px;
   border-radius: 4px;
 }
+
+/* ========== 移动端适配 ========== */
+@media (max-width: 768px) {
+  .inline-edit {
+    flex-direction: column;
+  }
+  .inline-edit .btn {
+    width: 100%;
+  }
+  .member-actions {
+    flex-direction: column;
+  }
+  .member-actions select {
+    width: 100%;
+  }
+  .member-actions .btn {
+    width: 100%;
+  }
+  .setting-section {
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+  }
+  .danger-zone {
+    padding: 10px;
+  }
+  .danger-zone .btn {
+    width: 100%;
+  }
+}
 </style>

@@ -1,7 +1,10 @@
 <template>
   <div class="chat-page">
+    <!-- 移动端遮罩层 -->
+    <div class="panel-overlay" v-if="mobilePanel" @click="mobilePanel = ''"></div>
+
     <!-- 左侧面板：个人信息 + 房间列表 -->
-    <div class="left-panel">
+    <div class="left-panel" :class="{ 'panel-open': mobilePanel === 'left' }">
       <div class="user-header" @click="showProfile = true">
         <img v-if="userStore.avatarData" :src="'data:image/png;base64,' + userStore.avatarData"
              class="avatar" />
@@ -17,15 +20,17 @@
           {{ userStore.darkMode ? '☀️' : '🌙' }}
         </button>
       </div>
-      <RoomList />
+      <RoomList @room-selected="onRoomSelected" />
     </div>
 
     <!-- 中间面板：消息区域 -->
     <div class="center-panel" v-if="chatStore.currentRoomId">
       <!-- 房间标题栏 -->
       <div class="room-header">
+        <button class="btn-icon mobile-menu-btn" @click="mobilePanel = 'left'" title="房间列表">☰</button>
         <div class="room-title text-ellipsis">{{ chatStore.currentRoomName }}</div>
         <div class="room-actions">
+          <button class="btn-icon mobile-members-btn" @click="mobilePanel = 'right'" title="成员列表">👥</button>
           <button class="btn-icon" @click="showRoomSettings = true" title="房间设置">⋯</button>
         </div>
       </div>
@@ -35,12 +40,17 @@
       <InputArea />
     </div>
     <div class="center-panel empty-state" v-else>
+      <button class="btn-icon mobile-menu-btn empty-menu-btn" @click="mobilePanel = 'left'" title="房间列表">☰</button>
       <div class="empty-icon">💬</div>
       <p>选择一个房间开始聊天</p>
     </div>
 
     <!-- 右侧面板：成员列表 -->
-    <div class="right-panel" v-if="chatStore.currentRoomId">
+    <div class="right-panel" :class="{ 'panel-open': mobilePanel === 'right' }" v-if="chatStore.currentRoomId">
+      <div class="right-panel-header">
+        <button class="btn-icon mobile-back-btn" @click="mobilePanel = ''" title="关闭">✕</button>
+        <span>成员列表</span>
+      </div>
       <UserList />
     </div>
 
@@ -78,6 +88,18 @@ const showUserInfo = ref(false)
 const selectedUser = ref(null)
 const showPasswordPrompt = ref(false)
 const passwordRoomData = ref(null)
+const mobilePanel = ref('')
+
+function isMobile() {
+  return window.innerWidth <= 768
+}
+
+function onRoomSelected() {
+  // 移动端选择房间后关闭左侧面板
+  if (isMobile()) {
+    mobilePanel.value = ''
+  }
+}
 
 function hashColor(str) {
   let hash = 0
@@ -139,6 +161,13 @@ function onDisconnected() {
   height: 100%;
   display: flex;
   background: var(--bg-primary);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 遮罩层（移动端面板展开时） */
+.panel-overlay {
+  display: none;
 }
 
 /* 左侧面板 */
@@ -198,21 +227,39 @@ function onDisconnected() {
   padding: 12px 20px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
+  gap: 8px;
 }
 .room-title {
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
+}
+
+.room-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .empty-state {
   align-items: center;
   justify-content: center;
   color: var(--text-tertiary);
+  position: relative;
 }
 .empty-icon {
   font-size: 64px;
   margin-bottom: 16px;
+}
+
+/* 移动端菜单/成员按钮，桌面端隐藏 */
+.mobile-menu-btn,
+.mobile-members-btn,
+.mobile-back-btn,
+.empty-menu-btn {
+  display: none;
 }
 
 /* 右侧面板 */
@@ -221,5 +268,138 @@ function onDisconnected() {
   min-width: 220px;
   background: var(--bg-secondary);
   border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.right-panel-header {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ========== 平板适配 (769px - 1024px) ========== */
+@media (max-width: 1024px) {
+  .left-panel {
+    width: 240px;
+    min-width: 240px;
+  }
+  .right-panel {
+    width: 200px;
+    min-width: 200px;
+  }
+}
+
+/* ========== 手机适配 (≤768px) ========== */
+@media (max-width: 768px) {
+  .chat-page {
+    position: relative;
+  }
+
+  /* 遮罩层 */
+  .panel-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 500;
+    animation: fadeIn 0.2s;
+  }
+
+  /* 左侧面板 - 抽屉式 */
+  .left-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 85vw;
+    max-width: 320px;
+    min-width: unset;
+    z-index: 600;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+  }
+  .left-panel.panel-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.2);
+  }
+
+  /* 右侧面板 - 抽屉式 */
+  .right-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 85vw;
+    max-width: 320px;
+    min-width: unset;
+    z-index: 600;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+  }
+  .right-panel.panel-open {
+    transform: translateX(0);
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .right-panel-header {
+    display: flex;
+  }
+
+  /* 中间面板全宽 */
+  .center-panel {
+    width: 100%;
+  }
+
+  /* 显示移动端专属按钮 */
+  .mobile-menu-btn,
+  .mobile-members-btn {
+    display: inline-flex;
+  }
+  .empty-menu-btn {
+    display: inline-flex;
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    font-size: 24px;
+  }
+  .mobile-back-btn {
+    display: inline-flex;
+  }
+
+  /* 头部调整 */
+  .room-header {
+    padding: 10px 12px;
+  }
+  .room-title {
+    font-size: 15px;
+  }
+
+  /* 用户头部 */
+  .user-header {
+    padding: 14px 12px;
+    /* 安全区适配 */
+    padding-top: max(14px, env(safe-area-inset-top));
+  }
+}
+
+/* ========== 小屏手机 (≤480px) ========== */
+@media (max-width: 480px) {
+  .left-panel {
+    width: 90vw;
+  }
+  .right-panel {
+    width: 90vw;
+  }
+  .empty-icon {
+    font-size: 48px;
+  }
 }
 </style>

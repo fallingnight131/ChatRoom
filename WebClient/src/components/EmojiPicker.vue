@@ -74,4 +74,45 @@ const emojis = [
   background: var(--bg-hover);
   transform: scale(1.2);
 }
+
+/* 移动端：底部弹出全宽 */
+@media (max-width: 768px) {
+  .emoji-picker {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    max-height: 50vh;
+    overflow-y: auto;
+    border-radius: 16px 16px 0 0;
+    padding: 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    margin-bottom: 0;
+    animation: slideUp 0.25s;
+    z-index: 200;
+  }
+  .emoji-grid {
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+  }
+  .emoji-item {
+    width: auto;
+    height: 40px;
+    font-size: 24px;
+  }
+  .emoji-item:hover {
+    transform: none;
+  }
+  .emoji-item:active {
+    background: var(--bg-hover);
+    transform: scale(1.15);
+  }
+}
+
+@media (max-width: 480px) {
+  .emoji-grid {
+    grid-template-columns: repeat(7, 1fr);
+  }
+}
 </style>

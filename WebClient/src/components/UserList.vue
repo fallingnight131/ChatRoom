@@ -151,4 +151,17 @@ function getAvatarSrc(username) {
   margin-left: 4px;
   font-weight: 600;
 }
+
+/* ========== 移动端适配 ========== */
+@media (max-width: 768px) {
+  .user-item {
+    padding: 10px 12px;
+  }
+  .user-item-name {
+    font-size: 14px;
+  }
+  .user-item-id {
+    font-size: 12px;
+  }
+}
 </style>

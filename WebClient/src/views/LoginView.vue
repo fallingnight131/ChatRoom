@@ -245,4 +245,55 @@ onUnmounted(() => {
   margin-bottom: 16px;
   background: var(--bg-primary);
 }
+
+/* ========== 移动端适配 ========== */
+@media (max-width: 768px) {
+  .login-card {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 0;
+    padding: 32px 20px;
+    box-shadow: none;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .login-page {
+    align-items: stretch;
+  }
+  .login-header {
+    margin-bottom: 24px;
+  }
+  .login-header h1 {
+    font-size: 22px;
+  }
+  .login-btn {
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 10px;
+  }
+  .login-footer {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .switch-link, .config-link {
+    font-size: 15px;
+    padding: 4px;
+  }
+  .theme-toggle {
+    top: max(12px, env(safe-area-inset-top));
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 24px 16px;
+  }
+  .login-logo {
+    font-size: 40px;
+  }
+}
 </style>

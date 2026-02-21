@@ -207,4 +207,24 @@ function doLogout() {
   color: var(--text-primary);
   margin-bottom: 8px;
 }
+
+/* ========== 移动端适配 ========== */
+@media (max-width: 768px) {
+  .inline-edit {
+    flex-direction: column;
+  }
+  .inline-edit .btn {
+    width: 100%;
+  }
+  .password-section {
+    padding: 10px;
+  }
+  .profile-avatar-section {
+    margin-bottom: 16px;
+  }
+  .avatar-xl {
+    width: 80px;
+    height: 80px;
+  }
+}
 </style>

@@ -147,4 +147,36 @@ function uploadPercent(u) {
   min-width: 30px;
   text-align: right;
 }
+
+/* ========== 移动端适配 ========== */
+@media (max-width: 768px) {
+  .input-area {
+    padding: 6px 10px 10px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+  .input-row {
+    gap: 6px;
+  }
+  .chat-input {
+    font-size: 16px; /* 防止iOS缩放 */
+    border-radius: 20px;
+    padding: 8px 14px;
+    min-height: 40px;
+  }
+  .send-btn {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 20px;
+    font-size: 15px;
+  }
+  .input-toolbar {
+    gap: 2px;
+  }
+  .upload-status {
+    margin-left: 4px;
+  }
+  .upload-item {
+    font-size: 11px;
+  }
+}
 </style>

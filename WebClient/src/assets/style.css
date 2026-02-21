@@ -375,3 +375,110 @@ body {
 .mt-16 { margin-top: 16px; }
 .mb-8 { margin-bottom: 8px; }
 .mb-16 { margin-bottom: 16px; }
+
+/* ========== 移动端适配 ========== */
+
+/* 平板 (≤1024px) */
+@media (max-width: 1024px) {
+  .btn {
+    padding: 8px 16px;
+    min-height: 36px;
+  }
+  .btn-icon {
+    min-width: 36px;
+    min-height: 36px;
+    font-size: 18px;
+  }
+}
+
+/* 手机 (≤768px) */
+@media (max-width: 768px) {
+  /* 触控友好的按钮尺寸 */
+  .btn {
+    padding: 10px 16px;
+    min-height: 40px;
+    font-size: 15px;
+  }
+  .btn-icon {
+    min-width: 40px;
+    min-height: 40px;
+    font-size: 20px;
+  }
+  .input {
+    padding: 10px 12px;
+    font-size: 16px; /* 防止iOS自动缩放 */
+    min-height: 40px;
+  }
+  .input-group label {
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+
+  /* 模态框移动端全屏化 */
+  .modal-overlay {
+    align-items: flex-end;
+  }
+  .modal {
+    min-width: unset !important;
+    max-width: 100% !important;
+    width: 100%;
+    max-height: 90vh;
+    border-radius: 16px 16px 0 0;
+    padding: 20px 16px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    animation: slideUp 0.3s;
+  }
+  .modal-title {
+    font-size: 17px;
+  }
+  .modal-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+  .modal-actions .btn {
+    width: 100%;
+  }
+
+  /* 头像尺寸微调 */
+  .avatar {
+    width: 36px;
+    height: 36px;
+  }
+  .avatar-sm {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* 右键菜单适配 */
+  .context-menu {
+    min-width: 150px;
+  }
+  .context-menu-item {
+    padding: 12px 16px;
+    font-size: 15px;
+  }
+
+  /* 滚动条在移动端隐藏 */
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
+/* 小屏手机 (≤480px) */
+@media (max-width: 480px) {
+  .modal {
+    max-height: 95vh;
+    padding: 16px 12px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
+/* 安全区域适配 (iPhone刘海/底部) */
+@supports (padding: env(safe-area-inset-bottom)) {
+  @media (max-width: 768px) {
+    body {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+  }
+}

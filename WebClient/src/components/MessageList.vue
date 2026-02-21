@@ -30,7 +30,10 @@
 
           <!-- 消息气泡 -->
           <div class="msg-bubble" :class="{ 'bubble-mine': isMine(msg) }"
-               @contextmenu.prevent="onContextMenu($event, msg)">
+               @contextmenu.prevent="onContextMenu($event, msg)"
+               @touchstart="onTouchStart($event, msg)"
+               @touchend="onTouchEnd"
+               @touchmove="onTouchMove">
             <!-- 文本 -->
             <template v-if="msg.contentType === 'text'">
               <span class="msg-text">{{ msg.content }}</span>
@@ -192,6 +195,36 @@ function deleteMsg(msg) {
 
 function onContextMenu(e, msg) {
   contextMenu.value = { show: true, x: e.clientX, y: e.clientY, msg }
+}
+
+// 移动端长按触发上下文菜单
+let longPressTimer = null
+let longPressTriggered = false
+
+function onTouchStart(e, msg) {
+  longPressTriggered = false
+  longPressTimer = setTimeout(() => {
+    longPressTriggered = true
+    const touch = e.touches[0]
+    // 保证菜单不超出屏幕
+    const x = Math.min(touch.clientX, window.innerWidth - 140)
+    const y = Math.min(touch.clientY, window.innerHeight - 100)
+    contextMenu.value = { show: true, x, y, msg }
+  }, 500)
+}
+
+function onTouchEnd() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+  }
+}
+
+function onTouchMove() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer)
+    longPressTimer = null
+  }
 }
 
 function onScroll() {
@@ -397,5 +430,52 @@ onUnmounted(() => {
 .message-wrapper {
   display: flex;
   flex-direction: column;
+}
+
+/* ========== 移动端适配 ========== */
+@media (max-width: 768px) {
+  .message-list {
+    padding: 10px 12px;
+  }
+  .message-row {
+    max-width: 88%;
+    gap: 8px;
+  }
+  .msg-bubble {
+    padding: 8px 12px;
+  }
+  .msg-text {
+    font-size: 15px;
+  }
+  .msg-image {
+    max-width: 220px;
+    max-height: 220px;
+  }
+  .msg-file {
+    min-width: 160px;
+  }
+  .file-icon {
+    font-size: 24px;
+  }
+  .image-preview img {
+    max-width: 95%;
+    max-height: 85%;
+  }
+  /* 长按替代右键 */
+  .msg-bubble {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .message-row {
+    max-width: 92%;
+  }
+  .msg-image {
+    max-width: 180px;
+    max-height: 180px;
+  }
 }
 </style>

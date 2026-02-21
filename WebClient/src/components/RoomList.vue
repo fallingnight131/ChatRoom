@@ -13,7 +13,7 @@
       <div v-for="room in chatStore.rooms" :key="room.roomId"
            class="room-item"
            :class="{ active: room.roomId === chatStore.currentRoomId }"
-           @click="chatStore.setCurrentRoom(room.roomId)"
+           @click="selectRoom(room.roomId)"
            @contextmenu.prevent="onContextMenu($event, room)">
         <div class="room-icon">🏠</div>
         <div class="room-info">
@@ -78,6 +78,8 @@ import { chatWs } from '../services/websocket'
 
 const chatStore = useChatStore()
 
+const emit = defineEmits(['room-selected'])
+
 const showCreate = ref(false)
 const showJoin = ref(false)
 const newRoomName = ref('')
@@ -85,6 +87,11 @@ const newRoomPassword = ref('')
 const joinRoomId = ref('')
 
 const contextMenu = reactive({ show: false, x: 0, y: 0, room: null })
+
+function selectRoom(roomId) {
+  chatStore.setCurrentRoom(roomId)
+  emit('room-selected')
+}
 
 function createRoom() {
   if (!newRoomName.value.trim()) return
