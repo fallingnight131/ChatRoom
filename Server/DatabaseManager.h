@@ -16,8 +16,12 @@ public:
     bool initialize();
 
     // 用户管理
-    int  registerUser(const QString &username, const QString &password);
-    int  authenticateUser(const QString &username, const QString &password);
+    int  registerUser(const QString &uniqueId, const QString &displayName, const QString &password);
+    int  authenticateUser(const QString &uniqueId, const QString &password);
+    QString getDisplayName(int userId);
+    QString getDisplayNameByUid(const QString &uniqueId);
+    bool setDisplayName(int userId, const QString &newDisplayName);
+    QString getUniqueId(int userId);
 
     // 房间管理
     int  createRoom(const QString &name, int creatorId);

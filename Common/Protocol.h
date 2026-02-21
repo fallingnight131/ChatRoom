@@ -124,6 +124,11 @@ namespace MsgType {
     inline const QString AVATAR_GET_REQ     = QStringLiteral("AVATAR_GET_REQ");
     inline const QString AVATAR_GET_RSP     = QStringLiteral("AVATAR_GET_RSP");
     inline const QString AVATAR_UPDATE_NOTIFY = QStringLiteral("AVATAR_UPDATE_NOTIFY");
+
+    // 修改昵称
+    inline const QString CHANGE_NICKNAME_REQ    = QStringLiteral("CHANGE_NICKNAME_REQ");
+    inline const QString CHANGE_NICKNAME_RSP    = QStringLiteral("CHANGE_NICKNAME_RSP");
+    inline const QString NICKNAME_CHANGE_NOTIFY = QStringLiteral("NICKNAME_CHANGE_NOTIFY");
 }
 
 // ==================== 数据包帧: [4字节长度][JSON数据] ====================
@@ -183,19 +188,20 @@ inline QJsonObject makeMessage(const QString &type, const QJsonObject &data = {}
     return msg;
 }
 
-/// 快捷创建登录请求
-inline QJsonObject makeLoginReq(const QString &username, const QString &password) {
+/// 快捷创建登录请求（使用用户唯一ID登录）
+inline QJsonObject makeLoginReq(const QString &uniqueId, const QString &password) {
     QJsonObject data;
-    data["username"] = username;
+    data["username"] = uniqueId;
     data["password"] = password;
     return makeMessage(MsgType::LOGIN_REQ, data);
 }
 
-/// 快捷创建注册请求
-inline QJsonObject makeRegisterReq(const QString &username, const QString &password) {
+/// 快捷创建注册请求（唯一ID + 昵称 + 密码）
+inline QJsonObject makeRegisterReq(const QString &uniqueId, const QString &displayName, const QString &password) {
     QJsonObject data;
-    data["username"] = username;
-    data["password"] = password;
+    data["username"]    = uniqueId;
+    data["displayName"] = displayName;
+    data["password"]    = password;
     return makeMessage(MsgType::REGISTER_REQ, data);
 }
 

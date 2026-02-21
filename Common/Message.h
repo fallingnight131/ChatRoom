@@ -42,7 +42,8 @@ public:
     // --- Getters ---
     int id() const { return m_id; }
     int roomId() const { return m_roomId; }
-    QString sender() const { return m_sender; }
+    QString sender() const { return m_sender; }          // uniqueId
+    QString senderName() const { return m_senderName.isEmpty() ? m_sender : m_senderName; } // 显示用昵称
     QString content() const { return m_content; }
     ContentType contentType() const { return m_contentType; }
     QDateTime timestamp() const { return m_timestamp; }
@@ -62,6 +63,7 @@ public:
     void setImageData(const QByteArray &d) { m_imageData = d; }
     void setContentType(ContentType t) { m_contentType = t; }
     void setSender(const QString &s) { m_sender = s; }
+    void setSenderName(const QString &n) { m_senderName = n; }
     void setDownloadState(DownloadState s) { m_downloadState = s; }
     void setDownloadProgress(double p) { m_downloadProgress = p; }
 
@@ -71,7 +73,8 @@ public:
 private:
     int         m_id          = 0;
     int         m_roomId      = 0;
-    QString     m_sender;
+    QString     m_sender;      // uniqueId（用于 isMine 比较、头像查找）
+    QString     m_senderName;   // 显示用昵称
     QString     m_content;
     ContentType m_contentType = Text;
     QDateTime   m_timestamp   = QDateTime::currentDateTime();

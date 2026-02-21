@@ -14,6 +14,7 @@
 #include <QDir>
 #include <QDate>
 #include <QCoreApplication>
+#include <QRegularExpression>
 
 ChatServer::ChatServer(QObject *parent)
     : QTcpServer(parent)
@@ -86,8 +87,9 @@ void ChatServer::onClientAuthenticated(ClientSession *session) {
         int roomId = v.toObject()["roomId"].toInt();
         m_roomMgr->addUserToRoom(roomId, session->userId(), session->username());
         QJsonObject data;
-        data["roomId"]   = roomId;
-        data["username"] = session->username();
+        data["roomId"]       = roomId;
+        data["username"]     = session->username();
+        data["displayName"]  = session->displayName();
         broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_ONLINE, data), session);
     }
 }
@@ -194,6 +196,8 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleAvatarUpload(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::AVATAR_GET_REQ) {
         handleAvatarGet(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::CHANGE_NICKNAME_REQ) {
+        handleChangeNickname(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::HEARTBEAT) {
         session->sendMessage(Protocol::makeHeartbeatAck());
     }
@@ -209,6 +213,7 @@ void ChatServer::handleLogin(ClientSession *session, const QJsonObject &data) {
 
     QJsonObject rspData;
     if (userId > 0) {
+        QString displayName = m_db->getDisplayName(userId);
         // 踢掉旧连接：先发送强制下线通知，再断开
         {
             QMutexLocker locker(&m_mutex);
@@ -223,35 +228,46 @@ void ChatServer::handleLogin(ClientSession *session, const QJsonObject &data) {
                 m_sessions.remove(username);
             }
         }
-        session->setAuthenticated(userId, username);
-        rspData["success"]  = true;
-        rspData["userId"]   = userId;
-        rspData["username"] = username;
+        session->setAuthenticated(userId, username, displayName);
+        rspData["success"]     = true;
+        rspData["userId"]      = userId;
+        rspData["username"]    = username;
+        rspData["displayName"] = displayName;
         emit session->authenticated(session);
     } else {
         rspData["success"] = false;
-        rspData["error"]   = QStringLiteral("用户名或密码错误");
+        rspData["error"]   = QStringLiteral("用户ID或密码错误");
     }
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::LOGIN_RSP, rspData));
 }
 
 void ChatServer::handleRegister(ClientSession *session, const QJsonObject &data) {
-    QString username = data["username"].toString();
+    QString username = data["username"].toString();       // uniqueId
+    QString displayName = data["displayName"].toString(); // 昵称
     QString password = data["password"].toString();
 
     QJsonObject rspData;
-    if (username.length() < 2 || password.length() < 4) {
+
+    // 验证唯一ID格式：6-12位，仅允许字母、数字、下划线
+    QRegularExpression idRegex("^[a-zA-Z0-9_]{6,12}$");
+    if (!idRegex.match(username).hasMatch()) {
         rspData["success"] = false;
-        rspData["error"]   = QStringLiteral("用户名至少2字符，密码至少4字符");
+        rspData["error"]   = QStringLiteral("用户ID必须为6-12位，只能包含字母、数字和下划线");
+    } else if (displayName.trimmed().isEmpty() || displayName.trimmed().length() < 1) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("请输入昵称");
+    } else if (password.length() < 4) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("密码至少4个字符");
     } else {
-        int userId = m_db->registerUser(username, password);
+        int userId = m_db->registerUser(username, displayName.trimmed(), password);
         if (userId > 0) {
             rspData["success"]  = true;
             rspData["userId"]   = userId;
             rspData["username"] = username;
 
             // 注册成功后自动创建个人聊天室
-            QString roomName = QString("%1的聊天室").arg(username);
+            QString roomName = QString("%1的聊天室").arg(displayName.trimmed());
             int roomId = m_db->createRoom(roomName, userId);
             if (roomId > 0) {
                 m_roomMgr->addRoom(roomId, roomName, userId);
@@ -261,7 +277,7 @@ void ChatServer::handleRegister(ClientSession *session, const QJsonObject &data)
             }
         } else {
             rspData["success"] = false;
-            rspData["error"]   = QStringLiteral("用户名已存在");
+            rspData["error"]   = QStringLiteral("用户ID已存在");
         }
     }
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::REGISTER_RSP, rspData));
@@ -281,8 +297,9 @@ void ChatServer::handleChatMessage(ClientSession *session, const QJsonObject &ms
 
     // 补全消息信息
     QJsonObject fullData = data;
-    fullData["id"]     = msgId;
-    fullData["sender"] = session->username();
+    fullData["id"]         = msgId;
+    fullData["sender"]     = session->username();      // uniqueId
+    fullData["senderName"] = session->displayName();   // 昵称
     QJsonObject fullMsg = Protocol::makeMessage(Protocol::MsgType::CHAT_MSG, fullData);
 
     broadcastToRoom(roomId, fullMsg);
@@ -359,8 +376,9 @@ void ChatServer::handleJoinRoom(ClientSession *session, const QJsonObject &data)
         // 仅在用户首次加入时通知房间其他成员
         if (!alreadyMember) {
             QJsonObject notifyData;
-            notifyData["roomId"]   = roomId;
-            notifyData["username"] = session->username();
+            notifyData["roomId"]      = roomId;
+            notifyData["username"]    = session->username();
+            notifyData["displayName"] = session->displayName();
             broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_JOINED, notifyData), session);
         }
     } else {
@@ -390,8 +408,9 @@ void ChatServer::handleLeaveRoom(ClientSession *session, const QJsonObject &data
 
     // 通知房间剩余成员该用户离开
     QJsonObject notifyData;
-    notifyData["roomId"]   = roomId;
-    notifyData["username"] = session->username();
+    notifyData["roomId"]      = roomId;
+    notifyData["username"]    = session->username();
+    notifyData["displayName"] = session->displayName();
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_LEFT, notifyData));
 
     // 检查房间是否还有成员（issue 2: 最后一人离开自动解散）
@@ -412,6 +431,7 @@ void ChatServer::handleLeaveRoom(ClientSession *session, const QJsonObject &data
                 QJsonObject randomMember = members[randomIdx].toObject();
                 int newAdminId = randomMember["userId"].toInt();
                 QString newAdminName = randomMember["username"].toString();
+                QString newAdminDisplayName = m_db->getDisplayName(newAdminId);
 
                 m_db->setRoomAdmin(roomId, newAdminId, true);
 
@@ -423,7 +443,7 @@ void ChatServer::handleLeaveRoom(ClientSession *session, const QJsonObject &data
 
                 // 广播系统消息
                 broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
-                    {{"roomId", roomId}, {"content", QString("%1 已被自动指定为管理员").arg(newAdminName)}}));
+                    {{"roomId", roomId}, {"content", QString("%1 已被自动指定为管理员").arg(newAdminDisplayName)}}));
             }
         }
     }
@@ -459,9 +479,10 @@ void ChatServer::handleUserList(ClientSession *session, const QJsonObject &data)
             int userId = member["userId"].toInt();
 
             QJsonObject userObj;
-            userObj["username"] = username;
-            userObj["isAdmin"]  = admins.contains(userId);
-            userObj["isOnline"] = m_sessions.contains(username);
+            userObj["username"]    = username;
+            userObj["displayName"] = member["displayName"].toString();
+            userObj["isAdmin"]     = admins.contains(userId);
+            userObj["isOnline"]    = m_sessions.contains(username);
             userArr.append(userObj);
         }
     }
@@ -552,6 +573,7 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
     notifyData["id"]          = msgId;
     notifyData["roomId"]      = roomId;
     notifyData["sender"]      = session->username();
+    notifyData["senderName"]  = session->displayName();
     notifyData["fileName"]    = fileName;
     notifyData["fileSize"]    = static_cast<double>(fileSize);
     notifyData["fileId"]      = fileId;
@@ -640,10 +662,11 @@ void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject
     }
 
     UploadState state;
-    state.roomId   = roomId;
-    state.userId   = session->userId();
-    state.username = session->username();
-    state.fileName = fileName;
+    state.roomId      = roomId;
+    state.userId      = session->userId();
+    state.username    = session->username();
+    state.displayName = session->displayName();
+    state.fileName    = fileName;
     state.filePath = filePath;
     state.fileSize = fileSize;
     state.received = 0;
@@ -705,6 +728,7 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
     notifyData["id"]          = msgId;
     notifyData["roomId"]      = state.roomId;
     notifyData["sender"]      = state.username;
+    notifyData["senderName"]  = state.displayName;
     notifyData["fileName"]    = state.fileName;
     notifyData["fileSize"]    = static_cast<double>(state.fileSize);
     notifyData["fileId"]      = fileId;
@@ -874,9 +898,10 @@ void ChatServer::handleSetAdmin(ClientSession *session, const QJsonObject &data)
     sendToUser(targetUser, Protocol::makeMessage(Protocol::MsgType::ADMIN_STATUS, notifyData));
 
     // 广播系统消息通知全体
+    QString targetDisplayName = m_db->getDisplayNameByUid(targetUser);
     QString sysContent = setAdmin
-        ? QString("管理员 %1 已将 %2 设为管理员").arg(session->username(), targetUser)
-        : QString("%1 已主动放弃管理员权限").arg(targetUser);
+        ? QString("管理员 %1 已将 %2 设为管理员").arg(session->displayName(), targetDisplayName)
+        : QString("%1 已主动放弃管理员权限").arg(targetDisplayName);
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
         {{"roomId", roomId}, {"content", sysContent}}));
 
@@ -920,6 +945,7 @@ void ChatServer::handleSetAdmin(ClientSession *session, const QJsonObject &data)
                 QJsonObject randomMember = candidates[randomIdx].toObject();
                 int newAdminId = randomMember["userId"].toInt();
                 QString newAdminName = randomMember["username"].toString();
+                QString newAdminDisplayName = m_db->getDisplayName(newAdminId);
 
                 m_db->setRoomAdmin(roomId, newAdminId, true);
 
@@ -929,7 +955,7 @@ void ChatServer::handleSetAdmin(ClientSession *session, const QJsonObject &data)
                 sendToUser(newAdminName, Protocol::makeMessage(Protocol::MsgType::ADMIN_STATUS, adminNotify));
 
                 broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
-                    {{"roomId", roomId}, {"content", QString("%1 已被自动指定为管理员").arg(newAdminName)}}));
+                    {{"roomId", roomId}, {"content", QString("%1 已被自动指定为管理员").arg(newAdminDisplayName)}}));
 
                 // 广播更新后的用户列表
                 QList<int> newAdminIds = m_db->getRoomAdmins(roomId);
@@ -1024,7 +1050,7 @@ void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject 
     notifyData["roomId"] = roomId;
     notifyData["mode"] = mode;
     notifyData["deletedCount"] = deletedCount;
-    notifyData["operator"] = session->username();
+    notifyData["operator"] = session->displayName();
     if (mode == "selected") {
         notifyData["messageIds"] = data["messageIds"].toArray();
     }
@@ -1036,13 +1062,13 @@ void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject 
     // 广播系统消息通知全体
     QString sysContent;
     if (mode == "all")
-        sysContent = QString("管理员 %1 清空了所有聊天记录").arg(session->username());
+        sysContent = QString("管理员 %1 清空了所有聊天记录").arg(session->displayName());
     else if (mode == "selected")
-        sysContent = QString("管理员 %1 删除了 %2 条消息").arg(session->username()).arg(deletedCount);
+        sysContent = QString("管理员 %1 删除了 %2 条消息").arg(session->displayName()).arg(deletedCount);
     else if (mode == "before")
-        sysContent = QString("管理员 %1 删除了 %2 条旧消息").arg(session->username()).arg(deletedCount);
+        sysContent = QString("管理员 %1 删除了 %2 条旧消息").arg(session->displayName()).arg(deletedCount);
     else
-        sysContent = QString("管理员 %1 删除了 %2 条近期消息").arg(session->username()).arg(deletedCount);
+        sysContent = QString("管理员 %1 删除了 %2 条近期消息").arg(session->displayName()).arg(deletedCount);
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
         {{"roomId", roomId}, {"content", sysContent}}));
 }
@@ -1093,7 +1119,7 @@ void ChatServer::handleRenameRoom(ClientSession *session, const QJsonObject &dat
     // 系统消息
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
         {{"roomId", roomId}, {"content", QString("管理员 %1 将聊天室名称修改为 \"%2\"")
-            .arg(session->username(), newName)}}));
+            .arg(session->displayName(), newName)}}));
 }
 
 void ChatServer::handleSetRoomPassword(ClientSession *session, const QJsonObject &data) {
@@ -1120,8 +1146,8 @@ void ChatServer::handleSetRoomPassword(ClientSession *session, const QJsonObject
 
     // 广播系统消息
     QString sysContent = password.isEmpty()
-        ? QString("管理员 %1 已取消聊天室密码").arg(session->username())
-        : QString("管理员 %1 已设置/修改聊天室密码").arg(session->username());
+        ? QString("管理员 %1 已取消聊天室密码").arg(session->displayName())
+        : QString("管理员 %1 已设置/修改聊天室密码").arg(session->displayName());
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
         {{"roomId", roomId}, {"content", sysContent}}));
 }
@@ -1191,7 +1217,7 @@ void ChatServer::handleKickUser(ClientSession *session, const QJsonObject &data)
     QJsonObject kickNotify;
     kickNotify["roomId"] = roomId;
     kickNotify["roomName"] = roomName;
-    kickNotify["operator"] = session->username();
+    kickNotify["operator"] = session->displayName();
     sendToUser(targetUser, Protocol::makeMessage(Protocol::MsgType::KICK_USER_NOTIFY, kickNotify));
 
     // 通知房间成员该用户被踢出
@@ -1201,8 +1227,10 @@ void ChatServer::handleKickUser(ClientSession *session, const QJsonObject &data)
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_LEFT, leftData));
 
     // 系统消息
+    QString kickerName = session->displayName();
+    QString targetName = m_db->getDisplayNameByUid(targetUser);
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
-        {{"roomId", roomId}, {"content", QString("管理员 %1 将 %2 踢出了聊天室").arg(session->username(), targetUser)}}));
+        {{"roomId", roomId}, {"content", QString("管理员 %1 将 %2 踢出了聊天室").arg(kickerName, targetName)}}));
 
     rspData["success"] = true;
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::KICK_USER_RSP, rspData));
@@ -1243,7 +1271,7 @@ void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &d
             : QStringLiteral("无限制");
         broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
             {{"roomId", roomId}, {"content", QString("管理员 %1 设置了文件大小上限: %2")
-                .arg(session->username(), sizeStr)}}));
+                .arg(session->displayName(), sizeStr)}}));
     } else {
         // 查询设置
         rspData["success"] = true;
@@ -1282,7 +1310,7 @@ void ChatServer::handleDeleteRoom(ClientSession *session, const QJsonObject &dat
     QJsonObject notifyData;
     notifyData["roomId"] = roomId;
     notifyData["roomName"] = roomName;
-    notifyData["operator"] = session->username();
+    notifyData["operator"] = session->displayName();
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::DELETE_ROOM_NOTIFY, notifyData));
 
     // 从数据库删除（CASCADE 会清理 room_members, messages, files, room_admins, room_settings）
@@ -1356,6 +1384,43 @@ void ChatServer::handleAvatarGet(ClientSession *session, const QJsonObject &data
         rspData["success"] = false;
     }
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::AVATAR_GET_RSP, rspData));
+}
+
+// ==================== 修改昵称 ====================
+
+void ChatServer::handleChangeNickname(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    QString newName = data["displayName"].toString().trimmed();
+    QJsonObject rspData;
+
+    if (newName.isEmpty() || newName.length() > 20) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("昵称长度须为1-20个字符");
+    } else {
+        bool ok = m_db->setDisplayName(session->userId(), newName);
+        if (ok) {
+            session->setDisplayName(newName);
+            rspData["success"]     = true;
+            rspData["displayName"] = newName;
+
+            // 通知该用户所在的所有房间
+            QJsonArray rooms = m_db->getUserJoinedRooms(session->userId());
+            for (const QJsonValue &v : rooms) {
+                int roomId = v.toObject()["roomId"].toInt();
+                QJsonObject notifyData;
+                notifyData["roomId"]      = roomId;
+                notifyData["username"]    = session->username();
+                notifyData["displayName"] = newName;
+                broadcastToRoom(roomId, Protocol::makeMessage(
+                    Protocol::MsgType::NICKNAME_CHANGE_NOTIFY, notifyData));
+            }
+        } else {
+            rspData["success"] = false;
+            rspData["error"]   = QStringLiteral("修改昵称失败");
+        }
+    }
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::CHANGE_NICKNAME_RSP, rspData));
 }
 
 // ==================== 广播/实现 ====================

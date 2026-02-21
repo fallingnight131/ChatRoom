@@ -31,7 +31,7 @@ signals:
     void reconnecting(int attempt);
 
     // 登录/注册响应
-    void loginResponse(bool success, const QString &error, int userId, const QString &username);
+    void loginResponse(bool success, const QString &error, int userId, const QString &username, const QString &displayName);
     void registerResponse(bool success, const QString &error);
 
     // 聊天消息
@@ -43,10 +43,10 @@ signals:
     void roomJoined(bool success, int roomId, const QString &roomName, const QString &error, bool newJoin = false);
     void roomListReceived(const QJsonArray &rooms);
     void userListReceived(int roomId, const QJsonArray &users);
-    void userJoined(int roomId, const QString &username);
-    void userLeft(int roomId, const QString &username);
-    void userOnline(int roomId, const QString &username);
-    void userOffline(int roomId, const QString &username);
+    void userJoined(int roomId, const QString &username, const QString &displayName);
+    void userLeft(int roomId, const QString &username, const QString &displayName);
+    void userOnline(int roomId, const QString &username, const QString &displayName);
+    void userOffline(int roomId, const QString &username, const QString &displayName);
     void leaveRoomResponse(bool success, int roomId);
 
     // 历史消息
@@ -95,6 +95,10 @@ signals:
     void joinRoomNeedPassword(int roomId);
     void kickUserResponse(bool success, int roomId, const QString &username, const QString &error);
     void kickedFromRoom(int roomId, const QString &roomName, const QString &operatorName);
+
+    // 昵称修改
+    void changeNicknameResponse(bool success, const QString &newDisplayName, const QString &error);
+    void nicknameChangeNotify(int roomId, const QString &username, const QString &newDisplayName);
 
 private slots:
     void onConnected();

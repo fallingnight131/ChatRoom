@@ -42,9 +42,9 @@ int main(int argc, char *argv[]) {
         // 重新显示登录对话框
         LoginDialog *loginDialog = new LoginDialog;
         QObject::connect(loginDialog, &LoginDialog::loginSuccess,
-                         [&](int userId, const QString &username) {
+                         [&](int userId, const QString &username, const QString &displayName) {
             chatWindow = new ChatWindow;
-            chatWindow->setCurrentUser(userId, username);
+            chatWindow->setCurrentUser(userId, username, displayName);
             chatWindow->show();
         });
         QObject::connect(loginDialog, &QDialog::rejected, [&]() {
@@ -58,9 +58,9 @@ int main(int argc, char *argv[]) {
     LoginDialog loginDialog;
 
     QObject::connect(&loginDialog, &LoginDialog::loginSuccess,
-                     [&](int userId, const QString &username) {
+                     [&](int userId, const QString &username, const QString &displayName) {
         chatWindow = new ChatWindow;
-        chatWindow->setCurrentUser(userId, username);
+        chatWindow->setCurrentUser(userId, username, displayName);
         chatWindow->show();
     });
 

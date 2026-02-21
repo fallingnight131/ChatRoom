@@ -86,12 +86,13 @@ ChatWindow::ChatWindow(QWidget *parent)
 
 ChatWindow::~ChatWindow() = default;
 
-void ChatWindow::setCurrentUser(int userId, const QString &username) {
+void ChatWindow::setCurrentUser(int userId, const QString &username, const QString &displayName) {
     m_userId   = userId;
     m_username = username;
-    setWindowTitle(QString("Qt聊天室 - %1").arg(username));
+    m_displayName = displayName;
+    setWindowTitle(QString("Qt聊天室 - %1").arg(displayName));
 
-    // 设置用户缓存目录（以用户名隔离）
+    // 设置用户缓存目录（以用户uniqueId隔离）
     FileCache::instance()->setUsername(username);
 
     requestRoomList();
@@ -302,6 +303,8 @@ void ChatWindow::setupMenuBar() {
     viewMenu->addAction("切换主题(&T)", this, &ChatWindow::onToggleTheme, QKeySequence("Ctrl+T"));
 
     auto *settingsMenu = menuBar()->addMenu("设置(&S)");
+    settingsMenu->addAction("修改昵称(&N)...", this, &ChatWindow::onChangeNickname);
+    settingsMenu->addSeparator();
     settingsMenu->addAction("缓存路径(&C)...", this, &ChatWindow::onChangeCacheDir);
     settingsMenu->addAction("清除缓存(&X)...", this, &ChatWindow::onClearCache);
 
@@ -398,6 +401,10 @@ void ChatWindow::connectSignals() {
     // 踢人
     connect(net, &NetworkManager::kickUserResponse,  this, &ChatWindow::onKickUserResponse);
     connect(net, &NetworkManager::kickedFromRoom,    this, &ChatWindow::onKickedFromRoom);
+
+    // 昵称修改
+    connect(net, &NetworkManager::changeNicknameResponse, this, &ChatWindow::onChangeNicknameResponse);
+    connect(net, &NetworkManager::nicknameChangeNotify,   this, &ChatWindow::onNicknameChangeNotify);
 
     // 单击文件消息：触发下载 / 暂停 / 恢复
     connect(m_messageView, &QListView::clicked, this, [this](const QModelIndex &idx) {
@@ -739,29 +746,31 @@ void ChatWindow::onUserListReceived(int roomId, const QJsonArray &users) {
         for (const QJsonValue &v : users) {
             QJsonObject userObj = v.toObject();
             QString username = userObj["username"].toString();
+            QString displayName = userObj["displayName"].toString();
+            if (displayName.isEmpty()) displayName = username;
             bool isAdmin = userObj["isAdmin"].toBool();
             bool isOnline = userObj["isOnline"].toBool();
 
-            addUserListItem(username, isAdmin, isOnline);
+            addUserListItem(username, displayName, isAdmin, isOnline);
         }
     }
 }
 
-void ChatWindow::onUserJoined(int roomId, const QString &username) {
+void ChatWindow::onUserJoined(int roomId, const QString &username, const QString &displayName) {
     if (roomId == m_currentRoomId) {
         // 避免重复添加
         if (!findUserListItem(username)) {
-            addUserListItem(username, false, true);
+            addUserListItem(username, displayName, false, true);
         }
 
         // 添加系统消息：成员加入聊天室
         Message sysMsg = Message::createSystemMessage(roomId,
-            QString("%1 加入了聊天室").arg(username));
+            QString("%1 加入了聊天室").arg(displayName));
         getOrCreateModel(roomId)->addMessage(sysMsg);
     }
 }
 
-void ChatWindow::onUserLeft(int roomId, const QString &username) {
+void ChatWindow::onUserLeft(int roomId, const QString &username, const QString &displayName) {
     if (roomId == m_currentRoomId) {
         // 从列表中移除
         QListWidgetItem *item = findUserListItem(username);
@@ -770,7 +779,7 @@ void ChatWindow::onUserLeft(int roomId, const QString &username) {
 
         // 添加系统消息：成员退出聊天室
         Message sysMsg = Message::createSystemMessage(roomId,
-            QString("%1 退出了聊天室").arg(username));
+            QString("%1 退出了聊天室").arg(displayName));
         getOrCreateModel(roomId)->addMessage(sysMsg);
     }
 }
@@ -872,11 +881,13 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
     int fileId = data["fileId"].toInt();
     QString fileName = data["fileName"].toString();
     QString sender   = data["sender"].toString();
+    QString senderName = data["senderName"].toString();
     qint64 fSize = static_cast<qint64>(data["fileSize"].toDouble());
 
     Message msg = Message::createFileMessage(
         roomId, sender, fileName, fSize, fileId);
     msg.setId(data["id"].toInt());
+    msg.setSenderName(senderName);
     msg.setIsMine(sender == m_username);
 
     // 判断是否为图片文件
@@ -1592,6 +1603,8 @@ void ChatWindow::onUserContextMenu(const QPoint &pos) {
     if (!item) return;
 
     QString targetUser = item->data(Qt::UserRole).toString();
+    QString targetDisplayName = item->data(Qt::UserRole + 3).toString();
+    if (targetDisplayName.isEmpty()) targetDisplayName = targetUser;
     QMenu menu(this);
 
     // 右键自己的名字
@@ -1632,9 +1645,9 @@ void ChatWindow::onUserContextMenu(const QPoint &pos) {
                     Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_REQ, data));
             });
 
-            menu.addAction(QStringLiteral("踢出聊天室"), [this, targetUser] {
+            menu.addAction(QStringLiteral("踢出聊天室"), [this, targetUser, targetDisplayName] {
                 if (QMessageBox::question(this, "确认",
-                        QString("确定要将 %1 踢出聊天室吗？").arg(targetUser))
+                        QString("确定要将 %1 踢出聊天室吗？").arg(targetDisplayName))
                     != QMessageBox::Yes) return;
                 QJsonObject data;
                 data["roomId"] = m_currentRoomId;
@@ -1966,7 +1979,8 @@ bool ChatWindow::nativeEvent(const QByteArray &eventType, void *message, qintptr
 
 // ==================== 在线状态更新 ====================
 
-void ChatWindow::onUserOnline(int roomId, const QString &username) {
+void ChatWindow::onUserOnline(int roomId, const QString &username, const QString &displayName) {
+    Q_UNUSED(displayName)
     if (roomId == m_currentRoomId) {
         QListWidgetItem *item = findUserListItem(username);
         if (item) {
@@ -1976,7 +1990,8 @@ void ChatWindow::onUserOnline(int roomId, const QString &username) {
     }
 }
 
-void ChatWindow::onUserOffline(int roomId, const QString &username) {
+void ChatWindow::onUserOffline(int roomId, const QString &username, const QString &displayName) {
+    Q_UNUSED(displayName)
     if (roomId == m_currentRoomId) {
         QListWidgetItem *item = findUserListItem(username);
         if (item) {
@@ -2039,11 +2054,12 @@ void ChatWindow::onLeaveRoomResponse(bool success, int roomId) {
 
 // ==================== 用户列表辅助方法 ====================
 
-void ChatWindow::addUserListItem(const QString &username, bool isAdmin, bool isOnline) {
+void ChatWindow::addUserListItem(const QString &username, const QString &displayName, bool isAdmin, bool isOnline) {
     auto *item = new QListWidgetItem;
-    item->setData(Qt::UserRole, username);
+    item->setData(Qt::UserRole, username);     // uniqueId
     item->setData(Qt::UserRole + 1, isAdmin);
     item->setData(Qt::UserRole + 2, isOnline);
+    item->setData(Qt::UserRole + 3, displayName); // 显示用昵称
     item->setSizeHint(QSize(0, 36));
 
     m_userList->addItem(item);
@@ -2057,6 +2073,8 @@ void ChatWindow::addUserListItem(const QString &username, bool isAdmin, bool isO
 
 void ChatWindow::updateUserListItemWidget(QListWidgetItem *item) {
     QString username = item->data(Qt::UserRole).toString();
+    QString displayName = item->data(Qt::UserRole + 3).toString();
+    if (displayName.isEmpty()) displayName = username;
     bool isAdmin = item->data(Qt::UserRole + 1).toBool();
     bool isOnline = item->data(Qt::UserRole + 2).toBool();
 
@@ -2065,7 +2083,7 @@ void ChatWindow::updateUserListItemWidget(QListWidgetItem *item) {
     layout->setContentsMargins(4, 4, 4, 4);
     layout->setSpacing(4);
 
-    auto *nameLabel = new QLabel(username);
+    auto *nameLabel = new QLabel(displayName);
     if (isAdmin) {
         nameLabel->setStyleSheet("color: #C5A200;");
     }
@@ -2356,6 +2374,47 @@ void ChatWindow::onKickedFromRoom(int roomId, const QString &roomName, const QSt
 
     QMessageBox::warning(this, "被踢出聊天室",
         QStringLiteral("您已被管理员 %1 踢出聊天室 \"%2\"").arg(operatorName, roomName));
+}
+
+// ==================== 修改昵称 ====================
+
+void ChatWindow::onChangeNickname() {
+    bool ok;
+    QString newName = QInputDialog::getText(this, "修改昵称",
+        QString("当前昵称: %1\n\n请输入新昵称 (1-20个字符):").arg(m_displayName),
+        QLineEdit::Normal, m_displayName, &ok);
+    if (!ok || newName.trimmed().isEmpty()) return;
+    newName = newName.trimmed();
+    if (newName.length() > 20) {
+        QMessageBox::warning(this, "错误", "昵称不能超过20个字符");
+        return;
+    }
+    if (newName == m_displayName) return;
+
+    QJsonObject data;
+    data["displayName"] = newName;
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::CHANGE_NICKNAME_REQ, data));
+}
+
+void ChatWindow::onChangeNicknameResponse(bool success, const QString &newDisplayName, const QString &error) {
+    if (success) {
+        m_displayName = newDisplayName;
+        setWindowTitle(QString("Qt聊天室 - %1").arg(m_displayName));
+        m_statusLabel->setText(QString("昵称已修改为: %1").arg(m_displayName));
+    } else {
+        QMessageBox::warning(this, "修改昵称失败", error);
+    }
+}
+
+void ChatWindow::onNicknameChangeNotify(int roomId, const QString &username, const QString &newDisplayName) {
+    Q_UNUSED(roomId)
+    // 更新用户列表中该用户的显示名
+    QListWidgetItem *item = findUserListItem(username);
+    if (item) {
+        item->setData(Qt::UserRole + 3, newDisplayName);
+        updateUserListItemWidget(item);
+    }
 }
 
 // ==================== 注销 ====================

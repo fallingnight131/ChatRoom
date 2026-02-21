@@ -22,7 +22,8 @@ public:
         ImageDataRole,
         RoomIdRole,
         DownloadStateRole,
-        DownloadProgressRole
+        DownloadProgressRole,
+        SenderNameRole
     };
 
     explicit MessageModel(QObject *parent = nullptr);

@@ -69,6 +69,7 @@ private:
     void handleAvatarUpload(ClientSession *session, const QJsonObject &data);
     void handleAvatarGet(ClientSession *session, const QJsonObject &data);
     void handleFileUploadCancel(ClientSession *session, const QJsonObject &data);
+    void handleChangeNickname(ClientSession *session, const QJsonObject &data);
 
     /// 根据文件名返回类型子目录 ("Image", "Video", "File")
     static QString fileTypeSubDir(const QString &fileName);
@@ -86,6 +87,7 @@ private:
         int roomId = 0;
         int userId = 0;
         QString username;
+        QString displayName;
         QString fileName;
         QString filePath;    // 临时文件路径
         qint64 fileSize = 0;

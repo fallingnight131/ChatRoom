@@ -10,6 +10,7 @@
 #include <QLabel>
 #include <QTabWidget>
 #include <QMessageBox>
+#include <QRegularExpression>
 
 LoginDialog::LoginDialog(QWidget *parent)
     : QDialog(parent)
@@ -45,13 +46,13 @@ void LoginDialog::setupUi() {
     m_loginStatus = new QLabel;
     m_loginStatus->setStyleSheet("color: red;");
 
-    m_loginUser->setPlaceholderText("请输入用户名");
+    m_loginUser->setPlaceholderText("请输入用户ID");
     m_loginPass->setPlaceholderText("请输入密码");
 
     m_loginHost = new QLineEdit("127.0.0.1");
     m_loginPort = new QLineEdit(QString::number(Protocol::DEFAULT_PORT));
 
-    loginLayout->addRow("用户名:", m_loginUser);
+    loginLayout->addRow("用户ID:", m_loginUser);
     loginLayout->addRow("密码:",   m_loginPass);
     loginLayout->addRow(m_loginBtn);
     loginLayout->addRow(m_loginStatus);
@@ -89,7 +90,8 @@ void LoginDialog::setupUi() {
     auto *regPage   = new QWidget;
     auto *regLayout = new QFormLayout(regPage);
 
-    m_regUser        = new QLineEdit;
+    m_regUniqueId    = new QLineEdit;
+    m_regDisplayName = new QLineEdit;
     m_regPass        = new QLineEdit;
     m_regPassConfirm = new QLineEdit;
     m_regPass->setEchoMode(QLineEdit::Password);
@@ -98,13 +100,15 @@ void LoginDialog::setupUi() {
     m_regStatus = new QLabel;
     m_regStatus->setStyleSheet("color: red;");
 
-    regLayout->addRow("用户名:",   m_regUser);
+    regLayout->addRow("用户ID:",   m_regUniqueId);
+    regLayout->addRow("昵称:",     m_regDisplayName);
     regLayout->addRow("密码:",     m_regPass);
     regLayout->addRow("确认密码:", m_regPassConfirm);
     regLayout->addRow(m_regBtn);
     regLayout->addRow(m_regStatus);
 
-    m_regUser->setPlaceholderText("至少2个字符");
+    m_regUniqueId->setPlaceholderText("6-12位，字母/数字/下划线，注册后不可修改");
+    m_regDisplayName->setPlaceholderText("显示名称，之后可修改");
     m_regPass->setPlaceholderText("至少4个字符");
     m_regPassConfirm->setPlaceholderText("再次输入密码");
 
@@ -145,7 +149,7 @@ void LoginDialog::onLogin() {
     QString pass = m_loginPass->text();
 
     if (user.isEmpty() || pass.isEmpty()) {
-        m_loginStatus->setText("请输入用户名和密码");
+        m_loginStatus->setText("请输入用户ID和密码");
         return;
     }
 
@@ -178,11 +182,12 @@ void LoginDialog::onConnected() {
         }
     } else if (m_pendingAction == Register) {
         m_regStatus->setText("已连接，正在注册...");
-        QString user = m_regUser->text().trimmed();
+        QString uid  = m_regUniqueId->text().trimmed();
+        QString name = m_regDisplayName->text().trimmed();
         QString pass = m_regPass->text();
-        if (!user.isEmpty() && !pass.isEmpty()) {
+        if (!uid.isEmpty() && !pass.isEmpty()) {
             NetworkManager::instance()->sendMessage(
-                Protocol::makeRegisterReq(user, pass));
+                Protocol::makeRegisterReq(uid, name, pass));
         }
     }
     m_pendingAction = None;
@@ -195,13 +200,14 @@ void LoginDialog::onConnectionError(const QString &error) {
     m_regBtn->setEnabled(true);
 }
 
-void LoginDialog::onLoginResponse(bool success, const QString &error, int userId, const QString &username) {
+void LoginDialog::onLoginResponse(bool success, const QString &error, int userId, const QString &username, const QString &displayName) {
     if (success) {
         m_userId   = userId;
         m_username = username;
+        m_displayName = displayName;
         m_loginStatus->setText("登录成功!");
         m_loginStatus->setStyleSheet("color: green;");
-        emit loginSuccess(userId, username);
+        emit loginSuccess(userId, username, displayName);
         accept();
     } else {
         m_loginStatus->setText("登录失败: " + error);
@@ -213,20 +219,30 @@ void LoginDialog::onLoginResponse(bool success, const QString &error, int userId
 // ==================== 注册 ====================
 
 void LoginDialog::onRegister() {
-    QString user    = m_regUser->text().trimmed();
+    QString uid     = m_regUniqueId->text().trimmed();
+    QString name    = m_regDisplayName->text().trimmed();
     QString pass    = m_regPass->text();
     QString confirm = m_regPassConfirm->text();
 
-    if (user.isEmpty() || pass.isEmpty()) {
-        m_regStatus->setText("请输入用户名和密码");
+    if (uid.isEmpty() || pass.isEmpty()) {
+        m_regStatus->setText("请输入用户ID和密码");
         return;
     }
     if (pass != confirm) {
         m_regStatus->setText("两次密码不一致");
         return;
     }
-    if (user.length() < 2) {
-        m_regStatus->setText("用户名至少2个字符");
+    // 验证用户ID格式
+    QRegularExpression idRegex("^[a-zA-Z0-9_]{6,12}$");
+    if (!idRegex.match(uid).hasMatch()) {
+        m_regStatus->setText("用户ID必须为6-12位字母/数字/下划线");
+        return;
+    }
+    if (name.isEmpty()) {
+        name = uid; // 昵称默认与ID相同
+    }
+    if (name.length() > 20) {
+        m_regStatus->setText("昵称不能超过20个字符");
         return;
     }
     if (pass.length() < 4) {
@@ -235,7 +251,6 @@ void LoginDialog::onRegister() {
     }
 
     if (!m_connected) {
-        // 使用登录页的连接信息
         m_pendingAction = Register;
         connectToServer();
         return;
@@ -245,7 +260,7 @@ void LoginDialog::onRegister() {
     m_regBtn->setEnabled(false);
 
     NetworkManager::instance()->sendMessage(
-        Protocol::makeRegisterReq(user, pass));
+        Protocol::makeRegisterReq(uid, name, pass));
 }
 
 void LoginDialog::onRegisterResponse(bool success, const QString &error) {
@@ -255,7 +270,7 @@ void LoginDialog::onRegisterResponse(bool success, const QString &error) {
         m_regStatus->setStyleSheet("color: green;");
         m_regStatus->setText("注册成功！请切换到登录页面");
         // 自动填充到登录页
-        m_loginUser->setText(m_regUser->text());
+        m_loginUser->setText(m_regUniqueId->text());
         m_loginPass->clear();
         m_tabWidget->setCurrentIndex(0);
     } else {

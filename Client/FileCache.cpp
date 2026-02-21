@@ -158,8 +158,18 @@ QString FileCache::cacheFile(int fileId, const QString &fileName, const QByteArr
     if (!dir.exists())
         dir.mkpath(".");
 
-    QString safeName = QString("%1_%2").arg(fileId).arg(fileName);
-    QString filePath = targetDir + "/" + safeName;
+    // 文件名去重：如果已存在同名文件，追加（1）、（2）...
+    QString baseName = QFileInfo(fileName).completeBaseName();
+    QString suffix = QFileInfo(fileName).suffix();
+    QString filePath = targetDir + "/" + fileName;
+    int counter = 1;
+    while (QFile::exists(filePath)) {
+        QString newName = suffix.isEmpty()
+            ? QString("%1（%2）").arg(baseName).arg(counter)
+            : QString("%1（%2）.%3").arg(baseName).arg(counter).arg(suffix);
+        filePath = targetDir + "/" + newName;
+        counter++;
+    }
 
     QFile file(filePath);
     if (file.open(QIODevice::WriteOnly)) {
@@ -198,8 +208,25 @@ QString FileCache::cacheFromLocal(int fileId, const QString &fileName, const QSt
     if (!dir.exists())
         dir.mkpath(".");
 
-    QString safeName = QString("%1_%2").arg(fileId).arg(fileName);
-    QString destPath = targetDir + "/" + safeName;
+    // 文件名去重：如果已存在同名文件，追加（1）、（2）...
+    QString baseName = QFileInfo(fileName).completeBaseName();
+    QString suffix = QFileInfo(fileName).suffix();
+    QString destPath = targetDir + "/" + fileName;
+    int counter = 1;
+    while (QFile::exists(destPath)) {
+        // 如果源文件和目标是同一个文件，直接使用
+        if (QFileInfo(sourcePath).absoluteFilePath() == QFileInfo(destPath).absoluteFilePath()) {
+            QMutexLocker locker(&m_mutex);
+            m_cache[fileId] = destPath;
+            saveIndex();
+            return destPath;
+        }
+        QString newName = suffix.isEmpty()
+            ? QString("%1（%2）").arg(baseName).arg(counter)
+            : QString("%1（%2）.%3").arg(baseName).arg(counter).arg(suffix);
+        destPath = targetDir + "/" + newName;
+        counter++;
+    }
 
     // 如果源文件和目标相同，直接记录
     if (QFileInfo(sourcePath).absoluteFilePath() == QFileInfo(destPath).absoluteFilePath()) {
@@ -208,10 +235,6 @@ QString FileCache::cacheFromLocal(int fileId, const QString &fileName, const QSt
         saveIndex();
         return destPath;
     }
-
-    // 先删除旧文件
-    if (QFile::exists(destPath))
-        QFile::remove(destPath);
 
     if (QFile::copy(sourcePath, destPath)) {
         QMutexLocker locker(&m_mutex);

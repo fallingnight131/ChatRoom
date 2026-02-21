@@ -30,7 +30,7 @@ public:
     explicit ChatWindow(QWidget *parent = nullptr);
     ~ChatWindow() override;
 
-    void setCurrentUser(int userId, const QString &username);
+    void setCurrentUser(int userId, const QString &username, const QString &displayName);
 
     /// 获取用户头像缓存
     static QPixmap avatarForUser(const QString &username);
@@ -59,10 +59,10 @@ private slots:
 
     // 用户列表
     void onUserListReceived(int roomId, const QJsonArray &users);
-    void onUserJoined(int roomId, const QString &username);
-    void onUserLeft(int roomId, const QString &username);
-    void onUserOnline(int roomId, const QString &username);
-    void onUserOffline(int roomId, const QString &username);
+    void onUserJoined(int roomId, const QString &username, const QString &displayName);
+    void onUserLeft(int roomId, const QString &username, const QString &displayName);
+    void onUserOnline(int roomId, const QString &username, const QString &displayName);
+    void onUserOffline(int roomId, const QString &username, const QString &displayName);
 
     // 文件
     void onSendFile();
@@ -140,6 +140,11 @@ private slots:
     void onKickUserResponse(bool success, int roomId, const QString &username, const QString &error);
     void onKickedFromRoom(int roomId, const QString &roomName, const QString &operatorName);
 
+    // 昵称修改
+    void onChangeNickname();
+    void onChangeNicknameResponse(bool success, const QString &newDisplayName, const QString &error);
+    void onNicknameChangeNotify(int roomId, const QString &username, const QString &newDisplayName);
+
     // 贴边隐藏
     void checkEdgeHide();
 
@@ -168,7 +173,7 @@ private:
     void cacheAvatar(const QString &username, const QByteArray &data);
     void requestAvatar(const QString &username);
     void leaveRoom(int roomId);
-    void addUserListItem(const QString &username, bool isAdmin, bool isOnline);
+    void addUserListItem(const QString &username, const QString &displayName, bool isAdmin, bool isOnline);
     void updateUserListItemWidget(QListWidgetItem *item);
     QListWidgetItem* findUserListItem(const QString &username);
 
@@ -191,7 +196,8 @@ private:
 
     // --- 数据 ---
     int     m_userId     = 0;
-    QString m_username;
+    QString m_username;       // uniqueId (登录标识)
+    QString m_displayName;    // 显示用昵称
     int     m_currentRoomId = -1;
 
     QMap<int, MessageModel*>  m_models;     // roomId -> MessageModel

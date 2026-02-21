@@ -108,7 +108,8 @@ QSize MessageDelegate::sizeHint(const QStyleOptionViewItem &option,
 
 void MessageDelegate::drawTextBubble(QPainter *painter, const QStyleOptionViewItem &option,
                                       const QModelIndex &index, bool isMine) const {
-    QString sender  = index.data(MessageModel::SenderRole).toString();
+    QString sender  = index.data(MessageModel::SenderRole).toString();      // uniqueId (for avatar)
+    QString senderName = index.data(MessageModel::SenderNameRole).toString(); // display name
     QString content = index.data(MessageModel::ContentRole).toString();
     QDateTime time  = index.data(MessageModel::TimestampRole).toDateTime();
     int contentType = index.data(MessageModel::ContentTypeRole).toInt();
@@ -137,7 +138,7 @@ void MessageDelegate::drawTextBubble(QPainter *painter, const QStyleOptionViewIt
     int senderH = sfm.height() + 2;
     int bubbleW = qMax(textRect.width() + m_padding * 2,
                        tfm.horizontalAdvance(timeStr) + m_padding * 2);
-    bubbleW = qMax(bubbleW, sfm.horizontalAdvance(sender) + m_padding * 2);
+    bubbleW = qMax(bubbleW, sfm.horizontalAdvance(senderName) + m_padding * 2);
     int bubbleH = senderH + textRect.height() + tfm.height() + m_padding * 2 + 4;
 
     // 头像位置
@@ -172,7 +173,7 @@ void MessageDelegate::drawTextBubble(QPainter *painter, const QStyleOptionViewIt
         painter->setPen(Qt::white);
         painter->setFont(option.font);
         painter->drawText(avatarRect, Qt::AlignCenter,
-                          sender.isEmpty() ? "?" : sender.left(1).toUpper());
+                          senderName.isEmpty() ? "?" : senderName.left(1).toUpper());
     }
 
     // 绘制气泡
@@ -198,7 +199,7 @@ void MessageDelegate::drawTextBubble(QPainter *painter, const QStyleOptionViewIt
     int textY = bubbleY + m_padding;
     painter->setPen(m_senderColor);
     painter->setFont(senderFont);
-    painter->drawText(bubbleX + m_padding, textY + sfm.ascent(), sender);
+    painter->drawText(bubbleX + m_padding, textY + sfm.ascent(), senderName);
     textY += senderH;
 
     // 绘制消息内容
@@ -256,6 +257,70 @@ bool MessageDelegate::isImageFile(const QString &fileName) {
 bool MessageDelegate::isVideoFile(const QString &fileName) {
     static const QStringList exts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
     return exts.contains(QFileInfo(fileName).suffix().toLower());
+}
+
+/// 根据文件扩展名返回合适的图标文字和背景颜色
+static QPair<QString, QColor> fileTypeIconInfo(const QString &fileName) {
+    QString suffix = QFileInfo(fileName).suffix().toLower();
+
+    // 音乐文件
+    static const QStringList musicExts = {"mp3", "wav", "flac", "aac", "ogg", "wma", "m4a", "ape", "mid", "midi"};
+    if (musicExts.contains(suffix))
+        return {QStringLiteral("♪"), QColor(156, 39, 176)};  // 紫色
+
+    // 压缩包
+    static const QStringList archiveExts = {"zip", "rar", "7z", "tar", "gz", "bz2", "xz", "zst", "cab"};
+    if (archiveExts.contains(suffix))
+        return {QStringLiteral("ZIP"), QColor(255, 143, 0)};  // 琥珀色
+
+    // PDF
+    if (suffix == "pdf")
+        return {QStringLiteral("PDF"), QColor(229, 57, 53)};  // 红色
+
+    // Word 文档
+    static const QStringList wordExts = {"doc", "docx", "odt", "rtf"};
+    if (wordExts.contains(suffix))
+        return {QStringLiteral("W"), QColor(25, 118, 210)};   // 蓝色
+
+    // Excel 表格
+    static const QStringList excelExts = {"xls", "xlsx", "csv", "ods"};
+    if (excelExts.contains(suffix))
+        return {QStringLiteral("X"), QColor(56, 142, 60)};    // 绿色
+
+    // PPT 演示
+    static const QStringList pptExts = {"ppt", "pptx", "odp"};
+    if (pptExts.contains(suffix))
+        return {QStringLiteral("P"), QColor(230, 81, 0)};     // 深橙色
+
+    // 文本文件
+    static const QStringList textExts = {"txt", "md", "log", "ini", "cfg", "conf", "yml", "yaml", "toml"};
+    if (textExts.contains(suffix))
+        return {QStringLiteral("TXT"), QColor(117, 117, 117)}; // 灰色
+
+    // 代码文件
+    static const QStringList codeExts = {"cpp", "c", "h", "hpp", "py", "js", "ts", "java", "cs", "go",
+                                         "rs", "rb", "php", "swift", "kt", "scala", "lua", "sql",
+                                         "html", "css", "xml", "json", "sh", "bat", "cmd", "ps1"};
+    if (codeExts.contains(suffix))
+        return {QStringLiteral("</>"), QColor(0, 121, 107)};   // 深青绿
+
+    // 可执行文件
+    static const QStringList exeExts = {"exe", "msi", "dll", "so", "dylib", "apk", "ipa", "dmg", "deb", "rpm"};
+    if (exeExts.contains(suffix))
+        return {QStringLiteral("EXE"), QColor(84, 110, 122)};  // 蓝灰色
+
+    // 字体文件
+    static const QStringList fontExts = {"ttf", "otf", "woff", "woff2", "eot"};
+    if (fontExts.contains(suffix))
+        return {QStringLiteral("Aa"), QColor(121, 85, 72)};    // 棕色
+
+    // 数据库文件
+    static const QStringList dbExts = {"db", "sqlite", "mdb", "accdb"};
+    if (dbExts.contains(suffix))
+        return {QStringLiteral("DB"), QColor(63, 81, 181)};    // 靛蓝色
+
+    // 默认文件图标
+    return {QStringLiteral("\U0001F4C4"), QColor(66, 133, 244)};  // 蓝色
 }
 
 QPixmap MessageDelegate::loadCachedImage(int fileId, const QString &fileName) const {
@@ -374,6 +439,7 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
     // ---------- 普通文件消息气泡 ----------
 
     QString sender   = index.data(MessageModel::SenderRole).toString();
+    QString senderName = index.data(MessageModel::SenderNameRole).toString();
     qint64 fileSize  = index.data(MessageModel::FileSizeRole).toLongLong();
     QDateTime time   = index.data(MessageModel::TimestampRole).toDateTime();
 
@@ -420,7 +486,7 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
         painter->drawRoundedRect(avatarRect, m_avatarSize / 2, m_avatarSize / 2);
         painter->setPen(Qt::white);
         painter->setFont(option.font);
-        painter->drawText(avatarRect, Qt::AlignCenter, sender.left(1).toUpper());
+        painter->drawText(avatarRect, Qt::AlignCenter, senderName.left(1).toUpper());
     }
 
     // 文件气泡
@@ -461,26 +527,40 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
             drawPauseOverlay(painter, iconRect);
         }
     } else if (!cached && dlState != Message::Downloaded) {
-        // 未下载 → 显示下载箭头图标（蓝底白色↓）
+        // 未下载 → 显示文件类型图标 + 下载箭头叠加
+        auto [iconText, iconColor] = fileTypeIconInfo(fileName);
         painter->setPen(Qt::NoPen);
-        painter->setBrush(QColor(66, 133, 244));
+        painter->setBrush(iconColor);
         painter->drawRoundedRect(iconRect, 6, 6);
         painter->setPen(Qt::white);
         QFont iconFont = option.font;
-        iconFont.setPointSize(18);
+        iconFont.setPointSize(iconText.length() > 2 ? 9 : (iconText.length() > 1 ? 11 : 16));
         iconFont.setBold(true);
         painter->setFont(iconFont);
-        painter->drawText(iconRect, Qt::AlignCenter, QStringLiteral("\u2913")); // ⤓ 下载箭头
-    } else {
-        // 已下载 → 正常文件图标
+        painter->drawText(iconRect, Qt::AlignCenter, iconText);
+        // 右下角叠加小下载箭头
+        QRect arrowRect(iconRect.right() - 14, iconRect.bottom() - 14, 14, 14);
         painter->setPen(Qt::NoPen);
         painter->setBrush(QColor(66, 133, 244));
+        painter->drawEllipse(arrowRect);
+        painter->setPen(Qt::white);
+        QFont arrowFont = option.font;
+        arrowFont.setPointSize(7);
+        arrowFont.setBold(true);
+        painter->setFont(arrowFont);
+        painter->drawText(arrowRect, Qt::AlignCenter, QStringLiteral("\u2913"));
+    } else {
+        // 已下载 → 文件类型图标
+        auto [iconText, iconColor] = fileTypeIconInfo(fileName);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(iconColor);
         painter->drawRoundedRect(iconRect, 6, 6);
         painter->setPen(Qt::white);
         QFont iconFont = option.font;
-        iconFont.setPointSize(16);
+        iconFont.setPointSize(iconText.length() > 2 ? 9 : (iconText.length() > 1 ? 11 : 16));
+        iconFont.setBold(true);
         painter->setFont(iconFont);
-        painter->drawText(iconRect, Qt::AlignCenter, QStringLiteral("\U0001F4C4"));
+        painter->drawText(iconRect, Qt::AlignCenter, iconText);
     }
 
     // 文件名
@@ -523,6 +603,7 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
 void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewItem &option,
                                        const QModelIndex &index, bool isMine) const {
     QString sender   = index.data(MessageModel::SenderRole).toString();
+    QString senderName = index.data(MessageModel::SenderNameRole).toString();
     QString fileName = index.data(MessageModel::FileNameRole).toString();
     int fileId       = index.data(MessageModel::FileIdRole).toInt();
     qint64 fileSize  = index.data(MessageModel::FileSizeRole).toLongLong();
@@ -579,7 +660,7 @@ void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewI
         painter->drawRoundedRect(avatarRect, m_avatarSize / 2, m_avatarSize / 2);
         painter->setPen(Qt::white);
         painter->setFont(option.font);
-        painter->drawText(avatarRect, Qt::AlignCenter, sender.left(1).toUpper());
+        painter->drawText(avatarRect, Qt::AlignCenter, senderName.left(1).toUpper());
     }
 
     // 气泡背景
@@ -606,7 +687,7 @@ void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewI
     // 发送者名字
     painter->setPen(m_senderColor);
     painter->setFont(senderFont);
-    painter->drawText(bubbleX + m_padding, contentY + sfm.ascent(), sender);
+    painter->drawText(bubbleX + m_padding, contentY + sfm.ascent(), senderName);
     contentY += senderH;
 
     // 视频缩略图区域
@@ -725,6 +806,7 @@ void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewI
 void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewItem &option,
                                        const QModelIndex &index, bool isMine) const {
     QString sender   = index.data(MessageModel::SenderRole).toString();
+    QString senderName = index.data(MessageModel::SenderNameRole).toString();
     QString fileName = index.data(MessageModel::FileNameRole).toString();
     int fileId       = index.data(MessageModel::FileIdRole).toInt();
     QDateTime time   = index.data(MessageModel::TimestampRole).toDateTime();
@@ -780,7 +862,7 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
         painter->drawRoundedRect(avatarRect, m_avatarSize / 2, m_avatarSize / 2);
         painter->setPen(Qt::white);
         painter->setFont(option.font);
-        painter->drawText(avatarRect, Qt::AlignCenter, sender.left(1).toUpper());
+        painter->drawText(avatarRect, Qt::AlignCenter, senderName.left(1).toUpper());
     }
 
     // 气泡背景
@@ -807,7 +889,7 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
     // 发送者名字
     painter->setPen(m_senderColor);
     painter->setFont(senderFont);
-    painter->drawText(bubbleX + m_padding, contentY + sfm.ascent(), sender);
+    painter->drawText(bubbleX + m_padding, contentY + sfm.ascent(), senderName);
     contentY += senderH;
 
     // 图片区域
@@ -860,10 +942,10 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
 
 void MessageDelegate::drawRecalledMessage(QPainter *painter, const QStyleOptionViewItem &option,
                                             const QModelIndex &index) const {
-    QString sender = index.data(MessageModel::SenderRole).toString();
+    QString senderName = index.data(MessageModel::SenderNameRole).toString();
     QRect rect = option.rect;
 
-    QString text = QString("%1 撤回了一条消息").arg(sender);
+    QString text = QString("%1 撤回了一条消息").arg(senderName);
     QFont font = option.font;
     font.setPointSize(font.pointSize() - 1);
     font.setItalic(true);

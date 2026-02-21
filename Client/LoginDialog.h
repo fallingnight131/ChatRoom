@@ -15,15 +15,16 @@ public:
     explicit LoginDialog(QWidget *parent = nullptr);
 
     QString username() const;
+    QString displayName() const { return m_displayName; }
     int     userId() const { return m_userId; }
 
 signals:
-    void loginSuccess(int userId, const QString &username);
+    void loginSuccess(int userId, const QString &username, const QString &displayName);
 
 private slots:
     void onLogin();
     void onRegister();
-    void onLoginResponse(bool success, const QString &error, int userId, const QString &username);
+    void onLoginResponse(bool success, const QString &error, int userId, const QString &username, const QString &displayName);
     void onRegisterResponse(bool success, const QString &error);
     void onConnected();
     void onConnectionError(const QString &error);
@@ -46,7 +47,8 @@ private:
     QLabel      *m_portLabel      = nullptr;
 
     // 注册页
-    QLineEdit   *m_regUser        = nullptr;
+    QLineEdit   *m_regUniqueId    = nullptr;
+    QLineEdit   *m_regDisplayName = nullptr;
     QLineEdit   *m_regPass        = nullptr;
     QLineEdit   *m_regPassConfirm = nullptr;
     QPushButton *m_regBtn         = nullptr;
@@ -54,6 +56,7 @@ private:
 
     int          m_userId         = 0;
     QString      m_username;
+    QString      m_displayName;
     bool         m_connected      = false;
 
     enum PendingAction { None, Login, Register };

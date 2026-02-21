@@ -32,6 +32,7 @@ QVariant MessageModel::data(const QModelIndex &index, int role) const {
     case RoomIdRole:      return msg.roomId();
     case DownloadStateRole:    return static_cast<int>(msg.downloadState());
     case DownloadProgressRole: return msg.downloadProgress();
+    case SenderNameRole:  return msg.senderName();
     }
     return {};
 }
@@ -52,6 +53,7 @@ QHash<int, QByteArray> MessageModel::roleNames() const {
         { RoomIdRole,      "roomId" },
         { DownloadStateRole, "downloadState" },
         { DownloadProgressRole, "downloadProgress" },
+        { SenderNameRole,  "senderName" },
     };
 }
 

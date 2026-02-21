@@ -39,9 +39,10 @@ void ClientSession::init() {
     qDebug() << "[Session] 初始化完成，来源:" << m_socket->peerAddress().toString();
 }
 
-void ClientSession::setAuthenticated(int userId, const QString &username) {
+void ClientSession::setAuthenticated(int userId, const QString &username, const QString &displayName) {
     m_userId        = userId;
     m_username      = username;
+    m_displayName   = displayName;
     m_authenticated = true;
 }
 

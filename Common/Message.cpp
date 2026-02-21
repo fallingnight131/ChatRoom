@@ -10,6 +10,7 @@ Message Message::fromJson(const QJsonObject &json) {
     m.m_id          = data["id"].toInt();
     m.m_roomId      = data["roomId"].toInt();
     m.m_sender      = data["sender"].toString();
+    m.m_senderName  = data["senderName"].toString(); // 显示用昵称
     m.m_content     = data["content"].toString();
     m.m_contentType = stringToContentType(data["contentType"].toString());
     m.m_recalled    = data["recalled"].toBool(false);

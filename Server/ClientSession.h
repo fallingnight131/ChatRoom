@@ -14,9 +14,11 @@ public:
 
     int     userId() const   { return m_userId; }
     QString username() const { return m_username; }
+    QString displayName() const { return m_displayName; }
     bool    isAuthenticated() const { return m_authenticated; }
 
-    void setAuthenticated(int userId, const QString &username);
+    void setAuthenticated(int userId, const QString &username, const QString &displayName);
+    void setDisplayName(const QString &dn) { m_displayName = dn; }
     void setKicked(bool v) { m_kicked = v; }
     bool isKicked() const  { return m_kicked; }
 
@@ -45,6 +47,7 @@ private:
 
     int         m_userId        = 0;
     QString     m_username;
+    QString     m_displayName;
     bool        m_authenticated = false;
     bool        m_kicked        = false;
 };

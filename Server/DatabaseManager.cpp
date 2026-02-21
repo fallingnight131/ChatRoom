@@ -147,6 +147,30 @@ bool DatabaseManager::initialize() {
            "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
            ")");
 
+    // === 数据库迁移：添加 display_name 列 ===
+    {
+        // 检测 display_name 列是否存在
+        QSqlQuery chk(db);
+        chk.exec("PRAGMA table_info(users)");
+        bool hasDisplayName = false;
+        while (chk.next()) {
+            if (chk.value(1).toString() == "display_name") {
+                hasDisplayName = true;
+                break;
+            }
+        }
+        if (!hasDisplayName) {
+            q.exec("ALTER TABLE users ADD COLUMN display_name TEXT DEFAULT ''");
+            if (q.lastError().isValid())
+                qWarning() << "[DB] 添加 display_name 列失败:" << q.lastError().text();
+            else {
+                // 将已有用户的 display_name 设置为 username
+                q.exec("UPDATE users SET display_name = username WHERE display_name = '' OR display_name IS NULL");
+                qInfo() << "[DB] 迁移: 已添加 display_name 列并初始化";
+            }
+        }
+    }
+
     m_initialized = true;
     qInfo() << "[DB] SQLite 数据库初始化完成，路径:" << m_dbPath;
     return true;
@@ -163,21 +187,22 @@ QString DatabaseManager::hashPassword(const QString &password, const QString &sa
     return QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex();
 }
 
-int DatabaseManager::registerUser(const QString &username, const QString &password) {
+int DatabaseManager::registerUser(const QString &uniqueId, const QString &displayName, const QString &password) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
     // 检查重名
     q.prepare("SELECT id FROM users WHERE username = ?");
-    q.addBindValue(username);
+    q.addBindValue(uniqueId);
     q.exec();
     if (q.next()) return -1;
 
     QString salt = generateSalt();
     QString hash = hashPassword(password, salt);
 
-    q.prepare("INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)");
-    q.addBindValue(username);
+    q.prepare("INSERT INTO users (username, display_name, password_hash, salt) VALUES (?, ?, ?, ?)");
+    q.addBindValue(uniqueId);
+    q.addBindValue(displayName);
     q.addBindValue(hash);
     q.addBindValue(salt);
 
@@ -211,6 +236,56 @@ int DatabaseManager::authenticateUser(const QString &username, const QString &pa
         }
     }
     return -1;
+}
+
+QString DatabaseManager::getDisplayName(int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT display_name FROM users WHERE id = ?");
+    q.addBindValue(userId);
+    q.exec();
+    if (q.next()) {
+        QString dn = q.value(0).toString();
+        if (!dn.isEmpty()) return dn;
+    }
+    // 回退到 username
+    q.prepare("SELECT username FROM users WHERE id = ?");
+    q.addBindValue(userId);
+    q.exec();
+    if (q.next()) return q.value(0).toString();
+    return {};
+}
+
+QString DatabaseManager::getDisplayNameByUid(const QString &uniqueId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT display_name, username FROM users WHERE username = ?");
+    q.addBindValue(uniqueId);
+    q.exec();
+    if (q.next()) {
+        QString dn = q.value(0).toString();
+        return dn.isEmpty() ? q.value(1).toString() : dn;
+    }
+    return {};
+}
+
+bool DatabaseManager::setDisplayName(int userId, const QString &newDisplayName) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("UPDATE users SET display_name = ? WHERE id = ?");
+    q.addBindValue(newDisplayName);
+    q.addBindValue(userId);
+    return q.exec();
+}
+
+QString DatabaseManager::getUniqueId(int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT username FROM users WHERE id = ?");
+    q.addBindValue(userId);
+    q.exec();
+    if (q.next()) return q.value(0).toString();
+    return {};
 }
 
 // ==================== 房间管理 ====================
@@ -331,7 +406,7 @@ bool DatabaseManager::isUserInRoom(int roomId, int userId) {
 QJsonArray DatabaseManager::getRoomMembers(int roomId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
-    q.prepare("SELECT u.id, u.username FROM room_members rm "
+    q.prepare("SELECT u.id, u.username, u.display_name FROM room_members rm "
               "JOIN users u ON rm.user_id = u.id "
               "WHERE rm.room_id = ? ORDER BY u.username");
     q.addBindValue(roomId);
@@ -340,8 +415,10 @@ QJsonArray DatabaseManager::getRoomMembers(int roomId) {
     QJsonArray arr;
     while (q.next()) {
         QJsonObject user;
-        user["userId"]   = q.value(0).toInt();
-        user["username"] = q.value(1).toString();
+        user["userId"]      = q.value(0).toInt();
+        user["username"]    = q.value(1).toString();
+        QString dn = q.value(2).toString();
+        user["displayName"] = dn.isEmpty() ? q.value(1).toString() : dn;
         arr.append(user);
     }
     return arr;
@@ -399,7 +476,7 @@ QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 befo
     // 用子查询取最新N条（DESC），再按时间正序排列（ASC）
     QString sql = "SELECT * FROM ("
                   "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id,"
-                  "       m.recalled, m.created_at, u.username"
+                  "       m.recalled, m.created_at, u.username, u.display_name"
                   " FROM messages m JOIN users u ON m.user_id = u.id"
                   " WHERE m.room_id = ?";
 
@@ -432,7 +509,9 @@ QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 befo
         dt.setTimeSpec(Qt::UTC);
         msg["timestamp"]   = dt.toMSecsSinceEpoch();
 
-        msg["sender"]      = q.value(8).toString();
+        msg["sender"]      = q.value(8).toString();  // uniqueId (username列)
+        QString dn = q.value(9).toString();
+        msg["senderName"]  = dn.isEmpty() ? msg["sender"].toString() : dn;
         msg["roomId"]      = roomId;
         arr.append(msg);
     }

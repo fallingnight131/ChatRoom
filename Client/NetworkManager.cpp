@@ -159,7 +159,8 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         emit loginResponse(ok,
                            data["error"].toString(),
                            data["userId"].toInt(),
-                           data["username"].toString());
+                           data["username"].toString(),
+                           data["displayName"].toString());
     }
     else if (type == Protocol::MsgType::REGISTER_RSP) {
         emit registerResponse(data["success"].toBool(), data["error"].toString());
@@ -202,16 +203,16 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         emit userListReceived(data["roomId"].toInt(), data["users"].toArray());
     }
     else if (type == Protocol::MsgType::USER_JOINED) {
-        emit userJoined(data["roomId"].toInt(), data["username"].toString());
+        emit userJoined(data["roomId"].toInt(), data["username"].toString(), data["displayName"].toString());
     }
     else if (type == Protocol::MsgType::USER_LEFT) {
-        emit userLeft(data["roomId"].toInt(), data["username"].toString());
+        emit userLeft(data["roomId"].toInt(), data["username"].toString(), data["displayName"].toString());
     }
     else if (type == Protocol::MsgType::USER_ONLINE) {
-        emit userOnline(data["roomId"].toInt(), data["username"].toString());
+        emit userOnline(data["roomId"].toInt(), data["username"].toString(), data["displayName"].toString());
     }
     else if (type == Protocol::MsgType::USER_OFFLINE) {
-        emit userOffline(data["roomId"].toInt(), data["username"].toString());
+        emit userOffline(data["roomId"].toInt(), data["username"].toString(), data["displayName"].toString());
     }
     else if (type == Protocol::MsgType::LEAVE_ROOM_RSP) {
         emit leaveRoomResponse(data["success"].toBool(), data["roomId"].toInt());
@@ -343,5 +344,15 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         emit kickedFromRoom(data["roomId"].toInt(),
                             data["roomName"].toString(),
                             data["operator"].toString());
+    }
+    else if (type == Protocol::MsgType::CHANGE_NICKNAME_RSP) {
+        emit changeNicknameResponse(data["success"].toBool(),
+                                     data["displayName"].toString(),
+                                     data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::NICKNAME_CHANGE_NOTIFY) {
+        emit nicknameChangeNotify(data["roomId"].toInt(),
+                                   data["username"].toString(),
+                                   data["displayName"].toString());
     }
 }
