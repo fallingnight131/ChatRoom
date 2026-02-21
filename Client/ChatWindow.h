@@ -152,6 +152,7 @@ private slots:
     // 个人信息 / 聊天室设置
     void showProfileDialog();
     void showRoomSettingsDialog(int roomId);
+    void showUserInfoDialog(const QString &username, const QString &displayName);
 
 
 private:

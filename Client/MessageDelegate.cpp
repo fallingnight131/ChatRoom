@@ -969,6 +969,126 @@ void MessageDelegate::drawRecalledMessage(QPainter *painter, const QStyleOptionV
     painter->drawText(bgRect, Qt::AlignCenter, text);
 }
 
+// ==================== 命中检测 ====================
+
+QRect MessageDelegate::avatarRectForIndex(const QStyleOptionViewItem &option,
+                                           const QModelIndex &index) const {
+    bool recalled = index.data(MessageModel::RecalledRole).toBool();
+    int contentType = index.data(MessageModel::ContentTypeRole).toInt();
+    if (recalled || contentType == static_cast<int>(Message::System))
+        return QRect();
+
+    bool isMine = index.data(MessageModel::IsMineRole).toBool();
+    QRect rect = option.rect;
+    int avatarX = isMine ? rect.right() - m_margin - m_avatarSize
+                         : rect.left() + m_margin;
+    int avatarY = rect.top() + m_margin;
+    return QRect(avatarX, avatarY, m_avatarSize, m_avatarSize);
+}
+
+QRect MessageDelegate::bubbleRectForIndex(const QStyleOptionViewItem &option,
+                                           const QModelIndex &index) const {
+    bool recalled = index.data(MessageModel::RecalledRole).toBool();
+    int contentType = index.data(MessageModel::ContentTypeRole).toInt();
+
+    if (recalled || contentType == static_cast<int>(Message::System)) {
+        // 系统消息/已撤回：居中区域
+        QRect rect = option.rect;
+        QString content = index.data(MessageModel::ContentRole).toString();
+        QFont font = option.font;
+        font.setPointSize(font.pointSize() - 1);
+        QFontMetrics fm(font);
+        int textW = fm.horizontalAdvance(content) + 20;
+        int textH = fm.height() + 8;
+        return QRect(rect.center().x() - textW / 2,
+                     rect.center().y() - textH / 2, textW, textH);
+    }
+
+    bool isMine = index.data(MessageModel::IsMineRole).toBool();
+    QRect rect = option.rect;
+    int avatarX = isMine ? rect.right() - m_margin - m_avatarSize
+                         : rect.left() + m_margin;
+    int bubbleY = rect.top() + m_margin;
+
+    if (contentType == static_cast<int>(Message::File)) {
+        QString fileName = index.data(MessageModel::FileNameRole).toString();
+
+        if (isImageFile(fileName)) {
+            int fileId = index.data(MessageModel::FileIdRole).toInt();
+            QPixmap pix = FileCache::instance()->isCached(fileId)
+                              ? loadCachedImage(fileId, fileName) : QPixmap();
+            int imgW = pix.isNull() ? 120 : pix.width();
+
+            QFont sf = option.font; sf.setPointSize(sf.pointSize() - 1);
+            QFontMetrics sfm(sf);
+            QFont tf = option.font; tf.setPointSize(tf.pointSize() - 2);
+            QFontMetrics tfm(tf);
+
+            int imgH = pix.isNull() ? 120 : pix.height();
+            int bubbleW = imgW + m_padding * 2;
+            int bubbleH = sfm.height() + 4 + imgH + tfm.height() + m_padding * 2 + 6;
+            int bubbleX = isMine ? avatarX - m_margin - bubbleW
+                                 : avatarX + m_avatarSize + m_margin;
+            return QRect(bubbleX, bubbleY, bubbleW, bubbleH);
+        }
+
+        if (isVideoFile(fileName)) {
+            int thumbW = m_maxImageWidth;
+            int thumbH = static_cast<int>(thumbW * 9.0 / 16.0);
+
+            QFont sf = option.font; sf.setPointSize(sf.pointSize() - 1);
+            QFontMetrics sfm(sf);
+            QFont tf = option.font; tf.setPointSize(tf.pointSize() - 2);
+            QFontMetrics tfm(tf);
+
+            int bubbleW = thumbW + m_padding * 2;
+            int bubbleH = sfm.height() + 4 + thumbH + tfm.height() + m_padding * 2 + 6;
+            int bubbleX = isMine ? avatarX - m_margin - bubbleW
+                                 : avatarX + m_avatarSize + m_margin;
+            return QRect(bubbleX, bubbleY, bubbleW, bubbleH);
+        }
+
+        // 普通文件
+        int bubbleW = 240, bubbleH = 70;
+        int bubbleX = isMine ? avatarX - m_margin - bubbleW
+                             : avatarX + m_avatarSize + m_margin;
+        return QRect(bubbleX, bubbleY, bubbleW, bubbleH);
+    }
+
+    // 文本 / 表情消息
+    QString content = index.data(MessageModel::ContentRole).toString();
+    QString senderName = index.data(MessageModel::SenderNameRole).toString();
+    QDateTime time = index.data(MessageModel::TimestampRole).toDateTime();
+
+    int bubbleMaxW = qMin(m_maxBubbleWidth, rect.width() - m_avatarSize - m_margin * 4);
+
+    QFont contentFont = option.font;
+    if (contentType == static_cast<int>(Message::Emoji))
+        contentFont.setPointSize(contentFont.pointSize() + 8);
+    QFontMetrics fm(contentFont);
+    QRect textRect = fm.boundingRect(QRect(0, 0, bubbleMaxW - m_padding * 2, 9999),
+                                     Qt::TextWordWrap, content);
+
+    QFont senderFont = option.font;
+    senderFont.setPointSize(senderFont.pointSize() - 1);
+    QFontMetrics sfm(senderFont);
+
+    QString timeStr = formatSmartTime(time);
+    QFont timeFont = option.font;
+    timeFont.setPointSize(timeFont.pointSize() - 2);
+    QFontMetrics tfm(timeFont);
+
+    int senderH = sfm.height() + 2;
+    int bubbleW = qMax(textRect.width() + m_padding * 2,
+                       tfm.horizontalAdvance(timeStr) + m_padding * 2);
+    bubbleW = qMax(bubbleW, sfm.horizontalAdvance(senderName) + m_padding * 2);
+    int bubbleH = senderH + textRect.height() + tfm.height() + m_padding * 2 + 4;
+
+    int bubbleX = isMine ? avatarX - m_margin - bubbleW
+                         : avatarX + m_avatarSize + m_margin;
+    return QRect(bubbleX, bubbleY, bubbleW, bubbleH);
+}
+
 // ==================== 尺寸计算 ====================
 
 QSize MessageDelegate::textBubbleSize(const QStyleOptionViewItem &option,

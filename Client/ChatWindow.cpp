@@ -9,6 +9,7 @@
 #include "AvatarCropDialog.h"
 #include "RoomSettingsDialog.h"
 #include "ProfileDialog.h"
+#include "UserInfoDialog.h"
 #include "Protocol.h"
 #include "Message.h"
 
@@ -188,10 +189,10 @@ void ChatWindow::setupUi() {
     m_roomTitle = new QLabel("请选择一个聊天室");
     m_roomTitle->setStyleSheet("font-weight: bold; font-size: 16px; padding: 8px;");
 
-    m_roomSettingsBtn = new QPushButton("···");
+    m_roomSettingsBtn = new QPushButton("\u2026"); // "…" horizontal ellipsis
     m_roomSettingsBtn->setFixedSize(32, 32);
     m_roomSettingsBtn->setToolTip("聊天室设置");
-    m_roomSettingsBtn->setStyleSheet("QPushButton { border: none; font-size: 18px; font-weight: bold; }"
+    m_roomSettingsBtn->setStyleSheet("QPushButton { border: none; font-size: 22px; font-weight: bold; color: #555; }"
                                       "QPushButton:hover { background-color: rgba(0,0,0,0.1); border-radius: 4px; }");
     m_roomSettingsBtn->setVisible(false); // 未选择房间时隐藏
 
@@ -423,8 +424,16 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::changeUidResponse, this, &ChatWindow::onChangeUidResponse);
     connect(net, &NetworkManager::uidChangeNotify,   this, &ChatWindow::onUidChangeNotify);
 
-    // 单击文件消息：触发下载 / 暂停 / 恢复
+    // 单击文件消息：触发下载 / 暂停 / 恢复（仅点击气泡区域时生效）
     connect(m_messageView, &QListView::clicked, this, [this](const QModelIndex &idx) {
+        // 检查点击位置是否在气泡区域
+        QPoint pos = m_messageView->viewport()->mapFromGlobal(QCursor::pos());
+        QStyleOptionViewItem opt;
+        opt.rect = m_messageView->visualRect(idx);
+        opt.font = m_messageView->font();
+        QRect bubble = m_delegate->bubbleRectForIndex(opt, idx);
+        if (!bubble.contains(pos)) return;
+
         int contentType = idx.data(MessageModel::ContentTypeRole).toInt();
         if (contentType != static_cast<int>(Message::File)) return;
 
@@ -466,8 +475,28 @@ void ChatWindow::connectSignals() {
         triggerFileDownload(fileId, fileName, fileSize);
     });
 
-    // 双击打开已缓存的文件/图片
+    // 双击：点击气泡打开文件，点击别人头像查看用户信息
     connect(m_messageView, &QListView::doubleClicked, this, [this](const QModelIndex &idx) {
+        QPoint pos = m_messageView->viewport()->mapFromGlobal(QCursor::pos());
+        QStyleOptionViewItem opt;
+        opt.rect = m_messageView->visualRect(idx);
+        opt.font = m_messageView->font();
+
+        // 双击别人头像 → 查看用户信息
+        if (!idx.data(MessageModel::IsMineRole).toBool()) {
+            QRect avatarRect = m_delegate->avatarRectForIndex(opt, idx);
+            if (avatarRect.contains(pos)) {
+                QString sender = idx.data(MessageModel::SenderRole).toString();
+                QString senderName = idx.data(MessageModel::SenderNameRole).toString();
+                showUserInfoDialog(sender, senderName);
+                return;
+            }
+        }
+
+        // 双击气泡 → 打开已缓存文件
+        QRect bubble = m_delegate->bubbleRectForIndex(opt, idx);
+        if (!bubble.contains(pos)) return;
+
         int contentType = idx.data(MessageModel::ContentTypeRole).toInt();
         if (contentType != static_cast<int>(Message::File)) return;
 
@@ -1716,11 +1745,36 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
     MessageModel *model = qobject_cast<MessageModel*>(m_messageView->model());
     if (!model) return;
 
+    // 检查点击区域（气泡 / 头像 / 空白）
+    bool clickedOnBubble = false;
+    bool clickedOnAvatar = false;
+    if (idx.isValid()) {
+        QStyleOptionViewItem opt;
+        opt.rect = m_messageView->visualRect(idx);
+        opt.font = m_messageView->font();
+        QRect bubble = m_delegate->bubbleRectForIndex(opt, idx);
+        QRect avatar = m_delegate->avatarRectForIndex(opt, idx);
+        clickedOnBubble = bubble.contains(pos);
+        clickedOnAvatar = avatar.contains(pos);
+    }
+
+    // 右键别人的头像 → 查看用户信息
+    if (clickedOnAvatar && idx.isValid() && !idx.data(MessageModel::IsMineRole).toBool()) {
+        QString sender = idx.data(MessageModel::SenderRole).toString();
+        QString senderName = idx.data(MessageModel::SenderNameRole).toString();
+        QMenu menu(this);
+        menu.addAction(QStringLiteral("查看用户信息"), [this, sender, senderName] {
+            showUserInfoDialog(sender, senderName);
+        });
+        menu.exec(m_messageView->viewport()->mapToGlobal(pos));
+        return;
+    }
+
     QMenu menu(this);
     bool hasMessageActions = false;
 
-    // ====== 消息相关操作（需要有效索引）======
-    if (idx.isValid()) {
+    // ====== 消息相关操作（需要点击在气泡上）======
+    if (idx.isValid() && clickedOnBubble) {
         const Message &msg = model->messageAt(idx.row());
         int dlState = idx.data(MessageModel::DownloadStateRole).toInt();
         bool isUploading = (dlState == Message::Uploading || dlState == Message::UploadPaused);
@@ -2449,6 +2503,13 @@ void ChatWindow::showProfileDialog() {
     });
 
     m_profileDialog->show();
+}
+
+void ChatWindow::showUserInfoDialog(const QString &username, const QString &displayName) {
+    QPixmap avatar = s_avatarCache.value(username);
+    UserInfoDialog *dlg = new UserInfoDialog(username, displayName, avatar, this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->exec();
 }
 
 // ==================== 注销 ====================

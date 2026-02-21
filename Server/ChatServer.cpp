@@ -1163,13 +1163,6 @@ void ChatServer::handleGetRoomPassword(ClientSession *session, const QJsonObject
     QJsonObject rspData;
     rspData["roomId"] = roomId;
 
-    if (!m_db->isRoomAdmin(roomId, session->userId())) {
-        rspData["success"] = false;
-        rspData["error"] = QStringLiteral("只有管理员可以查看聊天室密码");
-        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::GET_ROOM_PASSWORD_RSP, rspData));
-        return;
-    }
-
     QString password = m_db->getRoomPassword(roomId);
     rspData["success"] = true;
     rspData["password"] = password;

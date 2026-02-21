@@ -15,6 +15,11 @@ public:
     QSize sizeHint(const QStyleOptionViewItem &option,
                    const QModelIndex &index) const override;
 
+    /// 计算气泡区域（用于点击命中检测）
+    QRect bubbleRectForIndex(const QStyleOptionViewItem &option, const QModelIndex &index) const;
+    /// 计算头像区域（用于点击命中检测）
+    QRect avatarRectForIndex(const QStyleOptionViewItem &option, const QModelIndex &index) const;
+
 public slots:
     void updateThemeColors(bool isDark);
 
