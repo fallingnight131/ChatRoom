@@ -15,24 +15,34 @@ int main(int argc, char *argv[]) {
 
     QCommandLineOption portOption(
         QStringList() << "p" << "port",
-        "监听端口 (默认 9527)",
+        "TCP 监听端口 (默认 9527)",
         "port",
         QString::number(Protocol::DEFAULT_PORT));
     parser.addOption(portOption);
 
+    QCommandLineOption wsPortOption(
+        QStringList() << "w" << "ws-port",
+        "WebSocket 监听端口 (默认 TCP端口+1)",
+        "wsport",
+        "0");
+    parser.addOption(wsPortOption);
+
     parser.process(app);
 
-    quint16 port = parser.value(portOption).toUShort();
+    quint16 port   = parser.value(portOption).toUShort();
+    quint16 wsPort = parser.value(wsPortOption).toUShort();
+    if (wsPort == 0) wsPort = port + 1;
 
     ChatServer server;
-    if (!server.startServer(port)) {
+    if (!server.startServer(port, wsPort)) {
         qCritical() << "服务器启动失败!";
         return 1;
     }
 
     qInfo() << "========================================";
-    qInfo() << "  Qt聊天室服务器 v1.0";
-    qInfo() << "  监听端口:" << port;
+    qInfo() << "  Qt聊天室服务器 v2.0 (TCP + WebSocket)";
+    qInfo() << "  TCP 端口:" << port;
+    qInfo() << "  WebSocket 端口:" << wsPort;
     qInfo() << "========================================";
 
     return app.exec();

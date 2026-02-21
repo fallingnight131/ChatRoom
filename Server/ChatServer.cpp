@@ -15,6 +15,8 @@
 #include <QDate>
 #include <QCoreApplication>
 #include <QRegularExpression>
+#include <QWebSocketServer>
+#include <QWebSocket>
 
 ChatServer::ChatServer(QObject *parent)
     : QTcpServer(parent)
@@ -27,7 +29,7 @@ ChatServer::~ChatServer() {
     stopServer();
 }
 
-bool ChatServer::startServer(quint16 port) {
+bool ChatServer::startServer(quint16 port, quint16 wsPort) {
     // 初始化数据库
     if (!m_db->initialize()) {
         qCritical() << "[Server] 数据库初始化失败";
@@ -37,15 +39,31 @@ bool ChatServer::startServer(quint16 port) {
     m_roomMgr->loadRooms(m_db);
 
     if (!listen(QHostAddress::Any, port)) {
-        qCritical() << "[Server] 监听端口失败:" << port << errorString();
+        qCritical() << "[Server] TCP 监听端口失败:" << port << errorString();
         return false;
     }
-    qInfo() << "[Server] 服务器已启动，监听端口:" << port;
+    qInfo() << "[Server] TCP 服务器已启动，监听端口:" << port;
+
+    // 启动 WebSocket 服务器（默认 TCP 端口 + 1）
+    if (wsPort == 0) wsPort = port + 1;
+    m_wsServer = new QWebSocketServer(
+        QStringLiteral("ChatServer-WS"), QWebSocketServer::NonSecureMode, this);
+    if (!m_wsServer->listen(QHostAddress::Any, wsPort)) {
+        qCritical() << "[Server] WebSocket 监听端口失败:" << wsPort << m_wsServer->errorString();
+        return false;
+    }
+    connect(m_wsServer, &QWebSocketServer::newConnection,
+            this, &ChatServer::onNewWebSocketConnection);
+    qInfo() << "[Server] WebSocket 服务器已启动，监听端口:" << wsPort;
+
     return true;
 }
 
 void ChatServer::stopServer() {
     close();
+    if (m_wsServer) {
+        m_wsServer->close();
+    }
     QMutexLocker locker(&m_mutex);
     for (auto *s : qAsConst(m_sessions))
         s->disconnectFromServer();
@@ -55,7 +73,7 @@ void ChatServer::stopServer() {
 // ==================== 新连接 ====================
 
 void ChatServer::incomingConnection(qintptr socketDescriptor) {
-    qInfo() << "[Server] 新连接:" << socketDescriptor;
+    qInfo() << "[Server] 新 TCP 连接:" << socketDescriptor;
 
     QThread *thread = new QThread(this);
     ClientSession *session = new ClientSession(socketDescriptor);
@@ -70,6 +88,22 @@ void ChatServer::incomingConnection(qintptr socketDescriptor) {
     connect(thread,  &QThread::finished,        thread, &QThread::deleteLater);
 
     thread->start();
+}
+
+void ChatServer::onNewWebSocketConnection() {
+    while (m_wsServer->hasPendingConnections()) {
+        QWebSocket *ws = m_wsServer->nextPendingConnection();
+        qInfo() << "[Server] 新 WebSocket 连接:" << ws->peerAddress().toString();
+
+        // QWebSocket 已拥有活跃的 socket notifier，不能 moveToThread
+        // 直接在主线程处理 WebSocket 会话
+        ClientSession *session = new ClientSession(ws, this);
+        session->init();
+
+        connect(session, &ClientSession::authenticated,  this, &ChatServer::onClientAuthenticated);
+        connect(session, &ClientSession::disconnected,   this, &ChatServer::onClientDisconnected);
+        connect(session, &ClientSession::messageReceived,this, &ChatServer::onClientMessage);
+    }
 }
 
 // ==================== 会话事件 ====================

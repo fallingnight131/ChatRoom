@@ -1,0 +1,241 @@
+<template>
+  <div class="modal-overlay" @click.self="$emit('close')">
+    <div class="modal" style="min-width: 440px;">
+      <div class="modal-title">房间设置</div>
+
+      <div class="setting-info">
+        <div class="info-row">
+          <span class="info-label">房间名称</span>
+          <span class="info-value">{{ chatStore.currentRoomName }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">房间ID</span>
+          <span class="info-value">{{ chatStore.currentRoomId }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">管理员</span>
+          <span class="info-value">{{ chatStore.isAdmin ? '是' : '否' }}</span>
+        </div>
+      </div>
+
+      <!-- 管理员功能 -->
+      <template v-if="chatStore.isAdmin">
+        <!-- 重命名 -->
+        <div class="setting-section">
+          <div class="setting-label">重命名房间</div>
+          <div class="inline-edit">
+            <input class="input" v-model="newName" placeholder="新名称" />
+            <button class="btn btn-primary" @click="renameRoom">修改</button>
+          </div>
+        </div>
+
+        <!-- 密码管理 -->
+        <div class="setting-section">
+          <div class="setting-label">房间密码</div>
+          <div class="inline-edit">
+            <input class="input" v-model="roomPassword" type="text" placeholder="留空则取消密码" />
+            <button class="btn btn-primary" @click="setPassword">设置</button>
+            <button class="btn btn-text" @click="viewPassword">查看</button>
+          </div>
+          <div v-if="currentPassword !== null" class="password-display">
+            当前密码: {{ currentPassword || '(无)' }}
+          </div>
+        </div>
+
+        <!-- 文件大小限制 -->
+        <div class="setting-section">
+          <div class="setting-label">文件大小限制 (MB)</div>
+          <div class="inline-edit">
+            <input class="input" v-model.number="maxFileSize" type="number" min="1" max="4096" />
+            <button class="btn btn-primary" @click="setMaxFile">保存</button>
+          </div>
+        </div>
+
+        <!-- 管理成员 -->
+        <div class="setting-section">
+          <div class="setting-label">管理成员</div>
+          <div class="member-actions">
+            <select class="input" v-model="selectedUser" style="flex:1">
+              <option value="">选择用户...</option>
+              <option v-for="u in chatStore.users" :key="u.username" :value="u.username">
+                {{ u.displayName }} (@{{ u.username }})
+                {{ u.isAdmin ? '[管理员]' : '' }}
+              </option>
+            </select>
+            <button class="btn btn-secondary" @click="toggleAdmin" :disabled="!selectedUser">
+              {{ isSelectedAdmin ? '取消管理员' : '设为管理员' }}
+            </button>
+            <button class="btn btn-danger" @click="kickUser" :disabled="!selectedUser">踢出</button>
+          </div>
+        </div>
+
+        <!-- 消息管理 -->
+        <div class="setting-section">
+          <div class="setting-label">消息管理</div>
+          <button class="btn btn-danger" @click="clearAllMessages">清空所有消息</button>
+        </div>
+
+        <!-- 危险操作 -->
+        <div class="setting-section danger-zone">
+          <div class="setting-label" style="color:var(--danger)">危险操作</div>
+          <button class="btn btn-danger" @click="deleteRoom">删除房间</button>
+        </div>
+      </template>
+
+      <div class="modal-actions">
+        <button class="btn btn-danger" @click="leaveRoom">退出房间</button>
+        <button class="btn btn-secondary" @click="$emit('close')">关闭</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useChatStore } from '../stores/chat'
+import { chatWs, MsgType } from '../services/websocket'
+
+const emit = defineEmits(['close'])
+const chatStore = useChatStore()
+
+const newName = ref('')
+const roomPassword = ref('')
+const currentPassword = ref(null)
+const maxFileSize = ref(100)
+const selectedUser = ref('')
+
+const isSelectedAdmin = computed(() => {
+  const u = chatStore.users.find(u => u.username === selectedUser.value)
+  return u ? u.isAdmin : false
+})
+
+function renameRoom() {
+  if (newName.value.trim()) {
+    chatWs.renameRoom(chatStore.currentRoomId, newName.value.trim())
+    newName.value = ''
+  }
+}
+
+function setPassword() {
+  chatWs.setRoomPassword(chatStore.currentRoomId, roomPassword.value)
+  roomPassword.value = ''
+}
+
+function viewPassword() {
+  chatWs.getRoomPassword(chatStore.currentRoomId)
+}
+
+function onRoomPassword(data) {
+  currentPassword.value = data.password || ''
+}
+
+function setMaxFile() {
+  if (maxFileSize.value > 0) {
+    chatWs.setRoomSettings(chatStore.currentRoomId, maxFileSize.value * 1024 * 1024)
+  }
+}
+
+function toggleAdmin() {
+  if (!selectedUser.value) return
+  chatWs.setAdmin(chatStore.currentRoomId, selectedUser.value, !isSelectedAdmin.value)
+}
+
+function kickUser() {
+  if (!selectedUser.value) return
+  if (confirm(`确定踢出 ${selectedUser.value} ？`)) {
+    chatWs.kickUser(chatStore.currentRoomId, selectedUser.value)
+    selectedUser.value = ''
+  }
+}
+
+function clearAllMessages() {
+  if (confirm('确定清空所有消息？此操作不可撤销。')) {
+    chatWs.deleteMessages(chatStore.currentRoomId, 'all')
+  }
+}
+
+function deleteRoom() {
+  if (confirm(`确定删除房间 "${chatStore.currentRoomName}" ？此操作不可撤销。`)) {
+    chatWs.deleteRoom(chatStore.currentRoomId, chatStore.currentRoomName)
+    emit('close')
+  }
+}
+
+function leaveRoom() {
+  if (confirm(`确定退出房间 "${chatStore.currentRoomName}" ？`)) {
+    chatWs.leaveRoom(chatStore.currentRoomId)
+    emit('close')
+  }
+}
+
+onMounted(() => {
+  chatStore.onEvent('roomPassword', onRoomPassword)
+  // 加载当前设置
+  const s = chatStore.roomSettings[chatStore.currentRoomId]
+  if (s) {
+    maxFileSize.value = Math.round(s.maxFileSize / (1024 * 1024))
+  }
+})
+
+onUnmounted(() => {
+  chatStore.offEvent('roomPassword', onRoomPassword)
+})
+</script>
+
+<style scoped>
+.setting-info {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--bg-primary);
+  border-radius: 8px;
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.info-label {
+  color: var(--text-secondary);
+}
+.info-value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.setting-section {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+.setting-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.inline-edit {
+  display: flex;
+  gap: 8px;
+}
+.inline-edit .input {
+  flex: 1;
+}
+.member-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.danger-zone {
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 12px;
+}
+.password-display {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+</style>

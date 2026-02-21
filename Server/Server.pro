@@ -1,4 +1,4 @@
-QT += core network sql
+QT += core network sql websockets
 QT -= gui
 
 CONFIG += c++17 console

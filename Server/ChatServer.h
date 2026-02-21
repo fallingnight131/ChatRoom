@@ -7,6 +7,8 @@
 #include <QJsonObject>
 #include <QFile>
 
+class QWebSocketServer;
+class QWebSocket;
 class ClientSession;
 class DatabaseManager;
 class RoomManager;
@@ -18,7 +20,7 @@ public:
     explicit ChatServer(QObject *parent = nullptr);
     ~ChatServer() override;
 
-    bool startServer(quint16 port);
+    bool startServer(quint16 port, quint16 wsPort = 0);
     void stopServer();
 
     DatabaseManager *database() const { return m_db; }
@@ -40,6 +42,7 @@ private slots:
     void onClientAuthenticated(ClientSession *session);
     void onClientDisconnected(ClientSession *session);
     void onClientMessage(ClientSession *session, const QJsonObject &msg);
+    void onNewWebSocketConnection();
 
 private:
     void handleLogin(ClientSession *session, const QJsonObject &data);
@@ -80,6 +83,7 @@ private:
 
     DatabaseManager *m_db       = nullptr;
     RoomManager     *m_roomMgr  = nullptr;
+    QWebSocketServer *m_wsServer = nullptr;
 
     mutable QMutex m_mutex;
     QMap<QString, ClientSession*> m_sessions;  // username -> session
