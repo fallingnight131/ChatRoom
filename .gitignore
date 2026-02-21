@@ -47,3 +47,13 @@ mysql_driver_build/
 # ========== 存储数据 ==========
 data/
 server_files/
+
+# ========== Node.js / Vue Web 前端 ==========
+WebClient/node_modules/
+WebClient/dist/
+WebClient/.vite/
+WebClient/*.local
+
+# ========== 日志 ==========
+*.log
+npm-debug.log*
