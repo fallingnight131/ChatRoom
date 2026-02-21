@@ -12,6 +12,8 @@
 #include <QDebug>
 #include <QFile>
 #include <QDir>
+#include <QDate>
+#include <QCoreApplication>
 
 ChatServer::ChatServer(QObject *parent)
     : QTcpServer(parent)
@@ -485,6 +487,29 @@ void ChatServer::handleHistory(ClientSession *session, const QJsonObject &data) 
 
 // ==================== 文件传输 ====================
 
+QString ChatServer::fileTypeSubDir(const QString &fileName) {
+    static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
+    static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
+    QString suffix = QFileInfo(fileName).suffix().toLower();
+    if (imgExts.contains(suffix)) return QStringLiteral("Image");
+    if (vidExts.contains(suffix)) return QStringLiteral("Video");
+    return QStringLiteral("File");
+}
+
+QString ChatServer::serverFileDir(int roomId, const QString &fileName) const {
+    // server_files/{roomId}/Image|Video|File/{yyyy-MM}/
+    QString typeDir = fileTypeSubDir(fileName);
+    QString yearMonth = QDate::currentDate().toString("yyyy-MM");
+    QString dir = QCoreApplication::applicationDirPath()
+                  + "/server_files/"
+                  + QString::number(roomId) + "/"
+                  + typeDir + "/"
+                  + yearMonth;
+    QDir d(dir);
+    if (!d.exists()) d.mkpath(".");
+    return dir;
+}
+
 void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) {
     if (!session->isAuthenticated()) return;
 
@@ -505,12 +530,10 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
         return;
     }
 
-    // 保存文件到服务器磁盘
-    QDir dir("server_files");
-    if (!dir.exists()) dir.mkpath(".");
-
+    // 保存文件到服务器磁盘（多级目录：{roomId}/类型/年月/）
+    QString targetDir = serverFileDir(roomId, fileName);
     QString safeName = QString::number(QDateTime::currentMSecsSinceEpoch()) + "_" + fileName;
-    QString filePath = dir.filePath(safeName);
+    QString filePath = targetDir + "/" + safeName;
 
     QFile file(filePath);
     if (file.open(QIODevice::WriteOnly)) {
@@ -600,13 +623,12 @@ void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject
         return;
     }
 
-    // 生成上传ID和临时文件路径
+    // 生成上传ID和临时文件路径（多级目录：{roomId}/类型/年月/）
     QString uploadId = QUuid::createUuid().toString(QUuid::WithoutBraces);
 
-    QDir dir("server_files");
-    if (!dir.exists()) dir.mkpath(".");
+    QString targetDir = serverFileDir(roomId, fileName);
     QString safeName = QString::number(QDateTime::currentMSecsSinceEpoch()) + "_" + fileName;
-    QString filePath = dir.filePath(safeName);
+    QString filePath = targetDir + "/" + safeName;
 
     auto *file = new QFile(filePath);
     if (!file->open(QIODevice::WriteOnly)) {
@@ -769,6 +791,16 @@ void ChatServer::handleRecall(ClientSession *session, const QJsonObject &data) {
     // 验证消息所有权和时间限制
     bool ok = m_db->recallMessage(messageId, session->userId(), Protocol::RECALL_TIME_LIMIT_SEC);
     if (ok) {
+        // 如果是文件消息，清理服务器文件
+        auto fileInfo = m_db->getFileInfoForMessage(messageId);
+        if (fileInfo.first > 0) {
+            if (!fileInfo.second.isEmpty()) {
+                QFile::remove(fileInfo.second);
+                qInfo() << "[Server] 撤回消息，已删除文件:" << fileInfo.second;
+            }
+            m_db->deleteFileRecords({fileInfo.first});
+        }
+
         rspData["success"] = true;
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::RECALL_RSP, rspData));
 

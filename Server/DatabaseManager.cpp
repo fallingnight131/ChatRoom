@@ -464,6 +464,18 @@ bool DatabaseManager::recallMessage(int messageId, int userId, int timeLimitSec)
     return q.exec();
 }
 
+QPair<int, QString> DatabaseManager::getFileInfoForMessage(int messageId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT m.file_id, f.file_path FROM messages m "
+              "LEFT JOIN files f ON m.file_id = f.id "
+              "WHERE m.id = ? AND m.file_id > 0");
+    q.addBindValue(messageId);
+    if (q.exec() && q.next())
+        return {q.value(0).toInt(), q.value(1).toString()};
+    return {0, {}};
+}
+
 // ==================== 文件管理 ====================
 
 int DatabaseManager::saveFile(int roomId, int userId, const QString &fileName,

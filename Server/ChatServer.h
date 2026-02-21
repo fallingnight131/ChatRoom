@@ -70,6 +70,11 @@ private:
     void handleAvatarGet(ClientSession *session, const QJsonObject &data);
     void handleFileUploadCancel(ClientSession *session, const QJsonObject &data);
 
+    /// 根据文件名返回类型子目录 ("Image", "Video", "File")
+    static QString fileTypeSubDir(const QString &fileName);
+    /// 构建服务端文件存放目录：server_files/{roomId}/Image|Video|File/{yyyy-MM}/
+    QString serverFileDir(int roomId, const QString &fileName) const;
+
     DatabaseManager *m_db       = nullptr;
     RoomManager     *m_roomMgr  = nullptr;
 

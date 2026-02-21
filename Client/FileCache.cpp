@@ -9,6 +9,8 @@
 #include <QDebug>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QDateTime>
+#include <QDirIterator>
 
 FileCache *FileCache::s_instance = nullptr;
 
@@ -39,6 +41,26 @@ FileCache::FileCache(QObject *parent)
     qDebug() << "[FileCache] 缓存目录:" << m_cacheDir << "已缓存文件:" << m_cache.size();
 }
 
+// ==================== 文件类型分类 ====================
+
+QString FileCache::fileTypeSubDir(const QString &fileName) {
+    static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
+    static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
+    QString suffix = QFileInfo(fileName).suffix().toLower();
+    if (imgExts.contains(suffix)) return QStringLiteral("Image");
+    if (vidExts.contains(suffix)) return QStringLiteral("Video");
+    return QStringLiteral("File");
+}
+
+QString FileCache::subDirForFile(const QString &fileName) const {
+    // 返回如 "Image/2025-06", "Video/2025-06", "File/2025-06"
+    QString typeDir = fileTypeSubDir(fileName);
+    QString yearMonth = QDate::currentDate().toString("yyyy-MM");
+    return typeDir + "/" + yearMonth;
+}
+
+// ==================== 索引管理 ====================
+
 void FileCache::loadIndex() {
     // 从 cache_index.json 加载索引，只信任索引中记录的文件
     m_cache.clear();
@@ -54,9 +76,9 @@ void FileCache::loadIndex() {
         int fileId = it.key().toInt(&ok);
         if (!ok) continue;
         QJsonObject entry = it.value().toObject();
-        QString fileName = entry["file"].toString();
+        QString relPath = entry["file"].toString();
         qint64 expectedSize = static_cast<qint64>(entry["size"].toDouble());
-        QString path = m_cacheDir + "/" + fileName;
+        QString path = m_cacheDir + "/" + relPath;
         // 验证文件存在且大小匹配
         QFileInfo fi(path);
         if (fi.exists() && fi.size() == expectedSize) {
@@ -67,10 +89,12 @@ void FileCache::loadIndex() {
 
 void FileCache::saveIndex() {
     QJsonObject obj;
+    QDir base(m_cacheDir);
     for (auto it = m_cache.constBegin(); it != m_cache.constEnd(); ++it) {
         QFileInfo fi(it.value());
         QJsonObject entry;
-        entry["file"] = fi.fileName();
+        // 存储相对于 cacheDir 的路径（支持多级目录）
+        entry["file"] = base.relativeFilePath(it.value());
         entry["size"] = fi.size();
         obj[QString::number(it.key())] = entry;
     }
@@ -80,6 +104,8 @@ void FileCache::saveIndex() {
         f.write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
     }
 }
+
+// ==================== 用户/目录设置 ====================
 
 void FileCache::setUsername(const QString &username) {
     m_username = username;
@@ -108,6 +134,8 @@ void FileCache::setCacheDir(const QString &baseDir, const QString &username) {
     qDebug() << "[FileCache] 缓存目录已更改:" << m_cacheDir;
 }
 
+// ==================== 缓存操作 ====================
+
 QString FileCache::cachedFilePath(int fileId) const {
     QMutexLocker locker(&m_mutex);
     return m_cache.value(fileId);
@@ -121,13 +149,17 @@ bool FileCache::isCached(int fileId) const {
 }
 
 QString FileCache::cacheFile(int fileId, const QString &fileName, const QByteArray &data) {
-    // 确保缓存目录存在（防止外部删除后写入失败）
-    QDir dir(m_cacheDir);
+    // 计算子目录: Image/2025-06, Video/2025-06, File/2025-06
+    QString sub = subDirForFile(fileName);
+    QString targetDir = m_cacheDir + "/" + sub;
+
+    // 确保目录存在
+    QDir dir(targetDir);
     if (!dir.exists())
         dir.mkpath(".");
 
     QString safeName = QString("%1_%2").arg(fileId).arg(fileName);
-    QString filePath = m_cacheDir + "/" + safeName;
+    QString filePath = targetDir + "/" + safeName;
 
     QFile file(filePath);
     if (file.open(QIODevice::WriteOnly)) {
@@ -149,14 +181,25 @@ QString FileCache::cacheDir() const {
     return m_cacheDir;
 }
 
+QString FileCache::thumbDir() const {
+    QString dir = m_cacheDir + "/Thumb";
+    QDir d(dir);
+    if (!d.exists()) d.mkpath(".");
+    return dir;
+}
+
 QString FileCache::cacheFromLocal(int fileId, const QString &fileName, const QString &sourcePath) {
-    // 确保缓存目录存在
-    QDir dir(m_cacheDir);
+    // 计算子目录
+    QString sub = subDirForFile(fileName);
+    QString targetDir = m_cacheDir + "/" + sub;
+
+    // 确保目录存在
+    QDir dir(targetDir);
     if (!dir.exists())
         dir.mkpath(".");
 
     QString safeName = QString("%1_%2").arg(fileId).arg(fileName);
-    QString destPath = m_cacheDir + "/" + safeName;
+    QString destPath = targetDir + "/" + safeName;
 
     // 如果源文件和目标相同，直接记录
     if (QFileInfo(sourcePath).absoluteFilePath() == QFileInfo(destPath).absoluteFilePath()) {
@@ -206,9 +249,11 @@ qint64 FileCache::totalCacheSize() const {
     QDir dir(m_cacheDir);
     if (!dir.exists()) return 0;
 
-    const QFileInfoList entries = dir.entryInfoList(QDir::Files | QDir::NoDotAndDotDot);
-    for (const QFileInfo &fi : entries) {
-        total += fi.size();
+    // 递归遍历所有子目录
+    QDirIterator it(m_cacheDir, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        it.next();
+        total += it.fileInfo().size();
     }
     return total;
 }
@@ -216,18 +261,30 @@ qint64 FileCache::totalCacheSize() const {
 void FileCache::clearAllCache() {
     QMutexLocker locker(&m_mutex);
 
-    // 删除缓存目录下的所有文件（保留 cache_index.json）
+    // 递归删除缓存目录下的所有文件（保留 cache_index.json 和目录结构）
     QDir dir(m_cacheDir);
     if (dir.exists()) {
-        const QStringList files = dir.entryList(QDir::Files | QDir::NoDotAndDotDot);
-        for (const QString &f : files) {
-            if (f == "cache_index.json") continue;
-            QString fullPath = dir.absoluteFilePath(f);
-            // 尝试设置文件为可写后再删除
+        QDirIterator it(m_cacheDir, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            it.next();
+            if (it.fileName() == "cache_index.json") continue;
+            QString fullPath = it.filePath();
             QFile file(fullPath);
             file.setPermissions(QFile::ReadUser | QFile::WriteUser);
             if (!file.remove()) {
                 qWarning() << "[FileCache] 无法删除文件:" << fullPath << file.errorString();
+            }
+        }
+        // 清理空的子目录（从深层往浅层删除）
+        QStringList subDirs = {"Image", "Video", "File", "Thumb"};
+        for (const QString &sub : subDirs) {
+            QDir subDir(m_cacheDir + "/" + sub);
+            if (subDir.exists()) {
+                // 删除年月子目录
+                const QStringList entries = subDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+                for (const QString &e : entries) {
+                    QDir(subDir.filePath(e)).rmdir(".");
+                }
             }
         }
     }

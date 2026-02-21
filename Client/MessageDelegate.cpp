@@ -285,7 +285,7 @@ QPixmap MessageDelegate::loadVideoThumbnail(int fileId) const {
         return pix;
 
     // 从磁盘加载缩略图文件
-    QString thumbPath = FileCache::instance()->cacheDir()
+    QString thumbPath = FileCache::instance()->thumbDir()
                         + QString("/thumb_%1.jpg").arg(fileId);
     if (!QFile::exists(thumbPath)) return QPixmap();
 

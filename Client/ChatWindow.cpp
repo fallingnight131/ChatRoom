@@ -399,20 +399,15 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::kickUserResponse,  this, &ChatWindow::onKickUserResponse);
     connect(net, &NetworkManager::kickedFromRoom,    this, &ChatWindow::onKickedFromRoom);
 
-    // 单击文件消息：触发下载 / 暂停 / 恢复 / 取消上传下载
+    // 单击文件消息：触发下载 / 暂停 / 恢复
     connect(m_messageView, &QListView::clicked, this, [this](const QModelIndex &idx) {
         int contentType = idx.data(MessageModel::ContentTypeRole).toInt();
         if (contentType != static_cast<int>(Message::File)) return;
 
         int fileId = idx.data(MessageModel::FileIdRole).toInt();
-        if (fileId <= 0) return;
-
-        // 已缓存 → 不响应单击（双击打开）
-        if (FileCache::instance()->isCached(fileId)) return;
-
         int dlState = idx.data(MessageModel::DownloadStateRole).toInt();
 
-        // 上传中 → 暂停上传
+        // 上传中 → 暂停上传（fileId 为负数的临时消息）
         if (dlState == Message::Uploading) {
             pauseUpload();
             return;
@@ -422,6 +417,13 @@ void ChatWindow::connectSignals() {
             resumeUpload();
             return;
         }
+
+        // 以下操作需要正数 fileId
+        if (fileId <= 0) return;
+
+        // 已缓存 → 不响应单击（双击打开）
+        if (FileCache::instance()->isCached(fileId)) return;
+
         // 下载中 → 暂停下载
         if (dlState == Message::Downloading) {
             pauseDownload(fileId);
@@ -438,29 +440,6 @@ void ChatWindow::connectSignals() {
 
         // 未下载 → 触发下载
         triggerFileDownload(fileId, fileName, fileSize);
-    });
-
-    // 右键文件消息：取消上传/下载
-    m_messageView->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(m_messageView, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
-        QModelIndex idx = m_messageView->indexAt(pos);
-        if (!idx.isValid()) return;
-        int contentType = idx.data(MessageModel::ContentTypeRole).toInt();
-        if (contentType != static_cast<int>(Message::File)) return;
-        int fileId = idx.data(MessageModel::FileIdRole).toInt();
-        if (fileId <= 0) return;
-        int dlState = idx.data(MessageModel::DownloadStateRole).toInt();
-
-        QMenu menu(this);
-        if (dlState == Message::Downloading || dlState == Message::Paused) {
-            menu.addAction("取消下载", [this, fileId] { cancelDownload(fileId); });
-        }
-        if (dlState == Message::Uploading || dlState == Message::UploadPaused) {
-            menu.addAction("取消上传", [this] { cancelUpload(); });
-        }
-        if (!menu.isEmpty()) {
-            menu.exec(m_messageView->viewport()->mapToGlobal(pos));
-        }
     });
 
     // 双击打开已缓存的文件/图片
@@ -911,9 +890,8 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
     if (isVideo && data.contains("thumbnail")) {
         QByteArray thumbData = QByteArray::fromBase64(data["thumbnail"].toString().toLatin1());
         if (!thumbData.isEmpty()) {
-            QString cacheDir = FileCache::instance()->cacheDir();
-            QDir(cacheDir).mkpath(".");
-            QString thumbPath = cacheDir + QString("/thumb_%1.jpg").arg(fileId);
+            QString tDir = FileCache::instance()->thumbDir();
+            QString thumbPath = tDir + QString("/thumb_%1.jpg").arg(fileId);
             QFile tf(thumbPath);
             if (tf.open(QIODevice::WriteOnly)) {
                 tf.write(thumbData);
@@ -930,7 +908,7 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
         if (m_uploadingFileId != 0) {
             getOrCreateModel(roomId)->removeMessageByFileId(m_uploadingFileId);
             // 清理临时缩略图
-            QString tempThumb = FileCache::instance()->cacheDir()
+            QString tempThumb = FileCache::instance()->thumbDir()
                                 + QString("/thumb_%1.jpg").arg(m_uploadingFileId);
             QFile::remove(tempThumb);
             QPixmapCache::remove(QString("vidthumb_%1").arg(m_uploadingFileId));
@@ -947,7 +925,7 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
                 // 发送者的视频缩略图已在发送时本地生成，
                 // 如果上面的 thumbnail 字段不存在时再从视频生成
                 if (isVideo) {
-                    QString thumbPath = FileCache::instance()->cacheDir()
+                    QString thumbPath = FileCache::instance()->thumbDir()
                                         + QString("/thumb_%1.jpg").arg(fileId);
                     if (!QFile::exists(thumbPath)) {
                         generateVideoThumbnail(fileId, cached);
@@ -1031,9 +1009,8 @@ void ChatWindow::startChunkedUpload(const QString &filePath) {
         m_upload.thumbnailData = generateVideoThumbnailData(filePath);
         // 保存缩略图到本地缓存（使用临时 fileId），以便上传期间显示缩略图背景
         if (!m_upload.thumbnailData.isEmpty()) {
-            QString cacheDir = FileCache::instance()->cacheDir();
-            QDir(cacheDir).mkpath(".");
-            QString thumbPath = cacheDir + QString("/thumb_%1.jpg").arg(m_uploadingFileId);
+            QString tDir = FileCache::instance()->thumbDir();
+            QString thumbPath = tDir + QString("/thumb_%1.jpg").arg(m_uploadingFileId);
             QFile tf(thumbPath);
             if (tf.open(QIODevice::WriteOnly)) {
                 tf.write(m_upload.thumbnailData);
@@ -1171,7 +1148,7 @@ void ChatWindow::cancelUpload() {
             it.value()->removeMessageByFileId(m_uploadingFileId);
         }
         // 清理临时缩略图
-        QString tempThumb = FileCache::instance()->cacheDir()
+        QString tempThumb = FileCache::instance()->thumbDir()
                             + QString("/thumb_%1.jpg").arg(m_uploadingFileId);
         QFile::remove(tempThumb);
         QPixmapCache::remove(QString("vidthumb_%1").arg(m_uploadingFileId));
@@ -1322,9 +1299,8 @@ void ChatWindow::generateVideoThumbnail(int fileId, const QString &videoPath) {
     if (jpegData.isEmpty()) return;
 
     // 保存缩略图
-    QString cacheDir = FileCache::instance()->cacheDir();
-    QDir(cacheDir).mkpath(".");
-    QString thumbPath = cacheDir + QString("/thumb_%1.jpg").arg(fileId);
+    QString tDir = FileCache::instance()->thumbDir();
+    QString thumbPath = tDir + QString("/thumb_%1.jpg").arg(fileId);
     QFile f(thumbPath);
     if (f.open(QIODevice::WriteOnly)) {
         f.write(jpegData);
@@ -1523,7 +1499,7 @@ void ChatWindow::onRecallNotify(int messageId, int roomId, const QString &userna
             QPixmapCache::remove(QString("msgimg_%1").arg(msg.fileId()));
             // 删除视频缩略图
             QPixmapCache::remove(QString("vidthumb_%1").arg(msg.fileId()));
-            QString thumbPath = FileCache::instance()->cacheDir() + QString("/thumb_%1.jpg").arg(msg.fileId());
+            QString thumbPath = FileCache::instance()->thumbDir() + QString("/thumb_%1.jpg").arg(msg.fileId());
             QFile::remove(thumbPath);
         }
     }
@@ -1575,7 +1551,7 @@ void ChatWindow::onDeleteMsgsResponse(bool success, int roomId, int deletedCount
             FileCache::instance()->removeFile(fid);
             QPixmapCache::remove(QString("msgimg_%1").arg(fid));
             QPixmapCache::remove(QString("vidthumb_%1").arg(fid));
-            QString thumbPath = FileCache::instance()->cacheDir() + QString("/thumb_%1.jpg").arg(fid);
+            QString thumbPath = FileCache::instance()->thumbDir() + QString("/thumb_%1.jpg").arg(fid);
             QFile::remove(thumbPath);
         }
         // 重新加载历史消息
@@ -1598,7 +1574,7 @@ void ChatWindow::onDeleteMsgsNotify(int roomId, const QString &mode, const QJson
         FileCache::instance()->removeFile(fid);
         QPixmapCache::remove(QString("msgimg_%1").arg(fid));
         QPixmapCache::remove(QString("vidthumb_%1").arg(fid));
-        QString thumbPath = FileCache::instance()->cacheDir() + QString("/thumb_%1.jpg").arg(fid);
+        QString thumbPath = FileCache::instance()->thumbDir() + QString("/thumb_%1.jpg").arg(fid);
         QFile::remove(thumbPath);
     }
 
@@ -1784,72 +1760,106 @@ void ChatWindow::onEmojiSelected(const QString &emoji) {
 
 void ChatWindow::onMessageContextMenu(const QPoint &pos) {
     QModelIndex idx = m_messageView->indexAt(pos);
-    if (!idx.isValid()) return;
 
     MessageModel *model = qobject_cast<MessageModel*>(m_messageView->model());
     if (!model) return;
 
-    const Message &msg = model->messageAt(idx.row());
-
     QMenu menu(this);
+    bool hasMessageActions = false;
 
-    if (msg.contentType() == Message::File) {
-        int fileId = msg.fileId();
-        if (FileCache::instance()->isCached(fileId)) {
-            menu.addAction("打开文件", [fileId] {
-                QString path = FileCache::instance()->cachedFilePath(fileId);
-                FileCache::openWithSystem(path);
-            });
-            menu.addAction("打开所在文件夹", [fileId] {
-                QString path = FileCache::instance()->cachedFilePath(fileId);
-                QFileInfo fi(path);
-                FileCache::openWithSystem(fi.absolutePath());
-            });
-        } else {
-            menu.addAction("下载文件", [this, &msg] {
+    // ====== 消息相关操作（需要有效索引）======
+    if (idx.isValid()) {
+        const Message &msg = model->messageAt(idx.row());
+        int dlState = idx.data(MessageModel::DownloadStateRole).toInt();
+        bool isUploading = (dlState == Message::Uploading || dlState == Message::UploadPaused);
+
+        // 文件消息操作
+        if (msg.contentType() == Message::File) {
+            int fileId = msg.fileId();
+
+            // 上传中/上传暂停 → 提供暂停/恢复/取消上传
+            if (isUploading) {
+                if (dlState == Message::Uploading) {
+                    menu.addAction("暂停上传", [this] { pauseUpload(); });
+                } else {
+                    menu.addAction("恢复上传", [this] { resumeUpload(); });
+                }
+                menu.addAction("取消上传", [this] { cancelUpload(); });
+                hasMessageActions = true;
+            }
+            // 下载中/下载暂停 → 提供取消下载
+            else if (dlState == Message::Downloading || dlState == Message::Paused) {
+                if (dlState == Message::Downloading) {
+                    menu.addAction("暂停下载", [this, fileId] { pauseDownload(fileId); });
+                } else {
+                    menu.addAction("恢复下载", [this, fileId] { resumeDownload(fileId); });
+                }
+                menu.addAction("取消下载", [this, fileId] { cancelDownload(fileId); });
+                hasMessageActions = true;
+            }
+            // 已缓存 → 打开文件
+            else if (FileCache::instance()->isCached(fileId)) {
+                menu.addAction("打开文件", [fileId] {
+                    QString path = FileCache::instance()->cachedFilePath(fileId);
+                    FileCache::openWithSystem(path);
+                });
+                menu.addAction("打开所在文件夹", [fileId] {
+                    QString path = FileCache::instance()->cachedFilePath(fileId);
+                    QFileInfo fi(path);
+                    FileCache::openWithSystem(fi.absolutePath());
+                });
+                hasMessageActions = true;
+            }
+            // 未下载
+            else if (fileId > 0) {
+                menu.addAction("下载文件", [this, &msg] {
+                    QJsonObject data;
+                    data["fileId"]   = msg.fileId();
+                    data["fileName"] = msg.fileName();
+                    NetworkManager::instance()->sendMessage(
+                        Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_REQ, data));
+                });
+                hasMessageActions = true;
+            }
+        }
+
+        // 撤回：仅在非上传状态下允许
+        if (msg.sender() == m_username && !msg.recalled() && !isUploading) {
+            int secs = msg.timestamp().secsTo(QDateTime::currentDateTime());
+            if (secs <= Protocol::RECALL_TIME_LIMIT_SEC) {
+                menu.addAction("撤回消息", this, &ChatWindow::onRecallMessage);
+                hasMessageActions = true;
+            }
+        }
+
+        // 复制文本
+        menu.addAction("复制文本", [&msg] {
+            QApplication::clipboard()->setText(msg.content());
+        });
+        hasMessageActions = true;
+
+        // 管理员：删除此消息（仅在非上传状态下）
+        if (m_adminRooms.value(m_currentRoomId, false) && !msg.recalled() && !isUploading) {
+            menu.addSeparator();
+            int msgId = msg.id();
+            menu.addAction("删除此消息", [this, msgId] {
                 QJsonObject data;
-                data["fileId"]   = msg.fileId();
-                data["fileName"] = msg.fileName();
+                data["roomId"] = m_currentRoomId;
+                data["mode"] = QStringLiteral("selected");
+                QJsonArray ids;
+                ids.append(msgId);
+                data["messageIds"] = ids;
                 NetworkManager::instance()->sendMessage(
-                    Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_REQ, data));
+                    Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_REQ, data));
             });
         }
     }
 
-    // 普通用户可以撤回自己2分钟内的消息
-    if (msg.sender() == m_username && !msg.recalled()) {
-        // 检查2分钟内的消息
-        int secs = msg.timestamp().secsTo(QDateTime::currentDateTime());
-        if (secs <= Protocol::RECALL_TIME_LIMIT_SEC) {
-            menu.addAction("撤回消息", this, &ChatWindow::onRecallMessage);
-        }
-    }
-
-    menu.addAction("复制文本", [&msg] {
-        QApplication::clipboard()->setText(msg.content());
-    });
-
-    // 管理员功能
-    if (m_adminRooms.value(m_currentRoomId, false) && !msg.recalled()) {
-        menu.addSeparator();
+    // ====== 管理员批量操作（始终显示，无需选中消息）======
+    if (m_adminRooms.value(m_currentRoomId, false)) {
+        if (hasMessageActions) menu.addSeparator();
         QMenu *adminMenu = menu.addMenu("管理员操作");
 
-        // 删除这条消息
-        int msgId = msg.id();
-        adminMenu->addAction("删除此消息", [this, msgId] {
-            QJsonObject data;
-            data["roomId"] = m_currentRoomId;
-            data["mode"] = QStringLiteral("selected");
-            QJsonArray ids;
-            ids.append(msgId);
-            data["messageIds"] = ids;
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_REQ, data));
-        });
-
-        adminMenu->addSeparator();
-
-        // 清空所有消息
         adminMenu->addAction("清空所有消息", [this] {
             if (QMessageBox::question(this, "确认", "确定要清空所有聊天记录吗？\n此操作不可恢复！")
                 == QMessageBox::Yes) {
@@ -1861,7 +1871,6 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
             }
         });
 
-        // 删除N天前的消息
         adminMenu->addAction("删除N天前的消息...", [this] {
             bool ok;
             int days = QInputDialog::getInt(this, "删除旧消息",
@@ -1876,7 +1885,6 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
                 Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_REQ, data));
         });
 
-        // 删除N天内的消息
         adminMenu->addAction("删除最近N天的消息...", [this] {
             bool ok;
             int days = QInputDialog::getInt(this, "删除近期消息",
@@ -1892,7 +1900,9 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
         });
     }
 
-    menu.exec(m_messageView->viewport()->mapToGlobal(pos));
+    if (!menu.isEmpty()) {
+        menu.exec(m_messageView->viewport()->mapToGlobal(pos));
+    }
 }
 
 // ==================== 主题 ====================

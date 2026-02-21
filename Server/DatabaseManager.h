@@ -45,6 +45,8 @@ public:
                      qint64 fileSize = 0, int fileId = 0);
     QJsonArray getMessageHistory(int roomId, int count, qint64 beforeTimestamp = 0);
     bool recallMessage(int messageId, int userId, int timeLimitSec);
+    /// 获取单条消息关联的文件信息 (file_id, file_path)，用于撤回时清理文件
+    QPair<int, QString> getFileInfoForMessage(int messageId);
 
     // 文件管理
     int     saveFile(int roomId, int userId, const QString &fileName,

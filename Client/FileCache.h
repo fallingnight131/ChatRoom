@@ -7,6 +7,12 @@
 #include <QMutex>
 
 /// 文件缓存管理器 —— 管理接收文件的本地缓存
+///
+/// 目录结构（仿微信）：
+///   cache/{username}/Image/{yyyy-MM}/  图片
+///   cache/{username}/Video/{yyyy-MM}/  视频
+///   cache/{username}/File/{yyyy-MM}/   普通文件
+///   cache/{username}/Thumb/            视频缩略图
 class FileCache : public QObject {
     Q_OBJECT
 public:
@@ -24,8 +30,11 @@ public:
     /// 从本地文件复制到缓存（用于发送者直接缓存，避免大文件全部读入内存）
     QString cacheFromLocal(int fileId, const QString &fileName, const QString &sourcePath);
 
-    /// 获取缓存目录
+    /// 获取缓存根目录（用户级别）
     QString cacheDir() const;
+
+    /// 获取缩略图目录
+    QString thumbDir() const;
 
     /// 设置缓存目录（用户名隔离子目录）
     void setCacheDir(const QString &baseDir, const QString &username);
@@ -48,11 +57,16 @@ public:
     /// 获取所有已缓存的文件ID列表
     QMap<int, QString> allCachedFileIds() const;
 
+    /// 根据文件名判断文件类型子目录 ("Image", "Video", "File")
+    static QString fileTypeSubDir(const QString &fileName);
+
 private:
     explicit FileCache(QObject *parent = nullptr);
     static FileCache *s_instance;
     void loadIndex();
     void saveIndex();
+    /// 计算文件的存放子目录（含年月）: Image/2025-06, Video/2025-06, File/2025-06
+    QString subDirForFile(const QString &fileName) const;
 
     mutable QMutex m_mutex;
     QMap<int, QString> m_cache;  // fileId -> local path
