@@ -189,10 +189,26 @@ void ChatWindow::setupUi() {
     m_roomTitle = new QLabel("请选择一个聊天室");
     m_roomTitle->setStyleSheet("font-weight: bold; font-size: 16px; padding: 8px;");
 
-    m_roomSettingsBtn = new QPushButton("\u2026"); // "…" horizontal ellipsis
+    // 用图标代替文字，避免字体渲染问题
+    {
+        QPixmap dotsPix(32, 32);
+        dotsPix.fill(Qt::transparent);
+        QPainter dp(&dotsPix);
+        dp.setRenderHint(QPainter::Antialiasing);
+        dp.setBrush(QColor("#555"));
+        dp.setPen(Qt::NoPen);
+        int r = 3, cy = 16;
+        dp.drawEllipse(QPoint(8,  cy), r, r);
+        dp.drawEllipse(QPoint(16, cy), r, r);
+        dp.drawEllipse(QPoint(24, cy), r, r);
+        dp.end();
+        m_roomSettingsBtn = new QPushButton;
+        m_roomSettingsBtn->setIcon(QIcon(dotsPix));
+        m_roomSettingsBtn->setIconSize(QSize(32, 32));
+    }
     m_roomSettingsBtn->setFixedSize(32, 32);
     m_roomSettingsBtn->setToolTip("聊天室设置");
-    m_roomSettingsBtn->setStyleSheet("QPushButton { border: none; font-size: 22px; font-weight: bold; color: #555; }"
+    m_roomSettingsBtn->setStyleSheet("QPushButton { border: none; }"
                                       "QPushButton:hover { background-color: rgba(0,0,0,0.1); border-radius: 4px; }");
     m_roomSettingsBtn->setVisible(false); // 未选择房间时隐藏
 
@@ -482,8 +498,8 @@ void ChatWindow::connectSignals() {
         opt.rect = m_messageView->visualRect(idx);
         opt.font = m_messageView->font();
 
-        // 双击别人头像 → 查看用户信息
-        if (!idx.data(MessageModel::IsMineRole).toBool()) {
+        // 双击头像 → 查看用户信息（自己和他人均可）
+        {
             QRect avatarRect = m_delegate->avatarRectForIndex(opt, idx);
             if (avatarRect.contains(pos)) {
                 QString sender = idx.data(MessageModel::SenderRole).toString();
@@ -1758,8 +1774,8 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
         clickedOnAvatar = avatar.contains(pos);
     }
 
-    // 右键别人的头像 → 查看用户信息
-    if (clickedOnAvatar && idx.isValid() && !idx.data(MessageModel::IsMineRole).toBool()) {
+    // 右键头像 → 查看用户信息（自己和他人均可）
+    if (clickedOnAvatar && idx.isValid()) {
         QString sender = idx.data(MessageModel::SenderRole).toString();
         QString senderName = idx.data(MessageModel::SenderNameRole).toString();
         QMenu menu(this);
@@ -2507,7 +2523,21 @@ void ChatWindow::showProfileDialog() {
 
 void ChatWindow::showUserInfoDialog(const QString &username, const QString &displayName) {
     QPixmap avatar = s_avatarCache.value(username);
-    UserInfoDialog *dlg = new UserInfoDialog(username, displayName, avatar, this);
+
+    // 查找用户在当前聊天室的角色
+    QString role = QStringLiteral("成员");
+    if (m_userList) {
+        for (int i = 0; i < m_userList->count(); ++i) {
+            auto *item = m_userList->item(i);
+            if (item->data(Qt::UserRole).toString() == username) {
+                if (item->data(Qt::UserRole + 1).toBool())
+                    role = QStringLiteral("管理员");
+                break;
+            }
+        }
+    }
+
+    UserInfoDialog *dlg = new UserInfoDialog(username, displayName, avatar, role, this);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
     dlg->exec();
 }

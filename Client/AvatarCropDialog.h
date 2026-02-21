@@ -42,5 +42,5 @@ private:
     QLabel *m_previewLabel = nullptr;
 
     static constexpr int CANVAS_SIZE = 460;
-    static constexpr int AVATAR_OUTPUT_SIZE = 128;
+    static constexpr int AVATAR_OUTPUT_SIZE = 256;
 };

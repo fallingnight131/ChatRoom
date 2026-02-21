@@ -10,7 +10,8 @@
 #include <QDialog>
 
 UserInfoDialog::UserInfoDialog(const QString &username, const QString &displayName,
-                               const QPixmap &avatar, QWidget *parent)
+                               const QPixmap &avatar, const QString &role,
+                               QWidget *parent)
     : QDialog(parent), m_avatar(avatar)
 {
     setWindowTitle(QStringLiteral("用户信息"));
@@ -60,6 +61,13 @@ UserInfoDialog::UserInfoDialog(const QString &username, const QString &displayNa
     idLabel->setStyleSheet("font-size: 14px; padding: 4px;");
     idLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     layout->addWidget(idLabel);
+
+    // --- 权限 ---
+    if (!role.isEmpty()) {
+        auto *roleLabel = new QLabel(QStringLiteral("权限：%1").arg(role));
+        roleLabel->setStyleSheet("font-size: 14px; padding: 4px;");
+        layout->addWidget(roleLabel);
+    }
 
     layout->addSpacing(8);
 

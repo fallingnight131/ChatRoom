@@ -10,7 +10,8 @@ class UserInfoDialog : public QDialog {
     Q_OBJECT
 public:
     explicit UserInfoDialog(const QString &username, const QString &displayName,
-                            const QPixmap &avatar, QWidget *parent = nullptr);
+                            const QPixmap &avatar, const QString &role = QString(),
+                            QWidget *parent = nullptr);
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
