@@ -129,6 +129,11 @@ namespace MsgType {
     inline const QString CHANGE_NICKNAME_REQ    = QStringLiteral("CHANGE_NICKNAME_REQ");
     inline const QString CHANGE_NICKNAME_RSP    = QStringLiteral("CHANGE_NICKNAME_RSP");
     inline const QString NICKNAME_CHANGE_NOTIFY = QStringLiteral("NICKNAME_CHANGE_NOTIFY");
+
+    // 修改唯一ID
+    inline const QString CHANGE_UID_REQ         = QStringLiteral("CHANGE_UID_REQ");
+    inline const QString CHANGE_UID_RSP         = QStringLiteral("CHANGE_UID_RSP");
+    inline const QString UID_CHANGE_NOTIFY      = QStringLiteral("UID_CHANGE_NOTIFY");
 }
 
 // ==================== 数据包帧: [4字节长度][JSON数据] ====================

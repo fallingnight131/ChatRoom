@@ -171,6 +171,26 @@ bool DatabaseManager::initialize() {
         }
     }
 
+    // === 数据库迁移：添加 last_uid_change 列 ===
+    {
+        QSqlQuery chk(db);
+        chk.exec("PRAGMA table_info(users)");
+        bool hasLastUidChange = false;
+        while (chk.next()) {
+            if (chk.value(1).toString() == "last_uid_change") {
+                hasLastUidChange = true;
+                break;
+            }
+        }
+        if (!hasLastUidChange) {
+            q.exec("ALTER TABLE users ADD COLUMN last_uid_change TIMESTAMP DEFAULT NULL");
+            if (q.lastError().isValid())
+                qWarning() << "[DB] 添加 last_uid_change 列失败:" << q.lastError().text();
+            else
+                qInfo() << "[DB] 迁移: 已添加 last_uid_change 列";
+        }
+    }
+
     m_initialized = true;
     qInfo() << "[DB] SQLite 数据库初始化完成，路径:" << m_dbPath;
     return true;
@@ -286,6 +306,27 @@ QString DatabaseManager::getUniqueId(int userId) {
     q.exec();
     if (q.next()) return q.value(0).toString();
     return {};
+}
+
+QDateTime DatabaseManager::getLastUidChangeTime(int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT last_uid_change FROM users WHERE id = ?");
+    q.addBindValue(userId);
+    q.exec();
+    if (q.next() && !q.value(0).isNull()) {
+        return QDateTime::fromString(q.value(0).toString(), Qt::ISODate);
+    }
+    return {};  // 返回 invalid QDateTime 表示从未修改过
+}
+
+bool DatabaseManager::changeUniqueId(int userId, const QString &newUniqueId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("UPDATE users SET username = ?, last_uid_change = datetime('now') WHERE id = ?");
+    q.addBindValue(newUniqueId);
+    q.addBindValue(userId);
+    return q.exec();
 }
 
 // ==================== 房间管理 ====================

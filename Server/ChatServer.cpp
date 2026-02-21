@@ -198,6 +198,8 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleAvatarGet(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::CHANGE_NICKNAME_REQ) {
         handleChangeNickname(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::CHANGE_UID_REQ) {
+        handleChangeUid(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::HEARTBEAT) {
         session->sendMessage(Protocol::makeHeartbeatAck());
     }
@@ -249,10 +251,10 @@ void ChatServer::handleRegister(ClientSession *session, const QJsonObject &data)
     QJsonObject rspData;
 
     // 验证唯一ID格式：6-12位，仅允许字母、数字、下划线
-    QRegularExpression idRegex("^[a-zA-Z0-9_]{6,12}$");
+    QRegularExpression idRegex("^[a-zA-Z0-9_]{6,20}$");
     if (!idRegex.match(username).hasMatch()) {
         rspData["success"] = false;
-        rspData["error"]   = QStringLiteral("用户ID必须为6-12位，只能包含字母、数字和下划线");
+        rspData["error"]   = QStringLiteral("用户ID必须为6-20位，只能包含字母、数字和下划线");
     } else if (displayName.trimmed().isEmpty() || displayName.trimmed().length() < 1) {
         rspData["success"] = false;
         rspData["error"]   = QStringLiteral("请输入昵称");
@@ -1423,7 +1425,93 @@ void ChatServer::handleChangeNickname(ClientSession *session, const QJsonObject 
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::CHANGE_NICKNAME_RSP, rspData));
 }
 
-// ==================== 广播/实现 ====================
+void ChatServer::handleChangeUid(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    QString newUid = data["newUid"].toString().trimmed();
+    QJsonObject rspData;
+
+    // 验证格式
+    QRegularExpression idRegex("^[a-zA-Z0-9_]{6,20}$");
+    if (!idRegex.match(newUid).hasMatch()) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("用户ID必须为6-20位，只能包含字母、数字和下划线");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::CHANGE_UID_RSP, rspData));
+        return;
+    }
+
+    // 检查是否与当前ID相同
+    if (newUid == session->username()) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("新ID与当前ID相同");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::CHANGE_UID_RSP, rspData));
+        return;
+    }
+
+    // 检查月度冷却
+    QDateTime lastChange = m_db->getLastUidChangeTime(session->userId());
+    if (lastChange.isValid()) {
+        qint64 daysSince = lastChange.daysTo(QDateTime::currentDateTime());
+        if (daysSince < 30) {
+            int remain = 30 - static_cast<int>(daysSince);
+            rspData["success"] = false;
+            rspData["error"]   = QString("每月只能修改一次ID，还需等待 %1 天").arg(remain);
+            session->sendMessage(Protocol::makeMessage(Protocol::MsgType::CHANGE_UID_RSP, rspData));
+            return;
+        }
+    }
+
+    // 检查新ID是否已被占用
+    int existingId = m_db->getUserIdByName(newUid);
+    if (existingId > 0) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("该用户ID已被使用");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::CHANGE_UID_RSP, rspData));
+        return;
+    }
+
+    // 执行数据库更新
+    QString oldUid = session->username();
+    bool ok = m_db->changeUniqueId(session->userId(), newUid);
+    if (!ok) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("修改用户ID失败");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::CHANGE_UID_RSP, rspData));
+        return;
+    }
+
+    // 更新服务端Session
+    {
+        QMutexLocker locker(&m_mutex);
+        m_sessions.remove(oldUid);
+        m_sessions[newUid] = session;
+    }
+    session->setUsername(newUid);
+
+    // 更新RoomManager
+    m_roomMgr->updateUsername(session->userId(), newUid);
+
+    // 响应成功
+    rspData["success"] = true;
+    rspData["oldUid"]  = oldUid;
+    rspData["newUid"]  = newUid;
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::CHANGE_UID_RSP, rspData));
+
+    // 通知该用户所在的所有房间
+    QJsonArray rooms = m_db->getUserJoinedRooms(session->userId());
+    for (const QJsonValue &v : rooms) {
+        int roomId = v.toObject()["roomId"].toInt();
+        QJsonObject notifyData;
+        notifyData["roomId"]      = roomId;
+        notifyData["oldUid"]      = oldUid;
+        notifyData["newUid"]      = newUid;
+        notifyData["displayName"] = session->displayName();
+        broadcastToRoom(roomId, Protocol::makeMessage(
+            Protocol::MsgType::UID_CHANGE_NOTIFY, notifyData), session);
+    }
+
+    qInfo() << "[Server] 用户ID已修改:" << oldUid << "->" << newUid;
+}
 
 void ChatServer::broadcastToRoom(int roomId, const QJsonObject &msg, ClientSession *exclude) {
     QStringList users = m_roomMgr->usersInRoom(roomId);

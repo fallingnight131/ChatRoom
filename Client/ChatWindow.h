@@ -145,8 +145,11 @@ private slots:
     void onChangeNicknameResponse(bool success, const QString &newDisplayName, const QString &error);
     void onNicknameChangeNotify(int roomId, const QString &username, const QString &newDisplayName);
 
-    // 贴边隐藏
-    void checkEdgeHide();
+    // 用户ID修改
+    void onChangeUid();
+    void onChangeUidResponse(bool success, const QString &oldUid, const QString &newUid, const QString &error);
+    void onUidChangeNotify(int roomId, const QString &oldUid, const QString &newUid, const QString &displayName);
+
 
 private:
     void setupUi();
@@ -238,10 +241,7 @@ private:
     QList<int> m_downloadQueue;              // 等待下载的 fileId 队列
     int m_activeDownloadId = 0;              // 当前正在分块下载的 fileId（0=无）
 
-    // 贴边隐藏
-    QTimer  *m_edgeTimer  = nullptr;
-    bool     m_edgeHidden = false;
+    // 贴边隐藏（已移除）
+
     bool     m_forceQuit  = false;  // 菜单退出时强制关闭（不最小化到托盘）
-    enum EdgeSide { NoEdge, LeftEdge, RightEdge, TopEdge };
-    EdgeSide m_edgeSide   = NoEdge;
 };

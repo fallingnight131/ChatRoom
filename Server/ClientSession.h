@@ -19,6 +19,7 @@ public:
 
     void setAuthenticated(int userId, const QString &username, const QString &displayName);
     void setDisplayName(const QString &dn) { m_displayName = dn; }
+    void setUsername(const QString &u) { m_username = u; }
     void setKicked(bool v) { m_kicked = v; }
     bool isKicked() const  { return m_kicked; }
 

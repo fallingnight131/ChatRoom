@@ -107,7 +107,7 @@ void LoginDialog::setupUi() {
     regLayout->addRow(m_regBtn);
     regLayout->addRow(m_regStatus);
 
-    m_regUniqueId->setPlaceholderText("6-12位，字母/数字/下划线，注册后不可修改");
+    m_regUniqueId->setPlaceholderText("6-20位，字母/数字/下划线");
     m_regDisplayName->setPlaceholderText("显示名称，之后可修改");
     m_regPass->setPlaceholderText("至少4个字符");
     m_regPassConfirm->setPlaceholderText("再次输入密码");
@@ -233,9 +233,9 @@ void LoginDialog::onRegister() {
         return;
     }
     // 验证用户ID格式
-    QRegularExpression idRegex("^[a-zA-Z0-9_]{6,12}$");
+    QRegularExpression idRegex("^[a-zA-Z0-9_]{6,20}$");
     if (!idRegex.match(uid).hasMatch()) {
-        m_regStatus->setText("用户ID必须为6-12位字母/数字/下划线");
+        m_regStatus->setText("用户ID必须为6-20位字母/数字/下划线");
         return;
     }
     if (name.isEmpty()) {

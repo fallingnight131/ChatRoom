@@ -73,6 +73,15 @@ void RoomManager::removeUserFromRoom(int roomId, int userId) {
         m_rooms[roomId].members.remove(userId);
 }
 
+void RoomManager::updateUsername(int userId, const QString &newUsername) {
+    QMutexLocker locker(&m_mutex);
+    for (auto it = m_rooms.begin(); it != m_rooms.end(); ++it) {
+        if (it.value().members.contains(userId)) {
+            it.value().members[userId] = newUsername;
+        }
+    }
+}
+
 bool RoomManager::isUserInRoom(int roomId, int userId) const {
     QMutexLocker locker(&m_mutex);
     if (m_rooms.contains(roomId))

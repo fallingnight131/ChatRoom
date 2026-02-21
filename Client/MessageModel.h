@@ -42,6 +42,8 @@ public:
     int findMessageByFileId(int fileId) const;
     void updateDownloadProgress(int fileId, int state, double progress);
     void removeMessageByFileId(int fileId);
+    void updateSenderName(const QString &username, const QString &newDisplayName);
+    void updateSenderUid(const QString &oldUid, const QString &newUid);
 
 private:
     QList<Message> m_messages;

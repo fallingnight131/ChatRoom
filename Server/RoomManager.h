@@ -27,6 +27,7 @@ public:
     // 成员管理（在线缓存）
     void addUserToRoom(int roomId, int userId, const QString &username);
     void removeUserFromRoom(int roomId, int userId);
+    void updateUsername(int userId, const QString &newUsername);
     bool isUserInRoom(int roomId, int userId) const;
     QStringList usersInRoom(int roomId) const;
     QList<int> userRooms(int userId) const;

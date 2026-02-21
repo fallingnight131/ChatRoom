@@ -130,3 +130,23 @@ void MessageModel::removeMessageByFileId(int fileId) {
         }
     }
 }
+
+void MessageModel::updateSenderName(const QString &username, const QString &newDisplayName) {
+    for (int i = 0; i < m_messages.size(); ++i) {
+        if (m_messages[i].sender() == username) {
+            m_messages[i].setSenderName(newDisplayName);
+            QModelIndex idx = index(i);
+            emit dataChanged(idx, idx, { SenderNameRole });
+        }
+    }
+}
+
+void MessageModel::updateSenderUid(const QString &oldUid, const QString &newUid) {
+    for (int i = 0; i < m_messages.size(); ++i) {
+        if (m_messages[i].sender() == oldUid) {
+            m_messages[i].setSender(newUid);
+            QModelIndex idx = index(i);
+            emit dataChanged(idx, idx, { SenderRole });
+        }
+    }
+}

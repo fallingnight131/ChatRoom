@@ -38,6 +38,8 @@
 #include <QScrollBar>
 #include <QFile>
 #include <QFileInfo>
+#include <QDir>
+#include <QRegularExpression>
 #include <QKeyEvent>
 #include <QWheelEvent>
 #include <QBuffer>
@@ -70,12 +72,6 @@ ChatWindow::ChatWindow(QWidget *parent)
     setupUi();
     setupMenuBar();
     connectSignals();
-
-    // 贴边隐藏检测定时器
-    m_edgeTimer = new QTimer(this);
-    m_edgeTimer->setInterval(300);
-    connect(m_edgeTimer, &QTimer::timeout, this, &ChatWindow::checkEdgeHide);
-    m_edgeTimer->start();
 
     // 系统托盘
     m_trayManager = new TrayManager(this);
@@ -304,6 +300,7 @@ void ChatWindow::setupMenuBar() {
 
     auto *settingsMenu = menuBar()->addMenu("设置(&S)");
     settingsMenu->addAction("修改昵称(&N)...", this, &ChatWindow::onChangeNickname);
+    settingsMenu->addAction("修改用户ID(&I)...", this, &ChatWindow::onChangeUid);
     settingsMenu->addSeparator();
     settingsMenu->addAction("缓存路径(&C)...", this, &ChatWindow::onChangeCacheDir);
     settingsMenu->addAction("清除缓存(&X)...", this, &ChatWindow::onClearCache);
@@ -406,6 +403,10 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::changeNicknameResponse, this, &ChatWindow::onChangeNicknameResponse);
     connect(net, &NetworkManager::nicknameChangeNotify,   this, &ChatWindow::onNicknameChangeNotify);
 
+    // 用户ID修改
+    connect(net, &NetworkManager::changeUidResponse, this, &ChatWindow::onChangeUidResponse);
+    connect(net, &NetworkManager::uidChangeNotify,   this, &ChatWindow::onUidChangeNotify);
+
     // 单击文件消息：触发下载 / 暂停 / 恢复
     connect(m_messageView, &QListView::clicked, this, [this](const QModelIndex &idx) {
         int contentType = idx.data(MessageModel::ContentTypeRole).toInt();
@@ -485,7 +486,7 @@ void ChatWindow::onJoinRoom() {
 
 void ChatWindow::onRoomCreated(bool success, int roomId, const QString &name, const QString &error) {
     if (success) {
-        auto *item = new QListWidgetItem(QString("[%1] %2").arg(roomId).arg(name));
+        auto *item = new QListWidgetItem(name);
         item->setData(Qt::UserRole, roomId);
         m_roomList->addItem(item);
         switchRoom(roomId);
@@ -502,7 +503,7 @@ void ChatWindow::onRoomJoined(bool success, int roomId, const QString &name, con
                 goto found;
         }
         {
-            auto *item = new QListWidgetItem(QString("[%1] %2").arg(roomId).arg(name));
+            auto *item = new QListWidgetItem(name);
             item->setData(Qt::UserRole, roomId);
             m_roomList->addItem(item);
         }
@@ -529,7 +530,7 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
         QJsonObject r = v.toObject();
         int id = r["roomId"].toInt();
         QString name = r["roomName"].toString();
-        auto *item = new QListWidgetItem(QString("[%1] %2").arg(id).arg(name));
+        auto *item = new QListWidgetItem(name);
         item->setData(Qt::UserRole, id);
         m_roomList->addItem(item);
     }
@@ -1670,6 +1671,11 @@ void ChatWindow::onRoomContextMenu(const QPoint &pos) {
 
     QMenu menu(this);
 
+    // 查看聊天室ID
+    menu.addAction(QStringLiteral("查看聊天室ID"), [this, roomId] {
+        QMessageBox::information(this, "聊天室ID", QString("聊天室ID: %1").arg(roomId));
+    });
+
     // 所有用户可以退出聊天室
     menu.addAction(QStringLiteral("退出聊天室"), [this, roomId] {
         leaveRoom(roomId);
@@ -1684,8 +1690,6 @@ void ChatWindow::onRoomContextMenu(const QPoint &pos) {
         for (int i = 0; i < m_roomList->count(); ++i) {
             if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
                 roomName = m_roomList->item(i)->text();
-                int idx = roomName.indexOf("] ");
-                if (idx >= 0) roomName = roomName.mid(idx + 2);
                 break;
             }
         }
@@ -2271,15 +2275,14 @@ void ChatWindow::onDeleteRoomNotify(int roomId, const QString &roomName, const Q
 
 void ChatWindow::onRenameRoomResponse(bool success, int roomId, const QString &newName, const QString &error) {
     if (success) {
-        QString displayText = QString("[%1] %2").arg(roomId).arg(newName);
         for (int i = 0; i < m_roomList->count(); ++i) {
             if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
-                m_roomList->item(i)->setText(displayText);
+                m_roomList->item(i)->setText(newName);
                 break;
             }
         }
         if (roomId == m_currentRoomId) {
-            QString title = displayText;
+            QString title = newName;
             if (m_adminRooms.value(roomId, false))
                 title += QStringLiteral(" [管理员]");
             m_roomTitle->setText(title);
@@ -2290,15 +2293,14 @@ void ChatWindow::onRenameRoomResponse(bool success, int roomId, const QString &n
 }
 
 void ChatWindow::onRenameRoomNotify(int roomId, const QString &newName) {
-    QString displayText = QString("[%1] %2").arg(roomId).arg(newName);
     for (int i = 0; i < m_roomList->count(); ++i) {
         if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
-            m_roomList->item(i)->setText(displayText);
+            m_roomList->item(i)->setText(newName);
             break;
         }
     }
     if (roomId == m_currentRoomId) {
-        QString title = displayText;
+        QString title = newName;
         if (m_adminRooms.value(roomId, false))
             title += QStringLiteral(" [管理员]");
         m_roomTitle->setText(title);
@@ -2415,6 +2417,85 @@ void ChatWindow::onNicknameChangeNotify(int roomId, const QString &username, con
         item->setData(Qt::UserRole + 3, newDisplayName);
         updateUserListItemWidget(item);
     }
+
+    // 同步更新所有已加载模型中该用户的发送者名称
+    for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+        it.value()->updateSenderName(username, newDisplayName);
+    }
+}
+
+// ==================== 修改用户ID ====================
+
+void ChatWindow::onChangeUid() {
+    bool ok;
+    QString newUid = QInputDialog::getText(this, "修改用户ID",
+        QString("当前用户ID: %1\n\n请输入新的用户ID (6-20位字母/数字/下划线):\n注意：每月只能修改一次").arg(m_username),
+        QLineEdit::Normal, m_username, &ok);
+    if (!ok || newUid.trimmed().isEmpty()) return;
+    newUid = newUid.trimmed();
+
+    QRegularExpression idRegex("^[a-zA-Z0-9_]{6,20}$");
+    if (!idRegex.match(newUid).hasMatch()) {
+        QMessageBox::warning(this, "错误", "用户ID必须为6-20位字母/数字/下划线");
+        return;
+    }
+    if (newUid == m_username) return;
+
+    QJsonObject data;
+    data["newUid"] = newUid;
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::CHANGE_UID_REQ, data));
+}
+
+void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const QString &newUid, const QString &error) {
+    if (success) {
+        // 重命名本地缓存目录
+        QString oldCacheDir = FileCache::instance()->cacheDir();
+        m_username = newUid;
+        FileCache::instance()->setUsername(newUid);
+        QString newCacheDir = FileCache::instance()->cacheDir();
+
+        // 如果旧缓存目录存在且新目录不存在，重命名
+        if (QDir(oldCacheDir).exists() && !QDir(newCacheDir).exists()) {
+            QDir().rename(oldCacheDir, newCacheDir);
+        }
+
+        // 更新所有已加载模型中自己的sender
+        for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+            it.value()->updateSenderUid(oldUid, newUid);
+        }
+
+        // 更新NetworkManager的凭证
+        NetworkManager::instance()->setCredentials(
+            NetworkManager::instance()->currentUserId(), newUid);
+
+        m_statusLabel->setText(QString("用户ID已修改为: %1").arg(newUid));
+        QMessageBox::information(this, "修改成功",
+            QString("用户ID已从 %1 修改为 %2").arg(oldUid, newUid));
+    } else {
+        QMessageBox::warning(this, "修改用户ID失败", error);
+    }
+}
+
+void ChatWindow::onUidChangeNotify(int roomId, const QString &oldUid, const QString &newUid, const QString &displayName) {
+    Q_UNUSED(roomId)
+    Q_UNUSED(displayName)
+
+    // 更新用户列表中该用户的uniqueId
+    QListWidgetItem *item = findUserListItem(oldUid);
+    if (item) {
+        item->setData(Qt::UserRole, newUid);
+    }
+
+    // 更新头像缓存：将旧id对应的头像映射到新id
+    if (s_avatarCache.contains(oldUid)) {
+        s_avatarCache[newUid] = s_avatarCache.take(oldUid);
+    }
+
+    // 更新所有已加载模型中该用户的sender
+    for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+        it.value()->updateSenderUid(oldUid, newUid);
+    }
 }
 
 // ==================== 注销 ====================
@@ -2480,69 +2561,3 @@ void ChatWindow::onClearCache() {
     m_statusLabel->setText(QString("已清除 %1 缓存").arg(sizeText));
 }
 
-// ==================== 贴边隐藏 ====================
-
-void ChatWindow::checkEdgeHide() {
-    if (!isVisible()) return;
-
-    QScreen *screen = QApplication::primaryScreen();
-    if (!screen) return;
-
-    QRect screenRect = screen->availableGeometry();
-    QRect winRect    = frameGeometry();
-    QPoint cursor    = QCursor::pos();
-
-    const int threshold = 5;  // 贴边阈值
-
-    if (!m_edgeHidden) {
-        // 检测是否贴边
-        if (winRect.left() <= screenRect.left() + threshold) {
-            m_edgeSide = LeftEdge;
-        } else if (winRect.right() >= screenRect.right() - threshold) {
-            m_edgeSide = RightEdge;
-        } else if (winRect.top() <= screenRect.top() + threshold) {
-            m_edgeSide = TopEdge;
-        } else {
-            m_edgeSide = NoEdge;
-            return;
-        }
-
-        // 贴边后鼠标离开则隐藏
-        if (!winRect.contains(cursor)) {
-            m_edgeHidden = true;
-            int showStrip = 4; // 露出4像素
-            switch (m_edgeSide) {
-            case LeftEdge:
-                move(screenRect.left() - width() + showStrip, y());
-                break;
-            case RightEdge:
-                move(screenRect.right() - showStrip, y());
-                break;
-            case TopEdge:
-                move(x(), screenRect.top() - height() + showStrip);
-                break;
-            default: break;
-            }
-        }
-    } else {
-        // 鼠标靠近时显示
-        QRect showZone = frameGeometry();
-        showZone.adjust(-20, -20, 20, 20);
-
-        if (showZone.contains(cursor)) {
-            m_edgeHidden = false;
-            switch (m_edgeSide) {
-            case LeftEdge:
-                move(screenRect.left(), y());
-                break;
-            case RightEdge:
-                move(screenRect.right() - width(), y());
-                break;
-            case TopEdge:
-                move(x(), screenRect.top());
-                break;
-            default: break;
-            }
-        }
-    }
-}

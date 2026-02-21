@@ -355,4 +355,16 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                                    data["username"].toString(),
                                    data["displayName"].toString());
     }
+    else if (type == Protocol::MsgType::CHANGE_UID_RSP) {
+        emit changeUidResponse(data["success"].toBool(),
+                                data["oldUid"].toString(),
+                                data["newUid"].toString(),
+                                data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::UID_CHANGE_NOTIFY) {
+        emit uidChangeNotify(data["roomId"].toInt(),
+                              data["oldUid"].toString(),
+                              data["newUid"].toString(),
+                              data["displayName"].toString());
+    }
 }

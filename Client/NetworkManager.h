@@ -100,6 +100,10 @@ signals:
     void changeNicknameResponse(bool success, const QString &newDisplayName, const QString &error);
     void nicknameChangeNotify(int roomId, const QString &username, const QString &newDisplayName);
 
+    // 修改用户ID
+    void changeUidResponse(bool success, const QString &oldUid, const QString &newUid, const QString &error);
+    void uidChangeNotify(int roomId, const QString &oldUid, const QString &newUid, const QString &displayName);
+
 private slots:
     void onConnected();
     void onDisconnected();

@@ -22,6 +22,8 @@ public:
     QString getDisplayNameByUid(const QString &uniqueId);
     bool setDisplayName(int userId, const QString &newDisplayName);
     QString getUniqueId(int userId);
+    QDateTime getLastUidChangeTime(int userId);
+    bool changeUniqueId(int userId, const QString &newUniqueId);
 
     // 房间管理
     int  createRoom(const QString &name, int creatorId);
