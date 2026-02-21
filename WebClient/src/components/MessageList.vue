@@ -47,10 +47,26 @@
             <!-- 图片 -->
             <template v-else-if="msg.contentType === 'image'">
               <img v-if="msg.imageData" :src="'data:image/png;base64,' + msg.imageData"
-                   class="msg-image" @click="previewImage(msg)" />
-              <div v-else class="msg-file" @click="downloadFile(msg)">
+                   class="msg-image" @click="previewMedia(msg)" />
+              <div v-else class="msg-file" @click="previewMedia(msg)">
                 📷 {{ msg.fileName || '图片' }}
                 <span class="file-size">{{ formatSize(msg.fileSize) }}</span>
+              </div>
+            </template>
+
+            <!-- 视频 -->
+            <template v-else-if="msg.contentType === 'file' && isVideoFile(msg.fileName)">
+              <div class="msg-video-card" @click="previewMedia(msg)">
+                <img v-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
+                     class="video-thumbnail" />
+                <div v-else class="video-placeholder">
+                  <span>🎬</span>
+                </div>
+                <div class="video-play-btn">▶</div>
+                <div class="video-info">
+                  <span class="file-name text-ellipsis">{{ msg.fileName }}</span>
+                  <span class="file-size">{{ formatSize(msg.fileSize) }}</span>
+                </div>
               </div>
             </template>
 
@@ -86,9 +102,19 @@
            @click="deleteMsg(contextMenu.msg)">删除</div>
     </div>
 
-    <!-- 图片预览 -->
-    <div v-if="previewSrc" class="image-preview" @click="previewSrc = ''">
-      <img :src="previewSrc" />
+    <!-- 媒体预览 -->
+    <div v-if="previewSrc || previewVideoSrc" class="media-preview" @click="closePreview">
+      <!-- 图片预览 -->
+      <img v-if="previewSrc" :src="previewSrc" @click.stop />
+      <!-- 视频预览 -->
+      <video v-if="previewVideoSrc" :src="previewVideoSrc" controls autoplay
+             @click.stop class="preview-video"></video>
+      <!-- 关闭按钮 -->
+      <button class="preview-close" @click="closePreview">✕</button>
+      <!-- 下载按钮 -->
+      <button class="preview-download" @click.stop="downloadPreviewFile" v-if="previewMsg">⬇ 下载</button>
+      <!-- 加载提示 -->
+      <div v-if="previewLoading" class="preview-loading">加载中...</div>
     </div>
   </div>
 </template>
@@ -107,6 +133,9 @@ const hashColor = inject('hashColor')
 const listRef = ref(null)
 const loadingMore = ref(false)
 const previewSrc = ref('')
+const previewVideoSrc = ref('')
+const previewMsg = ref(null)
+const previewLoading = ref(false)
 const contextMenu = ref({ show: false, x: 0, y: 0, msg: null })
 
 function isMine(msg) {
@@ -166,9 +195,73 @@ function downloadFile(msg) {
   }
 }
 
-function previewImage(msg) {
+const VIDEO_EXTS = /\.(mp4|webm|ogg|mov|avi|mkv|m4v)$/i
+const IMAGE_EXTS = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i
+
+function isVideoFile(fileName) {
+  return fileName && VIDEO_EXTS.test(fileName)
+}
+
+function isImageFile(fileName) {
+  return fileName && IMAGE_EXTS.test(fileName)
+}
+
+function previewMedia(msg) {
+  previewMsg.value = msg
+  // 图片已有 base64 数据
   if (msg.imageData) {
     previewSrc.value = 'data:image/png;base64,' + msg.imageData
+    return
+  }
+  // 需要下载后预览
+  if (!msg.fileId) return
+  previewLoading.value = true
+  // 监听下载完成
+  const handler = (rsp) => {
+    const d = rsp.data
+    if (!d.success || !d.fileData) {
+      previewLoading.value = false
+      // 下载失败，回退到普通下载
+      downloadFile(msg)
+      closePreview()
+      return
+    }
+    previewLoading.value = false
+    const binary = atob(d.fileData)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    const mimeType = isVideoFile(d.fileName || msg.fileName)
+      ? 'video/mp4'
+      : 'image/png'
+    const blob = new Blob([bytes], { type: mimeType })
+    const url = URL.createObjectURL(blob)
+    if (isVideoFile(d.fileName || msg.fileName)) {
+      previewVideoSrc.value = url
+    } else {
+      previewSrc.value = url
+    }
+    chatWs.off(MsgType.FILE_DOWNLOAD_RSP, handler)
+  }
+  chatWs.on(MsgType.FILE_DOWNLOAD_RSP, handler)
+  chatWs.downloadFile(msg.fileId)
+}
+
+function closePreview() {
+  if (previewSrc.value && previewSrc.value.startsWith('blob:')) {
+    URL.revokeObjectURL(previewSrc.value)
+  }
+  if (previewVideoSrc.value) {
+    URL.revokeObjectURL(previewVideoSrc.value)
+  }
+  previewSrc.value = ''
+  previewVideoSrc.value = ''
+  previewMsg.value = null
+  previewLoading.value = false
+}
+
+function downloadPreviewFile() {
+  if (previewMsg.value) {
+    downloadFile(previewMsg.value)
   }
 }
 
@@ -410,21 +503,138 @@ onUnmounted(() => {
   margin-right: 4px;
 }
 
-/* 图片预览 */
-.image-preview {
+/* 图片预览 → 媒体预览 */
+.media-preview {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0,0,0,0.85);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 3000;
   cursor: zoom-out;
 }
-.image-preview img {
+.media-preview img {
   max-width: 90%;
   max-height: 90%;
   border-radius: 8px;
+  object-fit: contain;
+  cursor: default;
+}
+.preview-video {
+  max-width: 90%;
+  max-height: 85%;
+  border-radius: 8px;
+  outline: none;
+  cursor: default;
+}
+.preview-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  z-index: 3001;
+}
+.preview-close:hover {
+  background: rgba(255,255,255,0.3);
+}
+.preview-download {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  z-index: 3001;
+}
+.preview-download:hover {
+  background: rgba(255,255,255,0.3);
+}
+.preview-loading {
+  position: absolute;
+  color: #fff;
+  font-size: 16px;
+  background: rgba(0,0,0,0.6);
+  padding: 12px 24px;
+  border-radius: 8px;
+}
+
+/* 视频卡片 */
+.msg-video-card {
+  position: relative;
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 280px;
+  background: #000;
+}
+.msg-video-card:hover .video-play-btn {
+  transform: translate(-50%, -50%) scale(1.1);
+}
+.video-thumbnail {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  display: block;
+}
+.video-placeholder {
+  width: 280px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  font-size: 48px;
+}
+.video-play-btn {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 56px;
+  background: rgba(0,0,0,0.55);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 22px;
+  padding-left: 4px;
+  transition: transform 0.2s;
+}
+.video-info {
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.video-info .file-name {
+  color: #fff;
+  font-size: 12px;
+}
+.video-info .file-size {
+  color: rgba(255,255,255,0.7);
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .message-wrapper {
@@ -457,9 +667,27 @@ onUnmounted(() => {
   .file-icon {
     font-size: 24px;
   }
-  .image-preview img {
+  .media-preview img {
     max-width: 95%;
     max-height: 85%;
+  }
+  .preview-video {
+    max-width: 95%;
+    max-height: 80%;
+  }
+  .msg-video-card {
+    max-width: 220px;
+  }
+  .video-placeholder {
+    width: 220px;
+    height: 130px;
+  }
+  .preview-close {
+    top: max(12px, env(safe-area-inset-top));
+    right: max(12px, env(safe-area-inset-right));
+  }
+  .preview-download {
+    bottom: max(20px, env(safe-area-inset-bottom));
   }
   /* 长按替代右键 */
   .msg-bubble {
@@ -476,6 +704,13 @@ onUnmounted(() => {
   .msg-image {
     max-width: 180px;
     max-height: 180px;
+  }
+  .msg-video-card {
+    max-width: 180px;
+  }
+  .video-placeholder {
+    width: 180px;
+    height: 110px;
   }
 }
 </style>

@@ -22,6 +22,7 @@
     </div>
 
     <!-- 表情选择器 -->
+    <div v-if="showEmoji" class="emoji-overlay" @click="showEmoji = false"></div>
     <EmojiPicker v-if="showEmoji" @select="onEmojiSelect" @close="showEmoji = false" />
 
     <!-- 文本输入 -->
@@ -95,6 +96,7 @@ function uploadPercent(u) {
   border-top: 1px solid var(--border-color);
   background: var(--bg-secondary);
   padding: 8px 16px 12px;
+  position: relative;
 }
 .input-toolbar {
   display: flex;
@@ -178,5 +180,12 @@ function uploadPercent(u) {
   .upload-item {
     font-size: 11px;
   }
+}
+
+/* 表情选择器遮罩 */
+.emoji-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
 }
 </style>
