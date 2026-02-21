@@ -45,17 +45,58 @@ export const useChatStore = defineStore('chat', {
       const userStore = useUserStore()
       const reader = new FileReader()
       return new Promise((resolve) => {
-        reader.onload = () => {
+        reader.onload = async () => {
           const base64 = reader.result.split(',')[1]
           let contentType = 'file'
           if (file.type.startsWith('image/')) contentType = 'image'
-          else if (file.type.startsWith('video/')) contentType = 'file'
+          else if (file.type.startsWith('video/')) contentType = 'video'
 
-          // 为图片生成thumbnail不需要
-          chatWs.sendFile(roomId, userStore.username, file.name, file.size, base64, contentType)
+          // 服务端会自动为图片生成缩略图，视频需要客户端提供
+          let thumbnail = ''
+          if (contentType === 'video') {
+            thumbnail = await this._generateVideoThumbnail(file)
+          }
+
+          chatWs.sendFile(roomId, userStore.username, file.name, file.size, base64, contentType, thumbnail)
           resolve()
         }
         reader.readAsDataURL(file)
+      })
+    },
+
+    // 生成视频缩略图
+    _generateVideoThumbnail(file) {
+      return new Promise((resolve) => {
+        const video = document.createElement('video')
+        video.preload = 'metadata'
+        video.muted = true
+        const url = URL.createObjectURL(file)
+        video.src = url
+        video.onloadeddata = () => {
+          video.currentTime = Math.min(1, video.duration / 4)
+        }
+        video.onseeked = () => {
+          const canvas = document.createElement('canvas')
+          const maxSize = 200
+          let w = video.videoWidth, h = video.videoHeight
+          if (w > h) { h = Math.round(h * maxSize / w); w = maxSize }
+          else { w = Math.round(w * maxSize / h); h = maxSize }
+          canvas.width = w
+          canvas.height = h
+          canvas.getContext('2d').drawImage(video, 0, 0, w, h)
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7)
+          URL.revokeObjectURL(url)
+          resolve(dataUrl.split(',')[1])
+        }
+        video.onerror = () => {
+          URL.revokeObjectURL(url)
+          resolve('')
+        }
+        // 超时保护
+        setTimeout(() => {
+          URL.revokeObjectURL(url)
+          resolve('')
+        }, 5000)
       })
     },
 
@@ -63,6 +104,7 @@ export const useChatStore = defineStore('chat', {
     async startChunkedUpload(roomId, file) {
       let contentType = 'file'
       if (file.type.startsWith('image/')) contentType = 'image'
+      else if (file.type.startsWith('video/')) contentType = 'video'
       chatWs.startUpload(roomId, file.name, file.size, contentType)
       // 保存 file 对象，等 START_RSP 返回 uploadId 后开始发块
       this._pendingUploadFile = file

@@ -102,10 +102,14 @@ bool DatabaseManager::initialize() {
            "  file_size INTEGER DEFAULT 0,"
            "  file_id INTEGER DEFAULT 0,"
            "  recalled INTEGER DEFAULT 0,"
+           "  thumbnail TEXT DEFAULT '',"
            "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
            "  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,"
            "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
            ")");
+
+    // 存量数据库添加 thumbnail 列
+    q.exec("ALTER TABLE messages ADD COLUMN thumbnail TEXT DEFAULT ''");
 
     // 消息索引
     q.exec("CREATE INDEX IF NOT EXISTS idx_msg_room_time ON messages(room_id, created_at)");
@@ -514,12 +518,13 @@ int DatabaseManager::getUserIdByName(const QString &username) {
 
 int DatabaseManager::saveMessage(int roomId, int userId, const QString &content,
                                   const QString &contentType,
-                                  const QString &fileName, qint64 fileSize, int fileId) {
+                                  const QString &fileName, qint64 fileSize, int fileId,
+                                  const QString &thumbnail) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
-    q.prepare("INSERT INTO messages (room_id, user_id, content, content_type, file_name, file_size, file_id)"
-              " VALUES (?, ?, ?, ?, ?, ?, ?)");
+    q.prepare("INSERT INTO messages (room_id, user_id, content, content_type, file_name, file_size, file_id, thumbnail)"
+              " VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
     q.addBindValue(roomId);
     q.addBindValue(userId);
     q.addBindValue(content);
@@ -527,6 +532,7 @@ int DatabaseManager::saveMessage(int roomId, int userId, const QString &content,
     q.addBindValue(fileName);
     q.addBindValue(fileSize);
     q.addBindValue(fileId);
+    q.addBindValue(thumbnail);
 
     if (q.exec())
         return q.lastInsertId().toInt();
@@ -542,7 +548,7 @@ QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 befo
     // 用子查询取最新N条（DESC），再按时间正序排列（ASC）
     QString sql = "SELECT * FROM ("
                   "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id,"
-                  "       m.recalled, m.created_at, u.username, u.display_name"
+                  "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail"
                   " FROM messages m JOIN users u ON m.user_id = u.id"
                   " WHERE m.room_id = ?";
 
@@ -579,6 +585,12 @@ QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 befo
         QString dn = q.value(9).toString();
         msg["senderName"]  = dn.isEmpty() ? msg["sender"].toString() : dn;
         msg["roomId"]      = roomId;
+
+        // 缩略图
+        QString thumb = q.value(10).toString();
+        if (!thumb.isEmpty())
+            msg["thumbnail"] = thumb;
+
         arr.append(msg);
     }
     return arr;

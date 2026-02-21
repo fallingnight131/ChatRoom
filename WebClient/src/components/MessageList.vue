@@ -48,6 +48,8 @@
             <template v-else-if="msg.contentType === 'image'">
               <img v-if="msg.imageData" :src="'data:image/png;base64,' + msg.imageData"
                    class="msg-image" @click="previewMedia(msg)" />
+              <img v-else-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
+                   class="msg-image" @click="previewMedia(msg)" />
               <div v-else class="msg-file" @click="previewMedia(msg)">
                 📷 {{ msg.fileName || '图片' }}
                 <span class="file-size">{{ formatSize(msg.fileSize) }}</span>
@@ -55,7 +57,7 @@
             </template>
 
             <!-- 视频 -->
-            <template v-else-if="msg.contentType === 'file' && isVideoFile(msg.fileName)">
+            <template v-else-if="msg.contentType === 'video' || (msg.contentType === 'file' && isVideoFile(msg.fileName))">
               <div class="msg-video-card" @click="previewMedia(msg)">
                 <img v-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
                      class="video-thumbnail" />
@@ -78,9 +80,6 @@
                   <div class="file-name text-ellipsis">{{ msg.fileName }}</div>
                   <div class="file-size">{{ formatSize(msg.fileSize) }}</div>
                 </div>
-                <!-- 缩略图（视频） -->
-                <img v-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
-                     class="file-thumbnail" />
               </div>
             </template>
           </div>

@@ -17,6 +17,8 @@
 #include <QRegularExpression>
 #include <QWebSocketServer>
 #include <QWebSocket>
+#include <QImage>
+#include <QBuffer>
 
 ChatServer::ChatServer(QObject *parent)
     : QTcpServer(parent)
@@ -603,8 +605,34 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
     // 保存文件信息到数据库
     int fileId = m_db->saveFile(roomId, session->userId(), fileName, filePath, fileSize);
 
-    // 保存消息记录
-    int msgId = m_db->saveMessage(roomId, session->userId(), fileName, "file", fileName, fileSize, fileId);
+    // 根据文件后缀确定 contentType
+    QString contentType = QStringLiteral("file");
+    QString typeDir = fileTypeSubDir(fileName);
+    if (typeDir == QLatin1String("Image"))
+        contentType = QStringLiteral("image");
+    else if (typeDir == QLatin1String("Video"))
+        contentType = QStringLiteral("video");
+
+    // 自动生成缩略图
+    QString thumbnail;
+    if (contentType == QLatin1String("image")) {
+        // 为图片生成缩略图
+        QImage img;
+        if (img.loadFromData(QByteArray::fromBase64(fileData.toUtf8()))) {
+            QImage thumb = img.scaled(200, 200, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            QByteArray thumbData;
+            QBuffer buf(&thumbData);
+            buf.open(QIODevice::WriteOnly);
+            thumb.save(&buf, "JPEG", 70);
+            thumbnail = QString::fromLatin1(thumbData.toBase64());
+        }
+    } else if (data.contains("thumbnail")) {
+        // 视频缩略图由客户端提供
+        thumbnail = data["thumbnail"].toString();
+    }
+
+    // 保存消息记录（含缩略图）
+    int msgId = m_db->saveMessage(roomId, session->userId(), fileName, contentType, fileName, fileSize, fileId, thumbnail);
 
     // 通知房间所有成员有新文件
     QJsonObject notifyData;
@@ -615,13 +643,11 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
     notifyData["fileName"]    = fileName;
     notifyData["fileSize"]    = static_cast<double>(fileSize);
     notifyData["fileId"]      = fileId;
-    notifyData["contentType"] = QStringLiteral("file");
+    notifyData["contentType"] = contentType;
     notifyData["content"]     = fileName;
 
-    // 转发视频缩略图（如果客户端提供了）
-    if (data.contains("thumbnail")) {
-        notifyData["thumbnail"] = data["thumbnail"];
-    }
+    if (!thumbnail.isEmpty())
+        notifyData["thumbnail"] = thumbnail;
 
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, notifyData));
 }
@@ -756,10 +782,34 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
         delete state.file;
     }
 
+    // 根据文件后缀确定 contentType
+    QString contentType = QStringLiteral("file");
+    QString typeDir = fileTypeSubDir(state.fileName);
+    if (typeDir == QLatin1String("Image"))
+        contentType = QStringLiteral("image");
+    else if (typeDir == QLatin1String("Video"))
+        contentType = QStringLiteral("video");
+
+    // 缩略图：图片自动生成，视频由客户端提供
+    QString thumbnail;
+    if (contentType == QLatin1String("image")) {
+        QImage img(state.filePath);
+        if (!img.isNull()) {
+            QImage thumb = img.scaled(200, 200, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            QByteArray thumbData;
+            QBuffer buf(&thumbData);
+            buf.open(QIODevice::WriteOnly);
+            thumb.save(&buf, "JPEG", 70);
+            thumbnail = QString::fromLatin1(thumbData.toBase64());
+        }
+    } else if (data.contains("thumbnail")) {
+        thumbnail = data["thumbnail"].toString();
+    }
+
     // 保存文件信息到数据库
     int fileId = m_db->saveFile(state.roomId, state.userId, state.fileName, state.filePath, state.fileSize);
-    int msgId = m_db->saveMessage(state.roomId, state.userId, state.fileName, "file",
-                                   state.fileName, state.fileSize, fileId);
+    int msgId = m_db->saveMessage(state.roomId, state.userId, state.fileName, contentType,
+                                   state.fileName, state.fileSize, fileId, thumbnail);
 
     // 通知房间所有成员有新文件
     QJsonObject notifyData;
@@ -770,13 +820,11 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
     notifyData["fileName"]    = state.fileName;
     notifyData["fileSize"]    = static_cast<double>(state.fileSize);
     notifyData["fileId"]      = fileId;
-    notifyData["contentType"] = QStringLiteral("file");
+    notifyData["contentType"] = contentType;
     notifyData["content"]     = state.fileName;
 
-    // 转发视频缩略图（客户端在 FILE_UPLOAD_END 中提供）
-    if (data.contains("thumbnail")) {
-        notifyData["thumbnail"] = data["thumbnail"];
-    }
+    if (!thumbnail.isEmpty())
+        notifyData["thumbnail"] = thumbnail;
 
     broadcastToRoom(state.roomId, Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, notifyData));
 

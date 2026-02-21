@@ -49,7 +49,8 @@ public:
     int  saveMessage(int roomId, int userId, const QString &content,
                      const QString &contentType,
                      const QString &fileName = QString(),
-                     qint64 fileSize = 0, int fileId = 0);
+                     qint64 fileSize = 0, int fileId = 0,
+                     const QString &thumbnail = QString());
     QJsonArray getMessageHistory(int roomId, int count, qint64 beforeTimestamp = 0);
     bool recallMessage(int messageId, int userId, int timeLimitSec);
     /// 获取单条消息关联的文件信息 (file_id, file_path)，用于撤回时清理文件
