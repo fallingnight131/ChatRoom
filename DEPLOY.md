@@ -16,8 +16,9 @@
 - [8. 防火墙与安全组](#8-防火墙与安全组)
 - [9. DNS 解析](#9-dns-解析)
 - [10. 客户端连接配置](#10-客户端连接配置)
-- [11. 运维管理](#11-运维管理)
-- [12. 常见问题排查](#12-常见问题排查)
+- [11. 部署脚本（快速部署）](#11-部署脚本快速部署)
+- [12. 运维管理](#12-运维管理)
+- [13. 常见问题排查](#13-常见问题排查)
 
 ---
 
@@ -467,7 +468,149 @@ sudo firewall-cmd --reload
 
 ---
 
-## 11. 运维管理
+## 11. 部署脚本（快速部署）
+
+项目 `deploy/` 目录下提供了 4 个脚本，可以大幅简化部署流程。前面章节是手动操作的详细说明，**如果你想快速部署，直接使用这些脚本即可**。
+
+```
+deploy/
+├── build_web.bat    # [本地 Windows] 构建 Web 前端
+├── upload.bat       # [本地 Windows] 上传源码到服务器
+├── deploy.sh        # [服务器 Linux]  首次部署（安装依赖 + 编译 + 注册服务）
+└── update.sh        # [服务器 Linux]  更新部署（重新编译 + 重启服务）
+```
+
+### 11.1 build_web.bat — 构建 Web 前端
+
+在本地 Windows 电脑上双击运行，自动安装依赖并构建生产版本。
+
+```powershell
+# 直接双击运行，或在终端执行：
+deploy\build_web.bat
+```
+
+**前置条件**：需要安装 [Node.js](https://nodejs.org/)（18+）
+
+**脚本行为**：
+1. 进入 `WebClient/` 目录
+2. 执行 `npm install` 安装依赖
+3. 执行 `npm run build` 构建生产版本
+4. 产物输出到 `WebClient/dist/`
+
+构建完成后，将 `dist/` 目录内的文件上传到服务器网站根目录即可。
+
+### 11.2 upload.bat — 上传源码到服务器
+
+通过 SCP 将服务端源码和部署脚本上传到服务器。
+
+```powershell
+# 用法
+deploy\upload.bat <服务器IP> [SSH端口]
+
+# 示例
+deploy\upload.bat 47.100.1.2
+deploy\upload.bat 47.100.1.2 22
+```
+
+**前置条件**：需要本地有 SSH/SCP 客户端（Windows 10+ 自带 OpenSSH）
+
+**脚本行为**：
+1. 在服务器创建 `/opt/chatroom/` 目录
+2. 上传 `Server/` 和 `Common/` 源码
+3. 上传 `deploy.sh` 和 `update.sh` 部署脚本
+
+> 也可以使用宝塔面板的文件管理器手动上传，效果相同。
+
+### 11.3 deploy.sh — 首次部署
+
+在服务器上执行，**一键完成**环境安装、编译和服务注册。适用于全新服务器的首次部署。
+
+```bash
+# SSH 登录服务器后执行
+cd /opt/chatroom
+chmod +x deploy.sh
+bash deploy.sh
+```
+
+**需要 root 权限执行**。脚本会自动完成以下操作：
+
+| 步骤 | 操作 |
+|------|------|
+| 1 | 创建目录结构（`bin/`、`data/`、`logs/`） |
+| 2 | 检查 `Server/` 和 `Common/` 源码是否存在 |
+| 3 | 安装 Qt 开发库（自动尝试 Qt6 → Qt5） |
+| 4 | 编译 ChatServer（release 模式） |
+| 5 | 注册 `chatserver` systemd 服务（开机自启） |
+| 6 | 放行防火墙端口 9527、9528 |
+
+部署完成后的服务器目录结构：
+
+```
+/opt/chatroom/
+├── deploy.sh           # 部署脚本
+├── update.sh           # 更新脚本
+├── Server/             # 服务端源码
+├── Common/             # 公共代码
+├── bin/
+│   └── ChatServer      # 编译产物
+├── data/
+│   └── chatroom.db     # SQLite 数据库（运行后自动创建）
+└── logs/
+    └── chatserver.log  # 运行日志
+```
+
+### 11.4 update.sh — 更新部署
+
+服务端代码更新后，在服务器上执行此脚本即可重新编译并重启服务。
+
+```bash
+# 1. 先上传最新的 Server/ 和 Common/（通过宝塔面板或 upload.bat）
+# 2. 执行更新脚本
+cd /opt/chatroom
+bash update.sh
+```
+
+**需要 root 权限执行**。脚本会自动：
+1. 清理旧的编译产物
+2. 重新编译 ChatServer
+3. 重启 `chatserver` 服务
+4. 验证服务是否启动成功
+
+### 11.5 完整快速部署流程
+
+将以上脚本串联起来，首次部署只需 4 步：
+
+```powershell
+# ① 本地构建 Web 前端
+deploy\build_web.bat
+
+# ② 上传源码到服务器
+deploy\upload.bat 你的服务器IP
+
+# ③ SSH 登录服务器，执行部署脚本
+ssh root@你的服务器IP
+cd /opt/chatroom && bash deploy.sh
+
+# ④ 通过宝塔面板上传 WebClient/dist/ 到网站根目录，配置 Nginx
+```
+
+后续更新：
+
+```powershell
+# 本地：构建 Web + 上传源码
+deploy\build_web.bat
+deploy\upload.bat 你的服务器IP
+
+# 服务器：重新编译 + 重启
+ssh root@你的服务器IP
+cd /opt/chatroom && bash update.sh
+
+# 通过宝塔上传新的 dist/ 文件覆盖旧文件
+```
+
+---
+
+## 12. 运维管理
 
 ### 11.1 常用命令
 
@@ -529,7 +672,7 @@ scp -r WebClient/dist/* root@服务器:/www/wwwroot/chat/
 
 ---
 
-## 12. 常见问题排查
+## 13. 常见问题排查
 
 ### Q1: 编译报错找不到 Qt 头文件
 
