@@ -47,10 +47,10 @@
             <!-- 图片 -->
             <template v-else-if="msg.contentType === 'image'">
               <img v-if="msg.imageData" :src="'data:image/png;base64,' + msg.imageData"
-                   class="msg-image" @click="previewMedia(msg)" />
+                   class="msg-image" @click="openPreview(msg)" />
               <img v-else-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
-                   class="msg-image" @click="previewMedia(msg)" />
-              <div v-else class="msg-file" @click="previewMedia(msg)">
+                   class="msg-image" @click="openPreview(msg)" />
+              <div v-else class="msg-file" @click="openPreview(msg)">
                 📷 {{ msg.fileName || '图片' }}
                 <span class="file-size">{{ formatSize(msg.fileSize) }}</span>
               </div>
@@ -58,7 +58,7 @@
 
             <!-- 视频 -->
             <template v-else-if="msg.contentType === 'video' || (msg.contentType === 'file' && isVideoFile(msg.fileName))">
-              <div class="msg-video-card" @click="previewMedia(msg)">
+              <div class="msg-video-card" @click="openPreview(msg)">
                 <img v-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
                      class="video-thumbnail" />
                 <div v-else class="video-placeholder">
@@ -72,10 +72,10 @@
               </div>
             </template>
 
-            <!-- 文件 -->
+            <!-- 其他文件 -->
             <template v-else-if="msg.contentType === 'file'">
-              <div class="msg-file" @click="downloadFile(msg)">
-                <div class="file-icon">📎</div>
+              <div class="msg-file" @click="openPreview(msg)">
+                <div class="file-icon">{{ getFileIcon(msg.fileName) }}</div>
                 <div class="file-info">
                   <div class="file-name text-ellipsis">{{ msg.fileName }}</div>
                   <div class="file-size">{{ formatSize(msg.fileSize) }}</div>
@@ -101,20 +101,12 @@
            @click="deleteMsg(contextMenu.msg)">删除</div>
     </div>
 
-    <!-- 媒体预览 -->
-    <div v-if="previewSrc || previewVideoSrc" class="media-preview" @click="closePreview">
-      <!-- 图片预览 -->
-      <img v-if="previewSrc" :src="previewSrc" @click.stop />
-      <!-- 视频预览 -->
-      <video v-if="previewVideoSrc" :src="previewVideoSrc" controls autoplay
-             @click.stop class="preview-video"></video>
-      <!-- 关闭按钮 -->
-      <button class="preview-close" @click="closePreview">✕</button>
-      <!-- 下载按钮 -->
-      <button class="preview-download" @click.stop="downloadPreviewFile" v-if="previewMsg">⬇ 下载</button>
-      <!-- 加载提示 -->
-      <div v-if="previewLoading" class="preview-loading">加载中...</div>
-    </div>
+    <!-- 文件预览组件 -->
+    <FilePreview
+      :visible="previewVisible"
+      :msg="previewMsgData"
+      @close="previewVisible = false"
+    />
   </div>
 </template>
 
@@ -123,6 +115,7 @@ import { ref, watch, nextTick, inject, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
 import { chatWs, MsgType, MAX_SMALL_FILE } from '../services/websocket'
+import FilePreview from './FilePreview.vue'
 
 const userStore = useUserStore()
 const chatStore = useChatStore()
@@ -131,10 +124,8 @@ const hashColor = inject('hashColor')
 
 const listRef = ref(null)
 const loadingMore = ref(false)
-const previewSrc = ref('')
-const previewVideoSrc = ref('')
-const previewMsg = ref(null)
-const previewLoading = ref(false)
+const previewVisible = ref(false)
+const previewMsgData = ref(null)
 const contextMenu = ref({ show: false, x: 0, y: 0, msg: null })
 
 function isMine(msg) {
@@ -144,9 +135,8 @@ function isMine(msg) {
 function getAvatarSrc(username) {
   const data = userStore.getAvatar(username)
   if (data) return 'data:image/png;base64,' + data
-  // 请求头像
   if (username && !userStore.avatarCache[username]) {
-    userStore.avatarCache[username] = '' // 标记已请求
+    userStore.avatarCache[username] = ''
     chatWs.getAvatar(username)
   }
   return ''
@@ -184,91 +174,37 @@ function formatSize(size) {
   return (size / (1024*1024*1024)).toFixed(2) + ' GB'
 }
 
-function downloadFile(msg) {
-  if (msg.fileId) {
-    if (msg.fileSize && msg.fileSize > MAX_SMALL_FILE) {
-      chatStore.startChunkedDownload(msg.fileId, msg.fileName, msg.fileSize)
-    } else {
-      chatWs.downloadFile(msg.fileId)
-    }
-  }
-}
-
-const VIDEO_EXTS = /\.(mp4|webm|ogg|mov|avi|mkv|m4v)$/i
-const IMAGE_EXTS = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i
+const VIDEO_EXTS = /\.(mp4|webm|ogg|mov|avi|mkv|m4v|flv|3gp)$/i
+const AUDIO_EXTS = /\.(mp3|wav|ogg|flac|aac|m4a|wma)$/i
+const PDF_EXTS = /\.pdf$/i
 
 function isVideoFile(fileName) {
   return fileName && VIDEO_EXTS.test(fileName)
 }
 
-function isImageFile(fileName) {
-  return fileName && IMAGE_EXTS.test(fileName)
+function getFileIcon(fileName) {
+  if (!fileName) return '📎'
+  if (AUDIO_EXTS.test(fileName)) return '🎵'
+  if (PDF_EXTS.test(fileName)) return '📕'
+  if (/\.(doc|docx)$/i.test(fileName)) return '📘'
+  if (/\.(xls|xlsx)$/i.test(fileName)) return '📗'
+  if (/\.(ppt|pptx)$/i.test(fileName)) return '📙'
+  if (/\.(zip|rar|7z|tar|gz)$/i.test(fileName)) return '📦'
+  if (/\.(txt|md|log|json|xml|csv)$/i.test(fileName)) return '📝'
+  if (/\.(py|js|ts|vue|html|css|cpp|c|h|java|go|rs)$/i.test(fileName)) return '💻'
+  return '📎'
 }
 
-function previewMedia(msg) {
-  previewMsg.value = msg
-  // 图片已有 base64 数据
-  if (msg.imageData) {
-    previewSrc.value = 'data:image/png;base64,' + msg.imageData
-    return
-  }
-  // 需要下载后预览
-  if (!msg.fileId) return
-  previewLoading.value = true
-  // 监听下载完成
-  const handler = (rsp) => {
-    const d = rsp.data
-    if (!d.success || !d.fileData) {
-      previewLoading.value = false
-      // 下载失败，回退到普通下载
-      downloadFile(msg)
-      closePreview()
-      return
-    }
-    previewLoading.value = false
-    const binary = atob(d.fileData)
-    const bytes = new Uint8Array(binary.length)
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-    const mimeType = isVideoFile(d.fileName || msg.fileName)
-      ? 'video/mp4'
-      : 'image/png'
-    const blob = new Blob([bytes], { type: mimeType })
-    const url = URL.createObjectURL(blob)
-    if (isVideoFile(d.fileName || msg.fileName)) {
-      previewVideoSrc.value = url
-    } else {
-      previewSrc.value = url
-    }
-    chatWs.off(MsgType.FILE_DOWNLOAD_RSP, handler)
-  }
-  chatWs.on(MsgType.FILE_DOWNLOAD_RSP, handler)
-  chatWs.downloadFile(msg.fileId)
-}
-
-function closePreview() {
-  if (previewSrc.value && previewSrc.value.startsWith('blob:')) {
-    URL.revokeObjectURL(previewSrc.value)
-  }
-  if (previewVideoSrc.value) {
-    URL.revokeObjectURL(previewVideoSrc.value)
-  }
-  previewSrc.value = ''
-  previewVideoSrc.value = ''
-  previewMsg.value = null
-  previewLoading.value = false
-}
-
-function downloadPreviewFile() {
-  if (previewMsg.value) {
-    downloadFile(previewMsg.value)
-  }
+function openPreview(msg) {
+  previewMsgData.value = msg
+  previewVisible.value = true
 }
 
 function canRecall(msg) {
   if (!msg) return false
   if (msg.sender !== userStore.username) return false
   const elapsed = Date.now() - (msg.timestamp || 0)
-  return elapsed < 120000 // 2分钟
+  return elapsed < 120000
 }
 
 function recallMsg(msg) {
@@ -289,7 +225,6 @@ function onContextMenu(e, msg) {
   contextMenu.value = { show: true, x: e.clientX, y: e.clientY, msg }
 }
 
-// 移动端长按触发上下文菜单
 let longPressTimer = null
 let longPressTriggered = false
 
@@ -298,7 +233,6 @@ function onTouchStart(e, msg) {
   longPressTimer = setTimeout(() => {
     longPressTriggered = true
     const touch = e.touches[0]
-    // 保证菜单不超出屏幕
     const x = Math.min(touch.clientX, window.innerWidth - 140)
     const y = Math.min(touch.clientY, window.innerHeight - 100)
     contextMenu.value = { show: true, x, y, msg }
@@ -321,7 +255,6 @@ function onTouchMove() {
 
 function onScroll() {
   if (listRef.value && listRef.value.scrollTop === 0 && chatStore.messages.length > 0) {
-    // 加载更多
     const firstMsg = chatStore.messages[0]
     if (firstMsg && firstMsg.timestamp) {
       loadingMore.value = true
@@ -339,12 +272,10 @@ function scrollToBottom() {
   })
 }
 
-// 新消息自动滚动到底部
 watch(() => chatStore.messages.length, () => {
   scrollToBottom()
 })
 
-// 切换房间也滚动
 watch(() => chatStore.currentRoomId, () => {
   scrollToBottom()
 })
@@ -378,7 +309,6 @@ onUnmounted(() => {
   padding: 8px;
 }
 
-/* 系统消息 */
 .system-message {
   text-align: center;
   color: var(--text-system);
@@ -389,7 +319,6 @@ onUnmounted(() => {
   font-style: italic;
 }
 
-/* 消息行 */
 .message-row {
   display: flex;
   gap: 10px;
@@ -451,7 +380,6 @@ onUnmounted(() => {
   display: block;
 }
 
-/* 文件消息 */
 .msg-file {
   display: flex;
   align-items: center;
@@ -461,9 +389,10 @@ onUnmounted(() => {
   border-radius: 8px;
   cursor: pointer;
   min-width: 200px;
+  transition: background 0.15s;
 }
 .msg-file:hover {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 .file-icon {
   font-size: 28px;
@@ -483,13 +412,6 @@ onUnmounted(() => {
   color: var(--text-tertiary);
   margin-top: 2px;
 }
-.file-thumbnail {
-  width: 48px;
-  height: 48px;
-  border-radius: 4px;
-  object-fit: cover;
-  flex-shrink: 0;
-}
 
 .msg-time {
   font-size: 11px;
@@ -500,78 +422,6 @@ onUnmounted(() => {
 .msg-time.time-mine {
   text-align: right;
   margin-right: 4px;
-}
-
-/* 图片预览 → 媒体预览 */
-.media-preview {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.85);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 3000;
-  cursor: zoom-out;
-}
-.media-preview img {
-  max-width: 90%;
-  max-height: 90%;
-  border-radius: 8px;
-  object-fit: contain;
-  cursor: default;
-}
-.preview-video {
-  max-width: 90%;
-  max-height: 85%;
-  border-radius: 8px;
-  outline: none;
-  cursor: default;
-}
-.preview-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background: rgba(255,255,255,0.15);
-  border: none;
-  color: #fff;
-  font-size: 24px;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s;
-  z-index: 3001;
-}
-.preview-close:hover {
-  background: rgba(255,255,255,0.3);
-}
-.preview-download {
-  position: absolute;
-  bottom: 24px;
-  right: 24px;
-  background: rgba(255,255,255,0.15);
-  border: none;
-  color: #fff;
-  font-size: 14px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s;
-  z-index: 3001;
-}
-.preview-download:hover {
-  background: rgba(255,255,255,0.3);
-}
-.preview-loading {
-  position: absolute;
-  color: #fff;
-  font-size: 16px;
-  background: rgba(0,0,0,0.6);
-  padding: 12px 24px;
-  border-radius: 8px;
 }
 
 /* 视频卡片 */
@@ -641,7 +491,28 @@ onUnmounted(() => {
   flex-direction: column;
 }
 
-/* ========== 移动端适配 ========== */
+/* 右键菜单 */
+.context-menu {
+  position: fixed;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 4px 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 2000;
+  min-width: 100px;
+}
+.context-menu-item {
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+.context-menu-item:hover {
+  background: var(--bg-hover, rgba(0,0,0,0.05));
+}
+
+/* 移动端适配 */
 @media (max-width: 768px) {
   .message-list {
     padding: 10px 12px;
@@ -666,14 +537,6 @@ onUnmounted(() => {
   .file-icon {
     font-size: 24px;
   }
-  .media-preview img {
-    max-width: 95%;
-    max-height: 85%;
-  }
-  .preview-video {
-    max-width: 95%;
-    max-height: 80%;
-  }
   .msg-video-card {
     max-width: 220px;
   }
@@ -681,14 +544,6 @@ onUnmounted(() => {
     width: 220px;
     height: 130px;
   }
-  .preview-close {
-    top: max(12px, env(safe-area-inset-top));
-    right: max(12px, env(safe-area-inset-right));
-  }
-  .preview-download {
-    bottom: max(20px, env(safe-area-inset-bottom));
-  }
-  /* 长按替代右键 */
   .msg-bubble {
     -webkit-touch-callout: none;
     -webkit-user-select: none;

@@ -9,8 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "vue": "^3.4.0",
+    "dplayer": "^1.27.1",
     "pinia": "^2.1.0",
+    "vue": "^3.4.0",
     "vue-router": "^4.3.0"
   },
   "devDependencies": {

@@ -615,15 +615,15 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
 
     // 自动生成缩略图
     QString thumbnail;
-    if (contentType == QLatin1String("image")) {
-        // 为图片生成缩略图
-        QImage img;
-        if (img.loadFromData(QByteArray::fromBase64(fileData.toUtf8()))) {
-            QImage thumb = img.scaled(200, 200, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    if (contentType == QLatin1String("image") && fileSize < 20 * 1024 * 1024) {
+        // 从已保存的磁盘文件读取，避免二次 base64 解码
+        QImage img(filePath);
+        if (!img.isNull()) {
+            QImage thumb = img.scaled(200, 200, Qt::KeepAspectRatio, Qt::FastTransformation);
             QByteArray thumbData;
             QBuffer buf(&thumbData);
             buf.open(QIODevice::WriteOnly);
-            thumb.save(&buf, "JPEG", 70);
+            thumb.save(&buf, "JPEG", 60);
             thumbnail = QString::fromLatin1(thumbData.toBase64());
         }
     } else if (data.contains("thumbnail")) {
@@ -790,16 +790,16 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
     else if (typeDir == QLatin1String("Video"))
         contentType = QStringLiteral("video");
 
-    // 缩略图：图片自动生成，视频由客户端提供
+    // 缩略图：图片自动生成（限制大小），视频由客户端提供
     QString thumbnail;
-    if (contentType == QLatin1String("image")) {
+    if (contentType == QLatin1String("image") && state.fileSize < 20 * 1024 * 1024) {
         QImage img(state.filePath);
         if (!img.isNull()) {
-            QImage thumb = img.scaled(200, 200, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            QImage thumb = img.scaled(200, 200, Qt::KeepAspectRatio, Qt::FastTransformation);
             QByteArray thumbData;
             QBuffer buf(&thumbData);
             buf.open(QIODevice::WriteOnly);
-            thumb.save(&buf, "JPEG", 70);
+            thumb.save(&buf, "JPEG", 60);
             thumbnail = QString::fromLatin1(thumbData.toBase64());
         }
     } else if (data.contains("thumbnail")) {

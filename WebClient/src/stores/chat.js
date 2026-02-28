@@ -17,6 +17,8 @@ export const useChatStore = defineStore('chat', {
     downloads: {},          // fileId -> { fileName, fileSize, received, chunks[], status, paused }
     // 房间设置
     roomSettings: {},       // roomId -> { maxFileSize }
+    // 预览模式下载（不触发自动保存）
+    _previewFileIds: new Set(),
   }),
 
   getters: {
@@ -388,8 +390,12 @@ export const useChatStore = defineStore('chat', {
 
       chatWs.on(MsgType.FILE_DOWNLOAD_RSP, (msg) => {
         const d = msg.data
+        // 预览模式跳过自动下载
+        if (d.fileId && this._previewFileIds.has(d.fileId)) {
+          this._previewFileIds.delete(d.fileId)
+          return
+        }
         if (d.success && d.fileData) {
-          // 小文件直接下载
           const binary = atob(d.fileData)
           const bytes = new Uint8Array(binary.length)
           for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
@@ -556,6 +562,15 @@ export const useChatStore = defineStore('chat', {
           alert('删除房间失败: ' + (msg.data.error || ''))
         }
       })
+    },
+
+    // 手动触发下载（用于预览界面的下载按钮）
+    _triggerDownload(fileId, fileName, fileSize) {
+      if (fileSize && fileSize > MAX_SMALL_FILE) {
+        this.startChunkedDownload(fileId, fileName, fileSize)
+      } else {
+        chatWs.downloadFile(fileId)
+      }
     },
 
     // 简单事件系统
