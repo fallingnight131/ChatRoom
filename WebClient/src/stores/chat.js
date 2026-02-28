@@ -53,9 +53,11 @@ export const useChatStore = defineStore('chat', {
           if (file.type.startsWith('image/')) contentType = 'image'
           else if (file.type.startsWith('video/')) contentType = 'video'
 
-          // 服务端会自动为图片生成缩略图，视频需要客户端提供
+          // 客户端生成缩略图（服务端 QCoreApplication 下 QImage 可能不可用）
           let thumbnail = ''
-          if (contentType === 'video') {
+          if (contentType === 'image') {
+            thumbnail = await this._generateImageThumbnail(file)
+          } else if (contentType === 'video') {
             thumbnail = await this._generateVideoThumbnail(file)
           }
 
@@ -63,6 +65,32 @@ export const useChatStore = defineStore('chat', {
           resolve()
         }
         reader.readAsDataURL(file)
+      })
+    },
+
+    // 生成图片缩略图
+    _generateImageThumbnail(file) {
+      return new Promise((resolve) => {
+        const img = new Image()
+        const url = URL.createObjectURL(file)
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const maxSize = 200
+          let w = img.width, h = img.height
+          if (w > h) { h = Math.round(h * maxSize / w); w = maxSize }
+          else { w = Math.round(w * maxSize / h); h = maxSize }
+          canvas.width = w
+          canvas.height = h
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7)
+          URL.revokeObjectURL(url)
+          resolve(dataUrl.split(',')[1])
+        }
+        img.onerror = () => {
+          URL.revokeObjectURL(url)
+          resolve('')
+        }
+        img.src = url
       })
     },
 
@@ -107,10 +135,20 @@ export const useChatStore = defineStore('chat', {
       let contentType = 'file'
       if (file.type.startsWith('image/')) contentType = 'image'
       else if (file.type.startsWith('video/')) contentType = 'video'
+
+      // 预先生成缩略图，等上传完成后随 END 消息发送
+      let thumbnail = ''
+      if (contentType === 'image') {
+        thumbnail = await this._generateImageThumbnail(file)
+      } else if (contentType === 'video') {
+        thumbnail = await this._generateVideoThumbnail(file)
+      }
+
       chatWs.startUpload(roomId, file.name, file.size, contentType)
       // 保存 file 对象，等 START_RSP 返回 uploadId 后开始发块
       this._pendingUploadFile = file
       this._pendingUploadRoom = roomId
+      this._pendingUploadThumbnail = thumbnail
     },
 
     async _sendNextChunk(uploadId) {
@@ -118,9 +156,11 @@ export const useChatStore = defineStore('chat', {
       if (!u || u.status === 'cancelled' || u.paused) return
 
       if (u.sent >= u.fileSize) {
-        // 完成
-        chatWs.endUpload(uploadId)
+        // 完成，发送缩略图
+        chatWs.endUpload(uploadId, u.thumbnail || '')
         u.status = 'finishing'
+        // 上传完成，延迟清理进度条
+        setTimeout(() => { delete this.uploads[uploadId] }, 1500)
         return
       }
 
@@ -422,7 +462,8 @@ export const useChatStore = defineStore('chat', {
             status: 'uploading',
             file: file,
             roomId,
-            paused: false
+            paused: false,
+            thumbnail: this._pendingUploadThumbnail || ''
           }
           this._sendNextChunk(d.uploadId)
         } else {

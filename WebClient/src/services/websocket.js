@@ -273,8 +273,10 @@ class ChatWebSocket {
     this.send(makeMessage(MsgType.FILE_UPLOAD_CHUNK, { uploadId, chunkIndex, chunkData }))
   }
 
-  endUpload(uploadId) {
-    this.send(makeMessage(MsgType.FILE_UPLOAD_END, { uploadId }))
+  endUpload(uploadId, thumbnail = '') {
+    const data = { uploadId }
+    if (thumbnail) data.thumbnail = thumbnail
+    this.send(makeMessage(MsgType.FILE_UPLOAD_END, data))
   }
 
   cancelUpload(uploadId) {
