@@ -124,6 +124,7 @@ Message::ContentType Message::stringToContentType(const QString &s) {
     if (s == "emoji")  return Emoji;
     if (s == "image")  return Image;
     if (s == "file")   return File;
+    if (s == "video")  return File;   // 视频当作 File 处理，由 delegate 根据扩展名渲染
     if (s == "system") return System;
     return Text;
 }
