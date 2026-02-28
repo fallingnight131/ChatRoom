@@ -66,7 +66,7 @@
     <div v-if="contextMenu.show" class="context-menu"
          :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
          @click="contextMenu.show = false">
-      <div class="context-menu-item" @click="leaveRoom(contextMenu.room)">退出房间</div>
+      <div class="context-menu-item" @click="openRoomSettings(contextMenu.room)">房间设置</div>
     </div>
   </div>
 </template>
@@ -78,7 +78,7 @@ import { chatWs } from '../services/websocket'
 
 const chatStore = useChatStore()
 
-const emit = defineEmits(['room-selected'])
+const emit = defineEmits(['room-selected', 'open-room-settings'])
 
 const showCreate = ref(false)
 const showJoin = ref(false)
@@ -112,9 +112,10 @@ function refreshRooms() {
   chatWs.requestRoomList()
 }
 
-function leaveRoom(room) {
-  if (room && confirm(`确定退出房间 "${room.roomName}" ？`)) {
-    chatWs.leaveRoom(room.roomId)
+function openRoomSettings(room) {
+  if (room) {
+    chatStore.setCurrentRoom(room.roomId)
+    emit('open-room-settings')
   }
 }
 

@@ -20,7 +20,7 @@
           {{ userStore.darkMode ? '☀️' : '🌙' }}
         </button>
       </div>
-      <RoomList @room-selected="onRoomSelected" />
+      <RoomList @room-selected="onRoomSelected" @open-room-settings="showRoomSettings = true" />
     </div>
 
     <!-- 中间面板：消息区域 -->

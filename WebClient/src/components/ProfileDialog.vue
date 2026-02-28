@@ -37,6 +37,9 @@
           <button v-if="!editingUid" class="btn btn-text" @click="editingUid = true">编辑</button>
           <button v-else class="btn btn-primary" @click="saveUid">保存</button>
         </div>
+        <div class="uid-hint">6-20位字母/数字/下划线，每月仅可修改一次</div>
+        <div v-if="uidError" class="uid-error">{{ uidError }}</div>
+        <div v-if="uidSuccess" class="uid-success">{{ uidSuccess }}</div>
       </div>
 
       <!-- 修改密码 -->
@@ -70,10 +73,10 @@
 </template>
 
 <script setup>
-import { ref, inject } from 'vue'
+import { ref, inject, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import { chatWs } from '../services/websocket'
+import { chatWs, MsgType } from '../services/websocket'
 
 const emit = defineEmits(['close'])
 const router = useRouter()
@@ -91,6 +94,8 @@ const newPassword = ref('')
 const confirmPassword = ref('')
 
 const avatarInput = ref(null)
+const uidError = ref('')
+const uidSuccess = ref('')
 
 function triggerAvatarInput() {
   avatarInput.value?.click()
@@ -133,9 +138,31 @@ function saveName() {
 }
 
 function saveUid() {
-  if (uid.value.trim() && uid.value !== userStore.username) {
-    chatWs.changeUid(uid.value.trim())
+  uidError.value = ''
+  uidSuccess.value = ''
+  const newUid = uid.value.trim()
+  if (!newUid || newUid === userStore.username) {
     editingUid.value = false
+    return
+  }
+  // 前端格式校验
+  if (!/^[a-zA-Z0-9_]{6,20}$/.test(newUid)) {
+    uidError.value = '用户ID必须为6-20位，只能包含字母、数字和下划线'
+    return
+  }
+  chatWs.changeUid(newUid)
+  editingUid.value = false
+}
+
+function onUidChangeRsp(msg) {
+  if (msg.data.success) {
+    uidError.value = ''
+    uidSuccess.value = '用户ID修改成功'
+    uid.value = msg.data.newUid
+    setTimeout(() => { uidSuccess.value = '' }, 3000)
+  } else {
+    uidError.value = msg.data.error || '修改失败'
+    uid.value = userStore.username  // 还原
   }
 }
 
@@ -161,6 +188,13 @@ function doLogout() {
   emit('close')
   router.push('/login')
 }
+
+onMounted(() => {
+  chatWs.on(MsgType.CHANGE_UID_RSP, onUidChangeRsp)
+})
+onUnmounted(() => {
+  chatWs.off(MsgType.CHANGE_UID_RSP, onUidChangeRsp)
+})
 </script>
 
 <style scoped>
@@ -206,6 +240,21 @@ function doLogout() {
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 8px;
+}
+.uid-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+.uid-error {
+  font-size: 12px;
+  color: var(--danger, #e53e3e);
+  margin-top: 4px;
+}
+.uid-success {
+  font-size: 12px;
+  color: #38a169;
+  margin-top: 4px;
 }
 
 /* ========== 移动端适配 ========== */

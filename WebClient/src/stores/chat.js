@@ -336,6 +336,10 @@ export const useChatStore = defineStore('chat', {
       chatWs.on(MsgType.USER_LIST_RSP, (msg) => {
         if (msg.data.roomId === this.currentRoomId) {
           this.users = msg.data.users || []
+          // 根据用户列表更新当前用户的管理员状态
+          const userStore = useUserStore()
+          const me = this.users.find(u => u.username === userStore.username)
+          this.isAdmin = me ? me.isAdmin : false
         }
       })
 
