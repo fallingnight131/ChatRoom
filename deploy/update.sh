@@ -41,17 +41,27 @@ if [ -z "$QMAKE" ]; then
     exit 1
 fi
 
+# 确保目录存在
+mkdir -p "${BIN_DIR}" "${PROJECT_DIR}/data" "${PROJECT_DIR}/logs"
+
 # 重新编译
 log_info "重新编译 ChatServer..."
 cd "${PROJECT_DIR}/Server"
 rm -rf build && mkdir build && cd build
 ${QMAKE} ../Server.pro CONFIG+=release -o Makefile
 make -j$(nproc)
-cp ChatServer "${BIN_DIR}/"
 
-# 重启服务
-log_info "重启服务..."
-systemctl restart chatserver
+# 先停止服务再复制（避免"文本文件忙"错误）
+log_info "停止服务..."
+systemctl stop chatserver 2>/dev/null || true
+sleep 1
+
+cp ChatServer "${BIN_DIR}/"
+chmod +x "${BIN_DIR}/ChatServer"
+
+# 启动服务
+log_info "启动服务..."
+systemctl start chatserver
 
 sleep 2
 if systemctl is-active --quiet chatserver; then
