@@ -762,6 +762,31 @@ void ChatWindow::onHistoryReceived(int roomId, const QJsonArray &messages) {
         m = Message::fromJson(wrapper);
         m.setIsMine(m.sender() == m_username);
 
+        // 历史中的图片/视频消息：它们有 fileId 但无 imageData，
+        // 需要当作 File 类型处理（走下载流程 + drawImageBubble/drawVideoBubble）
+        if ((m.contentType() == Message::Image) && m.fileId() > 0) {
+            m.setContentType(Message::File);
+        }
+
+        // 保存历史中的缩略图到本地缓存（图片和视频都可能有）
+        if (m.fileId() > 0 && obj.contains("thumbnail")) {
+            QString thumbStr = obj["thumbnail"].toString();
+            if (!thumbStr.isEmpty()) {
+                QByteArray thumbData = QByteArray::fromBase64(thumbStr.toLatin1());
+                if (!thumbData.isEmpty()) {
+                    QString tDir = FileCache::instance()->thumbDir();
+                    QString thumbPath = tDir + QString("/thumb_%1.jpg").arg(m.fileId());
+                    if (!QFile::exists(thumbPath)) {
+                        QFile tf(thumbPath);
+                        if (tf.open(QIODevice::WriteOnly)) {
+                            tf.write(thumbData);
+                            tf.close();
+                        }
+                    }
+                }
+            }
+        }
+
         // 为文件消息设置下载状态
         if (m.contentType() == Message::File && m.fileId() > 0) {
             if (FileCache::instance()->isCached(m.fileId())) {
@@ -897,6 +922,20 @@ void ChatWindow::onSendFile() {
         }
     }
 
+    // 图片文件：生成缩略图一并发送
+    static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
+    if (imgExts.contains(fi.suffix().toLower())) {
+        QImage img(filePath);
+        if (!img.isNull()) {
+            QImage thumb = img.scaled(200, 200, Qt::KeepAspectRatio, Qt::FastTransformation);
+            QByteArray thumbData;
+            QBuffer tbuf(&thumbData);
+            tbuf.open(QIODevice::WriteOnly);
+            thumb.save(&tbuf, "JPEG", 60);
+            msgData["thumbnail"] = QString::fromLatin1(thumbData.toBase64());
+        }
+    }
+
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FILE_SEND, msgData));
 
@@ -932,6 +971,17 @@ void ChatWindow::onSendImage() {
     msgData["fileName"] = fi.fileName();
     msgData["fileSize"] = static_cast<double>(fi.size());
     msgData["fileData"] = QString::fromLatin1(data.toBase64());
+
+    // 生成图片缩略图
+    QImage img(filePath);
+    if (!img.isNull()) {
+        QImage thumb = img.scaled(200, 200, Qt::KeepAspectRatio, Qt::FastTransformation);
+        QByteArray thumbData;
+        QBuffer tbuf(&thumbData);
+        tbuf.open(QIODevice::WriteOnly);
+        thumb.save(&tbuf, "JPEG", 60);
+        msgData["thumbnail"] = QString::fromLatin1(thumbData.toBase64());
+    }
 
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FILE_SEND, msgData));

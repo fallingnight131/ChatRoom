@@ -143,6 +143,7 @@ function onLoginRsp(msg) {
   loading.value = false
   if (msg.data.success) {
     userStore.onLoginSuccess(msg.data)
+    userStore.saveCredentials(username.value, password.value)
     // 初始化消息监听
     userStore.initListeners()
     chatStore.initListeners()

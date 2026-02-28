@@ -44,6 +44,21 @@ export const useUserStore = defineStore('user', {
       }))
     },
 
+    // 保存登录凭证（用于刷新自动重连）
+    saveCredentials(username, password) {
+      sessionStorage.setItem('credentials', JSON.stringify({ username, password }))
+    },
+
+    getCredentials() {
+      try {
+        return JSON.parse(sessionStorage.getItem('credentials') || 'null')
+      } catch { return null }
+    },
+
+    clearCredentials() {
+      sessionStorage.removeItem('credentials')
+    },
+
     onLogout() {
       this.loggedIn = false
       this.userId = 0
@@ -51,6 +66,7 @@ export const useUserStore = defineStore('user', {
       this.displayName = ''
       this.avatarData = ''
       sessionStorage.removeItem('user')
+      sessionStorage.removeItem('credentials')
     },
 
     setAvatar(data) {

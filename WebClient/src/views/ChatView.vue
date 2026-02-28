@@ -41,8 +41,9 @@
     </div>
     <div class="center-panel empty-state" v-else>
       <button class="btn-icon mobile-menu-btn empty-menu-btn" @click="mobilePanel = 'left'" title="房间列表">☰</button>
-      <div class="empty-icon">💬</div>
-      <p>选择一个房间开始聊天</p>
+      <div v-if="reconnecting" class="empty-icon">⏳</div>
+      <div v-else class="empty-icon">💬</div>
+      <p>{{ reconnecting ? '正在重新连接...' : '选择一个房间开始聊天' }}</p>
     </div>
 
     <!-- 右侧面板：成员列表 -->
@@ -68,7 +69,7 @@ import { ref, onMounted, onUnmounted, provide } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
-import { chatWs } from '../services/websocket'
+import { chatWs, MsgType } from '../services/websocket'
 import RoomList from '../components/RoomList.vue'
 import MessageList from '../components/MessageList.vue'
 import InputArea from '../components/InputArea.vue'
@@ -89,6 +90,7 @@ const selectedUser = ref(null)
 const showPasswordPrompt = ref(false)
 const passwordRoomData = ref(null)
 const mobilePanel = ref('')
+const reconnecting = ref(false)
 
 function isMobile() {
   return window.innerWidth <= 768
@@ -132,15 +134,54 @@ function onNeedPassword(data) {
 provide('openUserInfo', openUserInfo)
 provide('hashColor', hashColor)
 
+// 自动重连登录的处理器
+function onReconnectLogin(msg) {
+  if (msg.data.success) {
+    userStore.onLoginSuccess(msg.data)
+    userStore.initListeners()
+    chatStore.initListeners()
+    chatWs.getAvatar(msg.data.username)
+    chatWs.requestRoomList()
+    reconnecting.value = false
+  } else {
+    // 登录失败，跳转到登录页
+    reconnecting.value = false
+    userStore.clearCredentials()
+    router.push('/login')
+  }
+  // 移除一次性监听
+  chatWs.off(MsgType.LOGIN_RSP, onReconnectLogin)
+}
+
+function onReconnected() {
+  // WebSocket连接成功后自动登录
+  const creds = userStore.getCredentials()
+  if (creds && !userStore.loggedIn) {
+    chatWs.on(MsgType.LOGIN_RSP, onReconnectLogin)
+    chatWs.login(creds.username, creds.password)
+  }
+  chatWs.off('connected', onReconnected)
+}
+
 onMounted(() => {
-  // 断开连接时跳回登录
+  // 断开连接时的处理
   chatWs.on('disconnected', onDisconnected)
   chatStore.onEvent('needPassword', onNeedPassword)
 
-  // 如果没有登录过，重定向
+  // 如果没有登录过，尝试自动重连
   if (!userStore.loggedIn) {
     const saved = JSON.parse(sessionStorage.getItem('user') || 'null')
-    if (!saved) {
+    const creds = userStore.getCredentials()
+    if (saved && creds) {
+      // 有保存的会话和凭证，自动重连
+      reconnecting.value = true
+      userStore.username = saved.username
+      userStore.displayName = saved.displayName
+      userStore.userId = saved.userId
+
+      chatWs.on('connected', onReconnected)
+      chatWs.connect(userStore.serverHost, userStore.serverPort, userStore.wsPath)
+    } else {
       router.push('/login')
     }
   }
@@ -148,6 +189,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   chatWs.off('disconnected', onDisconnected)
+  chatWs.off('connected', onReconnected)
+  chatWs.off(MsgType.LOGIN_RSP, onReconnectLogin)
   chatStore.offEvent('needPassword', onNeedPassword)
 })
 
