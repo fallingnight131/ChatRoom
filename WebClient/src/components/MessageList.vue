@@ -105,6 +105,13 @@
             <span class="menu-icon">📋</span> 复制文本
           </div>
 
+          <!-- 预览文件 (文件/图片/视频消息，所有人可用) -->
+          <div class="context-menu-item"
+               v-if="contextMenu.msg && isFileType(contextMenu.msg) && !contextMenu.msg.recalled"
+               @click="previewFromMenu(contextMenu.msg)">
+            <span class="menu-icon">👁️</span> 预览文件
+          </div>
+
           <!-- 撤回 (自己的消息, 2分钟内) -->
           <div class="context-menu-item"
                v-if="canRecall(contextMenu.msg)"
@@ -260,6 +267,13 @@ function copyText(msg) {
     })
   }
   contextMenu.value.show = false
+}
+
+function previewFromMenu(msg) {
+  contextMenu.value.show = false
+  if (msg) {
+    openPreview(msg)
+  }
 }
 
 function recallMsg(msg) {
