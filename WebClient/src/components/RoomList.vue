@@ -3,8 +3,8 @@
     <div class="room-list-header">
       <span class="room-list-title">房间列表</span>
       <div class="room-actions-row">
-        <button class="btn-icon" @click="showCreate = true" title="创建房间">➕</button>
         <button class="btn-icon" @click="showJoin = true" title="加入房间">🔗</button>
+        <button class="btn-icon" @click="showCreate = true" title="创建房间">➕</button>
         <button class="btn-icon" @click="refreshRooms" title="刷新">🔄</button>
       </div>
     </div>

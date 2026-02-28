@@ -381,7 +381,7 @@ export const useChatStore = defineStore('chat', {
 
       // --- 聊天消息 ---
       chatWs.on(MsgType.CHAT_MSG, (msg) => {
-        const d = msg.data
+        const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp }
         if (d.roomId === this.currentRoomId) {
           this.messages.push(d)
         } else {
@@ -392,7 +392,7 @@ export const useChatStore = defineStore('chat', {
       })
 
       chatWs.on(MsgType.SYSTEM_MSG, (msg) => {
-        const d = msg.data
+        const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp }
         if (d.roomId === this.currentRoomId) {
           this.messages.push({ ...d, contentType: 'system', sender: '' })
         }
@@ -423,7 +423,7 @@ export const useChatStore = defineStore('chat', {
 
       // --- 文件消息 ---
       chatWs.on(MsgType.FILE_NOTIFY, (msg) => {
-        const d = msg.data
+        const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp }
         if (d.roomId === this.currentRoomId) {
           this.messages.push(d)
         } else {
