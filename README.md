@@ -20,7 +20,8 @@
 - 小文件直传（≤8MB）
 - 大文件分块传输（4MB/块，最大 4GB）
 - 上传 / 下载暂停、恢复、取消
-- 视频文件缩略图预览
+- 图片 / 视频缩略图预览
+- Web 端文件预览（图片缩放拖拽、视频 DPlayer 播放、PDF / 文本 / 音频在线预览）
 
 ### 用户系统
 
@@ -32,24 +33,26 @@
 
 ### 管理员功能
 
-- 房间管理员设置
+- 房间管理员设置 / 取消
 - 踢出用户
-- 删除消息（单条 / 全部清空）
-- 房间设置（文件大小限制）
-- 查看 / 修改房间密码
+- 删除消息（单条 / 全部清空 / 按日期范围）
+- 房间设置（文件大小限制、房间密码）
+- 删除房间
 
 ### 界面体验
 
-- 亮色 / 暗色主题切换
+- 亮色 / 暗色主题切换（Qt QSS + Web CSS 变量）
 - 系统托盘（最小化到托盘、消息通知）—— Qt 端
 - 窗口贴边自动隐藏 —— Qt 端
-- 断线自动重连
+- 断线自动重连 + 自动重新登录
 - 心跳保活（30s 间隔 / 90s 超时）
+- Web 端响应式布局（桌面 / 平板 / 手机）
+- 刷新页面保持登录状态
 
 ### 双端互通
 
-- Qt 桌面客户端通过 TCP 连接（端口 9527）
-- Vue Web 客户端通过 WebSocket 连接（端口 9528）
+- Qt 桌面客户端通过 TCP 连接（默认端口 9527）
+- Vue Web 客户端通过 WebSocket 连接（默认端口 9528）
 - 同一服务器同时处理 TCP 和 WebSocket 连接
 - 两端用户可在同一房间实时通信
 
@@ -60,6 +63,7 @@
 | 语言 | C++17 / JavaScript (ES2020+) |
 | GUI 框架 | Qt 6.7+ (Widgets) |
 | Web 框架 | Vue 3 + Vite 5 + Pinia + Vue Router |
+| 视频播放 | DPlayer 1.27 |
 | 网络 | QTcpServer / QTcpSocket / QWebSocketServer |
 | 数据库 | SQLite（Qt 内置驱动，零配置） |
 | 构建 | qmake (Qt) / Vite (Web) |
@@ -70,6 +74,9 @@
 ```
 ChatRoom/
 ├── ChatRoom.pro          # 顶层 qmake subdirs 项目
+├── README.md             # 项目说明
+├── DEPLOY.md             # 云服务器部署指南
+├── DESIGN.md             # 详细设计文档
 ├── Common/               # 共享协议层
 │   ├── Protocol.h        # 消息协议定义（56 种消息类型）
 │   └── Message.h/cpp     # 消息数据模型
@@ -85,6 +92,7 @@ ChatRoom/
 │   ├── MessageModel      # 消息数据模型 (MVC)
 │   ├── MessageDelegate   # 消息气泡渲染
 │   ├── EmojiPicker       # 表情选择器
+│   ├── FileCache         # 文件缓存管理
 │   ├── ThemeManager      # 主题管理
 │   ├── TrayManager       # 系统托盘管理
 │   └── resources/        # QSS 样式表
@@ -105,6 +113,7 @@ ChatRoom/
             ├── UserList.vue          # 成员列表
             ├── InputArea.vue         # 输入区域
             ├── EmojiPicker.vue       # 表情选择器
+            ├── FilePreview.vue       # 文件预览（图片/视频/PDF/音频/文本）
             ├── ProfileDialog.vue     # 个人资料
             ├── RoomSettingsDialog.vue # 房间设置
             ├── UserInfoDialog.vue    # 用户信息
@@ -186,139 +195,7 @@ ChatServer.exe --port 8888 --ws-port 9999
 
 ## 云服务器部署
 
-### 方案一：Linux 服务器（推荐）
-
-适用于阿里云、腾讯云、AWS 等 Linux 云主机。只需部署 Server，客户端在用户本地运行或浏览器访问。
-
-#### 1) 安装依赖
-
-```bash
-# Ubuntu / Debian
-sudo apt update
-sudo apt install qt6-base-dev qt6-websockets-dev build-essential
-
-# CentOS / Rocky Linux
-sudo dnf install qt6-qtbase-devel qt6-qtwebsockets-devel gcc-c++ make
-```
-
-#### 2) 上传源码并编译
-
-```bash
-# 将 Common/ 和 Server/ 上传到服务器
-scp -r Common/ Server/ user@your-server:/opt/chatroom/
-
-# SSH 登录后编译
-ssh user@your-server
-cd /opt/chatroom/Server
-qmake6 Server.pro "CONFIG+=release"
-make -j$(nproc)
-```
-
-#### 3) 运行
-
-```bash
-# 前台运行（测试）
-./ChatServer --port 9527
-
-# 后台运行（生产）
-nohup ./ChatServer --port 9527 > server.log 2>&1 &
-```
-
-#### 4) 创建 systemd 服务（推荐）
-
-```bash
-sudo tee /etc/systemd/system/chatroom.service << 'EOF'
-[Unit]
-Description=Qt ChatRoom Server
-After=network.target
-
-[Service]
-Type=simple
-User=chatroom
-WorkingDirectory=/opt/chatroom/Server
-ExecStart=/opt/chatroom/Server/ChatServer --port 9527
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable chatroom
-sudo systemctl start chatroom
-```
-
-#### 5) 防火墙放行
-
-```bash
-# Ubuntu (ufw)
-sudo ufw allow 9527/tcp    # Qt 客户端
-sudo ufw allow 9528/tcp    # Web 客户端 WebSocket
-
-# CentOS (firewalld)
-sudo firewall-cmd --permanent --add-port=9527-9528/tcp
-sudo firewall-cmd --reload
-```
-
-> 同时在云控制台的 **安全组** 中放行 TCP 9527 和 9528 端口。
-
-#### 6) 部署 Web 客户端（可选）
-
-```bash
-# 在本地构建 Web 客户端
-cd WebClient
-npm install
-npm run build
-
-# 将 dist/ 部署到 Nginx
-scp -r dist/ user@your-server:/var/www/chatroom/
-
-# Nginx 配置示例
-server {
-    listen 80;
-    server_name chat.example.com;
-    root /var/www/chatroom;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-```
-
-#### 7) 客户端连接
-
-- **Qt 客户端**：登录时展开 "高级设置"，服务器地址填写公网 IP，端口 `9527`
-- **Web 客户端**：打开浏览器，点击 ⚙ 服务器设置，填写公网 IP 和 WebSocket 端口 `9528`
-
-### 方案二：Windows Server
-
-```powershell
-# 使用 windeployqt 打包依赖
-windeployqt.exe ChatServer.exe
-
-# 将整个文件夹复制到 Windows Server，直接运行
-ChatServer.exe --port 9527
-```
-
-### 方案三：Docker
-
-```dockerfile
-FROM ubuntu:22.04
-RUN apt-get update && apt-get install -y qt6-base-dev qt6-websockets-dev build-essential
-COPY Common/ /app/Common/
-COPY Server/ /app/Server/
-WORKDIR /app/Server
-RUN qmake6 Server.pro "CONFIG+=release" && make -j$(nproc)
-EXPOSE 9527 9528
-CMD ["./ChatServer", "--port", "9527"]
-```
-
-```bash
-docker build -t chatroom-server .
-docker run -d -p 9527:9527 -p 9528:9528 --name chatroom chatroom-server
-```
+详见 [DEPLOY.md](DEPLOY.md)，包含完整的 Linux 服务器部署教程（编译、systemd 服务、Nginx 反向代理、SSL/HTTPS 配置）。
 
 ---
 
@@ -327,7 +204,7 @@ docker run -d -p 9527:9527 -p 9528:9528 --name chatroom chatroom-server
 | 模式 | 应用 |
 |------|------|
 | 观察者模式 | NetworkManager 信号/槽分发消息 |
-| 单例模式 | NetworkManager、ThemeManager |
+| 单例模式 | NetworkManager、ThemeManager、FileCache |
 | MVC 模式 | MessageModel + MessageDelegate + QListView |
 | 策略模式 | 主题切换（Light/Dark QSS / CSS 变量） |
 | 工厂模式 | Message::createXxxMessage() 系列方法 |
