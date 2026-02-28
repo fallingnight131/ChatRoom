@@ -93,13 +93,48 @@
     </div>
 
     <!-- 右键菜单 -->
-    <div v-if="contextMenu.show" class="context-menu"
-         :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }">
-      <div class="context-menu-item" v-if="canRecall(contextMenu.msg)"
-           @click="recallMsg(contextMenu.msg)">撤回</div>
-      <div class="context-menu-item" v-if="chatStore.isAdmin && contextMenu.msg"
-           @click="deleteMsg(contextMenu.msg)">删除</div>
-    </div>
+    <Teleport to="body">
+      <div v-if="contextMenu.show" class="context-menu-overlay" @click="closeMenu" @contextmenu.prevent="closeMenu">
+        <div class="context-menu"
+             :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+             @click.stop>
+          <!-- 复制文本 (非文件、非系统消息都可以) -->
+          <div class="context-menu-item"
+               v-if="contextMenu.msg && contextMenu.msg.content && !isFileType(contextMenu.msg)"
+               @click="copyText(contextMenu.msg)">
+            <span class="menu-icon">📋</span> 复制文本
+          </div>
+
+          <!-- 撤回 (自己的消息, 2分钟内) -->
+          <div class="context-menu-item"
+               v-if="canRecall(contextMenu.msg)"
+               @click="recallMsg(contextMenu.msg)">
+            <span class="menu-icon">↩️</span> 撤回
+          </div>
+
+          <!-- 管理员: 删除此消息 -->
+          <div class="context-menu-item danger"
+               v-if="chatStore.isAdmin && contextMenu.msg && !contextMenu.msg.recalled"
+               @click="deleteMsg(contextMenu.msg)">
+            <span class="menu-icon">🗑️</span> 删除此消息
+          </div>
+
+          <!-- 管理员子菜单 -->
+          <template v-if="chatStore.isAdmin">
+            <div class="context-menu-divider"></div>
+            <div class="context-menu-item danger" @click="clearAllMessages">
+              <span class="menu-icon">🧹</span> 清空所有消息
+            </div>
+            <div class="context-menu-item danger" @click="deleteOldMessages">
+              <span class="menu-icon">📅</span> 删除N天前的消息
+            </div>
+            <div class="context-menu-item danger" @click="deleteRecentMessages">
+              <span class="menu-icon">🕐</span> 删除最近N天的消息
+            </div>
+          </template>
+        </div>
+      </div>
+    </Teleport>
 
     <!-- 文件预览组件 -->
     <FilePreview
@@ -203,8 +238,28 @@ function openPreview(msg) {
 function canRecall(msg) {
   if (!msg) return false
   if (msg.sender !== userStore.username) return false
+  if (msg.recalled) return false
   const elapsed = Date.now() - (msg.timestamp || 0)
   return elapsed < 120000
+}
+
+function isFileType(msg) {
+  return msg && (msg.contentType === 'file' || msg.contentType === 'image' || msg.contentType === 'video')
+}
+
+function copyText(msg) {
+  if (msg && msg.content) {
+    navigator.clipboard.writeText(msg.content).catch(() => {
+      // fallback
+      const ta = document.createElement('textarea')
+      ta.value = msg.content
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+    })
+  }
+  contextMenu.value.show = false
 }
 
 function recallMsg(msg) {
@@ -221,8 +276,39 @@ function deleteMsg(msg) {
   contextMenu.value.show = false
 }
 
+function clearAllMessages() {
+  contextMenu.value.show = false
+  if (confirm('确定要清空所有聊天记录吗？\n此操作不可恢复！')) {
+    chatWs.deleteMessages(chatStore.currentRoomId, 'all')
+  }
+}
+
+function deleteOldMessages() {
+  contextMenu.value.show = false
+  const days = prompt('删除多少天前的消息：', '7')
+  if (days === null) return
+  const n = parseInt(days)
+  if (isNaN(n) || n < 1) { alert('请输入有效的天数'); return }
+  const cutoff = Date.now() - n * 24 * 60 * 60 * 1000
+  chatWs.deleteMessages(chatStore.currentRoomId, 'before', [], cutoff)
+}
+
+function deleteRecentMessages() {
+  contextMenu.value.show = false
+  const days = prompt('删除最近几天的消息：', '1')
+  if (days === null) return
+  const n = parseInt(days)
+  if (isNaN(n) || n < 1) { alert('请输入有效的天数'); return }
+  const cutoff = Date.now() - n * 24 * 60 * 60 * 1000
+  chatWs.deleteMessages(chatStore.currentRoomId, 'after', [], cutoff)
+}
+
 function onContextMenu(e, msg) {
-  contextMenu.value = { show: true, x: e.clientX, y: e.clientY, msg }
+  // 计算菜单位置，确保不超出屏幕
+  const menuW = 200, menuH = 260
+  let x = Math.min(e.clientX, window.innerWidth - menuW)
+  let y = Math.min(e.clientY, window.innerHeight - menuH)
+  contextMenu.value = { show: true, x, y, msg }
 }
 
 let longPressTimer = null
@@ -233,8 +319,9 @@ function onTouchStart(e, msg) {
   longPressTimer = setTimeout(() => {
     longPressTriggered = true
     const touch = e.touches[0]
-    const x = Math.min(touch.clientX, window.innerWidth - 140)
-    const y = Math.min(touch.clientY, window.innerHeight - 100)
+    const menuW = 200, menuH = 260
+    const x = Math.min(touch.clientX, window.innerWidth - menuW)
+    const y = Math.min(touch.clientY, window.innerHeight - menuH)
     contextMenu.value = { show: true, x, y, msg }
   }, 500)
 }
@@ -285,10 +372,10 @@ function closeMenu() {
 }
 
 onMounted(() => {
-  document.addEventListener('click', closeMenu)
+  // overlay handles closing now
 })
 onUnmounted(() => {
-  document.removeEventListener('click', closeMenu)
+  // cleanup
 })
 </script>
 
@@ -491,26 +578,7 @@ onUnmounted(() => {
   flex-direction: column;
 }
 
-/* 右键菜单 */
-.context-menu {
-  position: fixed;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 4px 0;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 2000;
-  min-width: 100px;
-}
-.context-menu-item {
-  padding: 8px 16px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--text-primary);
-}
-.context-menu-item:hover {
-  background: var(--bg-hover, rgba(0,0,0,0.05));
-}
+/* 右键菜单 - Teleported to body, uses :global */
 
 /* 移动端适配 */
 @media (max-width: 768px) {
@@ -565,6 +633,74 @@ onUnmounted(() => {
   .video-placeholder {
     width: 180px;
     height: 110px;
+  }
+}
+</style>
+
+<style>
+.context-menu-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3000;
+}
+.context-menu {
+  position: fixed;
+  background: var(--bg-secondary, #fff);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 10px;
+  padding: 6px 0;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+  z-index: 3001;
+  min-width: 180px;
+  max-width: 240px;
+  animation: ctxFadeIn 0.12s ease-out;
+}
+@keyframes ctxFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.context-menu-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary, #333);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+.context-menu-item:hover {
+  background: var(--bg-hover, rgba(0,0,0,0.05));
+}
+.context-menu-item.danger {
+  color: var(--danger, #e74c3c);
+}
+.context-menu-item.danger:hover {
+  background: rgba(231, 76, 60, 0.08);
+}
+.menu-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+.context-menu-divider {
+  height: 1px;
+  background: var(--border-light, #eee);
+  margin: 4px 12px;
+}
+
+@media (max-width: 768px) {
+  .context-menu {
+    min-width: 160px;
+  }
+  .context-menu-item {
+    padding: 12px 16px;
+    font-size: 14px;
   }
 }
 </style>

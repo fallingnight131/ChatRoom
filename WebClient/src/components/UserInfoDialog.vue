@@ -39,6 +39,22 @@
         </div>
       </div>
 
+      <!-- 管理员操作区域 -->
+      <div v-if="showAdminActions" class="admin-actions">
+        <div class="admin-actions-title">管理员操作</div>
+        <div class="admin-actions-btns">
+          <button v-if="!props.user.isAdmin" class="btn btn-secondary" @click="setAdmin">
+            设为管理员
+          </button>
+          <button v-else class="btn btn-secondary" @click="unsetAdmin">
+            取消管理员
+          </button>
+          <button v-if="!isSelf" class="btn btn-danger" @click="kickUser">
+            踢出聊天室
+          </button>
+        </div>
+      </div>
+
       <div class="modal-actions">
         <button class="btn btn-secondary" @click="$emit('close')">关闭</button>
       </div>
@@ -49,19 +65,45 @@
 <script setup>
 import { computed, inject, onMounted } from 'vue'
 import { useUserStore } from '../stores/user'
+import { useChatStore } from '../stores/chat'
 import { chatWs } from '../services/websocket'
 
 const props = defineProps({
   user: { type: Object, required: true }
 })
-defineEmits(['close'])
+const emit = defineEmits(['close'])
 const hashColor = inject('hashColor')
 const userStore = useUserStore()
+const chatStore = useChatStore()
 
 const avatarSrc = computed(() => {
   const data = userStore.getAvatar(props.user.username)
   return data ? 'data:image/png;base64,' + data : ''
 })
+
+const isSelf = computed(() => props.user.username === userStore.username)
+
+const showAdminActions = computed(() => {
+  // 管理员可以操作非自己的用户（设管理员、踢出），也可以操作自己（取消管理员）
+  return chatStore.isAdmin && chatStore.currentRoomId != null
+})
+
+function setAdmin() {
+  chatWs.setAdmin(chatStore.currentRoomId, props.user.username, true)
+  emit('close')
+}
+
+function unsetAdmin() {
+  chatWs.setAdmin(chatStore.currentRoomId, props.user.username, false)
+  emit('close')
+}
+
+function kickUser() {
+  if (confirm(`确定要将 ${props.user.displayName || props.user.username} 踢出聊天室吗？`)) {
+    chatWs.kickUser(chatStore.currentRoomId, props.user.username)
+    emit('close')
+  }
+}
 
 onMounted(() => {
   if (!userStore.avatarCache[props.user.username]) {
@@ -111,5 +153,26 @@ onMounted(() => {
 }
 .status-dot.online {
   background: var(--success);
+}
+
+.admin-actions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+}
+.admin-actions-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.admin-actions-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.admin-actions-btns .btn {
+  flex: 1;
+  min-width: 100px;
 }
 </style>

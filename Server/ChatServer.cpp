@@ -626,8 +626,9 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
             thumb.save(&buf, "JPEG", 60);
             thumbnail = QString::fromLatin1(thumbData.toBase64());
         }
-    } else if (data.contains("thumbnail")) {
-        // 视频缩略图由客户端提供
+    }
+    // QImage 失败或非图片类型时，使用客户端提供的缩略图
+    if (thumbnail.isEmpty() && data.contains("thumbnail")) {
         thumbnail = data["thumbnail"].toString();
     }
 
@@ -802,7 +803,9 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
             thumb.save(&buf, "JPEG", 60);
             thumbnail = QString::fromLatin1(thumbData.toBase64());
         }
-    } else if (data.contains("thumbnail")) {
+    }
+    // QImage 失败或非图片类型时，使用客户端提供的缩略图
+    if (thumbnail.isEmpty() && data.contains("thumbnail")) {
         thumbnail = data["thumbnail"].toString();
     }
 
