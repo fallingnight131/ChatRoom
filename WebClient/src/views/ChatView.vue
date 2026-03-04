@@ -20,11 +20,16 @@
           {{ userStore.darkMode ? '☀️' : '🌙' }}
         </button>
       </div>
-      <RoomList @room-selected="onRoomSelected" @open-room-settings="showRoomSettings = true" />
+      <div class="tab-bar">
+        <button class="tab-btn" :class="{ active: activeTab === 'rooms' }" @click="activeTab = 'rooms'">房间</button>
+        <button class="tab-btn" :class="{ active: activeTab === 'friends' }" @click="switchToFriends">好友</button>
+      </div>
+      <RoomList v-if="activeTab === 'rooms'" @room-selected="onRoomSelected" @open-room-settings="showRoomSettings = true" />
+      <FriendList v-else @friend-selected="onFriendSelected" @view-user-info="onViewUserInfo" />
     </div>
 
-    <!-- 中间面板：消息区域 -->
-    <div class="center-panel" v-if="chatStore.currentRoomId">
+    <!-- 中间面板：消息区域（房间模式） -->
+    <div class="center-panel" v-if="chatStore.currentRoomId && !chatStore.isFriendChat">
       <!-- 房间标题栏 -->
       <div class="room-header">
         <button class="btn-icon mobile-menu-btn" @click="mobilePanel = 'left'" title="房间列表">☰</button>
@@ -39,6 +44,17 @@
       <!-- 输入区域 -->
       <InputArea />
     </div>
+
+    <!-- 中间面板：好友私聊模式 -->
+    <div class="center-panel" v-else-if="chatStore.isFriendChat && chatStore.currentFriendUsername">
+      <div class="room-header">
+        <button class="btn-icon mobile-menu-btn" @click="mobilePanel = 'left'" title="好友列表">☰</button>
+        <div class="room-title text-ellipsis">私聊 - {{ chatStore.currentFriendDisplayName || chatStore.currentFriendUsername }}</div>
+      </div>
+      <MessageList :friend-mode="true" />
+      <InputArea :friend-mode="true" />
+    </div>
+
     <div class="center-panel empty-state" v-else>
       <button class="btn-icon mobile-menu-btn empty-menu-btn" @click="mobilePanel = 'left'" title="房间列表">☰</button>
       <div v-if="reconnecting" class="empty-icon">⏳</div>
@@ -46,8 +62,8 @@
       <p>{{ reconnecting ? '正在重新连接...' : '选择一个房间开始聊天' }}</p>
     </div>
 
-    <!-- 右侧面板：成员列表 -->
-    <div class="right-panel" :class="{ 'panel-open': mobilePanel === 'right' }" v-if="chatStore.currentRoomId">
+    <!-- 右侧面板：成员列表（仅房间模式） -->
+    <div class="right-panel" :class="{ 'panel-open': mobilePanel === 'right' }" v-if="chatStore.currentRoomId && !chatStore.isFriendChat">
       <div class="right-panel-header">
         <button class="btn-icon mobile-back-btn" @click="mobilePanel = ''" title="关闭">✕</button>
         <span>成员列表</span>
@@ -71,6 +87,7 @@ import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
 import { chatWs, MsgType } from '../services/websocket'
 import RoomList from '../components/RoomList.vue'
+import FriendList from '../components/FriendList.vue'
 import MessageList from '../components/MessageList.vue'
 import InputArea from '../components/InputArea.vue'
 import UserList from '../components/UserList.vue'
@@ -91,16 +108,34 @@ const showPasswordPrompt = ref(false)
 const passwordRoomData = ref(null)
 const mobilePanel = ref('')
 const reconnecting = ref(false)
+const activeTab = ref('rooms')
 
 function isMobile() {
   return window.innerWidth <= 768
 }
 
 function onRoomSelected() {
+  // 切回房间模式
+  chatStore.exitFriendChat()
   // 移动端选择房间后关闭左侧面板
   if (isMobile()) {
     mobilePanel.value = ''
   }
+}
+
+function switchToFriends() {
+  activeTab.value = 'friends'
+  chatWs.requestFriendList()
+}
+
+function onFriendSelected() {
+  if (isMobile()) {
+    mobilePanel.value = ''
+  }
+}
+
+function onViewUserInfo(username, displayName) {
+  openUserInfo({ username, displayName })
 }
 
 function hashColor(str) {
@@ -252,6 +287,31 @@ function onDisconnected() {
 
 .theme-btn {
   font-size: 18px;
+}
+
+/* 标签栏 */
+.tab-bar {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+}
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tab-btn.active {
+  color: var(--accent-color, #4CAF50);
+  border-bottom-color: var(--accent-color, #4CAF50);
+}
+.tab-btn:hover {
+  background: var(--bg-hover);
 }
 
 /* 中间面板 */

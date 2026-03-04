@@ -196,6 +196,60 @@ bool DatabaseManager::initialize() {
     }
 
     m_initialized = true;
+
+    // 好友请求表
+    q.exec("CREATE TABLE IF NOT EXISTS friend_requests ("
+           "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+           "  from_user_id INTEGER NOT NULL,"
+           "  to_user_id INTEGER NOT NULL,"
+           "  status TEXT DEFAULT 'pending',"  // pending, accepted, rejected
+           "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+           "  FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE,"
+           "  FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE"
+           ")");
+
+    // 好友关系表
+    q.exec("CREATE TABLE IF NOT EXISTS friendships ("
+           "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+           "  user_id1 INTEGER NOT NULL,"
+           "  user_id2 INTEGER NOT NULL,"
+           "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+           "  UNIQUE(user_id1, user_id2),"
+           "  FOREIGN KEY (user_id1) REFERENCES users(id) ON DELETE CASCADE,"
+           "  FOREIGN KEY (user_id2) REFERENCES users(id) ON DELETE CASCADE"
+           ")");
+
+    // 好友私聊消息表
+    q.exec("CREATE TABLE IF NOT EXISTS friend_messages ("
+           "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+           "  friendship_id INTEGER NOT NULL,"
+           "  sender_id INTEGER NOT NULL,"
+           "  content TEXT,"
+           "  content_type TEXT DEFAULT 'text',"
+           "  file_name TEXT DEFAULT '',"
+           "  file_size INTEGER DEFAULT 0,"
+           "  file_id INTEGER DEFAULT 0,"
+           "  recalled INTEGER DEFAULT 0,"
+           "  thumbnail TEXT DEFAULT '',"
+           "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+           "  FOREIGN KEY (friendship_id) REFERENCES friendships(id) ON DELETE CASCADE,"
+           "  FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE"
+           ")");
+    q.exec("CREATE INDEX IF NOT EXISTS idx_friend_msg_time ON friend_messages(friendship_id, created_at)");
+
+    // 好友文件表
+    q.exec("CREATE TABLE IF NOT EXISTS friend_files ("
+           "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+           "  friendship_id INTEGER NOT NULL,"
+           "  user_id INTEGER NOT NULL,"
+           "  file_name TEXT NOT NULL,"
+           "  file_path TEXT NOT NULL,"
+           "  file_size INTEGER DEFAULT 0,"
+           "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+           "  FOREIGN KEY (friendship_id) REFERENCES friendships(id) ON DELETE CASCADE,"
+           "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
+           ")");
+
     qInfo() << "[DB] SQLite 数据库初始化完成，路径:" << m_dbPath;
     return true;
 }
@@ -987,4 +1041,253 @@ bool DatabaseManager::roomHasPassword(int roomId) {
     q.addBindValue(roomId);
     q.exec();
     return q.next();
+}
+
+// ==================== 好友系统 ====================
+
+bool DatabaseManager::sendFriendRequest(int fromUserId, int toUserId) {
+    if (fromUserId == toUserId) return false;
+    if (areFriends(fromUserId, toUserId)) return false;
+
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    // 检查是否已有待处理的请求
+    q.prepare("SELECT id FROM friend_requests WHERE from_user_id = ? AND to_user_id = ? AND status = 'pending'");
+    q.addBindValue(fromUserId);
+    q.addBindValue(toUserId);
+    q.exec();
+    if (q.next()) return false; // 已有待处理请求
+
+    // 检查对方是否已经向自己发过请求（如果有，直接接受）
+    q.prepare("SELECT id FROM friend_requests WHERE from_user_id = ? AND to_user_id = ? AND status = 'pending'");
+    q.addBindValue(toUserId);
+    q.addBindValue(fromUserId);
+    q.exec();
+    if (q.next()) {
+        // 对方已向自己发请求，直接接受
+        int reqId = q.value(0).toInt();
+        return acceptFriendRequest(reqId, fromUserId);
+    }
+
+    q.prepare("INSERT INTO friend_requests (from_user_id, to_user_id, status) VALUES (?, ?, 'pending')");
+    q.addBindValue(fromUserId);
+    q.addBindValue(toUserId);
+    return q.exec();
+}
+
+bool DatabaseManager::acceptFriendRequest(int requestId, int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    // 获取请求信息并验证
+    q.prepare("SELECT from_user_id, to_user_id FROM friend_requests WHERE id = ? AND status = 'pending'");
+    q.addBindValue(requestId);
+    q.exec();
+    if (!q.next()) return false;
+
+    int fromId = q.value(0).toInt();
+    int toId   = q.value(1).toInt();
+    if (toId != userId) return false; // 只有被请求方能接受
+
+    // 更新请求状态
+    q.prepare("UPDATE friend_requests SET status = 'accepted' WHERE id = ?");
+    q.addBindValue(requestId);
+    if (!q.exec()) return false;
+
+    // 创建好友关系 (保证 user_id1 < user_id2)
+    int id1 = qMin(fromId, toId);
+    int id2 = qMax(fromId, toId);
+    q.prepare("INSERT OR IGNORE INTO friendships (user_id1, user_id2) VALUES (?, ?)");
+    q.addBindValue(id1);
+    q.addBindValue(id2);
+    return q.exec();
+}
+
+bool DatabaseManager::rejectFriendRequest(int requestId, int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    q.prepare("SELECT to_user_id FROM friend_requests WHERE id = ? AND status = 'pending'");
+    q.addBindValue(requestId);
+    q.exec();
+    if (!q.next()) return false;
+    if (q.value(0).toInt() != userId) return false;
+
+    q.prepare("UPDATE friend_requests SET status = 'rejected' WHERE id = ?");
+    q.addBindValue(requestId);
+    return q.exec();
+}
+
+QJsonArray DatabaseManager::getPendingFriendRequests(int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    q.prepare("SELECT fr.id, fr.from_user_id, u.username, u.display_name, fr.created_at "
+              "FROM friend_requests fr "
+              "JOIN users u ON fr.from_user_id = u.id "
+              "WHERE fr.to_user_id = ? AND fr.status = 'pending' "
+              "ORDER BY fr.created_at DESC");
+    q.addBindValue(userId);
+    q.exec();
+
+    QJsonArray arr;
+    while (q.next()) {
+        QJsonObject req;
+        req["requestId"]   = q.value(0).toInt();
+        req["fromUserId"]  = q.value(1).toInt();
+        req["fromUsername"] = q.value(2).toString();
+        QString dn = q.value(3).toString();
+        req["fromDisplayName"] = dn.isEmpty() ? q.value(2).toString() : dn;
+        QDateTime dt = q.value(4).toDateTime();
+        dt.setTimeSpec(Qt::UTC);
+        req["timestamp"] = dt.toMSecsSinceEpoch();
+        arr.append(req);
+    }
+    return arr;
+}
+
+QJsonArray DatabaseManager::getFriendList(int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    q.prepare("SELECT f.id, "
+              "  CASE WHEN f.user_id1 = ? THEN f.user_id2 ELSE f.user_id1 END AS friend_id, "
+              "  u.username, u.display_name "
+              "FROM friendships f "
+              "JOIN users u ON u.id = CASE WHEN f.user_id1 = ? THEN f.user_id2 ELSE f.user_id1 END "
+              "WHERE f.user_id1 = ? OR f.user_id2 = ? "
+              "ORDER BY u.display_name");
+    q.addBindValue(userId);
+    q.addBindValue(userId);
+    q.addBindValue(userId);
+    q.addBindValue(userId);
+    q.exec();
+
+    QJsonArray arr;
+    while (q.next()) {
+        QJsonObject fr;
+        fr["friendshipId"] = q.value(0).toInt();
+        fr["friendId"]     = q.value(1).toInt();
+        fr["username"]     = q.value(2).toString();
+        QString dn = q.value(3).toString();
+        fr["displayName"]  = dn.isEmpty() ? q.value(2).toString() : dn;
+        arr.append(fr);
+    }
+    return arr;
+}
+
+bool DatabaseManager::areFriends(int userId1, int userId2) {
+    int id1 = qMin(userId1, userId2);
+    int id2 = qMax(userId1, userId2);
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT 1 FROM friendships WHERE user_id1 = ? AND user_id2 = ?");
+    q.addBindValue(id1);
+    q.addBindValue(id2);
+    q.exec();
+    return q.next();
+}
+
+bool DatabaseManager::removeFriend(int userId1, int userId2) {
+    int id1 = qMin(userId1, userId2);
+    int id2 = qMax(userId1, userId2);
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("DELETE FROM friendships WHERE user_id1 = ? AND user_id2 = ?");
+    q.addBindValue(id1);
+    q.addBindValue(id2);
+    return q.exec();
+}
+
+int DatabaseManager::getFriendshipId(int userId1, int userId2) {
+    int id1 = qMin(userId1, userId2);
+    int id2 = qMax(userId1, userId2);
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT id FROM friendships WHERE user_id1 = ? AND user_id2 = ?");
+    q.addBindValue(id1);
+    q.addBindValue(id2);
+    q.exec();
+    if (q.next()) return q.value(0).toInt();
+    return -1;
+}
+
+int DatabaseManager::saveFriendMessage(int friendshipId, int senderId, const QString &content,
+                                       const QString &contentType,
+                                       const QString &fileName, qint64 fileSize, int fileId,
+                                       const QString &thumbnail) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("INSERT INTO friend_messages (friendship_id, sender_id, content, content_type, file_name, file_size, file_id, thumbnail)"
+              " VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    q.addBindValue(friendshipId);
+    q.addBindValue(senderId);
+    q.addBindValue(content);
+    q.addBindValue(contentType);
+    q.addBindValue(fileName);
+    q.addBindValue(fileSize);
+    q.addBindValue(fileId);
+    q.addBindValue(thumbnail);
+    if (q.exec()) return q.lastInsertId().toInt();
+    return -1;
+}
+
+QJsonArray DatabaseManager::getFriendMessageHistory(int friendshipId, int count, qint64 beforeTimestamp) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    QString sql = "SELECT * FROM ("
+                  "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id,"
+                  "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail"
+                  " FROM friend_messages m JOIN users u ON m.sender_id = u.id"
+                  " WHERE m.friendship_id = ?";
+    if (beforeTimestamp > 0)
+        sql += " AND m.created_at < datetime(? / 1000, 'unixepoch')";
+    sql += " ORDER BY m.created_at DESC LIMIT ?"
+           ") ORDER BY created_at ASC";
+
+    q.prepare(sql);
+    q.addBindValue(friendshipId);
+    if (beforeTimestamp > 0) q.addBindValue(beforeTimestamp);
+    q.addBindValue(count);
+    q.exec();
+
+    QJsonArray arr;
+    while (q.next()) {
+        QJsonObject msg;
+        msg["id"]          = q.value(0).toInt();
+        msg["content"]     = q.value(1).toString();
+        msg["contentType"] = q.value(2).toString();
+        msg["fileName"]    = q.value(3).toString();
+        msg["fileSize"]    = static_cast<double>(q.value(4).toLongLong());
+        msg["fileId"]      = q.value(5).toInt();
+        msg["recalled"]    = q.value(6).toInt() != 0;
+        QDateTime dt = q.value(7).toDateTime();
+        dt.setTimeSpec(Qt::UTC);
+        msg["timestamp"]   = dt.toMSecsSinceEpoch();
+        msg["sender"]      = q.value(8).toString();
+        QString dn = q.value(9).toString();
+        msg["senderName"]  = dn.isEmpty() ? msg["sender"].toString() : dn;
+        msg["friendshipId"] = friendshipId;
+        QString thumb = q.value(10).toString();
+        if (!thumb.isEmpty()) msg["thumbnail"] = thumb;
+        arr.append(msg);
+    }
+    return arr;
+}
+
+int DatabaseManager::saveFriendFile(int friendshipId, int userId, const QString &fileName,
+                                    const QString &filePath, qint64 fileSize) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("INSERT INTO friend_files (friendship_id, user_id, file_name, file_path, file_size)"
+              " VALUES (?, ?, ?, ?, ?)");
+    q.addBindValue(friendshipId);
+    q.addBindValue(userId);
+    q.addBindValue(fileName);
+    q.addBindValue(filePath);
+    q.addBindValue(fileSize);
+    if (q.exec()) return q.lastInsertId().toInt();
+    return -1;
 }

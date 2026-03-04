@@ -128,6 +128,17 @@ void ChatServer::onClientAuthenticated(ClientSession *session) {
         data["displayName"]  = session->displayName();
         broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::USER_ONLINE, data), session);
     }
+
+    // 通知好友上线
+    QJsonArray friends = m_db->getFriendList(session->userId());
+    for (const QJsonValue &v : friends) {
+        QJsonObject fr = v.toObject();
+        QJsonObject notifyData;
+        notifyData["username"] = session->username();
+        notifyData["displayName"] = session->displayName();
+        sendToUser(fr["username"].toString(),
+                   Protocol::makeMessage(Protocol::MsgType::FRIEND_ONLINE_NOTIFY, notifyData));
+    }
 }
 
 void ChatServer::onClientDisconnected(ClientSession *session) {
@@ -159,6 +170,16 @@ void ChatServer::onClientDisconnected(ClientSession *session) {
 
     // 被踢出的 session 不广播（新的 session 会继承房间状态）
     if (!username.isEmpty() && !session->isKicked()) {
+        // 通知好友下线
+        QJsonArray friends = m_db->getFriendList(userId);
+        for (const QJsonValue &v : friends) {
+            QJsonObject fr = v.toObject();
+            QJsonObject notifyData;
+            notifyData["username"] = username;
+            sendToUser(fr["username"].toString(),
+                       Protocol::makeMessage(Protocol::MsgType::FRIEND_OFFLINE_NOTIFY, notifyData));
+        }
+
         // 从 DB 获取用户所有房间，广播 USER_OFFLINE（不是 USER_LEFT）
         QJsonArray rooms = m_db->getUserJoinedRooms(userId);
         for (const QJsonValue &v : rooms) {
@@ -238,6 +259,26 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleChangeUid(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::CHANGE_PASSWORD_REQ) {
         handleChangePassword(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::FRIEND_REQUEST_REQ) {
+        handleFriendRequest(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::FRIEND_ACCEPT_REQ) {
+        handleFriendAccept(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::FRIEND_REJECT_REQ) {
+        handleFriendReject(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::FRIEND_REMOVE_REQ) {
+        handleFriendRemove(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::FRIEND_LIST_REQ) {
+        handleFriendList(session);
+    } else if (type == Protocol::MsgType::FRIEND_PENDING_REQ) {
+        handleFriendPending(session);
+    } else if (type == Protocol::MsgType::FRIEND_CHAT_MSG) {
+        handleFriendChatMessage(session, msg);
+    } else if (type == Protocol::MsgType::FRIEND_HISTORY_REQ) {
+        handleFriendHistory(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::FRIEND_FILE_SEND) {
+        handleFriendFileSend(session, msg);
+    } else if (type == Protocol::MsgType::FRIEND_FILE_UPLOAD_START) {
+        handleFriendFileUploadStart(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::HEARTBEAT) {
         session->sendMessage(Protocol::makeHeartbeatAck());
     }
@@ -810,28 +851,68 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
     }
 
     // 保存文件信息到数据库
-    int fileId = m_db->saveFile(state.roomId, state.userId, state.fileName, state.filePath, state.fileSize);
-    int msgId = m_db->saveMessage(state.roomId, state.userId, state.fileName, contentType,
-                                   state.fileName, state.fileSize, fileId, thumbnail);
+    if (state.roomId < 0) {
+        // 好友文件上传 (roomId = -friendshipId)
+        int friendshipId = -state.roomId;
+        int fileId = m_db->saveFriendFile(friendshipId, state.userId, state.fileName, state.filePath, state.fileSize);
+        int msgId = m_db->saveFriendMessage(friendshipId, state.userId, state.fileName, contentType,
+                                             state.fileName, state.fileSize, fileId, thumbnail);
 
-    // 通知房间所有成员有新文件
-    QJsonObject notifyData;
-    notifyData["id"]          = msgId;
-    notifyData["roomId"]      = state.roomId;
-    notifyData["sender"]      = state.username;
-    notifyData["senderName"]  = state.displayName;
-    notifyData["fileName"]    = state.fileName;
-    notifyData["fileSize"]    = static_cast<double>(state.fileSize);
-    notifyData["fileId"]      = fileId;
-    notifyData["contentType"] = contentType;
-    notifyData["content"]     = state.fileName;
+        // 找到好友用户名
+        QJsonArray friends = m_db->getFriendList(state.userId);
+        QString friendUsername;
+        for (const QJsonValue &v : friends) {
+            if (v.toObject()["friendshipId"].toInt() == friendshipId) {
+                friendUsername = v.toObject()["username"].toString();
+                break;
+            }
+        }
 
-    if (!thumbnail.isEmpty())
-        notifyData["thumbnail"] = thumbnail;
+        QJsonObject notifyData;
+        notifyData["id"]           = msgId;
+        notifyData["friendshipId"] = friendshipId;
+        notifyData["sender"]       = state.username;
+        notifyData["senderName"]   = state.displayName;
+        notifyData["friendUsername"] = friendUsername;
+        notifyData["fileName"]     = state.fileName;
+        notifyData["fileSize"]     = static_cast<double>(state.fileSize);
+        notifyData["fileId"]       = fileId;
+        notifyData["contentType"]  = contentType;
+        notifyData["content"]      = state.fileName;
+        if (!thumbnail.isEmpty())
+            notifyData["thumbnail"] = thumbnail;
 
-    broadcastToRoom(state.roomId, Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, notifyData));
+        QJsonObject notifyMsg = Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_NOTIFY, notifyData);
+        sendToUser(state.username, notifyMsg);
+        if (!friendUsername.isEmpty())
+            sendToUser(friendUsername, notifyMsg);
 
-    qInfo() << "[Server] 大文件上传完成:" << state.fileName << state.fileSize << "bytes";
+        qInfo() << "[Server] 好友大文件上传完成:" << state.fileName << state.fileSize << "bytes";
+    } else {
+        // 房间文件上传
+        int fileId = m_db->saveFile(state.roomId, state.userId, state.fileName, state.filePath, state.fileSize);
+        int msgId = m_db->saveMessage(state.roomId, state.userId, state.fileName, contentType,
+                                       state.fileName, state.fileSize, fileId, thumbnail);
+
+        // 通知房间所有成员有新文件
+        QJsonObject notifyData;
+        notifyData["id"]          = msgId;
+        notifyData["roomId"]      = state.roomId;
+        notifyData["sender"]      = state.username;
+        notifyData["senderName"]  = state.displayName;
+        notifyData["fileName"]    = state.fileName;
+        notifyData["fileSize"]    = static_cast<double>(state.fileSize);
+        notifyData["fileId"]      = fileId;
+        notifyData["contentType"] = contentType;
+        notifyData["content"]     = state.fileName;
+
+        if (!thumbnail.isEmpty())
+            notifyData["thumbnail"] = thumbnail;
+
+        broadcastToRoom(state.roomId, Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, notifyData));
+
+        qInfo() << "[Server] 大文件上传完成:" << state.fileName << state.fileSize << "bytes";
+    }
     Q_UNUSED(session)
 }
 
@@ -1645,4 +1726,333 @@ QStringList ChatServer::onlineUsersInRoom(int roomId) const {
             online.append(u);
     }
     return online;
+}
+
+// ==================== 好友文件目录 ====================
+
+QString ChatServer::friendFileDir(int friendshipId, const QString &fileName) const {
+    QString typeDir = fileTypeSubDir(fileName);
+    QString yearMonth = QDate::currentDate().toString("yyyy-MM");
+    QString dir = QCoreApplication::applicationDirPath()
+                  + "/server_files/friends/"
+                  + QString::number(friendshipId) + "/"
+                  + typeDir + "/"
+                  + yearMonth;
+    QDir d(dir);
+    if (!d.exists()) d.mkpath(".");
+    return dir;
+}
+
+// ==================== 好友系统 ====================
+
+void ChatServer::handleFriendRequest(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    QString targetUsername = data["username"].toString();
+    QJsonObject rspData;
+
+    int targetUserId = m_db->getUserIdByName(targetUsername);
+    if (targetUserId < 0) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("用户不存在");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_REQUEST_RSP, rspData));
+        return;
+    }
+
+    if (targetUserId == session->userId()) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("不能添加自己为好友");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_REQUEST_RSP, rspData));
+        return;
+    }
+
+    if (m_db->areFriends(session->userId(), targetUserId)) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("已经是好友了");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_REQUEST_RSP, rspData));
+        return;
+    }
+
+    if (!m_db->sendFriendRequest(session->userId(), targetUserId)) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("已有待处理的好友请求");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_REQUEST_RSP, rspData));
+        return;
+    }
+
+    rspData["success"] = true;
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_REQUEST_RSP, rspData));
+
+    // 通知对方收到好友请求
+    QJsonObject notifyData;
+    notifyData["fromUsername"]    = session->username();
+    notifyData["fromDisplayName"] = session->displayName();
+    sendToUser(targetUsername, Protocol::makeMessage(Protocol::MsgType::FRIEND_REQUEST_NOTIFY, notifyData));
+}
+
+void ChatServer::handleFriendAccept(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int requestId = data["requestId"].toInt();
+    QString fromUsername = data["fromUsername"].toString(); // 客户端传递请求方用户名
+    QJsonObject rspData;
+
+    if (m_db->acceptFriendRequest(requestId, session->userId())) {
+        rspData["success"] = true;
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_ACCEPT_RSP, rspData));
+
+        // 通知请求方好友已接受，让其刷新好友列表
+        QJsonObject notifyData;
+        notifyData["acceptedBy"]          = session->username();
+        notifyData["acceptedByDisplay"]   = session->displayName();
+        sendToUser(fromUsername, Protocol::makeMessage(Protocol::MsgType::FRIEND_ACCEPT_NOTIFY, notifyData));
+    } else {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("处理好友请求失败");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_ACCEPT_RSP, rspData));
+    }
+}
+
+void ChatServer::handleFriendReject(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int requestId = data["requestId"].toInt();
+    QJsonObject rspData;
+
+    if (m_db->rejectFriendRequest(requestId, session->userId())) {
+        rspData["success"] = true;
+    } else {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("处理好友请求失败");
+    }
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_REJECT_RSP, rspData));
+}
+
+void ChatServer::handleFriendRemove(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    QString friendUsername = data["username"].toString();
+    int friendId = m_db->getUserIdByName(friendUsername);
+    QJsonObject rspData;
+
+    if (friendId > 0 && m_db->removeFriend(session->userId(), friendId)) {
+        rspData["success"]  = true;
+        rspData["username"] = friendUsername;
+    } else {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("删除好友失败");
+    }
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_REMOVE_RSP, rspData));
+}
+
+void ChatServer::handleFriendList(ClientSession *session) {
+    if (!session->isAuthenticated()) return;
+
+    QJsonArray friends = m_db->getFriendList(session->userId());
+
+    // 添加在线状态
+    {
+        QMutexLocker locker(&m_mutex);
+        for (int i = 0; i < friends.size(); ++i) {
+            QJsonObject fr = friends[i].toObject();
+            fr["isOnline"] = m_sessions.contains(fr["username"].toString());
+            friends[i] = fr;
+        }
+    }
+
+    QJsonObject rspData;
+    rspData["friends"] = friends;
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_LIST_RSP, rspData));
+}
+
+void ChatServer::handleFriendPending(ClientSession *session) {
+    if (!session->isAuthenticated()) return;
+
+    QJsonArray pending = m_db->getPendingFriendRequests(session->userId());
+    QJsonObject rspData;
+    rspData["requests"] = pending;
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_PENDING_RSP, rspData));
+}
+
+void ChatServer::handleFriendChatMessage(ClientSession *session, const QJsonObject &msg) {
+    if (!session->isAuthenticated()) return;
+
+    QJsonObject data = msg["data"].toObject();
+    QString friendUsername = data["friendUsername"].toString();
+    QString content       = data["content"].toString();
+    QString contentType   = data["contentType"].toString("text");
+
+    int friendId = m_db->getUserIdByName(friendUsername);
+    if (friendId < 0) return;
+
+    int friendshipId = m_db->getFriendshipId(session->userId(), friendId);
+    if (friendshipId < 0) return; // 不是好友
+
+    // 保存消息
+    int msgId = m_db->saveFriendMessage(friendshipId, session->userId(), content, contentType);
+    if (msgId < 0) return;
+
+    // 构建消息
+    QJsonObject chatData;
+    chatData["id"]           = msgId;
+    chatData["friendshipId"] = friendshipId;
+    chatData["sender"]       = session->username();
+    chatData["senderName"]   = session->displayName();
+    chatData["friendUsername"] = friendUsername;
+    chatData["content"]      = content;
+    chatData["contentType"]  = contentType;
+    chatData["timestamp"]    = QDateTime::currentMSecsSinceEpoch();
+
+    QJsonObject chatMsg = Protocol::makeMessage(Protocol::MsgType::FRIEND_CHAT_MSG, chatData);
+
+    // 发送给双方
+    session->sendMessage(chatMsg);
+    sendToUser(friendUsername, chatMsg);
+}
+
+void ChatServer::handleFriendHistory(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    QString friendUsername = data["friendUsername"].toString();
+    int count = data["count"].toInt(50);
+    qint64 before = static_cast<qint64>(data["before"].toDouble(0));
+
+    int friendId = m_db->getUserIdByName(friendUsername);
+    if (friendId < 0) return;
+
+    int friendshipId = m_db->getFriendshipId(session->userId(), friendId);
+    if (friendshipId < 0) return;
+
+    QJsonArray messages = m_db->getFriendMessageHistory(friendshipId, count, before);
+
+    QJsonObject rspData;
+    rspData["friendUsername"] = friendUsername;
+    rspData["friendshipId"]  = friendshipId;
+    rspData["messages"]      = messages;
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_HISTORY_RSP, rspData));
+}
+
+void ChatServer::handleFriendFileSend(ClientSession *session, const QJsonObject &msg) {
+    if (!session->isAuthenticated()) return;
+
+    QJsonObject data = msg["data"].toObject();
+    QString friendUsername = data["friendUsername"].toString();
+    QString fileName  = data["fileName"].toString();
+    qint64 fileSize   = static_cast<qint64>(data["fileSize"].toDouble());
+    QString fileData  = data["fileData"].toString();
+    QString contentType = data["contentType"].toString("file");
+    QString thumbnail = data["thumbnail"].toString();
+
+    int friendId = m_db->getUserIdByName(friendUsername);
+    if (friendId < 0) return;
+    int friendshipId = m_db->getFriendshipId(session->userId(), friendId);
+    if (friendshipId < 0) return;
+
+    // 好友文件上限 10GB
+    if (fileSize > Protocol::MAX_FRIEND_FILE) {
+        QJsonObject rsp;
+        rsp["success"] = false;
+        rsp["error"] = QStringLiteral("文件超过好友传输限制(10GB)");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_NOTIFY, rsp));
+        return;
+    }
+
+    // 保存文件
+    QByteArray rawData = QByteArray::fromBase64(fileData.toLatin1());
+    QString targetDir = friendFileDir(friendshipId, fileName);
+    QString safeName = QString::number(QDateTime::currentMSecsSinceEpoch()) + "_" + fileName;
+    QString filePath = targetDir + "/" + safeName;
+
+    QFile f(filePath);
+    if (!f.open(QIODevice::WriteOnly)) return;
+    f.write(rawData);
+    f.close();
+
+    int fileId = m_db->saveFriendFile(friendshipId, session->userId(), fileName, filePath, fileSize);
+    int msgId  = m_db->saveFriendMessage(friendshipId, session->userId(), fileName, contentType,
+                                          fileName, fileSize, fileId, thumbnail);
+
+    QJsonObject notifyData;
+    notifyData["id"]           = msgId;
+    notifyData["friendshipId"] = friendshipId;
+    notifyData["sender"]       = session->username();
+    notifyData["senderName"]   = session->displayName();
+    notifyData["friendUsername"] = friendUsername;
+    notifyData["content"]      = fileName;
+    notifyData["contentType"]  = contentType;
+    notifyData["fileName"]     = fileName;
+    notifyData["fileSize"]     = static_cast<double>(fileSize);
+    notifyData["fileId"]       = fileId;
+    notifyData["timestamp"]    = QDateTime::currentMSecsSinceEpoch();
+    if (!thumbnail.isEmpty()) notifyData["thumbnail"] = thumbnail;
+
+    QJsonObject notifyMsg = Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_NOTIFY, notifyData);
+    session->sendMessage(notifyMsg);
+    sendToUser(friendUsername, notifyMsg);
+}
+
+void ChatServer::handleFriendFileUploadStart(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    QString friendUsername = data["friendUsername"].toString();
+    QString fileName = data["fileName"].toString();
+    qint64 fileSize  = static_cast<qint64>(data["fileSize"].toDouble());
+
+    int friendId = m_db->getUserIdByName(friendUsername);
+    QJsonObject rspData;
+
+    if (friendId < 0) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("用户不存在");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_UPLOAD_START_RSP, rspData));
+        return;
+    }
+
+    int friendshipId = m_db->getFriendshipId(session->userId(), friendId);
+    if (friendshipId < 0) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("不是好友关系");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_UPLOAD_START_RSP, rspData));
+        return;
+    }
+
+    // 好友文件上限 10GB
+    if (fileSize > Protocol::MAX_FRIEND_FILE) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("文件超过好友传输限制(10GB)");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_UPLOAD_START_RSP, rspData));
+        return;
+    }
+
+    QString uploadId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    QString targetDir = friendFileDir(friendshipId, fileName);
+    QString safeName = QString::number(QDateTime::currentMSecsSinceEpoch()) + "_" + fileName;
+    QString filePath = targetDir + "/" + safeName;
+
+    auto *file = new QFile(filePath);
+    if (!file->open(QIODevice::WriteOnly)) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("服务器无法创建文件");
+        delete file;
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_UPLOAD_START_RSP, rspData));
+        return;
+    }
+
+    UploadState state;
+    state.roomId      = -friendshipId; // 用负数标识好友文件上传
+    state.userId      = session->userId();
+    state.username    = session->username();
+    state.displayName = session->displayName();
+    state.fileName    = fileName;
+    state.filePath    = filePath;
+    state.fileSize    = fileSize;
+    state.received    = 0;
+    state.file        = file;
+    m_uploads[uploadId] = state;
+
+    rspData["success"]        = true;
+    rspData["uploadId"]       = uploadId;
+    rspData["friendUsername"]  = friendUsername;
+    rspData["friendshipId"]   = friendshipId;
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_UPLOAD_START_RSP, rspData));
 }

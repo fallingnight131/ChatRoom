@@ -76,10 +76,24 @@ private:
     void handleChangeUid(ClientSession *session, const QJsonObject &data);
     void handleChangePassword(ClientSession *session, const QJsonObject &data);
 
+    // 好友系统
+    void handleFriendRequest(ClientSession *session, const QJsonObject &data);
+    void handleFriendAccept(ClientSession *session, const QJsonObject &data);
+    void handleFriendReject(ClientSession *session, const QJsonObject &data);
+    void handleFriendRemove(ClientSession *session, const QJsonObject &data);
+    void handleFriendList(ClientSession *session);
+    void handleFriendPending(ClientSession *session);
+    void handleFriendChatMessage(ClientSession *session, const QJsonObject &msg);
+    void handleFriendHistory(ClientSession *session, const QJsonObject &data);
+    void handleFriendFileSend(ClientSession *session, const QJsonObject &msg);
+    void handleFriendFileUploadStart(ClientSession *session, const QJsonObject &data);
+
     /// 根据文件名返回类型子目录 ("Image", "Video", "File")
     static QString fileTypeSubDir(const QString &fileName);
     /// 构建服务端文件存放目录：server_files/{roomId}/Image|Video|File/{yyyy-MM}/
     QString serverFileDir(int roomId, const QString &fileName) const;
+    /// 构建好友文件存放目录：server_files/friends/{friendshipId}/Image|Video|File/{yyyy-MM}/
+    QString friendFileDir(int friendshipId, const QString &fileName) const;
 
     DatabaseManager *m_db       = nullptr;
     RoomManager     *m_roomMgr  = nullptr;

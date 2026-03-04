@@ -46,6 +46,10 @@ import { useChatStore } from '../stores/chat'
 import { chatWs, MAX_SMALL_FILE } from '../services/websocket'
 import EmojiPicker from './EmojiPicker.vue'
 
+const props = defineProps({
+  friendMode: { type: Boolean, default: false }
+})
+
 const userStore = useUserStore()
 const chatStore = useChatStore()
 
@@ -57,13 +61,25 @@ const textareaRef = ref(null)
 function sendMessage(e) {
   if (e) e.preventDefault()
   const msg = text.value.trim()
-  if (!msg || !chatStore.currentRoomId) return
-  chatWs.sendChat(chatStore.currentRoomId, userStore.username, msg, 'text')
+  if (!msg) return
+
+  if (props.friendMode) {
+    if (!chatStore.currentFriendUsername) return
+    chatWs.sendFriendChat(chatStore.currentFriendUsername, msg)
+  } else {
+    if (!chatStore.currentRoomId) return
+    chatWs.sendChat(chatStore.currentRoomId, userStore.username, msg, 'text')
+  }
   text.value = ''
 }
 
 function onEmojiSelect(emoji) {
-  chatWs.sendChat(chatStore.currentRoomId, userStore.username, emoji, 'emoji')
+  if (props.friendMode) {
+    if (!chatStore.currentFriendUsername) return
+    chatWs.sendFriendChat(chatStore.currentFriendUsername, emoji)
+  } else {
+    chatWs.sendChat(chatStore.currentRoomId, userStore.username, emoji, 'emoji')
+  }
   showEmoji.value = false
 }
 
@@ -76,12 +92,24 @@ async function onFileSelected(e) {
   if (!file) return
   e.target.value = '' // 重置
 
-  if (file.size <= MAX_SMALL_FILE) {
-    // 小文件直传
-    await chatStore.uploadSmallFile(chatStore.currentRoomId, file)
+  if (props.friendMode) {
+    if (!chatStore.currentFriendUsername) return
+    const MAX_FRIEND_FILE = 10 * 1024 * 1024 * 1024 // 10GB
+    if (file.size > MAX_FRIEND_FILE) {
+      alert('好友文件不能超过 10GB')
+      return
+    }
+    if (file.size <= MAX_SMALL_FILE) {
+      await chatStore.uploadFriendSmallFile(chatStore.currentFriendUsername, file)
+    } else {
+      await chatStore.startFriendChunkedUpload(chatStore.currentFriendUsername, file)
+    }
   } else {
-    // 大文件分块上传
-    await chatStore.startChunkedUpload(chatStore.currentRoomId, file)
+    if (file.size <= MAX_SMALL_FILE) {
+      await chatStore.uploadSmallFile(chatStore.currentRoomId, file)
+    } else {
+      await chatStore.startChunkedUpload(chatStore.currentRoomId, file)
+    }
   }
 }
 

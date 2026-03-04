@@ -22,6 +22,7 @@ constexpr int RECALL_TIME_LIMIT_SEC  = 120;     // 2分钟撤回限制
 constexpr int FILE_CHUNK_SIZE        = 4 * 1024 * 1024; // 4MB 分块（base64 后 ~5.3MB）
 constexpr qint64 MAX_SMALL_FILE      = 8 * 1024 * 1024; // <=8MB 走老协议直传
 constexpr qint64 MAX_LARGE_FILE      = 4LL * 1024 * 1024 * 1024; // 4GB 上限
+constexpr qint64 MAX_FRIEND_FILE     = 10LL * 1024 * 1024 * 1024; // 好友私聊文件上限 10GB
 
 // ==================== 消息类型 ====================
 namespace MsgType {
@@ -138,6 +139,31 @@ namespace MsgType {
     // 修改密码
     inline const QString CHANGE_PASSWORD_REQ    = QStringLiteral("CHANGE_PASSWORD_REQ");
     inline const QString CHANGE_PASSWORD_RSP    = QStringLiteral("CHANGE_PASSWORD_RSP");
+
+    // 好友系统
+    inline const QString FRIEND_REQUEST_REQ     = QStringLiteral("FRIEND_REQUEST_REQ");
+    inline const QString FRIEND_REQUEST_RSP     = QStringLiteral("FRIEND_REQUEST_RSP");
+    inline const QString FRIEND_REQUEST_NOTIFY  = QStringLiteral("FRIEND_REQUEST_NOTIFY");
+    inline const QString FRIEND_ACCEPT_REQ      = QStringLiteral("FRIEND_ACCEPT_REQ");
+    inline const QString FRIEND_ACCEPT_RSP      = QStringLiteral("FRIEND_ACCEPT_RSP");
+    inline const QString FRIEND_ACCEPT_NOTIFY   = QStringLiteral("FRIEND_ACCEPT_NOTIFY");
+    inline const QString FRIEND_REJECT_REQ      = QStringLiteral("FRIEND_REJECT_REQ");
+    inline const QString FRIEND_REJECT_RSP      = QStringLiteral("FRIEND_REJECT_RSP");
+    inline const QString FRIEND_REMOVE_REQ      = QStringLiteral("FRIEND_REMOVE_REQ");
+    inline const QString FRIEND_REMOVE_RSP      = QStringLiteral("FRIEND_REMOVE_RSP");
+    inline const QString FRIEND_LIST_REQ        = QStringLiteral("FRIEND_LIST_REQ");
+    inline const QString FRIEND_LIST_RSP        = QStringLiteral("FRIEND_LIST_RSP");
+    inline const QString FRIEND_PENDING_REQ     = QStringLiteral("FRIEND_PENDING_REQ");
+    inline const QString FRIEND_PENDING_RSP     = QStringLiteral("FRIEND_PENDING_RSP");
+    inline const QString FRIEND_CHAT_MSG        = QStringLiteral("FRIEND_CHAT_MSG");
+    inline const QString FRIEND_HISTORY_REQ     = QStringLiteral("FRIEND_HISTORY_REQ");
+    inline const QString FRIEND_HISTORY_RSP     = QStringLiteral("FRIEND_HISTORY_RSP");
+    inline const QString FRIEND_FILE_SEND       = QStringLiteral("FRIEND_FILE_SEND");
+    inline const QString FRIEND_FILE_NOTIFY     = QStringLiteral("FRIEND_FILE_NOTIFY");
+    inline const QString FRIEND_ONLINE_NOTIFY   = QStringLiteral("FRIEND_ONLINE_NOTIFY");
+    inline const QString FRIEND_OFFLINE_NOTIFY  = QStringLiteral("FRIEND_OFFLINE_NOTIFY");
+    inline const QString FRIEND_FILE_UPLOAD_START     = QStringLiteral("FRIEND_FILE_UPLOAD_START");
+    inline const QString FRIEND_FILE_UPLOAD_START_RSP = QStringLiteral("FRIEND_FILE_UPLOAD_START_RSP");
 }
 
 // ==================== 数据包帧: [4字节长度][JSON数据] ====================

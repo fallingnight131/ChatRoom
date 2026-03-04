@@ -92,6 +92,28 @@ public:
     bool       setUserAvatar(int userId, const QByteArray &avatarData);
     QByteArray getUserAvatarByName(const QString &username);
 
+    // 好友系统
+    bool sendFriendRequest(int fromUserId, int toUserId);
+    bool acceptFriendRequest(int requestId, int userId);
+    bool rejectFriendRequest(int requestId, int userId);
+    QJsonArray getPendingFriendRequests(int userId);
+    QJsonArray getFriendList(int userId);
+    bool areFriends(int userId1, int userId2);
+    bool removeFriend(int userId1, int userId2);
+    int  getFriendshipId(int userId1, int userId2);
+
+    // 好友私聊消息
+    int  saveFriendMessage(int friendshipId, int senderId, const QString &content,
+                           const QString &contentType,
+                           const QString &fileName = QString(),
+                           qint64 fileSize = 0, int fileId = 0,
+                           const QString &thumbnail = QString());
+    QJsonArray getFriendMessageHistory(int friendshipId, int count, qint64 beforeTimestamp = 0);
+
+    // 好友文件
+    int  saveFriendFile(int friendshipId, int userId, const QString &fileName,
+                        const QString &filePath, qint64 fileSize);
+
 private:
     QSqlDatabase getConnection();
     QString hashPassword(const QString &password, const QString &salt);

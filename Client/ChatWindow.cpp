@@ -48,6 +48,7 @@
 #include <QBuffer>
 #include <QPainter>
 #include <QPainterPath>
+#include <QStackedWidget>
 #include <QDebug>
 
 #ifdef Q_OS_WIN
@@ -162,24 +163,86 @@ void ChatWindow::setupUi() {
     avatarLayout->addWidget(m_nicknameLabel, 1);
     leftLayout->addLayout(avatarLayout);
 
-    auto *roomLabel = new QLabel("聊天室");
-    roomLabel->setStyleSheet("font-weight: bold; font-size: 14px; padding: 4px;");
-    leftLayout->addWidget(roomLabel);
+    // --- 房间/好友 切换标签 ---
+    auto *tabLayout = new QHBoxLayout;
+    m_tabRoomBtn   = new QPushButton("房间");
+    m_tabFriendBtn = new QPushButton("好友");
+    m_tabRoomBtn->setCheckable(true);
+    m_tabFriendBtn->setCheckable(true);
+    m_tabRoomBtn->setChecked(true);
+    m_tabRoomBtn->setStyleSheet("QPushButton { font-weight: bold; font-size: 13px; padding: 6px; border: none; border-bottom: 2px solid #4CAF50; }"
+                                 "QPushButton:!checked { border-bottom: 2px solid transparent; color: #888; }");
+    m_tabFriendBtn->setStyleSheet("QPushButton { font-weight: bold; font-size: 13px; padding: 6px; border: none; border-bottom: 2px solid #4CAF50; }"
+                                   "QPushButton:!checked { border-bottom: 2px solid transparent; color: #888; }");
+    tabLayout->addWidget(m_tabRoomBtn);
+    tabLayout->addWidget(m_tabFriendBtn);
+    leftLayout->addLayout(tabLayout);
+
+    // --- 房间列表面板 ---
+    auto *roomPanel = new QWidget;
+    auto *roomPanelLayout = new QVBoxLayout(roomPanel);
+    roomPanelLayout->setContentsMargins(0, 0, 0, 0);
 
     m_roomList = new QListWidget;
     m_roomList->setMinimumWidth(160);
     m_roomList->setContextMenuPolicy(Qt::CustomContextMenu);
-    leftLayout->addWidget(m_roomList);
+    roomPanelLayout->addWidget(m_roomList);
 
-    auto *roomBtnLayout = new QHBoxLayout;
+    m_roomBtnPanel = new QWidget;
+    auto *roomBtnLayout = new QHBoxLayout(m_roomBtnPanel);
+    roomBtnLayout->setContentsMargins(0, 4, 0, 0);
     auto *createRoomBtn = new QPushButton("创建");
     auto *joinRoomBtn   = new QPushButton("加入");
     roomBtnLayout->addWidget(createRoomBtn);
     roomBtnLayout->addWidget(joinRoomBtn);
-    leftLayout->addLayout(roomBtnLayout);
+    roomPanelLayout->addWidget(m_roomBtnPanel);
+
+    // --- 好友列表面板 ---
+    auto *friendPanel = new QWidget;
+    auto *friendPanelLayout = new QVBoxLayout(friendPanel);
+    friendPanelLayout->setContentsMargins(0, 0, 0, 0);
+
+    m_friendList = new QListWidget;
+    m_friendList->setMinimumWidth(160);
+    m_friendList->setContextMenuPolicy(Qt::CustomContextMenu);
+    friendPanelLayout->addWidget(m_friendList);
+
+    m_friendBtnPanel = new QWidget;
+    auto *friendBtnLayout = new QHBoxLayout(m_friendBtnPanel);
+    friendBtnLayout->setContentsMargins(0, 4, 0, 0);
+    auto *addFriendBtn = new QPushButton("添加好友");
+    auto *friendReqBtn = new QPushButton("好友申请");
+    auto *refreshFriendBtn = new QPushButton("刷新");
+    friendBtnLayout->addWidget(addFriendBtn);
+    friendBtnLayout->addWidget(friendReqBtn);
+    friendBtnLayout->addWidget(refreshFriendBtn);
+    friendPanelLayout->addWidget(m_friendBtnPanel);
+
+    // --- 堆叠切换 ---
+    m_listStack = new QStackedWidget;
+    m_listStack->addWidget(roomPanel);    // index 0 = 房间
+    m_listStack->addWidget(friendPanel);  // index 1 = 好友
+    leftLayout->addWidget(m_listStack, 1);
+
+    connect(m_tabRoomBtn, &QPushButton::clicked, this, [this] {
+        m_tabRoomBtn->setChecked(true);
+        m_tabFriendBtn->setChecked(false);
+        m_listStack->setCurrentIndex(0);
+    });
+    connect(m_tabFriendBtn, &QPushButton::clicked, this, [this] {
+        m_tabRoomBtn->setChecked(false);
+        m_tabFriendBtn->setChecked(true);
+        m_listStack->setCurrentIndex(1);
+        onRefreshFriendList();
+    });
 
     connect(createRoomBtn, &QPushButton::clicked, this, &ChatWindow::onCreateRoom);
     connect(joinRoomBtn,   &QPushButton::clicked, this, &ChatWindow::onJoinRoom);
+    connect(addFriendBtn,      &QPushButton::clicked, this, &ChatWindow::onAddFriend);
+    connect(friendReqBtn,      &QPushButton::clicked, this, &ChatWindow::onShowFriendRequests);
+    connect(refreshFriendBtn,  &QPushButton::clicked, this, &ChatWindow::onRefreshFriendList);
+    connect(m_friendList, &QListWidget::itemClicked, this, &ChatWindow::onFriendSelected);
+    connect(m_friendList, &QListWidget::customContextMenuRequested, this, &ChatWindow::onFriendContextMenu);
 
     // --- 中间：消息区域 ---
     auto *centerPanel = new QWidget;
@@ -440,6 +503,22 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::changeUidResponse, this, &ChatWindow::onChangeUidResponse);
     connect(net, &NetworkManager::uidChangeNotify,   this, &ChatWindow::onUidChangeNotify);
 
+    // 好友系统
+    connect(net, &NetworkManager::friendRequestResponse,  this, &ChatWindow::onFriendRequestResponse);
+    connect(net, &NetworkManager::friendRequestNotify,    this, &ChatWindow::onFriendRequestNotify);
+    connect(net, &NetworkManager::friendAcceptResponse,   this, &ChatWindow::onFriendAcceptResponse);
+    connect(net, &NetworkManager::friendAcceptNotify,     this, &ChatWindow::onFriendAcceptNotify);
+    connect(net, &NetworkManager::friendRejectResponse,   this, &ChatWindow::onFriendRejectResponse);
+    connect(net, &NetworkManager::friendRemoveResponse,   this, &ChatWindow::onFriendRemoveResponse);
+    connect(net, &NetworkManager::friendListReceived,     this, &ChatWindow::onFriendListReceived);
+    connect(net, &NetworkManager::friendPendingReceived,  this, &ChatWindow::onFriendPendingReceived);
+    connect(net, &NetworkManager::friendChatMessageReceived, this, &ChatWindow::onFriendChatMessage);
+    connect(net, &NetworkManager::friendHistoryReceived,  this, &ChatWindow::onFriendHistoryReceived);
+    connect(net, &NetworkManager::friendFileNotify,       this, &ChatWindow::onFriendFileNotify);
+    connect(net, &NetworkManager::friendOnlineNotify,     this, &ChatWindow::onFriendOnlineNotify);
+    connect(net, &NetworkManager::friendOfflineNotify,    this, &ChatWindow::onFriendOfflineNotify);
+    connect(net, &NetworkManager::friendFileUploadStartResponse, this, &ChatWindow::onFriendFileUploadStartResponse);
+
     // 单击文件消息：触发下载 / 暂停 / 恢复（仅点击气泡区域时生效）
     connect(m_messageView, &QListView::clicked, this, [this](const QModelIndex &idx) {
         // 检查点击位置是否在气泡区域
@@ -615,6 +694,13 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
 }
 
 void ChatWindow::onRoomSelected(QListWidgetItem *item) {
+    // 切回房间模式
+    m_isFriendChat = false;
+    m_currentFriendUsername.clear();
+    m_currentFriendDisplayName.clear();
+    m_currentFriendshipId = -1;
+    m_friendList->clearSelection();
+
     int roomId = item->data(Qt::UserRole).toInt();
     if (roomId != m_currentRoomId) {
         // 先加入该房间
@@ -681,13 +767,26 @@ MessageModel *ChatWindow::getOrCreateModel(int roomId) {
 // ==================== 消息处理 ====================
 
 void ChatWindow::onSendMessage() {
+    QString text = m_inputEdit->toPlainText().trimmed();
+    if (text.isEmpty()) return;
+
+    if (m_isFriendChat) {
+        // 好友私聊模式
+        if (m_currentFriendUsername.isEmpty()) return;
+        QJsonObject data;
+        data["friendUsername"] = m_currentFriendUsername;
+        data["content"]       = text;
+        data["contentType"]   = QStringLiteral("text");
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FRIEND_CHAT_MSG, data));
+        m_inputEdit->clear();
+        return;
+    }
+
     if (m_currentRoomId < 0) {
         QMessageBox::information(this, "提示", "请先加入一个聊天室");
         return;
     }
-
-    QString text = m_inputEdit->toPlainText().trimmed();
-    if (text.isEmpty()) return;
 
     NetworkManager::instance()->sendMessage(
         Protocol::makeChatMsg(m_currentRoomId, m_username, text));
@@ -875,6 +974,7 @@ void ChatWindow::onUserLeft(int roomId, const QString &username, const QString &
 // ==================== 文件传输 ====================
 
 void ChatWindow::onSendFile() {
+    if (m_isFriendChat) { onSendFriendFile(); return; }
     if (m_currentRoomId < 0) return;
 
     QString filePath = QFileDialog::getOpenFileName(this, "选择文件");
@@ -943,6 +1043,7 @@ void ChatWindow::onSendFile() {
 }
 
 void ChatWindow::onSendImage() {
+    if (m_isFriendChat) { onSendFriendImage(); return; }
     if (m_currentRoomId < 0) return;
 
     QString filePath = QFileDialog::getOpenFileName(this, "选择图片",
@@ -2655,3 +2756,486 @@ void ChatWindow::onClearCache() {
     m_statusLabel->setText(QString("已清除 %1 缓存").arg(sizeText));
 }
 
+// ==================== 好友系统 ====================
+
+void ChatWindow::onAddFriend() {
+    bool ok;
+    QString username = QInputDialog::getText(this, "添加好友", "请输入对方用户名:", QLineEdit::Normal, "", &ok);
+    if (!ok || username.trimmed().isEmpty()) return;
+
+    QJsonObject data;
+    data["username"] = username.trimmed();
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::FRIEND_REQUEST_REQ, data));
+}
+
+void ChatWindow::onShowFriendRequests() {
+    // 请求待处理列表
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::FRIEND_PENDING_REQ, QJsonObject()));
+}
+
+void ChatWindow::onRefreshFriendList() {
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::FRIEND_LIST_REQ, QJsonObject()));
+}
+
+void ChatWindow::onFriendSelected(QListWidgetItem *item) {
+    QString friendUsername = item->data(Qt::UserRole).toString();
+    QString friendDisplay  = item->data(Qt::UserRole + 1).toString();
+    int friendshipId       = item->data(Qt::UserRole + 2).toInt();
+
+    switchToFriendChat(friendUsername, friendDisplay, friendshipId);
+}
+
+void ChatWindow::onFriendContextMenu(const QPoint &pos) {
+    QListWidgetItem *item = m_friendList->itemAt(pos);
+    if (!item) return;
+
+    QString friendUsername = item->data(Qt::UserRole).toString();
+    QString friendDisplay  = item->data(Qt::UserRole + 1).toString();
+
+    QMenu menu(this);
+    menu.addAction("查看信息", [this, friendUsername, friendDisplay] {
+        showUserInfoDialog(friendUsername, friendDisplay);
+    });
+    menu.addSeparator();
+    menu.addAction("删除好友", [this, friendUsername] {
+        auto r = QMessageBox::question(this, "删除好友",
+            QString("确定要删除好友 %1 吗？").arg(friendUsername));
+        if (r != QMessageBox::Yes) return;
+        QJsonObject data;
+        data["username"] = friendUsername;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FRIEND_REMOVE_REQ, data));
+    });
+    menu.exec(m_friendList->mapToGlobal(pos));
+}
+
+void ChatWindow::onFriendRequestResponse(bool success, const QString &error) {
+    if (success)
+        m_statusLabel->setText("好友请求已发送");
+    else
+        QMessageBox::warning(this, "添加好友", error);
+}
+
+void ChatWindow::onFriendRequestNotify(const QString &fromUsername, const QString &fromDisplayName) {
+    Q_UNUSED(fromUsername)
+    if (m_trayManager)
+        m_trayManager->showNotification("好友请求", QString("%1 请求加你为好友").arg(fromDisplayName));
+    m_statusLabel->setText(QString("收到好友请求: %1").arg(fromDisplayName));
+}
+
+void ChatWindow::onFriendAcceptResponse(bool success, const QString &error) {
+    if (success) {
+        m_statusLabel->setText("已接受好友请求");
+        onRefreshFriendList();
+    } else {
+        QMessageBox::warning(this, "好友请求", error);
+    }
+}
+
+void ChatWindow::onFriendAcceptNotify(const QString &username, const QString &displayName) {
+    Q_UNUSED(username)
+    m_statusLabel->setText(QString("%1 已接受你的好友请求").arg(displayName));
+    onRefreshFriendList();
+}
+
+void ChatWindow::onFriendRejectResponse(bool success, const QString &error) {
+    if (success)
+        m_statusLabel->setText("已拒绝好友请求");
+    else
+        QMessageBox::warning(this, "好友请求", error);
+}
+
+void ChatWindow::onFriendRemoveResponse(bool success, const QString &username, const QString &error) {
+    if (success) {
+        m_statusLabel->setText(QString("已删除好友 %1").arg(username));
+        // 如果当前正在和这个好友聊天，切回房间模式
+        if (m_isFriendChat && m_currentFriendUsername == username)
+            switchToRoomMode();
+        onRefreshFriendList();
+    } else {
+        QMessageBox::warning(this, "删除好友", error);
+    }
+}
+
+void ChatWindow::onFriendListReceived(const QJsonArray &friends) {
+    m_friendData = friends;
+    m_friendList->clear();
+
+    for (const QJsonValue &v : friends) {
+        QJsonObject fr = v.toObject();
+        QString username = fr["username"].toString();
+        QString displayName = fr["displayName"].toString();
+        bool isOnline = fr["isOnline"].toBool();
+
+        QString label = displayName.isEmpty() ? username : displayName;
+        if (isOnline) label += " [在线]";
+
+        auto *item = new QListWidgetItem(label);
+        item->setData(Qt::UserRole,     username);
+        item->setData(Qt::UserRole + 1, displayName);
+        item->setData(Qt::UserRole + 2, fr["friendshipId"].toInt());
+        item->setForeground(isOnline ? QColor("#4CAF50") : QColor("#999"));
+        m_friendList->addItem(item);
+    }
+}
+
+void ChatWindow::onFriendPendingReceived(const QJsonArray &requests) {
+    if (requests.isEmpty()) {
+        QMessageBox::information(this, "好友申请", "暂无待处理的好友申请");
+        return;
+    }
+
+    // 构建一个对话框展示待处理的请求
+    QDialog dlg(this);
+    dlg.setWindowTitle("好友申请");
+    dlg.setMinimumSize(350, 300);
+    auto *dlgLayout = new QVBoxLayout(&dlg);
+
+    auto *listWidget = new QListWidget;
+    dlgLayout->addWidget(listWidget);
+
+    for (const QJsonValue &v : requests) {
+        QJsonObject req = v.toObject();
+        int reqId = req["id"].toInt();
+        QString fromUsername = req["fromUsername"].toString();
+        QString fromDisplayName = req["fromDisplayName"].toString();
+        QString label = fromDisplayName.isEmpty() ? fromUsername : QString("%1 (%2)").arg(fromDisplayName, fromUsername);
+
+        auto *item = new QListWidgetItem(label);
+        item->setData(Qt::UserRole, reqId);
+        item->setData(Qt::UserRole + 1, fromUsername);
+
+        // 自定义 widget 包含 接受/拒绝 按钮
+        auto *itemWidget = new QWidget;
+        auto *itemLayout = new QHBoxLayout(itemWidget);
+        itemLayout->setContentsMargins(4, 2, 4, 2);
+        auto *nameLabel = new QLabel(label);
+        auto *acceptBtn = new QPushButton("接受");
+        auto *rejectBtn = new QPushButton("拒绝");
+        acceptBtn->setFixedWidth(50);
+        rejectBtn->setFixedWidth(50);
+        itemLayout->addWidget(nameLabel, 1);
+        itemLayout->addWidget(acceptBtn);
+        itemLayout->addWidget(rejectBtn);
+
+        connect(acceptBtn, &QPushButton::clicked, [this, reqId, fromUsername, &dlg] {
+            QJsonObject data;
+            data["requestId"] = reqId;
+            data["fromUsername"] = fromUsername;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::FRIEND_ACCEPT_REQ, data));
+            dlg.accept();
+        });
+        connect(rejectBtn, &QPushButton::clicked, [this, reqId, &dlg] {
+            QJsonObject data;
+            data["requestId"] = reqId;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::FRIEND_REJECT_REQ, data));
+            dlg.accept();
+        });
+
+        listWidget->addItem(item);
+        listWidget->setItemWidget(item, itemWidget);
+    }
+
+    auto *closeBtn = new QPushButton("关闭");
+    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
+    dlgLayout->addWidget(closeBtn);
+
+    dlg.exec();
+}
+
+void ChatWindow::onFriendChatMessage(const QJsonObject &data) {
+    QString sender     = data["sender"].toString();
+    QString senderName = data["senderName"].toString();
+    QString content    = data["content"].toString();
+    QString contentType = data["contentType"].toString("text");
+    QString friendUsername = data["friendUsername"].toString();
+
+    // 确定对话对象
+    QString chatWith = (sender == m_username) ? friendUsername : sender;
+
+    MessageModel *model = getOrCreateFriendModel(chatWith);
+
+    Message msg;
+    msg.setId(data["id"].toInt());
+    msg.setSender(sender);
+    msg.setSenderName(senderName);
+    msg.setContent(content);
+    msg.setTimestamp(data["timestamp"].toVariant().toLongLong());
+    msg.setIsMine(sender == m_username);
+
+    if (contentType == "text")
+        msg.setContentType(Message::Text);
+    else if (contentType == "image")
+        msg.setContentType(Message::Image);
+    else if (contentType == "file")
+        msg.setContentType(Message::File);
+
+    model->addMessage(msg);
+
+    // 如果当前正在和这个好友聊天，滚动到底
+    if (m_isFriendChat && m_currentFriendUsername == chatWith) {
+        QTimer::singleShot(50, [this] {
+            m_messageView->scrollToBottom();
+        });
+    }
+
+    // 通知
+    if (sender != m_username && !isActiveWindow() && m_trayManager) {
+        m_trayManager->showNotification(senderName, content);
+    }
+}
+
+void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
+    QString friendUsername = data["friendUsername"].toString();
+    QJsonArray messages    = data["messages"].toArray();
+
+    MessageModel *model = getOrCreateFriendModel(friendUsername);
+
+    QList<Message> msgList;
+    for (const QJsonValue &v : messages) {
+        QJsonObject msgObj = v.toObject();
+        Message msg;
+        msg.setId(msgObj["id"].toInt());
+        msg.setSender(msgObj["sender"].toString());
+        msg.setSenderName(msgObj["senderName"].toString());
+        msg.setContent(msgObj["content"].toString());
+        msg.setTimestamp(msgObj["timestamp"].toVariant().toLongLong());
+        msg.setIsMine(msgObj["sender"].toString() == m_username);
+
+        QString ct = msgObj["contentType"].toString("text");
+        if (ct == "text")       msg.setContentType(Message::Text);
+        else if (ct == "image") msg.setContentType(Message::Image);
+        else if (ct == "file")  msg.setContentType(Message::File);
+
+        if (msgObj.contains("fileName")) {
+            msg.setFileName(msgObj["fileName"].toString());
+            msg.setFileSize(static_cast<qint64>(msgObj["fileSize"].toDouble()));
+            msg.setFileId(msgObj["fileId"].toInt());
+        }
+        if (msgObj.contains("thumbnail"))
+            msg.setThumbnail(msgObj["thumbnail"].toString());
+
+        msgList.prepend(msg);
+    }
+
+    model->prependMessages(msgList);
+
+    if (m_isFriendChat && m_currentFriendUsername == friendUsername) {
+        QTimer::singleShot(0, [this] {
+            if (m_messageView->model() && m_messageView->model()->rowCount() > 0)
+                m_messageView->scrollToBottom();
+        });
+    }
+}
+
+void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
+    QString sender     = data["sender"].toString();
+    QString friendUsername = data["friendUsername"].toString();
+    QString chatWith = (sender == m_username) ? friendUsername : sender;
+
+    MessageModel *model = getOrCreateFriendModel(chatWith);
+
+    Message msg;
+    msg.setId(data["id"].toInt());
+    msg.setSender(sender);
+    msg.setSenderName(data["senderName"].toString());
+    msg.setContent(data["content"].toString());
+    msg.setTimestamp(data["timestamp"].toVariant().toLongLong());
+    msg.setIsMine(sender == m_username);
+    msg.setFileName(data["fileName"].toString());
+    msg.setFileSize(static_cast<qint64>(data["fileSize"].toDouble()));
+    msg.setFileId(data["fileId"].toInt());
+
+    QString ct = data["contentType"].toString("file");
+    if (ct == "image")      msg.setContentType(Message::Image);
+    else if (ct == "video") msg.setContentType(Message::Video);
+    else                    msg.setContentType(Message::File);
+
+    if (data.contains("thumbnail"))
+        msg.setThumbnail(data["thumbnail"].toString());
+
+    model->addMessage(msg);
+
+    if (m_isFriendChat && m_currentFriendUsername == chatWith) {
+        QTimer::singleShot(50, [this] {
+            m_messageView->scrollToBottom();
+        });
+    }
+}
+
+void ChatWindow::onFriendOnlineNotify(const QString &username, const QString &displayName) {
+    Q_UNUSED(displayName)
+    // 更新好友列表中的在线状态
+    for (int i = 0; i < m_friendList->count(); ++i) {
+        auto *item = m_friendList->item(i);
+        if (item->data(Qt::UserRole).toString() == username) {
+            QString dn = item->data(Qt::UserRole + 1).toString();
+            item->setText((dn.isEmpty() ? username : dn) + " [在线]");
+            item->setForeground(QColor("#4CAF50"));
+            break;
+        }
+    }
+}
+
+void ChatWindow::onFriendOfflineNotify(const QString &username) {
+    for (int i = 0; i < m_friendList->count(); ++i) {
+        auto *item = m_friendList->item(i);
+        if (item->data(Qt::UserRole).toString() == username) {
+            QString dn = item->data(Qt::UserRole + 1).toString();
+            item->setText(dn.isEmpty() ? username : dn);
+            item->setForeground(QColor("#999"));
+            break;
+        }
+    }
+}
+
+void ChatWindow::onFriendFileUploadStartResponse(const QJsonObject &data) {
+    if (!data["success"].toBool()) {
+        QMessageBox::warning(this, "文件发送", data["error"].toString());
+        return;
+    }
+
+    // 复用已有的分块上传逻辑
+    m_upload.uploadId = data["uploadId"].toString();
+    sendNextChunk();
+}
+
+void ChatWindow::onSendFriendFile() {
+    if (!m_isFriendChat || m_currentFriendUsername.isEmpty()) return;
+
+    QString filePath = QFileDialog::getOpenFileName(this, "发送文件");
+    if (filePath.isEmpty()) return;
+    sendFriendFile(filePath, "file");
+}
+
+void ChatWindow::onSendFriendImage() {
+    if (!m_isFriendChat || m_currentFriendUsername.isEmpty()) return;
+
+    QString filePath = QFileDialog::getOpenFileName(this, "发送图片", QString(),
+        "图片文件 (*.png *.jpg *.jpeg *.gif *.bmp *.webp)");
+    if (filePath.isEmpty()) return;
+    sendFriendFile(filePath, "image");
+}
+
+void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentType) {
+    QFileInfo fi(filePath);
+    qint64 fileSize = fi.size();
+
+    if (fileSize > Protocol::MAX_FRIEND_FILE) {
+        QMessageBox::warning(this, "文件过大",
+            QString("文件大小 %1 超过好友传输限制 (10GB)")
+                .arg(QLocale().formattedDataSize(fileSize)));
+        return;
+    }
+
+    // 小文件直接发送 (< 8MB)
+    if (fileSize < Protocol::MAX_DIRECT_FILE) {
+        QFile f(filePath);
+        if (!f.open(QIODevice::ReadOnly)) return;
+        QByteArray raw = f.readAll();
+        f.close();
+
+        QString thumbnail;
+        if (contentType == "image" && fileSize < 20 * 1024 * 1024) {
+            QImage img(filePath);
+            if (!img.isNull()) {
+                QImage thumb = img.scaled(200, 200, Qt::KeepAspectRatio, Qt::FastTransformation);
+                QByteArray thumbData;
+                QBuffer buf(&thumbData);
+                buf.open(QIODevice::WriteOnly);
+                thumb.save(&buf, "JPEG", 60);
+                thumbnail = QString::fromLatin1(thumbData.toBase64());
+            }
+        }
+
+        QJsonObject data;
+        data["friendUsername"] = m_currentFriendUsername;
+        data["fileName"]      = fi.fileName();
+        data["fileSize"]      = static_cast<double>(fileSize);
+        data["fileData"]      = QString::fromLatin1(raw.toBase64());
+        data["contentType"]   = contentType;
+        if (!thumbnail.isEmpty()) data["thumbnail"] = thumbnail;
+
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_SEND, data));
+    } else {
+        // 大文件分块上传
+        m_upload.filePath  = filePath;
+        m_upload.fileSize  = fileSize;
+        m_upload.offset    = 0;
+        m_upload.uploadId.clear();
+
+        QJsonObject data;
+        data["friendUsername"] = m_currentFriendUsername;
+        data["fileName"]      = fi.fileName();
+        data["fileSize"]      = static_cast<double>(fileSize);
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_UPLOAD_START, data));
+    }
+}
+
+void ChatWindow::switchToFriendChat(const QString &friendUsername, const QString &friendDisplayName, int friendshipId) {
+    m_isFriendChat = true;
+    m_currentFriendUsername = friendUsername;
+    m_currentFriendDisplayName = friendDisplayName;
+    m_currentFriendshipId = friendshipId;
+    m_currentRoomId = -1; // 清除房间选择
+
+    // 取消房间列表选中
+    m_roomList->clearSelection();
+
+    // 更新标题
+    m_roomTitle->setText(QString("私聊 - %1").arg(friendDisplayName.isEmpty() ? friendUsername : friendDisplayName));
+    m_roomSettingsBtn->setVisible(false);
+
+    // 隐藏用户列表（私聊不需要）
+    m_userList->clear();
+
+    // 设置模型
+    MessageModel *model = getOrCreateFriendModel(friendUsername);
+    m_messageView->setUpdatesEnabled(false);
+    m_messageView->setModel(model);
+
+    // 如果模型为空，请求历史
+    if (model->rowCount() == 0) {
+        QJsonObject data;
+        data["friendUsername"] = friendUsername;
+        data["count"] = 50;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FRIEND_HISTORY_REQ, data));
+    }
+
+    QTimer::singleShot(0, [this] {
+        if (m_messageView->model() && m_messageView->model()->rowCount() > 0)
+            m_messageView->scrollToBottom();
+        m_messageView->setUpdatesEnabled(true);
+    });
+}
+
+void ChatWindow::switchToRoomMode() {
+    m_isFriendChat = false;
+    m_currentFriendUsername.clear();
+    m_currentFriendDisplayName.clear();
+    m_currentFriendshipId = -1;
+
+    if (m_currentRoomId > 0) {
+        switchRoom(m_currentRoomId);
+    } else {
+        m_roomTitle->setText("请选择一个聊天室");
+        m_roomSettingsBtn->setVisible(false);
+        m_messageView->setModel(nullptr);
+    }
+}
+
+MessageModel *ChatWindow::getOrCreateFriendModel(const QString &friendUsername) {
+    if (!m_friendModels.contains(friendUsername)) {
+        auto *model = new MessageModel(this);
+        m_friendModels[friendUsername] = model;
+    }
+    return m_friendModels[friendUsername];
+}

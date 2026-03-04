@@ -154,6 +154,29 @@ private slots:
     void showRoomSettingsDialog(int roomId);
     void showUserInfoDialog(const QString &username, const QString &displayName);
 
+    // ========== 好友系统 ==========
+    void onAddFriend();
+    void onShowFriendRequests();
+    void onRefreshFriendList();
+    void onFriendSelected(QListWidgetItem *item);
+    void onFriendContextMenu(const QPoint &pos);
+    void onFriendRequestResponse(bool success, const QString &error);
+    void onFriendRequestNotify(const QString &fromUsername, const QString &fromDisplayName);
+    void onFriendAcceptResponse(bool success, const QString &error);
+    void onFriendAcceptNotify(const QString &username, const QString &displayName);
+    void onFriendRejectResponse(bool success, const QString &error);
+    void onFriendRemoveResponse(bool success, const QString &username, const QString &error);
+    void onFriendListReceived(const QJsonArray &friends);
+    void onFriendPendingReceived(const QJsonArray &requests);
+    void onFriendChatMessage(const QJsonObject &data);
+    void onFriendHistoryReceived(const QJsonObject &data);
+    void onFriendFileNotify(const QJsonObject &data);
+    void onFriendOnlineNotify(const QString &username, const QString &displayName);
+    void onFriendOfflineNotify(const QString &username);
+    void onFriendFileUploadStartResponse(const QJsonObject &data);
+    void onSendFriendFile();
+    void onSendFriendImage();
+
 
 private:
     void setupUi();
@@ -183,6 +206,10 @@ private:
     void addUserListItem(const QString &username, const QString &displayName, bool isAdmin, bool isOnline);
     void updateUserListItemWidget(QListWidgetItem *item);
     QListWidgetItem* findUserListItem(const QString &username);
+    void switchToFriendChat(const QString &friendUsername, const QString &friendDisplayName, int friendshipId);
+    void switchToRoomMode();
+    void sendFriendFile(const QString &filePath, const QString &contentType);
+    MessageModel *getOrCreateFriendModel(const QString &friendUsername);
 
     // --- UI 组件 ---
     QSplitter    *m_splitter       = nullptr;
@@ -204,6 +231,14 @@ private:
     EmojiPicker  *m_emojiPicker    = nullptr;
     TrayManager  *m_trayManager    = nullptr;
 
+    // 好友系统 UI
+    QPushButton  *m_tabRoomBtn     = nullptr;
+    QPushButton  *m_tabFriendBtn   = nullptr;
+    QStackedWidget *m_listStack    = nullptr;  // 房间列表 / 好友列表 切换
+    QListWidget  *m_friendList     = nullptr;
+    QWidget      *m_roomBtnPanel   = nullptr;
+    QWidget      *m_friendBtnPanel = nullptr;
+
     // --- 数据 ---
     int     m_userId     = 0;
     QString m_username;       // uniqueId (登录标识)
@@ -215,6 +250,14 @@ private:
     QMap<int, bool>           m_adminRooms; // roomId -> isAdmin
     QSet<int>                 m_joinedRooms; // 已加入过的房间（用于显示加入提示）
     QMap<int, qint64>         m_roomMaxFileSize; // roomId -> maxFileSize
+
+    // 好友聊天数据
+    bool    m_isFriendChat = false;             // 当前是否在好友聊天模式
+    QString m_currentFriendUsername;             // 当前私聊好友的用户名
+    QString m_currentFriendDisplayName;          // 当前私聊好友的显示名
+    int     m_currentFriendshipId = -1;          // 当前 friendshipId
+    QMap<QString, MessageModel*> m_friendModels; // friendUsername -> MessageModel
+    QJsonArray m_friendData;                     // 好友列表数据缓存
 
     // 头像缓存（静态，供 MessageDelegate 使用）
     static QMap<QString, QPixmap> s_avatarCache;

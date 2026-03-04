@@ -19,6 +19,15 @@ export const useChatStore = defineStore('chat', {
     roomSettings: {},       // roomId -> { maxFileSize }
     // 预览模式下载（不触发自动保存）
     _previewFileIds: new Set(),
+
+    // 好友系统
+    friends: [],              // [{ friendshipId, friendId, username, displayName, isOnline }]
+    friendPendingRequests: [], // [{ id, fromUsername, fromDisplayName, timestamp }]
+    currentFriendUsername: null,
+    currentFriendDisplayName: '',
+    currentFriendshipId: null,
+    isFriendChat: false,
+    friendMessages: [],       // 当前好友私聊消息
   }),
 
   getters: {
@@ -248,6 +257,61 @@ export const useChatStore = defineStore('chat', {
         d.status = 'downloading'
         chatWs.downloadChunk(fileId, d.received, FILE_CHUNK_SIZE)
       }
+    },
+
+    // ==================== 好友系统 ====================
+    setCurrentFriend(friendUsername) {
+      const fr = this.friends.find(f => f.username === friendUsername)
+      if (fr) {
+        this.isFriendChat = true
+        this.currentFriendUsername = friendUsername
+        this.currentFriendDisplayName = fr.displayName || friendUsername
+        this.currentFriendshipId = fr.friendshipId
+        this.friendMessages = []
+        // 清除房间选中
+        this.currentRoomId = null
+        this.currentRoomName = ''
+        this.messages = []
+        this.users = []
+        chatWs.requestFriendHistory(friendUsername, 50)
+      }
+    },
+
+    exitFriendChat() {
+      this.isFriendChat = false
+      this.currentFriendUsername = null
+      this.currentFriendDisplayName = ''
+      this.currentFriendshipId = null
+      this.friendMessages = []
+    },
+
+    async uploadFriendSmallFile(friendUsername, file) {
+      const reader = new FileReader()
+      return new Promise((resolve) => {
+        reader.onload = async () => {
+          const base64 = reader.result.split(',')[1]
+          let contentType = 'file'
+          if (file.type.startsWith('image/')) contentType = 'image'
+          else if (file.type.startsWith('video/')) contentType = 'video'
+
+          let thumbnail = ''
+          if (contentType === 'image') {
+            thumbnail = await this._generateImageThumbnail(file)
+          } else if (contentType === 'video') {
+            thumbnail = await this._generateVideoThumbnail(file)
+          }
+
+          chatWs.sendFriendFile(friendUsername, file.name, file.size, base64, contentType, thumbnail)
+          resolve()
+        }
+        reader.readAsDataURL(file)
+      })
+    },
+
+    async startFriendChunkedUpload(friendUsername, file) {
+      chatWs.startFriendUpload(friendUsername, file.name, file.size)
+      this._pendingUploadFile = file
+      this._pendingFriendUpload = friendUsername
     },
 
     // ==================== 初始化消息监听 ====================
@@ -605,6 +669,121 @@ export const useChatStore = defineStore('chat', {
           }
         } else {
           alert('删除房间失败: ' + (msg.data.error || ''))
+        }
+      })
+
+      // ==================== 好友系统监听 ====================
+
+      chatWs.on(MsgType.FRIEND_REQUEST_RSP, (msg) => {
+        const d = msg.data
+        if (d.success) {
+          this._emit('info', '好友请求已发送')
+        } else {
+          this._emit('error', d.error || '发送好友请求失败')
+        }
+      })
+
+      chatWs.on(MsgType.FRIEND_REQUEST_NOTIFY, (msg) => {
+        const d = msg.data
+        this._emit('friendRequest', d)
+        this._emit('info', `${d.fromDisplayName || d.fromUsername} 请求加你为好友`)
+      })
+
+      chatWs.on(MsgType.FRIEND_ACCEPT_RSP, (msg) => {
+        if (msg.data.success) {
+          chatWs.requestFriendList()
+          this._emit('info', '已接受好友请求')
+        }
+      })
+
+      chatWs.on(MsgType.FRIEND_ACCEPT_NOTIFY, (msg) => {
+        chatWs.requestFriendList()
+        this._emit('info', `${msg.data.acceptedByDisplay || msg.data.acceptedBy} 已接受你的好友请求`)
+      })
+
+      chatWs.on(MsgType.FRIEND_REJECT_RSP, (msg) => {
+        if (msg.data.success) {
+          this._emit('info', '已拒绝好友请求')
+        }
+      })
+
+      chatWs.on(MsgType.FRIEND_REMOVE_RSP, (msg) => {
+        if (msg.data.success) {
+          this.friends = this.friends.filter(f => f.username !== msg.data.username)
+          if (this.isFriendChat && this.currentFriendUsername === msg.data.username) {
+            this.exitFriendChat()
+          }
+          this._emit('info', `已删除好友 ${msg.data.username}`)
+        } else {
+          this._emit('error', msg.data.error || '删除好友失败')
+        }
+      })
+
+      chatWs.on(MsgType.FRIEND_LIST_RSP, (msg) => {
+        this.friends = msg.data.friends || []
+      })
+
+      chatWs.on(MsgType.FRIEND_PENDING_RSP, (msg) => {
+        this.friendPendingRequests = msg.data.requests || []
+        this._emit('friendPending', this.friendPendingRequests)
+      })
+
+      chatWs.on(MsgType.FRIEND_CHAT_MSG, (msg) => {
+        const d = msg.data
+        const userStore = useUserStore()
+        const chatWith = d.sender === userStore.username ? d.friendUsername : d.sender
+
+        if (this.isFriendChat && this.currentFriendUsername === chatWith) {
+          this.friendMessages.push(d)
+        }
+        // 如果不是当前聊天对象，可以加 unread 逻辑（暂略）
+      })
+
+      chatWs.on(MsgType.FRIEND_HISTORY_RSP, (msg) => {
+        const d = msg.data
+        if (this.isFriendChat && this.currentFriendUsername === d.friendUsername) {
+          const msgs = d.messages || []
+          this.friendMessages = [...msgs, ...this.friendMessages]
+        }
+      })
+
+      chatWs.on(MsgType.FRIEND_FILE_NOTIFY, (msg) => {
+        const d = msg.data
+        const userStore = useUserStore()
+        const chatWith = d.sender === userStore.username ? d.friendUsername : d.sender
+
+        if (this.isFriendChat && this.currentFriendUsername === chatWith) {
+          this.friendMessages.push(d)
+        }
+      })
+
+      chatWs.on(MsgType.FRIEND_ONLINE_NOTIFY, (msg) => {
+        const fr = this.friends.find(f => f.username === msg.data.username)
+        if (fr) fr.isOnline = true
+      })
+
+      chatWs.on(MsgType.FRIEND_OFFLINE_NOTIFY, (msg) => {
+        const fr = this.friends.find(f => f.username === msg.data.username)
+        if (fr) fr.isOnline = false
+      })
+
+      chatWs.on(MsgType.FRIEND_FILE_UPLOAD_START_RSP, (msg) => {
+        const d = msg.data
+        if (d.success && d.uploadId) {
+          const file = this._pendingUploadFile
+          this.uploads[d.uploadId] = {
+            fileName: file.name,
+            fileSize: file.size,
+            sent: 0,
+            status: 'uploading',
+            file: file,
+            roomId: -d.friendshipId,
+            paused: false,
+            thumbnail: ''
+          }
+          this._sendNextChunk(d.uploadId)
+        } else {
+          alert('好友文件上传失败: ' + (d.error || ''))
         }
       })
     },

@@ -2,7 +2,7 @@
   <div class="message-list" ref="listRef" @scroll="onScroll">
     <div v-if="loadingMore" class="loading-more">加载中...</div>
 
-    <div v-for="(msg, idx) in chatStore.messages" :key="msg.id || idx" class="message-wrapper">
+    <div v-for="(msg, idx) in displayMessages" :key="msg.id || idx" class="message-wrapper">
       <!-- 系统消息 -->
       <div v-if="msg.contentType === 'system'" class="system-message">
         {{ msg.content }}
@@ -169,6 +169,15 @@ const loadingMore = ref(false)
 const previewVisible = ref(false)
 const previewMsgData = ref(null)
 const contextMenu = ref({ show: false, x: 0, y: 0, msg: null })
+
+const props = defineProps({
+  friendMode: { type: Boolean, default: false }
+})
+
+import { computed } from 'vue'
+const displayMessages = computed(() => {
+  return props.friendMode ? chatStore.friendMessages : chatStore.messages
+})
 
 function isMine(msg) {
   return msg.sender === userStore.username
@@ -355,12 +364,19 @@ function onTouchMove() {
 }
 
 function onScroll() {
-  if (listRef.value && listRef.value.scrollTop === 0 && chatStore.messages.length > 0) {
-    const firstMsg = chatStore.messages[0]
-    if (firstMsg && firstMsg.timestamp) {
-      loadingMore.value = true
-      chatWs.requestHistory(chatStore.currentRoomId, 50, firstMsg.timestamp)
-      setTimeout(() => { loadingMore.value = false }, 2000)
+  if (listRef.value && listRef.value.scrollTop === 0) {
+    const msgs = props.friendMode ? chatStore.friendMessages : chatStore.messages
+    if (msgs.length > 0) {
+      const firstMsg = msgs[0]
+      if (firstMsg && firstMsg.timestamp) {
+        loadingMore.value = true
+        if (props.friendMode) {
+          chatWs.requestFriendHistory(chatStore.currentFriendUsername, 50, firstMsg.timestamp)
+        } else {
+          chatWs.requestHistory(chatStore.currentRoomId, 50, firstMsg.timestamp)
+        }
+        setTimeout(() => { loadingMore.value = false }, 2000)
+      }
     }
   }
 }
@@ -377,7 +393,15 @@ watch(() => chatStore.messages.length, () => {
   scrollToBottom()
 })
 
+watch(() => chatStore.friendMessages.length, () => {
+  scrollToBottom()
+})
+
 watch(() => chatStore.currentRoomId, () => {
+  scrollToBottom()
+})
+
+watch(() => chatStore.currentFriendUsername, () => {
   scrollToBottom()
 })
 

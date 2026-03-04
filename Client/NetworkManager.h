@@ -107,6 +107,22 @@ signals:
     // 修改密码
     void changePasswordResponse(bool success, const QString &error);
 
+    // ========== 好友系统 ==========
+    void friendRequestResponse(bool success, const QString &error);
+    void friendRequestNotify(const QString &fromUsername, const QString &fromDisplayName);
+    void friendAcceptResponse(bool success, const QString &error);
+    void friendAcceptNotify(const QString &username, const QString &displayName);
+    void friendRejectResponse(bool success, const QString &error);
+    void friendRemoveResponse(bool success, const QString &username, const QString &error);
+    void friendListReceived(const QJsonArray &friends);
+    void friendPendingReceived(const QJsonArray &requests);
+    void friendChatMessageReceived(const QJsonObject &data);
+    void friendHistoryReceived(const QJsonObject &data);
+    void friendFileNotify(const QJsonObject &data);
+    void friendOnlineNotify(const QString &username, const QString &displayName);
+    void friendOfflineNotify(const QString &username);
+    void friendFileUploadStartResponse(const QJsonObject &data);
+
 private slots:
     void onConnected();
     void onDisconnected();

@@ -54,6 +54,21 @@ export const MsgType = {
   CHANGE_UID_REQ: 'CHANGE_UID_REQ', CHANGE_UID_RSP: 'CHANGE_UID_RSP',
   UID_CHANGE_NOTIFY: 'UID_CHANGE_NOTIFY',
   CHANGE_PASSWORD_REQ: 'CHANGE_PASSWORD_REQ', CHANGE_PASSWORD_RSP: 'CHANGE_PASSWORD_RSP',
+
+  // 好友系统
+  FRIEND_REQUEST_REQ: 'FRIEND_REQUEST_REQ', FRIEND_REQUEST_RSP: 'FRIEND_REQUEST_RSP',
+  FRIEND_REQUEST_NOTIFY: 'FRIEND_REQUEST_NOTIFY',
+  FRIEND_ACCEPT_REQ: 'FRIEND_ACCEPT_REQ', FRIEND_ACCEPT_RSP: 'FRIEND_ACCEPT_RSP',
+  FRIEND_ACCEPT_NOTIFY: 'FRIEND_ACCEPT_NOTIFY',
+  FRIEND_REJECT_REQ: 'FRIEND_REJECT_REQ', FRIEND_REJECT_RSP: 'FRIEND_REJECT_RSP',
+  FRIEND_REMOVE_REQ: 'FRIEND_REMOVE_REQ', FRIEND_REMOVE_RSP: 'FRIEND_REMOVE_RSP',
+  FRIEND_LIST_REQ: 'FRIEND_LIST_REQ', FRIEND_LIST_RSP: 'FRIEND_LIST_RSP',
+  FRIEND_PENDING_REQ: 'FRIEND_PENDING_REQ', FRIEND_PENDING_RSP: 'FRIEND_PENDING_RSP',
+  FRIEND_CHAT_MSG: 'FRIEND_CHAT_MSG',
+  FRIEND_HISTORY_REQ: 'FRIEND_HISTORY_REQ', FRIEND_HISTORY_RSP: 'FRIEND_HISTORY_RSP',
+  FRIEND_FILE_SEND: 'FRIEND_FILE_SEND', FRIEND_FILE_NOTIFY: 'FRIEND_FILE_NOTIFY',
+  FRIEND_ONLINE_NOTIFY: 'FRIEND_ONLINE_NOTIFY', FRIEND_OFFLINE_NOTIFY: 'FRIEND_OFFLINE_NOTIFY',
+  FRIEND_FILE_UPLOAD_START: 'FRIEND_FILE_UPLOAD_START', FRIEND_FILE_UPLOAD_START_RSP: 'FRIEND_FILE_UPLOAD_START_RSP',
 }
 
 function uuid() {
@@ -344,6 +359,52 @@ class ChatWebSocket {
 
   changePassword(oldPassword, newPassword) {
     this.send(makeMessage(MsgType.CHANGE_PASSWORD_REQ, { oldPassword, newPassword }))
+  }
+
+  // ==================== 好友系统 ====================
+
+  sendFriendRequest(username) {
+    this.send(makeMessage(MsgType.FRIEND_REQUEST_REQ, { username }))
+  }
+
+  acceptFriendRequest(requestId, fromUsername) {
+    this.send(makeMessage(MsgType.FRIEND_ACCEPT_REQ, { requestId, fromUsername }))
+  }
+
+  rejectFriendRequest(requestId) {
+    this.send(makeMessage(MsgType.FRIEND_REJECT_REQ, { requestId }))
+  }
+
+  removeFriend(username) {
+    this.send(makeMessage(MsgType.FRIEND_REMOVE_REQ, { username }))
+  }
+
+  requestFriendList() {
+    this.send(makeMessage(MsgType.FRIEND_LIST_REQ))
+  }
+
+  requestFriendPending() {
+    this.send(makeMessage(MsgType.FRIEND_PENDING_REQ))
+  }
+
+  sendFriendChat(friendUsername, content, contentType = 'text') {
+    this.send(makeMessage(MsgType.FRIEND_CHAT_MSG, { friendUsername, content, contentType }))
+  }
+
+  requestFriendHistory(friendUsername, count = 50, before = 0) {
+    const data = { friendUsername, count }
+    if (before > 0) data.before = before
+    this.send(makeMessage(MsgType.FRIEND_HISTORY_REQ, data))
+  }
+
+  sendFriendFile(friendUsername, fileName, fileSize, fileData, contentType = 'file', thumbnail = '') {
+    const data = { friendUsername, fileName, fileSize, fileData, contentType }
+    if (thumbnail) data.thumbnail = thumbnail
+    this.send(makeMessage(MsgType.FRIEND_FILE_SEND, data))
+  }
+
+  startFriendUpload(friendUsername, fileName, fileSize) {
+    this.send(makeMessage(MsgType.FRIEND_FILE_UPLOAD_START, { friendUsername, fileName, fileSize }))
   }
 }
 

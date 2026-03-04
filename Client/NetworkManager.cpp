@@ -371,4 +371,47 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         emit changePasswordResponse(data["success"].toBool(),
                                      data["error"].toString());
     }
+    // ========== 好友系统 ==========
+    else if (type == Protocol::MsgType::FRIEND_REQUEST_RSP) {
+        emit friendRequestResponse(data["success"].toBool(), data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::FRIEND_REQUEST_NOTIFY) {
+        emit friendRequestNotify(data["fromUsername"].toString(), data["fromDisplayName"].toString());
+    }
+    else if (type == Protocol::MsgType::FRIEND_ACCEPT_RSP) {
+        emit friendAcceptResponse(data["success"].toBool(), data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::FRIEND_ACCEPT_NOTIFY) {
+        emit friendAcceptNotify(data["acceptedBy"].toString(), data["acceptedByDisplay"].toString());
+    }
+    else if (type == Protocol::MsgType::FRIEND_REJECT_RSP) {
+        emit friendRejectResponse(data["success"].toBool(), data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::FRIEND_REMOVE_RSP) {
+        emit friendRemoveResponse(data["success"].toBool(), data["username"].toString(), data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::FRIEND_LIST_RSP) {
+        emit friendListReceived(data["friends"].toArray());
+    }
+    else if (type == Protocol::MsgType::FRIEND_PENDING_RSP) {
+        emit friendPendingReceived(data["requests"].toArray());
+    }
+    else if (type == Protocol::MsgType::FRIEND_CHAT_MSG) {
+        emit friendChatMessageReceived(data);
+    }
+    else if (type == Protocol::MsgType::FRIEND_HISTORY_RSP) {
+        emit friendHistoryReceived(data);
+    }
+    else if (type == Protocol::MsgType::FRIEND_FILE_NOTIFY) {
+        emit friendFileNotify(data);
+    }
+    else if (type == Protocol::MsgType::FRIEND_ONLINE_NOTIFY) {
+        emit friendOnlineNotify(data["username"].toString(), data["displayName"].toString());
+    }
+    else if (type == Protocol::MsgType::FRIEND_OFFLINE_NOTIFY) {
+        emit friendOfflineNotify(data["username"].toString());
+    }
+    else if (type == Protocol::MsgType::FRIEND_FILE_UPLOAD_START_RSP) {
+        emit friendFileUploadStartResponse(data);
+    }
 }
