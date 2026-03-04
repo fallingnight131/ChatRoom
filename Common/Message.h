@@ -13,7 +13,8 @@ public:
         Emoji,
         Image,
         File,
-        System
+        System,
+        Video
     };
 
     enum DownloadState {
@@ -55,6 +56,7 @@ public:
     bool isMine() const { return m_isMine; }
     DownloadState downloadState() const { return m_downloadState; }
     double downloadProgress() const { return m_downloadProgress; }
+    QString thumbnail() const { return m_thumbnail; }
 
     // --- Setters ---
     void setId(int id) { m_id = id; }
@@ -66,6 +68,12 @@ public:
     void setSenderName(const QString &n) { m_senderName = n; }
     void setDownloadState(DownloadState s) { m_downloadState = s; }
     void setDownloadProgress(double p) { m_downloadProgress = p; }
+    void setContent(const QString &c) { m_content = c; }
+    void setTimestamp(qint64 ms) { m_timestamp = QDateTime::fromMSecsSinceEpoch(ms); }
+    void setFileName(const QString &f) { m_fileName = f; }
+    void setFileSize(qint64 s) { m_fileSize = s; }
+    void setFileId(int id) { m_fileId = id; }
+    void setThumbnail(const QString &t) { m_thumbnail = t; }
 
     static QString contentTypeToString(ContentType t);
     static ContentType stringToContentType(const QString &s);
@@ -86,4 +94,5 @@ private:
     bool        m_isMine      = false;
     DownloadState m_downloadState = NotDownloaded;
     double      m_downloadProgress = 0.0;
+    QString     m_thumbnail;
 };

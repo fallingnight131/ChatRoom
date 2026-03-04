@@ -2759,14 +2759,134 @@ void ChatWindow::onClearCache() {
 // ==================== 好友系统 ====================
 
 void ChatWindow::onAddFriend() {
-    bool ok;
-    QString username = QInputDialog::getText(this, "添加好友", "请输入对方用户名:", QLineEdit::Normal, "", &ok);
-    if (!ok || username.trimmed().isEmpty()) return;
+    // 创建搜索对话框
+    QDialog dlg(this);
+    dlg.setWindowTitle("添加好友");
+    dlg.setMinimumSize(400, 350);
+    dlg.resize(420, 400);
 
-    QJsonObject data;
-    data["username"] = username.trimmed();
-    NetworkManager::instance()->sendMessage(
-        Protocol::makeMessage(Protocol::MsgType::FRIEND_REQUEST_REQ, data));
+    auto *layout = new QVBoxLayout(&dlg);
+
+    // 搜索行
+    auto *searchLayout = new QHBoxLayout;
+    auto *searchInput = new QLineEdit;
+    searchInput->setPlaceholderText("输入用户ID或昵称搜索");
+    auto *searchBtn = new QPushButton("搜索");
+    searchLayout->addWidget(searchInput);
+    searchLayout->addWidget(searchBtn);
+    layout->addLayout(searchLayout);
+
+    // 结果列表
+    auto *resultList = new QListWidget;
+    resultList->setStyleSheet("QListWidget::item { padding: 6px; }");
+    layout->addWidget(resultList);
+
+    // 提示标签
+    auto *hintLabel = new QLabel("输入关键词后点击搜索");
+    hintLabel->setAlignment(Qt::AlignCenter);
+    hintLabel->setStyleSheet("color: gray; padding: 20px;");
+    layout->addWidget(hintLabel);
+
+    // 关闭按钮
+    auto *closeBtn = new QPushButton("关闭");
+    layout->addWidget(closeBtn);
+
+    auto *net = NetworkManager::instance();
+
+    // 搜索逻辑
+    auto doSearch = [&]() {
+        QString keyword = searchInput->text().trimmed();
+        if (keyword.isEmpty()) return;
+        searchBtn->setEnabled(false);
+        searchBtn->setText("搜索中…");
+        resultList->clear();
+        hintLabel->hide();
+
+        QJsonObject data;
+        data["keyword"] = keyword;
+        net->sendMessage(Protocol::makeMessage(Protocol::MsgType::USER_SEARCH_REQ, data));
+    };
+
+    // 处理搜索结果
+    QMetaObject::Connection conn = connect(net, &NetworkManager::userSearchResponse,
+        &dlg, [&](bool success, const QJsonArray &users, const QString &error) {
+        searchBtn->setEnabled(true);
+        searchBtn->setText("搜索");
+
+        if (!success) {
+            hintLabel->setText(error.isEmpty() ? "搜索失败" : error);
+            hintLabel->show();
+            return;
+        }
+
+        resultList->clear();
+        if (users.isEmpty()) {
+            hintLabel->setText("未找到匹配的用户");
+            hintLabel->show();
+            return;
+        }
+        hintLabel->hide();
+
+        for (const auto &val : users) {
+            QJsonObject u = val.toObject();
+            QString username    = u["username"].toString();
+            QString displayName = u["displayName"].toString();
+            bool online         = u["online"].toBool();
+
+            // 创建列表项
+            auto *itemWidget = new QWidget;
+            auto *hl = new QHBoxLayout(itemWidget);
+            hl->setContentsMargins(4, 4, 4, 4);
+
+            auto *avatarLabel = new QLabel("👤");
+            avatarLabel->setFixedSize(32, 32);
+            avatarLabel->setAlignment(Qt::AlignCenter);
+            avatarLabel->setStyleSheet("font-size: 18px;");
+            hl->addWidget(avatarLabel);
+
+            auto *infoLayout = new QVBoxLayout;
+            infoLayout->setSpacing(0);
+            auto *nameLabel = new QLabel(displayName);
+            nameLabel->setStyleSheet("font-weight: bold; font-size: 13px;");
+            auto *idLabel = new QLabel("ID: " + username);
+            idLabel->setStyleSheet("color: gray; font-size: 11px;");
+            infoLayout->addWidget(nameLabel);
+            infoLayout->addWidget(idLabel);
+            hl->addLayout(infoLayout, 1);
+
+            if (online) {
+                auto *onlineLabel = new QLabel("●");
+                onlineLabel->setStyleSheet("color: #4caf50; font-size: 14px;");
+                hl->addWidget(onlineLabel);
+            }
+
+            auto *sendBtn = new QPushButton("发送申请");
+            sendBtn->setFixedWidth(72);
+            connect(sendBtn, &QPushButton::clicked, &dlg, [username, sendBtn, net]() {
+                QJsonObject reqData;
+                reqData["username"] = username;
+                net->sendMessage(
+                    Protocol::makeMessage(Protocol::MsgType::FRIEND_REQUEST_REQ, reqData));
+                sendBtn->setText("已发送");
+                sendBtn->setEnabled(false);
+            });
+            hl->addWidget(sendBtn);
+
+            auto *item = new QListWidgetItem;
+            item->setSizeHint(itemWidget->sizeHint());
+            resultList->addItem(item);
+            resultList->setItemWidget(item, itemWidget);
+        }
+    });
+
+    connect(searchBtn, &QPushButton::clicked, &dlg, doSearch);
+    connect(searchInput, &QLineEdit::returnPressed, &dlg, doSearch);
+    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
+
+    dlg.exec();
+
+    // 断开临时连接
+    disconnect(conn);
 }
 
 void ChatWindow::onShowFriendRequests() {
@@ -3134,7 +3254,7 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
     }
 
     // 小文件直接发送 (< 8MB)
-    if (fileSize < Protocol::MAX_DIRECT_FILE) {
+    if (fileSize < Protocol::MAX_SMALL_FILE) {
         QFile f(filePath);
         if (!f.open(QIODevice::ReadOnly)) return;
         QByteArray raw = f.readAll();

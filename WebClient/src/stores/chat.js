@@ -685,6 +685,8 @@ export const useChatStore = defineStore('chat', {
 
       chatWs.on(MsgType.FRIEND_REQUEST_NOTIFY, (msg) => {
         const d = msg.data
+        // 自动刷新待处理列表
+        chatWs.requestFriendPending()
         this._emit('friendRequest', d)
         this._emit('info', `${d.fromDisplayName || d.fromUsername} 请求加你为好友`)
       })
@@ -726,6 +728,14 @@ export const useChatStore = defineStore('chat', {
       chatWs.on(MsgType.FRIEND_PENDING_RSP, (msg) => {
         this.friendPendingRequests = msg.data.requests || []
         this._emit('friendPending', this.friendPendingRequests)
+      })
+
+      chatWs.on(MsgType.USER_SEARCH_RSP, (msg) => {
+        if (msg.data.success) {
+          this._emit('userSearchResults', msg.data.users || [])
+        } else {
+          this._emit('error', msg.data.error || '搜索失败')
+        }
       })
 
       chatWs.on(MsgType.FRIEND_CHAT_MSG, (msg) => {

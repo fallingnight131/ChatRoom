@@ -45,6 +45,9 @@ public:
     bool leaveRoom(int roomId, int userId);
     int getUserIdByName(const QString &username);
 
+    // 用户搜索（按用户名或昵称模糊查询）
+    QJsonArray searchUsers(const QString &keyword, int excludeUserId, int limit = 20);
+
     // 消息管理
     int  saveMessage(int roomId, int userId, const QString &content,
                      const QString &contentType,

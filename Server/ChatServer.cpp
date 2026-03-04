@@ -67,7 +67,7 @@ void ChatServer::stopServer() {
         m_wsServer->close();
     }
     QMutexLocker locker(&m_mutex);
-    for (auto *s : qAsConst(m_sessions))
+    for (auto *s : std::as_const(m_sessions))
         s->disconnectFromServer();
     m_sessions.clear();
 }
@@ -259,6 +259,8 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleChangeUid(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::CHANGE_PASSWORD_REQ) {
         handleChangePassword(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::USER_SEARCH_REQ) {
+        handleUserSearch(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::FRIEND_REQUEST_REQ) {
         handleFriendRequest(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::FRIEND_ACCEPT_REQ) {
@@ -1741,6 +1743,38 @@ QString ChatServer::friendFileDir(int friendshipId, const QString &fileName) con
     QDir d(dir);
     if (!d.exists()) d.mkpath(".");
     return dir;
+}
+
+// ==================== 用户搜索 ====================
+
+void ChatServer::handleUserSearch(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    QString keyword = data["keyword"].toString().trimmed();
+    QJsonObject rspData;
+
+    if (keyword.isEmpty()) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("搜索关键词不能为空");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::USER_SEARCH_RSP, rspData));
+        return;
+    }
+
+    QJsonArray results = m_db->searchUsers(keyword, session->userId());
+
+    // 附加在线状态
+    {
+        QMutexLocker locker(&m_mutex);
+        for (int i = 0; i < results.size(); ++i) {
+            QJsonObject user = results[i].toObject();
+            user["online"] = m_sessions.contains(user["username"].toString());
+            results[i] = user;
+        }
+    }
+
+    rspData["success"] = true;
+    rspData["users"]   = results;
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::USER_SEARCH_RSP, rspData));
 }
 
 // ==================== 好友系统 ====================

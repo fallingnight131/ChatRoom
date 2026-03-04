@@ -371,6 +371,12 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         emit changePasswordResponse(data["success"].toBool(),
                                      data["error"].toString());
     }
+    // 用户搜索
+    else if (type == Protocol::MsgType::USER_SEARCH_RSP) {
+        emit userSearchResponse(data["success"].toBool(),
+                                data["users"].toArray(),
+                                data["error"].toString());
+    }
     // ========== 好友系统 ==========
     else if (type == Protocol::MsgType::FRIEND_REQUEST_RSP) {
         emit friendRequestResponse(data["success"].toBool(), data["error"].toString());

@@ -568,6 +568,33 @@ int DatabaseManager::getUserIdByName(const QString &username) {
     return -1;
 }
 
+QJsonArray DatabaseManager::searchUsers(const QString &keyword, int excludeUserId, int limit) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    // 按唯一ID或昵称模糊搜索，排除自己
+    q.prepare("SELECT id, username, display_name FROM users "
+              "WHERE id != ? AND (username LIKE ? OR display_name LIKE ?) "
+              "ORDER BY username LIMIT ?");
+    q.addBindValue(excludeUserId);
+    QString pattern = "%" + keyword + "%";
+    q.addBindValue(pattern);
+    q.addBindValue(pattern);
+    q.addBindValue(limit);
+    q.exec();
+
+    QJsonArray arr;
+    while (q.next()) {
+        QJsonObject user;
+        user["userId"]      = q.value(0).toInt();
+        user["username"]    = q.value(1).toString();
+        QString dn = q.value(2).toString();
+        user["displayName"] = dn.isEmpty() ? q.value(1).toString() : dn;
+        arr.append(user);
+    }
+    return arr;
+}
+
 // ==================== 消息管理 ====================
 
 int DatabaseManager::saveMessage(int roomId, int userId, const QString &content,

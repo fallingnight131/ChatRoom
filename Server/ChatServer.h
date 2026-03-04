@@ -76,6 +76,9 @@ private:
     void handleChangeUid(ClientSession *session, const QJsonObject &data);
     void handleChangePassword(ClientSession *session, const QJsonObject &data);
 
+    // 用户搜索
+    void handleUserSearch(ClientSession *session, const QJsonObject &data);
+
     // 好友系统
     void handleFriendRequest(ClientSession *session, const QJsonObject &data);
     void handleFriendAccept(ClientSession *session, const QJsonObject &data);

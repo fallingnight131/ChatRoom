@@ -141,6 +141,8 @@ namespace MsgType {
     inline const QString CHANGE_PASSWORD_RSP    = QStringLiteral("CHANGE_PASSWORD_RSP");
 
     // 好友系统
+    inline const QString USER_SEARCH_REQ         = QStringLiteral("USER_SEARCH_REQ");
+    inline const QString USER_SEARCH_RSP         = QStringLiteral("USER_SEARCH_RSP");
     inline const QString FRIEND_REQUEST_REQ     = QStringLiteral("FRIEND_REQUEST_REQ");
     inline const QString FRIEND_REQUEST_RSP     = QStringLiteral("FRIEND_REQUEST_RSP");
     inline const QString FRIEND_REQUEST_NOTIFY  = QStringLiteral("FRIEND_REQUEST_NOTIFY");

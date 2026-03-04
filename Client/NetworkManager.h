@@ -107,6 +107,9 @@ signals:
     // 修改密码
     void changePasswordResponse(bool success, const QString &error);
 
+    // 用户搜索
+    void userSearchResponse(bool success, const QJsonArray &users, const QString &error);
+
     // ========== 好友系统 ==========
     void friendRequestResponse(bool success, const QString &error);
     void friendRequestNotify(const QString &fromUsername, const QString &fromDisplayName);

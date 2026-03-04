@@ -56,6 +56,7 @@ export const MsgType = {
   CHANGE_PASSWORD_REQ: 'CHANGE_PASSWORD_REQ', CHANGE_PASSWORD_RSP: 'CHANGE_PASSWORD_RSP',
 
   // 好友系统
+  USER_SEARCH_REQ: 'USER_SEARCH_REQ', USER_SEARCH_RSP: 'USER_SEARCH_RSP',
   FRIEND_REQUEST_REQ: 'FRIEND_REQUEST_REQ', FRIEND_REQUEST_RSP: 'FRIEND_REQUEST_RSP',
   FRIEND_REQUEST_NOTIFY: 'FRIEND_REQUEST_NOTIFY',
   FRIEND_ACCEPT_REQ: 'FRIEND_ACCEPT_REQ', FRIEND_ACCEPT_RSP: 'FRIEND_ACCEPT_RSP',
@@ -362,6 +363,10 @@ class ChatWebSocket {
   }
 
   // ==================== 好友系统 ====================
+
+  searchUsers(keyword) {
+    this.send(makeMessage(MsgType.USER_SEARCH_REQ, { keyword }))
+  }
 
   sendFriendRequest(username) {
     this.send(makeMessage(MsgType.FRIEND_REQUEST_REQ, { username }))

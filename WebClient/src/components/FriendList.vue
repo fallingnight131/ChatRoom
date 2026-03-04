@@ -28,16 +28,33 @@
 
     <!-- 添加好友弹窗 -->
     <div class="modal-overlay" v-if="showAddFriend" @click.self="showAddFriend = false">
-      <div class="modal">
+      <div class="modal" style="max-width: 420px;">
         <div class="modal-title">添加好友</div>
-        <div class="input-group">
-          <label>用户名</label>
-          <input class="input" v-model="addFriendUsername" placeholder="输入对方用户名"
-                 @keyup.enter="sendFriendRequest" />
+        <div class="search-row">
+          <input class="input search-input" v-model="searchKeyword"
+                 placeholder="输入用户ID或昵称搜索"
+                 @keyup.enter="doSearch" />
+          <button class="btn btn-primary" @click="doSearch" :disabled="searching">
+            {{ searching ? '搜索中…' : '搜索' }}
+          </button>
+        </div>
+        <div class="search-results">
+          <div v-if="searchResults === null" class="search-hint">输入关键词后点击搜索</div>
+          <div v-else-if="searchResults.length === 0" class="search-hint">未找到匹配的用户</div>
+          <div v-for="u in searchResults" :key="u.username" class="search-result-item">
+            <div class="search-avatar">👤</div>
+            <div class="search-user-info">
+              <div class="search-display-name text-ellipsis">{{ u.displayName }}</div>
+              <div class="search-username">ID: {{ u.username }}</div>
+            </div>
+            <div class="search-user-status" v-if="u.online">
+              <span class="online-dot"></span>
+            </div>
+            <button class="btn btn-primary btn-sm" @click="sendRequestTo(u.username)">发送申请</button>
+          </div>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-secondary" @click="showAddFriend = false">取消</button>
-          <button class="btn btn-primary" @click="sendFriendRequest">发送请求</button>
+          <button class="btn btn-secondary" @click="closeAddFriend">关闭</button>
         </div>
       </div>
     </div>
@@ -47,7 +64,7 @@
       <div class="modal" style="max-width: 400px;">
         <div class="modal-title">待处理的好友申请</div>
         <div v-if="pendingRequests.length === 0" class="pending-empty">暂无待处理的好友申请</div>
-        <div v-for="req in pendingRequests" :key="req.id" class="pending-item">
+        <div v-for="req in pendingRequests" :key="req.requestId" class="pending-item">
           <div class="pending-info">
             <span class="pending-name">{{ req.fromDisplayName || req.fromUsername }}</span>
             <span class="pending-uid">({{ req.fromUsername }})</span>
@@ -84,7 +101,9 @@ const emit = defineEmits(['friend-selected', 'view-user-info'])
 
 const showAddFriend = ref(false)
 const showPendingDialog = ref(false)
-const addFriendUsername = ref('')
+const searchKeyword = ref('')
+const searchResults = ref(null)
+const searching = ref(false)
 const pendingRequests = ref([])
 
 const contextMenu = reactive({ show: false, x: 0, y: 0, friend: null })
@@ -94,11 +113,31 @@ function selectFriend(fr) {
   emit('friend-selected')
 }
 
-function sendFriendRequest() {
-  if (!addFriendUsername.value.trim()) return
-  chatWs.sendFriendRequest(addFriendUsername.value.trim())
+function doSearch() {
+  const kw = searchKeyword.value.trim()
+  if (!kw) return
+  searching.value = true
+  chatWs.searchUsers(kw)
+}
+
+function onSearchResults(users) {
+  searching.value = false
+  searchResults.value = users
+}
+
+function sendRequestTo(username) {
+  chatWs.sendFriendRequest(username)
+  // 从搜索结果中移除已发送的用户
+  if (searchResults.value) {
+    searchResults.value = searchResults.value.filter(u => u.username !== username)
+  }
+}
+
+function closeAddFriend() {
   showAddFriend.value = false
-  addFriendUsername.value = ''
+  searchKeyword.value = ''
+  searchResults.value = null
+  searching.value = false
 }
 
 function showPending() {
@@ -111,13 +150,13 @@ function refreshFriends() {
 }
 
 function acceptRequest(req) {
-  chatWs.acceptFriendRequest(req.id, req.fromUsername)
-  pendingRequests.value = pendingRequests.value.filter(r => r.id !== req.id)
+  chatWs.acceptFriendRequest(req.requestId, req.fromUsername)
+  pendingRequests.value = pendingRequests.value.filter(r => r.requestId !== req.requestId)
 }
 
 function rejectRequest(req) {
-  chatWs.rejectFriendRequest(req.id)
-  pendingRequests.value = pendingRequests.value.filter(r => r.id !== req.id)
+  chatWs.rejectFriendRequest(req.requestId)
+  pendingRequests.value = pendingRequests.value.filter(r => r.requestId !== req.requestId)
 }
 
 function viewFriendInfo(fr) {
@@ -149,11 +188,13 @@ function onPendingData(requests) {
 onMounted(() => {
   document.addEventListener('click', closeMenu)
   chatStore.onEvent('friendPending', onPendingData)
+  chatStore.onEvent('userSearchResults', onSearchResults)
   refreshFriends()
 })
 onUnmounted(() => {
   document.removeEventListener('click', closeMenu)
   chatStore.offEvent('friendPending', onPendingData)
+  chatStore.offEvent('userSearchResults', onSearchResults)
 })
 </script>
 
@@ -235,6 +276,67 @@ onUnmounted(() => {
   text-align: center;
   padding: 20px;
   color: var(--text-tertiary);
+}
+
+/* 搜索相关 */
+.search-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.search-input {
+  flex: 1;
+}
+.search-results {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.search-hint {
+  text-align: center;
+  padding: 24px 16px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+.search-result-item:last-child {
+  border-bottom: none;
+}
+.search-avatar {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.search-user-info {
+  flex: 1;
+  min-width: 0;
+}
+.search-display-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.search-username {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.search-user-status {
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+.online-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4caf50;
 }
 .pending-item {
   display: flex;
