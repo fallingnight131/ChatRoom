@@ -12,6 +12,20 @@
 #include <QMessageBox>
 #include <QRegularExpression>
 #include <QPixmap>
+#include <QPainter>
+#include <QPainterPath>
+
+static QPixmap roundedPixmap(const QPixmap &src, int radius) {
+    QPixmap dst(src.size());
+    dst.fill(Qt::transparent);
+    QPainter p(&dst);
+    p.setRenderHint(QPainter::Antialiasing);
+    QPainterPath path;
+    path.addRoundedRect(QRectF(dst.rect()), radius, radius);
+    p.setClipPath(path);
+    p.drawPixmap(0, 0, src);
+    return dst;
+}
 
 ProfileDialog::ProfileDialog(int userId, const QString &username,
                              const QString &displayName, const QPixmap &avatar,
@@ -30,11 +44,11 @@ ProfileDialog::ProfileDialog(int userId, const QString &username,
 
     m_avatarLabel = new QLabel;
     m_avatarLabel->setFixedSize(80, 80);
-    m_avatarLabel->setStyleSheet("border: 2px solid #ccc; border-radius: 40px; background: #ddd;");
+    m_avatarLabel->setStyleSheet("border: 2px solid #ccc; border-radius: 12px; background: #ddd;");
     m_avatarLabel->setScaledContents(true);
     m_avatarLabel->setAlignment(Qt::AlignCenter);
     if (!avatar.isNull()) {
-        m_avatarLabel->setPixmap(avatar.scaled(80, 80, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        m_avatarLabel->setPixmap(roundedPixmap(avatar.scaled(80, 80, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation), 10));
     } else {
         m_avatarLabel->setText(QStringLiteral("头像"));
     }
@@ -135,7 +149,7 @@ ProfileDialog::ProfileDialog(int userId, const QString &username,
 
 void ProfileDialog::updateAvatar(const QPixmap &avatar) {
     if (!avatar.isNull()) {
-        m_avatarLabel->setPixmap(avatar.scaled(80, 80, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        m_avatarLabel->setPixmap(roundedPixmap(avatar.scaled(80, 80, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation), 10));
     }
 }
 

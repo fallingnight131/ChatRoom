@@ -8,6 +8,20 @@
 #include <QEvent>
 #include <QMouseEvent>
 #include <QDialog>
+#include <QPainter>
+#include <QPainterPath>
+
+static QPixmap roundedPixmap(const QPixmap &src, int radius) {
+    QPixmap dst(src.size());
+    dst.fill(Qt::transparent);
+    QPainter p(&dst);
+    p.setRenderHint(QPainter::Antialiasing);
+    QPainterPath path;
+    path.addRoundedRect(QRectF(dst.rect()), radius, radius);
+    p.setClipPath(path);
+    p.drawPixmap(0, 0, src);
+    return dst;
+}
 
 UserInfoDialog::UserInfoDialog(const QString &username, const QString &displayName,
                                const QPixmap &avatar, const QString &role,
@@ -24,13 +38,13 @@ UserInfoDialog::UserInfoDialog(const QString &username, const QString &displayNa
 
     m_avatarLabel = new QLabel;
     m_avatarLabel->setFixedSize(80, 80);
-    m_avatarLabel->setStyleSheet("border: 2px solid #ccc; border-radius: 40px; background: #ddd;");
+    m_avatarLabel->setStyleSheet("border: 2px solid #ccc; border-radius: 12px; background: #ddd;");
     m_avatarLabel->setScaledContents(true);
     m_avatarLabel->setAlignment(Qt::AlignCenter);
     m_avatarLabel->setContextMenuPolicy(Qt::CustomContextMenu);
 
     if (!avatar.isNull()) {
-        m_avatarLabel->setPixmap(avatar.scaled(80, 80, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        m_avatarLabel->setPixmap(roundedPixmap(avatar.scaled(80, 80, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation), 10));
     } else {
         m_avatarLabel->setText(displayName.isEmpty() ? "?" : displayName.left(1).toUpper());
     }

@@ -271,8 +271,8 @@ void ChatWindow::setupUi() {
     }
     m_roomSettingsBtn->setFixedSize(32, 32);
     m_roomSettingsBtn->setToolTip("聊天室设置");
-    m_roomSettingsBtn->setStyleSheet("QPushButton { border: none; }"
-                                      "QPushButton:hover { background-color: rgba(0,0,0,0.1); border-radius: 4px; }");
+    m_roomSettingsBtn->setStyleSheet("QPushButton { border: none; background: transparent; }"
+                                      "QPushButton:hover { background-color: rgba(200,200,200,0.5); border-radius: 4px; }");
     m_roomSettingsBtn->setVisible(false); // 未选择房间时隐藏
 
     auto *titleLayout = new QHBoxLayout;
@@ -3589,8 +3589,11 @@ QPixmap ChatWindow::generateDefaultAvatar(const QString &text, int seed, int siz
     f.setBold(true);
     p.setFont(f);
 
+    // 微调文字位置：向上偏移 1 像素补偿 descent
+    QFontMetrics fm(f);
+    int textY = (size - fm.ascent()) / 2;
     QString ch = text.isEmpty() ? "?" : text.left(1).toUpper();
-    p.drawText(QRect(0, 0, size, size), Qt::AlignCenter, ch);
+    p.drawText(QRect(0, textY, size, fm.ascent() + fm.descent()), Qt::AlignCenter, ch);
     p.end();
 
     return pm;
