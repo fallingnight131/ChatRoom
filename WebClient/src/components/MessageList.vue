@@ -287,7 +287,11 @@ function previewFromMenu(msg) {
 
 function recallMsg(msg) {
   if (msg) {
-    chatWs.recallMessage(msg.id, chatStore.currentRoomId)
+    if (chatStore.isFriendChat) {
+      chatWs.recallFriendMessage(msg.id, chatStore.currentFriendUsername)
+    } else {
+      chatWs.recallMessage(msg.id, chatStore.currentRoomId)
+    }
   }
   contextMenu.value.show = false
 }

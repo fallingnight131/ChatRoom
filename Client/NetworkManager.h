@@ -133,6 +133,8 @@ signals:
     void friendOnlineNotify(const QString &username, const QString &displayName);
     void friendOfflineNotify(const QString &username);
     void friendFileUploadStartResponse(const QJsonObject &data);
+    void friendRecallResponse(bool success, int messageId, const QString &error);
+    void friendRecallNotify(int messageId, const QString &friendUsername);
 
 private slots:
     void onConnected();

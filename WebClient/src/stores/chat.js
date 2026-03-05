@@ -503,6 +503,24 @@ export const useChatStore = defineStore('chat', {
         }
       })
 
+      // --- 好友私聊撤回 ---
+      chatWs.on(MsgType.FRIEND_RECALL_RSP, (msg) => {
+        if (!msg.data.success) {
+          alert('撤回失败: ' + (msg.data.error || ''))
+        } else if (this.isFriendChat) {
+          const m = this.messages.find(m => m.id === msg.data.messageId)
+          if (m) m.recalled = true
+        }
+      })
+
+      chatWs.on(MsgType.FRIEND_RECALL_NOTIFY, (msg) => {
+        const d = msg.data
+        if (this.isFriendChat && this.currentFriendUsername === d.friendUsername) {
+          const m = this.messages.find(m => m.id === d.messageId)
+          if (m) m.recalled = true
+        }
+      })
+
       // --- 文件消息 ---
       chatWs.on(MsgType.FILE_NOTIFY, (msg) => {
         const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp }

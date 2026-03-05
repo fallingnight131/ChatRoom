@@ -193,8 +193,10 @@ void ChatWindow::setupUi() {
     roomBtnLayout->setContentsMargins(0, 4, 0, 0);
     auto *createRoomBtn = new QPushButton("创建");
     auto *searchRoomBtn = new QPushButton("搜索");
+    auto *refreshRoomBtn = new QPushButton("刷新");
     roomBtnLayout->addWidget(createRoomBtn);
     roomBtnLayout->addWidget(searchRoomBtn);
+    roomBtnLayout->addWidget(refreshRoomBtn);
     roomPanelLayout->addWidget(m_roomBtnPanel);
 
     // --- 好友列表面板 ---
@@ -236,8 +238,9 @@ void ChatWindow::setupUi() {
         onRefreshFriendList();
     });
 
-    connect(createRoomBtn, &QPushButton::clicked, this, &ChatWindow::onCreateRoom);
-    connect(searchRoomBtn, &QPushButton::clicked, this, &ChatWindow::onSearchRoom);
+    connect(createRoomBtn,  &QPushButton::clicked, this, &ChatWindow::onCreateRoom);
+    connect(searchRoomBtn,  &QPushButton::clicked, this, &ChatWindow::onSearchRoom);
+    connect(refreshRoomBtn, &QPushButton::clicked, this, &ChatWindow::requestRoomList);
     connect(addFriendBtn,      &QPushButton::clicked, this, &ChatWindow::onAddFriend);
     connect(friendReqBtn,      &QPushButton::clicked, this, &ChatWindow::onShowFriendRequests);
     connect(refreshFriendBtn,  &QPushButton::clicked, this, &ChatWindow::onRefreshFriendList);
@@ -540,6 +543,8 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::friendOnlineNotify,     this, &ChatWindow::onFriendOnlineNotify);
     connect(net, &NetworkManager::friendOfflineNotify,    this, &ChatWindow::onFriendOfflineNotify);
     connect(net, &NetworkManager::friendFileUploadStartResponse, this, &ChatWindow::onFriendFileUploadStartResponse);
+    connect(net, &NetworkManager::friendRecallResponse, this, &ChatWindow::onFriendRecallResponse);
+    connect(net, &NetworkManager::friendRecallNotify,   this, &ChatWindow::onFriendRecallNotify);
 
     // 单击文件消息：触发下载 / 暂停 / 恢复（仅点击气泡区域时生效）
     connect(m_messageView, &QListView::clicked, this, [this](const QModelIndex &idx) {
@@ -1871,14 +1876,26 @@ void ChatWindow::onDownloadChunkResponse(const QJsonObject &data) {
 // ==================== 消息撤回 ====================
 
 void ChatWindow::onRecallMessage() {
-    if (m_currentRoomId < 0) return;
-
     QModelIndex idx = m_messageView->currentIndex();
     if (!idx.isValid()) return;
 
+    // 好友私聊撤回
+    if (m_isFriendChat) {
+        if (m_currentFriendUsername.isEmpty()) return;
+        MessageModel *model = getOrCreateFriendModel(m_currentFriendUsername);
+        const Message &msg = model->messageAt(idx.row());
+        QJsonObject data;
+        data["messageId"] = msg.id();
+        data["friendUsername"] = m_currentFriendUsername;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FRIEND_RECALL_REQ, data));
+        return;
+    }
+
+    // 房间撤回
+    if (m_currentRoomId < 0) return;
     MessageModel *model = getOrCreateModel(m_currentRoomId);
     const Message &msg = model->messageAt(idx.row());
-
     NetworkManager::instance()->sendMessage(
         Protocol::makeRecallReq(msg.id(), m_currentRoomId));
 }
@@ -1886,6 +1903,7 @@ void ChatWindow::onRecallMessage() {
 void ChatWindow::onRecallResponse(bool success, int messageId, const QString &error) {
     if (!success) {
         QMessageBox::warning(this, "撤回失败", error);
+        return;
     }
     Q_UNUSED(messageId)
 }
@@ -3500,6 +3518,51 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
         NetworkManager::instance()->sendMessage(
             Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_UPLOAD_START, data));
     }
+}
+
+void ChatWindow::onFriendRecallResponse(bool success, int messageId, const QString &error) {
+    if (!success) {
+        QMessageBox::warning(this, "撤回失败", error);
+        return;
+    }
+    // 撤回成功，立即更新 UI
+    if (m_isFriendChat && !m_currentFriendUsername.isEmpty()) {
+        MessageModel *model = getOrCreateFriendModel(m_currentFriendUsername);
+
+        // 清除文件缓存
+        int row = model->findMessageRow(messageId);
+        if (row >= 0) {
+            const Message &msg = model->messageAt(row);
+            if (msg.contentType() == Message::File && msg.fileId() > 0) {
+                FileCache::instance()->removeFile(msg.fileId());
+                QPixmapCache::remove(QString("msgimg_%1").arg(msg.fileId()));
+                QPixmapCache::remove(QString("vidthumb_%1").arg(msg.fileId()));
+                QString thumbPath = FileCache::instance()->thumbDir() + QString("/thumb_%1.jpg").arg(msg.fileId());
+                QFile::remove(thumbPath);
+            }
+        }
+
+        model->recallMessage(messageId);
+    }
+}
+
+void ChatWindow::onFriendRecallNotify(int messageId, const QString &friendUsername) {
+    MessageModel *model = getOrCreateFriendModel(friendUsername);
+
+    // 清除文件缓存
+    int row = model->findMessageRow(messageId);
+    if (row >= 0) {
+        const Message &msg = model->messageAt(row);
+        if (msg.contentType() == Message::File && msg.fileId() > 0) {
+            FileCache::instance()->removeFile(msg.fileId());
+            QPixmapCache::remove(QString("msgimg_%1").arg(msg.fileId()));
+            QPixmapCache::remove(QString("vidthumb_%1").arg(msg.fileId()));
+            QString thumbPath = FileCache::instance()->thumbDir() + QString("/thumb_%1.jpg").arg(msg.fileId());
+            QFile::remove(thumbPath);
+        }
+    }
+
+    model->recallMessage(messageId);
 }
 
 void ChatWindow::switchToFriendChat(const QString &friendUsername, const QString &friendDisplayName, int friendshipId) {

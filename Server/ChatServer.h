@@ -97,6 +97,7 @@ private:
     void handleFriendHistory(ClientSession *session, const QJsonObject &data);
     void handleFriendFileSend(ClientSession *session, const QJsonObject &msg);
     void handleFriendFileUploadStart(ClientSession *session, const QJsonObject &data);
+    void handleFriendRecall(ClientSession *session, const QJsonObject &data);
 
     /// 根据文件名返回类型子目录 ("Image", "Video", "File")
     static QString fileTypeSubDir(const QString &fileName);

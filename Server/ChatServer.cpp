@@ -287,6 +287,8 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleFriendFileSend(session, msg);
     } else if (type == Protocol::MsgType::FRIEND_FILE_UPLOAD_START) {
         handleFriendFileUploadStart(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::FRIEND_RECALL_REQ) {
+        handleFriendRecall(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::HEARTBEAT) {
         session->sendMessage(Protocol::makeHeartbeatAck());
     }
@@ -2180,4 +2182,42 @@ void ChatServer::handleFriendFileUploadStart(ClientSession *session, const QJson
     rspData["friendUsername"]  = friendUsername;
     rspData["friendshipId"]   = friendshipId;
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_UPLOAD_START_RSP, rspData));
+}
+
+void ChatServer::handleFriendRecall(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int messageId = data["messageId"].toInt();
+    QString friendUsername = data["friendUsername"].toString();
+
+    QJsonObject rspData;
+    rspData["messageId"] = messageId;
+    rspData["friendUsername"] = friendUsername;
+
+    bool ok = m_db->recallFriendMessage(messageId, session->userId(), Protocol::RECALL_TIME_LIMIT_SEC);
+    if (ok) {
+        // 清理服务器文件
+        auto fileInfo = m_db->getFileInfoForFriendMessage(messageId);
+        if (fileInfo.first > 0 && !fileInfo.second.isEmpty()) {
+            QFile::remove(fileInfo.second);
+            qInfo() << "[Server] 好友撤回消息，已删除文件:" << fileInfo.second;
+        }
+
+        rspData["success"] = true;
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_RECALL_RSP, rspData));
+
+        // 通知对方
+        QMutexLocker locker(&m_mutex);
+        if (m_sessions.contains(friendUsername)) {
+            QJsonObject notifyData;
+            notifyData["messageId"] = messageId;
+            notifyData["friendUsername"] = session->username();
+            m_sessions[friendUsername]->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::FRIEND_RECALL_NOTIFY, notifyData));
+        }
+    } else {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("无法撤回（超时或非本人消息）");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_RECALL_RSP, rspData));
+    }
 }

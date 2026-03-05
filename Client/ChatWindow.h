@@ -176,6 +176,8 @@ private slots:
     void onFriendFileUploadStartResponse(const QJsonObject &data);
     void onSendFriendFile();
     void onSendFriendImage();
+    void onFriendRecallResponse(bool success, int messageId, const QString &error);
+    void onFriendRecallNotify(int messageId, const QString &friendUsername);
 
 
 private:

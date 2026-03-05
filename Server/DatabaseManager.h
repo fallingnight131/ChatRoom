@@ -120,6 +120,10 @@ public:
                            const QString &thumbnail = QString());
     QJsonArray getFriendMessageHistory(int friendshipId, int count, qint64 beforeTimestamp = 0);
 
+    // 好友消息撤回
+    bool recallFriendMessage(int messageId, int userId, int timeLimitSec);
+    QPair<int, QString> getFileInfoForFriendMessage(int messageId);
+
     // 好友文件
     int  saveFriendFile(int friendshipId, int userId, const QString &fileName,
                         const QString &filePath, qint64 fileSize);

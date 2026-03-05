@@ -74,6 +74,7 @@ export const MsgType = {
   FRIEND_FILE_SEND: 'FRIEND_FILE_SEND', FRIEND_FILE_NOTIFY: 'FRIEND_FILE_NOTIFY',
   FRIEND_ONLINE_NOTIFY: 'FRIEND_ONLINE_NOTIFY', FRIEND_OFFLINE_NOTIFY: 'FRIEND_OFFLINE_NOTIFY',
   FRIEND_FILE_UPLOAD_START: 'FRIEND_FILE_UPLOAD_START', FRIEND_FILE_UPLOAD_START_RSP: 'FRIEND_FILE_UPLOAD_START_RSP',
+  FRIEND_RECALL_REQ: 'FRIEND_RECALL_REQ', FRIEND_RECALL_RSP: 'FRIEND_RECALL_RSP', FRIEND_RECALL_NOTIFY: 'FRIEND_RECALL_NOTIFY',
 }
 
 function uuid() {
@@ -269,6 +270,10 @@ class ChatWebSocket {
 
   recallMessage(messageId, roomId) {
     this.send(makeMessage(MsgType.RECALL_REQ, { messageId, roomId }))
+  }
+
+  recallFriendMessage(messageId, friendUsername) {
+    this.send(makeMessage(MsgType.FRIEND_RECALL_REQ, { messageId, friendUsername }))
   }
 
   // 小文件直传

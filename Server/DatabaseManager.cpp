@@ -1388,3 +1388,37 @@ int DatabaseManager::saveFriendFile(int friendshipId, int userId, const QString 
     if (q.exec()) return q.lastInsertId().toInt();
     return -1;
 }
+
+bool DatabaseManager::recallFriendMessage(int messageId, int userId, int timeLimitSec) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    q.prepare("SELECT sender_id, created_at FROM friend_messages WHERE id = ? AND recalled = 0");
+    q.addBindValue(messageId);
+    q.exec();
+
+    if (!q.next()) return false;
+
+    int ownerId = q.value(0).toInt();
+    QDateTime createdAt = q.value(1).toDateTime();
+    createdAt.setTimeSpec(Qt::UTC);
+
+    if (ownerId != userId) return false;
+    if (createdAt.secsTo(QDateTime::currentDateTimeUtc()) > timeLimitSec) return false;
+
+    q.prepare("UPDATE friend_messages SET recalled = 1, content = '此消息已被撤回' WHERE id = ?");
+    q.addBindValue(messageId);
+    return q.exec();
+}
+
+QPair<int, QString> DatabaseManager::getFileInfoForFriendMessage(int messageId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT m.file_id, f.file_path FROM friend_messages m "
+              "LEFT JOIN friend_files f ON m.file_id = f.id "
+              "WHERE m.id = ? AND m.file_id > 0");
+    q.addBindValue(messageId);
+    if (q.exec() && q.next())
+        return {q.value(0).toInt(), q.value(1).toString()};
+    return {0, {}};
+}

@@ -178,6 +178,11 @@ namespace MsgType {
     inline const QString FRIEND_OFFLINE_NOTIFY  = QStringLiteral("FRIEND_OFFLINE_NOTIFY");
     inline const QString FRIEND_FILE_UPLOAD_START     = QStringLiteral("FRIEND_FILE_UPLOAD_START");
     inline const QString FRIEND_FILE_UPLOAD_START_RSP = QStringLiteral("FRIEND_FILE_UPLOAD_START_RSP");
+
+    // 好友私聊撤回
+    inline const QString FRIEND_RECALL_REQ    = QStringLiteral("FRIEND_RECALL_REQ");
+    inline const QString FRIEND_RECALL_RSP    = QStringLiteral("FRIEND_RECALL_RSP");
+    inline const QString FRIEND_RECALL_NOTIFY = QStringLiteral("FRIEND_RECALL_NOTIFY");
 }
 
 // ==================== 数据包帧: [4字节长度][JSON数据] ====================

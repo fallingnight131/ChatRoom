@@ -245,6 +245,15 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                           data["roomId"].toInt(),
                           data["username"].toString());
     }
+    else if (type == Protocol::MsgType::FRIEND_RECALL_RSP) {
+        emit friendRecallResponse(data["success"].toBool(),
+                                   data["messageId"].toInt(),
+                                   data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::FRIEND_RECALL_NOTIFY) {
+        emit friendRecallNotify(data["messageId"].toInt(),
+                                 data["friendUsername"].toString());
+    }
     else if (type == Protocol::MsgType::FORCE_OFFLINE) {
         emit forceOffline(data["reason"].toString());
         // 禁止自动重连
