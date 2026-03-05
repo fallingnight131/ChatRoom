@@ -61,17 +61,20 @@
 
     <!-- 好友申请弹窗 -->
     <div class="modal-overlay" v-if="showPendingDialog" @click.self="showPendingDialog = false">
-      <div class="modal" style="max-width: 400px;">
+      <div class="modal" style="max-width: 420px;">
         <div class="modal-title">待处理的好友申请</div>
-        <div v-if="pendingRequests.length === 0" class="pending-empty">暂无待处理的好友申请</div>
-        <div v-for="req in pendingRequests" :key="req.requestId" class="pending-item">
-          <div class="pending-info">
-            <span class="pending-name">{{ req.fromDisplayName || req.fromUsername }}</span>
-            <span class="pending-uid">({{ req.fromUsername }})</span>
-          </div>
-          <div class="pending-actions">
-            <button class="btn btn-primary btn-sm" @click="acceptRequest(req)">接受</button>
-            <button class="btn btn-secondary btn-sm" @click="rejectRequest(req)">拒绝</button>
+        <div class="search-results">
+          <div v-if="pendingRequests.length === 0" class="search-hint">暂无待处理的好友申请</div>
+          <div v-for="req in pendingRequests" :key="req.requestId" class="search-result-item">
+            <div class="search-avatar">👤</div>
+            <div class="search-user-info">
+              <div class="search-display-name text-ellipsis">{{ req.fromDisplayName || req.fromUsername }}</div>
+              <div class="search-username">ID: {{ req.fromUsername }}</div>
+            </div>
+            <div class="pending-actions">
+              <button class="btn btn-primary btn-sm" @click="acceptRequest(req)">接受</button>
+              <button class="btn btn-secondary btn-sm" @click="rejectRequest(req)">拒绝</button>
+            </div>
           </div>
         </div>
         <div class="modal-actions">
@@ -277,6 +280,11 @@ onUnmounted(() => {
   padding: 20px;
   color: var(--text-tertiary);
 }
+.pending-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
 
 /* 搜索相关 */
 .search-row {
@@ -337,28 +345,6 @@ onUnmounted(() => {
   height: 8px;
   border-radius: 50%;
   background: #4caf50;
-}
-.pending-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border-light);
-}
-.pending-info {
-  flex: 1;
-}
-.pending-name {
-  font-weight: 600;
-}
-.pending-uid {
-  color: var(--text-tertiary);
-  font-size: 12px;
-  margin-left: 4px;
-}
-.pending-actions {
-  display: flex;
-  gap: 6px;
 }
 .btn-sm {
   padding: 4px 10px;

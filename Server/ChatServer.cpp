@@ -298,18 +298,21 @@ void ChatServer::handleLogin(ClientSession *session, const QJsonObject &data) {
     if (userId > 0) {
         QString displayName = m_db->getDisplayName(userId);
         // 踢掉旧连接：先发送强制下线通知，再断开
+        // 注意：必须先释放 mutex 再断开，因为 WebSocket session 在主线程
+        // disconnectFromServer() 会同步触发 onClientDisconnected()，后者也要加锁
+        ClientSession *oldSession = nullptr;
         {
             QMutexLocker locker(&m_mutex);
             if (m_sessions.contains(username)) {
-                ClientSession *old = m_sessions[username];
-                QJsonObject kickData;
-                kickData["reason"] = QStringLiteral("您的账号在其他地方登录，当前连接已被断开");
-                old->sendMessage(Protocol::makeMessage(Protocol::MsgType::FORCE_OFFLINE, kickData));
-                // 标记旧 session 为已踢出，避免断开时清理房间
-                old->setKicked(true);
-                old->disconnectFromServer();
-                m_sessions.remove(username);
+                oldSession = m_sessions.take(username);
+                oldSession->setKicked(true);
             }
+        }
+        if (oldSession) {
+            QJsonObject kickData;
+            kickData["reason"] = QStringLiteral("您的账号在其他地方登录，当前连接已被断开");
+            oldSession->sendMessage(Protocol::makeMessage(Protocol::MsgType::FORCE_OFFLINE, kickData));
+            oldSession->disconnectFromServer();
         }
         session->setAuthenticated(userId, username, displayName);
         rspData["success"]     = true;

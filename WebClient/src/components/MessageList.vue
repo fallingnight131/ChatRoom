@@ -475,6 +475,7 @@ onUnmounted(() => {
 
 .msg-bubble {
   background: var(--bg-bubble-other);
+  color: var(--text-primary);
   border-radius: 12px 12px 12px 4px;
   padding: 10px 14px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
@@ -483,6 +484,7 @@ onUnmounted(() => {
 }
 .msg-bubble.bubble-mine {
   background: var(--bg-bubble-mine);
+  color: #fff;
   border-radius: 12px 12px 4px 12px;
 }
 
