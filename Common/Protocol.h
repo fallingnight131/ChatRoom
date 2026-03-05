@@ -165,6 +165,7 @@ namespace MsgType {
     inline const QString FRIEND_REJECT_RSP      = QStringLiteral("FRIEND_REJECT_RSP");
     inline const QString FRIEND_REMOVE_REQ      = QStringLiteral("FRIEND_REMOVE_REQ");
     inline const QString FRIEND_REMOVE_RSP      = QStringLiteral("FRIEND_REMOVE_RSP");
+    inline const QString FRIEND_REMOVE_NOTIFY   = QStringLiteral("FRIEND_REMOVE_NOTIFY");
     inline const QString FRIEND_LIST_REQ        = QStringLiteral("FRIEND_LIST_REQ");
     inline const QString FRIEND_LIST_RSP        = QStringLiteral("FRIEND_LIST_RSP");
     inline const QString FRIEND_PENDING_REQ     = QStringLiteral("FRIEND_PENDING_REQ");

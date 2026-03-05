@@ -166,6 +166,7 @@ private slots:
     void onFriendAcceptNotify(const QString &username, const QString &displayName);
     void onFriendRejectResponse(bool success, const QString &error);
     void onFriendRemoveResponse(bool success, const QString &username, const QString &error);
+    void onFriendRemoveNotify(const QString &username, const QString &displayName);
     void onFriendListReceived(const QJsonArray &friends);
     void onFriendPendingReceived(const QJsonArray &requests);
     void onFriendChatMessage(const QJsonObject &data);
@@ -213,7 +214,7 @@ private:
     void sendFriendFile(const QString &filePath, const QString &contentType);
     MessageModel *getOrCreateFriendModel(const QString &friendUsername);
     void updateRoomListAvatars();
-    static QPixmap generateDefaultAvatar(const QString &text, int seed, int size = 32);
+    static QPixmap generateDefaultAvatar(const QString &text, int seed, int size = 36);
 
     // --- UI 组件 ---
     QSplitter    *m_splitter       = nullptr;

@@ -1965,6 +1965,12 @@ void ChatServer::handleFriendRemove(ClientSession *session, const QJsonObject &d
     if (friendId > 0 && m_db->removeFriend(session->userId(), friendId)) {
         rspData["success"]  = true;
         rspData["username"] = friendUsername;
+
+        // 通知对方刷新好友列表
+        QJsonObject notifyData;
+        notifyData["username"] = session->username();
+        notifyData["displayName"] = session->displayName();
+        sendToUser(friendUsername, Protocol::makeMessage(Protocol::MsgType::FRIEND_REMOVE_NOTIFY, notifyData));
     } else {
         rspData["success"] = false;
         rspData["error"]   = QStringLiteral("删除好友失败");

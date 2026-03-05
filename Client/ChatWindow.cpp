@@ -64,6 +64,14 @@ QPixmap ChatWindow::avatarForUser(const QString &username) {
     return s_avatarCache.value(username);
 }
 
+// 创建不随选中状态变色的 QIcon
+static QIcon makeStableIcon(const QPixmap &pm) {
+    QIcon icon;
+    icon.addPixmap(pm, QIcon::Normal);
+    icon.addPixmap(pm, QIcon::Selected);
+    return icon;
+}
+
 // ==================== 构造/析构 ====================
 
 ChatWindow::ChatWindow(QWidget *parent)
@@ -185,6 +193,7 @@ void ChatWindow::setupUi() {
 
     m_roomList = new QListWidget;
     m_roomList->setMinimumWidth(160);
+    m_roomList->setIconSize(QSize(36, 36));
     m_roomList->setContextMenuPolicy(Qt::CustomContextMenu);
     roomPanelLayout->addWidget(m_roomList);
 
@@ -206,6 +215,7 @@ void ChatWindow::setupUi() {
 
     m_friendList = new QListWidget;
     m_friendList->setMinimumWidth(160);
+    m_friendList->setIconSize(QSize(36, 36));
     m_friendList->setContextMenuPolicy(Qt::CustomContextMenu);
     friendPanelLayout->addWidget(m_friendList);
 
@@ -483,7 +493,7 @@ void ChatWindow::connectSignals() {
             QPixmap pix;
             pix.loadFromData(avatarData);
             if (!pix.isNull()) {
-                m_roomAvatarCache[roomId] = pix.scaled(32, 32, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                m_roomAvatarCache[roomId] = pix.scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation);
                 updateRoomListAvatars();
             }
         }
@@ -493,7 +503,7 @@ void ChatWindow::connectSignals() {
             QPixmap pix;
             pix.loadFromData(avatarData);
             if (!pix.isNull()) {
-                m_roomAvatarCache[roomId] = pix.scaled(32, 32, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                m_roomAvatarCache[roomId] = pix.scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation);
                 updateRoomListAvatars();
             }
         }
@@ -535,6 +545,7 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::friendAcceptNotify,     this, &ChatWindow::onFriendAcceptNotify);
     connect(net, &NetworkManager::friendRejectResponse,   this, &ChatWindow::onFriendRejectResponse);
     connect(net, &NetworkManager::friendRemoveResponse,   this, &ChatWindow::onFriendRemoveResponse);
+    connect(net, &NetworkManager::friendRemoveNotify,      this, &ChatWindow::onFriendRemoveNotify);
     connect(net, &NetworkManager::friendListReceived,     this, &ChatWindow::onFriendListReceived);
     connect(net, &NetworkManager::friendPendingReceived,  this, &ChatWindow::onFriendPendingReceived);
     connect(net, &NetworkManager::friendChatMessageReceived, this, &ChatWindow::onFriendChatMessage);
@@ -722,13 +733,16 @@ void ChatWindow::onSearchRoom() {
 
             // 头像
             auto *avatarLabel = new QLabel;
-            avatarLabel->setFixedSize(32, 32);
+            avatarLabel->setFixedSize(36, 36);
             avatarLabel->setAlignment(Qt::AlignCenter);
             if (m_roomAvatarCache.contains(roomId)) {
-                avatarLabel->setPixmap(m_roomAvatarCache[roomId]);
+                avatarLabel->setPixmap(m_roomAvatarCache[roomId].scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation));
             } else {
-                avatarLabel->setText("🏠");
-                avatarLabel->setStyleSheet("font-size: 18px;");
+                avatarLabel->setPixmap(generateDefaultAvatar(roomName, roomId));
+                // 请求房间头像
+                QJsonObject reqData;
+                reqData["roomId"] = roomId;
+                net->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_GET_REQ, reqData));
             }
             hl->addWidget(avatarLabel);
 
@@ -832,9 +846,9 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
         item->setData(Qt::UserRole, id);
         // 显示已缓存的头像，否则显示默认头像
         if (m_roomAvatarCache.contains(id)) {
-            item->setIcon(QIcon(m_roomAvatarCache[id]));
+            item->setIcon(makeStableIcon(m_roomAvatarCache[id]));
         } else {
-            item->setIcon(QIcon(generateDefaultAvatar(name, id)));
+            item->setIcon(makeStableIcon(generateDefaultAvatar(name, id)));
         }
         m_roomList->addItem(item);
         // 请求聊天室头像
@@ -885,9 +899,9 @@ void ChatWindow::updateRoomListAvatars() {
         auto *item = m_roomList->item(i);
         int id = item->data(Qt::UserRole).toInt();
         if (m_roomAvatarCache.contains(id)) {
-            item->setIcon(QIcon(m_roomAvatarCache[id]));
+            item->setIcon(makeStableIcon(m_roomAvatarCache[id]));
         } else {
-            item->setIcon(QIcon(generateDefaultAvatar(item->text(), id)));
+            item->setIcon(makeStableIcon(generateDefaultAvatar(item->text(), id)));
         }
     }
 }
@@ -3035,10 +3049,16 @@ void ChatWindow::onAddFriend() {
             auto *hl = new QHBoxLayout(itemWidget);
             hl->setContentsMargins(4, 4, 4, 4);
 
-            auto *avatarLabel = new QLabel("👤");
-            avatarLabel->setFixedSize(32, 32);
+            auto *avatarLabel = new QLabel;
+            avatarLabel->setFixedSize(36, 36);
             avatarLabel->setAlignment(Qt::AlignCenter);
-            avatarLabel->setStyleSheet("font-size: 18px;");
+            if (s_avatarCache.contains(username)) {
+                avatarLabel->setPixmap(s_avatarCache[username].scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            } else {
+                avatarLabel->setPixmap(generateDefaultAvatar(displayName.isEmpty() ? username : displayName, qHash(username)));
+                // 请求头像，收到后更新
+                requestAvatar(username);
+            }
             hl->addWidget(avatarLabel);
 
             auto *infoLayout = new QVBoxLayout;
@@ -3193,6 +3213,14 @@ void ChatWindow::onFriendRemoveResponse(bool success, const QString &username, c
     }
 }
 
+void ChatWindow::onFriendRemoveNotify(const QString &username, const QString &displayName) {
+    m_statusLabel->setText(QString("%1 已将你从好友列表移除").arg(displayName.isEmpty() ? username : displayName));
+    // 如果当前正在和这个好友聊天，切回房间模式
+    if (m_isFriendChat && m_currentFriendUsername == username)
+        switchToRoomMode();
+    onRefreshFriendList();
+}
+
 void ChatWindow::onFriendListReceived(const QJsonArray &friends) {
     m_friendData = friends;
     m_friendList->clear();
@@ -3214,9 +3242,9 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends) {
 
         // 头像：优先使用缓存，否则显示默认头像
         if (s_avatarCache.contains(username)) {
-            item->setIcon(QIcon(s_avatarCache[username]));
+            item->setIcon(makeStableIcon(s_avatarCache[username]));
         } else {
-            item->setIcon(QIcon(generateDefaultAvatar(label, qHash(username))));
+            item->setIcon(makeStableIcon(generateDefaultAvatar(label, qHash(username))));
         }
 
         m_friendList->addItem(item);
@@ -3257,13 +3285,13 @@ void ChatWindow::onFriendPendingReceived(const QJsonArray &requests) {
 
         // 头像
         auto *avatarLabel = new QLabel;
-        avatarLabel->setFixedSize(32, 32);
+        avatarLabel->setFixedSize(36, 36);
         avatarLabel->setAlignment(Qt::AlignCenter);
         if (s_avatarCache.contains(fromUsername)) {
-            avatarLabel->setPixmap(s_avatarCache[fromUsername]);
+            avatarLabel->setPixmap(s_avatarCache[fromUsername].scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         } else {
-            QPixmap defAvatar = generateDefaultAvatar(displayLabel, qHash(fromUsername));
-            avatarLabel->setPixmap(defAvatar);
+            avatarLabel->setPixmap(generateDefaultAvatar(displayLabel, qHash(fromUsername)));
+            requestAvatar(fromUsername);
         }
         hl->addWidget(avatarLabel);
 
@@ -3377,6 +3405,7 @@ void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
         msg.setContent(msgObj["content"].toString());
         msg.setTimestamp(msgObj["timestamp"].toVariant().toLongLong());
         msg.setIsMine(msgObj["sender"].toString() == m_username);
+        msg.setRecalled(msgObj["recalled"].toBool(false));
 
         QString ct = msgObj["contentType"].toString("text");
         if (ct == "text")       msg.setContentType(Message::Text);
