@@ -663,7 +663,7 @@ void ChatWindow::onSearchRoom() {
 
     // 结果列表
     auto *resultList = new QListWidget;
-    resultList->setStyleSheet("QListWidget::item { padding: 6px; }");
+    resultList->setStyleSheet("QListWidget::item { padding: 4px; min-height: 40px; }");
     layout->addWidget(resultList);
 
     // 提示标签
@@ -733,7 +733,7 @@ void ChatWindow::onSearchRoom() {
             hl->addWidget(avatarLabel);
 
             auto *infoLayout = new QVBoxLayout;
-            infoLayout->setSpacing(0);
+            infoLayout->setSpacing(2);
             auto *nameLabel = new QLabel(roomName);
             nameLabel->setStyleSheet("font-weight: bold; font-size: 13px;");
             auto *idLabel = new QLabel(QString("ID: %1  ·  %2 人").arg(roomId).arg(memberCount));
@@ -743,7 +743,7 @@ void ChatWindow::onSearchRoom() {
             hl->addLayout(infoLayout, 1);
 
             auto *joinBtn = new QPushButton;
-            joinBtn->setFixedWidth(60);
+            joinBtn->setFixedSize(60, 28);
 
             // 检查是否已加入该房间
             bool alreadyJoined = false;
@@ -768,7 +768,7 @@ void ChatWindow::onSearchRoom() {
             hl->addWidget(joinBtn);
 
             auto *item = new QListWidgetItem;
-            item->setSizeHint(itemWidget->sizeHint());
+            item->setSizeHint(QSize(0, qMax(itemWidget->sizeHint().height(), 48)));
             resultList->addItem(item);
             resultList->setItemWidget(item, itemWidget);
         }
@@ -2975,7 +2975,7 @@ void ChatWindow::onAddFriend() {
 
     // 结果列表
     auto *resultList = new QListWidget;
-    resultList->setStyleSheet("QListWidget::item { padding: 6px; }");
+    resultList->setStyleSheet("QListWidget::item { padding: 4px; min-height: 40px; }");
     layout->addWidget(resultList);
 
     // 提示标签
@@ -3042,7 +3042,7 @@ void ChatWindow::onAddFriend() {
             hl->addWidget(avatarLabel);
 
             auto *infoLayout = new QVBoxLayout;
-            infoLayout->setSpacing(0);
+            infoLayout->setSpacing(2);
             auto *nameLabel = new QLabel(displayName);
             nameLabel->setStyleSheet("font-weight: bold; font-size: 13px;");
             auto *idLabel = new QLabel("ID: " + username);
@@ -3058,7 +3058,7 @@ void ChatWindow::onAddFriend() {
             }
 
             auto *sendBtn = new QPushButton;
-            sendBtn->setFixedWidth(72);
+            sendBtn->setFixedSize(72, 28);
 
             // 检查是否已是好友
             bool alreadyFriend = false;
@@ -3086,7 +3086,7 @@ void ChatWindow::onAddFriend() {
             hl->addWidget(sendBtn);
 
             auto *item = new QListWidgetItem;
-            item->setSizeHint(itemWidget->sizeHint());
+            item->setSizeHint(QSize(0, qMax(itemWidget->sizeHint().height(), 48)));
             resultList->addItem(item);
             resultList->setItemWidget(item, itemWidget);
         }
@@ -3236,6 +3236,7 @@ void ChatWindow::onFriendPendingReceived(const QJsonArray &requests) {
     auto *dlgLayout = new QVBoxLayout(&dlg);
 
     auto *listWidget = new QListWidget;
+    listWidget->setStyleSheet("QListWidget::item { padding: 4px; min-height: 36px; }");
     dlgLayout->addWidget(listWidget);
 
     for (const QJsonValue &v : requests) {
@@ -3252,12 +3253,13 @@ void ChatWindow::onFriendPendingReceived(const QJsonArray &requests) {
         // 自定义 widget 包含 接受/拒绝 按钮
         auto *itemWidget = new QWidget;
         auto *itemLayout = new QHBoxLayout(itemWidget);
-        itemLayout->setContentsMargins(4, 2, 4, 2);
+        itemLayout->setContentsMargins(4, 4, 4, 4);
         auto *nameLabel = new QLabel(label);
+        nameLabel->setStyleSheet("font-size: 13px;");
         auto *acceptBtn = new QPushButton("接受");
         auto *rejectBtn = new QPushButton("拒绝");
-        acceptBtn->setFixedWidth(50);
-        rejectBtn->setFixedWidth(50);
+        acceptBtn->setFixedSize(50, 28);
+        rejectBtn->setFixedSize(50, 28);
         itemLayout->addWidget(nameLabel, 1);
         itemLayout->addWidget(acceptBtn);
         itemLayout->addWidget(rejectBtn);
@@ -3279,6 +3281,7 @@ void ChatWindow::onFriendPendingReceived(const QJsonArray &requests) {
         });
 
         listWidget->addItem(item);
+        item->setSizeHint(QSize(0, qMax(itemWidget->sizeHint().height(), 40)));
         listWidget->setItemWidget(item, itemWidget);
     }
 
@@ -3652,11 +3655,8 @@ QPixmap ChatWindow::generateDefaultAvatar(const QString &text, int seed, int siz
     f.setBold(true);
     p.setFont(f);
 
-    // 微调文字位置：向上偏移 1 像素补偿 descent
-    QFontMetrics fm(f);
-    int textY = (size - fm.ascent()) / 2;
     QString ch = text.isEmpty() ? "?" : text.left(1).toUpper();
-    p.drawText(QRect(0, textY, size, fm.ascent() + fm.descent()), Qt::AlignCenter, ch);
+    p.drawText(QRect(0, 0, size, size), Qt::AlignCenter, ch);
     p.end();
 
     return pm;

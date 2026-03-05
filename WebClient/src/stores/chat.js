@@ -508,7 +508,7 @@ export const useChatStore = defineStore('chat', {
         if (!msg.data.success) {
           alert('撤回失败: ' + (msg.data.error || ''))
         } else if (this.isFriendChat) {
-          const m = this.messages.find(m => m.id === msg.data.messageId)
+          const m = this.friendMessages.find(m => m.id === msg.data.messageId)
           if (m) m.recalled = true
         }
       })
@@ -516,7 +516,7 @@ export const useChatStore = defineStore('chat', {
       chatWs.on(MsgType.FRIEND_RECALL_NOTIFY, (msg) => {
         const d = msg.data
         if (this.isFriendChat && this.currentFriendUsername === d.friendUsername) {
-          const m = this.messages.find(m => m.id === d.messageId)
+          const m = this.friendMessages.find(m => m.id === d.messageId)
           if (m) m.recalled = true
         }
       })
