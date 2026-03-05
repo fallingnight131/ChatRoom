@@ -211,12 +211,14 @@ private:
     void sendFriendFile(const QString &filePath, const QString &contentType);
     MessageModel *getOrCreateFriendModel(const QString &friendUsername);
     void updateRoomListAvatars();
+    static QPixmap generateDefaultAvatar(const QString &text, int seed, int size = 32);
 
     // --- UI 组件 ---
     QSplitter    *m_splitter       = nullptr;
     QListWidget  *m_roomList       = nullptr;
     QListView    *m_messageView    = nullptr;
     QListWidget  *m_userList       = nullptr;
+    QWidget      *m_rightPanel     = nullptr;
     QTextEdit    *m_inputEdit      = nullptr;
     QPushButton  *m_sendBtn        = nullptr;
     QPushButton  *m_emojiBtn       = nullptr;

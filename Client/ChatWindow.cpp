@@ -349,8 +349,8 @@ void ChatWindow::setupUi() {
     centerLayout->addWidget(inputPanel);
 
     // --- 右侧：用户列表 ---
-    auto *rightPanel = new QWidget;
-    auto *rightLayout = new QVBoxLayout(rightPanel);
+    m_rightPanel = new QWidget;
+    auto *rightLayout = new QVBoxLayout(m_rightPanel);
     rightLayout->setContentsMargins(4, 4, 4, 4);
 
     auto *userLabel = new QLabel("聊天室成员");
@@ -365,7 +365,7 @@ void ChatWindow::setupUi() {
     // 组装
     m_splitter->addWidget(leftPanel);
     m_splitter->addWidget(centerPanel);
-    m_splitter->addWidget(rightPanel);
+    m_splitter->addWidget(m_rightPanel);
     m_splitter->setStretchFactor(0, 1);
     m_splitter->setStretchFactor(1, 4);
     m_splitter->setStretchFactor(2, 1);
@@ -825,9 +825,11 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
         QString name = r["roomName"].toString();
         auto *item = new QListWidgetItem(name);
         item->setData(Qt::UserRole, id);
-        // 显示已缓存的头像
+        // 显示已缓存的头像，否则显示默认头像
         if (m_roomAvatarCache.contains(id)) {
             item->setIcon(QIcon(m_roomAvatarCache[id]));
+        } else {
+            item->setIcon(QIcon(generateDefaultAvatar(name, id)));
         }
         m_roomList->addItem(item);
         // 请求聊天室头像
@@ -864,6 +866,7 @@ void ChatWindow::onRoomSelected(QListWidgetItem *item) {
     m_currentFriendDisplayName.clear();
     m_currentFriendshipId = -1;
     m_friendList->clearSelection();
+    if (m_rightPanel) m_rightPanel->show();
 
     int roomId = item->data(Qt::UserRole).toInt();
     if (roomId != m_currentRoomId) {
@@ -878,6 +881,8 @@ void ChatWindow::updateRoomListAvatars() {
         int id = item->data(Qt::UserRole).toInt();
         if (m_roomAvatarCache.contains(id)) {
             item->setIcon(QIcon(m_roomAvatarCache[id]));
+        } else {
+            item->setIcon(QIcon(generateDefaultAvatar(item->text(), id)));
         }
     }
 }
@@ -3188,6 +3193,14 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends) {
         item->setData(Qt::UserRole + 1, displayName);
         item->setData(Qt::UserRole + 2, fr["friendshipId"].toInt());
         item->setForeground(isOnline ? QColor("#4CAF50") : QColor("#999"));
+
+        // 头像：优先使用缓存，否则显示默认头像
+        if (s_avatarCache.contains(username)) {
+            item->setIcon(QIcon(s_avatarCache[username]));
+        } else {
+            item->setIcon(QIcon(generateDefaultAvatar(label, qHash(username))));
+        }
+
         m_friendList->addItem(item);
     }
 }
@@ -3505,6 +3518,7 @@ void ChatWindow::switchToFriendChat(const QString &friendUsername, const QString
 
     // 隐藏用户列表（私聊不需要）
     m_userList->clear();
+    if (m_rightPanel) m_rightPanel->hide();
 
     // 设置模型
     MessageModel *model = getOrCreateFriendModel(friendUsername);
@@ -3532,6 +3546,7 @@ void ChatWindow::switchToRoomMode() {
     m_currentFriendUsername.clear();
     m_currentFriendDisplayName.clear();
     m_currentFriendshipId = -1;
+    if (m_rightPanel) m_rightPanel->show();
 
     if (m_currentRoomId > 0) {
         switchRoom(m_currentRoomId);
@@ -3548,4 +3563,35 @@ MessageModel *ChatWindow::getOrCreateFriendModel(const QString &friendUsername) 
         m_friendModels[friendUsername] = model;
     }
     return m_friendModels[friendUsername];
+}
+
+QPixmap ChatWindow::generateDefaultAvatar(const QString &text, int seed, int size) {
+    QPixmap pm(size, size);
+    pm.fill(Qt::transparent);
+
+    // 根据 seed 生成一个稳定的色相（类似 web 端 hashColor）
+    int hue = qAbs(seed * 2654435761u) % 360; // Knuth multiplicative hash
+    QColor bg = QColor::fromHsl(hue, 140, 127);
+
+    QPainter p(&pm);
+    p.setRenderHint(QPainter::Antialiasing);
+
+    // 画圆形背景
+    QPainterPath path;
+    path.addEllipse(0, 0, size, size);
+    p.setClipPath(path);
+    p.fillRect(0, 0, size, size, bg);
+
+    // 绘制首字符
+    p.setPen(Qt::white);
+    QFont f = p.font();
+    f.setPixelSize(size * 0.5);
+    f.setBold(true);
+    p.setFont(f);
+
+    QString ch = text.isEmpty() ? "?" : text.left(1).toUpper();
+    p.drawText(QRect(0, 0, size, size), Qt::AlignCenter, ch);
+    p.end();
+
+    return pm;
 }
