@@ -768,6 +768,12 @@ export const useChatStore = defineStore('chat', {
       // --- 聊天室头像 ---
       chatWs.on(MsgType.ROOM_AVATAR_UPLOAD_RSP, (msg) => {
         if (msg.data.success) {
+          // 重新获取头像以立即更新缓存
+          const roomId = msg.data.roomId
+          if (roomId) {
+            delete this.roomAvatarCache[roomId]
+            chatWs.getRoomAvatar(roomId)
+          }
           this._emit('roomAvatarUploaded', msg.data)
         } else {
           this._emit('error', msg.data.error || '上传聊天室头像失败')

@@ -1,6 +1,7 @@
 #include "RoomSettingsDialog.h"
 #include "NetworkManager.h"
 #include "Protocol.h"
+#include "AvatarCropDialog.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -224,39 +225,40 @@ void RoomSettingsDialog::onViewPassword() {
 void RoomSettingsDialog::onUploadAvatar() {
     QString filePath = QFileDialog::getOpenFileName(this,
         QStringLiteral("选择聊天室头像"), QString(),
-        QStringLiteral("图片文件 (*.png *.jpg *.jpeg *.bmp *.webp)"));
+        QStringLiteral("图片文件 (*.png *.jpg *.jpeg *.bmp *.gif)"));
     if (filePath.isEmpty()) return;
 
-    QImage img(filePath);
+    QPixmap img(filePath);
     if (img.isNull()) {
         QMessageBox::warning(this, QStringLiteral("错误"), QStringLiteral("无法加载图片"));
         return;
     }
 
-    // 缩放到 128x128
-    if (img.width() > 128 || img.height() > 128) {
-        img = img.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-    }
+    AvatarCropDialog dlg(img, this);
+    if (dlg.exec() != QDialog::Accepted) return;
 
-    QByteArray imgData;
-    QBuffer buf(&imgData);
+    QPixmap cropped = dlg.croppedAvatar();
+    if (cropped.isNull()) return;
+
+    // 转为 PNG 字节数据
+    QByteArray pngData;
+    QBuffer buf(&pngData);
     buf.open(QIODevice::WriteOnly);
-    img.save(&buf, "PNG");
+    cropped.save(&buf, "PNG");
     buf.close();
 
-    if (imgData.size() > 256 * 1024) {
-        QMessageBox::warning(this, QStringLiteral("错误"), QStringLiteral("图片过大，请选择较小的图片"));
+    if (pngData.size() > 256 * 1024) {
+        QMessageBox::warning(this, QStringLiteral("提示"), QStringLiteral("头像数据过大，请选择更小的图片或裁剪区域"));
         return;
     }
 
     // 发送上传请求
     QJsonObject data;
     data["roomId"] = m_roomId;
-    data["avatarData"] = QString::fromLatin1(imgData.toBase64());
+    data["avatarData"] = QString::fromLatin1(pngData.toBase64());
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_UPLOAD_REQ, data));
 
     // 更新预览
-    QPixmap pix = QPixmap::fromImage(img);
-    m_avatarPreview->setPixmap(pix.scaled(48, 48, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    m_avatarPreview->setPixmap(cropped.scaled(48, 48, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 }

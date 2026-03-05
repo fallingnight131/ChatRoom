@@ -4,7 +4,6 @@
       <span class="room-list-title">房间列表</span>
       <div class="room-actions-row">
         <button class="btn-icon" @click="showSearch = true" title="搜索房间">🔍</button>
-        <button class="btn-icon" @click="showJoin = true" title="加入房间">🔗</button>
         <button class="btn-icon" @click="showCreate = true" title="创建房间">➕</button>
         <button class="btn-icon" @click="refreshRooms" title="刷新">🔄</button>
       </div>
@@ -28,7 +27,7 @@
         <span v-if="room.unread > 0" class="badge">{{ room.unread > 99 ? '99+' : room.unread }}</span>
       </div>
       <div v-if="chatStore.rooms.length === 0" class="room-empty">
-        暂无房间，点击 ➕ 创建
+        暂无房间，点击 ➕ 创建或 🔍 搜索
       </div>
     </div>
 
@@ -38,7 +37,7 @@
         <div class="modal-title">搜索房间</div>
         <div class="search-row">
           <input class="input search-input" v-model="searchKeyword"
-                 placeholder="输入房间名称搜索"
+                 placeholder="输入房间名称或ID搜索"
                  @keyup.enter="doSearch" />
           <button class="btn btn-primary" @click="doSearch" :disabled="searching">
             {{ searching ? '搜索中…' : '搜索' }}
@@ -58,7 +57,8 @@
               <div class="search-display-name text-ellipsis">{{ r.roomName }}</div>
               <div class="search-room-id">ID: {{ r.roomId }}  ·  {{ r.memberCount }} 人</div>
             </div>
-            <button class="btn btn-primary btn-sm" @click="joinSearchedRoom(r.roomId)">加入</button>
+            <button v-if="isRoomJoined(r.roomId)" class="btn btn-secondary btn-sm" disabled>已加入</button>
+            <button v-else class="btn btn-primary btn-sm" @click="joinSearchedRoom(r.roomId)">加入</button>
           </div>
         </div>
         <div class="modal-actions">
@@ -87,22 +87,6 @@
       </div>
     </div>
 
-    <!-- 加入房间弹窗 -->
-    <div class="modal-overlay" v-if="showJoin" @click.self="showJoin = false">
-      <div class="modal">
-        <div class="modal-title">加入房间</div>
-        <div class="input-group">
-          <label>房间ID</label>
-          <input class="input" v-model.number="joinRoomId" type="number" placeholder="输入房间ID"
-                 @keyup.enter="joinRoom" />
-        </div>
-        <div class="modal-actions">
-          <button class="btn btn-secondary" @click="showJoin = false">取消</button>
-          <button class="btn btn-primary" @click="joinRoom">加入</button>
-        </div>
-      </div>
-    </div>
-
     <!-- 右键菜单 -->
     <div v-if="contextMenu.show" class="context-menu"
          :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
@@ -122,11 +106,9 @@ const chatStore = useChatStore()
 const emit = defineEmits(['room-selected', 'open-room-settings'])
 
 const showCreate = ref(false)
-const showJoin = ref(false)
 const showSearch = ref(false)
 const newRoomName = ref('')
 const newRoomPassword = ref('')
-const joinRoomId = ref('')
 
 // 搜索相关
 const searchKeyword = ref('')
@@ -160,13 +142,6 @@ function createRoom() {
   showCreate.value = false
   newRoomName.value = ''
   newRoomPassword.value = ''
-}
-
-function joinRoom() {
-  if (!joinRoomId.value) return
-  chatWs.joinRoom(joinRoomId.value)
-  showJoin.value = false
-  joinRoomId.value = ''
 }
 
 function refreshRooms() {
@@ -216,6 +191,10 @@ function closeSearch() {
 
 function joinSearchedRoom(roomId) {
   chatWs.joinRoom(roomId)
+}
+
+function isRoomJoined(roomId) {
+  return chatStore.rooms.some(r => r.roomId === roomId)
 }
 
 onMounted(() => {

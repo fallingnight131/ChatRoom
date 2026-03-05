@@ -3,7 +3,7 @@
     <div class="friend-list-header">
       <span class="friend-list-title">好友列表</span>
       <div class="friend-actions-row">
-        <button class="btn-icon" @click="showAddFriend = true" title="添加好友">➕</button>
+        <button class="btn-icon" @click="showAddFriend = true" title="搜索好友">🔍</button>
         <button class="btn-icon" @click="showPending" title="好友申请">📩</button>
         <button class="btn-icon" @click="refreshFriends" title="刷新">🔄</button>
       </div>
@@ -27,14 +27,14 @@
         </div>
       </div>
       <div v-if="chatStore.friends.length === 0" class="friend-empty">
-        暂无好友，点击 ➕ 添加
+        暂无好友，点击 🔍 搜索
       </div>
     </div>
 
     <!-- 添加好友弹窗 -->
     <div class="modal-overlay" v-if="showAddFriend" @click.self="showAddFriend = false">
       <div class="modal" style="max-width: 420px;">
-        <div class="modal-title">添加好友</div>
+        <div class="modal-title">搜索好友</div>
         <div class="search-row">
           <input class="input search-input" v-model="searchKeyword"
                  placeholder="输入用户ID或昵称搜索"
@@ -60,7 +60,8 @@
             <div class="search-user-status" v-if="u.online">
               <span class="online-dot"></span>
             </div>
-            <button class="btn btn-primary btn-sm" @click="sendRequestTo(u.username)">发送申请</button>
+            <button v-if="isFriend(u.username)" class="btn btn-secondary btn-sm" disabled>已添加</button>
+            <button v-else class="btn btn-primary btn-sm" @click="sendRequestTo(u.username)">发送申请</button>
           </div>
         </div>
         <div class="modal-actions">
@@ -166,6 +167,10 @@ function sendRequestTo(username) {
   if (searchResults.value) {
     searchResults.value = searchResults.value.filter(u => u.username !== username)
   }
+}
+
+function isFriend(username) {
+  return chatStore.friends.some(f => f.username === username)
 }
 
 function closeAddFriend() {

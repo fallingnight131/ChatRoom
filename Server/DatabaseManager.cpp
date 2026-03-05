@@ -609,13 +609,25 @@ QJsonArray DatabaseManager::searchRooms(const QString &keyword, int limit) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
-    // 按聊天室名称模糊搜索，返回房间ID、名称、成员数
-    q.prepare("SELECT r.id, r.name, r.creator_id, "
-              "(SELECT COUNT(*) FROM room_members rm WHERE rm.room_id = r.id) AS member_count "
-              "FROM rooms r WHERE r.name LIKE ? ORDER BY r.id LIMIT ?");
-    QString pattern = "%" + keyword + "%";
-    q.addBindValue(pattern);
-    q.addBindValue(limit);
+    // 支持按房间名称模糊搜索或按房间ID精确搜索
+    bool isId = false;
+    int roomId = keyword.toInt(&isId);
+
+    if (isId && roomId > 0) {
+        // 按ID精确搜索
+        q.prepare("SELECT r.id, r.name, r.creator_id, "
+                  "(SELECT COUNT(*) FROM room_members rm WHERE rm.room_id = r.id) AS member_count "
+                  "FROM rooms r WHERE r.id = ?");
+        q.addBindValue(roomId);
+    } else {
+        // 按名称模糊搜索
+        q.prepare("SELECT r.id, r.name, r.creator_id, "
+                  "(SELECT COUNT(*) FROM room_members rm WHERE rm.room_id = r.id) AS member_count "
+                  "FROM rooms r WHERE r.name LIKE ? ORDER BY r.id LIMIT ?");
+        QString pattern = "%" + keyword + "%";
+        q.addBindValue(pattern);
+        q.addBindValue(limit);
+    }
     q.exec();
 
     QJsonArray arr;

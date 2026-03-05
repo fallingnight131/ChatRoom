@@ -46,7 +46,6 @@ protected:
 private slots:
     // 房间操作
     void onCreateRoom();
-    void onJoinRoom();
     void onSearchRoom();
     void onRoomCreated(bool success, int roomId, const QString &name, const QString &error);
     void onRoomJoined(bool success, int roomId, const QString &name, const QString &error, bool newJoin);

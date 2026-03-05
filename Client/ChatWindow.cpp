@@ -192,10 +192,8 @@ void ChatWindow::setupUi() {
     auto *roomBtnLayout = new QHBoxLayout(m_roomBtnPanel);
     roomBtnLayout->setContentsMargins(0, 4, 0, 0);
     auto *createRoomBtn = new QPushButton("创建");
-    auto *joinRoomBtn   = new QPushButton("加入");
     auto *searchRoomBtn = new QPushButton("搜索");
     roomBtnLayout->addWidget(createRoomBtn);
-    roomBtnLayout->addWidget(joinRoomBtn);
     roomBtnLayout->addWidget(searchRoomBtn);
     roomPanelLayout->addWidget(m_roomBtnPanel);
 
@@ -212,7 +210,7 @@ void ChatWindow::setupUi() {
     m_friendBtnPanel = new QWidget;
     auto *friendBtnLayout = new QHBoxLayout(m_friendBtnPanel);
     friendBtnLayout->setContentsMargins(0, 4, 0, 0);
-    auto *addFriendBtn = new QPushButton("添加好友");
+    auto *addFriendBtn = new QPushButton("搜索好友");
     auto *friendReqBtn = new QPushButton("好友申请");
     auto *refreshFriendBtn = new QPushButton("刷新");
     friendBtnLayout->addWidget(addFriendBtn);
@@ -239,7 +237,6 @@ void ChatWindow::setupUi() {
     });
 
     connect(createRoomBtn, &QPushButton::clicked, this, &ChatWindow::onCreateRoom);
-    connect(joinRoomBtn,   &QPushButton::clicked, this, &ChatWindow::onJoinRoom);
     connect(searchRoomBtn, &QPushButton::clicked, this, &ChatWindow::onSearchRoom);
     connect(addFriendBtn,      &QPushButton::clicked, this, &ChatWindow::onAddFriend);
     connect(friendReqBtn,      &QPushButton::clicked, this, &ChatWindow::onShowFriendRequests);
@@ -641,14 +638,6 @@ void ChatWindow::onCreateRoom() {
     NetworkManager::instance()->sendMessage(Protocol::makeCreateRoomReq(name.trimmed()));
 }
 
-void ChatWindow::onJoinRoom() {
-    bool ok;
-    int roomId = QInputDialog::getInt(this, "加入聊天室", "请输入房间ID:", 1, 1, 99999, 1, &ok);
-    if (!ok) return;
-
-    NetworkManager::instance()->sendMessage(Protocol::makeJoinRoomReq(roomId));
-}
-
 void ChatWindow::onSearchRoom() {
     // 搜索聊天室对话框（类似搜索好友）
     QDialog dlg(this);
@@ -661,7 +650,7 @@ void ChatWindow::onSearchRoom() {
     // 搜索行
     auto *searchLayout = new QHBoxLayout;
     auto *searchInput = new QLineEdit;
-    searchInput->setPlaceholderText("输入聊天室名称搜索");
+    searchInput->setPlaceholderText("输入聊天室名称或ID搜索");
     auto *searchBtn = new QPushButton("搜索");
     searchLayout->addWidget(searchInput);
     searchLayout->addWidget(searchBtn);
@@ -748,13 +737,29 @@ void ChatWindow::onSearchRoom() {
             infoLayout->addWidget(idLabel);
             hl->addLayout(infoLayout, 1);
 
-            auto *joinBtn = new QPushButton("加入");
+            auto *joinBtn = new QPushButton;
             joinBtn->setFixedWidth(60);
-            connect(joinBtn, &QPushButton::clicked, &dlg, [roomId, joinBtn, net]() {
-                net->sendMessage(Protocol::makeJoinRoomReq(roomId));
-                joinBtn->setText("已申请");
+
+            // 检查是否已加入该房间
+            bool alreadyJoined = false;
+            for (int i = 0; i < m_roomList->count(); ++i) {
+                if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
+                    alreadyJoined = true;
+                    break;
+                }
+            }
+
+            if (alreadyJoined) {
+                joinBtn->setText("已加入");
                 joinBtn->setEnabled(false);
-            });
+            } else {
+                joinBtn->setText("加入");
+                connect(joinBtn, &QPushButton::clicked, &dlg, [roomId, joinBtn, net]() {
+                    net->sendMessage(Protocol::makeJoinRoomReq(roomId));
+                    joinBtn->setText("已申请");
+                    joinBtn->setEnabled(false);
+                });
+            }
             hl->addWidget(joinBtn);
 
             auto *item = new QListWidgetItem;
@@ -2930,7 +2935,7 @@ void ChatWindow::onClearCache() {
 void ChatWindow::onAddFriend() {
     // 创建搜索对话框
     QDialog dlg(this);
-    dlg.setWindowTitle("添加好友");
+    dlg.setWindowTitle("搜索好友");
     dlg.setMinimumSize(400, 350);
     dlg.resize(420, 400);
 
@@ -3029,16 +3034,32 @@ void ChatWindow::onAddFriend() {
                 hl->addWidget(onlineLabel);
             }
 
-            auto *sendBtn = new QPushButton("发送申请");
+            auto *sendBtn = new QPushButton;
             sendBtn->setFixedWidth(72);
-            connect(sendBtn, &QPushButton::clicked, &dlg, [username, sendBtn, net]() {
-                QJsonObject reqData;
-                reqData["username"] = username;
-                net->sendMessage(
-                    Protocol::makeMessage(Protocol::MsgType::FRIEND_REQUEST_REQ, reqData));
-                sendBtn->setText("已发送");
+
+            // 检查是否已是好友
+            bool alreadyFriend = false;
+            for (const auto &fv : m_friendData) {
+                if (fv.toObject()["username"].toString() == username) {
+                    alreadyFriend = true;
+                    break;
+                }
+            }
+
+            if (alreadyFriend) {
+                sendBtn->setText("已添加");
                 sendBtn->setEnabled(false);
-            });
+            } else {
+                sendBtn->setText("发送申请");
+                connect(sendBtn, &QPushButton::clicked, &dlg, [username, sendBtn, net]() {
+                    QJsonObject reqData;
+                    reqData["username"] = username;
+                    net->sendMessage(
+                        Protocol::makeMessage(Protocol::MsgType::FRIEND_REQUEST_REQ, reqData));
+                    sendBtn->setText("已发送");
+                    sendBtn->setEnabled(false);
+                });
+            }
             hl->addWidget(sendBtn);
 
             auto *item = new QListWidgetItem;

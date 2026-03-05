@@ -148,17 +148,30 @@ function selectRoomAvatar() {
 function onAvatarFileSelected(e) {
   const file = e.target.files[0]
   if (!file) return
-  if (file.size > 256 * 1024) {
-    alert('图片过大，请选择 256KB 以内的图片')
-    return
-  }
-  const reader = new FileReader()
-  reader.onload = () => {
-    const base64 = reader.result.split(',')[1]
+
+  // 裁剪为方形、缩放到256px、转PNG base64（与用户头像相同处理）
+  const img = new Image()
+  img.onload = () => {
+    const size = Math.min(img.width, img.height)
+    const canvas = document.createElement('canvas')
+    canvas.width = 256
+    canvas.height = 256
+    const ctx = canvas.getContext('2d')
+    const sx = (img.width - size) / 2
+    const sy = (img.height - size) / 2
+    ctx.drawImage(img, sx, sy, size, size, 0, 0, 256, 256)
+    const dataUrl = canvas.toDataURL('image/png')
+    const base64 = dataUrl.split(',')[1]
+
+    // 检查大小 < 256KB
+    if (base64.length > 256 * 1024 * 1.37) {
+      alert('头像太大，请选择更小的图片')
+      return
+    }
     avatarUploading.value = true
     chatWs.uploadRoomAvatar(chatStore.currentRoomId, base64)
   }
-  reader.readAsDataURL(file)
+  img.src = URL.createObjectURL(file)
 }
 
 function onRoomAvatarUploaded(data) {
