@@ -743,7 +743,7 @@ void ChatWindow::onSearchRoom() {
             hl->addLayout(infoLayout, 1);
 
             auto *joinBtn = new QPushButton;
-            joinBtn->setFixedSize(60, 28);
+            joinBtn->setFixedHeight(28);
 
             // 检查是否已加入该房间
             bool alreadyJoined = false;
@@ -3058,7 +3058,7 @@ void ChatWindow::onAddFriend() {
             }
 
             auto *sendBtn = new QPushButton;
-            sendBtn->setFixedSize(72, 28);
+            sendBtn->setFixedHeight(28);
 
             // 检查是否已是好友
             bool alreadyFriend = false;
@@ -3229,59 +3229,86 @@ void ChatWindow::onFriendPendingReceived(const QJsonArray &requests) {
         return;
     }
 
-    // 构建一个对话框展示待处理的请求
+    // 构建对话框（风格与搜索好友一致）
     QDialog dlg(this);
     dlg.setWindowTitle("好友申请");
-    dlg.setMinimumSize(350, 300);
+    dlg.setMinimumSize(400, 350);
+    dlg.resize(420, 400);
     auto *dlgLayout = new QVBoxLayout(&dlg);
 
+    auto *titleLabel = new QLabel(QString("待处理的好友申请 (%1)").arg(requests.size()));
+    titleLabel->setStyleSheet("font-size: 14px; font-weight: bold; padding: 4px;");
+    dlgLayout->addWidget(titleLabel);
+
     auto *listWidget = new QListWidget;
-    listWidget->setStyleSheet("QListWidget::item { padding: 4px; min-height: 36px; }");
+    listWidget->setStyleSheet("QListWidget::item { padding: 4px; min-height: 40px; }");
     dlgLayout->addWidget(listWidget);
 
     for (const QJsonValue &v : requests) {
         QJsonObject req = v.toObject();
-        int reqId = req["id"].toInt();
+        int reqId = req["requestId"].toInt();
         QString fromUsername = req["fromUsername"].toString();
         QString fromDisplayName = req["fromDisplayName"].toString();
-        QString label = fromDisplayName.isEmpty() ? fromUsername : QString("%1 (%2)").arg(fromDisplayName, fromUsername);
+        QString displayLabel = fromDisplayName.isEmpty() ? fromUsername : fromDisplayName;
 
-        auto *item = new QListWidgetItem(label);
-        item->setData(Qt::UserRole, reqId);
-        item->setData(Qt::UserRole + 1, fromUsername);
-
-        // 自定义 widget 包含 接受/拒绝 按钮
         auto *itemWidget = new QWidget;
-        auto *itemLayout = new QHBoxLayout(itemWidget);
-        itemLayout->setContentsMargins(4, 4, 4, 4);
-        auto *nameLabel = new QLabel(label);
-        nameLabel->setStyleSheet("font-size: 13px;");
+        auto *hl = new QHBoxLayout(itemWidget);
+        hl->setContentsMargins(4, 4, 4, 4);
+
+        // 头像
+        auto *avatarLabel = new QLabel;
+        avatarLabel->setFixedSize(32, 32);
+        avatarLabel->setAlignment(Qt::AlignCenter);
+        if (s_avatarCache.contains(fromUsername)) {
+            avatarLabel->setPixmap(s_avatarCache[fromUsername]);
+        } else {
+            QPixmap defAvatar = generateDefaultAvatar(displayLabel, qHash(fromUsername));
+            avatarLabel->setPixmap(defAvatar);
+        }
+        hl->addWidget(avatarLabel);
+
+        // 信息（双行：昵称 + ID）
+        auto *infoLayout = new QVBoxLayout;
+        infoLayout->setSpacing(2);
+        auto *nameLabel = new QLabel(displayLabel);
+        nameLabel->setStyleSheet("font-weight: bold; font-size: 13px;");
+        auto *idLabel = new QLabel("ID: " + fromUsername);
+        idLabel->setStyleSheet("color: gray; font-size: 11px;");
+        infoLayout->addWidget(nameLabel);
+        infoLayout->addWidget(idLabel);
+        hl->addLayout(infoLayout, 1);
+
+        // 按钮
         auto *acceptBtn = new QPushButton("接受");
         auto *rejectBtn = new QPushButton("拒绝");
-        acceptBtn->setFixedSize(50, 28);
-        rejectBtn->setFixedSize(50, 28);
-        itemLayout->addWidget(nameLabel, 1);
-        itemLayout->addWidget(acceptBtn);
-        itemLayout->addWidget(rejectBtn);
+        acceptBtn->setFixedHeight(28);
+        rejectBtn->setFixedHeight(28);
+        hl->addWidget(acceptBtn);
+        hl->addWidget(rejectBtn);
 
-        connect(acceptBtn, &QPushButton::clicked, [this, reqId, fromUsername, &dlg] {
+        connect(acceptBtn, &QPushButton::clicked, [this, reqId, fromUsername, acceptBtn, rejectBtn, &dlg] {
             QJsonObject data;
             data["requestId"] = reqId;
             data["fromUsername"] = fromUsername;
             NetworkManager::instance()->sendMessage(
                 Protocol::makeMessage(Protocol::MsgType::FRIEND_ACCEPT_REQ, data));
-            dlg.accept();
+            acceptBtn->setText("已接受");
+            acceptBtn->setEnabled(false);
+            rejectBtn->setEnabled(false);
         });
-        connect(rejectBtn, &QPushButton::clicked, [this, reqId, &dlg] {
+        connect(rejectBtn, &QPushButton::clicked, [this, reqId, acceptBtn, rejectBtn, &dlg] {
             QJsonObject data;
             data["requestId"] = reqId;
             NetworkManager::instance()->sendMessage(
                 Protocol::makeMessage(Protocol::MsgType::FRIEND_REJECT_REQ, data));
-            dlg.accept();
+            rejectBtn->setText("已拒绝");
+            rejectBtn->setEnabled(false);
+            acceptBtn->setEnabled(false);
         });
 
+        auto *item = new QListWidgetItem;
+        item->setSizeHint(QSize(0, qMax(itemWidget->sizeHint().height(), 48)));
         listWidget->addItem(item);
-        item->setSizeHint(QSize(0, qMax(itemWidget->sizeHint().height(), 40)));
         listWidget->setItemWidget(item, itemWidget);
     }
 
