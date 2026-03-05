@@ -15,7 +15,12 @@
            :class="{ active: chatStore.isFriendChat && chatStore.currentFriendUsername === fr.username }"
            @click="selectFriend(fr)"
            @contextmenu.prevent="onContextMenu($event, fr)">
-        <div class="friend-avatar" :class="{ online: fr.isOnline }">👤</div>
+        <div class="friend-avatar-wrap" :class="{ online: fr.isOnline }">
+          <img v-if="getAvatarSrc(fr.username)" :src="getAvatarSrc(fr.username)" class="avatar avatar-sm" />
+          <div v-else class="avatar avatar-sm avatar-placeholder" :style="{ background: hashColor(fr.username) }">
+            {{ (fr.displayName || fr.username).charAt(0) }}
+          </div>
+        </div>
         <div class="friend-info">
           <div class="friend-name text-ellipsis">{{ fr.displayName || fr.username }}</div>
           <div class="friend-status">{{ fr.isOnline ? '在线' : '离线' }}</div>
@@ -42,7 +47,12 @@
           <div v-if="searchResults === null" class="search-hint">输入关键词后点击搜索</div>
           <div v-else-if="searchResults.length === 0" class="search-hint">未找到匹配的用户</div>
           <div v-for="u in searchResults" :key="u.username" class="search-result-item">
-            <div class="search-avatar">👤</div>
+            <div class="search-avatar-wrap">
+              <img v-if="getAvatarSrc(u.username)" :src="getAvatarSrc(u.username)" class="avatar avatar-sm" />
+              <div v-else class="avatar avatar-sm avatar-placeholder" :style="{ background: hashColor(u.username) }">
+                {{ (u.displayName || u.username).charAt(0) }}
+              </div>
+            </div>
             <div class="search-user-info">
               <div class="search-display-name text-ellipsis">{{ u.displayName }}</div>
               <div class="search-username">ID: {{ u.username }}</div>
@@ -66,7 +76,12 @@
         <div class="search-results">
           <div v-if="pendingRequests.length === 0" class="search-hint">暂无待处理的好友申请</div>
           <div v-for="req in pendingRequests" :key="req.requestId" class="search-result-item">
-            <div class="search-avatar">👤</div>
+            <div class="search-avatar-wrap">
+              <img v-if="getAvatarSrc(req.fromUsername)" :src="getAvatarSrc(req.fromUsername)" class="avatar avatar-sm" />
+              <div v-else class="avatar avatar-sm avatar-placeholder" :style="{ background: hashColor(req.fromUsername) }">
+                {{ (req.fromDisplayName || req.fromUsername).charAt(0) }}
+              </div>
+            </div>
             <div class="search-user-info">
               <div class="search-display-name text-ellipsis">{{ req.fromDisplayName || req.fromUsername }}</div>
               <div class="search-username">ID: {{ req.fromUsername }}</div>
@@ -94,11 +109,28 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, inject, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '../stores/chat'
+import { useUserStore } from '../stores/user'
 import { chatWs } from '../services/websocket'
 
 const chatStore = useChatStore()
+const userStore = useUserStore()
+const hashColor = inject('hashColor', (str) => {
+  let hash = 0
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash)
+  return `hsl(${Math.abs(hash) % 360}, 55%, 50%)`
+})
+
+function getAvatarSrc(username) {
+  const data = userStore.getAvatar(username)
+  if (data) return 'data:image/png;base64,' + data
+  if (username && !userStore.avatarCache[username]) {
+    userStore.avatarCache[username] = ''
+    chatWs.getAvatar(username)
+  }
+  return ''
+}
 
 const emit = defineEmits(['friend-selected', 'view-user-info'])
 
@@ -247,13 +279,15 @@ onUnmounted(() => {
 .friend-item.active {
   background: var(--bg-active);
 }
-.friend-avatar {
-  font-size: 20px;
+.friend-avatar-wrap {
   flex-shrink: 0;
   opacity: 0.5;
 }
-.friend-avatar.online {
+.friend-avatar-wrap.online {
   opacity: 1;
+}
+.search-avatar-wrap {
+  flex-shrink: 0;
 }
 .friend-info {
   flex: 1;
@@ -318,10 +352,7 @@ onUnmounted(() => {
 .search-result-item:last-child {
   border-bottom: none;
 }
-.search-avatar {
-  font-size: 22px;
-  flex-shrink: 0;
-}
+
 .search-user-info {
   flex: 1;
   min-width: 0;

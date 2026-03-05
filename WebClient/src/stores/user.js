@@ -104,6 +104,9 @@ export const useUserStore = defineStore('user', {
 
     // 初始化 WebSocket 消息监听
     initListeners() {
+      if (this._listenersInitialized) return
+      this._listenersInitialized = true
+
       chatWs.on(MsgType.FORCE_OFFLINE, (msg) => {
         alert(msg.data.reason || '您已被强制下线')
         this.onLogout()

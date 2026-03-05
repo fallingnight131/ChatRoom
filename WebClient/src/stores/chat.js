@@ -316,6 +316,8 @@ export const useChatStore = defineStore('chat', {
 
     // ==================== 初始化消息监听 ====================
     initListeners() {
+      if (this._listenersInitialized) return
+      this._listenersInitialized = true
       // --- 房间列表 ---
       chatWs.on(MsgType.ROOM_LIST_RSP, (msg) => {
         const list = msg.data.rooms || []
