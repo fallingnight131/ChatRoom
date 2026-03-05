@@ -47,6 +47,7 @@ private slots:
     // 房间操作
     void onCreateRoom();
     void onJoinRoom();
+    void onSearchRoom();
     void onRoomCreated(bool success, int roomId, const QString &name, const QString &error);
     void onRoomJoined(bool success, int roomId, const QString &name, const QString &error, bool newJoin);
     void onRoomListReceived(const QJsonArray &rooms);
@@ -210,6 +211,7 @@ private:
     void switchToRoomMode();
     void sendFriendFile(const QString &filePath, const QString &contentType);
     MessageModel *getOrCreateFriendModel(const QString &friendUsername);
+    void updateRoomListAvatars();
 
     // --- UI 组件 ---
     QSplitter    *m_splitter       = nullptr;
@@ -261,6 +263,9 @@ private:
 
     // 头像缓存（静态，供 MessageDelegate 使用）
     static QMap<QString, QPixmap> s_avatarCache;
+
+    // 聊天室头像缓存  roomId -> pixmap
+    QMap<int, QPixmap> m_roomAvatarCache;
 
     // --- 大文件分块上传状态 ---
     struct ChunkedUpload {

@@ -12,6 +12,10 @@
 #include <QGroupBox>
 #include <QMessageBox>
 #include <QInputDialog>
+#include <QFileDialog>
+#include <QBuffer>
+#include <QPixmap>
+#include <QImage>
 
 RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
                                        bool isAdmin, qint64 maxFileSize,
@@ -22,14 +26,45 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
     setMinimumWidth(380);
     auto *mainLayout = new QVBoxLayout(this);
 
-    // --- 聊天室ID ---
-    auto *idLayout = new QHBoxLayout;
-    idLayout->addWidget(new QLabel(QStringLiteral("聊天室ID：")));
-    m_roomIdLabel = new QLabel(QString::number(roomId));
+    // --- 聊天室头像 + ID 信息 ---
+    auto *headerLayout = new QHBoxLayout;
+    m_avatarPreview = new QLabel;
+    m_avatarPreview->setFixedSize(48, 48);
+    m_avatarPreview->setAlignment(Qt::AlignCenter);
+    m_avatarPreview->setStyleSheet("border: 1px solid #ccc; border-radius: 6px; font-size: 22px;");
+    m_avatarPreview->setText("🏠");
+    headerLayout->addWidget(m_avatarPreview);
+
+    auto *headerInfoLayout = new QVBoxLayout;
+    headerInfoLayout->setSpacing(2);
+    auto *nameDisplayLabel = new QLabel(roomName);
+    nameDisplayLabel->setStyleSheet("font-weight: bold; font-size: 14px;");
+    m_roomIdLabel = new QLabel(QStringLiteral("ID: ") + QString::number(roomId));
     m_roomIdLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
-    idLayout->addWidget(m_roomIdLabel);
-    idLayout->addStretch();
-    mainLayout->addLayout(idLayout);
+    m_roomIdLabel->setStyleSheet("color: gray; font-size: 12px;");
+    headerInfoLayout->addWidget(nameDisplayLabel);
+    headerInfoLayout->addWidget(m_roomIdLabel);
+    headerLayout->addLayout(headerInfoLayout, 1);
+    mainLayout->addLayout(headerLayout);
+
+    // 请求聊天室头像
+    {
+        QJsonObject reqData;
+        reqData["roomId"] = roomId;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_GET_REQ, reqData));
+        // 监听头像响应
+        connect(NetworkManager::instance(), &NetworkManager::roomAvatarGetResponse,
+            this, [this](int rId, bool success, const QByteArray &avatarData) {
+            if (rId == m_roomId && success && !avatarData.isEmpty()) {
+                QPixmap pix;
+                pix.loadFromData(avatarData);
+                if (!pix.isNull()) {
+                    m_avatarPreview->setPixmap(pix.scaled(48, 48, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+                }
+            }
+        });
+    }
 
     mainLayout->addSpacing(8);
 
@@ -37,6 +72,15 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
         // --- 管理员设置组 ---
         auto *adminGroup = new QGroupBox(QStringLiteral("管理员设置"));
         auto *adminLayout = new QVBoxLayout(adminGroup);
+
+        // 聊天室头像上传
+        auto *avatarUploadLayout = new QHBoxLayout;
+        avatarUploadLayout->addWidget(new QLabel(QStringLiteral("聊天室头像：")));
+        avatarUploadLayout->addStretch();
+        auto *uploadAvatarBtn = new QPushButton(QStringLiteral("选择图片"));
+        connect(uploadAvatarBtn, &QPushButton::clicked, this, &RoomSettingsDialog::onUploadAvatar);
+        avatarUploadLayout->addWidget(uploadAvatarBtn);
+        adminLayout->addLayout(avatarUploadLayout);
 
         // 聊天室名称
         auto *nameLayout = new QHBoxLayout;
@@ -175,4 +219,44 @@ void RoomSettingsDialog::onViewPassword() {
     data["roomId"] = m_roomId;
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::GET_ROOM_PASSWORD_REQ, data));
+}
+
+void RoomSettingsDialog::onUploadAvatar() {
+    QString filePath = QFileDialog::getOpenFileName(this,
+        QStringLiteral("选择聊天室头像"), QString(),
+        QStringLiteral("图片文件 (*.png *.jpg *.jpeg *.bmp *.webp)"));
+    if (filePath.isEmpty()) return;
+
+    QImage img(filePath);
+    if (img.isNull()) {
+        QMessageBox::warning(this, QStringLiteral("错误"), QStringLiteral("无法加载图片"));
+        return;
+    }
+
+    // 缩放到 128x128
+    if (img.width() > 128 || img.height() > 128) {
+        img = img.scaled(128, 128, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    }
+
+    QByteArray imgData;
+    QBuffer buf(&imgData);
+    buf.open(QIODevice::WriteOnly);
+    img.save(&buf, "PNG");
+    buf.close();
+
+    if (imgData.size() > 256 * 1024) {
+        QMessageBox::warning(this, QStringLiteral("错误"), QStringLiteral("图片过大，请选择较小的图片"));
+        return;
+    }
+
+    // 发送上传请求
+    QJsonObject data;
+    data["roomId"] = m_roomId;
+    data["avatarData"] = QString::fromLatin1(imgData.toBase64());
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_UPLOAD_REQ, data));
+
+    // 更新预览
+    QPixmap pix = QPixmap::fromImage(img);
+    m_avatarPreview->setPixmap(pix.scaled(48, 48, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 }

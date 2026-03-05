@@ -3,6 +3,7 @@
     <div class="room-list-header">
       <span class="room-list-title">房间列表</span>
       <div class="room-actions-row">
+        <button class="btn-icon" @click="showSearch = true" title="搜索房间">🔍</button>
         <button class="btn-icon" @click="showJoin = true" title="加入房间">🔗</button>
         <button class="btn-icon" @click="showCreate = true" title="创建房间">➕</button>
         <button class="btn-icon" @click="refreshRooms" title="刷新">🔄</button>
@@ -15,7 +16,12 @@
            :class="{ active: room.roomId === chatStore.currentRoomId }"
            @click="selectRoom(room.roomId)"
            @contextmenu.prevent="onContextMenu($event, room)">
-        <div class="room-icon">🏠</div>
+        <div class="room-avatar-wrap">
+          <img v-if="getRoomAvatarSrc(room.roomId)" :src="getRoomAvatarSrc(room.roomId)" class="avatar avatar-sm" />
+          <div v-else class="avatar avatar-sm avatar-placeholder" :style="{ background: hashColor(room.roomId) }">
+            {{ room.roomName.charAt(0) }}
+          </div>
+        </div>
         <div class="room-info">
           <div class="room-name text-ellipsis">{{ room.roomName }}</div>
         </div>
@@ -23,6 +29,41 @@
       </div>
       <div v-if="chatStore.rooms.length === 0" class="room-empty">
         暂无房间，点击 ➕ 创建
+      </div>
+    </div>
+
+    <!-- 搜索房间弹窗 -->
+    <div class="modal-overlay" v-if="showSearch" @click.self="showSearch = false">
+      <div class="modal" style="max-width: 420px;">
+        <div class="modal-title">搜索房间</div>
+        <div class="search-row">
+          <input class="input search-input" v-model="searchKeyword"
+                 placeholder="输入房间名称搜索"
+                 @keyup.enter="doSearch" />
+          <button class="btn btn-primary" @click="doSearch" :disabled="searching">
+            {{ searching ? '搜索中…' : '搜索' }}
+          </button>
+        </div>
+        <div class="search-results">
+          <div v-if="searchResults === null" class="search-hint">输入关键词后点击搜索</div>
+          <div v-else-if="searchResults.length === 0" class="search-hint">未找到匹配的房间</div>
+          <div v-for="r in searchResults" :key="r.roomId" class="search-result-item">
+            <div class="search-avatar-wrap">
+              <img v-if="getRoomAvatarSrc(r.roomId)" :src="getRoomAvatarSrc(r.roomId)" class="avatar avatar-sm" />
+              <div v-else class="avatar avatar-sm avatar-placeholder" :style="{ background: hashColor(r.roomId) }">
+                {{ r.roomName.charAt(0) }}
+              </div>
+            </div>
+            <div class="search-room-info">
+              <div class="search-display-name text-ellipsis">{{ r.roomName }}</div>
+              <div class="search-room-id">ID: {{ r.roomId }}  ·  {{ r.memberCount }} 人</div>
+            </div>
+            <button class="btn btn-primary btn-sm" @click="joinSearchedRoom(r.roomId)">加入</button>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" @click="closeSearch">关闭</button>
+        </div>
       </div>
     </div>
 
@@ -72,7 +113,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, reactive } from 'vue'
+import { ref, onMounted, onUnmounted, reactive, watch } from 'vue'
 import { useChatStore } from '../stores/chat'
 import { chatWs } from '../services/websocket'
 
@@ -82,11 +123,31 @@ const emit = defineEmits(['room-selected', 'open-room-settings'])
 
 const showCreate = ref(false)
 const showJoin = ref(false)
+const showSearch = ref(false)
 const newRoomName = ref('')
 const newRoomPassword = ref('')
 const joinRoomId = ref('')
 
+// 搜索相关
+const searchKeyword = ref('')
+const searchResults = ref(null)
+const searching = ref(false)
+
 const contextMenu = reactive({ show: false, x: 0, y: 0, room: null })
+
+function hashColor(id) {
+  let hash = 0
+  const s = String(id)
+  for (let i = 0; i < s.length; i++) hash = s.charCodeAt(i) + ((hash << 5) - hash)
+  const h = Math.abs(hash) % 360
+  return `hsl(${h}, 55%, 50%)`
+}
+
+function getRoomAvatarSrc(roomId) {
+  const src = chatStore.getRoomAvatarSrc(roomId)
+  if (!src) chatStore.fetchRoomAvatar(roomId)
+  return src
+}
 
 function selectRoom(roomId) {
   chatStore.setCurrentRoom(roomId)
@@ -130,11 +191,40 @@ function closeMenu() {
   contextMenu.show = false
 }
 
+// 搜索
+function doSearch() {
+  const kw = searchKeyword.value.trim()
+  if (!kw) return
+  searching.value = true
+  chatWs.searchRooms(kw)
+}
+
+function onSearchResults(rooms) {
+  searching.value = false
+  searchResults.value = rooms
+  // 获取搜索结果中的头像
+  for (const r of rooms) {
+    chatStore.fetchRoomAvatar(r.roomId)
+  }
+}
+
+function closeSearch() {
+  showSearch.value = false
+  searchKeyword.value = ''
+  searchResults.value = null
+}
+
+function joinSearchedRoom(roomId) {
+  chatWs.joinRoom(roomId)
+}
+
 onMounted(() => {
   document.addEventListener('click', closeMenu)
+  chatStore.onEvent('roomSearchResults', onSearchResults)
 })
 onUnmounted(() => {
   document.removeEventListener('click', closeMenu)
+  chatStore.offEvent('roomSearchResults', onSearchResults)
 })
 </script>
 
@@ -184,8 +274,7 @@ onUnmounted(() => {
 .room-item.active {
   background: var(--bg-active);
 }
-.room-icon {
-  font-size: 20px;
+.room-avatar-wrap {
   flex-shrink: 0;
 }
 .room-info {
@@ -201,5 +290,54 @@ onUnmounted(() => {
   padding: 40px 16px;
   color: var(--text-tertiary);
   font-size: 13px;
+}
+
+/* 搜索 */
+.search-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.search-input {
+  flex: 1;
+}
+.search-results {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.search-hint {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+.search-result-item:last-child {
+  border-bottom: none;
+}
+.search-avatar-wrap {
+  flex-shrink: 0;
+}
+.search-room-info {
+  flex: 1;
+  min-width: 0;
+}
+.search-display-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.search-room-id {
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 </style>

@@ -110,6 +110,14 @@ signals:
     // 用户搜索
     void userSearchResponse(bool success, const QJsonArray &users, const QString &error);
 
+    // 聊天室搜索
+    void roomSearchResponse(bool success, const QJsonArray &rooms, const QString &error);
+
+    // 聊天室头像
+    void roomAvatarUploadResponse(int roomId, bool success, const QString &error);
+    void roomAvatarGetResponse(int roomId, bool success, const QByteArray &avatarData);
+    void roomAvatarUpdateNotify(int roomId, const QByteArray &avatarData);
+
     // ========== 好友系统 ==========
     void friendRequestResponse(bool success, const QString &error);
     void friendRequestNotify(const QString &fromUsername, const QString &fromDisplayName);

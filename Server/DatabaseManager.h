@@ -48,6 +48,13 @@ public:
     // 用户搜索（按用户名或昵称模糊查询）
     QJsonArray searchUsers(const QString &keyword, int excludeUserId, int limit = 20);
 
+    // 聊天室搜索（按名称模糊查询）
+    QJsonArray searchRooms(const QString &keyword, int limit = 20);
+
+    // 聊天室头像
+    QByteArray getRoomAvatar(int roomId);
+    bool       setRoomAvatar(int roomId, const QByteArray &avatarData);
+
     // 消息管理
     int  saveMessage(int roomId, int userId, const QString &content,
                      const QString &contentType,

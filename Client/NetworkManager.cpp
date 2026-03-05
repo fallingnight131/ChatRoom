@@ -377,6 +377,32 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                                 data["users"].toArray(),
                                 data["error"].toString());
     }
+    // 聊天室搜索
+    else if (type == Protocol::MsgType::ROOM_SEARCH_RSP) {
+        emit roomSearchResponse(data["success"].toBool(),
+                                data["rooms"].toArray(),
+                                data["error"].toString());
+    }
+    // 聊天室头像
+    else if (type == Protocol::MsgType::ROOM_AVATAR_UPLOAD_RSP) {
+        emit roomAvatarUploadResponse(data["roomId"].toInt(),
+                                       data["success"].toBool(),
+                                       data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::ROOM_AVATAR_GET_RSP) {
+        int roomId = data["roomId"].toInt();
+        bool success = data["success"].toBool();
+        QByteArray avatarData;
+        if (success) {
+            avatarData = QByteArray::fromBase64(data["avatarData"].toString().toLatin1());
+        }
+        emit roomAvatarGetResponse(roomId, success, avatarData);
+    }
+    else if (type == Protocol::MsgType::ROOM_AVATAR_UPDATE_NOTIFY) {
+        int roomId = data["roomId"].toInt();
+        QByteArray avatarData = QByteArray::fromBase64(data["avatarData"].toString().toLatin1());
+        emit roomAvatarUpdateNotify(roomId, avatarData);
+    }
     // ========== 好友系统 ==========
     else if (type == Protocol::MsgType::FRIEND_REQUEST_RSP) {
         emit friendRequestResponse(data["success"].toBool(), data["error"].toString());

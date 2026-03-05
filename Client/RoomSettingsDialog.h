@@ -25,6 +25,7 @@ private slots:
     void onSaveFileSize();
     void onSetPassword();
     void onViewPassword();
+    void onUploadAvatar();
 
 private:
     int     m_roomId;
@@ -32,6 +33,7 @@ private:
     bool    m_isAdmin;
 
     QLabel          *m_roomIdLabel    = nullptr;
+    QLabel          *m_avatarPreview  = nullptr;
     QLineEdit       *m_nameEdit      = nullptr;
     QDoubleSpinBox  *m_fileSizeSpin  = nullptr;
     QLineEdit       *m_passwordEdit  = nullptr;

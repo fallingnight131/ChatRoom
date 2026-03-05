@@ -79,6 +79,13 @@ private:
     // 用户搜索
     void handleUserSearch(ClientSession *session, const QJsonObject &data);
 
+    // 聊天室搜索
+    void handleRoomSearch(ClientSession *session, const QJsonObject &data);
+
+    // 聊天室头像
+    void handleRoomAvatarUpload(ClientSession *session, const QJsonObject &data);
+    void handleRoomAvatarGet(ClientSession *session, const QJsonObject &data);
+
     // 好友系统
     void handleFriendRequest(ClientSession *session, const QJsonObject &data);
     void handleFriendAccept(ClientSession *session, const QJsonObject &data);

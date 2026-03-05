@@ -4,22 +4,42 @@
       <div class="modal-title">房间设置</div>
 
       <div class="setting-info">
-        <div class="info-row">
-          <span class="info-label">房间名称</span>
-          <span class="info-value">{{ chatStore.currentRoomName }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">房间ID</span>
-          <span class="info-value">{{ chatStore.currentRoomId }}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">管理员</span>
-          <span class="info-value">{{ chatStore.isAdmin ? '是' : '否' }}</span>
+        <div class="room-avatar-section">
+          <div class="room-avatar-display">
+            <img v-if="roomAvatarSrc" :src="roomAvatarSrc" class="avatar avatar-lg" />
+            <div v-else class="avatar avatar-lg avatar-placeholder" :style="{ background: hashColor(chatStore.currentRoomId) }">
+              {{ (chatStore.currentRoomName || '').charAt(0) }}
+            </div>
+          </div>
+          <div class="room-basic-info">
+            <div class="info-row">
+              <span class="info-label">房间名称</span>
+              <span class="info-value">{{ chatStore.currentRoomName }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">房间ID</span>
+              <span class="info-value">{{ chatStore.currentRoomId }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">管理员</span>
+              <span class="info-value">{{ chatStore.isAdmin ? '是' : '否' }}</span>
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- 管理员功能 -->
       <template v-if="chatStore.isAdmin">
+        <!-- 房间头像 -->
+        <div class="setting-section">
+          <div class="setting-label">房间头像</div>
+          <div class="inline-edit">
+            <button class="btn btn-secondary" @click="selectRoomAvatar">选择图片</button>
+            <input ref="avatarFileInput" type="file" accept="image/*" style="display:none" @change="onAvatarFileSelected" />
+            <span v-if="avatarUploading" class="upload-hint">上传中…</span>
+          </div>
+        </div>
+
         <!-- 重命名 -->
         <div class="setting-section">
           <div class="setting-label">重命名房间</div>
@@ -103,11 +123,47 @@ const roomPassword = ref('')
 const currentPassword = ref(null)
 const maxFileSize = ref(100)
 const selectedUser = ref('')
+const avatarFileInput = ref(null)
+const avatarUploading = ref(false)
+
+const roomAvatarSrc = computed(() => chatStore.getRoomAvatarSrc(chatStore.currentRoomId))
+
+function hashColor(id) {
+  let hash = 0
+  const s = String(id)
+  for (let i = 0; i < s.length; i++) hash = s.charCodeAt(i) + ((hash << 5) - hash)
+  const h = Math.abs(hash) % 360
+  return `hsl(${h}, 55%, 50%)`
+}
 
 const isSelectedAdmin = computed(() => {
   const u = chatStore.users.find(u => u.username === selectedUser.value)
   return u ? u.isAdmin : false
 })
+
+function selectRoomAvatar() {
+  avatarFileInput.value?.click()
+}
+
+function onAvatarFileSelected(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  if (file.size > 256 * 1024) {
+    alert('图片过大，请选择 256KB 以内的图片')
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    const base64 = reader.result.split(',')[1]
+    avatarUploading.value = true
+    chatWs.uploadRoomAvatar(chatStore.currentRoomId, base64)
+  }
+  reader.readAsDataURL(file)
+}
+
+function onRoomAvatarUploaded(data) {
+  avatarUploading.value = false
+}
 
 function renameRoom() {
   if (newName.value.trim()) {
@@ -170,6 +226,8 @@ function leaveRoom() {
 
 onMounted(() => {
   chatStore.onEvent('roomPassword', onRoomPassword)
+  chatStore.onEvent('roomAvatarUploaded', onRoomAvatarUploaded)
+  chatStore.fetchRoomAvatar(chatStore.currentRoomId)
   // 加载当前设置
   const s = chatStore.roomSettings[chatStore.currentRoomId]
   if (s) {
@@ -179,6 +237,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   chatStore.offEvent('roomPassword', onRoomPassword)
+  chatStore.offEvent('roomAvatarUploaded', onRoomAvatarUploaded)
 })
 </script>
 
@@ -188,6 +247,17 @@ onUnmounted(() => {
   padding: 12px;
   background: var(--bg-primary);
   border-radius: 8px;
+}
+.room-avatar-section {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.room-avatar-display {
+  flex-shrink: 0;
+}
+.room-basic-info {
+  flex: 1;
 }
 .info-row {
   display: flex;
@@ -237,6 +307,11 @@ onUnmounted(() => {
   background: var(--bg-primary);
   padding: 6px 10px;
   border-radius: 4px;
+}
+.upload-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  align-self: center;
 }
 
 /* ========== 移动端适配 ========== */

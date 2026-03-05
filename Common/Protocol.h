@@ -140,9 +140,21 @@ namespace MsgType {
     inline const QString CHANGE_PASSWORD_REQ    = QStringLiteral("CHANGE_PASSWORD_REQ");
     inline const QString CHANGE_PASSWORD_RSP    = QStringLiteral("CHANGE_PASSWORD_RSP");
 
+    // 聊天室搜索
+    inline const QString ROOM_SEARCH_REQ         = QStringLiteral("ROOM_SEARCH_REQ");
+    inline const QString ROOM_SEARCH_RSP         = QStringLiteral("ROOM_SEARCH_RSP");
+
+    // 聊天室头像
+    inline const QString ROOM_AVATAR_UPLOAD_REQ  = QStringLiteral("ROOM_AVATAR_UPLOAD_REQ");
+    inline const QString ROOM_AVATAR_UPLOAD_RSP  = QStringLiteral("ROOM_AVATAR_UPLOAD_RSP");
+    inline const QString ROOM_AVATAR_GET_REQ     = QStringLiteral("ROOM_AVATAR_GET_REQ");
+    inline const QString ROOM_AVATAR_GET_RSP     = QStringLiteral("ROOM_AVATAR_GET_RSP");
+    inline const QString ROOM_AVATAR_UPDATE_NOTIFY = QStringLiteral("ROOM_AVATAR_UPDATE_NOTIFY");
+
     // 好友系统
     inline const QString USER_SEARCH_REQ         = QStringLiteral("USER_SEARCH_REQ");
     inline const QString USER_SEARCH_RSP         = QStringLiteral("USER_SEARCH_RSP");
+
     inline const QString FRIEND_REQUEST_REQ     = QStringLiteral("FRIEND_REQUEST_REQ");
     inline const QString FRIEND_REQUEST_RSP     = QStringLiteral("FRIEND_REQUEST_RSP");
     inline const QString FRIEND_REQUEST_NOTIFY  = QStringLiteral("FRIEND_REQUEST_NOTIFY");

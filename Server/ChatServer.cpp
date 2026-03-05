@@ -261,6 +261,12 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleChangePassword(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::USER_SEARCH_REQ) {
         handleUserSearch(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::ROOM_SEARCH_REQ) {
+        handleRoomSearch(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::ROOM_AVATAR_UPLOAD_REQ) {
+        handleRoomAvatarUpload(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::ROOM_AVATAR_GET_REQ) {
+        handleRoomAvatarGet(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::FRIEND_REQUEST_REQ) {
         handleFriendRequest(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::FRIEND_ACCEPT_REQ) {
@@ -1778,6 +1784,88 @@ void ChatServer::handleUserSearch(ClientSession *session, const QJsonObject &dat
     rspData["success"] = true;
     rspData["users"]   = results;
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::USER_SEARCH_RSP, rspData));
+}
+
+// ==================== 聊天室搜索 ====================
+
+void ChatServer::handleRoomSearch(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    QString keyword = data["keyword"].toString().trimmed();
+    QJsonObject rspData;
+
+    if (keyword.isEmpty()) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("搜索关键词不能为空");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SEARCH_RSP, rspData));
+        return;
+    }
+
+    QJsonArray results = m_db->searchRooms(keyword);
+
+    rspData["success"] = true;
+    rspData["rooms"]   = results;
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SEARCH_RSP, rspData));
+}
+
+// ==================== 聊天室头像 ====================
+
+void ChatServer::handleRoomAvatarUpload(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int roomId = data["roomId"].toInt();
+    QString avatarBase64 = data["avatarData"].toString();
+    QByteArray avatarData = QByteArray::fromBase64(avatarBase64.toLatin1());
+
+    QJsonObject rspData;
+    rspData["roomId"] = roomId;
+
+    // 检查是否是管理员
+    if (!m_db->isRoomAdmin(roomId, session->userId())) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("只有管理员可以修改聊天室头像");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_UPLOAD_RSP, rspData));
+        return;
+    }
+
+    if (avatarData.size() > 256 * 1024) { // 限制 256KB
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("头像数据过大，请选择较小的图片");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_UPLOAD_RSP, rspData));
+        return;
+    }
+
+    if (m_db->setRoomAvatar(roomId, avatarData)) {
+        rspData["success"] = true;
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_UPLOAD_RSP, rspData));
+
+        // 通知房间内所有成员头像已更新
+        QJsonObject notifyData;
+        notifyData["roomId"] = roomId;
+        notifyData["avatarData"] = avatarBase64;
+        broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_UPDATE_NOTIFY, notifyData), session);
+    } else {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("保存聊天室头像失败");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_UPLOAD_RSP, rspData));
+    }
+}
+
+void ChatServer::handleRoomAvatarGet(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int roomId = data["roomId"].toInt();
+    QByteArray avatarData = m_db->getRoomAvatar(roomId);
+
+    QJsonObject rspData;
+    rspData["roomId"] = roomId;
+    if (!avatarData.isEmpty()) {
+        rspData["success"] = true;
+        rspData["avatarData"] = QString::fromLatin1(avatarData.toBase64());
+    } else {
+        rspData["success"] = false;
+    }
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_GET_RSP, rspData));
 }
 
 // ==================== 好友系统 ====================

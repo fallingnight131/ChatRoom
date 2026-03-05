@@ -193,8 +193,10 @@ void ChatWindow::setupUi() {
     roomBtnLayout->setContentsMargins(0, 4, 0, 0);
     auto *createRoomBtn = new QPushButton("创建");
     auto *joinRoomBtn   = new QPushButton("加入");
+    auto *searchRoomBtn = new QPushButton("搜索");
     roomBtnLayout->addWidget(createRoomBtn);
     roomBtnLayout->addWidget(joinRoomBtn);
+    roomBtnLayout->addWidget(searchRoomBtn);
     roomPanelLayout->addWidget(m_roomBtnPanel);
 
     // --- 好友列表面板 ---
@@ -238,6 +240,7 @@ void ChatWindow::setupUi() {
 
     connect(createRoomBtn, &QPushButton::clicked, this, &ChatWindow::onCreateRoom);
     connect(joinRoomBtn,   &QPushButton::clicked, this, &ChatWindow::onJoinRoom);
+    connect(searchRoomBtn, &QPushButton::clicked, this, &ChatWindow::onSearchRoom);
     connect(addFriendBtn,      &QPushButton::clicked, this, &ChatWindow::onAddFriend);
     connect(friendReqBtn,      &QPushButton::clicked, this, &ChatWindow::onShowFriendRequests);
     connect(refreshFriendBtn,  &QPushButton::clicked, this, &ChatWindow::onRefreshFriendList);
@@ -474,6 +477,28 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::avatarGetResponse,    this, &ChatWindow::onAvatarGetResponse);
     connect(net, &NetworkManager::avatarUpdateNotify,   this, &ChatWindow::onAvatarUpdateNotify);
 
+    // 聊天室头像
+    connect(net, &NetworkManager::roomAvatarGetResponse, this, [this](int roomId, bool success, const QByteArray &avatarData) {
+        if (success && !avatarData.isEmpty()) {
+            QPixmap pix;
+            pix.loadFromData(avatarData);
+            if (!pix.isNull()) {
+                m_roomAvatarCache[roomId] = pix.scaled(32, 32, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                updateRoomListAvatars();
+            }
+        }
+    });
+    connect(net, &NetworkManager::roomAvatarUpdateNotify, this, [this](int roomId, const QByteArray &avatarData) {
+        if (!avatarData.isEmpty()) {
+            QPixmap pix;
+            pix.loadFromData(avatarData);
+            if (!pix.isNull()) {
+                m_roomAvatarCache[roomId] = pix.scaled(32, 32, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                updateRoomListAvatars();
+            }
+        }
+    });
+
     // 房间设置
     connect(net, &NetworkManager::roomSettingsResponse, this, &ChatWindow::onRoomSettingsResponse);
     connect(net, &NetworkManager::roomSettingsNotify,   this, &ChatWindow::onRoomSettingsNotify);
@@ -624,6 +649,129 @@ void ChatWindow::onJoinRoom() {
     NetworkManager::instance()->sendMessage(Protocol::makeJoinRoomReq(roomId));
 }
 
+void ChatWindow::onSearchRoom() {
+    // 搜索聊天室对话框（类似搜索好友）
+    QDialog dlg(this);
+    dlg.setWindowTitle("搜索聊天室");
+    dlg.setMinimumSize(400, 350);
+    dlg.resize(420, 400);
+
+    auto *layout = new QVBoxLayout(&dlg);
+
+    // 搜索行
+    auto *searchLayout = new QHBoxLayout;
+    auto *searchInput = new QLineEdit;
+    searchInput->setPlaceholderText("输入聊天室名称搜索");
+    auto *searchBtn = new QPushButton("搜索");
+    searchLayout->addWidget(searchInput);
+    searchLayout->addWidget(searchBtn);
+    layout->addLayout(searchLayout);
+
+    // 结果列表
+    auto *resultList = new QListWidget;
+    resultList->setStyleSheet("QListWidget::item { padding: 6px; }");
+    layout->addWidget(resultList);
+
+    // 提示标签
+    auto *hintLabel = new QLabel("输入关键词后点击搜索");
+    hintLabel->setAlignment(Qt::AlignCenter);
+    hintLabel->setStyleSheet("color: gray; padding: 20px;");
+    layout->addWidget(hintLabel);
+
+    // 关闭按钮
+    auto *closeBtn = new QPushButton("关闭");
+    layout->addWidget(closeBtn);
+
+    auto *net = NetworkManager::instance();
+
+    auto doSearch = [&]() {
+        QString keyword = searchInput->text().trimmed();
+        if (keyword.isEmpty()) return;
+        searchBtn->setEnabled(false);
+        searchBtn->setText("搜索中…");
+        resultList->clear();
+        hintLabel->hide();
+
+        QJsonObject data;
+        data["keyword"] = keyword;
+        net->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SEARCH_REQ, data));
+    };
+
+    QMetaObject::Connection conn = connect(net, &NetworkManager::roomSearchResponse,
+        &dlg, [&](bool success, const QJsonArray &rooms, const QString &error) {
+        searchBtn->setEnabled(true);
+        searchBtn->setText("搜索");
+
+        if (!success) {
+            hintLabel->setText(error.isEmpty() ? "搜索失败" : error);
+            hintLabel->show();
+            return;
+        }
+
+        resultList->clear();
+        if (rooms.isEmpty()) {
+            hintLabel->setText("未找到匹配的聊天室");
+            hintLabel->show();
+            return;
+        }
+        hintLabel->hide();
+
+        for (const auto &val : rooms) {
+            QJsonObject r = val.toObject();
+            int roomId       = r["roomId"].toInt();
+            QString roomName = r["roomName"].toString();
+            int memberCount  = r["memberCount"].toInt();
+
+            auto *itemWidget = new QWidget;
+            auto *hl = new QHBoxLayout(itemWidget);
+            hl->setContentsMargins(4, 4, 4, 4);
+
+            // 头像
+            auto *avatarLabel = new QLabel;
+            avatarLabel->setFixedSize(32, 32);
+            avatarLabel->setAlignment(Qt::AlignCenter);
+            if (m_roomAvatarCache.contains(roomId)) {
+                avatarLabel->setPixmap(m_roomAvatarCache[roomId]);
+            } else {
+                avatarLabel->setText("🏠");
+                avatarLabel->setStyleSheet("font-size: 18px;");
+            }
+            hl->addWidget(avatarLabel);
+
+            auto *infoLayout = new QVBoxLayout;
+            infoLayout->setSpacing(0);
+            auto *nameLabel = new QLabel(roomName);
+            nameLabel->setStyleSheet("font-weight: bold; font-size: 13px;");
+            auto *idLabel = new QLabel(QString("ID: %1  ·  %2 人").arg(roomId).arg(memberCount));
+            idLabel->setStyleSheet("color: gray; font-size: 11px;");
+            infoLayout->addWidget(nameLabel);
+            infoLayout->addWidget(idLabel);
+            hl->addLayout(infoLayout, 1);
+
+            auto *joinBtn = new QPushButton("加入");
+            joinBtn->setFixedWidth(60);
+            connect(joinBtn, &QPushButton::clicked, &dlg, [roomId, joinBtn, net]() {
+                net->sendMessage(Protocol::makeJoinRoomReq(roomId));
+                joinBtn->setText("已申请");
+                joinBtn->setEnabled(false);
+            });
+            hl->addWidget(joinBtn);
+
+            auto *item = new QListWidgetItem;
+            item->setSizeHint(itemWidget->sizeHint());
+            resultList->addItem(item);
+            resultList->setItemWidget(item, itemWidget);
+        }
+    });
+
+    connect(searchBtn, &QPushButton::clicked, &dlg, doSearch);
+    connect(searchInput, &QLineEdit::returnPressed, &dlg, doSearch);
+    connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
+
+    dlg.exec();
+    disconnect(conn);
+}
+
 void ChatWindow::onRoomCreated(bool success, int roomId, const QString &name, const QString &error) {
     if (success) {
         auto *item = new QListWidgetItem(name);
@@ -672,7 +820,18 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
         QString name = r["roomName"].toString();
         auto *item = new QListWidgetItem(name);
         item->setData(Qt::UserRole, id);
+        // 显示已缓存的头像
+        if (m_roomAvatarCache.contains(id)) {
+            item->setIcon(QIcon(m_roomAvatarCache[id]));
+        }
         m_roomList->addItem(item);
+        // 请求聊天室头像
+        if (!m_roomAvatarCache.contains(id)) {
+            QJsonObject reqData;
+            reqData["roomId"] = id;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_GET_REQ, reqData));
+        }
     }
 
     // 自动加入房间：优先恢复到之前的房间，否则加入第一个
@@ -705,6 +864,16 @@ void ChatWindow::onRoomSelected(QListWidgetItem *item) {
     if (roomId != m_currentRoomId) {
         // 先加入该房间
         NetworkManager::instance()->sendMessage(Protocol::makeJoinRoomReq(roomId));
+    }
+}
+
+void ChatWindow::updateRoomListAvatars() {
+    for (int i = 0; i < m_roomList->count(); ++i) {
+        auto *item = m_roomList->item(i);
+        int id = item->data(Qt::UserRole).toInt();
+        if (m_roomAvatarCache.contains(id)) {
+            item->setIcon(QIcon(m_roomAvatarCache[id]));
+        }
     }
 }
 

@@ -151,6 +151,14 @@ bool DatabaseManager::initialize() {
            "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
            ")");
 
+    // 聊天室头像表
+    q.exec("CREATE TABLE IF NOT EXISTS room_avatars ("
+           "  room_id INTEGER PRIMARY KEY,"
+           "  avatar_data BLOB,"
+           "  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+           "  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE"
+           ")");
+
     // === 数据库迁移：添加 display_name 列 ===
     {
         // 检测 display_name 列是否存在
@@ -593,6 +601,56 @@ QJsonArray DatabaseManager::searchUsers(const QString &keyword, int excludeUserI
         arr.append(user);
     }
     return arr;
+}
+
+// ==================== 聊天室搜索 ====================
+
+QJsonArray DatabaseManager::searchRooms(const QString &keyword, int limit) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    // 按聊天室名称模糊搜索，返回房间ID、名称、成员数
+    q.prepare("SELECT r.id, r.name, r.creator_id, "
+              "(SELECT COUNT(*) FROM room_members rm WHERE rm.room_id = r.id) AS member_count "
+              "FROM rooms r WHERE r.name LIKE ? ORDER BY r.id LIMIT ?");
+    QString pattern = "%" + keyword + "%";
+    q.addBindValue(pattern);
+    q.addBindValue(limit);
+    q.exec();
+
+    QJsonArray arr;
+    while (q.next()) {
+        QJsonObject room;
+        room["roomId"]      = q.value(0).toInt();
+        room["roomName"]    = q.value(1).toString();
+        room["creatorId"]   = q.value(2).toInt();
+        room["memberCount"] = q.value(3).toInt();
+        arr.append(room);
+    }
+    return arr;
+}
+
+// ==================== 聊天室头像 ====================
+
+QByteArray DatabaseManager::getRoomAvatar(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT avatar_data FROM room_avatars WHERE room_id = ?");
+    q.addBindValue(roomId);
+    q.exec();
+    if (q.next())
+        return q.value(0).toByteArray();
+    return {};
+}
+
+bool DatabaseManager::setRoomAvatar(int roomId, const QByteArray &avatarData) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("INSERT OR REPLACE INTO room_avatars (room_id, avatar_data, updated_at) "
+              "VALUES (?, ?, CURRENT_TIMESTAMP)");
+    q.addBindValue(roomId);
+    q.addBindValue(avatarData);
+    return q.exec();
 }
 
 // ==================== 消息管理 ====================

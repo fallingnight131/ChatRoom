@@ -57,6 +57,10 @@ export const MsgType = {
 
   // 好友系统
   USER_SEARCH_REQ: 'USER_SEARCH_REQ', USER_SEARCH_RSP: 'USER_SEARCH_RSP',
+  ROOM_SEARCH_REQ: 'ROOM_SEARCH_REQ', ROOM_SEARCH_RSP: 'ROOM_SEARCH_RSP',
+  ROOM_AVATAR_UPLOAD_REQ: 'ROOM_AVATAR_UPLOAD_REQ', ROOM_AVATAR_UPLOAD_RSP: 'ROOM_AVATAR_UPLOAD_RSP',
+  ROOM_AVATAR_GET_REQ: 'ROOM_AVATAR_GET_REQ', ROOM_AVATAR_GET_RSP: 'ROOM_AVATAR_GET_RSP',
+  ROOM_AVATAR_UPDATE_NOTIFY: 'ROOM_AVATAR_UPDATE_NOTIFY',
   FRIEND_REQUEST_REQ: 'FRIEND_REQUEST_REQ', FRIEND_REQUEST_RSP: 'FRIEND_REQUEST_RSP',
   FRIEND_REQUEST_NOTIFY: 'FRIEND_REQUEST_NOTIFY',
   FRIEND_ACCEPT_REQ: 'FRIEND_ACCEPT_REQ', FRIEND_ACCEPT_RSP: 'FRIEND_ACCEPT_RSP',
@@ -366,6 +370,18 @@ class ChatWebSocket {
 
   searchUsers(keyword) {
     this.send(makeMessage(MsgType.USER_SEARCH_REQ, { keyword }))
+  }
+
+  searchRooms(keyword) {
+    this.send(makeMessage(MsgType.ROOM_SEARCH_REQ, { keyword }))
+  }
+
+  uploadRoomAvatar(roomId, avatarData) {
+    this.send(makeMessage(MsgType.ROOM_AVATAR_UPLOAD_REQ, { roomId, avatarData }))
+  }
+
+  getRoomAvatar(roomId) {
+    this.send(makeMessage(MsgType.ROOM_AVATAR_GET_REQ, { roomId }))
   }
 
   sendFriendRequest(username) {

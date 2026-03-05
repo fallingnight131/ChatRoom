@@ -20,6 +20,9 @@ export const useChatStore = defineStore('chat', {
     // 预览模式下载（不触发自动保存）
     _previewFileIds: new Set(),
 
+    // 聊天室头像缓存  roomId -> base64
+    roomAvatarCache: {},
+
     // 好友系统
     friends: [],              // [{ friendshipId, friendId, username, displayName, isOnline }]
     friendPendingRequests: [], // [{ id, fromUsername, fromDisplayName, timestamp }]
@@ -49,6 +52,19 @@ export const useChatStore = defineStore('chat', {
         chatWs.requestUserList(roomId)
         chatWs.requestHistory(roomId, 50)
       }
+    },
+
+    // ==================== 聊天室头像 ====================
+    getRoomAvatarSrc(roomId) {
+      if (this.roomAvatarCache[roomId]) {
+        return 'data:image/png;base64,' + this.roomAvatarCache[roomId]
+      }
+      return null
+    },
+    fetchRoomAvatar(roomId) {
+      if (this.roomAvatarCache[roomId] !== undefined) return
+      this.roomAvatarCache[roomId] = null // mark as loading
+      chatWs.getRoomAvatar(roomId)
     },
 
     // ==================== 文件上传（小文件直传） ====================
@@ -737,6 +753,39 @@ export const useChatStore = defineStore('chat', {
           this._emit('userSearchResults', msg.data.users || [])
         } else {
           this._emit('error', msg.data.error || '搜索失败')
+        }
+      })
+
+      // --- 聊天室搜索 ---
+      chatWs.on(MsgType.ROOM_SEARCH_RSP, (msg) => {
+        if (msg.data.success) {
+          this._emit('roomSearchResults', msg.data.rooms || [])
+        } else {
+          this._emit('error', msg.data.error || '搜索失败')
+        }
+      })
+
+      // --- 聊天室头像 ---
+      chatWs.on(MsgType.ROOM_AVATAR_UPLOAD_RSP, (msg) => {
+        if (msg.data.success) {
+          this._emit('roomAvatarUploaded', msg.data)
+        } else {
+          this._emit('error', msg.data.error || '上传聊天室头像失败')
+        }
+      })
+
+      chatWs.on(MsgType.ROOM_AVATAR_GET_RSP, (msg) => {
+        const d = msg.data
+        if (d.success && d.avatarData) {
+          this.roomAvatarCache[d.roomId] = d.avatarData
+        }
+        this._emit('roomAvatarLoaded', d)
+      })
+
+      chatWs.on(MsgType.ROOM_AVATAR_UPDATE_NOTIFY, (msg) => {
+        const d = msg.data
+        if (d.avatarData) {
+          this.roomAvatarCache[d.roomId] = d.avatarData
         }
       })
 
