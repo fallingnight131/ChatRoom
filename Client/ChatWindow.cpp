@@ -1564,10 +1564,13 @@ void ChatWindow::cancelUpload() {
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_CANCEL, data));
 
-    // 清除本地上传状态 — 移除临时消息
+    // 清除本地上传状态 — 移除临时消息（房间模型和好友模型都要检查）
     if (m_uploadingFileId != 0) {
         // 从所有模型中移除临时上传消息
         for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+            it.value()->removeMessageByFileId(m_uploadingFileId);
+        }
+        for (auto it = m_friendModels.begin(); it != m_friendModels.end(); ++it) {
             it.value()->removeMessageByFileId(m_uploadingFileId);
         }
         // 清理临时缩略图
@@ -3552,6 +3555,18 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
 
     // 发送者自己的文件：直接从本地复制到缓存，无需下载
     if (sender == m_username && m_pendingSentFiles.contains(fileName)) {
+        // 移除临时上传消息（大文件分块上传时存在临时消息，与房间 onFileNotify 一致）
+        if (m_uploadingFileId != 0) {
+            model->removeMessageByFileId(m_uploadingFileId);
+            // 清理临时缩略图
+            QString tempThumb = FileCache::instance()->thumbDir()
+                                + QString("/thumb_%1.jpg").arg(m_uploadingFileId);
+            QFile::remove(tempThumb);
+            QPixmapCache::remove(QString("vidthumb_%1").arg(m_uploadingFileId));
+            m_uploadingFileId = 0;
+            m_uploadingFileName.clear();
+        }
+
         QString localPath = m_pendingSentFiles.take(fileName);
         if (QFile::exists(localPath)) {
             QString cached = FileCache::instance()->cacheFromLocal(fileId, fileName, localPath);
@@ -3619,6 +3634,20 @@ void ChatWindow::onFriendOfflineNotify(const QString &username) {
 void ChatWindow::onFriendFileUploadStartResponse(const QJsonObject &data) {
     if (!data["success"].toBool()) {
         QMessageBox::warning(this, "文件发送", data["error"].toString());
+        // 失败时清除临时上传消息和状态
+        if (m_uploadingFileId != 0) {
+            for (auto it = m_friendModels.begin(); it != m_friendModels.end(); ++it) {
+                it.value()->removeMessageByFileId(m_uploadingFileId);
+            }
+            QString tempThumb = FileCache::instance()->thumbDir()
+                                + QString("/thumb_%1.jpg").arg(m_uploadingFileId);
+            QFile::remove(tempThumb);
+            QPixmapCache::remove(QString("vidthumb_%1").arg(m_uploadingFileId));
+            m_uploadingFileId = 0;
+            m_uploadingFileName.clear();
+        }
+        m_upload.uploadId.clear();
+        m_upload.thumbnailData.clear();
         return;
     }
 
@@ -3702,21 +3731,59 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
         NetworkManager::instance()->sendMessage(
             Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_SEND, data));
     } else {
-        // 大文件分块上传
+        // 大文件分块上传 — 检查是否有正在进行的上传（与房间上传一致）
+        if (!m_upload.uploadId.isEmpty()) {
+            QMessageBox::warning(this, "上传提示",
+                QString("当前正在上传 \"%1\"，请等待上传完成或取消后再上传新文件。")
+                    .arg(m_uploadingFileName));
+            return;
+        }
+
         m_upload.filePath  = filePath;
         m_upload.fileSize  = fileSize;
         m_upload.offset    = 0;
         m_upload.uploadId.clear();
         m_upload.thumbnailData.clear();
+        m_uploadPaused = false;
+        m_uploadingFileName = fi.fileName();
+
+        // 生成临时负数 fileId 用于上传进度显示（与房间上传一致）
+        static int s_tempFriendFileId = -10000;
+        m_uploadingFileId = --s_tempFriendFileId;
+
+        // 添加临时上传消息到好友模型（显示上传进度，与房间上传一致）
+        MessageModel *model = getOrCreateFriendModel(m_currentFriendUsername);
+        Message uploadMsg;
+        uploadMsg.setSender(m_username);
+        uploadMsg.setIsMine(true);
+        uploadMsg.setFileName(fi.fileName());
+        uploadMsg.setFileSize(fileSize);
+        uploadMsg.setFileId(m_uploadingFileId);
+        uploadMsg.setContentType(Message::File);
+        uploadMsg.setDownloadState(Message::Uploading);
+        uploadMsg.setDownloadProgress(0.0);
+        uploadMsg.setTimestamp(QDateTime::currentMSecsSinceEpoch());
+        model->addMessage(uploadMsg);
+        QTimer::singleShot(50, [this] { m_messageView->scrollToBottom(); });
+
+        // 记录发送的文件路径
+        m_pendingSentFiles[fi.fileName()] = filePath;
 
         // 视频文件：预生成缩略图，等上传完成时一并发送（与房间上传一致）
         static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
         if (vidExts.contains(fi.suffix().toLower())) {
             m_upload.thumbnailData = generateVideoThumbnailData(filePath);
+            // 保存缩略图到本地缓存（使用临时 fileId），以便上传期间显示缩略图背景
+            if (!m_upload.thumbnailData.isEmpty()) {
+                QString tDir = FileCache::instance()->thumbDir();
+                QString thumbPath = tDir + QString("/thumb_%1.jpg").arg(m_uploadingFileId);
+                QFile tf(thumbPath);
+                if (tf.open(QIODevice::WriteOnly)) {
+                    tf.write(m_upload.thumbnailData);
+                    tf.close();
+                }
+            }
         }
-
-        // 记录发送的文件路径
-        m_pendingSentFiles[fi.fileName()] = filePath;
 
         QJsonObject data;
         data["friendUsername"] = m_currentFriendUsername;
