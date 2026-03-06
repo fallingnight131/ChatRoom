@@ -3430,9 +3430,10 @@ void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
         msg.setRecalled(msgObj["recalled"].toBool(false));
 
         QString ct = msgObj["contentType"].toString("text");
-        if (ct == "text")       msg.setContentType(Message::Text);
-        else if (ct == "image") msg.setContentType(Message::Image);
-        else if (ct == "file")  msg.setContentType(Message::File);
+        if (ct == "text")        msg.setContentType(Message::Text);
+        else if (ct == "image")  msg.setContentType(Message::Image);
+        else if (ct == "file")   msg.setContentType(Message::File);
+        else if (ct == "video")  msg.setContentType(Message::File);  // 视频当作 File，由 delegate 根据扩展名渲染
 
         if (msgObj.contains("fileName")) {
             msg.setFileName(msgObj["fileName"].toString());
