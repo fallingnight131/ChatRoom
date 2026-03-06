@@ -325,9 +325,22 @@ export const useChatStore = defineStore('chat', {
     },
 
     async startFriendChunkedUpload(friendUsername, file) {
+      // 预先生成缩略图，等上传完成后随 END 消息发送（与房间大文件上传一致）
+      let contentType = 'file'
+      if (file.type.startsWith('image/')) contentType = 'image'
+      else if (file.type.startsWith('video/')) contentType = 'video'
+
+      let thumbnail = ''
+      if (contentType === 'image') {
+        thumbnail = await this._generateImageThumbnail(file)
+      } else if (contentType === 'video') {
+        thumbnail = await this._generateVideoThumbnail(file)
+      }
+
       chatWs.startFriendUpload(friendUsername, file.name, file.size)
       this._pendingUploadFile = file
       this._pendingFriendUpload = friendUsername
+      this._pendingUploadThumbnail = thumbnail
     },
 
     // ==================== 初始化消息监听 ====================
@@ -864,7 +877,7 @@ export const useChatStore = defineStore('chat', {
             file: file,
             roomId: -d.friendshipId,
             paused: false,
-            thumbnail: ''
+            thumbnail: this._pendingUploadThumbnail || ''
           }
           this._sendNextChunk(d.uploadId)
         } else {

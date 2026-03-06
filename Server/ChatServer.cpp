@@ -2081,8 +2081,15 @@ void ChatServer::handleFriendFileSend(ClientSession *session, const QJsonObject 
     QString fileName  = data["fileName"].toString();
     qint64 fileSize   = static_cast<qint64>(data["fileSize"].toDouble());
     QString fileData  = data["fileData"].toString();
-    QString contentType = data["contentType"].toString("file");
     QString thumbnail = data["thumbnail"].toString();
+
+    // 根据文件后缀确定 contentType（与房间 handleFileSend 一致）
+    QString contentType = QStringLiteral("file");
+    QString typeDir = fileTypeSubDir(fileName);
+    if (typeDir == QLatin1String("Image"))
+        contentType = QStringLiteral("image");
+    else if (typeDir == QLatin1String("Video"))
+        contentType = QStringLiteral("video");
 
     int friendId = m_db->getUserIdByName(friendUsername);
     if (friendId < 0) return;
@@ -2110,6 +2117,25 @@ void ChatServer::handleFriendFileSend(ClientSession *session, const QJsonObject 
     f.close();
 
     int fileId = m_db->saveFriendFile(friendshipId, session->userId(), fileName, filePath, fileSize);
+
+    // 图片自动生成缩略图（与房间 handleFileSend 一致）
+    if (contentType == QLatin1String("image") && fileSize < 20 * 1024 * 1024) {
+        QImage img(filePath);
+        if (!img.isNull()) {
+            QImage thumb = img.scaled(200, 200, Qt::KeepAspectRatio, Qt::FastTransformation);
+            QByteArray thumbData;
+            QBuffer buf(&thumbData);
+            buf.open(QIODevice::WriteOnly);
+            thumb.save(&buf, "JPEG", 60);
+            QString serverThumb = QString::fromLatin1(thumbData.toBase64());
+            if (!serverThumb.isEmpty()) thumbnail = serverThumb;
+        }
+    }
+    // QImage 失败或非图片类型时，使用客户端提供的缩略图（视频缩略图由客户端生成）
+    if (thumbnail.isEmpty() && data.contains("thumbnail")) {
+        thumbnail = data["thumbnail"].toString();
+    }
+
     int msgId  = m_db->saveFriendMessage(friendshipId, session->userId(), fileName, contentType,
                                           fileName, fileSize, fileId, thumbnail);
 

@@ -3523,13 +3523,31 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
 
     QString ct = data["contentType"].toString("file");
     bool isImage = (ct == "image");
+    static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
+    bool isVideo = (ct == "video") || vidExts.contains(QFileInfo(fileName).suffix().toLower());
     // 图片和视频统一用 File 类型，由 delegate 根据扩展名决定渲染方式
-    if (isImage)            msg.setContentType(Message::File);
-    else if (ct == "video") msg.setContentType(Message::File);
-    else                    msg.setContentType(Message::File);
+    if (isImage)       msg.setContentType(Message::File);
+    else if (isVideo)  msg.setContentType(Message::File);
+    else               msg.setContentType(Message::File);
 
     if (data.contains("thumbnail"))
         msg.setThumbnail(data["thumbnail"].toString());
+
+    // 接收到服务器转发的视频缩略图 → 保存到本地缓存（与房间 onFileNotify 一致）
+    if (isVideo && data.contains("thumbnail")) {
+        QByteArray thumbData = QByteArray::fromBase64(data["thumbnail"].toString().toLatin1());
+        if (!thumbData.isEmpty()) {
+            QString tDir = FileCache::instance()->thumbDir();
+            QString thumbPath = tDir + QString("/thumb_%1.jpg").arg(fileId);
+            QFile tf(thumbPath);
+            if (tf.open(QIODevice::WriteOnly)) {
+                tf.write(thumbData);
+                tf.close();
+                qInfo() << "[FriendVideoThumb] 从服务器接收缩略图已保存:" << thumbPath;
+                QPixmapCache::remove(QString("vidthumb_%1").arg(fileId));
+            }
+        }
+    }
 
     // 发送者自己的文件：直接从本地复制到缓存，无需下载
     if (sender == m_username && m_pendingSentFiles.contains(fileName)) {
@@ -3539,6 +3557,14 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
             if (!cached.isEmpty()) {
                 msg.setDownloadState(Message::Downloaded);
                 msg.setDownloadProgress(1.0);
+                // 发送者的视频缩略图：如果没有从服务器收到，从本地视频生成（与房间 onFileNotify 一致）
+                if (isVideo) {
+                    QString thumbPath = FileCache::instance()->thumbDir()
+                                        + QString("/thumb_%1.jpg").arg(fileId);
+                    if (!QFile::exists(thumbPath)) {
+                        generateVideoThumbnail(fileId, cached);
+                    }
+                }
             }
         }
     }
@@ -3605,7 +3631,14 @@ void ChatWindow::onSendFriendFile() {
 
     QString filePath = QFileDialog::getOpenFileName(this, "发送文件");
     if (filePath.isEmpty()) return;
-    sendFriendFile(filePath, "file");
+
+    // 根据文件后缀自动判断 contentType（与房间发送一致）
+    QString contentType = "file";
+    QString suffix = QFileInfo(filePath).suffix().toLower();
+    static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
+    if (vidExts.contains(suffix)) contentType = "video";
+
+    sendFriendFile(filePath, contentType);
 }
 
 void ChatWindow::onSendFriendImage() {
@@ -3649,6 +3682,12 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
                 thumb.save(&buf, "JPEG", 60);
                 thumbnail = QString::fromLatin1(thumbData.toBase64());
             }
+        } else if (contentType == "video") {
+            // 视频文件：生成缩略图一并发送（与房间发送一致）
+            QByteArray thumbData = generateVideoThumbnailData(filePath);
+            if (!thumbData.isEmpty()) {
+                thumbnail = QString::fromLatin1(thumbData.toBase64());
+            }
         }
 
         QJsonObject data;
@@ -3667,6 +3706,16 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
         m_upload.fileSize  = fileSize;
         m_upload.offset    = 0;
         m_upload.uploadId.clear();
+        m_upload.thumbnailData.clear();
+
+        // 视频文件：预生成缩略图，等上传完成时一并发送（与房间上传一致）
+        static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
+        if (vidExts.contains(fi.suffix().toLower())) {
+            m_upload.thumbnailData = generateVideoThumbnailData(filePath);
+        }
+
+        // 记录发送的文件路径
+        m_pendingSentFiles[fi.fileName()] = filePath;
 
         QJsonObject data;
         data["friendUsername"] = m_currentFriendUsername;
