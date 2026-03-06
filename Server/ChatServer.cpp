@@ -710,10 +710,14 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
 void ChatServer::handleFileDownload(ClientSession *session, const QJsonObject &data) {
     int fileId = data["fileId"].toInt();
 
-    QString filePath = m_db->getFilePath(fileId);
+    // 负数 fileId 表示好友文件
+    bool isFriendFile = (fileId < 0);
+    int dbFileId = isFriendFile ? -fileId : fileId;
+
+    QString filePath = m_db->getFilePath(dbFileId, isFriendFile);
     QJsonObject rspData;
 
-    QString dbFileName = m_db->getFileName(fileId);
+    QString dbFileName = m_db->getFileName(dbFileId, isFriendFile);
     if (!filePath.isEmpty()) {
         QFile file(filePath);
         if (file.open(QIODevice::ReadOnly)) {
@@ -889,7 +893,7 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
         notifyData["friendUsername"] = friendUsername;
         notifyData["fileName"]     = state.fileName;
         notifyData["fileSize"]     = static_cast<double>(state.fileSize);
-        notifyData["fileId"]       = fileId;
+        notifyData["fileId"]       = -fileId;  // 负数标识好友文件
         notifyData["contentType"]  = contentType;
         notifyData["content"]      = state.fileName;
         if (!thumbnail.isEmpty())
@@ -951,7 +955,11 @@ void ChatServer::handleFileDownloadChunk(ClientSession *session, const QJsonObje
     int chunkSize = data["chunkSize"].toInt();
     if (chunkSize <= 0) chunkSize = Protocol::FILE_CHUNK_SIZE;
 
-    QString filePath = m_db->getFilePath(fileId);
+    // 负数 fileId 表示好友文件
+    bool isFriendFile = (fileId < 0);
+    int dbFileId = isFriendFile ? -fileId : fileId;
+
+    QString filePath = m_db->getFilePath(dbFileId, isFriendFile);
     QJsonObject rspData;
     rspData["fileId"] = fileId;
 
@@ -2115,7 +2123,7 @@ void ChatServer::handleFriendFileSend(ClientSession *session, const QJsonObject 
     notifyData["contentType"]  = contentType;
     notifyData["fileName"]     = fileName;
     notifyData["fileSize"]     = static_cast<double>(fileSize);
-    notifyData["fileId"]       = fileId;
+    notifyData["fileId"]       = -fileId;  // 负数标识好友文件
     notifyData["timestamp"]    = QDateTime::currentMSecsSinceEpoch();
     if (!thumbnail.isEmpty()) notifyData["thumbnail"] = thumbnail;
 

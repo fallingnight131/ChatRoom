@@ -806,11 +806,15 @@ int DatabaseManager::saveFile(int roomId, int userId, const QString &fileName,
     return -1;
 }
 
-QString DatabaseManager::getFilePath(int fileId) {
+QString DatabaseManager::getFilePath(int fileId, bool isFriendFile) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
-    q.prepare("SELECT file_path FROM files WHERE id = ?");
+    if (isFriendFile) {
+        q.prepare("SELECT file_path FROM friend_files WHERE id = ?");
+    } else {
+        q.prepare("SELECT file_path FROM files WHERE id = ?");
+    }
     q.addBindValue(fileId);
     q.exec();
 
@@ -819,11 +823,15 @@ QString DatabaseManager::getFilePath(int fileId) {
     return {};
 }
 
-QString DatabaseManager::getFileName(int fileId) {
+QString DatabaseManager::getFileName(int fileId, bool isFriendFile) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
-    q.prepare("SELECT file_name FROM files WHERE id = ?");
+    if (isFriendFile) {
+        q.prepare("SELECT file_name FROM friend_files WHERE id = ?");
+    } else {
+        q.prepare("SELECT file_name FROM files WHERE id = ?");
+    }
     q.addBindValue(fileId);
     q.exec();
 
@@ -1358,7 +1366,8 @@ QJsonArray DatabaseManager::getFriendMessageHistory(int friendshipId, int count,
         msg["contentType"] = q.value(2).toString();
         msg["fileName"]    = q.value(3).toString();
         msg["fileSize"]    = static_cast<double>(q.value(4).toLongLong());
-        msg["fileId"]      = q.value(5).toInt();
+        int rawFileId      = q.value(5).toInt();
+        msg["fileId"]      = rawFileId > 0 ? -rawFileId : 0;  // 负数标识好友文件
         msg["recalled"]    = q.value(6).toInt() != 0;
         QDateTime dt = q.value(7).toDateTime();
         dt.setTimeSpec(Qt::UTC);

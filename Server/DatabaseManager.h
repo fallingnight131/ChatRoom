@@ -69,8 +69,8 @@ public:
     // 文件管理
     int     saveFile(int roomId, int userId, const QString &fileName,
                      const QString &filePath, qint64 fileSize);
-    QString getFilePath(int fileId);
-    QString getFileName(int fileId);
+    QString getFilePath(int fileId, bool isFriendFile = false);
+    QString getFileName(int fileId, bool isFriendFile = false);
 
     // 管理员管理
     bool isRoomAdmin(int roomId, int userId);

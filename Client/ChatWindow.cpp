@@ -3395,6 +3395,9 @@ void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
 
     MessageModel *model = getOrCreateFriendModel(friendUsername);
 
+    struct PendingImage { int fileId; QString fileName; qint64 fileSize; };
+    QList<PendingImage> pendingImages;
+
     QList<Message> msgList;
     for (const QJsonValue &v : messages) {
         QJsonObject msgObj = v.toObject();
@@ -3416,11 +3419,21 @@ void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
             msg.setFileName(msgObj["fileName"].toString());
             msg.setFileSize(static_cast<qint64>(msgObj["fileSize"].toDouble()));
             msg.setFileId(msgObj["fileId"].toInt());
+
+            // 收集需要自动下载的图片
+            if (ct == "image" && msg.fileId() != 0) {
+                if (FileCache::instance()->isCached(msg.fileId())) {
+                    msg.setDownloadState(Message::Downloaded);
+                    msg.setDownloadProgress(1.0);
+                } else {
+                    pendingImages.append({msg.fileId(), msg.fileName(), msg.fileSize()});
+                }
+            }
         }
         if (msgObj.contains("thumbnail"))
             msg.setThumbnail(msgObj["thumbnail"].toString());
 
-        msgList.prepend(msg);
+        msgList.append(msg);
     }
 
     model->prependMessages(msgList);
@@ -3431,6 +3444,11 @@ void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
                 m_messageView->scrollToBottom();
         });
     }
+
+    // 自动下载历史中未缓存的图片
+    for (const auto &img : pendingImages) {
+        triggerFileDownload(img.fileId, img.fileName, img.fileSize);
+    }
 }
 
 void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
@@ -3440,6 +3458,10 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
 
     MessageModel *model = getOrCreateFriendModel(chatWith);
 
+    int fileId = data["fileId"].toInt();
+    QString fileName = data["fileName"].toString();
+    qint64 fileSize = static_cast<qint64>(data["fileSize"].toDouble());
+
     Message msg;
     msg.setId(data["id"].toInt());
     msg.setSender(sender);
@@ -3447,17 +3469,36 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
     msg.setContent(data["content"].toString());
     msg.setTimestamp(data["timestamp"].toVariant().toLongLong());
     msg.setIsMine(sender == m_username);
-    msg.setFileName(data["fileName"].toString());
-    msg.setFileSize(static_cast<qint64>(data["fileSize"].toDouble()));
-    msg.setFileId(data["fileId"].toInt());
+    msg.setFileName(fileName);
+    msg.setFileSize(fileSize);
+    msg.setFileId(fileId);
 
     QString ct = data["contentType"].toString("file");
-    if (ct == "image")      msg.setContentType(Message::Image);
+    bool isImage = (ct == "image");
+    if (isImage)            msg.setContentType(Message::Image);
     else if (ct == "video") msg.setContentType(Message::Video);
     else                    msg.setContentType(Message::File);
 
     if (data.contains("thumbnail"))
         msg.setThumbnail(data["thumbnail"].toString());
+
+    // 发送者自己的文件：直接从本地复制到缓存，无需下载
+    if (sender == m_username && m_pendingSentFiles.contains(fileName)) {
+        QString localPath = m_pendingSentFiles.take(fileName);
+        if (QFile::exists(localPath)) {
+            QString cached = FileCache::instance()->cacheFromLocal(fileId, fileName, localPath);
+            if (!cached.isEmpty()) {
+                msg.setDownloadState(Message::Downloaded);
+                msg.setDownloadProgress(1.0);
+            }
+        }
+    }
+
+    // 已缓存则标记为已下载
+    if (FileCache::instance()->isCached(fileId)) {
+        msg.setDownloadState(Message::Downloaded);
+        msg.setDownloadProgress(1.0);
+    }
 
     model->addMessage(msg);
 
@@ -3465,6 +3506,11 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
         QTimer::singleShot(50, [this] {
             m_messageView->scrollToBottom();
         });
+    }
+
+    // 图片文件自动下载缓存
+    if (isImage && !FileCache::instance()->isCached(fileId)) {
+        triggerFileDownload(fileId, fileName, fileSize);
     }
 }
 
@@ -3533,6 +3579,9 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
         return;
     }
 
+    // 记录发送的文件路径，用于收到 FRIEND_FILE_NOTIFY 时直接缓存
+    m_pendingSentFiles[fi.fileName()] = filePath;
+
     // 小文件直接发送 (< 8MB)
     if (fileSize < Protocol::MAX_SMALL_FILE) {
         QFile f(filePath);
@@ -3592,7 +3641,7 @@ void ChatWindow::onFriendRecallResponse(bool success, int messageId, const QStri
         int row = model->findMessageRow(messageId);
         if (row >= 0) {
             const Message &msg = model->messageAt(row);
-            if (msg.contentType() == Message::File && msg.fileId() > 0) {
+            if (msg.contentType() == Message::File && msg.fileId() != 0) {
                 FileCache::instance()->removeFile(msg.fileId());
                 QPixmapCache::remove(QString("msgimg_%1").arg(msg.fileId()));
                 QPixmapCache::remove(QString("vidthumb_%1").arg(msg.fileId()));
@@ -3612,7 +3661,7 @@ void ChatWindow::onFriendRecallNotify(int messageId, const QString &friendUserna
     int row = model->findMessageRow(messageId);
     if (row >= 0) {
         const Message &msg = model->messageAt(row);
-        if (msg.contentType() == Message::File && msg.fileId() > 0) {
+        if (msg.contentType() == Message::File && msg.fileId() != 0) {
             FileCache::instance()->removeFile(msg.fileId());
             QPixmapCache::remove(QString("msgimg_%1").arg(msg.fileId()));
             QPixmapCache::remove(QString("vidthumb_%1").arg(msg.fileId()));
