@@ -15,6 +15,7 @@ export const useUserStore = defineStore('user', {
     wsPath: localStorage.getItem('wsPath') || '/ws',
     // 缓存其他用户头像
     avatarCache: {},   // username -> base64
+    forceOfflineReason: '',  // 被顶号时的提示信息
   }),
 
   actions: {
@@ -108,10 +109,9 @@ export const useUserStore = defineStore('user', {
       this._listenersInitialized = true
 
       chatWs.on(MsgType.FORCE_OFFLINE, (msg) => {
-        alert(msg.data.reason || '您已被强制下线')
+        this.forceOfflineReason = msg.data.reason || '您已被强制下线'
         this.onLogout()
         chatWs.disconnect()
-        window.location.hash = '#/login'
       })
 
       chatWs.on(MsgType.AVATAR_GET_RSP, (msg) => {

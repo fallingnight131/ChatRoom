@@ -83,6 +83,17 @@
     <UserInfoDialog v-if="showUserInfo" :user="selectedUser" @close="showUserInfo = false" />
     <RoomPasswordDialog v-if="showPasswordPrompt" :roomData="passwordRoomData"
                         @close="showPasswordPrompt = false" @submit="onPasswordSubmit" />
+
+    <!-- 被顶号提示 -->
+    <div class="modal-overlay" v-if="userStore.forceOfflineReason">
+      <div class="modal" style="max-width: 380px; text-align: center;">
+        <div class="modal-title">连接已断开</div>
+        <p style="padding: 16px 20px; margin: 0; line-height: 1.6; color: white;">{{ userStore.forceOfflineReason }}</p>
+        <div class="modal-actions">
+          <button class="btn btn-primary" @click="onForceOfflineConfirm">确定</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -238,6 +249,11 @@ onUnmounted(() => {
 
 function onDisconnected() {
   // 意外断开
+}
+
+function onForceOfflineConfirm() {
+  userStore.forceOfflineReason = ''
+  router.push('/login')
 }
 </script>
 
