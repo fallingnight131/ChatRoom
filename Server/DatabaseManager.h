@@ -112,6 +112,13 @@ public:
     bool removeFriend(int userId1, int userId2);
     int  getFriendshipId(int userId1, int userId2);
 
+    // 未读消息
+    int  getUnreadRoomCount(int roomId, int userId);
+    void markRoomRead(int roomId, int userId);
+    int  getUnreadFriendCount(int friendshipId, int userId);
+    void markFriendRead(int friendshipId, int userId);
+    int  getPendingFriendRequestCount(int userId);
+
     // 好友私聊消息
     int  saveFriendMessage(int friendshipId, int senderId, const QString &content,
                            const QString &contentType,

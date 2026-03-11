@@ -435,7 +435,7 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         emit friendRemoveNotify(data["username"].toString(), data["displayName"].toString());
     }
     else if (type == Protocol::MsgType::FRIEND_LIST_RSP) {
-        emit friendListReceived(data["friends"].toArray());
+        emit friendListReceived(data["friends"].toArray(), data["pendingFriendRequests"].toInt(0));
     }
     else if (type == Protocol::MsgType::FRIEND_PENDING_RSP) {
         emit friendPendingReceived(data["requests"].toArray());

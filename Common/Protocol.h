@@ -180,6 +180,10 @@ namespace MsgType {
     inline const QString FRIEND_FILE_UPLOAD_START     = QStringLiteral("FRIEND_FILE_UPLOAD_START");
     inline const QString FRIEND_FILE_UPLOAD_START_RSP = QStringLiteral("FRIEND_FILE_UPLOAD_START_RSP");
 
+    // 标记已读
+    inline const QString MARK_ROOM_READ       = QStringLiteral("MARK_ROOM_READ");
+    inline const QString MARK_FRIEND_READ     = QStringLiteral("MARK_FRIEND_READ");
+
     // 好友私聊撤回
     inline const QString FRIEND_RECALL_REQ    = QStringLiteral("FRIEND_RECALL_REQ");
     inline const QString FRIEND_RECALL_RSP    = QStringLiteral("FRIEND_RECALL_RSP");

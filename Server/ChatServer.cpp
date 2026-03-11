@@ -289,6 +289,16 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleFriendFileUploadStart(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::FRIEND_RECALL_REQ) {
         handleFriendRecall(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::MARK_ROOM_READ) {
+        if (session->isAuthenticated()) {
+            int roomId = msg["data"].toObject()["roomId"].toInt();
+            m_db->markRoomRead(roomId, session->userId());
+        }
+    } else if (type == Protocol::MsgType::MARK_FRIEND_READ) {
+        if (session->isAuthenticated()) {
+            int friendshipId = msg["data"].toObject()["friendshipId"].toInt();
+            m_db->markFriendRead(friendshipId, session->userId());
+        }
     } else if (type == Protocol::MsgType::HEARTBEAT) {
         session->sendMessage(Protocol::makeHeartbeatAck());
     }
@@ -550,8 +560,14 @@ void ChatServer::handleLeaveRoom(ClientSession *session, const QJsonObject &data
 }
 
 void ChatServer::handleRoomList(ClientSession *session) {
-    // 只返回用户已加入的房间
+    // 只返回用户已加入的房间（带未读计数）
     QJsonArray roomArr = m_db->getUserJoinedRooms(session->userId());
+    for (int i = 0; i < roomArr.size(); ++i) {
+        QJsonObject room = roomArr[i].toObject();
+        int roomId = room["roomId"].toInt();
+        room["unread"] = m_db->getUnreadRoomCount(roomId, session->userId());
+        roomArr[i] = room;
+    }
     QJsonObject rspData;
     rspData["rooms"] = roomArr;
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_LIST_RSP, rspData));
@@ -2009,18 +2025,20 @@ void ChatServer::handleFriendList(ClientSession *session) {
 
     QJsonArray friends = m_db->getFriendList(session->userId());
 
-    // 添加在线状态
+    // 添加在线状态和未读计数
     {
         QMutexLocker locker(&m_mutex);
         for (int i = 0; i < friends.size(); ++i) {
             QJsonObject fr = friends[i].toObject();
             fr["isOnline"] = m_sessions.contains(fr["username"].toString());
+            fr["unread"] = m_db->getUnreadFriendCount(fr["friendshipId"].toInt(), session->userId());
             friends[i] = fr;
         }
     }
 
     QJsonObject rspData;
     rspData["friends"] = friends;
+    rspData["pendingFriendRequests"] = m_db->getPendingFriendRequestCount(session->userId());
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_LIST_RSP, rspData));
 }
 

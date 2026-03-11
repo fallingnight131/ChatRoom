@@ -167,7 +167,7 @@ private slots:
     void onFriendRejectResponse(bool success, const QString &error);
     void onFriendRemoveResponse(bool success, const QString &username, const QString &error);
     void onFriendRemoveNotify(const QString &username, const QString &displayName);
-    void onFriendListReceived(const QJsonArray &friends);
+    void onFriendListReceived(const QJsonArray &friends, int pendingFriendRequests);
     void onFriendPendingReceived(const QJsonArray &requests);
     void onFriendChatMessage(const QJsonObject &data);
     void onFriendHistoryReceived(const QJsonObject &data);

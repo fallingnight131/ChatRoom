@@ -126,7 +126,7 @@ signals:
     void friendRejectResponse(bool success, const QString &error);
     void friendRemoveResponse(bool success, const QString &username, const QString &error);
     void friendRemoveNotify(const QString &username, const QString &displayName);
-    void friendListReceived(const QJsonArray &friends);
+    void friendListReceived(const QJsonArray &friends, int pendingFriendRequests);
     void friendPendingReceived(const QJsonArray &requests);
     void friendChatMessageReceived(const QJsonObject &data);
     void friendHistoryReceived(const QJsonObject &data);

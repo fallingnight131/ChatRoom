@@ -75,13 +75,14 @@ export const MsgType = {
   FRIEND_ONLINE_NOTIFY: 'FRIEND_ONLINE_NOTIFY', FRIEND_OFFLINE_NOTIFY: 'FRIEND_OFFLINE_NOTIFY',
   FRIEND_FILE_UPLOAD_START: 'FRIEND_FILE_UPLOAD_START', FRIEND_FILE_UPLOAD_START_RSP: 'FRIEND_FILE_UPLOAD_START_RSP',
   FRIEND_RECALL_REQ: 'FRIEND_RECALL_REQ', FRIEND_RECALL_RSP: 'FRIEND_RECALL_RSP', FRIEND_RECALL_NOTIFY: 'FRIEND_RECALL_NOTIFY',
+  MARK_ROOM_READ: 'MARK_ROOM_READ', MARK_FRIEND_READ: 'MARK_FRIEND_READ',
 }
 
 function uuid() {
   return crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2))
 }
 
-function makeMessage(type, data = {}) {
+export function makeMessage(type, data = {}) {
   return { type, id: uuid(), timestamp: Date.now(), data }
 }
 
@@ -436,4 +437,4 @@ class ChatWebSocket {
 
 // 单例
 export const chatWs = new ChatWebSocket()
-export { FILE_CHUNK_SIZE, MAX_SMALL_FILE, makeMessage }
+export { FILE_CHUNK_SIZE, MAX_SMALL_FILE }

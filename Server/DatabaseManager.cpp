@@ -203,6 +203,12 @@ bool DatabaseManager::initialize() {
         }
     }
 
+    // 迁移: room_members 添加 last_read_msg_id
+    q.exec("ALTER TABLE room_members ADD COLUMN last_read_msg_id INTEGER DEFAULT 0");
+    // 迁移: friendships 添加每用户已读指针
+    q.exec("ALTER TABLE friendships ADD COLUMN user1_last_read_msg_id INTEGER DEFAULT 0");
+    q.exec("ALTER TABLE friendships ADD COLUMN user2_last_read_msg_id INTEGER DEFAULT 0");
+
     m_initialized = true;
 
     // 好友请求表
@@ -1435,4 +1441,74 @@ QPair<int, QString> DatabaseManager::getFileInfoForFriendMessage(int messageId) 
     if (q.exec() && q.next())
         return {q.value(0).toInt(), q.value(1).toString()};
     return {0, {}};
+}
+
+// ==================== 未读消息 ====================
+
+int DatabaseManager::getUnreadRoomCount(int roomId, int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT COUNT(*) FROM messages "
+              "WHERE room_id = ? AND id > "
+              "(SELECT COALESCE(last_read_msg_id, 0) FROM room_members WHERE room_id = ? AND user_id = ?)");
+    q.addBindValue(roomId);
+    q.addBindValue(roomId);
+    q.addBindValue(userId);
+    if (q.exec() && q.next()) return q.value(0).toInt();
+    return 0;
+}
+
+void DatabaseManager::markRoomRead(int roomId, int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("UPDATE room_members SET last_read_msg_id = "
+              "(SELECT COALESCE(MAX(id), 0) FROM messages WHERE room_id = ?) "
+              "WHERE room_id = ? AND user_id = ?");
+    q.addBindValue(roomId);
+    q.addBindValue(roomId);
+    q.addBindValue(userId);
+    q.exec();
+}
+
+int DatabaseManager::getUnreadFriendCount(int friendshipId, int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT user_id1, user_id2, user1_last_read_msg_id, user2_last_read_msg_id "
+              "FROM friendships WHERE id = ?");
+    q.addBindValue(friendshipId);
+    if (!q.exec() || !q.next()) return 0;
+    int uid1 = q.value(0).toInt();
+    int lastRead = (userId == uid1) ? q.value(2).toInt() : q.value(3).toInt();
+
+    q.prepare("SELECT COUNT(*) FROM friend_messages WHERE friendship_id = ? AND id > ?");
+    q.addBindValue(friendshipId);
+    q.addBindValue(lastRead);
+    if (q.exec() && q.next()) return q.value(0).toInt();
+    return 0;
+}
+
+void DatabaseManager::markFriendRead(int friendshipId, int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT user_id1 FROM friendships WHERE id = ?");
+    q.addBindValue(friendshipId);
+    if (!q.exec() || !q.next()) return;
+    int uid1 = q.value(0).toInt();
+    QString col = (userId == uid1) ? "user1_last_read_msg_id" : "user2_last_read_msg_id";
+
+    q.prepare(QString("UPDATE friendships SET %1 = "
+              "(SELECT COALESCE(MAX(id), 0) FROM friend_messages WHERE friendship_id = ?) "
+              "WHERE id = ?").arg(col));
+    q.addBindValue(friendshipId);
+    q.addBindValue(friendshipId);
+    q.exec();
+}
+
+int DatabaseManager::getPendingFriendRequestCount(int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT COUNT(*) FROM friend_requests WHERE to_user_id = ? AND status = 'pending'");
+    q.addBindValue(userId);
+    if (q.exec() && q.next()) return q.value(0).toInt();
+    return 0;
 }

@@ -1,6 +1,6 @@
 // 聊天状态管理 —— 房间、消息、用户列表、文件传输
 import { defineStore } from 'pinia'
-import { chatWs, MsgType, FILE_CHUNK_SIZE, MAX_SMALL_FILE } from '../services/websocket'
+import { chatWs, MsgType, FILE_CHUNK_SIZE, MAX_SMALL_FILE, makeMessage } from '../services/websocket'
 import { useUserStore } from './user'
 
 export const useChatStore = defineStore('chat', {
@@ -57,6 +57,7 @@ export const useChatStore = defineStore('chat', {
         this.users = []
         chatWs.requestUserList(roomId)
         chatWs.requestHistory(roomId, 50)
+        chatWs.send(makeMessage(MsgType.MARK_ROOM_READ, { roomId }))
       }
     },
 
@@ -325,6 +326,7 @@ export const useChatStore = defineStore('chat', {
         this.messages = []
         this.users = []
         chatWs.requestFriendHistory(friendUsername, 50)
+        chatWs.send(makeMessage(MsgType.MARK_FRIEND_READ, { friendshipId: fr.friendshipId }))
       }
     },
 
@@ -392,10 +394,9 @@ export const useChatStore = defineStore('chat', {
       // --- 房间列表 ---
       chatWs.on(MsgType.ROOM_LIST_RSP, (msg) => {
         const list = msg.data.rooms || []
-        // 合并 unread
+        // 使用服务器返回的未读计数
         this.rooms = list.map(r => {
-          const old = this.rooms.find(o => o.roomId === r.roomId)
-          return { ...r, unread: old ? old.unread : 0 }
+          return { ...r, unread: r.unread || 0 }
         })
       })
 
@@ -815,6 +816,13 @@ export const useChatStore = defineStore('chat', {
 
       chatWs.on(MsgType.FRIEND_LIST_RSP, (msg) => {
         this.friends = msg.data.friends || []
+        // 使用服务器返回的未读计数
+        const newUnread = {}
+        for (const fr of this.friends) {
+          if (fr.unread > 0) newUnread[fr.username] = fr.unread
+        }
+        this.friendUnread = newUnread
+        this.hasPendingFriendReq = (msg.data.pendingFriendRequests || 0) > 0
       })
 
       chatWs.on(MsgType.FRIEND_PENDING_RSP, (msg) => {

@@ -902,10 +902,14 @@ found:
 
 void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
     m_roomList->clear();
+    m_roomUnread.clear();
     for (const QJsonValue &v : rooms) {
         QJsonObject r = v.toObject();
         int id = r["roomId"].toInt();
         QString name = r["roomName"].toString();
+        int unread = r["unread"].toInt(0);
+        if (unread > 0)
+            m_roomUnread[id] = unread;
         auto *item = new QListWidgetItem(name);
         item->setData(Qt::UserRole, id);
         // 显示已缓存的头像，否则显示默认头像
@@ -1021,6 +1025,14 @@ void ChatWindow::switchRoom(int roomId) {
     m_currentRoomId = roomId;
     m_roomUnread.remove(roomId);
     updateUnreadDots();
+
+    // 通知服务器标记已读
+    {
+        QJsonObject markData;
+        markData["roomId"] = roomId;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::MARK_ROOM_READ, markData));
+    }
 
     // 获取或创建模型
     MessageModel *model = getOrCreateModel(roomId);
@@ -3375,15 +3387,20 @@ void ChatWindow::onFriendRemoveNotify(const QString &username, const QString &di
     onRefreshFriendList();
 }
 
-void ChatWindow::onFriendListReceived(const QJsonArray &friends) {
+void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFriendRequests) {
     m_friendData = friends;
     m_friendList->clear();
+    m_friendUnread.clear();
+    m_hasPendingFriendReq = (pendingFriendRequests > 0);
 
     for (const QJsonValue &v : friends) {
         QJsonObject fr = v.toObject();
         QString username = fr["username"].toString();
         QString displayName = fr["displayName"].toString();
         bool isOnline = fr["isOnline"].toBool();
+        int unread = fr["unread"].toInt(0);
+        if (unread > 0)
+            m_friendUnread[username] = unread;
 
         QString label = displayName.isEmpty() ? username : displayName;
         if (isOnline) label += " [在线]";
@@ -3989,6 +4006,14 @@ void ChatWindow::switchToFriendChat(const QString &friendUsername, const QString
     // 清除该好友的未读计数
     m_friendUnread.remove(friendUsername);
     updateUnreadDots();
+
+    // 通知服务器标记已读
+    {
+        QJsonObject markData;
+        markData["friendshipId"] = friendshipId;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::MARK_FRIEND_READ, markData));
+    }
 
     // 取消房间列表选中
     m_roomList->clearSelection();
