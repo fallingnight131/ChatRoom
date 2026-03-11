@@ -13,6 +13,8 @@ export const useChatStore = defineStore('chat', {
     messages: [],           // 当前房间消息
     // 文件上传
     uploads: {},            // uploadId -> { fileName, fileSize, sent, status, file, roomId, paused }
+    _uploadQueue: [],       // 上传队列：[{ type:'room'|'friend', roomId, friendUsername, file, thumbnail }]
+    _isUploading: false,    // 是否有正在进行的大文件上传
     // 文件下载
     downloads: {},          // fileId -> { fileName, fileSize, received, chunks[], status, paused }
     // 房间设置
@@ -169,6 +171,13 @@ export const useChatStore = defineStore('chat', {
         thumbnail = await this._generateVideoThumbnail(file)
       }
 
+      // 如果有正在进行的上传，加入队列等待
+      if (this._isUploading) {
+        this._uploadQueue.push({ type: 'room', roomId, file, thumbnail, contentType })
+        return
+      }
+      this._isUploading = true
+
       chatWs.startUpload(roomId, file.name, file.size, contentType)
       // 保存 file 对象，等 START_RSP 返回 uploadId 后开始发块
       this._pendingUploadFile = file
@@ -184,8 +193,10 @@ export const useChatStore = defineStore('chat', {
         // 完成，发送缩略图
         chatWs.endUpload(uploadId, u.thumbnail || '')
         u.status = 'finishing'
-        // 上传完成，延迟清理进度条
+        // 上传完成，延迟清理进度条并启动队列中下一个上传
         setTimeout(() => { delete this.uploads[uploadId] }, 1500)
+        this._isUploading = false
+        this._processNextUpload()
         return
       }
 
@@ -220,6 +231,24 @@ export const useChatStore = defineStore('chat', {
         u.status = 'cancelled'
         chatWs.cancelUpload(uploadId)
         delete this.uploads[uploadId]
+        this._isUploading = false
+        this._processNextUpload()
+      }
+    },
+
+    // 处理上传队列中的下一个文件
+    _processNextUpload() {
+      if (this._uploadQueue.length === 0) return
+      const next = this._uploadQueue.shift()
+      this._isUploading = true
+      this._pendingUploadFile = next.file
+      this._pendingUploadThumbnail = next.thumbnail
+      if (next.type === 'room') {
+        this._pendingUploadRoom = next.roomId
+        chatWs.startUpload(next.roomId, next.file.name, next.file.size, next.contentType)
+      } else {
+        this._pendingFriendUpload = next.friendUsername
+        chatWs.startFriendUpload(next.friendUsername, next.file.name, next.file.size)
       }
     },
 
@@ -336,6 +365,13 @@ export const useChatStore = defineStore('chat', {
       } else if (contentType === 'video') {
         thumbnail = await this._generateVideoThumbnail(file)
       }
+
+      // 如果有正在进行的上传，加入队列等待
+      if (this._isUploading) {
+        this._uploadQueue.push({ type: 'friend', friendUsername, file, thumbnail, contentType })
+        return
+      }
+      this._isUploading = true
 
       chatWs.startFriendUpload(friendUsername, file.name, file.size)
       this._pendingUploadFile = file

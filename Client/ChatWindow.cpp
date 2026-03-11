@@ -1861,13 +1861,21 @@ void ChatWindow::onDownloadChunkResponse(const QJsonObject &data) {
     // 检查是否在追加数据期间被暂停了
     // 用当前模型状态判断（pauseDownload 会设为 Paused）
     bool isPaused = false;
-    for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+    for (auto it = m_models.begin(); it != m_models.end() && !isPaused; ++it) {
         int row = it.value()->findMessageByFileId(fileId);
         if (row >= 0) {
             const Message &msg = it.value()->messageAt(row);
             if (msg.downloadState() == Message::Paused) {
                 isPaused = true;
-                break;
+            }
+        }
+    }
+    for (auto it = m_friendModels.begin(); it != m_friendModels.end() && !isPaused; ++it) {
+        int row = it.value()->findMessageByFileId(fileId);
+        if (row >= 0) {
+            const Message &msg = it.value()->messageAt(row);
+            if (msg.downloadState() == Message::Paused) {
+                isPaused = true;
             }
         }
     }
