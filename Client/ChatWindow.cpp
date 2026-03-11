@@ -125,8 +125,12 @@ bool ChatWindow::eventFilter(QObject *watched, QEvent *event) {
             return true; // 拦截，不插入换行
         }
     }
+    if (watched == m_avatarPreview && event->type() == QEvent::MouseButtonDblClick) {
+        showProfileDialog();
+        return true;
+    }
     // 消息列表滚轮减速：每次滚动像素量减小
-    if (watched == m_messageView->viewport() && event->type() == QEvent::Wheel) {
+    if (m_messageView && watched == m_messageView->viewport() && event->type() == QEvent::Wheel) {
         auto *wheelEvent = static_cast<QWheelEvent*>(event);
         int delta = wheelEvent->angleDelta().y();
         // 原始距离除以 3 ，实现慢速滚动
@@ -163,6 +167,8 @@ void ChatWindow::setupUi() {
     m_avatarPreview->setScaledContents(true);
     m_avatarPreview->setAlignment(Qt::AlignCenter);
     m_avatarPreview->setText("头像");
+    m_avatarPreview->setCursor(Qt::PointingHandCursor);
+    m_avatarPreview->installEventFilter(this);
 
     m_nicknameLabel = new QLabel;
     m_nicknameLabel->setStyleSheet("font-weight: bold; font-size: 13px; padding-left: 6px;");
