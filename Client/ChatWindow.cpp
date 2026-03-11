@@ -87,7 +87,8 @@ public:
         painter->setBrush(QColor("#e53935"));
         painter->drawRoundedRect(badge, th / 2.0, th / 2.0);
         painter->setPen(Qt::white);
-        painter->drawText(badge, Qt::AlignCenter, text);
+        QRectF textRect = badge.adjusted(0, -1, 0, -1);
+        painter->drawText(textRect, Qt::AlignCenter, text);
         painter->restore();
     }
 };
@@ -266,10 +267,10 @@ void ChatWindow::setupUi() {
     auto *friendBtnLayout = new QHBoxLayout(m_friendBtnPanel);
     friendBtnLayout->setContentsMargins(0, 4, 0, 0);
     auto *addFriendBtn = new QPushButton("搜索好友");
-    auto *friendReqBtn = new QPushButton("好友申请");
+    m_friendReqBtn = new QPushButton("好友申请");
     auto *refreshFriendBtn = new QPushButton("刷新");
     friendBtnLayout->addWidget(addFriendBtn);
-    friendBtnLayout->addWidget(friendReqBtn);
+    friendBtnLayout->addWidget(m_friendReqBtn);
     friendBtnLayout->addWidget(refreshFriendBtn);
     friendPanelLayout->addWidget(m_friendBtnPanel);
 
@@ -295,7 +296,7 @@ void ChatWindow::setupUi() {
     connect(searchRoomBtn,  &QPushButton::clicked, this, &ChatWindow::onSearchRoom);
     connect(refreshRoomBtn, &QPushButton::clicked, this, &ChatWindow::requestRoomList);
     connect(addFriendBtn,      &QPushButton::clicked, this, &ChatWindow::onAddFriend);
-    connect(friendReqBtn,      &QPushButton::clicked, this, &ChatWindow::onShowFriendRequests);
+    connect(m_friendReqBtn,    &QPushButton::clicked, this, &ChatWindow::onShowFriendRequests);
     connect(refreshFriendBtn,  &QPushButton::clicked, this, &ChatWindow::onRefreshFriendList);
     connect(m_friendList, &QListWidget::itemClicked, this, &ChatWindow::onFriendSelected);
     connect(m_friendList, &QListWidget::customContextMenuRequested, this, &ChatWindow::onFriendContextMenu);
@@ -531,6 +532,15 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::avatarUpdateNotify,   this, &ChatWindow::onAvatarUpdateNotify);
 
     // 聊天室头像
+    connect(net, &NetworkManager::roomAvatarUploadResponse, this, [this](int roomId, bool success, const QString &) {
+        if (success) {
+            // 上传成功后重新请求头像以刷新本地缓存
+            QJsonObject reqData;
+            reqData["roomId"] = roomId;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_GET_REQ, reqData));
+        }
+    });
     connect(net, &NetworkManager::roomAvatarGetResponse, this, [this](int roomId, bool success, const QByteArray &avatarData) {
         if (success && !avatarData.isEmpty()) {
             QPixmap pix;
@@ -969,17 +979,38 @@ void ChatWindow::updateUnreadDots() {
         item->setData(UnreadRole, cnt);
         totalFriendUnread += cnt;
     }
-    // 更新标签按钮文字
-    m_tabRoomBtn->setText(totalRoomUnread > 0
-        ? QString("房间 ●") : QString("房间"));
+    // 更新标签按钮文字（用富文本红色圆点）
+    if (totalRoomUnread > 0) {
+        m_tabRoomBtn->setText("房间 ●");
+        m_tabRoomBtn->setStyleSheet(
+            "QPushButton { font-weight: bold; font-size: 13px; padding: 6px; border: none; border-bottom: 2px solid #4CAF50; color: #e53935; }"
+            "QPushButton:!checked { border-bottom: 2px solid transparent; }");
+    } else {
+        m_tabRoomBtn->setText("房间");
+        m_tabRoomBtn->setStyleSheet(
+            "QPushButton { font-weight: bold; font-size: 13px; padding: 6px; border: none; border-bottom: 2px solid #4CAF50; }"
+            "QPushButton:!checked { border-bottom: 2px solid transparent; color: #888; }");
+    }
     bool friendDot = totalFriendUnread > 0 || m_hasPendingFriendReq;
-    m_tabFriendBtn->setText(friendDot
-        ? QString("好友 ●") : QString("好友"));
-    // 红色小圆点样式
-    QString baseStyle = "QPushButton { font-weight: bold; font-size: 13px; padding: 6px; border: none; border-bottom: 2px solid #4CAF50; }"
-                        "QPushButton:!checked { border-bottom: 2px solid transparent; color: #888; }";
-    m_tabRoomBtn->setStyleSheet(baseStyle);
-    m_tabFriendBtn->setStyleSheet(baseStyle);
+    if (friendDot) {
+        m_tabFriendBtn->setText("好友 ●");
+        m_tabFriendBtn->setStyleSheet(
+            "QPushButton { font-weight: bold; font-size: 13px; padding: 6px; border: none; border-bottom: 2px solid #4CAF50; color: #e53935; }"
+            "QPushButton:!checked { border-bottom: 2px solid transparent; }");
+    } else {
+        m_tabFriendBtn->setText("好友");
+        m_tabFriendBtn->setStyleSheet(
+            "QPushButton { font-weight: bold; font-size: 13px; padding: 6px; border: none; border-bottom: 2px solid #4CAF50; }"
+            "QPushButton:!checked { border-bottom: 2px solid transparent; color: #888; }");
+    }
+    // 更新好友申请按钮
+    if (m_hasPendingFriendReq) {
+        m_friendReqBtn->setText("好友申请 ●");
+        m_friendReqBtn->setStyleSheet("QPushButton { color: #e53935; font-weight: bold; }");
+    } else {
+        m_friendReqBtn->setText("好友申请");
+        m_friendReqBtn->setStyleSheet("");
+    }
 }
 
 void ChatWindow::switchRoom(int roomId) {

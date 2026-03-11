@@ -401,11 +401,13 @@ onUnmounted(() => {
   font-weight: 600;
   min-width: 18px;
   height: 18px;
-  line-height: 18px;
-  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 9px;
   padding: 0 5px;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 .btn-icon {
   position: relative;

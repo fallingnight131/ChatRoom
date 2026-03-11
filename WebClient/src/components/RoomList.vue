@@ -319,4 +319,19 @@ onUnmounted(() => {
   font-size: 12px;
   color: var(--text-secondary);
 }
+.badge {
+  background: #e53935;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  padding: 0 5px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
 </style>
