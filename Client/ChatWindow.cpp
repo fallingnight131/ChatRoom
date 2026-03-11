@@ -769,8 +769,11 @@ void ChatWindow::onSearchRoom() {
         net->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SEARCH_REQ, data));
     };
 
+    // 搜索结果中待更新头像的 label 映射（跨信号共享）
+    auto pendingAvatarLabels = std::make_shared<QHash<int, QLabel*>>();
+
     QMetaObject::Connection conn = connect(net, &NetworkManager::roomSearchResponse,
-        &dlg, [&](bool success, const QJsonArray &rooms, const QString &error) {
+        &dlg, [&, pendingAvatarLabels](bool success, const QJsonArray &rooms, const QString &error) {
         searchBtn->setEnabled(true);
         searchBtn->setText("搜索");
 
@@ -781,6 +784,7 @@ void ChatWindow::onSearchRoom() {
         }
 
         resultList->clear();
+        pendingAvatarLabels->clear();
         if (rooms.isEmpty()) {
             hintLabel->setText("未找到匹配的聊天室");
             hintLabel->show();
@@ -810,6 +814,7 @@ void ChatWindow::onSearchRoom() {
                 QJsonObject reqData;
                 reqData["roomId"] = roomId;
                 net->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_GET_REQ, reqData));
+                (*pendingAvatarLabels)[roomId] = avatarLabel;
             }
             hl->addWidget(avatarLabel);
 
@@ -855,12 +860,27 @@ void ChatWindow::onSearchRoom() {
         }
     });
 
+    // 头像异步到达后更新搜索结果中的头像
+    QMetaObject::Connection conn2 = connect(net, &NetworkManager::roomAvatarGetResponse,
+        &dlg, [pendingAvatarLabels](int roomId, bool success, const QByteArray &avatarData) {
+        if (!success || avatarData.isEmpty()) return;
+        auto it = pendingAvatarLabels->find(roomId);
+        if (it == pendingAvatarLabels->end()) return;
+        QPixmap pix;
+        pix.loadFromData(avatarData);
+        if (!pix.isNull()) {
+            it.value()->setPixmap(pix.scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        }
+        pendingAvatarLabels->erase(it);
+    });
+
     connect(searchBtn, &QPushButton::clicked, &dlg, doSearch);
     connect(searchInput, &QLineEdit::returnPressed, &dlg, doSearch);
     connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
 
     dlg.exec();
     disconnect(conn);
+    disconnect(conn2);
 }
 
 void ChatWindow::onRoomCreated(bool success, int roomId, const QString &name, const QString &error) {
