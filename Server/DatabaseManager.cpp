@@ -1164,15 +1164,13 @@ bool DatabaseManager::sendFriendRequest(int fromUserId, int toUserId) {
     q.exec();
     if (q.next()) return false; // 已有待处理请求
 
-    // 检查对方是否已经向自己发过请求（如果有，直接接受）
+    // 检查对方是否已经向自己发过请求
     q.prepare("SELECT id FROM friend_requests WHERE from_user_id = ? AND to_user_id = ? AND status = 'pending'");
     q.addBindValue(toUserId);
     q.addBindValue(fromUserId);
     q.exec();
     if (q.next()) {
-        // 对方已向自己发请求，直接接受
-        int reqId = q.value(0).toInt();
-        return acceptFriendRequest(reqId, fromUserId);
+        return false; // 对方已向你发送了好友申请，请在好友申请中处理
     }
 
     q.prepare("INSERT INTO friend_requests (from_user_id, to_user_id, status) VALUES (?, ?, 'pending')");
@@ -1206,7 +1204,14 @@ bool DatabaseManager::acceptFriendRequest(int requestId, int userId) {
     q.prepare("INSERT OR IGNORE INTO friendships (user_id1, user_id2) VALUES (?, ?)");
     q.addBindValue(id1);
     q.addBindValue(id2);
-    return q.exec();
+    if (!q.exec()) return false;
+
+    // 清理反向的待处理请求（如果双方都发了请求）
+    q.prepare("UPDATE friend_requests SET status = 'accepted' WHERE from_user_id = ? AND to_user_id = ? AND status = 'pending'");
+    q.addBindValue(toId);
+    q.addBindValue(fromId);
+    q.exec();
+    return true;
 }
 
 bool DatabaseManager::rejectFriendRequest(int requestId, int userId) {

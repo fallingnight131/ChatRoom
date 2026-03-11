@@ -1916,8 +1916,19 @@ void ChatServer::handleFriendRequest(ClientSession *session, const QJsonObject &
     }
 
     if (!m_db->sendFriendRequest(session->userId(), targetUserId)) {
+        // 检查是否是对方已发来请求的情况
+        QJsonArray pending = m_db->getPendingFriendRequests(session->userId());
+        bool hasReverse = false;
+        for (const QJsonValue &v : pending) {
+            if (v.toObject()["fromUsername"].toString() == targetUsername) {
+                hasReverse = true;
+                break;
+            }
+        }
         rspData["success"] = false;
-        rspData["error"]   = QStringLiteral("已有待处理的好友请求");
+        rspData["error"]   = hasReverse
+            ? QStringLiteral("对方已向你发送了好友申请，请在好友申请中处理")
+            : QStringLiteral("已有待处理的好友请求");
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_REQUEST_RSP, rspData));
         return;
     }

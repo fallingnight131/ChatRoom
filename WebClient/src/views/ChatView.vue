@@ -315,8 +315,9 @@ function onDisconnected() {
 }
 .tab-dot {
   position: absolute;
-  top: 6px;
-  right: calc(50% - 24px);
+  top: 50%;
+  transform: translateY(-50%);
+  right: 8px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
