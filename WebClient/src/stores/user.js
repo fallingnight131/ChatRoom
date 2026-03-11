@@ -110,7 +110,6 @@ export const useUserStore = defineStore('user', {
 
       chatWs.on(MsgType.FORCE_OFFLINE, (msg) => {
         this.forceOfflineReason = msg.data.reason || '您已被强制下线'
-        this.onLogout()
         chatWs.disconnect()
       })
 

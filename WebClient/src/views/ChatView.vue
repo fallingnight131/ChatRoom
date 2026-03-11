@@ -253,6 +253,7 @@ function onDisconnected() {
 
 function onForceOfflineConfirm() {
   userStore.forceOfflineReason = ''
+  userStore.onLogout()
   router.push('/login')
 }
 </script>
