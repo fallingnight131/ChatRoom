@@ -406,7 +406,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   border-radius: 9px;
-  padding: 0 5px;
+  padding: 0 1px 3px;
   flex-shrink: 0;
   box-sizing: border-box;
 }
