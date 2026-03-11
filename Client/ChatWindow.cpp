@@ -142,6 +142,9 @@ void ChatWindow::setCurrentUser(int userId, const QString &username, const QStri
 
     requestRoomList();
 
+    // 请求好友列表（获取未读计数和好友申请提醒）
+    onRefreshFriendList();
+
     // 请求自己的头像
     requestAvatar(username);
 }

@@ -183,6 +183,7 @@ function onReconnectLogin(msg) {
     chatStore.initListeners()
     chatWs.getAvatar(msg.data.username)
     chatWs.requestRoomList()
+    chatWs.requestFriendList()
     reconnecting.value = false
   } else {
     // 登录失败，跳转到登录页
