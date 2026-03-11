@@ -951,21 +951,14 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
         }
     }
 
-    // 自动加入房间：优先恢复到之前的房间，否则加入第一个
-    int targetRoomId = -1;
+    // 如果之前已在某个房间，恢复到该房间
     if (m_currentRoomId > 0) {
         for (int i = 0; i < m_roomList->count(); ++i) {
             if (m_roomList->item(i)->data(Qt::UserRole).toInt() == m_currentRoomId) {
-                targetRoomId = m_currentRoomId;
+                NetworkManager::instance()->sendMessage(Protocol::makeJoinRoomReq(m_currentRoomId));
                 break;
             }
         }
-    }
-    if (targetRoomId < 0 && m_roomList->count() > 0) {
-        targetRoomId = m_roomList->item(0)->data(Qt::UserRole).toInt();
-    }
-    if (targetRoomId > 0) {
-        NetworkManager::instance()->sendMessage(Protocol::makeJoinRoomReq(targetRoomId));
     }
     updateUnreadDots();
 }

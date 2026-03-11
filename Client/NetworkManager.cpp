@@ -255,13 +255,13 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                                  data["friendUsername"].toString());
     }
     else if (type == Protocol::MsgType::FORCE_OFFLINE) {
-        emit forceOffline(data["reason"].toString());
-        // 禁止自动重连
+        // 先禁止自动重连，再通知上层
         m_autoReconnect = false;
         if (m_socket) {
             m_socket->disconnect();
             m_socket->close();
         }
+        emit forceOffline(data["reason"].toString());
     }
     else if (type == Protocol::MsgType::ADMIN_STATUS) {
         emit adminStatusChanged(data["roomId"].toInt(), data["isAdmin"].toBool());

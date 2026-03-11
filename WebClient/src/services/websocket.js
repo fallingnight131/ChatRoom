@@ -196,6 +196,11 @@ class ChatWebSocket {
       return
     }
     if (type === MsgType.HEARTBEAT_ACK) return
+    // 被顶号时立即禁止自动重连
+    if (type === MsgType.FORCE_OFFLINE) {
+      this.autoReconnect = false
+      clearTimeout(this.reconnectTimer)
+    }
     this._emit(type, msg)
   }
 
