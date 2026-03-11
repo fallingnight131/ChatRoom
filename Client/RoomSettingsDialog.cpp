@@ -125,16 +125,6 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
 
         mainLayout->addWidget(adminGroup);
         mainLayout->addSpacing(8);
-    } else {
-        // 非管理员也可以查看密码
-        auto *viewPwdLayout = new QHBoxLayout;
-        viewPwdLayout->addWidget(new QLabel(QStringLiteral("聊天室密码：")));
-        viewPwdLayout->addStretch();
-        auto *viewPwdBtn = new QPushButton(QStringLiteral("查看密码"));
-        connect(viewPwdBtn, &QPushButton::clicked, this, &RoomSettingsDialog::onViewPassword);
-        viewPwdLayout->addWidget(viewPwdBtn);
-        mainLayout->addLayout(viewPwdLayout);
-        mainLayout->addSpacing(8);
     }
 
     // --- 底部按钮 ---

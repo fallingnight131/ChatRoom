@@ -49,6 +49,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QStackedWidget>
+#include <QStyledItemDelegate>
 #include <QDebug>
 
 #ifdef Q_OS_WIN
@@ -56,6 +57,40 @@
 #include <ShlObj.h>
 #include <ShObjIdl.h>
 #endif
+
+// 未读红点常量
+static const int UnreadRole = Qt::UserRole + 10;
+
+// 红点委托：在列表项右侧绘制未读数量
+class UnreadBadgeDelegate : public QStyledItemDelegate {
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+    void paint(QPainter *painter, const QStyleOptionViewItem &opt,
+               const QModelIndex &idx) const override {
+        QStyledItemDelegate::paint(painter, opt, idx);
+        int unread = idx.data(UnreadRole).toInt();
+        if (unread <= 0) return;
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing);
+        QString text = unread > 99 ? "99+" : QString::number(unread);
+        QFont f = painter->font();
+        f.setPixelSize(10);
+        f.setBold(true);
+        painter->setFont(f);
+        QFontMetrics fm(f);
+        int tw = fm.horizontalAdvance(text) + 8;
+        int th = 16;
+        if (tw < th) tw = th;
+        QRectF badge(opt.rect.right() - tw - 6,
+                     opt.rect.center().y() - th / 2.0, tw, th);
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(QColor("#e53935"));
+        painter->drawRoundedRect(badge, th / 2.0, th / 2.0);
+        painter->setPen(Qt::white);
+        painter->drawText(badge, Qt::AlignCenter, text);
+        painter->restore();
+    }
+};
 
 // 静态头像缓存
 QMap<QString, QPixmap> ChatWindow::s_avatarCache;
@@ -201,6 +236,7 @@ void ChatWindow::setupUi() {
     m_roomList->setMinimumWidth(160);
     m_roomList->setIconSize(QSize(36, 36));
     m_roomList->setContextMenuPolicy(Qt::CustomContextMenu);
+    m_roomList->setItemDelegate(new UnreadBadgeDelegate(m_roomList));
     roomPanelLayout->addWidget(m_roomList);
 
     m_roomBtnPanel = new QWidget;
@@ -223,6 +259,7 @@ void ChatWindow::setupUi() {
     m_friendList->setMinimumWidth(160);
     m_friendList->setIconSize(QSize(36, 36));
     m_friendList->setContextMenuPolicy(Qt::CustomContextMenu);
+    m_friendList->setItemDelegate(new UnreadBadgeDelegate(m_friendList));
     friendPanelLayout->addWidget(m_friendList);
 
     m_friendBtnPanel = new QWidget;
@@ -882,6 +919,7 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
     if (targetRoomId > 0) {
         NetworkManager::instance()->sendMessage(Protocol::makeJoinRoomReq(targetRoomId));
     }
+    updateUnreadDots();
 }
 
 void ChatWindow::onRoomSelected(QListWidgetItem *item) {
@@ -912,8 +950,42 @@ void ChatWindow::updateRoomListAvatars() {
     }
 }
 
+void ChatWindow::updateUnreadDots() {
+    // 房间列表红点
+    int totalRoomUnread = 0;
+    for (int i = 0; i < m_roomList->count(); ++i) {
+        auto *item = m_roomList->item(i);
+        int roomId = item->data(Qt::UserRole).toInt();
+        int cnt = m_roomUnread.value(roomId, 0);
+        item->setData(UnreadRole, cnt);
+        totalRoomUnread += cnt;
+    }
+    // 好友列表红点
+    int totalFriendUnread = 0;
+    for (int i = 0; i < m_friendList->count(); ++i) {
+        auto *item = m_friendList->item(i);
+        QString uname = item->data(Qt::UserRole).toString();
+        int cnt = m_friendUnread.value(uname, 0);
+        item->setData(UnreadRole, cnt);
+        totalFriendUnread += cnt;
+    }
+    // 更新标签按钮文字
+    m_tabRoomBtn->setText(totalRoomUnread > 0
+        ? QString("房间 ●") : QString("房间"));
+    bool friendDot = totalFriendUnread > 0 || m_hasPendingFriendReq;
+    m_tabFriendBtn->setText(friendDot
+        ? QString("好友 ●") : QString("好友"));
+    // 红色小圆点样式
+    QString baseStyle = "QPushButton { font-weight: bold; font-size: 13px; padding: 6px; border: none; border-bottom: 2px solid #4CAF50; }"
+                        "QPushButton:!checked { border-bottom: 2px solid transparent; color: #888; }";
+    m_tabRoomBtn->setStyleSheet(baseStyle);
+    m_tabFriendBtn->setStyleSheet(baseStyle);
+}
+
 void ChatWindow::switchRoom(int roomId) {
     m_currentRoomId = roomId;
+    m_roomUnread.remove(roomId);
+    updateUnreadDots();
 
     // 获取或创建模型
     MessageModel *model = getOrCreateModel(roomId);
@@ -1011,6 +1083,10 @@ void ChatWindow::onChatMessage(const QJsonObject &msg) {
         QTimer::singleShot(50, [this] {
             m_messageView->scrollToBottom();
         });
+    } else {
+        // 非当前房间，增加未读计数
+        m_roomUnread[roomId] = m_roomUnread.value(roomId, 0) + 1;
+        updateUnreadDots();
     }
 
     // 如果窗口不在前台，发送通知
@@ -1374,6 +1450,9 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
 
     if (roomId == m_currentRoomId) {
         QTimer::singleShot(50, [this] { m_messageView->scrollToBottom(); });
+    } else {
+        m_roomUnread[roomId] = m_roomUnread.value(roomId, 0) + 1;
+        updateUnreadDots();
     }
 
     // 仅图片文件自动下载缓存，其余文件需要用户点击下载
@@ -3159,6 +3238,8 @@ void ChatWindow::onAddFriend() {
 }
 
 void ChatWindow::onShowFriendRequests() {
+    m_hasPendingFriendReq = false;
+    updateUnreadDots();
     // 请求待处理列表
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FRIEND_PENDING_REQ, QJsonObject()));
@@ -3210,6 +3291,8 @@ void ChatWindow::onFriendRequestResponse(bool success, const QString &error) {
 
 void ChatWindow::onFriendRequestNotify(const QString &fromUsername, const QString &fromDisplayName) {
     Q_UNUSED(fromUsername)
+    m_hasPendingFriendReq = true;
+    updateUnreadDots();
     if (m_trayManager)
         m_trayManager->showNotification("好友请求", QString("%1 请求加你为好友").arg(fromDisplayName));
     m_statusLabel->setText(QString("收到好友请求: %1").arg(fromDisplayName));
@@ -3285,6 +3368,7 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends) {
 
         m_friendList->addItem(item);
     }
+    updateUnreadDots();
 }
 
 void ChatWindow::onFriendPendingReceived(const QJsonArray &requests) {
@@ -3417,6 +3501,10 @@ void ChatWindow::onFriendChatMessage(const QJsonObject &data) {
         QTimer::singleShot(50, [this] {
             m_messageView->scrollToBottom();
         });
+    } else if (sender != m_username) {
+        // 非当前聊天好友，增加未读计数
+        m_friendUnread[chatWith] = m_friendUnread.value(chatWith, 0) + 1;
+        updateUnreadDots();
     }
 
     // 通知
@@ -3611,6 +3699,9 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
         QTimer::singleShot(50, [this] {
             m_messageView->scrollToBottom();
         });
+    } else if (sender != m_username) {
+        m_friendUnread[chatWith] = m_friendUnread.value(chatWith, 0) + 1;
+        updateUnreadDots();
     }
 
     // 图片文件自动下载缓存
@@ -3859,6 +3950,10 @@ void ChatWindow::switchToFriendChat(const QString &friendUsername, const QString
     m_currentFriendDisplayName = friendDisplayName;
     m_currentFriendshipId = friendshipId;
     m_currentRoomId = -1; // 清除房间选择
+
+    // 清除该好友的未读计数
+    m_friendUnread.remove(friendUsername);
+    updateUnreadDots();
 
     // 取消房间列表选中
     m_roomList->clearSelection();

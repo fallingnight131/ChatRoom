@@ -33,12 +33,16 @@ export const useChatStore = defineStore('chat', {
     currentFriendshipId: null,
     isFriendChat: false,
     friendMessages: [],       // 当前好友私聊消息
+    friendUnread: {},         // username -> unread count
+    hasPendingFriendReq: false, // 是否有未处理的好友申请
   }),
 
   getters: {
     currentRoom: (state) => state.rooms.find(r => r.roomId === state.currentRoomId),
     onlineUsers: (state) => state.users.filter(u => u.isOnline),
     offlineUsers: (state) => state.users.filter(u => !u.isOnline),
+    totalRoomUnread: (state) => state.rooms.reduce((sum, r) => sum + (r.unread || 0), 0),
+    totalFriendUnread: (state) => Object.values(state.friendUnread).reduce((s, v) => s + v, 0),
   },
 
   actions: {
@@ -313,6 +317,8 @@ export const useChatStore = defineStore('chat', {
         this.currentFriendDisplayName = fr.displayName || friendUsername
         this.currentFriendshipId = fr.friendshipId
         this.friendMessages = []
+        // 清除该好友未读计数
+        delete this.friendUnread[friendUsername]
         // 清除房间选中
         this.currentRoomId = null
         this.currentRoomName = ''
@@ -772,6 +778,7 @@ export const useChatStore = defineStore('chat', {
         const d = msg.data
         // 自动刷新待处理列表
         chatWs.requestFriendPending()
+        this.hasPendingFriendReq = true
         this._emit('friendRequest', d)
         this._emit('info', `${d.fromDisplayName || d.fromUsername} 请求加你为好友`)
       })
@@ -869,8 +876,9 @@ export const useChatStore = defineStore('chat', {
 
         if (this.isFriendChat && this.currentFriendUsername === chatWith) {
           this.friendMessages.push(d)
+        } else if (d.sender !== userStore.username) {
+          this.friendUnread[chatWith] = (this.friendUnread[chatWith] || 0) + 1
         }
-        // 如果不是当前聊天对象，可以加 unread 逻辑（暂略）
       })
 
       chatWs.on(MsgType.FRIEND_HISTORY_RSP, (msg) => {
@@ -888,6 +896,8 @@ export const useChatStore = defineStore('chat', {
 
         if (this.isFriendChat && this.currentFriendUsername === chatWith) {
           this.friendMessages.push(d)
+        } else if (d.sender !== userStore.username) {
+          this.friendUnread[chatWith] = (this.friendUnread[chatWith] || 0) + 1
         }
       })
 

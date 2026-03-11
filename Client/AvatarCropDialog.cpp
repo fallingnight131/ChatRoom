@@ -99,16 +99,8 @@ void AvatarCropDialog::updateCrop() {
     int oy = (scaled.height() - AVATAR_OUTPUT_SIZE) / 2;
     scaled = scaled.copy(ox, oy, AVATAR_OUTPUT_SIZE, AVATAR_OUTPUT_SIZE);
 
-    // 应用圆形蒙版
-    m_result = QPixmap(AVATAR_OUTPUT_SIZE, AVATAR_OUTPUT_SIZE);
-    m_result.fill(Qt::transparent);
-    QPainter p(&m_result);
-    p.setRenderHint(QPainter::Antialiasing);
-    QPainterPath path;
-    path.addEllipse(0, 0, AVATAR_OUTPUT_SIZE, AVATAR_OUTPUT_SIZE);
-    p.setClipPath(path);
-    p.drawPixmap(0, 0, scaled);
-    p.end();
+    // 保存方形图像（圆形显示由各显示处单独处理）
+    m_result = scaled;
 
     // 更新预览
     if (m_previewLabel)

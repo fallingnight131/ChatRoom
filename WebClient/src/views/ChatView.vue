@@ -21,8 +21,14 @@
         </button>
       </div>
       <div class="tab-bar">
-        <button class="tab-btn" :class="{ active: activeTab === 'rooms' }" @click="activeTab = 'rooms'">房间</button>
-        <button class="tab-btn" :class="{ active: activeTab === 'friends' }" @click="switchToFriends">好友</button>
+        <button class="tab-btn" :class="{ active: activeTab === 'rooms' }" @click="activeTab = 'rooms'">
+          房间
+          <span v-if="chatStore.totalRoomUnread > 0" class="tab-dot"></span>
+        </button>
+        <button class="tab-btn" :class="{ active: activeTab === 'friends' }" @click="switchToFriends">
+          好友
+          <span v-if="chatStore.totalFriendUnread > 0 || chatStore.hasPendingFriendReq" class="tab-dot"></span>
+        </button>
       </div>
       <RoomList v-if="activeTab === 'rooms'" @room-selected="onRoomSelected" @open-room-settings="showRoomSettings = true" />
       <FriendList v-else @friend-selected="onFriendSelected" @view-user-info="onViewUserInfo" />
@@ -305,6 +311,16 @@ function onDisconnected() {
   color: var(--text-tertiary);
   cursor: pointer;
   transition: all 0.2s;
+  position: relative;
+}
+.tab-dot {
+  position: absolute;
+  top: 6px;
+  right: calc(50% - 24px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e53935;
 }
 .tab-btn.active {
   color: var(--accent-color, #4CAF50);

@@ -4,7 +4,10 @@
       <span class="friend-list-title">好友列表</span>
       <div class="friend-actions-row">
         <button class="btn-icon" @click="showAddFriend = true" title="搜索好友">🔍</button>
-        <button class="btn-icon" @click="showPending" title="好友申请">📩</button>
+        <button class="btn-icon" @click="showPending" title="好友申请">
+          📩
+          <span v-if="chatStore.hasPendingFriendReq" class="req-dot"></span>
+        </button>
         <button class="btn-icon" @click="refreshFriends" title="刷新">🔄</button>
       </div>
     </div>
@@ -25,6 +28,7 @@
           <div class="friend-name text-ellipsis">{{ fr.displayName || fr.username }}</div>
           <div class="friend-status">{{ fr.isOnline ? '在线' : '离线' }}</div>
         </div>
+        <span v-if="(chatStore.friendUnread[fr.username] || 0) > 0" class="badge">{{ chatStore.friendUnread[fr.username] > 99 ? '99+' : chatStore.friendUnread[fr.username] }}</span>
       </div>
       <div v-if="chatStore.friends.length === 0" class="friend-empty">
         暂无好友，点击 🔍 搜索
@@ -182,6 +186,7 @@ function closeAddFriend() {
 
 function showPending() {
   chatWs.requestFriendPending()
+  chatStore.hasPendingFriendReq = false
   showPendingDialog.value = true
 }
 
@@ -388,5 +393,30 @@ onUnmounted(() => {
 }
 .danger {
   color: #e53935;
+}
+.badge {
+  background: #e53935;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 9px;
+  padding: 0 5px;
+  flex-shrink: 0;
+}
+.btn-icon {
+  position: relative;
+}
+.req-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e53935;
 }
 </style>

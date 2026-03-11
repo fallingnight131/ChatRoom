@@ -214,6 +214,7 @@ private:
     void sendFriendFile(const QString &filePath, const QString &contentType);
     MessageModel *getOrCreateFriendModel(const QString &friendUsername);
     void updateRoomListAvatars();
+    void updateUnreadDots();
     static QPixmap generateDefaultAvatar(const QString &text, int seed, int size = 36);
 
     // --- UI 组件 ---
@@ -264,6 +265,11 @@ private:
     int     m_currentFriendshipId = -1;          // 当前 friendshipId
     QMap<QString, MessageModel*> m_friendModels; // friendUsername -> MessageModel
     QJsonArray m_friendData;                     // 好友列表数据缓存
+
+    // 未读消息计数
+    QMap<int, int>      m_roomUnread;              // roomId -> unread count
+    QMap<QString, int>  m_friendUnread;             // friendUsername -> unread count
+    bool                m_hasPendingFriendReq = false; // 是否有未处理的好友申请
 
     // 头像缓存（静态，供 MessageDelegate 使用）
     static QMap<QString, QPixmap> s_avatarCache;
