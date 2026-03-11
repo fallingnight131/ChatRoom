@@ -246,6 +246,9 @@ private:
     QWidget      *m_roomBtnPanel   = nullptr;
     QWidget      *m_friendBtnPanel = nullptr;
     QPushButton  *m_friendReqBtn   = nullptr;
+    QLabel       *m_tabRoomDot     = nullptr;
+    QLabel       *m_tabFriendDot   = nullptr;
+    QLabel       *m_friendReqDot   = nullptr;
 
     // --- 数据 ---
     int     m_userId     = 0;
