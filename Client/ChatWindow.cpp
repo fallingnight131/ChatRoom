@@ -2572,7 +2572,7 @@ void ChatWindow::addUserListItem(const QString &username, const QString &display
     item->setData(Qt::UserRole + 1, isAdmin);
     item->setData(Qt::UserRole + 2, isOnline);
     item->setData(Qt::UserRole + 3, displayName); // 显示用昵称
-    item->setSizeHint(QSize(0, 36));
+    item->setSizeHint(QSize(0, 40));
 
     m_userList->addItem(item);
     updateUserListItemWidget(item);

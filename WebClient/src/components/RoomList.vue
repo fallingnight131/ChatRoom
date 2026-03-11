@@ -326,7 +326,7 @@ onUnmounted(() => {
   font-weight: 600;
   min-width: 18px;
   height: 18px;
-  line-height: 18px;
+  line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -334,6 +334,5 @@ onUnmounted(() => {
   padding: 0 5px;
   flex-shrink: 0;
   box-sizing: border-box;
-  vertical-align: middle;
 }
 </style>
