@@ -92,6 +92,12 @@ async function onFileSelected(e) {
   if (!file) return
   e.target.value = '' // 重置
 
+  // 有文件正在上传时禁止发送下一个
+  if (chatStore._isUploading || Object.keys(chatStore.uploads).length > 0) {
+    alert('当前有文件正在上传，请等待完成后再发送新文件')
+    return
+  }
+
   if (props.friendMode) {
     if (!chatStore.currentFriendUsername) return
     const MAX_FRIEND_FILE = 10 * 1024 * 1024 * 1024 // 10GB
