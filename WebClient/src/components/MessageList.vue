@@ -112,6 +112,13 @@
             <span class="menu-icon">👁️</span> 预览文件
           </div>
 
+          <!-- 下载文件 -->
+          <div class="context-menu-item"
+               v-if="contextMenu.msg && isFileType(contextMenu.msg) && !contextMenu.msg.recalled"
+               @click="downloadFromMenu(contextMenu.msg)">
+            <span class="menu-icon">⬇️</span> 下载文件
+          </div>
+
           <!-- 撤回 (自己的消息, 2分钟内) -->
           <div class="context-menu-item"
                v-if="canRecall(contextMenu.msg)"
@@ -282,6 +289,13 @@ function previewFromMenu(msg) {
   contextMenu.value.show = false
   if (msg) {
     openPreview(msg)
+  }
+}
+
+function downloadFromMenu(msg) {
+  contextMenu.value.show = false
+  if (msg && msg.fileId) {
+    chatStore._triggerDownload(msg.fileId, msg.fileName, msg.fileSize)
   }
 }
 

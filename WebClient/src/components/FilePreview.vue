@@ -5,7 +5,7 @@
       <div class="preview-topbar">
         <span class="preview-filename text-ellipsis">{{ fileName }}</span>
         <div class="preview-actions">
-          <button class="preview-btn" @click="download" title="下载">
+          <button class="preview-btn" @click="download" title="下载" :disabled="loading">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
@@ -103,7 +103,6 @@ const fileSize = ref(0)
 const dplayerRef = ref(null)
 let dpInstance = null
 let _activeChunkHandler = null   // 跟踪大文件预览的chunk handler，用于cleanup时移除
-let _downloadWhenReady = false   // 用户在预览加载中点击了下载按钮
 
 // 图片缩放/拖动
 const scale = ref(1)
@@ -211,16 +210,13 @@ function close() {
 
 function download() {
   const msg = props.msg
-  if (!msg) return
+  if (!msg || loading.value) return
   if (blobUrl.value) {
     // 已经有 blob，直接下载
     const a = document.createElement('a')
     a.href = blobUrl.value
     a.download = fileName.value
     a.click()
-  } else if (loading.value) {
-    // 预览正在下载中，标记等待完成后自动保存
-    _downloadWhenReady = true
   } else if (msg.fileId) {
     // 触发下载
     chatStore._triggerDownload(msg.fileId, msg.fileName, msg.fileSize)
@@ -233,7 +229,6 @@ function cleanup() {
     chatWs.off(MsgType.FILE_DOWNLOAD_CHUNK_RSP, _activeChunkHandler)
     _activeChunkHandler = null
   }
-  _downloadWhenReady = false
   // 清理 previewFileIds
   if (props.msg?.fileId) {
     chatStore._previewFileIds.delete(props.msg.fileId)
@@ -393,30 +388,11 @@ function handleFileData(bytes, type) {
     // 文本直接解码
     const decoder = new TextDecoder('utf-8')
     textContent.value = decoder.decode(bytes)
-    if (_downloadWhenReady) {
-      _downloadWhenReady = false
-      const blob = new Blob([bytes], { type: 'text/plain' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = fileName.value
-      a.click()
-      URL.revokeObjectURL(url)
-    }
     return
   }
 
   const blob = new Blob([bytes], { type: mime })
   blobUrl.value = URL.createObjectURL(blob)
-
-  // 加载中用户点击了下载，自动触发保存
-  if (_downloadWhenReady) {
-    _downloadWhenReady = false
-    const a = document.createElement('a')
-    a.href = blobUrl.value
-    a.download = fileName.value
-    a.click()
-  }
 
   if (type === 'video') {
     nextTick(() => initDPlayer(blobUrl.value))
@@ -496,6 +472,10 @@ onUnmounted(() => {
 }
 .preview-btn:hover {
   background: rgba(255,255,255,0.25);
+}
+.preview-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 /* 加载 */
