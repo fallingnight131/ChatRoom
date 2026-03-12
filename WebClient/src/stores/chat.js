@@ -266,6 +266,8 @@ export const useChatStore = defineStore('chat', {
     },
 
     _onDownloadChunk(data) {
+      // 预览模式跳过，由 FilePreview 自己处理
+      if (this._previewFileIds.has(data.fileId)) return
       const d = this.downloads[data.fileId]
       if (!d || d.paused) return
 

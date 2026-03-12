@@ -102,6 +102,8 @@ const fileName = ref('')
 const fileSize = ref(0)
 const dplayerRef = ref(null)
 let dpInstance = null
+let _activeChunkHandler = null   // 跟踪大文件预览的chunk handler，用于cleanup时移除
+let _downloadWhenReady = false   // 用户在预览加载中点击了下载按钮
 
 // 图片缩放/拖动
 const scale = ref(1)
@@ -216,6 +218,9 @@ function download() {
     a.href = blobUrl.value
     a.download = fileName.value
     a.click()
+  } else if (loading.value) {
+    // 预览正在下载中，标记等待完成后自动保存
+    _downloadWhenReady = true
   } else if (msg.fileId) {
     // 触发下载
     chatStore._triggerDownload(msg.fileId, msg.fileName, msg.fileSize)
@@ -223,6 +228,16 @@ function download() {
 }
 
 function cleanup() {
+  // 移除活跃的chunk handler，防止泄漏
+  if (_activeChunkHandler) {
+    chatWs.off(MsgType.FILE_DOWNLOAD_CHUNK_RSP, _activeChunkHandler)
+    _activeChunkHandler = null
+  }
+  _downloadWhenReady = false
+  // 清理 previewFileIds
+  if (props.msg?.fileId) {
+    chatStore._previewFileIds.delete(props.msg.fileId)
+  }
   if (dpInstance) {
     try { dpInstance.destroy() } catch (e) { /* ignore */ }
     dpInstance = null
@@ -331,6 +346,8 @@ function downloadLargeFile(msg, type) {
       if (d.fileId !== msg.fileId) return
       if (!d.success || !d.chunkData) {
         chatWs.off(MsgType.FILE_DOWNLOAD_CHUNK_RSP, handler)
+        _activeChunkHandler = null
+        chatStore._previewFileIds.delete(msg.fileId)
         loading.value = false
         previewType.value = 'unsupported'
         resolve()
@@ -344,6 +361,8 @@ function downloadLargeFile(msg, type) {
 
       if (received >= (d.fileSize || msg.fileSize)) {
         chatWs.off(MsgType.FILE_DOWNLOAD_CHUNK_RSP, handler)
+        _activeChunkHandler = null
+        chatStore._previewFileIds.delete(msg.fileId)
         // 合并所有块
         const totalSize = chunks.reduce((s, c) => s + c.length, 0)
         const merged = new Uint8Array(totalSize)
@@ -360,6 +379,7 @@ function downloadLargeFile(msg, type) {
     }
     // 标记为预览模式
     chatStore._previewFileIds.add(msg.fileId)
+    _activeChunkHandler = handler
     chatWs.on(MsgType.FILE_DOWNLOAD_CHUNK_RSP, handler)
     chatWs.downloadChunk(msg.fileId, 0, FILE_CHUNK_SIZE)
   })
@@ -373,11 +393,30 @@ function handleFileData(bytes, type) {
     // 文本直接解码
     const decoder = new TextDecoder('utf-8')
     textContent.value = decoder.decode(bytes)
+    if (_downloadWhenReady) {
+      _downloadWhenReady = false
+      const blob = new Blob([bytes], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName.value
+      a.click()
+      URL.revokeObjectURL(url)
+    }
     return
   }
 
   const blob = new Blob([bytes], { type: mime })
   blobUrl.value = URL.createObjectURL(blob)
+
+  // 加载中用户点击了下载，自动触发保存
+  if (_downloadWhenReady) {
+    _downloadWhenReady = false
+    const a = document.createElement('a')
+    a.href = blobUrl.value
+    a.download = fileName.value
+    a.click()
+  }
 
   if (type === 'video') {
     nextTick(() => initDPlayer(blobUrl.value))
