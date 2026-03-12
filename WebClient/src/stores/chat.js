@@ -311,6 +311,10 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
+    cancelDownload(fileId) {
+      delete this.downloads[fileId]
+    },
+
     // ==================== 好友系统 ====================
     setCurrentFriend(friendUsername) {
       const fr = this.friends.find(f => f.username === friendUsername)
