@@ -640,6 +640,7 @@ void ChatWindow::connectSignals() {
         int fileId = idx.data(MessageModel::FileIdRole).toInt();
         bool fileCleared = idx.data(MessageModel::FileClearedRole).toBool();
         int dlState = idx.data(MessageModel::DownloadStateRole).toInt();
+        bool cached = FileCache::instance()->isCached(fileId);
 
         // 上传中 → 暂停上传（fileId 为负数的临时消息）
         if (dlState == Message::Uploading) {
@@ -654,13 +655,13 @@ void ChatWindow::connectSignals() {
 
         // 以下操作需要有效 fileId（正数=房间文件，负数=好友文件）
         if (fileId == 0) return;
-        if (fileCleared) {
+        if (fileCleared && !cached) {
             QMessageBox::information(this, "提示", "文件已过期或被清除，无法下载");
             return;
         }
 
         // 已缓存 → 不响应单击（双击打开）
-        if (FileCache::instance()->isCached(fileId)) return;
+        if (cached) return;
 
         // 下载中 → 暂停下载
         if (dlState == Message::Downloading) {
@@ -707,11 +708,12 @@ void ChatWindow::connectSignals() {
 
         int fileId = idx.data(MessageModel::FileIdRole).toInt();
         bool fileCleared = idx.data(MessageModel::FileClearedRole).toBool();
-        if (fileCleared) {
+        bool cached = FileCache::instance()->isCached(fileId);
+        if (fileCleared && !cached) {
             QMessageBox::information(this, "提示", "文件已过期或被清除，无法打开");
             return;
         }
-        if (FileCache::instance()->isCached(fileId)) {
+        if (cached) {
             FileCache::openWithSystem(FileCache::instance()->cachedFilePath(fileId));
         }
     });
@@ -1817,7 +1819,8 @@ void ChatWindow::triggerFileDownload(int fileId, const QString &fileName, qint64
         int row = it.value()->findMessageByFileId(fileId);
         if (row >= 0) {
             QModelIndex idx = it.value()->index(row, 0);
-            if (idx.data(MessageModel::FileClearedRole).toBool()) {
+            if (idx.data(MessageModel::FileClearedRole).toBool()
+                && !FileCache::instance()->isCached(fileId)) {
                 m_statusLabel->setText("文件已过期或被清除，无法下载");
                 return;
             }
@@ -2404,11 +2407,7 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
             // 未下载
             else if (fileId != 0) {
                 menu.addAction("下载文件", [this, &msg] {
-                    QJsonObject data;
-                    data["fileId"]   = msg.fileId();
-                    data["fileName"] = msg.fileName();
-                    NetworkManager::instance()->sendMessage(
-                        Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_REQ, data));
+                    triggerFileDownload(msg.fileId(), msg.fileName(), msg.fileSize());
                 });
                 hasMessageActions = true;
             }

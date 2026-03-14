@@ -72,6 +72,7 @@ public:
                      const QString &filePath, qint64 fileSize);
     QString getFilePath(int fileId, bool isFriendFile = false);
     QString getFileName(int fileId, bool isFriendFile = false);
+    void    expireStoredFiles();
 
     // 管理员管理
     bool isRoomAdmin(int roomId, int userId);

@@ -26,6 +26,7 @@
 #include <QMimeDatabase>
 #include <QDateTime>
 #include <QUuid>
+#include <QTimer>
 
 ChatServer::ChatServer(QObject *parent)
     : QTcpServer(parent)
@@ -71,6 +72,16 @@ bool ChatServer::startServer(quint16 port, quint16 wsPort, quint16 httpPort) {
     if (!setupHttpServer(httpPort)) {
         return false;
     }
+
+    m_db->expireStoredFiles();
+    if (!m_expireTimer) {
+        m_expireTimer = new QTimer(this);
+        m_expireTimer->setInterval(60 * 60 * 1000);
+        connect(m_expireTimer, &QTimer::timeout, this, [this] {
+            m_db->expireStoredFiles();
+        });
+    }
+    m_expireTimer->start();
     return true;
 }
 
@@ -83,6 +94,9 @@ void ChatServer::stopServer() {
         m_httpServer->close();
         m_httpServer->deleteLater();
         m_httpServer = nullptr;
+    }
+    if (m_expireTimer) {
+        m_expireTimer->stop();
     }
     QMutexLocker locker(&m_mutex);
     for (auto *s : std::as_const(m_sessions))

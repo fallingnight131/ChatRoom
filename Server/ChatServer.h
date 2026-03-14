@@ -12,6 +12,7 @@
 class QWebSocketServer;
 class QWebSocket;
 class QTcpSocket;
+class QTimer;
 class ClientSession;
 class DatabaseManager;
 class RoomManager;
@@ -123,6 +124,7 @@ private:
     RoomManager     *m_roomMgr  = nullptr;
     QWebSocketServer *m_wsServer = nullptr;
     QTcpServer      *m_httpServer = nullptr;
+    QTimer          *m_expireTimer = nullptr;
     quint16          m_httpPort = 0;
     QMap<QString, QPair<int, QDateTime>> m_fileTokens; // token -> {userId, expireAt(UTC)}
 

@@ -10,12 +10,91 @@
 #include <QJsonObject>
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
+#include <QMutex>
 
 namespace {
 constexpr qint64 kDefaultRoomMaxFileSize = 10LL * 1024 * 1024 * 1024; // 10GB
 constexpr qint64 kDefaultRoomTotalSpace  = 10LL * 1024 * 1024 * 1024; // 10GB
 constexpr int    kDefaultRoomMaxFileCount = 1500;
 constexpr int    kDefaultRoomMaxMembers   = 50;
+constexpr int    kFileExpireDays = 7;
+const QString    kExpiredFileReason = QStringLiteral("文件已过期或被清除");
+
+bool markExpiredFiles(QSqlDatabase &db,
+                      const QString &fileTable,
+                      const QString &messageTable,
+                      const QString &reason) {
+    QSqlQuery select(db);
+    select.prepare(QStringLiteral("SELECT id, file_path FROM %1 WHERE cleared = 0 AND created_at <= datetime('now', '-%2 days')")
+                   .arg(fileTable)
+                   .arg(kFileExpireDays));
+    if (!select.exec()) {
+        qWarning() << "[DB] 查询待过期文件失败:" << fileTable << select.lastError().text();
+        return false;
+    }
+
+    QList<int> fileIds;
+    QStringList filePaths;
+    while (select.next()) {
+        fileIds.append(select.value(0).toInt());
+        filePaths.append(select.value(1).toString());
+    }
+    if (fileIds.isEmpty()) {
+        return true;
+    }
+
+    if (!db.transaction()) {
+        qWarning() << "[DB] 开启文件过期事务失败:" << fileTable << db.lastError().text();
+        return false;
+    }
+
+    QStringList placeholders;
+    for (int i = 0; i < fileIds.size(); ++i) {
+        placeholders << QStringLiteral("?");
+    }
+    const QString inExpr = placeholders.join(QStringLiteral(","));
+
+    QSqlQuery updateFiles(db);
+    updateFiles.prepare(QStringLiteral("UPDATE %1 SET cleared = 1, clear_reason = ?, cleared_at = CURRENT_TIMESTAMP "
+                                       "WHERE id IN (%2)")
+                        .arg(fileTable, inExpr));
+    updateFiles.addBindValue(reason);
+    for (int fileId : fileIds) {
+        updateFiles.addBindValue(fileId);
+    }
+    if (!updateFiles.exec()) {
+        db.rollback();
+        qWarning() << "[DB] 更新过期文件状态失败:" << fileTable << updateFiles.lastError().text();
+        return false;
+    }
+
+    QSqlQuery updateMessages(db);
+    updateMessages.prepare(QStringLiteral("UPDATE %1 SET file_cleared = 1, clear_reason = ? "
+                                          "WHERE file_id IN (%2)")
+                           .arg(messageTable, inExpr));
+    updateMessages.addBindValue(reason);
+    for (int fileId : fileIds) {
+        updateMessages.addBindValue(fileId);
+    }
+    if (!updateMessages.exec()) {
+        db.rollback();
+        qWarning() << "[DB] 更新过期消息状态失败:" << messageTable << updateMessages.lastError().text();
+        return false;
+    }
+
+    if (!db.commit()) {
+        qWarning() << "[DB] 提交文件过期事务失败:" << fileTable << db.lastError().text();
+        return false;
+    }
+
+    for (const QString &path : filePaths) {
+        if (!path.isEmpty() && QFile::exists(path) && !QFile::remove(path)) {
+            qWarning() << "[DB] 删除过期文件失败:" << path;
+        }
+    }
+    return true;
+}
 }
 
 DatabaseManager::DatabaseManager(QObject *parent)
@@ -286,6 +365,9 @@ bool DatabaseManager::initialize() {
            ")");
     q.exec("CREATE INDEX IF NOT EXISTS idx_friend_msg_time ON friend_messages(friendship_id, created_at)");
 
+    q.exec("ALTER TABLE friend_messages ADD COLUMN file_cleared INTEGER DEFAULT 0");
+    q.exec("ALTER TABLE friend_messages ADD COLUMN clear_reason TEXT DEFAULT ''");
+
     // 好友文件表
     q.exec("CREATE TABLE IF NOT EXISTS friend_files ("
            "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -294,13 +376,34 @@ bool DatabaseManager::initialize() {
            "  file_name TEXT NOT NULL,"
            "  file_path TEXT NOT NULL,"
            "  file_size INTEGER DEFAULT 0,"
+           "  cleared INTEGER DEFAULT 0,"
+           "  clear_reason TEXT DEFAULT '',"
+           "  cleared_at TIMESTAMP DEFAULT NULL,"
            "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
            "  FOREIGN KEY (friendship_id) REFERENCES friendships(id) ON DELETE CASCADE,"
            "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
            ")");
+    q.exec("ALTER TABLE friend_files ADD COLUMN cleared INTEGER DEFAULT 0");
+    q.exec("ALTER TABLE friend_files ADD COLUMN clear_reason TEXT DEFAULT ''");
+    q.exec("ALTER TABLE friend_files ADD COLUMN cleared_at TIMESTAMP DEFAULT NULL");
+
+    expireStoredFiles();
 
     qInfo() << "[DB] SQLite 数据库初始化完成，路径:" << m_dbPath;
     return true;
+}
+
+void DatabaseManager::expireStoredFiles() {
+    static QMutex expireMutex;
+    QMutexLocker locker(&expireMutex);
+
+    QSqlDatabase db = getConnection();
+    if (!db.isOpen()) {
+        return;
+    }
+
+    markExpiredFiles(db, QStringLiteral("files"), QStringLiteral("messages"), kExpiredFileReason);
+    markExpiredFiles(db, QStringLiteral("friend_files"), QStringLiteral("friend_messages"), kExpiredFileReason);
 }
 
 // ==================== 用户管理 ====================
@@ -745,6 +848,7 @@ int DatabaseManager::saveMessage(int roomId, int userId, const QString &content,
 }
 
 QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 beforeTimestamp) {
+    expireStoredFiles();
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
@@ -866,11 +970,12 @@ int DatabaseManager::saveFile(int roomId, int userId, const QString &fileName,
 }
 
 QString DatabaseManager::getFilePath(int fileId, bool isFriendFile) {
+    expireStoredFiles();
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
     if (isFriendFile) {
-        q.prepare("SELECT file_path FROM friend_files WHERE id = ?");
+        q.prepare("SELECT file_path FROM friend_files WHERE id = ? AND cleared = 0");
     } else {
         q.prepare("SELECT file_path FROM files WHERE id = ? AND cleared = 0");
     }
@@ -1181,6 +1286,7 @@ bool DatabaseManager::setRoomMaxFileSize(int roomId, qint64 maxSize) {
 }
 
 qint64 DatabaseManager::getRoomUsedFileSpace(int roomId) {
+    expireStoredFiles();
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
     q.prepare("SELECT COALESCE(SUM(file_size), 0) FROM files WHERE room_id = ? AND cleared = 0");
@@ -1190,6 +1296,7 @@ qint64 DatabaseManager::getRoomUsedFileSpace(int roomId) {
 }
 
 int DatabaseManager::getRoomFileCount(int roomId) {
+    expireStoredFiles();
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
     q.prepare("SELECT COUNT(*) FROM files WHERE room_id = ? AND cleared = 0");
@@ -1199,6 +1306,7 @@ int DatabaseManager::getRoomFileCount(int roomId) {
 }
 
 QJsonArray DatabaseManager::getRoomActiveFilesOrdered(int roomId) {
+    expireStoredFiles();
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
     q.prepare("SELECT id, file_name, file_path, file_size, created_at "
@@ -1544,12 +1652,14 @@ int DatabaseManager::saveFriendMessage(int friendshipId, int senderId, const QSt
 }
 
 QJsonArray DatabaseManager::getFriendMessageHistory(int friendshipId, int count, qint64 beforeTimestamp) {
+    expireStoredFiles();
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
     QString sql = "SELECT * FROM ("
                   "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id,"
-                  "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail"
+                  "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail,"
+                  "       m.file_cleared, m.clear_reason"
                   " FROM friend_messages m JOIN users u ON m.sender_id = u.id"
                   " WHERE m.friendship_id = ?";
     if (beforeTimestamp > 0)
@@ -1583,6 +1693,11 @@ QJsonArray DatabaseManager::getFriendMessageHistory(int friendshipId, int count,
         msg["friendshipId"] = friendshipId;
         QString thumb = q.value(10).toString();
         if (!thumb.isEmpty()) msg["thumbnail"] = thumb;
+        bool fileCleared = q.value(11).toInt() != 0;
+        if (fileCleared) {
+            msg["fileCleared"] = true;
+            msg["clearReason"] = q.value(12).toString();
+        }
         arr.append(msg);
     }
     return arr;

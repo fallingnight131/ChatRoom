@@ -499,7 +499,7 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
     // 文件图标区域
     QRect iconRect(bubbleX + 12, bubbleY + 15, 40, 40);
 
-    if (fileCleared) {
+    if (fileCleared && !cached) {
         painter->setPen(Qt::NoPen);
         painter->setBrush(QColor(120, 120, 120));
         painter->drawRoundedRect(iconRect, 6, 6);
@@ -587,7 +587,7 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
     painter->setFont(smallFont);
     painter->setPen(m_timeColor);
     QString statusStr = sizeStr;
-    if (fileCleared) {
+    if (fileCleared && !cached) {
         statusStr = QStringLiteral("文件已过期或被清除");
         painter->setPen(QColor(150, 150, 150));
     } else if (dlState == Message::Downloading) {
@@ -712,7 +712,7 @@ void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewI
     painter->setClipPath(thumbClip);
 
     // 尝试加载真实缩略图
-    QPixmap thumbPix = fileCleared ? QPixmap() : loadVideoThumbnail(fileId);
+    QPixmap thumbPix = (fileCleared && !cached) ? QPixmap() : loadVideoThumbnail(fileId);
     if (!thumbPix.isNull()) {
         // 有缩略图 → 绘制缩略图（居中裁剪到 16:9）
         QPixmap scaled = thumbPix.scaled(thumbW, thumbH,
@@ -720,7 +720,7 @@ void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewI
         int sx = (scaled.width() - thumbW) / 2;
         int sy = (scaled.height() - thumbH) / 2;
         painter->drawPixmap(thumbRect, scaled, QRect(sx, sy, thumbW, thumbH));
-    } else if (fileCleared) {
+    } else if (fileCleared && !cached) {
         QLinearGradient grad(thumbRect.topLeft(), thumbRect.bottomRight());
         grad.setColorAt(0, QColor(90, 90, 90));
         grad.setColorAt(1, QColor(60, 60, 60));
@@ -734,11 +734,18 @@ void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewI
         painter->setFont(iconFont);
         painter->drawText(thumbRect.adjusted(0, -12, 0, 0), Qt::AlignCenter, QStringLiteral("🎬"));
 
+        QFont nameFont = option.font;
+        nameFont.setPointSize(nameFont.pointSize() - 2);
+        painter->setFont(nameFont);
+        QFontMetrics nfm(nameFont);
+        QString shortName = nfm.elidedText(fileName, Qt::ElideMiddle, thumbRect.width() - 16);
+        painter->drawText(thumbRect.adjusted(8, 22, -8, 0), Qt::AlignHCenter, shortName);
+
         QFont txtFont = option.font;
         txtFont.setPointSize(txtFont.pointSize() - 1);
         txtFont.setBold(true);
         painter->setFont(txtFont);
-        painter->drawText(thumbRect.adjusted(0, 28, 0, 0), Qt::AlignCenter, QStringLiteral("文件已过期或被清除"));
+        painter->drawText(thumbRect.adjusted(0, 42, 0, 0), Qt::AlignCenter, QStringLiteral("文件已过期或被清除"));
     } else {
         // 无缩略图 → 渐变占位 + 胶片装饰
         QLinearGradient grad(thumbRect.topLeft(), thumbRect.bottomRight());
@@ -775,14 +782,14 @@ void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewI
 
     painter->setClipping(false);
 
-    if (!fileCleared && (dlState == Message::Downloading || dlState == Message::Paused
+    if (!(fileCleared && !cached) && (dlState == Message::Downloading || dlState == Message::Paused
         || dlState == Message::Uploading || dlState == Message::UploadPaused)) {
         // 传输中 → 饼状进度
         drawPieProgress(painter, thumbRect, dlProgress);
         if (dlState == Message::Paused || dlState == Message::UploadPaused) {
             drawPauseOverlay(painter, thumbRect);
         }
-    } else if (!fileCleared) {
+    } else if (!(fileCleared && !cached)) {
         // 播放按钮（白色半透明圆 + ▶）
         int playSize = 48;
         QRect playRect(thumbRect.center().x() - playSize / 2,
@@ -930,7 +937,14 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
     // 图片区域
     QRect imgRect(bubbleX + m_padding, contentY, imgW, imgH);
 
-    if (fileCleared) {
+    if (!pix.isNull()) {
+        // 已缓存图片 → 正常显示
+        QPainterPath clipPath;
+        clipPath.addRoundedRect(imgRect, 6, 6);
+        painter->setClipPath(clipPath);
+        painter->drawPixmap(imgRect, pix);
+        painter->setClipping(false);
+    } else if (fileCleared) {
         QLinearGradient grad(imgRect.topLeft(), imgRect.bottomRight());
         grad.setColorAt(0, QColor(90, 90, 90));
         grad.setColorAt(1, QColor(60, 60, 60));
@@ -942,18 +956,19 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
         brokenFont.setPointSize(24);
         painter->setFont(brokenFont);
         painter->drawText(imgRect.adjusted(0, -12, 0, 0), Qt::AlignCenter, QStringLiteral("📷"));
+
+        QFont nameFont = option.font;
+        nameFont.setPointSize(nameFont.pointSize() - 2);
+        painter->setFont(nameFont);
+        QFontMetrics nfm(nameFont);
+        QString shortName = nfm.elidedText(fileName, Qt::ElideMiddle, imgRect.width() - 16);
+        painter->drawText(imgRect.adjusted(8, 22, -8, 0), Qt::AlignHCenter, shortName);
+
         QFont txtFont = option.font;
         txtFont.setPointSize(txtFont.pointSize() - 1);
         txtFont.setBold(true);
         painter->setFont(txtFont);
-        painter->drawText(imgRect.adjusted(0, 28, 0, 0), Qt::AlignCenter, QStringLiteral("文件已过期或被清除"));
-    } else if (!pix.isNull()) {
-        // 已缓存图片 → 正常显示
-        QPainterPath clipPath;
-        clipPath.addRoundedRect(imgRect, 6, 6);
-        painter->setClipPath(clipPath);
-        painter->drawPixmap(imgRect, pix);
-        painter->setClipping(false);
+        painter->drawText(imgRect.adjusted(0, 42, 0, 0), Qt::AlignCenter, QStringLiteral("文件已过期或被清除"));
     } else {
         // 占位背景
         painter->setPen(Qt::NoPen);
