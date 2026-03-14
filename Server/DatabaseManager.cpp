@@ -1203,6 +1203,31 @@ QList<QPair<int, QString>> DatabaseManager::getFileInfoAfterTime(int roomId, con
     return result;
 }
 
+QList<int> DatabaseManager::getRoomMessageIdsByFileIds(int roomId, const QList<int> &fileIds) {
+    QList<int> result;
+    if (fileIds.isEmpty()) return result;
+
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+
+    QStringList placeholders;
+    for (int i = 0; i < fileIds.size(); ++i)
+        placeholders.append("?");
+
+    QString sql = QString("SELECT id FROM messages WHERE room_id = ? AND file_id IN (%1)")
+                      .arg(placeholders.join(","));
+    q.prepare(sql);
+    q.addBindValue(roomId);
+    for (int id : fileIds)
+        q.addBindValue(id);
+
+    if (q.exec()) {
+        while (q.next())
+            result.append(q.value(0).toInt());
+    }
+    return result;
+}
+
 bool DatabaseManager::deleteFileRecords(const QList<int> &fileIds) {
     if (fileIds.isEmpty()) return true;
 

@@ -721,14 +721,9 @@ export const useChatStore = defineStore('chat', {
       chatWs.on(MsgType.ROOM_FILES_DELETE_RSP, (msg) => {
         const d = msg.data
         if (d.success) {
-          const idSet = new Set((d.clearedFileIds || []).map(Number))
-          if (idSet.size > 0) {
-            this.messages.forEach(m => {
-              if (idSet.has(Number(m.fileId))) {
-                m.fileCleared = true
-                m.clearReason = '文件已过期或被清除'
-              }
-            })
+          if (Array.isArray(d.messageIds) && d.messageIds.length > 0) {
+            const idSet = new Set(d.messageIds.map(Number))
+            this.messages = this.messages.filter(m => !idSet.has(Number(m.id)))
           }
           this.roomFileUsage = {
             used: Number(d.usedFileSpace || 0),
@@ -743,15 +738,6 @@ export const useChatStore = defineStore('chat', {
 
       chatWs.on(MsgType.ROOM_FILES_NOTIFY, (msg) => {
         const d = msg.data
-        const idSet = new Set((d.clearedFileIds || []).map(Number))
-        if (idSet.size > 0) {
-          this.messages.forEach(m => {
-            if (idSet.has(Number(m.fileId))) {
-              m.fileCleared = true
-              m.clearReason = '文件已过期或被清除'
-            }
-          })
-        }
         this.roomFileUsage = {
           used: Number(d.usedFileSpace || 0),
           max: Number(d.maxFileSpace || 0)

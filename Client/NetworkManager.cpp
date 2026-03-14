@@ -329,17 +329,23 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                                data["error"].toString());
     }
     else if (type == Protocol::MsgType::ROOM_FILES_DELETE_RSP) {
+        QJsonArray deletedFileIds = data.contains("deletedFileIds")
+            ? data["deletedFileIds"].toArray()
+            : data["clearedFileIds"].toArray();
         emit roomFilesDeleteResponse(data["success"].toBool(),
                                      data["roomId"].toInt(),
                                      data["deletedCount"].toInt(),
-                                     data["clearedFileIds"].toArray(),
+                                     deletedFileIds,
                                      static_cast<qint64>(data["usedFileSpace"].toDouble()),
                                      static_cast<qint64>(data["maxFileSpace"].toDouble()),
                                      data["error"].toString());
     }
     else if (type == Protocol::MsgType::ROOM_FILES_NOTIFY) {
+        QJsonArray deletedFileIds = data.contains("deletedFileIds")
+            ? data["deletedFileIds"].toArray()
+            : data["clearedFileIds"].toArray();
         emit roomFilesNotify(data["roomId"].toInt(),
-                             data["clearedFileIds"].toArray(),
+                             deletedFileIds,
                              static_cast<qint64>(data["usedFileSpace"].toDouble()),
                              static_cast<qint64>(data["maxFileSpace"].toDouble()),
                              data["operator"].toString());

@@ -83,7 +83,7 @@ function refresh() {
 
 function deleteSelected() {
   if (selected.value.length === 0) return
-  if (!confirm('确定删除选中的文件吗？\n删除后聊天记录会保留，但文件会显示为已过期/已清除。')) return
+  if (!confirm('确定彻底删除选中的文件消息吗？\n删除后消息会从聊天室中完全移除，无法恢复。')) return
   chatStore.deleteRoomFiles(chatStore.currentRoomId, selected.value)
 }
 
@@ -105,6 +105,7 @@ onUnmounted(() => {
 .room-file-modal {
   max-width: 860px;
   width: 92vw;
+  color: var(--text-primary, #fff);
 }
 .summary {
   margin-bottom: 10px;
@@ -126,6 +127,7 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--border-light);
   text-align: left;
   font-size: 13px;
+  color: var(--text-primary, #fff);
 }
 .file-table th {
   position: sticky;

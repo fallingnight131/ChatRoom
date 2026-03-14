@@ -92,6 +92,7 @@ public:
     QList<QPair<int, QString>> getAllFileInfoForRoom(int roomId);
     QList<QPair<int, QString>> getFileInfoBeforeTime(int roomId, const QDateTime &before);
     QList<QPair<int, QString>> getFileInfoAfterTime(int roomId, const QDateTime &after);
+    QList<int> getRoomMessageIdsByFileIds(int roomId, const QList<int> &fileIds);
     // 从files表删除记录
     bool deleteFileRecords(const QList<int> &fileIds);
 
