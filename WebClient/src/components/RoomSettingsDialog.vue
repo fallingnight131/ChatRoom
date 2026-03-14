@@ -26,7 +26,7 @@
             </div>
             <div class="info-row">
               <span class="info-label">单文件最大</span>
-              <span class="info-value">{{ formatMB(roomLimits.maxFileSize) }}</span>
+              <span class="info-value">{{ formatGB(roomLimits.maxFileSize) }}</span>
             </div>
             <div class="info-row">
               <span class="info-label">总文件空间</span>
@@ -81,13 +81,25 @@
         <!-- 限制设置 -->
         <div class="setting-section">
           <div class="setting-label">限制设置</div>
-          <div class="inline-edit">
-            <input class="input" v-model.number="maxFileSize" type="number" min="1" max="10240" placeholder="单文件最大(MB)" />
-            <input class="input" v-model.number="totalFileSpace" type="number" min="1" max="10240" placeholder="总文件空间(GB)" />
+          <div class="limit-grid">
+            <div class="limit-row">
+              <span class="limit-key">单文件最大(GB)</span>
+              <input class="input" v-model.number="maxFileSize" type="number" min="1" max="10240" step="0.1" />
+            </div>
+            <div class="limit-row">
+              <span class="limit-key">总文件空间(GB)</span>
+              <input class="input" v-model.number="totalFileSpace" type="number" min="1" max="10240" step="1" />
+            </div>
           </div>
-          <div class="inline-edit" style="margin-top:8px">
-            <input class="input" v-model.number="maxFileCount" type="number" min="1" max="1000000" placeholder="文件数量上限" />
-            <input class="input" v-model.number="maxMembers" type="number" min="2" max="1000000" placeholder="聊天室最大人数" />
+          <div class="limit-grid" style="margin-top:8px">
+            <div class="limit-row">
+              <span class="limit-key">文件数量上限</span>
+              <input class="input" v-model.number="maxFileCount" type="number" min="1" max="1000000" />
+            </div>
+            <div class="limit-row">
+              <span class="limit-key">聊天室最大人数</span>
+              <input class="input" v-model.number="maxMembers" type="number" min="2" max="1000000" />
+            </div>
           </div>
           <div class="inline-edit" style="margin-top:8px">
             <button class="btn btn-primary" @click="setRoomLimits">保存限制</button>
@@ -144,7 +156,7 @@ const chatStore = useChatStore()
 const newName = ref('')
 const roomPassword = ref('')
 const currentPassword = ref(null)
-const maxFileSize = ref(100)
+const maxFileSize = ref(10)
 const totalFileSpace = ref(10)
 const maxFileCount = ref(1500)
 const maxMembers = ref(50)
@@ -239,25 +251,21 @@ function setRoomLimits() {
     alert('限制值必须大于0')
     return
   }
-  if (totalFileSpace.value * 1024 < maxFileSize.value) {
+  if (totalFileSpace.value < maxFileSize.value) {
     alert('总文件空间不能小于单文件最大值')
     return
   }
   chatWs.setRoomSettings(
     chatStore.currentRoomId,
-    maxFileSize.value * 1024 * 1024,
+    maxFileSize.value * 1024 * 1024 * 1024,
     totalFileSpace.value * 1024 * 1024 * 1024,
     maxFileCount.value,
     maxMembers.value,
   )
 }
 
-function formatMB(bytes) {
-  return `${Math.round((bytes || 0) / 1024 / 1024)} MB`
-}
-
 function formatGB(bytes) {
-  return `${Math.round((bytes || 0) / 1024 / 1024 / 1024)} GB`
+  return `${((bytes || 0) / 1024 / 1024 / 1024).toFixed(1)} GB`
 }
 
 function toggleAdmin() {
@@ -300,7 +308,7 @@ onMounted(() => {
   // 加载当前设置
   const s = chatStore.roomSettings[chatStore.currentRoomId]
   if (s) {
-    maxFileSize.value = Math.round(s.maxFileSize / (1024 * 1024))
+    maxFileSize.value = Number((s.maxFileSize / (1024 * 1024 * 1024)).toFixed(1))
     totalFileSpace.value = Math.round((s.totalFileSpace || 10 * 1024 * 1024 * 1024) / (1024 * 1024 * 1024))
     maxFileCount.value = s.maxFileCount || 1500
     maxMembers.value = s.maxMembers || 50
@@ -362,6 +370,25 @@ onUnmounted(() => {
 .inline-edit .input {
   flex: 1;
 }
+.limit-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.limit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.limit-key {
+  width: 130px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.limit-row .input {
+  flex: 1;
+}
 .member-actions {
   display: flex;
   gap: 8px;
@@ -390,6 +417,14 @@ onUnmounted(() => {
 @media (max-width: 768px) {
   .inline-edit {
     flex-direction: column;
+  }
+  .limit-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .limit-key {
+    width: auto;
   }
   .inline-edit .btn {
     width: 100%;
