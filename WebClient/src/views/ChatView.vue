@@ -30,7 +30,10 @@
           <span v-if="chatStore.totalFriendUnread > 0 || chatStore.hasPendingFriendReq" class="tab-dot"></span>
         </button>
       </div>
-      <RoomList v-if="activeTab === 'rooms'" @room-selected="onRoomSelected" @open-room-settings="showRoomSettings = true" />
+      <RoomList v-if="activeTab === 'rooms'"
+            @room-selected="onRoomSelected"
+            @open-room-settings="showRoomSettings = true"
+            @open-room-files="showRoomFiles = true" />
       <FriendList v-else @friend-selected="onFriendSelected" @view-user-info="onViewUserInfo" />
     </div>
 
@@ -80,6 +83,7 @@
     <!-- 弹窗 -->
     <ProfileDialog v-if="showProfile" @close="showProfile = false" />
     <RoomSettingsDialog v-if="showRoomSettings" @close="showRoomSettings = false" />
+    <RoomFileManagerDialog v-if="showRoomFiles" @close="showRoomFiles = false" />
     <UserInfoDialog v-if="showUserInfo" :user="selectedUser" @close="showUserInfo = false" />
     <RoomPasswordDialog v-if="showPasswordPrompt" :roomData="passwordRoomData"
                         @close="showPasswordPrompt = false" @submit="onPasswordSubmit" />
@@ -111,6 +115,7 @@ import InputArea from '../components/InputArea.vue'
 import UserList from '../components/UserList.vue'
 import ProfileDialog from '../components/ProfileDialog.vue'
 import RoomSettingsDialog from '../components/RoomSettingsDialog.vue'
+import RoomFileManagerDialog from '../components/RoomFileManagerDialog.vue'
 import UserInfoDialog from '../components/UserInfoDialog.vue'
 import RoomPasswordDialog from '../components/RoomPasswordDialog.vue'
 
@@ -120,6 +125,7 @@ const chatStore = useChatStore()
 
 const showProfile = ref(false)
 const showRoomSettings = ref(false)
+const showRoomFiles = ref(false)
 const showUserInfo = ref(false)
 const selectedUser = ref(null)
 const showPasswordPrompt = ref(false)

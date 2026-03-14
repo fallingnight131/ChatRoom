@@ -38,6 +38,9 @@ export const MsgType = {
   DELETE_MSGS_NOTIFY: 'DELETE_MSGS_NOTIFY',
   ROOM_SETTINGS_REQ: 'ROOM_SETTINGS_REQ', ROOM_SETTINGS_RSP: 'ROOM_SETTINGS_RSP',
   ROOM_SETTINGS_NOTIFY: 'ROOM_SETTINGS_NOTIFY',
+  ROOM_FILES_REQ: 'ROOM_FILES_REQ', ROOM_FILES_RSP: 'ROOM_FILES_RSP',
+  ROOM_FILES_DELETE_REQ: 'ROOM_FILES_DELETE_REQ', ROOM_FILES_DELETE_RSP: 'ROOM_FILES_DELETE_RSP',
+  ROOM_FILES_NOTIFY: 'ROOM_FILES_NOTIFY',
   DELETE_ROOM_REQ: 'DELETE_ROOM_REQ', DELETE_ROOM_RSP: 'DELETE_ROOM_RSP',
   DELETE_ROOM_NOTIFY: 'DELETE_ROOM_NOTIFY',
   RENAME_ROOM_REQ: 'RENAME_ROOM_REQ', RENAME_ROOM_RSP: 'RENAME_ROOM_RSP',
@@ -343,6 +346,14 @@ class ChatWebSocket {
     this.send(makeMessage(MsgType.ROOM_SETTINGS_REQ, {
       roomId, maxFileSize, totalFileSpace, maxFileCount, maxMembers, forceCleanup
     }))
+  }
+
+  requestRoomFiles(roomId) {
+    this.send(makeMessage(MsgType.ROOM_FILES_REQ, { roomId }))
+  }
+
+  deleteRoomFiles(roomId, fileIds = []) {
+    this.send(makeMessage(MsgType.ROOM_FILES_DELETE_REQ, { roomId, fileIds }))
   }
 
   deleteRoom(roomId, roomName) {

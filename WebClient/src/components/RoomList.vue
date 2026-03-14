@@ -92,6 +92,7 @@
          :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
          @click="contextMenu.show = false">
       <div class="context-menu-item" @click="openRoomSettings(contextMenu.room)">房间设置</div>
+      <div class="context-menu-item" @click="openRoomFiles(contextMenu.room)">文件管理</div>
     </div>
   </div>
 </template>
@@ -103,7 +104,7 @@ import { chatWs } from '../services/websocket'
 
 const chatStore = useChatStore()
 
-const emit = defineEmits(['room-selected', 'open-room-settings'])
+const emit = defineEmits(['room-selected', 'open-room-settings', 'open-room-files'])
 
 const showCreate = ref(false)
 const showSearch = ref(false)
@@ -152,6 +153,13 @@ function openRoomSettings(room) {
   if (room) {
     chatStore.setCurrentRoom(room.roomId)
     emit('open-room-settings')
+  }
+}
+
+function openRoomFiles(room) {
+  if (room) {
+    chatStore.setCurrentRoom(room.roomId)
+    emit('open-room-files')
   }
 }
 

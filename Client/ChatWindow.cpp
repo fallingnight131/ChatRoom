@@ -260,8 +260,8 @@ void ChatWindow::setupUi() {
     auto *createRoomBtn = new QPushButton("创建");
     auto *searchRoomBtn = new QPushButton("搜索");
     auto *refreshRoomBtn = new QPushButton("刷新");
-    roomBtnLayout->addWidget(createRoomBtn);
     roomBtnLayout->addWidget(searchRoomBtn);
+    roomBtnLayout->addWidget(createRoomBtn);
     roomBtnLayout->addWidget(refreshRoomBtn);
     roomPanelLayout->addWidget(m_roomBtnPanel);
 
@@ -1597,6 +1597,7 @@ void ChatWindow::startChunkedUpload(const QString &filePath) {
     // 添加临时上传消息到模型（显示上传进度）
     Message uploadMsg = Message::createFileMessage(
         m_currentRoomId, m_username, fi.fileName(), fi.size(), m_uploadingFileId);
+    uploadMsg.setSenderName(m_displayName);
     uploadMsg.setIsMine(true);
     uploadMsg.setDownloadState(Message::Uploading);
     uploadMsg.setDownloadProgress(0.0);
@@ -4163,6 +4164,7 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
         MessageModel *model = getOrCreateFriendModel(m_currentFriendUsername);
         Message uploadMsg;
         uploadMsg.setSender(m_username);
+        uploadMsg.setSenderName(m_displayName);
         uploadMsg.setIsMine(true);
         uploadMsg.setFileName(fi.fileName());
         uploadMsg.setFileSize(fileSize);

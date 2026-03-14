@@ -1620,6 +1620,7 @@ void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject 
         QList<int> ids;
         for (const QJsonValue &v : data["messageIds"].toArray())
             ids.append(v.toInt());
+        rspData["messageIds"] = data["messageIds"].toArray();
         fileInfos = m_db->getFileInfoForMessages(roomId, ids);
         if (m_db->deleteMessages(roomId, ids))
             deletedCount = ids.size();
@@ -1706,6 +1707,9 @@ void ChatServer::handleRoomFiles(ClientSession *session, const QJsonObject &data
     QJsonArray files;
     for (const QJsonValue &v : rawFiles) {
         QJsonObject src = v.toObject();
+        if (src["cleared"].toBool(false)) {
+            continue;
+        }
         QJsonObject out;
         out["fileId"] = src["fileId"].toInt();
         out["fileName"] = src["fileName"].toString();
@@ -1778,7 +1782,7 @@ void ChatServer::handleRoomFilesDelete(ClientSession *session, const QJsonObject
 
     bool ok = true;
     if (!clearIds.isEmpty()) {
-        ok = m_db->markRoomFilesCleared(roomId, clearIds, QStringLiteral("管理员删除文件"));
+        ok = m_db->markRoomFilesCleared(roomId, clearIds, QStringLiteral("文件已过期或被清除"));
     }
 
     if (!ok) {

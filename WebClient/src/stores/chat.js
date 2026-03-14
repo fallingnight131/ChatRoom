@@ -19,6 +19,8 @@ export const useChatStore = defineStore('chat', {
     downloads: {},          // fileId -> { fileName, fileSize, received, blob, status, paused }
     // 房间设置
     roomSettings: {},       // roomId -> { maxFileSize, totalFileSpace, maxFileCount, maxMembers }
+    roomFiles: [],          // 当前房间文件管理列表
+    roomFileUsage: { used: 0, max: 0 },
     // 预览模式下载（不触发自动保存）
     _previewFileIds: new Set(),
 
@@ -58,8 +60,18 @@ export const useChatStore = defineStore('chat', {
         chatWs.requestUserList(roomId)
         chatWs.requestHistory(roomId, 50)
         chatWs.requestRoomSettings(roomId)
+        this.roomFiles = []
+        this.roomFileUsage = { used: 0, max: 0 }
         chatWs.send(makeMessage(MsgType.MARK_ROOM_READ, { roomId }))
       }
+    },
+
+    requestRoomFiles(roomId) {
+      chatWs.requestRoomFiles(roomId)
+    },
+
+    deleteRoomFiles(roomId, fileIds) {
+      chatWs.deleteRoomFiles(roomId, fileIds)
     },
 
     // ==================== 聊天室头像 ====================
@@ -668,10 +680,14 @@ export const useChatStore = defineStore('chat', {
       })
 
       chatWs.on(MsgType.DELETE_MSGS_RSP, (msg) => {
-        if (msg.data.success) {
-          // 刷新消息列表
-          if (msg.data.mode === 'all') {
+        const d = msg.data
+        if (d.success) {
+          if (d.roomId !== this.currentRoomId) return
+          if (d.mode === 'all') {
             this.messages = []
+          } else if (Array.isArray(d.messageIds) && d.messageIds.length > 0) {
+            const idSet = new Set(d.messageIds.map(Number))
+            this.messages = this.messages.filter(m => !idSet.has(Number(m.id)))
           }
         }
       })
@@ -681,9 +697,67 @@ export const useChatStore = defineStore('chat', {
         if (d.roomId === this.currentRoomId) {
           if (d.mode === 'all') {
             this.messages = []
-          } else if (d.messageIds) {
-            this.messages = this.messages.filter(m => !d.messageIds.includes(m.id))
+          } else if (Array.isArray(d.messageIds) && d.messageIds.length > 0) {
+            const idSet = new Set(d.messageIds.map(Number))
+            this.messages = this.messages.filter(m => !idSet.has(Number(m.id)))
           }
+        }
+      })
+
+      chatWs.on(MsgType.ROOM_FILES_RSP, (msg) => {
+        const d = msg.data
+        if (d.success) {
+          this.roomFiles = d.files || []
+          this.roomFileUsage = {
+            used: Number(d.usedFileSpace || 0),
+            max: Number(d.maxFileSpace || 0)
+          }
+          this._emit('roomFilesLoaded', d)
+        } else {
+          this._emit('error', d.error || '加载房间文件失败')
+        }
+      })
+
+      chatWs.on(MsgType.ROOM_FILES_DELETE_RSP, (msg) => {
+        const d = msg.data
+        if (d.success) {
+          const idSet = new Set((d.clearedFileIds || []).map(Number))
+          if (idSet.size > 0) {
+            this.messages.forEach(m => {
+              if (idSet.has(Number(m.fileId))) {
+                m.fileCleared = true
+                m.clearReason = '文件已过期或被清除'
+              }
+            })
+          }
+          this.roomFileUsage = {
+            used: Number(d.usedFileSpace || 0),
+            max: Number(d.maxFileSpace || 0)
+          }
+          this._emit('roomFilesDeleted', d)
+          chatWs.requestRoomFiles(d.roomId)
+        } else {
+          this._emit('error', d.error || '删除文件失败')
+        }
+      })
+
+      chatWs.on(MsgType.ROOM_FILES_NOTIFY, (msg) => {
+        const d = msg.data
+        const idSet = new Set((d.clearedFileIds || []).map(Number))
+        if (idSet.size > 0) {
+          this.messages.forEach(m => {
+            if (idSet.has(Number(m.fileId))) {
+              m.fileCleared = true
+              m.clearReason = '文件已过期或被清除'
+            }
+          })
+        }
+        this.roomFileUsage = {
+          used: Number(d.usedFileSpace || 0),
+          max: Number(d.maxFileSpace || 0)
+        }
+        if (d.roomId === this.currentRoomId) {
+          chatWs.requestRoomFiles(d.roomId)
         }
       })
 
