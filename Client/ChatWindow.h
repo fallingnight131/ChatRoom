@@ -118,8 +118,11 @@ private slots:
     void onAvatarUpdateNotify(const QString &username, const QByteArray &avatarData);
 
     // 房间设置
-    void onRoomSettingsResponse(int roomId, bool success, qint64 maxFileSize, const QString &error);
-    void onRoomSettingsNotify(int roomId, qint64 maxFileSize);
+    void onRoomSettingsResponse(int roomId, bool success, qint64 maxFileSize,
+                                qint64 totalFileSpace, int maxFileCount, int maxMembers,
+                                const QString &error);
+    void onRoomSettingsNotify(int roomId, qint64 maxFileSize,
+                              qint64 totalFileSpace, int maxFileCount, int maxMembers);
 
     // 退出聊天室
     void onLeaveRoomResponse(bool success, int roomId);
@@ -260,7 +263,10 @@ private:
     MessageDelegate          *m_delegate = nullptr;
     QMap<int, bool>           m_adminRooms; // roomId -> isAdmin
     QSet<int>                 m_joinedRooms; // 已加入过的房间（用于显示加入提示）
-    QMap<int, qint64>         m_roomMaxFileSize; // roomId -> maxFileSize
+    QMap<int, qint64>         m_roomMaxFileSize;   // roomId -> maxFileSize
+    QMap<int, qint64>         m_roomTotalFileSpace; // roomId -> totalFileSpace
+    QMap<int, int>            m_roomMaxFileCount;   // roomId -> maxFileCount
+    QMap<int, int>            m_roomMaxMembers;     // roomId -> maxMembers
 
     // 好友聊天数据
     bool    m_isFriendChat = false;             // 当前是否在好友聊天模式

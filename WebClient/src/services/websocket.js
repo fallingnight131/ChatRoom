@@ -335,8 +335,14 @@ class ChatWebSocket {
   }
 
   // 房间设置
-  setRoomSettings(roomId, maxFileSize) {
-    this.send(makeMessage(MsgType.ROOM_SETTINGS_REQ, { roomId, maxFileSize }))
+  requestRoomSettings(roomId) {
+    this.send(makeMessage(MsgType.ROOM_SETTINGS_REQ, { roomId }))
+  }
+
+  setRoomSettings(roomId, maxFileSize, totalFileSpace, maxFileCount, maxMembers) {
+    this.send(makeMessage(MsgType.ROOM_SETTINGS_REQ, {
+      roomId, maxFileSize, totalFileSpace, maxFileCount, maxMembers
+    }))
   }
 
   deleteRoom(roomId, roomName) {

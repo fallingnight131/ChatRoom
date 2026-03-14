@@ -100,9 +100,9 @@ async function onFileSelected(e) {
 
   if (props.friendMode) {
     if (!chatStore.currentFriendUsername) return
-    const MAX_FRIEND_FILE = 10 * 1024 * 1024 * 1024 // 10GB
+    const MAX_FRIEND_FILE = 100 * 1024 * 1024 // 100MB
     if (file.size > MAX_FRIEND_FILE) {
-      alert('好友文件不能超过 10GB')
+      alert('私聊单文件不能超过 100MB')
       return
     }
     if (file.size <= MAX_SMALL_FILE) {
@@ -111,6 +111,12 @@ async function onFileSelected(e) {
       await chatStore.startFriendChunkedUpload(chatStore.currentFriendUsername, file)
     }
   } else {
+    const s = chatStore.roomSettings[chatStore.currentRoomId]
+    const maxRoomFile = s?.maxFileSize || 10 * 1024 * 1024 * 1024
+    if (file.size > maxRoomFile) {
+      alert(`文件大小超过房间上限（${Math.round(maxRoomFile / 1024 / 1024)}MB）`)
+      return
+    }
     if (file.size <= MAX_SMALL_FILE) {
       await chatStore.uploadSmallFile(chatStore.currentRoomId, file)
     } else {

@@ -1332,6 +1332,13 @@ void ChatWindow::onSendFile() {
         return;
     }
 
+    qint64 roomLimit = m_roomMaxFileSize.value(m_currentRoomId, 10LL * 1024 * 1024 * 1024);
+    if (roomLimit > 0 && fi.size() > roomLimit) {
+        QMessageBox::warning(this, "错误",
+            QString("文件大小超过房间上限(%1MB)").arg(roomLimit / 1024 / 1024));
+        return;
+    }
+
     // 大文件走分块传输
     if (fi.size() > Protocol::MAX_SMALL_FILE) {
         startChunkedUpload(filePath);
@@ -1399,6 +1406,13 @@ void ChatWindow::onSendImage() {
     if (fi.size() > Protocol::MAX_SMALL_FILE) {
         QMessageBox::warning(this, "错误",
             QString("图片大小不能超过%1MB").arg(Protocol::MAX_SMALL_FILE / 1024 / 1024));
+        return;
+    }
+
+    qint64 roomLimit = m_roomMaxFileSize.value(m_currentRoomId, 10LL * 1024 * 1024 * 1024);
+    if (roomLimit > 0 && fi.size() > roomLimit) {
+        QMessageBox::warning(this, "错误",
+            QString("图片大小超过房间上限(%1MB)").arg(roomLimit / 1024 / 1024));
         return;
     }
 
@@ -2576,6 +2590,9 @@ void ChatWindow::onLeaveRoomResponse(bool success, int roomId) {
         m_adminRooms.remove(roomId);
         m_joinedRooms.remove(roomId);
         m_roomMaxFileSize.remove(roomId);
+        m_roomTotalFileSpace.remove(roomId);
+        m_roomMaxFileCount.remove(roomId);
+        m_roomMaxMembers.remove(roomId);
 
         // 切换到另一个房间
         if (m_currentRoomId == roomId) {
@@ -2748,16 +2765,25 @@ void ChatWindow::requestAvatar(const QString &username) {
 
 // ==================== 房间设置 ====================
 
-void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFileSize, const QString &error) {
+void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFileSize,
+                                        qint64 totalFileSpace, int maxFileCount, int maxMembers,
+                                        const QString &error) {
     if (success) {
         m_roomMaxFileSize[roomId] = maxFileSize;
+        m_roomTotalFileSpace[roomId] = totalFileSpace;
+        m_roomMaxFileCount[roomId] = maxFileCount;
+        m_roomMaxMembers[roomId] = maxMembers;
     } else {
         QMessageBox::warning(this, "设置失败", error);
     }
 }
 
-void ChatWindow::onRoomSettingsNotify(int roomId, qint64 maxFileSize) {
+void ChatWindow::onRoomSettingsNotify(int roomId, qint64 maxFileSize,
+                                      qint64 totalFileSpace, int maxFileCount, int maxMembers) {
     m_roomMaxFileSize[roomId] = maxFileSize;
+    m_roomTotalFileSpace[roomId] = totalFileSpace;
+    m_roomMaxFileCount[roomId] = maxFileCount;
+    m_roomMaxMembers[roomId] = maxMembers;
 }
 
 // ==================== 删除聊天室 ====================
@@ -3013,9 +3039,13 @@ void ChatWindow::showRoomSettingsDialog(int roomId) {
     }
 
     bool isAdmin = m_adminRooms.value(roomId, false);
-    qint64 maxFileSize = m_roomMaxFileSize.value(roomId, 4LL * 1024 * 1024 * 1024);
+    qint64 maxFileSize = m_roomMaxFileSize.value(roomId, 10LL * 1024 * 1024 * 1024);
+    qint64 totalFileSpace = m_roomTotalFileSpace.value(roomId, 10LL * 1024 * 1024 * 1024);
+    int maxFileCount = m_roomMaxFileCount.value(roomId, 1500);
+    int maxMembers = m_roomMaxMembers.value(roomId, 50);
 
-    auto *dlg = new RoomSettingsDialog(roomId, roomName, isAdmin, maxFileSize, this);
+    auto *dlg = new RoomSettingsDialog(roomId, roomName, isAdmin,
+                                       maxFileSize, totalFileSpace, maxFileCount, maxMembers, this);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
 
     connect(dlg, &RoomSettingsDialog::leaveRoomRequested, this, [this](int rid) {
@@ -3885,7 +3915,7 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
 
     if (fileSize > Protocol::MAX_FRIEND_FILE) {
         QMessageBox::warning(this, "文件过大",
-            QString("文件大小 %1 超过好友传输限制 (10GB)")
+            QString("文件大小 %1 超过好友传输限制 (100MB)")
                 .arg(QLocale().formattedDataSize(fileSize)));
         return;
     }

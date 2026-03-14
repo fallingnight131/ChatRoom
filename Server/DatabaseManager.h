@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QSqlDatabase>
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QMutex>
 #include <QPair>
 
@@ -94,8 +95,12 @@ public:
     bool deleteFileRecords(const QList<int> &fileIds);
 
     // 房间设置
+    QJsonObject getRoomSettings(int roomId);
+    bool   setRoomSettings(int roomId, qint64 maxFileSize, qint64 totalFileSpace, int maxFileCount, int maxMembers);
     qint64 getRoomMaxFileSize(int roomId);
     bool   setRoomMaxFileSize(int roomId, qint64 maxSize);
+    qint64 getRoomUsedFileSpace(int roomId);
+    int    getRoomFileCount(int roomId);
 
     // 用户头像
     QByteArray getUserAvatar(int userId);

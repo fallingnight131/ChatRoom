@@ -9,6 +9,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QDoubleSpinBox>
+#include <QSpinBox>
 #include <QPushButton>
 #include <QGroupBox>
 #include <QMessageBox>
@@ -19,7 +20,11 @@
 #include <QImage>
 
 RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
-                                       bool isAdmin, qint64 maxFileSize,
+                                       bool isAdmin,
+                                       qint64 maxFileSize,
+                                       qint64 totalFileSpace,
+                                       int maxFileCount,
+                                       int maxMembers,
                                        QWidget *parent)
     : QDialog(parent), m_roomId(roomId), m_roomName(roomName), m_isAdmin(isAdmin)
 {
@@ -69,6 +74,20 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
 
     mainLayout->addSpacing(8);
 
+    // --- 所有人可见：当前限制 ---
+    auto *limitsGroup = new QGroupBox(QStringLiteral("当前限制"));
+    auto *limitsForm = new QFormLayout(limitsGroup);
+    limitsForm->addRow(QStringLiteral("单文件最大:"),
+                       new QLabel(QString("%1 MB").arg(maxFileSize / 1024 / 1024)));
+    limitsForm->addRow(QStringLiteral("总文件空间:"),
+                       new QLabel(QString("%1 GB").arg(totalFileSpace / 1024 / 1024 / 1024)));
+    limitsForm->addRow(QStringLiteral("文件数量上限:"),
+                       new QLabel(QString::number(maxFileCount)));
+    limitsForm->addRow(QStringLiteral("聊天室最大人数:"),
+                       new QLabel(QString::number(maxMembers)));
+    mainLayout->addWidget(limitsGroup);
+    mainLayout->addSpacing(8);
+
     if (isAdmin) {
         // --- 管理员设置组 ---
         auto *adminGroup = new QGroupBox(QStringLiteral("管理员设置"));
@@ -93,21 +112,46 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
         nameLayout->addWidget(saveNameBtn);
         adminLayout->addLayout(nameLayout);
 
-        // 文件大小上限
+        // 限制编辑
         auto *fileLayout = new QHBoxLayout;
-        fileLayout->addWidget(new QLabel(QStringLiteral("文件上限(MB)：")));
+        fileLayout->addWidget(new QLabel(QStringLiteral("单文件上限(MB)：")));
         m_fileSizeSpin = new QDoubleSpinBox;
-        m_fileSizeSpin->setRange(0.0, 4096.0);
+        m_fileSizeSpin->setRange(1.0, 10240.0);
         m_fileSizeSpin->setDecimals(0);
         m_fileSizeSpin->setSuffix(" MB");
-        m_fileSizeSpin->setSpecialValueText(QStringLiteral("无限制"));
         double currentMB = maxFileSize / (1024.0 * 1024.0);
         m_fileSizeSpin->setValue(currentMB);
         fileLayout->addWidget(m_fileSizeSpin, 1);
-        auto *saveFileBtn = new QPushButton(QStringLiteral("保存"));
-        connect(saveFileBtn, &QPushButton::clicked, this, &RoomSettingsDialog::onSaveFileSize);
+        auto *saveFileBtn = new QPushButton(QStringLiteral("保存限制"));
+        connect(saveFileBtn, &QPushButton::clicked, this, &RoomSettingsDialog::onSaveLimits);
         fileLayout->addWidget(saveFileBtn);
         adminLayout->addLayout(fileLayout);
+
+        auto *totalLayout = new QHBoxLayout;
+        totalLayout->addWidget(new QLabel(QStringLiteral("总文件空间(GB)：")));
+        m_totalSpaceSpin = new QDoubleSpinBox;
+        m_totalSpaceSpin->setRange(1.0, 10240.0);
+        m_totalSpaceSpin->setDecimals(0);
+        m_totalSpaceSpin->setSuffix(" GB");
+        m_totalSpaceSpin->setValue(totalFileSpace / (1024.0 * 1024.0 * 1024.0));
+        totalLayout->addWidget(m_totalSpaceSpin, 1);
+        adminLayout->addLayout(totalLayout);
+
+        auto *countLayout = new QHBoxLayout;
+        countLayout->addWidget(new QLabel(QStringLiteral("文件数量上限：")));
+        m_fileCountSpin = new QSpinBox;
+        m_fileCountSpin->setRange(1, 1000000);
+        m_fileCountSpin->setValue(maxFileCount);
+        countLayout->addWidget(m_fileCountSpin, 1);
+        adminLayout->addLayout(countLayout);
+
+        auto *memberLayout = new QHBoxLayout;
+        memberLayout->addWidget(new QLabel(QStringLiteral("聊天室最大人数：")));
+        m_memberLimitSpin = new QSpinBox;
+        m_memberLimitSpin->setRange(2, 1000000);
+        m_memberLimitSpin->setValue(maxMembers);
+        memberLayout->addWidget(m_memberLimitSpin, 1);
+        adminLayout->addLayout(memberLayout);
 
         // 密码设置
         auto *pwdLayout = new QHBoxLayout;
@@ -184,13 +228,25 @@ void RoomSettingsDialog::onSaveName() {
     m_roomName = newName;
 }
 
-void RoomSettingsDialog::onSaveFileSize() {
+void RoomSettingsDialog::onSaveLimits() {
     double sizeMB = m_fileSizeSpin->value();
+    double totalGB = m_totalSpaceSpin->value();
     qint64 sizeBytes = static_cast<qint64>(sizeMB * 1024 * 1024);
+    qint64 totalBytes = static_cast<qint64>(totalGB * 1024 * 1024 * 1024);
+    int fileCount = m_fileCountSpin->value();
+    int maxMembers = m_memberLimitSpin->value();
+
+    if (totalBytes < sizeBytes) {
+        QMessageBox::warning(this, QStringLiteral("限制错误"), QStringLiteral("总文件空间不能小于单文件上限"));
+        return;
+    }
 
     QJsonObject data;
-    data["roomId"]      = m_roomId;
-    data["maxFileSize"] = static_cast<double>(sizeBytes);
+    data["roomId"]         = m_roomId;
+    data["maxFileSize"]    = static_cast<double>(sizeBytes);
+    data["totalFileSpace"] = static_cast<double>(totalBytes);
+    data["maxFileCount"]   = fileCount;
+    data["maxMembers"]     = maxMembers;
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
 }

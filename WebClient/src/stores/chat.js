@@ -18,7 +18,7 @@ export const useChatStore = defineStore('chat', {
     // 文件下载
     downloads: {},          // fileId -> { fileName, fileSize, received, blob, status, paused }
     // 房间设置
-    roomSettings: {},       // roomId -> { maxFileSize }
+    roomSettings: {},       // roomId -> { maxFileSize, totalFileSpace, maxFileCount, maxMembers }
     // 预览模式下载（不触发自动保存）
     _previewFileIds: new Set(),
 
@@ -57,6 +57,7 @@ export const useChatStore = defineStore('chat', {
         this.users = []
         chatWs.requestUserList(roomId)
         chatWs.requestHistory(roomId, 50)
+        chatWs.requestRoomSettings(roomId)
         chatWs.send(makeMessage(MsgType.MARK_ROOM_READ, { roomId }))
       }
     },
@@ -712,12 +713,22 @@ export const useChatStore = defineStore('chat', {
       chatWs.on(MsgType.ROOM_SETTINGS_RSP, (msg) => {
         const d = msg.data
         if (d.success) {
-          this.roomSettings[d.roomId] = { maxFileSize: d.maxFileSize }
+          this.roomSettings[d.roomId] = {
+            maxFileSize: d.maxFileSize,
+            totalFileSpace: d.totalFileSpace,
+            maxFileCount: d.maxFileCount,
+            maxMembers: d.maxMembers,
+          }
         }
       })
 
       chatWs.on(MsgType.ROOM_SETTINGS_NOTIFY, (msg) => {
-        this.roomSettings[msg.data.roomId] = { maxFileSize: msg.data.maxFileSize }
+        this.roomSettings[msg.data.roomId] = {
+          maxFileSize: msg.data.maxFileSize,
+          totalFileSpace: msg.data.totalFileSpace,
+          maxFileCount: msg.data.maxFileCount,
+          maxMembers: msg.data.maxMembers,
+        }
       })
 
       // --- 昵称/UID变更通知 ---

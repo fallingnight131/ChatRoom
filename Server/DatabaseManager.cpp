@@ -11,6 +11,13 @@
 #include <QCoreApplication>
 #include <QDir>
 
+namespace {
+constexpr qint64 kDefaultRoomMaxFileSize = 10LL * 1024 * 1024 * 1024; // 10GB
+constexpr qint64 kDefaultRoomTotalSpace  = 10LL * 1024 * 1024 * 1024; // 10GB
+constexpr int    kDefaultRoomMaxFileCount = 1500;
+constexpr int    kDefaultRoomMaxMembers   = 50;
+}
+
 DatabaseManager::DatabaseManager(QObject *parent)
     : QObject(parent)
 {
@@ -137,11 +144,29 @@ bool DatabaseManager::initialize() {
            ")");
 
     // 房间设置表
-    q.exec("CREATE TABLE IF NOT EXISTS room_settings ("
-           "  room_id INTEGER PRIMARY KEY,"
-           "  max_file_size INTEGER DEFAULT 4294967296,"
-           "  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE"
-           ")");
+        q.exec("CREATE TABLE IF NOT EXISTS room_settings ("
+            "  room_id INTEGER PRIMARY KEY,"
+            "  max_file_size INTEGER DEFAULT 10737418240,"
+            "  total_file_space INTEGER DEFAULT 10737418240,"
+            "  max_file_count INTEGER DEFAULT 1500,"
+            "  max_members INTEGER DEFAULT 50,"
+            "  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE"
+            ")");
+
+        // 迁移: room_settings 增加空间总量、文件数量和人数上限
+        q.exec("ALTER TABLE room_settings ADD COLUMN total_file_space INTEGER DEFAULT 10737418240");
+        q.exec("ALTER TABLE room_settings ADD COLUMN max_file_count INTEGER DEFAULT 1500");
+        q.exec("ALTER TABLE room_settings ADD COLUMN max_members INTEGER DEFAULT 50");
+
+        // 迁移旧默认值: 历史版本默认为 4GB，这里升级到新默认 10GB
+        q.exec("UPDATE room_settings SET max_file_size = 10737418240 WHERE max_file_size = 4294967296");
+        q.exec("UPDATE room_settings SET total_file_space = 10737418240 WHERE total_file_space IS NULL OR total_file_space <= 0");
+        q.exec("UPDATE room_settings SET max_file_count = 1500 WHERE max_file_count IS NULL OR max_file_count <= 0");
+        q.exec("UPDATE room_settings SET max_members = 50 WHERE max_members IS NULL OR max_members <= 0");
+
+        // 补齐历史房间的设置记录
+        q.exec("INSERT OR IGNORE INTO room_settings (room_id, max_file_size, total_file_space, max_file_count, max_members) "
+            "SELECT id, 10737418240, 10737418240, 1500, 50 FROM rooms");
 
     // 用户头像表
     q.exec("CREATE TABLE IF NOT EXISTS user_avatars ("
@@ -436,8 +461,19 @@ int DatabaseManager::createRoom(const QString &name, int creatorId) {
     q.addBindValue(name);
     q.addBindValue(creatorId);
 
-    if (q.exec())
-        return q.lastInsertId().toInt();
+    if (q.exec()) {
+        int roomId = q.lastInsertId().toInt();
+        QSqlQuery q2(db);
+        q2.prepare("INSERT OR IGNORE INTO room_settings (room_id, max_file_size, total_file_space, max_file_count, max_members) "
+                   "VALUES (?, ?, ?, ?, ?)");
+        q2.addBindValue(roomId);
+        q2.addBindValue(kDefaultRoomMaxFileSize);
+        q2.addBindValue(kDefaultRoomTotalSpace);
+        q2.addBindValue(kDefaultRoomMaxFileCount);
+        q2.addBindValue(kDefaultRoomMaxMembers);
+        q2.exec();
+        return roomId;
+    }
 
     qWarning() << "[DB] 创建房间失败:" << q.lastError().text();
     return -1;
@@ -1065,24 +1101,84 @@ bool DatabaseManager::deleteFileRecords(const QList<int> &fileIds) {
 
 // ==================== 房间设置 ====================
 
-qint64 DatabaseManager::getRoomMaxFileSize(int roomId) {
+QJsonObject DatabaseManager::getRoomSettings(int roomId) {
+    QJsonObject out;
+    out["roomId"] = roomId;
+    out["maxFileSize"] = static_cast<double>(kDefaultRoomMaxFileSize);
+    out["totalFileSpace"] = static_cast<double>(kDefaultRoomTotalSpace);
+    out["maxFileCount"] = kDefaultRoomMaxFileCount;
+    out["maxMembers"] = kDefaultRoomMaxMembers;
+
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
-    q.prepare("SELECT max_file_size FROM room_settings WHERE room_id = ?");
+    q.prepare("SELECT max_file_size, total_file_space, max_file_count, max_members FROM room_settings WHERE room_id = ?");
     q.addBindValue(roomId);
-    q.exec();
-    if (q.next())
-        return q.value(0).toLongLong();
-    return 4LL * 1024 * 1024 * 1024; // 默认 4GB
+    if (q.exec() && q.next()) {
+        out["maxFileSize"] = static_cast<double>(q.value(0).toLongLong());
+        out["totalFileSpace"] = static_cast<double>(q.value(1).toLongLong());
+        out["maxFileCount"] = q.value(2).toInt();
+        out["maxMembers"] = q.value(3).toInt();
+        return out;
+    }
+
+    QSqlQuery ins(db);
+    ins.prepare("INSERT OR IGNORE INTO room_settings (room_id, max_file_size, total_file_space, max_file_count, max_members) VALUES (?, ?, ?, ?, ?)");
+    ins.addBindValue(roomId);
+    ins.addBindValue(kDefaultRoomMaxFileSize);
+    ins.addBindValue(kDefaultRoomTotalSpace);
+    ins.addBindValue(kDefaultRoomMaxFileCount);
+    ins.addBindValue(kDefaultRoomMaxMembers);
+    ins.exec();
+    return out;
+}
+
+bool DatabaseManager::setRoomSettings(int roomId, qint64 maxFileSize, qint64 totalFileSpace, int maxFileCount, int maxMembers) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("INSERT INTO room_settings (room_id, max_file_size, total_file_space, max_file_count, max_members) "
+              "VALUES (?, ?, ?, ?, ?) "
+              "ON CONFLICT(room_id) DO UPDATE SET "
+              "max_file_size = excluded.max_file_size, "
+              "total_file_space = excluded.total_file_space, "
+              "max_file_count = excluded.max_file_count, "
+              "max_members = excluded.max_members");
+    q.addBindValue(roomId);
+    q.addBindValue(maxFileSize);
+    q.addBindValue(totalFileSpace);
+    q.addBindValue(maxFileCount);
+    q.addBindValue(maxMembers);
+    return q.exec();
+}
+
+qint64 DatabaseManager::getRoomMaxFileSize(int roomId) {
+    return static_cast<qint64>(getRoomSettings(roomId)["maxFileSize"].toDouble());
 }
 
 bool DatabaseManager::setRoomMaxFileSize(int roomId, qint64 maxSize) {
+    QJsonObject cur = getRoomSettings(roomId);
+    return setRoomSettings(roomId,
+                           maxSize,
+                           static_cast<qint64>(cur["totalFileSpace"].toDouble()),
+                           cur["maxFileCount"].toInt(kDefaultRoomMaxFileCount),
+                           cur["maxMembers"].toInt(kDefaultRoomMaxMembers));
+}
+
+qint64 DatabaseManager::getRoomUsedFileSpace(int roomId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
-    q.prepare("INSERT OR REPLACE INTO room_settings (room_id, max_file_size) VALUES (?, ?)");
+    q.prepare("SELECT COALESCE(SUM(file_size), 0) FROM files WHERE room_id = ?");
     q.addBindValue(roomId);
-    q.addBindValue(maxSize);
-    return q.exec();
+    if (q.exec() && q.next()) return q.value(0).toLongLong();
+    return 0;
+}
+
+int DatabaseManager::getRoomFileCount(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT COUNT(*) FROM files WHERE room_id = ?");
+    q.addBindValue(roomId);
+    if (q.exec() && q.next()) return q.value(0).toInt();
+    return 0;
 }
 
 // ==================== 用户头像 ====================

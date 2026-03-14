@@ -24,6 +24,22 @@
               <span class="info-label">管理员</span>
               <span class="info-value">{{ chatStore.isAdmin ? '是' : '否' }}</span>
             </div>
+            <div class="info-row">
+              <span class="info-label">单文件最大</span>
+              <span class="info-value">{{ formatMB(roomLimits.maxFileSize) }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">总文件空间</span>
+              <span class="info-value">{{ formatGB(roomLimits.totalFileSpace) }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">文件数量上限</span>
+              <span class="info-value">{{ roomLimits.maxFileCount }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">聊天室最大人数</span>
+              <span class="info-value">{{ roomLimits.maxMembers }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -62,12 +78,19 @@
           </div>
         </div>
 
-        <!-- 文件大小限制 -->
+        <!-- 限制设置 -->
         <div class="setting-section">
-          <div class="setting-label">文件大小限制 (MB)</div>
+          <div class="setting-label">限制设置</div>
           <div class="inline-edit">
-            <input class="input" v-model.number="maxFileSize" type="number" min="1" max="4096" />
-            <button class="btn btn-primary" @click="setMaxFile">保存</button>
+            <input class="input" v-model.number="maxFileSize" type="number" min="1" max="10240" placeholder="单文件最大(MB)" />
+            <input class="input" v-model.number="totalFileSpace" type="number" min="1" max="10240" placeholder="总文件空间(GB)" />
+          </div>
+          <div class="inline-edit" style="margin-top:8px">
+            <input class="input" v-model.number="maxFileCount" type="number" min="1" max="1000000" placeholder="文件数量上限" />
+            <input class="input" v-model.number="maxMembers" type="number" min="2" max="1000000" placeholder="聊天室最大人数" />
+          </div>
+          <div class="inline-edit" style="margin-top:8px">
+            <button class="btn btn-primary" @click="setRoomLimits">保存限制</button>
           </div>
         </div>
 
@@ -122,9 +145,22 @@ const newName = ref('')
 const roomPassword = ref('')
 const currentPassword = ref(null)
 const maxFileSize = ref(100)
+const totalFileSpace = ref(10)
+const maxFileCount = ref(1500)
+const maxMembers = ref(50)
 const selectedUser = ref('')
 const avatarFileInput = ref(null)
 const avatarUploading = ref(false)
+
+const roomLimits = computed(() => {
+  const s = chatStore.roomSettings[chatStore.currentRoomId] || {}
+  return {
+    maxFileSize: s.maxFileSize || 10 * 1024 * 1024 * 1024,
+    totalFileSpace: s.totalFileSpace || 10 * 1024 * 1024 * 1024,
+    maxFileCount: s.maxFileCount || 1500,
+    maxMembers: s.maxMembers || 50,
+  }
+})
 
 const roomAvatarSrc = computed(() => chatStore.getRoomAvatarSrc(chatStore.currentRoomId))
 
@@ -198,10 +234,30 @@ function onRoomPassword(data) {
   currentPassword.value = data.password || ''
 }
 
-function setMaxFile() {
-  if (maxFileSize.value > 0) {
-    chatWs.setRoomSettings(chatStore.currentRoomId, maxFileSize.value * 1024 * 1024)
+function setRoomLimits() {
+  if (maxFileSize.value <= 0 || totalFileSpace.value <= 0 || maxFileCount.value <= 0 || maxMembers.value <= 0) {
+    alert('限制值必须大于0')
+    return
   }
+  if (totalFileSpace.value * 1024 < maxFileSize.value) {
+    alert('总文件空间不能小于单文件最大值')
+    return
+  }
+  chatWs.setRoomSettings(
+    chatStore.currentRoomId,
+    maxFileSize.value * 1024 * 1024,
+    totalFileSpace.value * 1024 * 1024 * 1024,
+    maxFileCount.value,
+    maxMembers.value,
+  )
+}
+
+function formatMB(bytes) {
+  return `${Math.round((bytes || 0) / 1024 / 1024)} MB`
+}
+
+function formatGB(bytes) {
+  return `${Math.round((bytes || 0) / 1024 / 1024 / 1024)} GB`
 }
 
 function toggleAdmin() {
@@ -245,6 +301,9 @@ onMounted(() => {
   const s = chatStore.roomSettings[chatStore.currentRoomId]
   if (s) {
     maxFileSize.value = Math.round(s.maxFileSize / (1024 * 1024))
+    totalFileSpace.value = Math.round((s.totalFileSpace || 10 * 1024 * 1024 * 1024) / (1024 * 1024 * 1024))
+    maxFileCount.value = s.maxFileCount || 1500
+    maxMembers.value = s.maxMembers || 50
   }
 })
 

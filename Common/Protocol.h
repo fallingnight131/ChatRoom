@@ -21,8 +21,8 @@ constexpr int RECONNECT_INTERVAL_MS  = 5000;    // 5秒重连
 constexpr int RECALL_TIME_LIMIT_SEC  = 120;     // 2分钟撤回限制
 constexpr int FILE_CHUNK_SIZE        = 4 * 1024 * 1024; // 4MB 分块（base64 后 ~5.3MB）
 constexpr qint64 MAX_SMALL_FILE      = 8 * 1024 * 1024; // <=8MB 走老协议直传
-constexpr qint64 MAX_LARGE_FILE      = 4LL * 1024 * 1024 * 1024; // 4GB 上限
-constexpr qint64 MAX_FRIEND_FILE     = 10LL * 1024 * 1024 * 1024; // 好友私聊文件上限 10GB
+constexpr qint64 MAX_LARGE_FILE      = 10LL * 1024 * 1024 * 1024; // 10GB 服务器硬上限
+constexpr qint64 MAX_FRIEND_FILE     = 100LL * 1024 * 1024; // 好友私聊单文件上限 100MB
 
 // ==================== 消息类型 ====================
 namespace MsgType {

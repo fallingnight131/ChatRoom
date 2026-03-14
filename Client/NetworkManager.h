@@ -80,8 +80,11 @@ signals:
     void avatarUpdateNotify(const QString &username, const QByteArray &avatarData);
 
     // 房间设置
-    void roomSettingsResponse(int roomId, bool success, qint64 maxFileSize, const QString &error);
-    void roomSettingsNotify(int roomId, qint64 maxFileSize);
+    void roomSettingsResponse(int roomId, bool success, qint64 maxFileSize,
+                              qint64 totalFileSpace, int maxFileCount, int maxMembers,
+                              const QString &error);
+    void roomSettingsNotify(int roomId, qint64 maxFileSize,
+                            qint64 totalFileSpace, int maxFileCount, int maxMembers);
 
     // 删除聊天室
     void deleteRoomResponse(bool success, int roomId, const QString &roomName, const QString &error);

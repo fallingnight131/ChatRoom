@@ -641,6 +641,19 @@ void ChatServer::handleJoinRoom(ClientSession *session, const QJsonObject &data)
         // 检查 DB 持久化成员资格
         bool alreadyMember = m_db->isUserInRoom(roomId, session->userId());
 
+        if (!alreadyMember) {
+            QJsonObject settings = m_db->getRoomSettings(roomId);
+            int maxMembers = settings["maxMembers"].toInt(50);
+            int currentMembers = m_db->getRoomMemberCount(roomId);
+            if (maxMembers > 0 && currentMembers >= maxMembers) {
+                rspData["success"] = false;
+                rspData["roomId"]  = roomId;
+                rspData["error"]   = QStringLiteral("聊天室人数已达上限");
+                session->sendMessage(Protocol::makeMessage(Protocol::MsgType::JOIN_ROOM_RSP, rspData));
+                return;
+            }
+        }
+
         // 首次加入时检查密码
         if (!alreadyMember && m_db->roomHasPassword(roomId)) {
             QString providedPwd = data["password"].toString();
@@ -847,13 +860,34 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
     qint64 fileSize   = static_cast<qint64>(data["fileSize"].toDouble());
     QString fileData  = data["fileData"].toString(); // base64
 
-    // 检查房间文件大小限制
-    qint64 maxSize = m_db->getRoomMaxFileSize(roomId);
+    QJsonObject settings = m_db->getRoomSettings(roomId);
+    qint64 maxSize = static_cast<qint64>(settings["maxFileSize"].toDouble());
+    qint64 maxTotal = static_cast<qint64>(settings["totalFileSpace"].toDouble());
+    int maxCount = settings["maxFileCount"].toInt(1500);
+    qint64 usedTotal = m_db->getRoomUsedFileSpace(roomId);
+    int fileCount = m_db->getRoomFileCount(roomId);
+
     if (maxSize > 0 && fileSize > maxSize) {
         QJsonObject rsp;
         rsp["roomId"] = roomId;
         rsp["success"] = false;
         rsp["error"] = QString("文件大小超过房间限制(%1MB)").arg(maxSize / 1024 / 1024);
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, rsp));
+        return;
+    }
+    if (maxTotal > 0 && usedTotal + fileSize > maxTotal) {
+        QJsonObject rsp;
+        rsp["roomId"] = roomId;
+        rsp["success"] = false;
+        rsp["error"] = QStringLiteral("聊天室总文件空间已达上限");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, rsp));
+        return;
+    }
+    if (maxCount > 0 && fileCount >= maxCount) {
+        QJsonObject rsp;
+        rsp["roomId"] = roomId;
+        rsp["success"] = false;
+        rsp["error"] = QStringLiteral("聊天室文件数量已达上限");
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, rsp));
         return;
     }
@@ -972,11 +1006,28 @@ void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject
         return;
     }
 
-    // 检查房间文件大小限制
-    qint64 maxSize = m_db->getRoomMaxFileSize(roomId);
+    QJsonObject settings = m_db->getRoomSettings(roomId);
+    qint64 maxSize = static_cast<qint64>(settings["maxFileSize"].toDouble());
+    qint64 maxTotal = static_cast<qint64>(settings["totalFileSpace"].toDouble());
+    int maxCount = settings["maxFileCount"].toInt(1500);
+    qint64 usedTotal = m_db->getRoomUsedFileSpace(roomId);
+    int fileCount = m_db->getRoomFileCount(roomId);
+
     if (maxSize > 0 && fileSize > maxSize) {
         rspData["success"] = false;
         rspData["error"] = QString("文件大小超过房间限制(%1MB)").arg(maxSize / 1024 / 1024);
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
+        return;
+    }
+    if (maxTotal > 0 && usedTotal + fileSize > maxTotal) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("聊天室总文件空间已达上限");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
+        return;
+    }
+    if (maxCount > 0 && fileCount >= maxCount) {
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("聊天室文件数量已达上限");
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
         return;
     }
@@ -1648,7 +1699,8 @@ void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &d
     rspData["roomId"] = roomId;
 
     // 设置操作需要管理员权限
-    if (data.contains("maxFileSize")) {
+    if (data.contains("maxFileSize") || data.contains("totalFileSpace") ||
+        data.contains("maxFileCount") || data.contains("maxMembers")) {
         if (!m_db->isRoomAdmin(roomId, session->userId())) {
             rspData["success"] = false;
             rspData["error"] = QStringLiteral("您没有管理员权限");
@@ -1656,30 +1708,67 @@ void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &d
             return;
         }
 
-        qint64 maxFileSize = static_cast<qint64>(data["maxFileSize"].toDouble());
-        m_db->setRoomMaxFileSize(roomId, maxFileSize);
+        QJsonObject cur = m_db->getRoomSettings(roomId);
+        qint64 maxFileSize = data.contains("maxFileSize")
+            ? static_cast<qint64>(data["maxFileSize"].toDouble())
+            : static_cast<qint64>(cur["maxFileSize"].toDouble());
+        qint64 totalFileSpace = data.contains("totalFileSpace")
+            ? static_cast<qint64>(data["totalFileSpace"].toDouble())
+            : static_cast<qint64>(cur["totalFileSpace"].toDouble());
+        int maxFileCount = data.contains("maxFileCount")
+            ? data["maxFileCount"].toInt()
+            : cur["maxFileCount"].toInt();
+        int maxMembers = data.contains("maxMembers")
+            ? data["maxMembers"].toInt()
+            : cur["maxMembers"].toInt();
+
+        if (maxFileSize <= 0 || totalFileSpace <= 0 || maxFileCount <= 0 || maxMembers <= 0) {
+            rspData["success"] = false;
+            rspData["error"] = QStringLiteral("限制值必须大于0");
+            session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
+            return;
+        }
+        if (totalFileSpace < maxFileSize) {
+            rspData["success"] = false;
+            rspData["error"] = QStringLiteral("总文件空间不能小于单文件上限");
+            session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
+            return;
+        }
+
+        m_db->setRoomSettings(roomId, maxFileSize, totalFileSpace, maxFileCount, maxMembers);
 
         rspData["success"] = true;
         rspData["maxFileSize"] = static_cast<double>(maxFileSize);
+        rspData["totalFileSpace"] = static_cast<double>(totalFileSpace);
+        rspData["maxFileCount"] = maxFileCount;
+        rspData["maxMembers"] = maxMembers;
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
 
         // 通知房间所有人
         QJsonObject notifyData;
         notifyData["roomId"] = roomId;
         notifyData["maxFileSize"] = static_cast<double>(maxFileSize);
+        notifyData["totalFileSpace"] = static_cast<double>(totalFileSpace);
+        notifyData["maxFileCount"] = maxFileCount;
+        notifyData["maxMembers"] = maxMembers;
         broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_NOTIFY, notifyData));
 
         // 系统消息
-        QString sizeStr = maxFileSize > 0
-            ? QString("%1MB").arg(maxFileSize / 1024 / 1024)
-            : QStringLiteral("无限制");
         broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
-            {{"roomId", roomId}, {"content", QString("管理员 %1 设置了文件大小上限: %2")
-                .arg(session->displayName(), sizeStr)}}));
+            {{"roomId", roomId}, {"content", QString("管理员 %1 更新了房间限制：单文件%2MB，总空间%3GB，文件数%4，人数%5")
+                .arg(session->displayName())
+                .arg(maxFileSize / 1024 / 1024)
+                .arg(totalFileSpace / 1024 / 1024 / 1024)
+                .arg(maxFileCount)
+                .arg(maxMembers)}}));
     } else {
         // 查询设置
+        QJsonObject settings = m_db->getRoomSettings(roomId);
         rspData["success"] = true;
-        rspData["maxFileSize"] = static_cast<double>(m_db->getRoomMaxFileSize(roomId));
+        rspData["maxFileSize"] = settings["maxFileSize"];
+        rspData["totalFileSpace"] = settings["totalFileSpace"];
+        rspData["maxFileCount"] = settings["maxFileCount"];
+        rspData["maxMembers"] = settings["maxMembers"];
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
     }
 }
@@ -2339,11 +2428,11 @@ void ChatServer::handleFriendFileSend(ClientSession *session, const QJsonObject 
     int friendshipId = m_db->getFriendshipId(session->userId(), friendId);
     if (friendshipId < 0) return;
 
-    // 好友文件上限 10GB
+    // 好友文件上限 100MB
     if (fileSize > Protocol::MAX_FRIEND_FILE) {
         QJsonObject rsp;
         rsp["success"] = false;
-        rsp["error"] = QStringLiteral("文件超过好友传输限制(10GB)");
+        rsp["error"] = QStringLiteral("文件超过好友传输限制(100MB)");
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_NOTIFY, rsp));
         return;
     }
@@ -2428,10 +2517,10 @@ void ChatServer::handleFriendFileUploadStart(ClientSession *session, const QJson
         return;
     }
 
-    // 好友文件上限 10GB
+    // 好友文件上限 100MB
     if (fileSize > Protocol::MAX_FRIEND_FILE) {
         rspData["success"] = false;
-        rspData["error"]   = QStringLiteral("文件超过好友传输限制(10GB)");
+        rspData["error"]   = QStringLiteral("文件超过好友传输限制(100MB)");
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_UPLOAD_START_RSP, rspData));
         return;
     }

@@ -4,6 +4,7 @@
 
 class QLineEdit;
 class QDoubleSpinBox;
+class QSpinBox;
 class QLabel;
 class QPushButton;
 class QGroupBox;
@@ -13,7 +14,11 @@ class RoomSettingsDialog : public QDialog {
     Q_OBJECT
 public:
     explicit RoomSettingsDialog(int roomId, const QString &roomName,
-                                bool isAdmin, qint64 maxFileSize,
+                                bool isAdmin,
+                                qint64 maxFileSize,
+                                qint64 totalFileSpace,
+                                int maxFileCount,
+                                int maxMembers,
                                 QWidget *parent = nullptr);
 
 signals:
@@ -22,7 +27,7 @@ signals:
 
 private slots:
     void onSaveName();
-    void onSaveFileSize();
+    void onSaveLimits();
     void onSetPassword();
     void onViewPassword();
     void onUploadAvatar();
@@ -36,5 +41,8 @@ private:
     QLabel          *m_avatarPreview  = nullptr;
     QLineEdit       *m_nameEdit      = nullptr;
     QDoubleSpinBox  *m_fileSizeSpin  = nullptr;
+    QDoubleSpinBox  *m_totalSpaceSpin = nullptr;
+    QSpinBox        *m_fileCountSpin = nullptr;
+    QSpinBox        *m_memberLimitSpin = nullptr;
     QLineEdit       *m_passwordEdit  = nullptr;
 };
