@@ -883,7 +883,7 @@ export const useChatStore = defineStore('chat', {
       })
 
       chatWs.on(MsgType.FRIEND_CHAT_MSG, (msg) => {
-        const d = msg.data
+        const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp }
         const userStore = useUserStore()
         const chatWith = d.sender === userStore.username ? d.friendUsername : d.sender
 
@@ -903,7 +903,7 @@ export const useChatStore = defineStore('chat', {
       })
 
       chatWs.on(MsgType.FRIEND_FILE_NOTIFY, (msg) => {
-        const d = msg.data
+        const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp }
         const userStore = useUserStore()
         const chatWith = d.sender === userStore.username ? d.friendUsername : d.sender
 
