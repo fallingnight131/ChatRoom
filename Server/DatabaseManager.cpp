@@ -623,8 +623,11 @@ QJsonArray DatabaseManager::getUserJoinedRooms(int userId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
-    q.prepare("SELECT r.id, r.name, r.creator_id FROM rooms r "
+    q.prepare("SELECT r.id, r.name, r.creator_id, "
+              "CASE WHEN ra.user_id IS NOT NULL THEN 1 ELSE 0 END AS is_admin "
+              "FROM rooms r "
               "JOIN room_members rm ON r.id = rm.room_id "
+              "LEFT JOIN room_admins ra ON ra.room_id = r.id AND ra.user_id = rm.user_id "
               "WHERE rm.user_id = ? ORDER BY r.id");
     q.addBindValue(userId);
     q.exec();
@@ -635,6 +638,7 @@ QJsonArray DatabaseManager::getUserJoinedRooms(int userId) {
         room["roomId"]    = q.value(0).toInt();
         room["roomName"]  = q.value(1).toString();
         room["creatorId"] = q.value(2).toInt();
+        room["isAdmin"]   = q.value(3).toInt() != 0;
         arr.append(room);
     }
     return arr;

@@ -54,6 +54,7 @@ export const useChatStore = defineStore('chat', {
       if (room) {
         this.currentRoomId = roomId
         this.currentRoomName = room.roomName
+        this.isAdmin = !!room.isAdmin
         room.unread = 0
         this.messages = []
         this.users = []
@@ -414,14 +415,14 @@ export const useChatStore = defineStore('chat', {
         const list = msg.data.rooms || []
         // 使用服务器返回的未读计数
         this.rooms = list.map(r => {
-          return { ...r, unread: r.unread || 0 }
+          return { ...r, unread: r.unread || 0, isAdmin: !!r.isAdmin }
         })
       })
 
       chatWs.on(MsgType.CREATE_ROOM_RSP, (msg) => {
         const d = msg.data
         if (d.success) {
-          this.rooms.push({ roomId: d.roomId, roomName: d.roomName, creatorId: 0, unread: 0 })
+          this.rooms.push({ roomId: d.roomId, roomName: d.roomName, creatorId: 0, unread: 0, isAdmin: !!d.isAdmin })
           this.setCurrentRoom(d.roomId)
           this.isAdmin = d.isAdmin
         } else {
@@ -433,7 +434,10 @@ export const useChatStore = defineStore('chat', {
         const d = msg.data
         if (d.success) {
           if (!this.rooms.find(r => r.roomId === d.roomId)) {
-            this.rooms.push({ roomId: d.roomId, roomName: d.roomName, creatorId: 0, unread: 0 })
+            this.rooms.push({ roomId: d.roomId, roomName: d.roomName, creatorId: 0, unread: 0, isAdmin: !!d.isAdmin })
+          } else {
+            const room = this.rooms.find(r => r.roomId === d.roomId)
+            if (room) room.isAdmin = !!d.isAdmin
           }
           this.setCurrentRoom(d.roomId)
           this.isAdmin = d.isAdmin || false
@@ -665,9 +669,10 @@ export const useChatStore = defineStore('chat', {
 
       // --- 管理员 ---
       chatWs.on(MsgType.ADMIN_STATUS, (msg) => {
-        if (msg.data.roomId === this.currentRoomId) {
-          this.isAdmin = msg.data.isAdmin
-        }
+        const rid = msg.data.roomId
+        const room = this.rooms.find(r => r.roomId === rid)
+        if (room) room.isAdmin = !!msg.data.isAdmin
+        if (rid === this.currentRoomId) this.isAdmin = !!msg.data.isAdmin
       })
 
       chatWs.on(MsgType.SET_ADMIN_RSP, (msg) => {

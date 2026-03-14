@@ -92,7 +92,7 @@
          :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
          @click="contextMenu.show = false">
       <div class="context-menu-item" @click="openRoomSettings(contextMenu.room)">房间设置</div>
-      <div class="context-menu-item" @click="openRoomFiles(contextMenu.room)">文件管理</div>
+      <div v-if="canManageRoom(contextMenu.room)" class="context-menu-item" @click="openRoomFiles(contextMenu.room)">文件管理</div>
     </div>
   </div>
 </template>
@@ -157,10 +157,14 @@ function openRoomSettings(room) {
 }
 
 function openRoomFiles(room) {
-  if (room) {
+  if (room && canManageRoom(room)) {
     chatStore.setCurrentRoom(room.roomId)
     emit('open-room-files')
   }
+}
+
+function canManageRoom(room) {
+  return !!(room && room.isAdmin)
 }
 
 function onContextMenu(e, room) {
