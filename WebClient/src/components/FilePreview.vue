@@ -211,6 +211,10 @@ function close() {
 function download() {
   const msg = props.msg
   if (!msg) return
+  if (msg.fileCleared) {
+    alert('文件已过期或被清除，无法下载')
+    return
+  }
   if (msg.fileId) {
     const httpUrl = getHttpDownloadUrl(msg.fileId, Number(msg.fileId) < 0, 'attachment')
     if (httpUrl) {
@@ -283,6 +287,10 @@ async function initDPlayer(url) {
 async function openPreview(msg) {
   cleanup()
   if (!msg) return
+  if (msg.fileCleared) {
+    alert('文件已过期或被清除，无法预览')
+    return
+  }
   fileName.value = msg.fileName || '未知文件'
   fileSize.value = msg.fileSize || 0
 

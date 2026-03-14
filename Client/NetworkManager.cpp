@@ -306,14 +306,19 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                                                                     static_cast<qint64>(data["totalFileSpace"].toDouble()),
                                                                     data["maxFileCount"].toInt(),
                                                                     data["maxMembers"].toInt(),
-                                  data["error"].toString());
+                                  data["error"].toString(),
+                                  data["needConfirm"].toBool(false),
+                                  data["cleanupSummary"].toObject(),
+                                  data["clearedFileIds"].toArray(),
+                                  data["currentMembers"].toInt());
     }
     else if (type == Protocol::MsgType::ROOM_SETTINGS_NOTIFY) {
         emit roomSettingsNotify(data["roomId"].toInt(),
                                                                 static_cast<qint64>(data["maxFileSize"].toDouble()),
                                                                 static_cast<qint64>(data["totalFileSpace"].toDouble()),
                                                                 data["maxFileCount"].toInt(),
-                                                                data["maxMembers"].toInt());
+                                                                data["maxMembers"].toInt(),
+                                                                data["clearedFileIds"].toArray());
     }
     else if (type == Protocol::MsgType::DELETE_ROOM_RSP) {
         emit deleteRoomResponse(data["success"].toBool(),

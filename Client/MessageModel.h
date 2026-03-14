@@ -23,7 +23,9 @@ public:
         RoomIdRole,
         DownloadStateRole,
         DownloadProgressRole,
-        SenderNameRole
+        SenderNameRole,
+        FileClearedRole,
+        ClearReasonRole
     };
 
     explicit MessageModel(QObject *parent = nullptr);
@@ -44,6 +46,7 @@ public:
     void removeMessageByFileId(int fileId);
     void updateSenderName(const QString &username, const QString &newDisplayName);
     void updateSenderUid(const QString &oldUid, const QString &newUid);
+    void markFilesCleared(const QList<int> &fileIds, const QString &reason);
 
 private:
     QList<Message> m_messages;

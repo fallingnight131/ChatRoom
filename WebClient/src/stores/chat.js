@@ -719,15 +719,38 @@ export const useChatStore = defineStore('chat', {
             maxFileCount: d.maxFileCount,
             maxMembers: d.maxMembers,
           }
+          if (Array.isArray(d.clearedFileIds) && d.clearedFileIds.length > 0) {
+            const idSet = new Set(d.clearedFileIds)
+            this.messages.forEach(m => {
+              if (idSet.has(m.fileId)) {
+                m.fileCleared = true
+                m.clearReason = '文件已过期或被清除'
+              }
+            })
+          }
+        } else if (d.needConfirm) {
+          this._emit('roomSettingsNeedConfirm', d)
+        } else {
+          alert(d.error || '保存限制失败')
         }
       })
 
       chatWs.on(MsgType.ROOM_SETTINGS_NOTIFY, (msg) => {
-        this.roomSettings[msg.data.roomId] = {
-          maxFileSize: msg.data.maxFileSize,
-          totalFileSpace: msg.data.totalFileSpace,
-          maxFileCount: msg.data.maxFileCount,
-          maxMembers: msg.data.maxMembers,
+        const d = msg.data
+        this.roomSettings[d.roomId] = {
+          maxFileSize: d.maxFileSize,
+          totalFileSpace: d.totalFileSpace,
+          maxFileCount: d.maxFileCount,
+          maxMembers: d.maxMembers,
+        }
+        if (Array.isArray(d.clearedFileIds) && d.clearedFileIds.length > 0) {
+          const idSet = new Set(d.clearedFileIds)
+          this.messages.forEach(m => {
+            if (idSet.has(m.fileId)) {
+              m.fileCleared = true
+              m.clearReason = '文件已过期或被清除'
+            }
+          })
         }
       })
 

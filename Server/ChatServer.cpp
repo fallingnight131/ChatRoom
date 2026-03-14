@@ -183,6 +183,8 @@ void ChatServer::onClientDisconnected(ClientSession *session) {
         // 删除不完整的文件
         if (!state.filePath.isEmpty())
             QFile::remove(state.filePath);
+        if (state.roomQuotaReserved)
+            releaseRoomFileQuota(state.roomId, state.fileSize);
         qInfo() << "[Server] 清理断连用户上传:" << state.fileName;
     }
 
@@ -837,6 +839,144 @@ QString ChatServer::fileTypeSubDir(const QString &fileName) {
     return QStringLiteral("File");
 }
 
+bool ChatServer::tryReserveRoomFileQuota(int roomId, qint64 fileSize, QString *error) {
+    if (fileSize <= 0) {
+        if (error) *error = QStringLiteral("文件大小无效");
+        return false;
+    }
+
+    QJsonObject settings = m_db->getRoomSettings(roomId);
+    qint64 maxSize = static_cast<qint64>(settings["maxFileSize"].toDouble());
+    qint64 maxTotal = static_cast<qint64>(settings["totalFileSpace"].toDouble());
+    int maxCount = settings["maxFileCount"].toInt(1500);
+
+    if (maxSize > 0 && fileSize > maxSize) {
+        if (error) *error = QString("文件大小超过房间限制(%1MB)").arg(maxSize / 1024 / 1024);
+        return false;
+    }
+
+    qint64 usedTotal = m_db->getRoomUsedFileSpace(roomId);
+    int fileCount = m_db->getRoomFileCount(roomId);
+    qint64 reservedBytes = m_roomReservedBytes.value(roomId, 0);
+    int reservedCount = m_roomReservedCount.value(roomId, 0);
+
+    if (maxTotal > 0 && usedTotal + reservedBytes + fileSize > maxTotal) {
+        if (error) *error = QStringLiteral("聊天室总文件空间已达上限");
+        return false;
+    }
+    if (maxCount > 0 && fileCount + reservedCount + 1 > maxCount) {
+        if (error) *error = QStringLiteral("聊天室文件数量已达上限");
+        return false;
+    }
+
+    m_roomReservedBytes[roomId] = reservedBytes + fileSize;
+    m_roomReservedCount[roomId] = reservedCount + 1;
+    return true;
+}
+
+void ChatServer::releaseRoomFileQuota(int roomId, qint64 fileSize) {
+    if (roomId <= 0 || fileSize <= 0) return;
+
+    qint64 reservedBytes = m_roomReservedBytes.value(roomId, 0) - fileSize;
+    int reservedCount = m_roomReservedCount.value(roomId, 0) - 1;
+
+    if (reservedBytes > 0) m_roomReservedBytes[roomId] = reservedBytes;
+    else m_roomReservedBytes.remove(roomId);
+
+    if (reservedCount > 0) m_roomReservedCount[roomId] = reservedCount;
+    else m_roomReservedCount.remove(roomId);
+}
+
+QList<int> ChatServer::buildCleanupPlan(int roomId, qint64 newMaxFileSize, qint64 newTotalFileSpace,
+                                        int newMaxFileCount, QJsonObject *planSummary) {
+    QJsonArray files = m_db->getRoomActiveFilesOrdered(roomId);
+    QList<int> cleanupIds;
+    QSet<int> selected;
+
+    qint64 currentUsed = 0;
+    for (const QJsonValue &v : files)
+        currentUsed += static_cast<qint64>(v.toObject()["fileSize"].toDouble());
+    int currentCount = files.size();
+
+    // 1) 新单文件上限：清理所有超限文件
+    for (const QJsonValue &v : files) {
+        QJsonObject f = v.toObject();
+        int fileId = f["fileId"].toInt();
+        qint64 size = static_cast<qint64>(f["fileSize"].toDouble());
+        if (newMaxFileSize > 0 && size > newMaxFileSize && !selected.contains(fileId)) {
+            selected.insert(fileId);
+            cleanupIds.append(fileId);
+        }
+    }
+
+    // 2) 新总空间/数量上限：按最早文件继续清理到满足条件
+    qint64 afterUsed = currentUsed;
+    int afterCount = currentCount;
+    for (int fileId : cleanupIds) {
+        for (const QJsonValue &v : files) {
+            QJsonObject f = v.toObject();
+            if (f["fileId"].toInt() == fileId) {
+                afterUsed -= static_cast<qint64>(f["fileSize"].toDouble());
+                afterCount -= 1;
+                break;
+            }
+        }
+    }
+
+    for (const QJsonValue &v : files) {
+        bool totalExceeded = newTotalFileSpace > 0 && afterUsed > newTotalFileSpace;
+        bool countExceeded = newMaxFileCount > 0 && afterCount > newMaxFileCount;
+        if (!totalExceeded && !countExceeded) break;
+
+        QJsonObject f = v.toObject();
+        int fileId = f["fileId"].toInt();
+        if (selected.contains(fileId)) continue;
+
+        selected.insert(fileId);
+        cleanupIds.append(fileId);
+        afterUsed -= static_cast<qint64>(f["fileSize"].toDouble());
+        afterCount -= 1;
+    }
+
+    if (planSummary) {
+        planSummary->insert("currentUsedSpace", static_cast<double>(currentUsed));
+        planSummary->insert("currentFileCount", currentCount);
+        planSummary->insert("afterUsedSpace", static_cast<double>(qMax<qint64>(0, afterUsed)));
+        planSummary->insert("afterFileCount", qMax(0, afterCount));
+        planSummary->insert("clearFileCount", cleanupIds.size());
+        QJsonArray ids;
+        for (int id : cleanupIds) ids.append(id);
+        planSummary->insert("clearFileIds", ids);
+    }
+
+    return cleanupIds;
+}
+
+bool ChatServer::applyFileCleanupPlan(int roomId, const QList<int> &fileIds, const QString &reason, QJsonArray *clearedIdsOut) {
+    if (fileIds.isEmpty()) return true;
+
+    QJsonArray files = m_db->getRoomActiveFilesOrdered(roomId);
+    QMap<int, QString> pathById;
+    for (const QJsonValue &v : files) {
+        QJsonObject f = v.toObject();
+        pathById[f["fileId"].toInt()] = f["filePath"].toString();
+    }
+
+    if (!m_db->markRoomFilesCleared(roomId, fileIds, reason)) {
+        return false;
+    }
+
+    for (int fileId : fileIds) {
+        QString filePath = pathById.value(fileId);
+        if (!filePath.isEmpty()) {
+            QFile::remove(filePath);
+        }
+        if (clearedIdsOut)
+            clearedIdsOut->append(fileId);
+    }
+    return true;
+}
+
 QString ChatServer::serverFileDir(int roomId, const QString &fileName) const {
     // server_files/{roomId}/Image|Video|File/{yyyy-MM}/
     QString typeDir = fileTypeSubDir(fileName);
@@ -860,34 +1000,12 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
     qint64 fileSize   = static_cast<qint64>(data["fileSize"].toDouble());
     QString fileData  = data["fileData"].toString(); // base64
 
-    QJsonObject settings = m_db->getRoomSettings(roomId);
-    qint64 maxSize = static_cast<qint64>(settings["maxFileSize"].toDouble());
-    qint64 maxTotal = static_cast<qint64>(settings["totalFileSpace"].toDouble());
-    int maxCount = settings["maxFileCount"].toInt(1500);
-    qint64 usedTotal = m_db->getRoomUsedFileSpace(roomId);
-    int fileCount = m_db->getRoomFileCount(roomId);
-
-    if (maxSize > 0 && fileSize > maxSize) {
+    QString quotaError;
+    if (!tryReserveRoomFileQuota(roomId, fileSize, &quotaError)) {
         QJsonObject rsp;
         rsp["roomId"] = roomId;
         rsp["success"] = false;
-        rsp["error"] = QString("文件大小超过房间限制(%1MB)").arg(maxSize / 1024 / 1024);
-        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, rsp));
-        return;
-    }
-    if (maxTotal > 0 && usedTotal + fileSize > maxTotal) {
-        QJsonObject rsp;
-        rsp["roomId"] = roomId;
-        rsp["success"] = false;
-        rsp["error"] = QStringLiteral("聊天室总文件空间已达上限");
-        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, rsp));
-        return;
-    }
-    if (maxCount > 0 && fileCount >= maxCount) {
-        QJsonObject rsp;
-        rsp["roomId"] = roomId;
-        rsp["success"] = false;
-        rsp["error"] = QStringLiteral("聊天室文件数量已达上限");
+        rsp["error"] = quotaError;
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, rsp));
         return;
     }
@@ -901,10 +1019,28 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
     if (file.open(QIODevice::WriteOnly)) {
         file.write(QByteArray::fromBase64(fileData.toUtf8()));
         file.close();
+    } else {
+        releaseRoomFileQuota(roomId, fileSize);
+        QJsonObject rsp;
+        rsp["roomId"] = roomId;
+        rsp["success"] = false;
+        rsp["error"] = QStringLiteral("服务器无法创建文件");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, rsp));
+        return;
     }
 
     // 保存文件信息到数据库
     int fileId = m_db->saveFile(roomId, session->userId(), fileName, filePath, fileSize);
+    if (fileId <= 0) {
+        QFile::remove(filePath);
+        releaseRoomFileQuota(roomId, fileSize);
+        QJsonObject rsp;
+        rsp["roomId"] = roomId;
+        rsp["success"] = false;
+        rsp["error"] = QStringLiteral("文件保存失败");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, rsp));
+        return;
+    }
 
     // 根据文件后缀确定 contentType
     QString contentType = QStringLiteral("file");
@@ -935,6 +1071,10 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
 
     // 保存消息记录（含缩略图）
     int msgId = m_db->saveMessage(roomId, session->userId(), fileName, contentType, fileName, fileSize, fileId, thumbnail);
+    if (msgId <= 0) {
+        releaseRoomFileQuota(roomId, fileSize);
+        return;
+    }
 
     // 通知房间所有成员有新文件
     QJsonObject notifyData;
@@ -950,8 +1090,10 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
 
     if (!thumbnail.isEmpty())
         notifyData["thumbnail"] = thumbnail;
+    notifyData["fileCleared"] = false;
 
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, notifyData));
+    releaseRoomFileQuota(roomId, fileSize);
 }
 
 void ChatServer::handleFileDownload(ClientSession *session, const QJsonObject &data) {
@@ -1006,28 +1148,10 @@ void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject
         return;
     }
 
-    QJsonObject settings = m_db->getRoomSettings(roomId);
-    qint64 maxSize = static_cast<qint64>(settings["maxFileSize"].toDouble());
-    qint64 maxTotal = static_cast<qint64>(settings["totalFileSpace"].toDouble());
-    int maxCount = settings["maxFileCount"].toInt(1500);
-    qint64 usedTotal = m_db->getRoomUsedFileSpace(roomId);
-    int fileCount = m_db->getRoomFileCount(roomId);
-
-    if (maxSize > 0 && fileSize > maxSize) {
+    QString quotaError;
+    if (!tryReserveRoomFileQuota(roomId, fileSize, &quotaError)) {
         rspData["success"] = false;
-        rspData["error"] = QString("文件大小超过房间限制(%1MB)").arg(maxSize / 1024 / 1024);
-        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
-        return;
-    }
-    if (maxTotal > 0 && usedTotal + fileSize > maxTotal) {
-        rspData["success"] = false;
-        rspData["error"]   = QStringLiteral("聊天室总文件空间已达上限");
-        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
-        return;
-    }
-    if (maxCount > 0 && fileCount >= maxCount) {
-        rspData["success"] = false;
-        rspData["error"]   = QStringLiteral("聊天室文件数量已达上限");
+        rspData["error"]   = quotaError;
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
         return;
     }
@@ -1041,6 +1165,7 @@ void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject
 
     auto *file = new QFile(filePath);
     if (!file->open(QIODevice::WriteOnly)) {
+        releaseRoomFileQuota(roomId, fileSize);
         rspData["success"] = false;
         rspData["error"]   = QStringLiteral("服务器无法创建文件");
         delete file;
@@ -1057,6 +1182,7 @@ void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject
     state.filePath = filePath;
     state.fileSize = fileSize;
     state.received = 0;
+    state.roomQuotaReserved = true;
     state.file     = file;
     m_uploads[uploadId] = state;
 
@@ -1172,8 +1298,18 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
     } else {
         // 房间文件上传
         int fileId = m_db->saveFile(state.roomId, state.userId, state.fileName, state.filePath, state.fileSize);
+        if (fileId <= 0) {
+            if (state.roomQuotaReserved)
+                releaseRoomFileQuota(state.roomId, state.fileSize);
+            return;
+        }
         int msgId = m_db->saveMessage(state.roomId, state.userId, state.fileName, contentType,
                                        state.fileName, state.fileSize, fileId, thumbnail);
+        if (msgId <= 0) {
+            if (state.roomQuotaReserved)
+                releaseRoomFileQuota(state.roomId, state.fileSize);
+            return;
+        }
 
         // 通知房间所有成员有新文件
         QJsonObject notifyData;
@@ -1189,8 +1325,12 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
 
         if (!thumbnail.isEmpty())
             notifyData["thumbnail"] = thumbnail;
+        notifyData["fileCleared"] = false;
 
         broadcastToRoom(state.roomId, Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, notifyData));
+
+        if (state.roomQuotaReserved)
+            releaseRoomFileQuota(state.roomId, state.fileSize);
 
         qInfo() << "[Server] 大文件上传完成:" << state.fileName << state.fileSize << "bytes";
     }
@@ -1210,6 +1350,8 @@ void ChatServer::handleFileUploadCancel(ClientSession *session, const QJsonObjec
     // 删除不完整的文件
     if (!state.filePath.isEmpty())
         QFile::remove(state.filePath);
+    if (state.roomQuotaReserved)
+        releaseRoomFileQuota(state.roomId, state.fileSize);
     qInfo() << "[Server] 上传已取消:" << state.fileName;
 }
 
@@ -1735,6 +1877,42 @@ void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &d
             return;
         }
 
+        int currentMembers = m_db->getRoomMemberCount(roomId);
+        if (maxMembers < currentMembers) {
+            rspData["success"] = false;
+            rspData["error"] = QStringLiteral("当前房间人数已超过新上限，禁止修改人数上限");
+            rspData["currentMembers"] = currentMembers;
+            session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
+            return;
+        }
+
+        QJsonObject cleanupSummary;
+        QList<int> cleanupIds = buildCleanupPlan(roomId, maxFileSize, totalFileSpace, maxFileCount, &cleanupSummary);
+        bool forceCleanup = data["forceCleanup"].toBool(false);
+
+        if (!cleanupIds.isEmpty() && !forceCleanup) {
+            rspData["success"] = false;
+            rspData["needConfirm"] = true;
+            rspData["error"] = QStringLiteral("调整后需要清理部分历史文件");
+            rspData["maxFileSize"] = static_cast<double>(maxFileSize);
+            rspData["totalFileSpace"] = static_cast<double>(totalFileSpace);
+            rspData["maxFileCount"] = maxFileCount;
+            rspData["maxMembers"] = maxMembers;
+            rspData["cleanupSummary"] = cleanupSummary;
+            session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
+            return;
+        }
+
+        QJsonArray clearedIds;
+        if (!cleanupIds.isEmpty()) {
+            if (!applyFileCleanupPlan(roomId, cleanupIds, QStringLiteral("文件已过期或被清除"), &clearedIds)) {
+                rspData["success"] = false;
+                rspData["error"] = QStringLiteral("清理历史文件失败，请稍后重试");
+                session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
+                return;
+            }
+        }
+
         m_db->setRoomSettings(roomId, maxFileSize, totalFileSpace, maxFileCount, maxMembers);
 
         rspData["success"] = true;
@@ -1742,6 +1920,7 @@ void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &d
         rspData["totalFileSpace"] = static_cast<double>(totalFileSpace);
         rspData["maxFileCount"] = maxFileCount;
         rspData["maxMembers"] = maxMembers;
+        rspData["clearedFileIds"] = clearedIds;
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
 
         // 通知房间所有人
@@ -1751,6 +1930,7 @@ void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &d
         notifyData["totalFileSpace"] = static_cast<double>(totalFileSpace);
         notifyData["maxFileCount"] = maxFileCount;
         notifyData["maxMembers"] = maxMembers;
+        notifyData["clearedFileIds"] = clearedIds;
         broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_NOTIFY, notifyData));
 
         // 系统消息
@@ -1761,6 +1941,10 @@ void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &d
                 .arg(totalFileSpace / 1024 / 1024 / 1024)
                 .arg(maxFileCount)
                 .arg(maxMembers)}}));
+        if (!clearedIds.isEmpty()) {
+            broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
+                {{"roomId", roomId}, {"content", QString("因新限制生效，已清理 %1 个历史文件（记录保留，文件状态变为过期/已清除）").arg(clearedIds.size())}}));
+        }
     } else {
         // 查询设置
         QJsonObject settings = m_db->getRoomSettings(roomId);

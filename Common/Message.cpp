@@ -17,6 +17,8 @@ Message Message::fromJson(const QJsonObject &json) {
     m.m_fileName    = data["fileName"].toString();
     m.m_fileSize    = static_cast<qint64>(data["fileSize"].toDouble());
     m.m_fileId      = data["fileId"].toInt();
+    m.m_fileCleared = data["fileCleared"].toBool(false);
+    m.m_clearReason = data["clearReason"].toString();
 
     qint64 ts = static_cast<qint64>(json["timestamp"].toDouble());
     if (ts > 0)
@@ -94,6 +96,8 @@ QJsonObject Message::toJson() const {
     data["fileName"]    = m_fileName;
     data["fileSize"]    = static_cast<double>(m_fileSize);
     data["fileId"]      = m_fileId;
+    data["fileCleared"] = m_fileCleared;
+    data["clearReason"] = m_clearReason;
 
     if (!m_imageData.isEmpty())
         data["imageData"] = QString::fromUtf8(m_imageData.toBase64());
@@ -115,6 +119,7 @@ QString Message::contentTypeToString(ContentType t) {
     case Emoji:  return QStringLiteral("emoji");
     case Image:  return QStringLiteral("image");
     case File:   return QStringLiteral("file");
+    case Video:  return QStringLiteral("video");
     case System: return QStringLiteral("system");
     }
     return QStringLiteral("text");

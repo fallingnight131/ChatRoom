@@ -1,4 +1,5 @@
 #include "MessageModel.h"
+#include <QSet>
 
 MessageModel::MessageModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -33,6 +34,8 @@ QVariant MessageModel::data(const QModelIndex &index, int role) const {
     case DownloadStateRole:    return static_cast<int>(msg.downloadState());
     case DownloadProgressRole: return msg.downloadProgress();
     case SenderNameRole:  return msg.senderName();
+    case FileClearedRole: return msg.fileCleared();
+    case ClearReasonRole: return msg.clearReason();
     }
     return {};
 }
@@ -54,6 +57,8 @@ QHash<int, QByteArray> MessageModel::roleNames() const {
         { DownloadStateRole, "downloadState" },
         { DownloadProgressRole, "downloadProgress" },
         { SenderNameRole,  "senderName" },
+        { FileClearedRole, "fileCleared" },
+        { ClearReasonRole, "clearReason" },
     };
 }
 
@@ -147,6 +152,23 @@ void MessageModel::updateSenderUid(const QString &oldUid, const QString &newUid)
             m_messages[i].setSender(newUid);
             QModelIndex idx = index(i);
             emit dataChanged(idx, idx, { SenderRole });
+        }
+    }
+}
+
+void MessageModel::markFilesCleared(const QList<int> &fileIds, const QString &reason) {
+    if (fileIds.isEmpty()) return;
+
+    QSet<int> idSet;
+    for (int id : fileIds) idSet.insert(id);
+
+    for (int i = 0; i < m_messages.size(); ++i) {
+        if (idSet.contains(m_messages[i].fileId())) {
+            m_messages[i].setFileCleared(true);
+            if (!reason.isEmpty())
+                m_messages[i].setClearReason(reason);
+            QModelIndex idx = index(i);
+            emit dataChanged(idx, idx, { FileClearedRole, ClearReasonRole });
         }
     }
 }

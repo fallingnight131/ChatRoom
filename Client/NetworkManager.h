@@ -4,6 +4,7 @@
 #include <QTcpSocket>
 #include <QSslSocket>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QTimer>
 
 /// 网络管理器 —— 单例，管理与服务器的 TCP 连接
@@ -82,9 +83,12 @@ signals:
     // 房间设置
     void roomSettingsResponse(int roomId, bool success, qint64 maxFileSize,
                               qint64 totalFileSpace, int maxFileCount, int maxMembers,
-                              const QString &error);
+                                                            const QString &error,
+                                                            bool needConfirm, const QJsonObject &cleanupSummary,
+                                                            const QJsonArray &clearedFileIds, int currentMembers);
     void roomSettingsNotify(int roomId, qint64 maxFileSize,
-                            qint64 totalFileSpace, int maxFileCount, int maxMembers);
+                                                        qint64 totalFileSpace, int maxFileCount, int maxMembers,
+                                                        const QJsonArray &clearedFileIds);
 
     // 删除聊天室
     void deleteRoomResponse(bool success, int roomId, const QString &roomName, const QString &error);

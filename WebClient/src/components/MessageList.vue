@@ -46,7 +46,8 @@
 
             <!-- 图片 -->
             <template v-else-if="msg.contentType === 'image'">
-              <img v-if="msg.imageData" :src="'data:image/png;base64,' + msg.imageData"
+                <div v-if="msg.fileCleared" class="msg-expired-image">🖼 文件已过期或被清除</div>
+                <img v-else-if="msg.imageData" :src="'data:image/png;base64,' + msg.imageData"
                    class="msg-image" @click="openPreview(msg)" />
               <img v-else-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
                    class="msg-image" @click="openPreview(msg)" />
@@ -58,7 +59,8 @@
 
             <!-- 视频 -->
             <template v-else-if="msg.contentType === 'video' || (msg.contentType === 'file' && isVideoFile(msg.fileName))">
-              <div class="msg-video-card" @click="openPreview(msg)">
+              <div v-if="msg.fileCleared" class="msg-expired-video">🎬 文件已过期或被清除</div>
+              <div v-else class="msg-video-card" @click="openPreview(msg)">
                 <img v-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
                      class="video-thumbnail" />
                 <div v-else class="video-placeholder">
@@ -74,11 +76,11 @@
 
             <!-- 其他文件 -->
             <template v-else-if="msg.contentType === 'file'">
-              <div class="msg-file" @click="openPreview(msg)">
+              <div class="msg-file" :class="{ expired: msg.fileCleared }" @click="openPreview(msg)">
                 <div class="file-icon">{{ getFileIcon(msg.fileName) }}</div>
                 <div class="file-info">
                   <div class="file-name text-ellipsis">{{ msg.fileName }}</div>
-                  <div class="file-size">{{ formatSize(msg.fileSize) }}</div>
+                  <div class="file-size">{{ msg.fileCleared ? '文件已过期或被清除' : formatSize(msg.fileSize) }}</div>
                 </div>
               </div>
             </template>
@@ -107,14 +109,14 @@
 
           <!-- 预览文件 (文件/图片/视频消息，所有人可用) -->
           <div class="context-menu-item"
-               v-if="contextMenu.msg && isFileType(contextMenu.msg) && !contextMenu.msg.recalled"
+            v-if="contextMenu.msg && isFileType(contextMenu.msg) && !contextMenu.msg.recalled && !contextMenu.msg.fileCleared"
                @click="previewFromMenu(contextMenu.msg)">
             <span class="menu-icon">👁️</span> 预览文件
           </div>
 
           <!-- 下载文件 -->
           <div class="context-menu-item"
-               v-if="contextMenu.msg && isFileType(contextMenu.msg) && !contextMenu.msg.recalled"
+            v-if="contextMenu.msg && isFileType(contextMenu.msg) && !contextMenu.msg.recalled && !contextMenu.msg.fileCleared"
                @click="downloadFromMenu(contextMenu.msg)">
             <span class="menu-icon">⬇️</span> 下载文件
           </div>
@@ -254,6 +256,10 @@ function getFileIcon(fileName) {
 }
 
 function openPreview(msg) {
+  if (msg?.fileCleared) {
+    alert('文件已过期或被清除，无法预览')
+    return
+  }
   previewMsgData.value = msg
   previewVisible.value = true
 }
@@ -298,6 +304,10 @@ function previewFromMenu(msg) {
 
 function downloadFromMenu(msg) {
   contextMenu.value.show = false
+  if (msg?.fileCleared) {
+    alert('文件已过期或被清除，无法下载')
+    return
+  }
   if (msg && msg.fileId) {
     chatStore._triggerDownload(msg.fileId, msg.fileName, msg.fileSize)
   }
@@ -559,6 +569,10 @@ onUnmounted(() => {
 .msg-file:hover {
   opacity: 0.85;
 }
+.msg-file.expired {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .file-icon {
   font-size: 28px;
   flex-shrink: 0;
@@ -649,6 +663,35 @@ onUnmounted(() => {
   color: rgba(255,255,255,0.7);
   font-size: 11px;
   white-space: nowrap;
+}
+
+.msg-expired-image,
+.msg-expired-video {
+  width: 240px;
+  height: 140px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px;
+}
+
+.msg-expired-image {
+  background: linear-gradient(135deg, #7a7a7a, #4b4b4b);
+}
+
+.msg-expired-video {
+  background: repeating-linear-gradient(
+    90deg,
+    #2f2f2f,
+    #2f2f2f 8px,
+    #1c1c1c 8px,
+    #1c1c1c 16px
+  );
 }
 
 .message-wrapper {

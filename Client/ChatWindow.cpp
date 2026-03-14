@@ -638,6 +638,7 @@ void ChatWindow::connectSignals() {
         if (contentType != static_cast<int>(Message::File)) return;
 
         int fileId = idx.data(MessageModel::FileIdRole).toInt();
+        bool fileCleared = idx.data(MessageModel::FileClearedRole).toBool();
         int dlState = idx.data(MessageModel::DownloadStateRole).toInt();
 
         // 上传中 → 暂停上传（fileId 为负数的临时消息）
@@ -653,6 +654,10 @@ void ChatWindow::connectSignals() {
 
         // 以下操作需要有效 fileId（正数=房间文件，负数=好友文件）
         if (fileId == 0) return;
+        if (fileCleared) {
+            QMessageBox::information(this, "提示", "文件已过期或被清除，无法下载");
+            return;
+        }
 
         // 已缓存 → 不响应单击（双击打开）
         if (FileCache::instance()->isCached(fileId)) return;
@@ -701,6 +706,11 @@ void ChatWindow::connectSignals() {
         if (contentType != static_cast<int>(Message::File)) return;
 
         int fileId = idx.data(MessageModel::FileIdRole).toInt();
+        bool fileCleared = idx.data(MessageModel::FileClearedRole).toBool();
+        if (fileCleared) {
+            QMessageBox::information(this, "提示", "文件已过期或被清除，无法打开");
+            return;
+        }
         if (FileCache::instance()->isCached(fileId)) {
             FileCache::openWithSystem(FileCache::instance()->cachedFilePath(fileId));
         }
@@ -1238,7 +1248,7 @@ void ChatWindow::onHistoryReceived(int roomId, const QJsonArray &messages) {
                 // 图片文件加入自动下载队列
                 static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
                 QString suffix = QFileInfo(m.fileName()).suffix().toLower();
-                if (imgExts.contains(suffix)) {
+                if (imgExts.contains(suffix) && !m.fileCleared()) {
                     pendingImages.append({m.fileId(), m.fileName(), m.fileSize()});
                 }
             }
@@ -1460,6 +1470,8 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
     msg.setId(data["id"].toInt());
     msg.setSenderName(senderName);
     msg.setIsMine(sender == m_username);
+    msg.setFileCleared(data["fileCleared"].toBool(false));
+    msg.setClearReason(data["clearReason"].toString());
 
     // 判断是否为图片文件
     static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
@@ -1533,7 +1545,7 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
     }
 
     // 仅图片文件自动下载缓存，其余文件需要用户点击下载
-    if (isImage && !FileCache::instance()->isCached(fileId)) {
+    if (isImage && !msg.fileCleared() && !FileCache::instance()->isCached(fileId)) {
         triggerFileDownload(fileId, fileName, fSize);
     }
 }
@@ -1801,6 +1813,18 @@ void ChatWindow::cancelDownload(int fileId) {
 }
 
 void ChatWindow::triggerFileDownload(int fileId, const QString &fileName, qint64 fileSize) {
+    for (auto it = m_models.begin(); it != m_models.end(); ++it) {
+        int row = it.value()->findMessageByFileId(fileId);
+        if (row >= 0) {
+            QModelIndex idx = it.value()->index(row, 0);
+            if (idx.data(MessageModel::FileClearedRole).toBool()) {
+                m_statusLabel->setText("文件已过期或被清除，无法下载");
+                return;
+            }
+            break;
+        }
+    }
+
     if (FileCache::instance()->isCached(fileId)) return;
 
     // 标记为下载中
@@ -2767,23 +2791,66 @@ void ChatWindow::requestAvatar(const QString &username) {
 
 void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFileSize,
                                         qint64 totalFileSpace, int maxFileCount, int maxMembers,
-                                        const QString &error) {
+                                        const QString &error,
+                                        bool needConfirm, const QJsonObject &cleanupSummary,
+                                        const QJsonArray &clearedFileIds, int currentMembers) {
     if (success) {
         m_roomMaxFileSize[roomId] = maxFileSize;
         m_roomTotalFileSpace[roomId] = totalFileSpace;
         m_roomMaxFileCount[roomId] = maxFileCount;
         m_roomMaxMembers[roomId] = maxMembers;
+
+        if (!clearedFileIds.isEmpty()) {
+            QList<int> ids;
+            for (const QJsonValue &v : clearedFileIds) ids.append(v.toInt());
+            for (auto it = m_models.begin(); it != m_models.end(); ++it)
+                it.value()->markFilesCleared(ids, QStringLiteral("文件已过期或被清除"));
+        }
     } else {
+        if (needConfirm) {
+            int clearCount = cleanupSummary["clearFileCount"].toInt();
+            qint64 afterSpace = static_cast<qint64>(cleanupSummary["afterUsedSpace"].toDouble());
+            int afterCount = cleanupSummary["afterFileCount"].toInt();
+            QString text = QString("新限制将触发清理 %1 个历史文件。\n清理后将保留：%2 个文件，约 %3 MB。\n"
+                                   "这些文件在聊天中会保留记录，但状态会标为“文件已过期或被清除”。\n是否继续？")
+                               .arg(clearCount)
+                               .arg(afterCount)
+                               .arg(afterSpace / 1024 / 1024);
+            if (QMessageBox::question(this, "确认清理", text) == QMessageBox::Yes) {
+                QJsonObject data;
+                data["roomId"] = roomId;
+                data["maxFileSize"] = static_cast<double>(maxFileSize);
+                data["totalFileSpace"] = static_cast<double>(totalFileSpace);
+                data["maxFileCount"] = maxFileCount;
+                data["maxMembers"] = maxMembers;
+                data["forceCleanup"] = true;
+                NetworkManager::instance()->sendMessage(
+                    Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
+            }
+            return;
+        }
+        if (currentMembers > 0) {
+            QMessageBox::warning(this, "设置失败", QString("当前人数为 %1，不能设置更小人数上限").arg(currentMembers));
+            return;
+        }
         QMessageBox::warning(this, "设置失败", error);
     }
 }
 
 void ChatWindow::onRoomSettingsNotify(int roomId, qint64 maxFileSize,
-                                      qint64 totalFileSpace, int maxFileCount, int maxMembers) {
+                                      qint64 totalFileSpace, int maxFileCount, int maxMembers,
+                                      const QJsonArray &clearedFileIds) {
     m_roomMaxFileSize[roomId] = maxFileSize;
     m_roomTotalFileSpace[roomId] = totalFileSpace;
     m_roomMaxFileCount[roomId] = maxFileCount;
     m_roomMaxMembers[roomId] = maxMembers;
+
+    if (!clearedFileIds.isEmpty()) {
+        QList<int> ids;
+        for (const QJsonValue &v : clearedFileIds) ids.append(v.toInt());
+        for (auto it = m_models.begin(); it != m_models.end(); ++it)
+            it.value()->markFilesCleared(ids, QStringLiteral("文件已过期或被清除"));
+    }
 }
 
 // ==================== 删除聊天室 ====================
@@ -3702,7 +3769,7 @@ void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
                     // 图片文件加入自动下载队列
                     static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
                     QString suffix = QFileInfo(msg.fileName()).suffix().toLower();
-                    if (imgExts.contains(suffix)) {
+                    if (imgExts.contains(suffix) && !msg.fileCleared()) {
                         pendingImages.append({msg.fileId(), msg.fileName(), msg.fileSize()});
                     }
                 }
@@ -3750,6 +3817,8 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
     msg.setFileName(fileName);
     msg.setFileSize(fileSize);
     msg.setFileId(fileId);
+    msg.setFileCleared(data["fileCleared"].toBool(false));
+    msg.setClearReason(data["clearReason"].toString());
 
     QString ct = data["contentType"].toString("file");
     bool isImage = (ct == "image");

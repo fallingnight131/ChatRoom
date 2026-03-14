@@ -5,6 +5,7 @@
 #include <QSet>
 #include <QMutex>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QFile>
 #include <QDateTime>
 
@@ -105,6 +106,11 @@ private:
     void handleFriendFileSend(ClientSession *session, const QJsonObject &msg);
     void handleFriendFileUploadStart(ClientSession *session, const QJsonObject &data);
     void handleFriendRecall(ClientSession *session, const QJsonObject &data);
+    bool tryReserveRoomFileQuota(int roomId, qint64 fileSize, QString *error);
+    void releaseRoomFileQuota(int roomId, qint64 fileSize);
+    QList<int> buildCleanupPlan(int roomId, qint64 newMaxFileSize, qint64 newTotalFileSpace,
+                                int newMaxFileCount, QJsonObject *planSummary);
+    bool applyFileCleanupPlan(int roomId, const QList<int> &fileIds, const QString &reason, QJsonArray *clearedIdsOut);
 
     /// 根据文件名返回类型子目录 ("Image", "Video", "File")
     static QString fileTypeSubDir(const QString &fileName);
@@ -133,7 +139,10 @@ private:
         QString filePath;    // 临时文件路径
         qint64 fileSize = 0;
         qint64 received = 0;
+        bool roomQuotaReserved = false;
         QFile *file = nullptr;
     };
     QMap<QString, UploadState> m_uploads;  // uploadId -> state
+    QMap<int, qint64> m_roomReservedBytes;  // roomId -> reserved bytes by in-flight uploads
+    QMap<int, int> m_roomReservedCount;     // roomId -> reserved file count by in-flight uploads
 };

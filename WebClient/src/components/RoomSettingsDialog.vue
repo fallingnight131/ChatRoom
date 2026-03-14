@@ -246,6 +246,28 @@ function onRoomPassword(data) {
   currentPassword.value = data.password || ''
 }
 
+function onRoomSettingsNeedConfirm(data) {
+  const summary = data.cleanupSummary || {}
+  const clearCount = summary.clearFileCount || 0
+  const afterCount = summary.afterFileCount || 0
+  const afterSpaceGB = ((summary.afterUsedSpace || 0) / 1024 / 1024 / 1024).toFixed(2)
+  const ok = confirm(
+    `调整限制将清理 ${clearCount} 个历史文件。\n` +
+    `清理后预计保留 ${afterCount} 个文件，约 ${afterSpaceGB} GB。\n` +
+    `被清理文件会在聊天中保留记录，但状态显示为“文件已过期或被清除”。\n\n是否继续？`
+  )
+  if (!ok) return
+
+  chatWs.setRoomSettings(
+    data.roomId,
+    data.maxFileSize,
+    data.totalFileSpace,
+    data.maxFileCount,
+    data.maxMembers,
+    true,
+  )
+}
+
 function setRoomLimits() {
   if (maxFileSize.value <= 0 || totalFileSpace.value <= 0 || maxFileCount.value <= 0 || maxMembers.value <= 0) {
     alert('限制值必须大于0')
@@ -304,6 +326,7 @@ function leaveRoom() {
 onMounted(() => {
   chatStore.onEvent('roomPassword', onRoomPassword)
   chatStore.onEvent('roomAvatarUploaded', onRoomAvatarUploaded)
+  chatStore.onEvent('roomSettingsNeedConfirm', onRoomSettingsNeedConfirm)
   chatStore.fetchRoomAvatar(chatStore.currentRoomId)
   // 加载当前设置
   const s = chatStore.roomSettings[chatStore.currentRoomId]
@@ -318,6 +341,7 @@ onMounted(() => {
 onUnmounted(() => {
   chatStore.offEvent('roomPassword', onRoomPassword)
   chatStore.offEvent('roomAvatarUploaded', onRoomAvatarUploaded)
+  chatStore.offEvent('roomSettingsNeedConfirm', onRoomSettingsNeedConfirm)
 })
 </script>
 

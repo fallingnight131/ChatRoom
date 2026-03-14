@@ -57,6 +57,8 @@ public:
     DownloadState downloadState() const { return m_downloadState; }
     double downloadProgress() const { return m_downloadProgress; }
     QString thumbnail() const { return m_thumbnail; }
+    bool fileCleared() const { return m_fileCleared; }
+    QString clearReason() const { return m_clearReason; }
 
     // --- Setters ---
     void setId(int id) { m_id = id; }
@@ -74,6 +76,8 @@ public:
     void setFileSize(qint64 s) { m_fileSize = s; }
     void setFileId(int id) { m_fileId = id; }
     void setThumbnail(const QString &t) { m_thumbnail = t; }
+    void setFileCleared(bool v) { m_fileCleared = v; }
+    void setClearReason(const QString &r) { m_clearReason = r; }
 
     static QString contentTypeToString(ContentType t);
     static ContentType stringToContentType(const QString &s);
@@ -95,4 +99,6 @@ private:
     DownloadState m_downloadState = NotDownloaded;
     double      m_downloadProgress = 0.0;
     QString     m_thumbnail;
+    bool        m_fileCleared = false;
+    QString     m_clearReason;
 };

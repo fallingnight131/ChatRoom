@@ -108,6 +108,8 @@ bool DatabaseManager::initialize() {
            "  file_name TEXT DEFAULT '',"
            "  file_size INTEGER DEFAULT 0,"
            "  file_id INTEGER DEFAULT 0,"
+            "  file_cleared INTEGER DEFAULT 0,"
+            "  clear_reason TEXT DEFAULT '',"
            "  recalled INTEGER DEFAULT 0,"
            "  thumbnail TEXT DEFAULT '',"
            "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
@@ -117,6 +119,8 @@ bool DatabaseManager::initialize() {
 
     // 存量数据库添加 thumbnail 列
     q.exec("ALTER TABLE messages ADD COLUMN thumbnail TEXT DEFAULT ''");
+    q.exec("ALTER TABLE messages ADD COLUMN file_cleared INTEGER DEFAULT 0");
+    q.exec("ALTER TABLE messages ADD COLUMN clear_reason TEXT DEFAULT ''");
 
     // 消息索引
     q.exec("CREATE INDEX IF NOT EXISTS idx_msg_room_time ON messages(room_id, created_at)");
@@ -129,10 +133,16 @@ bool DatabaseManager::initialize() {
            "  file_name TEXT NOT NULL,"
            "  file_path TEXT NOT NULL,"
            "  file_size INTEGER DEFAULT 0,"
+            "  cleared INTEGER DEFAULT 0,"
+            "  clear_reason TEXT DEFAULT '',"
+            "  cleared_at TIMESTAMP DEFAULT NULL,"
            "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
            "  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,"
            "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
            ")");
+        q.exec("ALTER TABLE files ADD COLUMN cleared INTEGER DEFAULT 0");
+        q.exec("ALTER TABLE files ADD COLUMN clear_reason TEXT DEFAULT ''");
+        q.exec("ALTER TABLE files ADD COLUMN cleared_at TIMESTAMP DEFAULT NULL");
 
     // 房间管理员表
     q.exec("CREATE TABLE IF NOT EXISTS room_admins ("
@@ -741,7 +751,8 @@ QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 befo
     // 用子查询取最新N条（DESC），再按时间正序排列（ASC）
     QString sql = "SELECT * FROM ("
                   "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id,"
-                  "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail"
+                  "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail,"
+                  "       m.file_cleared, m.clear_reason"
                   " FROM messages m JOIN users u ON m.user_id = u.id"
                   " WHERE m.room_id = ?";
 
@@ -783,6 +794,12 @@ QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 befo
         QString thumb = q.value(10).toString();
         if (!thumb.isEmpty())
             msg["thumbnail"] = thumb;
+
+        bool fileCleared = q.value(11).toInt() != 0;
+        if (fileCleared) {
+            msg["fileCleared"] = true;
+            msg["clearReason"] = q.value(12).toString();
+        }
 
         arr.append(msg);
     }
@@ -855,7 +872,7 @@ QString DatabaseManager::getFilePath(int fileId, bool isFriendFile) {
     if (isFriendFile) {
         q.prepare("SELECT file_path FROM friend_files WHERE id = ?");
     } else {
-        q.prepare("SELECT file_path FROM files WHERE id = ?");
+        q.prepare("SELECT file_path FROM files WHERE id = ? AND cleared = 0");
     }
     q.addBindValue(fileId);
     q.exec();
@@ -1166,7 +1183,7 @@ bool DatabaseManager::setRoomMaxFileSize(int roomId, qint64 maxSize) {
 qint64 DatabaseManager::getRoomUsedFileSpace(int roomId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
-    q.prepare("SELECT COALESCE(SUM(file_size), 0) FROM files WHERE room_id = ?");
+    q.prepare("SELECT COALESCE(SUM(file_size), 0) FROM files WHERE room_id = ? AND cleared = 0");
     q.addBindValue(roomId);
     if (q.exec() && q.next()) return q.value(0).toLongLong();
     return 0;
@@ -1175,10 +1192,73 @@ qint64 DatabaseManager::getRoomUsedFileSpace(int roomId) {
 int DatabaseManager::getRoomFileCount(int roomId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
-    q.prepare("SELECT COUNT(*) FROM files WHERE room_id = ?");
+    q.prepare("SELECT COUNT(*) FROM files WHERE room_id = ? AND cleared = 0");
     q.addBindValue(roomId);
     if (q.exec() && q.next()) return q.value(0).toInt();
     return 0;
+}
+
+QJsonArray DatabaseManager::getRoomActiveFilesOrdered(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT id, file_name, file_path, file_size, created_at "
+              "FROM files WHERE room_id = ? AND cleared = 0 "
+              "ORDER BY created_at ASC, id ASC");
+    q.addBindValue(roomId);
+
+    QJsonArray out;
+    if (q.exec()) {
+        while (q.next()) {
+            QJsonObject file;
+            file["fileId"] = q.value(0).toInt();
+            file["fileName"] = q.value(1).toString();
+            file["filePath"] = q.value(2).toString();
+            file["fileSize"] = static_cast<double>(q.value(3).toLongLong());
+            file["createdAt"] = q.value(4).toString();
+            out.append(file);
+        }
+    }
+    return out;
+}
+
+bool DatabaseManager::markRoomFilesCleared(int roomId, const QList<int> &fileIds, const QString &reason) {
+    if (fileIds.isEmpty()) return true;
+
+    QSqlDatabase db = getConnection();
+    if (!db.transaction()) {
+        return false;
+    }
+
+    QStringList placeholders;
+    for (int i = 0; i < fileIds.size(); ++i)
+        placeholders << "?";
+    QString inExpr = placeholders.join(",");
+
+    QSqlQuery q1(db);
+    q1.prepare(QString("UPDATE files SET cleared = 1, clear_reason = ?, cleared_at = CURRENT_TIMESTAMP "
+                       "WHERE room_id = ? AND id IN (%1)").arg(inExpr));
+    q1.addBindValue(reason);
+    q1.addBindValue(roomId);
+    for (int fileId : fileIds)
+        q1.addBindValue(fileId);
+    if (!q1.exec()) {
+        db.rollback();
+        return false;
+    }
+
+    QSqlQuery q2(db);
+    q2.prepare(QString("UPDATE messages SET file_cleared = 1, clear_reason = ? "
+                       "WHERE room_id = ? AND file_id IN (%1)").arg(inExpr));
+    q2.addBindValue(reason);
+    q2.addBindValue(roomId);
+    for (int fileId : fileIds)
+        q2.addBindValue(fileId);
+    if (!q2.exec()) {
+        db.rollback();
+        return false;
+    }
+
+    return db.commit();
 }
 
 // ==================== 用户头像 ====================

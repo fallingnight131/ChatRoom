@@ -120,9 +120,12 @@ private slots:
     // 房间设置
     void onRoomSettingsResponse(int roomId, bool success, qint64 maxFileSize,
                                 qint64 totalFileSpace, int maxFileCount, int maxMembers,
-                                const QString &error);
+                                                                const QString &error,
+                                                                bool needConfirm, const QJsonObject &cleanupSummary,
+                                                                const QJsonArray &clearedFileIds, int currentMembers);
     void onRoomSettingsNotify(int roomId, qint64 maxFileSize,
-                              qint64 totalFileSpace, int maxFileCount, int maxMembers);
+                                                            qint64 totalFileSpace, int maxFileCount, int maxMembers,
+                                                            const QJsonArray &clearedFileIds);
 
     // 退出聊天室
     void onLeaveRoomResponse(bool success, int roomId);
