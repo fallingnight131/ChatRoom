@@ -46,8 +46,12 @@
 
             <!-- 图片 -->
             <template v-else-if="msg.contentType === 'image'">
-              <div v-if="msg.fileCleared" class="msg-expired-image" @click="openPreview(msg)">📷 文件已过期或被清除</div>
-                <img v-else-if="msg.imageData" :src="'data:image/png;base64,' + msg.imageData"
+              <div v-if="msg.fileCleared" class="msg-expired-image" @click="openPreview(msg)">
+                <div class="expired-icon">📷</div>
+                <div class="expired-name text-ellipsis">{{ msg.fileName || '图片' }}</div>
+                <div class="expired-text">文件已过期或被清除</div>
+              </div>
+              <img v-else-if="msg.imageData" :src="'data:image/png;base64,' + msg.imageData"
                    class="msg-image" @click="openPreview(msg)" />
               <img v-else-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
                    class="msg-image" @click="openPreview(msg)" />
@@ -59,7 +63,11 @@
 
             <!-- 视频 -->
             <template v-else-if="msg.contentType === 'video' || (msg.contentType === 'file' && isVideoFile(msg.fileName))">
-              <div v-if="msg.fileCleared" class="msg-expired-video" @click="openPreview(msg)">🎬 文件已过期或被清除</div>
+              <div v-if="msg.fileCleared" class="msg-expired-video" @click="openPreview(msg)">
+                <div class="expired-icon">🎬</div>
+                <div class="expired-name text-ellipsis">{{ msg.fileName || '视频' }}</div>
+                <div class="expired-text">文件已过期或被清除</div>
+              </div>
               <div v-else class="msg-video-card" @click="openPreview(msg)">
                 <img v-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
                      class="video-thumbnail" />
@@ -109,7 +117,7 @@
 
           <!-- 预览文件 (文件/图片/视频消息，所有人可用) -->
           <div class="context-menu-item"
-            v-if="contextMenu.msg && isFileType(contextMenu.msg) && !contextMenu.msg.recalled && !contextMenu.msg.fileCleared"
+            v-if="contextMenu.msg && isFileType(contextMenu.msg) && !contextMenu.msg.recalled"
                @click="previewFromMenu(contextMenu.msg)">
             <span class="menu-icon">👁️</span> 预览文件
           </div>
@@ -671,6 +679,7 @@ onUnmounted(() => {
   height: 140px;
   border-radius: 8px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
@@ -686,13 +695,25 @@ onUnmounted(() => {
 }
 
 .msg-expired-video {
-  background: repeating-linear-gradient(
-    90deg,
-    #2f2f2f,
-    #2f2f2f 8px,
-    #1c1c1c 8px,
-    #1c1c1c 16px
-  );
+  background: linear-gradient(135deg, #7a7a7a, #4b4b4b);
+}
+
+.expired-icon {
+  font-size: 26px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.expired-name {
+  max-width: 100%;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.expired-text {
+  font-size: 12px;
+  opacity: 0.92;
 }
 
 .message-wrapper {

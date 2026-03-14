@@ -116,8 +116,9 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
         auto *fileLayout = new QHBoxLayout;
         fileLayout->addWidget(new QLabel(QStringLiteral("单文件上限(GB)：")));
         m_fileSizeSpin = new QDoubleSpinBox;
-        m_fileSizeSpin->setRange(1.0, 10240.0);
+        m_fileSizeSpin->setRange(0.1, 10240.0);
         m_fileSizeSpin->setDecimals(1);
+        m_fileSizeSpin->setSingleStep(0.1);
         m_fileSizeSpin->setSuffix(" GB");
         double currentGB = maxFileSize / (1024.0 * 1024.0 * 1024.0);
         m_fileSizeSpin->setValue(currentGB);
