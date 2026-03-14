@@ -1114,7 +1114,7 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
 
         QJsonObject notifyMsg = Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_NOTIFY, notifyData);
         sendToUser(state.username, notifyMsg);
-        if (!friendUsername.isEmpty())
+        if (!friendUsername.isEmpty() && friendUsername != state.username)
             sendToUser(friendUsername, notifyMsg);
 
         qInfo() << "[Server] 好友大文件上传完成:" << state.fileName << state.fileSize << "bytes";
@@ -2198,6 +2198,14 @@ void ChatServer::handleFriendRemove(ClientSession *session, const QJsonObject &d
     if (!session->isAuthenticated()) return;
 
     QString friendUsername = data["username"].toString();
+    if (friendUsername == session->username()) {
+        QJsonObject rspData;
+        rspData["success"] = false;
+        rspData["error"]   = QStringLiteral("不能删除自己");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_REMOVE_RSP, rspData));
+        return;
+    }
+
     int friendId = m_db->getUserIdByName(friendUsername);
     QJsonObject rspData;
 
@@ -2281,7 +2289,9 @@ void ChatServer::handleFriendChatMessage(ClientSession *session, const QJsonObje
 
     // 发送给双方
     session->sendMessage(chatMsg);
-    sendToUser(friendUsername, chatMsg);
+    if (friendUsername != session->username()) {
+        sendToUser(friendUsername, chatMsg);
+    }
 }
 
 void ChatServer::handleFriendHistory(ClientSession *session, const QJsonObject &data) {
@@ -2388,7 +2398,9 @@ void ChatServer::handleFriendFileSend(ClientSession *session, const QJsonObject 
 
     QJsonObject notifyMsg = Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_NOTIFY, notifyData);
     session->sendMessage(notifyMsg);
-    sendToUser(friendUsername, notifyMsg);
+    if (friendUsername != session->username()) {
+        sendToUser(friendUsername, notifyMsg);
+    }
 }
 
 void ChatServer::handleFriendFileUploadStart(ClientSession *session, const QJsonObject &data) {
@@ -2481,7 +2493,7 @@ void ChatServer::handleFriendRecall(ClientSession *session, const QJsonObject &d
 
         // 通知对方
         QMutexLocker locker(&m_mutex);
-        if (m_sessions.contains(friendUsername)) {
+        if (friendUsername != session->username() && m_sessions.contains(friendUsername)) {
             QJsonObject notifyData;
             notifyData["messageId"] = messageId;
             notifyData["friendUsername"] = session->username();

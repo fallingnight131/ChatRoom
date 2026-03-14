@@ -128,13 +128,13 @@
 
           <!-- 管理员: 删除此消息 -->
           <div class="context-menu-item danger"
-               v-if="chatStore.isAdmin && contextMenu.msg && !contextMenu.msg.recalled"
+               v-if="!isPrivateMode() && chatStore.isAdmin && contextMenu.msg && !contextMenu.msg.recalled"
                @click="deleteMsg(contextMenu.msg)">
             <span class="menu-icon">🗑️</span> 删除此消息
           </div>
 
           <!-- 管理员子菜单 -->
-          <template v-if="chatStore.isAdmin">
+          <template v-if="!isPrivateMode() && chatStore.isAdmin">
             <div class="context-menu-divider"></div>
             <div class="context-menu-item danger" @click="clearAllMessages">
               <span class="menu-icon">🧹</span> 清空所有消息
@@ -270,6 +270,10 @@ function isFileType(msg) {
   return msg && (msg.contentType === 'file' || msg.contentType === 'image' || msg.contentType === 'video')
 }
 
+function isPrivateMode() {
+  return props.friendMode || chatStore.isFriendChat
+}
+
 function copyText(msg) {
   if (msg && msg.content) {
     navigator.clipboard.writeText(msg.content).catch(() => {
@@ -311,6 +315,10 @@ function recallMsg(msg) {
 }
 
 function deleteMsg(msg) {
+  if (isPrivateMode()) {
+    contextMenu.value.show = false
+    return
+  }
   if (msg && confirm('确定删除此消息？')) {
     chatWs.deleteMessages(chatStore.currentRoomId, 'selected', [msg.id])
   }
@@ -318,6 +326,10 @@ function deleteMsg(msg) {
 }
 
 function clearAllMessages() {
+  if (isPrivateMode()) {
+    contextMenu.value.show = false
+    return
+  }
   contextMenu.value.show = false
   if (confirm('确定要清空所有聊天记录吗？\n此操作不可恢复！')) {
     chatWs.deleteMessages(chatStore.currentRoomId, 'all')
@@ -325,6 +337,10 @@ function clearAllMessages() {
 }
 
 function deleteOldMessages() {
+  if (isPrivateMode()) {
+    contextMenu.value.show = false
+    return
+  }
   contextMenu.value.show = false
   const days = prompt('删除多少天前的消息：', '7')
   if (days === null) return
@@ -335,6 +351,10 @@ function deleteOldMessages() {
 }
 
 function deleteRecentMessages() {
+  if (isPrivateMode()) {
+    contextMenu.value.show = false
+    return
+  }
   contextMenu.value.show = false
   const days = prompt('删除最近几天的消息：', '1')
   if (days === null) return

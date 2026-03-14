@@ -3332,16 +3332,18 @@ void ChatWindow::onFriendContextMenu(const QPoint &pos) {
     menu.addAction("查看信息", [this, friendUsername, friendDisplay] {
         showUserInfoDialog(friendUsername, friendDisplay);
     });
-    menu.addSeparator();
-    menu.addAction("删除好友", [this, friendUsername] {
-        auto r = QMessageBox::question(this, "删除好友",
-            QString("确定要删除好友 %1 吗？").arg(friendUsername));
-        if (r != QMessageBox::Yes) return;
-        QJsonObject data;
-        data["username"] = friendUsername;
-        NetworkManager::instance()->sendMessage(
-            Protocol::makeMessage(Protocol::MsgType::FRIEND_REMOVE_REQ, data));
-    });
+    if (friendUsername != m_username) {
+        menu.addSeparator();
+        menu.addAction("删除好友", [this, friendUsername] {
+            auto r = QMessageBox::question(this, "删除好友",
+                QString("确定要删除好友 %1 吗？").arg(friendUsername));
+            if (r != QMessageBox::Yes) return;
+            QJsonObject data;
+            data["username"] = friendUsername;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::FRIEND_REMOVE_REQ, data));
+        });
+    }
     menu.exec(m_friendList->mapToGlobal(pos));
 }
 
@@ -3365,6 +3367,8 @@ void ChatWindow::onFriendAcceptResponse(bool success, const QString &error) {
     if (success) {
         m_statusLabel->setText("已接受好友请求");
         onRefreshFriendList();
+        // 部分环境下数据库写入与列表查询存在极短时序差，补一次延迟刷新保证即时可见。
+        QTimer::singleShot(250, this, [this] { onRefreshFriendList(); });
     } else {
         QMessageBox::warning(this, "好友请求", error);
     }
@@ -3374,6 +3378,7 @@ void ChatWindow::onFriendAcceptNotify(const QString &username, const QString &di
     Q_UNUSED(username)
     m_statusLabel->setText(QString("%1 已接受你的好友请求").arg(displayName));
     onRefreshFriendList();
+    QTimer::singleShot(250, this, [this] { onRefreshFriendList(); });
 }
 
 void ChatWindow::onFriendRejectResponse(bool success, const QString &error) {
@@ -3460,6 +3465,9 @@ void ChatWindow::onFriendPendingReceived(const QJsonArray &requests) {
     listWidget->setStyleSheet("QListWidget::item { padding: 4px; min-height: 40px; }");
     dlgLayout->addWidget(listWidget);
 
+    // 记录对话框中待回填头像的控件（username -> avatarLabel）。
+    QHash<QString, QLabel*> pendingAvatarLabels;
+
     for (const QJsonValue &v : requests) {
         QJsonObject req = v.toObject();
         int reqId = req["requestId"].toInt();
@@ -3479,6 +3487,7 @@ void ChatWindow::onFriendPendingReceived(const QJsonArray &requests) {
             avatarLabel->setPixmap(s_avatarCache[fromUsername].scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         } else {
             avatarLabel->setPixmap(generateDefaultAvatar(displayLabel, qHash(fromUsername)));
+            pendingAvatarLabels[fromUsername] = avatarLabel;
             requestAvatar(fromUsername);
         }
         hl->addWidget(avatarLabel);
@@ -3532,7 +3541,24 @@ void ChatWindow::onFriendPendingReceived(const QJsonArray &requests) {
     connect(closeBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
     dlgLayout->addWidget(closeBtn);
 
+    QMetaObject::Connection avatarConn = connect(NetworkManager::instance(),
+        &NetworkManager::avatarGetResponse, &dlg,
+        [&pendingAvatarLabels](const QString &username, const QByteArray &avatarData) {
+            if (avatarData.isEmpty()) return;
+            if (!pendingAvatarLabels.contains(username)) return;
+            QLabel *label = pendingAvatarLabels.value(username, nullptr);
+            if (!label) return;
+
+            QPixmap pix;
+            pix.loadFromData(avatarData);
+            if (!pix.isNull()) {
+                label->setPixmap(pix.scaled(36, 36, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            }
+            pendingAvatarLabels.remove(username);
+        });
+
     dlg.exec();
+    disconnect(avatarConn);
 }
 
 void ChatWindow::onFriendChatMessage(const QJsonObject &data) {

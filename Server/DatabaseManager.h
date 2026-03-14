@@ -111,6 +111,7 @@ public:
     bool areFriends(int userId1, int userId2);
     bool removeFriend(int userId1, int userId2);
     int  getFriendshipId(int userId1, int userId2);
+    int  ensureSelfFriendship(int userId);
 
     // 未读消息
     int  getUnreadRoomCount(int roomId, int userId);

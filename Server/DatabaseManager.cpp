@@ -1264,6 +1264,9 @@ QJsonArray DatabaseManager::getPendingFriendRequests(int userId) {
 }
 
 QJsonArray DatabaseManager::getFriendList(int userId) {
+    // 为私聊自己提供稳定会话：确保存在 (userId, userId) 的 friendship 记录。
+    ensureSelfFriendship(userId);
+
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
@@ -1327,6 +1330,21 @@ int DatabaseManager::getFriendshipId(int userId1, int userId2) {
     q.exec();
     if (q.next()) return q.value(0).toInt();
     return -1;
+}
+
+int DatabaseManager::ensureSelfFriendship(int userId) {
+    int existing = getFriendshipId(userId, userId);
+    if (existing > 0) return existing;
+
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("INSERT INTO friendships (user_id1, user_id2) VALUES (?, ?)");
+    q.addBindValue(userId);
+    q.addBindValue(userId);
+    if (q.exec()) return q.lastInsertId().toInt();
+
+    // 并发场景下可能被其他连接先插入，回查一次即可。
+    return getFriendshipId(userId, userId);
 }
 
 int DatabaseManager::saveFriendMessage(int friendshipId, int senderId, const QString &content,
