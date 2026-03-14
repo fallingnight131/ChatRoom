@@ -98,6 +98,13 @@ namespace MsgType {
     inline const QString ROOM_SETTINGS_RSP  = QStringLiteral("ROOM_SETTINGS_RSP");
     inline const QString ROOM_SETTINGS_NOTIFY = QStringLiteral("ROOM_SETTINGS_NOTIFY");
 
+    // 房间文件管理
+    inline const QString ROOM_FILES_REQ        = QStringLiteral("ROOM_FILES_REQ");
+    inline const QString ROOM_FILES_RSP        = QStringLiteral("ROOM_FILES_RSP");
+    inline const QString ROOM_FILES_DELETE_REQ = QStringLiteral("ROOM_FILES_DELETE_REQ");
+    inline const QString ROOM_FILES_DELETE_RSP = QStringLiteral("ROOM_FILES_DELETE_RSP");
+    inline const QString ROOM_FILES_NOTIFY     = QStringLiteral("ROOM_FILES_NOTIFY");
+
     // 删除房间
     inline const QString DELETE_ROOM_REQ    = QStringLiteral("DELETE_ROOM_REQ");
     inline const QString DELETE_ROOM_RSP    = QStringLiteral("DELETE_ROOM_RSP");

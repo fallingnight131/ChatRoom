@@ -8,6 +8,7 @@
 #include "FileCache.h"
 #include "AvatarCropDialog.h"
 #include "RoomSettingsDialog.h"
+#include "RoomFileManagerDialog.h"
 #include "ProfileDialog.h"
 #include "UserInfoDialog.h"
 #include "Protocol.h"
@@ -579,6 +580,9 @@ void ChatWindow::connectSignals() {
     // 房间设置
     connect(net, &NetworkManager::roomSettingsResponse, this, &ChatWindow::onRoomSettingsResponse);
     connect(net, &NetworkManager::roomSettingsNotify,   this, &ChatWindow::onRoomSettingsNotify);
+    connect(net, &NetworkManager::roomFilesResponse, this, &ChatWindow::onRoomFilesResponse);
+    connect(net, &NetworkManager::roomFilesDeleteResponse, this, &ChatWindow::onRoomFilesDeleteResponse);
+    connect(net, &NetworkManager::roomFilesNotify, this, &ChatWindow::onRoomFilesNotify);
 
     // 删除聊天室
     connect(net, &NetworkManager::deleteRoomResponse, this, &ChatWindow::onDeleteRoomResponse);
@@ -1822,6 +1826,7 @@ void ChatWindow::triggerFileDownload(int fileId, const QString &fileName, qint64
             if (idx.data(MessageModel::FileClearedRole).toBool()
                 && !FileCache::instance()->isCached(fileId)) {
                 m_statusLabel->setText("文件已过期或被清除，无法下载");
+                QMessageBox::information(this, QStringLiteral("提示"), QStringLiteral("文件已过期或被清除，无法下载"));
                 return;
             }
             break;
@@ -2308,6 +2313,12 @@ void ChatWindow::onRoomContextMenu(const QPoint &pos) {
     menu.addAction(QStringLiteral("聊天室设置"), [this, roomId] {
         showRoomSettingsDialog(roomId);
     });
+
+    if (m_adminRooms.value(roomId, false)) {
+        menu.addAction(QStringLiteral("文件管理"), [this, roomId] {
+            showRoomFileManagerDialog(roomId);
+        });
+    }
 
     menu.exec(m_roomList->viewport()->mapToGlobal(pos));
 }
@@ -2852,6 +2863,94 @@ void ChatWindow::onRoomSettingsNotify(int roomId, qint64 maxFileSize,
     }
 }
 
+void ChatWindow::onRoomFilesResponse(bool success, int roomId, const QJsonArray &files,
+                                     qint64 usedFileSpace, qint64 maxFileSpace, const QString &error) {
+    if (!success) {
+        QMessageBox::warning(this, QStringLiteral("文件管理"), error);
+        return;
+    }
+
+    if (!m_roomFileManagerDialog) {
+        m_roomFileManagerDialog = new RoomFileManagerDialog(this);
+        m_roomFileManagerDialog->setAttribute(Qt::WA_DeleteOnClose);
+
+        connect(m_roomFileManagerDialog, &QObject::destroyed, this, [this] {
+            m_roomFileManagerDialog = nullptr;
+        });
+        connect(m_roomFileManagerDialog, &RoomFileManagerDialog::refreshRequested, this, [this](int rid) {
+            QJsonObject req;
+            req["roomId"] = rid;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_REQ, req));
+        });
+        connect(m_roomFileManagerDialog, &RoomFileManagerDialog::deleteRequested, this,
+                [this](int rid, const QJsonArray &fileIds) {
+            QJsonObject req;
+            req["roomId"] = rid;
+            req["fileIds"] = fileIds;
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_DELETE_REQ, req));
+        });
+    }
+
+    m_roomFileManagerDialog->setRoomInfo(roomId, usedFileSpace, maxFileSpace);
+    m_roomFileManagerDialog->setFiles(files);
+    m_roomFileManagerDialog->show();
+    m_roomFileManagerDialog->raise();
+    m_roomFileManagerDialog->activateWindow();
+}
+
+void ChatWindow::onRoomFilesDeleteResponse(bool success, int roomId, int deletedCount,
+                                           const QJsonArray &clearedFileIds,
+                                           qint64 usedFileSpace, qint64 maxFileSpace,
+                                           const QString &error) {
+    if (!success) {
+        QMessageBox::warning(this, QStringLiteral("文件管理"), error);
+        return;
+    }
+
+    QList<int> ids;
+    for (const QJsonValue &v : clearedFileIds) ids.append(v.toInt());
+    if (!ids.isEmpty()) {
+        for (auto it = m_models.begin(); it != m_models.end(); ++it)
+            it.value()->markFilesCleared(ids, QStringLiteral("文件已过期或被清除"));
+    }
+
+    if (m_roomFileManagerDialog) {
+        m_roomFileManagerDialog->setRoomInfo(roomId, usedFileSpace, maxFileSpace);
+    }
+
+    m_statusLabel->setText(QStringLiteral("已删除 %1 个文件").arg(deletedCount));
+
+    QJsonObject req;
+    req["roomId"] = roomId;
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_REQ, req));
+}
+
+void ChatWindow::onRoomFilesNotify(int roomId, const QJsonArray &clearedFileIds,
+                                   qint64 usedFileSpace, qint64 maxFileSpace,
+                                   const QString &operatorName) {
+    QList<int> ids;
+    for (const QJsonValue &v : clearedFileIds) ids.append(v.toInt());
+    if (!ids.isEmpty()) {
+        for (auto it = m_models.begin(); it != m_models.end(); ++it)
+            it.value()->markFilesCleared(ids, QStringLiteral("文件已过期或被清除"));
+    }
+
+    if (m_roomFileManagerDialog && roomId == m_currentRoomId) {
+        m_roomFileManagerDialog->setRoomInfo(roomId, usedFileSpace, maxFileSpace);
+        QJsonObject req;
+        req["roomId"] = roomId;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_REQ, req));
+    }
+
+    if (!operatorName.isEmpty() && roomId == m_currentRoomId) {
+        m_statusLabel->setText(QStringLiteral("%1 更新了房间文件").arg(operatorName));
+    }
+}
+
 // ==================== 删除聊天室 ====================
 
 void ChatWindow::onDeleteRoomResponse(bool success, int roomId, const QString &roomName, const QString &error) {
@@ -3125,6 +3224,18 @@ void ChatWindow::showRoomSettingsDialog(int roomId) {
     });
 
     dlg->open();
+}
+
+void ChatWindow::showRoomFileManagerDialog(int roomId) {
+    if (!m_adminRooms.value(roomId, false)) {
+        QMessageBox::warning(this, QStringLiteral("权限不足"), QStringLiteral("只有管理员可以管理文件"));
+        return;
+    }
+
+    QJsonObject req;
+    req["roomId"] = roomId;
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_REQ, req));
 }
 
 // ==================== 个人信息对话框 ====================

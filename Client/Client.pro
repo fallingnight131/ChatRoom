@@ -19,6 +19,7 @@ SOURCES += \
     FileCache.cpp \
     AvatarCropDialog.cpp \
     RoomSettingsDialog.cpp \
+    RoomFileManagerDialog.cpp \
     ProfileDialog.cpp \
     UserInfoDialog.cpp
 
@@ -34,6 +35,7 @@ HEADERS += \
     FileCache.h \
     AvatarCropDialog.h \
     RoomSettingsDialog.h \
+    RoomFileManagerDialog.h \
     ProfileDialog.h \
     UserInfoDialog.h
 

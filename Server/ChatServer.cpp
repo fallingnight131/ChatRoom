@@ -273,6 +273,10 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleDeleteMessages(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::ROOM_SETTINGS_REQ) {
         handleRoomSettings(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::ROOM_FILES_REQ) {
+        handleRoomFiles(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::ROOM_FILES_DELETE_REQ) {
+        handleRoomFilesDelete(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::DELETE_ROOM_REQ) {
         handleDeleteRoom(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::RENAME_ROOM_REQ) {
@@ -1682,6 +1686,129 @@ void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject 
         sysContent = QString("管理员 %1 删除了 %2 条近期消息").arg(session->displayName()).arg(deletedCount);
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
         {{"roomId", roomId}, {"content", sysContent}}));
+}
+
+void ChatServer::handleRoomFiles(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int roomId = data["roomId"].toInt();
+    QJsonObject rspData;
+    rspData["roomId"] = roomId;
+
+    if (!m_db->isRoomAdmin(roomId, session->userId())) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("您没有管理员权限");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_RSP, rspData));
+        return;
+    }
+
+    QJsonArray rawFiles = m_db->getRoomAllFiles(roomId);
+    QJsonArray files;
+    for (const QJsonValue &v : rawFiles) {
+        QJsonObject src = v.toObject();
+        QJsonObject out;
+        out["fileId"] = src["fileId"].toInt();
+        out["fileName"] = src["fileName"].toString();
+        out["fileSize"] = src["fileSize"].toDouble();
+        out["cleared"] = src["cleared"].toBool(false);
+        out["clearReason"] = src["clearReason"].toString();
+        out["createdAt"] = src["createdAt"].toString();
+        files.append(out);
+    }
+
+    QJsonObject settings = m_db->getRoomSettings(roomId);
+    rspData["success"] = true;
+    rspData["files"] = files;
+    rspData["usedFileSpace"] = static_cast<double>(m_db->getRoomUsedFileSpace(roomId));
+    rspData["maxFileSpace"] = static_cast<double>(settings["totalFileSpace"].toDouble());
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_RSP, rspData));
+}
+
+void ChatServer::handleRoomFilesDelete(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    int roomId = data["roomId"].toInt();
+    QJsonObject rspData;
+    rspData["roomId"] = roomId;
+
+    if (!m_db->isRoomAdmin(roomId, session->userId())) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("您没有管理员权限");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_DELETE_RSP, rspData));
+        return;
+    }
+
+    QList<int> selectedIds;
+    for (const QJsonValue &v : data["fileIds"].toArray()) {
+        int fid = v.toInt();
+        if (fid > 0 && !selectedIds.contains(fid)) {
+            selectedIds.append(fid);
+        }
+    }
+
+    if (selectedIds.isEmpty()) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("未选择任何文件");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_DELETE_RSP, rspData));
+        return;
+    }
+
+    QJsonArray allFiles = m_db->getRoomAllFiles(roomId);
+    QMap<int, QJsonObject> fileMap;
+    for (const QJsonValue &v : allFiles) {
+        QJsonObject obj = v.toObject();
+        fileMap.insert(obj["fileId"].toInt(), obj);
+    }
+
+    QList<int> clearIds;
+    QJsonArray clearedFileIds;
+    for (int fid : selectedIds) {
+        if (!fileMap.contains(fid)) continue;
+        QJsonObject f = fileMap.value(fid);
+        if (f["cleared"].toBool(false)) continue;
+
+        const QString path = f["filePath"].toString();
+        if (!path.isEmpty() && QFile::exists(path)) {
+            QFile::remove(path);
+        }
+
+        clearIds.append(fid);
+        clearedFileIds.append(fid);
+    }
+
+    bool ok = true;
+    if (!clearIds.isEmpty()) {
+        ok = m_db->markRoomFilesCleared(roomId, clearIds, QStringLiteral("管理员删除文件"));
+    }
+
+    if (!ok) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("删除文件失败");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_DELETE_RSP, rspData));
+        return;
+    }
+
+    QJsonObject settings = m_db->getRoomSettings(roomId);
+    rspData["success"] = true;
+    rspData["deletedCount"] = clearIds.size();
+    rspData["clearedFileIds"] = clearedFileIds;
+    rspData["usedFileSpace"] = static_cast<double>(m_db->getRoomUsedFileSpace(roomId));
+    rspData["maxFileSpace"] = static_cast<double>(settings["totalFileSpace"].toDouble());
+    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_DELETE_RSP, rspData));
+
+    if (!clearIds.isEmpty()) {
+        QJsonObject notifyData;
+        notifyData["roomId"] = roomId;
+        notifyData["clearedFileIds"] = clearedFileIds;
+        notifyData["usedFileSpace"] = rspData["usedFileSpace"];
+        notifyData["maxFileSpace"] = rspData["maxFileSpace"];
+        notifyData["operator"] = session->displayName();
+        broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_NOTIFY, notifyData));
+
+        broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
+            {{"roomId", roomId}, {"content", QString("管理员 %1 删除了 %2 个文件")
+                                   .arg(session->displayName()).arg(clearIds.size())}}));
+    }
 }
 
 // ==================== 房间设置 ====================

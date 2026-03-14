@@ -320,6 +320,30 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                                                                 data["maxMembers"].toInt(),
                                                                 data["clearedFileIds"].toArray());
     }
+    else if (type == Protocol::MsgType::ROOM_FILES_RSP) {
+        emit roomFilesResponse(data["success"].toBool(),
+                               data["roomId"].toInt(),
+                               data["files"].toArray(),
+                               static_cast<qint64>(data["usedFileSpace"].toDouble()),
+                               static_cast<qint64>(data["maxFileSpace"].toDouble()),
+                               data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::ROOM_FILES_DELETE_RSP) {
+        emit roomFilesDeleteResponse(data["success"].toBool(),
+                                     data["roomId"].toInt(),
+                                     data["deletedCount"].toInt(),
+                                     data["clearedFileIds"].toArray(),
+                                     static_cast<qint64>(data["usedFileSpace"].toDouble()),
+                                     static_cast<qint64>(data["maxFileSpace"].toDouble()),
+                                     data["error"].toString());
+    }
+    else if (type == Protocol::MsgType::ROOM_FILES_NOTIFY) {
+        emit roomFilesNotify(data["roomId"].toInt(),
+                             data["clearedFileIds"].toArray(),
+                             static_cast<qint64>(data["usedFileSpace"].toDouble()),
+                             static_cast<qint64>(data["maxFileSpace"].toDouble()),
+                             data["operator"].toString());
+    }
     else if (type == Protocol::MsgType::DELETE_ROOM_RSP) {
         emit deleteRoomResponse(data["success"].toBool(),
                                 data["roomId"].toInt(),

@@ -23,6 +23,7 @@ class EmojiPicker;
 class ThemeManager;
 class TrayManager;
 class ProfileDialog;
+class RoomFileManagerDialog;
 
 /// 主聊天窗口 —— MVC 架构的 View/Controller 层
 class ChatWindow : public QMainWindow {
@@ -126,6 +127,14 @@ private slots:
     void onRoomSettingsNotify(int roomId, qint64 maxFileSize,
                                                             qint64 totalFileSpace, int maxFileCount, int maxMembers,
                                                             const QJsonArray &clearedFileIds);
+    void onRoomFilesResponse(bool success, int roomId, const QJsonArray &files,
+                             qint64 usedFileSpace, qint64 maxFileSpace, const QString &error);
+    void onRoomFilesDeleteResponse(bool success, int roomId, int deletedCount,
+                                   const QJsonArray &clearedFileIds,
+                                   qint64 usedFileSpace, qint64 maxFileSpace,
+                                   const QString &error);
+    void onRoomFilesNotify(int roomId, const QJsonArray &clearedFileIds,
+                           qint64 usedFileSpace, qint64 maxFileSpace, const QString &operatorName);
 
     // 退出聊天室
     void onLeaveRoomResponse(bool success, int roomId);
@@ -158,6 +167,7 @@ private slots:
     // 个人信息 / 聊天室设置
     void showProfileDialog();
     void showRoomSettingsDialog(int roomId);
+    void showRoomFileManagerDialog(int roomId);
     void showUserInfoDialog(const QString &username, const QString &displayName);
 
     // ========== 好友系统 ==========
@@ -240,6 +250,7 @@ private:
     QLabel       *m_nicknameLabel  = nullptr;
     QPushButton  *m_roomSettingsBtn = nullptr;
     ProfileDialog *m_profileDialog = nullptr;
+    RoomFileManagerDialog *m_roomFileManagerDialog = nullptr;
     QLabel       *m_avatarPreview  = nullptr;
     EmojiPicker  *m_emojiPicker    = nullptr;
     TrayManager  *m_trayManager    = nullptr;

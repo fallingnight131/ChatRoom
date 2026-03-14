@@ -1329,6 +1329,32 @@ QJsonArray DatabaseManager::getRoomActiveFilesOrdered(int roomId) {
     return out;
 }
 
+QJsonArray DatabaseManager::getRoomAllFiles(int roomId) {
+    expireStoredFiles();
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT id, file_name, file_path, file_size, cleared, clear_reason, created_at "
+              "FROM files WHERE room_id = ? "
+              "ORDER BY created_at DESC, id DESC");
+    q.addBindValue(roomId);
+
+    QJsonArray out;
+    if (q.exec()) {
+        while (q.next()) {
+            QJsonObject file;
+            file["fileId"] = q.value(0).toInt();
+            file["fileName"] = q.value(1).toString();
+            file["filePath"] = q.value(2).toString();
+            file["fileSize"] = static_cast<double>(q.value(3).toLongLong());
+            file["cleared"] = q.value(4).toInt() != 0;
+            file["clearReason"] = q.value(5).toString();
+            file["createdAt"] = q.value(6).toString();
+            out.append(file);
+        }
+    }
+    return out;
+}
+
 bool DatabaseManager::markRoomFilesCleared(int roomId, const QList<int> &fileIds, const QString &reason) {
     if (fileIds.isEmpty()) return true;
 

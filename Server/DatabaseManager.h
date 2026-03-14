@@ -103,6 +103,7 @@ public:
     qint64 getRoomUsedFileSpace(int roomId);
     int    getRoomFileCount(int roomId);
     QJsonArray getRoomActiveFilesOrdered(int roomId);
+    QJsonArray getRoomAllFiles(int roomId);
     bool markRoomFilesCleared(int roomId, const QList<int> &fileIds, const QString &reason);
 
     // 用户头像

@@ -90,6 +90,16 @@ signals:
                                                         qint64 totalFileSpace, int maxFileCount, int maxMembers,
                                                         const QJsonArray &clearedFileIds);
 
+    // 房间文件管理
+    void roomFilesResponse(bool success, int roomId, const QJsonArray &files,
+                           qint64 usedFileSpace, qint64 maxFileSpace, const QString &error);
+    void roomFilesDeleteResponse(bool success, int roomId, int deletedCount,
+                                 const QJsonArray &clearedFileIds,
+                                 qint64 usedFileSpace, qint64 maxFileSpace,
+                                 const QString &error);
+    void roomFilesNotify(int roomId, const QJsonArray &clearedFileIds,
+                         qint64 usedFileSpace, qint64 maxFileSpace, const QString &operatorName);
+
     // 删除聊天室
     void deleteRoomResponse(bool success, int roomId, const QString &roomName, const QString &error);
     void deleteRoomNotify(int roomId, const QString &roomName, const QString &operatorName);
