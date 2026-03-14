@@ -1,6 +1,6 @@
 // 用户状态管理
 import { defineStore } from 'pinia'
-import { chatWs, MsgType } from '../services/websocket'
+import { chatWs, MsgType, setHttpConfig } from '../services/websocket'
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -38,6 +38,9 @@ export const useUserStore = defineStore('user', {
       this.userId = data.userId
       this.username = data.username
       this.displayName = data.displayName || data.username
+      if (data.httpPort && data.fileToken) {
+        setHttpConfig(this.serverHost, data.httpPort, data.fileToken)
+      }
       sessionStorage.setItem('user', JSON.stringify({
         userId: this.userId,
         username: this.username,

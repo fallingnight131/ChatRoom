@@ -1,4 +1,4 @@
-#include "ChatServer.h"
+﻿#include "ChatServer.h"
 #include "ClientSession.h"
 #include "DatabaseManager.h"
 #include "RoomManager.h"
@@ -19,6 +19,13 @@
 #include <QWebSocket>
 #include <QImage>
 #include <QBuffer>
+#include <QTcpSocket>
+#include <QUrl>
+#include <QUrlQuery>
+#include <QFileInfo>
+#include <QMimeDatabase>
+#include <QDateTime>
+#include <QUuid>
 
 ChatServer::ChatServer(QObject *parent)
     : QTcpServer(parent)
@@ -31,7 +38,7 @@ ChatServer::~ChatServer() {
     stopServer();
 }
 
-bool ChatServer::startServer(quint16 port, quint16 wsPort) {
+bool ChatServer::startServer(quint16 port, quint16 wsPort, quint16 httpPort) {
     // 初始化数据库
     if (!m_db->initialize()) {
         qCritical() << "[Server] 数据库初始化失败";
@@ -58,6 +65,12 @@ bool ChatServer::startServer(quint16 port, quint16 wsPort) {
             this, &ChatServer::onNewWebSocketConnection);
     qInfo() << "[Server] WebSocket 服务器已启动，监听端口:" << wsPort;
 
+    // 启动 HTTP 下载服务（默认 TCP 端口 + 2）
+    if (httpPort == 0) httpPort = port + 2;
+    m_httpPort = httpPort;
+    if (!setupHttpServer(httpPort)) {
+        return false;
+    }
     return true;
 }
 
@@ -65,6 +78,11 @@ void ChatServer::stopServer() {
     close();
     if (m_wsServer) {
         m_wsServer->close();
+    }
+    if (m_httpServer) {
+        m_httpServer->close();
+        m_httpServer->deleteLater();
+        m_httpServer = nullptr;
     }
     QMutexLocker locker(&m_mutex);
     for (auto *s : std::as_const(m_sessions))
@@ -337,6 +355,8 @@ void ChatServer::handleLogin(ClientSession *session, const QJsonObject &data) {
         rspData["userId"]      = userId;
         rspData["username"]    = username;
         rspData["displayName"] = displayName;
+        rspData["fileToken"]   = generateFileToken(userId);
+        rspData["httpPort"]    = m_httpPort;
         emit session->authenticated(session);
     } else {
         rspData["success"] = false;
@@ -345,6 +365,166 @@ void ChatServer::handleLogin(ClientSession *session, const QJsonObject &data) {
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::LOGIN_RSP, rspData));
 }
 
+
+QString ChatServer::generateFileToken(int userId) {
+    // 清理该用户旧 token，避免并存过多历史令牌。
+    for (auto it = m_fileTokens.begin(); it != m_fileTokens.end(); ) {
+        if (it.value().first == userId) {
+            it = m_fileTokens.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    const QString token = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    const QDateTime expireAt = QDateTime::currentDateTimeUtc().addSecs(24 * 60 * 60);
+    m_fileTokens[token] = qMakePair(userId, expireAt);
+    return token;
+}
+
+int ChatServer::validateFileToken(const QString &token) const {
+    if (token.isEmpty()) return 0;
+    auto it = m_fileTokens.constFind(token);
+    if (it == m_fileTokens.constEnd()) return 0;
+    if (it.value().second < QDateTime::currentDateTimeUtc()) return 0;
+    return it.value().first;
+}
+
+bool ChatServer::setupHttpServer(quint16 port) {
+    if (m_httpServer) {
+        m_httpServer->close();
+        m_httpServer->deleteLater();
+        m_httpServer = nullptr;
+    }
+
+    m_httpServer = new QTcpServer(this);
+    connect(m_httpServer, &QTcpServer::newConnection, this, [this]() {
+        while (m_httpServer->hasPendingConnections()) {
+            QTcpSocket *socket = m_httpServer->nextPendingConnection();
+            connect(socket, &QTcpSocket::readyRead, this, [this, socket]() {
+                handleHttpRequest(socket);
+            });
+            connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
+        }
+    });
+
+    if (!m_httpServer->listen(QHostAddress::Any, port)) {
+        qCritical() << "[Server] HTTP 监听端口失败:" << port << m_httpServer->errorString();
+        return false;
+    }
+    qInfo() << "[Server] HTTP 下载服务已启动，监听端口:" << port;
+    return true;
+}
+
+void ChatServer::handleHttpRequest(QTcpSocket *socket) {
+    if (!socket) return;
+
+    const QByteArray req = socket->readAll();
+    if (req.isEmpty()) return;
+
+    const QList<QByteArray> lines = req.split('\n');
+    if (lines.isEmpty()) {
+        socket->disconnectFromHost();
+        return;
+    }
+
+    const QByteArray requestLine = lines.first().trimmed();
+    const QList<QByteArray> parts = requestLine.split(' ');
+    if (parts.size() < 2) {
+        socket->disconnectFromHost();
+        return;
+    }
+
+    const QByteArray method = parts[0];
+    const QString target = QString::fromUtf8(parts[1]);
+
+    auto writeSimple = [socket](int status, const QByteArray &statusText, const QByteArray &body = QByteArray()) {
+        QByteArray resp;
+        resp += "HTTP/1.1 " + QByteArray::number(status) + " " + statusText + "\r\n";
+        resp += "Access-Control-Allow-Origin: *\r\n";
+        resp += "Access-Control-Allow-Methods: GET, OPTIONS\r\n";
+        resp += "Access-Control-Allow-Headers: Content-Type\r\n";
+        if (!body.isEmpty()) {
+            resp += "Content-Type: text/plain; charset=utf-8\r\n";
+            resp += "Content-Length: " + QByteArray::number(body.size()) + "\r\n";
+        } else {
+            resp += "Content-Length: 0\r\n";
+        }
+        resp += "Connection: close\r\n\r\n";
+        if (!body.isEmpty()) resp += body;
+        socket->write(resp);
+        socket->disconnectFromHost();
+    };
+
+    if (method == "OPTIONS") {
+        writeSimple(204, "No Content");
+        return;
+    }
+    if (method != "GET") {
+        writeSimple(405, "Method Not Allowed", "Method Not Allowed");
+        return;
+    }
+
+    const QUrl url(target);
+    const QString path = url.path();
+    static const QRegularExpression re(QStringLiteral("^/api/download/(-?\\d+)$"));
+    const QRegularExpressionMatch match = re.match(path);
+    if (!match.hasMatch()) {
+        writeSimple(404, "Not Found", "Not Found");
+        return;
+    }
+
+    const int fileIdRaw = match.captured(1).toInt();
+    const QUrlQuery query(url);
+    const QString token = query.queryItemValue(QStringLiteral("token"));
+    const int tokenUserId = validateFileToken(token);
+    if (tokenUserId <= 0) {
+        writeSimple(401, "Unauthorized", "Invalid token");
+        return;
+    }
+
+    const bool forceFriend = (query.queryItemValue(QStringLiteral("friend")) == QStringLiteral("1"));
+    const QString disposition = query.queryItemValue(QStringLiteral("disposition")).toLower();
+    const bool asInline = (disposition == QStringLiteral("inline"));
+    const bool isFriendFile = forceFriend || (fileIdRaw < 0);
+    const int dbFileId = (fileIdRaw < 0) ? -fileIdRaw : fileIdRaw;
+
+    const QString filePath = m_db->getFilePath(dbFileId, isFriendFile);
+    const QString fileName = m_db->getFileName(dbFileId, isFriendFile);
+    QFile file(filePath);
+    if (filePath.isEmpty() || !file.exists() || !file.open(QIODevice::ReadOnly)) {
+        writeSimple(404, "Not Found", "File not found");
+        return;
+    }
+
+    const QMimeDatabase db;
+    const QMimeType mime = db.mimeTypeForFile(fileName, QMimeDatabase::MatchExtension);
+    const QByteArray mimeType = mime.isValid() ? mime.name().toUtf8() : QByteArray("application/octet-stream");
+    const QByteArray encodedName = QUrl::toPercentEncoding(fileName);
+    const QByteArray safeName = fileName.toUtf8().replace('"', '_');
+
+    QByteArray headers;
+    headers += "HTTP/1.1 200 OK\r\n";
+    headers += "Access-Control-Allow-Origin: *\r\n";
+    headers += "Access-Control-Allow-Methods: GET, OPTIONS\r\n";
+    headers += "Access-Control-Allow-Headers: Content-Type\r\n";
+    headers += "Content-Type: " + mimeType + "\r\n";
+    headers += "Content-Length: " + QByteArray::number(file.size()) + "\r\n";
+    headers += "Content-Disposition: " + QByteArray(asInline ? "inline" : "attachment")
+               + "; filename=\"" + safeName + "\"; filename*=UTF-8''" + encodedName + "\r\n";
+    headers += "Connection: close\r\n\r\n";
+    socket->write(headers);
+
+    static const qint64 kChunkSize = 64 * 1024;
+    while (!file.atEnd()) {
+        const QByteArray chunk = file.read(kChunkSize);
+        if (chunk.isEmpty()) break;
+        if (socket->write(chunk) < 0) break;
+        if (!socket->waitForBytesWritten(30000)) break;
+    }
+    file.close();
+    socket->disconnectFromHost();
+}
 void ChatServer::handleRegister(ClientSession *session, const QJsonObject &data) {
     QString username = data["username"].toString();       // uniqueId
     QString displayName = data["displayName"].toString(); // 昵称
@@ -2297,3 +2477,11 @@ void ChatServer::handleFriendRecall(ClientSession *session, const QJsonObject &d
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_RECALL_RSP, rspData));
     }
 }
+
+
+
+
+
+
+
+

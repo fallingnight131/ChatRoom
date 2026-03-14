@@ -1,6 +1,6 @@
 // 聊天状态管理 —— 房间、消息、用户列表、文件传输
 import { defineStore } from 'pinia'
-import { chatWs, MsgType, FILE_CHUNK_SIZE, MAX_SMALL_FILE, makeMessage } from '../services/websocket'
+import { chatWs, MsgType, FILE_CHUNK_SIZE, MAX_SMALL_FILE, makeMessage, getHttpDownloadUrl } from '../services/websocket'
 import { useUserStore } from './user'
 
 export const useChatStore = defineStore('chat', {
@@ -16,7 +16,7 @@ export const useChatStore = defineStore('chat', {
     _uploadQueue: [],       // 上传队列：[{ type:'room'|'friend', roomId, friendUsername, file, thumbnail }]
     _isUploading: false,    // 是否有正在进行的大文件上传
     // 文件下载
-    downloads: {},          // fileId -> { fileName, fileSize, received, chunks[], status, paused }
+    downloads: {},          // fileId -> { fileName, fileSize, received, blob, status, paused }
     // 房间设置
     roomSettings: {},       // roomId -> { maxFileSize }
     // 预览模式下载（不触发自动保存）
@@ -260,7 +260,7 @@ export const useChatStore = defineStore('chat', {
     // ==================== 大文件分块下载 ====================
     startChunkedDownload(fileId, fileName, fileSize) {
       this.downloads[fileId] = {
-        fileName, fileSize, received: 0, chunks: [], status: 'downloading', paused: false
+        fileName, fileSize, received: 0, blob: null, status: 'downloading', paused: false
       }
       chatWs.downloadChunk(fileId, 0, FILE_CHUNK_SIZE)
     },
@@ -276,14 +276,13 @@ export const useChatStore = defineStore('chat', {
         const binary = atob(data.chunkData)
         const bytes = new Uint8Array(binary.length)
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-        d.chunks.push(bytes)
+        d.blob = d.blob ? new Blob([d.blob, bytes]) : new Blob([bytes])
         d.received = data.offset + data.chunkSize
 
         if (d.received >= data.fileSize) {
-          // 下载完成 - 合并并保存
+          // 下载完成 - 直接保存最终 Blob
           d.status = 'completed'
-          const blob = new Blob(d.chunks)
-          const url = URL.createObjectURL(blob)
+          const url = URL.createObjectURL(d.blob || new Blob())
           const a = document.createElement('a')
           a.href = url
           a.download = d.fileName
@@ -948,6 +947,15 @@ export const useChatStore = defineStore('chat', {
 
     // 手动触发下载（用于预览界面的下载按钮）
     _triggerDownload(fileId, fileName, fileSize) {
+      const httpUrl = getHttpDownloadUrl(fileId, Number(fileId) < 0)
+      if (httpUrl) {
+        const a = document.createElement('a')
+        a.href = httpUrl
+        a.download = fileName || ''
+        a.click()
+        return
+      }
+
       if (fileSize && fileSize > MAX_SMALL_FILE) {
         this.startChunkedDownload(fileId, fileName, fileSize)
       } else {

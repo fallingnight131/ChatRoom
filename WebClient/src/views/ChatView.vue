@@ -95,8 +95,6 @@
       </div>
     </div>
 
-    <!-- 下载进度面板 -->
-    <DownloadPanel />
   </div>
 </template>
 
@@ -115,7 +113,6 @@ import ProfileDialog from '../components/ProfileDialog.vue'
 import RoomSettingsDialog from '../components/RoomSettingsDialog.vue'
 import UserInfoDialog from '../components/UserInfoDialog.vue'
 import RoomPasswordDialog from '../components/RoomPasswordDialog.vue'
-import DownloadPanel from '../components/DownloadPanel.vue'
 
 const router = useRouter()
 const userStore = useUserStore()

@@ -5,7 +5,7 @@
       <div class="preview-topbar">
         <span class="preview-filename text-ellipsis">{{ fileName }}</span>
         <div class="preview-actions">
-          <button class="preview-btn" @click="download" title="下载" :disabled="loading">
+          <button class="preview-btn" @click="download" title="下载">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/>
@@ -83,7 +83,7 @@
 <script setup>
 import { ref, watch, onUnmounted, nextTick, computed } from 'vue'
 import { useChatStore } from '../stores/chat'
-import { chatWs, MsgType, FILE_CHUNK_SIZE, MAX_SMALL_FILE } from '../services/websocket'
+import { chatWs, MsgType, FILE_CHUNK_SIZE, MAX_SMALL_FILE, getHttpDownloadUrl } from '../services/websocket'
 
 const props = defineProps({
   visible: Boolean,
@@ -210,7 +210,17 @@ function close() {
 
 function download() {
   const msg = props.msg
-  if (!msg || loading.value) return
+  if (!msg) return
+  if (msg.fileId) {
+    const httpUrl = getHttpDownloadUrl(msg.fileId, Number(msg.fileId) < 0, 'attachment')
+    if (httpUrl) {
+      const a = document.createElement('a')
+      a.href = httpUrl
+      a.download = fileName.value || msg.fileName || ''
+      a.click()
+      return
+    }
+  }
   if (blobUrl.value) {
     // 已经有 blob，直接下载
     const a = document.createElement('a')
@@ -292,6 +302,12 @@ async function openPreview(msg) {
   loading.value = true
   loadPercent.value = ''
 
+  const httpUrl = getHttpDownloadUrl(msg.fileId, Number(msg.fileId) < 0, 'inline')
+  if (httpUrl) {
+    await openPreviewByHttp(msg, type, httpUrl)
+    return
+  }
+
   if (msg.fileSize && msg.fileSize > MAX_SMALL_FILE) {
     // 大文件分块下载
     await downloadLargeFile(msg, type)
@@ -332,9 +348,49 @@ function downloadSmallFile(msg, type) {
   })
 }
 
+async function openPreviewByHttp(msg, type, httpUrl) {
+  try {
+    // 视频/音频直接流式播放，不先整体下载
+    if (type === 'video') {
+      loading.value = false
+      await nextTick()
+      await initDPlayer(httpUrl)
+      return
+    }
+    if (type === 'audio') {
+      loading.value = false
+      blobUrl.value = httpUrl
+      return
+    }
+
+    const resp = await fetch(httpUrl)
+    if (!resp.ok) {
+      throw new Error(`HTTP ${resp.status}`)
+    }
+
+    if (type === 'text') {
+      const txt = await resp.text()
+      textContent.value = txt
+      loading.value = false
+      return
+    }
+
+    const buf = await resp.arrayBuffer()
+    const bytes = new Uint8Array(buf)
+    handleFileData(bytes, type)
+  } catch (e) {
+    console.warn('[Preview] HTTP preview failed, fallback to WebSocket:', e)
+    if (msg.fileSize && msg.fileSize > MAX_SMALL_FILE) {
+      await downloadLargeFile(msg, type)
+    } else {
+      await downloadSmallFile(msg, type)
+    }
+  }
+}
+
 function downloadLargeFile(msg, type) {
   return new Promise((resolve) => {
-    const chunks = []
+    let mergedBlob = null
     let received = 0
     const handler = (rsp) => {
       const d = rsp.data
@@ -349,7 +405,7 @@ function downloadLargeFile(msg, type) {
         return
       }
       const bytes = b64ToBytes(d.chunkData)
-      chunks.push(bytes)
+      mergedBlob = mergedBlob ? new Blob([mergedBlob, bytes]) : new Blob([bytes])
       received = d.offset + d.chunkSize
       const percent = Math.floor((received / (d.fileSize || msg.fileSize)) * 100)
       loadPercent.value = percent + '%'
@@ -358,16 +414,10 @@ function downloadLargeFile(msg, type) {
         chatWs.off(MsgType.FILE_DOWNLOAD_CHUNK_RSP, handler)
         _activeChunkHandler = null
         chatStore._previewFileIds.delete(msg.fileId)
-        // 合并所有块
-        const totalSize = chunks.reduce((s, c) => s + c.length, 0)
-        const merged = new Uint8Array(totalSize)
-        let offset = 0
-        for (const c of chunks) {
-          merged.set(c, offset)
-          offset += c.length
-        }
-        handleFileData(merged, type)
-        resolve()
+        ;(mergedBlob || new Blob()).arrayBuffer().then((buf) => {
+          handleFileData(new Uint8Array(buf), type)
+          resolve()
+        })
       } else {
         chatWs.downloadChunk(msg.fileId, received, FILE_CHUNK_SIZE)
       }

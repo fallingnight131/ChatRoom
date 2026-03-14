@@ -6,9 +6,11 @@
 #include <QMutex>
 #include <QJsonObject>
 #include <QFile>
+#include <QDateTime>
 
 class QWebSocketServer;
 class QWebSocket;
+class QTcpSocket;
 class ClientSession;
 class DatabaseManager;
 class RoomManager;
@@ -20,7 +22,7 @@ public:
     explicit ChatServer(QObject *parent = nullptr);
     ~ChatServer() override;
 
-    bool startServer(quint16 port, quint16 wsPort = 0);
+    bool startServer(quint16 port, quint16 wsPort = 0, quint16 httpPort = 0);
     void stopServer();
 
     DatabaseManager *database() const { return m_db; }
@@ -43,8 +45,13 @@ private slots:
     void onClientDisconnected(ClientSession *session);
     void onClientMessage(ClientSession *session, const QJsonObject &msg);
     void onNewWebSocketConnection();
+    void handleHttpRequest(QTcpSocket *socket);
 
 private:
+    bool setupHttpServer(quint16 port);
+    QString generateFileToken(int userId);
+    int validateFileToken(const QString &token) const;
+
     void handleLogin(ClientSession *session, const QJsonObject &data);
     void handleRegister(ClientSession *session, const QJsonObject &data);
     void handleChatMessage(ClientSession *session, const QJsonObject &msg);
@@ -109,6 +116,9 @@ private:
     DatabaseManager *m_db       = nullptr;
     RoomManager     *m_roomMgr  = nullptr;
     QWebSocketServer *m_wsServer = nullptr;
+    QTcpServer      *m_httpServer = nullptr;
+    quint16          m_httpPort = 0;
+    QMap<QString, QPair<int, QDateTime>> m_fileTokens; // token -> {userId, expireAt(UTC)}
 
     mutable QMutex m_mutex;
     QMap<QString, ClientSession*> m_sessions;  // username -> session

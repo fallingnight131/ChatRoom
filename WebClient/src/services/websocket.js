@@ -440,6 +440,44 @@ class ChatWebSocket {
   }
 }
 
+let _httpBaseUrl = ''
+let _fileToken = ''
+
+function normalizeHost(host) {
+  if (!host) return ''
+  if (host.startsWith('http://') || host.startsWith('https://')) return host
+  const protocol = (typeof location !== 'undefined' && location.protocol === 'https:') ? 'https' : 'http'
+  return `${protocol}://${host}`
+}
+
+function setHttpConfig(host, httpPort, token = '') {
+  const normalized = normalizeHost(host)
+  if (!normalized || !httpPort) {
+    _httpBaseUrl = ''
+    _fileToken = token || ''
+    return
+  }
+  const url = new URL(normalized)
+  url.port = String(httpPort)
+  _httpBaseUrl = url.origin
+  _fileToken = token || ''
+}
+
+function getHttpDownloadUrl(fileId, isFriendFile = false, disposition = 'attachment') {
+  if (!_httpBaseUrl || !_fileToken || fileId == null) return ''
+  const friend = isFriendFile || Number(fileId) < 0 ? '1' : '0'
+  const disp = disposition === 'inline' ? 'inline' : 'attachment'
+  return `${_httpBaseUrl}/api/download/${fileId}?token=${encodeURIComponent(_fileToken)}&friend=${friend}&disposition=${disp}`
+}
+
+function getHttpBaseUrl() {
+  return _httpBaseUrl
+}
+
+function getFileToken() {
+  return _fileToken
+}
+
 // 单例
 export const chatWs = new ChatWebSocket()
-export { FILE_CHUNK_SIZE, MAX_SMALL_FILE }
+export { FILE_CHUNK_SIZE, MAX_SMALL_FILE, setHttpConfig, getHttpDownloadUrl, getHttpBaseUrl, getFileToken }
