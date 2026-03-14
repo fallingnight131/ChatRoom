@@ -491,8 +491,9 @@ void ChatServer::handleHttpRequest(QTcpSocket *socket) {
 
     const QString filePath = m_db->getFilePath(dbFileId, isFriendFile);
     const QString fileName = m_db->getFileName(dbFileId, isFriendFile);
-    QFile file(filePath);
-    if (filePath.isEmpty() || !file.exists() || !file.open(QIODevice::ReadOnly)) {
+    QFile *file = new QFile(filePath, socket);
+    if (filePath.isEmpty() || !file->exists() || !file->open(QIODevice::ReadOnly)) {
+        file->deleteLater();
         writeSimple(404, "Not Found", "File not found");
         return;
     }
@@ -509,21 +510,37 @@ void ChatServer::handleHttpRequest(QTcpSocket *socket) {
     headers += "Access-Control-Allow-Methods: GET, OPTIONS\r\n";
     headers += "Access-Control-Allow-Headers: Content-Type\r\n";
     headers += "Content-Type: " + mimeType + "\r\n";
-    headers += "Content-Length: " + QByteArray::number(file.size()) + "\r\n";
+    headers += "Content-Length: " + QByteArray::number(file->size()) + "\r\n";
     headers += "Content-Disposition: " + QByteArray(asInline ? "inline" : "attachment")
                + "; filename=\"" + safeName + "\"; filename*=UTF-8''" + encodedName + "\r\n";
     headers += "Connection: close\r\n\r\n";
     socket->write(headers);
 
-    static const qint64 kChunkSize = 64 * 1024;
-    while (!file.atEnd()) {
-        const QByteArray chunk = file.read(kChunkSize);
-        if (chunk.isEmpty()) break;
-        if (socket->write(chunk) < 0) break;
-        if (!socket->waitForBytesWritten(30000)) break;
-    }
-    file.close();
-    socket->disconnectFromHost();
+    // 非阻塞分段发送，避免大文件传输阻塞事件循环，影响并发下载请求处理。
+    const auto pump = [socket, file]() {
+        static const qint64 kChunkSize = 64 * 1024;
+        static const qint64 kHighWater = 2 * 1024 * 1024;
+
+        if (socket->state() != QAbstractSocket::ConnectedState) return;
+
+        while (socket->bytesToWrite() < kHighWater && !file->atEnd()) {
+            const QByteArray chunk = file->read(kChunkSize);
+            if (chunk.isEmpty()) break;
+            if (socket->write(chunk) < 0) {
+                socket->disconnectFromHost();
+                return;
+            }
+        }
+
+        if (file->atEnd() && socket->bytesToWrite() == 0) {
+            file->close();
+            socket->disconnectFromHost();
+        }
+    };
+
+    connect(socket, &QTcpSocket::bytesWritten, socket, [pump](qint64) { pump(); });
+    connect(socket, &QTcpSocket::disconnected, file, &QFile::deleteLater);
+    pump();
 }
 void ChatServer::handleRegister(ClientSession *session, const QJsonObject &data) {
     QString username = data["username"].toString();       // uniqueId
