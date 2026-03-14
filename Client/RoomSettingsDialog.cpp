@@ -78,7 +78,7 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
     auto *limitsGroup = new QGroupBox(QStringLiteral("当前限制"));
     auto *limitsForm = new QFormLayout(limitsGroup);
     limitsForm->addRow(QStringLiteral("单文件最大:"),
-                       new QLabel(QString("%1 MB").arg(maxFileSize / 1024 / 1024)));
+                       new QLabel(QString("%1 GB").arg(maxFileSize / (1024.0 * 1024.0 * 1024.0), 0, 'f', 1)));
     limitsForm->addRow(QStringLiteral("总文件空间:"),
                        new QLabel(QString("%1 GB").arg(totalFileSpace / 1024 / 1024 / 1024)));
     limitsForm->addRow(QStringLiteral("文件数量上限:"),
@@ -114,13 +114,13 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
 
         // 限制编辑
         auto *fileLayout = new QHBoxLayout;
-        fileLayout->addWidget(new QLabel(QStringLiteral("单文件上限(MB)：")));
+        fileLayout->addWidget(new QLabel(QStringLiteral("单文件上限(GB)：")));
         m_fileSizeSpin = new QDoubleSpinBox;
         m_fileSizeSpin->setRange(1.0, 10240.0);
-        m_fileSizeSpin->setDecimals(0);
-        m_fileSizeSpin->setSuffix(" MB");
-        double currentMB = maxFileSize / (1024.0 * 1024.0);
-        m_fileSizeSpin->setValue(currentMB);
+        m_fileSizeSpin->setDecimals(1);
+        m_fileSizeSpin->setSuffix(" GB");
+        double currentGB = maxFileSize / (1024.0 * 1024.0 * 1024.0);
+        m_fileSizeSpin->setValue(currentGB);
         fileLayout->addWidget(m_fileSizeSpin, 1);
         auto *saveFileBtn = new QPushButton(QStringLiteral("保存限制"));
         connect(saveFileBtn, &QPushButton::clicked, this, &RoomSettingsDialog::onSaveLimits);
@@ -229,9 +229,9 @@ void RoomSettingsDialog::onSaveName() {
 }
 
 void RoomSettingsDialog::onSaveLimits() {
-    double sizeMB = m_fileSizeSpin->value();
+    double sizeGB = m_fileSizeSpin->value();
     double totalGB = m_totalSpaceSpin->value();
-    qint64 sizeBytes = static_cast<qint64>(sizeMB * 1024 * 1024);
+    qint64 sizeBytes = static_cast<qint64>(sizeGB * 1024 * 1024 * 1024);
     qint64 totalBytes = static_cast<qint64>(totalGB * 1024 * 1024 * 1024);
     int fileCount = m_fileCountSpin->value();
     int maxMembers = m_memberLimitSpin->value();

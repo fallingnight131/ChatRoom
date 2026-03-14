@@ -46,7 +46,7 @@
 
             <!-- 图片 -->
             <template v-else-if="msg.contentType === 'image'">
-                <div v-if="msg.fileCleared" class="msg-expired-image">🖼 文件已过期或被清除</div>
+              <div v-if="msg.fileCleared" class="msg-expired-image" @click="openPreview(msg)">📷 文件已过期或被清除</div>
                 <img v-else-if="msg.imageData" :src="'data:image/png;base64,' + msg.imageData"
                    class="msg-image" @click="openPreview(msg)" />
               <img v-else-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
@@ -59,7 +59,7 @@
 
             <!-- 视频 -->
             <template v-else-if="msg.contentType === 'video' || (msg.contentType === 'file' && isVideoFile(msg.fileName))">
-              <div v-if="msg.fileCleared" class="msg-expired-video">🎬 文件已过期或被清除</div>
+              <div v-if="msg.fileCleared" class="msg-expired-video" @click="openPreview(msg)">🎬 文件已过期或被清除</div>
               <div v-else class="msg-video-card" @click="openPreview(msg)">
                 <img v-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
                      class="video-thumbnail" />
@@ -674,6 +674,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   text-align: center;
+  cursor: pointer;
   color: #fff;
   font-size: 13px;
   font-weight: 600;
