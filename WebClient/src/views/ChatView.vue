@@ -21,13 +21,13 @@
         </button>
       </div>
       <div class="tab-bar">
-        <button class="tab-btn" :class="{ active: activeTab === 'rooms' }" @click="activeTab = 'rooms'">
-          房间
-          <span v-if="chatStore.totalRoomUnread > 0" class="tab-dot"></span>
-        </button>
         <button class="tab-btn" :class="{ active: activeTab === 'friends' }" @click="switchToFriends">
           好友
           <span v-if="chatStore.totalFriendUnread > 0 || chatStore.hasPendingFriendReq" class="tab-dot"></span>
+        </button>
+        <button class="tab-btn" :class="{ active: activeTab === 'rooms' }" @click="activeTab = 'rooms'">
+          房间
+          <span v-if="chatStore.totalRoomUnread > 0" class="tab-dot"></span>
         </button>
       </div>
       <RoomList v-if="activeTab === 'rooms'"
@@ -68,7 +68,7 @@
       <button class="btn-icon mobile-menu-btn empty-menu-btn" @click="mobilePanel = 'left'" title="房间列表">☰</button>
       <div v-if="reconnecting" class="empty-icon">⏳</div>
       <div v-else class="empty-icon">💬</div>
-      <p>{{ reconnecting ? '正在重新连接...' : '选择一个房间开始聊天' }}</p>
+      <p>{{ reconnecting ? '正在重新连接...' : (activeTab === 'friends' ? '选择一个窗口开始聊天' : '选择一个房间开始聊天') }}</p>
     </div>
 
     <!-- 右侧面板：成员列表（仅房间模式） -->
@@ -132,7 +132,7 @@ const showPasswordPrompt = ref(false)
 const passwordRoomData = ref(null)
 const mobilePanel = ref('')
 const reconnecting = ref(false)
-const activeTab = ref('rooms')
+const activeTab = ref('friends')
 
 function isMobile() {
   return window.innerWidth <= 768

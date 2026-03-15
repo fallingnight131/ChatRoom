@@ -223,7 +223,8 @@ void ChatWindow::setupUi() {
     m_tabFriendBtn = new QPushButton("好友");
     m_tabRoomBtn->setCheckable(true);
     m_tabFriendBtn->setCheckable(true);
-    m_tabRoomBtn->setChecked(true);
+    m_tabRoomBtn->setChecked(false);
+    m_tabFriendBtn->setChecked(true);
     m_tabRoomBtn->setStyleSheet("QPushButton { font-weight: bold; font-size: 13px; padding: 6px; border: none; border-bottom: 2px solid #4CAF50; }"
                                  "QPushButton:!checked { border-bottom: 2px solid transparent; color: #888; }");
     m_tabFriendBtn->setStyleSheet("QPushButton { font-weight: bold; font-size: 13px; padding: 6px; border: none; border-bottom: 2px solid #4CAF50; }"
@@ -238,8 +239,8 @@ void ChatWindow::setupUi() {
     };
     m_tabRoomDot = createDot(m_tabRoomBtn);
     m_tabFriendDot = createDot(m_tabFriendBtn);
-    tabLayout->addWidget(m_tabRoomBtn);
     tabLayout->addWidget(m_tabFriendBtn);
+    tabLayout->addWidget(m_tabRoomBtn);
     leftLayout->addLayout(tabLayout);
 
     // --- 房间列表面板 ---
@@ -293,6 +294,7 @@ void ChatWindow::setupUi() {
     m_listStack = new QStackedWidget;
     m_listStack->addWidget(roomPanel);    // index 0 = 房间
     m_listStack->addWidget(friendPanel);  // index 1 = 好友
+    m_listStack->setCurrentIndex(1);
     leftLayout->addWidget(m_listStack, 1);
 
     connect(m_tabRoomBtn, &QPushButton::clicked, this, [this] {
@@ -321,7 +323,7 @@ void ChatWindow::setupUi() {
     auto *centerLayout = new QVBoxLayout(centerPanel);
     centerLayout->setContentsMargins(4, 4, 4, 4);
 
-    m_roomTitle = new QLabel("请选择一个聊天室");
+    m_roomTitle = new QLabel("请选择一个窗口");
     m_roomTitle->setStyleSheet("font-weight: bold; font-size: 16px; padding: 8px;");
 
     // 用图标代替文字，避免字体渲染问题
@@ -379,16 +381,11 @@ void ChatWindow::setupUi() {
     m_emojiBtn->setFixedHeight(32);
     m_emojiBtn->setToolTip("表情");
 
-    m_imageBtn = new QPushButton("图片");
-    m_imageBtn->setFixedHeight(32);
-    m_imageBtn->setToolTip("发送图片");
-
     m_fileBtn = new QPushButton("文件");
     m_fileBtn->setFixedHeight(32);
-    m_fileBtn->setToolTip("发送文件");
+    m_fileBtn->setToolTip("发送文件(含图片)");
 
     toolLayout->addWidget(m_emojiBtn);
-    toolLayout->addWidget(m_imageBtn);
     toolLayout->addWidget(m_fileBtn);
     toolLayout->addStretch();
     inputLayout->addLayout(toolLayout);
@@ -530,7 +527,6 @@ void ChatWindow::connectSignals() {
     // UI 交互
     connect(m_sendBtn,     &QPushButton::clicked, this, &ChatWindow::onSendMessage);
     connect(m_emojiBtn,    &QPushButton::clicked, this, &ChatWindow::onShowEmojiPicker);
-    connect(m_imageBtn,    &QPushButton::clicked, this, &ChatWindow::onSendImage);
     connect(m_fileBtn,     &QPushButton::clicked, this, &ChatWindow::onSendFile);
     connect(m_roomSettingsBtn, &QPushButton::clicked, this, [this] {
         if (m_currentRoomId > 0) showRoomSettingsDialog(m_currentRoomId);
@@ -2636,7 +2632,7 @@ void ChatWindow::onLeaveRoomResponse(bool success, int roomId) {
                 onRoomSelected(m_roomList->item(0));
             } else {
                 m_currentRoomId = -1;
-                m_roomTitle->setText("请选择一个聊天室");
+                m_roomTitle->setText("请选择一个窗口");
                 m_userList->clear();
                 m_messageView->setModel(nullptr);
             }
@@ -3090,7 +3086,7 @@ void ChatWindow::onKickedFromRoom(int roomId, const QString &roomName, const QSt
     // 如果当前正在该房间，切走
     if (m_currentRoomId == roomId) {
         m_currentRoomId = -1;
-        m_roomTitle->setText("请选择一个聊天室");
+        m_roomTitle->setText("请选择一个窗口");
         m_userList->clear();
     }
 
@@ -4074,8 +4070,10 @@ void ChatWindow::onSendFriendFile() {
     // 根据文件后缀自动判断 contentType（与房间发送一致）
     QString contentType = "file";
     QString suffix = QFileInfo(filePath).suffix().toLower();
+    static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
     static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
-    if (vidExts.contains(suffix)) contentType = "video";
+    if (imgExts.contains(suffix)) contentType = "image";
+    else if (vidExts.contains(suffix)) contentType = "video";
 
     sendFriendFile(filePath, contentType);
 }
@@ -4310,7 +4308,7 @@ void ChatWindow::switchToRoomMode() {
     if (m_currentRoomId > 0) {
         switchRoom(m_currentRoomId);
     } else {
-        m_roomTitle->setText("请选择一个聊天室");
+        m_roomTitle->setText("请选择一个窗口");
         m_roomSettingsBtn->setVisible(false);
         m_messageView->setModel(nullptr);
     }

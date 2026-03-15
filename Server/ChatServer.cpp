@@ -586,16 +586,6 @@ void ChatServer::handleRegister(ClientSession *session, const QJsonObject &data)
             rspData["success"]  = true;
             rspData["userId"]   = userId;
             rspData["username"] = username;
-
-            // 注册成功后自动创建个人聊天室
-            QString roomName = QString("%1的聊天室").arg(displayName.trimmed());
-            int roomId = m_db->createRoom(roomName, userId);
-            if (roomId > 0) {
-                m_roomMgr->addRoom(roomId, roomName, userId);
-                m_db->joinRoom(roomId, userId);
-                m_db->setRoomAdmin(roomId, userId, true);
-                qInfo() << "[Server] 为用户" << username << "创建了个人聊天室 ID:" << roomId;
-            }
         } else {
             rspData["success"] = false;
             rspData["error"]   = QStringLiteral("用户ID已存在");

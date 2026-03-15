@@ -108,7 +108,7 @@
          :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
          @click="contextMenu.show = false">
       <div class="context-menu-item" @click="viewFriendInfo(contextMenu.friend)">查看信息</div>
-      <div class="context-menu-item danger" @click="removeFriend(contextMenu.friend)">删除好友</div>
+      <div v-if="canRemoveFriend(contextMenu.friend)" class="context-menu-item danger" @click="removeFriend(contextMenu.friend)">删除好友</div>
     </div>
   </div>
 </template>
@@ -209,9 +209,14 @@ function viewFriendInfo(fr) {
 }
 
 function removeFriend(fr) {
+  if (!canRemoveFriend(fr)) return
   if (fr && confirm(`确定要删除好友 ${fr.displayName || fr.username} 吗？`)) {
     chatWs.removeFriend(fr.username)
   }
+}
+
+function canRemoveFriend(fr) {
+  return !!(fr && fr.username && fr.username !== userStore.username)
 }
 
 function onContextMenu(e, fr) {
