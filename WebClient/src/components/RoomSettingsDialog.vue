@@ -167,6 +167,9 @@ const maxFileCount = ref(1500)
 const maxMembers = ref(50)
 const developerKey = ref('')
 const pendingSaveLimits = ref(false)
+const pendingRename = ref(false)
+const pendingPasswordSave = ref(false)
+const pendingAvatarUpload = ref(false)
 const selectedUser = ref('')
 const avatarFileInput = ref(null)
 const avatarUploading = ref(false)
@@ -224,6 +227,7 @@ function onAvatarFileSelected(e) {
       return
     }
     avatarUploading.value = true
+    pendingAvatarUpload.value = true
     chatWs.uploadRoomAvatar(chatStore.currentRoomId, base64)
   }
   img.src = URL.createObjectURL(file)
@@ -231,18 +235,49 @@ function onAvatarFileSelected(e) {
 
 function onRoomAvatarUploaded(data) {
   avatarUploading.value = false
+  if (!pendingAvatarUpload.value) return
+  pendingAvatarUpload.value = false
+  alert('聊天室头像修改成功')
+}
+
+function onRoomAvatarUploadFailed() {
+  avatarUploading.value = false
+  pendingAvatarUpload.value = false
 }
 
 function renameRoom() {
   if (newName.value.trim()) {
+    pendingRename.value = true
     chatWs.renameRoom(chatStore.currentRoomId, newName.value.trim())
     newName.value = ''
   }
 }
 
+function onRoomRenamed() {
+  if (!pendingRename.value) return
+  pendingRename.value = false
+  alert('聊天室名称修改成功')
+}
+
+function onRoomRenameFailed() {
+  pendingRename.value = false
+}
+
 function setPassword() {
+  pendingPasswordSave.value = true
   chatWs.setRoomPassword(chatStore.currentRoomId, roomPassword.value)
   roomPassword.value = ''
+}
+
+function onRoomPasswordSaved(data) {
+  if (!pendingPasswordSave.value) return
+  pendingPasswordSave.value = false
+  const hasPassword = !!data?.hasPassword
+  alert(hasPassword ? '聊天室密码设置成功' : '聊天室密码已取消')
+}
+
+function onRoomPasswordSaveFailed() {
+  pendingPasswordSave.value = false
 }
 
 function viewPassword() {
@@ -355,6 +390,11 @@ function leaveRoom() {
 onMounted(() => {
   chatStore.onEvent('roomPassword', onRoomPassword)
   chatStore.onEvent('roomAvatarUploaded', onRoomAvatarUploaded)
+  chatStore.onEvent('roomRenameFailed', onRoomRenameFailed)
+  chatStore.onEvent('roomRenamed', onRoomRenamed)
+  chatStore.onEvent('roomPasswordSaved', onRoomPasswordSaved)
+  chatStore.onEvent('roomPasswordSaveFailed', onRoomPasswordSaveFailed)
+  chatStore.onEvent('roomAvatarUploadFailed', onRoomAvatarUploadFailed)
   chatStore.onEvent('roomSettingsNeedConfirm', onRoomSettingsNeedConfirm)
   chatStore.onEvent('roomSettingsSaved', onRoomSettingsSaved)
   chatStore.onEvent('roomSettingsFailed', onRoomSettingsFailed)
@@ -372,6 +412,11 @@ onMounted(() => {
 onUnmounted(() => {
   chatStore.offEvent('roomPassword', onRoomPassword)
   chatStore.offEvent('roomAvatarUploaded', onRoomAvatarUploaded)
+  chatStore.offEvent('roomRenameFailed', onRoomRenameFailed)
+  chatStore.offEvent('roomRenamed', onRoomRenamed)
+  chatStore.offEvent('roomPasswordSaved', onRoomPasswordSaved)
+  chatStore.offEvent('roomPasswordSaveFailed', onRoomPasswordSaveFailed)
+  chatStore.offEvent('roomAvatarUploadFailed', onRoomAvatarUploadFailed)
   chatStore.offEvent('roomSettingsNeedConfirm', onRoomSettingsNeedConfirm)
   chatStore.offEvent('roomSettingsSaved', onRoomSettingsSaved)
   chatStore.offEvent('roomSettingsFailed', onRoomSettingsFailed)

@@ -43,12 +43,12 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
 
     auto *headerInfoLayout = new QVBoxLayout;
     headerInfoLayout->setSpacing(2);
-    auto *nameDisplayLabel = new QLabel(roomName);
-    nameDisplayLabel->setStyleSheet("font-weight: bold; font-size: 14px;");
+    m_roomNameLabel = new QLabel(roomName);
+    m_roomNameLabel->setStyleSheet("font-weight: bold; font-size: 14px;");
     m_roomIdLabel = new QLabel(QStringLiteral("ID: ") + QString::number(roomId));
     m_roomIdLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     m_roomIdLabel->setStyleSheet("color: gray; font-size: 12px;");
-    headerInfoLayout->addWidget(nameDisplayLabel);
+    headerInfoLayout->addWidget(m_roomNameLabel);
     headerInfoLayout->addWidget(m_roomIdLabel);
     headerLayout->addLayout(headerInfoLayout, 1);
     mainLayout->addLayout(headerLayout);
@@ -240,6 +240,12 @@ void RoomSettingsDialog::onSaveName() {
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::RENAME_ROOM_REQ, data));
     m_roomName = newName;
+}
+
+void RoomSettingsDialog::setRoomName(const QString &roomName) {
+    m_roomName = roomName;
+    if (m_roomNameLabel) m_roomNameLabel->setText(roomName);
+    if (m_nameEdit) m_nameEdit->setText(roomName);
 }
 
 void RoomSettingsDialog::onSaveLimits() {

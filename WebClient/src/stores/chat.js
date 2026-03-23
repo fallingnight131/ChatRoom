@@ -481,6 +481,10 @@ export const useChatStore = defineStore('chat', {
           if (this.currentRoomId === msg.data.roomId) {
             this.currentRoomName = msg.data.newName
           }
+          this._emit('roomRenamed', msg.data)
+        } else {
+          this._emit('roomRenameFailed', msg.data)
+          alert(msg.data.error || '修改房间名失败')
         }
       })
 
@@ -845,7 +849,10 @@ export const useChatStore = defineStore('chat', {
 
       // 房间密码
       chatWs.on(MsgType.SET_ROOM_PASSWORD_RSP, (msg) => {
-        if (!msg.data.success) {
+        if (msg.data.success) {
+          this._emit('roomPasswordSaved', msg.data)
+        } else {
+          this._emit('roomPasswordSaveFailed', msg.data)
           alert('设置密码失败: ' + (msg.data.error || ''))
         }
       })
@@ -964,6 +971,7 @@ export const useChatStore = defineStore('chat', {
           }
           this._emit('roomAvatarUploaded', msg.data)
         } else {
+          this._emit('roomAvatarUploadFailed', msg.data)
           this._emit('error', msg.data.error || '上传聊天室头像失败')
         }
       })

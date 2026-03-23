@@ -21,6 +21,9 @@ public:
                                 int maxMembers,
                                 QWidget *parent = nullptr);
 
+    int roomId() const { return m_roomId; }
+    void setRoomName(const QString &roomName);
+
 signals:
     void leaveRoomRequested(int roomId);
     void deleteRoomRequested(int roomId, const QString &roomName);
@@ -39,6 +42,7 @@ private:
     bool    m_isAdmin;
 
     QLabel          *m_roomIdLabel    = nullptr;
+    QLabel          *m_roomNameLabel  = nullptr;
     QLabel          *m_avatarPreview  = nullptr;
     QLineEdit       *m_nameEdit      = nullptr;
     QDoubleSpinBox  *m_fileSizeSpin  = nullptr;

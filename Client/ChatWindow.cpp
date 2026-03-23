@@ -544,13 +544,17 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::avatarUpdateNotify,   this, &ChatWindow::onAvatarUpdateNotify);
 
     // 聊天室头像
-    connect(net, &NetworkManager::roomAvatarUploadResponse, this, [this](int roomId, bool success, const QString &) {
+    connect(net, &NetworkManager::roomAvatarUploadResponse, this, [this](int roomId, bool success, const QString &error) {
         if (success) {
             // 上传成功后重新请求头像以刷新本地缓存
             QJsonObject reqData;
             reqData["roomId"] = roomId;
             NetworkManager::instance()->sendMessage(
                 Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_GET_REQ, reqData));
+            QMessageBox::information(this, QStringLiteral("修改成功"), QStringLiteral("聊天室头像修改成功"));
+        } else {
+            QMessageBox::warning(this, QStringLiteral("修改失败"),
+                                 error.isEmpty() ? QStringLiteral("上传聊天室头像失败") : error);
         }
     });
     connect(net, &NetworkManager::roomAvatarGetResponse, this, [this](int roomId, bool success, const QByteArray &avatarData) {
@@ -3158,6 +3162,13 @@ void ChatWindow::onRenameRoomResponse(bool success, int roomId, const QString &n
                 title += QStringLiteral(" [管理员]");
             m_roomTitle->setText(title);
         }
+
+        for (RoomSettingsDialog *dlg : findChildren<RoomSettingsDialog*>()) {
+            if (dlg && dlg->roomId() == roomId) {
+                dlg->setRoomName(newName);
+            }
+        }
+        QMessageBox::information(this, QStringLiteral("修改成功"), QStringLiteral("聊天室名称修改成功"));
     } else {
         QMessageBox::warning(this, "修改失败", error);
     }
@@ -3176,6 +3187,12 @@ void ChatWindow::onRenameRoomNotify(int roomId, const QString &newName) {
             title += QStringLiteral(" [管理员]");
         m_roomTitle->setText(title);
     }
+
+    for (RoomSettingsDialog *dlg : findChildren<RoomSettingsDialog*>()) {
+        if (dlg && dlg->roomId() == roomId) {
+            dlg->setRoomName(newName);
+        }
+    }
 }
 
 // ==================== 聊天室密码 ====================
@@ -3185,6 +3202,9 @@ void ChatWindow::onSetRoomPasswordResponse(bool success, int roomId, bool hasPas
     if (success) {
         m_statusLabel->setText(hasPassword ? QStringLiteral("聊天室密码已设置")
                                            : QStringLiteral("聊天室密码已取消"));
+        QMessageBox::information(this, QStringLiteral("修改成功"),
+                                 hasPassword ? QStringLiteral("聊天室密码设置成功")
+                                             : QStringLiteral("聊天室密码已取消"));
     } else {
         QMessageBox::warning(this, "设置密码失败", error);
     }
