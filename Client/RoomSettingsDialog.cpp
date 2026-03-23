@@ -28,7 +28,7 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
                                        QWidget *parent)
     : QDialog(parent), m_roomId(roomId), m_roomName(roomName), m_isAdmin(isAdmin)
 {
-    setWindowTitle(QStringLiteral("聊天室设置"));
+    setWindowTitle(QStringLiteral("房间设置"));
     setMinimumWidth(380);
     auto *mainLayout = new QVBoxLayout(this);
 
@@ -88,6 +88,61 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
     mainLayout->addWidget(limitsGroup);
     mainLayout->addSpacing(8);
 
+    auto *limitsEditGroup = new QGroupBox(QStringLiteral("限制设置（需开发者秘钥）"));
+    auto *limitsEditLayout = new QVBoxLayout(limitsEditGroup);
+
+    auto *fileLayout = new QHBoxLayout;
+    fileLayout->addWidget(new QLabel(QStringLiteral("单文件上限(GB)：")));
+    m_fileSizeSpin = new QDoubleSpinBox;
+    m_fileSizeSpin->setRange(0.1, 10240.0);
+    m_fileSizeSpin->setDecimals(1);
+    m_fileSizeSpin->setSingleStep(0.1);
+    m_fileSizeSpin->setSuffix(" GB");
+    double currentGB = maxFileSize / (1024.0 * 1024.0 * 1024.0);
+    m_fileSizeSpin->setValue(currentGB);
+    fileLayout->addWidget(m_fileSizeSpin, 1);
+    limitsEditLayout->addLayout(fileLayout);
+
+    auto *totalLayout = new QHBoxLayout;
+    totalLayout->addWidget(new QLabel(QStringLiteral("总文件空间(GB)：")));
+    m_totalSpaceSpin = new QDoubleSpinBox;
+    m_totalSpaceSpin->setRange(1.0, 10240.0);
+    m_totalSpaceSpin->setDecimals(0);
+    m_totalSpaceSpin->setSuffix(" GB");
+    m_totalSpaceSpin->setValue(totalFileSpace / (1024.0 * 1024.0 * 1024.0));
+    totalLayout->addWidget(m_totalSpaceSpin, 1);
+    limitsEditLayout->addLayout(totalLayout);
+
+    auto *countLayout = new QHBoxLayout;
+    countLayout->addWidget(new QLabel(QStringLiteral("文件数量上限：")));
+    m_fileCountSpin = new QSpinBox;
+    m_fileCountSpin->setRange(1, 1000000);
+    m_fileCountSpin->setValue(maxFileCount);
+    countLayout->addWidget(m_fileCountSpin, 1);
+    limitsEditLayout->addLayout(countLayout);
+
+    auto *memberLayout = new QHBoxLayout;
+    memberLayout->addWidget(new QLabel(QStringLiteral("聊天室最大人数：")));
+    m_memberLimitSpin = new QSpinBox;
+    m_memberLimitSpin->setRange(2, 1000000);
+    m_memberLimitSpin->setValue(maxMembers);
+    memberLayout->addWidget(m_memberLimitSpin, 1);
+    limitsEditLayout->addLayout(memberLayout);
+
+    auto *keyLayout = new QHBoxLayout;
+    keyLayout->addWidget(new QLabel(QStringLiteral("开发者秘钥：")));
+    m_developerKeyEdit = new QLineEdit;
+    m_developerKeyEdit->setEchoMode(QLineEdit::Password);
+    m_developerKeyEdit->setPlaceholderText(QStringLiteral("输入开发者秘钥后可保存限制"));
+    keyLayout->addWidget(m_developerKeyEdit, 1);
+    auto *saveFileBtn = new QPushButton(QStringLiteral("保存限制"));
+    connect(saveFileBtn, &QPushButton::clicked, this, &RoomSettingsDialog::onSaveLimits);
+    keyLayout->addWidget(saveFileBtn);
+    limitsEditLayout->addLayout(keyLayout);
+
+    mainLayout->addWidget(limitsEditGroup);
+    mainLayout->addSpacing(8);
+
     if (isAdmin) {
         // --- 管理员设置组 ---
         auto *adminGroup = new QGroupBox(QStringLiteral("管理员设置"));
@@ -111,48 +166,6 @@ RoomSettingsDialog::RoomSettingsDialog(int roomId, const QString &roomName,
         connect(saveNameBtn, &QPushButton::clicked, this, &RoomSettingsDialog::onSaveName);
         nameLayout->addWidget(saveNameBtn);
         adminLayout->addLayout(nameLayout);
-
-        // 限制编辑
-        auto *fileLayout = new QHBoxLayout;
-        fileLayout->addWidget(new QLabel(QStringLiteral("单文件上限(GB)：")));
-        m_fileSizeSpin = new QDoubleSpinBox;
-        m_fileSizeSpin->setRange(0.1, 10240.0);
-        m_fileSizeSpin->setDecimals(1);
-        m_fileSizeSpin->setSingleStep(0.1);
-        m_fileSizeSpin->setSuffix(" GB");
-        double currentGB = maxFileSize / (1024.0 * 1024.0 * 1024.0);
-        m_fileSizeSpin->setValue(currentGB);
-        fileLayout->addWidget(m_fileSizeSpin, 1);
-        auto *saveFileBtn = new QPushButton(QStringLiteral("保存限制"));
-        connect(saveFileBtn, &QPushButton::clicked, this, &RoomSettingsDialog::onSaveLimits);
-        fileLayout->addWidget(saveFileBtn);
-        adminLayout->addLayout(fileLayout);
-
-        auto *totalLayout = new QHBoxLayout;
-        totalLayout->addWidget(new QLabel(QStringLiteral("总文件空间(GB)：")));
-        m_totalSpaceSpin = new QDoubleSpinBox;
-        m_totalSpaceSpin->setRange(1.0, 10240.0);
-        m_totalSpaceSpin->setDecimals(0);
-        m_totalSpaceSpin->setSuffix(" GB");
-        m_totalSpaceSpin->setValue(totalFileSpace / (1024.0 * 1024.0 * 1024.0));
-        totalLayout->addWidget(m_totalSpaceSpin, 1);
-        adminLayout->addLayout(totalLayout);
-
-        auto *countLayout = new QHBoxLayout;
-        countLayout->addWidget(new QLabel(QStringLiteral("文件数量上限：")));
-        m_fileCountSpin = new QSpinBox;
-        m_fileCountSpin->setRange(1, 1000000);
-        m_fileCountSpin->setValue(maxFileCount);
-        countLayout->addWidget(m_fileCountSpin, 1);
-        adminLayout->addLayout(countLayout);
-
-        auto *memberLayout = new QHBoxLayout;
-        memberLayout->addWidget(new QLabel(QStringLiteral("聊天室最大人数：")));
-        m_memberLimitSpin = new QSpinBox;
-        m_memberLimitSpin->setRange(2, 1000000);
-        m_memberLimitSpin->setValue(maxMembers);
-        memberLayout->addWidget(m_memberLimitSpin, 1);
-        adminLayout->addLayout(memberLayout);
 
         // 密码设置
         auto *pwdLayout = new QHBoxLayout;
@@ -230,6 +243,12 @@ void RoomSettingsDialog::onSaveName() {
 }
 
 void RoomSettingsDialog::onSaveLimits() {
+    const QString developerKey = m_developerKeyEdit ? m_developerKeyEdit->text().trimmed() : QString();
+    if (developerKey.isEmpty()) {
+        QMessageBox::warning(this, QStringLiteral("限制错误"), QStringLiteral("请输入开发者秘钥"));
+        return;
+    }
+
     double sizeGB = m_fileSizeSpin->value();
     double totalGB = m_totalSpaceSpin->value();
     qint64 sizeBytes = static_cast<qint64>(sizeGB * 1024 * 1024 * 1024);
@@ -248,6 +267,7 @@ void RoomSettingsDialog::onSaveLimits() {
     data["totalFileSpace"] = static_cast<double>(totalBytes);
     data["maxFileCount"]   = fileCount;
     data["maxMembers"]     = maxMembers;
+    data["developerKey"]   = developerKey;
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
 }

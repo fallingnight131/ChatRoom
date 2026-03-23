@@ -342,9 +342,9 @@ class ChatWebSocket {
     this.send(makeMessage(MsgType.ROOM_SETTINGS_REQ, { roomId }))
   }
 
-  setRoomSettings(roomId, maxFileSize, totalFileSpace, maxFileCount, maxMembers, forceCleanup = false) {
+  setRoomSettings(roomId, maxFileSize, totalFileSpace, maxFileCount, maxMembers, forceCleanup = false, developerKey = '') {
     this.send(makeMessage(MsgType.ROOM_SETTINGS_REQ, {
-      roomId, maxFileSize, totalFileSpace, maxFileCount, maxMembers, forceCleanup
+      roomId, maxFileSize, totalFileSpace, maxFileCount, maxMembers, forceCleanup, developerKey
     }))
   }
 

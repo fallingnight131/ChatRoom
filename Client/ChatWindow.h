@@ -164,7 +164,7 @@ private slots:
     void onChangeUidResponse(bool success, const QString &oldUid, const QString &newUid, const QString &error);
     void onUidChangeNotify(int roomId, const QString &oldUid, const QString &newUid, const QString &displayName);
 
-    // 个人信息 / 聊天室设置
+    // 个人信息 / 房间设置
     void showProfileDialog();
     void showRoomSettingsDialog(int roomId);
     void showRoomFileManagerDialog(int roomId);

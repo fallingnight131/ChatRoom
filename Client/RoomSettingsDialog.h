@@ -9,7 +9,7 @@ class QLabel;
 class QPushButton;
 class QGroupBox;
 
-/// 聊天室设置对话框
+/// 房间设置对话框
 class RoomSettingsDialog : public QDialog {
     Q_OBJECT
 public:
@@ -44,5 +44,6 @@ private:
     QDoubleSpinBox  *m_totalSpaceSpin = nullptr;
     QSpinBox        *m_fileCountSpin = nullptr;
     QSpinBox        *m_memberLimitSpin = nullptr;
+    QLineEdit       *m_developerKeyEdit = nullptr;
     QLineEdit       *m_passwordEdit  = nullptr;
 };

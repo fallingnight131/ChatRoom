@@ -6,8 +6,8 @@
       <div class="user-info-card">
         <!-- 头像 -->
         <div class="user-info-avatar">
-          <img v-if="avatarSrc" :src="avatarSrc" class="avatar avatar-xl" />
-          <div v-else class="avatar avatar-xl avatar-placeholder"
+          <img v-if="avatarSrc" :src="avatarSrc" class="avatar avatar-large-preview" @click="showAvatarPreview = true" />
+          <div v-else class="avatar avatar-large-preview avatar-placeholder"
                :style="{ background: hashColor(props.user.username) }">
             {{ (props.user.displayName || props.user.username).charAt(0) }}
           </div>
@@ -59,11 +59,20 @@
         <button class="btn btn-secondary" @click="$emit('close')">关闭</button>
       </div>
     </div>
+
+    <div v-if="showAvatarPreview && avatarSrc" class="avatar-preview-overlay" @click="showAvatarPreview = false">
+      <div class="avatar-preview-card" @click.stop>
+        <img :src="avatarSrc" class="avatar-preview-image" />
+        <div class="avatar-preview-actions">
+          <button class="btn btn-secondary" @click="showAvatarPreview = false">关闭</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, inject, onMounted } from 'vue'
+import { computed, inject, onMounted, ref } from 'vue'
 import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
 import { chatWs } from '../services/websocket'
@@ -75,6 +84,7 @@ const emit = defineEmits(['close'])
 const hashColor = inject('hashColor')
 const userStore = useUserStore()
 const chatStore = useChatStore()
+const showAvatarPreview = ref(false)
 
 const avatarSrc = computed(() => {
   const data = userStore.getAvatar(props.user.username)
@@ -120,6 +130,13 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   margin-bottom: 16px;
+}
+.avatar-large-preview {
+  width: 112px;
+  height: 112px;
+  border-radius: 16px;
+  object-fit: cover;
+  cursor: pointer;
 }
 .user-detail {
   text-align: left;
@@ -174,5 +191,39 @@ onMounted(() => {
 .admin-actions-btns .btn {
   flex: 1;
   min-width: 100px;
+}
+
+.avatar-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.avatar-preview-card {
+  max-width: 92vw;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.avatar-preview-image {
+  max-width: 88vw;
+  max-height: 78vh;
+  border-radius: 14px;
+  object-fit: contain;
+  background: #111;
+}
+
+@media (max-width: 768px) {
+  .avatar-large-preview {
+    width: 132px;
+    height: 132px;
+    border-radius: 18px;
+  }
 }
 </style>

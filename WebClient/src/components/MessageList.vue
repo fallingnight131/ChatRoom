@@ -129,6 +129,13 @@
             <span class="menu-icon">⬇️</span> 下载文件
           </div>
 
+          <!-- 转发 -->
+          <div class="context-menu-item"
+               v-if="contextMenu.msg && !contextMenu.msg.recalled && contextMenu.msg.contentType !== 'system'"
+               @click="forwardFromMenu(contextMenu.msg)">
+            <span class="menu-icon">📨</span> 转发到其他会话
+          </div>
+
           <!-- 撤回 (自己的消息, 2分钟内) -->
           <div class="context-menu-item"
                v-if="canRecall(contextMenu.msg)"
@@ -166,6 +173,13 @@
       :msg="previewMsgData"
       @close="previewVisible = false"
     />
+
+    <ForwardDialog
+      v-if="forwardDialogVisible"
+      :submitting="forwardSubmitting"
+      @close="closeForwardDialog"
+      @confirm="confirmForward"
+    />
   </div>
 </template>
 
@@ -175,6 +189,7 @@ import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
 import { chatWs, MsgType, MAX_SMALL_FILE } from '../services/websocket'
 import FilePreview from './FilePreview.vue'
+import ForwardDialog from './ForwardDialog.vue'
 
 const userStore = useUserStore()
 const chatStore = useChatStore()
@@ -186,6 +201,9 @@ const loadingMore = ref(false)
 const previewVisible = ref(false)
 const previewMsgData = ref(null)
 const contextMenu = ref({ show: false, x: 0, y: 0, msg: null })
+const forwardDialogVisible = ref(false)
+const forwardSubmitting = ref(false)
+const forwardSourceMsg = ref(null)
 
 const props = defineProps({
   friendMode: { type: Boolean, default: false }
@@ -330,6 +348,43 @@ function recallMsg(msg) {
     }
   }
   contextMenu.value.show = false
+}
+
+async function forwardFromMenu(msg) {
+  contextMenu.value.show = false
+  if (!msg) return
+
+  if (isFileType(msg) && msg.fileCleared) {
+    alert('文件已过期或被清除，Web 端不支持转发')
+    return
+  }
+  forwardSourceMsg.value = msg
+  forwardDialogVisible.value = true
+}
+
+function closeForwardDialog() {
+  if (forwardSubmitting.value) return
+  forwardDialogVisible.value = false
+  forwardSourceMsg.value = null
+}
+
+async function confirmForward(targets) {
+  if (!forwardSourceMsg.value) return
+  if (!Array.isArray(targets) || targets.length === 0) {
+    alert('请至少选择一个转发目标')
+    return
+  }
+
+  try {
+    forwardSubmitting.value = true
+    await chatStore.forwardMessageToTargets(forwardSourceMsg.value, targets)
+    alert(`已提交转发到 ${targets.length} 个会话`)
+    closeForwardDialog()
+  } catch (err) {
+    alert(err?.message || '转发失败')
+  } finally {
+    forwardSubmitting.value = false
+  }
 }
 
 function deleteMsg(msg) {

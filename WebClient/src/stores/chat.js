@@ -1044,6 +1044,74 @@ export const useChatStore = defineStore('chat', {
       })
     },
 
+    async _buildForwardFile(msg) {
+      if (!msg?.fileId) {
+        throw new Error('文件ID不存在，无法转发')
+      }
+      const isFriendFile = Number(msg.fileId) < 0
+      const url = getHttpDownloadUrl(msg.fileId, isFriendFile, 'attachment')
+      if (!url) {
+        throw new Error('下载地址不可用，无法转发')
+      }
+
+      const resp = await fetch(url)
+      if (!resp.ok) {
+        throw new Error('下载原文件失败，无法转发')
+      }
+
+      const blob = await resp.blob()
+      const fileName = msg.fileName || `forward_${msg.fileId}`
+      return new File([blob], fileName, { type: blob.type || 'application/octet-stream' })
+    },
+
+    async _forwardFileToTarget(target, file) {
+      if (target.type === 'room') {
+        if (file.size > MAX_SMALL_FILE) {
+          await this.startChunkedUpload(target.roomId, file)
+        } else {
+          await this.uploadSmallFile(target.roomId, file)
+        }
+        return
+      }
+
+      if (target.type === 'friend') {
+        if (file.size > MAX_SMALL_FILE) {
+          await this.startFriendChunkedUpload(target.username, file)
+        } else {
+          await this.uploadFriendSmallFile(target.username, file)
+        }
+      }
+    },
+
+    async forwardMessageToTargets(msg, targets = []) {
+      if (!msg || !Array.isArray(targets) || targets.length === 0) {
+        return
+      }
+
+      const isFileMessage = msg.contentType === 'file' || msg.contentType === 'image' || msg.contentType === 'video'
+      if (isFileMessage && msg.fileCleared) {
+        throw new Error('文件已过期或被清除，Web 端禁止转发')
+      }
+
+      if (!isFileMessage) {
+        const content = msg.content || ''
+        const contentType = msg.contentType === 'emoji' ? 'emoji' : 'text'
+        targets.forEach((target) => {
+          if (target.type === 'room') {
+            chatWs.sendChat(target.roomId, useUserStore().username, content, contentType)
+          } else if (target.type === 'friend') {
+            chatWs.sendFriendChat(target.username, content, contentType)
+          }
+        })
+        return
+      }
+
+      const file = await this._buildForwardFile(msg)
+      for (const target of targets) {
+        await this._forwardFileToTarget(target, file)
+      }
+    },
+
     // 手动触发下载（用于预览界面的下载按钮）
     _triggerDownload(fileId, fileName, fileSize) {
       const httpUrl = getHttpDownloadUrl(fileId, Number(fileId) < 0)

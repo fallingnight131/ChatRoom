@@ -27,6 +27,7 @@
 #include <QDateTime>
 #include <QUuid>
 #include <QTimer>
+#include <QTextStream>
 
 ChatServer::ChatServer(QObject *parent)
     : QTcpServer(parent)
@@ -408,6 +409,41 @@ int ChatServer::validateFileToken(const QString &token) const {
     if (it == m_fileTokens.constEnd()) return 0;
     if (it.value().second < QDateTime::currentDateTimeUtc()) return 0;
     return it.value().first;
+}
+
+bool ChatServer::validateDeveloperKey(const QString &providedKey, QString *error) const {
+    QString secretFilePath = qEnvironmentVariable("CHATROOM_DEVELOPER_KEY_FILE").trimmed();
+    if (secretFilePath.isEmpty()) {
+        secretFilePath = QDir(QCoreApplication::applicationDirPath()).filePath("developer_secret.txt");
+    }
+
+    QFile secretFile(secretFilePath);
+    if (!secretFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        if (error) {
+            *error = QStringLiteral("开发者秘钥文件不可用");
+        }
+        return false;
+    }
+
+    QTextStream stream(&secretFile);
+    const QString expectedKey = stream.readLine().trimmed();
+    const QString inputKey = providedKey.trimmed();
+
+    if (expectedKey.isEmpty()) {
+        if (error) {
+            *error = QStringLiteral("开发者秘钥未配置");
+        }
+        return false;
+    }
+
+    if (inputKey != expectedKey) {
+        if (error) {
+            *error = QStringLiteral("开发者秘钥错误");
+        }
+        return false;
+    }
+
+    return true;
 }
 
 bool ChatServer::setupHttpServer(quint16 port) {
@@ -1995,12 +2031,13 @@ void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &d
     QJsonObject rspData;
     rspData["roomId"] = roomId;
 
-    // 设置操作需要管理员权限
+    // 设置操作需要有效开发者秘钥
     if (data.contains("maxFileSize") || data.contains("totalFileSpace") ||
         data.contains("maxFileCount") || data.contains("maxMembers")) {
-        if (!m_db->isRoomAdmin(roomId, session->userId())) {
+        QString keyError;
+        if (!validateDeveloperKey(data["developerKey"].toString(), &keyError)) {
             rspData["success"] = false;
-            rspData["error"] = QStringLiteral("您没有管理员权限");
+            rspData["error"] = keyError;
             session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
             return;
         }
@@ -2090,7 +2127,7 @@ void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &d
 
         // 系统消息
         broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
-            {{"roomId", roomId}, {"content", QString("管理员 %1 更新了房间限制：单文件%2MB，总空间%3GB，文件数%4，人数%5")
+            {{"roomId", roomId}, {"content", QString("%1 更新了房间限制：单文件%2MB，总空间%3GB，文件数%4，人数%5")
                 .arg(session->displayName())
                 .arg(maxFileSize / 1024 / 1024)
                 .arg(totalFileSpace / 1024 / 1024 / 1024)

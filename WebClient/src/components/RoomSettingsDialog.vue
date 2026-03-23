@@ -78,34 +78,6 @@
           </div>
         </div>
 
-        <!-- 限制设置 -->
-        <div class="setting-section">
-          <div class="setting-label">限制设置</div>
-          <div class="limit-grid">
-            <div class="limit-row">
-              <span class="limit-key">单文件最大(GB)</span>
-              <input class="input" v-model.number="maxFileSize" type="number" min="1" max="10240" step="0.1" />
-            </div>
-            <div class="limit-row">
-              <span class="limit-key">总文件空间(GB)</span>
-              <input class="input" v-model.number="totalFileSpace" type="number" min="1" max="10240" step="1" />
-            </div>
-          </div>
-          <div class="limit-grid" style="margin-top:8px">
-            <div class="limit-row">
-              <span class="limit-key">文件数量上限</span>
-              <input class="input" v-model.number="maxFileCount" type="number" min="1" max="1000000" />
-            </div>
-            <div class="limit-row">
-              <span class="limit-key">聊天室最大人数</span>
-              <input class="input" v-model.number="maxMembers" type="number" min="2" max="1000000" />
-            </div>
-          </div>
-          <div class="inline-edit" style="margin-top:8px">
-            <button class="btn btn-primary" @click="setRoomLimits">保存限制</button>
-          </div>
-        </div>
-
         <!-- 管理成员 -->
         <div class="setting-section">
           <div class="setting-label">管理成员</div>
@@ -137,6 +109,39 @@
         </div>
       </template>
 
+      <div class="setting-section">
+        <div class="setting-label">限制设置（需开发者秘钥）</div>
+        <div class="limit-grid">
+          <div class="limit-row">
+            <span class="limit-key">单文件最大(GB)</span>
+            <input class="input" v-model.number="maxFileSize" type="number" min="1" max="10240" step="0.1" />
+          </div>
+          <div class="limit-row">
+            <span class="limit-key">总文件空间(GB)</span>
+            <input class="input" v-model.number="totalFileSpace" type="number" min="1" max="10240" step="1" />
+          </div>
+        </div>
+        <div class="limit-grid" style="margin-top:8px">
+          <div class="limit-row">
+            <span class="limit-key">文件数量上限</span>
+            <input class="input" v-model.number="maxFileCount" type="number" min="1" max="1000000" />
+          </div>
+          <div class="limit-row">
+            <span class="limit-key">聊天室最大人数</span>
+            <input class="input" v-model.number="maxMembers" type="number" min="2" max="1000000" />
+          </div>
+        </div>
+        <div class="limit-grid" style="margin-top:8px">
+          <div class="limit-row">
+            <span class="limit-key">开发者秘钥</span>
+            <input class="input" v-model="developerKey" type="password" placeholder="输入开发者秘钥后可保存限制" />
+          </div>
+        </div>
+        <div class="inline-edit" style="margin-top:8px">
+          <button class="btn btn-primary" @click="setRoomLimits">保存限制</button>
+        </div>
+      </div>
+
       <div class="modal-actions">
         <button class="btn btn-danger" @click="leaveRoom">退出房间</button>
         <button class="btn btn-secondary" @click="$emit('close')">关闭</button>
@@ -160,6 +165,7 @@ const maxFileSize = ref(10)
 const totalFileSpace = ref(10)
 const maxFileCount = ref(1500)
 const maxMembers = ref(50)
+const developerKey = ref('')
 const selectedUser = ref('')
 const avatarFileInput = ref(null)
 const avatarUploading = ref(false)
@@ -265,6 +271,7 @@ function onRoomSettingsNeedConfirm(data) {
     data.maxFileCount,
     data.maxMembers,
     true,
+    developerKey.value,
   )
 }
 
@@ -277,12 +284,18 @@ function setRoomLimits() {
     alert('总文件空间不能小于单文件最大值')
     return
   }
+  if (!developerKey.value.trim()) {
+    alert('请输入开发者秘钥')
+    return
+  }
   chatWs.setRoomSettings(
     chatStore.currentRoomId,
     maxFileSize.value * 1024 * 1024 * 1024,
     totalFileSpace.value * 1024 * 1024 * 1024,
     maxFileCount.value,
     maxMembers.value,
+    false,
+    developerKey.value,
   )
 }
 

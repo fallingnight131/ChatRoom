@@ -53,6 +53,7 @@ private:
     bool setupHttpServer(quint16 port);
     QString generateFileToken(int userId);
     int validateFileToken(const QString &token) const;
+    bool validateDeveloperKey(const QString &providedKey, QString *error = nullptr) const;
 
     void handleLogin(ClientSession *session, const QJsonObject &data);
     void handleRegister(ClientSession *session, const QJsonObject &data);

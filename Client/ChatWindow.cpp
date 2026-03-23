@@ -344,7 +344,7 @@ void ChatWindow::setupUi() {
         m_roomSettingsBtn->setIconSize(QSize(32, 32));
     }
     m_roomSettingsBtn->setFixedSize(32, 32);
-    m_roomSettingsBtn->setToolTip("聊天室设置");
+    m_roomSettingsBtn->setToolTip("房间设置");
     m_roomSettingsBtn->setStyleSheet("QPushButton { border: none; background: transparent; }"
                                       "QPushButton:hover { background-color: rgba(200,200,200,0.5); border-radius: 4px; }");
     m_roomSettingsBtn->setVisible(false); // 未选择房间时隐藏
@@ -2307,7 +2307,7 @@ void ChatWindow::onRoomContextMenu(const QPoint &pos) {
 
     QMenu menu(this);
 
-    menu.addAction(QStringLiteral("聊天室设置"), [this, roomId] {
+    menu.addAction(QStringLiteral("房间设置"), [this, roomId] {
         showRoomSettingsDialog(roomId);
     });
 
@@ -2435,6 +2435,165 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
             QApplication::clipboard()->setText(msg.content());
         });
         hasMessageActions = true;
+
+        // 转发消息/文件
+        if (!isUploading && msg.contentType() != Message::System) {
+            menu.addAction("转发消息", [this, msg] {
+                QSet<int> targetRooms;
+                QSet<QString> targetFriends;
+
+                QStringList roomOptions;
+                for (int i = 0; i < m_roomList->count(); ++i) {
+                    auto *it = m_roomList->item(i);
+                    int rid = it->data(Qt::UserRole).toInt();
+                    if (rid == m_currentRoomId) continue;
+                    roomOptions << QString::number(rid) + ":" + it->text();
+                }
+
+                QStringList friendOptions;
+                for (const QJsonValue &v : m_friendData) {
+                    QJsonObject f = v.toObject();
+                    QString uname = f["username"].toString();
+                    if (uname.isEmpty() || uname == m_currentFriendUsername) continue;
+                    QString dname = f["displayName"].toString();
+                    if (dname.isEmpty()) dname = uname;
+                    friendOptions << QString("%1(%2)").arg(uname, dname);
+                }
+
+                bool okRoom = false;
+                QString roomText = QInputDialog::getText(
+                    this,
+                    QStringLiteral("转发到聊天室"),
+                    QStringLiteral("输入聊天室ID（多个用逗号，可留空）\n可选：") +
+                        (roomOptions.isEmpty() ? QStringLiteral("无") : roomOptions.join(" | ")),
+                    QLineEdit::Normal,
+                    QString(),
+                    &okRoom);
+                if (!okRoom) return;
+
+                bool okFriend = false;
+                QString friendText = QInputDialog::getText(
+                    this,
+                    QStringLiteral("转发到私聊"),
+                    QStringLiteral("输入好友用户名（多个用逗号，可留空）\n可选：") +
+                        (friendOptions.isEmpty() ? QStringLiteral("无") : friendOptions.join(" | ")),
+                    QLineEdit::Normal,
+                    QString(),
+                    &okFriend);
+                if (!okFriend) return;
+
+                for (const QString &part : roomText.split(',', Qt::SkipEmptyParts)) {
+                    bool okNum = false;
+                    int rid = part.trimmed().toInt(&okNum);
+                    if (!okNum) continue;
+                    for (int i = 0; i < m_roomList->count(); ++i) {
+                        if (m_roomList->item(i)->data(Qt::UserRole).toInt() == rid && rid != m_currentRoomId) {
+                            targetRooms.insert(rid);
+                            break;
+                        }
+                    }
+                }
+
+                for (const QString &part : friendText.split(',', Qt::SkipEmptyParts)) {
+                    const QString uname = part.trimmed();
+                    if (uname.isEmpty() || uname == m_currentFriendUsername) continue;
+                    for (const QJsonValue &v : m_friendData) {
+                        const QJsonObject f = v.toObject();
+                        if (f["username"].toString() == uname) {
+                            targetFriends.insert(uname);
+                            break;
+                        }
+                    }
+                }
+
+                if (targetRooms.isEmpty() && targetFriends.isEmpty()) {
+                    QMessageBox::information(this, QStringLiteral("转发"), QStringLiteral("没有有效目标，已取消转发"));
+                    return;
+                }
+
+                int forwardedCount = 0;
+
+                if (msg.contentType() == Message::File || msg.contentType() == Message::Image || msg.contentType() == Message::Video) {
+                    const int fileId = msg.fileId();
+                    const bool hasCache = fileId != 0 && FileCache::instance()->isCached(fileId);
+                    if (!hasCache) {
+                        if (msg.fileCleared()) {
+                            QMessageBox::warning(this, QStringLiteral("转发失败"), QStringLiteral("文件已过期且本地无缓存，无法转发"));
+                        } else {
+                            QMessageBox::warning(this, QStringLiteral("转发失败"), QStringLiteral("未找到本地缓存，请先下载文件后再转发"));
+                        }
+                        return;
+                    }
+
+                    const QString cachedPath = FileCache::instance()->cachedFilePath(fileId);
+                    QFile file(cachedPath);
+                    if (!file.open(QIODevice::ReadOnly)) {
+                        QMessageBox::warning(this, QStringLiteral("转发失败"), QStringLiteral("无法读取本地缓存文件"));
+                        return;
+                    }
+                    QByteArray raw = file.readAll();
+                    file.close();
+
+                    if (raw.size() > Protocol::MAX_SMALL_FILE) {
+                        QMessageBox::warning(this, QStringLiteral("转发失败"), QStringLiteral("当前仅支持转发不超过8MB的缓存文件"));
+                        return;
+                    }
+
+                    QString contentType = QStringLiteral("file");
+                    QString suffix = QFileInfo(msg.fileName()).suffix().toLower();
+                    static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
+                    static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
+                    if (imgExts.contains(suffix)) contentType = QStringLiteral("image");
+                    else if (vidExts.contains(suffix)) contentType = QStringLiteral("video");
+
+                    for (int rid : targetRooms) {
+                        QJsonObject data;
+                        data["roomId"] = rid;
+                        data["fileName"] = msg.fileName();
+                        data["fileSize"] = static_cast<double>(raw.size());
+                        data["fileData"] = QString::fromLatin1(raw.toBase64());
+                        data["contentType"] = contentType;
+                        NetworkManager::instance()->sendMessage(
+                            Protocol::makeMessage(Protocol::MsgType::FILE_SEND, data));
+                        ++forwardedCount;
+                    }
+
+                    for (const QString &uname : targetFriends) {
+                        QJsonObject data;
+                        data["friendUsername"] = uname;
+                        data["fileName"] = msg.fileName();
+                        data["fileSize"] = static_cast<double>(raw.size());
+                        data["fileData"] = QString::fromLatin1(raw.toBase64());
+                        data["contentType"] = contentType;
+                        NetworkManager::instance()->sendMessage(
+                            Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_SEND, data));
+                        ++forwardedCount;
+                    }
+                } else {
+                    QString ct = (msg.contentType() == Message::Emoji) ? QStringLiteral("emoji") : QStringLiteral("text");
+
+                    for (int rid : targetRooms) {
+                        NetworkManager::instance()->sendMessage(
+                            Protocol::makeChatMsg(rid, m_username, msg.content(), ct));
+                        ++forwardedCount;
+                    }
+
+                    for (const QString &uname : targetFriends) {
+                        QJsonObject data;
+                        data["friendUsername"] = uname;
+                        data["content"] = msg.content();
+                        data["contentType"] = ct;
+                        NetworkManager::instance()->sendMessage(
+                            Protocol::makeMessage(Protocol::MsgType::FRIEND_CHAT_MSG, data));
+                        ++forwardedCount;
+                    }
+                }
+
+                QMessageBox::information(this, QStringLiteral("转发完成"),
+                    QStringLiteral("已转发到 %1 个会话").arg(forwardedCount));
+            });
+            hasMessageActions = true;
+        }
 
         // 管理员：删除此消息（仅在非上传状态下）
         if (m_adminRooms.value(m_currentRoomId, false) && !msg.recalled() && !isUploading) {
@@ -2824,6 +2983,19 @@ void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFile
                                .arg(afterCount)
                                .arg(afterSpace / 1024 / 1024);
             if (QMessageBox::question(this, "确认清理", text) == QMessageBox::Yes) {
+                bool keyOk = false;
+                QString developerKey = QInputDialog::getText(
+                    this,
+                    QStringLiteral("开发者秘钥"),
+                    QStringLiteral("请输入开发者秘钥以继续保存限制："),
+                    QLineEdit::Password,
+                    QString(),
+                    &keyOk);
+                if (!keyOk || developerKey.trimmed().isEmpty()) {
+                    QMessageBox::warning(this, QStringLiteral("设置取消"), QStringLiteral("未输入开发者秘钥"));
+                    return;
+                }
+
                 QJsonObject data;
                 data["roomId"] = roomId;
                 data["maxFileSize"] = static_cast<double>(maxFileSize);
@@ -2831,6 +3003,7 @@ void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFile
                 data["maxFileCount"] = maxFileCount;
                 data["maxMembers"] = maxMembers;
                 data["forceCleanup"] = true;
+                data["developerKey"] = developerKey.trimmed();
                 NetworkManager::instance()->sendMessage(
                     Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
             }
@@ -3188,7 +3361,7 @@ void ChatWindow::onUidChangeNotify(int roomId, const QString &oldUid, const QStr
     }
 }
 
-// ==================== 聊天室设置对话框 ====================
+// ==================== 房间设置对话框 ====================
 
 void ChatWindow::showRoomSettingsDialog(int roomId) {
     // 获取房间名称
