@@ -9,6 +9,7 @@
 #include "AvatarCropDialog.h"
 #include "RoomSettingsDialog.h"
 #include "RoomFileManagerDialog.h"
+#include "ForwardSelectDialog.h"
 #include "ProfileDialog.h"
 #include "UserInfoDialog.h"
 #include "Protocol.h"
@@ -2439,72 +2440,36 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
         // 转发消息/文件
         if (!isUploading && msg.contentType() != Message::System) {
             menu.addAction("转发消息", [this, msg] {
-                QSet<int> targetRooms;
-                QSet<QString> targetFriends;
-
-                QStringList roomOptions;
+                QList<ForwardSelectDialog::RoomTarget> roomTargets;
                 for (int i = 0; i < m_roomList->count(); ++i) {
                     auto *it = m_roomList->item(i);
                     int rid = it->data(Qt::UserRole).toInt();
                     if (rid == m_currentRoomId) continue;
-                    roomOptions << QString::number(rid) + ":" + it->text();
+                    ForwardSelectDialog::RoomTarget target;
+                    target.roomId = rid;
+                    target.roomName = it->text();
+                    target.unread = m_roomUnread.value(rid, 0);
+                    roomTargets.append(target);
                 }
 
-                QStringList friendOptions;
+                QList<ForwardSelectDialog::FriendTarget> friendTargets;
                 for (const QJsonValue &v : m_friendData) {
                     QJsonObject f = v.toObject();
                     QString uname = f["username"].toString();
                     if (uname.isEmpty() || uname == m_currentFriendUsername) continue;
-                    QString dname = f["displayName"].toString();
-                    if (dname.isEmpty()) dname = uname;
-                    friendOptions << QString("%1(%2)").arg(uname, dname);
+                    ForwardSelectDialog::FriendTarget target;
+                    target.username = uname;
+                    target.displayName = f["displayName"].toString();
+                    target.isOnline = f["online"].toBool(false);
+                    target.unread = m_friendUnread.value(uname, 0);
+                    friendTargets.append(target);
                 }
 
-                bool okRoom = false;
-                QString roomText = QInputDialog::getText(
-                    this,
-                    QStringLiteral("转发到聊天室"),
-                    QStringLiteral("输入聊天室ID（多个用逗号，可留空）\n可选：") +
-                        (roomOptions.isEmpty() ? QStringLiteral("无") : roomOptions.join(" | ")),
-                    QLineEdit::Normal,
-                    QString(),
-                    &okRoom);
-                if (!okRoom) return;
+                ForwardSelectDialog dlg(roomTargets, friendTargets, this);
+                if (dlg.exec() != QDialog::Accepted) return;
 
-                bool okFriend = false;
-                QString friendText = QInputDialog::getText(
-                    this,
-                    QStringLiteral("转发到私聊"),
-                    QStringLiteral("输入好友用户名（多个用逗号，可留空）\n可选：") +
-                        (friendOptions.isEmpty() ? QStringLiteral("无") : friendOptions.join(" | ")),
-                    QLineEdit::Normal,
-                    QString(),
-                    &okFriend);
-                if (!okFriend) return;
-
-                for (const QString &part : roomText.split(',', Qt::SkipEmptyParts)) {
-                    bool okNum = false;
-                    int rid = part.trimmed().toInt(&okNum);
-                    if (!okNum) continue;
-                    for (int i = 0; i < m_roomList->count(); ++i) {
-                        if (m_roomList->item(i)->data(Qt::UserRole).toInt() == rid && rid != m_currentRoomId) {
-                            targetRooms.insert(rid);
-                            break;
-                        }
-                    }
-                }
-
-                for (const QString &part : friendText.split(',', Qt::SkipEmptyParts)) {
-                    const QString uname = part.trimmed();
-                    if (uname.isEmpty() || uname == m_currentFriendUsername) continue;
-                    for (const QJsonValue &v : m_friendData) {
-                        const QJsonObject f = v.toObject();
-                        if (f["username"].toString() == uname) {
-                            targetFriends.insert(uname);
-                            break;
-                        }
-                    }
-                }
+                QSet<int> targetRooms = dlg.selectedRoomIds();
+                QSet<QString> targetFriends = dlg.selectedFriendUsernames();
 
                 if (targetRooms.isEmpty() && targetFriends.isEmpty()) {
                     QMessageBox::information(this, QStringLiteral("转发"), QStringLiteral("没有有效目标，已取消转发"));
@@ -2972,6 +2937,11 @@ void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFile
             for (auto it = m_models.begin(); it != m_models.end(); ++it)
                 it.value()->markFilesCleared(ids, QStringLiteral("文件已过期或被清除"));
         }
+
+        if (m_waitingRoomSettingsSave) {
+            m_waitingRoomSettingsSave = false;
+            QMessageBox::information(this, QStringLiteral("保存成功"), QStringLiteral("房间限制修改成功"));
+        }
     } else {
         if (needConfirm) {
             int clearCount = cleanupSummary["clearFileCount"].toInt();
@@ -3006,9 +2976,12 @@ void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFile
                 data["developerKey"] = developerKey.trimmed();
                 NetworkManager::instance()->sendMessage(
                     Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
+            } else {
+                m_waitingRoomSettingsSave = false;
             }
             return;
         }
+        m_waitingRoomSettingsSave = false;
         if (currentMembers > 0) {
             QMessageBox::warning(this, "设置失败", QString("当前人数为 %1，不能设置更小人数上限").arg(currentMembers));
             return;
@@ -3382,6 +3355,10 @@ void ChatWindow::showRoomSettingsDialog(int roomId) {
     auto *dlg = new RoomSettingsDialog(roomId, roomName, isAdmin,
                                        maxFileSize, totalFileSpace, maxFileCount, maxMembers, this);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
+
+    connect(dlg, &RoomSettingsDialog::roomLimitsSaveRequested, this, [this](int) {
+        m_waitingRoomSettingsSave = true;
+    });
 
     connect(dlg, &RoomSettingsDialog::leaveRoomRequested, this, [this](int rid) {
         NetworkManager::instance()->sendMessage(Protocol::makeLeaveRoom(rid));

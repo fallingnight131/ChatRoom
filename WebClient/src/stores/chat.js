@@ -793,9 +793,11 @@ export const useChatStore = defineStore('chat', {
               }
             })
           }
+          this._emit('roomSettingsSaved', d)
         } else if (d.needConfirm) {
           this._emit('roomSettingsNeedConfirm', d)
         } else {
+          this._emit('roomSettingsFailed', d)
           alert(d.error || '保存限制失败')
         }
       })

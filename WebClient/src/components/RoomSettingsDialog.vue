@@ -166,6 +166,7 @@ const totalFileSpace = ref(10)
 const maxFileCount = ref(1500)
 const maxMembers = ref(50)
 const developerKey = ref('')
+const pendingSaveLimits = ref(false)
 const selectedUser = ref('')
 const avatarFileInput = ref(null)
 const avatarUploading = ref(false)
@@ -262,8 +263,12 @@ function onRoomSettingsNeedConfirm(data) {
     `清理后预计保留 ${afterCount} 个文件，约 ${afterSpaceGB} GB。\n` +
     `被清理文件会在聊天中保留记录，但状态显示为“文件已过期或被清除”。\n\n是否继续？`
   )
-  if (!ok) return
+  if (!ok) {
+    pendingSaveLimits.value = false
+    return
+  }
 
+  pendingSaveLimits.value = true
   chatWs.setRoomSettings(
     data.roomId,
     data.maxFileSize,
@@ -273,6 +278,16 @@ function onRoomSettingsNeedConfirm(data) {
     true,
     developerKey.value,
   )
+}
+
+function onRoomSettingsSaved() {
+  if (!pendingSaveLimits.value) return
+  pendingSaveLimits.value = false
+  alert('房间限制修改成功')
+}
+
+function onRoomSettingsFailed() {
+  pendingSaveLimits.value = false
 }
 
 function setRoomLimits() {
@@ -288,6 +303,7 @@ function setRoomLimits() {
     alert('请输入开发者秘钥')
     return
   }
+  pendingSaveLimits.value = true
   chatWs.setRoomSettings(
     chatStore.currentRoomId,
     maxFileSize.value * 1024 * 1024 * 1024,
@@ -340,6 +356,8 @@ onMounted(() => {
   chatStore.onEvent('roomPassword', onRoomPassword)
   chatStore.onEvent('roomAvatarUploaded', onRoomAvatarUploaded)
   chatStore.onEvent('roomSettingsNeedConfirm', onRoomSettingsNeedConfirm)
+  chatStore.onEvent('roomSettingsSaved', onRoomSettingsSaved)
+  chatStore.onEvent('roomSettingsFailed', onRoomSettingsFailed)
   chatStore.fetchRoomAvatar(chatStore.currentRoomId)
   // 加载当前设置
   const s = chatStore.roomSettings[chatStore.currentRoomId]
@@ -355,6 +373,8 @@ onUnmounted(() => {
   chatStore.offEvent('roomPassword', onRoomPassword)
   chatStore.offEvent('roomAvatarUploaded', onRoomAvatarUploaded)
   chatStore.offEvent('roomSettingsNeedConfirm', onRoomSettingsNeedConfirm)
+  chatStore.offEvent('roomSettingsSaved', onRoomSettingsSaved)
+  chatStore.offEvent('roomSettingsFailed', onRoomSettingsFailed)
 })
 </script>
 

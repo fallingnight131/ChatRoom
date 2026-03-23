@@ -245,19 +245,21 @@ function submitForward() {
 
 .list-item {
   display: grid;
-  grid-template-columns: 22px 1fr;
+  grid-template-columns: 22px 1fr auto;
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
   border-radius: 6px;
   cursor: pointer;
+  min-width: 0;
 }
 
 .item-main-row {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .list-item:hover {
@@ -265,6 +267,7 @@ function submitForward() {
 }
 
 .item-main {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -275,6 +278,8 @@ function submitForward() {
   color: var(--text-tertiary);
   font-size: 12px;
   justify-self: end;
+  white-space: nowrap;
+  padding-left: 8px;
 }
 
 .item-badge {

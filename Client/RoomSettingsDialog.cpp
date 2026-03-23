@@ -268,6 +268,7 @@ void RoomSettingsDialog::onSaveLimits() {
     data["maxFileCount"]   = fileCount;
     data["maxMembers"]     = maxMembers;
     data["developerKey"]   = developerKey;
+    emit roomLimitsSaveRequested(m_roomId);
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_REQ, data));
 }

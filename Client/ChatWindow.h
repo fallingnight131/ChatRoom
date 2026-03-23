@@ -24,6 +24,7 @@ class ThemeManager;
 class TrayManager;
 class ProfileDialog;
 class RoomFileManagerDialog;
+class ForwardSelectDialog;
 
 /// 主聊天窗口 —— MVC 架构的 View/Controller 层
 class ChatWindow : public QMainWindow {
@@ -333,4 +334,5 @@ private:
     // 贴边隐藏（已移除）
 
     bool     m_forceQuit  = false;  // 菜单退出时强制关闭（不最小化到托盘）
+    bool     m_waitingRoomSettingsSave = false;
 };

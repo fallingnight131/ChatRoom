@@ -18,6 +18,7 @@ SOURCES += \
     TrayManager.cpp \
     FileCache.cpp \
     AvatarCropDialog.cpp \
+    ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
     RoomFileManagerDialog.cpp \
     ProfileDialog.cpp \
@@ -34,6 +35,7 @@ HEADERS += \
     TrayManager.h \
     FileCache.h \
     AvatarCropDialog.h \
+    ForwardSelectDialog.h \
     RoomSettingsDialog.h \
     RoomFileManagerDialog.h \
     ProfileDialog.h \

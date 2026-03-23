@@ -24,6 +24,7 @@ public:
 signals:
     void leaveRoomRequested(int roomId);
     void deleteRoomRequested(int roomId, const QString &roomName);
+    void roomLimitsSaveRequested(int roomId);
 
 private slots:
     void onSaveName();
