@@ -480,11 +480,19 @@ function setHttpConfig(host, httpPort, token = '') {
   _fileToken = token || ''
 }
 
+function getSameOriginBaseUrl() {
+  if (typeof location === 'undefined' || !location.origin) return ''
+  if (!/^https?:\/\//i.test(location.origin)) return ''
+  return location.origin
+}
+
 function getHttpDownloadUrl(fileId, isFriendFile = false, disposition = 'attachment') {
-  if (!_httpBaseUrl || !_fileToken || fileId == null) return ''
+  if (!_fileToken || fileId == null) return ''
+  const baseUrl = getSameOriginBaseUrl() || _httpBaseUrl
+  if (!baseUrl) return ''
   const friend = isFriendFile || Number(fileId) < 0 ? '1' : '0'
   const disp = disposition === 'inline' ? 'inline' : 'attachment'
-  return `${_httpBaseUrl}/api/download/${fileId}?token=${encodeURIComponent(_fileToken)}&friend=${friend}&disposition=${disp}`
+  return `${baseUrl}/api/download/${fileId}?token=${encodeURIComponent(_fileToken)}&friend=${friend}&disposition=${disp}`
 }
 
 function getHttpBaseUrl() {
