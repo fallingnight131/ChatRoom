@@ -36,15 +36,10 @@ private:
     QTabWidget  *m_tabWidget      = nullptr;
 
     // 登录页
-    QLineEdit   *m_loginHost      = nullptr;
-    QLineEdit   *m_loginPort      = nullptr;
     QLineEdit   *m_loginUser      = nullptr;
     QLineEdit   *m_loginPass      = nullptr;
     QPushButton *m_loginBtn       = nullptr;
     QLabel      *m_loginStatus    = nullptr;
-    QPushButton *m_advancedBtn    = nullptr;
-    QLabel      *m_hostLabel      = nullptr;
-    QLabel      *m_portLabel      = nullptr;
 
     // 注册页
     QLineEdit   *m_regUniqueId    = nullptr;

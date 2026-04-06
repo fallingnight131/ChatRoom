@@ -7,24 +7,6 @@
         <p>{{ isRegister ? '注册新账号' : '登录到聊天室' }}</p>
       </div>
 
-      <!-- 服务器设置 -->
-      <div class="server-config" v-if="showServerConfig">
-        <div class="input-group">
-          <label>服务器地址</label>
-          <input class="input" v-model="serverHost" placeholder="fallingnight.cn" />
-        </div>
-        <div class="input-group">
-          <label>WebSocket 端口</label>
-          <input class="input" v-model.number="serverPort" type="number" placeholder="443" />
-        </div>
-        <div class="input-group">
-          <label class="checkbox-label">
-            <input type="checkbox" v-model="useProxy" />
-            通过 Nginx 代理连接 (路径: /ws)
-          </label>
-        </div>
-      </div>
-
       <div class="input-group">
         <label>用户ID (唯一标识)</label>
         <input class="input" v-model="username" placeholder="输入唯一用户ID"
@@ -59,9 +41,6 @@
         <span @click="isRegister = !isRegister" class="switch-link">
           {{ isRegister ? '已有账号？去登录' : '没有账号？注册' }}
         </span>
-        <span @click="showServerConfig = !showServerConfig" class="config-link">
-          ⚙ 服务器设置
-        </span>
       </div>
 
       <!-- 主题切换 -->
@@ -90,10 +69,7 @@ const confirmPassword = ref('')
 const isRegister = ref(false)
 const loading = ref(false)
 const errorMsg = ref('')
-const showServerConfig = ref(false)
-const serverHost = ref(userStore.serverHost)
-const serverPort = ref(userStore.serverPort)
-const useProxy = ref(userStore.wsPath === '/ws')
+
 
 function doLogin() {
   if (!username.value || !password.value) {
@@ -102,9 +78,7 @@ function doLogin() {
   }
   errorMsg.value = ''
   loading.value = true
-  const path = useProxy.value ? '/ws' : ''
-  userStore.setServer(serverHost.value, serverPort.value, path)
-  chatWs.connect(serverHost.value, serverPort.value, path)
+  chatWs.connect(userStore.serverHost, userStore.serverPort, userStore.wsPath)
 }
 
 function doRegister() {
@@ -118,9 +92,7 @@ function doRegister() {
   }
   errorMsg.value = ''
   loading.value = true
-  const path = useProxy.value ? '/ws' : ''
-  userStore.setServer(serverHost.value, serverPort.value, path)
-  chatWs.connect(serverHost.value, serverPort.value, path)
+  chatWs.connect(userStore.serverHost, userStore.serverPort, userStore.wsPath)
 }
 
 // WebSocket 事件处理
@@ -229,12 +201,12 @@ onUnmounted(() => {
   justify-content: space-between;
   margin-top: 16px;
 }
-.switch-link, .config-link {
+.switch-link {
   color: var(--text-link);
   cursor: pointer;
   font-size: 13px;
 }
-.switch-link:hover, .config-link:hover {
+.switch-link:hover {
   text-decoration: underline;
 }
 .error-msg {
@@ -249,27 +221,6 @@ onUnmounted(() => {
   right: 12px;
   font-size: 20px;
 }
-.server-config {
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 16px;
-  background: var(--bg-primary);
-}
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-.checkbox-label input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--accent);
-}
-
 /* ========== 移动端适配 ========== */
 @media (max-width: 768px) {
   .login-card {
@@ -303,7 +254,7 @@ onUnmounted(() => {
     gap: 12px;
     margin-top: 20px;
   }
-  .switch-link, .config-link {
+  .switch-link {
     font-size: 15px;
     padding: 4px;
   }

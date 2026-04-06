@@ -42,46 +42,11 @@ void LoginDialog::setupUi() {
     m_loginUser->setMinimumHeight(32);
     m_loginPass->setMinimumHeight(32);
     m_loginBtn  = new QPushButton("登 录");
-    m_loginBtn->setMinimumHeight(36);
-    m_loginStatus = new QLabel;
-    m_loginStatus->setStyleSheet("color: red;");
-
-    m_loginUser->setPlaceholderText("请输入用户ID");
-    m_loginPass->setPlaceholderText("请输入密码");
-
-    m_loginHost = new QLineEdit("127.0.0.1");
-    m_loginPort = new QLineEdit(QString::number(Protocol::DEFAULT_PORT));
 
     loginLayout->addRow("用户ID:", m_loginUser);
     loginLayout->addRow("密码:",   m_loginPass);
     loginLayout->addRow(m_loginBtn);
     loginLayout->addRow(m_loginStatus);
-
-    // 高级设置（折叠）
-    m_advancedBtn = new QPushButton("▶ 高级设置");
-    m_advancedBtn->setFlat(true);
-    m_advancedBtn->setCursor(Qt::PointingHandCursor);
-    m_advancedBtn->setStyleSheet("text-align:left; color:#666; font-size:12px; padding:2px 0;");
-
-    m_hostLabel = new QLabel("服务器:");
-    m_portLabel = new QLabel("端口:");
-
-    loginLayout->addRow(m_advancedBtn);
-    loginLayout->addRow(m_hostLabel, m_loginHost);
-    loginLayout->addRow(m_portLabel, m_loginPort);
-
-    // 默认隐藏
-    m_hostLabel->hide(); m_loginHost->hide();
-    m_portLabel->hide(); m_loginPort->hide();
-
-    connect(m_advancedBtn, &QPushButton::clicked, this, [this]() {
-        bool show = !m_loginHost->isVisible();
-        m_hostLabel->setVisible(show);
-        m_loginHost->setVisible(show);
-        m_portLabel->setVisible(show);
-        m_loginPort->setVisible(show);
-        m_advancedBtn->setText(show ? "▼ 高级设置" : "▶ 高级设置");
-    });
 
     connect(m_loginBtn, &QPushButton::clicked, this, &LoginDialog::onLogin);
     connect(m_loginPass, &QLineEdit::returnPressed, this, &LoginDialog::onLogin);
@@ -123,13 +88,8 @@ void LoginDialog::setupUi() {
 void LoginDialog::connectToServer() {
     if (m_connected) return;
 
-    QString host = m_loginHost->text().trimmed();
-    quint16 port = m_loginPort->text().toUShort();
-    if (host.isEmpty() || port == 0) {
-        QLabel *status = (m_pendingAction == Register) ? m_regStatus : m_loginStatus;
-        status->setText("请输入有效的服务器地址和端口（在高级设置中）");
-        return;
-    }
+    const QString host = QStringLiteral("127.0.0.1");
+    const quint16 port = Protocol::DEFAULT_PORT;
 
     QLabel *status = (m_pendingAction == Register) ? m_regStatus : m_loginStatus;
     status->setText("正在连接服务器...");
