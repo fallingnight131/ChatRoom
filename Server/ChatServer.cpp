@@ -28,6 +28,48 @@
 #include <QUuid>
 #include <QTimer>
 #include <QTextStream>
+#include <QStringList>
+
+namespace {
+
+QString readEnvValueFromFile(const QString &filePath, const QString &key) {
+    QFile envFile(filePath);
+    if (!envFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return QString();
+    }
+
+    QTextStream stream(&envFile);
+    while (!stream.atEnd()) {
+        QString line = stream.readLine().trimmed();
+        if (line.isEmpty() || line.startsWith('#')) {
+            continue;
+        }
+        if (line.startsWith(QStringLiteral("export "))) {
+            line = line.mid(7).trimmed();
+        }
+
+        const int equalPos = line.indexOf('=');
+        if (equalPos <= 0) {
+            continue;
+        }
+
+        const QString envKey = line.left(equalPos).trimmed();
+        if (envKey != key) {
+            continue;
+        }
+
+        QString value = line.mid(equalPos + 1).trimmed();
+        if ((value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith('\'') && value.endsWith('\''))) {
+            value = value.mid(1, value.size() - 2);
+        }
+        return value;
+    }
+
+    return QString();
+}
+
+} // namespace
 
 ChatServer::ChatServer(QObject *parent)
     : QTcpServer(parent)
@@ -412,26 +454,37 @@ int ChatServer::validateFileToken(const QString &token) const {
 }
 
 bool ChatServer::validateDeveloperKey(const QString &providedKey, QString *error) const {
-    QString secretFilePath = qEnvironmentVariable("CHATROOM_DEVELOPER_KEY_FILE").trimmed();
-    if (secretFilePath.isEmpty()) {
-        secretFilePath = QDir(QCoreApplication::applicationDirPath()).filePath("developer_secret.txt");
-    }
+    QString expectedKey = qEnvironmentVariable("CHATROOM_DEVELOPER_KEY").trimmed();
+    if (expectedKey.isEmpty()) {
+        const QString appDir = QCoreApplication::applicationDirPath();
+        const QString envPathFromVar = qEnvironmentVariable("CHATROOM_ENV_FILE").trimmed();
 
-    QFile secretFile(secretFilePath);
-    if (!secretFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        if (error) {
-            *error = QStringLiteral("开发者秘钥文件不可用");
+        QStringList candidates;
+        if (!envPathFromVar.isEmpty()) {
+            candidates << envPathFromVar;
         }
-        return false;
+        candidates << QDir::current().filePath(".env")
+                   << QDir(appDir).filePath(".env")
+                   << QDir(appDir).filePath("../.env");
+
+        for (const QString &path : candidates) {
+            const QFileInfo info(path);
+            if (!info.exists() || !info.isFile()) {
+                continue;
+            }
+
+            expectedKey = readEnvValueFromFile(info.absoluteFilePath(), QStringLiteral("CHATROOM_DEVELOPER_KEY")).trimmed();
+            if (!expectedKey.isEmpty()) {
+                break;
+            }
+        }
     }
 
-    QTextStream stream(&secretFile);
-    const QString expectedKey = stream.readLine().trimmed();
     const QString inputKey = providedKey.trimmed();
 
     if (expectedKey.isEmpty()) {
         if (error) {
-            *error = QStringLiteral("开发者秘钥未配置");
+            *error = QStringLiteral("开发者秘钥未配置（请在 .env 中设置 CHATROOM_DEVELOPER_KEY）");
         }
         return false;
     }

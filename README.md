@@ -135,6 +135,29 @@ ChatRoom/
 
 > SQLite 驱动已内置于 Qt，**无需安装任何数据库**。首次运行 Server 时会自动创建 `chatroom.db`。
 
+## 环境变量（.env）
+
+聊天室部分操作需要通过“开发者秘钥”执行
+服务端的“开发者秘钥”通过 `.env` 配置，键名为 `CHATROOM_DEVELOPER_KEY`。
+
+### 1. 复制模板
+
+```bash
+cp .env.example .env
+```
+
+Windows PowerShell 可使用：
+
+```powershell
+Copy-Item .env.example .env
+```
+
+### 2. 编辑 `.env`
+
+```env
+CHATROOM_DEVELOPER_KEY=请替换成你的强密码
+```
+
 ---
 
 ## 本地运行
