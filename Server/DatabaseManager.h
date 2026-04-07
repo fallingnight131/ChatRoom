@@ -72,11 +72,14 @@ public:
                      const QString &filePath, qint64 fileSize);
     QString getFilePath(int fileId, bool isFriendFile = false);
     QString getFileName(int fileId, bool isFriendFile = false);
-    void    expireStoredFiles();
+    /// 过期处理，返回需要从 COS 删除的 URL 列表
+    QStringList expireStoredFiles();
 
     // COS 云存储 URL
-    bool    setCosUrl(int fileId, bool isFriendFile, const QString &cosUrl);
-    QString getCosUrl(int fileId, bool isFriendFile);
+    bool        setCosUrl(int fileId, bool isFriendFile, const QString &cosUrl);
+    QString     getCosUrl(int fileId, bool isFriendFile);
+    QStringList getCosUrlsForFileIds(const QList<int> &fileIds, bool isFriendFile = false);
+    QStringList getCosUrlsForRoom(int roomId);
 
     // 管理员管理
     bool isRoomAdmin(int roomId, int userId);

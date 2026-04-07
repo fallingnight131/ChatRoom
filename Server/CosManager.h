@@ -43,6 +43,10 @@ public:
     /// @param expireSeconds  签名有效期（默认 3600 秒）
     QString presignedUrl(const QString &cosUrl, int expireSeconds = 3600) const;
 
+    /// 异步删除 COS 上的对象（fire-and-forget）
+    /// @param cosUrl  数据库中存储的未签名 URL（与 setCosUrl 保存的值相同）
+    void deleteCosFile(const QString &cosUrl);
+
 private:
     // COS API 签名（V5 + HMAC-SHA1）
     QByteArray sign(const QByteArray &method,
@@ -76,6 +80,9 @@ private:
                    const QString &localPath,
                    std::function<void(qint64, qint64)> onProgress,
                    std::function<void(bool, const QString &)> onFinished);
+
+    /// 从数据库存储的未签名 URL 中提取 objectKey
+    QString objectKeyFromUrl(const QString &cosUrl) const;
 
     QString internalHost() const;
     QString externalHost() const;

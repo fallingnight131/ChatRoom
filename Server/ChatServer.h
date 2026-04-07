@@ -130,6 +130,9 @@ private:
                         const QString &dirPrefix, int fileId, bool isFriendFile,
                         const QString &uploaderUsername, const QString &uploadId);
 
+    /// 批量删除 COS 对象（fire-and-forget，COS 未启用时为空操作）
+    void deleteCosFiles(const QStringList &cosUrls);
+
     DatabaseManager *m_db       = nullptr;
     RoomManager     *m_roomMgr  = nullptr;
     CosManager      *m_cos      = nullptr;

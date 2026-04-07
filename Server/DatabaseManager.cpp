@@ -24,9 +24,10 @@ const QString    kExpiredFileReason = QStringLiteral("文件已过期或被清�
 bool markExpiredFiles(QSqlDatabase &db,
                       const QString &fileTable,
                       const QString &messageTable,
-                      const QString &reason) {
+                      const QString &reason,
+                      QStringList &cosUrlsOut) {
     QSqlQuery select(db);
-    select.prepare(QStringLiteral("SELECT id, file_path FROM %1 WHERE cleared = 0 AND created_at <= datetime('now', '-%2 days')")
+    select.prepare(QStringLiteral("SELECT id, file_path, cos_url FROM %1 WHERE cleared = 0 AND created_at <= datetime('now', '-%2 days')")
                    .arg(fileTable)
                    .arg(kFileExpireDays));
     if (!select.exec()) {
@@ -39,6 +40,9 @@ bool markExpiredFiles(QSqlDatabase &db,
     while (select.next()) {
         fileIds.append(select.value(0).toInt());
         filePaths.append(select.value(1).toString());
+        const QString cosUrl = select.value(2).toString();
+        if (!cosUrl.isEmpty())
+            cosUrlsOut.append(cosUrl);
     }
     if (fileIds.isEmpty()) {
         return true;
@@ -395,17 +399,18 @@ bool DatabaseManager::initialize() {
     return true;
 }
 
-void DatabaseManager::expireStoredFiles() {
+QStringList DatabaseManager::expireStoredFiles() {
     static QMutex expireMutex;
     QMutexLocker locker(&expireMutex);
 
     QSqlDatabase db = getConnection();
-    if (!db.isOpen()) {
-        return;
-    }
+    if (!db.isOpen())
+        return {};
 
-    markExpiredFiles(db, QStringLiteral("files"), QStringLiteral("messages"), kExpiredFileReason);
-    markExpiredFiles(db, QStringLiteral("friend_files"), QStringLiteral("friend_messages"), kExpiredFileReason);
+    QStringList cosUrls;
+    markExpiredFiles(db, QStringLiteral("files"), QStringLiteral("messages"), kExpiredFileReason, cosUrls);
+    markExpiredFiles(db, QStringLiteral("friend_files"), QStringLiteral("friend_messages"), kExpiredFileReason, cosUrls);
+    return cosUrls;
 }
 
 // ==================== 用户管理 ====================
@@ -1278,6 +1283,45 @@ bool DatabaseManager::deleteFileRecords(const QList<int> &fileIds) {
         q.addBindValue(id);
 
     return q.exec();
+}
+
+QStringList DatabaseManager::getCosUrlsForFileIds(const QList<int> &fileIds, bool isFriendFile) {
+    if (fileIds.isEmpty()) return {};
+
+    QSqlDatabase db = getConnection();
+    QStringList placeholders;
+    for (int i = 0; i < fileIds.size(); ++i)
+        placeholders << QStringLiteral("?");
+
+    const QString table = isFriendFile ? QStringLiteral("friend_files") : QStringLiteral("files");
+    QString sql = QStringLiteral("SELECT cos_url FROM %1 WHERE id IN (%2) AND cos_url != ''")
+                      .arg(table, placeholders.join(','));
+
+    QSqlQuery q(db);
+    q.prepare(sql);
+    for (int id : fileIds)
+        q.addBindValue(id);
+
+    QStringList result;
+    if (q.exec()) {
+        while (q.next())
+            result << q.value(0).toString();
+    }
+    return result;
+}
+
+QStringList DatabaseManager::getCosUrlsForRoom(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT cos_url FROM files WHERE room_id = ? AND cos_url != ''");
+    q.addBindValue(roomId);
+
+    QStringList result;
+    if (q.exec()) {
+        while (q.next())
+            result << q.value(0).toString();
+    }
+    return result;
 }
 
 // ==================== 房间设置 ====================

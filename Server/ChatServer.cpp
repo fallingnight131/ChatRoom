@@ -118,16 +118,16 @@ bool ChatServer::startServer(quint16 port, quint16 wsPort, quint16 httpPort) {
         return false;
     }
 
-    m_db->expireStoredFiles();
-
-    // 加载 COS 配置
+    // 加载 COS 配置（需在 expireStoredFiles 前加载，以便 deleteCosFiles 可用）
     m_cos->loadConfig();
+
+    deleteCosFiles(m_db->expireStoredFiles());
 
     if (!m_expireTimer) {
         m_expireTimer = new QTimer(this);
         m_expireTimer->setInterval(60 * 60 * 1000);
         connect(m_expireTimer, &QTimer::timeout, this, [this] {
-            m_db->expireStoredFiles();
+            deleteCosFiles(m_db->expireStoredFiles());
         });
     }
     m_expireTimer->start();
@@ -929,8 +929,10 @@ void ChatServer::handleLeaveRoom(ClientSession *session, const QJsonObject &data
     int memberCount = m_db->getRoomMemberCount(roomId);
     if (memberCount == 0) {
         // 没有成员了，自动删除房间
+        const QStringList autoCosUrls = m_db->getCosUrlsForRoom(roomId);
         m_db->deleteRoom(roomId);
         m_roomMgr->removeRoom(roomId);
+        deleteCosFiles(autoCosUrls);
         qInfo() << "[Server] 聊天室" << roomId << "因无成员自动解散";
     } else if (wasAdmin) {
         // issue 4: 如果离开的是管理员，检查房间是否还有管理员
@@ -1158,6 +1160,9 @@ bool ChatServer::applyFileCleanupPlan(int roomId, const QList<int> &fileIds, con
         pathById[f["fileId"].toInt()] = f["filePath"].toString();
     }
 
+    // 在标记清除前查询 COS URL
+    const QStringList cosUrls = m_db->getCosUrlsForFileIds(fileIds);
+
     if (!m_db->markRoomFilesCleared(roomId, fileIds, reason)) {
         return false;
     }
@@ -1170,6 +1175,8 @@ bool ChatServer::applyFileCleanupPlan(int roomId, const QList<int> &fileIds, con
         if (clearedIdsOut)
             clearedIdsOut->append(fileId);
     }
+
+    deleteCosFiles(cosUrls);
     return true;
 }
 
@@ -1560,6 +1567,12 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
     Q_UNUSED(session)
 }
 
+void ChatServer::deleteCosFiles(const QStringList &cosUrls) {
+    if (!m_cos->isEnabled()) return;
+    for (const QString &url : cosUrls)
+        m_cos->deleteCosFile(url);
+}
+
 void ChatServer::startCosUpload(const QString &localPath, const QString &fileName,
                                  const QString &dirPrefix, int fileId, bool isFriendFile,
                                  const QString &uploaderUsername, const QString &uploadId)
@@ -1669,11 +1682,14 @@ void ChatServer::handleRecall(ClientSession *session, const QJsonObject &data) {
         // 如果是文件消息，清理服务器文件
         auto fileInfo = m_db->getFileInfoForMessage(messageId);
         if (fileInfo.first > 0) {
+            const QString cosUrl = m_db->getCosUrl(fileInfo.first, false);
             if (!fileInfo.second.isEmpty()) {
                 QFile::remove(fileInfo.second);
                 qInfo() << "[Server] 撤回消息，已删除文件:" << fileInfo.second;
             }
             m_db->deleteFileRecords({fileInfo.first});
+            if (!cosUrl.isEmpty())
+                m_cos->deleteCosFile(cosUrl);
         }
 
         rspData["success"] = true;
@@ -1875,7 +1891,7 @@ void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject 
         deletedCount = m_db->deleteMessagesAfter(roomId, dt);
     }
 
-    // 清理文件：从 files 表删除记录 + 从磁盘删除物理文件
+    // 清理文件：从 files 表删除记录 + 从磁盘删除物理文件 + 从 COS 删除对象
     if (!fileInfos.isEmpty()) {
         QList<int> fileIds;
         QJsonArray deletedFileIds;
@@ -1888,7 +1904,9 @@ void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject 
                 qInfo() << "[Server] 已删除文件:" << info.second;
             }
         }
+        const QStringList cosUrls = m_db->getCosUrlsForFileIds(fileIds);
         m_db->deleteFileRecords(fileIds);
+        deleteCosFiles(cosUrls);
         rspData["deletedFileIds"] = deletedFileIds;
     }
 
@@ -2018,12 +2036,18 @@ void ChatServer::handleRoomFilesDelete(ClientSession *session, const QJsonObject
 
     QList<int> messageIds = m_db->getRoomMessageIdsByFileIds(roomId, deleteFileIds);
 
+    // 在删除记录前查询 COS URL
+    const QStringList cosUrls = m_db->getCosUrlsForFileIds(deleteFileIds);
+
     bool ok = true;
     if (!messageIds.isEmpty()) {
         ok = m_db->deleteMessages(roomId, messageIds);
     }
     if (ok && !deleteFileIds.isEmpty()) {
         ok = m_db->deleteFileRecords(deleteFileIds);
+    }
+    if (ok) {
+        deleteCosFiles(cosUrls);
     }
 
     if (!ok) {
@@ -2392,10 +2416,14 @@ void ChatServer::handleDeleteRoom(ClientSession *session, const QJsonObject &dat
     notifyData["operator"] = session->displayName();
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::DELETE_ROOM_NOTIFY, notifyData));
 
+    // 在 CASCADE 删除前查询该房间所有 COS 文件 URL
+    const QStringList roomCosUrls = m_db->getCosUrlsForRoom(roomId);
+
     // 从数据库删除（CASCADE 会清理 room_members, messages, files, room_admins, room_settings）
     if (m_db->deleteRoom(roomId)) {
         // 从内存缓存中移除
         m_roomMgr->removeRoom(roomId);
+        deleteCosFiles(roomCosUrls);
 
         rspData["success"] = true;
         rspData["roomName"] = roomName;
@@ -3158,9 +3186,14 @@ void ChatServer::handleFriendRecall(ClientSession *session, const QJsonObject &d
     if (ok) {
         // 清理服务器文件
         auto fileInfo = m_db->getFileInfoForFriendMessage(messageId);
-        if (fileInfo.first > 0 && !fileInfo.second.isEmpty()) {
-            QFile::remove(fileInfo.second);
-            qInfo() << "[Server] 好友撤回消息，已删除文件:" << fileInfo.second;
+        if (fileInfo.first > 0) {
+            const QString cosUrl = m_db->getCosUrl(fileInfo.first, true);
+            if (!fileInfo.second.isEmpty()) {
+                QFile::remove(fileInfo.second);
+                qInfo() << "[Server] 好友撤回消息，已删除文件:" << fileInfo.second;
+            }
+            if (!cosUrl.isEmpty())
+                m_cos->deleteCosFile(cosUrl);
         }
 
         rspData["success"] = true;

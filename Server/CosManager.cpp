@@ -105,6 +105,52 @@ QString CosManager::externalUrl(const QString &objectKey) const {
     return QStringLiteral("https://%1/%2").arg(externalHost(), objectKey);
 }
 
+QString CosManager::objectKeyFromUrl(const QString &cosUrl) const {
+    const QString prefix = QStringLiteral("https://%1/").arg(externalHost());
+    if (cosUrl.startsWith(prefix))
+        return cosUrl.mid(prefix.length());
+    return {};
+}
+
+void CosManager::deleteCosFile(const QString &cosUrl) {
+    if (!m_enabled || cosUrl.isEmpty()) return;
+
+    const QString objectKey = objectKeyFromUrl(cosUrl);
+    if (objectKey.isEmpty()) {
+        qWarning() << "[COS] deleteCosFile: 无法解析 objectKey，url=" << cosUrl;
+        return;
+    }
+
+    const QString path = "/" + objectKey;
+    const QString host = internalHost();
+
+    QMap<QString, QString> signHeaders;
+    signHeaders["host"] = host;
+
+    const QByteArray auth = sign("DELETE", path, signHeaders, {});
+
+    QUrl url;
+    url.setScheme(QStringLiteral("http"));
+    url.setHost(host);
+    url.setPath(path);
+
+    QNetworkRequest req(url);
+    req.setRawHeader("Host", host.toUtf8());
+    req.setRawHeader("Authorization", auth);
+
+    QNetworkReply *reply = m_nam->deleteResource(req);
+    connect(reply, &QNetworkReply::finished, this, [reply, objectKey]() {
+        reply->deleteLater();
+        if (reply->error() == QNetworkReply::NoError) {
+            qInfo() << "[COS] 已删除对象:" << objectKey;
+        } else {
+            qWarning() << "[COS] 删除对象失败:" << objectKey
+                       << reply->error()
+                       << QString::fromUtf8(reply->readAll().left(200));
+        }
+    });
+}
+
 QString CosManager::presignedUrl(const QString &cosUrl, int expireSeconds) const {
     // 从存储的 URL 中提取 objectKey（删除 https://host/ 前缀）
     QString host = externalHost();
