@@ -105,6 +105,30 @@ QString CosManager::externalUrl(const QString &objectKey) const {
     return QStringLiteral("https://%1/%2").arg(externalHost(), objectKey);
 }
 
+QString CosManager::presignedUrl(const QString &cosUrl, int expireSeconds) const {
+    // 从存储的 URL 中提取 objectKey（删除 https://host/ 前缀）
+    QString host = externalHost();
+    QString prefix = QStringLiteral("https://%1/").arg(host);
+    QString objectKey;
+    if (cosUrl.startsWith(prefix)) {
+        objectKey = cosUrl.mid(prefix.length());
+    } else {
+        // 如果 URL 格式不匹配，原样返回
+        return cosUrl;
+    }
+
+    // 用 COS V5 签名生成预签名 URL
+    QString path = QStringLiteral("/%1").arg(objectKey);
+    QMap<QString, QString> headers;
+    headers[QStringLiteral("host")] = host;
+    QMap<QString, QString> params;
+
+    QByteArray authorization = sign("get", path, headers, params, expireSeconds);
+
+    // 拼接带签名的 URL
+    return QStringLiteral("https://%1/%2?%3").arg(host, objectKey, QString::fromLatin1(authorization));
+}
+
 // ==================== COS V5 签名 ====================
 
 QByteArray CosManager::sign(const QByteArray &method,

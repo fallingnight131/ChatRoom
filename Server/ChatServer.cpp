@@ -608,10 +608,11 @@ void ChatServer::handleHttpRequest(QTcpSocket *socket) {
     if (m_cos->isEnabled()) {
         const QString cosUrl = m_db->getCosUrl(dbFileId, isFriendFile);
         if (!cosUrl.isEmpty()) {
+            const QString signedUrl = m_cos->presignedUrl(cosUrl);
             QByteArray resp;
             resp += "HTTP/1.1 302 Found\r\n";
             resp += "Access-Control-Allow-Origin: *\r\n";
-            resp += "Location: " + cosUrl.toUtf8() + "\r\n";
+            resp += "Location: " + signedUrl.toUtf8() + "\r\n";
             resp += "Connection: close\r\n\r\n";
             socket->write(resp);
             socket->disconnectFromHost();
@@ -1308,7 +1309,7 @@ void ChatServer::handleFileDownload(ClientSession *session, const QJsonObject &d
             rspData["success"]  = true;
             rspData["fileId"]   = fileId;
             rspData["fileName"] = dbFileName.isEmpty() ? data["fileName"].toString() : dbFileName;
-            rspData["cosUrl"]   = cosUrl;
+            rspData["cosUrl"]   = m_cos->presignedUrl(cosUrl);
             session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_RSP, rspData));
             return;
         }

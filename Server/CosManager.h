@@ -38,6 +38,11 @@ public:
     /// 生成外网访问 URL
     QString externalUrl(const QString &objectKey) const;
 
+    /// 生成带签名的预签名下载 URL（私有 bucket 必须使用）
+    /// @param cosUrl  数据库中存储的未签名 URL
+    /// @param expireSeconds  签名有效期（默认 3600 秒）
+    QString presignedUrl(const QString &cosUrl, int expireSeconds = 3600) const;
+
 private:
     // COS API 签名（V5 + HMAC-SHA1）
     QByteArray sign(const QByteArray &method,
