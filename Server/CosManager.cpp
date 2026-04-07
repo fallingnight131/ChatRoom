@@ -117,16 +117,28 @@ QString CosManager::presignedUrl(const QString &cosUrl, int expireSeconds) const
         return cosUrl;
     }
 
-    // 用 COS V5 签名生成预签名 URL
-    QString path = QStringLiteral("/%1").arg(objectKey);
+    // 对路径各段做 percent-encoding（用于 URL 路径部分）
+    QStringList segments = objectKey.split('/');
+    QStringList encodedSegments;
+    for (const QString &seg : segments) {
+        encodedSegments << QString::fromUtf8(QUrl::toPercentEncoding(seg));
+    }
+    QString encodedKey = encodedSegments.join('/');
+
+    // COS V5 签名中 UriPathname 使用原始（decoded）路径
+    QString rawPath = QStringLiteral("/%1").arg(objectKey);
     QMap<QString, QString> headers;
     headers[QStringLiteral("host")] = host;
     QMap<QString, QString> params;
 
-    QByteArray authorization = sign("get", path, headers, params, expireSeconds);
+    QByteArray authorization = sign("get", rawPath, headers, params, expireSeconds);
 
-    // 拼接带签名的 URL
-    return QStringLiteral("https://%1/%2?%3").arg(host, objectKey, QString::fromLatin1(authorization));
+    // 最终 URL 使用 encoded 路径
+    QString result = QStringLiteral("https://%1/%2?%3").arg(host, encodedKey, QString::fromLatin1(authorization));
+    qDebug() << "[COS] presignedUrl:" << "\n  objectKey:" << objectKey
+             << "\n  encodedKey:" << encodedKey
+             << "\n  result(200):" << result.left(200);
+    return result;
 }
 
 // ==================== COS V5 签名 ====================
