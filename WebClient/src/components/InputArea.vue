@@ -14,6 +14,7 @@
             <div class="progress-fill" :style="{ width: uploadPercent(u) + '%' }"></div>
           </div>
           <span class="upload-pct">{{ uploadPercent(u) }}%</span>
+          <span v-if="u.status === 'cos_uploading'" class="upload-phase">☁同步中</span>
           <button v-if="u.status === 'uploading'" class="btn-icon" @click="chatStore.pauseUpload(uid)" title="暂停">⏸</button>
           <button v-if="u.status === 'paused'" class="btn-icon" @click="chatStore.resumeUpload(uid)" title="继续">▶</button>
           <button class="btn-icon" @click="chatStore.cancelUpload(uid)" title="取消">✖</button>
@@ -127,7 +128,13 @@ async function onFileSelected(e) {
 
 function uploadPercent(u) {
   if (!u.fileSize) return 0
-  return Math.floor((u.sent / u.fileSize) * 100)
+  // 两阶段进度：上传到服务器 0-60%，COS 上传 60-100%
+  const serverPct = Math.min(u.sent / u.fileSize, 1) * 60
+  if (u.cosPhase && u.cosTotal > 0) {
+    const cosPct = Math.min(u.cosSent / u.cosTotal, 1) * 40
+    return Math.floor(serverPct + cosPct)
+  }
+  return Math.floor(serverPct)
 }
 </script>
 

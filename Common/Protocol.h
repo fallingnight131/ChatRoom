@@ -195,6 +195,9 @@ namespace MsgType {
     inline const QString FRIEND_RECALL_REQ    = QStringLiteral("FRIEND_RECALL_REQ");
     inline const QString FRIEND_RECALL_RSP    = QStringLiteral("FRIEND_RECALL_RSP");
     inline const QString FRIEND_RECALL_NOTIFY = QStringLiteral("FRIEND_RECALL_NOTIFY");
+
+    // COS 云存储上传进度 (服务端→客户端)
+    inline const QString FILE_COS_PROGRESS    = QStringLiteral("FILE_COS_PROGRESS");
 }
 
 // ==================== 数据包帧: [4字节长度][JSON数据] ====================

@@ -16,6 +16,7 @@ class QTimer;
 class ClientSession;
 class DatabaseManager;
 class RoomManager;
+class CosManager;
 
 /// 聊天服务器 —— 管理所有客户端连接和消息路由
 class ChatServer : public QTcpServer {
@@ -29,6 +30,7 @@ public:
 
     DatabaseManager *database() const { return m_db; }
     RoomManager     *roomManager() const { return m_roomMgr; }
+    CosManager      *cosManager() const { return m_cos; }
 
     // 向房间内所有成员广播消息
     void broadcastToRoom(int roomId, const QJsonObject &msg, ClientSession *exclude = nullptr);
@@ -123,8 +125,14 @@ private:
     /// 构建好友文件存放目录：server_files/friends/{friendshipId}/Image|Video|File/{yyyy-MM}/
     QString friendFileDir(int friendshipId, const QString &fileName) const;
 
+    /// 异步上传文件到 COS，发送进度给上传者
+    void startCosUpload(const QString &localPath, const QString &fileName,
+                        const QString &dirPrefix, int fileId, bool isFriendFile,
+                        const QString &uploaderUsername, const QString &uploadId);
+
     DatabaseManager *m_db       = nullptr;
     RoomManager     *m_roomMgr  = nullptr;
+    CosManager      *m_cos      = nullptr;
     QWebSocketServer *m_wsServer = nullptr;
     QTcpServer      *m_httpServer = nullptr;
     QTimer          *m_expireTimer = nullptr;

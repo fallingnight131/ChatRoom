@@ -1,6 +1,6 @@
 # 云服务器部署指南
 
-本指南以 **阿里云 Linux 服务器 + 宝塔面板 + Nginx** 为例，详细说明如何将 Qt 聊天室部署到公网。其他云厂商（腾讯云、华为云、AWS 等）流程类似。
+本指南以 **腾讯云轻量服务器 + 宝塔面板 + Nginx** 为例，详细说明如何将 Qt 聊天室部署到公网。其他云厂商（阿里云、华为云、AWS 等）流程类似。
 
 ---
 
@@ -16,9 +16,10 @@
 - [8. 防火墙与安全组](#8-防火墙与安全组)
 - [9. DNS 解析](#9-dns-解析)
 - [10. 客户端连接配置](#10-客户端连接配置)
-- [11. 部署脚本（快速部署）](#11-部署脚本快速部署)
-- [12. 运维管理](#12-运维管理)
-- [13. 常见问题排查](#13-常见问题排查)
+- [11. 腾讯云 COS 对象存储配置（可选）](#11-腾讯云-cos-对象存储配置可选)
+- [12. 部署脚本（快速部署）](#12-部署脚本快速部署)
+- [13. 运维管理](#13-运维管理)
+- [14. 常见问题排查](#14-常见问题排查)
 
 ---
 
@@ -28,8 +29,8 @@
 
 | 项目 | 说明 |
 |------|------|
-| 云服务器 | 1 核 2G 即可，推荐 2 核 4G |
-| 操作系统 | Alibaba Cloud Linux 3 / Ubuntu 22.04 / CentOS Stream 9 |
+| 云服务器 | 1 核 2G 即可，推荐 2 核 4G（腾讯云轻量服务器） |
+| 操作系统 | Ubuntu 22.04 / TencentOS Server 3 / CentOS Stream 9 |
 | 域名（可选） | 用于 HTTPS 和更友好的访问地址 |
 | SSL 证书（可选） | Let's Encrypt 免费证书 或 云厂商免费证书 |
 
@@ -60,7 +61,7 @@ npm run build
 ### 2.1 安装宝塔面板（推荐）
 
 ```bash
-# Alibaba Cloud Linux 3 / CentOS
+# TencentOS Server 3 / CentOS
 curl -sSO https://download.bt.cn/install/install_panel.sh && bash install_panel.sh ed8484bec
 
 # Ubuntu / Debian
@@ -76,7 +77,7 @@ curl -sSO https://download.bt.cn/install/install-ubuntu_6.0.sh && bash install-u
 根据你的系统选择对应命令：
 
 ```bash
-# ===== Alibaba Cloud Linux 3 / CentOS Stream 9 =====
+# ===== TencentOS Server 3 / CentOS Stream 9 =====
 sudo dnf install -y epel-release
 sudo dnf install -y qt5-qtbase-devel qt5-qtwebsockets-devel gcc-c++ make
 
@@ -89,7 +90,7 @@ sudo apt update
 sudo apt install -y qtbase5-dev libqt5websockets5-dev build-essential
 ```
 
-> **注意**：Alibaba Cloud Linux 3 和 CentOS 系统通常只有 Qt5 包。本项目兼容 Qt5/Qt6，代码通用。Ubuntu 22.04+ 可直接安装 Qt6。
+> **注意**：TencentOS Server 3 和 CentOS 系统通常只有 Qt5 包。本项目兼容 Qt5/Qt6，代码通用。Ubuntu 22.04+ 可直接安装 Qt6。
 
 ### 2.3 验证安装
 
@@ -415,7 +416,7 @@ sudo firewall-cmd --reload
 
 ### 8.2 云控制台安全组
 
-登录云控制台（如阿里云 ECS 控制台），在**安全组规则**中添加：
+登录云控制台（如腾讯云轻量服务器控制台），在**防火墙规则**中添加：
 
 | 方向 | 协议 | 端口范围 | 授权对象 | 说明 |
 |------|------|---------|---------|------|
@@ -468,7 +469,100 @@ sudo firewall-cmd --reload
 
 ---
 
-## 11. 部署脚本（快速部署）
+## 11. 腾讯云 COS 对象存储配置（可选）
+
+项目支持将上传的文件同步存储到腾讯云 COS（Cloud Object Storage）。启用后，文件上传流程变为：
+
+1. 客户端 → 服务器（WebSocket 分块上传，进度 0-60%）
+2. 服务器 → COS（内网 Endpoint 分片上传，进度 60-100%）
+3. 客户端下载/预览 → COS 外网 Endpoint 直链（302 重定向）
+
+**优势**：减轻服务器带宽压力，下载/预览走 COS CDN，支持大规模并发访问。
+
+### 11.1 创建 COS 存储桶
+
+1. 登录 [腾讯云控制台](https://console.cloud.tencent.com/cos) → **对象存储 COS**
+2. 点击 **创建存储桶**：
+   - 名称：例如 `chatroom`（系统会自动追加 `-APPID`）
+   - 地域：选择与服务器**相同地域**（例如 `ap-shanghai`），内网上传免流量费
+   - 访问权限：**公有读私有写**（文件可通过外网直链直接访问）
+3. 记录存储桶信息：
+   - 存储桶名称（含 APPID）：如 `chatroom-1250000000`
+   - 地域：如 `ap-shanghai`
+
+### 11.2 获取 API 密钥
+
+1. 进入 [访问管理 → API 密钥管理](https://console.cloud.tencent.com/cam/capi)
+2. 创建或查看密钥，记录 **SecretId** 和 **SecretKey**
+
+> ⚠️ 建议使用 **子账号密钥**，仅授权 COS 读写权限，避免主账号密钥泄露风险。
+
+### 11.3 配置服务端 .env
+
+在服务端可执行文件同目录下创建 `.env` 文件（或复制 `.env.example`）：
+
+```bash
+cd /opt/chatroom/Server   # 或 bin/ 目录
+cp /opt/chatroom/.env.example .env
+vim .env
+```
+
+填写 COS 配置：
+
+```bash
+COS_SECRET_ID=AKID你的SecretId
+COS_SECRET_KEY=你的SecretKey
+COS_BUCKET=chatroom-1250000000
+COS_REGION=ap-shanghai
+COS_INTERNAL_ENDPOINT=chatroom-1250000000.cos.internal.ap-shanghai.myqcloud.com
+COS_EXTERNAL_ENDPOINT=chatroom-1250000000.cos.ap-shanghai.myqcloud.com
+COS_PREFIX=chatroom/
+```
+
+> **内网 Endpoint**：腾讯云轻量服务器与 COS **同地域**时，通过内网传输不产生流量费用。格式为 `{bucket}.cos.internal.{region}.myqcloud.com`。
+>
+> **外网 Endpoint**：客户端下载/预览时使用，格式为 `{bucket}.cos.{region}.myqcloud.com`。
+
+### 11.4 验证 COS 连接
+
+重启服务后查看日志：
+
+```bash
+sudo systemctl restart chatroom
+sudo journalctl -u chatroom -n 20
+```
+
+看到以下日志说明 COS 已启用：
+
+```
+[COS] loaded config: bucket=chatroom-1250000000 region=ap-shanghai
+```
+
+上传一个文件后，应看到类似日志：
+
+```
+[COS] 开始上传: test.jpg objectKey= chatroom/room/1/Image/2026-04/1234567890_test.jpg
+[COS] 上传成功: test.jpg -> https://chatroom-1250000000.cos.ap-shanghai.myqcloud.com/chatroom/room/1/Image/2026-04/1234567890_test.jpg
+```
+
+### 11.5 COS 跨域配置（CORS）
+
+如果 Web 客户端需要直接从 COS 加载文件（如视频流式播放），需配置 CORS：
+
+1. 进入 COS 存储桶 → **安全管理** → **跨域访问 CORS**
+2. 添加规则：
+   - 来源 Origin：`*`（或限定为你的域名 `https://chat.example.com`）
+   - 操作 Methods：`GET, HEAD`
+   - Allow-Headers：`*`
+   - Expose-Headers：`Content-Length, Content-Range, Accept-Ranges`
+
+### 11.6 不启用 COS
+
+如果不需要 COS，无需配置。`.env` 中 COS 相关字段留空即可，服务端会自动检测并使用本地文件存储。
+
+---
+
+## 12. 部署脚本（快速部署）
 
 项目 `deploy/` 目录下提供了 4 个脚本，可以大幅简化部署流程。前面章节是手动操作的详细说明，**如果你想快速部署，直接使用这些脚本即可**。
 
@@ -480,7 +574,7 @@ deploy/
 └── update.sh        # [服务器 Linux]  更新部署（重新编译 + 重启服务）
 ```
 
-### 11.1 build_web.bat — 构建 Web 前端
+### 12.1 build_web.bat — 构建 Web 前端
 
 在本地 Windows 电脑上双击运行，自动安装依赖并构建生产版本。
 
@@ -499,7 +593,7 @@ deploy\build_web.bat
 
 构建完成后，将 `dist/` 目录内的文件上传到服务器网站根目录即可。
 
-### 11.2 upload.bat — 上传源码到服务器
+### 12.2 upload.bat — 上传源码到服务器
 
 通过 SCP 将服务端源码和部署脚本上传到服务器。
 
@@ -521,7 +615,7 @@ deploy\upload.bat 47.100.1.2 22
 
 > 也可以使用宝塔面板的文件管理器手动上传，效果相同。
 
-### 11.3 deploy.sh — 首次部署
+### 12.3 deploy.sh — 首次部署
 
 在服务器上执行，**一键完成**环境安装、编译和服务注册。适用于全新服务器的首次部署。
 
@@ -559,7 +653,7 @@ bash deploy.sh
     └── chatserver.log  # 运行日志
 ```
 
-### 11.4 update.sh — 更新部署
+### 12.4 update.sh — 更新部署
 
 服务端代码更新后，在服务器上执行此脚本即可重新编译并重启服务。
 
@@ -576,7 +670,7 @@ bash update.sh
 3. 重启 `chatserver` 服务
 4. 验证服务是否启动成功
 
-### 11.5 完整快速部署流程
+### 12.5 完整快速部署流程
 
 将以上脚本串联起来，首次部署只需 4 步：
 
@@ -610,9 +704,9 @@ cd /opt/chatroom && bash update.sh
 
 ---
 
-## 12. 运维管理
+## 13. 运维管理
 
-### 11.1 常用命令
+### 13.1 常用命令
 
 ```bash
 # 服务管理
@@ -631,7 +725,7 @@ sudo nginx -s reload              # 重载配置
 sudo nginx -s stop                # 停止
 ```
 
-### 11.2 数据备份
+### 13.2 数据备份
 
 服务端数据库文件位于 `WorkingDirectory` 下的 `chatroom.db`（SQLite），定期备份：
 
@@ -650,7 +744,7 @@ cp /opt/chatroom/Server/chatroom.db /backup/chatroom_$(date +%Y%m%d).db
 cp -r /opt/chatroom/Server/server_files/ /backup/server_files_$(date +%Y%m%d)/
 ```
 
-### 11.3 更新部署
+### 13.3 更新部署
 
 ```bash
 # 1. 上传新代码
@@ -672,7 +766,7 @@ scp -r WebClient/dist/* root@服务器:/www/wwwroot/chat/
 
 ---
 
-## 13. 常见问题排查
+## 14. 常见问题排查
 
 ### Q1: 编译报错找不到 Qt 头文件
 
@@ -799,6 +893,10 @@ client_max_body_size 100m;   # 或更大值
                 TCP   │  :9527 TCP            │
                       │  :9528 WebSocket      │
                       │  SQLite chatroom.db   │
-                      │  server_files/        │
-                      └──────────────────────┘
+                      │  server_files/        │                      └─────────────┬────────┘
+                                  │ 内网上传（可选）
+                      ┌─────────────▼────────┐
+                      │    腾讯云 COS          │
+                      │  内网 Endpoint 接收    │
+                      │  外网 Endpoint 分发    │                      └──────────────────────┘
 ```

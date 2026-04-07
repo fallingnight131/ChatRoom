@@ -211,9 +211,14 @@ export const useChatStore = defineStore('chat', {
       if (u.sent >= u.fileSize) {
         // 完成，发送缩略图
         chatWs.endUpload(uploadId, u.thumbnail || '')
-        u.status = 'finishing'
-        // 上传完成，延迟清理进度条并启动队列中下一个上传
-        setTimeout(() => { delete this.uploads[uploadId] }, 1500)
+        u.status = 'cos_uploading'
+        u.cosPhase = true
+        u.cosSent = 0
+        u.cosTotal = 0
+        // 延迟清理（若 COS 阶段还未开始则直接清除）
+        u._finishTimer = setTimeout(() => {
+          if (!u.cosPhase || u.status === 'cos_done') delete this.uploads[uploadId]
+        }, 8000)
         this._isUploading = false
         this._processNextUpload()
         return
@@ -621,7 +626,14 @@ export const useChatStore = defineStore('chat', {
           this._previewFileIds.delete(d.fileId)
           return
         }
-        if (d.success && d.fileData) {
+        if (d.success && d.cosUrl) {
+          // COS 文件：直接打开 COS 外网链接
+          const a = document.createElement('a')
+          a.href = d.cosUrl
+          a.download = d.fileName
+          a.target = '_blank'
+          a.click()
+        } else if (d.success && d.fileData) {
           const binary = atob(d.fileData)
           const bytes = new Uint8Array(binary.length)
           for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
@@ -663,6 +675,23 @@ export const useChatStore = defineStore('chat', {
         if (u && d.success) {
           u.sent = d.received
           this._sendNextChunk(d.uploadId)
+        }
+      })
+
+      // COS 上传进度
+      chatWs.on(MsgType.FILE_COS_PROGRESS, (msg) => {
+        const d = msg.data
+        const u = this.uploads[d.uploadId]
+        if (u) {
+          u.cosPhase = true
+          u.cosSent = d.sent
+          u.cosTotal = d.total
+          u.status = 'cos_uploading'
+          if (d.sent >= d.total && d.total > 0) {
+            u.status = 'cos_done'
+            if (u._finishTimer) clearTimeout(u._finishTimer)
+            setTimeout(() => { delete this.uploads[d.uploadId] }, 1500)
+          }
         }
       })
 

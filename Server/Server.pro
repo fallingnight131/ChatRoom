@@ -12,10 +12,12 @@ SOURCES += \
     ChatServer.cpp \
     ClientSession.cpp \
     DatabaseManager.cpp \
-    RoomManager.cpp
+    RoomManager.cpp \
+    CosManager.cpp
 
 HEADERS += \
     ChatServer.h \
     ClientSession.h \
     DatabaseManager.h \
-    RoomManager.h
+    RoomManager.h \
+    CosManager.h

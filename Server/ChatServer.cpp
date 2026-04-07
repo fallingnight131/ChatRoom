@@ -2,6 +2,7 @@
 #include "ClientSession.h"
 #include "DatabaseManager.h"
 #include "RoomManager.h"
+#include "CosManager.h"
 #include "Protocol.h"
 #include "Message.h"
 
@@ -76,6 +77,7 @@ ChatServer::ChatServer(QObject *parent)
 {
     m_db      = new DatabaseManager(this);
     m_roomMgr = new RoomManager(this);
+    m_cos     = new CosManager(this);
 }
 
 ChatServer::~ChatServer() {
@@ -117,6 +119,10 @@ bool ChatServer::startServer(quint16 port, quint16 wsPort, quint16 httpPort) {
     }
 
     m_db->expireStoredFiles();
+
+    // 加载 COS 配置
+    m_cos->loadConfig();
+
     if (!m_expireTimer) {
         m_expireTimer = new QTimer(this);
         m_expireTimer->setInterval(60 * 60 * 1000);
@@ -597,6 +603,21 @@ void ChatServer::handleHttpRequest(QTcpSocket *socket) {
     const bool asInline = (disposition == QStringLiteral("inline"));
     const bool isFriendFile = forceFriend || (fileIdRaw < 0);
     const int dbFileId = (fileIdRaw < 0) ? -fileIdRaw : fileIdRaw;
+
+    // 如果 COS 已启用且文件已上传到 COS，返回 302 重定向
+    if (m_cos->isEnabled()) {
+        const QString cosUrl = m_db->getCosUrl(dbFileId, isFriendFile);
+        if (!cosUrl.isEmpty()) {
+            QByteArray resp;
+            resp += "HTTP/1.1 302 Found\r\n";
+            resp += "Access-Control-Allow-Origin: *\r\n";
+            resp += "Location: " + cosUrl.toUtf8() + "\r\n";
+            resp += "Connection: close\r\n\r\n";
+            socket->write(resp);
+            socket->disconnectFromHost();
+            return;
+        }
+    }
 
     const QString filePath = m_db->getFilePath(dbFileId, isFriendFile);
     const QString fileName = m_db->getFileName(dbFileId, isFriendFile);
@@ -1277,10 +1298,23 @@ void ChatServer::handleFileDownload(ClientSession *session, const QJsonObject &d
     bool isFriendFile = (fileId < 0);
     int dbFileId = isFriendFile ? -fileId : fileId;
 
-    QString filePath = m_db->getFilePath(dbFileId, isFriendFile);
     QJsonObject rspData;
-
     QString dbFileName = m_db->getFileName(dbFileId, isFriendFile);
+
+    // 如果 COS 已启用且文件已上传，返回 COS URL 让客户端直接下载
+    if (m_cos->isEnabled()) {
+        QString cosUrl = m_db->getCosUrl(dbFileId, isFriendFile);
+        if (!cosUrl.isEmpty()) {
+            rspData["success"]  = true;
+            rspData["fileId"]   = fileId;
+            rspData["fileName"] = dbFileName.isEmpty() ? data["fileName"].toString() : dbFileName;
+            rspData["cosUrl"]   = cosUrl;
+            session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_RSP, rspData));
+            return;
+        }
+    }
+
+    QString filePath = m_db->getFilePath(dbFileId, isFriendFile);
     if (!filePath.isEmpty()) {
         QFile file(filePath);
         if (file.open(QIODevice::ReadOnly)) {
@@ -1469,6 +1503,13 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
             sendToUser(friendUsername, notifyMsg);
 
         qInfo() << "[Server] 好友大文件上传完成:" << state.fileName << state.fileSize << "bytes";
+
+        // COS 异步上传（好友文件）
+        if (m_cos->isEnabled()) {
+            startCosUpload(state.filePath, state.fileName,
+                           QStringLiteral("friends/%1/%2").arg(friendshipId).arg(typeDir),
+                           fileId, true, state.username, uploadId);
+        }
     } else {
         // 房间文件上传
         int fileId = m_db->saveFile(state.roomId, state.userId, state.fileName, state.filePath, state.fileSize);
@@ -1507,8 +1548,46 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
             releaseRoomFileQuota(state.roomId, state.fileSize);
 
         qInfo() << "[Server] 大文件上传完成:" << state.fileName << state.fileSize << "bytes";
+
+        // COS 异步上传（房间文件）
+        if (m_cos->isEnabled()) {
+            startCosUpload(state.filePath, state.fileName,
+                           QStringLiteral("room/%1/%2").arg(state.roomId).arg(typeDir),
+                           fileId, false, state.username, uploadId);
+        }
     }
     Q_UNUSED(session)
+}
+
+void ChatServer::startCosUpload(const QString &localPath, const QString &fileName,
+                                 const QString &dirPrefix, int fileId, bool isFriendFile,
+                                 const QString &uploaderUsername, const QString &uploadId)
+{
+    // 拼接 COS objectKey：prefix / dirPrefix / yyyy-MM / timestampFilename
+    QString month = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM"));
+    QString objectKey = QStringLiteral("%1/%2/%3")
+                            .arg(dirPrefix, month, QFileInfo(localPath).fileName());
+
+    auto onProgress = [this, uploaderUsername, uploadId](qint64 sent, qint64 total) {
+        QJsonObject pd;
+        pd["uploadId"] = uploadId;
+        pd["sent"]     = static_cast<double>(sent);
+        pd["total"]    = static_cast<double>(total);
+        sendToUser(uploaderUsername,
+                   Protocol::makeMessage(Protocol::MsgType::FILE_COS_PROGRESS, pd));
+    };
+
+    auto onFinished = [this, fileId, isFriendFile, fileName, objectKey](bool ok, const QString &urlOrError) {
+        if (ok) {
+            m_db->setCosUrl(fileId, isFriendFile, urlOrError);
+            qInfo() << "[COS] 上传成功:" << fileName << "->" << urlOrError;
+        } else {
+            qWarning() << "[COS] 上传失败:" << fileName << urlOrError;
+        }
+    };
+
+    m_cos->uploadFile(localPath, objectKey, onProgress, onFinished);
+    qInfo() << "[COS] 开始上传:" << fileName << "objectKey=" << objectKey;
 }
 
 void ChatServer::handleFileUploadCancel(ClientSession *session, const QJsonObject &data) {

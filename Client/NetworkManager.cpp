@@ -232,6 +232,9 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
     else if (type == Protocol::MsgType::FILE_UPLOAD_CHUNK_RSP) {
         emit uploadChunkResponse(data);
     }
+    else if (type == Protocol::MsgType::FILE_COS_PROGRESS) {
+        emit fileCosProgress(data);
+    }
     else if (type == Protocol::MsgType::FILE_DOWNLOAD_CHUNK_RSP) {
         emit downloadChunkResponse(data);
     }

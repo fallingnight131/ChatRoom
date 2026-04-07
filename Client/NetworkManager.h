@@ -61,6 +61,7 @@ signals:
     void uploadStartResponse(const QJsonObject &data);
     void uploadChunkResponse(const QJsonObject &data);
     void downloadChunkResponse(const QJsonObject &data);
+    void fileCosProgress(const QJsonObject &data);
 
     // 撤回
     void recallResponse(bool success, int messageId, const QString &error);

@@ -52,6 +52,7 @@
 #include <QPainterPath>
 #include <QStackedWidget>
 #include <QStyledItemDelegate>
+#include <QDesktopServices>
 #include <QDebug>
 
 #ifdef Q_OS_WIN
@@ -514,6 +515,7 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::uploadStartResponse, this, &ChatWindow::onUploadStartResponse);
     connect(net, &NetworkManager::uploadChunkResponse, this, &ChatWindow::onUploadChunkResponse);
     connect(net, &NetworkManager::downloadChunkResponse, this, &ChatWindow::onDownloadChunkResponse);
+    connect(net, &NetworkManager::fileCosProgress, this, &ChatWindow::onFileCosProgress);
 
     // 撤回
     connect(net, &NetworkManager::recallResponse, this, &ChatWindow::onRecallResponse);
@@ -1565,6 +1567,12 @@ void ChatWindow::onFileDownloadReady(const QJsonObject &data) {
         return;
     }
 
+    // COS 文件：服务器返回外网 URL，使用浏览器下载
+    if (data.contains("cosUrl") && !data["cosUrl"].toString().isEmpty()) {
+        QDesktopServices::openUrl(QUrl(data["cosUrl"].toString()));
+        return;
+    }
+
     int fileId = data["fileId"].toInt();
     QString fileName = data["fileName"].toString();
     QByteArray fileData = QByteArray::fromBase64(data["fileData"].toString().toUtf8());
@@ -1675,11 +1683,11 @@ void ChatWindow::sendNextChunk() {
 
     m_upload.offset += chunk.size();
     double progress = static_cast<double>(m_upload.offset) / m_upload.fileSize;
-    m_statusLabel->setText(QString("上传中 %1%...").arg(static_cast<int>(progress * 100)));
+    m_statusLabel->setText(QString("上传中 %1%...").arg(static_cast<int>(progress * 60)));
 
-    // 更新 UI 进度（如果有对应的消息）
+    // 更新 UI 进度（如果有对应的消息）——上传阶段占 0-60%
     if (m_uploadingFileId != 0) {
-        updateAllModelsDownloadProgress(m_uploadingFileId, Message::Uploading, progress);
+        updateAllModelsDownloadProgress(m_uploadingFileId, Message::Uploading, progress * 0.6);
     }
 }
 
@@ -1703,16 +1711,60 @@ void ChatWindow::onUploadChunkResponse(const QJsonObject &data) {
         }
         NetworkManager::instance()->sendMessage(
             Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_END, endData));
-        m_statusLabel->setText("文件上传完成，等待服务器确认...");
-        m_upload.uploadId.clear();
+        m_statusLabel->setText("文件已上传，正在同步到云端...");
+        // 保留 m_upload.uploadId 供 COS 进度回调使用
+        // 如果服务端未启用 COS，10秒后自动清理 uploadId
+        QString savedUploadId = m_upload.uploadId;
+        QTimer::singleShot(10000, this, [this, savedUploadId]() {
+            if (m_upload.uploadId == savedUploadId) {
+                m_upload.uploadId.clear();
+                if (m_statusLabel->text().contains("云端"))
+                    m_statusLabel->clear();
+            }
+        });
         // 注意：不清除 m_uploadingFileId 和 m_uploadingFileName
         // 等 FILE_NOTIFY 到达时再清除并移除临时上传消息
     } else if (m_uploadPaused) {
         // 上传暂停 — 不继续发送下一块
         m_statusLabel->setText(QString("上传已暂停 %1%")
-            .arg(static_cast<int>(m_upload.offset * 100 / m_upload.fileSize)));
+            .arg(static_cast<int>(m_upload.offset * 60 / m_upload.fileSize)));
     } else {
         sendNextChunk();
+    }
+}
+
+void ChatWindow::onFileCosProgress(const QJsonObject &data) {
+    const QString uploadId = data["uploadId"].toString();
+    // 只处理当前上传任务
+    if (uploadId.isEmpty() || uploadId != m_upload.uploadId)
+        return;
+
+    const qint64 sent  = static_cast<qint64>(data["sent"].toDouble());
+    const qint64 total = static_cast<qint64>(data["total"].toDouble());
+
+    if (total <= 0) return;
+
+    // COS 阶段占 60%-100%
+    double cosRatio = static_cast<double>(sent) / total;
+    double overallProgress = 0.6 + cosRatio * 0.4;
+    int pct = static_cast<int>(overallProgress * 100);
+
+    m_statusLabel->setText(QString("同步到云端 %1%...").arg(pct));
+
+    if (m_uploadingFileId != 0) {
+        updateAllModelsDownloadProgress(m_uploadingFileId, Message::Uploading, overallProgress);
+    }
+
+    if (sent >= total) {
+        // COS 上传完成
+        m_statusLabel->setText("文件上传完成");
+        m_upload.uploadId.clear();
+        m_uploadingFileId = 0;
+        m_uploadingFileName.clear();
+        QTimer::singleShot(2000, this, [this]() {
+            if (m_statusLabel->text() == "文件上传完成")
+                m_statusLabel->clear();
+        });
     }
 }
 
@@ -1720,18 +1772,18 @@ void ChatWindow::pauseUpload() {
     if (m_upload.uploadId.isEmpty()) return;
     m_uploadPaused = true;
     if (m_uploadingFileId != 0) {
-        double progress = static_cast<double>(m_upload.offset) / m_upload.fileSize;
+        double progress = static_cast<double>(m_upload.offset) / m_upload.fileSize * 0.6;
         updateAllModelsDownloadProgress(m_uploadingFileId, Message::UploadPaused, progress);
     }
     m_statusLabel->setText(QString("上传已暂停 %1%")
-        .arg(static_cast<int>(m_upload.offset * 100 / m_upload.fileSize)));
+        .arg(static_cast<int>(m_upload.offset * 60 / m_upload.fileSize)));
 }
 
 void ChatWindow::resumeUpload() {
     if (m_upload.uploadId.isEmpty()) return;
     m_uploadPaused = false;
     if (m_uploadingFileId != 0) {
-        double progress = static_cast<double>(m_upload.offset) / m_upload.fileSize;
+        double progress = static_cast<double>(m_upload.offset) / m_upload.fileSize * 0.6;
         updateAllModelsDownloadProgress(m_uploadingFileId, Message::Uploading, progress);
     }
     sendNextChunk();

@@ -74,6 +74,10 @@ public:
     QString getFileName(int fileId, bool isFriendFile = false);
     void    expireStoredFiles();
 
+    // COS 云存储 URL
+    bool    setCosUrl(int fileId, bool isFriendFile, const QString &cosUrl);
+    QString getCosUrl(int fileId, bool isFriendFile);
+
     // 管理员管理
     bool isRoomAdmin(int roomId, int userId);
     bool isRoomCreator(int roomId, int userId);

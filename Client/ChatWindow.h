@@ -111,6 +111,7 @@ private slots:
     // 大文件分块传输
     void onUploadStartResponse(const QJsonObject &data);
     void onUploadChunkResponse(const QJsonObject &data);
+    void onFileCosProgress(const QJsonObject &data);
     void onDownloadChunkResponse(const QJsonObject &data);
 
     // 头像

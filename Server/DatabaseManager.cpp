@@ -222,6 +222,7 @@ bool DatabaseManager::initialize() {
         q.exec("ALTER TABLE files ADD COLUMN cleared INTEGER DEFAULT 0");
         q.exec("ALTER TABLE files ADD COLUMN clear_reason TEXT DEFAULT ''");
         q.exec("ALTER TABLE files ADD COLUMN cleared_at TIMESTAMP DEFAULT NULL");
+        q.exec("ALTER TABLE files ADD COLUMN cos_url TEXT DEFAULT ''");
 
     // 房间管理员表
     q.exec("CREATE TABLE IF NOT EXISTS room_admins ("
@@ -386,6 +387,7 @@ bool DatabaseManager::initialize() {
     q.exec("ALTER TABLE friend_files ADD COLUMN cleared INTEGER DEFAULT 0");
     q.exec("ALTER TABLE friend_files ADD COLUMN clear_reason TEXT DEFAULT ''");
     q.exec("ALTER TABLE friend_files ADD COLUMN cleared_at TIMESTAMP DEFAULT NULL");
+    q.exec("ALTER TABLE friend_files ADD COLUMN cos_url TEXT DEFAULT ''");
 
     expireStoredFiles();
 
@@ -1003,6 +1005,34 @@ QString DatabaseManager::getFileName(int fileId, bool isFriendFile) {
     q.addBindValue(fileId);
     q.exec();
 
+    if (q.next())
+        return q.value(0).toString();
+    return {};
+}
+
+bool DatabaseManager::setCosUrl(int fileId, bool isFriendFile, const QString &cosUrl) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    if (isFriendFile) {
+        q.prepare("UPDATE friend_files SET cos_url = ? WHERE id = ?");
+    } else {
+        q.prepare("UPDATE files SET cos_url = ? WHERE id = ?");
+    }
+    q.addBindValue(cosUrl);
+    q.addBindValue(fileId);
+    return q.exec();
+}
+
+QString DatabaseManager::getCosUrl(int fileId, bool isFriendFile) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    if (isFriendFile) {
+        q.prepare("SELECT cos_url FROM friend_files WHERE id = ? AND cleared = 0");
+    } else {
+        q.prepare("SELECT cos_url FROM files WHERE id = ? AND cleared = 0");
+    }
+    q.addBindValue(fileId);
+    q.exec();
     if (q.next())
         return q.value(0).toString();
     return {};
