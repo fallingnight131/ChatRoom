@@ -613,42 +613,119 @@ void ChatServer::handleHttpRequest(QTcpSocket *socket) {
     const QByteArray encodedName = QUrl::toPercentEncoding(fileName);
     const QByteArray safeName = fileName.toUtf8().replace('"', '_');
 
+    // 解析 Range 请求头
+    const qint64 totalSize = file->size();
+    qint64 rangeStart = 0;
+    qint64 rangeEnd = totalSize - 1;
+    bool hasRange = false;
+
+    for (int i = 1; i < lines.size(); ++i) {
+        const QByteArray line = lines[i].trimmed();
+        if (line.startsWith("Range:")) {
+            const QByteArray rangeValue = line.mid(6).trimmed();
+            if (rangeValue.startsWith("bytes=")) {
+                const QString rangeSpec = QString::fromUtf8(rangeValue.mid(6));
+                const int dashIdx = rangeSpec.indexOf(QLatin1Char('-'));
+                if (dashIdx >= 0) {
+                    const QString startStr = rangeSpec.left(dashIdx).trimmed();
+                    const QString endStr = rangeSpec.mid(dashIdx + 1).trimmed();
+                    bool okStart = false, okEnd = false;
+                    if (!startStr.isEmpty()) {
+                        const qint64 s = startStr.toLongLong(&okStart);
+                        if (okStart && s >= 0 && s < totalSize) {
+                            rangeStart = s;
+                            hasRange = true;
+                            if (!endStr.isEmpty()) {
+                                const qint64 e = endStr.toLongLong(&okEnd);
+                                if (okEnd && e >= rangeStart && e < totalSize)
+                                    rangeEnd = e;
+                                else
+                                    rangeEnd = totalSize - 1;
+                            }
+                        }
+                    } else if (!endStr.isEmpty()) {
+                        // suffix range, e.g. bytes=-500
+                        const qint64 suffix = endStr.toLongLong(&okEnd);
+                        if (okEnd && suffix > 0 && suffix <= totalSize) {
+                            rangeStart = totalSize - suffix;
+                            hasRange = true;
+                        }
+                    }
+                }
+            }
+            break;
+        }
+    }
+
+    if (hasRange && (rangeStart > rangeEnd || rangeStart >= totalSize)) {
+        QByteArray resp;
+        resp += "HTTP/1.1 416 Range Not Satisfiable\r\n";
+        resp += "Content-Range: bytes */" + QByteArray::number(totalSize) + "\r\n";
+        resp += "Connection: close\r\n\r\n";
+        socket->write(resp);
+        file->close();
+        file->deleteLater();
+        socket->disconnectFromHost();
+        return;
+    }
+
+    const qint64 contentLength = rangeEnd - rangeStart + 1;
+
     QByteArray headers;
-    headers += "HTTP/1.1 200 OK\r\n";
+    if (hasRange) {
+        headers += "HTTP/1.1 206 Partial Content\r\n";
+    } else {
+        headers += "HTTP/1.1 200 OK\r\n";
+    }
     headers += "Access-Control-Allow-Origin: *\r\n";
     headers += "Access-Control-Allow-Methods: GET, OPTIONS\r\n";
-    headers += "Access-Control-Allow-Headers: Content-Type\r\n";
+    headers += "Access-Control-Allow-Headers: Content-Type, Range\r\n";
+    headers += "Accept-Ranges: bytes\r\n";
     headers += "Content-Type: " + mimeType + "\r\n";
-    headers += "Content-Length: " + QByteArray::number(file->size()) + "\r\n";
+    headers += "Content-Length: " + QByteArray::number(contentLength) + "\r\n";
+    if (hasRange) {
+        headers += "Content-Range: bytes " + QByteArray::number(rangeStart) + "-"
+                   + QByteArray::number(rangeEnd) + "/" + QByteArray::number(totalSize) + "\r\n";
+    }
     headers += "Content-Disposition: " + QByteArray(asInline ? "inline" : "attachment")
                + "; filename=\"" + safeName + "\"; filename*=UTF-8''" + encodedName + "\r\n";
     headers += "Connection: close\r\n\r\n";
     socket->write(headers);
 
+    if (hasRange) {
+        file->seek(rangeStart);
+    }
+
     // 非阻塞分段发送，避免大文件传输阻塞事件循环，影响并发下载请求处理。
-    const auto pump = [socket, file]() {
+    qint64 *remaining = new qint64(contentLength);
+    const auto pump = [socket, file, remaining]() {
         static const qint64 kChunkSize = 64 * 1024;
         static const qint64 kHighWater = 2 * 1024 * 1024;
 
         if (socket->state() != QAbstractSocket::ConnectedState) return;
 
-        while (socket->bytesToWrite() < kHighWater && !file->atEnd()) {
-            const QByteArray chunk = file->read(kChunkSize);
+        while (*remaining > 0 && socket->bytesToWrite() < kHighWater && !file->atEnd()) {
+            const qint64 toRead = qMin(kChunkSize, *remaining);
+            const QByteArray chunk = file->read(toRead);
             if (chunk.isEmpty()) break;
+            *remaining -= chunk.size();
             if (socket->write(chunk) < 0) {
                 socket->disconnectFromHost();
                 return;
             }
         }
 
-        if (file->atEnd() && socket->bytesToWrite() == 0) {
+        if ((*remaining <= 0 || file->atEnd()) && socket->bytesToWrite() == 0) {
             file->close();
             socket->disconnectFromHost();
         }
     };
 
     connect(socket, &QTcpSocket::bytesWritten, socket, [pump](qint64) { pump(); });
-    connect(socket, &QTcpSocket::disconnected, file, &QFile::deleteLater);
+    connect(socket, &QTcpSocket::disconnected, file, [file, remaining]() {
+        delete remaining;
+        file->deleteLater();
+    });
     pump();
 }
 void ChatServer::handleRegister(ClientSession *session, const QJsonObject &data) {
