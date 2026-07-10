@@ -125,7 +125,8 @@ list explains ownership and is reviewed manually.
 
 Request data normally includes `roomId`, `content`, and `contentType`. Clients may
 send `sender`, but persisted sender identity comes from the authenticated
-session. The server broadcast adds database `id`, `sender`, and `senderName`.
+session. The server requires durable room membership before persistence. The
+server broadcast adds database `id`, `sender`, and `senderName`.
 
 ### Direct chat
 
@@ -137,7 +138,7 @@ history and last-read IDs.
 
 Room and direct history accept a count and an optional `before` timestamp. This
 is timestamp pagination, not a contiguous message-sequence synchronization
-contract.
+contract. Room history/member responses require current room membership.
 
 ### Read state
 
@@ -148,7 +149,9 @@ not send a general read receipt event to all devices/participants.
 
 Recall is limited to 120 seconds for normal user recall. Administration has
 separate deletion operations. Recall/deletion notifications identify affected
-messages but there is no universal event sequence for replay.
+messages but there is no universal event sequence for replay. Room/message and
+direct-message/peer relationships are resolved or checked by the server; client
+resource fields do not select an unrelated notification target.
 
 ### Content types
 
@@ -162,7 +165,13 @@ Observed content types include `text`, `emoji`, `image`, `file`, `video`, and
 - the hard room-file ceiling is 10 GiB, subject to room settings;
 - friend file ceiling is 100 MiB;
 - downloads can use protocol chunks, server HTTP, or COS URLs depending on path
-  and client behavior.
+  and client behavior;
+- every download path requires current room membership or friendship, and every
+  large-upload mutation requires the authenticated upload owner.
+
+Existing response types may include the additive fields `success: false` and
+`error` when authorization fails. Existing successful response shapes and
+message type names remain compatible.
 
 ## V1 Compatibility Rules
 
@@ -186,6 +195,11 @@ contains the committed message, room membership survives reconnect, file
 notifications retain metadata, and recall reaches another participant. It also
 checks friend request/acceptance, accepted friend-list visibility, direct-message
 fan-out and history, and direct-message recall.
+
+`Tests/v1_authorization_test.py` uses three authenticated users to prove that
+resource identifiers do not grant room, message, upload, or attachment access.
+`python3 tools/verify_m0.py --v1-smoke` runs both suites against the same built
+server binary in separate isolated databases.
 
 The test uses randomized users, payload tokens, temporary SQLite/files, and a
 locally available three-port range. It must not depend on production credentials,

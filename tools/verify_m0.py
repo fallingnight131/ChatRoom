@@ -126,15 +126,16 @@ def build_headless_server(jobs: int, build_root: Path, target_name: str) -> Path
 
 def verify_v1_smoke(jobs: int, build_root: Path) -> None:
     executable = build_headless_server(jobs, build_root, "v1-smoke-server")
-    run(
-        [
-            sys.executable,
-            str(ROOT / "Tests" / "v1_smoke_test.py"),
-            "--server",
-            str(executable),
-        ],
-        ROOT,
-    )
+    for test_script in ("v1_smoke_test.py", "v1_authorization_test.py"):
+        run(
+            [
+                sys.executable,
+                str(ROOT / "Tests" / test_script),
+                "--server",
+                str(executable),
+            ],
+            ROOT,
+        )
 
 
 def verify_performance(

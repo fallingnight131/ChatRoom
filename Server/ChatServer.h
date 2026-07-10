@@ -56,6 +56,10 @@ private:
     QString generateFileToken(int userId);
     int validateFileToken(const QString &token) const;
     bool validateDeveloperKey(const QString &providedKey, QString *error = nullptr) const;
+    bool requireRoomMembership(ClientSession *session, int roomId,
+                               const QString &operation) const;
+    bool requireUploadOwnership(ClientSession *session, const QString &uploadId,
+                                QJsonObject *response = nullptr) const;
 
     void handleLogin(ClientSession *session, const QJsonObject &data);
     void handleRegister(ClientSession *session, const QJsonObject &data);

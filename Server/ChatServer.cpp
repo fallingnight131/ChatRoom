@@ -384,12 +384,18 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
     } else if (type == Protocol::MsgType::MARK_ROOM_READ) {
         if (session->isAuthenticated()) {
             int roomId = msg["data"].toObject()["roomId"].toInt();
-            m_db->markRoomRead(roomId, session->userId());
+            if (requireRoomMembership(session, roomId, QStringLiteral("room-mark-read")))
+                m_db->markRoomRead(roomId, session->userId());
         }
     } else if (type == Protocol::MsgType::MARK_FRIEND_READ) {
         if (session->isAuthenticated()) {
             int friendshipId = msg["data"].toObject()["friendshipId"].toInt();
-            m_db->markFriendRead(friendshipId, session->userId());
+            if (m_db->isUserInFriendship(friendshipId, session->userId())) {
+                m_db->markFriendRead(friendshipId, session->userId());
+            } else {
+                qWarning().noquote() << QStringLiteral("[Authz] denied operation=friend-mark-read userId=%1")
+                                            .arg(session->userId());
+            }
         }
     } else if (type == Protocol::MsgType::HEARTBEAT) {
         session->sendMessage(Protocol::makeHeartbeatAck());
@@ -462,6 +468,36 @@ int ChatServer::validateFileToken(const QString &token) const {
     if (it == m_fileTokens.constEnd()) return 0;
     if (it.value().second < QDateTime::currentDateTimeUtc()) return 0;
     return it.value().first;
+}
+
+bool ChatServer::requireRoomMembership(ClientSession *session, int roomId,
+                                       const QString &operation) const {
+    const int userId = session && session->isAuthenticated() ? session->userId() : 0;
+    if (userId > 0 && roomId > 0 && m_db->isUserInRoom(roomId, userId)) return true;
+
+    qWarning().noquote() << QStringLiteral("[Authz] denied operation=%1 userId=%2 roomId=%3")
+                                .arg(operation)
+                                .arg(userId)
+                                .arg(roomId);
+    return false;
+}
+
+bool ChatServer::requireUploadOwnership(ClientSession *session, const QString &uploadId,
+                                        QJsonObject *response) const {
+    const int userId = session && session->isAuthenticated() ? session->userId() : 0;
+    const auto it = m_uploads.constFind(uploadId);
+    const bool allowed = userId > 0 && it != m_uploads.constEnd()
+                         && it.value().userId == userId;
+    if (allowed) return true;
+
+    if (response) {
+        (*response)["uploadId"] = uploadId;
+        (*response)["success"] = false;
+        (*response)["error"] = QStringLiteral("无权操作该上传");
+    }
+    qWarning().noquote() << QStringLiteral("[Authz] denied operation=upload-owner userId=%1")
+                                .arg(userId);
+    return false;
 }
 
 bool ChatServer::validateDeveloperKey(const QString &providedKey, QString *error) const {
@@ -608,6 +644,15 @@ void ChatServer::handleHttpRequest(QTcpSocket *socket) {
     const bool asInline = (disposition == QStringLiteral("inline"));
     const bool isFriendFile = forceFriend || (fileIdRaw < 0);
     const int dbFileId = (fileIdRaw < 0) ? -fileIdRaw : fileIdRaw;
+
+    if (!m_db->canUserAccessFile(dbFileId, isFriendFile, tokenUserId)) {
+        qWarning().noquote() << QStringLiteral("[Authz] denied operation=http-file-download userId=%1 fileId=%2 friend=%3")
+                                    .arg(tokenUserId)
+                                    .arg(dbFileId)
+                                    .arg(isFriendFile);
+        writeSimple(403, "Forbidden", "Forbidden");
+        return;
+    }
 
     // 如果 COS 已启用且文件已上传到 COS，返回 302 重定向
     if (m_cos->isEnabled()) {
@@ -794,6 +839,7 @@ void ChatServer::handleChatMessage(ClientSession *session, const QJsonObject &ms
 
     QJsonObject data = msg["data"].toObject();
     int roomId = data["roomId"].toInt();
+    if (!requireRoomMembership(session, roomId, QStringLiteral("room-message-send"))) return;
 
     // 存入数据库
 #ifdef CHATROOM_ENABLE_BENCHMARK_METRICS
@@ -927,6 +973,15 @@ void ChatServer::handleLeaveRoom(ClientSession *session, const QJsonObject &data
     int roomId = data["roomId"].toInt();
     int userId = session->userId();
 
+    if (!requireRoomMembership(session, roomId, QStringLiteral("room-leave"))) {
+        QJsonObject rspData;
+        rspData["roomId"] = roomId;
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("您不在该聊天室中");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::LEAVE_ROOM_RSP, rspData));
+        return;
+    }
+
     // 从内存中移除（在线跟踪）
     m_roomMgr->removeUserFromRoom(roomId, userId);
 
@@ -991,6 +1046,8 @@ void ChatServer::handleLeaveRoom(ClientSession *session, const QJsonObject &data
 }
 
 void ChatServer::handleRoomList(ClientSession *session) {
+    if (!session->isAuthenticated()) return;
+
     // 只返回用户已加入的房间（带未读计数）
     QJsonArray roomArr = m_db->getUserJoinedRooms(session->userId());
     for (int i = 0; i < roomArr.size(); ++i) {
@@ -1006,6 +1063,15 @@ void ChatServer::handleRoomList(ClientSession *session) {
 
 void ChatServer::handleUserList(ClientSession *session, const QJsonObject &data) {
     int roomId = data["roomId"].toInt();
+
+    if (!requireRoomMembership(session, roomId, QStringLiteral("room-member-list"))) {
+        QJsonObject rspData;
+        rspData["roomId"] = roomId;
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("无权访问该聊天室");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::USER_LIST_RSP, rspData));
+        return;
+    }
 
     // 从 DB 获取所有房间成员
     QJsonArray members = m_db->getRoomMembers(roomId);
@@ -1030,6 +1096,7 @@ void ChatServer::handleUserList(ClientSession *session, const QJsonObject &data)
 
     QJsonObject rspData;
     rspData["roomId"] = roomId;
+    rspData["success"] = true;
     rspData["users"]  = userArr;
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::USER_LIST_RSP, rspData));
 }
@@ -1039,10 +1106,20 @@ void ChatServer::handleHistory(ClientSession *session, const QJsonObject &data) 
     int count  = data["count"].toInt(50);
     qint64 before = static_cast<qint64>(data["before"].toDouble(0));
 
+    if (!requireRoomMembership(session, roomId, QStringLiteral("room-history-read"))) {
+        QJsonObject rspData;
+        rspData["roomId"] = roomId;
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("无权访问该聊天室");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::HISTORY_RSP, rspData));
+        return;
+    }
+
     QJsonArray messages = m_db->getMessageHistory(roomId, count, before);
 
     QJsonObject rspData;
     rspData["roomId"]   = roomId;
+    rspData["success"]  = true;
     rspData["messages"] = messages;
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::HISTORY_RSP, rspData));
 }
@@ -1224,6 +1301,15 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
     qint64 fileSize   = static_cast<qint64>(data["fileSize"].toDouble());
     QString fileData  = data["fileData"].toString(); // base64
 
+    if (!requireRoomMembership(session, roomId, QStringLiteral("room-file-send"))) {
+        QJsonObject rsp;
+        rsp["roomId"] = roomId;
+        rsp["success"] = false;
+        rsp["error"] = QStringLiteral("无权向该聊天室发送文件");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, rsp));
+        return;
+    }
+
     QString quotaError;
     if (!tryReserveRoomFileQuota(roomId, fileSize, &quotaError)) {
         QJsonObject rsp;
@@ -1330,6 +1416,18 @@ void ChatServer::handleFileDownload(ClientSession *session, const QJsonObject &d
     int dbFileId = isFriendFile ? -fileId : fileId;
 
     QJsonObject rspData;
+    rspData["fileId"] = fileId;
+    if (!session->isAuthenticated()
+        || !m_db->canUserAccessFile(dbFileId, isFriendFile, session->userId())) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("无权访问该文件");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_RSP, rspData));
+        qWarning().noquote() << QStringLiteral("[Authz] denied operation=file-download userId=%1 fileId=%2 friend=%3")
+                                    .arg(session->isAuthenticated() ? session->userId() : 0)
+                                    .arg(dbFileId)
+                                    .arg(isFriendFile);
+        return;
+    }
     QString dbFileName = m_db->getFileName(dbFileId, isFriendFile);
 
     // 如果 COS 已启用且文件已上传，返回 COS URL 让客户端直接下载
@@ -1379,6 +1477,13 @@ void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject
     qint64 fileSize  = static_cast<qint64>(data["fileSize"].toDouble());
 
     QJsonObject rspData;
+
+    if (!requireRoomMembership(session, roomId, QStringLiteral("room-file-upload-start"))) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("无权向该聊天室上传文件");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
+        return;
+    }
 
     if (fileSize > Protocol::MAX_LARGE_FILE) {
         rspData["success"] = false;
@@ -1433,7 +1538,6 @@ void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject
 }
 
 void ChatServer::handleFileUploadChunk(ClientSession *session, const QJsonObject &data) {
-    Q_UNUSED(session)
     QString uploadId = data["uploadId"].toString();
 
     QJsonObject rspData;
@@ -1442,6 +1546,11 @@ void ChatServer::handleFileUploadChunk(ClientSession *session, const QJsonObject
     if (!m_uploads.contains(uploadId)) {
         rspData["success"] = false;
         rspData["error"]   = QStringLiteral("无效的上传ID");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_CHUNK_RSP, rspData));
+        return;
+    }
+
+    if (!requireUploadOwnership(session, uploadId, &rspData)) {
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_CHUNK_RSP, rspData));
         return;
     }
@@ -1463,6 +1572,18 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
     QString uploadId = data["uploadId"].toString();
 
     if (!m_uploads.contains(uploadId)) return;
+    if (!requireUploadOwnership(session, uploadId)) return;
+
+    const UploadState &pending = m_uploads[uploadId];
+    const bool stillAuthorized = pending.roomId < 0
+        ? m_db->isUserInFriendship(-pending.roomId, pending.userId)
+        : m_db->isUserInRoom(pending.roomId, pending.userId);
+    if (!stillAuthorized) {
+        qWarning().noquote() << QStringLiteral("[Authz] denied operation=upload-finalize userId=%1")
+                                    .arg(pending.userId);
+        handleFileUploadCancel(session, data);
+        return;
+    }
 
     UploadState state = m_uploads.take(uploadId);
     if (state.file) {
@@ -1589,7 +1710,6 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
                            fileId, false, state.username, uploadId);
         }
     }
-    Q_UNUSED(session)
 }
 
 void ChatServer::deleteCosFiles(const QStringList &cosUrls) {
@@ -1630,9 +1750,9 @@ void ChatServer::startCosUpload(const QString &localPath, const QString &fileNam
 }
 
 void ChatServer::handleFileUploadCancel(ClientSession *session, const QJsonObject &data) {
-    Q_UNUSED(session)
     QString uploadId = data["uploadId"].toString();
     if (!m_uploads.contains(uploadId)) return;
+    if (!requireUploadOwnership(session, uploadId)) return;
 
     UploadState state = m_uploads.take(uploadId);
     if (state.file) {
@@ -1657,10 +1777,22 @@ void ChatServer::handleFileDownloadChunk(ClientSession *session, const QJsonObje
     bool isFriendFile = (fileId < 0);
     int dbFileId = isFriendFile ? -fileId : fileId;
 
-    QString filePath = m_db->getFilePath(dbFileId, isFriendFile);
     QJsonObject rspData;
     rspData["fileId"] = fileId;
 
+    if (!session->isAuthenticated()
+        || !m_db->canUserAccessFile(dbFileId, isFriendFile, session->userId())) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("无权访问该文件");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_CHUNK_RSP, rspData));
+        qWarning().noquote() << QStringLiteral("[Authz] denied operation=file-download-chunk userId=%1 fileId=%2 friend=%3")
+                                    .arg(session->isAuthenticated() ? session->userId() : 0)
+                                    .arg(dbFileId)
+                                    .arg(isFriendFile);
+        return;
+    }
+
+    QString filePath = m_db->getFilePath(dbFileId, isFriendFile);
     if (filePath.isEmpty()) {
         rspData["success"] = false;
         rspData["error"]   = QStringLiteral("文件记录不存在");
@@ -1700,6 +1832,14 @@ void ChatServer::handleRecall(ClientSession *session, const QJsonObject &data) {
     QJsonObject rspData;
     rspData["messageId"] = messageId;
     rspData["roomId"]    = roomId;
+
+    if (!requireRoomMembership(session, roomId, QStringLiteral("room-message-recall"))
+        || !m_db->isMessageInRoom(messageId, roomId)) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("无权撤回该消息");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::RECALL_RSP, rspData));
+        return;
+    }
 
     // 验证消息所有权和时间限制
     bool ok = m_db->recallMessage(messageId, session->userId(), Protocol::RECALL_TIME_LIMIT_SEC);
@@ -1776,8 +1916,19 @@ void ChatServer::handleSetAdmin(ClientSession *session, const QJsonObject &data)
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_RSP, rspData));
         return;
     }
+    if (!m_db->isUserInRoom(roomId, targetUserId)) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("只能设置聊天室成员为管理员");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_RSP, rspData));
+        return;
+    }
 
-    m_db->setRoomAdmin(roomId, targetUserId, setAdmin);
+    if (!m_db->setRoomAdmin(roomId, targetUserId, setAdmin)) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("管理员权限更新失败");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::SET_ADMIN_RSP, rspData));
+        return;
+    }
 
     rspData["success"] = true;
     rspData["isAdmin"] = setAdmin;
@@ -2290,9 +2441,22 @@ void ChatServer::handleRoomSettings(ClientSession *session, const QJsonObject &d
     QJsonObject rspData;
     rspData["roomId"] = roomId;
 
+    if (!requireRoomMembership(session, roomId, QStringLiteral("room-settings-read"))) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("无权访问该聊天室");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
+        return;
+    }
+
     // 设置操作需要有效开发者秘钥
     if (data.contains("maxFileSize") || data.contains("totalFileSpace") ||
         data.contains("maxFileCount") || data.contains("maxMembers")) {
+        if (!m_db->isRoomAdmin(roomId, session->userId())) {
+            rspData["success"] = false;
+            rspData["error"] = QStringLiteral("只有管理员可以修改聊天室限制");
+            session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_SETTINGS_RSP, rspData));
+            return;
+        }
         QString keyError;
         if (!validateDeveloperKey(data["developerKey"].toString(), &keyError)) {
             rspData["success"] = false;
@@ -2888,10 +3052,10 @@ void ChatServer::handleFriendAccept(ClientSession *session, const QJsonObject &d
     if (!session->isAuthenticated()) return;
 
     int requestId = data["requestId"].toInt();
-    QString fromUsername = data["fromUsername"].toString(); // 客户端传递请求方用户名
+    QString fromUsername = m_db->getPendingFriendRequestSender(requestId, session->userId());
     QJsonObject rspData;
 
-    if (m_db->acceptFriendRequest(requestId, session->userId())) {
+    if (!fromUsername.isEmpty() && m_db->acceptFriendRequest(requestId, session->userId())) {
         rspData["success"] = true;
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_ACCEPT_RSP, rspData));
 
@@ -3203,13 +3367,17 @@ void ChatServer::handleFriendRecall(ClientSession *session, const QJsonObject &d
     if (!session->isAuthenticated()) return;
 
     int messageId = data["messageId"].toInt();
-    QString friendUsername = data["friendUsername"].toString();
+    const int friendshipId = m_db->getFriendshipIdForOwnedMessage(messageId, session->userId());
+    const QString friendUsername = friendshipId > 0
+        ? m_db->getOtherFriendUsername(friendshipId, session->userId())
+        : QString();
 
     QJsonObject rspData;
     rspData["messageId"] = messageId;
     rspData["friendUsername"] = friendUsername;
 
-    bool ok = m_db->recallFriendMessage(messageId, session->userId(), Protocol::RECALL_TIME_LIMIT_SEC);
+    bool ok = friendshipId > 0 && !friendUsername.isEmpty()
+        && m_db->recallFriendMessage(messageId, session->userId(), Protocol::RECALL_TIME_LIMIT_SEC);
     if (ok) {
         // 清理服务器文件
         auto fileInfo = m_db->getFileInfoForFriendMessage(messageId);
@@ -3241,9 +3409,4 @@ void ChatServer::handleFriendRecall(ClientSession *session, const QJsonObject &d
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_RECALL_RSP, rspData));
     }
 }
-
-
-
-
-
 

@@ -964,6 +964,15 @@ bool DatabaseManager::recallMessage(int messageId, int userId, int timeLimitSec)
     return q.exec();
 }
 
+bool DatabaseManager::isMessageInRoom(int messageId, int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT 1 FROM messages WHERE id = ? AND room_id = ?");
+    q.addBindValue(messageId);
+    q.addBindValue(roomId);
+    return q.exec() && q.next();
+}
+
 QPair<int, QString> DatabaseManager::getFileInfoForMessage(int messageId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
@@ -1033,6 +1042,30 @@ QString DatabaseManager::getFileName(int fileId, bool isFriendFile) {
     return {};
 }
 
+bool DatabaseManager::canUserAccessFile(int fileId, bool isFriendFile, int userId) {
+    if (fileId <= 0 || userId <= 0) return false;
+
+    expireStoredFiles();
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    if (isFriendFile) {
+        q.prepare("SELECT 1 FROM friend_files ff "
+                  "JOIN friendships fs ON fs.id = ff.friendship_id "
+                  "WHERE ff.id = ? AND ff.cleared = 0 "
+                  "AND (fs.user_id1 = ? OR fs.user_id2 = ?)");
+        q.addBindValue(fileId);
+        q.addBindValue(userId);
+        q.addBindValue(userId);
+    } else {
+        q.prepare("SELECT 1 FROM files f "
+                  "JOIN room_members rm ON rm.room_id = f.room_id "
+                  "WHERE f.id = ? AND f.cleared = 0 AND rm.user_id = ?");
+        q.addBindValue(fileId);
+        q.addBindValue(userId);
+    }
+    return q.exec() && q.next();
+}
+
 bool DatabaseManager::setCosUrl(int fileId, bool isFriendFile, const QString &cosUrl) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
@@ -1066,7 +1099,9 @@ QString DatabaseManager::getCosUrl(int fileId, bool isFriendFile) {
 bool DatabaseManager::isRoomAdmin(int roomId, int userId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
-    q.prepare("SELECT 1 FROM room_admins WHERE room_id = ? AND user_id = ?");
+    q.prepare("SELECT 1 FROM room_admins ra "
+              "JOIN room_members rm ON rm.room_id = ra.room_id AND rm.user_id = ra.user_id "
+              "WHERE ra.room_id = ? AND ra.user_id = ?");
     q.addBindValue(roomId);
     q.addBindValue(userId);
     q.exec();
@@ -1088,6 +1123,7 @@ bool DatabaseManager::setRoomAdmin(int roomId, int userId, bool isAdmin) {
     QSqlQuery q(db);
 
     if (isAdmin) {
+        if (!isUserInRoom(roomId, userId)) return false;
         q.prepare("INSERT OR IGNORE INTO room_admins (room_id, user_id) VALUES (?, ?)");
     } else {
         q.prepare("DELETE FROM room_admins WHERE room_id = ? AND user_id = ?");
@@ -1101,8 +1137,9 @@ QList<int> DatabaseManager::getRoomAdmins(int roomId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
-    // 只查询 room_admins 表中的显式管理员
-    q.prepare("SELECT user_id FROM room_admins WHERE room_id = ?");
+    q.prepare("SELECT ra.user_id FROM room_admins ra "
+              "JOIN room_members rm ON rm.room_id = ra.room_id AND rm.user_id = ra.user_id "
+              "WHERE ra.room_id = ?");
     q.addBindValue(roomId);
     q.exec();
 
@@ -1117,8 +1154,9 @@ bool DatabaseManager::hasAnyAdmin(int roomId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
-    // 只检查 room_admins 表
-    q.prepare("SELECT 1 FROM room_admins WHERE room_id = ? LIMIT 1");
+    q.prepare("SELECT 1 FROM room_admins ra "
+              "JOIN room_members rm ON rm.room_id = ra.room_id AND rm.user_id = ra.user_id "
+              "WHERE ra.room_id = ? LIMIT 1");
     q.addBindValue(roomId);
     q.exec();
     return q.next();
@@ -1616,6 +1654,18 @@ bool DatabaseManager::sendFriendRequest(int fromUserId, int toUserId) {
     return q.exec();
 }
 
+QString DatabaseManager::getPendingFriendRequestSender(int requestId, int recipientUserId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT u.username FROM friend_requests fr "
+              "JOIN users u ON u.id = fr.from_user_id "
+              "WHERE fr.id = ? AND fr.to_user_id = ? AND fr.status = 'pending'");
+    q.addBindValue(requestId);
+    q.addBindValue(recipientUserId);
+    if (q.exec() && q.next()) return q.value(0).toString();
+    return {};
+}
+
 bool DatabaseManager::acceptFriendRequest(int requestId, int userId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
@@ -1763,6 +1813,32 @@ int DatabaseManager::getFriendshipId(int userId1, int userId2) {
     return -1;
 }
 
+bool DatabaseManager::isUserInFriendship(int friendshipId, int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT 1 FROM friendships "
+              "WHERE id = ? AND (user_id1 = ? OR user_id2 = ?)");
+    q.addBindValue(friendshipId);
+    q.addBindValue(userId);
+    q.addBindValue(userId);
+    return q.exec() && q.next();
+}
+
+QString DatabaseManager::getOtherFriendUsername(int friendshipId, int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT u.username FROM friendships fs "
+              "JOIN users u ON u.id = CASE "
+              "WHEN fs.user_id1 = ? THEN fs.user_id2 ELSE fs.user_id1 END "
+              "WHERE fs.id = ? AND (fs.user_id1 = ? OR fs.user_id2 = ?)");
+    q.addBindValue(userId);
+    q.addBindValue(friendshipId);
+    q.addBindValue(userId);
+    q.addBindValue(userId);
+    if (q.exec() && q.next()) return q.value(0).toString();
+    return {};
+}
+
 int DatabaseManager::ensureSelfFriendship(int userId) {
     int existing = getFriendshipId(userId, userId);
     if (existing > 0) return existing;
@@ -1885,6 +1961,17 @@ bool DatabaseManager::recallFriendMessage(int messageId, int userId, int timeLim
     q.prepare("UPDATE friend_messages SET recalled = 1, content = '此消息已被撤回' WHERE id = ?");
     q.addBindValue(messageId);
     return q.exec();
+}
+
+int DatabaseManager::getFriendshipIdForOwnedMessage(int messageId, int userId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare("SELECT friendship_id FROM friend_messages "
+              "WHERE id = ? AND sender_id = ? AND recalled = 0");
+    q.addBindValue(messageId);
+    q.addBindValue(userId);
+    if (q.exec() && q.next()) return q.value(0).toInt();
+    return -1;
 }
 
 QPair<int, QString> DatabaseManager::getFileInfoForFriendMessage(int messageId) {

@@ -63,6 +63,7 @@ public:
                      qint64 fileSize = 0, int fileId = 0,
                      const QString &thumbnail = QString());
     QJsonArray getMessageHistory(int roomId, int count, qint64 beforeTimestamp = 0);
+    bool isMessageInRoom(int messageId, int roomId);
     bool recallMessage(int messageId, int userId, int timeLimitSec);
     /// 获取单条消息关联的文件信息 (file_id, file_path)，用于撤回时清理文件
     QPair<int, QString> getFileInfoForMessage(int messageId);
@@ -72,6 +73,7 @@ public:
                      const QString &filePath, qint64 fileSize);
     QString getFilePath(int fileId, bool isFriendFile = false);
     QString getFileName(int fileId, bool isFriendFile = false);
+    bool canUserAccessFile(int fileId, bool isFriendFile, int userId);
     /// 过期处理，返回需要从 COS 删除的 URL 列表
     QStringList expireStoredFiles();
 
@@ -121,13 +123,16 @@ public:
 
     // 好友系统
     bool sendFriendRequest(int fromUserId, int toUserId);
+    QString getPendingFriendRequestSender(int requestId, int recipientUserId);
     bool acceptFriendRequest(int requestId, int userId);
     bool rejectFriendRequest(int requestId, int userId);
     QJsonArray getPendingFriendRequests(int userId);
     QJsonArray getFriendList(int userId);
     bool areFriends(int userId1, int userId2);
+    bool isUserInFriendship(int friendshipId, int userId);
     bool removeFriend(int userId1, int userId2);
     int  getFriendshipId(int userId1, int userId2);
+    QString getOtherFriendUsername(int friendshipId, int userId);
     int  ensureSelfFriendship(int userId);
 
     // 未读消息
@@ -147,6 +152,7 @@ public:
 
     // 好友消息撤回
     bool recallFriendMessage(int messageId, int userId, int timeLimitSec);
+    int getFriendshipIdForOwnedMessage(int messageId, int userId);
     QPair<int, QString> getFileInfoForFriendMessage(int messageId);
 
     // 好友文件

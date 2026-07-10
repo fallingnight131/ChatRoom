@@ -85,9 +85,10 @@ multi-device.
 
 1. Session parses `CHAT_MSG`.
 2. Server uses the authenticated session identity for persisted sender ID.
-3. Server synchronously inserts the message into SQLite.
-4. Server constructs a new JSON message with database ID and sender display data.
-5. Server copies the in-memory room member list and queues a send to each online
+3. Server verifies durable room membership.
+4. Server synchronously inserts the message into SQLite.
+5. Server constructs a new JSON message with database ID and sender display data.
+6. Server copies the in-memory room member list and queues a send to each online
    session.
 
 V1 has no client send idempotency key, per-conversation sequence, durable
@@ -138,8 +139,9 @@ These are recorded for prioritization, not silently fixed by this baseline:
 
 1. **Unversioned migrations:** startup executes repeated `ALTER TABLE` statements,
    ignores expected duplicate-column errors, and has no schema version ledger.
-2. **Credential storage:** password hashes use fast SHA-256 plus salt and the web
-   client keeps plaintext credentials in browser session storage.
+2. **Authentication transport/session:** passwords are Argon2id at rest and the
+   Web client keeps reconnect credentials only in page memory, but plaintext
+   TCP/WS remains possible and V1 has no revocable device/refresh sessions.
 3. **Room password storage:** room passwords are stored and compared as plaintext.
 4. **Reliability semantics:** message retries can duplicate messages; ordering is
    timestamp/row based; reconnect has no sequence delta sync.

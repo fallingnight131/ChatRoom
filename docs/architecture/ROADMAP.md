@@ -69,8 +69,8 @@ Progress:
   browser session keys.
 - [x] Introduce libsodium Argon2id hashing for new/changed passwords and upgrade
   legacy salted SHA-256 rows after successful login.
-- [ ] Enforce server-side membership/permission checks across message and file
-  operations.
+- [x] Enforce server-side membership/permission checks across room/direct
+  message, administration, read-state, upload, and file-download operations.
 - [ ] Add transport/input/backpressure limits and remaining reliable-message
   semantics.
 

@@ -148,11 +148,12 @@ def register(client: V1Client, username: str, display_name: str, password: str) 
     require_success(client.receive_type("REGISTER_RSP"))
 
 
-def login(client: V1Client, username: str, password: str) -> None:
+def login(client: V1Client, username: str, password: str) -> dict[str, object]:
     client.send("LOGIN_REQ", {"username": username, "password": password})
     payload = require_success(client.receive_type("LOGIN_RSP"))
     if payload.get("username") != username:
         raise SmokeFailure(f"login returned wrong username for {username}")
+    return payload
 
 
 def run_smoke(server_path: Path) -> None:

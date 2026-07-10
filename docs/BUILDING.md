@@ -97,10 +97,13 @@ with only server-side image thumbnail generation disabled. It then launches the
 server on an isolated local three-port range with a temporary database and file
 directory.
 
-The smoke client verifies registration, login, room creation/join, authenticated
-sender identity, message fan-out, history persistence, file notification
-metadata, disconnect/reconnect, persistent membership, post-reconnect delivery,
-and recall. It does not use production ports, credentials, databases, or COS.
+The positive smoke client verifies registration, login, room creation/join,
+authenticated sender identity, message fan-out, history persistence, file
+notification metadata, disconnect/reconnect, persistent membership,
+post-reconnect delivery, and recall. A second three-user suite verifies negative
+authorization for room data/settings, cross-room recall, message/file writes,
+upload ownership, TCP downloads, and HTTP downloads. Neither suite uses
+production ports, credentials, databases, or COS.
 
 CI runs the same smoke test on Ubuntu 24.04 after installing Qt Base, Qt SQLite,
 Qt WebSockets, and libsodium development packages.

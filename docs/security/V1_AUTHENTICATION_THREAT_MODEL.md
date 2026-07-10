@@ -3,8 +3,9 @@
 ## Scope
 
 This living document covers V1 Qt/Web login credentials, browser credential
-lifetime, transport assumptions, and server password verification. The first M1
-slice only changes browser persistence; unresolved risks below remain open.
+lifetime, transport assumptions, and server password verification. Resource
+authorization is maintained separately in
+[`V1_AUTHORIZATION_MATRIX.md`](V1_AUTHORIZATION_MATRIX.md).
 
 ## Assets and Trust Boundaries
 
