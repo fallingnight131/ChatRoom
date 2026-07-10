@@ -63,7 +63,7 @@ Result:
 
 ```text
 PASS: register, login, room join, message fan-out, history, file metadata,
-reconnect, and recall
+reconnect, recall, friendship, and direct chat
 ```
 
 The headless server compiled and linked without QtGui, then the smoke client

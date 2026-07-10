@@ -161,6 +161,7 @@ def run_smoke(server_path: Path) -> None:
     bob_name = f"bob_{secrets.token_hex(3)}"
     token = f"m0-room-message-{uuid.uuid4()}"
     second_token = f"m0-reconnect-message-{uuid.uuid4()}"
+    direct_token = f"m0-direct-message-{uuid.uuid4()}"
     base_port = find_port_range()
 
     with tempfile.TemporaryDirectory(prefix="chat-room-v1-smoke-") as temp_path:
@@ -266,9 +267,90 @@ def run_smoke(server_path: Path) -> None:
             recall_match = lambda message: data(message).get("messageId") == message_id
             bob_reconnected.receive_type("RECALL_NOTIFY", predicate=recall_match)
 
+            alice.send("FRIEND_REQUEST_REQ", {"username": bob_name})
+            require_success(alice.receive_type("FRIEND_REQUEST_RSP"))
+            request_match = lambda message: data(message).get("fromUsername") == alice_name
+            bob_reconnected.receive_type("FRIEND_REQUEST_NOTIFY", predicate=request_match)
+
+            bob_reconnected.send("FRIEND_PENDING_REQ")
+            pending = data(
+                bob_reconnected.receive_type("FRIEND_PENDING_RSP")
+            ).get("requests")
+            if not isinstance(pending, list):
+                raise SmokeFailure("pending friend response did not contain a request list")
+            request = next(
+                (
+                    item
+                    for item in pending
+                    if isinstance(item, dict) and item.get("fromUsername") == alice_name
+                ),
+                None,
+            )
+            if not isinstance(request, dict) or not isinstance(request.get("requestId"), int):
+                raise SmokeFailure("Alice's friend request was absent from Bob's pending list")
+
+            bob_reconnected.send(
+                "FRIEND_ACCEPT_REQ",
+                {"requestId": request["requestId"], "fromUsername": alice_name},
+            )
+            require_success(bob_reconnected.receive_type("FRIEND_ACCEPT_RSP"))
+            accept_match = lambda message: data(message).get("acceptedBy") == bob_name
+            alice.receive_type("FRIEND_ACCEPT_NOTIFY", predicate=accept_match)
+
+            alice.send("FRIEND_LIST_REQ")
+            alice_friends = data(alice.receive_type("FRIEND_LIST_RSP")).get("friends")
+            if not isinstance(alice_friends, list) or not any(
+                isinstance(friend, dict) and friend.get("username") == bob_name
+                for friend in alice_friends
+            ):
+                raise SmokeFailure("Bob was absent from Alice's accepted friend list")
+
+            alice.send(
+                "FRIEND_CHAT_MSG",
+                {
+                    "friendUsername": bob_name,
+                    "content": direct_token,
+                    "contentType": "text",
+                },
+            )
+            direct_match = lambda message: data(message).get("content") == direct_token
+            alice_direct = alice.receive_type("FRIEND_CHAT_MSG", predicate=direct_match)
+            bob_direct = bob_reconnected.receive_type(
+                "FRIEND_CHAT_MSG", predicate=direct_match
+            )
+            direct_message_id = data(alice_direct).get("id")
+            if not isinstance(direct_message_id, int) or direct_message_id <= 0:
+                raise SmokeFailure("direct message did not receive a persisted ID")
+            if data(bob_direct).get("id") != direct_message_id:
+                raise SmokeFailure("direct-message participants observed different IDs")
+
+            bob_reconnected.send(
+                "FRIEND_HISTORY_REQ", {"friendUsername": alice_name, "count": 20}
+            )
+            direct_history = data(
+                bob_reconnected.receive_type("FRIEND_HISTORY_RSP")
+            ).get("messages")
+            if not isinstance(direct_history, list) or not any(
+                isinstance(message, dict) and message.get("content") == direct_token
+                for message in direct_history
+            ):
+                raise SmokeFailure("persisted direct message was absent from history")
+
+            alice.send(
+                "FRIEND_RECALL_REQ",
+                {"messageId": direct_message_id, "friendUsername": bob_name},
+            )
+            require_success(alice.receive_type("FRIEND_RECALL_RSP"))
+            direct_recall_match = (
+                lambda message: data(message).get("messageId") == direct_message_id
+            )
+            bob_reconnected.receive_type(
+                "FRIEND_RECALL_NOTIFY", predicate=direct_recall_match
+            )
+
             print(
                 "[V1SmokeTest] PASS: register, login, room join, message fan-out, "
-                "history, file metadata, reconnect, and recall"
+                "history, file metadata, reconnect, recall, friendship, and direct chat"
             )
         except Exception:
             if process.poll() is None:
@@ -316,4 +398,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

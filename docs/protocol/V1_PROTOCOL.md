@@ -183,7 +183,9 @@ Until V1 retirement:
 server process. It checks that persisted sender identity comes from the
 authenticated session, recipients see the same database message ID, history
 contains the committed message, room membership survives reconnect, file
-notifications retain metadata, and recall reaches another participant.
+notifications retain metadata, and recall reaches another participant. It also
+checks friend request/acceptance, accepted friend-list visibility, direct-message
+fan-out and history, and direct-message recall.
 
 The test uses randomized users, payload tokens, temporary SQLite/files, and a
 locally available three-port range. It must not depend on production credentials,

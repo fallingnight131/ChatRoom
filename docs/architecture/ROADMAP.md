@@ -24,8 +24,8 @@ Progress:
 - [x] Add a clean/restart SQLite schema consistency regression test.
 - [x] Add real V1 TCP smoke coverage for login, room chat, history, file metadata,
   reconnect, and recall.
-- [ ] Extend V1 smoke coverage to friend request/direct-message flows.
-- [ ] Add critical V1 integration smoke tests.
+- [x] Extend V1 smoke coverage to friend request/direct-message flows.
+- [x] Add critical V1 integration smoke tests.
 - [ ] Record the first reproducible performance baseline.
 
 Work:
