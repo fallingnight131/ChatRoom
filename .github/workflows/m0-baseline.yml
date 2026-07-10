@@ -1,0 +1,28 @@
+name: M0 Baseline
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  inventory-and-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: WebClient/package-lock.json
+
+      - name: Verify source inventory and web build
+        run: python3 tools/verify_m0.py --web
+

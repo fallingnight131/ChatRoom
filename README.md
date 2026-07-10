@@ -128,6 +128,7 @@ ChatRoom/
 - [当前系统基线](docs/architecture/CURRENT_SYSTEM.md)
 - [V1 协议基线](docs/protocol/V1_PROTOCOL.md)
 - [V1 SQLite 基线](docs/data/V1_SQLITE_SCHEMA.md)
+- [可重复构建与验证](docs/BUILDING.md)
 - [迭代路线图](docs/architecture/ROADMAP.md)
 - [架构决策记录](docs/architecture/decisions/)
 - [Codex/Agent 工程约定](AGENTS.md)
