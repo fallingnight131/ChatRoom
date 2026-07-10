@@ -1,0 +1,4 @@
+interface:
+  display_name: "Chat Quality Verification"
+  short_description: "Verify chat reliability, security, and performance"
+  default_prompt: "Use $verify-chat-quality to define and run the right checks for this chat-system change."

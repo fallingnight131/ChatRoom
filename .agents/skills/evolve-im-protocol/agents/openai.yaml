@@ -1,0 +1,4 @@
+interface:
+  display_name: "IM Protocol Evolution"
+  short_description: "Evolve reliable, compatible IM protocols safely"
+  default_prompt: "Use $evolve-im-protocol to design this messaging or data-model change with compatibility and reliability."

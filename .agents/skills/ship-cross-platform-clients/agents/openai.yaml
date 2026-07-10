@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cross-platform Client Shipping"
+  short_description: "Build and package Qt and web clients consistently"
+  default_prompt: "Use $ship-cross-platform-clients to implement and release this desktop or web client change across supported platforms."

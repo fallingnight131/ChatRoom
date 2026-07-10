@@ -120,6 +120,17 @@ ChatRoom/
             └── RoomPasswordDialog.vue # 密码输入
 ```
 
+## 架构演进
+
+项目的长期目标架构、可靠消息模型、Java 后端迁移、跨平台客户端和安装包路线，统一维护在：
+
+- [架构总览](docs/architecture/README.md)
+- [迭代路线图](docs/architecture/ROADMAP.md)
+- [架构决策记录](docs/architecture/decisions/)
+- [Codex/Agent 工程约定](AGENTS.md)
+
+架构演进遵循兼容优先、纵向切片、可测量、可回滚原则，不进行一次性全量重写。
+
 ## 环境要求
 
 ### Qt 端

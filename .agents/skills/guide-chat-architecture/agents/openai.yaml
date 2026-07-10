@@ -1,0 +1,4 @@
+interface:
+  display_name: "Chat Architecture Guide"
+  short_description: "Guide safe, incremental architecture evolution"
+  default_prompt: "Use $guide-chat-architecture to plan this change against the target architecture and roadmap."
