@@ -26,7 +26,7 @@ jobs:
       - name: Verify source inventory and web build
         run: python3 tools/verify_m0.py --web
 
-  database-schema:
+  database-and-v1-smoke:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
 
@@ -34,10 +34,13 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v6
 
-      - name: Install Qt SQL build dependencies
+      - name: Install headless Qt build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes qt6-base-dev libqt6sql6-sqlite
+          sudo apt-get install --yes qt6-base-dev libqt6sql6-sqlite qt6-websockets-dev
 
       - name: Verify clean and restarted SQLite schemas
         run: python3 tools/verify_m0.py --db-schema
+
+      - name: Verify critical V1 TCP flows
+        run: python3 tools/verify_m0.py --v1-smoke

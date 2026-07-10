@@ -86,6 +86,34 @@ def verify_database_schema(jobs: int, build_root: Path) -> None:
     run([str(executable)], target_dir)
 
 
+def verify_v1_smoke(jobs: int, build_root: Path) -> None:
+    qmake = select_qmake()
+    make, supports_jobs = select_make(qmake)
+    target_dir = build_root / "v1-smoke-server"
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    run(
+        [qmake, str(ROOT / "Tests" / "HeadlessServer.pro"), "CONFIG+=release"],
+        target_dir,
+    )
+    run(make_command(make, supports_jobs, jobs), target_dir)
+
+    executable = target_dir / (
+        "ChatServerHeadless.exe" if os.name == "nt" else "ChatServerHeadless"
+    )
+    if not executable.exists():
+        raise RuntimeError(f"headless server executable not found: {executable}")
+    run(
+        [
+            sys.executable,
+            str(ROOT / "Tests" / "v1_smoke_test.py"),
+            "--server",
+            str(executable),
+        ],
+        ROOT,
+    )
+
+
 def verify_qt(jobs: int, build_root: Path) -> None:
     qmake = select_qmake()
     make, supports_jobs = select_make(qmake)
@@ -115,9 +143,14 @@ def parse_args() -> argparse.Namespace:
         help="build and run the clean/restart SQLite schema regression test",
     )
     parser.add_argument(
+        "--v1-smoke",
+        action="store_true",
+        help="build a headless server and run critical V1 TCP smoke flows",
+    )
+    parser.add_argument(
         "--all",
         action="store_true",
-        help="run inventory, web, database schema, and Qt verification",
+        help="run inventory, web, database schema, V1 smoke, and Qt verification",
     )
     parser.add_argument("--skip-npm-ci", action="store_true", help="reuse installed web dependencies")
     parser.add_argument("--jobs", type=int, default=max(1, min(os.cpu_count() or 1, 4)))
@@ -139,12 +172,14 @@ def main() -> int:
         verify_web(args.skip_npm_ci)
     if args.db_schema or args.all:
         verify_database_schema(args.jobs, build_root)
+    if args.v1_smoke or args.all:
+        verify_v1_smoke(args.jobs, build_root)
     if args.qt or args.all:
         verify_qt(args.jobs, build_root)
-    if not (args.web or args.db_schema or args.qt or args.all):
+    if not (args.web or args.db_schema or args.v1_smoke or args.qt or args.all):
         print(
             "[M0] inventory-only verification complete; "
-            "use --web, --db-schema, --qt, or --all for builds/tests"
+            "use --web, --db-schema, --v1-smoke, --qt, or --all for builds/tests"
         )
     return 0
 

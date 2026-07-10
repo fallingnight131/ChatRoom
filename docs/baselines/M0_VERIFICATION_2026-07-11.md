@@ -51,3 +51,22 @@ The M0 workflow now runs the same test on Ubuntu 24.04 with `qt6-base-dev` and
 `libqt6sql6-sqlite`. Full server/client Qt builds remain separate because the
 current macOS Qt distribution has an unrelated AGL toolchain incompatibility.
 
+## V1 Network Smoke Result
+
+Command:
+
+```bash
+python3 tools/verify_m0.py --v1-smoke
+```
+
+Result:
+
+```text
+PASS: register, login, room join, message fan-out, history, file metadata,
+reconnect, and recall
+```
+
+The headless server compiled and linked without QtGui, then the smoke client
+completed every flow against a temporary SQLite database and file directory.
+Ubuntu CI installs `qt6-websockets-dev` and runs the same command after the
+schema regression test.

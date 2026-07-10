@@ -59,6 +59,28 @@ This regression runs as its own Ubuntu 24.04 CI job. It intentionally avoids Qt
 GUI dependencies so database validation is independent of desktop packaging and
 graphics toolchains.
 
+## V1 TCP Smoke Test
+
+Requires Qt Core, Network, SQL, WebSockets, the SQLite driver, qmake, and a
+platform compiler:
+
+```bash
+python3 tools/verify_m0.py --v1-smoke
+```
+
+The command builds `Tests/HeadlessServer.pro` from the production server sources
+with only server-side image thumbnail generation disabled. It then launches the
+server on an isolated local three-port range with a temporary database and file
+directory.
+
+The smoke client verifies registration, login, room creation/join, authenticated
+sender identity, message fan-out, history persistence, file notification
+metadata, disconnect/reconnect, persistent membership, post-reconnect delivery,
+and recall. It does not use production ports, credentials, databases, or COS.
+
+CI runs the same smoke test on Ubuntu 24.04 after installing Qt Base, Qt SQLite,
+and Qt WebSockets development packages.
+
 ## Qt Server and Desktop Client
 
 Requires Qt with Core, GUI, Widgets, Network, SQL, WebSockets, and Multimedia,
@@ -86,10 +108,10 @@ make a local build appear successful.
 python3 tools/verify_m0.py --all
 ```
 
-The full command includes inventory, web, SQLite schema, and both Qt product
-targets. It is expected to fail when a required compiler, Qt module, or supported
-platform SDK is unavailable. Report that environment limitation and retain the
-successful component results.
+The full command includes inventory, web, SQLite schema, V1 smoke, and both Qt
+product targets. It is expected to fail when a required compiler, Qt module, or
+supported platform SDK is unavailable. Report that environment limitation and
+retain the successful component results.
 
 ## Windows Notes
 
