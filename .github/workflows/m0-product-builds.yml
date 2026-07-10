@@ -1,0 +1,114 @@
+name: M0 Product Release Builds
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  QT_VERSION: "6.11.1"
+
+jobs:
+  linux-release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Install Qt product build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes qt6-base-dev qt6-multimedia-dev qt6-websockets-dev
+
+      - name: Build Qt server and desktop client in Release mode
+        run: python3 tools/verify_m0.py --qt
+
+  macos-release:
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Install pinned Qt SDK
+        uses: jurplel/install-qt-action@v4.3.1
+        with:
+          version: ${{ env.QT_VERSION }}
+          modules: qtmultimedia qtwebsockets
+          cache: true
+
+      - name: Build Qt server and desktop client in Release mode
+        run: python3 tools/verify_m0.py --qt
+
+      - name: Assemble unsigned macOS verification artifact
+        run: |
+          set -euo pipefail
+          app_path="$(find build/m0/darwin/client -name ChatClient.app -type d -print -quit)"
+          server_path="$(find build/m0/darwin/server -name ChatServer -type f -perm -111 -print -quit)"
+          test -n "$app_path"
+          test -n "$server_path"
+          macdeployqt "$app_path" -always-overwrite
+          mkdir -p build/m0/artifacts/macos
+          ditto "$app_path" build/m0/artifacts/macos/ChatClient.app
+          cp "$server_path" build/m0/artifacts/macos/ChatServer
+          shasum -a 256 build/m0/artifacts/macos/ChatServer > build/m0/artifacts/macos/SHA256SUMS
+
+      - name: Upload unsigned macOS verification artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: chat-room-macos-${{ env.QT_VERSION }}-${{ github.sha }}
+          path: build/m0/artifacts/macos
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-release:
+    runs-on: windows-2025
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Install pinned Qt SDK
+        uses: jurplel/install-qt-action@v4.3.1
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: win64_msvc2022_64
+          modules: qtmultimedia qtwebsockets
+          cache: true
+
+      - name: Build Qt server and desktop client in Release mode
+        run: python tools/verify_m0.py --qt
+
+      - name: Assemble unsigned Windows verification artifact
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $client = Get-ChildItem build/m0/windows/client -Recurse -Filter ChatClient.exe | Select-Object -First 1
+          $server = Get-ChildItem build/m0/windows/server -Recurse -Filter ChatServer.exe | Select-Object -First 1
+          if (-not $client -or -not $server) { throw "Qt Release executables were not found" }
+
+          $artifact = "build/m0/artifacts/windows"
+          New-Item -ItemType Directory -Force "$artifact/client", "$artifact/server" | Out-Null
+          Copy-Item $client.FullName "$artifact/client/ChatClient.exe"
+          Copy-Item $server.FullName "$artifact/server/ChatServer.exe"
+          windeployqt --release --no-translations "$artifact/client/ChatClient.exe"
+          windeployqt --release --no-translations "$artifact/server/ChatServer.exe"
+          Get-ChildItem $artifact -Recurse -File |
+            Get-FileHash -Algorithm SHA256 |
+            ForEach-Object { "{0}  {1}" -f $_.Hash.ToLower(), $_.Path.Substring((Resolve-Path $artifact).Path.Length + 1) } |
+            Set-Content "$artifact/SHA256SUMS"
+
+      - name: Upload unsigned Windows verification artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: chat-room-windows-${{ env.QT_VERSION }}-${{ github.sha }}
+          path: build/m0/artifacts/windows
+          if-no-files-found: error
+          retention-days: 14

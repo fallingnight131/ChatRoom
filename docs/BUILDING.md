@@ -42,6 +42,10 @@ python3 tools/verify_m0.py --web --skip-npm-ci
 CI runs inventory and web verification on every push and pull request through
 `.github/workflows/m0-baseline.yml`.
 
+Native product Release builds run through
+`.github/workflows/m0-product-builds.yml`. The pinned and distro toolchains are
+documented in `docs/architecture/SUPPORT_MATRIX.md`.
+
 ## SQLite Schema Regression
 
 Requires Qt Core, Qt SQL, the SQLite Qt driver, qmake, and a platform compiler:
@@ -118,10 +122,15 @@ retain the successful component results.
 - Run from a Qt/Visual Studio or Qt/MinGW developer environment.
 - The verifier selects `nmake` for an MSVC qmake spec and
   `mingw32-make`/`make` otherwise.
-- Release packaging is a separate M4 concern; M0 verifies compilation only.
+- Native CI uses MSVC 2022 and pinned Qt 6.11.1, then runs `windeployqt` to
+  assemble a short-lived unsigned verification artifact.
+- A signed installer, upgrade/uninstall behavior, and automatic updates are
+  separate M4 concerns.
 
 ## macOS Notes
 
 - Install Xcode command-line tools and a Qt build compatible with the active SDK.
-- M0 compilation does not perform `macdeployqt`, code signing, notarization, or
-  DMG creation; those are M4 release gates.
+- Native CI uses pinned Qt 6.11.1 and runs `macdeployqt` to assemble a
+  short-lived unsigned verification artifact.
+- M0 does not perform code signing, notarization, stapling, or DMG creation;
+  those are M4 release gates.

@@ -19,13 +19,15 @@ Progress:
   ADR process.
 - [x] Capture code-derived current-system, V1 protocol, and SQLite inventory
   baselines.
-- [x] Establish inventory, web, and SQLite schema verification in CI; full Qt
-  product-target CI remains a follow-up within M0.
+- [x] Establish inventory, web, SQLite schema, and native Qt product Release
+  verification in CI.
 - [x] Add a clean/restart SQLite schema consistency regression test.
 - [x] Add real V1 TCP smoke coverage for login, room chat, history, file metadata,
   reconnect, and recall.
 - [x] Extend V1 smoke coverage to friend request/direct-message flows.
 - [x] Add critical V1 integration smoke tests.
+- [x] Pin the desktop support/build matrix and automate unsigned Windows/macOS
+  verification artifacts without conflating them with M4 installers.
 - [ ] Record the first reproducible performance baseline.
 
 Work:
