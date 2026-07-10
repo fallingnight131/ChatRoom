@@ -1,0 +1,8 @@
+{
+  "name": "chat-room-native-dependencies",
+  "version-string": "1.0.0",
+  "builtin-baseline": "97b19caab97ab0c8d36c93230046c8c45fcd41d0",
+  "dependencies": [
+    "libsodium"
+  ]
+}

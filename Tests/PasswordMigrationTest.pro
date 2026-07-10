@@ -4,14 +4,14 @@ QT -= gui
 CONFIG += c++17 console
 CONFIG -= app_bundle
 
-TARGET = DatabaseSchemaTest
+TARGET = PasswordMigrationTest
 
 include(../Common/Libsodium.pri)
 
 INCLUDEPATH += ../Server
 
 SOURCES += \
-    DatabaseSchemaTest.cpp \
+    PasswordMigrationTest.cpp \
     ../Server/DatabaseManager.cpp \
     ../Server/PasswordHasher.cpp
 

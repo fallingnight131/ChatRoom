@@ -25,7 +25,7 @@ route state is never proof of authentication.
 | Page refresh silently reuses password | Refresh loses memory credentials and routes to login | Replace password replay with revocable refresh/device sessions in V2 |
 | Network interruption loses authenticated socket | Current-page memory credential reauthenticates the new V1 socket | Add bounded retry/UI failure tests and eventually token reauth |
 | Credential interception | HTTPS pages select WSS | Plain HTTP still selects `ws://`; production TLS must become mandatory |
-| Offline cracking of server database | V1 uses salted SHA-256 | Migrate gradually to Argon2id/scrypt/bcrypt with upgrade-on-login |
+| Offline cracking of server database | New/changed passwords use libsodium Argon2id; successful legacy login upgrades salted SHA-256 rows | Back up before rollout, monitor upgrades, and complete migration before removing legacy verification |
 | Credential leakage through logs | No intended password logging | Add explicit log redaction tests and structured authentication errors |
 | Stale browser state impersonates a session | Router now checks live Pinia authenticated state | Server must continue rejecting unauthenticated socket commands |
 
@@ -37,6 +37,9 @@ route state is never proof of authentication.
 - A refresh requires a new login until a revocable server session exists.
 - Server address/theme preferences are non-secret and may remain persisted.
 - Public credentials must not be sent over plaintext WebSocket/TCP.
+- Wrong-password attempts must never mutate a stored legacy hash.
+- Authentication logs may contain a numeric user ID and error category, never a
+  password, salt, encoded hash, or login payload.
 
 ## Verification
 
@@ -46,6 +49,12 @@ Run:
 cd WebClient
 npm test
 npm run build
+```
+
+Server password migration verification:
+
+```bash
+python3 tools/verify_m0.py --password-hash
 ```
 
 The automated tests cover credential lifetime and storage regression. Browser

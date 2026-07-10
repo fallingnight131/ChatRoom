@@ -6,6 +6,8 @@ CONFIG -= app_bundle
 
 TARGET = ChatServerHeadless
 
+include(../Common/Libsodium.pri)
+
 DEFINES += \
     CHATROOM_DISABLE_IMAGE_THUMBNAILS \
     CHATROOM_ENABLE_BENCHMARK_METRICS
@@ -20,6 +22,7 @@ SOURCES += \
     ../Server/ChatServer.cpp \
     ../Server/ClientSession.cpp \
     ../Server/DatabaseManager.cpp \
+    ../Server/PasswordHasher.cpp \
     ../Server/RoomManager.cpp \
     ../Server/CosManager.cpp
 
@@ -29,5 +32,6 @@ HEADERS += \
     ../Server/ChatServer.h \
     ../Server/ClientSession.h \
     ../Server/DatabaseManager.h \
+    ../Server/PasswordHasher.h \
     ../Server/RoomManager.h \
     ../Server/CosManager.h

@@ -17,7 +17,10 @@ Run `python3 tools/m0_inventory.py --check` to detect table/index inventory drif
 - `id` integer primary key;
 - unique `username` used as current unique ID;
 - `display_name` added by startup migration;
-- `password_hash` and `salt`;
+- `password_hash` stores a self-describing libsodium Argon2id string for new or
+  upgraded accounts; legacy rows contain a 64-character SHA-256 digest;
+- `salt` is retained only for legacy SHA-256 verification and is empty after an
+  Argon2id write;
 - `created_at`, `last_login`, `last_uid_change`.
 
 `user_avatars`

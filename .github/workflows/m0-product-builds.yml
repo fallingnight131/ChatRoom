@@ -23,7 +23,7 @@ jobs:
       - name: Install Qt product build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes qt6-base-dev qt6-multimedia-dev qt6-websockets-dev
+          sudo apt-get install --yes qt6-base-dev qt6-multimedia-dev qt6-websockets-dev libsodium-dev pkg-config
 
       - name: Build Qt server and desktop client in Release mode
         run: python3 tools/verify_m0.py --qt
@@ -43,6 +43,9 @@ jobs:
           modules: qtmultimedia qtwebsockets
           cache: true
 
+      - name: Install server password hashing dependency
+        run: brew install libsodium
+
       - name: Build Qt server and desktop client in Release mode
         run: python3 tools/verify_m0.py --qt
 
@@ -57,6 +60,11 @@ jobs:
           mkdir -p build/m0/artifacts/macos
           ditto "$app_path" build/m0/artifacts/macos/ChatClient.app
           cp "$server_path" build/m0/artifacts/macos/ChatServer
+          sodium_lib="$(otool -L "$server_path" | awk '/libsodium.*dylib/ { print $1; exit }')"
+          test -n "$sodium_lib"
+          sodium_name="$(basename "$sodium_lib")"
+          cp "$sodium_lib" "build/m0/artifacts/macos/$sodium_name"
+          install_name_tool -change "$sodium_lib" "@executable_path/$sodium_name" build/m0/artifacts/macos/ChatServer
           shasum -a 256 build/m0/artifacts/macos/ChatServer > build/m0/artifacts/macos/SHA256SUMS
 
       - name: Upload unsigned macOS verification artifact
@@ -83,6 +91,13 @@ jobs:
           modules: qtmultimedia qtwebsockets
           cache: true
 
+      - name: Install server password hashing dependency
+        shell: pwsh
+        run: |
+          vcpkg install --triplet x64-windows
+          $sodiumRoot = "$env:GITHUB_WORKSPACE\vcpkg_installed\x64-windows" -replace '\\', '/'
+          "SODIUM_ROOT=$sodiumRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       - name: Build Qt server and desktop client in Release mode
         run: python tools/verify_m0.py --qt
 
@@ -100,6 +115,9 @@ jobs:
           Copy-Item $server.FullName "$artifact/server/ChatServer.exe"
           windeployqt --release --no-translations "$artifact/client/ChatClient.exe"
           windeployqt --release --no-translations "$artifact/server/ChatServer.exe"
+          $sodiumDll = @(Get-ChildItem "$env:SODIUM_ROOT/bin" -Filter "*sodium*.dll")
+          if ($sodiumDll.Count -ne 1) { throw "Expected one libsodium runtime DLL, found $($sodiumDll.Count)" }
+          Copy-Item $sodiumDll[0].FullName "$artifact/server/$($sodiumDll[0].Name)"
           Get-ChildItem $artifact -Recurse -File |
             Get-FileHash -Algorithm SHA256 |
             ForEach-Object { "{0}  {1}" -f $_.Hash.ToLower(), $_.Path.Substring((Resolve-Path $artifact).Path.Length + 1) } |

@@ -46,9 +46,29 @@ Native product Release builds run through
 `.github/workflows/m0-product-builds.yml`. The pinned and distro toolchains are
 documented in `docs/architecture/SUPPORT_MATRIX.md`.
 
+## Server Password Hashing Dependency
+
+All server and database test targets require libsodium:
+
+- macOS/Homebrew: `brew install libsodium`;
+- Ubuntu 24.04: `sudo apt install libsodium-dev pkg-config`;
+- Windows/MSVC: run `vcpkg install --triplet x64-windows` from the repository,
+  then set `SODIUM_ROOT` to `vcpkg_installed/x64-windows` before running qmake.
+
+The authentication migration regression is:
+
+```bash
+python3 tools/verify_m0.py --password-hash
+```
+
+It covers new Argon2id registration, correct/incorrect verification, successful
+legacy SHA-256 upgrade, wrong-password non-mutation, password change, and
+parameter-driven rehash.
+
 ## SQLite Schema Regression
 
-Requires Qt Core, Qt SQL, the SQLite Qt driver, qmake, and a platform compiler:
+Requires Qt Core, Qt SQL, the SQLite Qt driver, libsodium, qmake, and a platform
+compiler:
 
 ```bash
 python3 tools/verify_m0.py --db-schema
@@ -83,7 +103,7 @@ metadata, disconnect/reconnect, persistent membership, post-reconnect delivery,
 and recall. It does not use production ports, credentials, databases, or COS.
 
 CI runs the same smoke test on Ubuntu 24.04 after installing Qt Base, Qt SQLite,
-and Qt WebSockets development packages.
+Qt WebSockets, and libsodium development packages.
 
 ## V1 Performance Baseline
 
@@ -118,7 +138,7 @@ does not enforce a latency threshold on shared hosted runners.
 ## Qt Server and Desktop Client
 
 Requires Qt with Core, GUI, Widgets, Network, SQL, WebSockets, and Multimedia,
-plus qmake and the platform compiler:
+plus libsodium, qmake, and the platform compiler:
 
 ```bash
 python3 tools/verify_m0.py --qt

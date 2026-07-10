@@ -67,7 +67,8 @@ Progress:
 - [x] Stop persisting plaintext Web login passwords; retain credentials only in
   current-page memory for V1 disconnect reauthentication and purge legacy
   browser session keys.
-- [ ] Introduce modern server password hashing with gradual upgrade.
+- [x] Introduce libsodium Argon2id hashing for new/changed passwords and upgrade
+  legacy salted SHA-256 rows after successful login.
 - [ ] Enforce server-side membership/permission checks across message and file
   operations.
 - [ ] Add transport/input/backpressure limits and remaining reliable-message

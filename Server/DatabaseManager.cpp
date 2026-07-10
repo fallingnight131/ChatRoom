@@ -1,9 +1,8 @@
 #include "DatabaseManager.h"
+#include "PasswordHasher.h"
 
 #include <QSqlQuery>
 #include <QSqlError>
-#include <QCryptographicHash>
-#include <QUuid>
 #include <QThread>
 #include <QDebug>
 #include <QDateTime>
@@ -416,15 +415,6 @@ QStringList DatabaseManager::expireStoredFiles() {
 
 // ==================== 用户管理 ====================
 
-QString DatabaseManager::generateSalt() {
-    return QUuid::createUuid().toString(QUuid::WithoutBraces).left(16);
-}
-
-QString DatabaseManager::hashPassword(const QString &password, const QString &salt) {
-    QByteArray data = (password + salt).toUtf8();
-    return QCryptographicHash::hash(data, QCryptographicHash::Sha256).toHex();
-}
-
 int DatabaseManager::registerUser(const QString &uniqueId, const QString &displayName, const QString &password) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
@@ -435,14 +425,17 @@ int DatabaseManager::registerUser(const QString &uniqueId, const QString &displa
     q.exec();
     if (q.next()) return -1;
 
-    QString salt = generateSalt();
-    QString hash = hashPassword(password, salt);
+    const QString hash = PasswordHasher::createHash(password);
+    if (hash.isEmpty()) {
+        qWarning() << "[Auth] Registration password hashing failed";
+        return -1;
+    }
 
     q.prepare("INSERT INTO users (username, display_name, password_hash, salt) VALUES (?, ?, ?, ?)");
     q.addBindValue(uniqueId);
     q.addBindValue(displayName);
     q.addBindValue(hash);
-    q.addBindValue(salt);
+    q.addBindValue(QStringLiteral(""));
 
     if (q.exec())
         return q.lastInsertId().toInt();
@@ -464,14 +457,37 @@ int DatabaseManager::authenticateUser(const QString &username, const QString &pa
         QString hash = q.value(1).toString();
         QString salt = q.value(2).toString();
 
-        if (hashPassword(password, salt) == hash) {
-            // 更新最后登录时间
-            QSqlQuery u(db);
-            u.prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?");
-            u.addBindValue(userId);
-            u.exec();
-            return userId;
+        const PasswordHasher::Verification verification =
+            PasswordHasher::verify(password, hash, salt);
+        if (verification == PasswordHasher::Verification::Failed) {
+            return -1;
         }
+
+        if (verification == PasswordHasher::Verification::ValidNeedsRehash) {
+            const QString upgradedHash = PasswordHasher::createHash(password);
+            if (!upgradedHash.isEmpty()) {
+                QSqlQuery upgrade(db);
+                upgrade.prepare("UPDATE users SET password_hash = ?, salt = '' WHERE id = ?");
+                upgrade.addBindValue(upgradedHash);
+                upgrade.addBindValue(userId);
+                if (!upgrade.exec()) {
+                    qWarning() << "[Auth] Password hash upgrade failed for user ID"
+                               << userId << upgrade.lastError().text();
+                } else {
+                    qInfo() << "[Auth] Password hash upgraded for user ID" << userId;
+                }
+            } else {
+                qWarning() << "[Auth] Password hash upgrade could not allocate resources for user ID"
+                           << userId;
+            }
+        }
+
+        // 更新最后登录时间
+        QSqlQuery u(db);
+        u.prepare("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?");
+        u.addBindValue(userId);
+        u.exec();
+        return userId;
     }
     return -1;
 }
@@ -486,17 +502,18 @@ bool DatabaseManager::changePassword(int userId, const QString &oldPassword, con
     q.exec();
     if (!q.next()) return false;
 
-    QString oldHash = q.value(0).toString();
-    QString oldSalt = q.value(1).toString();
-    if (hashPassword(oldPassword, oldSalt) != oldHash) return false;
+    const QString oldHash = q.value(0).toString();
+    const QString oldSalt = q.value(1).toString();
+    if (PasswordHasher::verify(oldPassword, oldHash, oldSalt) ==
+        PasswordHasher::Verification::Failed) {
+        return false;
+    }
 
-    // 生成新盐值和哈希
-    QString newSalt = generateSalt();
-    QString newHash = hashPassword(newPassword, newSalt);
+    const QString newHash = PasswordHasher::createHash(newPassword);
+    if (newHash.isEmpty()) return false;
 
-    q.prepare("UPDATE users SET password_hash = ?, salt = ? WHERE id = ?");
+    q.prepare("UPDATE users SET password_hash = ?, salt = '' WHERE id = ?");
     q.addBindValue(newHash);
-    q.addBindValue(newSalt);
     q.addBindValue(userId);
     return q.exec();
 }

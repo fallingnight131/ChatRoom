@@ -155,8 +155,6 @@ public:
 
 private:
     QSqlDatabase getConnection();
-    QString hashPassword(const QString &password, const QString &salt);
-    QString generateSalt();
 
     QString m_dbPath;   // SQLite 数据库文件路径
 

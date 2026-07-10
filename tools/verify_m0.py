@@ -67,6 +67,18 @@ def make_command(make: str, supports_jobs: bool, jobs: int) -> list[str]:
     return command
 
 
+def locate_executable(target_dir: Path, name: str) -> Path:
+    executable_name = f"{name}.exe" if os.name == "nt" else name
+    for candidate in (
+        target_dir / executable_name,
+        target_dir / "release" / executable_name,
+        target_dir / "debug" / executable_name,
+    ):
+        if candidate.exists():
+            return candidate
+    raise RuntimeError(f"executable not found below {target_dir}: {executable_name}")
+
+
 def verify_database_schema(jobs: int, build_root: Path) -> None:
     qmake = select_qmake()
     make, supports_jobs = select_make(qmake)
@@ -79,12 +91,22 @@ def verify_database_schema(jobs: int, build_root: Path) -> None:
     )
     run(make_command(make, supports_jobs, jobs), target_dir)
 
-    executable = target_dir / (
-        "DatabaseSchemaTest.exe" if os.name == "nt" else "DatabaseSchemaTest"
-    )
-    if not executable.exists():
-        raise RuntimeError(f"database schema test executable not found: {executable}")
+    executable = locate_executable(target_dir, "DatabaseSchemaTest")
     run([str(executable)], target_dir)
+
+
+def verify_password_hash(jobs: int, build_root: Path) -> None:
+    qmake = select_qmake()
+    make, supports_jobs = select_make(qmake)
+    target_dir = build_root / "password-hash"
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    run(
+        [qmake, str(ROOT / "Tests" / "PasswordMigrationTest.pro"), "CONFIG+=release"],
+        target_dir,
+    )
+    run(make_command(make, supports_jobs, jobs), target_dir)
+    run([str(locate_executable(target_dir, "PasswordMigrationTest"))], target_dir)
 
 
 def build_headless_server(jobs: int, build_root: Path, target_name: str) -> Path:
@@ -99,12 +121,7 @@ def build_headless_server(jobs: int, build_root: Path, target_name: str) -> Path
     )
     run(make_command(make, supports_jobs, jobs), target_dir)
 
-    executable = target_dir / (
-        "ChatServerHeadless.exe" if os.name == "nt" else "ChatServerHeadless"
-    )
-    if not executable.exists():
-        raise RuntimeError(f"headless server executable not found: {executable}")
-    return executable
+    return locate_executable(target_dir, "ChatServerHeadless")
 
 
 def verify_v1_smoke(jobs: int, build_root: Path) -> None:
@@ -191,6 +208,11 @@ def parse_args() -> argparse.Namespace:
         help="build a headless server and run critical V1 TCP smoke flows",
     )
     parser.add_argument(
+        "--password-hash",
+        action="store_true",
+        help="verify Argon2id registration and legacy password hash migration",
+    )
+    parser.add_argument(
         "--performance",
         action="store_true",
         help="build the headless server and record the V1 performance scenario",
@@ -198,7 +220,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--all",
         action="store_true",
-        help="run inventory, web, database schema, V1 smoke, performance, and Qt verification",
+        help="run inventory, web, database schema, password hash, V1 smoke, performance, and Qt verification",
     )
     parser.add_argument("--skip-npm-ci", action="store_true", help="reuse installed web dependencies")
     parser.add_argument("--jobs", type=int, default=max(1, min(os.cpu_count() or 1, 4)))
@@ -228,6 +250,8 @@ def main() -> int:
         verify_web(args.skip_npm_ci)
     if args.db_schema or args.all:
         verify_database_schema(args.jobs, build_root)
+    if args.password_hash or args.all:
+        verify_password_hash(args.jobs, build_root)
     if args.v1_smoke or args.all:
         verify_v1_smoke(args.jobs, build_root)
     if args.performance or args.all:
@@ -247,6 +271,7 @@ def main() -> int:
     if not (
         args.web
         or args.db_schema
+        or args.password_hash
         or args.v1_smoke
         or args.performance
         or args.qt
@@ -254,7 +279,8 @@ def main() -> int:
     ):
         print(
             "[M0] inventory-only verification complete; "
-            "use --web, --db-schema, --v1-smoke, --performance, --qt, or --all "
+            "use --web, --db-schema, --password-hash, --v1-smoke, --performance, "
+            "--qt, or --all "
             "for builds/tests"
         )
     return 0

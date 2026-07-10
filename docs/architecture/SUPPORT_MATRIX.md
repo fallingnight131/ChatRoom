@@ -12,6 +12,10 @@ with Xcode 15 or newer, and Ubuntu 24.04. The repository's CI lanes are narrower
 than the full Qt support list so failures are attributable to a small, explicit
 toolchain set.
 
+Server builds also require libsodium for Argon2id password hashing. Ubuntu uses
+`libsodium-dev`, macOS uses Homebrew, and Windows uses the official vcpkg port;
+the dependency is linked only into server/database targets, not the clients.
+
 ## Build Matrix
 
 | Product | Verification host | Architecture/toolchain | Qt policy | M0 output |
@@ -73,3 +77,5 @@ matrix expansion.
 - [Qt installation options](https://doc.qt.io/qt-6.11/get-and-install-qt.html)
 - [`install-qt-action` v4 usage](https://github.com/jurplel/install-qt-action)
 - [GitHub-hosted runner images](https://github.com/actions/runner-images)
+- [libsodium password hashing API](https://doc.libsodium.org/password_hashing/default_phf)
+- [vcpkg libsodium port](https://vcpkg.io/en/package/libsodium.html)

@@ -2,6 +2,7 @@
 release/
 debug/
 build/
+vcpkg_installed/
 *.o
 *.obj
 *.exe
