@@ -6,7 +6,7 @@
 
 ### 核心功能
 
-- 用户注册 / 登录（SHA-256 + Salt 密码加密）
+- 用户注册 / 登录（当前 V1 使用 SHA-256 + Salt，已列入安全迁移计划）
 - 唯一用户 ID（可修改，30 天冷却）+ 可变昵称
 - 多聊天室（创建 / 加入 / 退出 / 删除 / 重命名 / 密码保护）
 - 实时消息收发，自定义气泡渲染
@@ -78,7 +78,7 @@ ChatRoom/
 ├── DEPLOY.md             # 云服务器部署指南
 ├── DESIGN.md             # 详细设计文档
 ├── Common/               # 共享协议层
-│   ├── Protocol.h        # 消息协议定义（56 种消息类型）
+│   ├── Protocol.h        # 消息协议定义（当前 120 种消息类型）
 │   └── Message.h/cpp     # 消息数据模型
 ├── Server/               # 服务端（控制台程序，TCP + WebSocket 双协议）
 │   ├── ChatServer        # TCP + WebSocket 服务器
@@ -125,6 +125,9 @@ ChatRoom/
 项目的长期目标架构、可靠消息模型、Java 后端迁移、跨平台客户端和安装包路线，统一维护在：
 
 - [架构总览](docs/architecture/README.md)
+- [当前系统基线](docs/architecture/CURRENT_SYSTEM.md)
+- [V1 协议基线](docs/protocol/V1_PROTOCOL.md)
+- [V1 SQLite 基线](docs/data/V1_SQLITE_SCHEMA.md)
 - [迭代路线图](docs/architecture/ROADMAP.md)
 - [架构决策记录](docs/architecture/decisions/)
 - [Codex/Agent 工程约定](AGENTS.md)
@@ -245,7 +248,7 @@ ChatServer.exe --port 8888 --ws-port 9999
 
 ## 协议概览
 
-服务端与客户端通过 JSON 消息通信，共 56 种消息类型：
+服务端与客户端通过 JSON 消息通信，当前共声明 120 种消息类型。完整、以代码为准的清单见 [V1 协议基线](docs/protocol/V1_PROTOCOL.md)：
 
 | 类别 | 消息类型 |
 |------|---------|

@@ -6,6 +6,11 @@ This document is the architectural source of truth for evolving Chat Room into a
 modern instant-messaging product. It describes the desired boundaries and
 invariants, not a requirement to create every component immediately.
 
+For the implementation currently deployed as V1, read
+[`CURRENT_SYSTEM.md`](CURRENT_SYSTEM.md),
+[`../protocol/V1_PROTOCOL.md`](../protocol/V1_PROTOCOL.md), and
+[`../data/V1_SQLITE_SCHEMA.md`](../data/V1_SQLITE_SCHEMA.md).
+
 The migration must keep the product usable after every iteration. Follow
 [`ROADMAP.md`](ROADMAP.md) for sequencing and use ADRs in `decisions/` for
 material changes.
@@ -346,4 +351,3 @@ groups, slow clients, database contention, and partial infrastructure failure.
 - Do not rewrite all clients and the server in one release.
 - Do not route normal file bytes through the messaging core.
 - Do not use a cache or broker as undocumented primary truth.
-

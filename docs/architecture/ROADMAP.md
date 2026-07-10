@@ -13,6 +13,16 @@ is attractive. Reliability and client responsiveness come before service count.
 
 Goal: make the current system measurable and safe to change.
 
+Progress:
+
+- [x] Establish repository governance, target architecture, project skills, and
+  ADR process.
+- [x] Capture code-derived current-system, V1 protocol, and SQLite inventory
+  baselines.
+- [ ] Establish reproducible build/verification commands and CI entry points.
+- [ ] Add critical V1 integration smoke tests.
+- [ ] Record the first reproducible performance baseline.
+
 Work:
 
 - adopt `AGENTS.md`, project skills, target architecture, and ADR process;
@@ -180,4 +190,3 @@ At every milestone:
 - measure client startup, conversation-open, send-ack, sync, and memory behavior;
 - keep at least one previous client version in compatibility tests;
 - archive superseded migration code after its support window closes.
-

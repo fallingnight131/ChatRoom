@@ -1,4 +1,6 @@
-# Qt聊天室 — 详细设计文档
+# Qt聊天室 — 历史设计文档
+
+> **状态：Legacy。** 本文保留早期设计背景，其中 MySQL、协议数量、文件上限和线程模型等内容可能与当前实现不一致。当前事实以源码、[当前系统基线](docs/architecture/CURRENT_SYSTEM.md)、[V1 协议基线](docs/protocol/V1_PROTOCOL.md) 和 [V1 SQLite 基线](docs/data/V1_SQLITE_SCHEMA.md) 为准；长期方向见 [目标架构](docs/architecture/README.md)。
 
 ## 1. 项目概述
 
