@@ -136,27 +136,27 @@ accepted acknowledgement, or reconnect delta protocol.
 
 These are recorded for prioritization, not silently fixed by this baseline:
 
-1. **Database initialization order:** read-pointer columns are added to
-   `friendships` before the table is created on a new database. They may be
-   absent until a later restart.
-2. **Unversioned migrations:** startup executes repeated `ALTER TABLE` statements,
+1. **Unversioned migrations:** startup executes repeated `ALTER TABLE` statements,
    ignores expected duplicate-column errors, and has no schema version ledger.
-3. **Credential storage:** password hashes use fast SHA-256 plus salt and the web
+2. **Credential storage:** password hashes use fast SHA-256 plus salt and the web
    client keeps plaintext credentials in browser session storage.
-4. **Room password storage:** room passwords are stored and compared as plaintext.
-5. **Reliability semantics:** message retries can duplicate messages; ordering is
+3. **Room password storage:** room passwords are stored and compared as plaintext.
+4. **Reliability semantics:** message retries can duplicate messages; ordering is
    timestamp/row based; reconnect has no sequence delta sync.
-6. **Central blocking path:** WebSocket parsing, business handlers, synchronous
+5. **Central blocking path:** WebSocket parsing, business handlers, synchronous
    SQL, and fan-out coordination share the central application thread.
-7. **Connection scaling:** TCP consumes one thread per connection.
-8. **Slow consumers:** outbound queue limits and disconnect policy are not
+6. **Connection scaling:** TCP consumes one thread per connection.
+7. **Slow consumers:** outbound queue limits and disconnect policy are not
    explicit.
-9. **File amplification:** Base64 adds payload and allocation overhead; file data
+8. **File amplification:** Base64 adds payload and allocation overhead; file data
    still crosses the chat protocol.
-10. **Single-node presence:** session and online-room state cannot route across
+9. **Single-node presence:** session and online-room state cannot route across
     multiple server instances.
-11. **Index coverage:** only two explicit time/history indexes are declared;
+10. **Index coverage:** only two explicit time/history indexes are declared;
     other production query plans are not baselined.
-12. **Documentation drift:** prior README/DESIGN message counts and database
+11. **Documentation drift:** prior README/DESIGN message counts and database
     descriptions do not fully match the active implementation.
 
+The previously observed first-start `friendships` read-pointer ordering defect is
+covered by `Tests/DatabaseSchemaTest.cpp` and has been corrected so clean and
+restarted schemas converge.

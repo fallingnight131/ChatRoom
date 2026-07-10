@@ -136,14 +136,15 @@ Observed order:
 1. create users, rooms, room members, room messages, files, administrators,
    settings, and avatar tables;
 2. execute several additive alters and default-value backfills;
-3. attempt room/friend read-pointer alters;
-4. mark the manager initialized;
-5. create friend request, friendship, direct-message, and friend-file tables;
-6. expire old files.
+3. add the room read pointer;
+4. create friend request, friendship, direct-message, and friend-file tables;
+5. add friendship read pointers after the friendship table exists;
+6. expire old files;
+7. mark the manager initialized after the full schema path completes.
 
-Important defect baseline: the two `friendships` read-pointer alters currently
-run before `friendships` is created. On a brand-new database those alters fail;
-the next process restart can add the columns because the table then exists.
+`Tests/DatabaseSchemaTest.cpp` verifies that a clean first initialization has all
+required migrated columns, passes `PRAGMA integrity_check`, and produces the same
+schema after a simulated restart.
 
 ## Retention
 
@@ -157,7 +158,6 @@ object deletion.
 - no durable schema version or migration history;
 - migration errors are not consistently distinguished from expected duplicate
   column errors;
-- first-start schema can differ from second-start schema;
 - schema initialization and retention side effects share one startup function;
 - no automated clean-create versus upgraded-schema equivalence test;
 - no documented backup/restore verification before migration;
@@ -166,15 +166,12 @@ object deletion.
 
 ## M0 Follow-up Verification
 
-The next schema baseline step should create temporary databases for:
+Schema verification currently covers:
 
 1. clean first initialization;
 2. second initialization/restart;
-3. an upgrade fixture representing an older schema;
-4. foreign-key cascade checks;
-5. `PRAGMA integrity_check`;
-6. read/unread and history query plans.
+3. required migrated columns;
+4. `PRAGMA integrity_check`.
 
-The clean and restarted schemas must converge before Java/PostgreSQL data
-migration begins.
-
+Remaining follow-up should cover an older-schema upgrade fixture, foreign-key
+cascades, and read/unread/history query plans before Java/PostgreSQL migration.

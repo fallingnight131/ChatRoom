@@ -324,11 +324,6 @@ bool DatabaseManager::initialize() {
 
     // 迁移: room_members 添加 last_read_msg_id
     q.exec("ALTER TABLE room_members ADD COLUMN last_read_msg_id INTEGER DEFAULT 0");
-    // 迁移: friendships 添加每用户已读指针
-    q.exec("ALTER TABLE friendships ADD COLUMN user1_last_read_msg_id INTEGER DEFAULT 0");
-    q.exec("ALTER TABLE friendships ADD COLUMN user2_last_read_msg_id INTEGER DEFAULT 0");
-
-    m_initialized = true;
 
     // 好友请求表
     q.exec("CREATE TABLE IF NOT EXISTS friend_requests ("
@@ -351,6 +346,11 @@ bool DatabaseManager::initialize() {
            "  FOREIGN KEY (user_id1) REFERENCES users(id) ON DELETE CASCADE,"
            "  FOREIGN KEY (user_id2) REFERENCES users(id) ON DELETE CASCADE"
            ")");
+
+    // 迁移: friendships 添加每用户已读指针。
+    // 必须在 friendships 创建后执行，保证全新数据库首次启动即得到完整 schema。
+    q.exec("ALTER TABLE friendships ADD COLUMN user1_last_read_msg_id INTEGER DEFAULT 0");
+    q.exec("ALTER TABLE friendships ADD COLUMN user2_last_read_msg_id INTEGER DEFAULT 0");
 
     // 好友私聊消息表
     q.exec("CREATE TABLE IF NOT EXISTS friend_messages ("
@@ -395,6 +395,7 @@ bool DatabaseManager::initialize() {
 
     expireStoredFiles();
 
+    m_initialized = true;
     qInfo() << "[DB] SQLite 数据库初始化完成，路径:" << m_dbPath;
     return true;
 }
