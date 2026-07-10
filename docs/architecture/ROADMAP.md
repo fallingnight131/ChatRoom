@@ -73,7 +73,9 @@ Progress:
   message, administration, read-state, upload, and file-download operations.
 - [x] Bound TCP/WebSocket frames, malformed envelopes, per-connection message
   bursts, and slow-consumer pending bytes.
-- [ ] Add field-level request limits and authentication-abuse controls.
+- [x] Add password/message/history/file/chunk field limits and per-connection
+  expensive-authentication throttling.
+- [ ] Add gateway/account/IP authentication-abuse controls and monitoring.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

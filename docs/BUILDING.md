@@ -107,6 +107,10 @@ oversized/malformed frames, envelopes, connection message rate, the 8 MiB inline
 compatibility boundary, and slow-consumer disconnection. None uses production
 ports, credentials, databases, or COS.
 
+A fourth suite rejects oversized passwords/messages, unbounded history counts,
+unsafe filenames, Base64/declared-size mismatches, chunk overflow, incomplete
+uploads, and more than five expensive authentication commands per connection.
+
 CI runs the same smoke test on Ubuntu 24.04 after installing Qt Base, Qt SQLite,
 Qt WebSockets, and libsodium development packages.
 

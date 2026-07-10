@@ -150,6 +150,8 @@ history and last-read IDs.
 Room and direct history accept a count and an optional `before` timestamp. This
 is timestamp pagination, not a contiguous message-sequence synchronization
 contract. Room history/member responses require current room membership.
+Requested history counts are clamped to 100; non-positive counts use the
+compatible default of 50.
 
 ### Read state
 
@@ -168,6 +170,8 @@ resource fields do not select an unrelated notification target.
 
 Observed content types include `text`, `emoji`, `image`, `file`, `video`, and
 `system`. The allowed set is not encoded as a versioned wire enum.
+Client message content is limited to 64 KiB of UTF-8 and empty or unknown-type
+messages are not persisted.
 
 ### Files
 
@@ -179,6 +183,14 @@ Observed content types include `text`, `emoji`, `image`, `file`, `video`, and
   and client behavior;
 - every download path requires current room membership or friendship, and every
   large-upload mutation requires the authenticated upload owner.
+
+Inline files must decode to the declared positive size, remain at or below
+8 MiB, and use a basename-only filename of at most 255 UTF-8 bytes. Upload
+chunks are limited to 4 MiB and the declared remaining size; upload completion
+requires received bytes to exactly equal the declared total.
+
+Passwords are limited to 1,024 characters before hashing. A connection may
+submit at most five login, registration, or password-change commands per minute.
 
 Existing response types may include the additive fields `success: false` and
 `error` when authorization fails. Existing successful response shapes and
@@ -211,8 +223,9 @@ fan-out and history, and direct-message recall.
 resource identifiers do not grant room, message, upload, or attachment access.
 `Tests/v1_transport_limits_test.py` covers malformed/oversized input, unknown
 types, message floods, the legacy 8 MiB inline-file boundary, and a real slow
-consumer. `python3 tools/verify_m0.py --v1-smoke` runs all three suites against
-the same built server binary in separate isolated databases.
+consumer. `Tests/v1_input_validation_test.py` covers authentication work and
+field/file/upload invariants. `python3 tools/verify_m0.py --v1-smoke` runs all
+four suites against the same built server binary in separate isolated databases.
 
 The test uses randomized users, payload tokens, temporary SQLite/files, and a
 locally available three-port range. It must not depend on production credentials,
@@ -227,7 +240,6 @@ ports, files, or external COS access.
 - accepted, delivered, and read semantics;
 - sequence-based reconnect synchronization;
 - structured error code separate from localized message;
-- field-level content/file metadata limits and account/IP authentication abuse
-  throttling;
+- gateway/account/IP authentication abuse throttling and monitoring;
 - binary attachment flow outside messaging;
 - generated Java/C++/TypeScript schemas.

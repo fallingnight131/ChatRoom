@@ -12,6 +12,7 @@ SOURCES += \
     main.cpp \
     ChatServer.cpp \
     ClientSession.cpp \
+    InputValidator.cpp \
     DatabaseManager.cpp \
     PasswordHasher.cpp \
     RoomManager.cpp \
@@ -20,6 +21,7 @@ SOURCES += \
 HEADERS += \
     ChatServer.h \
     ClientSession.h \
+    InputValidator.h \
     DatabaseManager.h \
     PasswordHasher.h \
     RoomManager.h \

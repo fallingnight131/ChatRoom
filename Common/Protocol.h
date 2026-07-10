@@ -27,6 +27,7 @@ constexpr quint32 MAX_JSON_MESSAGE_BYTES = 16 * 1024 * 1024; // 容纳 8MB Base6
 constexpr qint64 MAX_PENDING_WRITE_BYTES = 24 * 1024 * 1024; // 慢消费者待发高水位
 constexpr int MAX_MESSAGES_PER_SECOND = 60;
 constexpr int MAX_MALFORMED_MESSAGES = 3;
+constexpr int MAX_AUTH_ATTEMPTS_PER_MINUTE = 5;
 
 // ==================== 消息类型 ====================
 namespace MsgType {

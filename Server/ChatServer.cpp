@@ -5,6 +5,7 @@
 #include "CosManager.h"
 #include "Protocol.h"
 #include "Message.h"
+#include "InputValidator.h"
 
 #include <QThread>
 #include <QJsonArray>
@@ -407,6 +408,16 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
 void ChatServer::handleLogin(ClientSession *session, const QJsonObject &data) {
     QString username = data["username"].toString();
     QString password = data["password"].toString();
+    QString validationError;
+    if (username.isEmpty() || username.size() > InputValidator::MAX_USERNAME_CHARS
+        || !InputValidator::validatePassword(password, &validationError, false)) {
+        QJsonObject rspData;
+        rspData["success"] = false;
+        rspData["error"] = validationError.isEmpty()
+            ? QStringLiteral("用户ID或密码格式无效") : validationError;
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::LOGIN_RSP, rspData));
+        return;
+    }
 
     int userId = m_db->authenticateUser(username, password);
 
@@ -804,6 +815,7 @@ void ChatServer::handleRegister(ClientSession *session, const QJsonObject &data)
     QString username = data["username"].toString();       // uniqueId
     QString displayName = data["displayName"].toString(); // 昵称
     QString password = data["password"].toString();
+    QString passwordError;
 
     QJsonObject rspData;
 
@@ -812,12 +824,15 @@ void ChatServer::handleRegister(ClientSession *session, const QJsonObject &data)
     if (!idRegex.match(username).hasMatch()) {
         rspData["success"] = false;
         rspData["error"]   = QStringLiteral("用户ID必须为6-20位，只能包含字母、数字和下划线");
-    } else if (displayName.trimmed().isEmpty() || displayName.trimmed().length() < 1) {
+    } else if (displayName.trimmed().isEmpty()) {
         rspData["success"] = false;
         rspData["error"]   = QStringLiteral("请输入昵称");
-    } else if (password.length() < 4) {
+    } else if (displayName.trimmed().size() > InputValidator::MAX_DISPLAY_NAME_CHARS) {
         rspData["success"] = false;
-        rspData["error"]   = QStringLiteral("密码至少4个字符");
+        rspData["error"]   = QStringLiteral("昵称过长");
+    } else if (!InputValidator::validatePassword(password, &passwordError)) {
+        rspData["success"] = false;
+        rspData["error"] = passwordError;
     } else {
         int userId = m_db->registerUser(username, displayName.trimmed(), password);
         if (userId > 0) {
@@ -841,6 +856,15 @@ void ChatServer::handleChatMessage(ClientSession *session, const QJsonObject &ms
     int roomId = data["roomId"].toInt();
     if (!requireRoomMembership(session, roomId, QStringLiteral("room-message-send"))) return;
 
+    const QString content = data["content"].toString();
+    const QString contentType = data["contentType"].toString();
+    QString validationError;
+    if (!InputValidator::validateMessage(content, contentType, &validationError)) {
+        qWarning().noquote() << QStringLiteral("[Input] rejected category=room-message userId=%1")
+                                    .arg(session->userId());
+        return;
+    }
+
     // 存入数据库
 #ifdef CHATROOM_ENABLE_BENCHMARK_METRICS
     const bool benchmarkMetrics = qEnvironmentVariableIntValue("CHATROOM_BENCHMARK_METRICS") == 1;
@@ -848,8 +872,7 @@ void ChatServer::handleChatMessage(ClientSession *session, const QJsonObject &ms
     if (benchmarkMetrics)
         persistenceTimer.start();
 #endif
-    int msgId = m_db->saveMessage(roomId, session->userId(), data["content"].toString(),
-                                   data["contentType"].toString());
+    int msgId = m_db->saveMessage(roomId, session->userId(), content, contentType);
 #ifdef CHATROOM_ENABLE_BENCHMARK_METRICS
     const qint64 sqliteSaveNanoseconds = benchmarkMetrics ? persistenceTimer.nsecsElapsed() : 0;
 #endif
@@ -1103,7 +1126,7 @@ void ChatServer::handleUserList(ClientSession *session, const QJsonObject &data)
 
 void ChatServer::handleHistory(ClientSession *session, const QJsonObject &data) {
     int roomId = data["roomId"].toInt();
-    int count  = data["count"].toInt(50);
+    int count  = InputValidator::boundedHistoryCount(data["count"].toInt(50));
     qint64 before = static_cast<qint64>(data["before"].toDouble(0));
 
     if (!requireRoomMembership(session, roomId, QStringLiteral("room-history-read"))) {
@@ -1310,6 +1333,21 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
         return;
     }
 
+    QByteArray rawData;
+    QString validationError;
+    QString validatedFileName;
+    if (!InputValidator::validateFileName(fileName, &validatedFileName, &validationError)
+        || !InputValidator::decodeInlineFile(fileData, fileSize, Protocol::MAX_SMALL_FILE,
+                                             &rawData, &validationError)) {
+        QJsonObject rsp;
+        rsp["roomId"] = roomId;
+        rsp["success"] = false;
+        rsp["error"] = validationError;
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, rsp));
+        return;
+    }
+    fileName = validatedFileName;
+
     QString quotaError;
     if (!tryReserveRoomFileQuota(roomId, fileSize, &quotaError)) {
         QJsonObject rsp;
@@ -1327,7 +1365,17 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
 
     QFile file(filePath);
     if (file.open(QIODevice::WriteOnly)) {
-        file.write(QByteArray::fromBase64(fileData.toUtf8()));
+        if (file.write(rawData) != rawData.size()) {
+            file.close();
+            QFile::remove(filePath);
+            releaseRoomFileQuota(roomId, fileSize);
+            QJsonObject rsp;
+            rsp["roomId"] = roomId;
+            rsp["success"] = false;
+            rsp["error"] = QStringLiteral("服务器写入文件失败");
+            session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, rsp));
+            return;
+        }
         file.close();
     } else {
         releaseRoomFileQuota(roomId, fileSize);
@@ -1485,6 +1533,18 @@ void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject
         return;
     }
 
+    QString validationError;
+    QString validatedFileName;
+    if (!InputValidator::validateFileName(fileName, &validatedFileName, &validationError)
+        || fileSize <= 0) {
+        rspData["success"] = false;
+        rspData["error"] = validationError.isEmpty()
+            ? QStringLiteral("文件大小无效") : validationError;
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
+        return;
+    }
+    fileName = validatedFileName;
+
     if (fileSize > Protocol::MAX_LARGE_FILE) {
         rspData["success"] = false;
         rspData["error"]   = QStringLiteral("文件超过大小限制");
@@ -1556,12 +1616,25 @@ void ChatServer::handleFileUploadChunk(ClientSession *session, const QJsonObject
     }
 
     UploadState &state = m_uploads[uploadId];
-    QByteArray chunk = QByteArray::fromBase64(data["chunkData"].toString().toLatin1());
-
-    if (state.file && state.file->isOpen()) {
-        state.file->write(chunk);
-        state.received += chunk.size();
+    QByteArray chunk;
+    QString validationError;
+    if (!InputValidator::decodeUploadChunk(data["chunkData"].toString(),
+                                           state.fileSize - state.received,
+                                           &chunk, &validationError)) {
+        rspData["success"] = false;
+        rspData["error"] = validationError;
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_CHUNK_RSP, rspData));
+        return;
     }
+
+    if (!state.file || !state.file->isOpen() || state.file->write(chunk) != chunk.size()) {
+        rspData["success"] = false;
+        rspData["error"] = QStringLiteral("服务器写入分片失败");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_CHUNK_RSP, rspData));
+        handleFileUploadCancel(session, data);
+        return;
+    }
+    state.received += chunk.size();
 
     rspData["success"]  = true;
     rspData["received"] = static_cast<double>(state.received);
@@ -1580,6 +1653,12 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
         : m_db->isUserInRoom(pending.roomId, pending.userId);
     if (!stillAuthorized) {
         qWarning().noquote() << QStringLiteral("[Authz] denied operation=upload-finalize userId=%1")
+                                    .arg(pending.userId);
+        handleFileUploadCancel(session, data);
+        return;
+    }
+    if (pending.received != pending.fileSize) {
+        qWarning().noquote() << QStringLiteral("[Input] rejected category=upload-size userId=%1")
                                     .arg(pending.userId);
         handleFileUploadCancel(session, data);
         return;
@@ -2813,10 +2892,12 @@ void ChatServer::handleChangePassword(ClientSession *session, const QJsonObject 
     QString oldPassword = data["oldPassword"].toString();
     QString newPassword = data["newPassword"].toString();
     QJsonObject rspData;
+    QString validationError;
 
-    if (newPassword.length() < 4) {
+    if (!InputValidator::validatePassword(oldPassword, &validationError, false)
+        || !InputValidator::validatePassword(newPassword, &validationError)) {
         rspData["success"] = false;
-        rspData["error"]   = QStringLiteral("新密码至少4个字符");
+        rspData["error"] = validationError;
     } else {
         bool ok = m_db->changePassword(session->userId(), oldPassword, newPassword);
         if (ok) {
@@ -3156,6 +3237,13 @@ void ChatServer::handleFriendChatMessage(ClientSession *session, const QJsonObje
     QString content       = data["content"].toString();
     QString contentType   = data["contentType"].toString("text");
 
+    QString validationError;
+    if (!InputValidator::validateMessage(content, contentType, &validationError)) {
+        qWarning().noquote() << QStringLiteral("[Input] rejected category=friend-message userId=%1")
+                                    .arg(session->userId());
+        return;
+    }
+
     int friendId = m_db->getUserIdByName(friendUsername);
     if (friendId < 0) return;
 
@@ -3190,7 +3278,7 @@ void ChatServer::handleFriendHistory(ClientSession *session, const QJsonObject &
     if (!session->isAuthenticated()) return;
 
     QString friendUsername = data["friendUsername"].toString();
-    int count = data["count"].toInt(50);
+    int count = InputValidator::boundedHistoryCount(data["count"].toInt(50));
     qint64 before = static_cast<qint64>(data["before"].toDouble(0));
 
     int friendId = m_db->getUserIdByName(friendUsername);
@@ -3218,6 +3306,25 @@ void ChatServer::handleFriendFileSend(ClientSession *session, const QJsonObject 
     QString fileData  = data["fileData"].toString();
     QString thumbnail = data["thumbnail"].toString();
 
+    int friendId = m_db->getUserIdByName(friendUsername);
+    if (friendId < 0) return;
+    int friendshipId = m_db->getFriendshipId(session->userId(), friendId);
+    if (friendshipId < 0) return;
+
+    QByteArray rawData;
+    QString validationError;
+    QString validatedFileName;
+    if (!InputValidator::validateFileName(fileName, &validatedFileName, &validationError)
+        || !InputValidator::decodeInlineFile(fileData, fileSize, Protocol::MAX_SMALL_FILE,
+                                             &rawData, &validationError)) {
+        QJsonObject rsp;
+        rsp["success"] = false;
+        rsp["error"] = validationError;
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_NOTIFY, rsp));
+        return;
+    }
+    fileName = validatedFileName;
+
     // 根据文件后缀确定 contentType（与房间 handleFileSend 一致）
     QString contentType = QStringLiteral("file");
     QString typeDir = fileTypeSubDir(fileName);
@@ -3226,29 +3333,22 @@ void ChatServer::handleFriendFileSend(ClientSession *session, const QJsonObject 
     else if (typeDir == QLatin1String("Video"))
         contentType = QStringLiteral("video");
 
-    int friendId = m_db->getUserIdByName(friendUsername);
-    if (friendId < 0) return;
-    int friendshipId = m_db->getFriendshipId(session->userId(), friendId);
-    if (friendshipId < 0) return;
-
-    // 好友文件上限 100MB
-    if (fileSize > Protocol::MAX_FRIEND_FILE) {
-        QJsonObject rsp;
-        rsp["success"] = false;
-        rsp["error"] = QStringLiteral("文件超过好友传输限制(100MB)");
-        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_NOTIFY, rsp));
-        return;
-    }
-
     // 保存文件
-    QByteArray rawData = QByteArray::fromBase64(fileData.toLatin1());
     QString targetDir = friendFileDir(friendshipId, fileName);
     QString safeName = QString::number(QDateTime::currentMSecsSinceEpoch()) + "_" + fileName;
     QString filePath = targetDir + "/" + safeName;
 
     QFile f(filePath);
     if (!f.open(QIODevice::WriteOnly)) return;
-    f.write(rawData);
+    if (f.write(rawData) != rawData.size()) {
+        f.close();
+        QFile::remove(filePath);
+        QJsonObject rsp;
+        rsp["success"] = false;
+        rsp["error"] = QStringLiteral("服务器写入文件失败");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_NOTIFY, rsp));
+        return;
+    }
     f.close();
 
     int fileId = m_db->saveFriendFile(friendshipId, session->userId(), fileName, filePath, fileSize);
@@ -3306,6 +3406,18 @@ void ChatServer::handleFriendFileUploadStart(ClientSession *session, const QJson
 
     int friendId = m_db->getUserIdByName(friendUsername);
     QJsonObject rspData;
+
+    QString validationError;
+    QString validatedFileName;
+    if (!InputValidator::validateFileName(fileName, &validatedFileName, &validationError)
+        || fileSize <= 0) {
+        rspData["success"] = false;
+        rspData["error"] = validationError.isEmpty()
+            ? QStringLiteral("文件大小无效") : validationError;
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_UPLOAD_START_RSP, rspData));
+        return;
+    }
+    fileName = validatedFileName;
 
     if (friendId < 0) {
         rspData["success"] = false;
@@ -3409,4 +3521,3 @@ void ChatServer::handleFriendRecall(ClientSession *session, const QJsonObject &d
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_RECALL_RSP, rspData));
     }
 }
-

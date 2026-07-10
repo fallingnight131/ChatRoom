@@ -53,7 +53,7 @@ private:
     void processBuffer();           // TCP 帧解析
     void setupHeartbeat();
     bool hasValidEnvelope(const QJsonObject &msg);
-    bool allowInboundRate();
+    bool allowInboundRate(const QJsonObject &msg);
     void rejectConnection(const QString &category);
     bool ensureOutboundCapacity(qint64 messageBytes);
 
@@ -66,6 +66,8 @@ private:
     QElapsedTimer m_rateWindow;
     int          m_messagesInWindow = 0;
     int          m_malformedMessages = 0;
+    QElapsedTimer m_authRateWindow;
+    int          m_authAttemptsInWindow = 0;
 
     int          m_userId           = 0;
     QString      m_username;

@@ -157,7 +157,7 @@ void ClientSession::processBuffer() {
             if (m_malformedMessages >= Protocol::MAX_MALFORMED_MESSAGES) return;
             continue;
         }
-        if (!allowInboundRate()) return;
+        if (!allowInboundRate(msg)) return;
         emit messageReceived(this, msg);
     }
 }
@@ -183,7 +183,7 @@ void ClientSession::onWsTextReceived(const QString &text) {
         return;
     }
     const QJsonObject msg = doc.object();
-    if (!hasValidEnvelope(msg) || !allowInboundRate()) return;
+    if (!hasValidEnvelope(msg) || !allowInboundRate(msg)) return;
     emit messageReceived(this, msg);
 }
 
@@ -197,7 +197,7 @@ bool ClientSession::hasValidEnvelope(const QJsonObject &msg) {
     return true;
 }
 
-bool ClientSession::allowInboundRate() {
+bool ClientSession::allowInboundRate(const QJsonObject &msg) {
     if (!m_rateWindow.isValid()) {
         m_rateWindow.start();
         m_messagesInWindow = 0;
@@ -209,6 +209,25 @@ bool ClientSession::allowInboundRate() {
     if (m_messagesInWindow > Protocol::MAX_MESSAGES_PER_SECOND) {
         rejectConnection(QStringLiteral("inbound-rate-limit"));
         return false;
+    }
+
+    const QString type = msg["type"].toString();
+    const bool authenticationWork = type == Protocol::MsgType::LOGIN_REQ
+        || type == Protocol::MsgType::REGISTER_REQ
+        || type == Protocol::MsgType::CHANGE_PASSWORD_REQ;
+    if (authenticationWork) {
+        if (!m_authRateWindow.isValid()) {
+            m_authRateWindow.start();
+            m_authAttemptsInWindow = 0;
+        } else if (m_authRateWindow.elapsed() >= 60 * 1000) {
+            m_authRateWindow.restart();
+            m_authAttemptsInWindow = 0;
+        }
+        ++m_authAttemptsInWindow;
+        if (m_authAttemptsInWindow > Protocol::MAX_AUTH_ATTEMPTS_PER_MINUTE) {
+            rejectConnection(QStringLiteral("authentication-rate-limit"));
+            return false;
+        }
     }
     return true;
 }

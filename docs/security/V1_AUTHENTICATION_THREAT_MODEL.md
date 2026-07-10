@@ -28,6 +28,7 @@ route state is never proof of authentication.
 | Credential interception | HTTPS pages select WSS | Plain HTTP still selects `ws://`; production TLS must become mandatory |
 | Offline cracking of server database | New/changed passwords use libsodium Argon2id; successful legacy login upgrades salted SHA-256 rows | Back up before rollout, monitor upgrades, and complete migration before removing legacy verification |
 | Credential leakage through logs | No intended password logging | Add explicit log redaction tests and structured authentication errors |
+| Repeated expensive password work | Password fields are capped and a connection gets five auth commands per minute | Add account/IP/gateway throttling and alerting without trusting unverified proxy headers |
 | Stale browser state impersonates a session | Router now checks live Pinia authenticated state | Server must continue rejecting unauthenticated socket commands |
 
 ## Security Invariants
@@ -41,6 +42,8 @@ route state is never proof of authentication.
 - Wrong-password attempts must never mutate a stored legacy hash.
 - Authentication logs may contain a numeric user ID and error category, never a
   password, salt, encoded hash, or login payload.
+- Password input must be bounded before Argon2id, and one connection cannot
+  trigger unbounded login/register/password-change work.
 
 ## Verification
 

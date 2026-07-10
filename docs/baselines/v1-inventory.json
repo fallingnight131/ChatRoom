@@ -220,11 +220,11 @@
     },
     "protocol": {
       "path": "Common/Protocol.h",
-      "sha256": "d558bf69ba9f15b6b3874245362d534e4a7df39387752c54f7f6598a2605b430"
+      "sha256": "af911314c9ea50c712ba86237ae5b7740bda83d578dd163254361115e84a6189"
     },
     "server_dispatch": {
       "path": "Server/ChatServer.cpp",
-      "sha256": "bf182875820e997e52d3d5feb15e6a277a3e2675913756c9321db336fa47313f"
+      "sha256": "8f3b998ff08055e1b399bcc3fa15298fa1157cfbdd44528877bddb8f232e7d02"
     }
   }
 }
