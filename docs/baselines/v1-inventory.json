@@ -210,7 +210,7 @@
       "MARK_FRIEND_READ",
       "HEARTBEAT"
     ],
-    "tcp_max_frame_bytes": 52428800,
+    "tcp_max_frame_bytes": 16777216,
     "version_constant": 1
   },
   "sources": {
@@ -220,7 +220,7 @@
     },
     "protocol": {
       "path": "Common/Protocol.h",
-      "sha256": "ef7b9725483b3e1ec53b056da276cae16ec108657c330a64c5064487145852b9"
+      "sha256": "d558bf69ba9f15b6b3874245362d534e4a7df39387752c54f7f6598a2605b430"
     },
     "server_dispatch": {
       "path": "Server/ChatServer.cpp",

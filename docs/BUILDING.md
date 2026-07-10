@@ -102,8 +102,10 @@ authenticated sender identity, message fan-out, history persistence, file
 notification metadata, disconnect/reconnect, persistent membership,
 post-reconnect delivery, and recall. A second three-user suite verifies negative
 authorization for room data/settings, cross-room recall, message/file writes,
-upload ownership, TCP downloads, and HTTP downloads. Neither suite uses
-production ports, credentials, databases, or COS.
+upload ownership, TCP downloads, and HTTP downloads. A third suite verifies
+oversized/malformed frames, envelopes, connection message rate, the 8 MiB inline
+compatibility boundary, and slow-consumer disconnection. None uses production
+ports, credentials, databases, or COS.
 
 CI runs the same smoke test on Ubuntu 24.04 after installing Qt Base, Qt SQLite,
 Qt WebSockets, and libsodium development packages.

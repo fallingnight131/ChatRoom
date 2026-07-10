@@ -4,6 +4,7 @@
 #include <QTcpSocket>
 #include <QJsonObject>
 #include <QTimer>
+#include <QElapsedTimer>
 
 class QWebSocket;
 
@@ -51,7 +52,10 @@ private slots:
 private:
     void processBuffer();           // TCP 帧解析
     void setupHeartbeat();
-    void handleJsonMessage(const QJsonObject &msg);
+    bool hasValidEnvelope(const QJsonObject &msg);
+    bool allowInboundRate();
+    void rejectConnection(const QString &category);
+    bool ensureOutboundCapacity(qint64 messageBytes);
 
     Transport    m_transport        = Tcp;
     qintptr      m_socketDescriptor = -1;
@@ -59,6 +63,9 @@ private:
     QWebSocket  *m_webSocket        = nullptr;
     QTimer      *m_heartbeatTimer   = nullptr;
     QByteArray   m_buffer;
+    QElapsedTimer m_rateWindow;
+    int          m_messagesInWindow = 0;
+    int          m_malformedMessages = 0;
 
     int          m_userId           = 0;
     QString      m_username;

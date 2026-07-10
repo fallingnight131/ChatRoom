@@ -70,7 +70,7 @@ def build_inventory() -> dict[str, object]:
         r"HEARTBEAT_TIMEOUT_MS\s*=\s*(\d+)", protocol, "heartbeat timeout"
     )
     max_frame_mib = first_int(
-        r"if\s*\(len\s*>\s*(\d+)\s*\*\s*1024\s*\*\s*1024\)",
+        r"MAX_JSON_MESSAGE_BYTES\s*=\s*(\d+)\s*\*\s*1024\s*\*\s*1024",
         protocol,
         "TCP max frame",
     )
@@ -164,4 +164,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

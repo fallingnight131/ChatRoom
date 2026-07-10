@@ -40,12 +40,23 @@ envelope and there is no capability negotiation.
 N bytes compact UTF-8 JSON
 ```
 
-The unpacker rejects lengths over 50 MiB by clearing its current receive buffer.
-The default TCP port is 9527.
+The server accepts at most 16 MiB of JSON after the four-byte prefix, bounds the
+socket read buffer, and disconnects immediately on a larger declared length. It
+disconnects after three malformed JSON/envelope messages or more than 60
+complete messages in one one-second connection window. The default TCP port is
+9527.
 
 ### WebSocket
 
 The browser uses one JSON object per text frame. The default port is 9528.
+The server configures Qt's incoming frame and message limits to the same 16 MiB
+V1 JSON maximum used by TCP.
+
+### Outbound backpressure
+
+TCP and WebSocket sessions allow at most 24 MiB of pending socket writes. If a
+new response would cross the high-water mark, the server disconnects that slow
+consumer instead of growing an unbounded queue or silently dropping the event.
 
 ### Heartbeat and reconnect
 
@@ -198,8 +209,10 @@ fan-out and history, and direct-message recall.
 
 `Tests/v1_authorization_test.py` uses three authenticated users to prove that
 resource identifiers do not grant room, message, upload, or attachment access.
-`python3 tools/verify_m0.py --v1-smoke` runs both suites against the same built
-server binary in separate isolated databases.
+`Tests/v1_transport_limits_test.py` covers malformed/oversized input, unknown
+types, message floods, the legacy 8 MiB inline-file boundary, and a real slow
+consumer. `python3 tools/verify_m0.py --v1-smoke` runs all three suites against
+the same built server binary in separate isolated databases.
 
 The test uses randomized users, payload tokens, temporary SQLite/files, and a
 locally available three-port range. It must not depend on production credentials,
@@ -214,6 +227,7 @@ ports, files, or external COS access.
 - accepted, delivered, and read semantics;
 - sequence-based reconnect synchronization;
 - structured error code separate from localized message;
-- maximum-size rules consistent across TCP and WebSocket;
+- field-level content/file metadata limits and account/IP authentication abuse
+  throttling;
 - binary attachment flow outside messaging;
 - generated Java/C++/TypeScript schemas.
