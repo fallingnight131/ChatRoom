@@ -75,8 +75,8 @@
 ChatRoom/
 ├── ChatRoom.pro          # 顶层 qmake subdirs 项目
 ├── README.md             # 项目说明
-├── DEPLOY.md             # 云服务器部署指南
-├── DESIGN.md             # 详细设计文档
+├── AGENTS.md             # 工程和架构演进规则
+├── docs/                 # 权威架构、协议、数据与验证文档
 ├── Common/               # 共享协议层
 │   ├── Protocol.h        # 消息协议定义（当前 120 种消息类型）
 │   └── Message.h/cpp     # 消息数据模型
@@ -139,13 +139,13 @@ ChatRoom/
 
 ### Qt 端
 
-- Qt 6.7+（MinGW 或 MSVC）
+- Qt 6.11.1（Windows/macOS 原生 CI 基线），或支持的 Linux 发行版 Qt 6
 - C++17 编译器
 - qmake
 
 ### Web 端
 
-- Node.js 18+
+- Node.js 22
 - npm
 
 > SQLite 驱动已内置于 Qt，**无需安装任何数据库**。首次运行 Server 时会自动创建 `chatroom.db`。
@@ -176,6 +176,15 @@ CHATROOM_DEVELOPER_KEY=请替换成你的强密码
 ---
 
 ## 本地运行
+
+建议先使用统一验证入口确认本机工具链：
+
+```bash
+python3 tools/verify_m0.py --web --db-schema --v1-smoke --performance
+```
+
+Qt 完整产品目标的跨平台命令、依赖与已知工具链边界见
+[构建指南](docs/BUILDING.md)和[支持矩阵](docs/architecture/SUPPORT_MATRIX.md)。
 
 ### 1. 构建服务端
 
@@ -231,9 +240,14 @@ ChatServer.exe --port 8888 --ws-port 9999
 
 ---
 
-## 云服务器部署
+## 部署状态
 
-详见 [DEPLOY.md](DEPLOY.md)，包含完整的 Linux 服务器部署教程（编译、systemd 服务、Nginx 反向代理、SSL/HTTPS 配置）。
+项目当前不提供可信的公网生产部署脚本。旧脚本会在生产机上以 `root`
+身份现场编译、暴露明文 TCP/WebSocket 端口，且没有签名产物、回滚和完整
+密钥管理，已从仓库移除。
+
+公网部署必须先完成 M1 认证/授权/TLS 安全闭环；Windows/macOS 签名安装包、
+自动更新和可回滚发布属于 M4。
 
 ---
 

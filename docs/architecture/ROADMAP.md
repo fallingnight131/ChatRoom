@@ -40,7 +40,8 @@ Progress:
 Work:
 
 - adopt `AGENTS.md`, project skills, target architecture, and ADR process;
-- reconcile `README.md`, `DESIGN.md`, protocol names, and actual implementation;
+- reconcile `README.md`, legacy design material, protocol names, and actual
+  implementation;
 - document the current V1 JSON protocol and database schema from code;
 - establish reproducible Qt server, Qt client, and web builds;
 - add a small integration harness for login, room chat, direct chat, reconnect,

@@ -17,11 +17,9 @@ migration plan is documented in
 - `Client/`: Qt Widgets desktop client, currently oriented toward Windows.
 - `WebClient/`: Vue 3, JavaScript, Pinia, Vite.
 - `Common/`: the current V1 JSON protocol shared by the Qt server and client.
-- `DESIGN.md`: legacy design material. It is not authoritative when it differs
-  from the implementation or `docs/architecture/`.
 
-Inspect the implementation before making architectural claims. Do not assume
-that `DESIGN.md` still describes the active database, protocol, or feature set.
+Inspect the implementation before making architectural claims. The maintained
+architecture, protocol, data, and delivery documentation lives under `docs/`.
 
 ## Project Skills
 
