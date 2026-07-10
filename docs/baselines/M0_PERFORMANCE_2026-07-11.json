@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-07-10T16:44:55.651860+00:00",
+  "scenario": {
+    "protocol": "V1 length-prefixed JSON over loopback TCP",
+    "flow": "authenticated room CHAT_MSG persistence and fan-out",
+    "connections": 8,
+    "warmupMessages": 20,
+    "measuredMessages": 100,
+    "payloadBytes": 51,
+    "sendPattern": "one sender, sequential send-to-own-echo acknowledgement",
+    "recipientsPerMessage": 8
+  },
+  "environment": {
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "machine": "arm64",
+    "python": "3.12.7",
+    "qt": "6.9.0",
+    "serverBinary": "build/m0/darwin/v1-performance-server/ChatServerHeadless"
+  },
+  "results": {
+    "sendAckLatencyMs": {
+      "min": 0.158,
+      "p50": 0.238,
+      "p95": 0.318,
+      "p99": 0.334,
+      "max": 0.373,
+      "mean": 0.239
+    },
+    "sqliteSaveLatencyUs": {
+      "min": 68.459,
+      "p50": 102.896,
+      "p95": 123.554,
+      "p99": 139.484,
+      "max": 158.459,
+      "mean": 105.44
+    },
+    "acceptedMessagesPerSecond": 4171.679,
+    "fanoutDeliveriesPerSecond": 33187.677,
+    "serverCpuSeconds": 0.05,
+    "serverPeakRssBytes": 20496384,
+    "processMetricSamples": 2
+  },
+  "artifactSizesBytes": {
+    "headlessServer": 761936,
+    "sqliteWorkingSet": 2047456,
+    "webDist": 554842,
+    "nativeSignedInstallers": null
+  },
+  "limitations": [
+    "Loopback removes real network latency and packet loss.",
+    "Sequential sender acknowledgements measure steady-state latency, not maximum throughput.",
+    "The headless test build disables image thumbnails and enables SQLite timing logs.",
+    "CPU time and RSS come from periodic ps sampling on Unix-like hosts.",
+    "Signed installer sizes remain an M4 measurement."
+  ]
+}

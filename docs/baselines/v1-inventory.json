@@ -224,7 +224,7 @@
     },
     "server_dispatch": {
       "path": "Server/ChatServer.cpp",
-      "sha256": "c55958789b207305c2d17b9e4f8c680fc8d41799a307523ec1f2154c635c47e6"
+      "sha256": "3a6b03cc4ca1682c317b298f00b5b7d30bbff7c962639414531a8e7f9d4fecf2"
     }
   }
 }

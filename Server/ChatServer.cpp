@@ -30,6 +30,9 @@
 #include <QDateTime>
 #include <QUuid>
 #include <QTimer>
+#ifdef CHATROOM_ENABLE_BENCHMARK_METRICS
+#include <QElapsedTimer>
+#endif
 #include <QTextStream>
 #include <QStringList>
 
@@ -793,8 +796,17 @@ void ChatServer::handleChatMessage(ClientSession *session, const QJsonObject &ms
     int roomId = data["roomId"].toInt();
 
     // 存入数据库
+#ifdef CHATROOM_ENABLE_BENCHMARK_METRICS
+    const bool benchmarkMetrics = qEnvironmentVariableIntValue("CHATROOM_BENCHMARK_METRICS") == 1;
+    QElapsedTimer persistenceTimer;
+    if (benchmarkMetrics)
+        persistenceTimer.start();
+#endif
     int msgId = m_db->saveMessage(roomId, session->userId(), data["content"].toString(),
                                    data["contentType"].toString());
+#ifdef CHATROOM_ENABLE_BENCHMARK_METRICS
+    const qint64 sqliteSaveNanoseconds = benchmarkMetrics ? persistenceTimer.nsecsElapsed() : 0;
+#endif
 
     // 补全消息信息
     QJsonObject fullData = data;
@@ -804,6 +816,13 @@ void ChatServer::handleChatMessage(ClientSession *session, const QJsonObject &ms
     QJsonObject fullMsg = Protocol::makeMessage(Protocol::MsgType::CHAT_MSG, fullData);
 
     broadcastToRoom(roomId, fullMsg);
+
+#ifdef CHATROOM_ENABLE_BENCHMARK_METRICS
+    if (benchmarkMetrics) {
+        qInfo().noquote() << QStringLiteral("[M0_METRIC] sqlite_save_us=%1")
+                                 .arg(sqliteSaveNanoseconds / 1000.0, 0, 'f', 3);
+    }
+#endif
 }
 
 // ==================== 房间管理 ====================
@@ -3222,7 +3241,6 @@ void ChatServer::handleFriendRecall(ClientSession *session, const QJsonObject &d
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_RECALL_RSP, rspData));
     }
 }
-
 
 
 

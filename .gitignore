@@ -54,6 +54,10 @@ WebClient/dist/
 WebClient/.vite/
 WebClient/*.local
 
+# ========== Python 验证工具 ==========
+__pycache__/
+*.py[cod]
+
 # ========== 日志 ==========
 *.log
 npm-debug.log*

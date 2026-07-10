@@ -86,10 +86,10 @@ def verify_database_schema(jobs: int, build_root: Path) -> None:
     run([str(executable)], target_dir)
 
 
-def verify_v1_smoke(jobs: int, build_root: Path) -> None:
+def build_headless_server(jobs: int, build_root: Path, target_name: str) -> Path:
     qmake = select_qmake()
     make, supports_jobs = select_make(qmake)
-    target_dir = build_root / "v1-smoke-server"
+    target_dir = build_root / target_name
     target_dir.mkdir(parents=True, exist_ok=True)
 
     run(
@@ -103,12 +103,54 @@ def verify_v1_smoke(jobs: int, build_root: Path) -> None:
     )
     if not executable.exists():
         raise RuntimeError(f"headless server executable not found: {executable}")
+    return executable
+
+
+def verify_v1_smoke(jobs: int, build_root: Path) -> None:
+    executable = build_headless_server(jobs, build_root, "v1-smoke-server")
     run(
         [
             sys.executable,
             str(ROOT / "Tests" / "v1_smoke_test.py"),
             "--server",
             str(executable),
+        ],
+        ROOT,
+    )
+
+
+def verify_performance(
+    jobs: int,
+    build_root: Path,
+    output: Path,
+    clients: int,
+    messages: int,
+    warmup: int,
+) -> None:
+    qmake = select_qmake()
+    qt_version = subprocess.run(
+        [qmake, "-query", "QT_VERSION"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    executable = build_headless_server(jobs, build_root, "v1-performance-server")
+    run(
+        [
+            sys.executable,
+            str(ROOT / "Tests" / "v1_performance_baseline.py"),
+            "--server",
+            str(executable),
+            "--output",
+            str(output),
+            "--clients",
+            str(clients),
+            "--messages",
+            str(messages),
+            "--warmup",
+            str(warmup),
+            "--qt-version",
+            qt_version,
         ],
         ROOT,
     )
@@ -148,12 +190,25 @@ def parse_args() -> argparse.Namespace:
         help="build a headless server and run critical V1 TCP smoke flows",
     )
     parser.add_argument(
+        "--performance",
+        action="store_true",
+        help="build the headless server and record the V1 performance scenario",
+    )
+    parser.add_argument(
         "--all",
         action="store_true",
-        help="run inventory, web, database schema, V1 smoke, and Qt verification",
+        help="run inventory, web, database schema, V1 smoke, performance, and Qt verification",
     )
     parser.add_argument("--skip-npm-ci", action="store_true", help="reuse installed web dependencies")
     parser.add_argument("--jobs", type=int, default=max(1, min(os.cpu_count() or 1, 4)))
+    parser.add_argument("--performance-clients", type=int, default=8)
+    parser.add_argument("--performance-messages", type=int, default=100)
+    parser.add_argument("--performance-warmup", type=int, default=20)
+    parser.add_argument(
+        "--performance-output",
+        type=Path,
+        help="JSON result path (default: <build-root>/v1-performance.json)",
+    )
     parser.add_argument(
         "--build-root",
         type=Path,
@@ -174,12 +229,32 @@ def main() -> int:
         verify_database_schema(args.jobs, build_root)
     if args.v1_smoke or args.all:
         verify_v1_smoke(args.jobs, build_root)
+    if args.performance or args.all:
+        performance_output = args.performance_output or build_root / "v1-performance.json"
+        if not performance_output.is_absolute():
+            performance_output = ROOT / performance_output
+        verify_performance(
+            args.jobs,
+            build_root,
+            performance_output,
+            args.performance_clients,
+            args.performance_messages,
+            args.performance_warmup,
+        )
     if args.qt or args.all:
         verify_qt(args.jobs, build_root)
-    if not (args.web or args.db_schema or args.v1_smoke or args.qt or args.all):
+    if not (
+        args.web
+        or args.db_schema
+        or args.v1_smoke
+        or args.performance
+        or args.qt
+        or args.all
+    ):
         print(
             "[M0] inventory-only verification complete; "
-            "use --web, --db-schema, --v1-smoke, --qt, or --all for builds/tests"
+            "use --web, --db-schema, --v1-smoke, --performance, --qt, or --all "
+            "for builds/tests"
         )
     return 0
 

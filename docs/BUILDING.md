@@ -85,6 +85,36 @@ and recall. It does not use production ports, credentials, databases, or COS.
 CI runs the same smoke test on Ubuntu 24.04 after installing Qt Base, Qt SQLite,
 and Qt WebSockets development packages.
 
+## V1 Performance Baseline
+
+The performance scenario uses the same production server sources as the TCP
+smoke test. It creates authenticated clients on loopback, joins them to one
+room, sends warm-up messages, and then records message persistence/fan-out:
+
+```bash
+python3 tools/verify_m0.py --performance
+```
+
+The default JSON result is written to
+`build/m0/<platform>/v1-performance.json`. To create a reviewed, stored baseline:
+
+```bash
+python3 tools/verify_m0.py --performance \
+  --performance-clients 8 \
+  --performance-warmup 20 \
+  --performance-messages 100 \
+  --performance-output docs/baselines/M0_PERFORMANCE_YYYY-MM-DD.json
+```
+
+The result records the exact scenario and environment, send-to-own-echo latency,
+SQLite `saveMessage` latency, accepted-message and fan-out throughput, sampled
+server CPU/RSS, and available artifact sizes. It is a regression reference, not
+a production capacity promise: loopback networking, sequential acknowledgements,
+and a single process intentionally make the run small and repeatable.
+
+CI executes a shorter version to ensure the harness remains operational. It
+does not enforce a latency threshold on shared hosted runners.
+
 ## Qt Server and Desktop Client
 
 Requires Qt with Core, GUI, Widgets, Network, SQL, WebSockets, and Multimedia,

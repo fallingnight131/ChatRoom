@@ -28,7 +28,9 @@ Progress:
 - [x] Add critical V1 integration smoke tests.
 - [x] Pin the desktop support/build matrix and automate unsigned Windows/macOS
   verification artifacts without conflating them with M4 installers.
-- [ ] Record the first reproducible performance baseline.
+- [x] Record the first reproducible V1 performance baseline, including message
+  latency, SQLite latency, CPU/RSS, connection count, throughput, and available
+  artifact sizes.
 
 Work:
 

@@ -6,7 +6,9 @@ CONFIG -= app_bundle
 
 TARGET = ChatServerHeadless
 
-DEFINES += CHATROOM_DISABLE_IMAGE_THUMBNAILS
+DEFINES += \
+    CHATROOM_DISABLE_IMAGE_THUMBNAILS \
+    CHATROOM_ENABLE_BENCHMARK_METRICS
 
 INCLUDEPATH += \
     ../Common \
@@ -29,4 +31,3 @@ HEADERS += \
     ../Server/DatabaseManager.h \
     ../Server/RoomManager.h \
     ../Server/CosManager.h
-
