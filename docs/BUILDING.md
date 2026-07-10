@@ -42,6 +42,23 @@ python3 tools/verify_m0.py --web --skip-npm-ci
 CI runs inventory and web verification on every push and pull request through
 `.github/workflows/m0-baseline.yml`.
 
+## SQLite Schema Regression
+
+Requires Qt Core, Qt SQL, the SQLite Qt driver, qmake, and a platform compiler:
+
+```bash
+python3 tools/verify_m0.py --db-schema
+```
+
+The test creates an isolated temporary database, verifies every required V1
+table and migrated column after the first initialization, runs
+`PRAGMA integrity_check`, initializes again to simulate a restart, and requires
+both schema snapshots to be identical.
+
+This regression runs as its own Ubuntu 24.04 CI job. It intentionally avoids Qt
+GUI dependencies so database validation is independent of desktop packaging and
+graphics toolchains.
+
 ## Qt Server and Desktop Client
 
 Requires Qt with Core, GUI, Widgets, Network, SQL, WebSockets, and Multimedia,
@@ -69,9 +86,10 @@ make a local build appear successful.
 python3 tools/verify_m0.py --all
 ```
 
-The full command is expected to fail when a required compiler, Qt module, or
-supported platform SDK is unavailable. Report that environment limitation and
-retain the successful component results.
+The full command includes inventory, web, SQLite schema, and both Qt product
+targets. It is expected to fail when a required compiler, Qt module, or supported
+platform SDK is unavailable. Report that environment limitation and retain the
+successful component results.
 
 ## Windows Notes
 
@@ -85,4 +103,3 @@ retain the successful component results.
 - Install Xcode command-line tools and a Qt build compatible with the active SDK.
 - M0 compilation does not perform `macdeployqt`, code signing, notarization, or
   DMG creation; those are M4 release gates.
-

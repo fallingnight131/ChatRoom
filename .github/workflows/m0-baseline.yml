@@ -26,3 +26,18 @@ jobs:
       - name: Verify source inventory and web build
         run: python3 tools/verify_m0.py --web
 
+  database-schema:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Install Qt SQL build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes qt6-base-dev libqt6sql6-sqlite
+
+      - name: Verify clean and restarted SQLite schemas
+        run: python3 tools/verify_m0.py --db-schema

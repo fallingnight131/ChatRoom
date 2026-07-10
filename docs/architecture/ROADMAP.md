@@ -19,8 +19,8 @@ Progress:
   ADR process.
 - [x] Capture code-derived current-system, V1 protocol, and SQLite inventory
   baselines.
-- [x] Establish inventory/web verification commands and a first CI entry point;
-  Qt native CI remains a follow-up within M0.
+- [x] Establish inventory, web, and SQLite schema verification in CI; full Qt
+  product-target CI remains a follow-up within M0.
 - [x] Add a clean/restart SQLite schema consistency regression test.
 - [ ] Add critical V1 integration smoke tests.
 - [ ] Record the first reproducible performance baseline.

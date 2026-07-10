@@ -55,8 +55,39 @@ def select_make(qmake: str) -> tuple[str, bool]:
     return command_path("make", "gmake"), True
 
 
+def select_qmake() -> str:
+    return os.environ.get("QMAKE") or command_path("qmake6", "qmake")
+
+
+def make_command(make: str, supports_jobs: bool, jobs: int) -> list[str]:
+    command = [make]
+    if supports_jobs:
+        command.append(f"-j{jobs}")
+    return command
+
+
+def verify_database_schema(jobs: int, build_root: Path) -> None:
+    qmake = select_qmake()
+    make, supports_jobs = select_make(qmake)
+    target_dir = build_root / "database-schema"
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    run(
+        [qmake, str(ROOT / "Tests" / "DatabaseSchemaTest.pro"), "CONFIG+=release"],
+        target_dir,
+    )
+    run(make_command(make, supports_jobs, jobs), target_dir)
+
+    executable = target_dir / (
+        "DatabaseSchemaTest.exe" if os.name == "nt" else "DatabaseSchemaTest"
+    )
+    if not executable.exists():
+        raise RuntimeError(f"database schema test executable not found: {executable}")
+    run([str(executable)], target_dir)
+
+
 def verify_qt(jobs: int, build_root: Path) -> None:
-    qmake = os.environ.get("QMAKE") or command_path("qmake6", "qmake")
+    qmake = select_qmake()
     make, supports_jobs = select_make(qmake)
 
     print(f"[M0] Qt: {subprocess.run([qmake, '-query', 'QT_VERSION'], check=True, capture_output=True, text=True).stdout.strip()}")
@@ -69,10 +100,7 @@ def verify_qt(jobs: int, build_root: Path) -> None:
         target_dir = build_root / target
         target_dir.mkdir(parents=True, exist_ok=True)
         run([qmake, str(project), "CONFIG+=release"], target_dir)
-        make_command = [make]
-        if supports_jobs:
-            make_command.append(f"-j{jobs}")
-        run(make_command, target_dir)
+        run(make_command(make, supports_jobs, jobs), target_dir)
 
 
 def parse_args() -> argparse.Namespace:
@@ -81,7 +109,16 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--web", action="store_true", help="run npm ci and the web production build")
     parser.add_argument("--qt", action="store_true", help="generate and compile Qt server/client release builds")
-    parser.add_argument("--all", action="store_true", help="run inventory, web, and Qt verification")
+    parser.add_argument(
+        "--db-schema",
+        action="store_true",
+        help="build and run the clean/restart SQLite schema regression test",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="run inventory, web, database schema, and Qt verification",
+    )
     parser.add_argument("--skip-npm-ci", action="store_true", help="reuse installed web dependencies")
     parser.add_argument("--jobs", type=int, default=max(1, min(os.cpu_count() or 1, 4)))
     parser.add_argument(
@@ -100,10 +137,15 @@ def main() -> int:
     verify_inventory()
     if args.web or args.all:
         verify_web(args.skip_npm_ci)
+    if args.db_schema or args.all:
+        verify_database_schema(args.jobs, build_root)
     if args.qt or args.all:
         verify_qt(args.jobs, build_root)
-    if not (args.web or args.qt or args.all):
-        print("[M0] inventory-only verification complete; use --web, --qt, or --all for builds")
+    if not (args.web or args.db_schema or args.qt or args.all):
+        print(
+            "[M0] inventory-only verification complete; "
+            "use --web, --db-schema, --qt, or --all for builds/tests"
+        )
     return 0
 
 
@@ -113,4 +155,3 @@ if __name__ == "__main__":
     except (RuntimeError, subprocess.CalledProcessError) as error:
         print(f"[M0] verification failed: {error}", file=sys.stderr)
         raise SystemExit(1)
-
