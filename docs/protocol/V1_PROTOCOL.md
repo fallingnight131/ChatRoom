@@ -177,6 +177,18 @@ Until V1 retirement:
 - test at least one previous client version against a changed server;
 - update this document and the generated inventory in the same commit.
 
+## Automated Compatibility Coverage
+
+`Tests/v1_smoke_test.py` validates the current framed-TCP protocol against a real
+server process. It checks that persisted sender identity comes from the
+authenticated session, recipients see the same database message ID, history
+contains the committed message, room membership survives reconnect, file
+notifications retain metadata, and recall reaches another participant.
+
+The test uses randomized users, payload tokens, temporary SQLite/files, and a
+locally available three-port range. It must not depend on production credentials,
+ports, files, or external COS access.
+
 ## Gaps to Address Before V2 Cutover
 
 - transmitted protocol version and capability negotiation;
@@ -189,4 +201,3 @@ Until V1 retirement:
 - maximum-size rules consistent across TCP and WebSocket;
 - binary attachment flow outside messaging;
 - generated Java/C++/TypeScript schemas.
-

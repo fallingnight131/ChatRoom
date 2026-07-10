@@ -18,8 +18,10 @@
 #include <QRegularExpression>
 #include <QWebSocketServer>
 #include <QWebSocket>
+#ifndef CHATROOM_DISABLE_IMAGE_THUMBNAILS
 #include <QImage>
 #include <QBuffer>
+#endif
 #include <QTcpSocket>
 #include <QUrl>
 #include <QUrlQuery>
@@ -1255,6 +1257,7 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
 
     // 自动生成缩略图
     QString thumbnail;
+#ifndef CHATROOM_DISABLE_IMAGE_THUMBNAILS
     if (contentType == QLatin1String("image") && fileSize < 20 * 1024 * 1024) {
         // 从已保存的磁盘文件读取，避免二次 base64 解码
         QImage img(filePath);
@@ -1267,6 +1270,7 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
             thumbnail = QString::fromLatin1(thumbData.toBase64());
         }
     }
+#endif
     // QImage 失败或非图片类型时，使用客户端提供的缩略图
     if (thumbnail.isEmpty() && data.contains("thumbnail")) {
         thumbnail = data["thumbnail"].toString();
@@ -1457,6 +1461,7 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
 
     // 缩略图：图片自动生成（限制大小），视频由客户端提供
     QString thumbnail;
+#ifndef CHATROOM_DISABLE_IMAGE_THUMBNAILS
     if (contentType == QLatin1String("image") && state.fileSize < 20 * 1024 * 1024) {
         QImage img(state.filePath);
         if (!img.isNull()) {
@@ -1468,6 +1473,7 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
             thumbnail = QString::fromLatin1(thumbData.toBase64());
         }
     }
+#endif
     // QImage 失败或非图片类型时，使用客户端提供的缩略图
     if (thumbnail.isEmpty() && data.contains("thumbnail")) {
         thumbnail = data["thumbnail"].toString();
@@ -3065,6 +3071,7 @@ void ChatServer::handleFriendFileSend(ClientSession *session, const QJsonObject 
     int fileId = m_db->saveFriendFile(friendshipId, session->userId(), fileName, filePath, fileSize);
 
     // 图片自动生成缩略图（与房间 handleFileSend 一致）
+#ifndef CHATROOM_DISABLE_IMAGE_THUMBNAILS
     if (contentType == QLatin1String("image") && fileSize < 20 * 1024 * 1024) {
         QImage img(filePath);
         if (!img.isNull()) {
@@ -3077,6 +3084,7 @@ void ChatServer::handleFriendFileSend(ClientSession *session, const QJsonObject 
             if (!serverThumb.isEmpty()) thumbnail = serverThumb;
         }
     }
+#endif
     // QImage 失败或非图片类型时，使用客户端提供的缩略图（视频缩略图由客户端生成）
     if (thumbnail.isEmpty() && data.contains("thumbnail")) {
         thumbnail = data["thumbnail"].toString();
@@ -3214,7 +3222,6 @@ void ChatServer::handleFriendRecall(ClientSession *session, const QJsonObject &d
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_RECALL_RSP, rspData));
     }
 }
-
 
 
 

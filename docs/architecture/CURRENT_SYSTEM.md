@@ -160,3 +160,16 @@ These are recorded for prioritization, not silently fixed by this baseline:
 The previously observed first-start `friendships` read-pointer ordering defect is
 covered by `Tests/DatabaseSchemaTest.cpp` and has been corrected so clean and
 restarted schemas converge.
+
+## M0 Automated Coverage
+
+- `Tests/DatabaseSchemaTest.cpp` covers clean/restart schema completeness and
+  integrity.
+- `Tests/v1_smoke_test.py` drives the real V1 TCP framing against a headless test
+  build of `ChatServer`. It covers registration, login, room creation/join,
+  authenticated-sender enforcement, fan-out, history, file metadata, reconnect,
+  persistent membership, and recall.
+- `CHATROOM_DISABLE_IMAGE_THUMBNAILS` is defined only by the headless test target;
+  it skips server-side `QImage` thumbnail generation so the core smoke binary
+  does not require QtGui. Client-provided thumbnail fallback and the production
+  server build remain unchanged.
