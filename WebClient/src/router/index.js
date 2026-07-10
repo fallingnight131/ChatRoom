@@ -1,4 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { pinia } from '../stores'
+import { useUserStore } from '../stores/user'
 
 const routes = [
   {
@@ -25,8 +27,8 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth) {
-    const user = JSON.parse(sessionStorage.getItem('user') || 'null')
-    if (!user) return next('/login')
+    const userStore = useUserStore(pinia)
+    if (!userStore.loggedIn) return next('/login')
   }
   next()
 })

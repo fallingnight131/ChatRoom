@@ -1,6 +1,22 @@
 // 用户状态管理
 import { defineStore } from 'pinia'
 import { chatWs, MsgType, setHttpConfig } from '../services/websocket'
+import {
+  clearSessionCredentials as clearInMemoryCredentials,
+  completeSessionPasswordChange,
+  getSessionCredentials as getInMemoryCredentials,
+  purgeLegacyPersistedSession,
+  setSessionCredentials as setInMemoryCredentials,
+  stageSessionPasswordChange
+} from '../security/sessionCredentials'
+
+purgeLegacyPersistedSession()
+
+const isLocalDevelopment = typeof location !== 'undefined' &&
+  (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
+const defaultServer = isLocalDevelopment
+  ? { host: location.hostname, port: 9528, path: '' }
+  : { host: 'fallingnight.cn', port: 443, path: '/ws' }
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -10,9 +26,9 @@ export const useUserStore = defineStore('user', {
     displayName: '',   // 昵称
     avatarData: '',    // base64
     darkMode: localStorage.getItem('darkMode') !== 'false',
-    serverHost: localStorage.getItem('serverHost') || 'fallingnight.cn',
-    serverPort: parseInt(localStorage.getItem('serverPort') || '443'),
-    wsPath: localStorage.getItem('wsPath') || '/ws',
+    serverHost: localStorage.getItem('serverHost') || defaultServer.host,
+    serverPort: parseInt(localStorage.getItem('serverPort') || String(defaultServer.port)),
+    wsPath: localStorage.getItem('wsPath') ?? defaultServer.path,
     // 缓存其他用户头像
     avatarCache: {},   // username -> base64
     forceOfflineReason: '',  // 被顶号时的提示信息
@@ -41,26 +57,23 @@ export const useUserStore = defineStore('user', {
       if (data.httpPort && data.fileToken) {
         setHttpConfig(this.serverHost, data.httpPort, data.fileToken)
       }
-      sessionStorage.setItem('user', JSON.stringify({
-        userId: this.userId,
-        username: this.username,
-        displayName: this.displayName
-      }))
     },
 
-    // 保存登录凭证（用于刷新自动重连）
-    saveCredentials(username, password) {
-      sessionStorage.setItem('credentials', JSON.stringify({ username, password }))
+    // 只保留在当前页面进程内，用于断线重认证；不写入 Web Storage。
+    setSessionCredentials(username, password) {
+      return setInMemoryCredentials(username, password)
     },
 
-    getCredentials() {
-      try {
-        return JSON.parse(sessionStorage.getItem('credentials') || 'null')
-      } catch { return null }
+    getSessionCredentials() {
+      return getInMemoryCredentials()
     },
 
-    clearCredentials() {
-      sessionStorage.removeItem('credentials')
+    clearSessionCredentials() {
+      clearInMemoryCredentials()
+    },
+
+    stagePasswordChange(password) {
+      return stageSessionPasswordChange(password)
     },
 
     onLogout() {
@@ -69,8 +82,7 @@ export const useUserStore = defineStore('user', {
       this.username = ''
       this.displayName = ''
       this.avatarData = ''
-      sessionStorage.removeItem('user')
-      sessionStorage.removeItem('credentials')
+      clearInMemoryCredentials()
     },
 
     setAvatar(data) {
@@ -87,18 +99,16 @@ export const useUserStore = defineStore('user', {
 
     updateDisplayName(name) {
       this.displayName = name
-      const u = JSON.parse(sessionStorage.getItem('user') || '{}')
-      u.displayName = name
-      sessionStorage.setItem('user', JSON.stringify(u))
     },
 
     updateUsername(newUid) {
       // UID修改后更新
       const oldUid = this.username
       this.username = newUid
-      const u = JSON.parse(sessionStorage.getItem('user') || '{}')
-      u.username = newUid
-      sessionStorage.setItem('user', JSON.stringify(u))
+      const currentCredentials = getInMemoryCredentials()
+      if (currentCredentials) {
+        setInMemoryCredentials(newUid, currentCredentials.password)
+      }
       // 迁移头像缓存
       if (this.avatarCache[oldUid]) {
         this.avatarCache[newUid] = this.avatarCache[oldUid]
@@ -153,6 +163,7 @@ export const useUserStore = defineStore('user', {
       })
 
       chatWs.on(MsgType.CHANGE_PASSWORD_RSP, (msg) => {
+        completeSessionPasswordChange(this.username, msg.data.success === true)
         if (msg.data.success) {
           alert('密码修改成功')
         } else {

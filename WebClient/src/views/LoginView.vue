@@ -115,7 +115,9 @@ function onLoginRsp(msg) {
   loading.value = false
   if (msg.data.success) {
     userStore.onLoginSuccess(msg.data)
-    userStore.saveCredentials(username.value, password.value)
+    userStore.setSessionCredentials(username.value, password.value)
+    password.value = ''
+    confirmPassword.value = ''
     // 初始化消息监听
     userStore.initListeners()
     chatStore.initListeners()
@@ -125,6 +127,7 @@ function onLoginRsp(msg) {
     chatWs.requestFriendList()
     router.push('/chat')
   } else {
+    userStore.clearSessionCredentials()
     errorMsg.value = msg.data.error || '登录失败'
   }
 }

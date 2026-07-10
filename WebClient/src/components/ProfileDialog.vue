@@ -175,6 +175,7 @@ function changePassword() {
     alert('两次新密码不一致')
     return
   }
+  userStore.stagePasswordChange(newPassword.value)
   chatWs.changePassword(oldPassword.value, newPassword.value)
   oldPassword.value = ''
   newPassword.value = ''

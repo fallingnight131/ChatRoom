@@ -321,6 +321,9 @@ stable and beta channels and preserve rollback capability.
 
 ## 13. Security Baseline
 
+The current V1 authentication risks and verified controls are tracked in
+[`../security/V1_AUTHENTICATION_THREAT_MODEL.md`](../security/V1_AUTHENTICATION_THREAT_MODEL.md).
+
 - Replace fast SHA password hashing with Argon2id, scrypt, or bcrypt through a
   migration that upgrades hashes after successful login.
 - Never persist plaintext passwords in browser storage or desktop settings.

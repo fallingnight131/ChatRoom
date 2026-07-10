@@ -62,6 +62,17 @@ Exit criteria:
 
 Goal: correct the highest-risk behavior before migration.
 
+Progress:
+
+- [x] Stop persisting plaintext Web login passwords; retain credentials only in
+  current-page memory for V1 disconnect reauthentication and purge legacy
+  browser session keys.
+- [ ] Introduce modern server password hashing with gradual upgrade.
+- [ ] Enforce server-side membership/permission checks across message and file
+  operations.
+- [ ] Add transport/input/backpressure limits and remaining reliable-message
+  semantics.
+
 Work:
 
 - stop storing plaintext login passwords in browser storage;

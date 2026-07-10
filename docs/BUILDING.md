@@ -32,8 +32,8 @@ Requires a supported Node.js release and npm:
 python3 tools/verify_m0.py --web
 ```
 
-The command runs `npm ci` followed by `npm run build`. To reuse already installed
-dependencies during local iteration:
+The command runs `npm ci`, the Node regression tests, and `npm run build`. To
+reuse already installed dependencies during local iteration:
 
 ```bash
 python3 tools/verify_m0.py --web --skip-npm-ci

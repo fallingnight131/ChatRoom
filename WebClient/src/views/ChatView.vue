@@ -206,7 +206,7 @@ function onReconnectLogin(msg) {
   } else {
     // 登录失败，跳转到登录页
     reconnecting.value = false
-    userStore.clearCredentials()
+    userStore.onLogout()
     router.push('/login')
   }
   // 移除一次性监听
@@ -215,10 +215,15 @@ function onReconnectLogin(msg) {
 
 function onReconnected() {
   // WebSocket连接成功后自动登录
-  const creds = userStore.getCredentials()
-  if (creds && !userStore.loggedIn) {
+  const creds = userStore.getSessionCredentials()
+  if (creds) {
+    chatWs.off(MsgType.LOGIN_RSP, onReconnectLogin)
     chatWs.on(MsgType.LOGIN_RSP, onReconnectLogin)
     chatWs.login(creds.username, creds.password)
+  } else {
+    reconnecting.value = false
+    userStore.onLogout()
+    router.push('/login')
   }
   chatWs.off('connected', onReconnected)
 }
@@ -228,22 +233,9 @@ onMounted(() => {
   chatWs.on('disconnected', onDisconnected)
   chatStore.onEvent('needPassword', onNeedPassword)
 
-  // 如果没有登录过，尝试自动重连
+  // 页面刷新后内存凭证已丢失，必须重新登录。
   if (!userStore.loggedIn) {
-    const saved = JSON.parse(sessionStorage.getItem('user') || 'null')
-    const creds = userStore.getCredentials()
-    if (saved && creds) {
-      // 有保存的会话和凭证，自动重连
-      reconnecting.value = true
-      userStore.username = saved.username
-      userStore.displayName = saved.displayName
-      userStore.userId = saved.userId
-
-      chatWs.on('connected', onReconnected)
-      chatWs.connect(userStore.serverHost, userStore.serverPort, userStore.wsPath)
-    } else {
-      router.push('/login')
-    }
+    router.push('/login')
   }
 })
 
@@ -255,7 +247,10 @@ onUnmounted(() => {
 })
 
 function onDisconnected() {
-  // 意外断开
+  if (!userStore.loggedIn) return
+  reconnecting.value = true
+  chatWs.off('connected', onReconnected)
+  chatWs.on('connected', onReconnected)
 }
 
 function onForceOfflineConfirm() {

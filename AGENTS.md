@@ -154,7 +154,7 @@ Run what applies to the touched scope:
 - M0 repository baseline: use `python3 tools/verify_m0.py` and add the relevant
   `--web`, `--db-schema`, `--v1-smoke`, `--performance`, or `--qt` flags. Use
   `--all` only when the host has every documented dependency.
-- Web: `npm ci`, then `npm run build` from `WebClient/`.
+- Web: `npm ci`, `npm test`, then `npm run build` from `WebClient/`.
 - Current Qt server/client: generate a release build with the available Qt
   toolchain and compile the touched target.
 - Future Java modules: run the Gradle unit and integration test tasks once the

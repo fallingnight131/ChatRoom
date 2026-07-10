@@ -38,6 +38,7 @@ def verify_web(skip_install: bool) -> None:
     web = ROOT / "WebClient"
     if not skip_install:
         run([npm, "ci"], web)
+    run([npm, "test"], web)
     run([npm, "run", "build"], web)
 
 
