@@ -63,6 +63,13 @@ the local Qt build is incompatible with the active Xcode SDK, keep running the
 headless/Web checks locally and use the pinned macOS CI lane until the local Qt
 SDK is upgraded.
 
+The repository's shared qmake configuration disables transitive `.prl` link
+flags on macOS and declares the retained OpenGL compatibility framework
+directly. This avoids inheriting Homebrew Qt 6.9's obsolete `AGL` reference on
+macOS 26 without modifying the installed Qt package. Both the server and the
+desktop client must still pass `python3 tools/verify_m0.py --qt` after any local
+Qt/Xcode change.
+
 ## Review Policy
 
 Review the pinned Qt version and runner images at least once per milestone and
