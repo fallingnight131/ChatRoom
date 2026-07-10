@@ -45,8 +45,8 @@ Thumbs.db
 mysql_driver_build/
 
 # ========== 存储数据 ==========
-data/
-server_files/
+/data/
+/server_files/
 
 # ========== Node.js / Vue Web 前端 ==========
 WebClient/node_modules/
