@@ -15,6 +15,11 @@ The migration must keep the product usable after every iteration. Follow
 [`ROADMAP.md`](ROADMAP.md) for sequencing and use ADRs in `decisions/` for
 material changes.
 
+For current build commands and the native toolchain boundary, read
+[`../BUILDING.md`](../BUILDING.md) and
+[`SUPPORT_MATRIX.md`](SUPPORT_MATRIX.md). M0 acceptance evidence is stored in
+[`../baselines/M0_ACCEPTANCE_2026-07-11.md`](../baselines/M0_ACCEPTANCE_2026-07-11.md).
+
 ## 2. Architecture Principles
 
 Prioritize qualities in this order:

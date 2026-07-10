@@ -153,6 +153,9 @@ ownership.
 
 Run what applies to the touched scope:
 
+- M0 repository baseline: use `python3 tools/verify_m0.py` and add the relevant
+  `--web`, `--db-schema`, `--v1-smoke`, `--performance`, or `--qt` flags. Use
+  `--all` only when the host has every documented dependency.
 - Web: `npm ci`, then `npm run build` from `WebClient/`.
 - Current Qt server/client: generate a release build with the available Qt
   toolchain and compile the touched target.
@@ -163,6 +166,9 @@ Run what applies to the touched scope:
   documented restore procedure.
 - Packaging: install, launch, upgrade, uninstall, and verify signatures on each
   target operating system.
+
+Do not treat an unsigned M0 CI artifact as an installer. Windows installer
+signing and macOS signing/notarization are M4 release gates.
 
 ## Definition of Done
 

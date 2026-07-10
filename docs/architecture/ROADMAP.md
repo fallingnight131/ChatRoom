@@ -13,6 +13,11 @@ is attractive. Reliability and client responsiveness come before service count.
 
 Goal: make the current system measurable and safe to change.
 
+Status: **repository scope complete on 2026-07-11**. See the stored
+[`M0 acceptance record`](../baselines/M0_ACCEPTANCE_2026-07-11.md). Native
+Windows/macOS jobs execute after these local commits are pushed; their first run
+is required operational evidence but does not add more M0 product scope.
+
 Progress:
 
 - [x] Establish repository governance, target architecture, project skills, and
@@ -46,10 +51,11 @@ Work:
 
 Exit criteria:
 
-- a clean checkout can be built using documented steps;
-- critical V1 flows have automated smoke coverage;
-- architecture-changing work requires an ADR;
-- performance claims refer to a stored test scenario and result.
+- [x] a clean checkout has one documented verifier and pinned native build
+  workflows;
+- [x] critical V1 flows have automated smoke coverage;
+- [x] architecture-changing work requires an ADR;
+- [x] performance claims refer to a stored test scenario and result.
 
 ## M1 — Secure and Reliable V1
 

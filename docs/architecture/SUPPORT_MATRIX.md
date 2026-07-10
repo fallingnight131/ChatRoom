@@ -66,3 +66,10 @@ before a release. A version change must update this matrix and CI in the same
 commit, then pass the full native jobs. Adding Windows ARM64, Intel-specific
 macOS output, or Linux packages is a support-scope decision, not an incidental
 matrix expansion.
+
+## Upstream References
+
+- [Qt 6.11 supported platforms](https://doc.qt.io/qt-6/supported-platforms.html)
+- [Qt installation options](https://doc.qt.io/qt-6.11/get-and-install-qt.html)
+- [`install-qt-action` v4 usage](https://github.com/jurplel/install-qt-action)
+- [GitHub-hosted runner images](https://github.com/actions/runner-images)
