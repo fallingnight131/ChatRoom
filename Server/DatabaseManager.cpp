@@ -179,6 +179,8 @@ bool DatabaseManager::initialize() {
            "  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE,"
            "  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE"
            ")");
+    q.exec("CREATE INDEX IF NOT EXISTS idx_room_members_user "
+           "ON room_members(user_id, room_id)");
 
     // 消息表
     q.exec("CREATE TABLE IF NOT EXISTS messages ("
@@ -206,6 +208,7 @@ bool DatabaseManager::initialize() {
 
     // 消息索引
     q.exec("CREATE INDEX IF NOT EXISTS idx_msg_room_time ON messages(room_id, created_at)");
+    q.exec("CREATE INDEX IF NOT EXISTS idx_messages_room_id_id ON messages(room_id, id)");
 
     // 文件表
     q.exec("CREATE TABLE IF NOT EXISTS files ("
@@ -226,6 +229,8 @@ bool DatabaseManager::initialize() {
         q.exec("ALTER TABLE files ADD COLUMN clear_reason TEXT DEFAULT ''");
         q.exec("ALTER TABLE files ADD COLUMN cleared_at TIMESTAMP DEFAULT NULL");
         q.exec("ALTER TABLE files ADD COLUMN cos_url TEXT DEFAULT ''");
+        q.exec("CREATE INDEX IF NOT EXISTS idx_files_room_active "
+               "ON files(room_id, cleared, created_at, id)");
 
     // 房间管理员表
     q.exec("CREATE TABLE IF NOT EXISTS room_admins ("
@@ -334,6 +339,10 @@ bool DatabaseManager::initialize() {
            "  FOREIGN KEY (from_user_id) REFERENCES users(id) ON DELETE CASCADE,"
            "  FOREIGN KEY (to_user_id) REFERENCES users(id) ON DELETE CASCADE"
            ")");
+    q.exec("CREATE INDEX IF NOT EXISTS idx_friend_requests_recipient "
+           "ON friend_requests(to_user_id, status, created_at)");
+    q.exec("CREATE INDEX IF NOT EXISTS idx_friend_requests_pair "
+           "ON friend_requests(from_user_id, to_user_id, status)");
 
     // 好友关系表
     q.exec("CREATE TABLE IF NOT EXISTS friendships ("
@@ -345,6 +354,7 @@ bool DatabaseManager::initialize() {
            "  FOREIGN KEY (user_id1) REFERENCES users(id) ON DELETE CASCADE,"
            "  FOREIGN KEY (user_id2) REFERENCES users(id) ON DELETE CASCADE"
            ")");
+    q.exec("CREATE INDEX IF NOT EXISTS idx_friendships_user2 ON friendships(user_id2)");
 
     // 迁移: friendships 添加每用户已读指针。
     // 必须在 friendships 创建后执行，保证全新数据库首次启动即得到完整 schema。
@@ -368,6 +378,8 @@ bool DatabaseManager::initialize() {
            "  FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE"
            ")");
     q.exec("CREATE INDEX IF NOT EXISTS idx_friend_msg_time ON friend_messages(friendship_id, created_at)");
+    q.exec("CREATE INDEX IF NOT EXISTS idx_friend_messages_friendship_id_id "
+           "ON friend_messages(friendship_id, id)");
 
     q.exec("ALTER TABLE friend_messages ADD COLUMN file_cleared INTEGER DEFAULT 0");
     q.exec("ALTER TABLE friend_messages ADD COLUMN clear_reason TEXT DEFAULT ''");

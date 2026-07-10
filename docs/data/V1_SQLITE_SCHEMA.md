@@ -103,10 +103,23 @@ Run `python3 tools/m0_inventory.py --check` to detect table/index inventory drif
 ## Declared Explicit Indexes
 
 - `idx_msg_room_time` on `messages(room_id, created_at)`;
-- `idx_friend_msg_time` on `friend_messages(friendship_id, created_at)`.
+- `idx_messages_room_id_id` on `messages(room_id, id)`;
+- `idx_friend_msg_time` on `friend_messages(friendship_id, created_at)`;
+- `idx_friend_messages_friendship_id_id` on
+  `friend_messages(friendship_id, id)`;
+- `idx_room_members_user` on `room_members(user_id, room_id)`;
+- `idx_files_room_active` on `files(room_id, cleared, created_at, id)`;
+- `idx_friend_requests_recipient` on
+  `friend_requests(to_user_id, status, created_at)`;
+- `idx_friend_requests_pair` on
+  `friend_requests(from_user_id, to_user_id, status)`;
+- `idx_friendships_user2` on `friendships(user_id2)`.
 
-SQLite also creates indexes for primary-key and unique constraints. M0 has not
-yet captured `EXPLAIN QUERY PLAN` output for all application queries.
+SQLite also creates indexes for primary-key and unique constraints. The schema
+regression asserts `EXPLAIN QUERY PLAN` index use for reconnect membership,
+room/direct unread counts, active files, friend request recipient/pair lookups,
+and the second normalized friendship participant. Remaining queries should be
+added based on measured workloads rather than indexed speculatively.
 
 ## Relationships
 

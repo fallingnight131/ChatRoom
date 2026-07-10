@@ -76,6 +76,8 @@ Progress:
 - [x] Add password/message/history/file/chunk field limits and per-connection
   expensive-authentication throttling.
 - [ ] Add gateway/account/IP authentication-abuse controls and monitoring.
+- [x] Add critical SQLite indexes and lock their hot query shapes with
+  `EXPLAIN QUERY PLAN` regression tests.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

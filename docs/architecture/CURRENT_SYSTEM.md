@@ -155,8 +155,9 @@ These are recorded for prioritization, not silently fixed by this baseline:
    still crosses the chat protocol.
 9. **Single-node presence:** session and online-room state cannot route across
     multiple server instances.
-10. **Index coverage:** only two explicit time/history indexes are declared;
-    other production query plans are not baselined.
+10. **Index coverage:** nine explicit indexes cover current history, reconnect,
+    unread, file quota, and contact hot paths with query-plan regression, but
+    production-scale latency/write amplification still needs workload evidence.
 11. **Documentation drift:** prior README/DESIGN message counts and database
     descriptions do not fully match the active implementation.
 

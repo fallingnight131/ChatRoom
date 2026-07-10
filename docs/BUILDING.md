@@ -79,6 +79,11 @@ table and migrated column after the first initialization, runs
 `PRAGMA integrity_check`, initializes again to simulate a restart, and requires
 both schema snapshots to be identical.
 
+It also runs `EXPLAIN QUERY PLAN` assertions for the critical membership,
+unread, room-file, friend-request, and friendship lookup indexes. An index name
+present in `sqlite_master` is not considered sufficient unless the intended
+query shape actually uses it.
+
 This regression runs as its own Ubuntu 24.04 CI job. It intentionally avoids Qt
 GUI dependencies so database validation is independent of desktop packaging and
 graphics toolchains.

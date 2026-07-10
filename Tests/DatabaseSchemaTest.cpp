@@ -131,6 +131,32 @@ bool initializeDatabase() {
     return true;
 }
 
+bool requireQueryPlanIndex(const QString &databasePath,
+                           const QString &connectionName,
+                           const QString &sql,
+                           const QString &indexName) {
+    bool ok = true;
+    {
+        QSqlDatabase database;
+        if (!openProbe(connectionName, databasePath, &database)) return false;
+        QSqlQuery query(database);
+        if (!query.exec(QStringLiteral("EXPLAIN QUERY PLAN ") + sql)) {
+            ok = fail(QStringLiteral("cannot explain query for %1: %2")
+                          .arg(indexName, query.lastError().text()));
+        } else {
+            QStringList details;
+            while (query.next()) details.append(query.value(3).toString());
+            if (!details.join(QLatin1Char(' ')).contains(indexName)) {
+                ok = fail(QStringLiteral("query plan did not use %1: %2")
+                              .arg(indexName, details.join(QStringLiteral(" | "))));
+            }
+        }
+        database.close();
+    }
+    QSqlDatabase::removeDatabase(connectionName);
+    return ok;
+}
+
 } // namespace
 
 int main(int argc, char *argv[]) {
@@ -178,6 +204,34 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    const QList<QPair<QString, QPair<QString, QString>>> planChecks = {
+        {QStringLiteral("plan_room_members"),
+         {QStringLiteral("SELECT room_id FROM room_members WHERE user_id = 1"),
+          QStringLiteral("idx_room_members_user")}},
+        {QStringLiteral("plan_room_unread"),
+         {QStringLiteral("SELECT COUNT(*) FROM messages WHERE room_id = 1 AND id > 0"),
+          QStringLiteral("idx_messages_room_id_id")}},
+        {QStringLiteral("plan_friend_unread"),
+         {QStringLiteral("SELECT COUNT(*) FROM friend_messages WHERE friendship_id = 1 AND id > 0"),
+          QStringLiteral("idx_friend_messages_friendship_id_id")}},
+        {QStringLiteral("plan_room_files"),
+         {QStringLiteral("SELECT id FROM files WHERE room_id = 1 AND cleared = 0 ORDER BY created_at, id"),
+          QStringLiteral("idx_files_room_active")}},
+        {QStringLiteral("plan_pending_requests"),
+         {QStringLiteral("SELECT id FROM friend_requests WHERE to_user_id = 1 AND status = 'pending' ORDER BY created_at"),
+          QStringLiteral("idx_friend_requests_recipient")}},
+        {QStringLiteral("plan_request_pair"),
+         {QStringLiteral("SELECT id FROM friend_requests WHERE from_user_id = 1 AND to_user_id = 2 AND status = 'pending'"),
+          QStringLiteral("idx_friend_requests_pair")}},
+        {QStringLiteral("plan_friendships_user2"),
+         {QStringLiteral("SELECT id FROM friendships WHERE user_id2 = 1"),
+          QStringLiteral("idx_friendships_user2")}},
+    };
+    for (const auto &check : planChecks) {
+        ok &= requireQueryPlanIndex(databasePath, check.first, check.second.first, check.second.second);
+    }
+    if (!ok) return 1;
+
     if (!initializeDatabase()) {
         return 1;
     }
@@ -193,4 +247,3 @@ int main(int argc, char *argv[]) {
     qInfo() << "[DatabaseSchemaTest] PASS: clean and restarted schemas are complete and identical";
     return 0;
 }
-
