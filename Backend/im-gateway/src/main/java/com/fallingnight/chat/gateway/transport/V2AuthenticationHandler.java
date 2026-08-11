@@ -196,6 +196,7 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
                     new AuthenticatedConnection(
                             session.accountId(), session.deviceId(), session.sessionId()));
             state = State.AUTHENTICATED;
+            context.fireUserEventTriggered(V2ConnectionPhaseEvent.AUTHENTICATED);
             recordAccepted(established.credentialUpgradePending());
 
             SessionEstablished payload = SessionEstablished.newBuilder()

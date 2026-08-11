@@ -118,6 +118,7 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
                 .setSentAtEpochMs(now)
                 .setPayload(response.toByteString())
                 .build());
+        context.fireUserEventTriggered(V2ConnectionPhaseEvent.NEGOTIATED);
     }
 
     private static com.fallingnight.chat.application.identity.ClientPlatform toApplicationPlatform(

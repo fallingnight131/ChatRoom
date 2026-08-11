@@ -200,8 +200,10 @@ account/device/session identity to the connection. Envelope session IDs cannot
 grant identity. Its transport pipeline now provides bounded binary WebSocket
 decode/encode and fixed safe close outcomes for invalid or oversized frames.
 This is still an inactive foundation: the one-way V1 import, bounded worker
-pool sizing and account/IP/gateway admission limits, deadlines, resume rotation,
-hardened listener, and complete gateway wiring remain explicit cutover blockers.
+pool sizing and account/IP/gateway admission limits, resume rotation,
+authenticated idle policy, hardened listener, and complete gateway wiring remain
+explicit cutover blockers. Handshake and authentication phase deadlines are
+implemented but do not define deployment defaults yet.
 
 ## 7. Reliable Message Flow
 

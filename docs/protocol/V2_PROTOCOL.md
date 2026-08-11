@@ -99,9 +99,16 @@ does not invoke Argon2id or persistence, and returns the generic
 one-second retry hint. This protects executor capacity; it is not a substitute
 for the pending account, direct-peer-IP, and gateway-window abuse limits.
 
+Once installed on a channel, independent positive deadlines bound the time to
+send a valid `ClientHello` and the time from negotiation to server-side identity
+binding. Expiry closes with WebSocket status 1008 and the fixed reason
+`V2 handshake timeout` or `V2 authentication timeout`. Successful phase changes
+and disconnect cancel their scheduled tasks. Deployment durations remain
+explicit configuration and are not defined by the short virtual-time tests.
+
 These messages are not allowed on a production route until WSS, origin policy,
-timeouts, account/IP/gateway rate limits, redaction, token rotation, and listener
-lifecycle are implemented and verified.
+account/IP/gateway rate limits, redaction, token rotation, authenticated idle
+policy, and listener lifecycle are implemented and verified.
 
 ## Compatibility rules
 

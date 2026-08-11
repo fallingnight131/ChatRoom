@@ -289,8 +289,10 @@ Progress:
   - [x] Add gateway-owned fixed authentication workers, a bounded queue,
     deterministic saturation shedding, lifecycle shutdown, and non-secret
     saturation signals.
-  - [ ] Add connection timeouts, account/IP/gateway rate limits, and production
-    observability before enabling a listener.
+  - [x] Add independent handshake/authentication deadlines with deterministic
+    1008 close outcomes and timer cancellation at phase changes/disconnect.
+  - [ ] Add account/IP/gateway rate limits and production observability before
+    enabling a listener.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before
