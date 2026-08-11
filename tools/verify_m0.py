@@ -50,6 +50,27 @@ def verify_java() -> None:
     run([str(wrapper), "--no-daemon", "check"], backend)
 
 
+def verify_protocol_bindings(skip_install: bool) -> None:
+    npm = command_path("npm", "npm.cmd")
+    backend = ROOT / "Backend"
+    typescript = backend / "protocol-v2" / "typescript"
+    wrapper = backend / ("gradlew.bat" if os.name == "nt" else "gradlew")
+    if not skip_install:
+        run([npm, "ci"], typescript)
+    run([str(wrapper), "--no-daemon", ":protocol-v2:generateClientBindings"], backend)
+    generated = typescript / "generated"
+    for relative in (
+        "chat-v2.desc",
+        "cpp/chat/v2/envelope.pb.cc",
+        "cpp/chat/v2/envelope.pb.h",
+        "typescript/chat/v2/envelope_pb.ts",
+    ):
+        artifact = generated / relative
+        if not artifact.is_file() or artifact.stat().st_size == 0:
+            raise RuntimeError(f"generated V2 binding missing or empty: {artifact}")
+    run([npm, "test"], typescript)
+
+
 def select_make(qmake: str) -> tuple[str, bool]:
     spec = subprocess.run(
         [qmake, "-query", "QMAKE_XSPEC"],
@@ -251,6 +272,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--qt", action="store_true", help="generate and compile Qt server/client release builds")
     parser.add_argument("--java", action="store_true", help="compile and test the Java V2 workspace")
     parser.add_argument(
+        "--protocol-bindings",
+        action="store_true",
+        help="generate and verify V2 C++ and TypeScript client bindings",
+    )
+    parser.add_argument(
         "--db-schema",
         action="store_true",
         help="build and run the clean/restart SQLite schema regression test",
@@ -303,6 +329,8 @@ def main() -> int:
         verify_web(args.skip_npm_ci)
     if args.java or args.all:
         verify_java()
+    if args.protocol_bindings or args.all:
+        verify_protocol_bindings(args.skip_npm_ci)
     if args.db_schema or args.all:
         verify_database_schema(args.jobs, build_root)
     if args.password_hash or args.all:
@@ -326,6 +354,7 @@ def main() -> int:
     if not (
         args.web
         or args.java
+        or args.protocol_bindings
         or args.db_schema
         or args.password_hash
         or args.v1_smoke
@@ -335,7 +364,8 @@ def main() -> int:
     ):
         print(
             "[M0] inventory-only verification complete; "
-            "use --web, --java, --db-schema, --password-hash, --v1-smoke, --performance, "
+            "use --web, --java, --protocol-bindings, --db-schema, --password-hash, "
+            "--v1-smoke, --performance, "
             "--qt, or --all "
             "for builds/tests"
         )

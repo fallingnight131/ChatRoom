@@ -24,8 +24,8 @@ compatibility and preventing transport fields from becoming domain truth.
   session text are never treated as authority without authenticated server
   state.
 - Add the payload registry and generated C++/TypeScript bindings as subsequent
-  slices from the same schema source. No supported V1 client changes in this
-  decision.
+  slices from the same schema source. The TypeScript generator/runtime have an
+  independent npm lockfile. No supported V1 client changes in this decision.
 
 ## Compatibility and Rollback
 
@@ -38,5 +38,7 @@ reused; incompatible evolution requires a new protocol generation.
 
 Java generation runs inside the standard Gradle `check`. Tests validate the
 wire-compatible golden envelope, round trip, UTF-8 byte limits, required
-routing fields, and event/command request-ID rules. C++/TypeScript generation
-and cross-language golden parsing remain the next acceptance gate.
+routing fields, and event/command request-ID rules. The binding gate generates
+C++/TypeScript output and proves Java/TypeScript golden compatibility. Compiling
+the generated C++ with the pinned runtime and parsing that golden envelope
+remains the next acceptance gate.

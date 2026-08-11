@@ -268,8 +268,10 @@ Progress:
 - [ ] Implement the V2 envelope and generated Java/C++/TypeScript schemas.
   - [x] Define the versioned Protobuf envelope, generated Java binding,
     structural validation, and golden wire test.
-  - [ ] Generate C++ and TypeScript bindings from the same source and prove
-    cross-language golden compatibility.
+  - [x] Generate C++ and TypeScript bindings from the same source and prove
+    Java/TypeScript golden-wire compatibility.
+  - [ ] Compile the generated C++ binding with the pinned runtime and parse the
+    same golden envelope before declaring cross-language compatibility complete.
 
 Work:
 

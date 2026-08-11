@@ -9,7 +9,9 @@ production route depends on it yet; V1 remains authoritative.
 
 The schema source is
 `Backend/protocol-v2/src/main/proto/chat/v2/envelope.proto`. Generated files are
-build output and are not edited or committed by hand.
+build output and are not edited or committed by hand. The Gradle binding task
+uses the same pinned compiler to emit Java, C++, TypeScript, and a descriptor;
+the TypeScript generator/runtime are pinned by their own npm lockfile.
 
 ## Envelope v2
 
@@ -42,3 +44,8 @@ the application core. Feature payloads retain their own smaller limits.
   a message ordering key.
 - V1 JSON translation stays at the gateway boundary and must not leak V1 row or
   field quirks into V2 application types.
+
+The Java and TypeScript bindings must encode and decode the stored golden
+envelope identically. C++ generation is active; compiling it against the pinned
+C++ runtime and parsing the same golden bytes is the remaining cross-language
+gate before this envelope slice is complete.

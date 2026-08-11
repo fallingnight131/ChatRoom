@@ -54,6 +54,8 @@ WebClient/node_modules/
 WebClient/dist/
 WebClient/.vite/
 WebClient/*.local
+Backend/protocol-v2/typescript/node_modules/
+Backend/protocol-v2/typescript/generated/
 
 # ========== Java / Gradle 后端 ==========
 .gradle/

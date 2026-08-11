@@ -27,5 +27,12 @@ jobs:
             Backend/gradle/libs.versions.toml
             Backend/**/build.gradle.kts
 
-      - name: Verify Java V2 workspace
-        run: python3 tools/verify_m0.py --java
+      - name: Set up Node.js 22 for TypeScript bindings
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: Backend/protocol-v2/typescript/package-lock.json
+
+      - name: Verify Java workspace and generated client bindings
+        run: python3 tools/verify_m0.py --java --protocol-bindings

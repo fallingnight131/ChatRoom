@@ -68,6 +68,19 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
 The Java workspace is not yet on the production traffic or data path; the C++
 V1 verification remains required during the compatibility window.
 
+Generate the non-Java V2 bindings and run the Java-to-TypeScript golden-wire
+test with Node.js 22:
+
+```bash
+python3 tools/verify_m0.py --protocol-bindings
+```
+
+This installs the lockfile-pinned generator, invokes the same Protobuf 4.35.1
+compiler used by Gradle, and writes C++, TypeScript, and descriptor output below
+ignored generated/build directories. Generated files are never edited or
+committed. The C++ binding is generation evidence until its runtime compile and
+golden parse gate is added.
+
 ## Server Password Hashing Dependency
 
 All server and database test targets require libsodium. The macOS and Ubuntu
