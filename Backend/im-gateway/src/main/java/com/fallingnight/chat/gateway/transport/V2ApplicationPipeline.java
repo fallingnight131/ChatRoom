@@ -42,6 +42,7 @@ public final class V2ApplicationPipeline {
                 java.time.Clock.systemUTC()));
         pipeline.addLast("v2-messaging", new V2MessagingHandler(
                 submissions, history, directory, messagingExecutor, messagingEvents));
+        pipeline.addLast("v2-authenticated-heartbeat", new V2AuthenticatedHeartbeatHandler());
         pipeline.addLast("v2-authenticated-idle-close", new V2AuthenticatedIdleCloseHandler());
     }
 }

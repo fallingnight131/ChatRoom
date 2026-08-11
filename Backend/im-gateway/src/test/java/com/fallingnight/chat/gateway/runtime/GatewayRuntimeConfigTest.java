@@ -51,6 +51,7 @@ class GatewayRuntimeConfigTest {
         assertEquals(Duration.ofSeconds(10), config.handshakeTimeout());
         assertEquals(Duration.ofSeconds(30), config.authenticationTimeout());
         assertEquals(Duration.ofSeconds(120), config.authenticatedIdleTimeout());
+        assertEquals(Duration.ofSeconds(30), config.authenticatedHeartbeatInterval());
         assertTrue(config.hostPolicy().allows(List.of("gateway.example.com:443")));
         assertEquals(ClientPlatform.WEB, config.endpointPolicy().expectedPlatform(
                 WebSocketEndpointPolicy.WEB_PATH,
@@ -101,6 +102,12 @@ class GatewayRuntimeConfigTest {
         csv.put("CHATROOM_GATEWAY_ALLOWED_HOSTS", "gateway.example.com,");
         assertThrows(IllegalArgumentException.class,
                 () -> GatewayRuntimeConfig.fromEnvironment(csv));
+
+        Map<String, String> heartbeat = requiredEnvironment();
+        heartbeat.put("CHATROOM_GATEWAY_IDLE_TIMEOUT_SECONDS", "30");
+        heartbeat.put("CHATROOM_GATEWAY_HEARTBEAT_INTERVAL_SECONDS", "30");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(heartbeat));
 
         Map<String, String> pool = requiredEnvironment();
         pool.put("CHATROOM_POSTGRES_POOL_MAXIMUM", "2");

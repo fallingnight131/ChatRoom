@@ -43,8 +43,9 @@ class V2ApplicationPipelineTest {
                     "v2-handshake",
                     "v2-authentication",
                     "v2-messaging",
+                    "v2-authenticated-heartbeat",
                     "v2-authenticated-idle-close"),
-                    names.subList(0, 10));
+                    names.subList(0, 11));
         } finally {
             channel.finishAndReleaseAll();
         }

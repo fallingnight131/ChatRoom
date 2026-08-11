@@ -216,8 +216,8 @@ account/device/session identity to the connection. Envelope session IDs cannot
 grant identity. Its transport pipeline now provides bounded binary WebSocket
 decode/encode and fixed safe close outcomes for invalid or oversized frames.
 The deterministic post-upgrade composition now installs bounded frame handling,
-phase deadlines, negotiation, authentication/resume, and authenticated reader-
-idle closure, and both endpoints require the fixed `chat.v2` WebSocket
+phase deadlines, negotiation, authentication/resume, authenticated writer-idle
+Ping, and reader-idle closure, and both endpoints require the fixed `chat.v2` WebSocket
 subprotocol. The WSS component composes mandatory TLS,
 bounded HTTP/WebSocket parsing, Host/proxy/endpoint policies, connection and
 write-buffer limits, the post-upgrade application pipeline, and deterministic
@@ -442,7 +442,7 @@ pages, and idempotent text submissions without changing the live V1 path. Live
 Web traffic remains on V1. The unconnected V2 WebSocket adapter now fixes the
 secure endpoint/subprotocol, bounds connection phases, rejects non-binary data,
 clears per-connection protocol state, and performs cancellable jittered
-reconnects. Application integration, automatic session resume, browser liveness, and
+reconnects. Application integration, automatic session resume, browser offline signals, and
 rollback behavior still require verification before any cutover. The protocol
 and transport boundaries can now send an explicitly supplied resume proof and
 accept its rotated session result, but no layer persists or automatically

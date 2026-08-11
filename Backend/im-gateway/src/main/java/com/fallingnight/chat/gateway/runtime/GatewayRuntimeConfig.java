@@ -51,6 +51,7 @@ public final class GatewayRuntimeConfig {
     private final Duration handshakeTimeout;
     private final Duration authenticationTimeout;
     private final Duration authenticatedIdleTimeout;
+    private final Duration authenticatedHeartbeatInterval;
     private final AuthenticationAdmissionLimits admissionLimits;
 
     private GatewayRuntimeConfig(
@@ -81,6 +82,7 @@ public final class GatewayRuntimeConfig {
             Duration handshakeTimeout,
             Duration authenticationTimeout,
             Duration authenticatedIdleTimeout,
+            Duration authenticatedHeartbeatInterval,
             AuthenticationAdmissionLimits admissionLimits) {
         this.listenerAddress = listenerAddress;
         this.adminAddress = adminAddress;
@@ -109,6 +111,7 @@ public final class GatewayRuntimeConfig {
         this.handshakeTimeout = handshakeTimeout;
         this.authenticationTimeout = authenticationTimeout;
         this.authenticatedIdleTimeout = authenticatedIdleTimeout;
+        this.authenticatedHeartbeatInterval = authenticatedHeartbeatInterval;
         this.admissionLimits = admissionLimits;
     }
 
@@ -188,6 +191,11 @@ public final class GatewayRuntimeConfig {
                 environment, "CHATROOM_GATEWAY_AUTH_TIMEOUT_SECONDS", 30, 1, 300);
         Duration idleTimeout = seconds(
                 environment, "CHATROOM_GATEWAY_IDLE_TIMEOUT_SECONDS", 120, 30, 3600);
+        Duration heartbeatInterval = seconds(
+                environment, "CHATROOM_GATEWAY_HEARTBEAT_INTERVAL_SECONDS", 30, 5, 300);
+        if (heartbeatInterval.compareTo(idleTimeout) >= 0) {
+            throw invalid("gateway heartbeat interval must be shorter than idle timeout");
+        }
         Duration admissionWindow = seconds(
                 environment, "CHATROOM_GATEWAY_ADMISSION_WINDOW_SECONDS", 60, 1, 3600);
         AuthenticationAdmissionLimits limits = new AuthenticationAdmissionLimits(
@@ -224,6 +232,7 @@ public final class GatewayRuntimeConfig {
                 handshakeTimeout,
                 authenticationTimeout,
                 idleTimeout,
+                heartbeatInterval,
                 limits);
     }
 
@@ -333,6 +342,10 @@ public final class GatewayRuntimeConfig {
 
     public Duration authenticatedIdleTimeout() {
         return authenticatedIdleTimeout;
+    }
+
+    public Duration authenticatedHeartbeatInterval() {
+        return authenticatedHeartbeatInterval;
     }
 
     public AuthenticationAdmissionLimits admissionLimits() {

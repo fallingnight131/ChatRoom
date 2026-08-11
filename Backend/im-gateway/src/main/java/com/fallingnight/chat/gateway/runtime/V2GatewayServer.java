@@ -206,8 +206,11 @@ public final class V2GatewayServer implements AutoCloseable {
         var sslHandler = sslContext.newHandler(pipeline.channel().alloc());
         sslHandler.setHandshakeTimeoutMillis(config.handshakeTimeout().toMillis());
         pipeline.addLast("tls", sslHandler);
-        pipeline.addLast("authenticated-reader-idle", new IdleStateHandler(
-                config.authenticatedIdleTimeout().toSeconds(), 0, 0, TimeUnit.SECONDS));
+        pipeline.addLast("authenticated-idle-state", new IdleStateHandler(
+                config.authenticatedIdleTimeout().toSeconds(),
+                config.authenticatedHeartbeatInterval().toSeconds(),
+                0,
+                TimeUnit.SECONDS));
         pipeline.addLast("http-codec", new HttpServerCodec(
                 HTTP_INITIAL_LINE_BYTES,
                 HTTP_HEADER_BYTES,

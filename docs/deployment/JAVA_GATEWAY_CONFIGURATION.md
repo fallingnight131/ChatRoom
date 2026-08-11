@@ -44,6 +44,7 @@ filesystem permissions and secret delivery controls.
 | `CHATROOM_GATEWAY_HANDSHAKE_TIMEOUT_SECONDS` | `10` | `1..60` |
 | `CHATROOM_GATEWAY_AUTH_TIMEOUT_SECONDS` | `30` | `1..300` |
 | `CHATROOM_GATEWAY_IDLE_TIMEOUT_SECONDS` | `120` | `30..3600` |
+| `CHATROOM_GATEWAY_HEARTBEAT_INTERVAL_SECONDS` | `30` | `5..300`; must be shorter than idle timeout |
 | `CHATROOM_POSTGRES_POOL_MAXIMUM` | `8` | `1..64` |
 | `CHATROOM_POSTGRES_POOL_MINIMUM_IDLE` | `1` | `0..64`, not above maximum |
 | `CHATROOM_POSTGRES_CONNECTION_TIMEOUT_SECONDS` | `5` | `1..30` |
@@ -56,6 +57,12 @@ filesystem permissions and secret delivery controls.
 The high write-buffer watermark must be strictly greater than the low watermark.
 Crossing it makes a Netty child channel non-writable so later messaging code can
 apply bounded slow-consumer policy rather than accumulating unbounded output.
+
+The heartbeat interval must be strictly shorter than the authenticated idle
+timeout. The gateway sends an empty WebSocket Ping only after authentication and
+only when no outbound traffic occurred during that interval. Browser and native
+WebSocket stacks answer with Pong; a peer that produces no inbound traffic by
+the idle timeout is closed. Do not use heartbeat payloads for application data.
 
 Remote PostgreSQL URLs must contain exactly one `sslmode=verify-full` query
 property. Credentials belong only in the dedicated secret values and are

@@ -18,7 +18,8 @@ indefinitely.
 - Provide one `V2ApplicationPipeline` installer for the post-upgrade path.
 - Install bounded frame aggregation/decoding/encoding first, followed by phase
   deadlines, `ClientHello` negotiation, authentication/session resume, and the
-  authenticated reader-idle close handler in that exact order.
+  authenticated writer-idle heartbeat and reader-idle close handlers in that
+  exact order.
 - Keep the reader-idle timer in the future listener's pre-upgrade pipeline so
   WebSocket control frames can refresh it. The post-upgrade handler acts only
   after server-side identity binding; pre-authentication time is bounded by the

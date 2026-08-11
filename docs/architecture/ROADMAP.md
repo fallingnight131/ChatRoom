@@ -309,6 +309,9 @@ Progress:
   - [x] Require the fixed `chat.v2` WebSocket subprotocol and compose the bounded
     frame, phase, negotiation, authentication, and authenticated-idle handlers
     in one deterministic post-upgrade pipeline.
+  - [x] Add a configurable authenticated writer-idle Ping interval below the
+    reader-idle timeout so browser automatic Pong traffic keeps healthy V2
+    connections alive while silent peers still close deterministically.
   - [x] Centralize fail-before-bind environment validation for TLS material,
     PostgreSQL secrets, endpoints, proxy mode, workers, queues, timeouts, and
     abuse-control bounds.

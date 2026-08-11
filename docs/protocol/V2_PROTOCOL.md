@@ -202,11 +202,14 @@ binding. Expiry closes with WebSocket status 1008 and the fixed reason
 and disconnect cancel their scheduled tasks. Deployment durations remain
 explicit configuration and are not defined by the short virtual-time tests.
 
-After server-side identity binding, a reader-idle event closes the WebSocket with
-status 1001 and the fixed reason `V2 idle timeout`. Pre-authentication idle time
-is governed by the stricter handshake/authentication deadlines. The listener
-places its reader-idle timer before WebSocket control handling so
-valid ping/pong traffic refreshes connection activity.
+After server-side identity binding, a configurable writer-idle event sends an
+empty WebSocket Ping. Browsers answer Ping with Pong automatically even though
+their JavaScript API cannot originate control frames. The interval must be
+strictly shorter than the configured reader-idle timeout. Any valid inbound
+application or control traffic refreshes that upstream reader timer; a truly
+silent peer closes with status 1001 and the fixed reason `V2 idle timeout`.
+Pre-authentication idle time remains governed by the stricter handshake and
+authentication deadlines. Heartbeats carry no identity or application payload.
 
 Before password copying or worker submission, the single-process gateway
 applies cumulative fixed-window limits to total attempts, the resolved direct
