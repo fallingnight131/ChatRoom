@@ -165,6 +165,37 @@ int main(int argc, char *argv[]) {
             QStringLiteral("pending-two")) >= 0
         && retentionModel.findMessageByClientMessageId(
             QStringLiteral("pending-one")) >= 0;
+
+    MessageModel readModel;
+    Message ownRead = Message::createTextMessage(
+        1, QStringLiteral("alice"), QStringLiteral("read"));
+    ownRead.setId(10);
+    ownRead.setIsMine(true);
+    Message peerMessage = Message::createTextMessage(
+        1, QStringLiteral("bob"), QStringLiteral("peer"));
+    peerMessage.setId(11);
+    peerMessage.setIsMine(false);
+    Message ownUnread = Message::createTextMessage(
+        1, QStringLiteral("alice"), QStringLiteral("unread"));
+    ownUnread.setId(12);
+    ownUnread.setIsMine(true);
+    Message pendingRead = Message::createTextMessage(
+        1, QStringLiteral("alice"), QStringLiteral("pending"));
+    pendingRead.setClientMessageId(QStringLiteral("pending-read"));
+    pendingRead.setDeliveryState(Message::Sending);
+    pendingRead.setIsMine(true);
+    readModel.prependMessages({ownRead, peerMessage, ownUnread, pendingRead});
+    passed = passed && readModel.applyPeerReadWatermark(11)
+        && readModel.messageAt(0).deliveryState() == Message::Read
+        && readModel.messageAt(1).deliveryState() == Message::Accepted
+        && readModel.messageAt(2).deliveryState() == Message::Accepted
+        && readModel.messageAt(3).deliveryState() == Message::Sending
+        && !readModel.applyPeerReadWatermark(9);
+    Message replayAccepted = ownRead;
+    replayAccepted.setDeliveryState(Message::Accepted);
+    readModel.addMessage(replayAccepted);
+    passed = passed
+        && readModel.messageAt(0).deliveryState() == Message::Read;
     if (!passed) qCritical() << "Message model reconciliation verification failed";
     return passed ? 0 : 1;
 }

@@ -400,7 +400,8 @@ ports, files, or external COS access.
 
 - transmitted protocol version and capability negotiation;
 - device/session identity independent of passwords;
-- delivered and read acknowledgement semantics;
+- delivered acknowledgement plus room and per-device read semantics (private
+  conversation-level read watermarks are defined by ADR-0030);
 - replayable sequence/cursor behavior for remaining non-message events;
 - structured error code separate from localized message;
 - retire legacy inline attachment fallbacks after the compatibility window;

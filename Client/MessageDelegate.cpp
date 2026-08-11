@@ -61,6 +61,23 @@ static QString formatSmartTime(const QDateTime &dt) {
         return dt.toString("yyyy/M/d HH:mm");
 }
 
+static QString formatMessageTime(const QDateTime &time,
+                                 const QModelIndex &index, bool isMine) {
+    QString result = formatSmartTime(time);
+    if (!isMine) return result;
+    const auto state = static_cast<Message::DeliveryState>(
+        index.data(MessageModel::DeliveryStateRole).toInt());
+    if (state == Message::Sending)
+        result += QStringLiteral(" · 发送中");
+    else if (state == Message::Failed)
+        result += QStringLiteral(" · 发送失败");
+    else if (state == Message::Read)
+        result += QStringLiteral(" · 已读");
+    else if (index.data(MessageModel::IdRole).toInt() > 0)
+        result += QStringLiteral(" · 已发送");
+    return result;
+}
+
 void MessageDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option,
                              const QModelIndex &index) const {
     painter->save();
@@ -130,15 +147,7 @@ void MessageDelegate::drawTextBubble(QPainter *painter, const QStyleOptionViewIt
     senderFont.setPointSize(senderFont.pointSize() - 1);
     QFontMetrics sfm(senderFont);
 
-    QString timeStr = formatSmartTime(time);
-    const auto deliveryState = static_cast<Message::DeliveryState>(
-        index.data(MessageModel::DeliveryStateRole).toInt());
-    if (isMine && deliveryState == Message::Sending)
-        timeStr += QStringLiteral(" · 发送中");
-    else if (isMine && deliveryState == Message::Failed)
-        timeStr += QStringLiteral(" · 发送失败");
-    else if (isMine && index.data(MessageModel::IdRole).toInt() > 0)
-        timeStr += QStringLiteral(" · 已发送");
+    QString timeStr = formatMessageTime(time, index, isMine);
     QFont timeFont = option.font;
     timeFont.setPointSize(timeFont.pointSize() - 2);
     QFontMetrics tfm(timeFont);
@@ -614,7 +623,7 @@ void MessageDelegate::drawFileBubble(QPainter *painter, const QStyleOptionViewIt
 
     // 时间
     painter->setPen(m_timeColor);
-    QString timeStr = formatSmartTime(time);
+    QString timeStr = formatMessageTime(time, index, isMine);
     QFontMetrics tfm(smallFont);
     painter->drawText(bubbleX + bubbleW - m_padding - tfm.horizontalAdvance(timeStr),
                       bubbleY + bubbleH - 8, timeStr);
@@ -841,7 +850,7 @@ void MessageDelegate::drawVideoBubble(QPainter *painter, const QStyleOptionViewI
     }
 
     // 时间
-    QString timeStr = formatSmartTime(time);
+    QString timeStr = formatMessageTime(time, index, isMine);
     painter->setPen(m_timeColor);
     painter->setFont(timeFont);
     painter->drawText(QRect(bubbleX + m_padding,
@@ -1004,7 +1013,7 @@ void MessageDelegate::drawImageBubble(QPainter *painter, const QStyleOptionViewI
     }
 
     // 时间
-    QString timeStr = formatSmartTime(time);
+    QString timeStr = formatMessageTime(time, index, isMine);
     painter->setPen(m_timeColor);
     painter->setFont(timeFont);
     painter->drawText(QRect(bubbleX + m_padding,
@@ -1148,15 +1157,7 @@ QRect MessageDelegate::bubbleRectForIndex(const QStyleOptionViewItem &option,
     senderFont.setPointSize(senderFont.pointSize() - 1);
     QFontMetrics sfm(senderFont);
 
-    QString timeStr = formatSmartTime(time);
-    const auto deliveryState = static_cast<Message::DeliveryState>(
-        index.data(MessageModel::DeliveryStateRole).toInt());
-    if (isMine && deliveryState == Message::Sending)
-        timeStr += QStringLiteral(" · 发送中");
-    else if (isMine && deliveryState == Message::Failed)
-        timeStr += QStringLiteral(" · 发送失败");
-    else if (isMine && index.data(MessageModel::IdRole).toInt() > 0)
-        timeStr += QStringLiteral(" · 已发送");
+    QString timeStr = formatMessageTime(time, index, isMine);
     QFont timeFont = option.font;
     timeFont.setPointSize(timeFont.pointSize() - 2);
     QFontMetrics tfm(timeFont);

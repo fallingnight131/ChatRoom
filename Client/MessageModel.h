@@ -62,6 +62,7 @@ public:
                              Message::DeliveryState state);
     void acceptOutgoing(const QString &clientMessageId, int messageId,
                         qint64 sequence, qint64 timestamp);
+    bool applyPeerReadWatermark(int lastReadMessageId);
 
 private:
     static bool isUnresolvedSend(const Message &message);

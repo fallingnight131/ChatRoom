@@ -82,7 +82,12 @@ void MessageModel::addMessage(const Message &msg) {
         }
     }
     if (existingRow >= 0) {
-        m_messages[existingRow] = msg;
+        Message replacement = msg;
+        if (m_messages[existingRow].deliveryState() == Message::Read
+            && replacement.deliveryState() == Message::Accepted) {
+            replacement.setDeliveryState(Message::Read);
+        }
+        m_messages[existingRow] = replacement;
         emit dataChanged(index(existingRow), index(existingRow));
         enforceRetentionLimit();
         return;
@@ -129,6 +134,25 @@ void MessageModel::acceptOutgoing(const QString &clientMessageId, int messageId,
     }
 }
 
+bool MessageModel::applyPeerReadWatermark(int lastReadMessageId) {
+    if (lastReadMessageId <= 0) return false;
+    bool changed = false;
+    for (int row = 0; row < m_messages.size(); ++row) {
+        Message &message = m_messages[row];
+        if (!message.isMine() || message.id() <= 0
+            || message.id() > lastReadMessageId
+            || message.deliveryState() == Message::Sending
+            || message.deliveryState() == Message::Failed
+            || message.deliveryState() == Message::Read) {
+            continue;
+        }
+        message.setDeliveryState(Message::Read);
+        emit dataChanged(index(row), index(row), {DeliveryStateRole});
+        changed = true;
+    }
+    return changed;
+}
+
 void MessageModel::prependMessages(const QList<Message> &msgs) {
     QList<Message> unique;
     for (const Message &message : msgs) {
@@ -142,7 +166,12 @@ void MessageModel::prependMessages(const QList<Message> &msgs) {
             }
         }
         if (existingRow >= 0) {
-            m_messages[existingRow] = message;
+            Message replacement = message;
+            if (m_messages[existingRow].deliveryState() == Message::Read
+                && replacement.deliveryState() == Message::Accepted) {
+                replacement.setDeliveryState(Message::Read);
+            }
+            m_messages[existingRow] = replacement;
             const QModelIndex changed = index(existingRow);
             emit dataChanged(changed, changed);
             continue;
@@ -208,7 +237,12 @@ void MessageModel::reconcileSyncPage(const QList<Message> &messages,
             }
         }
         if (row >= 0) {
-            m_messages[row] = message;
+            Message replacement = message;
+            if (m_messages[row].deliveryState() == Message::Read
+                && replacement.deliveryState() == Message::Accepted) {
+                replacement.setDeliveryState(Message::Read);
+            }
+            m_messages[row] = replacement;
             emit dataChanged(index(row), index(row));
         } else {
             beginInsertRows(QModelIndex(), m_messages.size(), m_messages.size());

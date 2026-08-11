@@ -165,7 +165,7 @@ int main(int argc, char *argv[]) {
         Message acceptedPending = pendingMessage;
         acceptedPending.setId(902);
         acceptedPending.setSequence(9);
-        acceptedPending.setDeliveryState(Message::Accepted);
+        acceptedPending.setDeliveryState(Message::Read);
         if (!check(repository.upsertMessage(QStringLiteral("alice"),
                   LocalConversationRepository::Kind::Direct, QStringLiteral("42"),
                   acceptedPending, 9), repository.lastError())) return 1;
@@ -173,7 +173,8 @@ int main(int argc, char *argv[]) {
             QStringLiteral("alice"), LocalConversationRepository::Kind::Direct,
             QStringLiteral("42"));
         if (!check(acceptedSnapshot.messages.size() == 1
-                   && acceptedSnapshot.messages.first().id() == 902,
+                   && acceptedSnapshot.messages.first().id() == 902
+                   && acceptedSnapshot.messages.first().deliveryState() == Message::Read,
                    QStringLiteral("upsert did not replace optimistic identity")) ||
             !check(repository.pendingSends(QStringLiteral("alice"),
                   LocalConversationRepository::Kind::Direct).isEmpty(),

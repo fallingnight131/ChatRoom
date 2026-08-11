@@ -73,3 +73,9 @@ It upgrades only the authenticated user's positive-ID messages through the
 watermark to `已读`, restores the watermark from the friend list after reload,
 and persists the resulting presentation in the metadata-only conversation
 snapshot. Older servers simply leave the existing `已发送` state unchanged.
+
+The Windows client applies the same rule in `MessageModel`, persists `Read` in
+the existing integer delivery-state column, and restores the peer watermark
+from the friend list. Live `FRIEND_READ_NOTIFY` events and recovered fields are
+merged monotonically; an old server therefore degrades to `已发送` without a
+local schema migration.

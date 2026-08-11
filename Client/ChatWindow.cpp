@@ -717,6 +717,7 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::friendFileNotify,       this, &ChatWindow::onFriendFileNotify);
     connect(net, &NetworkManager::friendOnlineNotify,     this, &ChatWindow::onFriendOnlineNotify);
     connect(net, &NetworkManager::friendOfflineNotify,    this, &ChatWindow::onFriendOfflineNotify);
+    connect(net, &NetworkManager::friendReadNotify,       this, &ChatWindow::onFriendReadNotify);
     connect(net, &NetworkManager::friendFileUploadStartResponse, this, &ChatWindow::onFriendFileUploadStartResponse);
     connect(net, &NetworkManager::friendRecallResponse, this, &ChatWindow::onFriendRecallResponse);
     connect(net, &NetworkManager::friendRecallNotify,   this, &ChatWindow::onFriendRecallNotify);
@@ -1343,6 +1344,8 @@ void ChatWindow::advanceFriendSyncCursor(const QString &friendUsername, qint64 s
 void ChatWindow::persistFriendSnapshot(const QString &friendUsername) {
     if (m_username.isEmpty() || friendUsername.isEmpty()
         || !m_friendModels.contains(friendUsername)) return;
+    m_friendModels.value(friendUsername)->applyPeerReadWatermark(
+        m_friendReadWatermarks.value(friendUsername, 0));
     if (!m_conversationSyncService->replace(
             friendConversation(friendUsername),
             m_friendModels.value(friendUsername)->messages())) {
@@ -4988,6 +4991,7 @@ void ChatWindow::onFriendRemoveResponse(bool success, const QString &username, c
         removeCachedFriend(username);
         if (m_friendModels.contains(username)) delete m_friendModels.take(username);
         m_friendshipIds.remove(username);
+        m_friendReadWatermarks.remove(username);
         onRefreshFriendList();
     } else {
         QMessageBox::warning(this, "删除好友", error);
@@ -5002,6 +5006,7 @@ void ChatWindow::onFriendRemoveNotify(const QString &username, const QString &di
     removeCachedFriend(username);
     if (m_friendModels.contains(username)) delete m_friendModels.take(username);
     m_friendshipIds.remove(username);
+    m_friendReadWatermarks.remove(username);
     onRefreshFriendList();
 }
 
@@ -5020,6 +5025,7 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFrie
     QSet<QString> allowedFriendUsernames;
     QSet<QString> allowedConversationKeys;
     QMap<QString, QString> renamedFriends;
+    QMap<QString, int> nextReadWatermarks;
     m_friendshipIds.clear();
 
     for (const QJsonValue &v : friends) {
@@ -5028,6 +5034,13 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFrie
         const int friendshipId = fr["friendshipId"].toInt();
         allowedFriendUsernames.insert(username);
         if (friendshipId > 0) m_friendshipIds.insert(username, friendshipId);
+        const int peerRead = qMax(m_friendReadWatermarks.value(username, 0),
+                                  fr["peerLastReadMessageId"].toInt(0));
+        nextReadWatermarks.insert(username, peerRead);
+        if (m_friendModels.contains(username)
+            && m_friendModels.value(username)->applyPeerReadWatermark(peerRead)) {
+            persistFriendSnapshot(username);
+        }
         allowedConversationKeys.insert(friendConversationKey(username));
         const QString previousUsername = previousFriendById.value(friendshipId);
         if (!previousUsername.isEmpty() && previousUsername != username)
@@ -5056,6 +5069,7 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFrie
 
         m_friendList->addItem(item);
     }
+    m_friendReadWatermarks = nextReadWatermarks;
 
     for (auto it = renamedFriends.cbegin(); it != renamedFriends.cend(); ++it) {
         const QString oldUsername = it.key();
@@ -5534,6 +5548,19 @@ void ChatWindow::onFriendOfflineNotify(const QString &username) {
     }
 }
 
+void ChatWindow::onFriendReadNotify(const QJsonObject &data) {
+    const QString username = data["readerUsername"].toString();
+    const int watermark = data["lastReadMessageId"].toInt();
+    if (username.isEmpty() || watermark <= 0) return;
+    m_friendReadWatermarks[username] = qMax(
+        m_friendReadWatermarks.value(username, 0), watermark);
+    if (m_friendModels.contains(username)
+        && m_friendModels.value(username)->applyPeerReadWatermark(
+            m_friendReadWatermarks.value(username))) {
+        persistFriendSnapshot(username);
+    }
+}
+
 void ChatWindow::onFriendFileUploadStartResponse(const QJsonObject &data) {
     if (m_upload.clientMessageId.isEmpty()
         || m_upload.kind != LocalConversationRepository::Kind::Direct)
@@ -5763,6 +5790,8 @@ MessageModel *ChatWindow::getOrCreateFriendModel(const QString &friendUsername) 
                 }
             }
             if (!cached.isEmpty()) model->prependMessages(cached);
+            model->applyPeerReadWatermark(
+                m_friendReadWatermarks.value(friendUsername, 0));
             m_friendDrafts[friendUsername] = snapshot.draft;
         }
     }

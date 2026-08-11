@@ -26,7 +26,7 @@ public:
         UploadPaused  = 5    // 上传已暂停
     };
 
-    enum DeliveryState { Accepted = 0, Sending = 1, Failed = 2 };
+    enum DeliveryState { Accepted = 0, Sending = 1, Failed = 2, Read = 3 };
 
     Message() = default;
 

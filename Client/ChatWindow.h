@@ -208,6 +208,7 @@ private slots:
     void onFriendFileNotify(const QJsonObject &data);
     void onFriendOnlineNotify(const QString &username, const QString &displayName);
     void onFriendOfflineNotify(const QString &username);
+    void onFriendReadNotify(const QJsonObject &data);
     void onFriendFileUploadStartResponse(const QJsonObject &data);
     void onSendFriendFile();
     void onSendFriendImage();
@@ -352,6 +353,7 @@ private:
     QMap<QString, MessageModel*> m_friendModels; // friendUsername -> MessageModel
     QMap<QString, QString> m_friendDrafts;
     QMap<QString, int> m_friendshipIds;
+    QMap<QString, int> m_friendReadWatermarks;
     bool m_restoringDraft = false;
     QJsonArray m_friendData;                     // 好友列表数据缓存
 

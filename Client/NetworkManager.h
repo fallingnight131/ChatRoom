@@ -173,6 +173,7 @@ signals:
     void friendFileNotify(const QJsonObject &data);
     void friendOnlineNotify(const QString &username, const QString &displayName);
     void friendOfflineNotify(const QString &username);
+    void friendReadNotify(const QJsonObject &data);
     void friendFileUploadStartResponse(const QJsonObject &data);
     void friendRecallResponse(bool success, int messageId, const QString &error);
     void friendRecallNotify(const QJsonObject &data);

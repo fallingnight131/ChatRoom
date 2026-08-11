@@ -632,6 +632,9 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
     else if (type == Protocol::MsgType::FRIEND_OFFLINE_NOTIFY) {
         emit friendOfflineNotify(data["username"].toString());
     }
+    else if (type == Protocol::MsgType::FRIEND_READ_NOTIFY) {
+        emit friendReadNotify(data);
+    }
     else if (type == Protocol::MsgType::FRIEND_FILE_UPLOAD_START_RSP) {
         emit friendFileUploadStartResponse(data);
     }

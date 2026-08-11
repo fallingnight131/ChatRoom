@@ -207,7 +207,7 @@ Progress:
     controls to the Windows UI.
 - [x] Extend the Windows cache control to clear account-isolated, server-
   recoverable SQLite history while preserving drafts and unresolved sends.
-- [ ] Add remaining optimistic states, virtualization, bounded media-cache
+- [x] Add current-scope optimistic states, virtualization, bounded media-cache
   policy, and accessibility foundations.
   - [x] Establish Web live-log/composer semantics, keyboard message/file actions,
     visible focus, reduced-motion behavior, and an accessibility verification policy.
@@ -219,11 +219,11 @@ Progress:
     preserving unresolved user sends across append, sync, history, and ACK paths.
   - [x] Present authoritative server acceptance as `已发送` on Web and Windows
     without mislabelling it as delivered or read.
-  - [ ] Add durable private-chat read watermarks and receipt presentation;
+  - [x] Add durable private-chat read watermarks and receipt presentation;
     multi-device aggregation remains M6 scope.
     - [x] Publish and persist the authorized V1 peer read watermark.
     - [x] Consume monotonic live/recovered watermarks in the Web client.
-    - [ ] Consume monotonic live/recovered watermarks in the Windows client.
+    - [x] Consume monotonic live/recovered watermarks in the Windows client.
 
 Work:
 
@@ -233,7 +233,8 @@ Work:
   sends;
 - split the web chat store and add IndexedDB-backed repositories;
 - render cached conversations immediately and synchronize in the background;
-- add optimistic send states, retry, failure, delivered, and read presentation;
+- add optimistic send states, retry, failure, durable-acceptance, and private
+  read presentation; reserve device-aware delivery for M6/V2;
 - add virtualized history and bounded media caches;
 - define shared semantic design tokens and accessibility expectations.
 
