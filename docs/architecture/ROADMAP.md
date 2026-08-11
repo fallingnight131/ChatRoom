@@ -177,8 +177,10 @@ Progress:
 - [x] Apply the same durable cached-render and incremental reconciliation to
   Windows direct conversations, including relationship eviction and safe
   account/peer rename migration.
+- [x] Persist bounded Windows room/direct drafts with debounced writes,
+  switch/close flush, relationship eviction, and send-time clearing.
 - [ ] Integrate the Windows repository through client application/sync
-  boundaries for drafts and pending sends.
+  boundaries for pending sends.
 - [ ] Add optimistic states, virtualization, cache controls, and accessibility
   foundations.
 

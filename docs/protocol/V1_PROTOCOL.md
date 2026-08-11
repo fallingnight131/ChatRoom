@@ -216,10 +216,12 @@ pages apply mixed message/event pages in cursor order; direct pages merge
 authoritative message/recall state using `syncSequence`.
 
 The M2 Web client persists room/direct snapshots and unresolved text/emoji sends
-in an account-partitioned IndexedDB repository. A reconnect or page-reload retry
-reuses the original `clientMessageId`; ACK, live echo, and history reconcile that
-optimistic record in place. Client `sending`/`failed`/`accepted` values are local
-presentation state, not new V1 delivery guarantees.
+in an account-partitioned IndexedDB repository. The Windows client persists
+bounded room/direct drafts in its SQLite repository but does not yet persist
+pending sends. A reconnect or page-reload Web retry reuses the original
+`clientMessageId`; ACK, live echo, and history reconcile that optimistic record
+in place. Client `sending`/`failed`/`accepted` values are local presentation
+state, not new V1 delivery guarantees.
 
 ### Read state
 

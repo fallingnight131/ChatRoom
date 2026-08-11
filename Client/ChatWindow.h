@@ -17,6 +17,7 @@ class QLabel;
 class QStackedWidget;
 class QAction;
 class QMenu;
+class QTimer;
 
 class MessageModel;
 class MessageDelegate;
@@ -227,6 +228,9 @@ private:
     void persistFriendSnapshot(const QString &friendUsername);
     void removeCachedFriend(const QString &friendUsername);
     QString friendConversationKey(const QString &friendUsername) const;
+    void flushCurrentDraft();
+    void restoreCurrentDraft();
+    void clearCurrentDraft();
     void advanceFriendSyncCursor(const QString &friendUsername, qint64 sequence);
     void requestCurrentFriendResume();
     void requestRoomList();
@@ -269,6 +273,7 @@ private:
     QListWidget  *m_userList       = nullptr;
     QWidget      *m_rightPanel     = nullptr;
     QTextEdit    *m_inputEdit      = nullptr;
+    QTimer       *m_draftSaveTimer = nullptr;
     QPushButton  *m_sendBtn        = nullptr;
     QPushButton  *m_emojiBtn       = nullptr;
     QPushButton  *m_fileBtn        = nullptr;
@@ -304,6 +309,7 @@ private:
 
     QMap<int, MessageModel*>  m_models;     // roomId -> MessageModel
     QMap<int, qint64>         m_roomSyncCursors;
+    QMap<int, QString>        m_roomDrafts;
     std::unique_ptr<LocalConversationRepository> m_localRepository;
     MessageDelegate          *m_delegate = nullptr;
     QMap<int, bool>           m_adminRooms; // roomId -> isAdmin
@@ -320,7 +326,9 @@ private:
     int     m_currentFriendshipId = -1;          // 当前 friendshipId
     QMap<QString, MessageModel*> m_friendModels; // friendUsername -> MessageModel
     QMap<QString, qint64> m_friendSyncCursors;
+    QMap<QString, QString> m_friendDrafts;
     QMap<QString, int> m_friendshipIds;
+    bool m_restoringDraft = false;
     QJsonArray m_friendData;                     // 好友列表数据缓存
 
     // 未读消息计数

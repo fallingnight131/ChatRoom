@@ -22,6 +22,7 @@
 #include <QListView>
 #include <QListWidget>
 #include <QTextEdit>
+#include <QTextCursor>
 #include <QPushButton>
 #include <QLabel>
 #include <QMenuBar>
@@ -418,6 +419,13 @@ void ChatWindow::setupUi() {
     m_inputEdit->setPlaceholderText("输入消息... (Enter发送, Shift+Enter换行)");
     m_inputEdit->installEventFilter(this);
     m_inputEdit->setContextMenuPolicy(Qt::CustomContextMenu);
+    m_draftSaveTimer = new QTimer(this);
+    m_draftSaveTimer->setSingleShot(true);
+    m_draftSaveTimer->setInterval(400);
+    connect(m_draftSaveTimer, &QTimer::timeout, this, &ChatWindow::flushCurrentDraft);
+    connect(m_inputEdit, &QTextEdit::textChanged, this, [this] {
+        if (!m_restoringDraft) m_draftSaveTimer->start();
+    });
     connect(m_inputEdit, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos) {
         QMenu *menu = m_inputEdit->createStandardContextMenu();
         menu->addSeparator();
@@ -1028,9 +1036,13 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
             m_messageView->setModel(nullptr);
             m_roomTitle->setText(QStringLiteral("请选择一个窗口"));
             m_userList->clear();
+            m_restoringDraft = true;
+            m_inputEdit->clear();
+            m_restoringDraft = false;
         }
         delete m_models.take(roomId);
         m_roomSyncCursors.remove(roomId);
+        m_roomDrafts.remove(roomId);
     }
 
     // 如果之前已在某个房间，恢复到该房间
@@ -1046,6 +1058,7 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
 }
 
 void ChatWindow::onRoomSelected(QListWidgetItem *item) {
+    if (m_isFriendChat) flushCurrentDraft();
     // 切回房间模式
     m_isFriendChat = false;
     m_currentFriendUsername.clear();
@@ -1120,6 +1133,11 @@ void ChatWindow::updateUnreadDots() {
 }
 
 void ChatWindow::switchRoom(int roomId) {
+    flushCurrentDraft();
+    m_isFriendChat = false;
+    m_currentFriendUsername.clear();
+    m_currentFriendDisplayName.clear();
+    m_currentFriendshipId = -1;
     m_currentRoomId = roomId;
     m_roomUnread.remove(roomId);
     updateUnreadDots();
@@ -1134,6 +1152,7 @@ void ChatWindow::switchRoom(int roomId) {
 
     // 获取或创建模型
     MessageModel *model = getOrCreateModel(roomId);
+    restoreCurrentDraft();
 
     // 临时禁用视图更新，防止切换房间时的闪烁
     m_messageView->setUpdatesEnabled(false);
@@ -1198,6 +1217,7 @@ MessageModel *ChatWindow::getOrCreateModel(int roomId) {
             }
             if (!cached.isEmpty()) model->prependMessages(cached);
             if (snapshot.cursor > 0) m_roomSyncCursors[roomId] = snapshot.cursor;
+            m_roomDrafts[roomId] = snapshot.draft;
         }
     }
     return m_models[roomId];
@@ -1222,6 +1242,7 @@ void ChatWindow::persistRoomSnapshot(int roomId) {
 
 void ChatWindow::removeCachedRoom(int roomId) {
     m_roomSyncCursors.remove(roomId);
+    m_roomDrafts.remove(roomId);
     if (!m_localRepository || m_username.isEmpty()) return;
     if (!m_localRepository->removeConversation(
             m_username, LocalConversationRepository::Kind::Room,
@@ -1266,6 +1287,7 @@ void ChatWindow::persistFriendSnapshot(const QString &friendUsername) {
 
 void ChatWindow::removeCachedFriend(const QString &friendUsername) {
     m_friendSyncCursors.remove(friendUsername);
+    m_friendDrafts.remove(friendUsername);
     if (!m_localRepository || m_username.isEmpty() || friendUsername.isEmpty()) return;
     if (!m_localRepository->removeConversation(
             m_username, LocalConversationRepository::Kind::Direct,
@@ -1280,6 +1302,66 @@ QString ChatWindow::friendConversationKey(const QString &friendUsername) const {
     const int friendshipId = m_friendshipIds.value(friendUsername, 0);
     return friendshipId > 0 ? QString::number(friendshipId)
                             : QStringLiteral("peer:%1").arg(friendUsername);
+}
+
+void ChatWindow::flushCurrentDraft() {
+    if (m_restoringDraft || !m_inputEdit) return;
+    if (m_draftSaveTimer) m_draftSaveTimer->stop();
+    const QString draft = m_inputEdit->toPlainText()
+        .left(LocalConversationRepository::MaxDraftLength);
+    if (m_isFriendChat && !m_currentFriendUsername.isEmpty()) {
+        m_friendDrafts[m_currentFriendUsername] = draft;
+        if (m_localRepository && !m_localRepository->saveDraft(
+                m_username, LocalConversationRepository::Kind::Direct,
+                friendConversationKey(m_currentFriendUsername), draft)) {
+            qWarning().noquote() << QStringLiteral(
+                "[LocalStore] operation=save-direct-draft outcome=degraded peer=%1 detail=%2")
+                .arg(m_currentFriendUsername, m_localRepository->lastError());
+        }
+    } else if (m_currentRoomId > 0) {
+        m_roomDrafts[m_currentRoomId] = draft;
+        if (m_localRepository && !m_localRepository->saveDraft(
+                m_username, LocalConversationRepository::Kind::Room,
+                QString::number(m_currentRoomId), draft)) {
+            qWarning().noquote() << QStringLiteral(
+                "[LocalStore] operation=save-room-draft outcome=degraded roomId=%1 detail=%2")
+                .arg(m_currentRoomId).arg(m_localRepository->lastError());
+        }
+    }
+}
+
+void ChatWindow::restoreCurrentDraft() {
+    if (!m_inputEdit) return;
+    if (m_draftSaveTimer) m_draftSaveTimer->stop();
+    const QString draft = m_isFriendChat
+        ? m_friendDrafts.value(m_currentFriendUsername)
+        : m_roomDrafts.value(m_currentRoomId);
+    m_restoringDraft = true;
+    m_inputEdit->setPlainText(draft);
+    m_inputEdit->moveCursor(QTextCursor::End);
+    m_restoringDraft = false;
+}
+
+void ChatWindow::clearCurrentDraft() {
+    if (m_draftSaveTimer) m_draftSaveTimer->stop();
+    if (m_isFriendChat && !m_currentFriendUsername.isEmpty()) {
+        m_friendDrafts.remove(m_currentFriendUsername);
+        if (m_localRepository) {
+            m_localRepository->saveDraft(
+                m_username, LocalConversationRepository::Kind::Direct,
+                friendConversationKey(m_currentFriendUsername), {});
+        }
+    } else if (m_currentRoomId > 0) {
+        m_roomDrafts.remove(m_currentRoomId);
+        if (m_localRepository) {
+            m_localRepository->saveDraft(
+                m_username, LocalConversationRepository::Kind::Room,
+                QString::number(m_currentRoomId), {});
+        }
+    }
+    m_restoringDraft = true;
+    m_inputEdit->clear();
+    m_restoringDraft = false;
 }
 
 void ChatWindow::requestCurrentFriendResume() {
@@ -1309,7 +1391,7 @@ void ChatWindow::onSendMessage() {
         if (m_currentFriendUsername.isEmpty()) return;
         NetworkManager::instance()->sendMessage(
             Protocol::makeFriendChatMsg(m_currentFriendUsername, text));
-        m_inputEdit->clear();
+        clearCurrentDraft();
         return;
     }
 
@@ -1321,7 +1403,7 @@ void ChatWindow::onSendMessage() {
     NetworkManager::instance()->sendMessage(
         Protocol::makeChatMsg(m_currentRoomId, m_username, text));
 
-    m_inputEdit->clear();
+    clearCurrentDraft();
 }
 
 void ChatWindow::onChatMessage(const QJsonObject &msg) {
@@ -3029,6 +3111,7 @@ void ChatWindow::onReconnecting(int attempt) {
 // ==================== 窗口事件 ====================
 
 void ChatWindow::closeEvent(QCloseEvent *event) {
+    flushCurrentDraft();
     if (m_forceQuit) {
         // 菜单退出：断开网络并彻底退出（含系统托盘）
         NetworkManager::instance()->disconnectFromServer();
@@ -3111,6 +3194,8 @@ void ChatWindow::onLeaveRoomResponse(bool success, int roomId) {
             }
         }
         // 清理数据
+        if (m_currentRoomId == roomId)
+            m_messageView->setModel(nullptr);
         if (m_models.contains(roomId)) {
             delete m_models.take(roomId);
         }
@@ -3123,7 +3208,11 @@ void ChatWindow::onLeaveRoomResponse(bool success, int roomId) {
 
         // 切换到另一个房间
         if (m_currentRoomId == roomId) {
+            m_currentRoomId = -1;
             m_messageView->setModel(nullptr);
+            m_restoringDraft = true;
+            m_inputEdit->clear();
+            m_restoringDraft = false;
             if (m_roomList->count() > 0) {
                 m_roomList->setCurrentRow(0);
                 onRoomSelected(m_roomList->item(0));
@@ -3491,7 +3580,11 @@ void ChatWindow::onDeleteRoomResponse(bool success, int roomId, const QString &r
         }
         // 如果当前正在该房间，切换到第一个房间
         if (m_currentRoomId == roomId) {
+            m_currentRoomId = -1;
             m_messageView->setModel(nullptr);
+            m_restoringDraft = true;
+            m_inputEdit->clear();
+            m_restoringDraft = false;
             if (m_roomList->count() > 0) {
                 m_roomList->setCurrentRow(0);
                 onRoomSelected(m_roomList->item(0));
@@ -3520,7 +3613,11 @@ void ChatWindow::onDeleteRoomNotify(int roomId, const QString &roomName, const Q
     if (m_currentRoomId == roomId) {
         QMessageBox::information(this, "聊天室已删除",
             QString("聊天室 \"%1\" 已被管理员删除").arg(roomName));
+        m_currentRoomId = -1;
         m_messageView->setModel(nullptr);
+        m_restoringDraft = true;
+        m_inputEdit->clear();
+        m_restoringDraft = false;
         if (m_roomList->count() > 0) {
             m_roomList->setCurrentRow(0);
             onRoomSelected(m_roomList->item(0));
@@ -3644,6 +3741,9 @@ void ChatWindow::onKickedFromRoom(int roomId, const QString &roomName, const QSt
         m_roomTitle->setText("请选择一个窗口");
         m_userList->clear();
         m_messageView->setModel(nullptr);
+        m_restoringDraft = true;
+        m_inputEdit->clear();
+        m_restoringDraft = false;
     }
 
     // 从房间列表移除
@@ -3700,6 +3800,7 @@ void ChatWindow::onNicknameChangeNotify(int roomId, const QString &username, con
 
 void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const QString &newUid, const QString &error) {
     if (success) {
+        flushCurrentDraft();
         // 重命名本地缓存目录
         QString oldCacheDir = FileCache::instance()->cacheDir();
         m_username = newUid;
@@ -4217,11 +4318,11 @@ void ChatWindow::onFriendRejectResponse(bool success, const QString &error) {
 
 void ChatWindow::onFriendRemoveResponse(bool success, const QString &username, const QString &error) {
     if (success) {
-        removeCachedFriend(username);
         m_statusLabel->setText(QString("已删除好友 %1").arg(username));
         // 如果当前正在和这个好友聊天，切回房间模式
         if (m_isFriendChat && m_currentFriendUsername == username)
             switchToRoomMode();
+        removeCachedFriend(username);
         if (m_friendModels.contains(username)) delete m_friendModels.take(username);
         m_friendshipIds.remove(username);
         onRefreshFriendList();
@@ -4231,11 +4332,11 @@ void ChatWindow::onFriendRemoveResponse(bool success, const QString &username, c
 }
 
 void ChatWindow::onFriendRemoveNotify(const QString &username, const QString &displayName) {
-    removeCachedFriend(username);
     m_statusLabel->setText(QString("%1 已将你从好友列表移除").arg(displayName.isEmpty() ? username : displayName));
     // 如果当前正在和这个好友聊天，切回房间模式
     if (m_isFriendChat && m_currentFriendUsername == username)
         switchToRoomMode();
+    removeCachedFriend(username);
     if (m_friendModels.contains(username)) delete m_friendModels.take(username);
     m_friendshipIds.remove(username);
     onRefreshFriendList();
@@ -4302,6 +4403,8 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFrie
             m_friendModels.insert(newUsername, model);
             const qint64 cursor = m_friendSyncCursors.take(oldUsername);
             if (cursor > 0) m_friendSyncCursors.insert(newUsername, cursor);
+            if (m_friendDrafts.contains(oldUsername))
+                m_friendDrafts.insert(newUsername, m_friendDrafts.take(oldUsername));
             persistFriendSnapshot(newUsername);
         }
         if (m_isFriendChat && m_currentFriendUsername == oldUsername)
@@ -4362,6 +4465,7 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFrie
             switchToRoomMode();
         delete m_friendModels.take(username);
         m_friendSyncCursors.remove(username);
+        m_friendDrafts.remove(username);
     }
     updateUnreadDots();
 }
@@ -4970,6 +5074,7 @@ void ChatWindow::onFriendRecallNotify(const QJsonObject &data) {
 }
 
 void ChatWindow::switchToFriendChat(const QString &friendUsername, const QString &friendDisplayName, int friendshipId) {
+    flushCurrentDraft();
     m_isFriendChat = true;
     m_currentFriendUsername = friendUsername;
     m_currentFriendDisplayName = friendDisplayName;
@@ -5002,6 +5107,7 @@ void ChatWindow::switchToFriendChat(const QString &friendUsername, const QString
 
     // 设置模型
     MessageModel *model = getOrCreateFriendModel(friendUsername);
+    restoreCurrentDraft();
     m_messageView->setUpdatesEnabled(false);
     m_messageView->setModel(model);
 
@@ -5025,6 +5131,7 @@ void ChatWindow::switchToFriendChat(const QString &friendUsername, const QString
 }
 
 void ChatWindow::switchToRoomMode() {
+    flushCurrentDraft();
     m_isFriendChat = false;
     m_currentFriendUsername.clear();
     m_currentFriendDisplayName.clear();
@@ -5037,6 +5144,9 @@ void ChatWindow::switchToRoomMode() {
         m_roomTitle->setText("请选择一个窗口");
         m_roomSettingsBtn->setVisible(false);
         m_messageView->setModel(nullptr);
+        m_restoringDraft = true;
+        m_inputEdit->clear();
+        m_restoringDraft = false;
     }
 }
 
@@ -5058,6 +5168,7 @@ MessageModel *ChatWindow::getOrCreateFriendModel(const QString &friendUsername) 
             }
             if (!cached.isEmpty()) model->prependMessages(cached);
             if (snapshot.cursor > 0) m_friendSyncCursors[friendUsername] = snapshot.cursor;
+            m_friendDrafts[friendUsername] = snapshot.draft;
         }
     }
     return m_friendModels[friendUsername];

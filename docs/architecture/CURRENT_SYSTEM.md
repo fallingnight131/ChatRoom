@@ -154,8 +154,9 @@ object cleanup is an idempotent post-commit compensation.
   persists authoritative live/history/recall/deletion changes, resumes from the
   durable room cursor, and evicts inaccessible rooms. Direct conversations now
   use the same cached-render, durable-cursor, mutation, relationship-eviction,
-  and account/peer rename behavior. Composer drafts and pending sends are still
-  memory-backed.
+  and account/peer rename behavior. Room/direct composer drafts are bounded,
+  debounced to the same repository, flushed on conversation switch/close, and
+  cleared after dispatch. Pending sends are still memory-backed.
 - The current checked-in project is primarily exercised on Windows.
 
 ### Web

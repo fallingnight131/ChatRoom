@@ -70,6 +70,11 @@ the old partition is removed. Relationship loss evicts both the model and
 durable snapshot. Base64 thumbnails are excluded from SQLite alongside inline
 image data; the media cache remains their owner.
 
+Composer drafts are kept in a small in-memory view cache and written after a
+400 ms quiet period, on conversation switch, and on window close. Programmatic
+draft restoration does not schedule another write. Dispatch clears the draft;
+access revocation discards it without recreating the removed conversation.
+
 ## Migration and Rollback
 
 Version 1 creates new local-only tables; there is no legacy client database to
