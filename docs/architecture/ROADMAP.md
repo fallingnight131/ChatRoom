@@ -157,6 +157,12 @@ Exit criteria:
 
 Goal: make clients fast and offline-tolerant before major UI expansion.
 
+Status: **complete on 2026-08-11** for the supported Web and Windows clients.
+See the stored
+[`M2 acceptance record`](../baselines/M2_ACCEPTANCE_2026-08-11.md). Native
+Windows release evidence remains an M4 gate; device-aware delivery and read
+aggregation remain M6 work.
+
 Progress:
 
 - [x] Add account-partitioned, 500-message-bounded Web IndexedDB room/direct
@@ -246,10 +252,10 @@ Work:
 
 Exit criteria:
 
-- opening a recent conversation does not require a network round trip;
-- clients reconcile optimistic and server messages without duplicates;
-- restarting offline preserves drafts and pending messages;
-- long histories do not grow view memory linearly.
+- [x] opening a recent conversation does not require a network round trip;
+- [x] clients reconcile optimistic and server messages without duplicates;
+- [x] restarting offline preserves drafts and pending messages;
+- [x] long histories do not grow view memory linearly.
 
 ## M3 — Java V2 Modular Backend
 

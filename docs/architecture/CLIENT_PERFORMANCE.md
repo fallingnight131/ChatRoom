@@ -25,10 +25,11 @@ short lists, variable heights, invalid dimensions, end-of-list behavior, and a
 500-message retained conversation. Browser interaction and memory measurements
 remain release evidence to add before making a user-visible performance claim.
 
-## Remaining M2 Boundaries
+## Protocol Semantics Boundary
 
-- Delivery/read presentation must be defined against protocol semantics rather
-  than inferred from local rendering.
+Delivery/read presentation follows the server-authoritative semantics below; it
+is never inferred from local rendering. Device-aware aggregation remains an M6
+protocol concern.
 
 ## Web Media Persistence
 
