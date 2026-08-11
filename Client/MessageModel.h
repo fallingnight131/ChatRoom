@@ -39,6 +39,7 @@ public:
 
     void addMessage(const Message &msg);
     void prependMessages(const QList<Message> &msgs);
+    void reconcileSyncPage(const QList<Message> &messages, const QJsonArray &events);
     void recallMessage(int messageId);
     void applyDeletionEvents(const QJsonArray &events);
     void clear();

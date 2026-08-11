@@ -244,7 +244,7 @@
     },
     "protocol": {
       "path": "Common/Protocol.h",
-      "sha256": "62da9398c86117c0a2771a075ce0cd319838fdd8b240073a437ecf72ac65d0d0"
+      "sha256": "9c78dfe743fb65444218911fca20f7a5c694c166413574ec9b41d1222f8d0193"
     },
     "server_dispatch": {
       "path": "Server/ChatServer.cpp",

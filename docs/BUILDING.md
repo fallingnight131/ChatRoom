@@ -146,7 +146,9 @@ binding, exact length, foreign-token denial, interrupted-body cleanup,
 room/friend idempotent finalization, duplicate/conflict responses, retry after
 restart, and notification frames without inline file bytes.
 The Qt gate additionally compiles and runs `HttpUploadTransportTest`,
-`HttpDownloadTransportTest`, and `MessageModelTest`; the V1 smoke gate runs
+`HttpDownloadTransportTest`, `MessageModelTest`, and `NetworkReconnectTest`.
+The reconnect test uses a local fake server to verify that a dropped Windows
+session reauthenticates before publishing restored connectivity. The V1 smoke gate runs
 them with loopback access where required and checks the real raw `PUT`/`GET`
 plus stable-ID state reconciliation. A source contract
 test keeps Windows room/file/image and friend composer entry points on the

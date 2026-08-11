@@ -219,9 +219,5 @@ void ProfileDialog::onChangePassword() {
         return;
     }
 
-    QJsonObject data;
-    data["oldPassword"] = oldPwd;
-    data["newPassword"] = newPwd;
-    NetworkManager::instance()->sendMessage(
-        Protocol::makeMessage(Protocol::MsgType::CHANGE_PASSWORD_REQ, data));
+    NetworkManager::instance()->changePassword(oldPwd, newPwd);
 }

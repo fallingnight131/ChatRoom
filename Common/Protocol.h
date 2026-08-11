@@ -359,6 +359,15 @@ inline QJsonObject makeHistoryReq(int roomId, int count = 50, qint64 beforeTimes
     return makeMessage(MsgType::HISTORY_REQ, data);
 }
 
+inline QJsonObject makeHistoryAfterSequenceReq(int roomId, qint64 afterSequence,
+                                                int count = 100) {
+    QJsonObject data;
+    data["roomId"] = roomId;
+    data["count"] = count;
+    data["afterSequence"] = static_cast<double>(afterSequence);
+    return makeMessage(MsgType::HISTORY_REQ, data);
+}
+
 inline QJsonObject makeRecallReq(int messageId, int roomId) {
     QJsonObject data;
     data["messageId"] = messageId;

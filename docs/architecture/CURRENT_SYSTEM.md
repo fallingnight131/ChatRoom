@@ -141,8 +141,12 @@ object cleanup is an idempotent post-commit compensation.
 - Qt Widgets and C++17, built with qmake.
 - `NetworkManager` owns the TCP connection, frame parser, heartbeat, reconnect,
   and message signal distribution.
+- Successful credentials are retained only in process memory. A reconnect
+  authenticates before publishing the restored connection, then the active
+  room resumes from its in-memory cursor in bounded mixed message/event pages.
 - `ChatWindow` coordinates a large amount of UI and application behavior.
-- `MessageModel`/`MessageDelegate` implement list data and custom rendering.
+- `MessageModel`/`MessageDelegate` implement list data, ordered sync-page
+  reconciliation, and custom rendering.
 - The current checked-in project is primarily exercised on Windows.
 
 ### Web

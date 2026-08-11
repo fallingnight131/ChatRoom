@@ -125,8 +125,7 @@ void LoginDialog::onLogin() {
     m_loginStatus->setText("正在登录...");
     m_loginBtn->setEnabled(false);
 
-    NetworkManager::instance()->sendMessage(
-        Protocol::makeLoginReq(user, pass));
+    NetworkManager::instance()->loginWithCredentials(user, pass);
 }
 
 void LoginDialog::onConnected() {
@@ -137,8 +136,7 @@ void LoginDialog::onConnected() {
         QString user = m_loginUser->text().trimmed();
         QString pass = m_loginPass->text();
         if (!user.isEmpty() && !pass.isEmpty()) {
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeLoginReq(user, pass));
+            NetworkManager::instance()->loginWithCredentials(user, pass);
         }
     } else if (m_pendingAction == Register) {
         m_regStatus->setText("已连接，正在注册...");

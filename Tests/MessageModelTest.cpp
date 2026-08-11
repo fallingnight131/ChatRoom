@@ -62,6 +62,17 @@ int main(int argc, char *argv[]) {
     all["mode"] = QStringLiteral("all");
     predicateModel.applyDeletionEvents({all, all});
     passed = passed && predicateModel.rowCount() == 0;
+
+    MessageModel syncModel;
+    at100.setSequence(1);
+    syncModel.addMessage(at100);
+    at300.setSequence(3);
+    QJsonObject clearAtTwo;
+    clearAtTwo["mode"] = QStringLiteral("all");
+    clearAtTwo["syncSequence"] = 2;
+    syncModel.reconcileSyncPage({at300}, {clearAtTwo});
+    passed = passed && syncModel.rowCount() == 1
+        && syncModel.messageAt(0).id() == 300;
     if (!passed) qCritical() << "Message model reconciliation verification failed";
     return passed ? 0 : 1;
 }

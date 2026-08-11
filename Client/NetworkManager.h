@@ -20,6 +20,8 @@ public:
     void connectToServer(const QString &host, quint16 port, bool useSsl = false);
     void disconnectFromServer();
     void sendMessage(const QJsonObject &msg);
+    void loginWithCredentials(const QString &username, const QString &password);
+    void changePassword(const QString &oldPassword, const QString &newPassword);
     bool uploadRawFile(const QString &uploadId, const QString &uploadPath,
                        const QString &filePath);
     void cancelRawUpload(const QString &uploadId);
@@ -61,7 +63,7 @@ signals:
     void leaveRoomResponse(bool success, int roomId);
 
     // 历史消息
-    void historyReceived(int roomId, const QJsonArray &messages, const QJsonArray &events);
+    void historyReceived(const QJsonObject &data);
 
     // 文件
     void fileNotify(const QJsonObject &data);
@@ -83,7 +85,7 @@ signals:
 
     // 撤回
     void recallResponse(bool success, int messageId, const QString &error);
-    void recallNotify(int messageId, int roomId, const QString &username);
+    void recallNotify(const QJsonObject &data);
 
     // 强制下线
     void forceOffline(const QString &reason);
@@ -188,6 +190,7 @@ private:
     ~NetworkManager() override;
 
     void processMessage(const QJsonObject &msg);
+    void openSocket();
 
     static NetworkManager *s_instance;
 
@@ -203,9 +206,15 @@ private:
     quint16     m_port            = 0;
     bool        m_useSsl          = false;
     bool        m_autoReconnect   = true;
+    bool        m_restoringSession = false;
+    bool        m_retryingPendingLogin = false;
     int         m_reconnectAttempt = 0;
     static constexpr int MAX_RECONNECT = 10;
 
     int         m_userId          = 0;
     QString     m_username;
+    QString     m_sessionPassword;
+    QString     m_pendingLoginUsername;
+    QString     m_pendingLoginPassword;
+    QString     m_pendingNewPassword;
 };

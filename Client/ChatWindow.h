@@ -58,7 +58,7 @@ private slots:
     void onSendMessage();
     void onChatMessage(const QJsonObject &msg);
     void onSystemMessage(const QJsonObject &msg);
-    void onHistoryReceived(int roomId, const QJsonArray &messages, const QJsonArray &events);
+    void onHistoryReceived(const QJsonObject &data);
 
     // 用户列表
     void onUserListReceived(int roomId, const QJsonArray &users);
@@ -76,7 +76,7 @@ private slots:
     // 撤回
     void onRecallMessage();
     void onRecallResponse(bool success, int messageId, const QString &error);
-    void onRecallNotify(int messageId, int roomId, const QString &username);
+    void onRecallNotify(const QJsonObject &data);
 
     // 管理员
     void onAdminStatusChanged(int roomId, bool isAdmin);
@@ -218,6 +218,8 @@ private:
                                       const QSet<int> &roomIds,
                                       const QSet<QString> &friendUsernames);
     void switchRoom(int roomId);
+    void advanceRoomSyncCursor(int roomId, qint64 sequence);
+    void requestCurrentRoomResume();
     void requestRoomList();
     MessageModel *getOrCreateModel(int roomId);
     void startChunkedUpload(const QString &filePath);
@@ -292,6 +294,7 @@ private:
     int     m_currentRoomId = -1;
 
     QMap<int, MessageModel*>  m_models;     // roomId -> MessageModel
+    QMap<int, qint64>         m_roomSyncCursors;
     MessageDelegate          *m_delegate = nullptr;
     QMap<int, bool>           m_adminRooms; // roomId -> isAdmin
     QSet<int>                 m_joinedRooms; // 已加入过的房间（用于显示加入提示）

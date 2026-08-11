@@ -50,13 +50,20 @@ void NetworkManager::connectToServer(const QString &host, quint16 port, bool use
     m_port   = port;
     m_useSsl = useSsl;
     m_reconnectAttempt = 0;
+    m_restoringSession = false;
+    m_retryingPendingLogin = false;
+
+    openSocket();
+}
+
+void NetworkManager::openSocket() {
 
     if (m_socket) {
         m_socket->disconnect();
         m_socket->deleteLater();
     }
 
-    if (useSsl) {
+    if (m_useSsl) {
         auto *ssl = new QSslSocket(this);
         ssl->setPeerVerifyMode(QSslSocket::VerifyNone); // 开发阶段
         m_socket = ssl;
@@ -70,10 +77,10 @@ void NetworkManager::connectToServer(const QString &host, quint16 port, bool use
     connect(m_socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::errorOccurred),
             this, &NetworkManager::onError);
 
-    if (useSsl) {
-        static_cast<QSslSocket*>(m_socket)->connectToHostEncrypted(host, port);
+    if (m_useSsl) {
+        static_cast<QSslSocket*>(m_socket)->connectToHostEncrypted(m_host, m_port);
     } else {
-        m_socket->connectToHost(host, port);
+        m_socket->connectToHost(m_host, m_port);
     }
 }
 
@@ -82,6 +89,14 @@ void NetworkManager::disconnectFromServer() {
     m_heartbeatTimer->stop();
     m_reconnectTimer->stop();
     m_supportsServerFileForward = false;
+    m_restoringSession = false;
+    m_retryingPendingLogin = false;
+    m_userId = 0;
+    m_username.clear();
+    m_sessionPassword.clear();
+    m_pendingLoginUsername.clear();
+    m_pendingLoginPassword.clear();
+    m_pendingNewPassword.clear();
     if (m_httpUpload) m_httpUpload->reset();
     if (m_httpDownload) m_httpDownload->reset();
 
@@ -102,6 +117,22 @@ void NetworkManager::sendMessage(const QJsonObject &msg) {
     if (!isConnected()) return;
     m_socket->write(Protocol::pack(msg));
     m_socket->flush();
+}
+
+void NetworkManager::loginWithCredentials(const QString &username,
+                                          const QString &password) {
+    m_pendingLoginUsername = username;
+    m_pendingLoginPassword = password;
+    sendMessage(Protocol::makeLoginReq(username, password));
+}
+
+void NetworkManager::changePassword(const QString &oldPassword,
+                                    const QString &newPassword) {
+    m_pendingNewPassword = newPassword;
+    QJsonObject data;
+    data["oldPassword"] = oldPassword;
+    data["newPassword"] = newPassword;
+    sendMessage(Protocol::makeMessage(Protocol::MsgType::CHANGE_PASSWORD_REQ, data));
 }
 
 bool NetworkManager::uploadRawFile(const QString &uploadId,
@@ -131,10 +162,21 @@ void NetworkManager::setCredentials(int userId, const QString &username) {
 
 void NetworkManager::onConnected() {
     qInfo() << "[Net] 已连接到服务器";
-    m_reconnectAttempt = 0;
     m_autoReconnect    = true;
     m_heartbeatTimer->start();
     m_buffer.clear();
+    if (m_restoringSession && !m_username.isEmpty() && !m_sessionPassword.isEmpty()) {
+        sendMessage(Protocol::makeLoginReq(m_username, m_sessionPassword));
+        return;
+    }
+    if (m_retryingPendingLogin && !m_pendingLoginUsername.isEmpty() &&
+        !m_pendingLoginPassword.isEmpty()) {
+        m_retryingPendingLogin = false;
+        sendMessage(Protocol::makeLoginReq(m_pendingLoginUsername,
+                                           m_pendingLoginPassword));
+        return;
+    }
+    m_reconnectAttempt = 0;
     emit connected();
 }
 
@@ -170,7 +212,10 @@ void NetworkManager::tryReconnect() {
     m_reconnectAttempt++;
     emit reconnecting(m_reconnectAttempt);
     qInfo() << "[Net] 尝试重连 #" << m_reconnectAttempt;
-    connectToServer(m_host, m_port, m_useSsl);
+    m_restoringSession = !m_username.isEmpty() && !m_sessionPassword.isEmpty();
+    m_retryingPendingLogin = !m_restoringSession &&
+        !m_pendingLoginUsername.isEmpty() && !m_pendingLoginPassword.isEmpty();
+    openSocket();
 }
 
 // ==================== 消息分发 ====================
@@ -189,6 +234,9 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         if (ok) {
             m_userId   = data["userId"].toInt();
             m_username = data["username"].toString();
+            if (!m_pendingLoginPassword.isEmpty()) {
+                m_sessionPassword = m_pendingLoginPassword;
+            }
             m_supportsServerFileForward = data["serverFileForward"].toBool(false);
             if (m_httpUpload) {
                 m_httpUpload->configure(
@@ -205,11 +253,31 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                     data["httpSecure"].toBool(false));
             }
         }
+        const bool restored = m_restoringSession;
+        if (!ok && restored) {
+            m_autoReconnect = false;
+            m_restoringSession = false;
+            m_userId = 0;
+            m_username.clear();
+            m_sessionPassword.clear();
+            m_pendingLoginUsername.clear();
+            m_pendingLoginPassword.clear();
+            if (m_socket) m_socket->disconnectFromHost();
+            emit forceOffline(QStringLiteral("会话恢复失败，请重新登录"));
+            return;
+        } else if (ok && restored) {
+            m_restoringSession = false;
+            m_reconnectAttempt = 0;
+        }
+        if (ok) m_reconnectAttempt = 0;
+        m_pendingLoginUsername.clear();
+        m_pendingLoginPassword.clear();
         emit loginResponse(ok,
                            data["error"].toString(),
                            data["userId"].toInt(),
                            data["username"].toString(),
                            data["displayName"].toString());
+        if (ok && restored) emit connected();
     }
     else if (type == Protocol::MsgType::REGISTER_RSP) {
         emit registerResponse(data["success"].toBool(), data["error"].toString());
@@ -270,8 +338,7 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         emit leaveRoomResponse(data["success"].toBool(), data["roomId"].toInt());
     }
     else if (type == Protocol::MsgType::HISTORY_RSP) {
-        emit historyReceived(data["roomId"].toInt(), data["messages"].toArray(),
-                             data["events"].toArray());
+        emit historyReceived(data);
     }
     else if (type == Protocol::MsgType::FILE_NOTIFY) {
         emit fileNotify(data);
@@ -303,9 +370,7 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                             data["error"].toString());
     }
     else if (type == Protocol::MsgType::RECALL_NOTIFY) {
-        emit recallNotify(data["messageId"].toInt(),
-                          data["roomId"].toInt(),
-                          data["username"].toString());
+        emit recallNotify(data);
     }
     else if (type == Protocol::MsgType::FRIEND_RECALL_RSP) {
         emit friendRecallResponse(data["success"].toBool(),
@@ -319,6 +384,14 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
     else if (type == Protocol::MsgType::FORCE_OFFLINE) {
         // 先禁止自动重连，再通知上层
         m_autoReconnect = false;
+        m_restoringSession = false;
+        m_retryingPendingLogin = false;
+        m_userId = 0;
+        m_username.clear();
+        m_sessionPassword.clear();
+        m_pendingLoginUsername.clear();
+        m_pendingLoginPassword.clear();
+        m_pendingNewPassword.clear();
         if (m_socket) {
             m_socket->disconnect();
             m_socket->close();
@@ -393,6 +466,11 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                                      static_cast<qint64>(data["usedFileSpace"].toDouble()),
                                      static_cast<qint64>(data["maxFileSpace"].toDouble()),
                                      data["error"].toString());
+        if (data["success"].toBool()) {
+            QJsonObject deletionEvent = data;
+            deletionEvent["mode"] = QStringLiteral("selected");
+            emit deleteMsgsResponse(deletionEvent);
+        }
     }
     else if (type == Protocol::MsgType::ROOM_FILES_NOTIFY) {
         QJsonArray deletedFileIds = data.contains("deletedFileIds")
@@ -471,6 +549,9 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                               data["displayName"].toString());
     }
     else if (type == Protocol::MsgType::CHANGE_PASSWORD_RSP) {
+        if (data["success"].toBool() && !m_pendingNewPassword.isEmpty())
+            m_sessionPassword = m_pendingNewPassword;
+        m_pendingNewPassword.clear();
         emit changePasswordResponse(data["success"].toBool(),
                                      data["error"].toString());
     }

@@ -2,6 +2,7 @@
 
 #include <QJsonObject>
 #include <QSet>
+#include <algorithm>
 
 MessageModel::MessageModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -112,6 +113,55 @@ void MessageModel::prependMessages(const QList<Message> &msgs) {
     for (int i = unique.size() - 1; i >= 0; --i)
         m_messages.prepend(unique[i]);
     endInsertRows();
+}
+
+void MessageModel::reconcileSyncPage(const QList<Message> &messages,
+                                     const QJsonArray &events) {
+    struct SyncItem {
+        qint64 sequence = 0;
+        bool isEvent = false;
+        Message message;
+        QJsonObject event;
+    };
+    QList<SyncItem> items;
+    for (const Message &message : messages)
+        items.append({message.sequence(), false, message, {}});
+    for (const QJsonValue &value : events) {
+        const QJsonObject event = value.toObject();
+        const qint64 sequence = event.contains("syncSequence")
+            ? event["syncSequence"].toVariant().toLongLong()
+            : event["sequence"].toVariant().toLongLong();
+        items.append({sequence, true, {}, event});
+    }
+    std::sort(items.begin(), items.end(), [](const SyncItem &left,
+                                             const SyncItem &right) {
+        return left.sequence < right.sequence;
+    });
+
+    for (const SyncItem &item : items) {
+        if (item.isEvent) {
+            applyDeletionEvents({item.event});
+            continue;
+        }
+        const Message &message = item.message;
+        int row = message.id() > 0 ? findMessageRow(message.id()) : -1;
+        if (row < 0 && !message.clientMessageId().isEmpty()) {
+            for (int i = 0; i < m_messages.size(); ++i) {
+                if (m_messages[i].clientMessageId() == message.clientMessageId()) {
+                    row = i;
+                    break;
+                }
+            }
+        }
+        if (row >= 0) {
+            m_messages[row] = message;
+            emit dataChanged(index(row), index(row));
+        } else {
+            beginInsertRows(QModelIndex(), m_messages.size(), m_messages.size());
+            m_messages.append(message);
+            endInsertRows();
+        }
+    }
 }
 
 void MessageModel::recallMessage(int messageId) {

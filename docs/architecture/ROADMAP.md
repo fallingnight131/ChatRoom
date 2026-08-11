@@ -115,6 +115,9 @@ Progress:
   the room cursor, and reconcile its events in Web and Windows clients.
 - [x] Make the Web client resume the active room from its in-memory cursor after
   reconnect login, with ordered mixed message/event pagination.
+- [x] Make the Windows client reauthenticate from process memory before
+  publishing reconnect success, then resume the active room cursor in bounded
+  mixed message/event pages.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

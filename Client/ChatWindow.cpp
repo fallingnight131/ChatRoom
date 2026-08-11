@@ -65,6 +65,12 @@
 // 未读红点常量
 static const int UnreadRole = Qt::UserRole + 10;
 
+static qint64 syncSequenceFrom(const QJsonObject &data) {
+    qint64 sequence = data["sequence"].toVariant().toLongLong();
+    sequence = qMax(sequence, data["mutationSequence"].toVariant().toLongLong());
+    return qMax(sequence, data["syncSequence"].toVariant().toLongLong());
+}
+
 // 红点委托：在列表项右侧绘制未读数量
 class UnreadBadgeDelegate : public QStyledItemDelegate {
 public:
@@ -1143,6 +1149,24 @@ MessageModel *ChatWindow::getOrCreateModel(int roomId) {
     return m_models[roomId];
 }
 
+void ChatWindow::advanceRoomSyncCursor(int roomId, qint64 sequence) {
+    if (roomId > 0 && sequence > m_roomSyncCursors.value(roomId, 0))
+        m_roomSyncCursors[roomId] = sequence;
+}
+
+void ChatWindow::requestCurrentRoomResume() {
+    if (m_currentRoomId <= 0) return;
+    MessageModel *model = getOrCreateModel(m_currentRoomId);
+    const qint64 cursor = m_roomSyncCursors.value(m_currentRoomId, 0);
+    if (model->rowCount() > 0 && cursor > 0) {
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeHistoryAfterSequenceReq(m_currentRoomId, cursor));
+    } else if (model->rowCount() == 0) {
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeHistoryReq(m_currentRoomId, 50));
+    }
+}
+
 // ==================== 消息处理 ====================
 
 void ChatWindow::onSendMessage() {
@@ -1176,6 +1200,7 @@ void ChatWindow::onChatMessage(const QJsonObject &msg) {
     int roomId = message.roomId();
     MessageModel *model = getOrCreateModel(roomId);
     model->addMessage(message);
+    advanceRoomSyncCursor(roomId, message.sequence());
 
     // 如果是当前房间，滚动到底部
     if (roomId == m_currentRoomId) {
@@ -1219,8 +1244,11 @@ void ChatWindow::onSystemMessage(const QJsonObject &msg) {
     }
 }
 
-void ChatWindow::onHistoryReceived(int roomId, const QJsonArray &messages,
-                                   const QJsonArray &events) {
+void ChatWindow::onHistoryReceived(const QJsonObject &data) {
+    const int roomId = data["roomId"].toInt();
+    const QJsonArray messages = data["messages"].toArray();
+    const QJsonArray events = data["events"].toArray();
+    const bool sequenceMode = data["mode"].toString() == QStringLiteral("sequence");
     MessageModel *model = getOrCreateModel(roomId);
 
     // 用于收集需要自动下载的图片
@@ -1239,6 +1267,8 @@ void ChatWindow::onHistoryReceived(int roomId, const QJsonArray &messages,
         wrapper["timestamp"] = obj["timestamp"];
         wrapper["data"] = obj;
         m = Message::fromJson(wrapper);
+        if (sequenceMode)
+            m.setSequence(syncSequenceFrom(obj));
         m.setIsMine(m.sender() == m_username);
 
         // 历史中的图片/视频消息：它们有 fileId 但无 imageData，
@@ -1288,8 +1318,20 @@ void ChatWindow::onHistoryReceived(int roomId, const QJsonArray &messages,
     if (isCurrent)
         m_messageView->setUpdatesEnabled(false);
 
-    model->prependMessages(msgList);
-    model->applyDeletionEvents(events);
+    if (sequenceMode) model->reconcileSyncPage(msgList, events);
+    else model->prependMessages(msgList);
+
+    if (sequenceMode) {
+        advanceRoomSyncCursor(roomId, data["nextSequence"].toVariant().toLongLong());
+        if (data["hasMore"].toBool()) {
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeHistoryAfterSequenceReq(
+                    roomId, data["nextSequence"].toVariant().toLongLong()));
+        }
+    } else {
+        for (const QJsonValue &value : messages)
+            advanceRoomSyncCursor(roomId, syncSequenceFrom(value.toObject()));
+    }
 
     if (isCurrent) {
         QTimer::singleShot(0, [this] {
@@ -1300,7 +1342,8 @@ void ChatWindow::onHistoryReceived(int roomId, const QJsonArray &messages,
 
     // 自动下载历史中未缓存的图片
     for (const auto &img : pendingImages) {
-        if (!FileCache::instance()->isCached(img.fileId)) {
+        if (model->findMessageByFileId(img.fileId) >= 0 &&
+            !FileCache::instance()->isCached(img.fileId)) {
             triggerFileDownload(img.fileId, img.fileName, img.fileSize);
         }
     }
@@ -1488,6 +1531,7 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
     }
 
     getOrCreateModel(roomId)->addMessage(msg);
+    advanceRoomSyncCursor(roomId, msg.sequence());
 
     if (roomId == m_currentRoomId) {
         QTimer::singleShot(50, [this] { m_messageView->scrollToBottom(); });
@@ -2272,8 +2316,9 @@ void ChatWindow::onRecallResponse(bool success, int messageId, const QString &er
     Q_UNUSED(messageId)
 }
 
-void ChatWindow::onRecallNotify(int messageId, int roomId, const QString &username) {
-    Q_UNUSED(username)
+void ChatWindow::onRecallNotify(const QJsonObject &data) {
+    const int messageId = data["messageId"].toInt();
+    const int roomId = data["roomId"].toInt();
     MessageModel *model = getOrCreateModel(roomId);
 
     // 清除该消息的文件缓存
@@ -2291,6 +2336,7 @@ void ChatWindow::onRecallNotify(int messageId, int roomId, const QString &userna
     }
 
     model->recallMessage(messageId);
+    advanceRoomSyncCursor(roomId, syncSequenceFrom(data));
 }
 
 // ==================== 管理员功能 ====================
@@ -2343,6 +2389,7 @@ void ChatWindow::onDeleteMsgsResponse(const QJsonObject &data) {
             QFile::remove(thumbPath);
         }
         getOrCreateModel(roomId)->applyDeletionEvents({data});
+        advanceRoomSyncCursor(roomId, syncSequenceFrom(data));
     } else {
         QMessageBox::warning(this, "删除消息失败", data["error"].toString());
     }
@@ -2364,6 +2411,7 @@ void ChatWindow::onDeleteMsgsNotify(const QJsonObject &data) {
     }
 
     model->applyDeletionEvents({data});
+    advanceRoomSyncCursor(roomId, syncSequenceFrom(data));
 
     m_statusLabel->setText("管理员清理了消息记录");
 }
@@ -2825,6 +2873,7 @@ void ChatWindow::onConnected() {
     // 重连后请求房间列表，onRoomListReceived 会自动加入合适的房间
     // 不再额外发送 JOIN_ROOM_REQ，避免重复加入
     requestRoomList();
+    requestCurrentRoomResume();
 }
 
 void ChatWindow::onDisconnected() {

@@ -63,9 +63,12 @@ consumer instead of growing an unbounded queue or silently dropping the event.
 - heartbeat interval: 30 seconds;
 - server/client timeout: 90 seconds;
 - reconnect interval: 5 seconds;
-- web reconnect attempts: bounded by the web service constant;
-- reconnect reauthentication uses stored client credentials rather than a
-  device/refresh session and sequence-based resume.
+- Web and Windows reconnect attempts are bounded by their client constants;
+- reconnect reauthentication uses page/process-memory credentials rather than
+  a device/refresh session; business `connected` recovery occurs only after
+  successful authentication;
+- the active room resumes with `afterSequence`; a rejected restore clears the
+  in-memory Windows session and returns to login.
 
 ## Message Type Inventory
 
