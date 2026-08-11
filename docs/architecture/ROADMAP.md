@@ -78,7 +78,9 @@ Progress:
   bursts, and slow-consumer pending bytes.
 - [x] Add password/message/history/file/chunk field limits and per-connection
   expensive-authentication throttling.
-- [ ] Add gateway/account/IP authentication-abuse controls and monitoring.
+- [x] Add bounded single-node gateway/account/direct-peer-IP authentication
+  controls with structured denial monitoring; proxy-aware/distributed
+  enforcement remains a later gateway concern.
 - [x] Add critical SQLite indexes and lock their hot query shapes with
   `EXPLAIN QUERY PLAN` regression tests.
 - [ ] Add remaining reliable-message semantics.

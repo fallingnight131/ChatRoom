@@ -119,8 +119,36 @@ A fourth suite rejects oversized passwords/messages, unbounded history counts,
 unsafe filenames, Base64/declared-size mismatches, chunk overflow, incomplete
 uploads, and more than five expensive authentication commands per connection.
 
+A fifth suite launches isolated servers with short test windows and verifies
+that account, direct-peer IP, and process/gateway authentication limits span
+independent TCP/WebSocket connections, recover after expiry, preserve existing
+V1 response types, emit structured denial counters, and do not log the test
+password.
+
 CI runs the same smoke test on Ubuntu 24.04 after installing Qt Base, Qt SQLite,
 Qt WebSockets, and libsodium development packages.
+
+## V1 Authentication-abuse Configuration
+
+The current single-node server reads these optional process environment
+variables before accepting authentication work:
+
+| Variable | Default | Purpose |
+| --- | ---: | --- |
+| `CHATROOM_AUTH_WINDOW_MS` | 60000 | Fixed-window duration |
+| `CHATROOM_AUTH_GATEWAY_ATTEMPTS` | 600 | Total process authentication attempts per window |
+| `CHATROOM_AUTH_IP_ATTEMPTS` | 60 | Attempts per direct transport peer per window |
+| `CHATROOM_AUTH_ACCOUNT_ATTEMPTS` | 10 | Attempts per normalized account per window |
+| `CHATROOM_AUTH_MAX_TRACKED_KEYS` | 4096 | Bound for active IP and account keys |
+
+The startup log reports the effective non-secret configuration. Sampled denial
+logs contain operation, limiting dimension, retry duration, aggregate counters,
+and active-key counts without account IDs, peer addresses, passwords, or
+payloads. The first and power-of-two cumulative denials per dimension are logged
+to prevent linear log amplification.
+The IP key is the direct TCP/WebSocket peer; no unverified forwarding header is
+trusted. Behind a reverse proxy, size this limit for the proxy's aggregate load
+until a trusted-proxy design is introduced.
 
 ## V1 Performance Baseline
 

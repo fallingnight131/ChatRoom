@@ -10,6 +10,7 @@ include(../Common/Libsodium.pri)
 
 SOURCES += \
     main.cpp \
+    AuthenticationAbuseGuard.cpp \
     ChatServer.cpp \
     ClientSession.cpp \
     InputValidator.cpp \
@@ -19,6 +20,7 @@ SOURCES += \
     CosManager.cpp
 
 HEADERS += \
+    AuthenticationAbuseGuard.h \
     ChatServer.h \
     ClientSession.h \
     InputValidator.h \

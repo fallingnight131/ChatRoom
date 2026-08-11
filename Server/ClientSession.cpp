@@ -50,7 +50,8 @@ void ClientSession::init() {
         connect(m_socket, &QTcpSocket::readyRead,    this, &ClientSession::onTcpReadyRead);
         connect(m_socket, &QTcpSocket::disconnected,  this, &ClientSession::onDisconnected);
         setupHeartbeat();
-        qDebug() << "[Session/TCP] 初始化完成，来源:" << m_socket->peerAddress().toString();
+        m_peerAddress = m_socket->peerAddress().toString();
+        qDebug() << "[Session/TCP] 初始化完成，来源:" << m_peerAddress;
     } else {
         // WebSocket: 信号连接在工作线程中进行，避免跨线程 QSocketNotifier 问题
         if (m_webSocket) {
@@ -62,7 +63,8 @@ void ClientSession::init() {
             connect(m_webSocket, &QWebSocket::disconnected,
                     this, &ClientSession::onDisconnected);
             setupHeartbeat();
-            qDebug() << "[Session/WS] 初始化完成，来源:" << m_webSocket->peerAddress().toString();
+            m_peerAddress = m_webSocket->peerAddress().toString();
+            qDebug() << "[Session/WS] 初始化完成，来源:" << m_peerAddress;
         }
     }
 }

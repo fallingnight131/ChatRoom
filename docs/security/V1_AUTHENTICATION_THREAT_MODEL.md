@@ -27,8 +27,8 @@ route state is never proof of authentication.
 | Network interruption loses authenticated socket | Current-page memory credential reauthenticates the new V1 socket | Add bounded retry/UI failure tests and eventually token reauth |
 | Credential interception | HTTPS pages select WSS | Plain HTTP still selects `ws://`; production TLS must become mandatory |
 | Offline cracking of server database | New/changed passwords use libsodium Argon2id; successful legacy login upgrades salted SHA-256 rows | Back up before rollout, monitor upgrades, and complete migration before removing legacy verification |
-| Credential leakage through logs | No intended password logging | Add explicit log redaction tests and structured authentication errors |
-| Repeated expensive password work | Password fields are capped and a connection gets five auth commands per minute | Add account/IP/gateway throttling and alerting without trusting unverified proxy headers |
+| Credential leakage through logs | Authentication-abuse regression captures server output and rejects password leakage; structured denial logs omit account/IP/request data | Extend redaction coverage to every authentication and crash-report sink |
+| Repeated expensive password work | Password fields are capped; connection, account, direct-peer IP, and process/gateway windows bound work before hashing | V1 state is process-local and direct-peer IP may aggregate a proxy; use trusted proxy identity and shared Redis enforcement only with the future gateway design |
 | Stale browser state impersonates a session | Router now checks live Pinia authenticated state | Server must continue rejecting unauthenticated socket commands |
 
 ## Security Invariants
@@ -44,6 +44,13 @@ route state is never proof of authentication.
   password, salt, encoded hash, or login payload.
 - Password input must be bounded before Argon2id, and one connection cannot
   trigger unbounded login/register/password-change work.
+- Valid authentication work is also bounded across connections by process,
+  direct-peer IP, and normalized account. Client-provided forwarding headers are
+  not trusted as limiter identity.
+- Sampled authentication-abuse denial logs expose
+  operation/dimension/aggregate counts, not account identifiers, peer addresses,
+  passwords, hashes, salts, or request payloads. Sampling prevents a denied
+  request flood from becoming a linear log flood.
 
 ## Verification
 
@@ -61,8 +68,17 @@ Server password migration verification:
 python3 tools/verify_m0.py --password-hash
 ```
 
-The automated tests cover credential lifetime and storage regression. Browser
-integration on 2026-07-11 verified register/login, refresh-to-login, visible
+Cross-connection authentication-abuse verification runs as part of:
+
+```bash
+python3 tools/verify_m0.py --v1-smoke
+```
+
+The automated tests cover credential lifetime/storage regression and real
+TCP/WebSocket account/IP/gateway limits, expiry recovery, and password-log
+redaction. Browser integration on 2026-07-11 verified register/login,
+refresh-to-login, visible
 disconnect state, and successful current-page reauthentication after the V1
-server restarted. Forced-offline, username/password change, log redaction, and
-transport/TLS enforcement remain required before public deployment.
+server restarted. Forced-offline, full username/password-change log redaction,
+trusted-proxy identity, and transport/TLS enforcement remain required before
+public deployment.

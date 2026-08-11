@@ -191,10 +191,16 @@ requires received bytes to exactly equal the declared total.
 
 Passwords are limited to 1,024 characters before hashing. A connection may
 submit at most five login, registration, or password-change commands per minute.
+Valid authentication requests are additionally limited across connections by a
+single-process gateway window, direct transport peer address, and normalized
+account. A denial uses the request's existing response type with
+`success: false` and `error`; it does not add a message type or required field.
+Limiter state resets on server restart, and V1 does not trust a client-provided
+proxy header as the peer identity.
 
 Existing response types may include the additive fields `success: false` and
-`error` when authorization fails. Existing successful response shapes and
-message type names remain compatible.
+`error` when authorization or authentication-abuse checks fail. Existing
+successful response shapes and message type names remain compatible.
 
 ## V1 Compatibility Rules
 

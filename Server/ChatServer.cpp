@@ -91,6 +91,16 @@ ChatServer::~ChatServer() {
 }
 
 bool ChatServer::startServer(quint16 port, quint16 wsPort, quint16 httpPort) {
+    m_authAbuseGuard.reset();
+    const AuthenticationAbuseGuard::Limits authLimits = m_authAbuseGuard.limits();
+    qInfo().noquote()
+        << QStringLiteral("[AuthAbuse] configured windowMs=%1 gatewayLimit=%2 ipLimit=%3 accountLimit=%4 maxTrackedKeys=%5")
+               .arg(authLimits.windowMs)
+               .arg(authLimits.gatewayAttempts)
+               .arg(authLimits.ipAttempts)
+               .arg(authLimits.accountAttempts)
+               .arg(authLimits.maxTrackedKeys);
+
     // 初始化数据库
     if (!m_db->initialize()) {
         qCritical() << "[Server] 数据库初始化失败";
@@ -202,7 +212,7 @@ void ChatServer::onClientAuthenticated(ClientSession *session) {
         QMutexLocker locker(&m_mutex);
         m_sessions[session->username()] = session;
     }
-    qInfo() << "[Server] 用户认证成功:" << session->username();
+    qInfo() << "[Server] 用户认证成功, userId:" << session->userId();
 
     // 将用户加入其所有房间的内存缓存，并广播 USER_ONLINE
     QJsonArray rooms = m_db->getUserJoinedRooms(session->userId());
@@ -418,6 +428,10 @@ void ChatServer::handleLogin(ClientSession *session, const QJsonObject &data) {
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::LOGIN_RSP, rspData));
         return;
     }
+    if (!allowAuthenticationAttempt(session, username, QStringLiteral("login"),
+                                    Protocol::MsgType::LOGIN_RSP)) {
+        return;
+    }
 
     int userId = m_db->authenticateUser(username, password);
 
@@ -448,6 +462,7 @@ void ChatServer::handleLogin(ClientSession *session, const QJsonObject &data) {
         rspData["displayName"] = displayName;
         rspData["fileToken"]   = generateFileToken(userId);
         rspData["httpPort"]    = m_httpPort;
+        m_authAbuseGuard.recordSuccess(username);
         emit session->authenticated(session);
     } else {
         rspData["success"] = false;
@@ -508,6 +523,38 @@ bool ChatServer::requireUploadOwnership(ClientSession *session, const QString &u
     }
     qWarning().noquote() << QStringLiteral("[Authz] denied operation=upload-owner userId=%1")
                                 .arg(userId);
+    return false;
+}
+
+bool ChatServer::allowAuthenticationAttempt(ClientSession *session,
+                                            const QString &account,
+                                            const QString &operation,
+                                            const QString &responseType) {
+    const AuthenticationAbuseGuard::Decision decision =
+        m_authAbuseGuard.allow(session ? session->peerAddress() : QString(), account);
+    if (decision.allowed) return true;
+
+    QJsonObject rspData;
+    rspData["success"] = false;
+    rspData["error"] = QStringLiteral("认证请求过于频繁，请稍后重试");
+    if (session) {
+        session->sendMessage(Protocol::makeMessage(responseType, rspData));
+    }
+
+    const quint64 dimensionDenied = decision.dimensionDeniedAttempts;
+    const bool shouldLog = dimensionDenied == 1
+        || (dimensionDenied > 0 && (dimensionDenied & (dimensionDenied - 1)) == 0);
+    if (shouldLog) {
+        qWarning().noquote()
+            << QStringLiteral("[AuthAbuse] denied operation=%1 dimension=%2 retryAfterMs=%3 dimensionDenied=%4 totalAllowed=%5 totalDenied=%6 activeIpKeys=%7 activeAccountKeys=%8")
+                   .arg(operation, decision.dimension)
+                   .arg(decision.retryAfterMs)
+                   .arg(decision.dimensionDeniedAttempts)
+                   .arg(decision.allowedAttempts)
+                   .arg(decision.deniedAttempts)
+                   .arg(decision.activeIpKeys)
+                   .arg(decision.activeAccountKeys);
+    }
     return false;
 }
 
@@ -834,8 +881,13 @@ void ChatServer::handleRegister(ClientSession *session, const QJsonObject &data)
         rspData["success"] = false;
         rspData["error"] = passwordError;
     } else {
+        if (!allowAuthenticationAttempt(session, username, QStringLiteral("register"),
+                                        Protocol::MsgType::REGISTER_RSP)) {
+            return;
+        }
         int userId = m_db->registerUser(username, displayName.trimmed(), password);
         if (userId > 0) {
+            m_authAbuseGuard.recordSuccess(username);
             rspData["success"]  = true;
             rspData["userId"]   = userId;
             rspData["username"] = username;
@@ -2899,8 +2951,14 @@ void ChatServer::handleChangePassword(ClientSession *session, const QJsonObject 
         rspData["success"] = false;
         rspData["error"] = validationError;
     } else {
+        if (!allowAuthenticationAttempt(session, session->username(),
+                                        QStringLiteral("change-password"),
+                                        Protocol::MsgType::CHANGE_PASSWORD_RSP)) {
+            return;
+        }
         bool ok = m_db->changePassword(session->userId(), oldPassword, newPassword);
         if (ok) {
+            m_authAbuseGuard.recordSuccess(session->username());
             rspData["success"] = true;
         } else {
             rspData["success"] = false;

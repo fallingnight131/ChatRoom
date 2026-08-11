@@ -9,6 +9,8 @@
 #include <QFile>
 #include <QDateTime>
 
+#include "AuthenticationAbuseGuard.h"
+
 class QWebSocketServer;
 class QWebSocket;
 class QTcpSocket;
@@ -60,6 +62,9 @@ private:
                                const QString &operation) const;
     bool requireUploadOwnership(ClientSession *session, const QString &uploadId,
                                 QJsonObject *response = nullptr) const;
+    bool allowAuthenticationAttempt(ClientSession *session, const QString &account,
+                                    const QString &operation,
+                                    const QString &responseType);
 
     void handleLogin(ClientSession *session, const QJsonObject &data);
     void handleRegister(ClientSession *session, const QJsonObject &data);
@@ -145,6 +150,7 @@ private:
     QTimer          *m_expireTimer = nullptr;
     quint16          m_httpPort = 0;
     QMap<QString, QPair<int, QDateTime>> m_fileTokens; // token -> {userId, expireAt(UTC)}
+    AuthenticationAbuseGuard m_authAbuseGuard;
 
     mutable QMutex m_mutex;
     QMap<QString, ClientSession*> m_sessions;  // username -> session

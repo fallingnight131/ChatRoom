@@ -343,6 +343,9 @@ The current V1 authentication risks and verified controls are tracked in
 - Maintain audit records for administrative and moderation actions.
 - Protect authentication, search, friend requests, messaging, and uploads with
   abuse controls.
+- V1 bounds authentication work by connection, normalized account, direct peer,
+  and single server process. Treat that state as ephemeral; future multi-gateway
+  enforcement belongs in the gateway/Redis boundary.
 
 ## 14. Operations and Quality
 

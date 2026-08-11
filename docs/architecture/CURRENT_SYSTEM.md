@@ -148,9 +148,10 @@ These are recorded for prioritization, not silently fixed by this baseline:
 5. **Central blocking path:** WebSocket parsing, business handlers, synchronous
    SQL, and fan-out coordination share the central application thread.
 6. **Connection scaling:** TCP consumes one thread per connection.
-7. **Request abuse:** connection and critical field limits are explicit, but
-   proxy-aware account/IP authentication throttling and distributed enforcement
-   are not yet implemented.
+7. **Request abuse:** connection, critical-field, account, direct-peer-IP, and
+   single-process gateway limits are explicit with structured denial logs;
+   trusted-proxy identity, external alerting, and distributed enforcement are
+   not yet implemented.
 8. **File amplification:** Base64 adds payload and allocation overhead; file data
    still crosses the chat protocol.
 9. **Single-node presence:** session and online-room state cannot route across

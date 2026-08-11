@@ -19,6 +19,7 @@ INCLUDEPATH += \
 SOURCES += \
     ../Common/Message.cpp \
     ../Server/main.cpp \
+    ../Server/AuthenticationAbuseGuard.cpp \
     ../Server/ChatServer.cpp \
     ../Server/ClientSession.cpp \
     ../Server/InputValidator.cpp \
@@ -30,6 +31,7 @@ SOURCES += \
 HEADERS += \
     ../Common/Message.h \
     ../Common/Protocol.h \
+    ../Server/AuthenticationAbuseGuard.h \
     ../Server/ChatServer.h \
     ../Server/ClientSession.h \
     ../Server/InputValidator.h \
