@@ -9,6 +9,7 @@
 #include "LocalConversationRepository.h"
 #include "OutgoingMessageService.h"
 #include "ConversationSyncService.h"
+#include "V1HistoryPageAdapter.h"
 #include "AvatarCropDialog.h"
 #include "RoomSettingsDialog.h"
 #include "RoomFileManagerDialog.h"
@@ -73,6 +74,45 @@ static qint64 syncSequenceFrom(const QJsonObject &data) {
     qint64 sequence = data["sequence"].toVariant().toLongLong();
     sequence = qMax(sequence, data["mutationSequence"].toVariant().toLongLong());
     return qMax(sequence, data["syncSequence"].toVariant().toLongLong());
+}
+
+namespace {
+struct PendingHistoryDownload {
+    int fileId = 0;
+    QString fileName;
+    qint64 fileSize = 0;
+};
+
+bool prepareHistoryMedia(Message *message, PendingHistoryDownload *download) {
+    if (!message || message->fileId() == 0) return false;
+    if (!message->thumbnail().isEmpty()) {
+        const QByteArray thumbnail = QByteArray::fromBase64(
+            message->thumbnail().toLatin1());
+        if (!thumbnail.isEmpty()) {
+            const QString path = FileCache::instance()->thumbDir()
+                + QStringLiteral("/thumb_%1.jpg").arg(message->fileId());
+            if (!QFile::exists(path)) {
+                QFile file(path);
+                if (file.open(QIODevice::WriteOnly)) file.write(thumbnail);
+            }
+        }
+    }
+    if (message->contentType() != Message::File) return false;
+    if (FileCache::instance()->isCached(message->fileId())) {
+        message->setDownloadState(Message::Downloaded);
+        message->setDownloadProgress(1.0);
+        return false;
+    }
+    static const QSet<QString> imageExtensions = {
+        QStringLiteral("png"), QStringLiteral("jpg"),
+        QStringLiteral("jpeg"), QStringLiteral("gif"),
+        QStringLiteral("bmp"), QStringLiteral("webp")};
+    if (!imageExtensions.contains(
+            QFileInfo(message->fileName()).suffix().toLower())
+        || message->fileCleared() || !download) return false;
+    *download = {message->fileId(), message->fileName(), message->fileSize()};
+    return true;
+}
 }
 
 // 红点委托：在列表项右侧绘制未读数量
@@ -1625,94 +1665,46 @@ void ChatWindow::onSystemMessage(const QJsonObject &msg) {
 }
 
 void ChatWindow::onHistoryReceived(const QJsonObject &data) {
-    const int roomId = data["roomId"].toInt();
-    const QJsonArray messages = data["messages"].toArray();
-    const QJsonArray events = data["events"].toArray();
-    const bool sequenceMode = data["mode"].toString() == QStringLiteral("sequence");
+    const auto page = V1HistoryPageAdapter::parseRoom(data, m_username);
+    if (!page.valid) {
+        qWarning().noquote() << QStringLiteral(
+            "[Sync] operation=parse-room-history outcome=rejected code=%1 detail=%2")
+            .arg(page.errorCode, page.error);
+        m_statusLabel->setText(page.error.isEmpty()
+            ? QStringLiteral("聊天记录同步失败") : page.error);
+        return;
+    }
+    const int roomId = page.roomId;
     MessageModel *model = getOrCreateModel(roomId);
-
-    // 用于收集需要自动下载的图片
-    struct PendingImage { int fileId; QString fileName; qint64 fileSize; };
-    QList<PendingImage> pendingImages;
-
-    QList<Message> msgList;
-    for (const QJsonValue &v : messages) {
-        QJsonObject obj = v.toObject();
-        // 将数据库记录转为 Message
-        Message m;
-        QJsonObject wrapper;
-        wrapper["type"] = obj["contentType"].toString() == "system"
-                          ? Protocol::MsgType::SYSTEM_MSG
-                          : Protocol::MsgType::CHAT_MSG;
-        wrapper["timestamp"] = obj["timestamp"];
-        wrapper["data"] = obj;
-        m = Message::fromJson(wrapper);
-        if (sequenceMode)
-            m.setSequence(syncSequenceFrom(obj));
-        m.setIsMine(m.sender() == m_username);
-
-        // 历史中的图片/视频消息：它们有 fileId 但无 imageData，
-        // 需要当作 File 类型处理（走下载流程 + drawImageBubble/drawVideoBubble）
-        if ((m.contentType() == Message::Image) && m.fileId() != 0) {
-            m.setContentType(Message::File);
-        }
-
-        // 保存历史中的缩略图到本地缓存（图片和视频都可能有）
-        if (m.fileId() != 0 && obj.contains("thumbnail")) {
-            QString thumbStr = obj["thumbnail"].toString();
-            if (!thumbStr.isEmpty()) {
-                QByteArray thumbData = QByteArray::fromBase64(thumbStr.toLatin1());
-                if (!thumbData.isEmpty()) {
-                    QString tDir = FileCache::instance()->thumbDir();
-                    QString thumbPath = tDir + QString("/thumb_%1.jpg").arg(m.fileId());
-                    if (!QFile::exists(thumbPath)) {
-                        QFile tf(thumbPath);
-                        if (tf.open(QIODevice::WriteOnly)) {
-                            tf.write(thumbData);
-                            tf.close();
-                        }
-                    }
-                }
-            }
-        }
-
-        // 为文件消息设置下载状态
-        if (m.contentType() == Message::File && m.fileId() != 0) {
-            if (FileCache::instance()->isCached(m.fileId())) {
-                m.setDownloadState(Message::Downloaded);
-                m.setDownloadProgress(1.0);
-            } else {
-                // 图片文件加入自动下载队列
-                static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
-                QString suffix = QFileInfo(m.fileName()).suffix().toLower();
-                if (imgExts.contains(suffix) && !m.fileCleared()) {
-                    pendingImages.append({m.fileId(), m.fileName(), m.fileSize()});
-                }
-            }
-        }
-
-        msgList.append(m);
+    QList<Message> messages = page.messages;
+    QList<PendingHistoryDownload> pendingDownloads;
+    for (Message &message : messages) {
+        PendingHistoryDownload download;
+        if (prepareHistoryMedia(&message, &download))
+            pendingDownloads.append(download);
     }
 
     bool isCurrent = (roomId == m_currentRoomId);
     if (isCurrent)
         m_messageView->setUpdatesEnabled(false);
 
-    if (sequenceMode) model->reconcileSyncPage(msgList, events);
-    else model->prependMessages(msgList);
+    if (page.sequenceMode) model->reconcileSyncPage(messages, page.events);
+    else model->prependMessages(messages);
 
-    if (sequenceMode) {
-        advanceRoomSyncCursor(roomId, data["nextSequence"].toVariant().toLongLong());
-        if (data["hasMore"].toBool()) {
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeHistoryAfterSequenceReq(
-                    roomId, data["nextSequence"].toVariant().toLongLong()));
-        }
-    } else {
-        for (const QJsonValue &value : messages)
-            advanceRoomSyncCursor(roomId, syncSequenceFrom(value.toObject()));
+    const auto progress = m_conversationSyncService->applyPage(
+        roomConversation(roomId), page.sequenceMode, page.observedSequences,
+        page.nextSequence, page.hasMore);
+    if (!m_conversationSyncService->lastError().isEmpty()) {
+        qWarning().noquote() << QStringLiteral(
+            "[Sync] operation=advance-room-history outcome=stopped roomId=%1 detail=%2")
+            .arg(roomId).arg(m_conversationSyncService->lastError());
+        m_statusLabel->setText(QStringLiteral("聊天记录续传已停止，可重新进入会话重试"));
     }
     persistRoomSnapshot(roomId);
+    if (progress.requestNext) {
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeHistoryAfterSequenceReq(roomId, progress.cursor));
+    }
 
     if (isCurrent) {
         QTimer::singleShot(0, [this] {
@@ -1722,10 +1714,11 @@ void ChatWindow::onHistoryReceived(const QJsonObject &data) {
     }
 
     // 自动下载历史中未缓存的图片
-    for (const auto &img : pendingImages) {
-        if (model->findMessageByFileId(img.fileId) >= 0 &&
-            !FileCache::instance()->isCached(img.fileId)) {
-            triggerFileDownload(img.fileId, img.fileName, img.fileSize);
+    for (const auto &download : pendingDownloads) {
+        if (model->findMessageByFileId(download.fileId) >= 0
+            && !FileCache::instance()->isCached(download.fileId)) {
+            triggerFileDownload(download.fileId, download.fileName,
+                                download.fileSize);
         }
     }
 }
@@ -4868,103 +4861,45 @@ void ChatWindow::onFriendChatMessage(const QJsonObject &data) {
 }
 
 void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
-    QString friendUsername = data["friendUsername"].toString();
-    const int friendshipId = data["friendshipId"].toInt();
+    const auto page = V1HistoryPageAdapter::parseDirect(data, m_username);
+    if (!page.valid) {
+        qWarning().noquote() << QStringLiteral(
+            "[Sync] operation=parse-direct-history outcome=rejected code=%1 detail=%2")
+            .arg(page.errorCode, page.error);
+        m_statusLabel->setText(page.error.isEmpty()
+            ? QStringLiteral("好友聊天记录同步失败") : page.error);
+        return;
+    }
+    const QString friendUsername = page.peerUsername;
+    const int friendshipId = page.friendshipId;
     if (friendshipId > 0) m_friendshipIds[friendUsername] = friendshipId;
-    QJsonArray messages    = data["messages"].toArray();
-    const bool sequenceMode = data["mode"].toString() == QStringLiteral("sequence");
-
     MessageModel *model = getOrCreateFriendModel(friendUsername);
-
-    struct PendingImage { int fileId; QString fileName; qint64 fileSize; };
-    QList<PendingImage> pendingImages;
-
-    QList<Message> msgList;
-    for (const QJsonValue &v : messages) {
-        QJsonObject msgObj = v.toObject();
-        Message msg;
-        msg.setId(msgObj["id"].toInt());
-        msg.setSender(msgObj["sender"].toString());
-        msg.setSenderName(msgObj["senderName"].toString());
-        msg.setContent(msgObj["content"].toString());
-        msg.setTimestamp(msgObj["timestamp"].toVariant().toLongLong());
-        msg.setSequence(sequenceMode ? syncSequenceFrom(msgObj)
-                                     : msgObj["sequence"].toVariant().toLongLong());
-        msg.setClientMessageId(msgObj["clientMessageId"].toString());
-        msg.setIsMine(msgObj["sender"].toString() == m_username);
-        msg.setRecalled(msgObj["recalled"].toBool(false));
-
-        QString ct = msgObj["contentType"].toString("text");
-        if (ct == "text")        msg.setContentType(Message::Text);
-        else if (ct == "image")  msg.setContentType(Message::Image);
-        else if (ct == "file")   msg.setContentType(Message::File);
-        else if (ct == "video")  msg.setContentType(Message::File);  // 视频当作 File，由 delegate 根据扩展名渲染
-
-        if (msgObj.contains("fileName")) {
-            msg.setFileName(msgObj["fileName"].toString());
-            msg.setFileSize(static_cast<qint64>(msgObj["fileSize"].toDouble()));
-            msg.setFileId(msgObj["fileId"].toInt());
-
-            // 历史中的图片消息需要当作 File 类型处理（走下载流程 + drawImageBubble）
-            if (ct == "image" && msg.fileId() != 0) {
-                msg.setContentType(Message::File);
-            }
-
-            // 保存历史中的缩略图到本地缓存
-            if (msg.fileId() != 0 && msgObj.contains("thumbnail")) {
-                QString thumbStr = msgObj["thumbnail"].toString();
-                if (!thumbStr.isEmpty()) {
-                    QByteArray thumbData = QByteArray::fromBase64(thumbStr.toLatin1());
-                    if (!thumbData.isEmpty()) {
-                        QString tDir = FileCache::instance()->thumbDir();
-                        QString thumbPath = tDir + QString("/thumb_%1.jpg").arg(msg.fileId());
-                        if (!QFile::exists(thumbPath)) {
-                            QFile tf(thumbPath);
-                            if (tf.open(QIODevice::WriteOnly)) {
-                                tf.write(thumbData);
-                                tf.close();
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 为文件消息设置下载状态
-            if (msg.contentType() == Message::File && msg.fileId() != 0) {
-                if (FileCache::instance()->isCached(msg.fileId())) {
-                    msg.setDownloadState(Message::Downloaded);
-                    msg.setDownloadProgress(1.0);
-                } else {
-                    // 图片文件加入自动下载队列
-                    static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
-                    QString suffix = QFileInfo(msg.fileName()).suffix().toLower();
-                    if (imgExts.contains(suffix) && !msg.fileCleared()) {
-                        pendingImages.append({msg.fileId(), msg.fileName(), msg.fileSize()});
-                    }
-                }
-            }
-        }
-        if (msgObj.contains("thumbnail"))
-            msg.setThumbnail(msgObj["thumbnail"].toString());
-
-        msgList.append(msg);
+    QList<Message> messages = page.messages;
+    QList<PendingHistoryDownload> pendingDownloads;
+    for (Message &message : messages) {
+        PendingHistoryDownload download;
+        if (prepareHistoryMedia(&message, &download))
+            pendingDownloads.append(download);
     }
 
-    if (sequenceMode) model->reconcileSyncPage(msgList, {});
-    else model->prependMessages(msgList);
+    if (page.sequenceMode) model->reconcileSyncPage(messages, {});
+    else model->prependMessages(messages);
 
-    if (sequenceMode) {
-        const qint64 nextSequence = data["nextSequence"].toVariant().toLongLong();
-        advanceFriendSyncCursor(friendUsername, nextSequence);
-        if (data["hasMore"].toBool()) {
-            NetworkManager::instance()->sendMessage(
-                Protocol::makeFriendHistoryAfterSequenceReq(friendUsername, nextSequence));
-        }
-    } else {
-        for (const QJsonValue &value : messages)
-            advanceFriendSyncCursor(friendUsername, syncSequenceFrom(value.toObject()));
+    const auto progress = m_conversationSyncService->applyPage(
+        friendConversation(friendUsername), page.sequenceMode,
+        page.observedSequences, page.nextSequence, page.hasMore);
+    if (!m_conversationSyncService->lastError().isEmpty()) {
+        qWarning().noquote() << QStringLiteral(
+            "[Sync] operation=advance-direct-history outcome=stopped peer=%1 detail=%2")
+            .arg(friendUsername, m_conversationSyncService->lastError());
+        m_statusLabel->setText(QStringLiteral("好友记录续传已停止，可重新进入会话重试"));
     }
     persistFriendSnapshot(friendUsername);
+    if (progress.requestNext) {
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeFriendHistoryAfterSequenceReq(
+                friendUsername, progress.cursor));
+    }
 
     if (m_isFriendChat && m_currentFriendUsername == friendUsername) {
         QTimer::singleShot(0, [this] {
@@ -4974,8 +4909,12 @@ void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
     }
 
     // 自动下载历史中未缓存的图片
-    for (const auto &img : pendingImages) {
-        triggerFileDownload(img.fileId, img.fileName, img.fileSize);
+    for (const auto &download : pendingDownloads) {
+        if (model->findMessageByFileId(download.fileId) >= 0
+            && !FileCache::instance()->isCached(download.fileId)) {
+            triggerFileDownload(download.fileId, download.fileName,
+                                download.fileSize);
+        }
     }
 }
 

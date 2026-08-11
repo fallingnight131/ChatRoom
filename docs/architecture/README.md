@@ -320,9 +320,10 @@ The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,
 and terminal local delivery transitions while `ChatWindow` adapts commands and
 responses to the V1 transport. `ConversationSyncService` under ADR-0026 now
-owns snapshot/cursor persistence and stable-key promotion. V1 history page
-parsing/scheduling and restartable attachment commands remain the next
-extractions; neither belongs in Widgets.
+owns snapshot/cursor persistence and stable-key promotion. The
+`V1HistoryPageAdapter` from ADR-0027 normalizes bounded legacy/sequence pages,
+while the sync service stops stalled continuation loops. Restartable attachment
+commands remain the next extraction and do not belong in Widgets.
 
 ### Web
 

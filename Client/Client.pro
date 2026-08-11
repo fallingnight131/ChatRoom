@@ -22,6 +22,7 @@ SOURCES += \
     LocalConversationRepository.cpp \
     OutgoingMessageService.cpp \
     ConversationSyncService.cpp \
+    V1HistoryPageAdapter.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -44,6 +45,7 @@ HEADERS += \
     LocalConversationRepository.h \
     OutgoingMessageService.h \
     ConversationSyncService.h \
+    V1HistoryPageAdapter.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \

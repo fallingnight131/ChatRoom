@@ -46,11 +46,25 @@ int main(int argc, char *argv[]) {
     service.advance(room, 11);
     if (!check(service.cursor(room) == 11,
                QStringLiteral("cursor is not monotonic"))) return 1;
+    const auto continued = service.applyPage(
+        room, true, {12}, 12, true);
+    if (!check(continued.cursor == 12 && continued.requestNext,
+               QStringLiteral("advancing page did not schedule continuation")))
+        return 1;
+    const auto stalled = service.applyPage(
+        room, true, {}, 12, true);
+    if (!check(!stalled.requestNext
+                   && service.lastError().contains(QStringLiteral("did not advance")),
+               QStringLiteral("stalled continuation was not stopped"))) return 1;
+    const auto legacy = service.applyPage(
+        room, false, {4, 13, 8}, 0, false);
+    if (!check(legacy.cursor == 13 && !legacy.requestNext,
+               QStringLiteral("legacy page high watermark is wrong"))) return 1;
 
-    Message live = accepted(101, 11);
+    Message live = accepted(101, 13);
     if (!check(service.upsert(room, live), service.lastError())) return 1;
     ConversationSyncService restarted(&repository, QStringLiteral("alice"));
-    if (!check(restarted.hydrate(room).cursor == 11,
+    if (!check(restarted.hydrate(room).cursor == 13,
                QStringLiteral("upsert did not persist the cursor"))) return 1;
 
     const ConversationSyncService::ConversationRef provisional{

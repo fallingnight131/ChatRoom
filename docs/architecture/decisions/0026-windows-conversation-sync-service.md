@@ -31,10 +31,10 @@ membership authority and the V1 wire format are unchanged.
   the first authoritative friend list arrives.
 - Repository absence remains an online-only fallback. Persistence failures are
   returned as diagnostics and never manufacture server authority.
-- `ChatWindow` continues to parse V1 JSON, reconcile `MessageModel`, decide the
-  currently visible conversation, and encode history requests. Moving page
-  scheduling and response parsing behind an asynchronous sync engine is a later
-  additive step.
+- `ChatWindow` initially continued to parse V1 JSON and schedule continuation.
+  ADR-0027 subsequently moved response normalization to a V1 adapter and page
+  progress decisions into this service; the window still encodes and dispatches
+  requests and reconciles the visible `MessageModel`.
 - Legacy messages with a null Qt `clientMessageId` are normalized to an empty
   SQL string at the repository boundary so old compatible history cannot violate
   the local `NOT NULL` constraint.
@@ -52,9 +52,9 @@ membership authority and the V1 wire format are unchanged.
 
 Room and direct cursors now share one tested monotonic policy, cache clearing
 cannot leave stale in-memory cursors, and repository operations have a common
-diagnostic boundary. The window is smaller but still owns history page parsing,
-`hasMore` request scheduling, and view reconciliation; the M2 extraction is not
-yet the final asynchronous sync engine.
+diagnostic boundary. With ADR-0027 the service also rejects stalled `hasMore`
+continuation, while the window retains request dispatch and view reconciliation;
+the M2 extraction is not yet the final asynchronous sync engine.
 
 ## Migration and Rollback
 

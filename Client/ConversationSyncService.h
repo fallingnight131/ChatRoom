@@ -11,6 +11,10 @@ public:
         LocalConversationRepository::Kind kind = LocalConversationRepository::Kind::Room;
         QString key;
     };
+    struct PageProgress {
+        qint64 cursor = 0;
+        bool requestNext = false;
+    };
 
     explicit ConversationSyncService(
         LocalConversationRepository *repository = nullptr,
@@ -22,6 +26,10 @@ public:
         const ConversationRef &conversation);
     qint64 cursor(const ConversationRef &conversation) const;
     qint64 advance(const ConversationRef &conversation, qint64 sequence);
+    PageProgress applyPage(const ConversationRef &conversation,
+                           bool sequenceMode,
+                           const QList<qint64> &observedSequences,
+                           qint64 nextSequence, bool hasMore);
     bool replace(const ConversationRef &conversation,
                  const QList<Message> &messages);
     bool upsert(const ConversationRef &conversation, const Message &message);

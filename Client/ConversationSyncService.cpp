@@ -43,6 +43,35 @@ qint64 ConversationSyncService::advance(
     return m_cursors.value(key, 0);
 }
 
+ConversationSyncService::PageProgress ConversationSyncService::applyPage(
+    const ConversationRef &conversation, bool sequenceMode,
+    const QList<qint64> &observedSequences, qint64 nextSequence,
+    bool hasMore) {
+    m_lastError.clear();
+    PageProgress progress{cursor(conversation), false};
+    if (!validate(conversation)) return progress;
+    const qint64 previous = progress.cursor;
+    if (sequenceMode) {
+        if (nextSequence < 0) {
+            m_lastError = QStringLiteral("negative history continuation cursor");
+            return progress;
+        }
+        progress.cursor = advance(conversation, nextSequence);
+        if (hasMore) {
+            if (nextSequence <= previous) {
+                m_lastError = QStringLiteral(
+                    "history continuation did not advance the cursor");
+            } else {
+                progress.requestNext = true;
+            }
+        }
+        return progress;
+    }
+    for (qint64 sequence : observedSequences)
+        progress.cursor = advance(conversation, sequence);
+    return progress;
+}
+
 bool ConversationSyncService::replace(
     const ConversationRef &conversation, const QList<Message> &messages) {
     m_lastError.clear();

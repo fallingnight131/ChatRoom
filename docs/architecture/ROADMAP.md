@@ -189,8 +189,9 @@ Progress:
 - [x] Extract Windows room/direct snapshot persistence, monotonic cursor state,
   key promotion, eviction, and cache reset into a transport-neutral
   conversation synchronization service.
-- [ ] Move Windows V1 history page parsing and continuation scheduling out of
-  `ChatWindow`, and extend durable pending behavior to restartable attachments.
+- [x] Move Windows V1 room/direct history parsing, malformed/rejected response
+  handling, and progress-guarded continuation scheduling out of `ChatWindow`.
+- [ ] Extend Windows durable pending behavior to restartable attachments.
 - [x] Extend the Windows cache control to clear account-isolated, server-
   recoverable SQLite history while preserving drafts and unresolved sends.
 - [ ] Add remaining optimistic states, virtualization, bounded media-cache
