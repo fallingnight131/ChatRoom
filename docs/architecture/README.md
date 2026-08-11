@@ -25,6 +25,8 @@ For current build commands and the native toolchain boundary, read
 [`../BUILDING.md`](../BUILDING.md) and
 [`SUPPORT_MATRIX.md`](SUPPORT_MATRIX.md). M0 acceptance evidence is stored in
 [`../baselines/M0_ACCEPTANCE_2026-07-11.md`](../baselines/M0_ACCEPTANCE_2026-07-11.md).
+M1 acceptance evidence is stored in
+[`../baselines/M1_ACCEPTANCE_2026-08-11.md`](../baselines/M1_ACCEPTANCE_2026-08-11.md).
 
 ## 2. Architecture Principles
 
@@ -60,8 +62,9 @@ The active system is a single Qt/C++ server with three ingress paths:
 
 The current implementation is a valid V1 product baseline. Its main growth
 constraints are synchronous persistence on message paths, connection-per-thread
-TCP handling, a main-thread WebSocket path, Base64 file transfer, single-process
-presence, and the absence of explicit delivery/synchronization semantics.
+TCP handling, a main-thread WebSocket path, retained legacy Base64 compatibility
+handlers, single-process presence, and the absence of durable client repositories
+and delivered/read acknowledgement semantics.
 
 ## 4. Target Context
 
@@ -212,8 +215,9 @@ idempotent processing and deterministic client reconciliation.
 The current V1 bridge implements this model for room/direct text and emoji plus
 upgraded Web/Windows upload-finalized attachments: `clientMessageId`, durable
 send acknowledgements, per-room/per-friendship sequence, and `afterSequence`
-history resume are additive fields. Legacy inline attachments and durable
-client outboxes remain M1/M2 work; room/direct recall and administrative
+history resume are additive fields. Legacy inline attachment retirement remains
+a compatibility-window obligation and durable client outboxes begin in M2;
+room/direct recall and administrative
 deletion are replayable through the shared conversation cursor under ADR-0019
 and ADR-0020. This compatibility slice is not the completed V2 model. Web
 room/friend uploads and Windows composer uploads now use the

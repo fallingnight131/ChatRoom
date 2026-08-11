@@ -65,6 +65,12 @@ Exit criteria:
 
 Goal: correct the highest-risk behavior before migration.
 
+Status: **complete on 2026-08-11** within the documented V1 compatibility
+boundary. See the stored
+[`M1 acceptance record`](../baselines/M1_ACCEPTANCE_2026-08-11.md). Durable
+client repositories, delivery/read acknowledgements, multi-device semantics,
+and non-message state synchronization remain explicitly assigned to M2/M6.
+
 Progress:
 
 - [x] Stop persisting plaintext Web login passwords; retain credentials only in
@@ -121,7 +127,10 @@ Progress:
 - [x] Resume the active direct conversation from its in-memory cursor after Web
   or Windows reconnect authentication, including bounded paging and replayed
   recall state.
-- [ ] Add remaining reliable-message semantics.
+- [x] Bound M1 reliable-message semantics to durable acceptance/idempotency,
+  conversation sequencing, replayable recall/deletion, and active-conversation
+  reconnect; route durable outboxes/cache, delivery/read acknowledgement,
+  multi-device behavior, and other state synchronization to M2/M6.
 
 Work:
 
@@ -137,10 +146,12 @@ Work:
 
 Exit criteria:
 
-- retries do not create duplicate messages;
-- reconnect recovers a documented range of missing messages;
-- normal file bytes bypass the chat server;
-- authentication and file threat models have regression tests.
+- [x] retries do not create duplicate messages;
+- [x] reconnect recovers a documented range of missing messages;
+- [x] normal supported-client attachment bytes bypass JSON/Base64 messaging and
+  use the authorized HTTP data plane;
+- [x] authentication, authorization, transport, and file threat models have
+  regression tests.
 
 ## M2 — Client Data and Experience Foundation
 

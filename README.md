@@ -79,7 +79,7 @@ ChatRoom/
 ├── AGENTS.md             # 工程和架构演进规则
 ├── docs/                 # 权威架构、协议、数据与验证文档
 ├── Common/               # 共享协议层
-│   ├── Protocol.h        # 消息协议定义（当前 122 种消息类型）
+│   ├── Protocol.h        # 消息协议定义（当前 125 种消息类型）
 │   └── Message.h/cpp     # 消息数据模型
 ├── Server/               # 服务端（控制台程序，TCP + WebSocket 双协议）
 │   ├── ChatServer        # TCP + WebSocket 服务器
@@ -131,6 +131,7 @@ ChatRoom/
 - [V1 SQLite 基线](docs/data/V1_SQLITE_SCHEMA.md)
 - [可重复构建与验证](docs/BUILDING.md)
 - [迭代路线图](docs/architecture/ROADMAP.md)
+- [M1 验收记录](docs/baselines/M1_ACCEPTANCE_2026-08-11.md)
 - [架构决策记录](docs/architecture/decisions/)
 - [Codex/Agent 工程约定](AGENTS.md)
 
@@ -240,7 +241,8 @@ ChatServer.exe --port 8888 --ws-port 9999
 身份现场编译、暴露明文 TCP/WebSocket 端口，且没有签名产物、回滚和完整
 密钥管理，已从仓库移除。
 
-公网部署必须先完成 M1 认证/授权/TLS 安全闭环；Windows 签名安装包、
+M1 已完成代码库内的认证、授权和可靠消息基线，但公网部署仍必须在
+受信边缘终止 TLS/WSS，并完成密钥、监控和回滚策略。Windows 签名安装包、
 自动更新以及 Web 的可回滚发布属于 M4。
 
 ---
@@ -257,7 +259,7 @@ ChatServer.exe --port 8888 --ws-port 9999
 
 ## 协议概览
 
-服务端与客户端通过 JSON 消息通信，当前共声明 122 种消息类型。完整、以代码为准的清单见 [V1 协议基线](docs/protocol/V1_PROTOCOL.md)：
+服务端与客户端通过 JSON 消息通信，当前共声明 125 种消息类型。完整、以代码为准的清单见 [V1 协议基线](docs/protocol/V1_PROTOCOL.md)：
 
 | 类别 | 消息类型 |
 |------|---------|
