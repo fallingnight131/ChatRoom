@@ -204,6 +204,7 @@ int main(int argc, char *argv[]) {
                           QStringLiteral("operator_user_id"),
                           QStringLiteral("operator_name"),
                           QStringLiteral("client_operation_id"),
+                          QStringLiteral("command_fingerprint"),
                           QStringLiteral("mode"),
                           QStringLiteral("message_ids_json"),
                           QStringLiteral("file_ids_json"),

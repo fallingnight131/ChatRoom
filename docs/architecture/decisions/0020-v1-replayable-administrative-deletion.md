@@ -23,18 +23,21 @@ the current response and live notification shapes.
 - Add `room_message_deletion_events` as durable SQL truth for new
   administrative deletion operations. It records the room, operator ID and
   display-name snapshot, `clientOperationId`, mode, selected IDs or cutoff,
-  deleted message/file IDs, deleted count, event sequence, and creation time.
+  a canonical command fingerprint, actual deleted message/file IDs, deleted
+  count, event sequence, and creation time.
 - Allocate one event sequence from the existing room high watermark in the same
   transaction that persists the event and physically deletes the selected
   message rows. Message creation, recall mutations, and deletion events share
   one cursor namespace.
 - Scope idempotency to the authenticated operator and `clientOperationId`.
   Exact retries return the original outcome without a second deletion event or
-  notification. Reusing the key with different command parameters is rejected.
+  notification. The fingerprint distinguishes message-ID selection, file-ID
+  selection, and predicate modes; reusing the key with different parameters is
+  rejected even after source rows have been removed.
 - Extend sequence history compatibly with an optional `events` array. Each
   deletion event exposes `eventType: "messagesDeleted"`, `syncSequence`, mode,
-  selected message IDs or cutoff, deleted file IDs, deleted count, and operator
-  display name.
+  selected message IDs or a whole-second `timestamp`/`cutoffMs`, deleted file
+  IDs, deleted count, operator display name, and a separate `eventTimestamp`.
   `nextSequence` advances across both messages and events.
 - Updated Web and Windows clients apply deletion events idempotently to current
   state. Old clients ignore `events` but retain existing online
@@ -79,6 +82,9 @@ time rather than fabricating historical audit data.
    V1 responses and notifications.
 3. Upgrade Web and Windows consumers and observe duplicate/reconnect outcomes.
 4. Retain the table through the V1 compatibility window.
+
+Steps 1-3 are implemented in the accepted M1 slice; step 4 is an ongoing
+compatibility-window obligation.
 
 Rollback before step 2 simply leaves an unused empty table. After events are
 written, an older server can still operate because it ignores the table, but

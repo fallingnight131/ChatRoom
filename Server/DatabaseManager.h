@@ -29,6 +29,26 @@ struct RecallResult {
     qint64 mutationSequence = 0;
 };
 
+struct AdministrativeDeletionSaveResult {
+    enum class Status { Created, Duplicate, Conflict, Failed };
+    Status status = Status::Failed;
+    int roomId = 0;
+    int deletedCount = 0;
+    qint64 sequence = 0;
+    qint64 cutoffMs = 0;
+    qint64 createdAtMs = 0;
+    QString mode;
+    QJsonArray messageIds;
+    QJsonArray deletedFileIds;
+};
+
+struct RoomSyncPage {
+    QJsonArray messages;
+    QJsonArray events;
+    qint64 nextSequence = 0;
+    int itemCount = 0;
+};
+
 /// 数据库管理器 —— 线程安全，使用每线程独立连接
 class DatabaseManager : public QObject {
     Q_OBJECT
@@ -99,6 +119,7 @@ public:
     QJsonArray getMessageHistory(int roomId, int count, qint64 beforeTimestamp = 0);
     QJsonArray getMessageHistoryAfterSequence(int roomId, int count,
                                               qint64 afterSequence);
+    RoomSyncPage getRoomSyncPage(int roomId, int count, qint64 afterSequence);
     qint64 getRoomLastMessageSequence(int roomId);
     bool isMessageInRoom(int messageId, int roomId);
     RecallResult recallMessage(int messageId, int userId, int timeLimitSec);
@@ -129,6 +150,11 @@ public:
     QList<int> getRoomAdmins(int roomId);
 
     // 管理员操作 - 删除消息
+    AdministrativeDeletionSaveResult saveAdministrativeDeletion(
+        int roomId, int operatorUserId, const QString &operatorName,
+        const QString &clientOperationId, const QString &commandFingerprint,
+        const QString &mode, const QList<int> &messageIds,
+        const QList<int> &sourceFileIds, qint64 cutoffMs);
     bool deleteMessages(int roomId, const QList<int> &messageIds);
     int  deleteAllMessages(int roomId);
     int  deleteMessagesBefore(int roomId, const QDateTime &before);

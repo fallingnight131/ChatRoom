@@ -98,18 +98,21 @@ multi-device.
 The compatible V1 extension supports `clientMessageId`, durable acceptance,
 per-room/per-friendship sequence, and `afterSequence` history resume for room
 and direct text/emoji/attachment messages. Recall mutations use the same
-conversation high watermark and can be recovered after disconnect; physical
-administrative deletion events are not replayable.
+conversation high watermark and can be recovered after disconnect.
+Administrative deletion now records one durable, idempotent event on that same
+room cursor and sequence history returns it through the additive `events`
+array.
 
 The schema contains nullable, indexed `mutation_sequence` columns for room and
 direct messages. Runtime recall transactionally assigns them and sequence
 history exposes `syncSequence = max(sequence, mutationSequence)` as specified by
 ADR-0019.
 
-ADR-0020 has expanded the schema with an indexed
-`room_message_deletion_events` table. It is empty/unused in this phase;
-administrative deletion still physically removes rows and is not yet replayable
-until the transactional behavioral phase is enabled.
+ADR-0020 adds the indexed `room_message_deletion_events` table. The server
+transactionally stores the event and physically removes matching rows, returns
+the original result for exact retries, rejects conflicting operation-ID reuse,
+and lets Web/Windows reconcile live or replayed deletion events. Attachment
+object cleanup is an idempotent post-commit compensation.
 
 ### Direct message
 
@@ -166,10 +169,10 @@ These are recorded for prioritization, not silently fixed by this baseline:
    operations and legacy plaintext upgrades after successful verification; a
    pre-ADR server cannot read migrated rows.
 4. **Reliability semantics:** room/direct text and emoji plus upgraded
-   upload-finalized room/friend attachments are idempotent and have stable
-   sequence metadata, but legacy inline/forwarded files can still duplicate and
-   administrative physical-deletion events have no replay sequence. Room/direct
-   recall is replayable through `mutationSequence`.
+   upload-finalized room/friend attachments and administrative deletion are
+   idempotent and have stable sequence metadata, but legacy inline/forwarded
+   files can still duplicate. Room/direct recall is replayable through
+   `mutationSequence`.
 5. **Central blocking path:** WebSocket parsing, business handlers, synchronous
    SQL, and fan-out coordination share the central application thread.
 6. **Connection scaling:** TCP consumes one thread per connection.
@@ -211,6 +214,10 @@ restarted schemas converge.
 - `Tests/v1_recall_replay_test.py` covers room/direct recall mutation cursors,
   stable retry results, offline replay, restart durability, and deterministic
   backfill of legacy recalled rows.
+- `Tests/v1_administrative_deletion_reliability_test.py` covers admin
+  authorization, all four deletion modes, bounded selection, exact/conflicting
+  retry, live event metadata, sequence pagination, offline replay, and restart
+  durability.
 - `Tests/v1_http_upload_test.py` covers the binary HTTP attachment bridge,
   including owner binding, integrity rejection, interrupted upload cleanup,
   room/friend idempotency, conflicts, explicit ACK identity, and restart retry.

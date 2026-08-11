@@ -34,3 +34,28 @@ export function mergeUniqueMessages(existing, incoming, { prepend = false } = {}
   }
   return prepend ? [...accepted, ...merged] : [...merged, ...accepted]
 }
+
+export function applyDeletionEvents(messages, events = []) {
+  return [...events]
+    .sort((left, right) => Number(left?.syncSequence || left?.sequence || 0) -
+      Number(right?.syncSequence || right?.sequence || 0))
+    .reduce((current, event) => {
+      if (!event || (event.eventType && event.eventType !== 'messagesDeleted')) {
+        return current
+      }
+      if (event.mode === 'all') return []
+      if (event.mode === 'selected') {
+        const ids = new Set((event.messageIds || []).map(Number))
+        return current.filter(message => !ids.has(Number(message.id)))
+      }
+      const cutoff = Number(event.timestamp ?? event.cutoffMs ?? 0)
+      if (!Number.isFinite(cutoff) || cutoff <= 0) return current
+      if (event.mode === 'before') {
+        return current.filter(message => Number(message.timestamp || 0) >= cutoff)
+      }
+      if (event.mode === 'after') {
+        return current.filter(message => Number(message.timestamp || 0) <= cutoff)
+      }
+      return current
+    }, [...messages])
+}

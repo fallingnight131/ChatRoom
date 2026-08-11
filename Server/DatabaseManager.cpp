@@ -7,12 +7,14 @@
 #include <QDebug>
 #include <QDateTime>
 #include <QJsonObject>
+#include <QJsonDocument>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QMutex>
 #include <QHash>
 #include <QTimeZone>
+#include <algorithm>
 
 namespace {
 constexpr qint64 kDefaultRoomMaxFileSize = 10LL * 1024 * 1024 * 1024; // 10GB
@@ -209,6 +211,43 @@ QJsonArray friendMessagesFromQuery(QSqlQuery &query, int friendshipId) {
         messages.append(message);
     }
     return messages;
+}
+
+QJsonArray intListToJson(const QList<int> &values) {
+    QJsonArray result;
+    for (int value : values) result.append(value);
+    return result;
+}
+
+QString compactJson(const QJsonArray &values) {
+    return QString::fromUtf8(QJsonDocument(values).toJson(QJsonDocument::Compact));
+}
+
+QJsonArray parseJsonArray(const QVariant &value) {
+    const QJsonDocument document = QJsonDocument::fromJson(value.toByteArray());
+    return document.isArray() ? document.array() : QJsonArray{};
+}
+
+QJsonObject deletionEventFromQuery(QSqlQuery &query) {
+    QJsonObject event;
+    event["eventType"] = QStringLiteral("messagesDeleted");
+    event["eventId"] = query.value(0).toInt();
+    event["roomId"] = query.value(1).toInt();
+    event["operator"] = query.value(2).toString();
+    event["clientOperationId"] = query.value(3).toString();
+    event["mode"] = query.value(4).toString();
+    event["messageIds"] = parseJsonArray(query.value(5));
+    event["deletedFileIds"] = parseJsonArray(query.value(6));
+    const double cutoff = static_cast<double>(query.value(7).toLongLong());
+    event["cutoff"] = cutoff;
+    event["cutoffMs"] = cutoff;
+    event["timestamp"] = cutoff;
+    event["deletedCount"] = query.value(8).toInt();
+    const double sequence = static_cast<double>(query.value(9).toLongLong());
+    event["sequence"] = sequence;
+    event["syncSequence"] = sequence;
+    event["eventTimestamp"] = static_cast<double>(utcTimestampMs(query.value(10)));
+    return event;
 }
 
 bool ensureColumn(QSqlDatabase &db, const QString &table,
@@ -507,6 +546,7 @@ bool DatabaseManager::initialize() {
                 "  operator_user_id INTEGER NOT NULL,"
                 "  operator_name TEXT NOT NULL DEFAULT '',"
                 "  client_operation_id TEXT NOT NULL,"
+                "  command_fingerprint TEXT NOT NULL DEFAULT '',"
                 "  mode TEXT NOT NULL,"
                 "  message_ids_json TEXT NOT NULL DEFAULT '[]',"
                 "  file_ids_json TEXT NOT NULL DEFAULT '[]',"
@@ -527,6 +567,13 @@ bool DatabaseManager::initialize() {
                       QStringLiteral("file_ids_json"),
                       QStringLiteral("TEXT NOT NULL DEFAULT '[]'"))) {
         qCritical() << "[DB] 扩展房间删除事件文件列失败:"
+                    << db.lastError().text();
+        return false;
+    }
+    if (!ensureColumn(db, QStringLiteral("room_message_deletion_events"),
+                      QStringLiteral("command_fingerprint"),
+                      QStringLiteral("TEXT NOT NULL DEFAULT ''"))) {
+        qCritical() << "[DB] 扩展房间删除事件指纹列失败:"
                     << db.lastError().text();
         return false;
     }
@@ -1540,6 +1587,82 @@ QJsonArray DatabaseManager::getMessageHistoryAfterSequence(int roomId, int count
     return roomMessagesFromQuery(query, roomId);
 }
 
+RoomSyncPage DatabaseManager::getRoomSyncPage(int roomId, int count,
+                                              qint64 afterSequence) {
+    RoomSyncPage page;
+    expireStoredFiles();
+    QSqlDatabase db = getConnection();
+    if (!db.transaction()) return page;
+
+    QSqlQuery messageQuery(db);
+    messageQuery.prepare(
+        "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id, "
+        "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail, "
+        "       m.file_cleared, m.clear_reason, m.sequence, m.client_message_id, "
+        "       m.mutation_sequence, MAX(m.sequence, COALESCE(m.mutation_sequence, 0)) "
+        "FROM messages m JOIN users u ON m.user_id = u.id "
+        "WHERE m.room_id = ? AND (m.sequence > ? OR m.mutation_sequence > ?) "
+        "ORDER BY MAX(m.sequence, COALESCE(m.mutation_sequence, 0)) ASC LIMIT ?");
+    messageQuery.addBindValue(roomId);
+    messageQuery.addBindValue(afterSequence);
+    messageQuery.addBindValue(afterSequence);
+    messageQuery.addBindValue(count);
+    if (!messageQuery.exec()) {
+        qWarning() << "[DB] 查询房间同步消息失败:" << messageQuery.lastError().text();
+        db.rollback();
+        return page;
+    }
+    const QJsonArray messages = roomMessagesFromQuery(messageQuery, roomId);
+
+    QSqlQuery eventQuery(db);
+    eventQuery.prepare(
+        "SELECT id, room_id, operator_name, client_operation_id, mode, "
+        "       message_ids_json, file_ids_json, cutoff_ms, deleted_count, "
+        "       sequence, created_at "
+        "FROM room_message_deletion_events "
+        "WHERE room_id = ? AND sequence > ? ORDER BY sequence ASC LIMIT ?");
+    eventQuery.addBindValue(roomId);
+    eventQuery.addBindValue(afterSequence);
+    eventQuery.addBindValue(count);
+    if (!eventQuery.exec()) {
+        qWarning() << "[DB] 查询房间删除事件失败:" << eventQuery.lastError().text();
+        db.rollback();
+        return page;
+    }
+    QJsonArray events;
+    while (eventQuery.next()) events.append(deletionEventFromQuery(eventQuery));
+    if (!db.commit()) return RoomSyncPage{};
+
+    struct SyncItem {
+        qint64 sequence = 0;
+        bool event = false;
+        QJsonObject value;
+    };
+    QList<SyncItem> items;
+    for (const QJsonValue &value : messages) {
+        const QJsonObject object = value.toObject();
+        items.append({static_cast<qint64>(object["syncSequence"].toDouble()),
+                      false, object});
+    }
+    for (const QJsonValue &value : events) {
+        const QJsonObject object = value.toObject();
+        items.append({static_cast<qint64>(object["syncSequence"].toDouble()),
+                      true, object});
+    }
+    std::sort(items.begin(), items.end(), [](const SyncItem &left,
+                                             const SyncItem &right) {
+        return left.sequence < right.sequence;
+    });
+    if (items.size() > count) items = items.mid(0, count);
+    for (const SyncItem &item : items) {
+        if (item.event) page.events.append(item.value);
+        else page.messages.append(item.value);
+        page.nextSequence = item.sequence;
+        ++page.itemCount;
+    }
+    return page;
+}
+
 qint64 DatabaseManager::getRoomLastMessageSequence(int roomId) {
     QSqlDatabase db = getConnection();
     QSqlQuery query(db);
@@ -1817,6 +1940,147 @@ bool DatabaseManager::hasAnyAdmin(int roomId) {
 }
 
 // ==================== 管理员操作 - 删除消息 ====================
+
+AdministrativeDeletionSaveResult DatabaseManager::saveAdministrativeDeletion(
+    int roomId, int operatorUserId, const QString &operatorName,
+    const QString &clientOperationId, const QString &commandFingerprint,
+    const QString &mode, const QList<int> &messageIds,
+    const QList<int> &sourceFileIds, qint64 cutoffMs) {
+    AdministrativeDeletionSaveResult result;
+    result.roomId = roomId;
+    result.mode = mode;
+    result.cutoffMs = cutoffMs;
+
+    QSqlDatabase db = getConnection();
+    if (!db.transaction()) return result;
+
+    QSqlQuery existing(db);
+    existing.prepare(
+        "SELECT room_id, operator_name, command_fingerprint, mode, "
+        "       message_ids_json, file_ids_json, cutoff_ms, deleted_count, "
+        "       sequence, created_at "
+        "FROM room_message_deletion_events "
+        "WHERE operator_user_id = ? AND client_operation_id = ?");
+    existing.addBindValue(operatorUserId);
+    existing.addBindValue(clientOperationId);
+    if (!existing.exec()) {
+        db.rollback();
+        return result;
+    }
+    if (existing.next()) {
+        result.roomId = existing.value(0).toInt();
+        const QString storedFingerprint = existing.value(2).toString();
+        result.mode = existing.value(3).toString();
+        result.messageIds = parseJsonArray(existing.value(4));
+        result.deletedFileIds = parseJsonArray(existing.value(5));
+        result.cutoffMs = existing.value(6).toLongLong();
+        result.deletedCount = existing.value(7).toInt();
+        result.sequence = existing.value(8).toLongLong();
+        result.createdAtMs = utcTimestampMs(existing.value(9));
+        const bool sameCommand = result.roomId == roomId &&
+            storedFingerprint == commandFingerprint;
+        result.status = sameCommand
+            ? AdministrativeDeletionSaveResult::Status::Duplicate
+            : AdministrativeDeletionSaveResult::Status::Conflict;
+        if (!db.commit()) result.status = AdministrativeDeletionSaveResult::Status::Failed;
+        return result;
+    }
+
+    QString condition = QStringLiteral("room_id = ?");
+    QVariantList bindings{roomId};
+    if (mode == QStringLiteral("selected")) {
+        QStringList placeholders;
+        const QList<int> &selectedIds = sourceFileIds.isEmpty()
+            ? messageIds : sourceFileIds;
+        for (int selectedId : selectedIds) {
+            placeholders.append(QStringLiteral("?"));
+            bindings.append(selectedId);
+        }
+        condition += sourceFileIds.isEmpty()
+            ? QStringLiteral(" AND id IN (%1)").arg(placeholders.join(','))
+            : QStringLiteral(" AND file_id IN (%1)").arg(placeholders.join(','));
+    } else if (mode == QStringLiteral("before")) {
+        condition += QStringLiteral(" AND created_at < ?");
+        bindings.append(QDateTime::fromMSecsSinceEpoch(cutoffMs).toUTC()
+                            .toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")));
+    } else if (mode == QStringLiteral("after")) {
+        condition += QStringLiteral(" AND created_at > ?");
+        bindings.append(QDateTime::fromMSecsSinceEpoch(cutoffMs).toUTC()
+                            .toString(QStringLiteral("yyyy-MM-dd HH:mm:ss")));
+    }
+
+    auto bindValues = [&bindings](QSqlQuery &query) {
+        for (const QVariant &binding : bindings) query.addBindValue(binding);
+    };
+    QSqlQuery targets(db);
+    targets.prepare(QStringLiteral(
+        "SELECT id, file_id FROM messages WHERE %1 ORDER BY id").arg(condition));
+    bindValues(targets);
+    if (!targets.exec()) {
+        db.rollback();
+        return result;
+    }
+    QList<int> affectedMessageIds;
+    QList<int> fileIds;
+    while (targets.next()) {
+        affectedMessageIds.append(targets.value(0).toInt());
+        const int fileId = targets.value(1).toInt();
+        if (fileId > 0 && !fileIds.contains(fileId)) fileIds.append(fileId);
+    }
+    if (mode == QStringLiteral("selected"))
+        result.messageIds = intListToJson(affectedMessageIds);
+    result.deletedFileIds = intListToJson(fileIds);
+
+    if (!reserveMessageSequence(db, QStringLiteral("room_message_sequences"),
+                                QStringLiteral("room_id"), roomId,
+                                &result.sequence)) {
+        db.rollback();
+        return result;
+    }
+
+    QSqlQuery remove(db);
+    remove.prepare(QStringLiteral("DELETE FROM messages WHERE %1").arg(condition));
+    bindValues(remove);
+    if (!remove.exec()) {
+        db.rollback();
+        return result;
+    }
+    result.deletedCount = remove.numRowsAffected();
+
+    QSqlQuery insert(db);
+    insert.prepare(
+        "INSERT INTO room_message_deletion_events "
+        "(room_id, operator_user_id, operator_name, client_operation_id, "
+        " command_fingerprint, mode, message_ids_json, file_ids_json, cutoff_ms, "
+        " deleted_count, sequence) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    insert.addBindValue(roomId);
+    insert.addBindValue(operatorUserId);
+    insert.addBindValue(operatorName);
+    insert.addBindValue(clientOperationId);
+    insert.addBindValue(commandFingerprint);
+    insert.addBindValue(mode);
+    insert.addBindValue(compactJson(result.messageIds));
+    insert.addBindValue(compactJson(result.deletedFileIds));
+    insert.addBindValue(cutoffMs);
+    insert.addBindValue(result.deletedCount);
+    insert.addBindValue(result.sequence);
+    if (!insert.exec()) {
+        db.rollback();
+        return result;
+    }
+
+    QSqlQuery created(db);
+    created.prepare("SELECT created_at FROM room_message_deletion_events WHERE id = ?");
+    created.addBindValue(insert.lastInsertId());
+    if (!created.exec() || !created.next()) {
+        db.rollback();
+        return result;
+    }
+    result.createdAtMs = utcTimestampMs(created.value(0));
+    if (!db.commit()) return AdministrativeDeletionSaveResult{};
+    result.status = AdministrativeDeletionSaveResult::Status::Created;
+    return result;
+}
 
 bool DatabaseManager::deleteMessages(int roomId, const QList<int> &messageIds) {
     if (messageIds.isEmpty()) return true;

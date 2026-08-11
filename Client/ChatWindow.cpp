@@ -1219,7 +1219,8 @@ void ChatWindow::onSystemMessage(const QJsonObject &msg) {
     }
 }
 
-void ChatWindow::onHistoryReceived(int roomId, const QJsonArray &messages) {
+void ChatWindow::onHistoryReceived(int roomId, const QJsonArray &messages,
+                                   const QJsonArray &events) {
     MessageModel *model = getOrCreateModel(roomId);
 
     // 用于收集需要自动下载的图片
@@ -1288,6 +1289,7 @@ void ChatWindow::onHistoryReceived(int roomId, const QJsonArray &messages) {
         m_messageView->setUpdatesEnabled(false);
 
     model->prependMessages(msgList);
+    model->applyDeletionEvents(events);
 
     if (isCurrent) {
         QTimer::singleShot(0, [this] {
@@ -2325,10 +2327,12 @@ void ChatWindow::onSetAdminResponse(bool success, int roomId, const QString &use
     }
 }
 
-void ChatWindow::onDeleteMsgsResponse(bool success, int roomId, int deletedCount, const QString &mode, const QJsonArray &deletedFileIds, const QString &error) {
-    Q_UNUSED(mode)
+void ChatWindow::onDeleteMsgsResponse(const QJsonObject &data) {
+    const bool success = data["success"].toBool();
+    const int roomId = data["roomId"].toInt();
+    const QJsonArray deletedFileIds = data["deletedFileIds"].toArray();
     if (success) {
-        m_statusLabel->setText(QStringLiteral("已删除 %1 条消息").arg(deletedCount));
+        m_statusLabel->setText(QStringLiteral("已删除 %1 条消息").arg(data["deletedCount"].toInt()));
         // 只清除服务端返回的被删除文件的缓存
         for (const QJsonValue &v : deletedFileIds) {
             int fid = v.toInt();
@@ -2338,18 +2342,15 @@ void ChatWindow::onDeleteMsgsResponse(bool success, int roomId, int deletedCount
             QString thumbPath = FileCache::instance()->thumbDir() + QString("/thumb_%1.jpg").arg(fid);
             QFile::remove(thumbPath);
         }
-        // 重新加载历史消息
-        MessageModel *model = getOrCreateModel(roomId);
-        model->clear();
-        NetworkManager::instance()->sendMessage(Protocol::makeHistoryReq(roomId, 50));
+        getOrCreateModel(roomId)->applyDeletionEvents({data});
     } else {
-        QMessageBox::warning(this, "删除消息失败", error);
+        QMessageBox::warning(this, "删除消息失败", data["error"].toString());
     }
 }
 
-void ChatWindow::onDeleteMsgsNotify(int roomId, const QString &mode, const QJsonArray &messageIds, const QJsonArray &deletedFileIds) {
-    Q_UNUSED(mode)
-    Q_UNUSED(messageIds)
+void ChatWindow::onDeleteMsgsNotify(const QJsonObject &data) {
+    const int roomId = data["roomId"].toInt();
+    const QJsonArray deletedFileIds = data["deletedFileIds"].toArray();
     MessageModel *model = getOrCreateModel(roomId);
 
     // 只清除服务端返回的被删除文件的缓存
@@ -2362,9 +2363,7 @@ void ChatWindow::onDeleteMsgsNotify(int roomId, const QString &mode, const QJson
         QFile::remove(thumbPath);
     }
 
-    // 重新加载历史消息
-    model->clear();
-    NetworkManager::instance()->sendMessage(Protocol::makeHistoryReq(roomId, 50));
+    model->applyDeletionEvents({data});
 
     m_statusLabel->setText("管理员清理了消息记录");
 }
@@ -2683,6 +2682,7 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
                 QJsonObject data;
                 data["roomId"] = m_currentRoomId;
                 data["mode"] = QStringLiteral("selected");
+                data["clientOperationId"] = QUuid::createUuid().toString(QUuid::WithoutBraces);
                 QJsonArray ids;
                 ids.append(msgId);
                 data["messageIds"] = ids;
@@ -2703,6 +2703,7 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
                 QJsonObject data;
                 data["roomId"] = m_currentRoomId;
                 data["mode"] = QStringLiteral("all");
+                data["clientOperationId"] = QUuid::createUuid().toString(QUuid::WithoutBraces);
                 NetworkManager::instance()->sendMessage(
                     Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_REQ, data));
             }
@@ -2717,6 +2718,7 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
             QJsonObject data;
             data["roomId"] = m_currentRoomId;
             data["mode"] = QStringLiteral("before");
+            data["clientOperationId"] = QUuid::createUuid().toString(QUuid::WithoutBraces);
             data["timestamp"] = static_cast<double>(cutoff.toMSecsSinceEpoch());
             NetworkManager::instance()->sendMessage(
                 Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_REQ, data));
@@ -2731,6 +2733,7 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
             QJsonObject data;
             data["roomId"] = m_currentRoomId;
             data["mode"] = QStringLiteral("after");
+            data["clientOperationId"] = QUuid::createUuid().toString(QUuid::WithoutBraces);
             data["timestamp"] = static_cast<double>(cutoff.toMSecsSinceEpoch());
             NetworkManager::instance()->sendMessage(
                 Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_REQ, data));
@@ -3210,6 +3213,7 @@ void ChatWindow::onRoomFilesResponse(bool success, int roomId, const QJsonArray 
             QJsonObject req;
             req["roomId"] = rid;
             req["fileIds"] = fileIds;
+            req["clientOperationId"] = QUuid::createUuid().toString(QUuid::WithoutBraces);
             NetworkManager::instance()->sendMessage(
                 Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_DELETE_REQ, req));
         });

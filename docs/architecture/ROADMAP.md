@@ -111,6 +111,8 @@ Progress:
   direct recall outcomes.
 - [x] Expand the V1 schema with an indexed, idempotency-keyed administrative
   deletion event table without changing current deletion behavior yet.
+- [x] Make administrative message/file deletion idempotent and replayable on
+  the room cursor, and reconcile its events in Web and Windows clients.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  applyDeletionEvents,
   hasStableIdentity,
   mergeUniqueMessages,
   sameStableMessage
@@ -17,6 +18,28 @@ test('matches committed messages by server id or client message id', () => {
     true
   )
   assert.equal(sameStableMessage({ id: 7 }, { id: 8 }), false)
+})
+
+test('applies selected and predicate deletion events idempotently', () => {
+  const messages = [
+    { id: 1, timestamp: 100 },
+    { id: 2, timestamp: 200 },
+    { id: 3, timestamp: 300 }
+  ]
+  const selected = { eventType: 'messagesDeleted', mode: 'selected', messageIds: [2], syncSequence: 4 }
+  assert.deepEqual(applyDeletionEvents(messages, [selected, selected]), [
+    { id: 1, timestamp: 100 },
+    { id: 3, timestamp: 300 }
+  ])
+  assert.deepEqual(applyDeletionEvents(messages, [{ mode: 'before', timestamp: 200 }]), [
+    { id: 2, timestamp: 200 },
+    { id: 3, timestamp: 300 }
+  ])
+  assert.deepEqual(applyDeletionEvents(messages, [{ mode: 'after', timestamp: 200 }]), [
+    { id: 1, timestamp: 100 },
+    { id: 2, timestamp: 200 }
+  ])
+  assert.deepEqual(applyDeletionEvents(messages, [{ mode: 'all' }]), [])
 })
 
 test('deduplicates history against live state and within the incoming page', () => {

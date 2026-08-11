@@ -188,6 +188,10 @@ timestamp. Both histories also support additive sequence-resume mode:
 - response rows have a greater `syncSequence` in ascending order. For an
   unmodified row it equals immutable creation `sequence`; for a recalled row it
   equals the newer `mutationSequence`;
+- room responses may also contain `events`. A `messagesDeleted` event shares
+  the same cursor namespace and carries `sequence`/`syncSequence`, mode,
+  actual selected IDs, `timestamp`/`cutoffMs`, deleted file IDs, count,
+  operator, operation ID, and `eventTimestamp`;
 - `mode: "sequence"`, `nextSequence`, `lastSequence`, and `hasMore` define the
   next bounded request;
 - persist and resend `nextSequence`; do not infer a missing message from numeric
@@ -228,9 +232,17 @@ recall uses `FRIEND_RECALL_REJECTED` or
 `FRIEND_RECALL_PERSISTENCE_FAILED` without revealing whether an unrelated
 message ID exists.
 
-Administrative physical deletion still has no replayable event row. Room/message
-and direct-message/peer relationships are resolved or checked by the server;
-client resource fields do not select an unrelated notification target.
+Administrative deletion uses a required `clientOperationId` (with the envelope
+ID as a compatibility fallback), one durable room sequence, and a canonical
+command fingerprint. Exact retries return the original result with
+`duplicate: true`; conflicting key reuse returns
+`CLIENT_OPERATION_ID_CONFLICT`. Selected targets are limited to 100. The
+`selected`, `all`, `before`, and `after` modes are replayed through room history
+as `messagesDeleted` events, while existing `DELETE_MSGS_NOTIFY` remains for
+online old clients. Non-admin requests return `ADMIN_DELETE_ACCESS_DENIED`.
+Room/message and direct-message/peer relationships are resolved or checked by
+the server; client resource fields do not select an unrelated notification
+target.
 
 ### Content types
 
@@ -365,8 +377,7 @@ ports, files, or external COS access.
 - transmitted protocol version and capability negotiation;
 - device/session identity independent of passwords;
 - delivered and read acknowledgement semantics;
-- replayable sequence/cursor behavior for administrative deletions and other
-  non-message events;
+- replayable sequence/cursor behavior for remaining non-message events;
 - structured error code separate from localized message;
 - retire legacy inline attachment fallbacks after the compatibility window;
 - generated Java/C++/TypeScript schemas.

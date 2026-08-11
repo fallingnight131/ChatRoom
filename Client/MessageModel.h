@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QJsonArray>
 #include <QList>
 #include "Message.h"
 
@@ -39,6 +40,7 @@ public:
     void addMessage(const Message &msg);
     void prependMessages(const QList<Message> &msgs);
     void recallMessage(int messageId);
+    void applyDeletionEvents(const QJsonArray &events);
     void clear();
 
     const Message &messageAt(int row) const;

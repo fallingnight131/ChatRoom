@@ -82,11 +82,12 @@ Run `python3 tools/m0_inventory.py --check` to detect table/index inventory drif
 `room_message_deletion_events`
 
 - one durable audit/synchronization row per new administrator delete command;
-- room, operator identity/display-name snapshot, and `client_operation_id`;
+- room, operator identity/display-name snapshot, `client_operation_id`, and
+  canonical command fingerprint;
 - mode, deleted-message/file ID JSON, cutoff timestamp, deleted count, and
   event sequence;
-- currently an expand-phase table under ADR-0020; runtime deletion does not
-  write or replay it until the behavioral phase is enabled.
+- the event write and physical message deletion share one transaction;
+- sequence history merges these rows with messages on the room high watermark.
 
 `files`
 

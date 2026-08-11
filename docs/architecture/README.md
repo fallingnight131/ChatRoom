@@ -212,11 +212,10 @@ idempotent processing and deterministic client reconciliation.
 The current V1 bridge implements this model for room/direct text and emoji plus
 upgraded Web/Windows upload-finalized attachments: `clientMessageId`, durable
 send acknowledgements, per-room/per-friendship sequence, and `afterSequence`
-history resume are additive fields. Legacy inline attachments, multi-target
-forwarding, replayable administrative deletion events, and durable client
-outboxes remain M1/M2 work; room/direct recall is replayable through the shared
-conversation cursor under ADR-0019. This compatibility slice is not the
-completed V2 model. Web
+history resume are additive fields. Legacy inline attachments and durable
+client outboxes remain M1/M2 work; room/direct recall and administrative
+deletion are replayable through the shared conversation cursor under ADR-0019
+and ADR-0020. This compatibility slice is not the completed V2 model. Web
 room/friend uploads and Windows composer uploads now use the
 authorized binary HTTP bridge from ADR-0013. Upgraded Windows multi-target
 forwarding submits server file identity and target conversations under
@@ -228,6 +227,9 @@ restart-safe finalization acceptance and suppresses duplicate room/friend upload
 messages on identical retries. ADR-0018 makes Windows attachment downloads
 HTTP-first and streams them to disk; legacy Base64/WebSocket downloads remain
 compatibility fallbacks only.
+ADR-0020 makes selected/predicate administrator deletion retry-safe and exposes
+durable `messagesDeleted` events to upgraded Web/Windows clients after
+reconnect; older clients continue to receive the existing live notification.
 
 ## 8. Protocol Strategy
 

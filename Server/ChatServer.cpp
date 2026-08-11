@@ -7,6 +7,7 @@
 #include "Message.h"
 #include "InputValidator.h"
 #include "RoomMessageService.h"
+#include "AdministrativeDeletionService.h"
 
 #include <QThread>
 #include <QJsonArray>
@@ -121,7 +122,8 @@ ChatServer::ChatServer(QObject *parent)
       m_roomMgr(new RoomManager(this)),
       m_cos(new CosManager(this)),
       m_roomMessageService(m_db),
-      m_friendMessageService(m_db) {}
+      m_friendMessageService(m_db),
+      m_administrativeDeletionService(m_db) {}
 
 ChatServer::~ChatServer() {
     stopServer();
@@ -135,6 +137,9 @@ bool ChatServer::startServer(quint16 port, quint16 wsPort, quint16 httpPort) {
     m_friendMessagesAccepted = 0;
     m_friendMessagesDuplicate = 0;
     m_friendMessagesRejected = 0;
+    m_administrativeDeletionsAccepted = 0;
+    m_administrativeDeletionsDuplicate = 0;
+    m_administrativeDeletionsRejected = 0;
     const AuthenticationAbuseGuard::Limits authLimits = m_authAbuseGuard.limits();
     qInfo().noquote()
         << QStringLiteral("[AuthAbuse] configured windowMs=%1 gatewayLimit=%2 ipLimit=%3 accountLimit=%4 maxTrackedKeys=%5")
@@ -380,13 +385,13 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
     } else if (type == Protocol::MsgType::SET_ADMIN_REQ) {
         handleSetAdmin(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::DELETE_MSGS_REQ) {
-        handleDeleteMessages(session, msg["data"].toObject());
+        handleDeleteMessages(session, msg);
     } else if (type == Protocol::MsgType::ROOM_SETTINGS_REQ) {
         handleRoomSettings(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::ROOM_FILES_REQ) {
         handleRoomFiles(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::ROOM_FILES_DELETE_REQ) {
-        handleRoomFilesDelete(session, msg["data"].toObject());
+        handleRoomFilesDelete(session, msg);
     } else if (type == Protocol::MsgType::DELETE_ROOM_REQ) {
         handleDeleteRoom(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::RENAME_ROOM_REQ) {
@@ -610,6 +615,32 @@ void ChatServer::recordFriendMessageOutcome(FriendMessageService::Status status,
                    .arg(m_friendMessagesDuplicate)
                    .arg(m_friendMessagesRejected);
     }
+}
+
+void ChatServer::recordAdministrativeDeletionOutcome(
+    AdministrativeDeletionService::Status status, int userId, int roomId,
+    qint64 sequence, const QString &clientOperationId) {
+    QString outcome;
+    if (status == AdministrativeDeletionService::Status::Accepted) {
+        ++m_administrativeDeletionsAccepted;
+        outcome = QStringLiteral("accepted");
+    } else if (status == AdministrativeDeletionService::Status::Duplicate) {
+        ++m_administrativeDeletionsDuplicate;
+        outcome = QStringLiteral("duplicate");
+    } else {
+        ++m_administrativeDeletionsRejected;
+        outcome = QStringLiteral("rejected");
+    }
+    qInfo().noquote()
+        << QStringLiteral("[AdminDelete] outcome=%1 userId=%2 roomId=%3 sequence=%4 operationId=%5 acceptedTotal=%6 duplicateTotal=%7 rejectedTotal=%8")
+               .arg(outcome)
+               .arg(userId)
+               .arg(roomId)
+               .arg(sequence)
+               .arg(clientOperationId)
+               .arg(m_administrativeDeletionsAccepted)
+               .arg(m_administrativeDeletionsDuplicate)
+               .arg(m_administrativeDeletionsRejected);
 }
 
 bool ChatServer::requireUploadOwnership(ClientSession *session, const QString &uploadId,
@@ -1513,19 +1544,25 @@ void ChatServer::handleHistory(ClientSession *session, const QJsonObject &data) 
         return;
     }
 
-    const QJsonArray messages = sequenceMode
-        ? m_db->getMessageHistoryAfterSequence(roomId, count, afterSequence)
-        : m_db->getMessageHistory(roomId, count, before);
+    RoomSyncPage syncPage;
+    QJsonArray messages;
+    if (sequenceMode) {
+        syncPage = m_db->getRoomSyncPage(roomId, count, afterSequence);
+        messages = syncPage.messages;
+    } else {
+        messages = m_db->getMessageHistory(roomId, count, before);
+    }
 
     QJsonObject rspData;
     rspData["roomId"]   = roomId;
     rspData["success"]  = true;
     rspData["messages"] = messages;
     if (sequenceMode) {
+        rspData["events"] = syncPage.events;
         const qint64 lastSequence = m_db->getRoomLastMessageSequence(roomId);
         qint64 nextSequence = lastSequence;
-        if (messages.size() == count && !messages.isEmpty())
-            nextSequence = static_cast<qint64>(messages.last().toObject()["syncSequence"].toDouble());
+        if (syncPage.itemCount == count)
+            nextSequence = syncPage.nextSequence;
         rspData["mode"] = QStringLiteral("sequence");
         rspData["afterSequence"] = static_cast<double>(afterSequence);
         rspData["nextSequence"] = static_cast<double>(nextSequence);
@@ -2634,6 +2671,25 @@ void ChatServer::deleteCosFiles(const QStringList &cosUrls) {
         m_cos->deleteCosFile(url);
 }
 
+void ChatServer::cleanupDeletedRoomFiles(const QJsonArray &fileIds) {
+    QStringList cosUrls;
+    QSet<int> seen;
+    for (const QJsonValue &value : fileIds) {
+        const int fileId = value.toInt();
+        if (fileId <= 0 || seen.contains(fileId)) continue;
+        seen.insert(fileId);
+        const QString path = m_db->getFilePath(fileId, false);
+        const QString cosUrl = m_db->getCosUrl(fileId, false);
+        if (!path.isEmpty() && QFile::exists(path) && !QFile::remove(path)) {
+            qWarning() << "[AdminDelete] 本地文件清理失败，保留记录供重试:" << fileId;
+            continue;
+        }
+        if (!cosUrl.isEmpty()) cosUrls.append(cosUrl);
+        m_db->deleteStoredFileRecord(fileId, false);
+    }
+    deleteCosFiles(cosUrls);
+}
+
 void ChatServer::startCosUpload(const QString &localPath, const QString &fileName,
                                  const QString &dirPrefix, int fileId, bool isFriendFile,
                                  const QString &uploaderUsername, const QString &uploadId)
@@ -2969,98 +3025,76 @@ void ChatServer::handleSetAdmin(ClientSession *session, const QJsonObject &data)
     }
 }
 
-void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject &data) {
+void ChatServer::handleDeleteMessages(ClientSession *session, const QJsonObject &msg) {
     if (!session->isAuthenticated()) return;
 
-    int roomId = data["roomId"].toInt();
-    QString mode = data["mode"].toString(); // "selected", "all", "before", "after"
+    const QJsonObject data = msg["data"].toObject();
+    const int roomId = data["roomId"].toInt();
+    const QString mode = data["mode"].toString();
+    const QString clientOperationId = data["clientOperationId"].toString().isEmpty()
+        ? msg["id"].toString() : data["clientOperationId"].toString();
 
+    AdministrativeDeletionService::Command command;
+    command.roomId = roomId;
+    command.operatorUserId = session->userId();
+    command.operatorName = session->displayName();
+    command.clientOperationId = clientOperationId;
+    command.mode = mode;
+    command.cutoffMs = static_cast<qint64>(data["timestamp"].toDouble());
+    for (const QJsonValue &value : data["messageIds"].toArray())
+        command.messageIds.append(value.toInt());
+    const AdministrativeDeletionService::Result result =
+        m_administrativeDeletionService.execute(command);
+    recordAdministrativeDeletionOutcome(result.status, session->userId(), roomId,
+                                        result.sequence, clientOperationId);
+
+    const bool accepted = result.status == AdministrativeDeletionService::Status::Accepted;
+    const bool duplicate = result.status == AdministrativeDeletionService::Status::Duplicate;
     QJsonObject rspData;
+    rspData["success"] = accepted || duplicate;
     rspData["roomId"] = roomId;
-
-    // 验证管理员权限
-    if (!m_db->isRoomAdmin(roomId, session->userId())) {
-        rspData["success"] = false;
-        rspData["error"] = QStringLiteral("您没有管理员权限");
-        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_RSP, rspData));
+    rspData["mode"] = mode;
+    rspData["clientOperationId"] = clientOperationId;
+    if (!accepted && !duplicate) {
+        rspData["errorCode"] = result.errorCode;
+        rspData["error"] = result.error;
+        session->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_RSP, rspData));
         return;
     }
 
-    // 先查询待删除消息关联的文件，以便清理
-    QList<QPair<int, QString>> fileInfos;
-    int deletedCount = 0;
-
-    if (mode == "selected") {
-        QList<int> ids;
-        for (const QJsonValue &v : data["messageIds"].toArray())
-            ids.append(v.toInt());
-        rspData["messageIds"] = data["messageIds"].toArray();
-        fileInfos = m_db->getFileInfoForMessages(roomId, ids);
-        if (m_db->deleteMessages(roomId, ids))
-            deletedCount = ids.size();
-    } else if (mode == "all") {
-        fileInfos = m_db->getAllFileInfoForRoom(roomId);
-        deletedCount = m_db->deleteAllMessages(roomId);
-    } else if (mode == "before") {
-        qint64 ts = static_cast<qint64>(data["timestamp"].toDouble());
-        QDateTime dt = QDateTime::fromMSecsSinceEpoch(ts);
-        fileInfos = m_db->getFileInfoBeforeTime(roomId, dt);
-        deletedCount = m_db->deleteMessagesBefore(roomId, dt);
-    } else if (mode == "after") {
-        qint64 ts = static_cast<qint64>(data["timestamp"].toDouble());
-        QDateTime dt = QDateTime::fromMSecsSinceEpoch(ts);
-        fileInfos = m_db->getFileInfoAfterTime(roomId, dt);
-        deletedCount = m_db->deleteMessagesAfter(roomId, dt);
-    }
-
-    // 清理文件：从 files 表删除记录 + 从磁盘删除物理文件 + 从 COS 删除对象
-    if (!fileInfos.isEmpty()) {
-        QList<int> fileIds;
-        QJsonArray deletedFileIds;
-        for (const auto &info : fileInfos) {
-            fileIds.append(info.first);
-            deletedFileIds.append(info.first);
-            // 删除磁盘文件
-            if (!info.second.isEmpty()) {
-                QFile::remove(info.second);
-                qInfo() << "[Server] 已删除文件:" << info.second;
-            }
-        }
-        const QStringList cosUrls = m_db->getCosUrlsForFileIds(fileIds);
-        m_db->deleteFileRecords(fileIds);
-        deleteCosFiles(cosUrls);
-        rspData["deletedFileIds"] = deletedFileIds;
-    }
-
-    rspData["success"] = true;
-    rspData["deletedCount"] = deletedCount;
-    rspData["mode"] = mode;
+    rspData["duplicate"] = duplicate;
+    rspData["deletedCount"] = result.deletedCount;
+    rspData["messageIds"] = result.messageIds;
+    rspData["deletedFileIds"] = result.deletedFileIds;
+    rspData["timestamp"] = static_cast<double>(result.cutoffMs);
+    rspData["sequence"] = static_cast<double>(result.sequence);
+    rspData["syncSequence"] = static_cast<double>(result.sequence);
+    rspData["eventTimestamp"] = static_cast<double>(result.createdAtMs);
+    cleanupDeletedRoomFiles(result.deletedFileIds);
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_RSP, rspData));
 
-    // 通知房间所有成员刷新消息
-    QJsonObject notifyData;
-    notifyData["roomId"] = roomId;
-    notifyData["mode"] = mode;
-    notifyData["deletedCount"] = deletedCount;
+    if (duplicate) return;
+
+    QJsonObject notifyData = rspData;
+    notifyData.remove("success");
+    notifyData.remove("duplicate");
+    notifyData["eventType"] = QStringLiteral("messagesDeleted");
     notifyData["operator"] = session->displayName();
-    if (mode == "selected") {
-        notifyData["messageIds"] = data["messageIds"].toArray();
-    }
-    // 也把删除的 fileIds 发给其他客户端
-    if (rspData.contains("deletedFileIds"))
-        notifyData["deletedFileIds"] = rspData["deletedFileIds"];
-    broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_NOTIFY, notifyData), session);
+    broadcastToRoom(roomId,
+        Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_NOTIFY, notifyData),
+        session);
 
     // 广播系统消息通知全体
     QString sysContent;
     if (mode == "all")
         sysContent = QString("管理员 %1 清空了所有聊天记录").arg(session->displayName());
     else if (mode == "selected")
-        sysContent = QString("管理员 %1 删除了 %2 条消息").arg(session->displayName()).arg(deletedCount);
+        sysContent = QString("管理员 %1 删除了 %2 条消息").arg(session->displayName()).arg(result.deletedCount);
     else if (mode == "before")
-        sysContent = QString("管理员 %1 删除了 %2 条旧消息").arg(session->displayName()).arg(deletedCount);
+        sysContent = QString("管理员 %1 删除了 %2 条旧消息").arg(session->displayName()).arg(result.deletedCount);
     else
-        sysContent = QString("管理员 %1 删除了 %2 条近期消息").arg(session->displayName()).arg(deletedCount);
+        sysContent = QString("管理员 %1 删除了 %2 条近期消息").arg(session->displayName()).arg(result.deletedCount);
     broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
         {{"roomId", roomId}, {"content", sysContent}}));
 }
@@ -3104,116 +3138,84 @@ void ChatServer::handleRoomFiles(ClientSession *session, const QJsonObject &data
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_RSP, rspData));
 }
 
-void ChatServer::handleRoomFilesDelete(ClientSession *session, const QJsonObject &data) {
+void ChatServer::handleRoomFilesDelete(ClientSession *session, const QJsonObject &msg) {
     if (!session->isAuthenticated()) return;
 
-    int roomId = data["roomId"].toInt();
+    const QJsonObject data = msg["data"].toObject();
+    const int roomId = data["roomId"].toInt();
+    const QString clientOperationId = data["clientOperationId"].toString().isEmpty()
+        ? msg["id"].toString() : data["clientOperationId"].toString();
     QJsonObject rspData;
     rspData["roomId"] = roomId;
+    rspData["clientOperationId"] = clientOperationId;
 
-    if (!m_db->isRoomAdmin(roomId, session->userId())) {
-        rspData["success"] = false;
-        rspData["error"] = QStringLiteral("您没有管理员权限");
-        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_DELETE_RSP, rspData));
-        return;
-    }
-
-    QList<int> selectedIds;
+    AdministrativeDeletionService::Command command;
+    command.roomId = roomId;
+    command.operatorUserId = session->userId();
+    command.operatorName = session->displayName();
+    command.clientOperationId = clientOperationId;
+    command.mode = QStringLiteral("selected");
     for (const QJsonValue &v : data["fileIds"].toArray()) {
-        int fid = v.toInt();
-        if (fid > 0 && !selectedIds.contains(fid)) {
-            selectedIds.append(fid);
-        }
+        command.sourceFileIds.append(v.toInt());
     }
+    const AdministrativeDeletionService::Result result =
+        m_administrativeDeletionService.execute(command);
+    recordAdministrativeDeletionOutcome(result.status, session->userId(), roomId,
+                                        result.sequence, clientOperationId);
 
-    if (selectedIds.isEmpty()) {
-        rspData["success"] = false;
-        rspData["error"] = QStringLiteral("未选择任何文件");
-        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_DELETE_RSP, rspData));
+    const bool accepted = result.status == AdministrativeDeletionService::Status::Accepted;
+    const bool duplicate = result.status == AdministrativeDeletionService::Status::Duplicate;
+    rspData["success"] = accepted || duplicate;
+    if (!accepted && !duplicate) {
+        rspData["errorCode"] = result.errorCode;
+        rspData["error"] = result.error;
+        session->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_DELETE_RSP, rspData));
         return;
     }
 
-    QJsonArray allFiles = m_db->getRoomAllFiles(roomId);
-    QMap<int, QJsonObject> fileMap;
-    for (const QJsonValue &v : allFiles) {
-        QJsonObject obj = v.toObject();
-        fileMap.insert(obj["fileId"].toInt(), obj);
-    }
-
-    QList<int> deleteFileIds;
-    QJsonArray deletedFileIds;
-    for (int fid : selectedIds) {
-        if (!fileMap.contains(fid)) continue;
-        QJsonObject f = fileMap.value(fid);
-        if (f["cleared"].toBool(false)) continue;
-
-        const QString path = f["filePath"].toString();
-        if (!path.isEmpty() && QFile::exists(path)) {
-            QFile::remove(path);
-        }
-
-        deleteFileIds.append(fid);
-        deletedFileIds.append(fid);
-    }
-
-    QList<int> messageIds = m_db->getRoomMessageIdsByFileIds(roomId, deleteFileIds);
-
-    // 在删除记录前查询 COS URL
-    const QStringList cosUrls = m_db->getCosUrlsForFileIds(deleteFileIds);
-
-    bool ok = true;
-    if (!messageIds.isEmpty()) {
-        ok = m_db->deleteMessages(roomId, messageIds);
-    }
-    if (ok && !deleteFileIds.isEmpty()) {
-        ok = m_db->deleteFileRecords(deleteFileIds);
-    }
-    if (ok) {
-        deleteCosFiles(cosUrls);
-    }
-
-    if (!ok) {
-        rspData["success"] = false;
-        rspData["error"] = QStringLiteral("删除文件失败");
-        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_DELETE_RSP, rspData));
-        return;
-    }
-
-    QJsonArray messageIdsJson;
-    for (int id : messageIds) {
-        messageIdsJson.append(id);
-    }
+    rspData["duplicate"] = duplicate;
+    rspData["deletedCount"] = result.deletedCount;
+    rspData["messageIds"] = result.messageIds;
+    rspData["deletedFileIds"] = result.deletedFileIds;
+    rspData["sequence"] = static_cast<double>(result.sequence);
+    rspData["syncSequence"] = static_cast<double>(result.sequence);
+    rspData["eventTimestamp"] = static_cast<double>(result.createdAtMs);
+    cleanupDeletedRoomFiles(result.deletedFileIds);
 
     QJsonObject settings = m_db->getRoomSettings(roomId);
-    rspData["success"] = true;
-    rspData["deletedCount"] = messageIds.size();
-    rspData["messageIds"] = messageIdsJson;
-    rspData["deletedFileIds"] = deletedFileIds;
     rspData["usedFileSpace"] = static_cast<double>(m_db->getRoomUsedFileSpace(roomId));
     rspData["maxFileSpace"] = static_cast<double>(settings["totalFileSpace"].toDouble());
-    session->sendMessage(Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_DELETE_RSP, rspData));
+    session->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_DELETE_RSP, rspData));
 
-    if (!messageIds.isEmpty()) {
-        QJsonObject deleteNotify;
-        deleteNotify["roomId"] = roomId;
-        deleteNotify["mode"] = "selected";
-        deleteNotify["messageIds"] = messageIdsJson;
-        deleteNotify["deletedFileIds"] = deletedFileIds;
-        broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_NOTIFY, deleteNotify));
+    if (duplicate) return;
+
+    if (!result.messageIds.isEmpty()) {
+        QJsonObject deleteNotify = rspData;
+        deleteNotify.remove("success");
+        deleteNotify.remove("duplicate");
+        deleteNotify["mode"] = QStringLiteral("selected");
+        deleteNotify["eventType"] = QStringLiteral("messagesDeleted");
+        deleteNotify["operator"] = session->displayName();
+        broadcastToRoom(roomId,
+            Protocol::makeMessage(Protocol::MsgType::DELETE_MSGS_NOTIFY, deleteNotify),
+            session);
     }
 
-    if (!deleteFileIds.isEmpty()) {
+    if (!result.deletedFileIds.isEmpty()) {
         QJsonObject notifyData;
         notifyData["roomId"] = roomId;
-        notifyData["deletedFileIds"] = deletedFileIds;
+        notifyData["deletedFileIds"] = result.deletedFileIds;
         notifyData["usedFileSpace"] = rspData["usedFileSpace"];
         notifyData["maxFileSpace"] = rspData["maxFileSpace"];
         notifyData["operator"] = session->displayName();
-        broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_NOTIFY, notifyData));
+        broadcastToRoom(roomId,
+            Protocol::makeMessage(Protocol::MsgType::ROOM_FILES_NOTIFY, notifyData));
 
         broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::SYSTEM_MSG,
             {{"roomId", roomId}, {"content", QString("管理员 %1 删除了 %2 条文件消息")
-                                   .arg(session->displayName()).arg(messageIds.size())}}));
+                                   .arg(session->displayName()).arg(result.deletedCount)}}));
     }
 }
 

@@ -25,6 +25,7 @@ SOURCES += \
     ../Server/FriendMessageService.cpp \
     ../Server/InputValidator.cpp \
     ../Server/RoomMessageService.cpp \
+    ../Server/AdministrativeDeletionService.cpp \
     ../Server/DatabaseManager.cpp \
     ../Server/PasswordHasher.cpp \
     ../Server/RoomManager.cpp \
@@ -39,6 +40,7 @@ HEADERS += \
     ../Server/FriendMessageService.h \
     ../Server/InputValidator.h \
     ../Server/RoomMessageService.h \
+    ../Server/AdministrativeDeletionService.h \
     ../Server/DatabaseManager.h \
     ../Server/PasswordHasher.h \
     ../Server/RoomManager.h \

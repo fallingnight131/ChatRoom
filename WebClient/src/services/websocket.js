@@ -335,11 +335,12 @@ class ChatWebSocket {
     this.send(makeMessage(MsgType.KICK_USER_REQ, { roomId, username }))
   }
 
-  deleteMessages(roomId, mode, messageIds = [], timestamp = 0) {
-    const data = { roomId, mode }
+  deleteMessages(roomId, mode, messageIds = [], timestamp = 0, clientOperationId = uuid()) {
+    const data = { roomId, mode, clientOperationId }
     if (messageIds.length) data.messageIds = messageIds
     if (timestamp) data.timestamp = timestamp
     this.send(makeMessage(MsgType.DELETE_MSGS_REQ, data))
+    return clientOperationId
   }
 
   // 房间设置
@@ -357,8 +358,9 @@ class ChatWebSocket {
     this.send(makeMessage(MsgType.ROOM_FILES_REQ, { roomId }))
   }
 
-  deleteRoomFiles(roomId, fileIds = []) {
-    this.send(makeMessage(MsgType.ROOM_FILES_DELETE_REQ, { roomId, fileIds }))
+  deleteRoomFiles(roomId, fileIds = [], clientOperationId = uuid()) {
+    this.send(makeMessage(MsgType.ROOM_FILES_DELETE_REQ, { roomId, fileIds, clientOperationId }))
+    return clientOperationId
   }
 
   deleteRoom(roomId, roomName) {

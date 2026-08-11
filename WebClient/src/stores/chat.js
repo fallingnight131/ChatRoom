@@ -2,7 +2,7 @@
 import { defineStore } from 'pinia'
 import { chatWs, MsgType, FILE_CHUNK_SIZE, MAX_SMALL_FILE, makeMessage, getHttpDownloadUrl, getHttpUploadUrl } from '../services/websocket'
 import { useUserStore } from './user'
-import { mergeUniqueMessages, sameStableMessage } from '../messaging/messageReconciliation'
+import { applyDeletionEvents, mergeUniqueMessages, sameStableMessage } from '../messaging/messageReconciliation'
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -567,7 +567,10 @@ export const useChatStore = defineStore('chat', {
         if (msg.data.roomId === this.currentRoomId) {
           const msgs = msg.data.messages || []
           // 倒序追加（历史消息从旧到新）
-          this.messages = mergeUniqueMessages(this.messages, msgs, { prepend: true })
+          this.messages = applyDeletionEvents(
+            mergeUniqueMessages(this.messages, msgs, { prepend: true }),
+            msg.data.events || []
+          )
         }
       })
 
@@ -747,24 +750,14 @@ export const useChatStore = defineStore('chat', {
         const d = msg.data
         if (d.success) {
           if (d.roomId !== this.currentRoomId) return
-          if (d.mode === 'all') {
-            this.messages = []
-          } else if (Array.isArray(d.messageIds) && d.messageIds.length > 0) {
-            const idSet = new Set(d.messageIds.map(Number))
-            this.messages = this.messages.filter(m => !idSet.has(Number(m.id)))
-          }
+          this.messages = applyDeletionEvents(this.messages, [d])
         }
       })
 
       chatWs.on(MsgType.DELETE_MSGS_NOTIFY, (msg) => {
         const d = msg.data
         if (d.roomId === this.currentRoomId) {
-          if (d.mode === 'all') {
-            this.messages = []
-          } else if (Array.isArray(d.messageIds) && d.messageIds.length > 0) {
-            const idSet = new Set(d.messageIds.map(Number))
-            this.messages = this.messages.filter(m => !idSet.has(Number(m.id)))
-          }
+          this.messages = applyDeletionEvents(this.messages, [d])
         }
       })
 
@@ -785,10 +778,7 @@ export const useChatStore = defineStore('chat', {
       chatWs.on(MsgType.ROOM_FILES_DELETE_RSP, (msg) => {
         const d = msg.data
         if (d.success) {
-          if (Array.isArray(d.messageIds) && d.messageIds.length > 0) {
-            const idSet = new Set(d.messageIds.map(Number))
-            this.messages = this.messages.filter(m => !idSet.has(Number(m.id)))
-          }
+          this.messages = applyDeletionEvents(this.messages, [{ ...d, mode: 'selected' }])
           this.roomFileUsage = {
             used: Number(d.usedFileSpace || 0),
             max: Number(d.maxFileSpace || 0)

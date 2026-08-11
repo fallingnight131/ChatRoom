@@ -61,7 +61,7 @@ signals:
     void leaveRoomResponse(bool success, int roomId);
 
     // 历史消息
-    void historyReceived(int roomId, const QJsonArray &messages);
+    void historyReceived(int roomId, const QJsonArray &messages, const QJsonArray &events);
 
     // 文件
     void fileNotify(const QJsonObject &data);
@@ -91,8 +91,8 @@ signals:
     // 管理员
     void adminStatusChanged(int roomId, bool isAdmin);
     void setAdminResponse(bool success, int roomId, const QString &username, const QString &error);
-    void deleteMsgsResponse(bool success, int roomId, int deletedCount, const QString &mode, const QJsonArray &deletedFileIds, const QString &error);
-    void deleteMsgsNotify(int roomId, const QString &mode, const QJsonArray &messageIds, const QJsonArray &deletedFileIds);
+    void deleteMsgsResponse(const QJsonObject &data);
+    void deleteMsgsNotify(const QJsonObject &data);
 
     // 头像
     void avatarUploadResponse(bool success, const QString &error);

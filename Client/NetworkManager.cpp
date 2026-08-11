@@ -270,7 +270,8 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         emit leaveRoomResponse(data["success"].toBool(), data["roomId"].toInt());
     }
     else if (type == Protocol::MsgType::HISTORY_RSP) {
-        emit historyReceived(data["roomId"].toInt(), data["messages"].toArray());
+        emit historyReceived(data["roomId"].toInt(), data["messages"].toArray(),
+                             data["events"].toArray());
     }
     else if (type == Protocol::MsgType::FILE_NOTIFY) {
         emit fileNotify(data);
@@ -334,18 +335,10 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                               data["error"].toString());
     }
     else if (type == Protocol::MsgType::DELETE_MSGS_RSP) {
-        emit deleteMsgsResponse(data["success"].toBool(),
-                                data["roomId"].toInt(),
-                                data["deletedCount"].toInt(),
-                                data["mode"].toString(),
-                                data["deletedFileIds"].toArray(),
-                                data["error"].toString());
+        emit deleteMsgsResponse(data);
     }
     else if (type == Protocol::MsgType::DELETE_MSGS_NOTIFY) {
-        emit deleteMsgsNotify(data["roomId"].toInt(),
-                              data["mode"].toString(),
-                              data["messageIds"].toArray(),
-                              data["deletedFileIds"].toArray());
+        emit deleteMsgsNotify(data);
     }
     else if (type == Protocol::MsgType::AVATAR_UPLOAD_RSP) {
         emit avatarUploadResponse(data["success"].toBool(), data["error"].toString());

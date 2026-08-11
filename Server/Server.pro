@@ -16,6 +16,7 @@ SOURCES += \
     FriendMessageService.cpp \
     InputValidator.cpp \
     RoomMessageService.cpp \
+    AdministrativeDeletionService.cpp \
     DatabaseManager.cpp \
     PasswordHasher.cpp \
     RoomManager.cpp \
@@ -28,6 +29,7 @@ HEADERS += \
     FriendMessageService.h \
     InputValidator.h \
     RoomMessageService.h \
+    AdministrativeDeletionService.h \
     DatabaseManager.h \
     PasswordHasher.h \
     RoomManager.h \

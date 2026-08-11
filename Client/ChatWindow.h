@@ -58,7 +58,7 @@ private slots:
     void onSendMessage();
     void onChatMessage(const QJsonObject &msg);
     void onSystemMessage(const QJsonObject &msg);
-    void onHistoryReceived(int roomId, const QJsonArray &messages);
+    void onHistoryReceived(int roomId, const QJsonArray &messages, const QJsonArray &events);
 
     // 用户列表
     void onUserListReceived(int roomId, const QJsonArray &users);
@@ -81,8 +81,8 @@ private slots:
     // 管理员
     void onAdminStatusChanged(int roomId, bool isAdmin);
     void onSetAdminResponse(bool success, int roomId, const QString &username, const QString &error);
-    void onDeleteMsgsResponse(bool success, int roomId, int deletedCount, const QString &mode, const QJsonArray &deletedFileIds, const QString &error);
-    void onDeleteMsgsNotify(int roomId, const QString &mode, const QJsonArray &messageIds, const QJsonArray &deletedFileIds);
+    void onDeleteMsgsResponse(const QJsonObject &data);
+    void onDeleteMsgsNotify(const QJsonObject &data);
     void onUserContextMenu(const QPoint &pos);
     void onRoomContextMenu(const QPoint &pos);
 

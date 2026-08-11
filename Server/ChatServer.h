@@ -10,6 +10,7 @@
 #include <QDateTime>
 
 #include "AuthenticationAbuseGuard.h"
+#include "AdministrativeDeletionService.h"
 #include "FriendMessageService.h"
 #include "RoomMessageService.h"
 
@@ -72,6 +73,9 @@ private:
                                   int userId, int roomId);
     void recordFriendMessageOutcome(FriendMessageService::Status status,
                                     int userId, int friendshipId);
+    void recordAdministrativeDeletionOutcome(
+        AdministrativeDeletionService::Status status, int userId, int roomId,
+        qint64 sequence, const QString &clientOperationId);
     void sendUploadFinalizeResponse(ClientSession *session,
                                     const QString &uploadId,
                                     const QString &clientMessageId,
@@ -98,10 +102,10 @@ private:
     void handleFileDownloadChunk(ClientSession *session, const QJsonObject &data);
     void handleRecall(ClientSession *session, const QJsonObject &data);
     void handleSetAdmin(ClientSession *session, const QJsonObject &data);
-    void handleDeleteMessages(ClientSession *session, const QJsonObject &data);
+    void handleDeleteMessages(ClientSession *session, const QJsonObject &msg);
     void handleRoomSettings(ClientSession *session, const QJsonObject &data);
     void handleRoomFiles(ClientSession *session, const QJsonObject &data);
-    void handleRoomFilesDelete(ClientSession *session, const QJsonObject &data);
+    void handleRoomFilesDelete(ClientSession *session, const QJsonObject &msg);
     void handleDeleteRoom(ClientSession *session, const QJsonObject &data);
     void handleRenameRoom(ClientSession *session, const QJsonObject &data);
     void handleSetRoomPassword(ClientSession *session, const QJsonObject &data);
@@ -162,12 +166,14 @@ private:
 
     /// 批量删除 COS 对象（fire-and-forget，COS 未启用时为空操作）
     void deleteCosFiles(const QStringList &cosUrls);
+    void cleanupDeletedRoomFiles(const QJsonArray &fileIds);
 
     DatabaseManager *m_db       = nullptr;
     RoomManager     *m_roomMgr  = nullptr;
     CosManager      *m_cos      = nullptr;
     RoomMessageService m_roomMessageService;
     FriendMessageService m_friendMessageService;
+    AdministrativeDeletionService m_administrativeDeletionService;
     QWebSocketServer *m_wsServer = nullptr;
     QTcpServer      *m_httpServer = nullptr;
     QTimer          *m_expireTimer = nullptr;
@@ -183,6 +189,9 @@ private:
     quint64 m_attachmentFinalizationsAccepted = 0;
     quint64 m_attachmentFinalizationsDuplicate = 0;
     quint64 m_attachmentFinalizationsRejected = 0;
+    quint64 m_administrativeDeletionsAccepted = 0;
+    quint64 m_administrativeDeletionsDuplicate = 0;
+    quint64 m_administrativeDeletionsRejected = 0;
 
     mutable QMutex m_mutex;
     QMap<QString, ClientSession*> m_sessions;  // username -> session

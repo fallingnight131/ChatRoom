@@ -1,5 +1,8 @@
 #include "MessageModel.h"
 
+#include <QJsonObject>
+#include <QSet>
+
 MessageModel::MessageModel(QObject *parent)
     : QAbstractListModel(parent)
 {
@@ -118,6 +121,37 @@ void MessageModel::recallMessage(int messageId) {
             QModelIndex idx = index(i);
             emit dataChanged(idx, idx, { RecalledRole, ContentRole });
             break;
+        }
+    }
+}
+
+void MessageModel::applyDeletionEvents(const QJsonArray &events) {
+    for (const QJsonValue &value : events) {
+        const QJsonObject event = value.toObject();
+        if (event.contains("eventType") &&
+            event["eventType"].toString() != QStringLiteral("messagesDeleted")) {
+            continue;
+        }
+        const QString mode = event["mode"].toString();
+        QSet<int> selectedIds;
+        for (const QJsonValue &id : event["messageIds"].toArray())
+            selectedIds.insert(id.toInt());
+        const qint64 cutoff = event.contains("timestamp")
+            ? event["timestamp"].toVariant().toLongLong()
+            : event["cutoffMs"].toVariant().toLongLong();
+
+        for (int row = m_messages.size() - 1; row >= 0; --row) {
+            const Message &message = m_messages[row];
+            const bool remove = mode == QStringLiteral("all") ||
+                (mode == QStringLiteral("selected") && selectedIds.contains(message.id())) ||
+                (mode == QStringLiteral("before") && cutoff > 0 &&
+                 message.timestamp().toMSecsSinceEpoch() < cutoff) ||
+                (mode == QStringLiteral("after") && cutoff > 0 &&
+                 message.timestamp().toMSecsSinceEpoch() > cutoff);
+            if (!remove) continue;
+            beginRemoveRows(QModelIndex(), row, row);
+            m_messages.removeAt(row);
+            endRemoveRows();
         }
     }
 }
