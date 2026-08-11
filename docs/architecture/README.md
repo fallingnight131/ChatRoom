@@ -215,8 +215,11 @@ through a transport-independent use-case boundary, and binds only server-issued
 account/device/session identity to the connection. Envelope session IDs cannot
 grant identity. Its transport pipeline now provides bounded binary WebSocket
 decode/encode and fixed safe close outcomes for invalid or oversized frames.
-This is still an inactive foundation: operator restore rehearsal, authenticated
-idle policy, hardened TLS listener/runtime configuration, and complete gateway
+The deterministic post-upgrade composition now installs bounded frame handling,
+phase deadlines, negotiation, authentication/resume, and authenticated reader-
+idle closure, and both endpoints require the fixed `chat.v2` WebSocket
+subprotocol. This is still an inactive foundation: operator restore rehearsal,
+hardened TLS listener/runtime composition, and complete gateway
 wiring remain explicit cutover blockers. Process-local account/direct-peer/gateway admission and
 handshake/authentication deadlines are implemented but do not define deployment
 defaults or multi-gateway protection yet. Fixed-label authentication telemetry

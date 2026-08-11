@@ -1,0 +1,42 @@
+package com.fallingnight.chat.gateway.transport;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import com.fallingnight.chat.application.identity.AuthenticationResult;
+import io.netty.channel.embedded.EmbeddedChannel;
+import java.time.Duration;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+class V2ApplicationPipelineTest {
+    @Test
+    void installsDeterministicPostUpgradeOrder() {
+        EmbeddedChannel channel = new EmbeddedChannel();
+        try {
+            V2ApplicationPipeline.install(
+                    channel.pipeline(),
+                    command -> AuthenticationResult.Rejected.INSTANCE,
+                    command -> AuthenticationResult.Rejected.INSTANCE,
+                    Runnable::run,
+                    AuthenticationAdmissionControl.allowAll(),
+                    AuthenticationEventSink.noop(),
+                    Duration.ofSeconds(10),
+                    Duration.ofSeconds(30));
+
+            List<String> names = channel.pipeline().names();
+            assertEquals(List.of(
+                    "v2-frame-aggregator",
+                    "v2-envelope-decoder",
+                    "v2-frame-error-normalizer",
+                    "v2-envelope-encoder",
+                    "v2-frame-close",
+                    "v2-phase-timeouts",
+                    "v2-handshake",
+                    "v2-authentication",
+                    "v2-authenticated-idle-close"),
+                    names.subList(0, 9));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+}

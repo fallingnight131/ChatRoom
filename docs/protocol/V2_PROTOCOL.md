@@ -78,8 +78,9 @@ permissions.
 
 Before WebSocket upgrade, the inactive listener policy reserves `/v2/web` for a
 configured HTTPS Origin allowlist and `/v2/windows` for native requests without
-Origin. Both require one exact configured TLS Host authority. It freezes the
-expected platform in server-owned channel state. A later
+Origin. Both require one exact configured TLS Host authority and the single
+WebSocket subprotocol `chat.v2`; unversioned or multi-valued subprotocol offers
+are rejected. It freezes the expected platform in server-owned channel state. A later
 `ClientHello.platform` must match that endpoint or the gateway returns a fixed
 invalid-payload error and closes. Paths, headers, and platform claims do not
 authenticate an account.
@@ -117,6 +118,12 @@ binding. Expiry closes with WebSocket status 1008 and the fixed reason
 and disconnect cancel their scheduled tasks. Deployment durations remain
 explicit configuration and are not defined by the short virtual-time tests.
 
+After server-side identity binding, a reader-idle event closes the WebSocket with
+status 1001 and the fixed reason `V2 idle timeout`. Pre-authentication idle time
+is governed by the stricter handshake/authentication deadlines. The future
+listener must place its reader-idle timer before WebSocket control handling so
+valid ping/pong traffic refreshes connection activity.
+
 Before password copying or worker submission, the single-process gateway
 applies cumulative fixed-window limits to total attempts, the resolved direct
 socket peer, and a normalized account key. Key maps are bounded and fail closed
@@ -135,7 +142,7 @@ Account, peer, request, exception, password, and token values are excluded.
 
 These messages are not allowed on a production route until WSS and runtime
 composition of the implemented Host/Origin/proxy/metrics controls,
-authenticated idle policy, dependency wiring, and listener lifecycle are
+upstream reader-idle timer, dependency wiring, and listener lifecycle are
 implemented and verified.
 
 ## Compatibility rules

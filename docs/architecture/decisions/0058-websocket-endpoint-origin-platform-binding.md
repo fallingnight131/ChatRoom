@@ -17,6 +17,8 @@ less restrictive client type after upgrade.
 - Reserve exact upgrade paths `/v2/web` and `/v2/windows`. Reject queries,
   unsupported paths, non-GET requests, malformed decoder state, missing
   `Upgrade: websocket`, or a `Connection` header without the `upgrade` token.
+- Require the single exact WebSocket subprotocol `chat.v2`. Do not negotiate an
+  unversioned or ambiguous application protocol on either endpoint.
 - Require exactly one allowed Origin on `/v2/web`. Configuration accepts 1..32
   unique HTTPS authority origins only; normalize host case and the default 443
   port, and reject user info, paths, query, fragment, whitespace, insecure HTTP,
@@ -48,8 +50,8 @@ less restrictive client type after upgrade.
 Tests cover normalized HTTPS origins, exact Web/Windows successes, missing/
 hostile/multiple-origin rejection, insecure or path-bearing configuration,
 wrong method, missing upgrade token, query paths, repeated upgrade, fixed generic
-HTTP rejection, reference ownership, and `ClientHello` endpoint-platform
-mismatch closure.
+HTTP rejection, missing subprotocol, reference ownership, and `ClientHello`
+endpoint-platform mismatch closure.
 
 ## Rollback
 

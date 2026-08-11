@@ -17,6 +17,7 @@ import java.util.Objects;
 /** Enforces product endpoint, Origin, and upgrade shape before WebSocket negotiation. */
 public final class WebSocketEndpointPolicyHandler
         extends SimpleChannelInboundHandler<FullHttpRequest> {
+    public static final String V2_SUBPROTOCOL = "chat.v2";
     private final WebSocketEndpointPolicy policy;
 
     public WebSocketEndpointPolicyHandler(WebSocketEndpointPolicy policy) {
@@ -61,7 +62,12 @@ public final class WebSocketEndpointPolicyHandler
                 .map(String::trim)
                 .map(value -> value.toLowerCase(Locale.ROOT))
                 .anyMatch("upgrade"::equals);
-        return upgradeToken && request.uri().indexOf('?') < 0;
+        java.util.List<String> subprotocols = request.headers().getAll(
+                HttpHeaderNames.SEC_WEBSOCKET_PROTOCOL);
+        return upgradeToken
+                && request.uri().indexOf('?') < 0
+                && subprotocols.size() == 1
+                && V2_SUBPROTOCOL.equals(subprotocols.getFirst());
     }
 
     private static void reject(ChannelHandlerContext context) {

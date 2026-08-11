@@ -71,6 +71,11 @@ class WebSocketEndpointPolicyHandlerTest {
         missingUpgrade.headers().set(HttpHeaderNames.ORIGIN, "https://chat.example.com");
         assertRejected(missingUpgrade);
 
+        FullHttpRequest missingSubprotocol = upgrade(WebSocketEndpointPolicy.WEB_PATH);
+        missingSubprotocol.headers().remove(HttpHeaderNames.SEC_WEBSOCKET_PROTOCOL);
+        missingSubprotocol.headers().set(HttpHeaderNames.ORIGIN, "https://chat.example.com");
+        assertRejected(missingSubprotocol);
+
         FullHttpRequest malformed = upgrade(WebSocketEndpointPolicy.WEB_PATH);
         malformed.setDecoderResult(DecoderResult.failure(new IllegalArgumentException("bad")));
         malformed.headers().set(HttpHeaderNames.ORIGIN, "https://chat.example.com");
@@ -104,6 +109,9 @@ class WebSocketEndpointPolicyHandlerTest {
                 HttpVersion.HTTP_1_1, HttpMethod.GET, path);
         request.headers().set(HttpHeaderNames.UPGRADE, HttpHeaderValues.WEBSOCKET);
         request.headers().set(HttpHeaderNames.CONNECTION, "keep-alive, Upgrade");
+        request.headers().set(
+                HttpHeaderNames.SEC_WEBSOCKET_PROTOCOL,
+                WebSocketEndpointPolicyHandler.V2_SUBPROTOCOL);
         return request;
     }
 

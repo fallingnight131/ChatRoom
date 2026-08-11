@@ -103,7 +103,10 @@ the handler yet.
 Endpoint-policy tests verify exact `/v2/web` and `/v2/windows` upgrade shapes,
 HTTPS Web Origin normalization/allowlisting, browser-origin rejection on the
 Windows route, malformed/repeated upgrade failure, and later ClientHello
-platform matching. The policy does not enable a listener.
+platform matching. They also require the fixed `chat.v2` subprotocol.
+Post-upgrade composition tests assert bounded frame/phase/authentication handler
+order and authenticated reader-idle closure with a fixed WebSocket 1001 outcome.
+The policy and pipeline do not enable a listener.
 Host-policy tests verify one exact configured TLS authority, default-port/case
 normalization, IPv6/non-default ports, missing/duplicate/hostile rejection, and
 single-request ownership before upgrade.

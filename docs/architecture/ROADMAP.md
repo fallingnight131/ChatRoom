@@ -306,6 +306,9 @@ Progress:
     allowlist, and bind the endpoint platform to `ClientHello`.
   - [x] Require one exact configured TLS Host authority before either product
     endpoint can upgrade.
+  - [x] Require the fixed `chat.v2` WebSocket subprotocol and compose the bounded
+    frame, phase, negotiation, authentication, and authenticated-idle handlers
+    in one deterministic post-upgrade pipeline.
   - [x] Centralize fail-before-bind environment validation for TLS material,
     PostgreSQL secrets, endpoints, proxy mode, workers, queues, timeouts, and
     abuse-control bounds.
