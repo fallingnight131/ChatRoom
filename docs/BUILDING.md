@@ -39,6 +39,22 @@ reuse already installed dependencies during local iteration:
 python3 tools/verify_m0.py --web --skip-npm-ci
 ```
 
+The supported Web build remains on V1 by default. The M3 V2 engineering preview
+is a separate, default-off build configuration:
+
+```bash
+cd WebClient
+VITE_CHAT_V2_PREVIEW=true \
+VITE_CHAT_V2_WSS_URL=wss://preview-chat.example.com/v2/web \
+VITE_CHAT_APP_VERSION=2.0.0-preview.1 \
+npm run build
+```
+
+These values are public build metadata, never secrets. The enabled build emits
+V2 as a lazy chunk and still sends no V2 traffic until a preview UI explicitly
+starts it. See [`WEB_V2_PREVIEW.md`](deployment/WEB_V2_PREVIEW.md) for gateway
+alignment, verification, and rollback.
+
 CI runs inventory and web verification on every push and pull request through
 `.github/workflows/m0-baseline.yml`.
 

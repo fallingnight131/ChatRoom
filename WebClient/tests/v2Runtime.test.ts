@@ -1,0 +1,115 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import {
+  V2_DEVICE_ID_STORAGE_KEY,
+  createConfiguredV2Runtime,
+} from "../src/application/v2Runtime";
+
+const DEVICE_ID = "70000000-0000-4000-8000-000000000001";
+const OTHER_DEVICE_ID = "70000000-0000-4000-8000-000000000002";
+const ENABLED_ENVIRONMENT = {
+  VITE_CHAT_V2_PREVIEW: "true",
+  VITE_CHAT_V2_WSS_URL: "wss://chat.example/v2/web",
+  VITE_CHAT_APP_VERSION: "2.0.0-preview",
+};
+
+class MemoryStorage {
+  readonly values = new Map<string, string>();
+  reads = 0;
+  writes = 0;
+
+  getItem(key: string): string | null {
+    this.reads += 1;
+    return this.values.get(key) ?? null;
+  }
+
+  setItem(key: string, value: string): void {
+    this.writes += 1;
+    this.values.set(key, value);
+  }
+}
+
+test("keeps V2 disabled by default without touching browser storage", () => {
+  const storage = new MemoryStorage();
+  let generated = 0;
+  for (const environment of [
+    {},
+    { VITE_CHAT_V2_PREVIEW: "" },
+    { VITE_CHAT_V2_PREVIEW: "false" },
+    { VITE_CHAT_V2_PREVIEW: false },
+  ]) {
+    const runtime = createConfiguredV2Runtime(environment, {
+      storage,
+      createUuid: () => { generated += 1; return DEVICE_ID; },
+    });
+    assert.equal(runtime.enabled, false);
+  }
+  assert.equal(storage.reads, 0);
+  assert.equal(storage.writes, 0);
+  assert.equal(generated, 0);
+});
+
+test("fails closed for incomplete or unsafe preview configuration", () => {
+  const cases = [
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_PREVIEW: "TRUE" },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WSS_URL: "" },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_APP_VERSION: "" },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WSS_URL: "ws://chat.example/v2/web" },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WSS_URL: "wss://chat.example/socket" },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_APP_VERSION: "x".repeat(65) },
+  ];
+  for (const environment of cases) {
+    const runtime = createConfiguredV2Runtime(environment, { storage: null, createUuid: () => DEVICE_ID });
+    assert.equal(runtime.enabled, false);
+  }
+});
+
+test("creates an inert enabled runtime and persists a stable non-secret device identifier", () => {
+  const storage = new MemoryStorage();
+  const runtime = createConfiguredV2Runtime(ENABLED_ENVIRONMENT, {
+    storage,
+    createUuid: () => DEVICE_ID,
+  });
+  assert.equal(runtime.enabled, true);
+  assert.equal(runtime.enabled && runtime.deviceIdentity, "persistent");
+  assert.equal(storage.values.get(V2_DEVICE_ID_STORAGE_KEY), DEVICE_ID);
+  assert.equal(runtime.enabled && runtime.application.snapshot.connectionState, "idle");
+  runtime.dispose();
+});
+
+test("reuses a valid device identifier without generating a replacement", () => {
+  const storage = new MemoryStorage();
+  storage.values.set(V2_DEVICE_ID_STORAGE_KEY, DEVICE_ID);
+  let generated = 0;
+  const runtime = createConfiguredV2Runtime(ENABLED_ENVIRONMENT, {
+    storage,
+    createUuid: () => { generated += 1; return OTHER_DEVICE_ID; },
+  });
+  assert.equal(runtime.enabled, true);
+  assert.equal(generated, 0);
+  assert.equal(storage.writes, 0);
+  runtime.dispose();
+});
+
+test("falls back to page-ephemeral identity when browser storage is denied", () => {
+  const runtime = createConfiguredV2Runtime(ENABLED_ENVIRONMENT, {
+    storage: {
+      getItem: () => { throw new Error("denied"); },
+      setItem: () => { throw new Error("denied"); },
+    },
+    createUuid: () => DEVICE_ID,
+  });
+  assert.equal(runtime.enabled, true);
+  assert.equal(runtime.enabled && runtime.deviceIdentity, "ephemeral");
+  runtime.dispose();
+});
+
+test("contains a bad UUID generator as an invalid preview configuration", () => {
+  const runtime = createConfiguredV2Runtime(ENABLED_ENVIRONMENT, {
+    storage: null,
+    createUuid: () => "not-a-uuid",
+  });
+  assert.equal(runtime.enabled, false);
+  assert.match(runtime.enabled ? "" : runtime.reason, /configuration is invalid/);
+});

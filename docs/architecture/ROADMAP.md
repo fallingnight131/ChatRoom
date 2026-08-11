@@ -363,6 +363,9 @@ Progress:
     - [x] Recover cached Web V2 sending commands only after authoritative history,
       serialize same-key replay one-at-a-time, stop visibly on error, and bound
       local retention to 500 accepted plus 100 unresolved messages.
+    - [x] Compose the Web V2 stack behind an exact default-off build flag, strict
+      WSS/app-version configuration, lazy chunk boundary, non-secret device
+      identity, and deterministic page-exit cleanup without starting traffic.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

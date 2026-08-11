@@ -439,11 +439,11 @@ the Web source tree, and the protocol gate rejects stale committed output. An
 additive TypeScript protocol/session state machine now validates negotiation,
 authentication, request correlation, server-bound sessions, directory/history
 pages, and idempotent text submissions without changing the live V1 path. Live
-Web traffic remains on V1. The unconnected V2 WebSocket adapter now fixes the
+Web traffic remains on V1. The V2 WebSocket adapter now fixes the
 secure endpoint/subprotocol, bounds connection phases, rejects non-binary data,
 clears per-connection protocol state, and performs cancellable jittered
-reconnects. Application integration, browser offline signals, and
-rollback behavior still require verification before any cutover. The protocol
+reconnects. Preview UI integration, browser offline signals, and production
+rollback rehearsal still require verification before any cutover. The protocol
 and transport boundaries can now send an explicitly supplied resume proof and
 accept its rotated session result. The transport retains only the latest rotated
 proof in page memory, redacts it from application observers, automatically
@@ -471,6 +471,16 @@ replaying cached `sending` commands. Replay is strictly one-at-a-time and uses
 the original client message ID; a history copy suppresses an ACK-lost retry.
 Errors stop the automatic queue and expose explicit failed states. Local V2
 retention is bounded to 500 accepted plus 100 unresolved messages.
+
+The Web entry point now exposes that stack through a default-off Vue composition
+boundary. Only an exact `VITE_CHAT_V2_PREVIEW=true` build with a valid WSS route
+and bounded app version dynamically loads the separate V2 chunk; an ordinary
+build retains the V1 initial asset graph. Composition creates no connection by
+itself. The future preview screen must explicitly start and authenticate the
+application. A stable random device hint may use the isolated
+`chat.v2.device-id` browser key, while credentials and resume proofs remain in
+memory. Deployment and rollback rules are in
+[`WEB_V2_PREVIEW.md`](../deployment/WEB_V2_PREVIEW.md).
 
 ### Product consistency
 
