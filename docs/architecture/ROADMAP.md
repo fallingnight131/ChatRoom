@@ -277,9 +277,11 @@ Progress:
     envelope validation, and negative-path embedded-channel tests.
   - [x] Define the permanent V2 control message registry, bounded Web/Windows
     client hello, version negotiation semantics, and three-language golden test.
-  - [ ] Add handshake/authentication, rate limits, safe error mapping,
-    observability, and transport-independent application dispatch before
-    enabling a listener.
+  - [x] Add the single-use bounded ClientHello state machine and safe negotiation
+    errors without enabling a listener.
+  - [ ] Add authentication, timeouts/rate limits, frame-error close mapping,
+    observability, outbound encoding, and transport-independent application
+    dispatch before enabling a listener.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

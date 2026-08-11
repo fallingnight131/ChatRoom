@@ -68,8 +68,8 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
 The Java workspace is not yet on the production traffic or data path; the C++
 V1 verification remains required during the compatibility window.
 The Java gate includes embedded-channel tests for the bounded V2 binary
-WebSocket frame decoder; these tests do not open a listener or imply that V2 is
-ready to receive traffic.
+WebSocket frame decoder and single-use ClientHello negotiation state machine;
+these tests do not open a listener or imply that V2 is ready to receive traffic.
 
 Run the V2 PostgreSQL migration gate with local PostgreSQL server tools
 (`initdb`, `pg_ctl`, and `createdb`) available either on `PATH` or through

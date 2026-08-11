@@ -62,6 +62,13 @@ is an unsupported-version result; it is not treated as malformed input.
 authenticated session. Authentication message types and secret-handling rules
 will be added in the next vertical slice before a listener is enabled.
 
+The implemented pre-auth state machine requires ClientHello as the first
+application frame, limits its serialized payload to 512 bytes, and permits only
+one successful negotiation. It returns fixed safe protocol errors and closes on
+wrong first frame, invalid payload, unsupported version, or repeated hello.
+After success, messages still require a separate authenticated dispatch layer;
+`ServerHello` alone grants no identity or permissions.
+
 ## Compatibility rules
 
 - Field numbers are permanent. Removed fields are reserved rather than reused.
