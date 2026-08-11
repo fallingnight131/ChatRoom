@@ -103,6 +103,10 @@ revocation against a disposable real database.
 Pure migration-planner tests also verify deterministic V1 user-ID mapping,
 order-independent source fingerprints, supported credential generations, full
 plan blocking on invalid/duplicate/empty input, and non-secret issue reporting.
+The locked Xerial SQLite JDBC migration adapter tests a WAL-mode, query-only V1
+source, `quick_check`, required startup-migration columns, both supported UTC
+timestamp forms, safe invalid-time reporting, and fixed pre-migration schema
+failure. Reading is not backup or cutover evidence.
 
 Run the V2 PostgreSQL migration gate with local PostgreSQL server tools
 (`initdb`, `pg_ctl`, and `createdb`) available either on `PATH` or through

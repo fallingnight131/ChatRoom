@@ -8,6 +8,12 @@ foreign keys.
 
 Run `python3 tools/m0_inventory.py --check` to detect table/index inventory drift.
 
+The additive M3 identity-import reader opens this file with SQLite URI read-only
+mode plus `query_only`, includes committed WAL rows, requires `quick_check = ok`
+and the current migrated `users` columns, and passes only the minimal identity
+projection to the pre-write planner. This reader neither creates a backup nor
+changes database authority.
+
 ## Tables
 
 ### Identity

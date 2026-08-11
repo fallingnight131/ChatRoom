@@ -306,8 +306,10 @@ Progress:
   - [x] Add deterministic V1 numeric-user-ID to V2 UUID mapping, two-generation
     credential validation, safe issue reporting, and source fingerprinting
     before any target comparison or write.
-  - [ ] Add read-only SQLite extraction, verified backup, PostgreSQL dry-run/apply
-    conflict checks, post-write reconciliation, and rollback rehearsal.
+  - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
+    enforcement, bounded wait, and safe UTC timestamp projection.
+  - [ ] Add verified backup, PostgreSQL dry-run/apply conflict checks, post-write
+    reconciliation, and rollback rehearsal.
 - [x] Define the transport/persistence-independent fresh-login application use
   case, outward identity/session ports, generic rejection, and explicit secret
   zeroing lifecycle.

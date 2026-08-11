@@ -187,8 +187,9 @@ The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then
 produces a safe issue list and order-independent source fingerprint. It performs
-no I/O yet; SQLite extraction, backup, target comparison/write, and reconciliation
-remain required.
+WAL-aware query-only SQLite extraction now runs `quick_check`, requires the
+current migrated users schema, and safely projects UTC timestamps. Verified
+backup, target comparison/write, and reconciliation remain required.
 
 The fresh-login orchestration exists in the transport-independent `application`
 identity package. Account lookup, dummy-capable password verification, and

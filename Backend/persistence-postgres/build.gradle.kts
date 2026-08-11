@@ -12,6 +12,7 @@ dependencies {
     implementation(project(":application"))
     implementation(libs.flyway.core)
     implementation(libs.flyway.postgresql)
+    implementation(libs.sqlite.jdbc)
     runtimeOnly(libs.postgresql)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
