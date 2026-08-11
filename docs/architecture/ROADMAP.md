@@ -172,6 +172,10 @@ Progress:
     and ACK policy into a transport/cache-injected Web conversation coordinator.
   - [ ] Add a restartable Web attachment command model that handles browser file
     handle permissions, source revision, fresh authorization, and cleanup.
+    - [x] Add the IndexedDB-v3 account/conversation-scoped command store with
+      source revision, optional file handle, and no persisted authorization/bytes.
+    - [ ] Integrate permission-aware recovery, reselection, retry, cancellation,
+      membership cleanup, and serialized fresh-authorized dispatch.
 - [x] Establish the Windows SQLite conversation repository with versioned
   schema, account isolation, bounded message metadata, cursor/draft fields,
   pruning, restart tests, and a newer-schema refusal gate.

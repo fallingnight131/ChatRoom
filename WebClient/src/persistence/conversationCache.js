@@ -1,6 +1,7 @@
 const DATABASE_NAME = 'chat-room-client'
-const DATABASE_VERSION = 2
+const DATABASE_VERSION = 3
 const STORE_NAME = 'conversations'
+export const ATTACHMENT_OUTBOX_STORE_NAME = 'attachmentCommands'
 export const MAX_CACHED_MESSAGES = 500
 export const MAX_DRAFT_LENGTH = 10000
 export const NON_PERSISTED_MEDIA_FIELDS = Object.freeze([
@@ -110,6 +111,10 @@ export class IndexedDbConversationCache {
               cursor.update(sanitizeConversationRecord(cursor.value))
               cursor.continue()
             }
+          }
+          if (!database.objectStoreNames.contains(ATTACHMENT_OUTBOX_STORE_NAME)) {
+            database.createObjectStore(
+              ATTACHMENT_OUTBOX_STORE_NAME, { keyPath: 'key' })
           }
         }
         request.onsuccess = () => resolve(request.result)
