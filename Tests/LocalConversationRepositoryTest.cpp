@@ -24,6 +24,41 @@ Message makeMessage(int id, qint64 sequence, qint64 timestamp) {
     message.setThumbnail(QStringLiteral("base64-thumbnail-bytes"));
     return message;
 }
+
+QSet<QString> tableColumns(const QString &path, const QString &table) {
+    const QString connection = QStringLiteral("local-store-schema-inspection");
+    QSet<QString> columns;
+    {
+        QSqlDatabase database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+        database.setDatabaseName(path);
+        if (database.open()) {
+            QSqlQuery query(database);
+            if (query.exec(QStringLiteral("PRAGMA table_info(%1)").arg(table))) {
+                while (query.next()) columns.insert(query.value(1).toString());
+            }
+        }
+        database.close();
+    }
+    QSqlDatabase::removeDatabase(connection);
+    return columns;
+}
+
+int databaseUserVersion(const QString &path) {
+    const QString connection = QStringLiteral("local-store-version-inspection");
+    int version = -1;
+    {
+        QSqlDatabase database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+        database.setDatabaseName(path);
+        if (database.open()) {
+            QSqlQuery query(database);
+            if (query.exec(QStringLiteral("PRAGMA user_version")) && query.next())
+                version = query.value(0).toInt();
+        }
+        database.close();
+    }
+    QSqlDatabase::removeDatabase(connection);
+    return version;
+}
 }
 
 int main(int argc, char *argv[]) {
@@ -180,6 +215,48 @@ int main(int argc, char *argv[]) {
                           QStringLiteral("7")).messages.size() == 1,
                       QStringLiteral("cache clear crossed account boundary"))) return 1;
 
+        LocalConversationRepository::AttachmentCommand attachment;
+        attachment.kind = LocalConversationRepository::Kind::Room;
+        attachment.conversationKey = QStringLiteral("88");
+        attachment.clientMessageId = QStringLiteral("attachment-command-1");
+        attachment.sourcePath = directory.filePath(QStringLiteral("source.bin"));
+        attachment.fileName = QStringLiteral("source.bin");
+        attachment.contentType = QStringLiteral("file");
+        attachment.fileSize = 4096;
+        attachment.sourceModifiedAtMs = 123456;
+        attachment.sourceFingerprint = QString(64, QLatin1Char('a'));
+        if (!check(repository.upsertAttachmentCommand(QStringLiteral("clear-user"), attachment),
+                   repository.lastError())
+            || !check(repository.updateAttachmentCommandState(
+                          QStringLiteral("clear-user"), attachment.clientMessageId,
+                          LocalConversationRepository::AttachmentState::Uploading, 1024),
+                      repository.lastError())) return 1;
+        auto attachments = repository.attachmentCommands(
+            QStringLiteral("clear-user"), LocalConversationRepository::Kind::Room);
+        if (!check(attachments.size() == 1,
+                   QStringLiteral("attachment command was not persisted"))
+            || !check(attachments.first().state
+                          == LocalConversationRepository::AttachmentState::Uploading,
+                      QStringLiteral("attachment state was not restored"))
+            || !check(attachments.first().transmittedBytes == 1024,
+                      QStringLiteral("attachment progress was not restored"))
+            || !check(attachments.first().sourceFingerprint == QString(64, QLatin1Char('a')),
+                      QStringLiteral("attachment fingerprint was not restored"))) return 1;
+        if (!check(repository.clearCachedMessages(QStringLiteral("clear-user")),
+                   repository.lastError())
+            || !check(repository.attachmentCommands(
+                          QStringLiteral("clear-user"),
+                          LocalConversationRepository::Kind::Room).size() == 1,
+                      QStringLiteral("cache clear removed attachment intent"))) return 1;
+
+        const QSet<QString> attachmentColumns = tableColumns(path, QStringLiteral("attachment_outbox"));
+        if (!check(!attachmentColumns.isEmpty(),
+                   QStringLiteral("attachment schema inspection failed"))) return 1;
+        if (!check(!attachmentColumns.contains(QStringLiteral("upload_token"))
+                       && !attachmentColumns.contains(QStringLiteral("upload_id")),
+                   QStringLiteral("ephemeral upload authorization leaked into durable schema")))
+            return 1;
+
         const QString copiedPath = directory.filePath(QStringLiteral("copied.sqlite"));
         LocalConversationRepository copied(copiedPath);
         if (!check(copied.initialize(), copied.lastError()) ||
@@ -197,6 +274,62 @@ int main(int argc, char *argv[]) {
                    QStringLiteral("account copy lost cursor")) ||
             !check(copiedDirect.draft == QStringLiteral("unloaded draft"),
                    QStringLiteral("account copy lost draft"))) return 1;
+
+        const auto copiedAttachments = copied.attachmentCommands(
+            QStringLiteral("alice-renamed"), LocalConversationRepository::Kind::Room);
+        if (!check(copiedAttachments.isEmpty(),
+                   QStringLiteral("account copy crossed source account boundary"))) return 1;
+
+        attachment.kind = LocalConversationRepository::Kind::Direct;
+        attachment.conversationKey = QStringLiteral("carol");
+        attachment.clientMessageId = QStringLiteral("rename-attachment");
+        if (!check(repository.upsertAttachmentCommand(QStringLiteral("alice"), attachment),
+                   repository.lastError())) return 1;
+        const QString copiedAgainPath = directory.filePath(QStringLiteral("copied-again.sqlite"));
+        LocalConversationRepository copiedAgain(copiedAgainPath);
+        if (!check(copiedAgain.initialize(), copiedAgain.lastError())
+            || !check(repository.copyAccountTo(copiedAgain, QStringLiteral("alice"),
+                                               QStringLiteral("alice-renamed")),
+                      repository.lastError())) return 1;
+        const auto renamedAttachments = copiedAgain.attachmentCommands(
+            QStringLiteral("alice-renamed"), LocalConversationRepository::Kind::Direct);
+        if (!check(renamedAttachments.size() == 1
+                       && renamedAttachments.first().clientMessageId
+                           == QStringLiteral("rename-attachment"),
+                   QStringLiteral("account copy lost attachment intent"))) return 1;
+        if (!check(repository.removeConversation(
+                       QStringLiteral("alice"), LocalConversationRepository::Kind::Direct,
+                       QStringLiteral("carol")), repository.lastError())
+            || !check(repository.attachmentCommands(
+                          QStringLiteral("alice"),
+                          LocalConversationRepository::Kind::Direct).isEmpty(),
+                      QStringLiteral("conversation eviction retained attachment intent"))) return 1;
+    }
+
+    const QString versionOnePath = directory.filePath(QStringLiteral("version-one.sqlite"));
+    {
+        const QString connection = QStringLiteral("version-one-schema-probe");
+        QSqlDatabase database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+        database.setDatabaseName(versionOnePath);
+        if (!check(database.open(), QStringLiteral("version one schema probe open failed"))) return 1;
+        QSqlQuery query(database);
+        if (!check(query.exec(QStringLiteral(
+                "CREATE TABLE conversations (account TEXT NOT NULL, kind TEXT NOT NULL, "
+                "conversation_key TEXT NOT NULL, cursor INTEGER NOT NULL DEFAULT 0, "
+                "draft TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL, "
+                "PRIMARY KEY(account, kind, conversation_key))")),
+                   QStringLiteral("version one conversation setup failed"))
+            || !check(query.exec(QStringLiteral("PRAGMA user_version = 1")),
+                      QStringLiteral("version one marker setup failed"))) return 1;
+        database.close();
+        database = QSqlDatabase();
+        QSqlDatabase::removeDatabase(connection);
+    }
+    {
+        LocalConversationRepository repository(versionOnePath);
+        if (!check(repository.initialize(), repository.lastError())) return 1;
+        if (!check(databaseUserVersion(versionOnePath) == 2,
+                   QStringLiteral("version one database did not migrate to version two"))) return 1;
     }
 
     const QString futurePath = directory.filePath(QStringLiteral("future.sqlite"));

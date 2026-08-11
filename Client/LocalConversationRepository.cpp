@@ -14,7 +14,7 @@
 #include <QDebug>
 
 namespace {
-constexpr int SchemaVersion = 1;
+constexpr int SchemaVersion = 2;
 }
 
 LocalConversationRepository::LocalConversationRepository(const QString &databasePath)
@@ -86,7 +86,25 @@ bool LocalConversationRepository::initialize() {
         QStringLiteral(
             "CREATE INDEX IF NOT EXISTS idx_local_messages_order "
             "ON messages(account, kind, conversation_key, timestamp, sequence)"),
-        QStringLiteral("PRAGMA user_version = 1")
+        QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS attachment_outbox ("
+            "account TEXT NOT NULL, client_message_id TEXT NOT NULL, "
+            "kind TEXT NOT NULL, conversation_key TEXT NOT NULL, "
+            "source_path TEXT NOT NULL, file_name TEXT NOT NULL, "
+            "content_type TEXT NOT NULL, file_size INTEGER NOT NULL CHECK(file_size > 0), "
+            "source_modified_at INTEGER NOT NULL, source_fingerprint TEXT NOT NULL, "
+            "state TEXT NOT NULL, transmitted_bytes INTEGER NOT NULL DEFAULT 0 "
+            "CHECK(transmitted_bytes >= 0 AND transmitted_bytes <= file_size), "
+            "failure_code TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, "
+            "updated_at INTEGER NOT NULL, PRIMARY KEY(account, client_message_id), "
+            "FOREIGN KEY(account, kind, conversation_key) REFERENCES conversations"
+            "(account, kind, conversation_key) ON DELETE CASCADE, "
+            "CHECK(kind IN ('room', 'direct')), "
+            "CHECK(state IN ('pending_authorization', 'uploading', 'finalizing', 'failed')))"),
+        QStringLiteral(
+            "CREATE INDEX IF NOT EXISTS idx_attachment_outbox_conversation "
+            "ON attachment_outbox(account, kind, conversation_key, created_at)"),
+        QStringLiteral("PRAGMA user_version = 2")
     };
     for (const QString &statement : statements) {
         if (!query.exec(statement)) {
@@ -377,6 +395,15 @@ bool LocalConversationRepository::copyAccountTo(
             return fail(QStringLiteral("copyAccountTo"), target.lastError());
         }
     }
+
+    for (Kind kind : {Kind::Room, Kind::Direct}) {
+        const QList<AttachmentCommand> commands = attachmentCommands(sourceAccount, kind);
+        if (!m_lastError.isEmpty()) return false;
+        for (const AttachmentCommand &command : commands) {
+            if (!target.upsertAttachmentCommand(targetAccount, command))
+                return fail(QStringLiteral("copyAccountTo"), target.lastError());
+        }
+    }
     m_lastError.clear();
     return true;
 }
@@ -404,6 +431,160 @@ LocalConversationRepository::pendingSends(const QString &account, Kind kind) {
     }
     m_lastError.clear();
     return pending;
+}
+
+bool LocalConversationRepository::upsertAttachmentCommand(
+    const QString &account, const AttachmentCommand &command) {
+    const bool valid = validateIdentity(account, command.conversationKey)
+        && !command.clientMessageId.isEmpty()
+        && command.clientMessageId.toUtf8().size() <= 128
+        && !command.sourcePath.isEmpty() && command.sourcePath.size() <= 4096
+        && !command.fileName.isEmpty() && command.fileName.size() <= 255
+        && !command.contentType.isEmpty() && command.contentType.size() <= 32
+        && command.fileSize > 0 && command.sourceModifiedAtMs >= 0
+        && !command.sourceFingerprint.isEmpty()
+        && command.sourceFingerprint.size() <= 128
+        && command.transmittedBytes >= 0
+        && command.transmittedBytes <= command.fileSize
+        && command.failureCode.size() <= 128;
+    if (!valid)
+        return fail(QStringLiteral("upsertAttachmentCommand"),
+                    QStringLiteral("invalid attachment command"));
+    if (!m_database.transaction())
+        return fail(QStringLiteral("upsertAttachmentCommand"),
+                    m_database.lastError().text());
+    if (!ensureConversation(account, command.kind, command.conversationKey, 0)) {
+        m_database.rollback();
+        return false;
+    }
+
+    const qint64 now = QDateTime::currentMSecsSinceEpoch();
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "INSERT INTO attachment_outbox(account, client_message_id, kind, conversation_key, "
+        "source_path, file_name, content_type, file_size, source_modified_at, "
+        "source_fingerprint, state, transmitted_bytes, failure_code, created_at, updated_at) "
+        "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+        "ON CONFLICT(account, client_message_id) DO UPDATE SET "
+        "kind = excluded.kind, conversation_key = excluded.conversation_key, "
+        "source_path = excluded.source_path, file_name = excluded.file_name, "
+        "content_type = excluded.content_type, file_size = excluded.file_size, "
+        "source_modified_at = excluded.source_modified_at, "
+        "source_fingerprint = excluded.source_fingerprint, state = excluded.state, "
+        "transmitted_bytes = excluded.transmitted_bytes, "
+        "failure_code = excluded.failure_code, updated_at = excluded.updated_at"));
+    query.addBindValue(account);
+    query.addBindValue(command.clientMessageId);
+    query.addBindValue(kindValue(command.kind));
+    query.addBindValue(command.conversationKey);
+    query.addBindValue(command.sourcePath);
+    query.addBindValue(command.fileName);
+    query.addBindValue(command.contentType);
+    query.addBindValue(command.fileSize);
+    query.addBindValue(command.sourceModifiedAtMs);
+    query.addBindValue(command.sourceFingerprint);
+    query.addBindValue(attachmentStateValue(command.state));
+    query.addBindValue(command.transmittedBytes);
+    query.addBindValue(command.failureCode.isNull()
+                           ? QStringLiteral("") : command.failureCode);
+    query.addBindValue(now);
+    query.addBindValue(now);
+    if (!query.exec()) {
+        m_database.rollback();
+        return fail(QStringLiteral("upsertAttachmentCommand"), query.lastError().text());
+    }
+    if (!m_database.commit())
+        return fail(QStringLiteral("upsertAttachmentCommand"),
+                    m_database.lastError().text());
+    m_lastError.clear();
+    return true;
+}
+
+QList<LocalConversationRepository::AttachmentCommand>
+LocalConversationRepository::attachmentCommands(const QString &account, Kind kind) {
+    QList<AttachmentCommand> commands;
+    if (account.isEmpty() || !m_database.isOpen()) {
+        fail(QStringLiteral("attachmentCommands"),
+             QStringLiteral("invalid account or closed database"));
+        return commands;
+    }
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "SELECT conversation_key, client_message_id, source_path, file_name, "
+        "content_type, file_size, source_modified_at, source_fingerprint, state, "
+        "transmitted_bytes, failure_code FROM attachment_outbox "
+        "WHERE account = ? AND kind = ? ORDER BY created_at ASC"));
+    query.addBindValue(account);
+    query.addBindValue(kindValue(kind));
+    if (!query.exec()) {
+        fail(QStringLiteral("attachmentCommands"), query.lastError().text());
+        return commands;
+    }
+    while (query.next()) {
+        AttachmentCommand command;
+        command.kind = kind;
+        command.conversationKey = query.value(0).toString();
+        command.clientMessageId = query.value(1).toString();
+        command.sourcePath = query.value(2).toString();
+        command.fileName = query.value(3).toString();
+        command.contentType = query.value(4).toString();
+        command.fileSize = query.value(5).toLongLong();
+        command.sourceModifiedAtMs = query.value(6).toLongLong();
+        command.sourceFingerprint = query.value(7).toString();
+        if (!parseAttachmentState(query.value(8).toString(), &command.state)) {
+            fail(QStringLiteral("attachmentCommands"),
+                 QStringLiteral("unknown attachment state"));
+            return {};
+        }
+        command.transmittedBytes = query.value(9).toLongLong();
+        command.failureCode = query.value(10).toString();
+        commands.append(command);
+    }
+    m_lastError.clear();
+    return commands;
+}
+
+bool LocalConversationRepository::updateAttachmentCommandState(
+    const QString &account, const QString &clientMessageId,
+    AttachmentState state, qint64 transmittedBytes, const QString &failureCode) {
+    if (account.isEmpty() || clientMessageId.isEmpty() || transmittedBytes < 0
+        || failureCode.size() > 128 || !m_database.isOpen()) {
+        return fail(QStringLiteral("updateAttachmentCommandState"),
+                    QStringLiteral("invalid attachment state update"));
+    }
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "UPDATE attachment_outbox SET state = ?, transmitted_bytes = MIN(?, file_size), "
+        "failure_code = ?, updated_at = ? WHERE account = ? AND client_message_id = ?"));
+    query.addBindValue(attachmentStateValue(state));
+    query.addBindValue(transmittedBytes);
+    query.addBindValue(failureCode.isNull() ? QStringLiteral("") : failureCode);
+    query.addBindValue(QDateTime::currentMSecsSinceEpoch());
+    query.addBindValue(account);
+    query.addBindValue(clientMessageId);
+    if (!query.exec())
+        return fail(QStringLiteral("updateAttachmentCommandState"), query.lastError().text());
+    if (query.numRowsAffected() != 1)
+        return fail(QStringLiteral("updateAttachmentCommandState"),
+                    QStringLiteral("attachment command not found"));
+    m_lastError.clear();
+    return true;
+}
+
+bool LocalConversationRepository::removeAttachmentCommand(
+    const QString &account, const QString &clientMessageId) {
+    if (account.isEmpty() || clientMessageId.isEmpty() || !m_database.isOpen())
+        return fail(QStringLiteral("removeAttachmentCommand"),
+                    QStringLiteral("invalid attachment command identity"));
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "DELETE FROM attachment_outbox WHERE account = ? AND client_message_id = ?"));
+    query.addBindValue(account);
+    query.addBindValue(clientMessageId);
+    if (!query.exec())
+        return fail(QStringLiteral("removeAttachmentCommand"), query.lastError().text());
+    m_lastError.clear();
+    return true;
 }
 
 bool LocalConversationRepository::clearCachedMessages(const QString &account) {
@@ -444,6 +625,36 @@ bool LocalConversationRepository::clearCachedMessages(const QString &account) {
 
 QString LocalConversationRepository::kindValue(Kind kind) {
     return kind == Kind::Room ? QStringLiteral("room") : QStringLiteral("direct");
+}
+
+QString LocalConversationRepository::attachmentStateValue(AttachmentState state) {
+    switch (state) {
+    case AttachmentState::PendingAuthorization:
+        return QStringLiteral("pending_authorization");
+    case AttachmentState::Uploading:
+        return QStringLiteral("uploading");
+    case AttachmentState::Finalizing:
+        return QStringLiteral("finalizing");
+    case AttachmentState::Failed:
+        return QStringLiteral("failed");
+    }
+    return QStringLiteral("failed");
+}
+
+bool LocalConversationRepository::parseAttachmentState(
+    const QString &value, AttachmentState *state) {
+    if (!state) return false;
+    if (value == QLatin1String("pending_authorization"))
+        *state = AttachmentState::PendingAuthorization;
+    else if (value == QLatin1String("uploading"))
+        *state = AttachmentState::Uploading;
+    else if (value == QLatin1String("finalizing"))
+        *state = AttachmentState::Finalizing;
+    else if (value == QLatin1String("failed"))
+        *state = AttachmentState::Failed;
+    else
+        return false;
+    return true;
 }
 
 QString LocalConversationRepository::messageIdentity(const Message &message, int position) {

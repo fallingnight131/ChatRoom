@@ -192,6 +192,10 @@ Progress:
 - [x] Move Windows V1 room/direct history parsing, malformed/rejected response
   handling, and progress-guarded continuation scheduling out of `ChatWindow`.
 - [ ] Extend Windows durable pending behavior to restartable attachments.
+  - [x] Add the schema-v2 account/conversation-scoped attachment command store;
+    do not persist ephemeral upload authorization or claim byte-range resume.
+  - [ ] Add source-revision validation, fresh-authorization recovery, serialized
+    dispatch, and completion/cancellation cleanup in the Windows application layer.
 - [x] Extend the Windows cache control to clear account-isolated, server-
   recoverable SQLite history while preserving drafts and unresolved sends.
 - [ ] Add remaining optimistic states, virtualization, bounded media-cache

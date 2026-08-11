@@ -10,6 +10,12 @@
 class LocalConversationRepository {
 public:
     enum class Kind { Room, Direct };
+    enum class AttachmentState {
+        PendingAuthorization,
+        Uploading,
+        Finalizing,
+        Failed
+    };
 
     struct Snapshot {
         QList<Message> messages;
@@ -20,6 +26,20 @@ public:
         Kind kind;
         QString conversationKey;
         Message message;
+    };
+    struct AttachmentCommand {
+        Kind kind = Kind::Room;
+        QString conversationKey;
+        QString clientMessageId;
+        QString sourcePath;
+        QString fileName;
+        QString contentType;
+        qint64 fileSize = 0;
+        qint64 sourceModifiedAtMs = 0;
+        QString sourceFingerprint;
+        AttachmentState state = AttachmentState::PendingAuthorization;
+        qint64 transmittedBytes = 0;
+        QString failureCode;
     };
 
     static constexpr int MaxMessagesPerConversation = 500;
@@ -52,12 +72,26 @@ public:
                        const QString &sourceAccount,
                        const QString &targetAccount);
     QList<PendingSend> pendingSends(const QString &account, Kind kind);
+    bool upsertAttachmentCommand(const QString &account,
+                                 const AttachmentCommand &command);
+    QList<AttachmentCommand> attachmentCommands(const QString &account,
+                                                Kind kind);
+    bool updateAttachmentCommandState(const QString &account,
+                                      const QString &clientMessageId,
+                                      AttachmentState state,
+                                      qint64 transmittedBytes = 0,
+                                      const QString &failureCode = QString());
+    bool removeAttachmentCommand(const QString &account,
+                                 const QString &clientMessageId);
     bool clearCachedMessages(const QString &account);
 
     QString lastError() const { return m_lastError; }
 
 private:
     static QString kindValue(Kind kind);
+    static QString attachmentStateValue(AttachmentState state);
+    static bool parseAttachmentState(const QString &value,
+                                     AttachmentState *state);
     static QString messageIdentity(const Message &message, int position);
     static QByteArray serializeMessage(const Message &message);
     static bool deserializeMessage(const QByteArray &payload, Message *message);
