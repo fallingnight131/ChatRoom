@@ -19,7 +19,8 @@ credential UX, and rollout into one hard-to-reverse change.
 - Model hello, negotiation, fresh authentication, authenticated operation, and
   closure explicitly. Reject commands that are invalid for the current phase.
 - Correlate every response/error with a bounded pending-request registry and
-  require the registered message type and envelope kind.
+  require the registered message type and envelope kind. Preserve validated
+  request and client-message correlation on the decoded application event.
 - Enforce the server's frame, payload, identifier, text, page, and session
   constraints before data reaches application state. Treat server sequence and
   timestamp fields as authoritative response data, never client ordering input.

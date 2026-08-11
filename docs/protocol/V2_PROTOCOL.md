@@ -113,7 +113,8 @@ does not yet own a WebSocket or replace the live V1 connection. Its fail-closed
 state machine emits bounded binary commands for hello, fresh authentication,
 directory listing, history reads, and idempotent UTF-8 text submission. It
 accepts only correlated response/error envelopes of the registered kind and
-type, validates the authenticated session and feature payload invariants, caps
+type, preserves the validated `request_id` and `client_message_id` on decoded
+application events, validates the authenticated session and feature payload invariants, caps
 pending requests at 16, and retains the one-time resume proof only in memory.
 Password input is copied only for immediate serialization and that owned copy is
 cleared. Connection/reconnect ownership and durable resume-token storage remain

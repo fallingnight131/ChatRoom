@@ -58,7 +58,7 @@ function response(
   request: Envelope,
   messageType: MessageType,
   payload: Uint8Array,
-  options: { sessionId?: string; kind?: MessageKind; requestId?: string } = {},
+  options: { sessionId?: string; kind?: MessageKind; requestId?: string; clientMessageId?: string } = {},
 ): Uint8Array {
   return toBinary(EnvelopeSchema, create(EnvelopeSchema, {
     protocolVersion: 2,
@@ -66,6 +66,7 @@ function response(
     messageType,
     requestId: options.requestId ?? request.requestId,
     sessionId: options.sessionId ?? "",
+    clientMessageId: options.clientMessageId ?? request.clientMessageId,
     sentAtEpochMs: BigInt(NOW + 1),
     payload,
   }));
@@ -269,6 +270,8 @@ test("validates correlated directory, history, and accepted responses", () => {
     { sessionId: SESSION_ID },
   ));
   assert.equal(acceptedEvent.type, "message-accepted");
+  assert.equal(acceptedEvent.requestId, submitRequest.requestId);
+  assert.equal(acceptedEvent.clientMessageId, CLIENT_MESSAGE_ID);
 });
 
 test("rejects invalid transitions, unknown requests, wrong sessions, and response type confusion", () => {
@@ -320,7 +323,15 @@ test("rejects invalid transitions, unknown requests, wrong sessions, and respons
     toBinary(ConversationDirectoryPageSchema, create(ConversationDirectoryPageSchema, {})),
     { sessionId: SESSION_ID },
   ));
-  for (let index = 0; index < 16; index += 1) client.listConversations(1);
+  const submit = decodeEnvelope(client.submitText(CONVERSATION_ID, CLIENT_MESSAGE_ID, "correlated"));
+  assert.throws(
+    () => client.receive(response(submit, MessageType.MESSAGE_ACCEPTED, new Uint8Array(), {
+      sessionId: SESSION_ID,
+      clientMessageId: "wrong-client-message",
+    })),
+    /clientMessageId does not match/,
+  );
+  for (let index = 0; index < 15; index += 1) client.listConversations(1);
   assert.throws(() => client.listConversations(1), /too many pending/);
 });
 

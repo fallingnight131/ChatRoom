@@ -54,16 +54,19 @@ export type V2WebProtocolState =
   | "authenticated"
   | "closed";
 
-export type V2WebProtocolEvent =
+type ResponseCorrelation = { requestId: string; clientMessageId: string };
+
+export type V2WebProtocolEvent = ResponseCorrelation & (
   | { type: "server-hello"; value: ServerHello }
   | { type: "session-established"; value: SessionEstablished }
   | { type: "authentication-rejected"; value: AuthenticationRejected }
   | { type: "protocol-error"; value: ProtocolError }
   | { type: "message-accepted"; value: MessageAccepted }
   | { type: "message-history-page"; value: MessageHistoryPage }
-  | { type: "conversation-directory-page"; value: ConversationDirectoryPage };
+  | { type: "conversation-directory-page"; value: ConversationDirectoryPage }
+);
 
-type PendingRequest = { expected: ReadonlySet<MessageType> };
+type PendingRequest = { expected: ReadonlySet<MessageType>; clientMessageId: string };
 
 export interface V2WebProtocolClientOptions {
   appVersion: string;
@@ -240,6 +243,9 @@ export class V2WebProtocolClient {
     } else if (envelope.requestId && !pending) {
       throw new Error("protocol error does not match a pending request");
     }
+    if (pending && envelope.clientMessageId !== pending.clientMessageId) {
+      throw new Error("response clientMessageId does not match the request");
+    }
 
     const event = this.decodeEvent(envelope);
     if (event.type === "session-established" && envelope.sessionId !== event.value.sessionId) {
@@ -285,7 +291,7 @@ export class V2WebProtocolClient {
     if (bytes.byteLength > Math.min(MAX_WIRE_BYTES, this.negotiatedMaximumFrameBytes)) {
       throw new Error("V2 frame exceeds the negotiated limit");
     }
-    this.pending.set(requestId, { expected });
+    this.pending.set(requestId, { expected, clientMessageId });
     return bytes;
   }
 
@@ -311,22 +317,26 @@ export class V2WebProtocolClient {
   }
 
   private decodeEvent(envelope: Envelope): V2WebProtocolEvent {
+    const correlation = {
+      requestId: envelope.requestId,
+      clientMessageId: envelope.clientMessageId,
+    };
     try {
       switch (envelope.messageType) {
         case MessageType.SERVER_HELLO:
-          return { type: "server-hello", value: fromBinary(ServerHelloSchema, envelope.payload) };
+          return { ...correlation, type: "server-hello", value: fromBinary(ServerHelloSchema, envelope.payload) };
         case MessageType.SESSION_ESTABLISHED:
-          return { type: "session-established", value: fromBinary(SessionEstablishedSchema, envelope.payload) };
+          return { ...correlation, type: "session-established", value: fromBinary(SessionEstablishedSchema, envelope.payload) };
         case MessageType.AUTHENTICATION_REJECTED:
-          return { type: "authentication-rejected", value: fromBinary(AuthenticationRejectedSchema, envelope.payload) };
+          return { ...correlation, type: "authentication-rejected", value: fromBinary(AuthenticationRejectedSchema, envelope.payload) };
         case MessageType.PROTOCOL_ERROR:
-          return { type: "protocol-error", value: fromBinary(ProtocolErrorSchema, envelope.payload) };
+          return { ...correlation, type: "protocol-error", value: fromBinary(ProtocolErrorSchema, envelope.payload) };
         case MessageType.MESSAGE_ACCEPTED:
-          return { type: "message-accepted", value: fromBinary(MessageAcceptedSchema, envelope.payload) };
+          return { ...correlation, type: "message-accepted", value: fromBinary(MessageAcceptedSchema, envelope.payload) };
         case MessageType.MESSAGE_HISTORY_PAGE:
-          return { type: "message-history-page", value: fromBinary(MessageHistoryPageSchema, envelope.payload) };
+          return { ...correlation, type: "message-history-page", value: fromBinary(MessageHistoryPageSchema, envelope.payload) };
         case MessageType.CONVERSATION_DIRECTORY_PAGE:
-          return { type: "conversation-directory-page", value: fromBinary(ConversationDirectoryPageSchema, envelope.payload) };
+          return { ...correlation, type: "conversation-directory-page", value: fromBinary(ConversationDirectoryPageSchema, envelope.payload) };
         default:
           throw new Error("unsupported inbound message type");
       }

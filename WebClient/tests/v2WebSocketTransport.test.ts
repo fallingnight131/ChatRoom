@@ -100,6 +100,7 @@ function response(request: Envelope, type: MessageType, payload: Uint8Array, ses
     messageType: type,
     requestId: request.requestId,
     sessionId,
+    clientMessageId: request.clientMessageId,
     sentAtEpochMs: BigInt(NOW + 1),
     payload,
   })).slice().buffer;
