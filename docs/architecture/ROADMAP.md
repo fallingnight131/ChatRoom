@@ -312,6 +312,10 @@ Progress:
   - [x] Centralize fail-before-bind environment validation for TLS material,
     PostgreSQL secrets, endpoints, proxy mode, workers, queues, timeouts, and
     abuse-control bounds.
+  - [x] Compose an owned WSS listener with mandatory TLS, bounded HTTP/WebSocket
+    parsing, connection cap, write watermarks, upgrade deadline, ordered policy
+    handlers, real loopback upgrade tests, and deterministic shutdown without
+    activating `GatewayMain`.
   - [ ] Attach metrics to the deployment scrape/registry path and define trusted
     proxy configuration in the runtime composition root/HTTP upgrade handler
     before enabling the IM listener; replace/coordinate limits through Redis

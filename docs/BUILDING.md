@@ -98,22 +98,26 @@ IPv4/IPv6 CIDRs use bounded right-to-left forwarding-chain resolution, and
 trusted missing, hostname, invalid, or excessive forwarding chains fail closed.
 Pre-upgrade handler tests verify direct/proxied canonical address freezing,
 generic rejection for missing trusted forwarding and repeat requests, reference
-ownership, and consumption by authentication admission. No listener installs
-the handler yet.
+ownership, and consumption by authentication admission. The inactive WSS
+component installs the handler; `GatewayMain` does not start it yet.
 Endpoint-policy tests verify exact `/v2/web` and `/v2/windows` upgrade shapes,
 HTTPS Web Origin normalization/allowlisting, browser-origin rejection on the
 Windows route, malformed/repeated upgrade failure, and later ClientHello
 platform matching. They also require the fixed `chat.v2` subprotocol.
 Post-upgrade composition tests assert bounded frame/phase/authentication handler
 order and authenticated reader-idle closure with a fixed WebSocket 1001 outcome.
-The policy and pipeline do not enable a listener.
+The policy and pipeline do not activate a product route.
 Host-policy tests verify one exact configured TLS authority, default-port/case
 normalization, IPv6/non-default ports, missing/duplicate/hostile rejection, and
 single-request ownership before upgrade.
 Runtime configuration tests use temporary placeholder TLS files and prove all
 critical settings validate before bind, admin stays loopback, DNS names are not
 resolved for listener addresses, unsafe/missing values fail, and configured
-passwords do not appear in object text. Placeholder files are not TLS evidence.
+passwords do not appear in object text. Listener integration tests use an
+ephemeral loopback port and test-only certificate to prove a real TLS handshake,
+`chat.v2` 101 upgrade, missing-subprotocol 400 rejection, connection limiting,
+upgrade timeout, and deterministic shutdown. This is local transport evidence,
+not trusted-certificate or production-route evidence.
 Gateway resume tests verify bounded off-event-loop dispatch, rotated proof
 delivery, server-side identity binding, secret cleanup, generic invalid-proof
 rejection, and gateway/direct-peer admission without creating a fake account

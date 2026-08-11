@@ -1,9 +1,10 @@
 # Java V2 Gateway Configuration
 
-Status: M3 pre-listener contract. Java V2 still receives no product traffic.
+Status: M3 inactive-listener contract. Java V2 still receives no product traffic.
 
 `GatewayRuntimeConfig` reads environment values once and validates them before
-any future bind. Do not commit a populated environment file, passwords, private
+the WSS component binds. `GatewayMain` does not compose or start that component
+yet. Do not commit a populated environment file, passwords, private
 keys, production endpoints, or certificate material.
 
 ## Required values
@@ -31,6 +32,9 @@ filesystem permissions and secret delivery controls.
 | `CHATROOM_GATEWAY_ADMIN_ADDRESS` | `127.0.0.1` | numeric loopback only |
 | `CHATROOM_GATEWAY_ADMIN_PORT` | `9090` | `1..65535` |
 | `CHATROOM_GATEWAY_EVENT_LOOP_WORKERS` | `4` | `1..64` |
+| `CHATROOM_GATEWAY_MAX_CONNECTIONS` | `10000` | `1..1000000` |
+| `CHATROOM_GATEWAY_WRITE_BUFFER_LOW_BYTES` | `65536` | `1024..8388608` |
+| `CHATROOM_GATEWAY_WRITE_BUFFER_HIGH_BYTES` | `262144` | `2048..16777216` |
 | `CHATROOM_GATEWAY_AUTH_WORKERS` | `4` | `1..64` |
 | `CHATROOM_GATEWAY_AUTH_QUEUE_CAPACITY` | `256` | `1..100000` |
 | `CHATROOM_GATEWAY_HANDSHAKE_TIMEOUT_SECONDS` | `10` | `1..60` |
@@ -41,6 +45,10 @@ filesystem permissions and secret delivery controls.
 | `CHATROOM_GATEWAY_PEER_ATTEMPTS` | `60` | `1..100000` |
 | `CHATROOM_GATEWAY_ACCOUNT_ATTEMPTS` | `10` | `1..10000` |
 | `CHATROOM_GATEWAY_MAX_LIMIT_KEYS` | `10000` | `16..1000000` |
+
+The high write-buffer watermark must be strictly greater than the low watermark.
+Crossing it makes a Netty child channel non-writable so later messaging code can
+apply bounded slow-consumer policy rather than accumulating unbounded output.
 
 If `CHATROOM_GATEWAY_TRUSTED_PROXY_CIDRS` is absent or blank, all forwarding
 headers are ignored and the direct socket peer is authoritative. When set to a

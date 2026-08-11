@@ -32,6 +32,9 @@ public final class GatewayRuntimeConfig {
     private final WebSocketEndpointPolicy endpointPolicy;
     private final TrustedProxyPolicy proxyPolicy;
     private final int eventLoopWorkers;
+    private final int maximumConnections;
+    private final int writeBufferLowWaterMark;
+    private final int writeBufferHighWaterMark;
     private final int authenticationWorkers;
     private final int authenticationQueueCapacity;
     private final Duration handshakeTimeout;
@@ -52,6 +55,9 @@ public final class GatewayRuntimeConfig {
             WebSocketEndpointPolicy endpointPolicy,
             TrustedProxyPolicy proxyPolicy,
             int eventLoopWorkers,
+            int maximumConnections,
+            int writeBufferLowWaterMark,
+            int writeBufferHighWaterMark,
             int authenticationWorkers,
             int authenticationQueueCapacity,
             Duration handshakeTimeout,
@@ -70,6 +76,9 @@ public final class GatewayRuntimeConfig {
         this.endpointPolicy = endpointPolicy;
         this.proxyPolicy = proxyPolicy;
         this.eventLoopWorkers = eventLoopWorkers;
+        this.maximumConnections = maximumConnections;
+        this.writeBufferLowWaterMark = writeBufferLowWaterMark;
+        this.writeBufferHighWaterMark = writeBufferHighWaterMark;
         this.authenticationWorkers = authenticationWorkers;
         this.authenticationQueueCapacity = authenticationQueueCapacity;
         this.handshakeTimeout = handshakeTimeout;
@@ -116,6 +125,19 @@ public final class GatewayRuntimeConfig {
 
         int eventWorkers = integer(
                 environment, "CHATROOM_GATEWAY_EVENT_LOOP_WORKERS", 4, 1, 64);
+        int maximumConnections = integer(
+                environment, "CHATROOM_GATEWAY_MAX_CONNECTIONS", 10_000, 1, 1_000_000);
+        int writeBufferLowWaterMark = integer(
+                environment, "CHATROOM_GATEWAY_WRITE_BUFFER_LOW_BYTES", 65_536, 1_024, 8_388_608);
+        int writeBufferHighWaterMark = integer(
+                environment,
+                "CHATROOM_GATEWAY_WRITE_BUFFER_HIGH_BYTES",
+                262_144,
+                2_048,
+                16_777_216);
+        if (writeBufferHighWaterMark <= writeBufferLowWaterMark) {
+            throw invalid("gateway write buffer high water mark must exceed low water mark");
+        }
         int authWorkers = integer(
                 environment, "CHATROOM_GATEWAY_AUTH_WORKERS", 4, 1, 64);
         int authQueue = integer(
@@ -147,6 +169,9 @@ public final class GatewayRuntimeConfig {
                 new WebSocketEndpointPolicy(origins),
                 proxyPolicy,
                 eventWorkers,
+                maximumConnections,
+                writeBufferLowWaterMark,
+                writeBufferHighWaterMark,
                 authWorkers,
                 authQueue,
                 handshakeTimeout,
@@ -201,6 +226,18 @@ public final class GatewayRuntimeConfig {
 
     public int eventLoopWorkers() {
         return eventLoopWorkers;
+    }
+
+    public int maximumConnections() {
+        return maximumConnections;
+    }
+
+    public int writeBufferLowWaterMark() {
+        return writeBufferLowWaterMark;
+    }
+
+    public int writeBufferHighWaterMark() {
+        return writeBufferHighWaterMark;
     }
 
     public int authenticationWorkers() {

@@ -140,10 +140,11 @@ and records fixed execution-duration buckets. Saturation and admission warnings
 are sampled at power-of-two totals and contain only event, dimension, and count.
 Account, peer, request, exception, password, and token values are excluded.
 
-These messages are not allowed on a production route until WSS and runtime
-composition of the implemented Host/Origin/proxy/metrics controls,
-upstream reader-idle timer, dependency wiring, and listener lifecycle are
-implemented and verified.
+These messages are not allowed on a production route until the implemented WSS
+component is composed by `GatewayMain` with PostgreSQL, identity cryptography,
+bounded workers, admin readiness/metrics, ordered shutdown, and deployment
+verification. The component already installs Host/Origin/proxy controls, the
+upstream reader-idle timer, bounded transport parsing, and listener lifecycle.
 
 ## Compatibility rules
 

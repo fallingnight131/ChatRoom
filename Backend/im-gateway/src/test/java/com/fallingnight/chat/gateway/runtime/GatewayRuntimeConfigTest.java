@@ -36,6 +36,9 @@ class GatewayRuntimeConfigTest {
                 config.listenerAddress());
         assertTrue(config.adminAddress().getAddress().isLoopbackAddress());
         assertEquals(4, config.eventLoopWorkers());
+        assertEquals(10_000, config.maximumConnections());
+        assertEquals(65_536, config.writeBufferLowWaterMark());
+        assertEquals(262_144, config.writeBufferHighWaterMark());
         assertEquals(4, config.authenticationWorkers());
         assertEquals(256, config.authenticationQueueCapacity());
         assertEquals(Duration.ofSeconds(10), config.handshakeTimeout());
@@ -75,6 +78,12 @@ class GatewayRuntimeConfigTest {
         workers.put("CHATROOM_GATEWAY_AUTH_WORKERS", "65");
         assertThrows(IllegalArgumentException.class,
                 () -> GatewayRuntimeConfig.fromEnvironment(workers));
+
+        Map<String, String> waterMarks = requiredEnvironment();
+        waterMarks.put("CHATROOM_GATEWAY_WRITE_BUFFER_LOW_BYTES", "65536");
+        waterMarks.put("CHATROOM_GATEWAY_WRITE_BUFFER_HIGH_BYTES", "65536");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(waterMarks));
 
         Map<String, String> csv = requiredEnvironment();
         csv.put("CHATROOM_GATEWAY_ALLOWED_HOSTS", "gateway.example.com,");
