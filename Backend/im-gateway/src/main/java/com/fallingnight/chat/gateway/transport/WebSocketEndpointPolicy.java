@@ -34,10 +34,7 @@ public final class WebSocketEndpointPolicy {
         List<String> origins = originValues == null ? List.of() : List.copyOf(originValues);
         return switch (path) {
             case WEB_PATH -> {
-                if (origins.size() != 1
-                        || !allowedWebOrigins.contains(normalizeOrigin(origins.getFirst()))) {
-                    throw new IllegalArgumentException("Web origin is not allowed");
-                }
+                requireAllowedWebOrigin(origins);
                 yield ClientPlatform.WEB;
             }
             case WINDOWS_PATH -> {
@@ -48,6 +45,15 @@ public final class WebSocketEndpointPolicy {
             }
             default -> throw new IllegalArgumentException("WebSocket endpoint is unsupported");
         };
+    }
+
+    /** Applies the shared browser-origin allowlist to a versioned Web endpoint. */
+    public void requireAllowedWebOrigin(List<String> originValues) {
+        List<String> origins = originValues == null ? List.of() : List.copyOf(originValues);
+        if (origins.size() != 1
+                || !allowedWebOrigins.contains(normalizeOrigin(origins.getFirst()))) {
+            throw new IllegalArgumentException("Web origin is not allowed");
+        }
     }
 
     private static String normalizeOrigin(String value) {

@@ -410,6 +410,8 @@ Progress:
     downstream business frames.
   - [x] Bound the detached V1 post-upgrade authentication phase with a fixed
     policy close, explicit success cancellation, and late-result suppression.
+  - [x] Reserve an inactive exact `/v1/web` + `chat.v1` browser upgrade guard
+    using the shared HTTPS Origin allowlist, without crossing V1/V2 routes.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

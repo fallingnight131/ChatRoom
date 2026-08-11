@@ -45,6 +45,10 @@ no durable device identifier, whereas Java session issuance requires one.
   becomes active. Successful server-side identity binding cancels it through an
   internal phase event; expiry sends only a fixed policy close and suppresses
   late authentication completion through the existing active-channel guard.
+- Reserve the future browser-only upgrade as exact path `/v1/web` with the single
+  `chat.v1` subprotocol and exactly one origin from the existing HTTPS allowlist.
+  Reject queries, V2 paths/subprotocols, malformed upgrades, and repeated upgrade
+  attempts with a fixed no-store HTTP 400. This guard remains uninstalled.
 
 ## Consequences
 
@@ -53,8 +57,8 @@ V1 product server. Rejected clients reconnect rather than retrying on the same
 socket. The fixed device alias is intentionally less expressive than V2 devices
 and must not be reused for native V2 clients.
 
-Before routing is enabled, the gateway still needs an exact WSS endpoint policy
-and every
+Before routing is enabled, the gateway still needs a mutually exclusive V1/V2
+upgrade dispatcher, an updated V1 Web transport that requests `chat.v1`, and every
 post-login command required by the supported V1 client path (or an explicit
 client capability gate that prevents entry into unsupported screens).
 
@@ -69,6 +73,8 @@ heartbeat tests prove compatible acknowledgement, acknowledgement consumption,
 business-frame forwarding, and authenticated-only idle closure. The full Java
 workspace gate remains required. Deterministic event-loop time tests prove the
 authentication deadline fires exactly once and is cancelled by success.
+Endpoint tests prove the exact path/subprotocol/origin success and fixed rejection
+of missing or hostile origins, queries, V2 crossover, malformed input, and repeat.
 The disposable PostgreSQL gate additionally proves the real composition accepts
 a mapped imported account, stores only the fixed V1 device alias plus hashed
 session proof, and rejects a password-valid unmapped V2-native account without

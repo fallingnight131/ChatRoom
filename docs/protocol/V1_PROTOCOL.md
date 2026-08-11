@@ -106,6 +106,11 @@ The inactive Java pipeline also requires login within its configured
 post-upgrade deadline. Expiry uses WebSocket policy close reason
 `V1 authentication timeout`; successful server-side identity binding cancels
 the deadline before later application traffic is accepted.
+Its future browser transport is reserved at exact WSS path `/v1/web`, requires
+the single WebSocket subprotocol `chat.v1`, one configured HTTPS Origin, and no
+query string. It is distinct from `/v2/web` + `chat.v2`; the guard is tested but
+remains outside all active listeners until routing and the required post-login
+commands are complete.
 
 ### Room messages, presence, and history
 
