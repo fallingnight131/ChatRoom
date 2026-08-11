@@ -31,6 +31,9 @@ protocol generations and make rollback or staged rollout unsafe.
 - Do not replay passwords, authenticated commands, or pending request state.
   Session resumption, browser connectivity signals, liveness, application
   orchestration, and V1-to-V2 traffic selection remain separate decisions.
+- Expose cancellable, exception-isolated state/protocol/failure observers so an
+  application service can consume transport results without coupling transport
+  ownership to Vue or Pinia.
 
 ## Consequences
 

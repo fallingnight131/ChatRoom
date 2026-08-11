@@ -135,6 +135,14 @@ Persistent proof custody, automatic resume orchestration, a browser-appropriate
 liveness mechanism, online/offline integration, and UI rollout remain later
 slices.
 
+The pre-cutover Web application coordinator consumes those validated events. It
+uses the envelope `client_message_id` to reconcile optimistic sends and treats a
+later history copy as the same message. A durable acceptance response updates
+presentation and server identity but deliberately does not advance the
+conversation synchronization cursor; only a validated history page can advance
+the last contiguous sequence. This prevents a locally accepted high sequence
+from skipping unseen messages after reconnect.
+
 `ClientHello` declares a minimum/maximum protocol generation, Web or Windows
 platform, app version, and client-device ID. App version is limited to 64 UTF-8
 bytes and device ID to 128 UTF-8 bytes. It intentionally contains no credential

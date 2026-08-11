@@ -43,6 +43,12 @@ export interface V2WebSocketTransportOptions {
   onFailure?: (reason: string) => void;
 }
 
+export interface V2WebSocketTransportObserver {
+  onStateChange?: (state: V2WebSocketTransportState) => void;
+  onProtocolEvent?: (event: V2WebProtocolEvent) => void;
+  onFailure?: (reason: string) => void;
+}
+
 export class V2WebSocketTransport {
   private readonly endpoint: string;
   private readonly createProtocolClient: () => V2WebProtocolClient;
@@ -58,6 +64,7 @@ export class V2WebSocketTransport {
   private readonly onStateChange?: (state: V2WebSocketTransportState) => void;
   private readonly onProtocolEvent?: (event: V2WebProtocolEvent) => void;
   private readonly onFailure?: (reason: string) => void;
+  private readonly observers = new Set<V2WebSocketTransportObserver>();
   private socket: V2WebSocketLike | null = null;
   private protocolClient: V2WebProtocolClient | null = null;
   private phaseTimer: TimerHandle | null = null;
@@ -91,6 +98,11 @@ export class V2WebSocketTransport {
 
   get state(): V2WebSocketTransportState {
     return this.currentState;
+  }
+
+  subscribe(observer: V2WebSocketTransportObserver): () => void {
+    this.observers.add(observer);
+    return () => this.observers.delete(observer);
   }
 
   start(): void {
@@ -275,14 +287,23 @@ export class V2WebSocketTransport {
     if (state === this.currentState) return;
     this.currentState = state;
     try { this.onStateChange?.(state); } catch { /* observers do not own transport */ }
+    for (const observer of this.observers) {
+      try { observer.onStateChange?.(state); } catch { /* observers do not own transport */ }
+    }
   }
 
   private emitProtocolEvent(event: V2WebProtocolEvent): void {
     try { this.onProtocolEvent?.(event); } catch { /* observers do not own transport */ }
+    for (const observer of this.observers) {
+      try { observer.onProtocolEvent?.(event); } catch { /* observers do not own transport */ }
+    }
   }
 
   private emitFailure(reason: string): void {
     try { this.onFailure?.(reason); } catch { /* observers do not own transport */ }
+    for (const observer of this.observers) {
+      try { observer.onFailure?.(reason); } catch { /* observers do not own transport */ }
+    }
   }
 }
 

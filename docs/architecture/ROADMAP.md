@@ -352,6 +352,9 @@ Progress:
     - [x] Add a rollback-isolated, account/conversation-partitioned Web V2
       IndexedDB snapshot store with bounded text metadata and exact decimal
       sequence cursors, without changing the live V1 database version.
+    - [x] Add a transport/cache-injected Web V2 application coordinator for
+      cached-first directory/history use cases, bounded paging, optimistic text,
+      correlated ACK/error handling, exact cursors, and at-least-once deduplication.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

@@ -455,6 +455,14 @@ server sequences as canonical decimal strings so values above JavaScript's safe
 integer range are not rounded. Removing the V2 code leaves the V1 database and
 rollback path untouched.
 
+An unconnected `V2WebChatApplication` now sits above those protocol, transport,
+and cache ports. It loads cached messages before requesting sequence history,
+owns bounded directory/history pagination, creates idempotent optimistic text
+messages, maps ACK/errors by validated correlation metadata, and deduplicates a
+later at-least-once history replay. ACK alone never advances the last contiguous
+history cursor. The application exposes immutable view snapshots but is not yet
+wired into Pinia or the supported V1 screens.
+
 ### Product consistency
 
 Share these across clients:
