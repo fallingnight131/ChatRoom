@@ -112,6 +112,12 @@ def main() -> int:
                 ":persistence-postgres:test",
                 "--rerun-tasks",
             ], BACKEND, environment)
+            run([
+                str(wrapper),
+                "--no-daemon",
+                ":migration-cli:test",
+                "--rerun-tasks",
+            ], BACKEND, environment)
         finally:
             if started:
                 run([pg_ctl, "-D", str(data), "-m", "fast", "-w", "stop"], ROOT)

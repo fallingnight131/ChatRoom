@@ -194,8 +194,10 @@ hash, row count, size, and creation time without overwriting artifacts. The
 PostgreSQL adapter now previews strict target conflicts, requires a reverified
 source/backup proof, applies only to a dedicated compatible target in a
 serialized transaction, reconciles every field, and persists a non-secret run
-proof atomically. An operator command, source-quiescence/final-fingerprint
-runbook, and production restore rehearsal remain required.
+proof atomically. A separate offline command now creates and verifies versioned
+proof files, previews without writes, and requires explicit fingerprint
+confirmation for apply. The source-quiescence/final-fingerprint runbook exists,
+but its manual full-server restore rehearsal remains required.
 
 The fresh-login orchestration exists in the transport-independent `application`
 identity package. Account lookup, dummy-capable password verification, and

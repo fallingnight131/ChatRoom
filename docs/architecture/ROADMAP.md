@@ -313,6 +313,9 @@ Progress:
   - [x] Add PostgreSQL dry-run/apply conflict checks, serializable post-write
     reconciliation, in-transaction proof persistence, and conflict rollback
     verification.
+  - [x] Add a separate offline backup/verify/preview/apply command, versioned
+    proof file, explicit fingerprint confirmation, safe output, and disposable
+    PostgreSQL command-boundary verification.
   - [ ] Rehearse the operator restore procedure and quiesced final fingerprint
     check before any identity authority cutover.
 - [x] Define the transport/persistence-independent fresh-login application use

@@ -57,7 +57,7 @@ apply creates no duplicate accounts and records a new successful run.
 
 Apply also revalidates the live SQLite identity plan and the protected backup
 artifact immediately before commit. V1 is nevertheless still authoritative;
-the adapter has no operator CLI or traffic route, and source quiescence plus a
+the offline operator command has no traffic route, and source quiescence plus a
 final cutover check remain required.
 
 ## Ordering and idempotency

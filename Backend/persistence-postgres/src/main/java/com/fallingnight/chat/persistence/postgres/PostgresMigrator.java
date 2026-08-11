@@ -2,7 +2,6 @@ package com.fallingnight.chat.persistence.postgres;
 
 import java.util.Objects;
 import org.flywaydb.core.Flyway;
-import org.flywaydb.core.api.output.MigrateResult;
 
 /** Runs checksum-validated, forward-only migrations for the authoritative V2 store. */
 public final class PostgresMigrator {
@@ -24,8 +23,8 @@ public final class PostgresMigrator {
                 .load();
     }
 
-    public MigrateResult migrate() {
-        return flyway.migrate();
+    public int migrate() {
+        return flyway.migrate().migrationsExecuted;
     }
 
     public void validate() {

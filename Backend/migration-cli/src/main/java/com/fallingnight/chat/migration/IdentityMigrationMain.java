@@ -1,0 +1,183 @@
+package com.fallingnight.chat.migration;
+
+import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
+import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
+import com.fallingnight.chat.persistence.postgres.migration.V1IdentityBackupProofFile;
+import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportInputVerifier;
+import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportPlan;
+import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportReport;
+import com.fallingnight.chat.persistence.postgres.migration.V1SqliteIdentityBackup;
+import com.fallingnight.chat.persistence.postgres.migration.V1SqliteIdentitySource;
+import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityBackup;
+import java.io.PrintStream;
+import java.nio.file.Path;
+import java.time.Clock;
+import java.util.Map;
+import java.util.Objects;
+import org.postgresql.ds.PGSimpleDataSource;
+
+/** Offline operator entry point for the inactive M3 V1 identity migration slice. */
+public final class IdentityMigrationMain {
+    private static final String URL = "CHATROOM_MIGRATION_POSTGRES_URL";
+    private static final String USER = "CHATROOM_MIGRATION_POSTGRES_USER";
+    private static final String PASSWORD = "CHATROOM_MIGRATION_POSTGRES_PASSWORD";
+
+    private IdentityMigrationMain() {}
+
+    public static void main(String[] args) {
+        int status = run(args, System.getenv(), System.out, System.err, Clock.systemUTC());
+        if (status != 0) {
+            System.exit(status);
+        }
+    }
+
+    static int run(
+            String[] args,
+            Map<String, String> environment,
+            PrintStream output,
+            PrintStream error,
+            Clock clock) {
+        Objects.requireNonNull(args, "args");
+        try {
+            if (args.length == 4 && "backup".equals(args[0])) {
+                return backup(args, output, clock);
+            }
+            if (args.length == 2 && "preview".equals(args[0])) {
+                return preview(args, environment, output);
+            }
+            if (args.length == 3 && "verify-backup".equals(args[0])) {
+                return verifyBackup(args, output);
+            }
+            if (args.length == 5 && "apply".equals(args[0])) {
+                return apply(args, environment, output);
+            }
+            usage(error);
+            return 64;
+        } catch (RuntimeException exception) {
+            error.println("status=FAILED");
+            error.println("reason=migration_operation_failed");
+            return 70;
+        }
+    }
+
+    private static int backup(String[] args, PrintStream output, Clock clock) {
+        Path source = Path.of(args[1]);
+        Path backup = Path.of(args[2]);
+        Path proofFile = Path.of(args[3]);
+        if (java.nio.file.Files.exists(proofFile)) {
+            throw new IllegalArgumentException("proof destination exists");
+        }
+        VerifiedV1IdentityBackup proof = new V1SqliteIdentityBackup(clock)
+                .createVerified(source, backup);
+        try {
+            new V1IdentityBackupProofFile().writeNew(proofFile, proof);
+        } catch (RuntimeException exception) {
+            try {
+                java.nio.file.Files.deleteIfExists(backup);
+            } catch (java.io.IOException cleanupFailure) {
+                exception.addSuppressed(cleanupFailure);
+            }
+            throw exception;
+        }
+        output.println("status=BACKUP_VERIFIED");
+        output.println("source_fingerprint_sha256=" + proof.sourceFingerprintSha256());
+        output.println("identity_rows=" + proof.identityRows());
+        return 0;
+    }
+
+    private static int preview(
+            String[] args,
+            Map<String, String> environment,
+            PrintStream output) {
+        V1IdentityImportPlan plan = new V1SqliteIdentitySource(Path.of(args[1])).readPlan();
+        if (!plan.readyToCompareWithTarget()) {
+            output.println("status=BLOCKED");
+            output.println("source_fingerprint_sha256=" + plan.sourceFingerprintSha256());
+            output.println("source_issues=" + plan.issues().size());
+            return 2;
+        }
+        V1IdentityImportReport report = importer(environment).preview(plan);
+        printReport(output, report, report.readyToApply() ? "READY" : "BLOCKED");
+        return report.readyToApply() ? 0 : 2;
+    }
+
+    private static int verifyBackup(String[] args, PrintStream output) {
+        Path backup = Path.of(args[1]);
+        VerifiedV1IdentityBackup proof = new V1IdentityBackupProofFile()
+                .read(Path.of(args[2]));
+        var verified = new V1IdentityImportInputVerifier()
+                .verify(backup, backup, proof);
+        output.println("status=BACKUP_VERIFIED");
+        output.println("source_fingerprint_sha256="
+                + verified.plan().sourceFingerprintSha256());
+        output.println("identity_rows=" + verified.plan().sourceRows());
+        return 0;
+    }
+
+    private static int apply(
+            String[] args,
+            Map<String, String> environment,
+            PrintStream output) {
+        String expectedFingerprint = args[4];
+        if (!expectedFingerprint.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("invalid confirmation fingerprint");
+        }
+        VerifiedV1IdentityBackup proof = new V1IdentityBackupProofFile()
+                .read(Path.of(args[3]));
+        if (!expectedFingerprint.equals(proof.sourceFingerprintSha256())) {
+            throw new IllegalArgumentException("confirmation fingerprint mismatch");
+        }
+        var input = new V1IdentityImportInputVerifier()
+                .verify(Path.of(args[1]), Path.of(args[2]), proof);
+        V1IdentityImportReport report = importer(environment).apply(input);
+        printReport(output, report, "APPLIED");
+        return 0;
+    }
+
+    private static PostgresV1IdentityImporter importer(Map<String, String> environment) {
+        String url = required(environment, URL);
+        String user = required(environment, USER);
+        String password = environment.getOrDefault(PASSWORD, "");
+        new PostgresMigrator(url, user, password).validate();
+        PGSimpleDataSource dataSource = new PGSimpleDataSource();
+        dataSource.setUrl(url);
+        dataSource.setUser(user);
+        dataSource.setPassword(password);
+        return new PostgresV1IdentityImporter(dataSource);
+    }
+
+    private static String required(Map<String, String> environment, String key) {
+        String value = environment.get(key);
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("required migration environment is missing");
+        }
+        return value;
+    }
+
+    private static void printReport(
+            PrintStream output,
+            V1IdentityImportReport report,
+            String status) {
+        output.println("status=" + status);
+        output.println("source_fingerprint_sha256=" + report.sourceFingerprintSha256());
+        output.println("source_rows=" + report.sourceRows());
+        output.println("insertable_rows=" + report.insertableRows());
+        output.println("already_imported_rows=" + report.alreadyImportedRows());
+        output.println("inserted_rows=" + report.insertedRows());
+        output.println("unexpected_target_rows=" + report.unexpectedTargetRows());
+        output.println("issues=" + report.issues().size());
+        report.issues().forEach(issue -> output.println(
+                "issue=" + issue.legacyId() + ":" + issue.code()));
+        if (report.importRunId() != null) {
+            output.println("import_run_id=" + report.importRunId());
+        }
+    }
+
+    private static void usage(PrintStream error) {
+        error.println("usage:");
+        error.println("  backup <v1-source.db> <new-backup.db> <new-proof.properties>");
+        error.println("  verify-backup <restored-backup.db> <proof.properties>");
+        error.println("  preview <v1-source.db>");
+        error.println("  apply <v1-source.db> <backup.db> <proof.properties> <fingerprint>");
+    }
+}

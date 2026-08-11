@@ -42,7 +42,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import org.flywaydb.core.api.output.MigrateResult;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -64,12 +63,11 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        MigrateResult initial = first.migrate();
-        assertEquals(3, initial.migrationsExecuted);
+        assertEquals(3, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(0, restarted.migrate().migrationsExecuted);
+        assertEquals(0, restarted.migrate());
         restarted.validate();
 
         try (Connection connection = connect()) {
