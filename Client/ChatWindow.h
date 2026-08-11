@@ -231,6 +231,10 @@ private:
     void flushCurrentDraft();
     void restoreCurrentDraft();
     void clearCurrentDraft();
+    void handleRoomSendResponse(const QJsonObject &data);
+    void handleFriendSendResponse(const QJsonObject &data);
+    void retryPendingRoomSends(const QSet<QString> &allowedRoomKeys);
+    void retryPendingFriendSends();
     void advanceFriendSyncCursor(const QString &friendUsername, qint64 sequence);
     void requestCurrentFriendResume();
     void requestRoomList();

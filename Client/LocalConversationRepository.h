@@ -16,6 +16,11 @@ public:
         qint64 cursor = 0;
         QString draft;
     };
+    struct PendingSend {
+        Kind kind;
+        QString conversationKey;
+        Message message;
+    };
 
     static constexpr int MaxMessagesPerConversation = 500;
     static constexpr int MaxDraftLength = 10000;
@@ -43,6 +48,7 @@ public:
     bool copyAccountTo(LocalConversationRepository &target,
                        const QString &sourceAccount,
                        const QString &targetAccount);
+    QList<PendingSend> pendingSends(const QString &account, Kind kind);
 
     QString lastError() const { return m_lastError; }
 

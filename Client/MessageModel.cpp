@@ -41,6 +41,7 @@ QVariant MessageModel::data(const QModelIndex &index, int role) const {
     case ClearReasonRole: return msg.clearReason();
     case SequenceRole:    return msg.sequence();
     case ClientMessageIdRole: return msg.clientMessageId();
+    case DeliveryStateRole: return static_cast<int>(msg.deliveryState());
     }
     return {};
 }
@@ -66,14 +67,52 @@ QHash<int, QByteArray> MessageModel::roleNames() const {
         { ClearReasonRole, "clearReason" },
         { SequenceRole,    "sequence" },
         { ClientMessageIdRole, "clientMessageId" },
+        { DeliveryStateRole, "deliveryState" },
     };
 }
 
 void MessageModel::addMessage(const Message &msg) {
-    if (msg.id() > 0 && findMessageRow(msg.id()) >= 0) return;
+    int existingRow = msg.id() > 0 ? findMessageRow(msg.id()) : -1;
+    if (existingRow < 0 && !msg.clientMessageId().isEmpty()) {
+        for (int i = 0; i < m_messages.size(); ++i) {
+            if (m_messages[i].clientMessageId() == msg.clientMessageId()) {
+                existingRow = i;
+                break;
+            }
+        }
+    }
+    if (existingRow >= 0) {
+        m_messages[existingRow] = msg;
+        emit dataChanged(index(existingRow), index(existingRow));
+        return;
+    }
     beginInsertRows(QModelIndex(), m_messages.size(), m_messages.size());
     m_messages.append(msg);
     endInsertRows();
+}
+
+void MessageModel::updateDeliveryState(const QString &clientMessageId,
+                                       Message::DeliveryState state) {
+    for (int row = 0; row < m_messages.size(); ++row) {
+        if (m_messages[row].clientMessageId() != clientMessageId) continue;
+        m_messages[row].setDeliveryState(state);
+        emit dataChanged(index(row), index(row), {DeliveryStateRole});
+        return;
+    }
+}
+
+void MessageModel::acceptOutgoing(const QString &clientMessageId, int messageId,
+                                  qint64 sequence, qint64 timestamp) {
+    for (int row = 0; row < m_messages.size(); ++row) {
+        Message &message = m_messages[row];
+        if (message.clientMessageId() != clientMessageId) continue;
+        message.setId(messageId);
+        message.setSequence(sequence);
+        if (timestamp > 0) message.setTimestamp(timestamp);
+        message.setDeliveryState(Message::Accepted);
+        emit dataChanged(index(row), index(row));
+        return;
+    }
 }
 
 void MessageModel::prependMessages(const QList<Message> &msgs) {

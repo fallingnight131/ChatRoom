@@ -26,6 +26,8 @@ public:
         UploadPaused  = 5    // 上传已暂停
     };
 
+    enum DeliveryState { Accepted = 0, Sending = 1, Failed = 2 };
+
     Message() = default;
 
     // --- 工厂方法 ---
@@ -61,6 +63,7 @@ public:
     QString thumbnail() const { return m_thumbnail; }
     bool fileCleared() const { return m_fileCleared; }
     QString clearReason() const { return m_clearReason; }
+    DeliveryState deliveryState() const { return m_deliveryState; }
 
     // --- Setters ---
     void setId(int id) { m_id = id; }
@@ -82,6 +85,7 @@ public:
     void setThumbnail(const QString &t) { m_thumbnail = t; }
     void setFileCleared(bool v) { m_fileCleared = v; }
     void setClearReason(const QString &r) { m_clearReason = r; }
+    void setDeliveryState(DeliveryState state) { m_deliveryState = state; }
 
     static QString contentTypeToString(ContentType t);
     static ContentType stringToContentType(const QString &s);
@@ -107,4 +111,5 @@ private:
     QString     m_thumbnail;
     bool        m_fileCleared = false;
     QString     m_clearReason;
+    DeliveryState m_deliveryState = Accepted;
 };

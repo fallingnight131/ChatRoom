@@ -131,6 +131,12 @@ void MessageDelegate::drawTextBubble(QPainter *painter, const QStyleOptionViewIt
     QFontMetrics sfm(senderFont);
 
     QString timeStr = formatSmartTime(time);
+    const auto deliveryState = static_cast<Message::DeliveryState>(
+        index.data(MessageModel::DeliveryStateRole).toInt());
+    if (isMine && deliveryState == Message::Sending)
+        timeStr += QStringLiteral(" · 发送中");
+    else if (isMine && deliveryState == Message::Failed)
+        timeStr += QStringLiteral(" · 发送失败");
     QFont timeFont = option.font;
     timeFont.setPointSize(timeFont.pointSize() - 2);
     QFontMetrics tfm(timeFont);
@@ -1141,6 +1147,12 @@ QRect MessageDelegate::bubbleRectForIndex(const QStyleOptionViewItem &option,
     QFontMetrics sfm(senderFont);
 
     QString timeStr = formatSmartTime(time);
+    const auto deliveryState = static_cast<Message::DeliveryState>(
+        index.data(MessageModel::DeliveryStateRole).toInt());
+    if (isMine && deliveryState == Message::Sending)
+        timeStr += QStringLiteral(" · 发送中");
+    else if (isMine && deliveryState == Message::Failed)
+        timeStr += QStringLiteral(" · 发送失败");
     QFont timeFont = option.font;
     timeFont.setPointSize(timeFont.pointSize() - 2);
     QFontMetrics tfm(timeFont);

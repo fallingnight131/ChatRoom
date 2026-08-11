@@ -108,6 +108,25 @@ int main(int argc, char *argv[]) {
                   LocalConversationRepository::Kind::Direct, QStringLiteral("carol"),
                   QStringLiteral("unloaded draft")), repository.lastError())) return 1;
 
+        Message pendingMessage = makeMessage(0, 0, 9200);
+        pendingMessage.setDeliveryState(Message::Sending);
+        if (!check(repository.replaceMessages(QStringLiteral("alice"),
+                  LocalConversationRepository::Kind::Direct, QStringLiteral("42"),
+                  {pendingMessage}, 0), repository.lastError())) return 1;
+        const auto pending = repository.pendingSends(
+            QStringLiteral("alice"), LocalConversationRepository::Kind::Direct);
+        if (!check(pending.size() == 1
+                   && pending.first().conversationKey == QStringLiteral("42")
+                   && pending.first().message.clientMessageId() == QStringLiteral("client-0"),
+                   QStringLiteral("pending send query failed"))) return 1;
+        pendingMessage.setDeliveryState(Message::Failed);
+        if (!check(repository.replaceMessages(QStringLiteral("alice"),
+                  LocalConversationRepository::Kind::Direct, QStringLiteral("42"),
+                  {pendingMessage}, 0), repository.lastError()) ||
+            !check(repository.pendingSends(QStringLiteral("alice"),
+                  LocalConversationRepository::Kind::Direct).isEmpty(),
+                  QStringLiteral("failed send was treated as automatic retry"))) return 1;
+
         const QString copiedPath = directory.filePath(QStringLiteral("copied.sqlite"));
         LocalConversationRepository copied(copiedPath);
         if (!check(copied.initialize(), copied.lastError()) ||

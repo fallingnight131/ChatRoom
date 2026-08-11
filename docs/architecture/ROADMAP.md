@@ -179,8 +179,10 @@ Progress:
   account/peer rename migration.
 - [x] Persist bounded Windows room/direct drafts with debounced writes,
   switch/close flush, relationship eviction, and send-time clearing.
-- [ ] Integrate the Windows repository through client application/sync
-  boundaries for pending sends.
+- [x] Add a durable Windows text/emoji optimistic outbox with stable-key
+  reconnect retry, accepted/failed presentation, and explicit same-key retry.
+- [ ] Extract Windows synchronization/outbox orchestration from `ChatWindow`
+  and extend durable pending behavior to restartable attachments.
 - [ ] Add optimistic states, virtualization, cache controls, and accessibility
   foundations.
 

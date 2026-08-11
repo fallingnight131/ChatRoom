@@ -28,7 +28,8 @@ public:
         FileClearedRole,
         ClearReasonRole,
         SequenceRole,
-        ClientMessageIdRole
+        ClientMessageIdRole,
+        DeliveryStateRole
     };
 
     explicit MessageModel(QObject *parent = nullptr);
@@ -53,6 +54,10 @@ public:
     void updateSenderName(const QString &username, const QString &newDisplayName);
     void updateSenderUid(const QString &oldUid, const QString &newUid);
     void markFilesCleared(const QList<int> &fileIds, const QString &reason);
+    void updateDeliveryState(const QString &clientMessageId,
+                             Message::DeliveryState state);
+    void acceptOutgoing(const QString &clientMessageId, int messageId,
+                        qint64 sequence, qint64 timestamp);
 
 private:
     QList<Message> m_messages;

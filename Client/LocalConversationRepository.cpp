@@ -311,6 +311,31 @@ bool LocalConversationRepository::copyAccountTo(
     return true;
 }
 
+QList<LocalConversationRepository::PendingSend>
+LocalConversationRepository::pendingSends(const QString &account, Kind kind) {
+    QList<PendingSend> pending;
+    if (account.isEmpty() || !m_database.isOpen()) return pending;
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "SELECT conversation_key, payload_json FROM messages "
+        "WHERE account = ? AND kind = ? AND server_id <= 0 "
+        "AND client_message_id <> '' ORDER BY timestamp ASC"));
+    query.addBindValue(account);
+    query.addBindValue(kindValue(kind));
+    if (!query.exec()) {
+        fail(QStringLiteral("pendingSends"), query.lastError().text());
+        return pending;
+    }
+    while (query.next()) {
+        Message message;
+        if (!deserializeMessage(query.value(1).toByteArray(), &message)) continue;
+        if (message.deliveryState() != Message::Sending) continue;
+        pending.append({kind, query.value(0).toString(), message});
+    }
+    m_lastError.clear();
+    return pending;
+}
+
 QString LocalConversationRepository::kindValue(Kind kind) {
     return kind == Kind::Room ? QStringLiteral("room") : QStringLiteral("direct");
 }
