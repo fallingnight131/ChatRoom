@@ -33,9 +33,9 @@ public final class AuthenticationService {
             if (!matches || account.isEmpty() || !account.orElseThrow().enabled()) {
                 return AuthenticationResult.Rejected.INSTANCE;
             }
-            IssuedSession session = sessions.issue(
-                    account.orElseThrow(), command.client(), clock.instant());
-            return new AuthenticationResult.Established(session);
+            return sessions.issue(account.orElseThrow(), command.client(), clock.instant())
+                    .<AuthenticationResult>map(AuthenticationResult.Established::new)
+                    .orElse(AuthenticationResult.Rejected.INSTANCE);
         }
     }
 }

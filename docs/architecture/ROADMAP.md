@@ -291,8 +291,11 @@ Progress:
 - [x] Define the transport/persistence-independent fresh-login application use
   case, outward identity/session ports, generic rejection, and explicit secret
   zeroing lifecycle.
-- [ ] Implement Argon2id verification, PostgreSQL identity/session adapters,
-  resume/rotation, and the negotiated-to-authenticated gateway state transition.
+- [x] Implement exact V1-compatible PostgreSQL account lookup and transactional
+  device/session issuance with random-token digest storage, device reuse, and
+  revoked/disabled race denial.
+- [ ] Implement Argon2id verification, resume/rotation, and the
+  negotiated-to-authenticated gateway state transition.
 
 Work:
 

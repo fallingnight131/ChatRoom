@@ -82,8 +82,10 @@ python3 tools/verify_m0.py --postgres
 The verifier creates a trust-authenticated, disposable cluster under `/tmp`,
 listens only on `127.0.0.1` at a random port, migrates a clean database, validates
 a same-database restart, exercises sequence/idempotency constraints, stops the
-server, and deletes the cluster. It never reads or modifies a developer or
-production database. CI runs the same gate using the PostgreSQL tools bundled
+server, and deletes the cluster. It also proves exact username lookup, stable
+device reuse, digest-only session tokens, and revoked/disabled denial. It never
+reads or modifies a developer or production database. CI runs the same gate
+using the PostgreSQL tools bundled
 with the Ubuntu runner.
 
 Generate the non-Java V2 bindings and run the Java-to-TypeScript golden-wire

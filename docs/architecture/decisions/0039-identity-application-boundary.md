@@ -22,6 +22,8 @@ testing harder. Unknown-account work must also resist timing-based enumeration.
   account hash exists. Verify before checking enabled state, then return the same
   rejection singleton for unknown account, wrong password, and disabled account.
 - Issue a durable session only after a match for an enabled account.
+- Treat a persistence-side issuance denial (for example a revoked device or an
+  account disabled after lookup) as the same generic rejection.
 - Own password and raw-token data through `SecretBytes`: clone at entry, expose
   only callback-scoped copies, zero each copy after callback, and zero owned
   memory on close. AuthenticationService always closes its command, including on

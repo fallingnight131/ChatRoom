@@ -1,26 +1,42 @@
 package com.fallingnight.chat.persistence.postgres;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.fallingnight.chat.application.identity.AccountCredential;
+import com.fallingnight.chat.application.identity.ClientDescriptor;
+import com.fallingnight.chat.application.identity.ClientPlatform;
+import com.fallingnight.chat.application.identity.IssuedSession;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.util.Arrays;
 import java.util.Set;
 import java.util.UUID;
 import org.flywaydb.core.api.output.MigrateResult;
+import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.postgresql.ds.PGSimpleDataSource;
 
+@TestMethodOrder(OrderAnnotation.class)
 class PostgresMigratorTest {
     private static final String URL = System.getenv("CHATROOM_TEST_POSTGRES_URL");
     private static final String USER = System.getenv("CHATROOM_TEST_POSTGRES_USER");
     private static final String PASSWORD = System.getenv("CHATROOM_TEST_POSTGRES_PASSWORD");
 
     @Test
+    @Order(1)
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
@@ -42,9 +58,62 @@ class PostgresMigratorTest {
     }
 
     @Test
+    @Order(3)
     void refusesNonPostgresUrlsBeforeConnecting() {
         assertThrows(IllegalArgumentException.class,
                 () -> new PostgresMigrator("jdbc:sqlite:test.db", "", ""));
+    }
+
+    @Test
+    @Order(2)
+    void looksUpExactV1UsernameAndIssuesOnlyHashedRestartableSession() throws Exception {
+        requireDatabase();
+        PGSimpleDataSource dataSource = new PGSimpleDataSource();
+        dataSource.setUrl(URL);
+        dataSource.setUser(USER);
+        dataSource.setPassword(PASSWORD);
+        PostgresIdentityAdapter adapter = new PostgresIdentityAdapter(dataSource);
+
+        AccountCredential account = adapter.findByPresentedUsername("alice").orElseThrow();
+        assertEquals("Alice", account.displayName());
+        assertTrue(account.enabled());
+        assertTrue(adapter.findByPresentedUsername("Alice").isEmpty());
+
+        ClientDescriptor client = new ClientDescriptor(
+                "browser-2", ClientPlatform.WEB, "0.1.0");
+        Instant now = Instant.parse("2026-08-11T12:00:00Z");
+        IssuedSession first = adapter.issue(account, client, now).orElseThrow();
+        try (first) {
+            byte[] rawToken = first.resumeToken().withCopy(byte[]::clone);
+            byte[] expectedHash = sha256(rawToken);
+            byte[] storedHash = sessionHash(first.sessionId());
+            try {
+                assertTrue(Arrays.equals(expectedHash, storedHash));
+                assertFalse(Arrays.equals(rawToken, storedHash));
+                assertFalse(Arrays.equals(new byte[32], storedHash));
+            } finally {
+                Arrays.fill(rawToken, (byte) 0);
+                Arrays.fill(expectedHash, (byte) 0);
+            }
+            assertEquals("WEB", devicePlatform(first.deviceId()));
+
+            IssuedSession restarted = adapter.issue(
+                    account, client, now.plusSeconds(60)).orElseThrow();
+            try (restarted) {
+                assertEquals(first.deviceId(), restarted.deviceId());
+                assertNotEquals(first.sessionId(), restarted.sessionId());
+                assertFalse(Arrays.equals(
+                        storedHash,
+                        sessionHash(restarted.sessionId())));
+            }
+
+            revokeDevice(first.deviceId());
+            assertTrue(adapter.issue(account, client, now.plusSeconds(120)).isEmpty());
+            disableAccount(account.accountId());
+            ClientDescriptor otherClient = new ClientDescriptor(
+                    "browser-3", ClientPlatform.WEB, "0.1.0");
+            assertTrue(adapter.issue(account, otherClient, now.plusSeconds(180)).isEmpty());
+        }
     }
 
     private static void proveSequenceAndIdempotencyConstraints(Connection connection)
@@ -139,6 +208,56 @@ class PostgresMigratorTest {
 
     private static Connection connect() throws SQLException {
         return DriverManager.getConnection(URL, USER, PASSWORD);
+    }
+
+    private static byte[] sessionHash(UUID sessionId) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT token_sha256 FROM chat.device_session WHERE id = ?")) {
+            statement.setObject(1, sessionId);
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                return result.getBytes(1);
+            }
+        }
+    }
+
+    private static String devicePlatform(UUID deviceId) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT platform FROM chat.device WHERE id = ?")) {
+            statement.setObject(1, deviceId);
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                return result.getString(1);
+            }
+        }
+    }
+
+    private static void revokeDevice(UUID deviceId) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "UPDATE chat.device SET revoked_at = transaction_timestamp() WHERE id = ?")) {
+            statement.setObject(1, deviceId);
+            assertEquals(1, statement.executeUpdate());
+        }
+    }
+
+    private static void disableAccount(UUID accountId) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "UPDATE chat.account SET disabled_at = transaction_timestamp() WHERE id = ?")) {
+            statement.setObject(1, accountId);
+            assertEquals(1, statement.executeUpdate());
+        }
+    }
+
+    private static byte[] sha256(byte[] value) {
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(value);
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     private static void requireDatabase() {

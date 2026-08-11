@@ -188,6 +188,11 @@ The fresh-login orchestration now exists in the transport-independent
 verification, and device/session issuance remain outward ports; no concrete
 adapter or gateway route is connected yet.
 
+The PostgreSQL identity adapter now implements exact V1-compatible account
+lookup plus transactional device/session issuance with raw-token digest-only
+storage. The password-verification and gateway adapters are still absent, so
+this remains an inactive foundation rather than a usable login route.
+
 ## 7. Reliable Message Flow
 
 ```mermaid

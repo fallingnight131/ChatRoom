@@ -65,6 +65,15 @@ transaction.
 Query-plan gates will be added with the repository queries that rely on these
 indexes. An index declaration alone is not performance evidence.
 
+## Implemented identity/session adapter
+
+The M3 PostgreSQL adapter now performs exact, case-sensitive username lookup to
+preserve V1 semantics. Session issuance re-locks an enabled account, upserts an
+active Web/Windows device by `(account_id, client_device_id)`, refuses revoked
+devices, generates a 32-byte random token, and inserts only its SHA-256 digest in
+one transaction. A reconnect reuses the device UUID but receives a new session
+UUID and token. Session resume/rotation and cleanup are not implemented yet.
+
 ## Deployment and rollback
 
 Before migrating a database that owns traffic, operations must take and verify a
@@ -84,5 +93,7 @@ unless its schema compatibility was verified.
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
 cluster, migrates a clean database, reruns migration as a simulated restart,
 validates checksums/table shape, and tests atomic sequence allocation plus both
-unique conflict paths. The evidence is environment-specific and does not by
+unique conflict paths. It also tests identity lookup, transactional device
+reuse, hashed session issuance, revoked-device denial, and account-disable race
+closure. The evidence is environment-specific and does not by
 itself qualify a production database configuration.

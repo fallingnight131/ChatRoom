@@ -15,8 +15,8 @@ dependencies {
     runtimeOnly(libs.postgresql)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.postgresql)
     testRuntimeOnly(libs.junit.platform.launcher)
-    testRuntimeOnly(libs.postgresql)
 }
 
 tasks.test {

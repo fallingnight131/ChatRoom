@@ -37,7 +37,7 @@ class AuthenticationServiceTest {
                     assertEquals(ENABLED, account);
                     assertEquals(NOW, now);
                     issuedFor.set(client);
-                    return issued;
+                    return Optional.of(issued);
                 });
         AuthenticateCommand command = command();
 
@@ -63,7 +63,7 @@ class AuthenticationServiceTest {
                 },
                 (account, client, now) -> {
                     issued.set(true);
-                    return issuedSession();
+                    return Optional.of(issuedSession());
                 });
         AuthenticateCommand command = command();
 
@@ -78,7 +78,7 @@ class AuthenticationServiceTest {
         AtomicBoolean issued = new AtomicBoolean();
         SessionIssuePort sessions = (account, client, now) -> {
             issued.set(true);
-            return issuedSession();
+            return Optional.of(issuedSession());
         };
         AuthenticationService wrongPassword = service(
                 Optional.of(ENABLED), (password, hash) -> false, sessions);
@@ -92,6 +92,17 @@ class AuthenticationServiceTest {
         assertSame(AuthenticationResult.Rejected.INSTANCE,
                 disabledAccount.authenticate(command()));
         assertFalse(issued.get());
+    }
+
+    @Test
+    void issuancePolicyDenialUsesTheSameRejection() {
+        AuthenticationService service = service(
+                Optional.of(ENABLED),
+                (password, hash) -> true,
+                (account, client, now) -> Optional.empty());
+
+        assertSame(AuthenticationResult.Rejected.INSTANCE,
+                service.authenticate(command()));
     }
 
     private static AuthenticationService service(
