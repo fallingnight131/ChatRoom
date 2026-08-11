@@ -39,8 +39,9 @@ Relationship/membership eviction removes the optimistic rows with the rest of
 the inaccessible conversation. Snapshot replacement remains synchronous and
 bounded for history and destructive mutations. The high-frequency
 optimistic/live/ACK path performs a transactional identity upsert and prunes to
-the same 500-message bound, avoiding a 500-row rewrite per live message. Later
-extraction must move orchestration away from `ChatWindow` without changing
+the same 500-message bound, avoiding a 500-row rewrite per live message.
+ADR-0025 subsequently moved text/emoji intent, recovery gating, and terminal
+state persistence into a transport-neutral application service without changing
 these semantics.
 
 ## Rollback

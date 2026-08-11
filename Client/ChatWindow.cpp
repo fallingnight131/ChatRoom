@@ -7,6 +7,7 @@
 #include "TrayManager.h"
 #include "FileCache.h"
 #include "LocalConversationRepository.h"
+#include "OutgoingMessageService.h"
 #include "AvatarCropDialog.h"
 #include "RoomSettingsDialog.h"
 #include "RoomFileManagerDialog.h"
@@ -125,6 +126,7 @@ static QIcon makeStableIcon(const QPixmap &pm) {
 ChatWindow::ChatWindow(QWidget *parent)
     : QMainWindow(parent)
 {
+    m_outgoingMessageService = std::make_unique<OutgoingMessageService>();
     setWindowTitle("Qt聊天室");
     setWindowFlags(Qt::Window | Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint);
     resize(1000, 700);
@@ -163,6 +165,7 @@ void ChatWindow::setCurrentUser(int userId, const QString &username, const QStri
             .arg(repository->lastError());
         m_statusLabel->setText(QStringLiteral("本地消息缓存不可用，已切换为在线模式"));
     }
+    m_outgoingMessageService->setRepository(m_localRepository.get());
 
     requestRoomList();
 
@@ -1044,7 +1047,7 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
             }
         }
     }
-    retryPendingRoomSends(allowedRoomKeys);
+    retryPendingRoomSends(allowedRoomIds);
     updateUnreadDots();
 }
 
@@ -1384,17 +1387,32 @@ void ChatWindow::handleRoomSendResponse(const QJsonObject &data) {
     const QString clientMessageId = data["clientMessageId"].toString();
     if (roomId <= 0 || clientMessageId.isEmpty()) return;
     MessageModel *model = getOrCreateModel(roomId);
+    const int row = model->findMessageByClientMessageId(clientMessageId);
+    if (row < 0) return;
+    Message resolved = model->messageAt(row);
+    const auto target = OutgoingMessageService::roomTarget(roomId);
     if (data["success"].toBool()) {
-        model->acceptOutgoing(clientMessageId, data["id"].toInt(),
-                              data["sequence"].toVariant().toLongLong(),
-                              data["timestamp"].toVariant().toLongLong());
-        advanceRoomSyncCursor(roomId, data["sequence"].toVariant().toLongLong());
+        const qint64 sequence = data["sequence"].toVariant().toLongLong();
+        if (!m_outgoingMessageService->recordAccepted(
+                m_username, target, &resolved, data["id"].toInt(), sequence,
+                data["timestamp"].toVariant().toLongLong())) {
+            qWarning().noquote() << QStringLiteral(
+                "[Outbox] operation=accept-room outcome=degraded roomId=%1 detail=%2")
+                .arg(roomId).arg(m_outgoingMessageService->lastError());
+        }
+        if (resolved.deliveryState() != Message::Accepted) return;
+        advanceRoomSyncCursor(roomId, sequence);
     } else {
-        model->updateDeliveryState(clientMessageId, Message::Failed);
+        if (!m_outgoingMessageService->recordFailed(
+                m_username, target, &resolved,
+                m_roomSyncCursors.value(roomId, 0))) {
+            qWarning().noquote() << QStringLiteral(
+                "[Outbox] operation=reject-room outcome=degraded roomId=%1 detail=%2")
+                .arg(roomId).arg(m_outgoingMessageService->lastError());
+        }
         m_statusLabel->setText(data["error"].toString(QStringLiteral("消息发送失败")));
     }
-    const int row = model->findMessageByClientMessageId(clientMessageId);
-    if (row >= 0) persistRoomMessage(roomId, model->messageAt(row));
+    model->addMessage(resolved);
 }
 
 void ChatWindow::handleFriendSendResponse(const QJsonObject &data) {
@@ -1406,54 +1424,73 @@ void ChatWindow::handleFriendSendResponse(const QJsonObject &data) {
     if (friendUsername.isEmpty() || clientMessageId.isEmpty()) return;
     if (friendshipId > 0) m_friendshipIds[friendUsername] = friendshipId;
     MessageModel *model = getOrCreateFriendModel(friendUsername);
+    const int row = model->findMessageByClientMessageId(clientMessageId);
+    if (row < 0) return;
+    Message resolved = model->messageAt(row);
+    const auto target = OutgoingMessageService::directTarget(
+        friendConversationKey(friendUsername), friendUsername);
     if (data["success"].toBool()) {
-        model->acceptOutgoing(clientMessageId, data["id"].toInt(),
-                              data["sequence"].toVariant().toLongLong(),
-                              data["timestamp"].toVariant().toLongLong());
-        advanceFriendSyncCursor(friendUsername,
-                                data["sequence"].toVariant().toLongLong());
+        const qint64 sequence = data["sequence"].toVariant().toLongLong();
+        if (!m_outgoingMessageService->recordAccepted(
+                m_username, target, &resolved, data["id"].toInt(), sequence,
+                data["timestamp"].toVariant().toLongLong())) {
+            qWarning().noquote() << QStringLiteral(
+                "[Outbox] operation=accept-direct outcome=degraded peer=%1 detail=%2")
+                .arg(friendUsername, m_outgoingMessageService->lastError());
+        }
+        if (resolved.deliveryState() != Message::Accepted) return;
+        advanceFriendSyncCursor(friendUsername, sequence);
     } else {
-        model->updateDeliveryState(clientMessageId, Message::Failed);
+        if (!m_outgoingMessageService->recordFailed(
+                m_username, target, &resolved,
+                m_friendSyncCursors.value(friendUsername, 0))) {
+            qWarning().noquote() << QStringLiteral(
+                "[Outbox] operation=reject-direct outcome=degraded peer=%1 detail=%2")
+                .arg(friendUsername, m_outgoingMessageService->lastError());
+        }
         m_statusLabel->setText(data["error"].toString(QStringLiteral("好友消息发送失败")));
     }
-    const int row = model->findMessageByClientMessageId(clientMessageId);
-    if (row >= 0) persistFriendMessage(friendUsername, model->messageAt(row));
+    model->addMessage(resolved);
 }
 
-void ChatWindow::retryPendingRoomSends(const QSet<QString> &allowedRoomKeys) {
-    if (!m_localRepository) return;
-    const auto pending = m_localRepository->pendingSends(
-        m_username, LocalConversationRepository::Kind::Room);
-    for (const auto &send : pending) {
-        if (!allowedRoomKeys.contains(send.conversationKey)) continue;
-        bool ok = false;
-        const int roomId = send.conversationKey.toInt(&ok);
-        if (!ok || roomId <= 0) continue;
+void ChatWindow::dispatchOutgoing(
+    const OutgoingMessageService::Command &command) {
+    if (command.target.kind == LocalConversationRepository::Kind::Room) {
         NetworkManager::instance()->sendMessage(Protocol::makeChatMsg(
-            roomId, m_username, send.message.content(),
-            Message::contentTypeToString(send.message.contentType()),
-            send.message.clientMessageId()));
+            command.target.roomId, m_username, command.content,
+            command.contentType, command.clientMessageId));
+    } else {
+        NetworkManager::instance()->sendMessage(Protocol::makeFriendChatMsg(
+            command.target.peerUsername, command.content,
+            command.contentType, command.clientMessageId));
     }
+}
+
+void ChatWindow::retryPendingRoomSends(const QSet<int> &allowedRoomIds) {
+    const auto commands = m_outgoingMessageService->recoverRooms(
+        m_username, allowedRoomIds);
+    if (!m_outgoingMessageService->lastError().isEmpty()) {
+        qWarning().noquote() << QStringLiteral(
+            "[Outbox] operation=recover-rooms outcome=degraded detail=%1")
+            .arg(m_outgoingMessageService->lastError());
+    }
+    for (const auto &command : commands) dispatchOutgoing(command);
 }
 
 void ChatWindow::retryPendingFriendSends() {
-    if (!m_localRepository) return;
-    const auto pending = m_localRepository->pendingSends(
-        m_username, LocalConversationRepository::Kind::Direct);
-    for (const auto &send : pending) {
-        QString friendUsername;
-        bool ok = false;
-        const int friendshipId = send.conversationKey.toInt(&ok);
-        if (ok && friendshipId > 0)
-            friendUsername = m_friendshipIds.key(friendshipId);
-        else if (send.conversationKey.startsWith(QStringLiteral("peer:")))
-            friendUsername = send.conversationKey.mid(5);
-        if (friendUsername.isEmpty() || !m_friendshipIds.contains(friendUsername)) continue;
-        NetworkManager::instance()->sendMessage(Protocol::makeFriendChatMsg(
-            friendUsername, send.message.content(),
-            Message::contentTypeToString(send.message.contentType()),
-            send.message.clientMessageId()));
+    QMap<QString, QString> peerByConversationKey;
+    for (auto it = m_friendshipIds.cbegin(); it != m_friendshipIds.cend(); ++it) {
+        peerByConversationKey.insert(QString::number(it.value()), it.key());
+        peerByConversationKey.insert(QStringLiteral("peer:%1").arg(it.key()), it.key());
     }
+    const auto commands = m_outgoingMessageService->recoverDirects(
+        m_username, peerByConversationKey);
+    if (!m_outgoingMessageService->lastError().isEmpty()) {
+        qWarning().noquote() << QStringLiteral(
+            "[Outbox] operation=recover-directs outcome=degraded detail=%1")
+            .arg(m_outgoingMessageService->lastError());
+    }
+    for (const auto &command : commands) dispatchOutgoing(command);
 }
 
 void ChatWindow::requestCurrentFriendResume() {
@@ -1481,16 +1518,24 @@ void ChatWindow::onSendMessage() {
     if (m_isFriendChat) {
         // 好友私聊模式
         if (m_currentFriendUsername.isEmpty()) return;
-        const QString clientMessageId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-        Message pending = Message::createTextMessage(-1, m_username, text);
-        pending.setSenderName(m_displayName);
-        pending.setClientMessageId(clientMessageId);
-        pending.setIsMine(true);
-        pending.setDeliveryState(Message::Sending);
-        getOrCreateFriendModel(m_currentFriendUsername)->addMessage(pending);
-        persistFriendMessage(m_currentFriendUsername, pending);
-        NetworkManager::instance()->sendMessage(Protocol::makeFriendChatMsg(
-            m_currentFriendUsername, text, QStringLiteral("text"), clientMessageId));
+        OutgoingMessageService::StagedSend send;
+        const auto target = OutgoingMessageService::directTarget(
+            friendConversationKey(m_currentFriendUsername), m_currentFriendUsername);
+        if (!m_outgoingMessageService->stage(
+                m_username, target, m_username, m_displayName, text,
+                Message::Text,
+                m_friendSyncCursors.value(m_currentFriendUsername, 0), &send)) {
+            m_statusLabel->setText(QStringLiteral("无法准备发送消息"));
+            return;
+        }
+        if (!m_outgoingMessageService->lastError().isEmpty()) {
+            qWarning().noquote() << QStringLiteral(
+                "[Outbox] operation=stage-direct outcome=degraded peer=%1 detail=%2")
+                .arg(m_currentFriendUsername,
+                     m_outgoingMessageService->lastError());
+        }
+        getOrCreateFriendModel(m_currentFriendUsername)->addMessage(send.message);
+        dispatchOutgoing(send.command);
         clearCurrentDraft();
         return;
     }
@@ -1500,16 +1545,21 @@ void ChatWindow::onSendMessage() {
         return;
     }
 
-    const QString clientMessageId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    Message pending = Message::createTextMessage(m_currentRoomId, m_username, text);
-    pending.setSenderName(m_displayName);
-    pending.setClientMessageId(clientMessageId);
-    pending.setIsMine(true);
-    pending.setDeliveryState(Message::Sending);
-    getOrCreateModel(m_currentRoomId)->addMessage(pending);
-    persistRoomMessage(m_currentRoomId, pending);
-    NetworkManager::instance()->sendMessage(Protocol::makeChatMsg(
-        m_currentRoomId, m_username, text, QStringLiteral("text"), clientMessageId));
+    OutgoingMessageService::StagedSend send;
+    const auto target = OutgoingMessageService::roomTarget(m_currentRoomId);
+    if (!m_outgoingMessageService->stage(
+            m_username, target, m_username, m_displayName, text, Message::Text,
+            m_roomSyncCursors.value(m_currentRoomId, 0), &send)) {
+        m_statusLabel->setText(QStringLiteral("无法准备发送消息"));
+        return;
+    }
+    if (!m_outgoingMessageService->lastError().isEmpty()) {
+        qWarning().noquote() << QStringLiteral(
+            "[Outbox] operation=stage-room outcome=degraded roomId=%1 detail=%2")
+            .arg(m_currentRoomId).arg(m_outgoingMessageService->lastError());
+    }
+    getOrCreateModel(m_currentRoomId)->addMessage(send.message);
+    dispatchOutgoing(send.command);
 
     clearCurrentDraft();
 }
@@ -2892,22 +2942,29 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
             && (msg.contentType() == Message::Text || msg.contentType() == Message::Emoji)) {
             const Message retry = msg;
             menu.addAction(QStringLiteral("重试发送"), [this, model, retry] {
-                model->updateDeliveryState(retry.clientMessageId(), Message::Sending);
-                Message sending = retry;
-                sending.setDeliveryState(Message::Sending);
+                OutgoingMessageService::Command command;
                 if (m_isFriendChat && !m_currentFriendUsername.isEmpty()) {
-                    persistFriendMessage(m_currentFriendUsername, sending);
-                    NetworkManager::instance()->sendMessage(Protocol::makeFriendChatMsg(
-                        m_currentFriendUsername, retry.content(),
-                        Message::contentTypeToString(retry.contentType()),
-                        retry.clientMessageId()));
+                    const auto target = OutgoingMessageService::directTarget(
+                        friendConversationKey(m_currentFriendUsername),
+                        m_currentFriendUsername);
+                    if (!m_outgoingMessageService->prepareRetry(
+                            m_username, target, retry,
+                            m_friendSyncCursors.value(m_currentFriendUsername, 0),
+                            &command)) return;
                 } else if (m_currentRoomId > 0) {
-                    persistRoomMessage(m_currentRoomId, sending);
-                    NetworkManager::instance()->sendMessage(Protocol::makeChatMsg(
-                        m_currentRoomId, m_username, retry.content(),
-                        Message::contentTypeToString(retry.contentType()),
-                        retry.clientMessageId()));
+                    const auto target = OutgoingMessageService::roomTarget(m_currentRoomId);
+                    if (!m_outgoingMessageService->prepareRetry(
+                            m_username, target, retry,
+                            m_roomSyncCursors.value(m_currentRoomId, 0),
+                            &command)) return;
+                } else return;
+                if (!m_outgoingMessageService->lastError().isEmpty()) {
+                    qWarning().noquote() << QStringLiteral(
+                        "[Outbox] operation=manual-retry outcome=degraded detail=%1")
+                        .arg(m_outgoingMessageService->lastError());
                 }
+                model->updateDeliveryState(retry.clientMessageId(), Message::Sending);
+                dispatchOutgoing(command);
             });
             hasMessageActions = true;
         }
@@ -4000,6 +4057,7 @@ void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const 
             m_localRepository.reset();
             m_statusLabel->setText(QStringLiteral("本地消息缓存迁移失败，已切换为在线模式"));
         }
+        m_outgoingMessageService->setRepository(m_localRepository.get());
 
         // 更新NetworkManager的凭证
         NetworkManager::instance()->setCredentials(

@@ -6,6 +6,7 @@
 #include <QJsonArray>
 #include <memory>
 #include "Protocol.h"
+#include "OutgoingMessageService.h"
 
 class QListView;
 class QListWidget;
@@ -236,7 +237,8 @@ private:
     void clearCurrentDraft();
     void handleRoomSendResponse(const QJsonObject &data);
     void handleFriendSendResponse(const QJsonObject &data);
-    void retryPendingRoomSends(const QSet<QString> &allowedRoomKeys);
+    void dispatchOutgoing(const OutgoingMessageService::Command &command);
+    void retryPendingRoomSends(const QSet<int> &allowedRoomIds);
     void retryPendingFriendSends();
     void advanceFriendSyncCursor(const QString &friendUsername, qint64 sequence);
     void requestCurrentFriendResume();
@@ -318,6 +320,7 @@ private:
     QMap<int, qint64>         m_roomSyncCursors;
     QMap<int, QString>        m_roomDrafts;
     std::unique_ptr<LocalConversationRepository> m_localRepository;
+    std::unique_ptr<OutgoingMessageService> m_outgoingMessageService;
     MessageDelegate          *m_delegate = nullptr;
     QMap<int, bool>           m_adminRooms; // roomId -> isAdmin
     QSet<int>                 m_joinedRooms; // 已加入过的房间（用于显示加入提示）

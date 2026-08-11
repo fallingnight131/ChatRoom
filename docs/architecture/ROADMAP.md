@@ -183,7 +183,10 @@ Progress:
   reconnect retry, accepted/failed presentation, and explicit same-key retry.
 - [x] Replace Windows live-message full-snapshot rewrites with transactional
   single-message upserts while retaining bounded cache pruning.
-- [ ] Extract Windows synchronization/outbox orchestration from `ChatWindow`
+- [x] Extract Windows text/emoji outbox orchestration from `ChatWindow` into a
+  transport-neutral, repository-backed application service with independent
+  restart, authorization-gate, acceptance, failure, and retry tests.
+- [ ] Extract Windows history synchronization orchestration from `ChatWindow`
   and extend durable pending behavior to restartable attachments.
 - [ ] Add optimistic states, virtualization, cache controls, and accessibility
   foundations.

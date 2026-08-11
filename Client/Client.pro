@@ -20,6 +20,7 @@ SOURCES += \
     TrayManager.cpp \
     FileCache.cpp \
     LocalConversationRepository.cpp \
+    OutgoingMessageService.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -40,6 +41,7 @@ HEADERS += \
     TrayManager.h \
     FileCache.h \
     LocalConversationRepository.h \
+    OutgoingMessageService.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \

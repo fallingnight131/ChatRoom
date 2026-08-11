@@ -316,6 +316,12 @@ tray, notification, shortcut, startup, installer, and updater behavior behind
 platform interfaces. Keep the core portable where inexpensive, but do not add
 macOS or Linux product work without a support-scope ADR.
 
+The first extracted application boundary is `OutgoingMessageService` under
+ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,
+and terminal local delivery transitions while `ChatWindow` adapts commands and
+responses to the V1 transport. History synchronization and restartable
+attachment commands remain the next extractions; neither belongs in Widgets.
+
 ### Web
 
 Keep Vue 3 and move new code to TypeScript. Split the large chat store into
