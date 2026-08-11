@@ -1,5 +1,4 @@
 #include "MessageModel.h"
-#include <QSet>
 
 MessageModel::MessageModel(QObject *parent)
     : QAbstractListModel(parent)
@@ -75,12 +74,35 @@ void MessageModel::addMessage(const Message &msg) {
 
 void MessageModel::prependMessages(const QList<Message> &msgs) {
     QList<Message> unique;
-    QSet<int> seen;
     for (const Message &message : msgs) {
-        if (message.id() > 0 && (findMessageRow(message.id()) >= 0 || seen.contains(message.id())))
+        int existingRow = message.id() > 0 ? findMessageRow(message.id()) : -1;
+        if (existingRow < 0 && !message.clientMessageId().isEmpty()) {
+            for (int i = 0; i < m_messages.size(); ++i) {
+                if (m_messages[i].clientMessageId() == message.clientMessageId()) {
+                    existingRow = i;
+                    break;
+                }
+            }
+        }
+        if (existingRow >= 0) {
+            m_messages[existingRow] = message;
+            const QModelIndex changed = index(existingRow);
+            emit dataChanged(changed, changed);
             continue;
-        if (message.id() > 0) seen.insert(message.id());
-        unique.append(message);
+        }
+
+        int pendingRow = -1;
+        for (int i = 0; i < unique.size(); ++i) {
+            const bool sameId = message.id() > 0 && unique[i].id() == message.id();
+            const bool sameClientId = !message.clientMessageId().isEmpty()
+                && unique[i].clientMessageId() == message.clientMessageId();
+            if (sameId || sameClientId) {
+                pendingRow = i;
+                break;
+            }
+        }
+        if (pendingRow >= 0) unique[pendingRow] = message;
+        else unique.append(message);
     }
     if (unique.isEmpty()) return;
     beginInsertRows(QModelIndex(), 0, unique.size() - 1);

@@ -138,9 +138,10 @@ An eighth suite verifies the raw HTTP attachment data plane: owner-token
 binding, exact length, foreign-token denial, interrupted-body cleanup,
 room/friend idempotent finalization, duplicate/conflict responses, retry after
 restart, and notification frames without inline file bytes.
-The Qt gate additionally compiles and runs `HttpUploadTransportTest` and
-`HttpDownloadTransportTest`; the V1 smoke gate runs them with loopback access
-and checks the real raw `PUT`/`GET`. A source contract
+The Qt gate additionally compiles and runs `HttpUploadTransportTest`,
+`HttpDownloadTransportTest`, and `MessageModelTest`; the V1 smoke gate runs
+them with loopback access where required and checks the real raw `PUT`/`GET`
+plus stable-ID state reconciliation. A source contract
 test keeps Windows room/file/image and friend composer entry points on the
 upload-session path and upgraded forwarding on server file identity.
 

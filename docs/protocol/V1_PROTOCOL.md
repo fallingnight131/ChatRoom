@@ -191,7 +191,10 @@ timestamp. Both histories also support additive sequence-resume mode:
 - persist and resend `nextSequence`; do not infer a missing message from numeric
   gaps because administration may physically delete rows;
 - a final/empty page advances to the durable high watermark so deletion gaps do
-  not stall synchronization.
+  not stall synchronization;
+- reconcile a repeated stable `id` or `clientMessageId` as an authoritative
+  state update in place instead of discarding it only because it was already
+  rendered. Client-only cache/UI state may be retained during that merge.
 
 Room history/member responses require current room membership, and direct
 history requires current friendship participation. Counts are clamped to 100;

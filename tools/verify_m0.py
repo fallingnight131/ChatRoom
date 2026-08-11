@@ -124,7 +124,7 @@ def build_headless_server(jobs: int, build_root: Path, target_name: str) -> Path
     return locate_executable(target_dir, "ChatServerHeadless")
 
 
-def build_qt_http_transport_test(
+def build_qt_unit_test(
     jobs: int, build_root: Path, name: str
 ) -> Path:
     qmake = select_qmake()
@@ -136,14 +136,18 @@ def build_qt_http_transport_test(
     return locate_executable(target_dir, name)
 
 
-def run_qt_http_transport_tests(jobs: int, build_root: Path) -> None:
-    for name in ("HttpUploadTransportTest", "HttpDownloadTransportTest"):
-        run([str(build_qt_http_transport_test(jobs, build_root, name))], ROOT)
+def run_qt_client_unit_tests(jobs: int, build_root: Path) -> None:
+    for name in (
+        "HttpUploadTransportTest",
+        "HttpDownloadTransportTest",
+        "MessageModelTest",
+    ):
+        run([str(build_qt_unit_test(jobs, build_root, name))], ROOT)
 
 
 def verify_v1_smoke(jobs: int, build_root: Path) -> None:
     executable = build_headless_server(jobs, build_root, "v1-smoke-server")
-    run_qt_http_transport_tests(jobs, build_root)
+    run_qt_client_unit_tests(jobs, build_root)
     for test_script in (
         "v1_smoke_test.py",
         "v1_authorization_test.py",
@@ -211,7 +215,7 @@ def verify_qt(jobs: int, build_root: Path) -> None:
     print(f"[M0] qmake: {qmake}")
 
     run([sys.executable, str(ROOT / "Tests" / "qt_attachment_source_test.py")], ROOT)
-    run_qt_http_transport_tests(jobs, build_root)
+    run_qt_client_unit_tests(jobs, build_root)
 
     for target, project in (
         ("server", ROOT / "Server" / "Server.pro"),

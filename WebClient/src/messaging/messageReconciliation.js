@@ -13,12 +13,24 @@ export function sameStableMessage(left, right) {
 }
 
 export function mergeUniqueMessages(existing, incoming, { prepend = false } = {}) {
+  const merged = [...existing]
   const accepted = []
   for (const candidate of incoming) {
-    const duplicate = [...existing, ...accepted].some(message =>
+    const existingIndex = merged.findIndex(message =>
       sameStableMessage(message, candidate)
     )
-    if (!duplicate) accepted.push(candidate)
+    if (existingIndex >= 0) {
+      merged[existingIndex] = { ...merged[existingIndex], ...candidate }
+      continue
+    }
+    const acceptedIndex = accepted.findIndex(message =>
+      sameStableMessage(message, candidate)
+    )
+    if (acceptedIndex >= 0) {
+      accepted[acceptedIndex] = { ...accepted[acceptedIndex], ...candidate }
+    } else {
+      accepted.push(candidate)
+    }
   }
-  return prepend ? [...accepted, ...existing] : [...existing, ...accepted]
+  return prepend ? [...accepted, ...merged] : [...merged, ...accepted]
 }

@@ -101,6 +101,8 @@ Progress:
 - [x] Make upgraded Web/Windows room and friend upload finalization idempotent
   with durable `clientMessageId`, explicit acceptance, conflict detection, and
   restart-safe retry.
+- [x] Reconcile repeated stable message IDs from history as authoritative state
+  updates in Web and Windows instead of discarding them as duplicates.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

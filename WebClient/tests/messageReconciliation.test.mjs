@@ -20,17 +20,30 @@ test('matches committed messages by server id or client message id', () => {
 })
 
 test('deduplicates history against live state and within the incoming page', () => {
-  const live = [{ id: 2, clientMessageId: 'client-2' }]
+  const live = [{ id: 2, clientMessageId: 'client-2', recalled: false }]
   const history = [
     { id: 1, clientMessageId: 'client-1' },
-    { id: 2, clientMessageId: 'client-2' },
+    { id: 2, clientMessageId: 'client-2', recalled: true },
     { id: 1, clientMessageId: 'client-1' }
   ]
 
   assert.deepEqual(mergeUniqueMessages(live, history, { prepend: true }), [
     { id: 1, clientMessageId: 'client-1' },
-    { id: 2, clientMessageId: 'client-2' }
+    { id: 2, clientMessageId: 'client-2', recalled: true }
   ])
+})
+
+test('reconciles authoritative server fields without dropping local-only state', () => {
+  const live = [{ id: 7, content: 'hello', recalled: false, downloadState: 'cached' }]
+  const replay = [{ id: 7, content: '此消息已被撤回', recalled: true, mutationSequence: 3 }]
+
+  assert.deepEqual(mergeUniqueMessages(live, replay), [{
+    id: 7,
+    content: '此消息已被撤回',
+    recalled: true,
+    downloadState: 'cached',
+    mutationSequence: 3
+  }])
 })
 
 test('preserves legacy messages that have no stable identity', () => {
