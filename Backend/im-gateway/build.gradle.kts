@@ -15,6 +15,7 @@ dependencies {
     implementation(project(":protocol-v2"))
     implementation(libs.hikari)
     implementation(libs.netty.codec.http)
+    implementation(libs.jackson.core)
     runtimeOnly(libs.postgresql)
     runtimeOnly(libs.slf4j.jdk14)
     testImplementation(platform(libs.junit.bom))

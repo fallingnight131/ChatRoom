@@ -77,6 +77,15 @@ consumer instead of growing an unbounded queue or silently dropping the event.
 `LOGIN_REQ`, `LOGIN_RSP`, `REGISTER_REQ`, `REGISTER_RSP`, `LOGOUT`,
 `FORCE_OFFLINE`, `HEARTBEAT`, `HEARTBEAT_ACK`.
 
+The inactive Java compatibility codec currently covers only `LOGIN_REQ` and
+`LOGIN_RSP`; it is not connected to a listener. It accepts the established
+envelope and credential fields, caps this small command at 16 KiB, rejects
+duplicates, trailing JSON, nesting/string-limit violations, missing fields,
+usernames over 20 UTF-16 code units, and passwords over 1024 UTF-16 code units.
+Success encodes only the V1 numeric `userId`, username, and display name. Failure
+uses one generic credential error. File authorization fields and all other V1
+message types remain on the C++ server until their own vertical slices exist.
+
 ### Room messages, presence, and history
 
 `CHAT_MSG`, `SYSTEM_MSG`, `HISTORY_REQ`, `HISTORY_RSP`, `USER_LIST_REQ`,

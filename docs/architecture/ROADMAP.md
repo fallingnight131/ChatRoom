@@ -393,6 +393,9 @@ Progress:
   - [x] Add transport-independent V1 login eligibility and result projection so
     unmapped V2-native accounts cannot receive V1 sessions and resume secrets
     never cross the compatibility boundary.
+  - [x] Add a bounded, duplicate-detecting streaming JSON codec for the inactive
+    V1 login slice with compatible success/generic rejection output and no V2
+    session-secret exposure.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,
