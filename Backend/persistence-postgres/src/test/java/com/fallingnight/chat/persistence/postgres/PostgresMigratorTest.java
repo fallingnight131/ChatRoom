@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1AccountIdentity;
 import com.fallingnight.chat.application.identity.AccountCredential;
 import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.application.identity.ClientPlatform;
@@ -265,6 +266,19 @@ class PostgresMigratorTest {
         assertEquals(2, legacyMappingCount());
         assertEquals(
                 input.plan().accounts().getFirst().accountId(), mappedAccountId(1));
+        PostgresLegacyV1AccountProjection legacyProjection =
+                new PostgresLegacyV1AccountProjection(dataSource());
+        LegacyV1AccountIdentity byUsername = legacyProjection
+                .findByPresentedUsername("alice-v1").orElseThrow();
+        assertEquals(1, byUsername.legacyUserId());
+        assertEquals(input.plan().accounts().getFirst().accountId(), byUsername.accountId());
+        assertEquals(byUsername, legacyProjection
+                .findByAccountId(byUsername.accountId()).orElseThrow());
+        assertTrue(legacyProjection.findByPresentedUsername("Alice-v1").isEmpty());
+        disableAccount(byUsername.accountId());
+        assertTrue(legacyProjection.findByPresentedUsername("alice-v1").isEmpty());
+        assertTrue(legacyProjection.findByAccountId(byUsername.accountId()).isEmpty());
+        enableAccount(byUsername.accountId());
         assertEquals(1, importRunCount());
         assertEquals(proof.backupFileSha256(), storedBackupHash(applied.importRunId()));
 
@@ -718,6 +732,15 @@ class PostgresMigratorTest {
         try (Connection connection = connect();
                 PreparedStatement statement = connection.prepareStatement(
                         "UPDATE chat.account SET disabled_at = transaction_timestamp() WHERE id = ?")) {
+            statement.setObject(1, accountId);
+            assertEquals(1, statement.executeUpdate());
+        }
+    }
+
+    private static void enableAccount(UUID accountId) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "UPDATE chat.account SET disabled_at = NULL WHERE id = ?")) {
             statement.setObject(1, accountId);
             assertEquals(1, statement.executeUpdate());
         }

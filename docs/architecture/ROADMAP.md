@@ -388,6 +388,8 @@ Progress:
   - [x] Persist the otherwise non-invertible V1 numeric-user-ID to account UUID
     compatibility projection atomically with verified identity import, without
     polluting the V2 account domain.
+  - [x] Expose the mapping through an isolated read-only V1 compatibility port
+    with exact enabled-account PostgreSQL lookup in both directions.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

@@ -60,6 +60,10 @@ mapping. A conflicting ID/account association blocks import; an exact account
 from an earlier M3 import may receive its missing mapping on a verified rerun.
 The table exists only to preserve V1 response semantics and must not become a V2
 identity allocator.
+The application exposes this data only through a read-only V1 compatibility
+port. Its PostgreSQL adapter performs exact username lookup, excludes disabled
+accounts, and supports the reverse account-to-V1 projection needed after
+server-authoritative authentication.
 
 ## V1 identity import boundary
 
@@ -174,6 +178,6 @@ tests cover digest rotation, sequential and concurrent replay denial, device
 binding, expiry, and revocation. It also proves identity preview has no writes,
 strict conflict blocking, two-generation account apply, exact post-write
 reconciliation, durable proof counts, exact V1 ID mappings, idempotent account
-and mapping rerun, and transaction rollback on account or mapping conflict. The
-evidence is environment-specific and does
-not by itself qualify a production database configuration.
+and mapping rerun, exact/case-sensitive compatibility lookup, and transaction
+rollback on account or mapping conflict. The evidence is environment-specific
+and does not by itself qualify a production database configuration.
