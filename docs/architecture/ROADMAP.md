@@ -319,10 +319,12 @@ Progress:
   - [x] Add a bounded fail-fast PostgreSQL connection-pool boundary with remote
     `verify-full` TLS enforcement and an explicit numeric-loopback-only local
     development exception.
-  - [ ] Attach metrics to the deployment scrape/registry path and define trusted
-    proxy configuration in the runtime composition root/HTTP upgrade handler
-    before enabling the IM listener; replace/coordinate limits through Redis
-    for M5.
+  - [x] Compose PostgreSQL, identity cryptography, authentication/resume,
+    bounded workers, trusted-proxy/HTTP/WSS policy, loopback metrics/readiness,
+    and reverse-order shutdown in the independently runnable `GatewayMain`.
+  - [ ] Route durable V2 conversation/message commands through this gateway
+    before any product traffic cutover; coordinate distributed limits through
+    Redis in M5.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

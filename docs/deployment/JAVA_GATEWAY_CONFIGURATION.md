@@ -1,10 +1,11 @@
 # Java V2 Gateway Configuration
 
-Status: M3 inactive-listener contract. Java V2 still receives no product traffic.
+Status: M3 runnable pre-cutover contract. Java V2 still receives no product traffic.
 
 `GatewayRuntimeConfig` reads environment values once and validates them before
-the WSS component binds. `GatewayMain` does not compose or start that component
-yet. Do not commit a populated environment file, passwords, private
+the WSS component binds. `GatewayMain` now composes the validated database,
+identity, worker, admin, and product-listener lifecycle. Do not commit a
+populated environment file, passwords, private
 keys, production endpoints, or certificate material.
 
 ## Required values
@@ -31,6 +32,7 @@ filesystem permissions and secret delivery controls.
 | `CHATROOM_GATEWAY_PORT` | `9443` | `1..65535` |
 | `CHATROOM_GATEWAY_ADMIN_ADDRESS` | `127.0.0.1` | numeric loopback only |
 | `CHATROOM_GATEWAY_ADMIN_PORT` | `9090` | `1..65535` |
+| `CHATROOM_GATEWAY_ADMIN_WORKERS` | `2` | `1..4` |
 | `CHATROOM_GATEWAY_EVENT_LOOP_WORKERS` | `4` | `1..64` |
 | `CHATROOM_GATEWAY_MAX_CONNECTIONS` | `10000` | `1..1000000` |
 | `CHATROOM_GATEWAY_WRITE_BUFFER_LOW_BYTES` | `65536` | `1024..8388608` |
@@ -71,3 +73,11 @@ and network policy must prevent untrusted direct access to that listener.
 These defaults are not capacity claims. Before product routing, record a load
 baseline and set deployment-specific values for CPU, database pool size,
 reconnect storms, Argon2 work, queue saturation, and slow consumers.
+
+The process accepts no command-line configuration. On startup it validates the
+existing Flyway migration state and database pool before serving, starts the
+loopback admin endpoint as not ready, binds WSS, then returns HTTP 200 from
+`/health/ready`. Shutdown clears readiness and releases listener, admin, workers,
+and pool in reverse ownership order. Do not route users to this M3 runtime yet:
+durable V2 conversation/message commands and cutover/rollback rehearsal remain
+unfinished.

@@ -71,6 +71,7 @@ class V2GatewayServerTest {
             certificate.delete();
         }
         assertFalse(server.isRunning());
+        server.awaitClose();
     }
 
     @Test

@@ -91,15 +91,15 @@ benchmark or a deployed monitoring backend.
 Gateway operations tests open only an ephemeral loopback admin port and verify
 GET-only liveness/readiness/Prometheus paths, explicit readiness transitions,
 bounded labels, cumulative duration buckets, response hardening, wildcard-bind
-rejection, and deterministic shutdown. `GatewayMain` does not start this server
-yet, so these tests are a deployment contract rather than a live service.
+rejection, and deterministic shutdown. `GatewayMain` owns this server, but the
+exact-path loopback boundary remains a deployment contract rather than public API.
 Trusted-proxy policy tests verify direct-header spoofing is ignored, configured
 IPv4/IPv6 CIDRs use bounded right-to-left forwarding-chain resolution, and
 trusted missing, hostname, invalid, or excessive forwarding chains fail closed.
 Pre-upgrade handler tests verify direct/proxied canonical address freezing,
 generic rejection for missing trusted forwarding and repeat requests, reference
-ownership, and consumption by authentication admission. The inactive WSS
-component installs the handler; `GatewayMain` does not start it yet.
+ownership, and consumption by authentication admission. The WSS component and
+`GatewayMain` install the handler in the verified order.
 Endpoint-policy tests verify exact `/v2/web` and `/v2/windows` upgrade shapes,
 HTTPS Web Origin normalization/allowlisting, browser-origin rejection on the
 Windows route, malformed/repeated upgrade failure, and later ClientHello
@@ -132,7 +132,11 @@ The same Java gate verifies exact V1 salted-SHA compatibility and current-policy
 Argon2id rehashing. The PostgreSQL gate applies V001/V002/V003 and checks
 credential shape constraints, compare-and-set upgrade behavior, digest-only session proof
 rotation, sequential/concurrent replay denial, device binding, expiry, and
-revocation against a disposable real database.
+revocation against a disposable real database. It then constructs the real
+`GatewayRuntime`, validates migration state and the HikariCP pool, starts admin
+and WSS on ephemeral loopback ports, observes ready state, and closes every
+resource before deleting the cluster. This is composition evidence, not product
+traffic or capacity evidence.
 Pure migration-planner tests also verify deterministic V1 user-ID mapping,
 order-independent source fingerprints, supported credential generations, full
 plan blocking on invalid/duplicate/empty input, and non-secret issue reporting.

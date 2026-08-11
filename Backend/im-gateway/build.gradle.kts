@@ -25,3 +25,10 @@ dependencies {
 application {
     mainClass = "com.fallingnight.chat.gateway.GatewayMain"
 }
+
+tasks.test {
+    environment("CHATROOM_TEST_POSTGRES_URL",
+            providers.environmentVariable("CHATROOM_TEST_POSTGRES_URL").orNull ?: "")
+    environment("CHATROOM_TEST_POSTGRES_USER",
+            providers.environmentVariable("CHATROOM_TEST_POSTGRES_USER").orNull ?: "")
+}

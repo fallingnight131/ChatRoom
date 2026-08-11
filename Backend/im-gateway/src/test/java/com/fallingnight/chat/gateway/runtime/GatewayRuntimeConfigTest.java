@@ -36,6 +36,7 @@ class GatewayRuntimeConfigTest {
                 config.listenerAddress());
         assertTrue(config.adminAddress().getAddress().isLoopbackAddress());
         assertEquals(4, config.eventLoopWorkers());
+        assertEquals(2, config.adminWorkers());
         assertFalse(config.postgresAllowInsecureLocal());
         assertEquals(8, config.postgresPoolMaximum());
         assertEquals(1, config.postgresPoolMinimumIdle());

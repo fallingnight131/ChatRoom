@@ -15,6 +15,7 @@ import com.fallingnight.chat.gateway.transport.WebSocketEndpointPolicy;
 import com.fallingnight.chat.gateway.transport.WebSocketEndpointPolicyHandler;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -61,6 +62,7 @@ public final class V2GatewayServer implements AutoCloseable {
     private NioEventLoopGroup bossGroup;
     private NioEventLoopGroup workerGroup;
     private Channel listener;
+    private ChannelFuture termination;
 
     public V2GatewayServer(
             GatewayRuntimeConfig config,
@@ -124,6 +126,7 @@ public final class V2GatewayServer implements AutoCloseable {
                         }
                     });
             listener = bootstrap.bind(config.listenerAddress()).syncUninterruptibly().channel();
+            termination = listener.closeFuture();
         } catch (RuntimeException exception) {
             close();
             throw new IllegalStateException("gateway listener bind failed", exception);
@@ -139,6 +142,17 @@ public final class V2GatewayServer implements AutoCloseable {
 
     public synchronized boolean isRunning() {
         return listener != null && listener.isActive();
+    }
+
+    public void awaitClose() {
+        ChannelFuture current;
+        synchronized (this) {
+            if (termination == null) {
+                throw new IllegalStateException("gateway listener is not started");
+            }
+            current = termination;
+        }
+        current.syncUninterruptibly();
     }
 
     public int activeConnections() {

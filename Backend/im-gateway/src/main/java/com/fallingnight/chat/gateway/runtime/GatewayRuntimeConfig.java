@@ -40,6 +40,7 @@ public final class GatewayRuntimeConfig {
     private final WebSocketEndpointPolicy endpointPolicy;
     private final TrustedProxyPolicy proxyPolicy;
     private final int eventLoopWorkers;
+    private final int adminWorkers;
     private final int maximumConnections;
     private final int writeBufferLowWaterMark;
     private final int writeBufferHighWaterMark;
@@ -67,6 +68,7 @@ public final class GatewayRuntimeConfig {
             WebSocketEndpointPolicy endpointPolicy,
             TrustedProxyPolicy proxyPolicy,
             int eventLoopWorkers,
+            int adminWorkers,
             int maximumConnections,
             int writeBufferLowWaterMark,
             int writeBufferHighWaterMark,
@@ -92,6 +94,7 @@ public final class GatewayRuntimeConfig {
         this.endpointPolicy = endpointPolicy;
         this.proxyPolicy = proxyPolicy;
         this.eventLoopWorkers = eventLoopWorkers;
+        this.adminWorkers = adminWorkers;
         this.maximumConnections = maximumConnections;
         this.writeBufferLowWaterMark = writeBufferLowWaterMark;
         this.writeBufferHighWaterMark = writeBufferHighWaterMark;
@@ -150,6 +153,8 @@ public final class GatewayRuntimeConfig {
 
         int eventWorkers = integer(
                 environment, "CHATROOM_GATEWAY_EVENT_LOOP_WORKERS", 4, 1, 64);
+        int adminWorkers = integer(
+                environment, "CHATROOM_GATEWAY_ADMIN_WORKERS", 2, 1, 4);
         int maximumConnections = integer(
                 environment, "CHATROOM_GATEWAY_MAX_CONNECTIONS", 10_000, 1, 1_000_000);
         int writeBufferLowWaterMark = integer(
@@ -198,6 +203,7 @@ public final class GatewayRuntimeConfig {
                 new WebSocketEndpointPolicy(origins),
                 proxyPolicy,
                 eventWorkers,
+                adminWorkers,
                 maximumConnections,
                 writeBufferLowWaterMark,
                 writeBufferHighWaterMark,
@@ -271,6 +277,10 @@ public final class GatewayRuntimeConfig {
 
     public int eventLoopWorkers() {
         return eventLoopWorkers;
+    }
+
+    public int adminWorkers() {
+        return adminWorkers;
     }
 
     public int maximumConnections() {

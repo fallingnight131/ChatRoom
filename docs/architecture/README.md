@@ -218,28 +218,30 @@ decode/encode and fixed safe close outcomes for invalid or oversized frames.
 The deterministic post-upgrade composition now installs bounded frame handling,
 phase deadlines, negotiation, authentication/resume, and authenticated reader-
 idle closure, and both endpoints require the fixed `chat.v2` WebSocket
-subprotocol. An owned but inactive WSS component now composes mandatory TLS,
+subprotocol. The WSS component composes mandatory TLS,
 bounded HTTP/WebSocket parsing, Host/proxy/endpoint policies, connection and
 write-buffer limits, the post-upgrade application pipeline, and deterministic
-shutdown. Operator restore rehearsal and complete `GatewayMain` dependency/admin
-readiness wiring remain explicit cutover blockers. Process-local account/direct-peer/gateway admission and
+shutdown. `GatewayMain` now validates and owns PostgreSQL, identity cryptography,
+bounded workers, admin readiness/metrics, WSS, and reverse shutdown. Operator
+restore rehearsal and durable V2 message routing remain explicit cutover
+blockers. Process-local account/direct-peer/gateway admission and
 handshake/authentication deadlines are implemented but do not define deployment
 defaults or multi-gateway protection yet. Fixed-label authentication telemetry
 and sampled safe logs now have an exact-path, GET-only loopback health/metrics
-server with explicit readiness and bounded workers. Runtime composition still
-must start it and install the reusable pre-upgrade handler that freezes the
+server with explicit readiness and bounded workers. Runtime composition starts
+it and installs the reusable pre-upgrade handler that freezes the
 bounded trusted-CIDR/right-to-left forwarding result for authentication
-admission; the inactive WSS component installs it in the required order. The endpoint policy now reserves exact Web/Windows paths, requires an
+admission in the required order. The endpoint policy now reserves exact Web/Windows paths, requires an
 HTTPS allowlist for Web Origin, forbids Origin on the Windows route, and binds
-that choice to the later `ClientHello.platform`; runtime installation and TLS
-remain prerequisites. A separate exact Host authority allowlist protects both
+that choice to the later `ClientHello.platform`. A separate exact Host authority allowlist protects both
 endpoints, including Windows requests that carry no browser Origin.
 The `im-gateway` runtime package now centralizes strict environment parsing with
 numeric listener addresses, loopback-only administration, required TLS/database
 material, bounded workers/queues/timeouts/connections/write buffers, and no
 secret-bearing string form. Its PostgreSQL boundary now requires verified remote
-TLS and defines a bounded fail-fast HikariCP pool; `GatewayMain` still does not
-construct the pool, connect, or bind.
+TLS and defines a bounded fail-fast HikariCP pool. `GatewayMain` can now construct
+the pool and bind when an operator supplies the complete strict environment, but
+no product traffic is routed to it.
 
 The application identity module now also owns a transport-independent session
 resume command and atomic-rotation persistence port. The command destroys its
@@ -247,8 +249,8 @@ owned presented token after the use case returns and maps every persistence
 denial to the same authentication rejection. PostgreSQL now implements that
 port with digest-only verification, transactional row locking, fresh proof
 rotation, device binding, and replay/expiry/revocation denial. The bounded V2
-gateway resume path now invokes it and binds only the returned server identity;
-no listener or production route uses the path yet.
+gateway resume path invokes it and binds only the returned server identity;
+the runnable pre-cutover listener uses the path, but no production route does.
 
 ## 7. Reliable Message Flow
 

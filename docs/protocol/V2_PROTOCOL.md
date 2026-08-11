@@ -76,7 +76,7 @@ After success, the negotiated client descriptor is retained as untrusted
 server-side channel state; `ServerHello` alone grants no identity or
 permissions.
 
-Before WebSocket upgrade, the inactive listener policy reserves `/v2/web` for a
+Before WebSocket upgrade, the gateway reserves `/v2/web` for a
 configured HTTPS Origin allowlist and `/v2/windows` for native requests without
 Origin. Both require one exact configured TLS Host authority and the single
 WebSocket subprotocol `chat.v2`; unversioned or multi-valued subprotocol offers
@@ -120,8 +120,8 @@ explicit configuration and are not defined by the short virtual-time tests.
 
 After server-side identity binding, a reader-idle event closes the WebSocket with
 status 1001 and the fixed reason `V2 idle timeout`. Pre-authentication idle time
-is governed by the stricter handshake/authentication deadlines. The future
-listener must place its reader-idle timer before WebSocket control handling so
+is governed by the stricter handshake/authentication deadlines. The listener
+places its reader-idle timer before WebSocket control handling so
 valid ping/pong traffic refreshes connection activity.
 
 Before password copying or worker submission, the single-process gateway
@@ -129,7 +129,7 @@ applies cumulative fixed-window limits to total attempts, the resolved direct
 socket peer, and a normalized account key. Key maps are bounded and fail closed
 at capacity. A verified login clears only its account bucket. Denials use the
 same generic `RATE_LIMITED` payload and expose neither limiting key. Direct mode
-ignores forwarded headers. The implemented but not-yet-installed proxy boundary
+ignores forwarded headers. The installed proxy boundary
 accepts them only from configured numeric CIDRs, uses bounded right-to-left
 chain resolution, freezes the canonical peer before upgrade, and fails closed
 on trusted-proxy errors. Multi-gateway coordination remains an M5 Redis concern.
@@ -140,11 +140,11 @@ and records fixed execution-duration buckets. Saturation and admission warnings
 are sampled at power-of-two totals and contain only event, dimension, and count.
 Account, peer, request, exception, password, and token values are excluded.
 
-These messages are not allowed on a production route until the implemented WSS
-component is composed by `GatewayMain` with PostgreSQL, identity cryptography,
-bounded workers, admin readiness/metrics, ordered shutdown, and deployment
-verification. The component already installs Host/Origin/proxy controls, the
-upstream reader-idle timer, bounded transport parsing, and listener lifecycle.
+These messages are not allowed on a production route. `GatewayMain` now composes
+the WSS component with PostgreSQL, identity cryptography, bounded workers, admin
+readiness/metrics, ordered shutdown, Host/Origin/proxy controls, upstream idle
+timer, and bounded transport parsing. Durable conversation/message dispatch,
+cutover/rollback rehearsal, and deployment capacity evidence remain unfinished.
 
 ## Compatibility rules
 
