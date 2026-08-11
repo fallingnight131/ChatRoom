@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package chat.v2;
+
+option java_multiple_files = true;
+option java_package = "com.fallingnight.chat.protocol.v2";
+option java_outer_classname = "EnvelopeSchema";
+
+enum MessageKind {
+  MESSAGE_KIND_UNSPECIFIED = 0;
+  MESSAGE_KIND_COMMAND = 1;
+  MESSAGE_KIND_RESPONSE = 2;
+  MESSAGE_KIND_EVENT = 3;
+  MESSAGE_KIND_ERROR = 4;
+}
+
+// Stable transport wrapper. Payload types are registered separately and the
+// server never uses sent_at_epoch_ms as an ordering or authorization source.
+message Envelope {
+  uint32 protocol_version = 1;
+  MessageKind kind = 2;
+  uint32 message_type = 3;
+  string request_id = 4;
+  string session_id = 5;
+  string client_message_id = 6;
+  int64 sent_at_epoch_ms = 7;
+  bytes payload = 8;
+}
