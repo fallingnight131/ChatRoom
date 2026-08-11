@@ -45,6 +45,7 @@ public:
     void clear();
 
     const Message &messageAt(int row) const;
+    const QList<Message> &messages() const { return m_messages; }
     int findMessageRow(int messageId) const;
     int findMessageByFileId(int fileId) const;
     void updateDownloadProgress(int fileId, int state, double progress);

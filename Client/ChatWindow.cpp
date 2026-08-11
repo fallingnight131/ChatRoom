@@ -6,6 +6,7 @@
 #include "ThemeManager.h"
 #include "TrayManager.h"
 #include "FileCache.h"
+#include "LocalConversationRepository.h"
 #include "AvatarCropDialog.h"
 #include "RoomSettingsDialog.h"
 #include "RoomFileManagerDialog.h"
@@ -149,6 +150,18 @@ void ChatWindow::setCurrentUser(int userId, const QString &username, const QStri
 
     // 设置用户缓存目录（以用户uniqueId隔离）
     FileCache::instance()->setUsername(username);
+
+    auto repository = std::make_unique<LocalConversationRepository>(
+        LocalConversationRepository::defaultDatabasePath(username));
+    if (repository->initialize()) {
+        m_localRepository = std::move(repository);
+    } else {
+        m_localRepository.reset();
+        qWarning().noquote() << QStringLiteral(
+            "[LocalStore] operation=activate outcome=degraded detail=%1")
+            .arg(repository->lastError());
+        m_statusLabel->setText(QStringLiteral("本地消息缓存不可用，已切换为在线模式"));
+    }
 
     requestRoomList();
 
@@ -972,9 +985,13 @@ found:
 void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
     m_roomList->clear();
     m_roomUnread.clear();
+    QSet<int> allowedRoomIds;
+    QSet<QString> allowedRoomKeys;
     for (const QJsonValue &v : rooms) {
         QJsonObject r = v.toObject();
         int id = r["roomId"].toInt();
+        allowedRoomIds.insert(id);
+        allowedRoomKeys.insert(QString::number(id));
         QString name = r["roomName"].toString();
         int unread = r["unread"].toInt(0);
         if (unread > 0)
@@ -995,6 +1012,25 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
             NetworkManager::instance()->sendMessage(
                 Protocol::makeMessage(Protocol::MsgType::ROOM_AVATAR_GET_REQ, reqData));
         }
+    }
+
+    if (m_localRepository && !m_localRepository->pruneConversations(
+            m_username, LocalConversationRepository::Kind::Room, allowedRoomKeys)) {
+        qWarning().noquote() << QStringLiteral(
+            "[LocalStore] operation=prune-rooms outcome=degraded detail=%1")
+            .arg(m_localRepository->lastError());
+    }
+    const QList<int> cachedRoomIds = m_models.keys();
+    for (int roomId : cachedRoomIds) {
+        if (allowedRoomIds.contains(roomId)) continue;
+        if (m_currentRoomId == roomId) {
+            m_currentRoomId = -1;
+            m_messageView->setModel(nullptr);
+            m_roomTitle->setText(QStringLiteral("请选择一个窗口"));
+            m_userList->clear();
+        }
+        delete m_models.take(roomId);
+        m_roomSyncCursors.remove(roomId);
     }
 
     // 如果之前已在某个房间，恢复到该房间
@@ -1120,8 +1156,11 @@ void ChatWindow::switchRoom(int roomId) {
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::USER_LIST_REQ, userData));
 
-    // 如果模型为空，请求历史
-    if (model->rowCount() == 0) {
+    const qint64 cursor = m_roomSyncCursors.value(roomId, 0);
+    if (cursor > 0) {
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeHistoryAfterSequenceReq(roomId, cursor));
+    } else {
         NetworkManager::instance()->sendMessage(Protocol::makeHistoryReq(roomId, 50));
     }
 
@@ -1145,6 +1184,21 @@ MessageModel *ChatWindow::getOrCreateModel(int roomId) {
     if (!m_models.contains(roomId)) {
         auto *model = new MessageModel(this);
         m_models[roomId] = model;
+        if (m_localRepository && !m_username.isEmpty()) {
+            const auto snapshot = m_localRepository->loadSnapshot(
+                m_username, LocalConversationRepository::Kind::Room,
+                QString::number(roomId));
+            QList<Message> cached = snapshot.messages;
+            for (Message &message : cached) {
+                message.setIsMine(message.sender() == m_username);
+                if (message.fileId() > 0 && FileCache::instance()->isCached(message.fileId())) {
+                    message.setDownloadState(Message::Downloaded);
+                    message.setDownloadProgress(1.0);
+                }
+            }
+            if (!cached.isEmpty()) model->prependMessages(cached);
+            if (snapshot.cursor > 0) m_roomSyncCursors[roomId] = snapshot.cursor;
+        }
     }
     return m_models[roomId];
 }
@@ -1154,14 +1208,38 @@ void ChatWindow::advanceRoomSyncCursor(int roomId, qint64 sequence) {
         m_roomSyncCursors[roomId] = sequence;
 }
 
+void ChatWindow::persistRoomSnapshot(int roomId) {
+    if (!m_localRepository || m_username.isEmpty() || !m_models.contains(roomId)) return;
+    if (!m_localRepository->replaceMessages(
+            m_username, LocalConversationRepository::Kind::Room,
+            QString::number(roomId), m_models.value(roomId)->messages(),
+            m_roomSyncCursors.value(roomId, 0))) {
+        qWarning().noquote() << QStringLiteral(
+            "[LocalStore] operation=persist-room outcome=degraded roomId=%1 detail=%2")
+            .arg(roomId).arg(m_localRepository->lastError());
+    }
+}
+
+void ChatWindow::removeCachedRoom(int roomId) {
+    m_roomSyncCursors.remove(roomId);
+    if (!m_localRepository || m_username.isEmpty()) return;
+    if (!m_localRepository->removeConversation(
+            m_username, LocalConversationRepository::Kind::Room,
+            QString::number(roomId))) {
+        qWarning().noquote() << QStringLiteral(
+            "[LocalStore] operation=remove-room outcome=degraded roomId=%1 detail=%2")
+            .arg(roomId).arg(m_localRepository->lastError());
+    }
+}
+
 void ChatWindow::requestCurrentRoomResume() {
     if (m_currentRoomId <= 0) return;
-    MessageModel *model = getOrCreateModel(m_currentRoomId);
+    getOrCreateModel(m_currentRoomId);
     const qint64 cursor = m_roomSyncCursors.value(m_currentRoomId, 0);
-    if (model->rowCount() > 0 && cursor > 0) {
+    if (cursor > 0) {
         NetworkManager::instance()->sendMessage(
             Protocol::makeHistoryAfterSequenceReq(m_currentRoomId, cursor));
-    } else if (model->rowCount() == 0) {
+    } else {
         NetworkManager::instance()->sendMessage(
             Protocol::makeHistoryReq(m_currentRoomId, 50));
     }
@@ -1222,6 +1300,7 @@ void ChatWindow::onChatMessage(const QJsonObject &msg) {
     MessageModel *model = getOrCreateModel(roomId);
     model->addMessage(message);
     advanceRoomSyncCursor(roomId, message.sequence());
+    persistRoomSnapshot(roomId);
 
     // 如果是当前房间，滚动到底部
     if (roomId == m_currentRoomId) {
@@ -1252,6 +1331,8 @@ void ChatWindow::onSystemMessage(const QJsonObject &msg) {
     int roomId = message.roomId();
     MessageModel *model = getOrCreateModel(roomId);
     model->addMessage(message);
+    advanceRoomSyncCursor(roomId, message.sequence());
+    persistRoomSnapshot(roomId);
 
     if (roomId == m_currentRoomId) {
         QTimer::singleShot(50, [this] {
@@ -1353,6 +1434,7 @@ void ChatWindow::onHistoryReceived(const QJsonObject &data) {
         for (const QJsonValue &value : messages)
             advanceRoomSyncCursor(roomId, syncSequenceFrom(value.toObject()));
     }
+    persistRoomSnapshot(roomId);
 
     if (isCurrent) {
         QTimer::singleShot(0, [this] {
@@ -1553,6 +1635,7 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
 
     getOrCreateModel(roomId)->addMessage(msg);
     advanceRoomSyncCursor(roomId, msg.sequence());
+    persistRoomSnapshot(roomId);
 
     if (roomId == m_currentRoomId) {
         QTimer::singleShot(50, [this] { m_messageView->scrollToBottom(); });
@@ -2358,6 +2441,7 @@ void ChatWindow::onRecallNotify(const QJsonObject &data) {
 
     model->recallMessage(messageId);
     advanceRoomSyncCursor(roomId, syncSequenceFrom(data));
+    persistRoomSnapshot(roomId);
 }
 
 // ==================== 管理员功能 ====================
@@ -2411,6 +2495,7 @@ void ChatWindow::onDeleteMsgsResponse(const QJsonObject &data) {
         }
         getOrCreateModel(roomId)->applyDeletionEvents({data});
         advanceRoomSyncCursor(roomId, syncSequenceFrom(data));
+        persistRoomSnapshot(roomId);
     } else {
         QMessageBox::warning(this, "删除消息失败", data["error"].toString());
     }
@@ -2433,6 +2518,7 @@ void ChatWindow::onDeleteMsgsNotify(const QJsonObject &data) {
 
     model->applyDeletionEvents({data});
     advanceRoomSyncCursor(roomId, syncSequenceFrom(data));
+    persistRoomSnapshot(roomId);
 
     m_statusLabel->setText("管理员清理了消息记录");
 }
@@ -2984,6 +3070,7 @@ void ChatWindow::leaveRoom(int roomId) {
 
 void ChatWindow::onLeaveRoomResponse(bool success, int roomId) {
     if (success) {
+        removeCachedRoom(roomId);
         // 从房间列表中移除
         for (int i = 0; i < m_roomList->count(); ++i) {
             if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
@@ -3004,6 +3091,7 @@ void ChatWindow::onLeaveRoomResponse(bool success, int roomId) {
 
         // 切换到另一个房间
         if (m_currentRoomId == roomId) {
+            m_messageView->setModel(nullptr);
             if (m_roomList->count() > 0) {
                 m_roomList->setCurrentRow(0);
                 onRoomSelected(m_roomList->item(0));
@@ -3187,8 +3275,10 @@ void ChatWindow::onRoomSettingsResponse(int roomId, bool success, qint64 maxFile
         if (!clearedFileIds.isEmpty()) {
             QList<int> ids;
             for (const QJsonValue &v : clearedFileIds) ids.append(v.toInt());
-            for (auto it = m_models.begin(); it != m_models.end(); ++it)
+            for (auto it = m_models.begin(); it != m_models.end(); ++it) {
                 it.value()->markFilesCleared(ids, QStringLiteral("文件已过期或被清除"));
+                persistRoomSnapshot(it.key());
+            }
         }
 
         if (m_waitingRoomSettingsSave) {
@@ -3254,8 +3344,10 @@ void ChatWindow::onRoomSettingsNotify(int roomId, qint64 maxFileSize,
     if (!clearedFileIds.isEmpty()) {
         QList<int> ids;
         for (const QJsonValue &v : clearedFileIds) ids.append(v.toInt());
-        for (auto it = m_models.begin(); it != m_models.end(); ++it)
+        for (auto it = m_models.begin(); it != m_models.end(); ++it) {
             it.value()->markFilesCleared(ids, QStringLiteral("文件已过期或被清除"));
+            persistRoomSnapshot(it.key());
+        }
     }
 }
 
@@ -3309,8 +3401,10 @@ void ChatWindow::onRoomFilesDeleteResponse(bool success, int roomId, int deleted
     QList<int> ids;
     for (const QJsonValue &v : clearedFileIds) ids.append(v.toInt());
     if (!ids.isEmpty()) {
-        for (auto it = m_models.begin(); it != m_models.end(); ++it)
+        for (auto it = m_models.begin(); it != m_models.end(); ++it) {
             it.value()->markFilesCleared(ids, QStringLiteral("文件已过期或被清除"));
+            persistRoomSnapshot(it.key());
+        }
     }
 
     if (m_roomFileManagerDialog) {
@@ -3331,8 +3425,10 @@ void ChatWindow::onRoomFilesNotify(int roomId, const QJsonArray &clearedFileIds,
     QList<int> ids;
     for (const QJsonValue &v : clearedFileIds) ids.append(v.toInt());
     if (!ids.isEmpty()) {
-        for (auto it = m_models.begin(); it != m_models.end(); ++it)
+        for (auto it = m_models.begin(); it != m_models.end(); ++it) {
             it.value()->markFilesCleared(ids, QStringLiteral("文件已过期或被清除"));
+            persistRoomSnapshot(it.key());
+        }
     }
 
     if (m_roomFileManagerDialog && roomId == m_currentRoomId) {
@@ -3352,6 +3448,7 @@ void ChatWindow::onRoomFilesNotify(int roomId, const QJsonArray &clearedFileIds,
 
 void ChatWindow::onDeleteRoomResponse(bool success, int roomId, const QString &roomName, const QString &error) {
     if (success) {
+        removeCachedRoom(roomId);
         QMessageBox::information(this, "删除成功", QString("聊天室 \"%1\" 已被删除").arg(roomName));
         // 从房间列表中移除
         for (int i = 0; i < m_roomList->count(); ++i) {
@@ -3362,13 +3459,16 @@ void ChatWindow::onDeleteRoomResponse(bool success, int roomId, const QString &r
         }
         // 如果当前正在该房间，切换到第一个房间
         if (m_currentRoomId == roomId) {
+            m_messageView->setModel(nullptr);
             if (m_roomList->count() > 0) {
                 m_roomList->setCurrentRow(0);
                 onRoomSelected(m_roomList->item(0));
             } else {
                 m_currentRoomId = -1;
+                m_messageView->setModel(nullptr);
             }
         }
+        if (m_models.contains(roomId)) delete m_models.take(roomId);
     } else {
         QMessageBox::warning(this, "删除失败", error);
     }
@@ -3376,6 +3476,7 @@ void ChatWindow::onDeleteRoomResponse(bool success, int roomId, const QString &r
 
 void ChatWindow::onDeleteRoomNotify(int roomId, const QString &roomName, const QString &operatorName) {
     Q_UNUSED(operatorName);
+    removeCachedRoom(roomId);
     // 从房间列表中移除
     for (int i = 0; i < m_roomList->count(); ++i) {
         if (m_roomList->item(i)->data(Qt::UserRole).toInt() == roomId) {
@@ -3387,13 +3488,16 @@ void ChatWindow::onDeleteRoomNotify(int roomId, const QString &roomName, const Q
     if (m_currentRoomId == roomId) {
         QMessageBox::information(this, "聊天室已删除",
             QString("聊天室 \"%1\" 已被管理员删除").arg(roomName));
+        m_messageView->setModel(nullptr);
         if (m_roomList->count() > 0) {
             m_roomList->setCurrentRow(0);
             onRoomSelected(m_roomList->item(0));
         } else {
             m_currentRoomId = -1;
+            m_messageView->setModel(nullptr);
         }
     }
+    if (m_models.contains(roomId)) delete m_models.take(roomId);
 }
 
 // ==================== 重命名聊天室 ====================
@@ -3501,11 +3605,13 @@ void ChatWindow::onKickUserResponse(bool success, int roomId, const QString &use
 }
 
 void ChatWindow::onKickedFromRoom(int roomId, const QString &roomName, const QString &operatorName) {
+    removeCachedRoom(roomId);
     // 如果当前正在该房间，切走
     if (m_currentRoomId == roomId) {
         m_currentRoomId = -1;
         m_roomTitle->setText("请选择一个窗口");
         m_userList->clear();
+        m_messageView->setModel(nullptr);
     }
 
     // 从房间列表移除
@@ -3516,6 +3622,7 @@ void ChatWindow::onKickedFromRoom(int roomId, const QString &roomName, const QSt
         }
     }
     m_adminRooms.remove(roomId);
+    if (m_models.contains(roomId)) delete m_models.take(roomId);
 
     QMessageBox::warning(this, "被踢出聊天室",
         QStringLiteral("您已被管理员 %1 踢出聊天室 \"%2\"").arg(operatorName, roomName));
@@ -3549,6 +3656,7 @@ void ChatWindow::onNicknameChangeNotify(int roomId, const QString &username, con
     // 同步更新所有已加载模型中该用户的发送者名称
     for (auto it = m_models.begin(); it != m_models.end(); ++it) {
         it.value()->updateSenderName(username, newDisplayName);
+        persistRoomSnapshot(it.key());
     }
 }
 
@@ -3572,11 +3680,41 @@ void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const 
             it.value()->updateSenderUid(oldUid, newUid);
         }
 
+        // uniqueId 是本地库隔离键：先将已加载快照写入新账号库，再切换句柄。
+        auto newRepository = std::make_unique<LocalConversationRepository>(
+            LocalConversationRepository::defaultDatabasePath(newUid));
+        bool migrated = newRepository->initialize();
+        if (migrated) {
+            for (auto it = m_models.cbegin(); it != m_models.cend(); ++it) {
+                if (!newRepository->replaceMessages(
+                        newUid, LocalConversationRepository::Kind::Room,
+                        QString::number(it.key()), it.value()->messages(),
+                        m_roomSyncCursors.value(it.key(), 0))) {
+                    migrated = false;
+                    break;
+                }
+            }
+        }
+        if (migrated) {
+            if (m_localRepository) {
+                m_localRepository->pruneConversations(
+                    oldUid, LocalConversationRepository::Kind::Room, QSet<QString>{});
+            }
+            m_localRepository = std::move(newRepository);
+        } else {
+            qWarning().noquote() << QStringLiteral(
+                "[LocalStore] operation=migrate-account outcome=degraded detail=%1")
+                .arg(newRepository->lastError());
+            m_localRepository.reset();
+            m_statusLabel->setText(QStringLiteral("本地消息缓存迁移失败，已切换为在线模式"));
+        }
+
         // 更新NetworkManager的凭证
         NetworkManager::instance()->setCredentials(
             NetworkManager::instance()->currentUserId(), newUid);
 
-        m_statusLabel->setText(QString("用户ID已修改为: %1").arg(newUid));
+        if (m_localRepository)
+            m_statusLabel->setText(QString("用户ID已修改为: %1").arg(newUid));
         if (m_profileDialog) m_profileDialog->updateUid(newUid);
         QMessageBox::information(this, "修改成功",
             QString("用户ID已从 %1 修改为 %2").arg(oldUid, newUid));
@@ -3603,6 +3741,7 @@ void ChatWindow::onUidChangeNotify(int roomId, const QString &oldUid, const QStr
     // 更新所有已加载模型中该用户的sender
     for (auto it = m_models.begin(); it != m_models.end(); ++it) {
         it.value()->updateSenderUid(oldUid, newUid);
+        persistRoomSnapshot(it.key());
     }
 }
 

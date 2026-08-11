@@ -54,6 +54,12 @@ Snapshot replacement is intentionally simple and bounded. Later M2 performance
 evidence may justify incremental upserts or a background writer, but no scale
 claim is made by this foundation.
 
+The first integration slice hydrates room state before requesting incremental
+history and persists live messages, history pages, recalls, administrative
+deletions, and file-clear mutations. Authoritative membership lists and
+leave/delete/kick events evict inaccessible room data. Repository failure is a
+degraded online-only mode and never overrides server authority.
+
 ## Migration and Rollback
 
 Version 1 creates new local-only tables; there is no legacy client database to
@@ -69,6 +75,7 @@ server history restores the view. A newer schema is never downgraded in place.
   10,000-character draft bounds, account isolation, authoritative replacement,
   monotonic cursor persistence, pruning, and draft preservation;
 - the standard Qt gate compiles the repository into the desktop client;
-- subsequent integration slices must verify cached render before history,
-  reconnect resume, deletion/recall persistence, offline restart, and native
-  Windows Release behavior.
+- the Qt gate compiles the cached-render and reconnect-resume integration and
+  runs restart, deletion/recall repository, and reconnect model coverage on the
+  macOS development host;
+- native Windows Release behavior remains a Windows CI and M4 clean-host gate.

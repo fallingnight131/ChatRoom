@@ -4,6 +4,7 @@
 #include <QMap>
 #include <QSet>
 #include <QJsonArray>
+#include <memory>
 #include "Protocol.h"
 
 class QListView;
@@ -25,6 +26,7 @@ class TrayManager;
 class ProfileDialog;
 class RoomFileManagerDialog;
 class ForwardSelectDialog;
+class LocalConversationRepository;
 
 /// 主聊天窗口 —— MVC 架构的 View/Controller 层
 class ChatWindow : public QMainWindow {
@@ -220,6 +222,8 @@ private:
     void switchRoom(int roomId);
     void advanceRoomSyncCursor(int roomId, qint64 sequence);
     void requestCurrentRoomResume();
+    void persistRoomSnapshot(int roomId);
+    void removeCachedRoom(int roomId);
     void advanceFriendSyncCursor(const QString &friendUsername, qint64 sequence);
     void requestCurrentFriendResume();
     void requestRoomList();
@@ -297,6 +301,7 @@ private:
 
     QMap<int, MessageModel*>  m_models;     // roomId -> MessageModel
     QMap<int, qint64>         m_roomSyncCursors;
+    std::unique_ptr<LocalConversationRepository> m_localRepository;
     MessageDelegate          *m_delegate = nullptr;
     QMap<int, bool>           m_adminRooms; // roomId -> isAdmin
     QSet<int>                 m_joinedRooms; // 已加入过的房间（用于显示加入提示）

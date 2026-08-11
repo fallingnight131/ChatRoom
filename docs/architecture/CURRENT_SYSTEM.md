@@ -150,8 +150,10 @@ object cleanup is an idempotent post-commit compensation.
   reconciliation, and custom rendering.
 - The first M2 `LocalConversationRepository` adapter defines a versioned,
   account-isolated SQLite cache for bounded message metadata, cursors, and
-  drafts. It is independently tested but is not yet wired into `ChatWindow`;
-  the current rendered Windows session therefore remains memory-backed.
+  drafts. `ChatWindow` now hydrates room snapshots before requesting history,
+  persists authoritative live/history/recall/deletion changes, resumes from the
+  durable room cursor, and evicts inaccessible rooms. Direct conversations,
+  composer drafts, and pending sends are still memory-backed.
 - The current checked-in project is primarily exercised on Windows.
 
 ### Web

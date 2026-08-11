@@ -171,8 +171,11 @@ Progress:
 - [x] Establish the Windows SQLite conversation repository with versioned
   schema, account isolation, bounded message metadata, cursor/draft fields,
   pruning, restart tests, and a newer-schema refusal gate.
+- [x] Render cached Windows room conversations before network history, persist
+  room message/mutation state and cursor high watermarks, and evict local room
+  data after membership access is lost.
 - [ ] Integrate the Windows repository through client application/sync
-  boundaries for cached room/direct render, drafts, and pending sends.
+  boundaries for cached direct render, drafts, and pending sends.
 - [ ] Add optimistic states, virtualization, cache controls, and accessibility
   foundations.
 
