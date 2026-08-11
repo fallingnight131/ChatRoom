@@ -9,6 +9,7 @@ import type {
 const HISTORY_PAGE_SIZE = 100;
 const DIRECTORY_PAGE_SIZE = 50;
 const MAX_RETAINED_ACCEPTED_MESSAGES = 500;
+const MAX_PENDING_MESSAGES = 100;
 const decoder = new TextDecoder("utf-8", { fatal: true });
 
 export interface V2ConversationCacheMessage {
@@ -109,6 +110,10 @@ export class V2WebChatApplication {
   private connectionStateValue: V2WebSocketTransportState;
   private lastFailureValue = "";
   private selectionGeneration = 0;
+  private sessionGeneration = 0;
+  private readonly replayedAtGeneration = new Map<string, number>();
+  private readonly replayQueues = new Map<string, string[]>();
+  private readonly replayInFlight = new Map<string, string>();
   private disposed = false;
 
   constructor(options: V2WebChatApplicationOptions) {
@@ -200,6 +205,9 @@ export class V2WebChatApplication {
       throw new Error("text must contain 1..65536 UTF-8 bytes");
     }
     const state = this.requireConversation(this.activeConversationIdValue);
+    if (state.messages.filter((message) => message.deliveryState !== "accepted").length >= MAX_PENDING_MESSAGES) {
+      throw new Error("V2 pending message limit reached");
+    }
     const message: V2ConversationCacheMessage = {
       conversationId: this.activeConversationIdValue,
       id: "",
@@ -257,6 +265,10 @@ export class V2WebChatApplication {
   private handleTransportState(state: V2WebSocketTransportState): void {
     if (this.disposed) return;
     this.connectionStateValue = state;
+    if (state === "reconnect-wait" || state === "stopped") {
+      this.replayQueues.clear();
+      this.replayInFlight.clear();
+    }
     this.emit();
   }
 
@@ -273,6 +285,9 @@ export class V2WebChatApplication {
         {
         const sameSession = this.sessionValue?.accountId === event.value.accountId
           && this.sessionValue.sessionId === event.value.sessionId;
+        this.sessionGeneration += 1;
+        this.replayQueues.clear();
+        this.replayInFlight.clear();
         this.sessionValue = {
           accountId: event.value.accountId,
           deviceId: event.value.deviceId,
@@ -286,6 +301,7 @@ export class V2WebChatApplication {
         if (!sameSession) {
           this.activeConversationIdValue = null;
           this.conversations.clear();
+          this.replayedAtGeneration.clear();
         } else if (this.activeConversationIdValue) {
           const active = this.conversations.get(this.activeConversationIdValue);
           if (active) {
@@ -360,6 +376,8 @@ export class V2WebChatApplication {
     this.persist(conversationId);
     if (hasMore) {
       this.transport.readMessageHistory(conversationId, BigInt(state.cursorSequence), HISTORY_PAGE_SIZE);
+    } else {
+      this.replayPendingAfterSync(conversationId, state);
     }
   }
 
@@ -375,6 +393,10 @@ export class V2WebChatApplication {
     message.errorCode = "";
     state.messages = boundMessages(state.messages);
     this.persist(event.value.conversationId);
+    if (this.replayInFlight.get(event.value.conversationId) === event.clientMessageId) {
+      this.replayInFlight.delete(event.value.conversationId);
+      this.dispatchNextReplay(event.value.conversationId, state);
+    }
   }
 
   private applyProtocolError(event: Extract<V2WebProtocolEvent, { type: "protocol-error" }>): void {
@@ -384,6 +406,10 @@ export class V2WebChatApplication {
         if (!message) continue;
         message.deliveryState = "failed";
         message.errorCode = `PROTOCOL_${event.value.code}`;
+        if (this.replayInFlight.get(conversationId) === event.clientMessageId) {
+          this.replayInFlight.delete(conversationId);
+          this.failQueuedReplays(conversationId, state, "REPLAY_PAUSED");
+        }
         this.persist(conversationId);
         return;
       }
@@ -404,6 +430,56 @@ export class V2WebChatApplication {
       this.lastFailureValue = "V2 cache write failed";
       this.emit();
     });
+  }
+
+  private replayPendingAfterSync(conversationId: string, state: ConversationState): void {
+    if (this.replayedAtGeneration.get(conversationId) === this.sessionGeneration) return;
+    this.replayedAtGeneration.set(conversationId, this.sessionGeneration);
+    this.replayQueues.set(conversationId, state.messages
+      .filter((message) => message.deliveryState === "sending")
+      .map((message) => message.clientMessageId));
+    this.dispatchNextReplay(conversationId, state);
+  }
+
+  private dispatchNextReplay(conversationId: string, state: ConversationState): void {
+    if (this.replayInFlight.has(conversationId)) return;
+    const queue = this.replayQueues.get(conversationId);
+    if (!queue) return;
+    let message: V2ConversationCacheMessage | undefined;
+    while (queue.length > 0 && !message) {
+      const clientMessageId = queue.shift();
+      message = state.messages.find((candidate) =>
+        candidate.clientMessageId === clientMessageId && candidate.deliveryState === "sending");
+    }
+    if (!message) {
+      this.replayQueues.delete(conversationId);
+      return;
+    }
+    try {
+      this.transport.submitText(conversationId, message.clientMessageId, message.content);
+      this.replayInFlight.set(conversationId, message.clientMessageId);
+    } catch {
+      message.deliveryState = "failed";
+      message.errorCode = "TRANSPORT_UNAVAILABLE";
+      this.failQueuedReplays(conversationId, state, "TRANSPORT_UNAVAILABLE");
+      this.persist(conversationId);
+    }
+  }
+
+  private failQueuedReplays(
+    conversationId: string,
+    state: ConversationState,
+    errorCode: string,
+  ): void {
+    const queue = this.replayQueues.get(conversationId) ?? [];
+    this.replayQueues.delete(conversationId);
+    const queued = new Set(queue);
+    for (const message of state.messages) {
+      if (queued.has(message.clientMessageId) && message.deliveryState === "sending") {
+        message.deliveryState = "failed";
+        message.errorCode = errorCode;
+      }
+    }
   }
 
   private requireConversation(conversationId: string): ConversationState {
@@ -481,7 +557,9 @@ function boundMessages(messages: V2ConversationCacheMessage[]): V2ConversationCa
   const accepted = messages
     .filter((message) => message.deliveryState === "accepted")
     .sort((left, right) => compareSequence(left.sequence, right.sequence));
-  const unresolved = messages.filter((message) => message.deliveryState !== "accepted");
+  const unresolved = messages
+    .filter((message) => message.deliveryState !== "accepted")
+    .slice(-MAX_PENDING_MESSAGES);
   return [...accepted.slice(-MAX_RETAINED_ACCEPTED_MESSAGES), ...unresolved];
 }
 

@@ -337,3 +337,107 @@ test("preserves active cached state across same-session resume and clears it on 
   assert.deepEqual(application.snapshot.messages, []);
   application.dispose();
 });
+
+test("replays sending messages only after history and deduplicates an ACK-lost server copy", async () => {
+  const transport = new FakeTransport();
+  const cache = new FakeCache();
+  cache.records.set(`${ACCOUNT_ID}:${CONVERSATION_ID}`, {
+    messages: [
+      cachedMessage({ id: "", clientMessageId: "pending-send", sequence: "0", content: "send", deliveryState: "sending" }),
+      cachedMessage({ id: "", clientMessageId: "pending-next", sequence: "0", content: "next", deliveryState: "sending" }),
+      cachedMessage({ id: "", clientMessageId: "pending-after", sequence: "0", content: "after", deliveryState: "sending" }),
+      cachedMessage({ id: "", clientMessageId: "pending-failed", sequence: "0", content: "failed", deliveryState: "failed" }),
+    ],
+    cursorSequence: CURSOR,
+  });
+  const application = new V2WebChatApplication({ transport, cache });
+  establish(transport);
+  directory(transport);
+  await application.openConversation(CONVERSATION_ID);
+  assert.equal(transport.calls.filter((call) => call[0] === "submit").length, 0);
+
+  transport.emit(correlated({
+    type: "message-history-page",
+    value: create(MessageHistoryPageSchema, {
+      conversationId: CONVERSATION_ID,
+      nextSequence: BigInt(CURSOR),
+      latestSequence: BigInt(CURSOR),
+      hasMore: false,
+    }),
+  }));
+  assert.deepEqual(transport.calls.filter((call) => call[0] === "submit"), [
+    ["submit", CONVERSATION_ID, "pending-send", "send"],
+  ], "recovery dispatches at most one command before its ACK");
+  transport.emit(correlated({
+    type: "message-history-page",
+    value: create(MessageHistoryPageSchema, {
+      conversationId: CONVERSATION_ID,
+      nextSequence: BigInt(CURSOR),
+      latestSequence: BigInt(CURSOR),
+      hasMore: false,
+    }),
+  }));
+  assert.equal(transport.calls.filter((call) => call[0] === "submit").length, 1);
+
+  establish(transport);
+  transport.emit(correlated({
+    type: "message-history-page",
+    value: create(MessageHistoryPageSchema, {
+      conversationId: CONVERSATION_ID,
+      messages: [{
+        conversationId: CONVERSATION_ID,
+        messageId: SECOND_MESSAGE_ID,
+        conversationSequence: BigInt(CURSOR) + 1n,
+        senderAccountId: ACCOUNT_ID,
+        senderDeviceId: DEVICE_ID,
+        clientMessageId: "pending-send",
+        contentType: MessageContentType.TEXT_UTF8,
+        content: new TextEncoder().encode("send"),
+        acceptedAtEpochMs: BigInt(NOW),
+      }],
+      nextSequence: BigInt(CURSOR) + 1n,
+      latestSequence: BigInt(CURSOR) + 1n,
+      hasMore: false,
+    }),
+  }));
+  assert.deepEqual(transport.calls.filter((call) => call[0] === "submit"), [
+    ["submit", CONVERSATION_ID, "pending-send", "send"],
+    ["submit", CONVERSATION_ID, "pending-next", "next"],
+  ], "history acceptance suppresses the lost-ACK replay and releases the next command");
+  assert.equal(application.snapshot.messages.find((message) => message.clientMessageId === "pending-send")?.deliveryState, "accepted");
+  assert.equal(application.snapshot.messages.find((message) => message.clientMessageId === "pending-failed")?.deliveryState, "failed");
+  transport.emit(correlated({
+    type: "protocol-error",
+    value: create(ProtocolErrorSchema, {
+      code: ProtocolErrorCode.RATE_LIMITED,
+      safeMessage: "retry later",
+      retryable: true,
+    }),
+  }, "pending-next"));
+  assert.equal(transport.calls.filter((call) => call[0] === "submit").length, 2,
+    "a replay error stops the automatic queue");
+  assert.equal(application.snapshot.messages.find((message) => message.clientMessageId === "pending-after")?.deliveryState, "failed");
+  assert.equal(application.snapshot.messages.find((message) => message.clientMessageId === "pending-after")?.errorCode, "REPLAY_PAUSED");
+  application.dispose();
+});
+
+test("refuses new optimistic sends when the bounded unresolved outbox is full", async () => {
+  const transport = new FakeTransport();
+  const cache = new FakeCache();
+  cache.records.set(`${ACCOUNT_ID}:${CONVERSATION_ID}`, {
+    messages: Array.from({ length: 100 }, (_, index) => cachedMessage({
+      id: "",
+      clientMessageId: `failed-${index}`,
+      sequence: "0",
+      deliveryState: "failed",
+    })),
+    cursorSequence: CURSOR,
+  });
+  const application = new V2WebChatApplication({ transport, cache });
+  establish(transport);
+  directory(transport);
+  await application.openConversation(CONVERSATION_ID);
+  assert.throws(() => application.sendText("overflow"), /pending message limit/);
+  assert.equal(transport.calls.filter((call) => call[0] === "submit").length, 0);
+  application.dispose();
+});

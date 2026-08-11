@@ -5,6 +5,7 @@ import {
   IndexedDbConversationCache,
   MAX_CACHED_MESSAGES,
   MAX_DRAFT_LENGTH,
+  MAX_V2_PENDING_MESSAGES,
   conversationCacheKey,
   makeConversationRecord,
   normalizeV2Sequence,
@@ -236,4 +237,25 @@ test('creates the isolated V2 database without upgrading the rollback-compatible
   assert.equal(requestedName, 'chat-room-client-v2')
   assert.equal(requestedVersion, 1)
   assert.deepEqual(created, [['v2Conversations', { keyPath: 'key' }]])
+})
+
+test('bounds V2 accepted history and unresolved outbox independently', () => {
+  const record = sanitizeV2ConversationRecord({
+    accountId: 'account-1',
+    conversationId: 'conversation-1',
+    messages: [
+      ...Array.from({ length: MAX_CACHED_MESSAGES + 1 }, (_, index) => ({
+        id: `accepted-${index}`, sequence: String(index + 1), content: 'accepted'
+      })),
+      ...Array.from({ length: MAX_V2_PENDING_MESSAGES + 1 }, (_, index) => ({
+        clientMessageId: `pending-${index}`,
+        sequence: '0',
+        content: 'pending',
+        deliveryState: index % 2 === 0 ? 'sending' : 'failed'
+      }))
+    ]
+  })
+  assert.equal(record.messages.length, MAX_CACHED_MESSAGES + MAX_V2_PENDING_MESSAGES)
+  assert.equal(record.messages[0].id, 'accepted-1')
+  assert.equal(record.messages[MAX_CACHED_MESSAGES].clientMessageId, 'pending-1')
 })

@@ -147,6 +147,14 @@ conversation synchronization cursor; only a validated history page can advance
 the last contiguous sequence. This prevents a locally accepted high sequence
 from skipping unseen messages after reconnect.
 
+Cached Web commands in `sending` state are considered for recovery only after
+history synchronization. A matching server ID or client message ID removes an
+ACK-lost command from replay. Remaining commands are submitted serially with the
+same idempotency key, one response at a time. A protocol/transport failure stops
+the automatic queue and marks undispatched entries failed rather than presenting
+false progress or creating a retry storm. `failed` commands require explicit
+user retry. The local boundary retains at most 100 unresolved commands.
+
 `ClientHello` declares a minimum/maximum protocol generation, Web or Windows
 platform, app version, and client-device ID. App version is limited to 64 UTF-8
 bytes and device ID to 128 UTF-8 bytes. It intentionally contains no credential

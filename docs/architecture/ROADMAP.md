@@ -360,6 +360,9 @@ Progress:
       correlated ACK/error handling, exact cursors, and at-least-once deduplication.
     - [x] Add memory-only automatic Web session resume with proof rotation,
       observer redaction, rejection/stop cleanup, and same-session cursor recovery.
+    - [x] Recover cached Web V2 sending commands only after authoritative history,
+      serialize same-key replay one-at-a-time, stop visibly on error, and bound
+      local retention to 500 accepted plus 100 unresolved messages.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

@@ -46,8 +46,9 @@ cache requires its own global byte budget, eviction policy, access revocation,
 and tests instead of adding byte fields back to conversation records.
 
 Pre-cutover V2 snapshots use a separate version-1 `chat-room-client-v2`
-database. They retain at most 500 text-message records per account/conversation
-UUID and serialize server sequences as canonical decimal strings, preserving
+database. They retain at most 500 accepted text-message records plus 100
+unresolved outbox records per account/conversation UUID and serialize server
+sequences as canonical decimal strings, preserving
 the signed 64-bit range without JavaScript `Number` rounding. The store accepts
 no resume tokens, authorization values, byte buffers, or temporary URLs. Its
 physical separation prevents a V2 experiment from raising the live V1 database

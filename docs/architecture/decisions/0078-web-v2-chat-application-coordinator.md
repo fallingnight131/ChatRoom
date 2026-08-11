@@ -1,6 +1,7 @@
 # ADR-0078: Web V2 Chat Application Coordinator
 
 - Status: Accepted
+- Extended by: ADR-0081
 - Date: 2026-08-12
 - Related milestone: M3
 
@@ -39,9 +40,9 @@ ahead of messages the client has not synchronized yet.
 Messaging invariants now have one Web V2 application owner independent of UI and
 network implementations. Cached content can render before a round trip and
 out-of-order local acceptance cannot create a synchronization hole. Directory
-metadata itself is not yet persisted. ADR-0080 now resumes a valid session in
-page memory and continues active history synchronization, but does not replay
-unresolved sends automatically.
+metadata itself is not yet persisted. ADR-0080 resumes a valid session in page
+memory and continues active history synchronization; ADR-0081 then recovers
+bounded unresolved sends after that synchronization.
 
 ## Verification
 

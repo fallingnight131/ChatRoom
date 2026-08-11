@@ -465,6 +465,13 @@ later at-least-once history replay. ACK alone never advances the last contiguous
 history cursor. The application exposes immutable view snapshots but is not yet
 wired into Pinia or the supported V1 screens.
 
+After authentication or same-session resume, the coordinator waits for the
+active conversation's history to reach its current page boundary before
+replaying cached `sending` commands. Replay is strictly one-at-a-time and uses
+the original client message ID; a history copy suppresses an ACK-lost retry.
+Errors stop the automatic queue and expose explicit failed states. Local V2
+retention is bounded to 500 accepted plus 100 unresolved messages.
+
 ### Product consistency
 
 Share these across clients:

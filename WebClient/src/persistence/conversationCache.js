@@ -6,6 +6,7 @@ const V2_DATABASE_NAME = 'chat-room-client-v2'
 const V2_DATABASE_VERSION = 1
 export const V2_CONVERSATION_STORE_NAME = 'v2Conversations'
 export const MAX_CACHED_MESSAGES = 500
+export const MAX_V2_PENDING_MESSAGES = 100
 export const MAX_DRAFT_LENGTH = 10000
 const MAX_SIGNED_SEQUENCE = (1n << 63n) - 1n
 export const NON_PERSISTED_MEDIA_FIELDS = Object.freeze([
@@ -76,13 +77,20 @@ export function v2ConversationCacheKey(accountId, conversationId) {
 
 export function sanitizeV2ConversationRecord(record) {
   if (!record || typeof record !== 'object') return null
+  const sanitizedMessages = Array.isArray(record.messages)
+    ? record.messages.map(sanitizeV2Message).filter(Boolean)
+    : []
+  const acceptedMessages = sanitizedMessages
+    .filter(message => message.deliveryState === 'accepted')
+    .slice(-MAX_CACHED_MESSAGES)
+  const unresolvedMessages = sanitizedMessages
+    .filter(message => message.deliveryState !== 'accepted')
+    .slice(-MAX_V2_PENDING_MESSAGES)
   return {
     key: v2ConversationCacheKey(record.accountId, record.conversationId),
     accountId: String(record.accountId || ''),
     conversationId: String(record.conversationId || ''),
-    messages: Array.isArray(record.messages)
-      ? record.messages.slice(-MAX_CACHED_MESSAGES).map(sanitizeV2Message).filter(Boolean)
-      : [],
+    messages: [...acceptedMessages, ...unresolvedMessages],
     cursorSequence: normalizeV2Sequence(record.cursorSequence),
     draft: typeof record.draft === 'string'
       ? record.draft.slice(0, MAX_DRAFT_LENGTH)

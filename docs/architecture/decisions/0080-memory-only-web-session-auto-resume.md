@@ -1,6 +1,7 @@
 # ADR-0080: Memory-only Web Session Auto-resume
 
 - Status: Accepted
+- Extended by: ADR-0081
 - Date: 2026-08-12
 - Related milestone: M3
 

@@ -20,7 +20,8 @@ back to an older V1 asset would then fail opening that newer database.
 - Persist server sequences and the contiguous cursor as canonical nonnegative
   decimal strings bounded to the signed 64-bit server range. Never pass them
   through `Number`.
-- Retain at most 500 text-message metadata records per snapshot. Whitelist fields
+- Retain at most 500 accepted text-message metadata records plus 100 unresolved
+  outbox records per snapshot. Whitelist fields
   at the write/load boundary; exclude tokens, authorization, temporary URLs,
   blobs, byte buffers, and media payloads.
 - Serialize writes through the existing repository queue. IndexedDB remains a
@@ -36,7 +37,7 @@ cache-management UI remain later slices.
 ## Verification
 
 Tests cover exact values above 2^53, negative/out-of-range rejection, field
-whitelisting, the 500-record boundary, account/conversation keys, isolated
+whitelisting, the independent 500/100 boundaries, account/conversation keys, isolated
 database creation, round trip, removal, and preservation of the V1 schema
 version. The complete Web test and production-build gate remains required.
 
