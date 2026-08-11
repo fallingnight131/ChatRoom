@@ -1,16 +1,22 @@
 <template>
   <div class="input-area">
     <!-- 工具栏 -->
-    <div class="input-toolbar">
-      <button class="btn-icon" @click="showEmoji = !showEmoji" title="表情">😊</button>
-      <button class="btn-icon" @click="triggerFileInput" title="发送文件">📎</button>
-      <input ref="fileInput" type="file" style="display:none" @change="onFileSelected" />
+    <div class="input-toolbar" role="toolbar" aria-label="消息工具">
+      <button class="btn-icon" @click="showEmoji = !showEmoji" title="表情"
+              aria-label="选择表情" :aria-expanded="showEmoji">😊</button>
+      <button class="btn-icon" @click="triggerFileInput" title="发送文件"
+              aria-label="选择要发送的文件">📎</button>
+      <input ref="fileInput" type="file" class="visually-hidden" tabindex="-1"
+             aria-label="选择要发送的文件" @change="onFileSelected" />
 
       <!-- 上传进度 -->
-      <div v-if="Object.keys(chatStore.uploads).length > 0" class="upload-status">
+      <div v-if="Object.keys(chatStore.uploads).length > 0" class="upload-status"
+           role="status" aria-live="polite" aria-label="文件上传状态">
         <div v-for="(u, uid) in chatStore.uploads" :key="uid" class="upload-item">
           <span class="text-ellipsis" style="max-width:120px">{{ u.fileName }}</span>
-          <div class="progress-bar" style="width:80px">
+          <div class="progress-bar" style="width:80px" role="progressbar"
+               aria-label="文件上传进度" aria-valuemin="0" aria-valuemax="100"
+               :aria-valuenow="uploadPercent(u)">
             <div class="progress-fill" :style="{ width: uploadPercent(u) + '%' }"></div>
           </div>
           <span class="upload-pct">{{ uploadPercent(u) }}%</span>
@@ -30,10 +36,12 @@
     <div class="input-row">
       <textarea ref="textareaRef" class="input chat-input" v-model="text"
                 placeholder="输入消息..."
+                aria-label="消息内容"
                 @keydown.enter.exact="sendMessage"
                 @keydown.enter.shift.exact.prevent="text += '\n'"
                 rows="1"></textarea>
-      <button class="btn btn-primary send-btn" @click="sendMessage" :disabled="!text.trim()">
+      <button class="btn btn-primary send-btn" @click="sendMessage" :disabled="!text.trim()"
+              aria-label="发送消息">
         发送
       </button>
     </div>

@@ -1,8 +1,11 @@
 <template>
-  <div class="message-list" ref="listRef" @scroll="onScroll">
-    <div v-if="loadingMore" class="loading-more">加载中...</div>
+  <div class="message-list" ref="listRef" @scroll="onScroll"
+       role="log" aria-live="polite" aria-relevant="additions text"
+       :aria-busy="loadingMore" aria-label="聊天消息">
+    <div v-if="loadingMore" class="loading-more" role="status">加载中...</div>
 
-    <div v-for="(msg, idx) in displayMessages" :key="msg.id || msg.clientMessageId || idx" class="message-wrapper">
+    <div v-for="(msg, idx) in displayMessages" :key="msg.id || msg.clientMessageId || idx"
+         class="message-wrapper" role="article" :aria-label="messageAriaLabel(msg)">
       <!-- 系统消息 -->
       <div v-if="msg.contentType === 'system'" class="system-message">
         {{ msg.content }}
@@ -16,13 +19,15 @@
       <!-- 普通消息 -->
       <div v-else class="message-row" :class="{ mine: isMine(msg) }">
         <!-- 头像 -->
-        <div class="msg-avatar" @click="openUser(msg)">
-          <img v-if="getAvatarSrc(msg.sender)" :src="getAvatarSrc(msg.sender)" class="avatar" />
+        <button type="button" class="msg-avatar" @click="openUser(msg)"
+                :aria-label="`查看 ${msg.senderName || msg.sender} 的资料`">
+          <img v-if="getAvatarSrc(msg.sender)" :src="getAvatarSrc(msg.sender)" class="avatar"
+               :alt="`${msg.senderName || msg.sender} 的头像`" />
           <div v-else class="avatar avatar-placeholder"
                :style="{ background: hashColor(msg.sender) }">
             {{ (msg.senderName || msg.sender || '?').charAt(0) }}
           </div>
-        </div>
+        </button>
 
         <div class="msg-body">
           <!-- 发送者名 -->
@@ -30,6 +35,7 @@
 
           <!-- 消息气泡 -->
           <div class="msg-bubble" :class="{ 'bubble-mine': isMine(msg) }"
+               tabindex="0" @keydown="onBubbleKeydown($event, msg)"
                @contextmenu.prevent="onContextMenu($event, msg)"
                @touchstart="onTouchStart($event, msg)"
                @touchend="onTouchEnd"
@@ -46,16 +52,20 @@
 
             <!-- 图片 -->
             <template v-else-if="msg.contentType === 'image'">
-              <div v-if="msg.fileCleared" class="msg-expired-image" @click="openPreview(msg)">
+              <div v-if="msg.fileCleared" class="msg-expired-image" @click="openPreview(msg)"
+                   role="button" tabindex="0" @keydown.enter="openPreview(msg)">
                 <div class="expired-icon">📷</div>
                 <div class="expired-name text-ellipsis">{{ msg.fileName || '图片' }}</div>
                 <div class="expired-text">文件已过期或被清除</div>
               </div>
               <img v-else-if="msg.imageData" :src="'data:image/png;base64,' + msg.imageData"
-                   class="msg-image" @click="openPreview(msg)" />
+                   class="msg-image" @click="openPreview(msg)" tabindex="0"
+                   :alt="msg.fileName || '聊天图片'" @keydown.enter="openPreview(msg)" />
               <img v-else-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
-                   class="msg-image" @click="openPreview(msg)" />
-              <div v-else class="msg-file" @click="openPreview(msg)">
+                   class="msg-image" @click="openPreview(msg)" tabindex="0"
+                   :alt="msg.fileName || '聊天图片缩略图'" @keydown.enter="openPreview(msg)" />
+              <div v-else class="msg-file" @click="openPreview(msg)" role="button" tabindex="0"
+                   @keydown.enter="openPreview(msg)" @keydown.space.prevent="openPreview(msg)">
                 📷 {{ msg.fileName || '图片' }}
                 <span class="file-size">{{ formatSize(msg.fileSize) }}</span>
               </div>
@@ -63,14 +73,16 @@
 
             <!-- 视频 -->
             <template v-else-if="msg.contentType === 'video' || (msg.contentType === 'file' && isVideoFile(msg.fileName))">
-              <div v-if="msg.fileCleared" class="msg-expired-video" @click="openPreview(msg)">
+              <div v-if="msg.fileCleared" class="msg-expired-video" @click="openPreview(msg)"
+                   role="button" tabindex="0" @keydown.enter="openPreview(msg)">
                 <div class="expired-icon">🎬</div>
                 <div class="expired-name text-ellipsis">{{ msg.fileName || '视频' }}</div>
                 <div class="expired-text">文件已过期或被清除</div>
               </div>
-              <div v-else class="msg-video-card" @click="openPreview(msg)">
+              <div v-else class="msg-video-card" @click="openPreview(msg)" role="button" tabindex="0"
+                   @keydown.enter="openPreview(msg)" @keydown.space.prevent="openPreview(msg)">
                 <img v-if="msg.thumbnail" :src="'data:image/jpeg;base64,' + msg.thumbnail"
-                     class="video-thumbnail" />
+                     class="video-thumbnail" :alt="`${msg.fileName || '视频'} 缩略图`" />
                 <div v-else class="video-placeholder">
                   <span>🎬</span>
                 </div>
@@ -84,7 +96,9 @@
 
             <!-- 其他文件 -->
             <template v-else-if="msg.contentType === 'file'">
-              <div class="msg-file" :class="{ expired: msg.fileCleared }" @click="openPreview(msg)">
+              <div class="msg-file" :class="{ expired: msg.fileCleared }" @click="openPreview(msg)"
+                   role="button" tabindex="0" @keydown.enter="openPreview(msg)"
+                   @keydown.space.prevent="openPreview(msg)">
                 <div class="file-icon">{{ getFileIcon(msg.fileName) }}</div>
                 <div class="file-info">
                   <div class="file-name text-ellipsis">{{ msg.fileName }}</div>
@@ -99,7 +113,8 @@
             {{ formatTime(msg.timestamp) }}
             <span v-if="msg.deliveryState === 'sending'" class="delivery-state"> 发送中…</span>
             <button v-else-if="msg.deliveryState === 'failed'" class="delivery-retry"
-                    @click="chatStore.retryMessage(msg)">发送失败，点击重试</button>
+                    @click="chatStore.retryMessage(msg)" aria-label="发送失败，重试这条消息">
+              发送失败，点击重试</button>
           </div>
         </div>
       </div>
@@ -108,61 +123,64 @@
     <!-- 右键菜单 -->
     <Teleport to="body">
       <div v-if="contextMenu.show" class="context-menu-overlay" @click="closeMenu" @contextmenu.prevent="closeMenu">
-        <div class="context-menu"
+        <div class="context-menu" role="menu" aria-label="消息操作"
              :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
              @click.stop>
           <!-- 复制文本 (非文件、非系统消息都可以) -->
-          <div class="context-menu-item"
+          <div class="context-menu-item" role="menuitem" tabindex="0"
                v-if="contextMenu.msg && contextMenu.msg.content && !isFileType(contextMenu.msg)"
-               @click="copyText(contextMenu.msg)">
+               @click="copyText(contextMenu.msg)" @keydown.enter="copyText(contextMenu.msg)">
             <span class="menu-icon">📋</span> 复制文本
           </div>
 
           <!-- 预览文件 (文件/图片/视频消息，所有人可用) -->
-          <div class="context-menu-item"
+          <div class="context-menu-item" role="menuitem" tabindex="0"
             v-if="contextMenu.msg && isFileType(contextMenu.msg) && !contextMenu.msg.recalled"
-               @click="previewFromMenu(contextMenu.msg)">
+               @click="previewFromMenu(contextMenu.msg)" @keydown.enter="previewFromMenu(contextMenu.msg)">
             <span class="menu-icon">👁️</span> 预览文件
           </div>
 
           <!-- 下载文件 -->
-          <div class="context-menu-item"
+          <div class="context-menu-item" role="menuitem" tabindex="0"
             v-if="contextMenu.msg && isFileType(contextMenu.msg) && !contextMenu.msg.recalled && !contextMenu.msg.fileCleared"
-               @click="downloadFromMenu(contextMenu.msg)">
+               @click="downloadFromMenu(contextMenu.msg)" @keydown.enter="downloadFromMenu(contextMenu.msg)">
             <span class="menu-icon">⬇️</span> 下载文件
           </div>
 
           <!-- 转发 -->
-          <div class="context-menu-item"
+          <div class="context-menu-item" role="menuitem" tabindex="0"
                v-if="contextMenu.msg && contextMenu.msg.id && !contextMenu.msg.recalled && contextMenu.msg.contentType !== 'system'"
-               @click="forwardFromMenu(contextMenu.msg)">
+               @click="forwardFromMenu(contextMenu.msg)" @keydown.enter="forwardFromMenu(contextMenu.msg)">
             <span class="menu-icon">📨</span> 转发到其他会话
           </div>
 
           <!-- 撤回 (自己的消息, 2分钟内) -->
-          <div class="context-menu-item"
+          <div class="context-menu-item" role="menuitem" tabindex="0"
                v-if="canRecall(contextMenu.msg)"
-               @click="recallMsg(contextMenu.msg)">
+               @click="recallMsg(contextMenu.msg)" @keydown.enter="recallMsg(contextMenu.msg)">
             <span class="menu-icon">↩️</span> 撤回
           </div>
 
           <!-- 管理员: 删除此消息 -->
-          <div class="context-menu-item danger"
+          <div class="context-menu-item danger" role="menuitem" tabindex="0"
                v-if="!isPrivateMode() && chatStore.isAdmin && contextMenu.msg && contextMenu.msg.id && !contextMenu.msg.recalled"
-               @click="deleteMsg(contextMenu.msg)">
+               @click="deleteMsg(contextMenu.msg)" @keydown.enter="deleteMsg(contextMenu.msg)">
             <span class="menu-icon">🗑️</span> 删除此消息
           </div>
 
           <!-- 管理员子菜单 -->
           <template v-if="!isPrivateMode() && chatStore.isAdmin">
             <div class="context-menu-divider"></div>
-            <div class="context-menu-item danger" @click="clearAllMessages">
+            <div class="context-menu-item danger" role="menuitem" tabindex="0"
+                 @click="clearAllMessages" @keydown.enter="clearAllMessages">
               <span class="menu-icon">🧹</span> 清空所有消息
             </div>
-            <div class="context-menu-item danger" @click="deleteOldMessages">
+            <div class="context-menu-item danger" role="menuitem" tabindex="0"
+                 @click="deleteOldMessages" @keydown.enter="deleteOldMessages">
               <span class="menu-icon">📅</span> 删除N天前的消息
             </div>
-            <div class="context-menu-item danger" @click="deleteRecentMessages">
+            <div class="context-menu-item danger" role="menuitem" tabindex="0"
+                 @click="deleteRecentMessages" @keydown.enter="deleteRecentMessages">
               <span class="menu-icon">🕐</span> 删除最近N天的消息
             </div>
           </template>
@@ -253,6 +271,18 @@ function formatTime(ts) {
   const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`
   if (d.toDateString() === now.toDateString()) return time
   return `${pad(d.getMonth()+1)}-${pad(d.getDate())} ${time}`
+}
+
+function messageAriaLabel(msg) {
+  if (msg.contentType === 'system') return `系统消息：${msg.content || ''}`
+  if (msg.recalled) return `${msg.senderName || msg.sender || '用户'} 撤回了一条消息`
+  const sender = isMine(msg) ? '我' : (msg.senderName || msg.sender || '用户')
+  const content = isFileType(msg)
+    ? `文件 ${msg.fileName || ''}`
+    : (msg.content || '')
+  const state = msg.deliveryState === 'sending' ? '，发送中'
+    : (msg.deliveryState === 'failed' ? '，发送失败' : '')
+  return `${sender}：${content}${state}，${formatTime(msg.timestamp)}`
 }
 
 function formatSize(size) {
@@ -449,6 +479,13 @@ function onContextMenu(e, msg) {
   contextMenu.value = { show: true, x, y, msg }
 }
 
+function onBubbleKeydown(event, msg) {
+  if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return
+  event.preventDefault()
+  const rect = event.currentTarget.getBoundingClientRect()
+  onContextMenu({ clientX: rect.left + 12, clientY: rect.bottom + 4 }, msg)
+}
+
 let longPressTimer = null
 let longPressTriggered = false
 
@@ -573,6 +610,10 @@ onUnmounted(() => {
 .msg-avatar {
   cursor: pointer;
   flex-shrink: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 50%;
 }
 
 .msg-body {
