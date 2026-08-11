@@ -70,6 +70,9 @@ V1 verification remains required during the compatibility window.
 The Java gate includes embedded-channel tests for the bounded V2 binary
 WebSocket frame decoder and single-use ClientHello negotiation state machine;
 these tests do not open a listener or imply that V2 is ready to receive traffic.
+It also verifies a fixed libsodium 1.0.20 Argon2id interactive test vector with
+the locked Java crypto adapter; this deliberately performs memory-hard work and
+must not be interpreted as an authentication capacity benchmark.
 
 Run the V2 PostgreSQL migration gate with local PostgreSQL server tools
 (`initdb`, `pg_ctl`, and `createdb`) available either on `PATH` or through

@@ -294,8 +294,11 @@ Progress:
 - [x] Implement exact V1-compatible PostgreSQL account lookup and transactional
   device/session issuance with random-token digest storage, device reuse, and
   revoked/disabled race denial.
-- [ ] Implement Argon2id verification, resume/rotation, and the
-  negotiated-to-authenticated gateway state transition.
+- [x] Verify V1/libsodium Argon2id hashes through a bounded Bouncy Castle adapter
+  with a cross-implementation vector, constant-cost missing/malformed dummy
+  work, and parameter/resource caps.
+- [ ] Implement legacy salted-SHA import/upgrade compatibility,
+  resume/rotation, and the negotiated-to-authenticated gateway state transition.
 
 Work:
 

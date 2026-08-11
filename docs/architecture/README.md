@@ -193,6 +193,11 @@ lookup plus transactional device/session issuance with raw-token digest-only
 storage. The password-verification and gateway adapters are still absent, so
 this remains an inactive foundation rather than a usable login route.
 
+The separate `identity-crypto` adapter now verifies modern V1/libsodium Argon2id
+strings with a locked maintained Java implementation and dummy work for missing
+accounts. Legacy salted-SHA account compatibility, bounded worker dispatch, and
+gateway wiring remain explicit cutover blockers.
+
 ## 7. Reliable Message Flow
 
 ```mermaid
