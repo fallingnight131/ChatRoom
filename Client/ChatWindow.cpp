@@ -8,6 +8,7 @@
 #include "FileCache.h"
 #include "LocalConversationRepository.h"
 #include "OutgoingMessageService.h"
+#include "ConversationSyncService.h"
 #include "AvatarCropDialog.h"
 #include "RoomSettingsDialog.h"
 #include "RoomFileManagerDialog.h"
@@ -127,6 +128,7 @@ ChatWindow::ChatWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     m_outgoingMessageService = std::make_unique<OutgoingMessageService>();
+    m_conversationSyncService = std::make_unique<ConversationSyncService>();
     setWindowTitle("Qt聊天室");
     setWindowFlags(Qt::Window | Qt::WindowMinimizeButtonHint | Qt::WindowMaximizeButtonHint | Qt::WindowCloseButtonHint);
     resize(1000, 700);
@@ -166,6 +168,8 @@ void ChatWindow::setCurrentUser(int userId, const QString &username, const QStri
         m_statusLabel->setText(QStringLiteral("本地消息缓存不可用，已切换为在线模式"));
     }
     m_outgoingMessageService->setRepository(m_localRepository.get());
+    m_conversationSyncService->setContext(
+        m_localRepository.get(), m_username, true);
 
     requestRoomList();
 
@@ -1034,7 +1038,7 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
             m_restoringDraft = false;
         }
         delete m_models.take(roomId);
-        m_roomSyncCursors.remove(roomId);
+        m_conversationSyncService->forget(roomConversation(roomId));
         m_roomDrafts.remove(roomId);
     }
 
@@ -1169,7 +1173,8 @@ void ChatWindow::switchRoom(int roomId) {
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::USER_LIST_REQ, userData));
 
-    const qint64 cursor = m_roomSyncCursors.value(roomId, 0);
+    const qint64 cursor = m_conversationSyncService->cursor(
+        roomConversation(roomId));
     if (cursor > 0) {
         NetworkManager::instance()->sendMessage(
             Protocol::makeHistoryAfterSequenceReq(roomId, cursor));
@@ -1197,10 +1202,9 @@ MessageModel *ChatWindow::getOrCreateModel(int roomId) {
     if (!m_models.contains(roomId)) {
         auto *model = new MessageModel(this);
         m_models[roomId] = model;
-        if (m_localRepository && !m_username.isEmpty()) {
-            const auto snapshot = m_localRepository->loadSnapshot(
-                m_username, LocalConversationRepository::Kind::Room,
-                QString::number(roomId));
+        if (!m_username.isEmpty()) {
+            const auto snapshot = m_conversationSyncService->hydrate(
+                roomConversation(roomId));
             QList<Message> cached = snapshot.messages;
             for (Message &message : cached) {
                 message.setIsMine(message.sender() == m_username);
@@ -1210,7 +1214,6 @@ MessageModel *ChatWindow::getOrCreateModel(int roomId) {
                 }
             }
             if (!cached.isEmpty()) model->prependMessages(cached);
-            if (snapshot.cursor > 0) m_roomSyncCursors[roomId] = snapshot.cursor;
             m_roomDrafts[roomId] = snapshot.draft;
         }
     }
@@ -1218,50 +1221,44 @@ MessageModel *ChatWindow::getOrCreateModel(int roomId) {
 }
 
 void ChatWindow::advanceRoomSyncCursor(int roomId, qint64 sequence) {
-    if (roomId > 0 && sequence > m_roomSyncCursors.value(roomId, 0))
-        m_roomSyncCursors[roomId] = sequence;
+    if (roomId > 0)
+        m_conversationSyncService->advance(roomConversation(roomId), sequence);
 }
 
 void ChatWindow::persistRoomSnapshot(int roomId) {
-    if (!m_localRepository || m_username.isEmpty() || !m_models.contains(roomId)) return;
-    if (!m_localRepository->replaceMessages(
-            m_username, LocalConversationRepository::Kind::Room,
-            QString::number(roomId), m_models.value(roomId)->messages(),
-            m_roomSyncCursors.value(roomId, 0))) {
+    if (m_username.isEmpty() || !m_models.contains(roomId)) return;
+    if (!m_conversationSyncService->replace(
+            roomConversation(roomId), m_models.value(roomId)->messages())) {
         qWarning().noquote() << QStringLiteral(
             "[LocalStore] operation=persist-room outcome=degraded roomId=%1 detail=%2")
-            .arg(roomId).arg(m_localRepository->lastError());
+            .arg(roomId).arg(m_conversationSyncService->lastError());
     }
 }
 
 void ChatWindow::persistRoomMessage(int roomId, const Message &message) {
-    if (!m_localRepository || m_username.isEmpty()) return;
-    if (!m_localRepository->upsertMessage(
-            m_username, LocalConversationRepository::Kind::Room,
-            QString::number(roomId), message, m_roomSyncCursors.value(roomId, 0))) {
+    if (m_username.isEmpty()) return;
+    if (!m_conversationSyncService->upsert(roomConversation(roomId), message)) {
         qWarning().noquote() << QStringLiteral(
             "[LocalStore] operation=upsert-room outcome=degraded roomId=%1 detail=%2")
-            .arg(roomId).arg(m_localRepository->lastError());
+            .arg(roomId).arg(m_conversationSyncService->lastError());
     }
 }
 
 void ChatWindow::removeCachedRoom(int roomId) {
-    m_roomSyncCursors.remove(roomId);
     m_roomDrafts.remove(roomId);
-    if (!m_localRepository || m_username.isEmpty()) return;
-    if (!m_localRepository->removeConversation(
-            m_username, LocalConversationRepository::Kind::Room,
-            QString::number(roomId))) {
+    if (m_username.isEmpty()) return;
+    if (!m_conversationSyncService->remove(roomConversation(roomId))) {
         qWarning().noquote() << QStringLiteral(
             "[LocalStore] operation=remove-room outcome=degraded roomId=%1 detail=%2")
-            .arg(roomId).arg(m_localRepository->lastError());
+            .arg(roomId).arg(m_conversationSyncService->lastError());
     }
 }
 
 void ChatWindow::requestCurrentRoomResume() {
     if (m_currentRoomId <= 0) return;
     getOrCreateModel(m_currentRoomId);
-    const qint64 cursor = m_roomSyncCursors.value(m_currentRoomId, 0);
+    const qint64 cursor = m_conversationSyncService->cursor(
+        roomConversation(m_currentRoomId));
     if (cursor > 0) {
         NetworkManager::instance()->sendMessage(
             Protocol::makeHistoryAfterSequenceReq(m_currentRoomId, cursor));
@@ -1272,47 +1269,41 @@ void ChatWindow::requestCurrentRoomResume() {
 }
 
 void ChatWindow::advanceFriendSyncCursor(const QString &friendUsername, qint64 sequence) {
-    if (!friendUsername.isEmpty() && sequence > m_friendSyncCursors.value(friendUsername, 0))
-        m_friendSyncCursors[friendUsername] = sequence;
+    if (!friendUsername.isEmpty())
+        m_conversationSyncService->advance(
+            friendConversation(friendUsername), sequence);
 }
 
 void ChatWindow::persistFriendSnapshot(const QString &friendUsername) {
-    if (!m_localRepository || m_username.isEmpty()
-        || friendUsername.isEmpty() || !m_friendModels.contains(friendUsername)) return;
-    if (!m_localRepository->replaceMessages(
-            m_username, LocalConversationRepository::Kind::Direct,
-            friendConversationKey(friendUsername),
-            m_friendModels.value(friendUsername)->messages(),
-            m_friendSyncCursors.value(friendUsername, 0))) {
+    if (m_username.isEmpty() || friendUsername.isEmpty()
+        || !m_friendModels.contains(friendUsername)) return;
+    if (!m_conversationSyncService->replace(
+            friendConversation(friendUsername),
+            m_friendModels.value(friendUsername)->messages())) {
         qWarning().noquote() << QStringLiteral(
             "[LocalStore] operation=persist-direct outcome=degraded peer=%1 detail=%2")
-            .arg(friendUsername, m_localRepository->lastError());
+            .arg(friendUsername, m_conversationSyncService->lastError());
     }
 }
 
 void ChatWindow::persistFriendMessage(const QString &friendUsername,
                                       const Message &message) {
-    if (!m_localRepository || m_username.isEmpty() || friendUsername.isEmpty()) return;
-    if (!m_localRepository->upsertMessage(
-            m_username, LocalConversationRepository::Kind::Direct,
-            friendConversationKey(friendUsername), message,
-            m_friendSyncCursors.value(friendUsername, 0))) {
+    if (m_username.isEmpty() || friendUsername.isEmpty()) return;
+    if (!m_conversationSyncService->upsert(
+            friendConversation(friendUsername), message)) {
         qWarning().noquote() << QStringLiteral(
             "[LocalStore] operation=upsert-direct outcome=degraded peer=%1 detail=%2")
-            .arg(friendUsername, m_localRepository->lastError());
+            .arg(friendUsername, m_conversationSyncService->lastError());
     }
 }
 
 void ChatWindow::removeCachedFriend(const QString &friendUsername) {
-    m_friendSyncCursors.remove(friendUsername);
     m_friendDrafts.remove(friendUsername);
-    if (!m_localRepository || m_username.isEmpty() || friendUsername.isEmpty()) return;
-    if (!m_localRepository->removeConversation(
-            m_username, LocalConversationRepository::Kind::Direct,
-            friendConversationKey(friendUsername))) {
+    if (m_username.isEmpty() || friendUsername.isEmpty()) return;
+    if (!m_conversationSyncService->remove(friendConversation(friendUsername))) {
         qWarning().noquote() << QStringLiteral(
             "[LocalStore] operation=remove-direct outcome=degraded peer=%1 detail=%2")
-            .arg(friendUsername, m_localRepository->lastError());
+            .arg(friendUsername, m_conversationSyncService->lastError());
     }
 }
 
@@ -1320,6 +1311,17 @@ QString ChatWindow::friendConversationKey(const QString &friendUsername) const {
     const int friendshipId = m_friendshipIds.value(friendUsername, 0);
     return friendshipId > 0 ? QString::number(friendshipId)
                             : QStringLiteral("peer:%1").arg(friendUsername);
+}
+
+ConversationSyncService::ConversationRef ChatWindow::roomConversation(
+    int roomId) const {
+    return {LocalConversationRepository::Kind::Room, QString::number(roomId)};
+}
+
+ConversationSyncService::ConversationRef ChatWindow::friendConversation(
+    const QString &friendUsername) const {
+    return {LocalConversationRepository::Kind::Direct,
+            friendConversationKey(friendUsername)};
 }
 
 void ChatWindow::flushCurrentDraft() {
@@ -1405,7 +1407,7 @@ void ChatWindow::handleRoomSendResponse(const QJsonObject &data) {
     } else {
         if (!m_outgoingMessageService->recordFailed(
                 m_username, target, &resolved,
-                m_roomSyncCursors.value(roomId, 0))) {
+                m_conversationSyncService->cursor(roomConversation(roomId)))) {
             qWarning().noquote() << QStringLiteral(
                 "[Outbox] operation=reject-room outcome=degraded roomId=%1 detail=%2")
                 .arg(roomId).arg(m_outgoingMessageService->lastError());
@@ -1443,7 +1445,8 @@ void ChatWindow::handleFriendSendResponse(const QJsonObject &data) {
     } else {
         if (!m_outgoingMessageService->recordFailed(
                 m_username, target, &resolved,
-                m_friendSyncCursors.value(friendUsername, 0))) {
+                m_conversationSyncService->cursor(
+                    friendConversation(friendUsername)))) {
             qWarning().noquote() << QStringLiteral(
                 "[Outbox] operation=reject-direct outcome=degraded peer=%1 detail=%2")
                 .arg(friendUsername, m_outgoingMessageService->lastError());
@@ -1496,7 +1499,8 @@ void ChatWindow::retryPendingFriendSends() {
 void ChatWindow::requestCurrentFriendResume() {
     if (!m_isFriendChat || m_currentFriendUsername.isEmpty()) return;
     getOrCreateFriendModel(m_currentFriendUsername);
-    const qint64 cursor = m_friendSyncCursors.value(m_currentFriendUsername, 0);
+    const qint64 cursor = m_conversationSyncService->cursor(
+        friendConversation(m_currentFriendUsername));
     if (cursor > 0) {
         NetworkManager::instance()->sendMessage(
             Protocol::makeFriendHistoryAfterSequenceReq(m_currentFriendUsername, cursor));
@@ -1524,7 +1528,8 @@ void ChatWindow::onSendMessage() {
         if (!m_outgoingMessageService->stage(
                 m_username, target, m_username, m_displayName, text,
                 Message::Text,
-                m_friendSyncCursors.value(m_currentFriendUsername, 0), &send)) {
+                m_conversationSyncService->cursor(
+                    friendConversation(m_currentFriendUsername)), &send)) {
             m_statusLabel->setText(QStringLiteral("无法准备发送消息"));
             return;
         }
@@ -1549,7 +1554,8 @@ void ChatWindow::onSendMessage() {
     const auto target = OutgoingMessageService::roomTarget(m_currentRoomId);
     if (!m_outgoingMessageService->stage(
             m_username, target, m_username, m_displayName, text, Message::Text,
-            m_roomSyncCursors.value(m_currentRoomId, 0), &send)) {
+            m_conversationSyncService->cursor(
+                roomConversation(m_currentRoomId)), &send)) {
         m_statusLabel->setText(QStringLiteral("无法准备发送消息"));
         return;
     }
@@ -2949,13 +2955,15 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
                         m_currentFriendUsername);
                     if (!m_outgoingMessageService->prepareRetry(
                             m_username, target, retry,
-                            m_friendSyncCursors.value(m_currentFriendUsername, 0),
+                            m_conversationSyncService->cursor(
+                                friendConversation(m_currentFriendUsername)),
                             &command)) return;
                 } else if (m_currentRoomId > 0) {
                     const auto target = OutgoingMessageService::roomTarget(m_currentRoomId);
                     if (!m_outgoingMessageService->prepareRetry(
                             m_username, target, retry,
-                            m_roomSyncCursors.value(m_currentRoomId, 0),
+                            m_conversationSyncService->cursor(
+                                roomConversation(m_currentRoomId)),
                             &command)) return;
                 } else return;
                 if (!m_outgoingMessageService->lastError().isEmpty()) {
@@ -4023,7 +4031,8 @@ void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const 
                 if (!newRepository->replaceMessages(
                         newUid, LocalConversationRepository::Kind::Room,
                         QString::number(it.key()), it.value()->messages(),
-                        m_roomSyncCursors.value(it.key(), 0))) {
+                        m_conversationSyncService->cursor(
+                            roomConversation(it.key())))) {
                     migrated = false;
                     break;
                 }
@@ -4033,7 +4042,8 @@ void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const 
                 if (!newRepository->replaceMessages(
                         newUid, LocalConversationRepository::Kind::Direct,
                         friendConversationKey(it.key()), it.value()->messages(),
-                        m_friendSyncCursors.value(it.key(), 0))) {
+                        m_conversationSyncService->cursor(
+                            friendConversation(it.key())))) {
                     migrated = false;
                 }
             }
@@ -4058,6 +4068,8 @@ void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const 
             m_statusLabel->setText(QStringLiteral("本地消息缓存迁移失败，已切换为在线模式"));
         }
         m_outgoingMessageService->setRepository(m_localRepository.get());
+        m_conversationSyncService->setContext(
+            m_localRepository.get(), m_username, false);
 
         // 更新NetworkManager的凭证
         NetworkManager::instance()->setCredentials(
@@ -4236,11 +4248,10 @@ void ChatWindow::onClearCache() {
     if (result != QMessageBox::Yes) return;
 
     flushCurrentDraft();
-    if (m_localRepository
-        && !m_localRepository->clearCachedMessages(m_username)) {
+    if (!m_conversationSyncService->clearCachedMessages()) {
         qWarning().noquote() << QStringLiteral(
             "[LocalStore] operation=clear-account-cache outcome=failed detail=%1")
-            .arg(m_localRepository->lastError());
+            .arg(m_conversationSyncService->lastError());
         QMessageBox::warning(this, QStringLiteral("清除缓存失败"),
                              QStringLiteral("本地消息缓存无法清除，请稍后重试。"));
         return;
@@ -4250,8 +4261,6 @@ void ChatWindow::onClearCache() {
         it.value()->discardCachedHistory();
     for (auto it = m_friendModels.begin(); it != m_friendModels.end(); ++it)
         it.value()->discardCachedHistory();
-    m_roomSyncCursors.clear();
-    m_friendSyncCursors.clear();
 
     // 清除 QPixmapCache 中所有图片和视频缩略图
     QPixmapCache::clear();
@@ -4614,8 +4623,10 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFrie
             MessageModel *model = m_friendModels.take(oldUsername);
             model->updateSenderUid(oldUsername, newUsername);
             m_friendModels.insert(newUsername, model);
-            const qint64 cursor = m_friendSyncCursors.take(oldUsername);
-            if (cursor > 0) m_friendSyncCursors.insert(newUsername, cursor);
+            m_conversationSyncService->moveCursor(
+                {LocalConversationRepository::Kind::Direct,
+                 QStringLiteral("peer:%1").arg(oldUsername)},
+                friendConversation(newUsername));
             if (m_friendDrafts.contains(oldUsername))
                 m_friendDrafts.insert(newUsername, m_friendDrafts.take(oldUsername));
             persistFriendSnapshot(newUsername);
@@ -4658,6 +4669,9 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFrie
                 m_localRepository->removeConversation(
                     m_username, LocalConversationRepository::Kind::Direct,
                     provisionalKey);
+                m_conversationSyncService->moveCursor(
+                    {LocalConversationRepository::Kind::Direct, provisionalKey},
+                    {LocalConversationRepository::Kind::Direct, stableKey});
             } else {
                 allowedConversationKeys.insert(provisionalKey);
             }
@@ -4677,7 +4691,7 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFrie
         if (m_isFriendChat && m_currentFriendUsername == username)
             switchToRoomMode();
         delete m_friendModels.take(username);
-        m_friendSyncCursors.remove(username);
+        m_conversationSyncService->forget(friendConversation(username));
         m_friendDrafts.remove(username);
     }
     retryPendingFriendSends();
@@ -5325,7 +5339,8 @@ void ChatWindow::switchToFriendChat(const QString &friendUsername, const QString
     m_messageView->setUpdatesEnabled(false);
     m_messageView->setModel(model);
 
-    const qint64 cursor = m_friendSyncCursors.value(friendUsername, 0);
+    const qint64 cursor = m_conversationSyncService->cursor(
+        friendConversation(friendUsername));
     if (cursor > 0) {
         NetworkManager::instance()->sendMessage(
             Protocol::makeFriendHistoryAfterSequenceReq(friendUsername, cursor));
@@ -5368,10 +5383,9 @@ MessageModel *ChatWindow::getOrCreateFriendModel(const QString &friendUsername) 
     if (!m_friendModels.contains(friendUsername)) {
         auto *model = new MessageModel(this);
         m_friendModels[friendUsername] = model;
-        if (m_localRepository && !m_username.isEmpty()) {
-            const auto snapshot = m_localRepository->loadSnapshot(
-                m_username, LocalConversationRepository::Kind::Direct,
-                friendConversationKey(friendUsername));
+        if (!m_username.isEmpty()) {
+            const auto snapshot = m_conversationSyncService->hydrate(
+                friendConversation(friendUsername));
             QList<Message> cached = snapshot.messages;
             for (Message &message : cached) {
                 message.setIsMine(message.sender() == m_username);
@@ -5381,7 +5395,6 @@ MessageModel *ChatWindow::getOrCreateFriendModel(const QString &friendUsername) 
                 }
             }
             if (!cached.isEmpty()) model->prependMessages(cached);
-            if (snapshot.cursor > 0) m_friendSyncCursors[friendUsername] = snapshot.cursor;
             m_friendDrafts[friendUsername] = snapshot.draft;
         }
     }

@@ -31,6 +31,8 @@ the large window would deepen the current UI/application/persistence coupling.
 - Reconcile storage identities by server message ID, then `clientMessageId`, then
   sequence/local fallback. Replacing a snapshot removes locally stale deleted
   messages while preserving its draft.
+- Normalize a null Qt `clientMessageId` to an empty SQL string so history from
+  compatible legacy peers satisfies the local non-null storage invariant.
 - Keep repository access on its owning Qt thread for this first slice. Moving
   high-volume writes to a worker requires an explicit serialized command/result
   boundary rather than sharing a `QSqlDatabase` connection across threads.

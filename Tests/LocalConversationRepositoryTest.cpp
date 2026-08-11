@@ -71,6 +71,14 @@ int main(int argc, char *argv[]) {
         if (!check(isolated.messages.size() == 1 && isolated.messages.first().id() == 900,
                    QStringLiteral("account isolation failed"))) return 1;
 
+        Message legacyWithoutClientId = Message::createTextMessage(
+            7, QStringLiteral("legacy"), QStringLiteral("no client id"));
+        legacyWithoutClientId.setId(899);
+        if (!check(repository.upsertMessage(
+                  QStringLiteral("legacy-user"), LocalConversationRepository::Kind::Room,
+                  QStringLiteral("7"), legacyWithoutClientId, 2),
+                  repository.lastError())) return 1;
+
         Message recalled = snapshot.messages.last();
         recalled.setRecalled(true);
         if (!check(repository.replaceMessages(QStringLiteral("alice"),

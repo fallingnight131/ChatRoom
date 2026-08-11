@@ -140,7 +140,9 @@ bool LocalConversationRepository::replaceMessages(
         insert.bindValue(2, conversationKey);
         insert.bindValue(3, messageIdentity(message, index));
         insert.bindValue(4, message.id());
-        insert.bindValue(5, message.clientMessageId());
+        insert.bindValue(5, message.clientMessageId().isNull()
+                                ? QStringLiteral("")
+                                : message.clientMessageId());
         insert.bindValue(6, message.sequence());
         insert.bindValue(7, message.timestamp().toMSecsSinceEpoch());
         insert.bindValue(8, QString::fromUtf8(serializeMessage(message)));
@@ -176,8 +178,10 @@ bool LocalConversationRepository::upsertMessage(
     removeExisting.addBindValue(conversationKey);
     removeExisting.addBindValue(message.id());
     removeExisting.addBindValue(message.id());
-    removeExisting.addBindValue(message.clientMessageId());
-    removeExisting.addBindValue(message.clientMessageId());
+    const QString clientMessageId = message.clientMessageId().isNull()
+        ? QStringLiteral("") : message.clientMessageId();
+    removeExisting.addBindValue(clientMessageId);
+    removeExisting.addBindValue(clientMessageId);
     if (!removeExisting.exec()) {
         m_database.rollback();
         return fail(QStringLiteral("upsertMessage"), removeExisting.lastError().text());
@@ -193,7 +197,7 @@ bool LocalConversationRepository::upsertMessage(
     insert.addBindValue(conversationKey);
     insert.addBindValue(messageIdentity(message, 0));
     insert.addBindValue(message.id());
-    insert.addBindValue(message.clientMessageId());
+    insert.addBindValue(clientMessageId);
     insert.addBindValue(message.sequence());
     insert.addBindValue(message.timestamp().toMSecsSinceEpoch());
     insert.addBindValue(QString::fromUtf8(serializeMessage(message)));

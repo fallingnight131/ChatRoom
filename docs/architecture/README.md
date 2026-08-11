@@ -319,8 +319,10 @@ macOS or Linux product work without a support-scope ADR.
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,
 and terminal local delivery transitions while `ChatWindow` adapts commands and
-responses to the V1 transport. History synchronization and restartable
-attachment commands remain the next extractions; neither belongs in Widgets.
+responses to the V1 transport. `ConversationSyncService` under ADR-0026 now
+owns snapshot/cursor persistence and stable-key promotion. V1 history page
+parsing/scheduling and restartable attachment commands remain the next
+extractions; neither belongs in Widgets.
 
 ### Web
 

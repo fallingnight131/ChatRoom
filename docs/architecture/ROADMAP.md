@@ -186,8 +186,11 @@ Progress:
 - [x] Extract Windows text/emoji outbox orchestration from `ChatWindow` into a
   transport-neutral, repository-backed application service with independent
   restart, authorization-gate, acceptance, failure, and retry tests.
-- [ ] Extract Windows history synchronization orchestration from `ChatWindow`
-  and extend durable pending behavior to restartable attachments.
+- [x] Extract Windows room/direct snapshot persistence, monotonic cursor state,
+  key promotion, eviction, and cache reset into a transport-neutral
+  conversation synchronization service.
+- [ ] Move Windows V1 history page parsing and continuation scheduling out of
+  `ChatWindow`, and extend durable pending behavior to restartable attachments.
 - [x] Extend the Windows cache control to clear account-isolated, server-
   recoverable SQLite history while preserving drafts and unresolved sends.
 - [ ] Add remaining optimistic states, virtualization, bounded media-cache

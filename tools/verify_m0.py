@@ -144,6 +144,7 @@ def run_qt_client_unit_tests(jobs: int, build_root: Path) -> None:
         "NetworkReconnectTest",
         "LocalConversationRepositoryTest",
         "OutgoingMessageServiceTest",
+        "ConversationSyncServiceTest",
     ):
         run([str(build_qt_unit_test(jobs, build_root, name))], ROOT)
 

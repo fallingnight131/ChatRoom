@@ -7,6 +7,7 @@
 #include <memory>
 #include "Protocol.h"
 #include "OutgoingMessageService.h"
+#include "ConversationSyncService.h"
 
 class QListView;
 class QListWidget;
@@ -232,6 +233,9 @@ private:
     void persistFriendMessage(const QString &friendUsername, const Message &message);
     void removeCachedFriend(const QString &friendUsername);
     QString friendConversationKey(const QString &friendUsername) const;
+    ConversationSyncService::ConversationRef roomConversation(int roomId) const;
+    ConversationSyncService::ConversationRef friendConversation(
+        const QString &friendUsername) const;
     void flushCurrentDraft();
     void restoreCurrentDraft();
     void clearCurrentDraft();
@@ -317,10 +321,10 @@ private:
     int     m_currentRoomId = -1;
 
     QMap<int, MessageModel*>  m_models;     // roomId -> MessageModel
-    QMap<int, qint64>         m_roomSyncCursors;
     QMap<int, QString>        m_roomDrafts;
     std::unique_ptr<LocalConversationRepository> m_localRepository;
     std::unique_ptr<OutgoingMessageService> m_outgoingMessageService;
+    std::unique_ptr<ConversationSyncService> m_conversationSyncService;
     MessageDelegate          *m_delegate = nullptr;
     QMap<int, bool>           m_adminRooms; // roomId -> isAdmin
     QSet<int>                 m_joinedRooms; // 已加入过的房间（用于显示加入提示）
@@ -335,7 +339,6 @@ private:
     QString m_currentFriendDisplayName;          // 当前私聊好友的显示名
     int     m_currentFriendshipId = -1;          // 当前 friendshipId
     QMap<QString, MessageModel*> m_friendModels; // friendUsername -> MessageModel
-    QMap<QString, qint64> m_friendSyncCursors;
     QMap<QString, QString> m_friendDrafts;
     QMap<QString, int> m_friendshipIds;
     bool m_restoringDraft = false;

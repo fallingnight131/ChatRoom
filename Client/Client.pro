@@ -21,6 +21,7 @@ SOURCES += \
     FileCache.cpp \
     LocalConversationRepository.cpp \
     OutgoingMessageService.cpp \
+    ConversationSyncService.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -42,6 +43,7 @@ HEADERS += \
     FileCache.h \
     LocalConversationRepository.h \
     OutgoingMessageService.h \
+    ConversationSyncService.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \
