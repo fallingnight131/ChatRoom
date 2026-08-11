@@ -156,14 +156,14 @@ object cleanup is an idempotent post-commit compensation.
 - One WebSocket service owns reconnect and heartbeat behavior.
 - A large chat store owns rooms, messages, friends, file transfer, and much of
   synchronization orchestration.
-- Credentials and active room/direct-conversation sequence cursors are kept only
-  in page memory. After transport reauthentication, the client pages forward
-  from the active cursor; room pages interleave messages, recall state, and
-  deletion events by `syncSequence`, while direct pages reconcile authoritative
-  message and recall state in that same sequence namespace.
-- Active message arrays are memory state; there is no IndexedDB message
-  repository in V1, so a full page refresh starts from server history instead
-  of the prior in-memory cursor.
+- Credentials remain only in page memory. The first M2 repository slice stores
+  account-partitioned, bounded active-room message snapshots and sequence cursors
+  in IndexedDB. Room selection renders that cache and then synchronizes forward;
+  mixed room messages, recall state, and deletion events reconcile by
+  `syncSequence`.
+- Direct-conversation messages/cursors, drafts, and pending sends remain memory
+  state. A full page refresh therefore still starts those paths from server
+  history until later M2 repository slices land.
 
 ## Known M0 Risks
 

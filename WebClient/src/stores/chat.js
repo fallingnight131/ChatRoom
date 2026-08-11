@@ -9,6 +9,7 @@ import {
   sameStableMessage,
   syncSequenceOf
 } from '../messaging/messageReconciliation'
+import { conversationCache } from '../persistence/conversationCache'
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -58,9 +59,14 @@ export const useChatStore = defineStore('chat', {
 
   actions: {
     // ==================== 房间 ====================
-    setCurrentRoom(roomId) {
+    async setCurrentRoom(roomId) {
       const room = this.rooms.find(r => r.roomId === roomId)
       if (room) {
+        this.isFriendChat = false
+        this.currentFriendUsername = null
+        this.currentFriendDisplayName = ''
+        this.currentFriendshipId = null
+        this.friendMessages = []
         this.currentRoomId = roomId
         this.currentRoomName = room.roomName
         this.isAdmin = !!room.isAdmin
@@ -69,11 +75,29 @@ export const useChatStore = defineStore('chat', {
         this.roomSyncCursors[roomId] = 0
         this.users = []
         chatWs.requestUserList(roomId)
-        chatWs.requestHistory(roomId, 50)
         chatWs.requestRoomSettings(roomId)
         this.roomFiles = []
         this.roomFileUsage = { used: 0, max: 0 }
         chatWs.send(makeMessage(MsgType.MARK_ROOM_READ, { roomId }))
+
+        const account = useUserStore().username
+        let cached = null
+        try {
+          cached = await conversationCache.load(account, 'room', roomId)
+        } catch (error) {
+          console.warn('[Cache] unable to load room snapshot:', error)
+        }
+        if (this.currentRoomId !== roomId || this.isFriendChat) return
+        if (cached?.messages?.length) {
+          this.messages = cached.messages
+          this.roomSyncCursors[roomId] = Number(cached.cursor || 0)
+        }
+        const cursor = Number(this.roomSyncCursors[roomId] || 0)
+        if (this.messages.length > 0 && cursor > 0) {
+          chatWs.requestHistory(roomId, 100, 0, cursor)
+        } else {
+          chatWs.requestHistory(roomId, 50)
+        }
       }
     },
 
@@ -90,6 +114,16 @@ export const useChatStore = defineStore('chat', {
       const next = items.reduce((maximum, item) => Math.max(maximum, syncSequenceOf(item)),
         Number(this.roomSyncCursors[roomId] || 0))
       if (next > 0) this.roomSyncCursors[roomId] = next
+    },
+
+    _persistCurrentRoomSnapshot(roomId = this.currentRoomId) {
+      if (!roomId || roomId !== this.currentRoomId || this.isFriendChat) return
+      const account = useUserStore().username
+      if (!account) return
+      void conversationCache.save(account, 'room', roomId, this.messages,
+        this.roomSyncCursors[roomId] || 0).catch(error => {
+        console.warn('[Cache] unable to persist room snapshot:', error)
+      })
     },
 
     resumeCurrentRoom() {
@@ -589,6 +623,7 @@ export const useChatStore = defineStore('chat', {
         if (d.roomId === this.currentRoomId) {
           this.messages.push(d)
           this._advanceRoomSyncCursor(d.roomId, d)
+          this._persistCurrentRoomSnapshot(d.roomId)
         } else {
           // 未读+1
           const room = this.rooms.find(r => r.roomId === d.roomId)
@@ -607,6 +642,8 @@ export const useChatStore = defineStore('chat', {
         const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp }
         if (d.roomId === this.currentRoomId) {
           this.messages.push({ ...d, contentType: 'system', sender: '' })
+          this._advanceRoomSyncCursor(d.roomId, d)
+          this._persistCurrentRoomSnapshot(d.roomId)
         }
       })
 
@@ -626,6 +663,7 @@ export const useChatStore = defineStore('chat', {
             this.messages = mergeUniqueMessages(this.messages, msgs, { prepend: true })
             this._advanceRoomSyncCursor(msg.data.roomId, ...msgs)
           }
+          this._persistCurrentRoomSnapshot(msg.data.roomId)
         }
       })
 
@@ -642,6 +680,7 @@ export const useChatStore = defineStore('chat', {
           const m = this.messages.find(m => m.id === d.messageId)
           if (m) m.recalled = true
           this._advanceRoomSyncCursor(d.roomId, d)
+          this._persistCurrentRoomSnapshot(d.roomId)
         }
       })
 
@@ -672,6 +711,7 @@ export const useChatStore = defineStore('chat', {
             this.messages.push(d)
           }
           this._advanceRoomSyncCursor(d.roomId, d)
+          this._persistCurrentRoomSnapshot(d.roomId)
         } else {
           const room = this.rooms.find(r => r.roomId === d.roomId)
           if (room) room.unread = (room.unread || 0) + 1
@@ -812,6 +852,7 @@ export const useChatStore = defineStore('chat', {
           if (d.roomId !== this.currentRoomId) return
           this.messages = applyDeletionEvents(this.messages, [d])
           this._advanceRoomSyncCursor(d.roomId, d)
+          this._persistCurrentRoomSnapshot(d.roomId)
         }
       })
 
@@ -820,6 +861,7 @@ export const useChatStore = defineStore('chat', {
         if (d.roomId === this.currentRoomId) {
           this.messages = applyDeletionEvents(this.messages, [d])
           this._advanceRoomSyncCursor(d.roomId, d)
+          this._persistCurrentRoomSnapshot(d.roomId)
         }
       })
 
@@ -842,6 +884,7 @@ export const useChatStore = defineStore('chat', {
         if (d.success) {
           this.messages = applyDeletionEvents(this.messages, [{ ...d, mode: 'selected' }])
           this._advanceRoomSyncCursor(d.roomId, d)
+          this._persistCurrentRoomSnapshot(d.roomId)
           this.roomFileUsage = {
             used: Number(d.usedFileSpace || 0),
             max: Number(d.maxFileSpace || 0)
@@ -904,6 +947,7 @@ export const useChatStore = defineStore('chat', {
                 m.clearReason = '文件已过期或被清除'
               }
             })
+            this._persistCurrentRoomSnapshot(d.roomId)
           }
           this._emit('roomSettingsSaved', d)
         } else if (d.needConfirm) {
@@ -930,6 +974,7 @@ export const useChatStore = defineStore('chat', {
               m.clearReason = '文件已过期或被清除'
             }
           })
+          this._persistCurrentRoomSnapshot(d.roomId)
         }
       })
 
@@ -942,6 +987,7 @@ export const useChatStore = defineStore('chat', {
         this.messages.forEach(m => {
           if (m.sender === d.username) m.senderName = d.displayName
         })
+        this._persistCurrentRoomSnapshot(d.roomId)
       })
 
       chatWs.on(MsgType.UID_CHANGE_NOTIFY, (msg) => {
@@ -953,6 +999,7 @@ export const useChatStore = defineStore('chat', {
         this.messages.forEach(m => {
           if (m.sender === d.oldUid) m.sender = d.newUid
         })
+        this._persistCurrentRoomSnapshot(d.roomId)
       })
 
       // 房间密码
