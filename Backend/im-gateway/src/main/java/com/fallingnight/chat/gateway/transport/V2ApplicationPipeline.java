@@ -26,6 +26,7 @@ public final class V2ApplicationPipeline {
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
             MessagingEventSink messagingEvents,
+            ConversationLiveRouter liveRouter,
             Duration handshakeTimeout,
             Duration authenticationTimeout) {
         Objects.requireNonNull(pipeline, "pipeline");
@@ -41,7 +42,7 @@ public final class V2ApplicationPipeline {
                 events,
                 java.time.Clock.systemUTC()));
         pipeline.addLast("v2-messaging", new V2MessagingHandler(
-                submissions, history, directory, messagingExecutor, messagingEvents));
+                submissions, history, directory, messagingExecutor, messagingEvents, liveRouter));
         pipeline.addLast("v2-authenticated-heartbeat", new V2AuthenticatedHeartbeatHandler());
         pipeline.addLast("v2-authenticated-idle-close", new V2AuthenticatedIdleCloseHandler());
     }

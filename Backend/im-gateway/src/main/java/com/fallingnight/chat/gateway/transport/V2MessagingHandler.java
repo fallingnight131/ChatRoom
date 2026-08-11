@@ -50,6 +50,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
     private final ConversationDirectoryPort directory;
     private final Executor executor;
     private final MessagingEventSink events;
+    private final ConversationLiveRouter liveRouter;
     private final Clock clock;
     private final ArrayDeque<Envelope> pending = new ArrayDeque<>();
     private boolean inFlight;
@@ -58,7 +59,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
             Executor executor) {
-        this(submissions, history, executor, MessagingEventSink.noop(), Clock.systemUTC());
+        this(submissions, history, executor, MessagingEventSink.noop(),
+                ConversationLiveRouter.noop(), Clock.systemUTC());
     }
 
     V2MessagingHandler(
@@ -66,7 +68,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessageHistoryPort history,
             Executor executor,
             Clock clock) {
-        this(submissions, history, executor, MessagingEventSink.noop(), clock);
+        this(submissions, history, executor, MessagingEventSink.noop(),
+                ConversationLiveRouter.noop(), clock);
     }
 
     public V2MessagingHandler(
@@ -74,7 +77,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessageHistoryPort history,
             Executor executor,
             MessagingEventSink events) {
-        this(submissions, history, executor, events, Clock.systemUTC());
+        this(submissions, history, executor, events,
+                ConversationLiveRouter.noop(), Clock.systemUTC());
     }
 
     public V2MessagingHandler(
@@ -83,7 +87,18 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             ConversationDirectoryPort directory,
             Executor executor,
             MessagingEventSink events) {
-        this(submissions, history, directory, executor, events, Clock.systemUTC());
+        this(submissions, history, directory, executor, events,
+                ConversationLiveRouter.noop(), Clock.systemUTC());
+    }
+
+    public V2MessagingHandler(
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            Executor executor,
+            MessagingEventSink events,
+            ConversationLiveRouter liveRouter) {
+        this(submissions, history, directory, executor, events, liveRouter, Clock.systemUTC());
     }
 
     V2MessagingHandler(
@@ -91,9 +106,20 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessageHistoryPort history,
             Executor executor,
             MessagingEventSink events,
+            Clock clock) {
+        this(submissions, history, executor, events, ConversationLiveRouter.noop(), clock);
+    }
+
+    private V2MessagingHandler(
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            Executor executor,
+            MessagingEventSink events,
+            ConversationLiveRouter liveRouter,
             Clock clock) {
         this(submissions, history, query -> new ConversationDirectoryPage(
-                java.util.List.of(), Optional.empty(), false), executor, events, clock);
+                java.util.List.of(), Optional.empty(), false), executor, events,
+                liveRouter, clock);
     }
 
     V2MessagingHandler(
@@ -102,12 +128,25 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             ConversationDirectoryPort directory,
             Executor executor,
             MessagingEventSink events,
+            Clock clock) {
+        this(submissions, history, directory, executor, events,
+                ConversationLiveRouter.noop(), clock);
+    }
+
+    V2MessagingHandler(
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            Executor executor,
+            MessagingEventSink events,
+            ConversationLiveRouter liveRouter,
             Clock clock) {
         this.submissions = Objects.requireNonNull(submissions, "submissions");
         this.history = Objects.requireNonNull(history, "history");
         this.directory = Objects.requireNonNull(directory, "directory");
         this.executor = Objects.requireNonNull(executor, "executor");
         this.events = Objects.requireNonNull(events, "events");
+        this.liveRouter = Objects.requireNonNull(liveRouter, "liveRouter");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -160,6 +199,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
     @Override
     public void channelInactive(ChannelHandlerContext context) {
         pending.clear();
+        liveRouter.unsubscribe(context.channel());
         context.fireChannelInactive();
     }
 
@@ -237,13 +277,16 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
     private void executeOffEventLoop(
             ChannelHandlerContext context, Envelope request, Work work) {
         final Envelope response;
+        StoredMessage publication = null;
         try {
             if (work instanceof SubmitWork submit) {
-                response = submitResponse(
-                        request, submit.submission(), submissions.submit(submit.submission()));
+                MessageSubmissionResult result = submissions.submit(submit.submission());
+                response = submitResponse(request, submit.submission(), result);
+                publication = publication(submit.submission(), result);
             } else if (work instanceof HistoryWork read) {
                 response = historyResponse(
-                        request, read.query(), history.readAfter(read.query()));
+                        request, read.query(), liveRouter.readAndSubscribe(
+                                context.channel(), read.query(), history));
             } else {
                 DirectoryWork list = (DirectoryWork) work;
                 response = directoryResponse(request, directory.list(list.query()));
@@ -257,10 +300,15 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     true));
             return;
         }
-        scheduleCompletion(context, response);
+        scheduleCompletion(context, response, publication);
     }
 
     private void scheduleCompletion(ChannelHandlerContext context, Envelope response) {
+        scheduleCompletion(context, response, null);
+    }
+
+    private void scheduleCompletion(
+            ChannelHandlerContext context, Envelope response, StoredMessage publication) {
         if (context.executor().isShuttingDown()) {
             return;
         }
@@ -269,6 +317,16 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 inFlight = false;
                 if (context.channel().isActive()) {
                     context.writeAndFlush(response);
+                    if (publication != null) {
+                        try {
+                            ConversationLiveRouter.LivePublishResult result =
+                                    liveRouter.publish(publication);
+                            events.livePublished(result.published());
+                            events.liveSlowConsumerClosed(result.slowClosed());
+                        } catch (RuntimeException exception) {
+                            events.failed();
+                        }
+                    }
                     dispatchNext(context);
                 } else {
                     pending.clear();
@@ -277,6 +335,23 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
         } catch (RejectedExecutionException exception) {
             pending.clear();
         }
+    }
+
+    private static StoredMessage publication(
+            MessageSubmission submission, MessageSubmissionResult result) {
+        if (!(result instanceof MessageSubmissionResult.Accepted accepted) || accepted.duplicate()) {
+            return null;
+        }
+        return new StoredMessage(
+                accepted.messageId(),
+                submission.conversationId(),
+                accepted.conversationSequence(),
+                submission.senderAccountId(),
+                submission.senderDeviceId(),
+                submission.clientMessageId(),
+                submission.messageType(),
+                submission.payload(),
+                accepted.acceptedAt());
     }
 
     private Envelope submitResponse(

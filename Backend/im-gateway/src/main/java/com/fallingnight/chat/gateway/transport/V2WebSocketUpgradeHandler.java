@@ -26,6 +26,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
     private final AuthenticationAdmissionControl admission;
     private final AuthenticationEventSink events;
     private final MessagingEventSink messagingEvents;
+    private final ConversationLiveRouter liveRouter;
     private final Duration handshakeTimeout;
     private final Duration authenticationTimeout;
     private ScheduledFuture<?> upgradeDeadline;
@@ -43,6 +44,25 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
             MessagingEventSink messagingEvents,
             Duration handshakeTimeout,
             Duration authenticationTimeout) {
+        this(authentication, sessionResume, submissions, history, directory,
+                authenticationExecutor, messagingExecutor, admission, events, messagingEvents,
+                ConversationLiveRouter.noop(), handshakeTimeout, authenticationTimeout);
+    }
+
+    public V2WebSocketUpgradeHandler(
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            ConversationLiveRouter liveRouter,
+            Duration handshakeTimeout,
+            Duration authenticationTimeout) {
         this.authentication = Objects.requireNonNull(authentication, "authentication");
         this.sessionResume = Objects.requireNonNull(sessionResume, "sessionResume");
         this.submissions = Objects.requireNonNull(submissions, "submissions");
@@ -54,6 +74,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
         this.admission = Objects.requireNonNull(admission, "admission");
         this.events = Objects.requireNonNull(events, "events");
         this.messagingEvents = Objects.requireNonNull(messagingEvents, "messagingEvents");
+        this.liveRouter = Objects.requireNonNull(liveRouter, "liveRouter");
         this.handshakeTimeout = Objects.requireNonNull(handshakeTimeout, "handshakeTimeout");
         this.authenticationTimeout = Objects.requireNonNull(
                 authenticationTimeout, "authenticationTimeout");
@@ -89,6 +110,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
                     admission,
                     events,
                     messagingEvents,
+                    liveRouter,
                     handshakeTimeout,
                     authenticationTimeout);
             context.pipeline().remove(this);

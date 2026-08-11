@@ -97,8 +97,19 @@ connection. Type 104 is permanently reserved for an unsolicited live
 `MessageRecord`: it carries the authenticated session but no request or envelope
 client-message correlation. The Web client accepts it only after authentication,
 merges stable identities, advances only an exact contiguous sequence, and repairs
-gaps through type 102 history. Gateway publication is not implemented in this
-slice, so delivery/read/fan-out remain pre-cutover work.
+gaps through type 102 history. The single-gateway preview router publishes this
+event only to channels whose final authorized history page established that
+conversation as active. This is live fan-out, not delivery/read acknowledgement.
+
+The router serializes the final history query/subscription with local publication
+so a racing durable commit is observed in either the page or the stream. Only a
+new durable acceptance publishes; idempotent duplicates return type 101 without
+another event. Each channel has one active subscription, and switching, denial,
+disconnect, or close removes it. An unwritable subscriber is closed so reconnect
+history repairs the gap instead of accumulating unbounded output. Published and
+slow-consumer-close metrics use fixed labels. Routing is process-local: multiple
+gateways require M5 Redis routing, and future membership mutations must invalidate
+subscriptions before they are enabled.
 
 `ListConversations` uses a limit of 1..100 and either no cursor or the complete
 pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are

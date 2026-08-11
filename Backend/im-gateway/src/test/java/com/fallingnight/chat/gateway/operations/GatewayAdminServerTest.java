@@ -22,6 +22,8 @@ class GatewayAdminServerTest {
         MessagingTelemetry messaging = new MessagingTelemetry();
         telemetry.accepted(false);
         messaging.accepted(true);
+        messaging.livePublished(2);
+        messaging.liveSlowConsumerClosed(1);
         try (GatewayAdminServer server = new GatewayAdminServer(
                 new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
                 1,
@@ -41,6 +43,10 @@ class GatewayAdminServerTest {
                     "chat_gateway_authentication_total{outcome=\"accepted\"} 1"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_messaging_total{outcome=\"duplicate\"} 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_messaging_total{outcome=\"live_published\"} 2"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_messaging_total{outcome=\"live_slow_consumer_closed\"} 1"));
             assertTrue(metrics.body().contains("chat_gateway_messaging_workers_active 2"));
             assertTrue(metrics.body().contains("chat_gateway_messaging_queue_size 3"));
             assertEquals("no-store", metrics.headers()

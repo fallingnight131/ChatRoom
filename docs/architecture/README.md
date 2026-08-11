@@ -250,9 +250,11 @@ sequence, exact concurrent retries return one stable database-timestamped
 outcome, conflicting idempotency reuse is denied, and active members can read
 bounded ascending sequence pages. Permanent bounded V2 types 100..104 now cover
 submit/accepted/history/page plus a server live-message event using the same
-record projection, with generated Java/C++/TypeScript compatibility. Publication
-is not active yet; the Web client can validate, merge, and history-repair the
-event without skipping its contiguous cursor.
+record projection, with generated Java/C++/TypeScript compatibility. A shared
+single-gateway router now establishes one active subscription only through the
+final authorized history page, publishes non-duplicate durable acceptance, and
+closes unwritable subscribers for reconnect repair. The Web client validates,
+merges, and history-repairs the event without skipping its contiguous cursor.
 Authenticated gateway connections now dispatch registered UTF-8 text submission
 and sequence-history reads through this boundary outside the Netty event loop,
 using only server-bound identity and preserving per-connection command order.
@@ -268,8 +270,10 @@ role, sequence high watermark, and read cursor.
 The authenticated gateway now dispatches that directory through the same
 connection-local serial queue and isolated worker pool as message append/history,
 using only server-bound account identity and a fixed outcome counter.
-This remains a pre-cutover path without delivery fan-out, read state,
-conversation discovery, or supported-client use.
+This remains a pre-cutover path: live fan-out is process-local and active-
+conversation-only, while delivery/read state, multi-gateway routing, membership
+invalidation, broader conversation discovery, and supported-client cutover are
+still absent.
 
 The application identity module now also owns a transport-independent session
 resume command and atomic-rotation persistence port. The command destroys its

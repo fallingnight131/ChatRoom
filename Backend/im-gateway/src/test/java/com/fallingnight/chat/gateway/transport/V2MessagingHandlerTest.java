@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryCursor;
@@ -24,6 +25,7 @@ import com.fallingnight.chat.protocol.v2.MessageAccepted;
 import com.fallingnight.chat.protocol.v2.MessageContentType;
 import com.fallingnight.chat.protocol.v2.MessageHistoryPage;
 import com.fallingnight.chat.protocol.v2.MessageKind;
+import com.fallingnight.chat.protocol.v2.MessageRecord;
 import com.fallingnight.chat.protocol.v2.MessageType;
 import com.fallingnight.chat.protocol.v2.ProtocolError;
 import com.fallingnight.chat.protocol.v2.ProtocolErrorCode;
@@ -80,6 +82,48 @@ class V2MessagingHandlerTest {
             assertEquals(7, accepted.getConversationSequence());
             assertEquals(ACCEPTED_AT.toEpochMilli(), accepted.getAcceptedAtEpochMs());
             assertFalse(accepted.getDuplicate());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void publishesOnlyNewDurableAcceptanceToCaughtUpActiveConversation() throws Exception {
+        SingleGatewayConversationLiveRouter router = new SingleGatewayConversationLiveRouter(CLOCK);
+        AtomicReference<Boolean> duplicate = new AtomicReference<>(false);
+        EmbeddedChannel channel = new EmbeddedChannel(new V2MessagingHandler(
+                submission -> new MessageSubmissionResult.Accepted(
+                        MESSAGE_ID, 7, ACCEPTED_AT, duplicate.get()),
+                query -> new MessageHistoryResult.Page(List.of(), 0, 0, false),
+                query -> new ConversationDirectoryPage(
+                        List.of(), java.util.Optional.empty(), false),
+                Runnable::run,
+                MessagingEventSink.noop(),
+                router));
+        channel.attr(V2ConnectionAttributes.AUTHENTICATED).set(
+                new AuthenticatedConnection(ACCOUNT_ID, DEVICE_ID, SESSION_ID));
+        try {
+            channel.writeInbound(historyEnvelope(0, 100));
+            channel.runPendingTasks();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    ((Envelope) channel.readOutbound()).getMessageType());
+
+            channel.writeInbound(submitEnvelope("client-message-1", "live"));
+            channel.runPendingTasks();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED_VALUE,
+                    ((Envelope) channel.readOutbound()).getMessageType());
+            Envelope published = channel.readOutbound();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_PUBLISHED_VALUE,
+                    published.getMessageType());
+            assertEquals("live", MessageRecord.parseFrom(published.getPayload())
+                    .getContent().toStringUtf8());
+
+            duplicate.set(true);
+            channel.writeInbound(submitEnvelope("client-message-1", "live"));
+            channel.runPendingTasks();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED_VALUE,
+                    ((Envelope) channel.readOutbound()).getMessageType());
+            assertNull(channel.readOutbound());
         } finally {
             channel.finishAndReleaseAll();
         }

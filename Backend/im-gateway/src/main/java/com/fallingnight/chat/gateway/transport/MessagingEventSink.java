@@ -8,6 +8,10 @@ public interface MessagingEventSink {
 
     void directoryPage();
 
+    void livePublished(int count);
+
+    void liveSlowConsumerClosed(int count);
+
     void denied();
 
     void conflict();
@@ -21,6 +25,8 @@ public interface MessagingEventSink {
             @Override public void accepted(boolean duplicate) { }
             @Override public void historyPage() { }
             @Override public void directoryPage() { }
+            @Override public void livePublished(int count) { }
+            @Override public void liveSlowConsumerClosed(int count) { }
             @Override public void denied() { }
             @Override public void conflict() { }
             @Override public void saturated() { }

@@ -325,7 +325,7 @@ Progress:
   - [x] Compose PostgreSQL, identity cryptography, authentication/resume,
     bounded workers, trusted-proxy/HTTP/WSS policy, loopback metrics/readiness,
     and reverse-order shutdown in the independently runnable `GatewayMain`.
-  - [ ] Route durable V2 conversation/message commands through this gateway
+  - [x] Route durable V2 conversation/message commands through this gateway
     before any product traffic cutover; coordinate distributed limits through
     Redis in M5.
     - [x] Permanently allocate bounded submit/accepted/history/page Protobuf
@@ -375,6 +375,9 @@ Progress:
     - [x] Permanently allocate the authenticated V2 live-message event and make
       Web reconciliation advance only contiguous sequence or repair gaps through
       history before enabling gateway fan-out.
+    - [x] Publish new durable messages to authorization-established active
+      conversations on one gateway with race-free history subscription,
+      duplicate suppression, bounded route cleanup, and slow-consumer closure.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

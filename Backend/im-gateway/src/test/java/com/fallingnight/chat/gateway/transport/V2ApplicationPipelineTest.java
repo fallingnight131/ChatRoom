@@ -29,6 +29,7 @@ class V2ApplicationPipelineTest {
                     AuthenticationAdmissionControl.allowAll(),
                     AuthenticationEventSink.noop(),
                     MessagingEventSink.noop(),
+                    ConversationLiveRouter.noop(),
                     Duration.ofSeconds(10),
                     Duration.ofSeconds(30));
 

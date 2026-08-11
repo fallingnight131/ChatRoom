@@ -6,6 +6,8 @@ public record MessagingTelemetrySnapshot(
         long duplicates,
         long historyPages,
         long directoryPages,
+        long livePublished,
+        long liveSlowConsumerClosed,
         long denied,
         long conflicts,
         long saturated,

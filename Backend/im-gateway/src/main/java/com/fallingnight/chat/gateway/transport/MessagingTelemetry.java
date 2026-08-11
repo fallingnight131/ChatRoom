@@ -8,6 +8,8 @@ public final class MessagingTelemetry implements MessagingEventSink {
     private final LongAdder duplicates = new LongAdder();
     private final LongAdder historyPages = new LongAdder();
     private final LongAdder directoryPages = new LongAdder();
+    private final LongAdder livePublished = new LongAdder();
+    private final LongAdder liveSlowConsumerClosed = new LongAdder();
     private final LongAdder denied = new LongAdder();
     private final LongAdder conflicts = new LongAdder();
     private final LongAdder saturated = new LongAdder();
@@ -24,6 +26,8 @@ public final class MessagingTelemetry implements MessagingEventSink {
 
     @Override public void historyPage() { historyPages.increment(); }
     @Override public void directoryPage() { directoryPages.increment(); }
+    @Override public void livePublished(int count) { livePublished.add(count); }
+    @Override public void liveSlowConsumerClosed(int count) { liveSlowConsumerClosed.add(count); }
     @Override public void denied() { denied.increment(); }
     @Override public void conflict() { conflicts.increment(); }
     @Override public void saturated() { saturated.increment(); }
@@ -31,7 +35,8 @@ public final class MessagingTelemetry implements MessagingEventSink {
 
     public MessagingTelemetrySnapshot snapshot() {
         return new MessagingTelemetrySnapshot(
-                accepted.sum(), duplicates.sum(), historyPages.sum(), directoryPages.sum(), denied.sum(),
+                accepted.sum(), duplicates.sum(), historyPages.sum(), directoryPages.sum(),
+                livePublished.sum(), liveSlowConsumerClosed.sum(), denied.sum(),
                 conflicts.sum(), saturated.sum(), failed.sum());
     }
 }

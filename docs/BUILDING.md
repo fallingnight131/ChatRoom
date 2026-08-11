@@ -101,6 +101,10 @@ files and fails if regeneration changes them. Do not edit generated Web files
 manually. Gateway tests separately verify authenticated server-bound identity,
 off-event-loop submit/history dispatch, per-connection ordering, safe denial,
 bounded saturation behavior, and isolation from the authentication worker pool.
+They also verify that final authorized history establishes a process-local active
+subscription without a snapshot/stream gap, a new durable acceptance emits type
+104 after ACK, duplicates do not republish, closed routes are removed, and live
+or slow-consumer outcomes use fixed-cardinality counters.
 This is pre-cutover evidence, not product traffic or a capacity result.
 Loopback administration tests also verify fixed-cardinality accepted, duplicate,
 history, denial, conflict, saturation, and failure counters plus message worker
@@ -173,8 +177,9 @@ verifies one original plus one stable duplicate, rollback of the losing sequence
 allocation, conflict rejection, database-authoritative acceptance time, bounded
 ascending cursor pages, and active-membership authorization. The runtime now
 exposes this adapter to already authenticated V2 connections for text submission
-and sequence-history reads. No supported client uses that route, and fan-out,
-delivery, and read semantics remain unimplemented.
+and sequence-history reads. No supported client uses that route. Process-local
+active-conversation fan-out is implemented for the build-gated preview; durable
+delivery/read semantics and multi-gateway routing remain unimplemented.
 The same real-database gate verifies the transport-independent conversation
 directory: group/direct labels, role and sequence projection, stable composite-
 cursor paging, left-membership filtering, and disabled-account denial. Its wire

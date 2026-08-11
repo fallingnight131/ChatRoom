@@ -12,6 +12,7 @@ import com.fallingnight.chat.gateway.transport.GatewayConnectionLimiter;
 import com.fallingnight.chat.gateway.transport.GatewayChannelExceptionHandler;
 import com.fallingnight.chat.gateway.transport.HttpHostPolicyHandler;
 import com.fallingnight.chat.gateway.transport.MessagingEventSink;
+import com.fallingnight.chat.gateway.transport.SingleGatewayConversationLiveRouter;
 import com.fallingnight.chat.gateway.transport.TrustedProxyHttpHandler;
 import com.fallingnight.chat.gateway.transport.V2EnvelopeDecoder;
 import com.fallingnight.chat.gateway.transport.V2WebSocketUpgradeHandler;
@@ -65,6 +66,7 @@ public final class V2GatewayServer implements AutoCloseable {
     private final AuthenticationAdmissionControl admission;
     private final AuthenticationEventSink events;
     private final MessagingEventSink messagingEvents;
+    private final SingleGatewayConversationLiveRouter liveRouter;
     private final SslContext sslContext;
     private final GatewayConnectionLimiter connectionLimiter;
     private final ChannelGroup children = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
@@ -125,6 +127,7 @@ public final class V2GatewayServer implements AutoCloseable {
         this.admission = Objects.requireNonNull(admission, "admission");
         this.events = Objects.requireNonNull(events, "events");
         this.messagingEvents = Objects.requireNonNull(messagingEvents, "messagingEvents");
+        this.liveRouter = new SingleGatewayConversationLiveRouter(java.time.Clock.systemUTC());
         this.sslContext = Objects.requireNonNull(sslContext, "sslContext");
         connectionLimiter = new GatewayConnectionLimiter(config.maximumConnections());
     }
@@ -232,6 +235,7 @@ public final class V2GatewayServer implements AutoCloseable {
                 admission,
                 events,
                 messagingEvents,
+                liveRouter,
                 config.handshakeTimeout(),
                 config.authenticationTimeout()));
         pipeline.addLast("safe-channel-error", new GatewayChannelExceptionHandler());

@@ -14,6 +14,8 @@ public final class PrometheusMessagingMetrics {
         counter(output, "duplicate", snapshot.duplicates());
         counter(output, "history_page", snapshot.historyPages());
         counter(output, "directory_page", snapshot.directoryPages());
+        counter(output, "live_published", snapshot.livePublished());
+        counter(output, "live_slow_consumer_closed", snapshot.liveSlowConsumerClosed());
         counter(output, "denied", snapshot.denied());
         counter(output, "conflict", snapshot.conflicts());
         counter(output, "saturated", snapshot.saturated());
