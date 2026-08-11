@@ -217,7 +217,10 @@ Progress:
     cleanup of legacy Base64 thumbnails, media payloads, and temporary authorization.
   - [x] Bound the Qt model/view timeline to 500 resolved messages while
     preserving unresolved user sends across append, sync, history, and ACK paths.
-  - [ ] Extend delivered/read presentation from authoritative protocol state.
+  - [x] Present authoritative server acceptance as `已发送` on Web and Windows
+    without mislabelling it as delivered or read.
+  - [ ] Add durable private-chat read watermarks and receipt presentation;
+    multi-device aggregation remains M6 scope.
 
 Work:
 

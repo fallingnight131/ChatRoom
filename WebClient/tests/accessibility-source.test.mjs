@@ -22,6 +22,7 @@ test('supports keyboard access to files, profiles, retry, and message actions', 
   assert.match(messages, /onBubbleKeydown/)
   assert.match(messages, /role="menu" aria-label="消息操作"/)
   assert.match(messages, /role="menuitem" tabindex="0"/)
+  assert.match(messages, /已发送/)
 })
 
 test('labels composer controls and honors focus and reduced-motion preferences', () => {

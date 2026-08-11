@@ -27,7 +27,6 @@ remain release evidence to add before making a user-visible performance claim.
 
 ## Remaining M2 Boundaries
 
-- The Windows message view still needs an equivalent bounded rendering model.
 - Delivery/read presentation must be defined against protocol semantics rather
   than inferred from local rendering.
 
@@ -61,3 +60,10 @@ an unresolved send becomes accepted, the oldest resolved row is evicted. Model
 tests cover the resolved bound and preservation of unresolved rows. Native
 Windows interaction and memory measurements remain M4 release evidence; a
 successful macOS development build is not that evidence.
+
+## Outgoing State Presentation
+
+Web and Windows render `发送中`, `发送失败`, and `已发送` for the sender. `已发送`
+means only that an authoritative server message ID exists after durable
+acceptance. It must not be translated or styled as `已送达` or `已读`. Those
+states require an additive protocol event and persistent peer/device watermarks.
