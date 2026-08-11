@@ -159,7 +159,9 @@ object cleanup is an idempotent post-commit compensation.
   cleared after dispatch. Text/emoji sends render optimistically, persist their
   local delivery state, retry unresolved sends with the same `clientMessageId`
   after authenticated list refresh, and reconcile ACK/live/history in place.
-  Attachment upload commands are still memory-backed.
+  The hot live/optimistic/ACK path uses transactional single-message upserts and
+  bounded pruning; history and destructive mutations retain authoritative
+  snapshot replacement. Attachment upload commands are still memory-backed.
 - The current checked-in project is primarily exercised on Windows.
 
 ### Web

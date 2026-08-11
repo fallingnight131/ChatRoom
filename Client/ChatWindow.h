@@ -20,6 +20,7 @@ class QMenu;
 class QTimer;
 
 class MessageModel;
+class Message;
 class MessageDelegate;
 class EmojiPicker;
 class ThemeManager;
@@ -224,8 +225,10 @@ private:
     void advanceRoomSyncCursor(int roomId, qint64 sequence);
     void requestCurrentRoomResume();
     void persistRoomSnapshot(int roomId);
+    void persistRoomMessage(int roomId, const Message &message);
     void removeCachedRoom(int roomId);
     void persistFriendSnapshot(const QString &friendUsername);
+    void persistFriendMessage(const QString &friendUsername, const Message &message);
     void removeCachedFriend(const QString &friendUsername);
     QString friendConversationKey(const QString &friendUsername) const;
     void flushCurrentDraft();

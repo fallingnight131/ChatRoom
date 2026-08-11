@@ -37,6 +37,9 @@ public:
     bool replaceMessages(const QString &account, Kind kind,
                          const QString &conversationKey,
                          const QList<Message> &messages, qint64 cursor);
+    bool upsertMessage(const QString &account, Kind kind,
+                       const QString &conversationKey,
+                       const Message &message, qint64 cursor);
     Snapshot loadSnapshot(const QString &account, Kind kind,
                           const QString &conversationKey);
     bool saveDraft(const QString &account, Kind kind,

@@ -49,6 +49,7 @@ public:
     const QList<Message> &messages() const { return m_messages; }
     int findMessageRow(int messageId) const;
     int findMessageByFileId(int fileId) const;
+    int findMessageByClientMessageId(const QString &clientMessageId) const;
     void updateDownloadProgress(int fileId, int state, double progress);
     void removeMessageByFileId(int fileId);
     void updateSenderName(const QString &username, const QString &newDisplayName);

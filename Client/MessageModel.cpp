@@ -271,6 +271,13 @@ int MessageModel::findMessageByFileId(int fileId) const {
     return -1;
 }
 
+int MessageModel::findMessageByClientMessageId(const QString &clientMessageId) const {
+    for (int row = 0; row < m_messages.size(); ++row) {
+        if (m_messages[row].clientMessageId() == clientMessageId) return row;
+    }
+    return -1;
+}
+
 void MessageModel::updateDownloadProgress(int fileId, int state, double progress) {
     for (int i = 0; i < m_messages.size(); ++i) {
         if (m_messages[i].fileId() == fileId) {

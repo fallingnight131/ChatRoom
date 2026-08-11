@@ -156,6 +156,72 @@ bool LocalConversationRepository::replaceMessages(
     return true;
 }
 
+bool LocalConversationRepository::upsertMessage(
+    const QString &account, Kind kind, const QString &conversationKey,
+    const Message &message, qint64 cursor) {
+    if (!validateIdentity(account, conversationKey) || cursor < 0) return false;
+    if (!m_database.transaction())
+        return fail(QStringLiteral("upsertMessage"), m_database.lastError().text());
+    if (!ensureConversation(account, kind, conversationKey, cursor)) {
+        m_database.rollback();
+        return false;
+    }
+
+    QSqlQuery removeExisting(m_database);
+    removeExisting.prepare(QStringLiteral(
+        "DELETE FROM messages WHERE account = ? AND kind = ? AND conversation_key = ? "
+        "AND ((? > 0 AND server_id = ?) OR (? <> '' AND client_message_id = ?))"));
+    removeExisting.addBindValue(account);
+    removeExisting.addBindValue(kindValue(kind));
+    removeExisting.addBindValue(conversationKey);
+    removeExisting.addBindValue(message.id());
+    removeExisting.addBindValue(message.id());
+    removeExisting.addBindValue(message.clientMessageId());
+    removeExisting.addBindValue(message.clientMessageId());
+    if (!removeExisting.exec()) {
+        m_database.rollback();
+        return fail(QStringLiteral("upsertMessage"), removeExisting.lastError().text());
+    }
+
+    QSqlQuery insert(m_database);
+    insert.prepare(QStringLiteral(
+        "INSERT INTO messages(account, kind, conversation_key, identity, server_id, "
+        "client_message_id, sequence, timestamp, payload_json, updated_at) "
+        "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"));
+    insert.addBindValue(account);
+    insert.addBindValue(kindValue(kind));
+    insert.addBindValue(conversationKey);
+    insert.addBindValue(messageIdentity(message, 0));
+    insert.addBindValue(message.id());
+    insert.addBindValue(message.clientMessageId());
+    insert.addBindValue(message.sequence());
+    insert.addBindValue(message.timestamp().toMSecsSinceEpoch());
+    insert.addBindValue(QString::fromUtf8(serializeMessage(message)));
+    insert.addBindValue(QDateTime::currentMSecsSinceEpoch());
+    if (!insert.exec()) {
+        m_database.rollback();
+        return fail(QStringLiteral("upsertMessage"), insert.lastError().text());
+    }
+
+    QSqlQuery prune(m_database);
+    prune.prepare(QStringLiteral(
+        "DELETE FROM messages WHERE rowid IN ("
+        "SELECT rowid FROM messages WHERE account = ? AND kind = ? AND conversation_key = ? "
+        "ORDER BY timestamp DESC, sequence DESC, rowid DESC LIMIT -1 OFFSET ?)"));
+    prune.addBindValue(account);
+    prune.addBindValue(kindValue(kind));
+    prune.addBindValue(conversationKey);
+    prune.addBindValue(MaxMessagesPerConversation);
+    if (!prune.exec()) {
+        m_database.rollback();
+        return fail(QStringLiteral("upsertMessage"), prune.lastError().text());
+    }
+    if (!m_database.commit())
+        return fail(QStringLiteral("upsertMessage"), m_database.lastError().text());
+    m_lastError.clear();
+    return true;
+}
+
 LocalConversationRepository::Snapshot LocalConversationRepository::loadSnapshot(
     const QString &account, Kind kind, const QString &conversationKey) {
     Snapshot snapshot;

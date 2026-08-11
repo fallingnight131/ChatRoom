@@ -37,8 +37,11 @@ An app restart or transient disconnect no longer loses accepted text intent,
 and retries cannot create duplicate durable messages on upgraded V1 servers.
 Relationship/membership eviction removes the optimistic rows with the rest of
 the inaccessible conversation. Snapshot replacement remains synchronous and
-bounded; later extraction must move orchestration and high-volume writes away
-from `ChatWindow` without changing these semantics.
+bounded for history and destructive mutations. The high-frequency
+optimistic/live/ACK path performs a transactional identity upsert and prunes to
+the same 500-message bound, avoiding a 500-row rewrite per live message. Later
+extraction must move orchestration away from `ChatWindow` without changing
+these semantics.
 
 ## Rollback
 

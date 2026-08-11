@@ -1231,6 +1231,17 @@ void ChatWindow::persistRoomSnapshot(int roomId) {
     }
 }
 
+void ChatWindow::persistRoomMessage(int roomId, const Message &message) {
+    if (!m_localRepository || m_username.isEmpty()) return;
+    if (!m_localRepository->upsertMessage(
+            m_username, LocalConversationRepository::Kind::Room,
+            QString::number(roomId), message, m_roomSyncCursors.value(roomId, 0))) {
+        qWarning().noquote() << QStringLiteral(
+            "[LocalStore] operation=upsert-room outcome=degraded roomId=%1 detail=%2")
+            .arg(roomId).arg(m_localRepository->lastError());
+    }
+}
+
 void ChatWindow::removeCachedRoom(int roomId) {
     m_roomSyncCursors.remove(roomId);
     m_roomDrafts.remove(roomId);
@@ -1272,6 +1283,19 @@ void ChatWindow::persistFriendSnapshot(const QString &friendUsername) {
             m_friendSyncCursors.value(friendUsername, 0))) {
         qWarning().noquote() << QStringLiteral(
             "[LocalStore] operation=persist-direct outcome=degraded peer=%1 detail=%2")
+            .arg(friendUsername, m_localRepository->lastError());
+    }
+}
+
+void ChatWindow::persistFriendMessage(const QString &friendUsername,
+                                      const Message &message) {
+    if (!m_localRepository || m_username.isEmpty() || friendUsername.isEmpty()) return;
+    if (!m_localRepository->upsertMessage(
+            m_username, LocalConversationRepository::Kind::Direct,
+            friendConversationKey(friendUsername), message,
+            m_friendSyncCursors.value(friendUsername, 0))) {
+        qWarning().noquote() << QStringLiteral(
+            "[LocalStore] operation=upsert-direct outcome=degraded peer=%1 detail=%2")
             .arg(friendUsername, m_localRepository->lastError());
     }
 }
@@ -1369,7 +1393,8 @@ void ChatWindow::handleRoomSendResponse(const QJsonObject &data) {
         model->updateDeliveryState(clientMessageId, Message::Failed);
         m_statusLabel->setText(data["error"].toString(QStringLiteral("消息发送失败")));
     }
-    persistRoomSnapshot(roomId);
+    const int row = model->findMessageByClientMessageId(clientMessageId);
+    if (row >= 0) persistRoomMessage(roomId, model->messageAt(row));
 }
 
 void ChatWindow::handleFriendSendResponse(const QJsonObject &data) {
@@ -1391,7 +1416,8 @@ void ChatWindow::handleFriendSendResponse(const QJsonObject &data) {
         model->updateDeliveryState(clientMessageId, Message::Failed);
         m_statusLabel->setText(data["error"].toString(QStringLiteral("好友消息发送失败")));
     }
-    persistFriendSnapshot(friendUsername);
+    const int row = model->findMessageByClientMessageId(clientMessageId);
+    if (row >= 0) persistFriendMessage(friendUsername, model->messageAt(row));
 }
 
 void ChatWindow::retryPendingRoomSends(const QSet<QString> &allowedRoomKeys) {
@@ -1462,7 +1488,7 @@ void ChatWindow::onSendMessage() {
         pending.setIsMine(true);
         pending.setDeliveryState(Message::Sending);
         getOrCreateFriendModel(m_currentFriendUsername)->addMessage(pending);
-        persistFriendSnapshot(m_currentFriendUsername);
+        persistFriendMessage(m_currentFriendUsername, pending);
         NetworkManager::instance()->sendMessage(Protocol::makeFriendChatMsg(
             m_currentFriendUsername, text, QStringLiteral("text"), clientMessageId));
         clearCurrentDraft();
@@ -1481,7 +1507,7 @@ void ChatWindow::onSendMessage() {
     pending.setIsMine(true);
     pending.setDeliveryState(Message::Sending);
     getOrCreateModel(m_currentRoomId)->addMessage(pending);
-    persistRoomSnapshot(m_currentRoomId);
+    persistRoomMessage(m_currentRoomId, pending);
     NetworkManager::instance()->sendMessage(Protocol::makeChatMsg(
         m_currentRoomId, m_username, text, QStringLiteral("text"), clientMessageId));
 
@@ -1496,7 +1522,7 @@ void ChatWindow::onChatMessage(const QJsonObject &msg) {
     MessageModel *model = getOrCreateModel(roomId);
     model->addMessage(message);
     advanceRoomSyncCursor(roomId, message.sequence());
-    persistRoomSnapshot(roomId);
+    persistRoomMessage(roomId, message);
 
     // 如果是当前房间，滚动到底部
     if (roomId == m_currentRoomId) {
@@ -1528,7 +1554,7 @@ void ChatWindow::onSystemMessage(const QJsonObject &msg) {
     MessageModel *model = getOrCreateModel(roomId);
     model->addMessage(message);
     advanceRoomSyncCursor(roomId, message.sequence());
-    persistRoomSnapshot(roomId);
+    persistRoomMessage(roomId, message);
 
     if (roomId == m_currentRoomId) {
         QTimer::singleShot(50, [this] {
@@ -1831,7 +1857,7 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
 
     getOrCreateModel(roomId)->addMessage(msg);
     advanceRoomSyncCursor(roomId, msg.sequence());
-    persistRoomSnapshot(roomId);
+    persistRoomMessage(roomId, msg);
 
     if (roomId == m_currentRoomId) {
         QTimer::singleShot(50, [this] { m_messageView->scrollToBottom(); });
@@ -2867,14 +2893,16 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
             const Message retry = msg;
             menu.addAction(QStringLiteral("重试发送"), [this, model, retry] {
                 model->updateDeliveryState(retry.clientMessageId(), Message::Sending);
+                Message sending = retry;
+                sending.setDeliveryState(Message::Sending);
                 if (m_isFriendChat && !m_currentFriendUsername.isEmpty()) {
-                    persistFriendSnapshot(m_currentFriendUsername);
+                    persistFriendMessage(m_currentFriendUsername, sending);
                     NetworkManager::instance()->sendMessage(Protocol::makeFriendChatMsg(
                         m_currentFriendUsername, retry.content(),
                         Message::contentTypeToString(retry.contentType()),
                         retry.clientMessageId()));
                 } else if (m_currentRoomId > 0) {
-                    persistRoomSnapshot(m_currentRoomId);
+                    persistRoomMessage(m_currentRoomId, sending);
                     NetworkManager::instance()->sendMessage(Protocol::makeChatMsg(
                         m_currentRoomId, m_username, retry.content(),
                         Message::contentTypeToString(retry.contentType()),
@@ -4726,7 +4754,7 @@ void ChatWindow::onFriendChatMessage(const QJsonObject &data) {
 
     model->addMessage(msg);
     advanceFriendSyncCursor(chatWith, syncSequenceFrom(data));
-    persistFriendSnapshot(chatWith);
+    persistFriendMessage(chatWith, msg);
 
     // 如果当前正在和这个好友聊天，滚动到底
     if (m_isFriendChat && m_currentFriendUsername == chatWith) {
@@ -4953,7 +4981,7 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
 
     model->addMessage(msg);
     advanceFriendSyncCursor(chatWith, syncSequenceFrom(data));
-    persistFriendSnapshot(chatWith);
+    persistFriendMessage(chatWith, msg);
 
     if (m_isFriendChat && m_currentFriendUsername == chatWith) {
         QTimer::singleShot(50, [this] {

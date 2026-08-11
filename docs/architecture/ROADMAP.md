@@ -181,6 +181,8 @@ Progress:
   switch/close flush, relationship eviction, and send-time clearing.
 - [x] Add a durable Windows text/emoji optimistic outbox with stable-key
   reconnect retry, accepted/failed presentation, and explicit same-key retry.
+- [x] Replace Windows live-message full-snapshot rewrites with transactional
+  single-message upserts while retaining bounded cache pruning.
 - [ ] Extract Windows synchronization/outbox orchestration from `ChatWindow`
   and extend durable pending behavior to restartable attachments.
 - [ ] Add optimistic states, virtualization, cache controls, and accessibility

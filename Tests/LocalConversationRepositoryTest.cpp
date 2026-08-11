@@ -119,6 +119,22 @@ int main(int argc, char *argv[]) {
                    && pending.first().conversationKey == QStringLiteral("42")
                    && pending.first().message.clientMessageId() == QStringLiteral("client-0"),
                    QStringLiteral("pending send query failed"))) return 1;
+        Message acceptedPending = pendingMessage;
+        acceptedPending.setId(902);
+        acceptedPending.setSequence(9);
+        acceptedPending.setDeliveryState(Message::Accepted);
+        if (!check(repository.upsertMessage(QStringLiteral("alice"),
+                  LocalConversationRepository::Kind::Direct, QStringLiteral("42"),
+                  acceptedPending, 9), repository.lastError())) return 1;
+        const auto acceptedSnapshot = repository.loadSnapshot(
+            QStringLiteral("alice"), LocalConversationRepository::Kind::Direct,
+            QStringLiteral("42"));
+        if (!check(acceptedSnapshot.messages.size() == 1
+                   && acceptedSnapshot.messages.first().id() == 902,
+                   QStringLiteral("upsert did not replace optimistic identity")) ||
+            !check(repository.pendingSends(QStringLiteral("alice"),
+                  LocalConversationRepository::Kind::Direct).isEmpty(),
+                  QStringLiteral("accepted upsert remained pending"))) return 1;
         pendingMessage.setDeliveryState(Message::Failed);
         if (!check(repository.replaceMessages(QStringLiteral("alice"),
                   LocalConversationRepository::Kind::Direct, QStringLiteral("42"),
