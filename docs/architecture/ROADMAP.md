@@ -396,6 +396,9 @@ Progress:
   - [x] Add a bounded, duplicate-detecting streaming JSON codec for the inactive
     V1 login slice with compatible success/generic rejection output and no V2
     session-secret exposure.
+  - [x] Add an inactive V1 Web login handler with bounded-worker dispatch,
+    shared admission control, server-bound identity, generic failure, and
+    late-result suppression without opening a partial product route.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

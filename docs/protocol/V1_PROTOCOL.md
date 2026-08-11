@@ -77,14 +77,19 @@ consumer instead of growing an unbounded queue or silently dropping the event.
 `LOGIN_REQ`, `LOGIN_RSP`, `REGISTER_REQ`, `REGISTER_RSP`, `LOGOUT`,
 `FORCE_OFFLINE`, `HEARTBEAT`, `HEARTBEAT_ACK`.
 
-The inactive Java compatibility codec currently covers only `LOGIN_REQ` and
-`LOGIN_RSP`; it is not connected to a listener. It accepts the established
-envelope and credential fields, caps this small command at 16 KiB, rejects
+The inactive Java compatibility codec and Netty handler currently cover only
+`LOGIN_REQ` and `LOGIN_RSP`; they are not connected to a listener. The codec
+accepts the established envelope and credential fields, caps this small command
+at 16 KiB, rejects
 duplicates, trailing JSON, nesting/string-limit violations, missing fields,
 usernames over 20 UTF-16 code units, and passwords over 1024 UTF-16 code units.
 Success encodes only the V1 numeric `userId`, username, and display name. Failure
 uses one generic credential error. File authorization fields and all other V1
 message types remain on the C++ server until their own vertical slices exist.
+The handler permits one attempt per connection, runs credential work on the
+bounded authentication executor, applies the shared admission limits, and binds
+the numeric V1 identity plus canonical UUID identity only in server-side channel
+state. Every failure class uses the same response and closes the connection.
 
 ### Room messages, presence, and history
 
