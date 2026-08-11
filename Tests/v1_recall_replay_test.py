@@ -110,6 +110,14 @@ def run_test(server: Path) -> None:
             alice.receive_type("FRIEND_CHAT_MSG", predicate=lambda m: data(m).get("id") == friend_message_id)
             bob.receive_type("FRIEND_CHAT_MSG", predicate=lambda m: data(m).get("id") == friend_message_id)
 
+            bob.send("FRIEND_RECALL_REQ", {"messageId": friend_message_id})
+            denied_friend_recall = data(bob.receive_type("FRIEND_RECALL_RSP"))
+            if (
+                denied_friend_recall.get("success") is not False
+                or denied_friend_recall.get("errorCode") != "FRIEND_RECALL_REJECTED"
+            ):
+                raise SmokeFailure("non-owner friend recall lacked a stable rejection code")
+
             alice.send("FRIEND_RECALL_REQ", {"messageId": friend_message_id})
             friend_recall = require_success(alice.receive_type("FRIEND_RECALL_RSP"))
             if friend_recall.get("duplicate") is not False or friend_recall.get("mutationSequence") != 2:

@@ -2768,6 +2768,7 @@ void ChatServer::handleRecall(ClientSession *session, const QJsonObject &data) {
     if (!requireRoomMembership(session, roomId, QStringLiteral("room-message-recall"))
         || !m_db->isMessageInRoom(messageId, roomId)) {
         rspData["success"] = false;
+        rspData["errorCode"] = QStringLiteral("RECALL_ACCESS_DENIED");
         rspData["error"] = QStringLiteral("无权撤回该消息");
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::RECALL_RSP, rspData));
         return;
@@ -2812,6 +2813,9 @@ void ChatServer::handleRecall(ClientSession *session, const QJsonObject &data) {
         // 管理员撤回不再发额外系统消息，撤回通知已足够
     } else {
         rspData["success"] = false;
+        rspData["errorCode"] = recall.status == RecallResult::Status::Failed
+            ? QStringLiteral("RECALL_PERSISTENCE_FAILED")
+            : QStringLiteral("RECALL_REJECTED");
         rspData["error"]   = QStringLiteral("无法撤回（超时或非本人消息）");
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::RECALL_RSP, rspData));
     }
@@ -4446,10 +4450,13 @@ void ChatServer::handleFriendRecall(ClientSession *session, const QJsonObject &d
     rspData["messageId"] = messageId;
     rspData["friendUsername"] = friendUsername;
 
-    const RecallResult recall = friendshipId > 0 && !friendUsername.isEmpty()
-        ? m_db->recallFriendMessage(messageId, session->userId(),
-                                    Protocol::RECALL_TIME_LIMIT_SEC)
-        : RecallResult{};
+    RecallResult recall;
+    if (friendshipId > 0 && !friendUsername.isEmpty()) {
+        recall = m_db->recallFriendMessage(messageId, session->userId(),
+                                           Protocol::RECALL_TIME_LIMIT_SEC);
+    } else {
+        recall.status = RecallResult::Status::Rejected;
+    }
     const bool accepted = recall.status == RecallResult::Status::Applied ||
                           recall.status == RecallResult::Status::Duplicate;
     if (accepted) {
@@ -4487,6 +4494,9 @@ void ChatServer::handleFriendRecall(ClientSession *session, const QJsonObject &d
         }
     } else {
         rspData["success"] = false;
+        rspData["errorCode"] = recall.status == RecallResult::Status::Failed
+            ? QStringLiteral("FRIEND_RECALL_PERSISTENCE_FAILED")
+            : QStringLiteral("FRIEND_RECALL_REJECTED");
         rspData["error"]   = QStringLiteral("无法撤回（超时或非本人消息）");
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_RECALL_RSP, rspData));
     }

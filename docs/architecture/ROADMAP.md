@@ -107,6 +107,8 @@ Progress:
   replayable recall, without changing current wire behavior yet.
 - [x] Make room/direct recall idempotent and replayable through the conversation
   sequence cursor, including reconnect and process-restart recovery.
+- [x] Add stable authorization/rejection/persistence error codes to room and
+  direct recall outcomes.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

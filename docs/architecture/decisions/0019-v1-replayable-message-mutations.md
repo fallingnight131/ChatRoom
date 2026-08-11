@@ -30,6 +30,8 @@ contract and make creation ordering ambiguous.
   sequence. Retrying an accepted recall will return its stable result instead
   of allocating another sequence or broadcasting another mutation. File
   cleanup is an idempotent post-commit compensation and may be retried.
+- Rejections and persistence failures expose stable, non-enumerating error codes
+  alongside localized text.
 - Web and Windows clients reconcile a repeated stable message ID as an
   authoritative state update. Older clients ignore the additive fields.
 - Administrative physical deletion remains a separate event-model decision;

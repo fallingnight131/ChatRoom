@@ -221,6 +221,13 @@ recall commit and file deletion.
 Sequence history replays the recalled row with its immutable `sequence`, newer
 `mutationSequence`, and `syncSequence`, including after process restart.
 
+Failures use stable codes: room/resource mismatch is
+`RECALL_ACCESS_DENIED`, an ownership/time-window rejection is
+`RECALL_REJECTED`, and storage failure is `RECALL_PERSISTENCE_FAILED`. Direct
+recall uses `FRIEND_RECALL_REJECTED` or
+`FRIEND_RECALL_PERSISTENCE_FAILED` without revealing whether an unrelated
+message ID exists.
+
 Administrative physical deletion still has no replayable event row. Room/message
 and direct-message/peer relationships are resolved or checked by the server;
 client resource fields do not select an unrelated notification target.

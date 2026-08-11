@@ -176,7 +176,9 @@ def run_authorization(server_path: Path) -> None:
             if not isinstance(other_room, int) or other_room <= 0:
                 raise SmokeFailure("second room creation failed")
             alice.send("RECALL_REQ", {"roomId": other_room, "messageId": message_id})
-            require_denied(alice.receive_type("RECALL_RSP"))
+            denied_recall = require_denied(alice.receive_type("RECALL_RSP"))
+            if denied_recall.get("errorCode") != "RECALL_ACCESS_DENIED":
+                raise SmokeFailure("cross-room recall omitted its stable denial code")
             bob.send("HISTORY_REQ", {"roomId": room_id, "count": 50})
             messages = require_success(bob.receive_type("HISTORY_RSP")).get("messages")
             if not isinstance(messages, list) or not any(
