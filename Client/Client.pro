@@ -9,6 +9,7 @@ include(../Common/Common.pri)
 SOURCES += \
     main.cpp \
     HttpUploadTransport.cpp \
+    HttpDownloadTransport.cpp \
     NetworkManager.cpp \
     LoginDialog.cpp \
     ChatWindow.cpp \
@@ -28,6 +29,7 @@ SOURCES += \
 HEADERS += \
     NetworkManager.h \
     HttpUploadTransport.h \
+    HttpDownloadTransport.h \
     LoginDialog.h \
     ChatWindow.h \
     MessageModel.h \

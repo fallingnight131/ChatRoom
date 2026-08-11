@@ -165,8 +165,9 @@ These are recorded for prioritization, not silently fixed by this baseline:
    single-process gateway limits are explicit with structured denial logs;
    trusted-proxy identity, external alerting, and distributed enforcement are
    not yet implemented.
-8. **File amplification:** Base64 adds payload and allocation overhead; file data
-   still crosses the chat protocol.
+8. **Legacy file amplification:** supported Web/Windows normal upload/download
+   paths use authorized HTTP, but old-server Base64 and WebSocket chunk fallbacks
+   still add protocol surface and allocation cost when exercised.
 9. **Single-node presence:** session and online-room state cannot route across
     multiple server instances.
 10. **Index coverage:** eleven explicit indexes cover current history, reconnect,
@@ -197,8 +198,9 @@ restarted schemas converge.
 - `Tests/v1_http_upload_test.py` covers the binary HTTP attachment bridge,
   including owner binding, integrity rejection, interrupted upload cleanup,
   room/friend idempotency, conflicts, explicit ACK identity, and restart retry.
-- `Tests/HttpUploadTransportTest.cpp` drives the Qt `QFile` HTTP adapter against
-  a real local HTTP socket; `qt_attachment_source_test.py` prevents Windows
+- `Tests/HttpUploadTransportTest.cpp` and `HttpDownloadTransportTest.cpp` drive
+  the Qt streaming HTTP adapters against real local sockets;
+  `qt_attachment_source_test.py` prevents Windows
   composer and upgraded forwarding paths from restoring inline attachment
   bytes.
 - `Tests/v1_file_forward_test.py` covers server-side room/friend attachment

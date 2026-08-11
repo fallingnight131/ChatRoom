@@ -24,6 +24,9 @@ def main() -> int:
     if "uploadRawFile" not in SOURCE or "httpUploadPath" not in SOURCE:
         print("[QtAttachmentSourceTest] FAIL: Qt HTTP upload negotiation is absent")
         return 1
+    if "downloadRawFile(fileId)" not in SOURCE or "m_httpDownloads" not in SOURCE:
+        print("[QtAttachmentSourceTest] FAIL: Qt attachments do not prefer HTTP download")
+        return 1
     if "FILE_UPLOAD_END_RSP" not in (ROOT / "Common" / "Protocol.h").read_text(encoding="utf-8"):
         print("[QtAttachmentSourceTest] FAIL: attachment finalization ACK type is absent")
         return 1

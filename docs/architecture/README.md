@@ -223,7 +223,9 @@ paths. ADR-0015 closes the live delivery metadata gap: inline, HTTP-uploaded,
 and forwarded attachment notifications now expose their durable conversation
 sequence and database timestamp just like history rows. ADR-0016 adds explicit,
 restart-safe finalization acceptance and suppresses duplicate room/friend upload
-messages on identical retries.
+messages on identical retries. ADR-0018 makes Windows attachment downloads
+HTTP-first and streams them to disk; legacy Base64/WebSocket downloads remain
+compatibility fallbacks only.
 
 ## 8. Protocol Strategy
 

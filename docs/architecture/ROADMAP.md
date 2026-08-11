@@ -91,6 +91,8 @@ Progress:
   reconnect resume to direct text/emoji messages.
 - [x] Move Web and Windows composer room/friend attachment bytes from
   JSON/Base64 to the authorized streaming HTTP upload bridge.
+- [x] Move normal Windows room/friend attachment downloads to the authorized
+  streaming HTTP data plane while retaining old-server fallback.
 - [x] Move upgraded Windows multi-target attachment forwarding to an
   authorization-checked server command; old-server fallbacks and legacy-path
   retirement remain.

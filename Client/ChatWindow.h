@@ -113,6 +113,10 @@ private slots:
     void onUploadChunkResponse(const QJsonObject &data);
     void onRawUploadProgress(const QString &uploadId, qint64 sent, qint64 total);
     void onRawUploadFinished(const QString &uploadId, bool success, const QString &error);
+    void onRawDownloadProgress(int fileId, qint64 received, qint64 total);
+    void onRawDownloadFinished(int fileId, bool success,
+                               const QString &temporaryPath,
+                               const QString &error);
     void onFileCosProgress(const QJsonObject &data);
     void onDownloadChunkResponse(const QJsonObject &data);
     void onFileForwardResponse(const QJsonObject &data);
@@ -229,6 +233,8 @@ private:
     void processNextDownload();
     void updateAllModelsDownloadProgress(int fileId, int state, double progress);
     void onFileDownloadComplete(int fileId, const QString &fileName, const QByteArray &data);
+    void finishCachedDownload(int fileId, const QString &fileName,
+                              const QString &localPath);
     void generateVideoThumbnail(int fileId, const QString &videoPath);
     QByteArray generateVideoThumbnailData(const QString &videoPath);
     void cacheAvatar(const QString &username, const QByteArray &data);
@@ -331,6 +337,7 @@ private:
 
     // 发送文件的本地路径记录（用于收到 FILE_NOTIFY 时直接缓存）
     QMap<QString, QString> m_pendingSentFiles; // fileName -> localPath
+    QMap<int, QPair<QString, qint64>> m_httpDownloads; // fileId -> {name, size}
 
     // --- 大文件分块下载状态（支持多文件队列） ---
     struct ChunkedDownload {

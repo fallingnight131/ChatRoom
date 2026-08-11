@@ -524,6 +524,8 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::uploadFinalizeResponse, this, &ChatWindow::onUploadFinalizeResponse);
     connect(net, &NetworkManager::rawUploadProgress, this, &ChatWindow::onRawUploadProgress);
     connect(net, &NetworkManager::rawUploadFinished, this, &ChatWindow::onRawUploadFinished);
+    connect(net, &NetworkManager::rawDownloadProgress, this, &ChatWindow::onRawDownloadProgress);
+    connect(net, &NetworkManager::rawDownloadFinished, this, &ChatWindow::onRawDownloadFinished);
     connect(net, &NetworkManager::downloadChunkResponse, this, &ChatWindow::onDownloadChunkResponse);
     connect(net, &NetworkManager::fileCosProgress, this, &ChatWindow::onFileCosProgress);
     connect(net, &NetworkManager::fileForwardResponse, this, &ChatWindow::onFileForwardResponse);
@@ -1884,6 +1886,10 @@ void ChatWindow::resumeDownload(int fileId) {
 }
 
 void ChatWindow::cancelDownload(int fileId) {
+    if (m_httpDownloads.contains(fileId)) {
+        NetworkManager::instance()->cancelRawDownload(fileId);
+        m_httpDownloads.remove(fileId);
+    }
     updateAllModelsDownloadProgress(fileId, Message::NotDownloaded, 0.0);
     m_downloads.remove(fileId);
     m_downloadQueue.removeAll(fileId);
@@ -1913,6 +1919,12 @@ void ChatWindow::triggerFileDownload(int fileId, const QString &fileName, qint64
 
     // 标记为下载中
     updateAllModelsDownloadProgress(fileId, Message::Downloading, 0.0);
+
+    if (NetworkManager::instance()->downloadRawFile(fileId)) {
+        m_httpDownloads[fileId] = qMakePair(fileName, fileSize);
+        m_statusLabel->setText(QString("HTTP 下载中 %1...").arg(fileName));
+        return;
+    }
 
     if (fileSize > Protocol::MAX_SMALL_FILE) {
         // 大文件走分块下载
@@ -1965,6 +1977,11 @@ void ChatWindow::onFileDownloadComplete(int fileId, const QString &fileName, con
         return;
     }
 
+    finishCachedDownload(fileId, fileName, localPath);
+}
+
+void ChatWindow::finishCachedDownload(int fileId, const QString &fileName,
+                                      const QString &localPath) {
     m_statusLabel->setText(QString("文件已缓存: %1").arg(fileName));
 
     // 更新所有模型中该文件的下载状态
@@ -1997,6 +2014,46 @@ void ChatWindow::onFileDownloadComplete(int fileId, const QString &fileName, con
     // 如果是视频，生成缩略图
     if (vidExts.contains(suffix)) {
         generateVideoThumbnail(fileId, localPath);
+    }
+}
+
+void ChatWindow::onRawDownloadProgress(int fileId, qint64 received, qint64 total) {
+    if (!m_httpDownloads.contains(fileId) || total <= 0) return;
+    const double ratio = qBound(0.0, static_cast<double>(received) / total, 1.0);
+    updateAllModelsDownloadProgress(fileId, Message::Downloading, ratio);
+    m_statusLabel->setText(QString("HTTP 下载中 %1%...")
+                               .arg(static_cast<int>(ratio * 100)));
+}
+
+void ChatWindow::onRawDownloadFinished(int fileId, bool success,
+                                       const QString &temporaryPath,
+                                       const QString &error) {
+    if (!m_httpDownloads.contains(fileId)) {
+        if (!temporaryPath.isEmpty()) QFile::remove(temporaryPath);
+        return;
+    }
+    const auto request = m_httpDownloads.take(fileId);
+    const QString fileName = request.first;
+    const qint64 fileSize = request.second;
+    if (success) {
+        const QString localPath = FileCache::instance()->cacheFromLocal(
+            fileId, fileName, temporaryPath);
+        QFile::remove(temporaryPath);
+        if (!localPath.isEmpty()) {
+            finishCachedDownload(fileId, fileName, localPath);
+            return;
+        }
+    }
+
+    qWarning() << "[Download] HTTP 下载失败，回退 V1:" << error;
+    if (fileSize > Protocol::MAX_SMALL_FILE) {
+        startChunkedDownload(fileId, fileName, fileSize);
+    } else {
+        QJsonObject requestData;
+        requestData["fileId"] = fileId;
+        requestData["fileName"] = fileName;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_REQ, requestData));
     }
 }
 

@@ -241,6 +241,12 @@ notification. Reuse for a different command returns
 `CLIENT_MESSAGE_ID_CONFLICT`. Clients that omit the field retain the old
 at-least-once behavior and can ignore the additive response.
 
+Updated Web and Windows clients download room/friend files from
+`GET /api/download/{signedFileId}` with the login file token. The normal Windows
+path streams to a temporary file and then imports it into the user cache. The
+legacy `FILE_DOWNLOAD_REQ` Base64 response and WebSocket chunk messages remain
+old-server fallbacks, not the preferred product data plane.
+
 Upgraded Windows clients forward an existing attachment with
 `FILE_FORWARD_REQ {sourceFileId, roomIds[], friendUsernames[]}` after login
 advertises `serverFileForward: true`. The signed file ID follows the existing

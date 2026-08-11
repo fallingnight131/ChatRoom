@@ -124,19 +124,26 @@ def build_headless_server(jobs: int, build_root: Path, target_name: str) -> Path
     return locate_executable(target_dir, "ChatServerHeadless")
 
 
-def build_qt_http_upload_test(jobs: int, build_root: Path) -> Path:
+def build_qt_http_transport_test(
+    jobs: int, build_root: Path, name: str
+) -> Path:
     qmake = select_qmake()
     make, supports_jobs = select_make(qmake)
-    target_dir = build_root / "qt-http-upload-test"
+    target_dir = build_root / f"qt-{name.lower()}"
     target_dir.mkdir(parents=True, exist_ok=True)
-    run([qmake, str(ROOT / "Tests" / "HttpUploadTransportTest.pro"), "CONFIG+=release"], target_dir)
+    run([qmake, str(ROOT / "Tests" / f"{name}.pro"), "CONFIG+=release"], target_dir)
     run(make_command(make, supports_jobs, jobs), target_dir)
-    return locate_executable(target_dir, "HttpUploadTransportTest")
+    return locate_executable(target_dir, name)
+
+
+def run_qt_http_transport_tests(jobs: int, build_root: Path) -> None:
+    for name in ("HttpUploadTransportTest", "HttpDownloadTransportTest"):
+        run([str(build_qt_http_transport_test(jobs, build_root, name))], ROOT)
 
 
 def verify_v1_smoke(jobs: int, build_root: Path) -> None:
     executable = build_headless_server(jobs, build_root, "v1-smoke-server")
-    run([str(build_qt_http_upload_test(jobs, build_root))], ROOT)
+    run_qt_http_transport_tests(jobs, build_root)
     for test_script in (
         "v1_smoke_test.py",
         "v1_authorization_test.py",
@@ -204,7 +211,7 @@ def verify_qt(jobs: int, build_root: Path) -> None:
     print(f"[M0] qmake: {qmake}")
 
     run([sys.executable, str(ROOT / "Tests" / "qt_attachment_source_test.py")], ROOT)
-    build_qt_http_upload_test(jobs, build_root)
+    run_qt_http_transport_tests(jobs, build_root)
 
     for target, project in (
         ("server", ROOT / "Server" / "Server.pro"),

@@ -1,5 +1,6 @@
 #include "NetworkManager.h"
 #include "HttpUploadTransport.h"
+#include "HttpDownloadTransport.h"
 #include "Protocol.h"
 
 #include <QSslSocket>
@@ -32,6 +33,11 @@ NetworkManager::NetworkManager(QObject *parent)
             this, &NetworkManager::rawUploadProgress);
     connect(m_httpUpload, &HttpUploadTransport::finished,
             this, &NetworkManager::rawUploadFinished);
+    m_httpDownload = new HttpDownloadTransport(this);
+    connect(m_httpDownload, &HttpDownloadTransport::progress,
+            this, &NetworkManager::rawDownloadProgress);
+    connect(m_httpDownload, &HttpDownloadTransport::finished,
+            this, &NetworkManager::rawDownloadFinished);
 }
 
 NetworkManager::~NetworkManager() {
@@ -77,6 +83,7 @@ void NetworkManager::disconnectFromServer() {
     m_reconnectTimer->stop();
     m_supportsServerFileForward = false;
     if (m_httpUpload) m_httpUpload->reset();
+    if (m_httpDownload) m_httpDownload->reset();
 
     if (m_socket) {
         m_socket->disconnect();
@@ -105,6 +112,14 @@ bool NetworkManager::uploadRawFile(const QString &uploadId,
 
 void NetworkManager::cancelRawUpload(const QString &uploadId) {
     if (m_httpUpload) m_httpUpload->cancel(uploadId);
+}
+
+bool NetworkManager::downloadRawFile(int fileId) {
+    return m_httpDownload && m_httpDownload->download(fileId);
+}
+
+void NetworkManager::cancelRawDownload(int fileId) {
+    if (m_httpDownload) m_httpDownload->cancel(fileId);
 }
 
 void NetworkManager::setCredentials(int userId, const QString &username) {
@@ -177,6 +192,13 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
             m_supportsServerFileForward = data["serverFileForward"].toBool(false);
             if (m_httpUpload) {
                 m_httpUpload->configure(
+                    m_host,
+                    static_cast<quint16>(data["httpPort"].toInt()),
+                    data["fileToken"].toString(),
+                    data["httpSecure"].toBool(false));
+            }
+            if (m_httpDownload) {
+                m_httpDownload->configure(
                     m_host,
                     static_cast<quint16>(data["httpPort"].toInt()),
                     data["fileToken"].toString(),

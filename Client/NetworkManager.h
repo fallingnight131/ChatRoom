@@ -8,6 +8,7 @@
 #include <QTimer>
 
 class HttpUploadTransport;
+class HttpDownloadTransport;
 
 /// 网络管理器 —— 单例，管理与服务器的 TCP 连接
 /// 观察者模式：通过信号通知各 UI 组件
@@ -22,6 +23,8 @@ public:
     bool uploadRawFile(const QString &uploadId, const QString &uploadPath,
                        const QString &filePath);
     void cancelRawUpload(const QString &uploadId);
+    bool downloadRawFile(int fileId);
+    void cancelRawDownload(int fileId);
 
     bool isConnected() const;
     bool supportsServerFileForward() const { return m_supportsServerFileForward; }
@@ -73,6 +76,10 @@ signals:
     void fileCosProgress(const QJsonObject &data);
     void rawUploadProgress(const QString &uploadId, qint64 sent, qint64 total);
     void rawUploadFinished(const QString &uploadId, bool success, const QString &error);
+    void rawDownloadProgress(int fileId, qint64 received, qint64 total);
+    void rawDownloadFinished(int fileId, bool success,
+                             const QString &temporaryPath,
+                             const QString &error);
 
     // 撤回
     void recallResponse(bool success, int messageId, const QString &error);
@@ -189,6 +196,7 @@ private:
     QTimer     *m_reconnectTimer  = nullptr;
     QByteArray  m_buffer;
     HttpUploadTransport *m_httpUpload = nullptr;
+    HttpDownloadTransport *m_httpDownload = nullptr;
     bool m_supportsServerFileForward = false;
 
     QString     m_host;
