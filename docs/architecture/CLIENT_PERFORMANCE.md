@@ -44,3 +44,20 @@ in the active page may be rendered from memory; after a reload, users open the
 attachment through a fresh server-authorized HTTP request. A future thumbnail
 cache requires its own global byte budget, eviction policy, access revocation,
 and tests instead of adding byte fields back to conversation records.
+
+## Windows Conversation Timeline
+
+The Windows client uses Qt's model/view rendering boundary: `QListView` requests
+variable row sizes and paints visible messages through `MessageDelegate`; it
+does not allocate one persistent widget per message. `MessageModel` retains at
+most 500 resolved messages per conversation, matching the SQLite repository
+boundary. It may additionally retain unresolved text, emoji, and attachment
+sends because removing those would hide user work that still requires retry or
+cancellation.
+
+The limit is enforced after live append, authoritative replacement, history
+prepend, synchronization-page reconciliation, and optimistic acceptance. When
+an unresolved send becomes accepted, the oldest resolved row is evicted. Model
+tests cover the resolved bound and preservation of unresolved rows. Native
+Windows interaction and memory measurements remain M4 release evidence; a
+successful macOS development build is not that evidence.

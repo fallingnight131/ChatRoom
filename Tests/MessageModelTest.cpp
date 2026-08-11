@@ -127,6 +127,44 @@ int main(int argc, char *argv[]) {
     passed = passed && cacheModel.rowCount() == 2
         && cacheModel.messageAt(0).clientMessageId() == QStringLiteral("pending-cache")
         && cacheModel.messageAt(1).clientMessageId() == QStringLiteral("failed-cache");
+
+    MessageModel retentionModel;
+    QList<Message> retainedHistory;
+    for (int id = 1; id <= MessageModel::MaxResolvedMessages + 100; ++id) {
+        Message message = Message::createTextMessage(
+            1, QStringLiteral("server"), QString::number(id));
+        message.setId(id);
+        message.setSequence(id);
+        retainedHistory.append(message);
+    }
+    retentionModel.prependMessages(retainedHistory);
+    passed = passed
+        && retentionModel.rowCount() == MessageModel::MaxResolvedMessages
+        && retentionModel.messageAt(0).id() == 101
+        && retentionModel.messageAt(retentionModel.rowCount() - 1).id() == 600;
+
+    Message pendingOne = Message::createTextMessage(
+        1, QStringLiteral("alice"), QStringLiteral("pending-one"));
+    pendingOne.setClientMessageId(QStringLiteral("pending-one"));
+    pendingOne.setDeliveryState(Message::Sending);
+    retentionModel.addMessage(pendingOne);
+    Message pendingTwo = Message::createTextMessage(
+        1, QStringLiteral("alice"), QStringLiteral("pending-two"));
+    pendingTwo.setClientMessageId(QStringLiteral("pending-two"));
+    pendingTwo.setDeliveryState(Message::Failed);
+    retentionModel.addMessage(pendingTwo);
+    passed = passed
+        && retentionModel.rowCount() == MessageModel::MaxResolvedMessages + 2;
+
+    retentionModel.acceptOutgoing(
+        QStringLiteral("pending-one"), 601, 601, 12345);
+    passed = passed
+        && retentionModel.rowCount() == MessageModel::MaxResolvedMessages + 1
+        && retentionModel.messageAt(0).id() == 102
+        && retentionModel.findMessageByClientMessageId(
+            QStringLiteral("pending-two")) >= 0
+        && retentionModel.findMessageByClientMessageId(
+            QStringLiteral("pending-one")) >= 0;
     if (!passed) qCritical() << "Message model reconciliation verification failed";
     return passed ? 0 : 1;
 }

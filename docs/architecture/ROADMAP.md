@@ -215,8 +215,9 @@ Progress:
     overscan, history-prepend anchoring, and bottom-follow behavior.
   - [x] Enforce a zero-media-byte Web IndexedDB policy, including version-2
     cleanup of legacy Base64 thumbnails, media payloads, and temporary authorization.
-  - [ ] Add equivalent bounded Windows timeline rendering, then extend
-    delivered/read presentation.
+  - [x] Bound the Qt model/view timeline to 500 resolved messages while
+    preserving unresolved user sends across append, sync, history, and ACK paths.
+  - [ ] Extend delivered/read presentation from authoritative protocol state.
 
 Work:
 

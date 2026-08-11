@@ -9,6 +9,8 @@
 class MessageModel : public QAbstractListModel {
     Q_OBJECT
 public:
+    static constexpr int MaxResolvedMessages = 500;
+
     enum MessageRole {
         IdRole = Qt::UserRole + 1,
         SenderRole,
@@ -62,5 +64,8 @@ public:
                         qint64 sequence, qint64 timestamp);
 
 private:
+    static bool isUnresolvedSend(const Message &message);
+    void enforceRetentionLimit();
+
     QList<Message> m_messages;
 };

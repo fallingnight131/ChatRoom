@@ -1628,6 +1628,8 @@ void ChatWindow::dispatchAttachment(
     }
     uploadMsg.setSenderName(m_displayName);
     uploadMsg.setIsMine(true);
+    uploadMsg.setClientMessageId(command.clientMessageId);
+    uploadMsg.setDeliveryState(Message::Sending);
     uploadMsg.setDownloadState(Message::Uploading);
     uploadMsg.setDownloadProgress(0.0);
     if (command.target.kind == LocalConversationRepository::Kind::Room) {

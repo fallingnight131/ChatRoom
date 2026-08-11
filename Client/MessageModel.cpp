@@ -84,11 +84,13 @@ void MessageModel::addMessage(const Message &msg) {
     if (existingRow >= 0) {
         m_messages[existingRow] = msg;
         emit dataChanged(index(existingRow), index(existingRow));
+        enforceRetentionLimit();
         return;
     }
     beginInsertRows(QModelIndex(), m_messages.size(), m_messages.size());
     m_messages.append(msg);
     endInsertRows();
+    enforceRetentionLimit();
 }
 
 void MessageModel::discardCachedHistory() {
@@ -122,6 +124,7 @@ void MessageModel::acceptOutgoing(const QString &clientMessageId, int messageId,
         if (timestamp > 0) message.setTimestamp(timestamp);
         message.setDeliveryState(Message::Accepted);
         emit dataChanged(index(row), index(row));
+        enforceRetentionLimit();
         return;
     }
 }
@@ -163,6 +166,7 @@ void MessageModel::prependMessages(const QList<Message> &msgs) {
     for (int i = unique.size() - 1; i >= 0; --i)
         m_messages.prepend(unique[i]);
     endInsertRows();
+    enforceRetentionLimit();
 }
 
 void MessageModel::reconcileSyncPage(const QList<Message> &messages,
@@ -211,6 +215,35 @@ void MessageModel::reconcileSyncPage(const QList<Message> &messages,
             m_messages.append(message);
             endInsertRows();
         }
+    }
+    enforceRetentionLimit();
+}
+
+bool MessageModel::isUnresolvedSend(const Message &message) {
+    if (message.id() > 0) return false;
+    if (!message.clientMessageId().isEmpty()) return true;
+    return message.downloadState() == Message::Uploading
+        || message.downloadState() == Message::UploadPaused;
+}
+
+void MessageModel::enforceRetentionLimit() {
+    int resolvedCount = 0;
+    for (const Message &message : m_messages) {
+        if (!isUnresolvedSend(message)) ++resolvedCount;
+    }
+    while (resolvedCount > MaxResolvedMessages) {
+        int removableRow = -1;
+        for (int row = 0; row < m_messages.size(); ++row) {
+            if (!isUnresolvedSend(m_messages[row])) {
+                removableRow = row;
+                break;
+            }
+        }
+        if (removableRow < 0) return;
+        beginRemoveRows(QModelIndex(), removableRow, removableRow);
+        m_messages.removeAt(removableRow);
+        endRemoveRows();
+        --resolvedCount;
     }
 }
 
