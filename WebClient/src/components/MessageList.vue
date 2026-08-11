@@ -3,9 +3,13 @@
        role="log" aria-live="polite" aria-relevant="additions text"
        :aria-busy="loadingMore" aria-label="聊天消息">
     <div v-if="loadingMore" class="loading-more" role="status">加载中...</div>
+    <div v-if="virtualWindow.top > 0" class="virtual-spacer" aria-hidden="true"
+         :style="{ height: virtualWindow.top + 'px' }"></div>
 
-    <div v-for="(msg, idx) in displayMessages" :key="msg.id || msg.clientMessageId || idx"
-         class="message-wrapper" role="article" :aria-label="messageAriaLabel(msg)">
+    <div v-for="(msg, idx) in visibleMessages" :key="messageKey(msg, virtualWindow.start + idx)"
+         :ref="el => setMessageElement(el, messageKey(msg, virtualWindow.start + idx))"
+         class="message-wrapper" role="article" :aria-label="messageAriaLabel(msg)"
+         :aria-posinset="virtualWindow.start + idx + 1" :aria-setsize="displayMessages.length">
       <!-- 系统消息 -->
       <div v-if="msg.contentType === 'system'" class="system-message">
         {{ msg.content }}
@@ -119,6 +123,8 @@
         </div>
       </div>
     </div>
+    <div v-if="virtualWindow.bottom > 0" class="virtual-spacer" aria-hidden="true"
+         :style="{ height: virtualWindow.bottom + 'px' }"></div>
 
     <!-- 右键菜单 -->
     <Teleport to="body">
@@ -205,12 +211,13 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, inject, onMounted, onUnmounted } from 'vue'
+import { computed, ref, shallowRef, watch, nextTick, inject, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
 import { chatWs, MsgType, MAX_SMALL_FILE } from '../services/websocket'
 import FilePreview from './FilePreview.vue'
 import ForwardDialog from './ForwardDialog.vue'
+import { calculateVirtualWindow } from '../ui/virtualWindow'
 
 const userStore = useUserStore()
 const chatStore = useChatStore()
@@ -230,10 +237,58 @@ const props = defineProps({
   friendMode: { type: Boolean, default: false }
 })
 
-import { computed } from 'vue'
 const displayMessages = computed(() => {
   return props.friendMode ? chatStore.friendMessages : chatStore.messages
 })
+const scrollTop = ref(0)
+const viewportHeight = ref(600)
+const measuredHeights = shallowRef(new Map())
+const stickToBottom = ref(true)
+let historyAnchor = null
+let historyTimer = null
+let messageResizeObserver = null
+let viewportResizeObserver = null
+const messageElements = new Map()
+
+function messageKey(msg, index) {
+  if (msg?.id) return `server:${msg.id}`
+  if (msg?.clientMessageId) return `client:${msg.clientMessageId}`
+  if (msg?.sequence) return `sequence:${msg.sequence}`
+  return `legacy:${msg?.timestamp || 0}:${index}`
+}
+
+function estimatedMessageHeight(msg) {
+  if (msg?.contentType === 'system' || msg?.recalled) return 40
+  if (isFileType(msg)) return 230
+  if (msg?.contentType === 'emoji') return 86
+  return Math.min(220, 72 + Math.ceil(String(msg?.content || '').length / 48) * 20)
+}
+
+const virtualWindow = computed(() => calculateVirtualWindow({
+  heights: displayMessages.value.map((message, index) =>
+    measuredHeights.value.get(messageKey(message, index)) || estimatedMessageHeight(message)),
+  scrollTop: scrollTop.value,
+  viewportHeight: viewportHeight.value,
+  overscan: 700,
+  threshold: 80
+}))
+
+const visibleMessages = computed(() => displayMessages.value.slice(
+  virtualWindow.value.start, virtualWindow.value.end))
+
+function setMessageElement(element, key) {
+  const previous = messageElements.get(key)
+  if (previous && previous !== element && messageResizeObserver)
+    messageResizeObserver.unobserve(previous)
+  if (!element) {
+    messageElements.delete(key)
+    return
+  }
+  if (previous === element) return
+  element.dataset.virtualKey = key
+  messageElements.set(key, element)
+  messageResizeObserver?.observe(element)
+}
 
 function isMine(msg) {
   return msg.sender === userStore.username
@@ -516,18 +571,31 @@ function onTouchMove() {
 }
 
 function onScroll() {
-  if (listRef.value && listRef.value.scrollTop === 0) {
+  if (!listRef.value) return
+  scrollTop.value = listRef.value.scrollTop
+  viewportHeight.value = listRef.value.clientHeight
+  stickToBottom.value = listRef.value.scrollHeight
+    - listRef.value.scrollTop - listRef.value.clientHeight < 80
+  if (listRef.value.scrollTop <= 2 && !loadingMore.value) {
     const msgs = props.friendMode ? chatStore.friendMessages : chatStore.messages
     if (msgs.length > 0) {
       const firstMsg = msgs[0]
       if (firstMsg && firstMsg.timestamp) {
         loadingMore.value = true
+        historyAnchor = {
+          scrollHeight: listRef.value.scrollHeight,
+          scrollTop: listRef.value.scrollTop
+        }
         if (props.friendMode) {
           chatWs.requestFriendHistory(chatStore.currentFriendUsername, 50, firstMsg.timestamp)
         } else {
           chatWs.requestHistory(chatStore.currentRoomId, 50, firstMsg.timestamp)
         }
-        setTimeout(() => { loadingMore.value = false }, 2000)
+        if (historyTimer) clearTimeout(historyTimer)
+        historyTimer = setTimeout(() => {
+          loadingMore.value = false
+          historyAnchor = null
+        }, 2000)
       }
     }
   }
@@ -537,23 +605,34 @@ function scrollToBottom() {
   nextTick(() => {
     if (listRef.value) {
       listRef.value.scrollTop = listRef.value.scrollHeight
+      scrollTop.value = listRef.value.scrollTop
+      viewportHeight.value = listRef.value.clientHeight
+      stickToBottom.value = true
     }
   })
 }
 
-watch(() => chatStore.messages.length, () => {
-  scrollToBottom()
+watch(() => displayMessages.value.length, async (nextLength, previousLength) => {
+  await nextTick()
+  if (!listRef.value) return
+  if (historyAnchor && nextLength > previousLength) {
+    listRef.value.scrollTop = historyAnchor.scrollTop
+      + (listRef.value.scrollHeight - historyAnchor.scrollHeight)
+    scrollTop.value = listRef.value.scrollTop
+    loadingMore.value = false
+    historyAnchor = null
+    if (historyTimer) clearTimeout(historyTimer)
+    historyTimer = null
+    return
+  }
+  if (stickToBottom.value) scrollToBottom()
 })
 
-watch(() => chatStore.friendMessages.length, () => {
-  scrollToBottom()
-})
-
-watch(() => chatStore.currentRoomId, () => {
-  scrollToBottom()
-})
-
-watch(() => chatStore.currentFriendUsername, () => {
+watch(() => [chatStore.currentRoomId, chatStore.currentFriendUsername, props.friendMode], () => {
+  measuredHeights.value = new Map()
+  historyAnchor = null
+  scrollTop.value = 0
+  stickToBottom.value = true
   scrollToBottom()
 })
 
@@ -562,10 +641,35 @@ function closeMenu() {
 }
 
 onMounted(() => {
-  // overlay handles closing now
+  messageResizeObserver = new ResizeObserver(entries => {
+    let changed = false
+    const next = new Map(measuredHeights.value)
+    for (const entry of entries) {
+      const key = entry.target.dataset.virtualKey
+      if (!key) continue
+      const height = Math.ceil(entry.borderBoxSize?.[0]?.blockSize
+        || entry.contentRect.height) + 4
+      if (Math.abs((next.get(key) || 0) - height) > 1) {
+        next.set(key, height)
+        changed = true
+      }
+    }
+    if (changed) measuredHeights.value = next
+  })
+  for (const element of messageElements.values())
+    messageResizeObserver.observe(element)
+  if (listRef.value) {
+    viewportHeight.value = listRef.value.clientHeight
+    viewportResizeObserver = new ResizeObserver(() => {
+      if (listRef.value) viewportHeight.value = listRef.value.clientHeight
+    })
+    viewportResizeObserver.observe(listRef.value)
+  }
 })
 onUnmounted(() => {
-  // cleanup
+  messageResizeObserver?.disconnect()
+  viewportResizeObserver?.disconnect()
+  if (historyTimer) clearTimeout(historyTimer)
 })
 </script>
 
@@ -584,6 +688,12 @@ onUnmounted(() => {
   color: var(--text-tertiary);
   font-size: 12px;
   padding: 8px;
+}
+
+.virtual-spacer {
+  flex: 0 0 auto;
+  width: 1px;
+  pointer-events: none;
 }
 
 .system-message {

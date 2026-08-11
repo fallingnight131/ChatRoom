@@ -211,8 +211,10 @@ Progress:
   policy, and accessibility foundations.
   - [x] Establish Web live-log/composer semantics, keyboard message/file actions,
     visible focus, reduced-motion behavior, and an accessibility verification policy.
-  - [ ] Add anchored message-list virtualization and bounded browser media-cache
-    policy, then extend delivered/read presentation.
+  - [x] Add measured variable-height Web message-list virtualization with
+    overscan, history-prepend anchoring, and bottom-follow behavior.
+  - [ ] Add equivalent bounded Windows timeline rendering, a bounded browser
+    media-cache policy, then extend delivered/read presentation.
 
 Work:
 
