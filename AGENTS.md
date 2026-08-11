@@ -3,7 +3,7 @@
 ## Mission
 
 Evolve this repository from a Qt/C++ single-node chat room into a reliable,
-secure, cross-platform instant-messaging product through small, reversible
+secure instant-messaging product for Web and Windows through small, reversible
 iterations. Preserve a working product at the end of every iteration.
 
 The long-term direction is documented in
@@ -30,8 +30,9 @@ Use the relevant repository skill before acting:
 - `.agents/skills/evolve-im-protocol`: message schemas, delivery guarantees,
   ordering, idempotency, synchronization, database message models, and protocol
   compatibility.
-- `.agents/skills/ship-cross-platform-clients`: Qt/QML, Vue, local client data,
-  Windows/macOS/Linux integration, installers, signing, and updates.
+- `.agents/skills/ship-cross-platform-clients`: Windows Qt/QML, Vue, local
+  client data, Windows integration, Web delivery, installers, signing, and
+  updates.
 - `.agents/skills/verify-chat-quality`: tests, security, performance,
   observability, failure modes, and release gates.
 
@@ -57,8 +58,8 @@ Use all applicable skills for a change that crosses those concerns.
 9. Add a message broker only when multi-instance routing or asynchronous load
    requires it. Do not introduce infrastructure without an observed need and an
    operations plan.
-10. Keep platform UI idiomatic. Share protocol and product behavior across
-    clients, not platform-specific window behavior.
+10. Keep Windows desktop and Web UI idiomatic. Share protocol and product
+    behavior across clients, not presentation or shell-integration code.
 11. Never commit secrets, signing keys, `.env` files, access tokens, or production
     endpoints.
 12. Do not claim performance or capacity without a reproducible benchmark.
@@ -132,12 +133,15 @@ ownership.
 - Introduce a separate deployable service only when scaling, isolation,
   ownership, or availability requirements justify it.
 
-### Desktop client
+### Windows desktop client
 
-- Preserve the Qt client and migrate incrementally.
+- The supported desktop product is Windows. macOS and Linux may be used for
+  development or portability checks but are not release targets.
+- Preserve the Qt client and migrate it incrementally.
 - Extract transport, synchronization, local storage, and view models before
   replacing large Widgets screens with QML.
-- Keep OS integration behind platform adapters.
+- Keep Windows shell integration behind platform adapters so an unsupported
+  platform is not introduced accidentally through shared application logic.
 
 ### Web client
 
@@ -155,18 +159,19 @@ Run what applies to the touched scope:
   `--web`, `--db-schema`, `--v1-smoke`, `--performance`, or `--qt` flags. Use
   `--all` only when the host has every documented dependency.
 - Web: `npm ci`, `npm test`, then `npm run build` from `WebClient/`.
-- Current Qt server/client: generate a release build with the available Qt
-  toolchain and compile the touched target.
+- Current Qt server/client: generate a Windows Release build for product-gate
+  changes. macOS/Linux builds are optional development or portability evidence,
+  not supported-client evidence.
 - Future Java modules: run the Gradle unit and integration test tasks once the
   Java workspace exists.
 - Protocol: test old-client/new-server and new-client/compatible-server paths.
 - Database: test migration forward, restart after migration, and rollback or
   documented restore procedure.
-- Packaging: install, launch, upgrade, uninstall, and verify signatures on each
-  target operating system.
+- Packaging: install, launch, upgrade, uninstall, and verify signatures on
+  supported Windows versions; verify Web deployment and rollback separately.
 
 Do not treat an unsigned M0 CI artifact as an installer. Windows installer
-signing and macOS signing/notarization are M4 release gates.
+signing and rollback-ready Web delivery are M4 release gates.
 
 ## Definition of Done
 

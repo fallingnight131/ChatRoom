@@ -1,6 +1,7 @@
 # Qt 聊天室
 
-基于 C++17 / Qt 6 的即时通讯应用，采用 C/S 架构，支持 **Qt 桌面客户端** 和 **Vue Web 客户端** 双端互通。
+基于 C++17 / Qt 6 的即时通讯应用，采用 C/S 架构，当前产品支持
+**Windows Qt 桌面客户端**和 **Vue Web 客户端**双端互通。
 
 ## 功能特性
 
@@ -42,16 +43,16 @@
 ### 界面体验
 
 - 亮色 / 暗色主题切换（Qt QSS + Web CSS 变量）
-- 系统托盘（最小化到托盘、消息通知）—— Qt 端
-- 窗口贴边自动隐藏 —— Qt 端
+- 系统托盘（最小化到托盘、消息通知）—— Windows Qt 端
+- 窗口贴边自动隐藏 —— Windows Qt 端
 - 断线自动重连 + 自动重新登录
 - 心跳保活（30s 间隔 / 90s 超时）
-- Web 端响应式布局（桌面 / 平板 / 手机）
+- Web 端响应式布局（桌面 / 平板 / 手机；不代表原生移动客户端支持）
 - 同一页面生命周期内断线重认证；刷新页面后需重新登录（不持久化明文密码）
 
 ### 双端互通
 
-- Qt 桌面客户端通过 TCP 连接（默认端口 9527）
+- Windows Qt 桌面客户端通过 TCP 连接（默认端口 9527）
 - Vue Web 客户端通过 WebSocket 连接（默认端口 9528）
 - 同一服务器同时处理 TCP 和 WebSocket 连接
 - 两端用户可在同一房间实时通信
@@ -61,7 +62,7 @@
 | 组件 | 技术 |
 |------|------|
 | 语言 | C++17 / JavaScript (ES2020+) |
-| GUI 框架 | Qt 6.7+ (Widgets) |
+| GUI 框架 | Qt 6.11.1 (Widgets) |
 | Web 框架 | Vue 3 + Vite 5 + Pinia + Vue Router |
 | 视频播放 | DPlayer 1.27 |
 | 网络 | QTcpServer / QTcpSocket / QWebSocketServer |
@@ -85,7 +86,7 @@ ChatRoom/
 │   ├── ClientSession     # 客户端会话（支持 TCP/WebSocket 双传输层）
 │   ├── DatabaseManager   # SQLite 数据库操作
 │   └── RoomManager       # 聊天室管理
-├── Client/               # Qt 桌面客户端（GUI 程序）
+├── Client/               # Windows Qt 桌面客户端（GUI 程序）
 │   ├── NetworkManager    # 网络连接管理（单例）
 │   ├── LoginDialog       # 登录/注册界面
 │   ├── ChatWindow        # 主聊天窗口
@@ -122,7 +123,7 @@ ChatRoom/
 
 ## 架构演进
 
-项目的长期目标架构、可靠消息模型、Java 后端迁移、跨平台客户端和安装包路线，统一维护在：
+项目的长期目标架构、可靠消息模型、Java 后端迁移、Web/Windows 客户端和安装包路线，统一维护在：
 
 - [架构总览](docs/architecture/README.md)
 - [当前系统基线](docs/architecture/CURRENT_SYSTEM.md)
@@ -137,11 +138,14 @@ ChatRoom/
 
 ## 环境要求
 
-### Qt 端
+### Windows Qt 端
 
-- Qt 6.11.1（Windows/macOS 原生 CI 基线），或支持的 Linux 发行版 Qt 6
+- Qt 6.11.1（Windows x64 + MSVC 2022 产品构建基线）
 - C++17 编译器
 - qmake
+
+macOS 和 Linux 可以作为开发或服务端验证环境，但不是当前客户端产品
+支持范围。
 
 ### Web 端
 
@@ -183,52 +187,42 @@ CHATROOM_DEVELOPER_KEY=请替换成你的强密码
 python3 tools/verify_m0.py --web --db-schema --v1-smoke --performance
 ```
 
-Qt 完整产品目标的跨平台命令、依赖与已知工具链边界见
+Windows Qt 产品构建、非产品开发主机命令、依赖与已知工具链边界见
 [构建指南](docs/BUILDING.md)和[支持矩阵](docs/architecture/SUPPORT_MATRIX.md)。
 
-### 1. 构建服务端
+### 1. 构建 Windows Qt 服务端和客户端
 
 ```powershell
-# 将 Qt 和 MinGW 加入 PATH（根据你的安装路径调整）
-$env:PATH = "D:\ProgramFiles\QT\6.7.2\mingw_64\bin;D:\ProgramFiles\QT\Tools\mingw1120_64\bin;$env:PATH"
+# 在安装了 Qt 6.11.1 MSVC 2022 和 Visual Studio 2022 的开发终端中运行
+vcpkg install --triplet x64-windows
+$env:SODIUM_ROOT = (Resolve-Path .\vcpkg_installed\x64-windows).Path.Replace('\', '/')
 
-# 构建 Server
-cd Server
-qmake Server.pro -spec win32-g++ "CONFIG+=release"
-mingw32-make -j8
+python tools/verify_m0.py --qt
 ```
 
-### 2. 构建 Qt 客户端
-
-```powershell
-cd Client
-qmake Client.pro -spec win32-g++ "CONFIG+=release"
-mingw32-make -j8
-```
-
-### 3. 启动 Web 客户端（开发模式）
+### 2. 启动 Web 客户端（开发模式）
 
 ```bash
 cd WebClient
-npm install
+npm ci
 npm run dev
 ```
 
-### 4. 运行
+### 3. 运行
 
 ```powershell
 # 启动服务端（默认 TCP 9527 + WebSocket 9528）
-.\Server\release\ChatServer.exe
+.\build\m0\windows\server\release\ChatServer.exe
 
-# 启动 Qt 客户端（可同时启动多个）
-.\Client\release\ChatClient.exe
+# 启动 Windows Qt 客户端（可同时启动多个）
+.\build\m0\windows\client\release\ChatClient.exe
 
 # Web 客户端访问 http://localhost:5173
 ```
 
 Qt 客户端默认连接 `127.0.0.1:9527`（TCP），Web 客户端默认连接 `127.0.0.1:9528`（WebSocket）。
 
-### 5. 指定端口
+### 4. 指定端口
 
 ```powershell
 # TCP 端口 8888，WebSocket 端口自动为 8889
@@ -246,8 +240,8 @@ ChatServer.exe --port 8888 --ws-port 9999
 身份现场编译、暴露明文 TCP/WebSocket 端口，且没有签名产物、回滚和完整
 密钥管理，已从仓库移除。
 
-公网部署必须先完成 M1 认证/授权/TLS 安全闭环；Windows/macOS 签名安装包、
-自动更新和可回滚发布属于 M4。
+公网部署必须先完成 M1 认证/授权/TLS 安全闭环；Windows 签名安装包、
+自动更新以及 Web 的可回滚发布属于 M4。
 
 ---
 

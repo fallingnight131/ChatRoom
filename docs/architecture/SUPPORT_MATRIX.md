@@ -1,88 +1,116 @@
-# Desktop Build and Support Matrix
+# Client Product Support and Build Matrix
 
-## M0 Decision
+## Current Product Scope
 
-The existing Qt desktop client remains the native Windows and macOS client.
-Java is planned for the server in M3; it does not replace the desktop UI
-toolkit. The web client remains Vue and is built independently.
+The supported client products are:
 
-M0 standardizes new desktop verification on Qt 6.11.1. Qt 6.11 officially
-supports Windows 10/11 with MSVC 2022, macOS 13 or newer (including macOS 26)
-with Xcode 15 or newer, and Ubuntu 24.04. The repository's CI lanes are narrower
-than the full Qt support list so failures are attributable to a small, explicit
-toolchain set.
+- the Vue Web client;
+- the Qt 6 Windows desktop client.
 
-Server builds also require libsodium for Argon2id password hashing. Ubuntu uses
-`libsodium-dev`, macOS uses Homebrew, and Windows uses the official vcpkg port;
-the dependency is linked only into server/database targets, not the clients.
+macOS, Linux, Android, and iOS are not supported client products. They have no
+release compatibility promise, installer, signing path, update channel, or user
+support obligation. Adding any of them requires a new support-scope ADR with an
+owned build, test, packaging, security, and update plan. This scope is recorded
+in [`ADR-0009`](decisions/0009-web-and-windows-product-scope.md).
 
-## Build Matrix
+Development and CI hosts are deliberately separate from product support. A
+macOS development build or an Ubuntu compile/test job is useful engineering
+evidence, but it does not make that operating system a supported client.
 
-| Product | Verification host | Architecture/toolchain | Qt policy | M0 output |
+## Supported Client Matrix
+
+| Product | Committed target | Toolchain policy | Current evidence | M4 release gate |
 | --- | --- | --- | --- | --- |
-| Qt server and desktop client | Windows Server 2025 runner | x86_64, MSVC 2022 | pinned Qt 6.11.1 | unsigned, DLL-complete verification artifact |
-| Qt server and desktop client | macOS 15 runner | runner-native Clang | pinned Qt 6.11.1 | unsigned app/server verification artifact |
-| Qt server and desktop client | Ubuntu 24.04 runner | x86_64, distro GCC | Ubuntu Qt 6 packages | Release compilation gate |
-| Web client | Ubuntu runner | Node.js 22 | lockfile + `npm ci` | production `dist` build gate |
-| Headless V1 server tests | Ubuntu 24.04 runner | x86_64, distro GCC | Ubuntu Qt 6 packages | schema and TCP smoke gates |
+| Windows desktop | Windows 10/11, x86_64 | Qt 6.11.1, MSVC 2022, native Windows CI | unsigned, DLL-complete verification artifact | signed and timestamped `Setup.exe`, install/upgrade/uninstall checks, signed updater |
+| Web | Browser support policy to be pinned before public release | Node.js 22, lockfile, `npm ci`, production Vite build | production `dist` build gate | versioned deployment, CSP/cache/source-map policy, health checks, rollback evidence |
 
-The macOS development machine is the fastest local feedback path, but it is not
-used to cross-compile Windows. Windows-specific linking and `windeployqt` run on
-a native Windows CI runner. Likewise, the macOS lane catches Apple SDK and app
-bundle issues that a Windows runner cannot represent.
+The current Web build gate proves that production assets compile; it does not
+yet prove compatibility with a named browser/version matrix. That matrix and
+browser automation must be established before claiming public Web compatibility.
+Likewise, the current Windows Server CI artifact proves native compilation and
+dependency assembly, not Windows 10/11 clean-host compatibility. Formal public
+support begins only after the M4 install, launch, upgrade, and uninstall matrix
+passes on the named target versions.
 
-## Artifact Status
+The Windows desktop client remains Qt 6/C++. Java is planned for the backend in
+M3 and does not replace the Windows UI toolkit. New or substantially redesigned
+desktop screens may move incrementally from Widgets to QML after application,
+synchronization, and persistence boundaries are extracted.
 
-The Windows and macOS artifacts produced by M0 are short-lived build evidence.
-They prove that a clean checkout compiles and that required Qt runtime libraries
-can be assembled. They are deliberately not presented as public releases:
+## Non-product Verification Environments
 
-- they are unsigned;
-- the macOS artifact is not notarized or stapled;
-- there is no installer, upgrade policy, or uninstall behavior;
-- there is no signed automatic-update manifest.
+| Environment | Allowed purpose | Not evidence of |
+| --- | --- | --- |
+| macOS development machine or CI | fast local feedback, server/toolchain checks, Qt portability regression | supported macOS app, DMG, signing, notarization, update compatibility |
+| Ubuntu 24.04 CI | Web builds, headless server tests, SQLite/protocol regression, optional Qt portability compilation | supported Linux desktop app, AppImage/deb/rpm, desktop integration |
 
-Signed Windows installers, macOS Developer ID signing/notarization and DMG
-creation remain M4 deliverables. Keeping that boundary explicit prevents an
-unsigned CI ZIP from being mistaken for a trustworthy user installation path.
+The current Qt server also builds on several host operating systems. Server
+deployment support is an operations decision and is independent of which client
+operating systems are supported.
 
-## Local macOS Policy
+## Windows Build and Release Policy
 
-Use a Qt build that supports the active macOS SDK. Qt's online installer is the
-preferred way to install pinned SDKs side by side. Homebrew is acceptable for
-fast local work, but its Qt version can differ from CI.
+Windows product verification runs natively with Windows Server 2025, x86_64
+MSVC 2022, and pinned Qt 6.11.1. The build uses `windeployqt` and includes the
+required runtime libraries, including the server's libsodium dependency when a
+server verification artifact is assembled.
 
-Set `QMAKE` explicitly when another package manager shadows Qt 6:
+The unsigned M0 artifact is short-lived build evidence only. It is not an
+installer because it has no Authenticode signature, installation/upgrade policy,
+uninstall behavior, or signed automatic-update manifest.
+
+M4 must provide:
+
+- a signed and timestamped direct installer;
+- clean install, launch, upgrade, local-data preservation, and uninstall tests;
+- a signed update manifest with stable/beta channels and rollback;
+- optional MSIX/Store distribution only after the direct channel is stable.
+
+## Web Build and Release Policy
+
+Web verification runs from the committed lockfile with `npm ci`, tests, and a
+production Vite build. Public delivery must additionally define:
+
+- the supported browser/version matrix and automated coverage;
+- HTTPS/WSS, CSP, cache headers, and source-map exposure policy;
+- immutable versioned assets and a traceable deployment identifier;
+- health checks, staged rollout, monitoring, and rollback without rebuilding;
+- compatibility with at least one previous supported client/server protocol
+  version during migration windows.
+
+## Local macOS Development Policy
+
+The macOS development machine remains a valid fast-feedback host. Use a Qt build
+compatible with the active macOS SDK and set `QMAKE` explicitly when several Qt
+installations exist:
 
 ```bash
-QMAKE=/opt/homebrew/bin/qmake6 python3 tools/verify_m0.py --all
+QMAKE=/opt/homebrew/bin/qmake6 python3 tools/verify_m0.py --qt
 ```
 
-Do not edit Qt `.prl` files or delete framework references to force a link. If
-the local Qt build is incompatible with the active Xcode SDK, keep running the
-headless/Web checks locally and use the pinned macOS CI lane until the local Qt
-SDK is upgraded.
+Do not patch installed Qt `.prl` files or remove framework references to force a
+link. A successful macOS build is useful portability evidence only; failure does
+not by itself block a Windows or Web release unless it also exposes a shared
+source defect.
 
-The repository's shared qmake configuration disables transitive `.prl` link
-flags on macOS and declares the retained OpenGL compatibility framework
-directly. This avoids inheriting Homebrew Qt 6.9's obsolete `AGL` reference on
-macOS 26 without modifying the installed Qt package. Both the server and the
-desktop client must still pass `python3 tools/verify_m0.py --qt` after any local
-Qt/Xcode change.
+## Historical M0 Evidence
+
+M0 created Windows and macOS unsigned artifacts plus an Ubuntu Release compile
+gate before the supported product scope was narrowed. Those records remain
+unchanged as historical evidence. Current workflow labels and documentation must
+classify macOS/Linux results as development or portability checks, not releases.
 
 ## Review Policy
 
-Review the pinned Qt version and runner images at least once per milestone and
-before a release. A version change must update this matrix and CI in the same
-commit, then pass the full native jobs. Adding Windows ARM64, Intel-specific
-macOS output, or Linux packages is a support-scope decision, not an incidental
-matrix expansion.
+Review the Windows Qt/toolchain pins, Node.js version, browser matrix, and CI
+runner images at least once per milestone and before a release. Expanding to
+Windows ARM64 or any macOS, Linux, Android, or iOS client is a support-scope
+decision and must not enter through an incidental build change.
 
 ## Upstream References
 
 - [Qt 6.11 supported platforms](https://doc.qt.io/qt-6/supported-platforms.html)
+- [Qt for Windows deployment](https://doc.qt.io/qt-6/windows-deployment.html)
 - [Qt installation options](https://doc.qt.io/qt-6.11/get-and-install-qt.html)
 - [`install-qt-action` v4 usage](https://github.com/jurplel/install-qt-action)
 - [GitHub-hosted runner images](https://github.com/actions/runner-images)
-- [libsodium password hashing API](https://doc.libsodium.org/password_hashing/default_phf)
-- [vcpkg libsodium port](https://vcpkg.io/en/package/libsodium.html)

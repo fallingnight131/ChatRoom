@@ -17,6 +17,9 @@ Status: **repository scope complete on 2026-07-11**. See the stored
 [`M0 acceptance record`](../baselines/M0_ACCEPTANCE_2026-07-11.md). Native
 Windows/macOS jobs execute after these local commits are pushed; their first run
 is required operational evidence but does not add more M0 product scope.
+The macOS lane is retained as historical/development evidence only after the
+Web-and-Windows support decision in
+[`ADR-0009`](decisions/0009-web-and-windows-product-scope.md).
 
 Progress:
 
@@ -105,8 +108,8 @@ Goal: make clients fast and offline-tolerant before major UI expansion.
 
 Work:
 
-- extract Qt transport, application services, sync engine, and local repository
-  from the large window/controller;
+- extract Windows Qt transport, application services, sync engine, and local
+  repository from the large window/controller;
 - add desktop SQLite for messages, conversations, drafts, cursors, and pending
   sends;
 - split the web chat store and add IndexedDB-backed repositories;
@@ -146,28 +149,28 @@ Exit criteria:
 - the old C++ server can be restored within the documented rollback window;
 - protocol compatibility and data migration tests pass in CI.
 
-## M4 — Cross-platform Desktop Distribution
+## M4 — Windows and Web Distribution
 
-Goal: deliver trustworthy native installation and updates.
+Goal: deliver trustworthy Windows installation and rollback-ready Web releases.
 
 Work:
 
 - move the Qt build from qmake toward CMake when touching build architecture;
 - create Windows `windeployqt` packaging and a signed installer;
 - add an optional MSIX/Store channel after the direct installer is stable;
-- create native macOS builds with `macdeployqt`, Developer ID signing,
-  hardened runtime, notarization, stapling, and DMG distribution;
-- add Linux AppImage, followed by deb/rpm only when supported operationally;
-- implement a signed update manifest, stable/beta channels, staged rollout, and
-  rollback;
-- test clean install, upgrade, protocol compatibility, and uninstall on native
-  CI runners.
+- implement a signed Windows update manifest, stable/beta channels, staged
+  rollout, and rollback;
+- publish versioned Web assets with CSP, deliberate cache/source-map policy,
+  health checks, staged rollout, and fast rollback;
+- test Windows clean install, upgrade, protocol compatibility, and uninstall on
+  native CI, and test Web deployment/rollback in an isolated environment.
 
 Exit criteria:
 
-- Windows and macOS users install without warnings caused by missing project
-  signing or notarization;
-- upgrades preserve local message data and settings;
+- Windows users install without warnings caused by missing project signing;
+- Windows upgrades preserve local message data and settings;
+- a Web release is versioned, observable, and can be rolled back without
+  rebuilding;
 - a failed rollout can be stopped and rolled back;
 - release artifacts are reproducible, versioned, and traceable to source.
 
@@ -203,7 +206,7 @@ Candidate slices:
 - reply, quote, forward, edit policy, reactions, mentions, and pinned messages;
 - group roles, invitations, join approval, mute, block, and moderation;
 - full-text search with an asynchronously rebuildable index;
-- desktop native notifications and future mobile push;
+- Windows native notifications;
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
 - accessibility, localization, keyboard navigation, and low-bandwidth modes;

@@ -1,4 +1,4 @@
-name: M0 Product Release Builds
+name: Windows Product and Qt Portability Builds
 
 on:
   push:
@@ -13,6 +13,7 @@ env:
 
 jobs:
   linux-release:
+    name: Linux Qt portability build (non-product)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 
@@ -20,15 +21,16 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v6
 
-      - name: Install Qt product build dependencies
+      - name: Install Qt portability build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install --yes qt6-base-dev qt6-multimedia-dev qt6-websockets-dev libsodium-dev pkg-config
 
-      - name: Build Qt server and desktop client in Release mode
+      - name: Build Qt sources in Release mode for portability
         run: python3 tools/verify_m0.py --qt
 
   macos-release:
+    name: macOS development build (non-product)
     runs-on: macos-15
     timeout-minutes: 30
 
@@ -46,10 +48,10 @@ jobs:
       - name: Install server password hashing dependency
         run: brew install libsodium
 
-      - name: Build Qt server and desktop client in Release mode
+      - name: Build Qt sources for macOS development feedback
         run: python3 tools/verify_m0.py --qt
 
-      - name: Assemble unsigned macOS verification artifact
+      - name: Assemble unsigned macOS development artifact
         run: |
           set -euo pipefail
           app_path="$(find build/m0/darwin/client -name ChatClient.app -type d -print -quit)"
@@ -67,15 +69,16 @@ jobs:
           install_name_tool -change "$sodium_lib" "@executable_path/$sodium_name" build/m0/artifacts/macos/ChatServer
           shasum -a 256 build/m0/artifacts/macos/ChatServer > build/m0/artifacts/macos/SHA256SUMS
 
-      - name: Upload unsigned macOS verification artifact
+      - name: Upload non-product macOS development artifact
         uses: actions/upload-artifact@v7
         with:
-          name: chat-room-macos-${{ env.QT_VERSION }}-${{ github.sha }}
+          name: chat-room-macos-development-${{ env.QT_VERSION }}-${{ github.sha }}
           path: build/m0/artifacts/macos
           if-no-files-found: error
           retention-days: 14
 
   windows-release:
+    name: Windows product verification
     runs-on: windows-2025
     timeout-minutes: 30
 

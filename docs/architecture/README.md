@@ -6,6 +6,12 @@ This document is the architectural source of truth for evolving Chat Room into a
 modern instant-messaging product. It describes the desired boundaries and
 invariants, not a requirement to create every component immediately.
 
+The current committed client product scope is **Web and Windows desktop**.
+macOS, Linux, Android, and iOS clients are outside the supported release scope
+until a later ADR explicitly adds one of them. A platform used to develop,
+compile, or test the server does not thereby become a supported client. See
+[`ADR-0009`](decisions/0009-web-and-windows-product-scope.md).
+
 For the implementation currently deployed as V1, read
 [`CURRENT_SYSTEM.md`](CURRENT_SYSTEM.md),
 [`../protocol/V1_PROTOCOL.md`](../protocol/V1_PROTOCOL.md), and
@@ -38,7 +44,8 @@ Apply these principles:
 - Keep durable facts separate from online/ephemeral state.
 - Make retries safe through idempotency.
 - Design failure and reconnection paths alongside the happy path.
-- Use one conceptual product model across clients while respecting each OS.
+- Use one conceptual product model across the supported Web and Windows clients
+  while respecting their presentation and operating-environment conventions.
 
 ## 3. Current Baseline
 
@@ -61,9 +68,8 @@ presence, and the absence of explicit delivery/synchronization semantics.
 ```mermaid
 flowchart TB
     subgraph Clients
-        Desktop[Qt 6 Desktop: Windows, macOS, Linux]
+        Desktop[Qt 6 Windows Desktop]
         Web[Vue and TypeScript Web]
-        Mobile[Future Mobile Client]
     end
 
     Edge[HTTPS and WSS Load Balancer]
@@ -79,7 +85,6 @@ flowchart TB
 
     Desktop --> Edge
     Web --> Edge
-    Mobile --> Edge
     Edge --> Gateway
     Edge --> API
     Gateway --> Core
@@ -265,10 +270,11 @@ checks finish.
 
 ## 11. Client Architecture
 
-### Desktop
+### Windows desktop
 
-Keep Qt 6 and C++. Move toward QML for new or substantially redesigned screens
-after extracting application services from the current Widgets window.
+Keep Qt 6 and C++ for the supported Windows desktop client. Move toward QML for
+new or substantially redesigned screens after extracting application services
+from the current Widgets window.
 
 ```text
 QML or Widgets views
@@ -279,9 +285,10 @@ QML or Widgets views
 ```
 
 Use local SQLite for conversations, messages, sync cursors, drafts, and pending
-outbox commands. Keep file/media data in a bounded disk cache. Isolate Windows,
-macOS, and Linux tray, notification, shortcut, startup, and updater behavior
-behind platform interfaces.
+outbox commands. Keep file/media data in a bounded disk cache. Isolate Windows
+tray, notification, shortcut, startup, installer, and updater behavior behind
+platform interfaces. Keep the core portable where inexpensive, but do not add
+macOS or Linux product work without a support-scope ADR.
 
 ### Web
 
@@ -289,6 +296,8 @@ Keep Vue 3 and move new code to TypeScript. Split the large chat store into
 session, conversation, message, contact, transfer, and notification concerns.
 Use IndexedDB for durable messages, cursors, drafts, and pending operations.
 Pinia should represent live UI/application state, not be the only data store.
+Responsive browser layouts may serve phones or tablets, but they do not create
+native Android or iOS application support.
 
 ### Product consistency
 
@@ -300,24 +309,24 @@ Share these across clients:
 - test fixtures and compatibility cases.
 
 Do not force identical window chrome, shortcuts, notifications, or navigation
-behavior across operating systems.
+behavior across the Windows desktop and browser environments.
 
 ## 12. Packaging and Distribution
 
 | Platform | Primary artifact | Required release work |
 |---|---|---|
 | Windows | Signed `Setup.exe`; optional MSIX channel | `windeployqt`, runtime dependencies, Authenticode signing, timestamp, install/upgrade/uninstall tests |
-| macOS | Signed and notarized `.dmg` containing `.app` | `macdeployqt`, Developer ID signing, hardened runtime, notarization, ticket stapling, launch test |
-| Linux | AppImage first; optional deb/rpm/Flatpak | Bundle dependencies, desktop integration, clean-system launch test |
 | Web | Versioned static assets | CSP, cache policy, source-map policy, rollback-ready deployment |
 
-Build and sign each desktop artifact on its native operating system in CI. Keep
-signing credentials in the CI secret store. Verify current platform and Qt
-official documentation whenever release tooling changes.
+Build and sign the Windows artifact on native Windows CI. Build the Web bundle
+from its lockfile and retain a rollback-ready versioned deployment. Keep signing
+credentials in the CI secret store. macOS and Linux jobs, when retained for
+development or portability feedback, must not publish supported releases.
 
-The updater must use a signed manifest containing platform, architecture,
-channel, version, minimum compatible version, hash, signature, and URL. Support
-stable and beta channels and preserve rollback capability.
+The Windows updater must use a signed manifest containing architecture, channel,
+version, minimum compatible version, hash, signature, and URL. Support stable
+and beta channels and preserve rollback capability. Web rollback uses immutable
+asset versions and a deployment pointer or equivalent routing mechanism.
 
 ## 13. Security Baseline
 
@@ -359,3 +368,5 @@ groups, slow clients, database contention, and partial infrastructure failure.
 - Do not rewrite all clients and the server in one release.
 - Do not route normal file bytes through the messaging core.
 - Do not use a cache or broker as undocumented primary truth.
+- Do not add macOS, Linux, Android, or iOS client release work to the current
+  roadmap without an explicit support-scope ADR and an owned test/release plan.

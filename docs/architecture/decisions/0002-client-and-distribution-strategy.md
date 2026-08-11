@@ -1,6 +1,7 @@
 # ADR-0002: Qt Desktop, Vue Web, and Native Desktop Packaging
 
-- Status: Accepted
+- Status: Superseded by
+  [`ADR-0009`](0009-web-and-windows-product-scope.md)
 - Date: 2026-07-10
 - Owners: project maintainers
 - Related milestone: M2-M4
@@ -60,4 +61,3 @@ rollback.
 - signature and notarization verification;
 - old/new client protocol compatibility;
 - offline, reconnect, and optimistic-message reconciliation tests.
-

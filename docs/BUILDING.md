@@ -42,13 +42,16 @@ python3 tools/verify_m0.py --web --skip-npm-ci
 CI runs inventory and web verification on every push and pull request through
 `.github/workflows/m0-baseline.yml`.
 
-Native product Release builds run through
-`.github/workflows/m0-product-builds.yml`. The pinned and distro toolchains are
-documented in `docs/architecture/SUPPORT_MATRIX.md`.
+Windows product verification and non-product Qt portability builds run through
+`.github/workflows/m0-product-builds.yml`. The supported client scope and the
+distinction between product and development hosts are documented in
+`docs/architecture/SUPPORT_MATRIX.md`.
 
 ## Server Password Hashing Dependency
 
-All server and database test targets require libsodium:
+All server and database test targets require libsodium. The macOS and Ubuntu
+entries below support local development, server, and CI verification; they do
+not make those systems supported client products:
 
 - macOS/Homebrew: `brew install libsodium`;
 - Ubuntu 24.04: `sudo apt install libsodium-dev pkg-config`;
@@ -166,6 +169,11 @@ QMAKE=/path/to/qmake6 python3 tools/verify_m0.py --qt
 
 Build products are written below ignored `build/m0/<platform>/` directories.
 
+The current desktop product target is Windows. A native Windows Release build is
+product-gate evidence; Qt builds on macOS or Linux are development/portability
+evidence only. Server deployment and headless test hosts are independent of the
+supported client operating systems.
+
 Use a Qt build that officially supports the selected operating-system SDK. Do
 not patch a global Qt installation or silently remove framework dependencies to
 make a local build appear successful.
@@ -176,10 +184,11 @@ make a local build appear successful.
 python3 tools/verify_m0.py --all
 ```
 
-The full command includes inventory, web, SQLite schema, V1 smoke, and both Qt
-product targets. It is expected to fail when a required compiler, Qt module, or
-supported platform SDK is unavailable. Report that environment limitation and
-retain the successful component results.
+The full command includes inventory, Web, SQLite schema, V1 smoke, and both Qt
+source targets. It is expected to fail when a required compiler, Qt module, or
+host SDK is unavailable. Report that environment limitation and retain the
+successful component results. On non-Windows hosts this is local
+development/portability verification, not a supported desktop release gate.
 
 ## Windows Notes
 
@@ -191,10 +200,11 @@ retain the successful component results.
 - A signed installer, upgrade/uninstall behavior, and automatic updates are
   separate M4 concerns.
 
-## macOS Notes
+## macOS Development-host Notes
 
 - Install Xcode command-line tools and a Qt build compatible with the active SDK.
-- Native CI uses pinned Qt 6.11.1 and runs `macdeployqt` to assemble a
-  short-lived unsigned verification artifact.
-- M0 does not perform code signing, notarization, stapling, or DMG creation;
-  those are M4 release gates.
+- macOS may be used for fast local server, Web, test, and Qt portability
+  feedback because it is the maintainer's development host.
+- Any retained macOS CI output is explicitly non-product development evidence.
+  The current roadmap does not include a macOS installer, signing,
+  notarization, stapling, DMG, update channel, or compatibility promise.
