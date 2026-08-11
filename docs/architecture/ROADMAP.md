@@ -213,8 +213,10 @@ Progress:
     visible focus, reduced-motion behavior, and an accessibility verification policy.
   - [x] Add measured variable-height Web message-list virtualization with
     overscan, history-prepend anchoring, and bottom-follow behavior.
-  - [ ] Add equivalent bounded Windows timeline rendering, a bounded browser
-    media-cache policy, then extend delivered/read presentation.
+  - [x] Enforce a zero-media-byte Web IndexedDB policy, including version-2
+    cleanup of legacy Base64 thumbnails, media payloads, and temporary authorization.
+  - [ ] Add equivalent bounded Windows timeline rendering, then extend
+    delivered/read presentation.
 
 Work:
 

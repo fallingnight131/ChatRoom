@@ -1,11 +1,55 @@
 const DATABASE_NAME = 'chat-room-client'
-const DATABASE_VERSION = 1
+const DATABASE_VERSION = 2
 const STORE_NAME = 'conversations'
 export const MAX_CACHED_MESSAGES = 500
 export const MAX_DRAFT_LENGTH = 10000
+export const NON_PERSISTED_MEDIA_FIELDS = Object.freeze([
+  'imageData',
+  'fileData',
+  'chunkData',
+  'thumbnail',
+  'file',
+  'blob',
+  'bytes',
+  'dataUrl',
+  'cosUrl',
+  'downloadUrl',
+  'uploadUrl',
+  'httpUploadPath',
+  'uploadId',
+  'authorization',
+  'token'
+])
 
 export function conversationCacheKey(account, kind, conversationId) {
   return `${String(account)}\u001f${String(kind)}\u001f${String(conversationId)}`
+}
+
+export function sanitizeCachedMessage(message) {
+  const serialized = JSON.stringify(message)
+  if (serialized === undefined) return null
+  const plain = JSON.parse(serialized)
+  if (!plain || typeof plain !== 'object' || Array.isArray(plain)) return plain
+  for (const field of NON_PERSISTED_MEDIA_FIELDS) delete plain[field]
+  return plain
+}
+
+export function sanitizeConversationRecord(record) {
+  if (!record || typeof record !== 'object') return record
+  return {
+    key: String(record.key || ''),
+    account: String(record.account || ''),
+    kind: String(record.kind || ''),
+    conversationId: String(record.conversationId || ''),
+    messages: Array.isArray(record.messages)
+      ? record.messages.slice(-MAX_CACHED_MESSAGES).map(sanitizeCachedMessage)
+      : [],
+    cursor: Math.max(0, Number(record.cursor) || 0),
+    draft: typeof record.draft === 'string'
+      ? record.draft.slice(0, MAX_DRAFT_LENGTH)
+      : '',
+    updatedAt: Number(record.updatedAt) || Date.now()
+  }
 }
 
 export function makeConversationRecord(account, kind, conversationId, messages, cursor) {
@@ -18,8 +62,9 @@ export function makeConversationRecord(account, kind, conversationId, messages, 
     kind: String(kind),
     conversationId: String(conversationId),
     // Pinia exposes reactive proxies; JSON protocol messages are deliberately
-    // converted back to plain structured-clone-safe data before IndexedDB.
-    messages: JSON.parse(JSON.stringify(boundedMessages)),
+    // converted back to plain structured-clone-safe metadata before IndexedDB.
+    // Media bytes and temporary authorization remain page-memory-only.
+    messages: boundedMessages.map(sanitizeCachedMessage),
     cursor: Math.max(0, Number(cursor) || 0),
     updatedAt: Date.now()
   }
@@ -52,10 +97,19 @@ export class IndexedDbConversationCache {
     if (!this.databasePromise) {
       this.databasePromise = new Promise((resolve, reject) => {
         const request = this.indexedDb.open(DATABASE_NAME, DATABASE_VERSION)
-        request.onupgradeneeded = () => {
+        request.onupgradeneeded = event => {
           const database = request.result
           if (!database.objectStoreNames.contains(STORE_NAME)) {
             database.createObjectStore(STORE_NAME, { keyPath: 'key' })
+          } else if (event.oldVersion < 2) {
+            const store = request.transaction.objectStore(STORE_NAME)
+            const cursorRequest = store.openCursor()
+            cursorRequest.onsuccess = () => {
+              const cursor = cursorRequest.result
+              if (!cursor) return
+              cursor.update(sanitizeConversationRecord(cursor.value))
+              cursor.continue()
+            }
           }
         }
         request.onsuccess = () => resolve(request.result)
@@ -76,7 +130,7 @@ export class IndexedDbConversationCache {
     const record = await requestResult(
       transaction.objectStore(STORE_NAME).get(conversationCacheKey(account, kind, conversationId))
     )
-    return record || null
+    return record ? sanitizeConversationRecord(record) : null
   }
 
   save(account, kind, conversationId, messages, cursor) {
@@ -111,7 +165,7 @@ export class IndexedDbConversationCache {
       const transaction = database.transaction(STORE_NAME, 'readwrite')
       const store = transaction.objectStore(STORE_NAME)
       const done = transactionDone(transaction)
-      const existing = await requestResult(store.get(key)) ||
+      const existing = sanitizeConversationRecord(await requestResult(store.get(key))) ||
         makeConversationRecord(account, kind, conversationId, [], 0)
       store.put({ ...existing, draft: normalizedDraft, updatedAt: Date.now() })
       await done

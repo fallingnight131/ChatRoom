@@ -28,7 +28,19 @@ remain release evidence to add before making a user-visible performance claim.
 ## Remaining M2 Boundaries
 
 - The Windows message view still needs an equivalent bounded rendering model.
-- Browser media bytes need a dedicated bounded cache policy; IndexedDB message
-  snapshots must not become an implicit unbounded media store.
 - Delivery/read presentation must be defined against protocol semantics rather
   than inferred from local rendering.
+
+## Web Media Persistence
+
+IndexedDB conversation snapshots are a metadata cache, not a media cache. They
+persist attachment identity, name, type, size, and conversation ordering, but
+persist zero attachment or thumbnail bytes. They also reject temporary upload
+and download URLs, authorization values, `File`, `Blob`, and byte-buffer fields.
+
+Database version 2 sanitizes existing version-1 snapshots during upgrade, and
+the load/write boundary sanitizes records defensively as well. Media available
+in the active page may be rendered from memory; after a reload, users open the
+attachment through a fresh server-authorized HTTP request. A future thumbnail
+cache requires its own global byte budget, eviction policy, access revocation,
+and tests instead of adding byte fields back to conversation records.

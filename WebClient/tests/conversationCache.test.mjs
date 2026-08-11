@@ -6,7 +6,9 @@ import {
   MAX_CACHED_MESSAGES,
   MAX_DRAFT_LENGTH,
   conversationCacheKey,
-  makeConversationRecord
+  makeConversationRecord,
+  sanitizeCachedMessage,
+  sanitizeConversationRecord
 } from '../src/persistence/conversationCache.js'
 
 function requestWith(executor) {
@@ -70,6 +72,50 @@ test('bounds cached history and normalizes the cursor', () => {
   assert.equal(record.messages.length, MAX_CACHED_MESSAGES)
   assert.equal(record.messages[0].id, 20)
   assert.equal(record.cursor, 0)
+})
+
+test('persists attachment metadata without media bytes or temporary authorization', () => {
+  const message = sanitizeCachedMessage({
+    id: 8,
+    contentType: 'image',
+    fileId: 12,
+    fileName: 'photo.png',
+    fileSize: 2048,
+    thumbnail: 'base64-thumbnail',
+    imageData: 'base64-image',
+    fileData: 'base64-file',
+    blob: { bytes: 'payload' },
+    cosUrl: 'https://temporary.example/file?token=secret',
+    token: 'secret'
+  })
+  assert.deepEqual(message, {
+    id: 8,
+    contentType: 'image',
+    fileId: 12,
+    fileName: 'photo.png',
+    fileSize: 2048
+  })
+})
+
+test('sanitizes legacy records and bounds their messages and drafts', () => {
+  const record = sanitizeConversationRecord({
+    key: conversationCacheKey('alice', 'room', 7),
+    account: 'alice',
+    kind: 'room',
+    conversationId: 7,
+    messages: Array.from({ length: MAX_CACHED_MESSAGES + 1 }, (_, id) => ({
+      id,
+      thumbnail: 'bytes'
+    })),
+    cursor: 9,
+    draft: 'x'.repeat(MAX_DRAFT_LENGTH + 1),
+    token: 'must-not-survive'
+  })
+  assert.equal(record.messages.length, MAX_CACHED_MESSAGES)
+  assert.equal(record.messages[0].id, 1)
+  assert.equal('thumbnail' in record.messages[0], false)
+  assert.equal(record.draft.length, MAX_DRAFT_LENGTH)
+  assert.equal('token' in record, false)
 })
 
 test('round trips an IndexedDB conversation snapshot', async () => {

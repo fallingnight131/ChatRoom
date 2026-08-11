@@ -19,6 +19,9 @@ durable data layer.
   conversation identity so different users on one browser never share a key.
 - Store only message/attachment metadata and the last applied server cursor;
   attachment bytes remain in the authorized HTTP/object-storage data plane.
+  Database version 2 enforces this boundary for new and legacy records by
+  removing Base64 media/thumbnail fields, browser byte objects, temporary URLs,
+  upload identifiers, tokens, and authorization values.
 - Store a bounded text draft alongside each conversation snapshot. Draft writes
   are debounced by the composer, flushed when it is unmounted or changes
   conversation, and cleared after the user submits the message.
@@ -55,8 +58,8 @@ Deleting the database is optional and must not be coupled to rollback.
 ## Verification
 
 - unit tests cover account/conversation partitioning, message/draft bounds,
-  cursor normalization, IndexedDB round trip, pruning, and unavailable-storage
-  fallback;
+  cursor normalization, media/authorization sanitization, legacy-record
+  normalization, IndexedDB round trip, pruning, and unavailable-storage fallback;
 - Web production build verifies browser bundling;
 - manual browser verification should cover cached render, forward sync, rapid
   room switching, private/incognito storage denial, and server-authoritative
