@@ -12,6 +12,12 @@ public interface AuthenticationEventSink {
 
     void admissionDenied(AuthenticationLimitDimension dimension);
 
+    default void completed(
+            AuthenticationOutcome outcome,
+            boolean credentialUpgradePending,
+            long executionNanos) {
+    }
+
     static AuthenticationEventSink noop() {
         return NoopHolder.INSTANCE;
     }

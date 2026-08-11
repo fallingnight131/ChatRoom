@@ -294,8 +294,11 @@ Progress:
   - [x] Add bounded process-local account/direct-peer/gateway authentication
     windows before password copies or worker admission, with generic denial and
     non-identifying counters.
-  - [ ] Add production metrics/log export and trusted-proxy configuration before
-    enabling a listener; replace/coordinate limits through Redis for M5.
+  - [x] Add fixed-label authentication counters, execution-duration buckets,
+    upgrade-pending visibility, and power-of-two sampled safe warning logs.
+  - [ ] Attach metrics to the deployment scrape/registry path and define trusted
+    proxy configuration before enabling a listener; replace/coordinate limits
+    through Redis for M5.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

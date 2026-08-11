@@ -113,9 +113,16 @@ at capacity. A verified login clears only its account bucket. Denials use the
 same generic `RATE_LIMITED` payload and expose neither limiting key. Forwarded
 headers are not trusted; multi-gateway coordination remains an M5 Redis concern.
 
+Authentication telemetry uses only fixed outcome/limiter labels. It counts
+accepted, rejected, failed, saturated, and credential-upgrade-pending outcomes
+and records fixed execution-duration buckets. Saturation and admission warnings
+are sampled at power-of-two totals and contain only event, dimension, and count.
+Account, peer, request, exception, password, and token values are excluded.
+
 These messages are not allowed on a production route until WSS, origin policy,
-metrics/log export, trusted-proxy policy, redaction, token rotation,
-authenticated idle policy, and listener lifecycle are implemented and verified.
+deployment metrics registry/scrape wiring, trusted-proxy policy, redaction,
+token rotation, authenticated idle policy, and listener lifecycle are
+implemented and verified.
 
 ## Compatibility rules
 

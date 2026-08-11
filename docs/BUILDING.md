@@ -84,6 +84,10 @@ Deterministic admission tests verify account normalization, direct IPv4/IPv6
 peer aggregation, gateway totals, bounded key capacity, success/expiry recovery,
 and non-identifying snapshots. These process-local tests do not prove distributed
 rate limiting or define deployment limits.
+Telemetry tests verify fixed-label counters, authentication execution-duration
+buckets, total/maximum duration, credential-upgrade debt, and exact power-of-two
+warning sampling without account or peer data. They do not represent a latency
+benchmark or a deployed monitoring backend.
 It also verifies a fixed libsodium 1.0.20 Argon2id interactive test vector with
 the locked Java crypto adapter; this deliberately performs memory-hard work and
 must not be interpreted as an authentication capacity benchmark.

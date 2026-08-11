@@ -213,19 +213,24 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
             String requestId,
             String presentedUsername,
             AuthenticateCommand command) {
+        long startedNanos = System.nanoTime();
         final AuthenticationResult result;
         try (command) {
             result = authentication.authenticate(command);
         } catch (RuntimeException exception) {
+            long executionNanos = elapsedNanos(startedNanos);
             schedule(context, () -> {
                 recordFailed();
+                recordCompleted(AuthenticationOutcome.FAILED, false, executionNanos);
                 failInternal(context, requestId);
             }, null);
             return;
         }
+        long executionNanos = elapsedNanos(startedNanos);
         schedule(
                 context,
-                () -> completeAuthentication(context, requestId, presentedUsername, result),
+                () -> completeAuthentication(
+                        context, requestId, presentedUsername, result, executionNanos),
                 result);
     }
 
@@ -233,18 +238,21 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
             ChannelHandlerContext context,
             String requestId,
             String presentedUsername,
-            AuthenticationResult result) {
+            AuthenticationResult result,
+            long executionNanos) {
         if (state != State.AUTHENTICATING || !context.channel().isActive()) {
             closeResult(result);
             return;
         }
         if (result == null) {
             recordFailed();
+            recordCompleted(AuthenticationOutcome.FAILED, false, executionNanos);
             failInternal(context, requestId);
             return;
         }
         if (result == AuthenticationResult.Rejected.INSTANCE) {
             recordRejected();
+            recordCompleted(AuthenticationOutcome.REJECTED, false, executionNanos);
             rejectAuthentication(
                     context,
                     requestId,
@@ -263,6 +271,10 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
             state = State.AUTHENTICATED;
             context.fireUserEventTriggered(V2ConnectionPhaseEvent.AUTHENTICATED);
             recordAccepted(established.credentialUpgradePending());
+            recordCompleted(
+                    AuthenticationOutcome.ACCEPTED,
+                    established.credentialUpgradePending(),
+                    executionNanos);
 
             SessionEstablished payload = SessionEstablished.newBuilder()
                     .setAccountId(session.accountId().toString())
@@ -415,6 +427,21 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
         } catch (RuntimeException ignored) {
             // A verified login remains valid if ephemeral limiter cleanup fails.
         }
+    }
+
+    private void recordCompleted(
+            AuthenticationOutcome outcome,
+            boolean credentialUpgradePending,
+            long executionNanos) {
+        try {
+            events.completed(outcome, credentialUpgradePending, executionNanos);
+        } catch (RuntimeException ignored) {
+            // Telemetry must not alter an authentication outcome.
+        }
+    }
+
+    private static long elapsedNanos(long startedNanos) {
+        return Math.max(0, System.nanoTime() - startedNanos);
     }
 
     private static String directPeer(ChannelHandlerContext context) {

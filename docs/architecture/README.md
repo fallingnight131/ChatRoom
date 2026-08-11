@@ -204,7 +204,8 @@ pool sizing, trusted-proxy policy, metrics export, resume rotation, authenticate
 idle policy, hardened listener, and complete gateway wiring remain explicit
 cutover blockers. Process-local account/direct-peer/gateway admission and
 handshake/authentication deadlines are implemented but do not define deployment
-defaults or multi-gateway protection yet.
+defaults or multi-gateway protection yet. Fixed-label authentication telemetry
+and sampled safe logs exist; deployment registry/scrape integration remains.
 
 ## 7. Reliable Message Flow
 
