@@ -91,6 +91,17 @@ void MessageModel::addMessage(const Message &msg) {
     endInsertRows();
 }
 
+void MessageModel::discardCachedHistory() {
+    QList<Message> unresolved;
+    for (const Message &message : m_messages) {
+        if (message.id() <= 0 && !message.clientMessageId().isEmpty())
+            unresolved.append(message);
+    }
+    beginResetModel();
+    m_messages = unresolved;
+    endResetModel();
+}
+
 void MessageModel::updateDeliveryState(const QString &clientMessageId,
                                        Message::DeliveryState state) {
     for (int row = 0; row < m_messages.size(); ++row) {

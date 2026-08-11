@@ -52,6 +52,7 @@ public:
                        const QString &sourceAccount,
                        const QString &targetAccount);
     QList<PendingSend> pendingSends(const QString &account, Kind kind);
+    bool clearCachedMessages(const QString &account);
 
     QString lastError() const { return m_lastError; }
 

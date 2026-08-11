@@ -110,6 +110,23 @@ int main(int argc, char *argv[]) {
     passed = passed && optimisticModel.messageAt(1).id() == 502
         && optimisticModel.messageAt(1).sequence() == 10
         && optimisticModel.messageAt(1).deliveryState() == Message::Accepted;
+
+    MessageModel cacheModel;
+    cacheModel.addMessage(authoritative);
+    Message pendingCache = Message::createTextMessage(
+        1, QStringLiteral("alice"), QStringLiteral("pending-cache"));
+    pendingCache.setClientMessageId(QStringLiteral("pending-cache"));
+    pendingCache.setDeliveryState(Message::Sending);
+    cacheModel.addMessage(pendingCache);
+    Message failedCache = Message::createTextMessage(
+        1, QStringLiteral("alice"), QStringLiteral("failed-cache"));
+    failedCache.setClientMessageId(QStringLiteral("failed-cache"));
+    failedCache.setDeliveryState(Message::Failed);
+    cacheModel.addMessage(failedCache);
+    cacheModel.discardCachedHistory();
+    passed = passed && cacheModel.rowCount() == 2
+        && cacheModel.messageAt(0).clientMessageId() == QStringLiteral("pending-cache")
+        && cacheModel.messageAt(1).clientMessageId() == QStringLiteral("failed-cache");
     if (!passed) qCritical() << "Message model reconciliation verification failed";
     return passed ? 0 : 1;
 }

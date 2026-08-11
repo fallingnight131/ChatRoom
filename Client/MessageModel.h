@@ -44,6 +44,7 @@ public:
     void recallMessage(int messageId);
     void applyDeletionEvents(const QJsonArray &events);
     void clear();
+    void discardCachedHistory();
 
     const Message &messageAt(int row) const;
     const QList<Message> &messages() const { return m_messages; }

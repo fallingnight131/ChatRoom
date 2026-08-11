@@ -188,8 +188,10 @@ Progress:
   restart, authorization-gate, acceptance, failure, and retry tests.
 - [ ] Extract Windows history synchronization orchestration from `ChatWindow`
   and extend durable pending behavior to restartable attachments.
-- [ ] Add optimistic states, virtualization, cache controls, and accessibility
-  foundations.
+- [x] Extend the Windows cache control to clear account-isolated, server-
+  recoverable SQLite history while preserving drafts and unresolved sends.
+- [ ] Add remaining optimistic states, virtualization, bounded media-cache
+  policy, and accessibility foundations.
 
 Work:
 

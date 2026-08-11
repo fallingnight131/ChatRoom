@@ -4221,18 +4221,37 @@ void ChatWindow::onChangeCacheDir() {
 }
 
 void ChatWindow::onClearCache() {
-    qint64 cacheSize = FileCache::instance()->totalCacheSize();
-    QString sizeText = QLocale().formattedDataSize(cacheSize);
+    const qint64 mediaCacheSize = FileCache::instance()->totalCacheSize();
+    const QString sizeText = QLocale().formattedDataSize(mediaCacheSize);
 
     auto result = QMessageBox::question(this, "清除缓存",
-        QString("当前账号 [%1] 的缓存大小为 %2\n\n"
-                "清除后将删除所有已下载的文件和图片缓存，\n"
-                "需要时会重新从服务器下载。\n\n"
+        QString("当前账号 [%1] 的媒体缓存为 %2\n\n"
+                "清除后将删除已下载的文件、图片和本地消息历史，\n"
+                "需要时会重新从服务器同步。\n"
+                "草稿、发送中和发送失败的消息不会被删除。\n\n"
                 "确定要清除缓存吗？")
             .arg(m_username, sizeText),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
 
     if (result != QMessageBox::Yes) return;
+
+    flushCurrentDraft();
+    if (m_localRepository
+        && !m_localRepository->clearCachedMessages(m_username)) {
+        qWarning().noquote() << QStringLiteral(
+            "[LocalStore] operation=clear-account-cache outcome=failed detail=%1")
+            .arg(m_localRepository->lastError());
+        QMessageBox::warning(this, QStringLiteral("清除缓存失败"),
+                             QStringLiteral("本地消息缓存无法清除，请稍后重试。"));
+        return;
+    }
+
+    for (auto it = m_models.begin(); it != m_models.end(); ++it)
+        it.value()->discardCachedHistory();
+    for (auto it = m_friendModels.begin(); it != m_friendModels.end(); ++it)
+        it.value()->discardCachedHistory();
+    m_roomSyncCursors.clear();
+    m_friendSyncCursors.clear();
 
     // 清除 QPixmapCache 中所有图片和视频缩略图
     QPixmapCache::clear();
@@ -4261,7 +4280,10 @@ void ChatWindow::onClearCache() {
     }
     m_messageView->viewport()->update();
 
-    m_statusLabel->setText(QString("已清除 %1 缓存").arg(sizeText));
+    requestCurrentRoomResume();
+    requestCurrentFriendResume();
+
+    m_statusLabel->setText(QString("已清除本地消息和 %1 媒体缓存").arg(sizeText));
 }
 
 // ==================== 好友系统 ====================

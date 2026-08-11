@@ -402,6 +402,42 @@ LocalConversationRepository::pendingSends(const QString &account, Kind kind) {
     return pending;
 }
 
+bool LocalConversationRepository::clearCachedMessages(const QString &account) {
+    if (account.isEmpty() || !m_database.isOpen())
+        return fail(QStringLiteral("clearCachedMessages"),
+                    QStringLiteral("invalid account or closed database"));
+    if (!m_database.transaction())
+        return fail(QStringLiteral("clearCachedMessages"),
+                    m_database.lastError().text());
+
+    QSqlQuery remove(m_database);
+    remove.prepare(QStringLiteral(
+        "DELETE FROM messages WHERE account = ? AND NOT "
+        "(server_id <= 0 AND client_message_id <> '')"));
+    remove.addBindValue(account);
+    if (!remove.exec()) {
+        m_database.rollback();
+        return fail(QStringLiteral("clearCachedMessages"),
+                    remove.lastError().text());
+    }
+
+    QSqlQuery resetCursors(m_database);
+    resetCursors.prepare(QStringLiteral(
+        "UPDATE conversations SET cursor = 0, updated_at = ? WHERE account = ?"));
+    resetCursors.addBindValue(QDateTime::currentMSecsSinceEpoch());
+    resetCursors.addBindValue(account);
+    if (!resetCursors.exec()) {
+        m_database.rollback();
+        return fail(QStringLiteral("clearCachedMessages"),
+                    resetCursors.lastError().text());
+    }
+    if (!m_database.commit())
+        return fail(QStringLiteral("clearCachedMessages"),
+                    m_database.lastError().text());
+    m_lastError.clear();
+    return true;
+}
+
 QString LocalConversationRepository::kindValue(Kind kind) {
     return kind == Kind::Room ? QStringLiteral("room") : QStringLiteral("direct");
 }

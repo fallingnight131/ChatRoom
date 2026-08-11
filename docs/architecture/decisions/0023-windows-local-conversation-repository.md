@@ -75,6 +75,12 @@ Composer drafts are kept in a small in-memory view cache and written after a
 draft restoration does not schedule another write. Dispatch clears the draft;
 access revocation discards it without recreating the removed conversation.
 
+The M2 cache control clears only server-recoverable message rows for the active
+account and resets their sequence cursors. Drafts and unresolved optimistic
+rows are retained, so storage cleanup cannot silently discard user intent;
+other account partitions remain untouched. Loaded view models apply the same
+rule before requesting fresh history.
+
 ## Migration and Rollback
 
 Version 1 creates new local-only tables; there is no legacy client database to
@@ -89,7 +95,8 @@ server history restores the view. A newer schema is never downgraded in place.
 - a Qt SQL unit test covers clean creation, restart, the 500-message and
   10,000-character draft bounds, account isolation, authoritative replacement,
   monotonic cursor persistence, pruning, draft preservation, whole-account
-  copying, and exclusion of thumbnail bytes;
+  copying, safe cache clearing, unresolved-send preservation, and exclusion of
+  thumbnail bytes;
 - the standard Qt gate compiles the repository into the desktop client;
 - the Qt gate compiles the cached-render and reconnect-resume integration and
   runs restart, deletion/recall repository, and reconnect model coverage on the

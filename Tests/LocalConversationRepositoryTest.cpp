@@ -143,6 +143,35 @@ int main(int argc, char *argv[]) {
                   LocalConversationRepository::Kind::Direct).isEmpty(),
                   QStringLiteral("failed send was treated as automatic retry"))) return 1;
 
+        Message acceptedForClear = makeMessage(903, 10, 9300);
+        Message pendingForClear = makeMessage(0, 0, 9400);
+        pendingForClear.setClientMessageId(QStringLiteral("clear-pending"));
+        pendingForClear.setDeliveryState(Message::Sending);
+        if (!check(repository.replaceMessages(QStringLiteral("clear-user"),
+                  LocalConversationRepository::Kind::Room, QStringLiteral("88"),
+                  {acceptedForClear, pendingForClear}, 10), repository.lastError())
+            || !check(repository.saveDraft(QStringLiteral("clear-user"),
+                  LocalConversationRepository::Kind::Room, QStringLiteral("88"),
+                  QStringLiteral("preserved draft")), repository.lastError())
+            || !check(repository.clearCachedMessages(QStringLiteral("clear-user")),
+                      repository.lastError())) return 1;
+        const auto cleared = repository.loadSnapshot(
+            QStringLiteral("clear-user"), LocalConversationRepository::Kind::Room,
+            QStringLiteral("88"));
+        if (!check(cleared.messages.size() == 1
+                       && cleared.messages.first().clientMessageId()
+                           == QStringLiteral("clear-pending"),
+                   QStringLiteral("cache clear did not preserve pending intent"))
+            || !check(cleared.cursor == 0,
+                      QStringLiteral("cache clear did not reset sync cursor"))
+            || !check(cleared.draft == QStringLiteral("preserved draft"),
+                      QStringLiteral("cache clear removed draft"))
+            || !check(repository.loadSnapshot(
+                          QStringLiteral("bob"),
+                          LocalConversationRepository::Kind::Room,
+                          QStringLiteral("7")).messages.size() == 1,
+                      QStringLiteral("cache clear crossed account boundary"))) return 1;
+
         const QString copiedPath = directory.filePath(QStringLiteral("copied.sqlite"));
         LocalConversationRepository copied(copiedPath);
         if (!check(copied.initialize(), copied.lastError()) ||
