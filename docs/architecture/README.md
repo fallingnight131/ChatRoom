@@ -439,8 +439,11 @@ the Web source tree, and the protocol gate rejects stale committed output. An
 additive TypeScript protocol/session state machine now validates negotiation,
 authentication, request correlation, server-bound sessions, directory/history
 pages, and idempotent text submissions without changing the live V1 path. Live
-Web traffic remains on V1 until the WebSocket/reconnect adapter, application
-integration, and rollback behavior are verified.
+Web traffic remains on V1. The unconnected V2 WebSocket adapter now fixes the
+secure endpoint/subprotocol, bounds connection phases, rejects non-binary data,
+clears per-connection protocol state, and performs cancellable jittered
+reconnects. Application integration, session resume, browser liveness, and
+rollback behavior still require verification before any cutover.
 
 ### Product consistency
 

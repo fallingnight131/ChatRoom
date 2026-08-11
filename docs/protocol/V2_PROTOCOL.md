@@ -119,6 +119,17 @@ Password input is copied only for immediate serialization and that owned copy is
 cleared. Connection/reconnect ownership and durable resume-token storage remain
 explicitly deferred; therefore this is not a V2 traffic cutover.
 
+The adjacent WebSocket lifecycle adapter requests exactly `wss://<authority>/v2/web`
+with `chat.v2`, verifies the server-selected subprotocol, requests ArrayBuffer
+delivery, and lets the protocol state machine reject malformed or semantically
+invalid binary data. Positive connect, hello, and authentication deadlines close
+stalled sockets. Unexpected closure clears all per-connection protocol/session
+state and schedules capped exponential full-jitter reconnect; successful session
+establishment resets the attempt counter. Stop cancels phase and reconnect timers.
+The adapter does not silently replay credentials or authenticated commands after
+reconnect. Resume-session support, a browser-appropriate liveness mechanism,
+online/offline integration, and UI rollout remain later slices.
+
 `ClientHello` declares a minimum/maximum protocol generation, Web or Windows
 platform, app version, and client-device ID. App version is limited to 64 UTF-8
 bytes and device ID to 128 UTF-8 bytes. It intentionally contains no credential
