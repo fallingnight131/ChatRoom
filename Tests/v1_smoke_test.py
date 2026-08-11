@@ -241,6 +241,10 @@ def run_smoke(server_path: Path) -> None:
             file_data = data(file_notice)
             if not isinstance(file_data.get("fileId"), int) or file_data.get("fileSize") != 2:
                 raise SmokeFailure("file notification metadata was incomplete")
+            if not isinstance(file_data.get("sequence"), int) or file_data["sequence"] <= 0:
+                raise SmokeFailure("live file notification omitted its durable room sequence")
+            if not isinstance(file_data.get("timestamp"), int) or file_data["timestamp"] <= 0:
+                raise SmokeFailure("live file notification omitted its authoritative timestamp")
 
             bob.close()
             clients.remove(bob)

@@ -218,7 +218,9 @@ V2 model. Web room/friend uploads and Windows composer uploads now use the
 authorized binary HTTP bridge from ADR-0013. Upgraded Windows multi-target
 forwarding submits server file identity and target conversations under
 ADR-0014; old-server and old-client compatibility handlers still use legacy V1
-paths.
+paths. ADR-0015 closes the live delivery metadata gap: inline, HTTP-uploaded,
+and forwarded attachment notifications now expose their durable conversation
+sequence and database timestamp just like history rows.
 
 ## 8. Protocol Strategy
 

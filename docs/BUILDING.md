@@ -144,7 +144,9 @@ upload-session path and upgraded forwarding on server file identity.
 
 A ninth V1 suite verifies server-side room/friend file forwarding, copied-byte
 integrity, notifications without inline bytes, source authorization, target
-authorization, and partial-result accounting.
+authorization, partial-result accounting, and durable live sequence metadata.
+The base smoke and HTTP-upload suites also require database timestamps and
+positive room sequences on their live attachment notifications.
 
 CI runs the same smoke test on Ubuntu 24.04 after installing Qt Base, Qt SQLite,
 Qt WebSockets, and libsodium development packages.

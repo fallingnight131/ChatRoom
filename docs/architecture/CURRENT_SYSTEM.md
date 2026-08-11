@@ -198,7 +198,9 @@ restarted schemas converge.
   composer and upgraded forwarding paths from restoring inline attachment
   bytes.
 - `Tests/v1_file_forward_test.py` covers server-side room/friend attachment
-  forwarding, byte integrity, source/target authorization, and partial results.
+  forwarding, byte integrity, source/target authorization, partial results, and
+  live sequence/timestamp metadata. The smoke and HTTP-upload suites enforce
+  the same metadata contract for inline and upload-finalized room files.
 - `CHATROOM_DISABLE_IMAGE_THUMBNAILS` is defined only by the headless test target;
   it skips server-side `QImage` thumbnail generation so the core smoke binary
   does not require QtGui. Client-provided thumbnail fallback and the production

@@ -92,6 +92,8 @@ Progress:
 - [x] Move upgraded Windows multi-target attachment forwarding to an
   authorization-checked server command; old-server fallbacks and legacy-path
   retirement remain.
+- [x] Publish the already-durable room/friend sequence and authoritative
+  timestamp on every live attachment notification.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

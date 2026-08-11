@@ -1412,6 +1412,8 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
     Message msg = Message::createFileMessage(
         roomId, sender, fileName, fSize, fileId);
     msg.setId(data["id"].toInt());
+    msg.setSequence(data["sequence"].toVariant().toLongLong());
+    msg.setTimestamp(data["timestamp"].toVariant().toLongLong());
     msg.setSenderName(senderName);
     msg.setIsMine(sender == m_username);
     msg.setFileCleared(data["fileCleared"].toBool(false));
@@ -4174,6 +4176,7 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
 
     Message msg;
     msg.setId(data["id"].toInt());
+    msg.setSequence(data["sequence"].toVariant().toLongLong());
     msg.setSender(sender);
     msg.setSenderName(data["senderName"].toString());
     msg.setContent(data["content"].toString());

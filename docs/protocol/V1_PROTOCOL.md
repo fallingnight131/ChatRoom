@@ -233,6 +233,14 @@ The request carries no file bytes. V1 bounds this synchronous compatibility
 operation to an 8 MiB source and ten unique targets; V2 will use shared immutable
 blob identity or asynchronous copying for larger files.
 
+Every successfully persisted `FILE_NOTIFY` and `FRIEND_FILE_NOTIFY` now includes
+the same positive per-conversation `sequence` and authoritative database
+`timestamp` returned by sequence-based history. This applies to legacy inline
+send, HTTP-upload finalization, and server-side forwarding. Older clients ignore
+the additive fields. Upload-finalization acknowledgement and retry identity are
+still separate remaining M1 work; the presence of a live sequence is not an
+exactly-once delivery claim.
+
 The legacy paths below remain for older Qt/Web versions and new-client fallback
 against an older server during the compatibility window. Upgraded Web and
 Windows normal paths no longer use them:

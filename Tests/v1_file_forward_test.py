@@ -152,6 +152,11 @@ def run_test(server: Path) -> None:
                 raise SmokeFailure(f"unexpected forwarding summary: {response}")
             if any("fileData" in notice for notice in (target_notice, friend_notice, bob_friend_notice)):
                 raise SmokeFailure("forward notification leaked inline file bytes")
+            for notice in (target_notice, friend_notice, bob_friend_notice):
+                if not isinstance(notice.get("sequence"), int) or notice["sequence"] <= 0:
+                    raise SmokeFailure("forward notification omitted its durable sequence")
+                if not isinstance(notice.get("timestamp"), int) or notice["timestamp"] <= 0:
+                    raise SmokeFailure("forward notification omitted its authoritative timestamp")
             room_file_id = target_notice.get("fileId")
             friend_file_id = friend_notice.get("fileId")
             if not isinstance(room_file_id, int) or room_file_id <= 0:

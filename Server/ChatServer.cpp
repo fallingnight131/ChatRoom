@@ -1749,8 +1749,14 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
     }
 
     // 保存消息记录（含缩略图）
-    int msgId = m_db->saveMessage(roomId, session->userId(), fileName, contentType, fileName, fileSize, fileId, thumbnail);
+    qint64 sequence = 0;
+    qint64 timestamp = 0;
+    int msgId = m_db->saveMessage(roomId, session->userId(), fileName, contentType,
+                                  fileName, fileSize, fileId, thumbnail,
+                                  &sequence, &timestamp);
     if (msgId <= 0) {
+        m_db->deleteStoredFileRecord(fileId);
+        QFile::remove(filePath);
         releaseRoomFileQuota(roomId, fileSize);
         return;
     }
@@ -1766,6 +1772,8 @@ void ChatServer::handleFileSend(ClientSession *session, const QJsonObject &msg) 
     notifyData["fileId"]      = fileId;
     notifyData["contentType"] = contentType;
     notifyData["content"]     = fileName;
+    notifyData["sequence"]    = static_cast<double>(sequence);
+    notifyData["timestamp"]   = static_cast<double>(timestamp);
 
     if (!thumbnail.isEmpty())
         notifyData["thumbnail"] = thumbnail;
@@ -1994,9 +2002,12 @@ QJsonObject ChatServer::forwardFileToRoom(ClientSession *session, int roomId,
         : (typeDir == QLatin1String("Video")
                ? QStringLiteral("video") : QStringLiteral("file"));
     const QString thumbnail = buildForwardThumbnail(targetPath, fileName, fileSize);
+    qint64 sequence = 0;
+    qint64 timestamp = 0;
     const int messageId = fileId > 0
         ? m_db->saveMessage(roomId, session->userId(), fileName, contentType,
-                            fileName, fileSize, fileId, thumbnail)
+                            fileName, fileSize, fileId, thumbnail,
+                            &sequence, &timestamp)
         : -1;
     if (fileId <= 0 || messageId <= 0) {
         if (fileId > 0) m_db->deleteStoredFileRecord(fileId);
@@ -2018,7 +2029,8 @@ QJsonObject ChatServer::forwardFileToRoom(ClientSession *session, int roomId,
     notify["contentType"] = contentType;
     notify["content"] = fileName;
     notify["fileCleared"] = false;
-    notify["timestamp"] = static_cast<double>(QDateTime::currentMSecsSinceEpoch());
+    notify["sequence"] = static_cast<double>(sequence);
+    notify["timestamp"] = static_cast<double>(timestamp);
     if (!thumbnail.isEmpty()) notify["thumbnail"] = thumbnail;
     broadcastToRoom(roomId,
                     Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, notify));
@@ -2070,9 +2082,12 @@ QJsonObject ChatServer::forwardFileToFriend(ClientSession *session,
         : (typeDir == QLatin1String("Video")
                ? QStringLiteral("video") : QStringLiteral("file"));
     const QString thumbnail = buildForwardThumbnail(targetPath, fileName, fileSize);
+    qint64 sequence = 0;
+    qint64 timestamp = 0;
     const int messageId = fileId > 0
         ? m_db->saveFriendMessage(friendshipId, session->userId(), fileName,
-                                  contentType, fileName, fileSize, fileId, thumbnail)
+                                  contentType, fileName, fileSize, fileId, thumbnail,
+                                  &sequence, &timestamp)
         : -1;
     if (fileId <= 0 || messageId <= 0) {
         if (fileId > 0) m_db->deleteStoredFileRecord(fileId, true);
@@ -2093,7 +2108,8 @@ QJsonObject ChatServer::forwardFileToFriend(ClientSession *session,
     notify["fileName"] = fileName;
     notify["fileSize"] = static_cast<double>(fileSize);
     notify["fileId"] = -fileId;
-    notify["timestamp"] = static_cast<double>(QDateTime::currentMSecsSinceEpoch());
+    notify["sequence"] = static_cast<double>(sequence);
+    notify["timestamp"] = static_cast<double>(timestamp);
     if (!thumbnail.isEmpty()) notify["thumbnail"] = thumbnail;
     const QJsonObject notification =
         Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_NOTIFY, notify);
@@ -2295,8 +2311,21 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
         // 好友文件上传 (roomId = -friendshipId)
         int friendshipId = -state.roomId;
         int fileId = m_db->saveFriendFile(friendshipId, state.userId, state.fileName, state.filePath, state.fileSize);
-        int msgId = m_db->saveFriendMessage(friendshipId, state.userId, state.fileName, contentType,
-                                             state.fileName, state.fileSize, fileId, thumbnail);
+        if (fileId <= 0) {
+            QFile::remove(state.filePath);
+            return;
+        }
+        qint64 sequence = 0;
+        qint64 timestamp = 0;
+        int msgId = m_db->saveFriendMessage(
+            friendshipId, state.userId, state.fileName, contentType,
+            state.fileName, state.fileSize, fileId, thumbnail,
+            &sequence, &timestamp);
+        if (msgId <= 0) {
+            m_db->deleteStoredFileRecord(fileId, true);
+            QFile::remove(state.filePath);
+            return;
+        }
 
         // 找到好友用户名
         QJsonArray friends = m_db->getFriendList(state.userId);
@@ -2319,6 +2348,8 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
         notifyData["fileId"]       = -fileId;  // 负数标识好友文件
         notifyData["contentType"]  = contentType;
         notifyData["content"]      = state.fileName;
+        notifyData["sequence"]     = static_cast<double>(sequence);
+        notifyData["timestamp"]    = static_cast<double>(timestamp);
         if (!thumbnail.isEmpty())
             notifyData["thumbnail"] = thumbnail;
 
@@ -2339,13 +2370,20 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
         // 房间文件上传
         int fileId = m_db->saveFile(state.roomId, state.userId, state.fileName, state.filePath, state.fileSize);
         if (fileId <= 0) {
+            QFile::remove(state.filePath);
             if (state.roomQuotaReserved)
                 releaseRoomFileQuota(state.roomId, state.fileSize);
             return;
         }
-        int msgId = m_db->saveMessage(state.roomId, state.userId, state.fileName, contentType,
-                                       state.fileName, state.fileSize, fileId, thumbnail);
+        qint64 sequence = 0;
+        qint64 timestamp = 0;
+        int msgId = m_db->saveMessage(
+            state.roomId, state.userId, state.fileName, contentType,
+            state.fileName, state.fileSize, fileId, thumbnail,
+            &sequence, &timestamp);
         if (msgId <= 0) {
+            m_db->deleteStoredFileRecord(fileId);
+            QFile::remove(state.filePath);
             if (state.roomQuotaReserved)
                 releaseRoomFileQuota(state.roomId, state.fileSize);
             return;
@@ -2362,6 +2400,8 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
         notifyData["fileId"]      = fileId;
         notifyData["contentType"] = contentType;
         notifyData["content"]     = state.fileName;
+        notifyData["sequence"]    = static_cast<double>(sequence);
+        notifyData["timestamp"]   = static_cast<double>(timestamp);
 
         if (!thumbnail.isEmpty())
             notifyData["thumbnail"] = thumbnail;
@@ -4018,6 +4058,10 @@ void ChatServer::handleFriendFileSend(ClientSession *session, const QJsonObject 
     f.close();
 
     int fileId = m_db->saveFriendFile(friendshipId, session->userId(), fileName, filePath, fileSize);
+    if (fileId <= 0) {
+        QFile::remove(filePath);
+        return;
+    }
 
     // 图片自动生成缩略图（与房间 handleFileSend 一致）
 #ifndef CHATROOM_DISABLE_IMAGE_THUMBNAILS
@@ -4039,8 +4083,16 @@ void ChatServer::handleFriendFileSend(ClientSession *session, const QJsonObject 
         thumbnail = data["thumbnail"].toString();
     }
 
-    int msgId  = m_db->saveFriendMessage(friendshipId, session->userId(), fileName, contentType,
-                                          fileName, fileSize, fileId, thumbnail);
+    qint64 sequence = 0;
+    qint64 timestamp = 0;
+    int msgId  = m_db->saveFriendMessage(
+        friendshipId, session->userId(), fileName, contentType,
+        fileName, fileSize, fileId, thumbnail, &sequence, &timestamp);
+    if (msgId <= 0) {
+        m_db->deleteStoredFileRecord(fileId, true);
+        QFile::remove(filePath);
+        return;
+    }
 
     QJsonObject notifyData;
     notifyData["id"]           = msgId;
@@ -4053,7 +4105,8 @@ void ChatServer::handleFriendFileSend(ClientSession *session, const QJsonObject 
     notifyData["fileName"]     = fileName;
     notifyData["fileSize"]     = static_cast<double>(fileSize);
     notifyData["fileId"]       = -fileId;  // 负数标识好友文件
-    notifyData["timestamp"]    = QDateTime::currentMSecsSinceEpoch();
+    notifyData["sequence"]     = static_cast<double>(sequence);
+    notifyData["timestamp"]    = static_cast<double>(timestamp);
     if (!thumbnail.isEmpty()) notifyData["thumbnail"] = thumbnail;
 
     QJsonObject notifyMsg = Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_NOTIFY, notifyData);

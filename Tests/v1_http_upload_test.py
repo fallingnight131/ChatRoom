@@ -76,6 +76,31 @@ def run_test(server: Path) -> None:
             bob.receive_type("FILE_NOTIFY", predicate=match)
             if alice_notice.get("fileSize") != len(body) or "fileData" in alice_notice:
                 raise SmokeFailure("attachment notification contained wrong metadata or inline bytes")
+            if not isinstance(alice_notice.get("sequence"), int) or alice_notice["sequence"] <= 0:
+                raise SmokeFailure("HTTP attachment notification omitted its durable sequence")
+            if not isinstance(alice_notice.get("timestamp"), int) or alice_notice["timestamp"] <= 0:
+                raise SmokeFailure("HTTP attachment notification omitted its authoritative timestamp")
+            bob.send(
+                "HISTORY_REQ",
+                {
+                    "roomId": room_id,
+                    "count": 10,
+                    "afterSequence": alice_notice["sequence"] - 1,
+                },
+            )
+            history = require_success(bob.receive_type("HISTORY_RSP")).get("messages", [])
+            history_copy = next(
+                (
+                    item
+                    for item in history
+                    if isinstance(item, dict) and item.get("id") == alice_notice.get("id")
+                ),
+                None,
+            )
+            if not isinstance(history_copy, dict) or history_copy.get("sequence") != alice_notice["sequence"]:
+                raise SmokeFailure("live attachment sequence disagreed with sequence history")
+            if history_copy.get("timestamp") != alice_notice["timestamp"]:
+                raise SmokeFailure("live attachment timestamp disagreed with durable history")
 
             foreign = start_upload(alice, room_id, "foreign.bin", len(body))
             if put(http_port, str(foreign["httpUploadPath"]), str(bob_login["fileToken"]), body) != 403:

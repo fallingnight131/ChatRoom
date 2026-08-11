@@ -1151,7 +1151,8 @@ bool DatabaseManager::setRoomAvatar(int roomId, const QByteArray &avatarData) {
 int DatabaseManager::saveMessage(int roomId, int userId, const QString &content,
                                   const QString &contentType,
                                   const QString &fileName, qint64 fileSize, int fileId,
-                                  const QString &thumbnail) {
+                                  const QString &thumbnail, qint64 *sequenceOut,
+                                  qint64 *timestampOut) {
     QSqlDatabase db = getConnection();
     if (!db.transaction()) {
         qWarning() << "[DB] 开启消息保存事务失败:" << db.lastError().text();
@@ -1181,7 +1182,22 @@ int DatabaseManager::saveMessage(int roomId, int userId, const QString &content,
 
     if (q.exec()) {
         const int messageId = q.lastInsertId().toInt();
-        if (db.commit()) return messageId;
+        qint64 timestamp = 0;
+        if (timestampOut) {
+            QSqlQuery created(db);
+            created.prepare("SELECT created_at FROM messages WHERE id = ?");
+            created.addBindValue(messageId);
+            if (!created.exec() || !created.next()) {
+                db.rollback();
+                return -1;
+            }
+            timestamp = utcTimestampMs(created.value(0));
+        }
+        if (db.commit()) {
+            if (sequenceOut) *sequenceOut = sequence;
+            if (timestampOut) *timestampOut = timestamp;
+            return messageId;
+        }
     }
 
     qWarning() << "[DB] 保存消息失败:" << q.lastError().text();
@@ -2254,7 +2270,8 @@ int DatabaseManager::ensureSelfFriendship(int userId) {
 int DatabaseManager::saveFriendMessage(int friendshipId, int senderId, const QString &content,
                                        const QString &contentType,
                                        const QString &fileName, qint64 fileSize, int fileId,
-                                       const QString &thumbnail) {
+                                       const QString &thumbnail, qint64 *sequenceOut,
+                                       qint64 *timestampOut) {
     QSqlDatabase db = getConnection();
     if (!db.transaction()) return -1;
     qint64 sequence = 0;
@@ -2278,7 +2295,22 @@ int DatabaseManager::saveFriendMessage(int friendshipId, int senderId, const QSt
     q.addBindValue(sequence);
     if (q.exec()) {
         const int messageId = q.lastInsertId().toInt();
-        if (db.commit()) return messageId;
+        qint64 timestamp = 0;
+        if (timestampOut) {
+            QSqlQuery created(db);
+            created.prepare("SELECT created_at FROM friend_messages WHERE id = ?");
+            created.addBindValue(messageId);
+            if (!created.exec() || !created.next()) {
+                db.rollback();
+                return -1;
+            }
+            timestamp = utcTimestampMs(created.value(0));
+        }
+        if (db.commit()) {
+            if (sequenceOut) *sequenceOut = sequence;
+            if (timestampOut) *timestampOut = timestamp;
+            return messageId;
+        }
     }
     db.rollback();
     return -1;

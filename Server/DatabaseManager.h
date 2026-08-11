@@ -75,7 +75,9 @@ public:
                      const QString &contentType,
                      const QString &fileName = QString(),
                      qint64 fileSize = 0, int fileId = 0,
-                     const QString &thumbnail = QString());
+                     const QString &thumbnail = QString(),
+                     qint64 *sequenceOut = nullptr,
+                     qint64 *timestampOut = nullptr);
     MessageSaveResult saveRoomMessageIdempotent(
         int roomId, int userId, const QString &clientMessageId,
         const QString &content, const QString &contentType);
@@ -168,7 +170,9 @@ public:
                            const QString &contentType,
                            const QString &fileName = QString(),
                            qint64 fileSize = 0, int fileId = 0,
-                           const QString &thumbnail = QString());
+                           const QString &thumbnail = QString(),
+                           qint64 *sequenceOut = nullptr,
+                           qint64 *timestampOut = nullptr);
     MessageSaveResult saveFriendMessageIdempotent(
         int friendshipId, int senderId, const QString &clientMessageId,
         const QString &content, const QString &contentType);
