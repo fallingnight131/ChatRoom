@@ -12,6 +12,7 @@ import {
   ConversationCoordinator,
   conversationCoordinator
 } from '../messaging/conversationCoordinator'
+import { advanceReadWatermark, applyPeerReadWatermark } from '../messaging/readReceipts'
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -47,6 +48,7 @@ export const useChatStore = defineStore('chat', {
     isFriendChat: false,
     friendMessages: [],       // 当前好友私聊消息
     friendSyncCursors: {},    // friendUsername -> 当前内存视图已应用的服务端序列
+    friendReadWatermarks: {}, // friendUsername -> 对端已读的最大服务端消息 ID
     friendUnread: {},         // username -> unread count
     hasPendingFriendReq: false, // 是否有未处理的好友申请
   }),
@@ -451,6 +453,8 @@ export const useChatStore = defineStore('chat', {
           this.friendMessages = cached.messages
           this.friendSyncCursors[friendUsername] = Number(cached.cursor || 0)
         }
+        this._applyFriendReadWatermark(
+          friendUsername, fr.peerLastReadMessageId || 0)
         this._retryPendingFriendMessages()
         conversationCoordinator.requestSync(
           ConversationCoordinator.direct(friendUsername), this.friendMessages,
@@ -478,11 +482,26 @@ export const useChatStore = defineStore('chat', {
           friendUsername !== this.currentFriendUsername) return
       const account = useUserStore().username
       if (!account) return
+      this._applyFriendReadWatermark(
+        friendUsername, this.friendReadWatermarks[friendUsername] || 0)
       void conversationCoordinator.persist(
         account, ConversationCoordinator.direct(friendUsername), this.friendMessages,
         this.friendSyncCursors[friendUsername] || 0).catch(error => {
         console.warn('[Cache] unable to persist direct snapshot:', error)
       })
+    },
+
+    _applyFriendReadWatermark(friendUsername, candidate) {
+      if (!friendUsername) return false
+      const watermark = advanceReadWatermark(
+        this.friendReadWatermarks[friendUsername], candidate)
+      this.friendReadWatermarks[friendUsername] = watermark
+      const friend = this.friends.find(item => item.username === friendUsername)
+      if (friend) friend.peerLastReadMessageId = watermark
+      if (!this.isFriendChat || this.currentFriendUsername !== friendUsername)
+        return false
+      return applyPeerReadWatermark(
+        this.friendMessages, watermark, useUserStore().username)
     },
 
     _removeCachedConversation(kind, conversationId) {
@@ -1199,6 +1218,7 @@ export const useChatStore = defineStore('chat', {
         if (msg.data.success) {
           this._removeCachedConversation('friend', msg.data.username)
           delete this.friendSyncCursors[msg.data.username]
+          delete this.friendReadWatermarks[msg.data.username]
           delete this.friendUnread[msg.data.username]
           this.friends = this.friends.filter(f => f.username !== msg.data.username)
           if (this.isFriendChat && this.currentFriendUsername === msg.data.username) {
@@ -1214,6 +1234,7 @@ export const useChatStore = defineStore('chat', {
         const username = msg.data.username
         this._removeCachedConversation('friend', username)
         delete this.friendSyncCursors[username]
+        delete this.friendReadWatermarks[username]
         delete this.friendUnread[username]
         this.friends = this.friends.filter(friend => friend.username !== username)
         if (this.isFriendChat && this.currentFriendUsername === username) {
@@ -1229,9 +1250,21 @@ export const useChatStore = defineStore('chat', {
         const newUnread = {}
         for (const fr of this.friends) {
           if (fr.unread > 0) newUnread[fr.username] = fr.unread
+          this._applyFriendReadWatermark(
+            fr.username, fr.peerLastReadMessageId || 0)
         }
         this.friendUnread = newUnread
         this.hasPendingFriendReq = (msg.data.pendingFriendRequests || 0) > 0
+        this._persistCurrentFriendSnapshot()
+      })
+
+      chatWs.on(MsgType.FRIEND_READ_NOTIFY, (msg) => {
+        const d = msg.data || {}
+        const friend = this.friends.find(item =>
+          item.friendshipId === d.friendshipId || item.username === d.readerUsername)
+        if (!friend) return
+        this._applyFriendReadWatermark(friend.username, d.lastReadMessageId)
+        this._persistCurrentFriendSnapshot(friend.username)
       })
 
       chatWs.on(MsgType.FRIEND_PENDING_RSP, (msg) => {

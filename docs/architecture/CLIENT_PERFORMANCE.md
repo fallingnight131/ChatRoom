@@ -67,3 +67,9 @@ Web and Windows render `发送中`, `发送失败`, and `已发送` for the send
 means only that an authoritative server message ID exists after durable
 acceptance. It must not be translated or styled as `已送达` or `已读`. Those
 states require an additive protocol event and persistent peer/device watermarks.
+
+The Web private-chat client consumes ADR-0030's monotonic peer read watermark.
+It upgrades only the authenticated user's positive-ID messages through the
+watermark to `已读`, restores the watermark from the friend list after reload,
+and persists the resulting presentation in the metadata-only conversation
+snapshot. Older servers simply leave the existing `已发送` state unchanged.

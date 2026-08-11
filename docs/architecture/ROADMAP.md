@@ -221,6 +221,9 @@ Progress:
     without mislabelling it as delivered or read.
   - [ ] Add durable private-chat read watermarks and receipt presentation;
     multi-device aggregation remains M6 scope.
+    - [x] Publish and persist the authorized V1 peer read watermark.
+    - [x] Consume monotonic live/recovered watermarks in the Web client.
+    - [ ] Consume monotonic live/recovered watermarks in the Windows client.
 
 Work:
 

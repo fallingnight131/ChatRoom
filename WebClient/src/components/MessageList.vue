@@ -119,6 +119,8 @@
             <button v-else-if="msg.deliveryState === 'failed'" class="delivery-retry"
                     @click="chatStore.retryMessage(msg)" aria-label="发送失败，重试这条消息">
               发送失败，点击重试</button>
+            <span v-else-if="isMine(msg) && msg.deliveryState === 'read'"
+                  class="delivery-state"> 已读</span>
             <span v-else-if="isMine(msg) && msg.id" class="delivery-state"> 已发送</span>
           </div>
         </div>
@@ -338,7 +340,8 @@ function messageAriaLabel(msg) {
     : (msg.content || '')
   const state = msg.deliveryState === 'sending' ? '，发送中'
     : (msg.deliveryState === 'failed' ? '，发送失败'
-      : (isMine(msg) && msg.id ? '，已发送' : ''))
+      : (isMine(msg) && msg.deliveryState === 'read' ? '，已读'
+        : (isMine(msg) && msg.id ? '，已发送' : '')))
   return `${sender}：${content}${state}，${formatTime(msg.timestamp)}`
 }
 
