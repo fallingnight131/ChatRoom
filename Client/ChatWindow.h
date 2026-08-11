@@ -111,6 +111,8 @@ private slots:
     // 大文件分块传输
     void onUploadStartResponse(const QJsonObject &data);
     void onUploadChunkResponse(const QJsonObject &data);
+    void onRawUploadProgress(const QString &uploadId, qint64 sent, qint64 total);
+    void onRawUploadFinished(const QString &uploadId, bool success, const QString &error);
     void onFileCosProgress(const QJsonObject &data);
     void onDownloadChunkResponse(const QJsonObject &data);
 
@@ -203,6 +205,8 @@ private:
     void setupUi();
     void setupMenuBar();
     void connectSignals();
+    void completeUploadBytes();
+    void clearUploadState(bool removeTemporaryMessage);
     void switchRoom(int roomId);
     void requestRoomList();
     MessageModel *getOrCreateModel(int roomId);
@@ -311,6 +315,7 @@ private:
         qint64 offset   = 0;
         int    chunkSize = Protocol::FILE_CHUNK_SIZE;
         QByteArray thumbnailData; // 视频缩略图 JPEG 数据
+        bool rawHttp = false;
     };
     ChunkedUpload m_upload;
     bool m_uploadPaused = false;

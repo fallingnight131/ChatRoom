@@ -1,4 +1,5 @@
 #include "NetworkManager.h"
+#include "HttpUploadTransport.h"
 #include "Protocol.h"
 
 #include <QSslSocket>
@@ -25,6 +26,12 @@ NetworkManager::NetworkManager(QObject *parent)
     m_reconnectTimer->setInterval(Protocol::RECONNECT_INTERVAL_MS);
     m_reconnectTimer->setSingleShot(true);
     connect(m_reconnectTimer, &QTimer::timeout, this, &NetworkManager::tryReconnect);
+
+    m_httpUpload = new HttpUploadTransport(this);
+    connect(m_httpUpload, &HttpUploadTransport::progress,
+            this, &NetworkManager::rawUploadProgress);
+    connect(m_httpUpload, &HttpUploadTransport::finished,
+            this, &NetworkManager::rawUploadFinished);
 }
 
 NetworkManager::~NetworkManager() {
@@ -68,6 +75,7 @@ void NetworkManager::disconnectFromServer() {
     m_autoReconnect = false;
     m_heartbeatTimer->stop();
     m_reconnectTimer->stop();
+    if (m_httpUpload) m_httpUpload->reset();
 
     if (m_socket) {
         m_socket->disconnect();
@@ -86,6 +94,16 @@ void NetworkManager::sendMessage(const QJsonObject &msg) {
     if (!isConnected()) return;
     m_socket->write(Protocol::pack(msg));
     m_socket->flush();
+}
+
+bool NetworkManager::uploadRawFile(const QString &uploadId,
+                                   const QString &uploadPath,
+                                   const QString &filePath) {
+    return m_httpUpload && m_httpUpload->upload(uploadId, uploadPath, filePath);
+}
+
+void NetworkManager::cancelRawUpload(const QString &uploadId) {
+    if (m_httpUpload) m_httpUpload->cancel(uploadId);
 }
 
 void NetworkManager::setCredentials(int userId, const QString &username) {
@@ -155,6 +173,13 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         if (ok) {
             m_userId   = data["userId"].toInt();
             m_username = data["username"].toString();
+            if (m_httpUpload) {
+                m_httpUpload->configure(
+                    m_host,
+                    static_cast<quint16>(data["httpPort"].toInt()),
+                    data["fileToken"].toString(),
+                    data["httpSecure"].toBool(false));
+            }
         }
         emit loginResponse(ok,
                            data["error"].toString(),

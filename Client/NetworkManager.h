@@ -7,6 +7,8 @@
 #include <QJsonArray>
 #include <QTimer>
 
+class HttpUploadTransport;
+
 /// 网络管理器 —— 单例，管理与服务器的 TCP 连接
 /// 观察者模式：通过信号通知各 UI 组件
 class NetworkManager : public QObject {
@@ -17,6 +19,9 @@ public:
     void connectToServer(const QString &host, quint16 port, bool useSsl = false);
     void disconnectFromServer();
     void sendMessage(const QJsonObject &msg);
+    bool uploadRawFile(const QString &uploadId, const QString &uploadPath,
+                       const QString &filePath);
+    void cancelRawUpload(const QString &uploadId);
 
     bool isConnected() const;
     QString currentUsername() const { return m_username; }
@@ -63,6 +68,8 @@ signals:
     void uploadChunkResponse(const QJsonObject &data);
     void downloadChunkResponse(const QJsonObject &data);
     void fileCosProgress(const QJsonObject &data);
+    void rawUploadProgress(const QString &uploadId, qint64 sent, qint64 total);
+    void rawUploadFinished(const QString &uploadId, bool success, const QString &error);
 
     // 撤回
     void recallResponse(bool success, int messageId, const QString &error);
@@ -177,6 +184,7 @@ private:
     QTimer     *m_heartbeatTimer  = nullptr;
     QTimer     *m_reconnectTimer  = nullptr;
     QByteArray  m_buffer;
+    HttpUploadTransport *m_httpUpload = nullptr;
 
     QString     m_host;
     quint16     m_port            = 0;

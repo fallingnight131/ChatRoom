@@ -137,6 +137,10 @@ text/emoji messages.
 An eighth suite verifies the raw HTTP attachment data plane: owner-token
 binding, exact length, foreign-token denial, interrupted-body cleanup, existing
 WebSocket finalization, and notification frames without inline file bytes.
+The Qt gate additionally compiles `HttpUploadTransportTest`; the V1 smoke gate
+runs it with loopback access and checks the real raw `PUT`. A source contract
+test keeps Windows room/file/image and friend composer entry points on the
+upload-session path.
 
 CI runs the same smoke test on Ubuntu 24.04 after installing Qt Base, Qt SQLite,
 Qt WebSockets, and libsodium development packages.

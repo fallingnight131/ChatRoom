@@ -520,6 +520,8 @@ void ChatWindow::connectSignals() {
     // 大文件分块传输
     connect(net, &NetworkManager::uploadStartResponse, this, &ChatWindow::onUploadStartResponse);
     connect(net, &NetworkManager::uploadChunkResponse, this, &ChatWindow::onUploadChunkResponse);
+    connect(net, &NetworkManager::rawUploadProgress, this, &ChatWindow::onRawUploadProgress);
+    connect(net, &NetworkManager::rawUploadFinished, this, &ChatWindow::onRawUploadFinished);
     connect(net, &NetworkManager::downloadChunkResponse, this, &ChatWindow::onDownloadChunkResponse);
     connect(net, &NetworkManager::fileCosProgress, this, &ChatWindow::onFileCosProgress);
 
@@ -1368,57 +1370,7 @@ void ChatWindow::onSendFile() {
         return;
     }
 
-    // 大文件走分块传输
-    if (fi.size() > Protocol::MAX_SMALL_FILE) {
-        startChunkedUpload(filePath);
-        return;
-    }
-
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        QMessageBox::warning(this, "错误", "无法打开文件");
-        return;
-    }
-
-    QByteArray data = file.readAll();
-    file.close();
-
-    // 记录发送的文件路径，用于收到 FILE_NOTIFY 时直接缓存
-    m_pendingSentFiles[fi.fileName()] = filePath;
-
-    QJsonObject msgData;
-    msgData["roomId"]   = m_currentRoomId;
-    msgData["fileName"] = fi.fileName();
-    msgData["fileSize"] = static_cast<double>(fi.size());
-    msgData["fileData"] = QString::fromLatin1(data.toBase64());
-
-    // 视频文件：生成缩略图一并发送
-    static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
-    if (vidExts.contains(fi.suffix().toLower())) {
-        QByteArray thumbData = generateVideoThumbnailData(filePath);
-        if (!thumbData.isEmpty()) {
-            msgData["thumbnail"] = QString::fromLatin1(thumbData.toBase64());
-        }
-    }
-
-    // 图片文件：生成缩略图一并发送
-    static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
-    if (imgExts.contains(fi.suffix().toLower())) {
-        QImage img(filePath);
-        if (!img.isNull()) {
-            QImage thumb = img.scaled(200, 200, Qt::KeepAspectRatio, Qt::FastTransformation);
-            QByteArray thumbData;
-            QBuffer tbuf(&thumbData);
-            tbuf.open(QIODevice::WriteOnly);
-            thumb.save(&tbuf, "JPEG", 60);
-            msgData["thumbnail"] = QString::fromLatin1(thumbData.toBase64());
-        }
-    }
-
-    NetworkManager::instance()->sendMessage(
-        Protocol::makeMessage(Protocol::MsgType::FILE_SEND, msgData));
-
-    m_statusLabel->setText("文件发送中...");
+    startChunkedUpload(filePath);
 }
 
 void ChatWindow::onSendImage() {
@@ -1445,35 +1397,7 @@ void ChatWindow::onSendImage() {
         return;
     }
 
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) return;
-    QByteArray data = file.readAll();
-    file.close();
-
-    // 记录发送的文件路径
-    m_pendingSentFiles[fi.fileName()] = filePath;
-
-    QJsonObject msgData;
-    msgData["roomId"]   = m_currentRoomId;
-    msgData["fileName"] = fi.fileName();
-    msgData["fileSize"] = static_cast<double>(fi.size());
-    msgData["fileData"] = QString::fromLatin1(data.toBase64());
-
-    // 生成图片缩略图
-    QImage img(filePath);
-    if (!img.isNull()) {
-        QImage thumb = img.scaled(200, 200, Qt::KeepAspectRatio, Qt::FastTransformation);
-        QByteArray thumbData;
-        QBuffer tbuf(&thumbData);
-        tbuf.open(QIODevice::WriteOnly);
-        thumb.save(&tbuf, "JPEG", 60);
-        msgData["thumbnail"] = QString::fromLatin1(thumbData.toBase64());
-    }
-
-    NetworkManager::instance()->sendMessage(
-        Protocol::makeMessage(Protocol::MsgType::FILE_SEND, msgData));
-
-    m_statusLabel->setText("图片发送中...");
+    startChunkedUpload(filePath);
 }
 
 void ChatWindow::onFileNotify(const QJsonObject &data) {
@@ -1606,6 +1530,7 @@ void ChatWindow::startChunkedUpload(const QString &filePath) {
     m_upload.offset    = 0;
     m_upload.uploadId.clear();
     m_upload.thumbnailData.clear();
+    m_upload.rawHttp = false;
     m_uploadPaused = false;
     m_uploadingFileName = fi.fileName();
 
@@ -1658,9 +1583,24 @@ void ChatWindow::startChunkedUpload(const QString &filePath) {
 void ChatWindow::onUploadStartResponse(const QJsonObject &data) {
     if (!data["success"].toBool()) {
         QMessageBox::warning(this, "上传失败", data["error"].toString());
+        clearUploadState(true);
         return;
     }
     m_upload.uploadId = data["uploadId"].toString();
+    const QString uploadPath = data["httpUploadPath"].toString();
+    if (!uploadPath.isEmpty()) {
+        if (NetworkManager::instance()->uploadRawFile(
+                m_upload.uploadId, uploadPath, m_upload.filePath)) {
+            m_upload.rawHttp = true;
+            m_statusLabel->setText("正在通过 HTTP 上传...");
+            return;
+        }
+        QMessageBox::warning(this, "上传失败", "无法启动 HTTP 上传，请重试");
+        cancelUpload();
+        return;
+    }
+    // 旧服务端不返回 HTTP 地址时，保留 V1 Base64 分块兼容路径。
+    m_upload.rawHttp = false;
     sendNextChunk();
 }
 
@@ -1704,36 +1644,12 @@ void ChatWindow::sendNextChunk() {
 void ChatWindow::onUploadChunkResponse(const QJsonObject &data) {
     if (!data["success"].toBool()) {
         QMessageBox::warning(this, "上传失败", data["error"].toString());
-        m_upload.uploadId.clear();
-        m_uploadingFileId = 0;
-        m_uploadingFileName.clear();
+        clearUploadState(true);
         return;
     }
 
     if (m_upload.offset >= m_upload.fileSize) {
-        // 所有块发送完毕，通知服务器结束
-        QJsonObject endData;
-        endData["uploadId"] = m_upload.uploadId;
-        // 携带视频缩略图（如果有）
-        if (!m_upload.thumbnailData.isEmpty()) {
-            endData["thumbnail"] = QString::fromLatin1(m_upload.thumbnailData.toBase64());
-            m_upload.thumbnailData.clear();
-        }
-        NetworkManager::instance()->sendMessage(
-            Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_END, endData));
-        m_statusLabel->setText("文件已上传，正在同步到云端...");
-        // 保留 m_upload.uploadId 供 COS 进度回调使用
-        // 如果服务端未启用 COS，10秒后自动清理 uploadId
-        QString savedUploadId = m_upload.uploadId;
-        QTimer::singleShot(10000, this, [this, savedUploadId]() {
-            if (m_upload.uploadId == savedUploadId) {
-                m_upload.uploadId.clear();
-                if (m_statusLabel->text().contains("云端"))
-                    m_statusLabel->clear();
-            }
-        });
-        // 注意：不清除 m_uploadingFileId 和 m_uploadingFileName
-        // 等 FILE_NOTIFY 到达时再清除并移除临时上传消息
+        completeUploadBytes();
     } else if (m_uploadPaused) {
         // 上传暂停 — 不继续发送下一块
         m_statusLabel->setText(QString("上传已暂停 %1%")
@@ -1741,6 +1657,48 @@ void ChatWindow::onUploadChunkResponse(const QJsonObject &data) {
     } else {
         sendNextChunk();
     }
+}
+
+void ChatWindow::completeUploadBytes() {
+    QJsonObject endData;
+    endData["uploadId"] = m_upload.uploadId;
+    if (!m_upload.thumbnailData.isEmpty()) {
+        endData["thumbnail"] = QString::fromLatin1(m_upload.thumbnailData.toBase64());
+        m_upload.thumbnailData.clear();
+    }
+    NetworkManager::instance()->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_END, endData));
+    m_statusLabel->setText("文件已上传，正在同步到云端...");
+    const QString savedUploadId = m_upload.uploadId;
+    QTimer::singleShot(10000, this, [this, savedUploadId]() {
+        if (m_upload.uploadId == savedUploadId) {
+            m_upload.uploadId.clear();
+            m_upload.rawHttp = false;
+            if (m_statusLabel->text().contains("云端"))
+                m_statusLabel->clear();
+        }
+    });
+}
+
+void ChatWindow::onRawUploadProgress(const QString &uploadId, qint64 sent, qint64 total) {
+    if (!m_upload.rawHttp || uploadId != m_upload.uploadId || total <= 0) return;
+    m_upload.offset = sent;
+    const double ratio = qBound(0.0, static_cast<double>(sent) / total, 1.0);
+    m_statusLabel->setText(QString("HTTP 上传中 %1%...").arg(static_cast<int>(ratio * 60)));
+    if (m_uploadingFileId != 0)
+        updateAllModelsDownloadProgress(m_uploadingFileId, Message::Uploading, ratio * 0.6);
+}
+
+void ChatWindow::onRawUploadFinished(const QString &uploadId, bool success,
+                                     const QString &error) {
+    if (!m_upload.rawHttp || uploadId != m_upload.uploadId) return;
+    if (!success) {
+        QMessageBox::warning(this, "上传失败", error);
+        cancelUpload();
+        return;
+    }
+    m_upload.offset = m_upload.fileSize;
+    completeUploadBytes();
 }
 
 void ChatWindow::onFileCosProgress(const QJsonObject &data) {
@@ -1780,6 +1738,10 @@ void ChatWindow::onFileCosProgress(const QJsonObject &data) {
 
 void ChatWindow::pauseUpload() {
     if (m_upload.uploadId.isEmpty()) return;
+    if (m_upload.rawHttp) {
+        m_statusLabel->setText("HTTP 上传不支持暂停，可取消后重新上传");
+        return;
+    }
     m_uploadPaused = true;
     if (m_uploadingFileId != 0) {
         double progress = static_cast<double>(m_upload.offset) / m_upload.fileSize * 0.6;
@@ -1791,6 +1753,7 @@ void ChatWindow::pauseUpload() {
 
 void ChatWindow::resumeUpload() {
     if (m_upload.uploadId.isEmpty()) return;
+    if (m_upload.rawHttp) return;
     m_uploadPaused = false;
     if (m_uploadingFileId != 0) {
         double progress = static_cast<double>(m_upload.offset) / m_upload.fileSize * 0.6;
@@ -1802,14 +1765,22 @@ void ChatWindow::resumeUpload() {
 void ChatWindow::cancelUpload() {
     if (m_upload.uploadId.isEmpty()) return;
 
+    if (m_upload.rawHttp)
+        NetworkManager::instance()->cancelRawUpload(m_upload.uploadId);
+
     // 通知服务器取消
     QJsonObject data;
     data["uploadId"] = m_upload.uploadId;
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_CANCEL, data));
 
+    clearUploadState(true);
+    m_statusLabel->setText("上传已取消");
+}
+
+void ChatWindow::clearUploadState(bool removeTemporaryMessage) {
     // 清除本地上传状态 — 移除临时消息（房间模型和好友模型都要检查）
-    if (m_uploadingFileId != 0) {
+    if (removeTemporaryMessage && m_uploadingFileId != 0) {
         // 从所有模型中移除临时上传消息
         for (auto it = m_models.begin(); it != m_models.end(); ++it) {
             it.value()->removeMessageByFileId(m_uploadingFileId);
@@ -1823,12 +1794,18 @@ void ChatWindow::cancelUpload() {
         QFile::remove(tempThumb);
         QPixmapCache::remove(QString("vidthumb_%1").arg(m_uploadingFileId));
     }
+    const QString fileName = QFileInfo(m_upload.filePath).fileName();
+    if (!fileName.isEmpty() && m_pendingSentFiles.value(fileName) == m_upload.filePath)
+        m_pendingSentFiles.remove(fileName);
     m_upload.uploadId.clear();
+    m_upload.filePath.clear();
+    m_upload.fileSize = 0;
+    m_upload.offset = 0;
     m_upload.thumbnailData.clear();
+    m_upload.rawHttp = false;
     m_uploadPaused = false;
     m_uploadingFileId = 0;
     m_uploadingFileName.clear();
-    m_statusLabel->setText("上传已取消");
 }
 
 // ==================== 文件下载管理 ====================
@@ -4271,25 +4248,25 @@ void ChatWindow::onFriendOfflineNotify(const QString &username) {
 void ChatWindow::onFriendFileUploadStartResponse(const QJsonObject &data) {
     if (!data["success"].toBool()) {
         QMessageBox::warning(this, "文件发送", data["error"].toString());
-        // 失败时清除临时上传消息和状态
-        if (m_uploadingFileId != 0) {
-            for (auto it = m_friendModels.begin(); it != m_friendModels.end(); ++it) {
-                it.value()->removeMessageByFileId(m_uploadingFileId);
-            }
-            QString tempThumb = FileCache::instance()->thumbDir()
-                                + QString("/thumb_%1.jpg").arg(m_uploadingFileId);
-            QFile::remove(tempThumb);
-            QPixmapCache::remove(QString("vidthumb_%1").arg(m_uploadingFileId));
-            m_uploadingFileId = 0;
-            m_uploadingFileName.clear();
-        }
-        m_upload.uploadId.clear();
-        m_upload.thumbnailData.clear();
+        clearUploadState(true);
         return;
     }
 
-    // 复用已有的分块上传逻辑
     m_upload.uploadId = data["uploadId"].toString();
+    const QString uploadPath = data["httpUploadPath"].toString();
+    if (!uploadPath.isEmpty()) {
+        if (NetworkManager::instance()->uploadRawFile(
+                m_upload.uploadId, uploadPath, m_upload.filePath)) {
+            m_upload.rawHttp = true;
+            m_statusLabel->setText("正在通过 HTTP 上传好友文件...");
+            return;
+        }
+        QMessageBox::warning(this, "文件发送", "无法启动 HTTP 上传，请重试");
+        cancelUpload();
+        return;
+    }
+    // 旧服务端兼容路径。
+    m_upload.rawHttp = false;
     sendNextChunk();
 }
 
@@ -4330,47 +4307,9 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
         return;
     }
 
-    // 记录发送的文件路径，用于收到 FRIEND_FILE_NOTIFY 时直接缓存
-    m_pendingSentFiles[fi.fileName()] = filePath;
-
-    // 小文件直接发送 (< 8MB)
-    if (fileSize < Protocol::MAX_SMALL_FILE) {
-        QFile f(filePath);
-        if (!f.open(QIODevice::ReadOnly)) return;
-        QByteArray raw = f.readAll();
-        f.close();
-
-        QString thumbnail;
-        if (contentType == "image" && fileSize < 20 * 1024 * 1024) {
-            QImage img(filePath);
-            if (!img.isNull()) {
-                QImage thumb = img.scaled(200, 200, Qt::KeepAspectRatio, Qt::FastTransformation);
-                QByteArray thumbData;
-                QBuffer buf(&thumbData);
-                buf.open(QIODevice::WriteOnly);
-                thumb.save(&buf, "JPEG", 60);
-                thumbnail = QString::fromLatin1(thumbData.toBase64());
-            }
-        } else if (contentType == "video") {
-            // 视频文件：生成缩略图一并发送（与房间发送一致）
-            QByteArray thumbData = generateVideoThumbnailData(filePath);
-            if (!thumbData.isEmpty()) {
-                thumbnail = QString::fromLatin1(thumbData.toBase64());
-            }
-        }
-
-        QJsonObject data;
-        data["friendUsername"] = m_currentFriendUsername;
-        data["fileName"]      = fi.fileName();
-        data["fileSize"]      = static_cast<double>(fileSize);
-        data["fileData"]      = QString::fromLatin1(raw.toBase64());
-        data["contentType"]   = contentType;
-        if (!thumbnail.isEmpty()) data["thumbnail"] = thumbnail;
-
-        NetworkManager::instance()->sendMessage(
-            Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_SEND, data));
-    } else {
-        // 大文件分块上传 — 检查是否有正在进行的上传（与房间上传一致）
+    Q_UNUSED(contentType)
+    {
+        // 统一建立授权上传会话；新服务端走 HTTP，旧服务端回退分块协议。
         if (!m_upload.uploadId.isEmpty()) {
             QMessageBox::warning(this, "上传提示",
                 QString("当前正在上传 \"%1\"，请等待上传完成或取消后再上传新文件。")
@@ -4383,6 +4322,7 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
         m_upload.offset    = 0;
         m_upload.uploadId.clear();
         m_upload.thumbnailData.clear();
+        m_upload.rawHttp = false;
         m_uploadPaused = false;
         m_uploadingFileName = fi.fileName();
 

@@ -34,7 +34,8 @@ Extend the existing upload-session flow with a raw binary HTTP transport:
 - Web uses `fetch`/XHR behind a browser upload adapter. Windows Qt uses
   `QNetworkAccessManager` behind its transport layer. UI code does not construct
   server paths or tokens.
-- Roll out Web room/friend uploads first, then Windows. The old Base64 inline
+- Web room/friend and Windows composer uploads use this adapter. Windows
+  multi-target forwarding is the next migration slice. The old Base64 inline
   and chunk messages remain temporarily for old-client compatibility and are
   instrumented before removal; new clients do not silently fall back after an
   authorization or integrity failure.
