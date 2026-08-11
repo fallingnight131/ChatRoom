@@ -354,6 +354,9 @@ Progress:
   - [x] Add transport-independent message append/history ports and a PostgreSQL
     adapter with active account/member/device authorization, atomic sequence,
     exact concurrent idempotency, database timestamps, and bounded cursor pages.
+  - [x] Add the canonical conversation-directory application port and V004
+    group profile migration with active-membership, stable composite-cursor
+    PostgreSQL projection.
   - [ ] Rehearse the operator restore procedure and quiesced final fingerprint
     check before any identity authority cutover.
 - [x] Define the transport/persistence-independent fresh-login application use

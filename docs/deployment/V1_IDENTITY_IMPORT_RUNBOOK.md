@@ -8,7 +8,7 @@ Completing an apply does not authorize routing user traffic to Java V2.
 
 ## Preconditions
 
-- Use a dedicated PostgreSQL target with Flyway migrations through V003 already
+- Use a dedicated PostgreSQL target with all current Flyway migrations already
   applied and validated.
 - Build and review the exact repository revision used for the migration.
 - Keep the V1 SQLite source and its `-wal`/`-shm` neighbors under the V1 server's

@@ -23,7 +23,7 @@ not server truth.
 | `account` | normalized login identity and password hash; never plaintext credentials |
 | `device` | user-owned Web or Windows device identity and revocation state |
 | `device_session` | expiring/revocable session with only a SHA-256 token digest |
-| `conversation` | canonical direct/group identity and next allocatable sequence |
+| `conversation` | canonical direct/group identity, group title, and next allocatable sequence |
 | `conversation_member` | server-authoritative membership, role, and read sequence |
 | `direct_conversation` | one canonical, ordered account pair per direct chat |
 | `message` | stable message identity, conversation sequence, idempotency key, type, and bounded payload |
@@ -44,6 +44,13 @@ V003 adds the append-only `identity_import_run` audit. A successful apply stores
 the source fingerprint, verified backup hash/size/time, source row count, and
 inserted/already-present counts in the same transaction as account inserts. It
 does not store source paths, usernames, password material, or salts.
+
+V004 adds the server-owned group title and an active-membership directory index.
+Any pre-product group row is assigned a deterministic placeholder before the
+constraint requires a 1..100-character group title; direct conversations keep a
+null title and derive their display name from the other account. The later
+verified conversation import must replace placeholders with authoritative V1
+names.
 
 ## V1 identity import boundary
 
@@ -86,7 +93,17 @@ history.
 Forward history reads at most 100 stored messages after an explicit sequence,
 ordered ascending, and returns the next applied cursor, current conversation
 high watermark, and `hasMore`. Deleted rows remain legal cursor gaps. The
-adapter is not connected to the now-defined V2 messaging wire commands yet.
+adapter is connected to authenticated V2 message commands, but no supported
+client sends product traffic to it yet.
+
+## Implemented conversation directory
+
+The conversation directory adapter returns only active memberships for an
+enabled account. It projects direct peer or group display name, caller role,
+latest sequence, last-read sequence, and database update time. Pages contain at
+most 100 rows ordered by `(updated_at, conversation_id)` descending and carry
+both fields as the next keyset cursor. This directory cursor is for bounded UI
+browsing; message recovery continues to use conversation sequences.
 
 ## Bounds and indexes
 
@@ -132,14 +149,14 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through V003, reruns migration as a simulated
+cluster, migrates a clean database through V004, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable
 duplicate results without a consumed sequence, rejects conflicting reuse,
 checks bounded cursor pages, and denies outsiders/left members. It tests identity lookup, transactional device
 reuse, hashed session issuance, revoked-device denial, and account-disable race
-closure. It applies all three migrations, rejects inconsistent credential shapes,
+closure. It applies all migrations, rejects inconsistent credential shapes,
 maps both V1 credential generations, and verifies one-time CAS upgrade. Session
 tests cover digest rotation, sequential and concurrent replay denial, device
 binding, expiry, and revocation. It also proves identity preview has no writes,

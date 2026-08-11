@@ -12,6 +12,9 @@ import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.application.identity.ClientPlatform;
 import com.fallingnight.chat.application.identity.IssuedSession;
 import com.fallingnight.chat.application.identity.StoredCredential;
+import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
+import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
+import com.fallingnight.chat.application.conversation.ConversationKind;
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
@@ -35,6 +38,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.Clock;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
@@ -67,7 +71,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(3, first.migrate());
+        assertEquals(4, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -157,6 +161,69 @@ class PostgresMigratorTest {
         assertEquals(
                 MessageHistoryResult.Rejected.NOT_AUTHORIZED,
                 adapter.readAfter(new MessageHistoryQuery(conversation, account, 0, 10)));
+    }
+
+    @Test
+    @Order(6)
+    void listsOnlyActiveConversationMembershipWithStableCompositeCursor() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID account = UUID.randomUUID();
+        UUID peer = UUID.randomUUID();
+        UUID direct = UUID.fromString("40000000-0000-4000-8000-000000000001");
+        UUID group = UUID.fromString("40000000-0000-4000-8000-000000000002");
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'directory-owner', 'Owner', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'directory-peer', 'Peer Name', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    account, peer);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind, title, next_sequence, updated_at) "
+                            + "VALUES (?, 'DIRECT', NULL, 3, ?), "
+                            + "(?, 'GROUP', 'Project Room', 6, ?)",
+                    direct, OffsetDateTime.parse("2026-08-12T11:00:00Z"),
+                    group, OffsetDateTime.parse("2026-08-12T11:00:00Z"));
+            execute(connection,
+                    "INSERT INTO chat.direct_conversation"
+                            + "(conversation_id, first_account_id, second_account_id) "
+                            + "VALUES (?, LEAST(?, ?), GREATEST(?, ?))",
+                    direct, account, peer, account, peer);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member"
+                            + "(conversation_id, account_id, role, last_read_sequence) "
+                            + "VALUES (?, ?, 'MEMBER', 1), (?, ?, 'OWNER', 4), "
+                            + "(?, ?, 'MEMBER', 0)",
+                    direct, account, group, account, direct, peer);
+        }
+
+        PostgresConversationDirectoryAdapter adapter =
+                new PostgresConversationDirectoryAdapter(dataSource());
+        ConversationDirectoryPage first = adapter.list(new ConversationDirectoryQuery(
+                account, Optional.empty(), 1));
+        assertEquals(1, first.conversations().size());
+        assertEquals(group, first.conversations().getFirst().conversationId());
+        assertEquals("Project Room", first.conversations().getFirst().displayName());
+        assertEquals(5, first.conversations().getFirst().latestSequence());
+        assertTrue(first.hasMore());
+
+        ConversationDirectoryPage second = adapter.list(new ConversationDirectoryQuery(
+                account, first.next(), 1));
+        assertEquals(direct, second.conversations().getFirst().conversationId());
+        assertEquals(ConversationKind.DIRECT, second.conversations().getFirst().kind());
+        assertEquals("Peer Name", second.conversations().getFirst().displayName());
+        assertFalse(second.hasMore());
+
+        leaveConversation(group, account);
+        ConversationDirectoryPage active = adapter.list(new ConversationDirectoryQuery(
+                account, Optional.empty(), 100));
+        assertEquals(List.of(direct), active.conversations().stream()
+                .map(summary -> summary.conversationId()).toList());
+        disableAccount(account);
+        assertTrue(adapter.list(new ConversationDirectoryQuery(
+                account, Optional.empty(), 100)).conversations().isEmpty());
     }
 
     @Test
@@ -579,6 +646,16 @@ class PostgresMigratorTest {
 
     private static Connection connect() throws SQLException {
         return DriverManager.getConnection(URL, USER, PASSWORD);
+    }
+
+    private static void execute(Connection connection, String sql, Object... values)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            for (int index = 0; index < values.length; index++) {
+                statement.setObject(index + 1, values[index]);
+            }
+            statement.executeUpdate();
+        }
     }
 
     private static byte[] sessionHash(UUID sessionId) throws SQLException {

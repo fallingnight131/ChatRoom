@@ -139,7 +139,7 @@ It also verifies a fixed libsodium 1.0.20 Argon2id interactive test vector with
 the locked Java crypto adapter; this deliberately performs memory-hard work and
 must not be interpreted as an authentication capacity benchmark.
 The same Java gate verifies exact V1 salted-SHA compatibility and current-policy
-Argon2id rehashing. The PostgreSQL gate applies V001/V002/V003 and checks
+Argon2id rehashing. The PostgreSQL gate applies V001 through V004 and checks
 credential shape constraints, compare-and-set upgrade behavior, digest-only session proof
 rotation, sequential/concurrent replay denial, device binding, expiry, and
 revocation against a disposable real database. It then constructs the real
@@ -154,6 +154,10 @@ ascending cursor pages, and active-membership authorization. The runtime now
 exposes this adapter to already authenticated V2 connections for text submission
 and sequence-history reads. No supported client uses that route, and fan-out,
 delivery, and read semantics remain unimplemented.
+The same real-database gate verifies the transport-independent conversation
+directory: group/direct labels, role and sequence projection, stable composite-
+cursor paging, left-membership filtering, and disabled-account denial. Its wire
+command is a later slice.
 Pure migration-planner tests also verify deterministic V1 user-ID mapping,
 order-independent source fingerprints, supported credential generations, full
 plan blocking on invalid/duplicate/empty input, and non-secret issue reporting.
