@@ -315,6 +315,10 @@ Progress:
 - [x] Implement legacy salted-SHA storage/verification compatibility and
   compare-and-set Argon2id upgrade without forcing dormant-account resets.
 - [ ] Implement the verified one-way V1 data import and session resume/rotation.
+  - [x] Define the transport-independent owned resume command, atomic-rotation
+    persistence port, generic result, and explicit token zeroing lifecycle.
+  - [ ] Implement PostgreSQL atomic proof rotation/replay denial and connect the
+    bounded gateway resume command.
 
 Work:
 
