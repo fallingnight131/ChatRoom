@@ -44,6 +44,8 @@ public:
         const QMap<QString, QString> &peerByConversationKey);
     bool prepareRetry(const QString &account, const Target &target,
                       const QString &clientMessageId, Command *command);
+    bool replaceSource(const QString &account, const QString &clientMessageId,
+                       const QString &sourcePath);
 
     bool recordUploading(const QString &account,
                          const QString &clientMessageId);

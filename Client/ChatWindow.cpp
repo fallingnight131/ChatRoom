@@ -547,6 +547,8 @@ void ChatWindow::setupMenuBar() {
     settingsMenu->addSeparator();
     settingsMenu->addAction("缓存路径(&C)...", this, &ChatWindow::onChangeCacheDir);
     settingsMenu->addAction("清除缓存(&X)...", this, &ChatWindow::onClearCache);
+    settingsMenu->addAction("待发送文件(&U)...", this,
+                            &ChatWindow::showPendingAttachments);
 
     auto *helpMenu = menuBar()->addMenu("帮助(&H)");
     helpMenu->addAction("关于(&A)", [this] {
@@ -4441,6 +4443,232 @@ void ChatWindow::onChangeCacheDir() {
 
     FileCache::instance()->setCacheDir(newDir, m_username);
     m_statusLabel->setText(QString("缓存目录已更改为: %1").arg(newDir));
+}
+
+void ChatWindow::showPendingAttachments() {
+    if (!m_localRepository) {
+        QMessageBox::information(this, QStringLiteral("待发送文件"),
+                                 QStringLiteral("本地任务存储当前不可用。"));
+        return;
+    }
+
+    QDialog dialog(this);
+    dialog.setWindowTitle(QStringLiteral("待发送文件"));
+    dialog.resize(620, 380);
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *description = new QLabel(QStringLiteral(
+        "可以重试失败任务、重新选择已变更的源文件，或取消任务。\n"
+        "恢复会重新申请授权并从 0 上传，但会保留原消息 ID。"));
+    description->setWordWrap(true);
+    layout->addWidget(description);
+    auto *list = new QListWidget(&dialog);
+    layout->addWidget(list, 1);
+
+    auto allCommands = [this] {
+        auto commands = m_localRepository->attachmentCommands(
+            m_username, LocalConversationRepository::Kind::Room);
+        commands.append(m_localRepository->attachmentCommands(
+            m_username, LocalConversationRepository::Kind::Direct));
+        return commands;
+    };
+    auto stateText = [](LocalConversationRepository::AttachmentState state) {
+        switch (state) {
+        case LocalConversationRepository::AttachmentState::PendingAuthorization:
+            return QStringLiteral("等待授权");
+        case LocalConversationRepository::AttachmentState::Uploading:
+            return QStringLiteral("上传中");
+        case LocalConversationRepository::AttachmentState::Finalizing:
+            return QStringLiteral("等待服务器确认");
+        case LocalConversationRepository::AttachmentState::Failed:
+            return QStringLiteral("失败");
+        }
+        return QStringLiteral("未知");
+    };
+    auto refresh = [list, allCommands, stateText] {
+        list->clear();
+        for (const auto &command : allCommands()) {
+            const QString conversation = command.kind
+                    == LocalConversationRepository::Kind::Room
+                ? QStringLiteral("房间 %1").arg(command.conversationKey)
+                : QStringLiteral("私聊 %1").arg(command.conversationKey);
+            QString label = QStringLiteral("%1  ·  %2  ·  %3")
+                .arg(command.fileName, conversation, stateText(command.state));
+            if (!command.failureCode.isEmpty())
+                label += QStringLiteral("  (%1)").arg(command.failureCode);
+            auto *item = new QListWidgetItem(label, list);
+            item->setData(Qt::UserRole, command.clientMessageId);
+            item->setData(Qt::UserRole + 1, static_cast<int>(command.kind));
+            item->setData(Qt::UserRole + 2, command.conversationKey);
+            item->setToolTip(QStringLiteral("大小：%1")
+                .arg(QLocale().formattedDataSize(command.fileSize)));
+        }
+        if (list->count() > 0) list->setCurrentRow(0);
+    };
+    auto selectedIdentity = [list](QString *clientMessageId,
+                                   LocalConversationRepository::Kind *kind,
+                                   QString *conversationKey) {
+        QListWidgetItem *item = list->currentItem();
+        if (!item) return false;
+        *clientMessageId = item->data(Qt::UserRole).toString();
+        *kind = static_cast<LocalConversationRepository::Kind>(
+            item->data(Qt::UserRole + 1).toInt());
+        *conversationKey = item->data(Qt::UserRole + 2).toString();
+        return !clientMessageId->isEmpty();
+    };
+    auto resolveTarget = [this](LocalConversationRepository::Kind kind,
+                                const QString &conversationKey,
+                                AttachmentOutboxService::Target *target) {
+        if (kind == LocalConversationRepository::Kind::Room) {
+            bool ok = false;
+            const int roomId = conversationKey.toInt(&ok);
+            if (!ok || roomId <= 0) return false;
+            bool allowed = false;
+            for (int index = 0; index < m_roomList->count(); ++index) {
+                if (m_roomList->item(index)->data(Qt::UserRole).toInt() == roomId) {
+                    allowed = true;
+                    break;
+                }
+            }
+            if (!allowed) return false;
+            *target = AttachmentOutboxService::roomTarget(roomId);
+            return true;
+        }
+        QString peer;
+        bool numeric = false;
+        const int friendshipId = conversationKey.toInt(&numeric);
+        if (numeric && friendshipId > 0) {
+            for (auto it = m_friendshipIds.cbegin(); it != m_friendshipIds.cend(); ++it) {
+                if (it.value() == friendshipId) {
+                    peer = it.key();
+                    break;
+                }
+            }
+        } else if (conversationKey.startsWith(QStringLiteral("peer:"))) {
+            const QString candidate = conversationKey.mid(5);
+            if (m_friendshipIds.contains(candidate)) peer = candidate;
+        }
+        if (peer.isEmpty()) return false;
+        *target = AttachmentOutboxService::directTarget(conversationKey, peer);
+        return true;
+    };
+
+    auto *buttons = new QHBoxLayout;
+    auto *retryButton = new QPushButton(QStringLiteral("重试"), &dialog);
+    auto *replaceButton = new QPushButton(QStringLiteral("重新选择源文件"), &dialog);
+    auto *cancelButton = new QPushButton(QStringLiteral("取消任务"), &dialog);
+    auto *closeButton = new QPushButton(QStringLiteral("关闭"), &dialog);
+    buttons->addWidget(retryButton);
+    buttons->addWidget(replaceButton);
+    buttons->addWidget(cancelButton);
+    buttons->addStretch();
+    buttons->addWidget(closeButton);
+    layout->addLayout(buttons);
+
+    connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::accept);
+    connect(retryButton, &QPushButton::clicked, &dialog,
+            [this, selectedIdentity, resolveTarget, refresh] {
+        QString clientMessageId;
+        QString conversationKey;
+        LocalConversationRepository::Kind kind;
+        if (!selectedIdentity(&clientMessageId, &kind, &conversationKey)) return;
+        if (clientMessageId == m_upload.clientMessageId) {
+            QMessageBox::information(this, QStringLiteral("重试文件"),
+                                     QStringLiteral("该文件正在发送。"));
+            return;
+        }
+        if (!NetworkManager::instance()->isConnected()) {
+            QMessageBox::information(this, QStringLiteral("重试文件"),
+                                     QStringLiteral("连接恢复后才能重试。"));
+            return;
+        }
+        AttachmentOutboxService::Target target;
+        if (!resolveTarget(kind, conversationKey, &target)) {
+            QMessageBox::warning(this, QStringLiteral("重试文件"),
+                                 QStringLiteral("当前没有该会话的发送权限。"));
+            return;
+        }
+        AttachmentOutboxService::Command command;
+        if (!m_attachmentOutboxService->prepareRetry(
+                m_username, target, clientMessageId, &command)) {
+            QMessageBox::warning(this, QStringLiteral("重试文件"),
+                                 m_attachmentOutboxService->lastError());
+            refresh();
+            return;
+        }
+        enqueueAttachments({command});
+        refresh();
+    });
+    connect(replaceButton, &QPushButton::clicked, &dialog,
+            [this, selectedIdentity, resolveTarget, refresh] {
+        QString clientMessageId;
+        QString conversationKey;
+        LocalConversationRepository::Kind kind;
+        if (!selectedIdentity(&clientMessageId, &kind, &conversationKey)) return;
+        if (clientMessageId == m_upload.clientMessageId) {
+            QMessageBox::information(this, QStringLiteral("重新选择"),
+                                     QStringLiteral("请先取消当前上传。"));
+            return;
+        }
+        const QString path = QFileDialog::getOpenFileName(
+            this, QStringLiteral("重新选择源文件"));
+        if (path.isEmpty()) return;
+        const qint64 size = QFileInfo(path).size();
+        qint64 maximum = kind == LocalConversationRepository::Kind::Direct
+            ? Protocol::MAX_FRIEND_FILE : Protocol::MAX_LARGE_FILE;
+        if (kind == LocalConversationRepository::Kind::Room) {
+            bool ok = false;
+            const int roomId = conversationKey.toInt(&ok);
+            const qint64 roomMaximum = m_roomMaxFileSize.value(roomId, maximum);
+            if (ok && roomMaximum > 0) maximum = qMin(maximum, roomMaximum);
+        }
+        if (size <= 0 || size > maximum) {
+            QMessageBox::warning(this, QStringLiteral("重新选择"),
+                                 QStringLiteral("新文件为空或超过当前会话限制。"));
+            return;
+        }
+        if (!m_attachmentOutboxService->replaceSource(
+                m_username, clientMessageId, path)) {
+            QMessageBox::warning(this, QStringLiteral("重新选择"),
+                                 m_attachmentOutboxService->lastError());
+            return;
+        }
+        AttachmentOutboxService::Target target;
+        AttachmentOutboxService::Command command;
+        if (NetworkManager::instance()->isConnected()
+            && resolveTarget(kind, conversationKey, &target)
+            && m_attachmentOutboxService->prepareRetry(
+                m_username, target, clientMessageId, &command)) {
+            enqueueAttachments({command});
+        }
+        refresh();
+    });
+    connect(cancelButton, &QPushButton::clicked, &dialog,
+            [this, selectedIdentity, refresh] {
+        QString clientMessageId;
+        QString conversationKey;
+        LocalConversationRepository::Kind kind;
+        if (!selectedIdentity(&clientMessageId, &kind, &conversationKey)) return;
+        Q_UNUSED(kind)
+        Q_UNUSED(conversationKey)
+        if (QMessageBox::question(
+                this, QStringLiteral("取消文件任务"),
+                QStringLiteral("确定不再发送这个文件吗？"))
+            != QMessageBox::Yes) return;
+        if (clientMessageId == m_upload.clientMessageId) {
+            cancelUpload();
+        } else {
+            for (int index = m_attachmentQueue.size() - 1; index >= 0; --index) {
+                if (m_attachmentQueue[index].clientMessageId == clientMessageId)
+                    m_attachmentQueue.removeAt(index);
+            }
+            m_queuedAttachmentIds.remove(clientMessageId);
+            m_attachmentOutboxService->cancel(m_username, clientMessageId);
+        }
+        refresh();
+    });
+
+    refresh();
+    dialog.exec();
 }
 
 void ChatWindow::onClearCache() {

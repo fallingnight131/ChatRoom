@@ -97,6 +97,20 @@ int main(int argc, char *argv[]) {
                        roomClientId, &unsafeRetry),
                    QStringLiteral("manual retry bypassed source revision validation")))
             return 1;
+        const QString replacementPath = directory.filePath(QStringLiteral("replacement.bin"));
+        if (!check(writeSource(replacementPath, QByteArray(4096, 'c')),
+                   QStringLiteral("cannot create replacement source"))
+            || !check(service.replaceSource(
+                          QStringLiteral("alice"), roomClientId, replacementPath),
+                      service.lastError())) return 1;
+        AttachmentOutboxService::Command safeRetry;
+        if (!check(service.prepareRetry(
+                       QStringLiteral("alice"), AttachmentOutboxService::roomTarget(7),
+                       roomClientId, &safeRetry), service.lastError())
+            || !check(safeRetry.clientMessageId == roomClientId
+                          && safeRetry.sourcePath == replacementPath
+                          && safeRetry.fileSize == 4096,
+                      QStringLiteral("source replacement changed command identity"))) return 1;
         if (!check(service.cancel(QStringLiteral("alice"), roomClientId),
                    service.lastError())
             || !check(repository.attachmentCommands(

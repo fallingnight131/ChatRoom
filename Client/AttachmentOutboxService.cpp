@@ -127,6 +127,54 @@ bool AttachmentOutboxService::prepareRetry(
     return false;
 }
 
+bool AttachmentOutboxService::replaceSource(
+    const QString &account, const QString &clientMessageId,
+    const QString &sourcePath) {
+    m_lastError.clear();
+    if (!m_repository || account.isEmpty() || clientMessageId.isEmpty()) {
+        m_lastError = QStringLiteral("invalid attachment source replacement identity");
+        return false;
+    }
+    const QFileInfo source(sourcePath);
+    if (!source.exists() || !source.isFile() || !source.isReadable()
+        || source.size() <= 0) {
+        m_lastError = QStringLiteral("replacement attachment source is unavailable");
+        return false;
+    }
+    const QString fingerprint = sourceFingerprint(source.absoluteFilePath(), source.size());
+    if (fingerprint.isEmpty()) {
+        m_lastError = QStringLiteral("replacement attachment source cannot be fingerprinted");
+        return false;
+    }
+    for (LocalConversationRepository::Kind kind : {
+             LocalConversationRepository::Kind::Room,
+             LocalConversationRepository::Kind::Direct}) {
+        const auto storedCommands = m_repository->attachmentCommands(account, kind);
+        if (!m_repository->lastError().isEmpty()) {
+            m_lastError = m_repository->lastError();
+            return false;
+        }
+        for (auto stored : storedCommands) {
+            if (stored.clientMessageId != clientMessageId) continue;
+            stored.sourcePath = source.absoluteFilePath();
+            stored.fileName = source.fileName();
+            stored.fileSize = source.size();
+            stored.sourceModifiedAtMs = source.lastModified().toMSecsSinceEpoch();
+            stored.sourceFingerprint = fingerprint;
+            stored.state = LocalConversationRepository::AttachmentState::PendingAuthorization;
+            stored.transmittedBytes = 0;
+            stored.failureCode.clear();
+            if (!m_repository->upsertAttachmentCommand(account, stored)) {
+                m_lastError = m_repository->lastError();
+                return false;
+            }
+            return true;
+        }
+    }
+    m_lastError = QStringLiteral("attachment command not found");
+    return false;
+}
+
 bool AttachmentOutboxService::recordUploading(
     const QString &account, const QString &clientMessageId) {
     return recordProgress(account, clientMessageId, 0);

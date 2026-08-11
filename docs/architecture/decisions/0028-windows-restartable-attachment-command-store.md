@@ -44,6 +44,10 @@ ordinary case where the source file was replaced before a recovery attempt.
   sessions to fresh authorization after an authoritative room/friend list, and
   removes durable state on authoritative notification, final ACK, or explicit
   cancellation.
+- Expose account-local pending tasks under Settings. A user can retry an
+  unchanged source, replace a moved/changed source while preserving the stable
+  message ID, or cancel and delete the intent. Retry and replacement remain
+  gated by the latest authoritative room/friend list.
 
 ## Consequences
 
@@ -71,5 +75,6 @@ The server and wire protocol are unchanged.
   resolution, stable-ID reuse, stale-progress normalization, source replacement,
   explicit retry validation, completion, and cancellation;
 - the Qt source gate locks room/direct composer paths to the durable outbox and
-  the Qt Release gate compiles the serialized V1 adapter;
+  its recovery controls, and the Qt Release gate compiles the serialized V1
+  adapter;
 - future-schema rejection remains covered.

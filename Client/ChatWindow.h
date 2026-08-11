@@ -106,6 +106,7 @@ private slots:
     // 设置
     void onChangeCacheDir();
     void onClearCache();
+    void showPendingAttachments();
 
     // 连接状态
     void onConnected();

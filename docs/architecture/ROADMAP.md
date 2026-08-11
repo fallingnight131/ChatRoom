@@ -191,7 +191,7 @@ Progress:
   conversation synchronization service.
 - [x] Move Windows V1 room/direct history parsing, malformed/rejected response
   handling, and progress-guarded continuation scheduling out of `ChatWindow`.
-- [ ] Extend Windows durable pending behavior to restartable attachments.
+- [x] Extend Windows durable pending behavior to restartable attachments.
   - [x] Add the schema-v2 account/conversation-scoped attachment command store;
     do not persist ephemeral upload authorization or claim byte-range resume.
   - [x] Add source-revision validation, membership-gated recovery, stale-state
@@ -199,7 +199,7 @@ Progress:
     Windows application service.
   - [x] Add serialized V1 dispatch, reconnect reset, fresh authorization, and
     ACK/notification/cancellation cleanup to the Windows adapter layer.
-  - [ ] Add user-visible failed-task retry, source reselection, and cancellation
+  - [x] Add user-visible failed-task retry, source reselection, and cancellation
     controls to the Windows UI.
 - [x] Extend the Windows cache control to clear account-isolated, server-
   recoverable SQLite history while preserving drafts and unresolved sends.
