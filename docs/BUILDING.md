@@ -78,7 +78,10 @@ The protocol-binding gate also compiles and round-trips permanent V2 messaging
 types 100..103 and content type 1 (bounded nonempty UTF-8 text). It verifies the
 fixed `SubmitMessage` golden payload in Java, generated TypeScript, and generated
 C++. It also locks the V2 conversation-directory composite cursor across all
-three generated bindings. Gateway tests separately verify authenticated server-bound identity,
+three generated bindings. The generation task also publishes reviewed TypeScript
+into `WebClient/src/protocol/v2/generated`; the gate snapshots those committed
+files and fails if regeneration changes them. Do not edit generated Web files
+manually. Gateway tests separately verify authenticated server-bound identity,
 off-event-loop submit/history dispatch, per-connection ordering, safe denial,
 bounded saturation behavior, and isolation from the authentication worker pool.
 This is pre-cutover evidence, not product traffic or a capacity result.

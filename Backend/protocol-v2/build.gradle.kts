@@ -49,6 +49,9 @@ abstract class GenerateClientBindings : DefaultTask() {
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
 
+    @get:OutputDirectory
+    abstract val webOutputDirectory: DirectoryProperty
+
     @get:Inject
     abstract val execOperations: ExecOperations
 
@@ -75,6 +78,16 @@ abstract class GenerateClientBindings : DefaultTask() {
             )
             args(schemas.map { it.absolutePath })
         }
+        val generatedWeb = output.resolve("typescript/chat/v2")
+        require(generatedWeb.isDirectory) { "generated Web V2 bindings are missing" }
+        val webOutput = webOutputDirectory.get().asFile
+        webOutput.deleteRecursively()
+        require(generatedWeb.copyRecursively(webOutput, overwrite = true)) {
+            "could not publish generated Web V2 bindings"
+        }
+        webOutput.walkTopDown()
+            .filter { it.isFile && it.extension == "ts" }
+            .forEach { file -> file.writeText(file.readText().trimEnd() + "\n") }
     }
 }
 
@@ -86,4 +99,6 @@ tasks.register<GenerateClientBindings>("generateClientBindings") {
         "typescript/node_modules/.bin/protoc-gen-es"))
     protoRoot.set(layout.projectDirectory.dir("src/main/proto"))
     outputDirectory.set(layout.projectDirectory.dir("typescript/generated"))
+    webOutputDirectory.set(layout.projectDirectory.dir(
+        "../../WebClient/src/protocol/v2/generated"))
 }

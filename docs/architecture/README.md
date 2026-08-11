@@ -434,6 +434,11 @@ Pinia should represent live UI/application state, not be the only data store.
 Responsive browser layouts may serve phones or tablets, but they do not create
 native Android or iOS application support.
 
+The pinned V2 generator now publishes reviewed TypeScript bindings directly to
+the Web source tree, and the protocol gate rejects stale committed output. Live
+Web traffic remains on V1 until the additive V2 transport/session adapter and
+rollback behavior are verified.
+
 ### Product consistency
 
 Share these across clients:

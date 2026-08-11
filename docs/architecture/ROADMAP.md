@@ -338,6 +338,8 @@ Progress:
       directory request/page and prove Java/C++/TypeScript compatibility.
     - [x] Dispatch the authenticated directory through the PostgreSQL adapter in
       the connection-local serial command queue with safe failures and telemetry.
+    - [x] Publish the authoritative generated V2 TypeScript bindings into the Web
+      source tree and fail compatibility verification when committed output is stale.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

@@ -59,6 +59,11 @@ def verify_protocol_bindings(skip_install: bool) -> None:
     backend = ROOT / "Backend"
     typescript = backend / "protocol-v2" / "typescript"
     wrapper = backend / ("gradlew.bat" if os.name == "nt" else "gradlew")
+    web_generated = ROOT / "WebClient" / "src" / "protocol" / "v2" / "generated"
+    web_before = {
+        path.name: path.read_bytes()
+        for path in sorted(web_generated.glob("*_pb.ts"))
+    }
     if not skip_install:
         run([npm, "ci"], typescript)
     run([str(wrapper), "--no-daemon", ":protocol-v2:generateClientBindings"], backend)
@@ -71,13 +76,26 @@ def verify_protocol_bindings(skip_install: bool) -> None:
         "cpp/chat/v2/control.pb.h",
         "cpp/chat/v2/authentication.pb.cc",
         "cpp/chat/v2/authentication.pb.h",
+        "cpp/chat/v2/conversation.pb.cc",
+        "cpp/chat/v2/conversation.pb.h",
+        "cpp/chat/v2/messaging.pb.cc",
+        "cpp/chat/v2/messaging.pb.h",
         "typescript/chat/v2/envelope_pb.ts",
         "typescript/chat/v2/control_pb.ts",
         "typescript/chat/v2/authentication_pb.ts",
+        "typescript/chat/v2/conversation_pb.ts",
+        "typescript/chat/v2/messaging_pb.ts",
     ):
         artifact = generated / relative
         if not artifact.is_file() or artifact.stat().st_size == 0:
             raise RuntimeError(f"generated V2 binding missing or empty: {artifact}")
+    web_after = {
+        path.name: path.read_bytes()
+        for path in sorted(web_generated.glob("*_pb.ts"))
+    }
+    if not web_after or web_before != web_after:
+        raise RuntimeError(
+            "committed Web V2 bindings are stale; regenerate and commit them")
     run([npm, "test"], typescript)
     cmake = command_path("cmake")
     ctest = command_path("ctest")
