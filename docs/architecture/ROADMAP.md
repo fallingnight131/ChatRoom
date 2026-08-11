@@ -390,6 +390,9 @@ Progress:
     polluting the V2 account domain.
   - [x] Expose the mapping through an isolated read-only V1 compatibility port
     with exact enabled-account PostgreSQL lookup in both directions.
+  - [x] Add transport-independent V1 login eligibility and result projection so
+    unmapped V2-native accounts cannot receive V1 sessions and resume secrets
+    never cross the compatibility boundary.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

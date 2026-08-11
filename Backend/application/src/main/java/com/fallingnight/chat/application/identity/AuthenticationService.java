@@ -11,6 +11,7 @@ public final class AuthenticationService implements AuthenticationUseCase {
     private final SessionIssuePort sessions;
     private final CredentialHashPort hasher;
     private final CredentialUpgradePort upgrades;
+    private final AuthenticationEligibilityPolicy eligibility;
     private final Clock clock;
 
     public AuthenticationService(
@@ -20,11 +21,24 @@ public final class AuthenticationService implements AuthenticationUseCase {
             CredentialHashPort hasher,
             CredentialUpgradePort upgrades,
             Clock clock) {
+        this(accounts, verifier, sessions, hasher, upgrades,
+                AuthenticationEligibilityPolicy.allowAll(), clock);
+    }
+
+    public AuthenticationService(
+            AccountCredentialPort accounts,
+            CredentialVerifierPort verifier,
+            SessionIssuePort sessions,
+            CredentialHashPort hasher,
+            CredentialUpgradePort upgrades,
+            AuthenticationEligibilityPolicy eligibility,
+            Clock clock) {
         this.accounts = Objects.requireNonNull(accounts, "accounts");
         this.verifier = Objects.requireNonNull(verifier, "verifier");
         this.sessions = Objects.requireNonNull(sessions, "sessions");
         this.hasher = Objects.requireNonNull(hasher, "hasher");
         this.upgrades = Objects.requireNonNull(upgrades, "upgrades");
+        this.eligibility = Objects.requireNonNull(eligibility, "eligibility");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -40,6 +54,9 @@ public final class AuthenticationService implements AuthenticationUseCase {
             if (verification == CredentialVerification.REJECTED
                     || account.isEmpty()
                     || !account.orElseThrow().enabled()) {
+                return AuthenticationResult.Rejected.INSTANCE;
+            }
+            if (!eligibility.mayEstablish(account.orElseThrow())) {
                 return AuthenticationResult.Rejected.INSTANCE;
             }
             boolean upgradePending = false;

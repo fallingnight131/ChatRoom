@@ -358,6 +358,12 @@ successful response shapes and message type names remain compatible.
 
 Until V1 retirement:
 
+- the Java compatibility path may authenticate only accounts carrying an exact
+  V1 numeric-ID mapping; V2-native accounts are rejected before session issue;
+- Java V1 login results retain server-bound UUID account/device/session identity
+  internally but expose only the established V1 numeric `userId`, username, and
+  display name to the future JSON encoder; V2 resume secrets never enter V1 JSON;
+
 - do not rename message types or existing fields;
 - add optional fields only when all existing readers safely ignore them;
 - keep client-provided fields accepted when removal would break an old client,

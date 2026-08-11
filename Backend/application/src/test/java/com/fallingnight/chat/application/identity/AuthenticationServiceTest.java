@@ -113,6 +113,35 @@ class AuthenticationServiceTest {
     }
 
     @Test
+    void eligibilityDenialOccursAfterVerificationAndBeforeUpgradeOrSession() {
+        AtomicBoolean verified = new AtomicBoolean();
+        AtomicBoolean upgraded = new AtomicBoolean();
+        AtomicBoolean issued = new AtomicBoolean();
+        AuthenticationService service = new AuthenticationService(
+                username -> Optional.of(ENABLED),
+                (password, credential) -> {
+                    verified.set(true);
+                    return CredentialVerification.VERIFIED_NEEDS_UPGRADE;
+                },
+                (account, client, now) -> {
+                    issued.set(true);
+                    return Optional.of(issuedSession());
+                },
+                password -> new StoredCredential.Argon2id("upgraded-hash"),
+                (accountId, expected, replacement) -> {
+                    upgraded.set(true);
+                    return true;
+                },
+                account -> false,
+                Clock.fixed(NOW, ZoneOffset.UTC));
+
+        assertSame(AuthenticationResult.Rejected.INSTANCE, service.authenticate(command()));
+        assertTrue(verified.get());
+        assertFalse(upgraded.get());
+        assertFalse(issued.get());
+    }
+
+    @Test
     void legacySuccessUsesCasUpgradeAndReportsPersistenceFailure() {
         StoredCredential.LegacySha256 legacy = new StoredCredential.LegacySha256(
                 "a".repeat(64), "legacy-salt");
