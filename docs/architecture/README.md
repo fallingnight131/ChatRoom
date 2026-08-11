@@ -221,7 +221,9 @@ hardened listener, and complete gateway wiring remain explicit
 cutover blockers. Process-local account/direct-peer/gateway admission and
 handshake/authentication deadlines are implemented but do not define deployment
 defaults or multi-gateway protection yet. Fixed-label authentication telemetry
-and sampled safe logs exist; deployment registry/scrape integration remains.
+and sampled safe logs now have an exact-path, GET-only loopback health/metrics
+server with explicit readiness and bounded workers. Runtime composition still
+must start it and define trusted-proxy/TLS/origin policy before any IM listener.
 
 The application identity module now also owns a transport-independent session
 resume command and atomic-rotation persistence port. The command destroys its

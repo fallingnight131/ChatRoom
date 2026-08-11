@@ -88,6 +88,11 @@ Telemetry tests verify fixed-label counters, authentication execution-duration
 buckets, total/maximum duration, credential-upgrade debt, and exact power-of-two
 warning sampling without account or peer data. They do not represent a latency
 benchmark or a deployed monitoring backend.
+Gateway operations tests open only an ephemeral loopback admin port and verify
+GET-only liveness/readiness/Prometheus paths, explicit readiness transitions,
+bounded labels, cumulative duration buckets, response hardening, wildcard-bind
+rejection, and deterministic shutdown. `GatewayMain` does not start this server
+yet, so these tests are a deployment contract rather than a live service.
 Gateway resume tests verify bounded off-event-loop dispatch, rotated proof
 delivery, server-side identity binding, secret cleanup, generic invalid-proof
 rejection, and gateway/direct-peer admission without creating a fake account

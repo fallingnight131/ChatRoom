@@ -296,9 +296,11 @@ Progress:
     non-identifying counters.
   - [x] Add fixed-label authentication counters, execution-duration buckets,
     upgrade-pending visibility, and power-of-two sampled safe warning logs.
+  - [x] Add an exact-path, GET-only, loopback management server with explicit
+    readiness, bounded workers, and fixed-label Prometheus rendering.
   - [ ] Attach metrics to the deployment scrape/registry path and define trusted
-    proxy configuration before enabling a listener; replace/coordinate limits
-    through Redis for M5.
+    proxy configuration in the runtime composition root before enabling the IM
+    listener; replace/coordinate limits through Redis for M5.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before
