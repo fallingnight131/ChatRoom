@@ -683,6 +683,10 @@ bool ChatServer::setupHttpServer(quint16 port) {
             connect(socket, &QTcpSocket::readyRead, this, [this, socket]() {
                 handleHttpRequest(socket);
             });
+            connect(socket, &QTcpSocket::disconnected, this, [this, socket]() {
+                if (socket->property("rawUploadActive").toBool())
+                    abandonUpload(socket->property("rawUploadId").toString());
+            });
             connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
         }
     });
@@ -698,8 +702,76 @@ bool ChatServer::setupHttpServer(quint16 port) {
 void ChatServer::handleHttpRequest(QTcpSocket *socket) {
     if (!socket) return;
 
-    const QByteArray req = socket->readAll();
-    if (req.isEmpty()) return;
+    auto writeSimple = [socket](int status, const QByteArray &statusText, const QByteArray &body = QByteArray()) {
+        QByteArray resp;
+        resp += "HTTP/1.1 " + QByteArray::number(status) + " " + statusText + "\r\n";
+        resp += "Access-Control-Allow-Origin: *\r\n";
+        resp += "Access-Control-Allow-Methods: GET, PUT, OPTIONS\r\n";
+        resp += "Access-Control-Allow-Headers: Content-Type, Content-Length\r\n";
+        if (!body.isEmpty()) {
+            resp += "Content-Type: text/plain; charset=utf-8\r\n";
+            resp += "Content-Length: " + QByteArray::number(body.size()) + "\r\n";
+        } else {
+            resp += "Content-Length: 0\r\n";
+        }
+        resp += "Connection: close\r\n\r\n";
+        if (!body.isEmpty()) resp += body;
+        socket->write(resp);
+        socket->disconnectFromHost();
+    };
+
+    if (socket->property("rawUploadActive").toBool()) {
+        const QString uploadId = socket->property("rawUploadId").toString();
+        const qint64 expected = socket->property("rawUploadLength").toLongLong();
+        qint64 received = socket->property("rawUploadReceived").toLongLong();
+        auto it = m_uploads.find(uploadId);
+        if (it == m_uploads.end() || !it->file || !it->file->isOpen()) {
+            socket->setProperty("rawUploadActive", false);
+            writeSimple(404, "Not Found", "Unknown upload");
+            return;
+        }
+        while (socket->bytesAvailable() > 0 && received < expected) {
+            const qint64 wanted = qMin<qint64>(64 * 1024, expected - received);
+            const QByteArray chunk = socket->read(wanted);
+            if (chunk.isEmpty()) break;
+            if (it->file->write(chunk) != chunk.size()) {
+                socket->setProperty("rawUploadActive", false);
+                abandonUpload(uploadId);
+                writeSimple(500, "Internal Server Error", "Write failed");
+                return;
+            }
+            received += chunk.size();
+            it->received = received;
+            socket->setProperty("rawUploadReceived", received);
+        }
+        if (received == expected) {
+            if (socket->bytesAvailable() > 0) {
+                socket->setProperty("rawUploadActive", false);
+                abandonUpload(uploadId);
+                writeSimple(400, "Bad Request", "Body exceeds Content-Length");
+                return;
+            }
+            it->file->flush();
+            socket->setProperty("rawUploadActive", false);
+            writeSimple(204, "No Content");
+        }
+        return;
+    }
+
+    QByteArray req = socket->property("httpHeader").toByteArray();
+    if (req.size() >= 16 * 1024) {
+        writeSimple(431, "Request Header Fields Too Large");
+        return;
+    }
+    req += socket->read(16 * 1024 - req.size());
+    const int headerEnd = req.indexOf("\r\n\r\n");
+    if (headerEnd < 0) {
+        socket->setProperty("httpHeader", req);
+        return;
+    }
+    const QByteArray initialBody = req.mid(headerEnd + 4);
+    socket->setProperty("httpHeader", QByteArray());
+    req.truncate(headerEnd + 4);
 
     const QList<QByteArray> lines = req.split('\n');
     if (lines.isEmpty()) {
@@ -717,26 +789,68 @@ void ChatServer::handleHttpRequest(QTcpSocket *socket) {
     const QByteArray method = parts[0];
     const QString target = QString::fromUtf8(parts[1]);
 
-    auto writeSimple = [socket](int status, const QByteArray &statusText, const QByteArray &body = QByteArray()) {
-        QByteArray resp;
-        resp += "HTTP/1.1 " + QByteArray::number(status) + " " + statusText + "\r\n";
-        resp += "Access-Control-Allow-Origin: *\r\n";
-        resp += "Access-Control-Allow-Methods: GET, OPTIONS\r\n";
-        resp += "Access-Control-Allow-Headers: Content-Type\r\n";
-        if (!body.isEmpty()) {
-            resp += "Content-Type: text/plain; charset=utf-8\r\n";
-            resp += "Content-Length: " + QByteArray::number(body.size()) + "\r\n";
-        } else {
-            resp += "Content-Length: 0\r\n";
-        }
-        resp += "Connection: close\r\n\r\n";
-        if (!body.isEmpty()) resp += body;
-        socket->write(resp);
-        socket->disconnectFromHost();
-    };
-
     if (method == "OPTIONS") {
         writeSimple(204, "No Content");
+        return;
+    }
+    const QUrl url(target);
+    const QString path = url.path();
+    if (method == "PUT") {
+        static const QRegularExpression uploadRe(
+            QStringLiteral("^/api/upload/([A-Za-z0-9-]{1,128})$"));
+        const QRegularExpressionMatch uploadMatch = uploadRe.match(path);
+        if (!uploadMatch.hasMatch()) {
+            writeSimple(404, "Not Found", "Not Found");
+            return;
+        }
+        qint64 contentLength = -1;
+        for (const QByteArray &line : lines) {
+            const int separator = line.indexOf(':');
+            if (separator <= 0) continue;
+            if (line.left(separator).trimmed().compare("Content-Length", Qt::CaseInsensitive) == 0) {
+                bool ok = false;
+                contentLength = line.mid(separator + 1).trimmed().toLongLong(&ok);
+                if (!ok) contentLength = -1;
+            }
+            if (line.left(separator).trimmed().compare("Transfer-Encoding", Qt::CaseInsensitive) == 0) {
+                writeSimple(400, "Bad Request", "Chunked transfer is not supported");
+                return;
+            }
+        }
+        const QString uploadId = uploadMatch.captured(1);
+        const QUrlQuery query(url);
+        const int tokenUserId = validateFileToken(query.queryItemValue(QStringLiteral("token")));
+        auto it = m_uploads.find(uploadId);
+        if (tokenUserId <= 0) {
+            writeSimple(401, "Unauthorized", "Invalid token");
+            return;
+        }
+        if (it == m_uploads.end() || it->userId != tokenUserId) {
+            qWarning().noquote() << QStringLiteral("[Authz] denied operation=http-file-upload userId=%1")
+                                        .arg(tokenUserId);
+            writeSimple(403, "Forbidden", "Forbidden");
+            return;
+        }
+        if (contentLength != it->fileSize || it->received != 0) {
+            writeSimple(400, "Bad Request", "Content-Length mismatch or upload already started");
+            return;
+        }
+        socket->setProperty("rawUploadActive", true);
+        socket->setProperty("rawUploadId", uploadId);
+        socket->setProperty("rawUploadLength", contentLength);
+        socket->setProperty("rawUploadReceived", 0);
+        if (!initialBody.isEmpty()) {
+            if (initialBody.size() > contentLength ||
+                it->file->write(initialBody) != initialBody.size()) {
+                socket->setProperty("rawUploadActive", false);
+                abandonUpload(uploadId);
+                writeSimple(400, "Bad Request", "Invalid upload body");
+                return;
+            }
+            it->received = initialBody.size();
+            socket->setProperty("rawUploadReceived", initialBody.size());
+        }
+        handleHttpRequest(socket);
         return;
     }
     if (method != "GET") {
@@ -744,8 +858,6 @@ void ChatServer::handleHttpRequest(QTcpSocket *socket) {
         return;
     }
 
-    const QUrl url(target);
-    const QString path = url.path();
     static const QRegularExpression re(QStringLiteral("^/api/download/(-?\\d+)$"));
     const QRegularExpressionMatch match = re.match(path);
     if (!match.hasMatch()) {
@@ -1767,6 +1879,7 @@ void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject
 
     rspData["success"]  = true;
     rspData["uploadId"] = uploadId;
+    rspData["httpUploadPath"] = QStringLiteral("/api/upload/%1").arg(uploadId);
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
 
     qInfo() << "[Server] 大文件上传开始:" << fileName << fileSize << "bytes, uploadId:" << uploadId;
@@ -2019,6 +2132,22 @@ void ChatServer::handleFileUploadCancel(ClientSession *session, const QJsonObjec
     if (state.roomQuotaReserved)
         releaseRoomFileQuota(state.roomId, state.fileSize);
     qInfo() << "[Server] 上传已取消:" << state.fileName;
+}
+
+void ChatServer::abandonUpload(const QString &uploadId) {
+    auto it = m_uploads.find(uploadId);
+    if (it == m_uploads.end()) return;
+    UploadState state = it.value();
+    m_uploads.erase(it);
+    if (state.file) {
+        state.file->close();
+        delete state.file;
+    }
+    if (!state.filePath.isEmpty()) QFile::remove(state.filePath);
+    if (state.roomQuotaReserved)
+        releaseRoomFileQuota(state.roomId, state.fileSize);
+    qInfo().noquote() << QStringLiteral("[Upload] abandoned transport=http userId=%1")
+                             .arg(state.userId);
 }
 
 void ChatServer::handleFileDownloadChunk(ClientSession *session, const QJsonObject &data) {
@@ -3703,6 +3832,7 @@ void ChatServer::handleFriendFileUploadStart(ClientSession *session, const QJson
 
     rspData["success"]        = true;
     rspData["uploadId"]       = uploadId;
+    rspData["httpUploadPath"] = QStringLiteral("/api/upload/%1").arg(uploadId);
     rspData["friendUsername"]  = friendUsername;
     rspData["friendshipId"]   = friendshipId;
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_UPLOAD_START_RSP, rspData));

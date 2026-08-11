@@ -504,6 +504,11 @@ function getHttpDownloadUrl(fileId, isFriendFile = false, disposition = 'attachm
   return `${baseUrl}/api/download/${fileId}?token=${encodeURIComponent(_fileToken)}&friend=${friend}&disposition=${disp}`
 }
 
+function getHttpUploadUrl(path) {
+  if (!_fileToken || !path || !_httpBaseUrl.value) return ''
+  return `${_httpBaseUrl.value}${path}?token=${encodeURIComponent(_fileToken)}`
+}
+
 function getHttpBaseUrl() {
   return _httpBaseUrl
 }
@@ -514,4 +519,4 @@ function getFileToken() {
 
 // 单例
 export const chatWs = new ChatWebSocket()
-export { FILE_CHUNK_SIZE, MAX_SMALL_FILE, setHttpConfig, getHttpDownloadUrl, getHttpBaseUrl, getFileToken }
+export { FILE_CHUNK_SIZE, MAX_SMALL_FILE, setHttpConfig, getHttpDownloadUrl, getHttpUploadUrl, getHttpBaseUrl, getFileToken }

@@ -1,6 +1,6 @@
 // 聊天状态管理 —— 房间、消息、用户列表、文件传输
 import { defineStore } from 'pinia'
-import { chatWs, MsgType, FILE_CHUNK_SIZE, MAX_SMALL_FILE, makeMessage, getHttpDownloadUrl } from '../services/websocket'
+import { chatWs, MsgType, FILE_CHUNK_SIZE, MAX_SMALL_FILE, makeMessage, getHttpDownloadUrl, getHttpUploadUrl } from '../services/websocket'
 import { useUserStore } from './user'
 import { mergeUniqueMessages, sameStableMessage } from '../messaging/messageReconciliation'
 
@@ -91,28 +91,7 @@ export const useChatStore = defineStore('chat', {
 
     // ==================== 文件上传（小文件直传） ====================
     async uploadSmallFile(roomId, file) {
-      const userStore = useUserStore()
-      const reader = new FileReader()
-      return new Promise((resolve) => {
-        reader.onload = async () => {
-          const base64 = reader.result.split(',')[1]
-          let contentType = 'file'
-          if (file.type.startsWith('image/')) contentType = 'image'
-          else if (file.type.startsWith('video/')) contentType = 'video'
-
-          // 客户端生成缩略图（服务端 QCoreApplication 下 QImage 可能不可用）
-          let thumbnail = ''
-          if (contentType === 'image') {
-            thumbnail = await this._generateImageThumbnail(file)
-          } else if (contentType === 'video') {
-            thumbnail = await this._generateVideoThumbnail(file)
-          }
-
-          chatWs.sendFile(roomId, userStore.username, file.name, file.size, base64, contentType, thumbnail)
-          resolve()
-        }
-        reader.readAsDataURL(file)
-      })
+      return this.startChunkedUpload(roomId, file)
     },
 
     // 生成图片缩略图
@@ -236,6 +215,27 @@ export const useChatStore = defineStore('chat', {
       reader.readAsDataURL(blob)
     },
 
+    async _uploadRawHttp(uploadId, uploadPath) {
+      const u = this.uploads[uploadId]
+      const url = getHttpUploadUrl(uploadPath)
+      if (!u || !url) throw new Error('HTTP 上传授权不可用')
+      u.status = 'http_uploading'
+      u.abortController = new AbortController()
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: u.file,
+        signal: u.abortController.signal,
+      })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      u.sent = u.fileSize
+      chatWs.endUpload(uploadId, u.thumbnail || '')
+      u.status = 'cos_uploading'
+      u.cosPhase = true
+      this._isUploading = false
+      this._processNextUpload()
+    },
+
     pauseUpload(uploadId) {
       const u = this.uploads[uploadId]
       if (u) { u.paused = true; u.status = 'paused' }
@@ -254,6 +254,7 @@ export const useChatStore = defineStore('chat', {
       const u = this.uploads[uploadId]
       if (u) {
         u.status = 'cancelled'
+        if (u.abortController) u.abortController.abort()
         chatWs.cancelUpload(uploadId)
         delete this.uploads[uploadId]
         this._isUploading = false
@@ -364,26 +365,7 @@ export const useChatStore = defineStore('chat', {
     },
 
     async uploadFriendSmallFile(friendUsername, file) {
-      const reader = new FileReader()
-      return new Promise((resolve) => {
-        reader.onload = async () => {
-          const base64 = reader.result.split(',')[1]
-          let contentType = 'file'
-          if (file.type.startsWith('image/')) contentType = 'image'
-          else if (file.type.startsWith('video/')) contentType = 'video'
-
-          let thumbnail = ''
-          if (contentType === 'image') {
-            thumbnail = await this._generateImageThumbnail(file)
-          } else if (contentType === 'video') {
-            thumbnail = await this._generateVideoThumbnail(file)
-          }
-
-          chatWs.sendFriendFile(friendUsername, file.name, file.size, base64, contentType, thumbnail)
-          resolve()
-        }
-        reader.readAsDataURL(file)
-      })
+      return this.startFriendChunkedUpload(friendUsername, file)
     },
 
     async startFriendChunkedUpload(friendUsername, file) {
@@ -673,7 +655,15 @@ export const useChatStore = defineStore('chat', {
             paused: false,
             thumbnail: this._pendingUploadThumbnail || ''
           }
-          this._sendNextChunk(d.uploadId)
+          if (d.httpUploadPath) {
+            this._uploadRawHttp(d.uploadId, d.httpUploadPath).catch((error) => {
+              if (error.name === 'AbortError') return
+              this.cancelUpload(d.uploadId)
+              this._emit('error', `文件上传失败: ${error.message}`)
+            })
+          } else {
+            this._sendNextChunk(d.uploadId)
+          }
         } else {
           alert('上传失败: ' + (d.error || ''))
         }
@@ -1094,7 +1084,15 @@ export const useChatStore = defineStore('chat', {
             paused: false,
             thumbnail: this._pendingUploadThumbnail || ''
           }
-          this._sendNextChunk(d.uploadId)
+          if (d.httpUploadPath) {
+            this._uploadRawHttp(d.uploadId, d.httpUploadPath).catch((error) => {
+              if (error.name === 'AbortError') return
+              this.cancelUpload(d.uploadId)
+              this._emit('error', `好友文件上传失败: ${error.message}`)
+            })
+          } else {
+            this._sendNextChunk(d.uploadId)
+          }
         } else {
           alert('好友文件上传失败: ' + (d.error || ''))
         }

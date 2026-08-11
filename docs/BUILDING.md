@@ -134,6 +134,10 @@ A seventh suite applies the same retry/conflict, authorization, restart,
 partial-migration, high-watermark, and ordered-resume checks to friend
 text/emoji messages.
 
+An eighth suite verifies the raw HTTP attachment data plane: owner-token
+binding, exact length, foreign-token denial, interrupted-body cleanup, existing
+WebSocket finalization, and notification frames without inline file bytes.
+
 CI runs the same smoke test on Ubuntu 24.04 after installing Qt Base, Qt SQLite,
 Qt WebSockets, and libsodium development packages.
 

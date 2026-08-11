@@ -211,6 +211,19 @@ messages are not persisted.
 
 ### Files
 
+Updated Web clients use `FILE_UPLOAD_START` or `FRIEND_FILE_UPLOAD_START` only
+as the authenticated control plane. A successful response may add
+`httpUploadPath`; the client combines it with the login-provided HTTP endpoint
+and short-lived file token, then sends one raw binary `PUT` with exact
+`Content-Length`. It sends the existing `FILE_UPLOAD_END` only after HTTP 204,
+so final membership/friendship authorization, metadata persistence,
+notification, and optional COS replication remain server-controlled. The
+upload ID without its owner's token is not authorization. Partial HTTP bodies
+are deleted on disconnect.
+
+The legacy paths below remain for older Qt/Web versions during the compatibility
+window; upgraded Web room and friend uploads no longer use them:
+
 - files up to 8 MiB can use inline Base64 transfer;
 - large source chunks default to 4 MiB and are Base64 encoded in JSON;
 - the hard room-file ceiling is 10 GiB, subject to room settings;

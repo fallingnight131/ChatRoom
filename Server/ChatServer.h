@@ -64,6 +64,7 @@ private:
                                const QString &operation) const;
     bool requireUploadOwnership(ClientSession *session, const QString &uploadId,
                                 QJsonObject *response = nullptr) const;
+    void abandonUpload(const QString &uploadId);
     bool allowAuthenticationAttempt(ClientSession *session, const QString &account,
                                     const QString &operation,
                                     const QString &responseType);

@@ -191,6 +191,8 @@ restarted schemas converge.
   deleted-high-watermark monotonicity, and structured outcome monitoring.
 - `Tests/v1_friend_message_reliability_test.py` covers the equivalent direct
   text/emoji guarantees plus explicit non-friend denial.
+- `Tests/v1_http_upload_test.py` covers the Web binary HTTP attachment bridge,
+  including owner binding, integrity rejection, and interrupted upload cleanup.
 - `CHATROOM_DISABLE_IMAGE_THUMBNAILS` is defined only by the headless test target;
   it skips server-side `QImage` thumbnail generation so the core smoke binary
   does not require QtGui. Client-provided thumbnail fallback and the production

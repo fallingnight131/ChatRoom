@@ -87,6 +87,9 @@ Progress:
   sequences, and bounded reconnect resume for room text/emoji messages.
 - [x] Extend idempotent submission, stable per-friendship sequences, and bounded
   reconnect resume to direct text/emoji messages.
+- [x] Move Web room/friend attachment bytes from JSON/Base64 to the authorized
+  streaming HTTP upload bridge; Windows migration and legacy-path retirement
+  remain.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

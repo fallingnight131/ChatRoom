@@ -214,7 +214,9 @@ submission: `clientMessageId`, durable send acknowledgements,
 per-room/per-friendship sequence, and `afterSequence` history resume are
 additive fields. Attachments, replayable recall/delete events, and durable
 client outboxes remain M1/M2 work; this compatibility slice is not the completed
-V2 model.
+V2 model. Web room/friend attachment uploads now use the authorized binary HTTP
+bridge from ADR-0013; Windows still uses the legacy path until the next client
+slice.
 
 ## 8. Protocol Strategy
 

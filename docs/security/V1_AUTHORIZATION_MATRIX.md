@@ -22,7 +22,7 @@
 | Room list | Authenticated user | Query is scoped to the session user |
 | Members, history, settings read | Current room member | `room_members` check |
 | Send room message, inline file, large-file start | Current room member | Checked before persistence/quota/file creation |
-| Large upload chunk/end/cancel | Upload owner; end also rechecks current room/friend relationship | Server-side `UploadState.userId` |
+| HTTP binary upload or legacy chunk/end/cancel | Upload owner; end also rechecks current room/friend relationship | Short-lived token user plus server-side `UploadState.userId` |
 | Room recall | Current member, owned message, message belongs to supplied room | Membership plus message-room/owner checks |
 | Mark room read | Current room member | Membership check before pointer update |
 | Room administration | Current member and current room admin | Admin query joins `room_members` |
@@ -53,3 +53,6 @@ python3 tools/verify_m0.py --v1-smoke
 
 Any new handler that accepts a room, friendship, message, file, request, or
 upload identifier must add both an allowed and a denied case before merge.
+`Tests/v1_http_upload_test.py` additionally proves exact binary upload, foreign
+token denial, length validation, disconnect cleanup, and metadata-only
+notification.
