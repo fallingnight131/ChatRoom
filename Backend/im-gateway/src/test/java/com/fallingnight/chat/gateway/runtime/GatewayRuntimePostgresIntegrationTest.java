@@ -124,6 +124,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     Runnable::run,
                     AuthenticationAdmissionControl.allowAll(),
                     AuthenticationEventSink.noop(),
+                    java.time.Duration.ofSeconds(15),
                     java.time.Duration.ofSeconds(90));
             try {
                 imported.writeInbound(loginFrame("imported-v1", "java-v2-test-password"));
@@ -150,6 +151,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     Runnable::run,
                     AuthenticationAdmissionControl.allowAll(),
                     AuthenticationEventSink.noop(),
+                    java.time.Duration.ofSeconds(15),
                     java.time.Duration.ofSeconds(90));
             try {
                 nativeV2.writeInbound(loginFrame("native-v2", "java-v2-test-password"));

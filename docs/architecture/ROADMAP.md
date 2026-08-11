@@ -408,6 +408,8 @@ Progress:
   - [x] Compose client-driven V1 heartbeat acknowledgement and authenticated
     reader-idle closure into the detached handler pipeline without consuming
     downstream business frames.
+  - [x] Bound the detached V1 post-upgrade authentication phase with a fixed
+    policy close, explicit success cancellation, and late-result suppression.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

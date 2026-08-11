@@ -5,6 +5,7 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1LoginService;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLoginCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLifecycleCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AccountConnectionRegistry;
+import com.fallingnight.chat.gateway.compatibility.v1.V1AuthenticationTimeoutHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1HeartbeatHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
@@ -63,6 +64,7 @@ public final class V1CompatibilityModule {
             Executor authenticationExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
+            Duration authenticationTimeout,
             Duration authenticatedIdleTimeout) {
         Objects.requireNonNull(pipeline, "pipeline");
         Objects.requireNonNull(authenticatedIdleTimeout, "authenticatedIdleTimeout");
@@ -70,6 +72,8 @@ public final class V1CompatibilityModule {
             throw new IllegalArgumentException("authenticatedIdleTimeout must be positive");
         }
         V1JsonLifecycleCodec lifecycleCodec = new V1JsonLifecycleCodec(clock);
+        pipeline.addLast("v1-authentication-timeout", new V1AuthenticationTimeoutHandler(
+                authenticationTimeout));
         pipeline.addLast("v1-authenticated-idle-state", new IdleStateHandler(
                 authenticatedIdleTimeout.toMillis(), 0, 0, TimeUnit.MILLISECONDS));
         pipeline.addLast("v1-login", new V1WebLoginHandler(

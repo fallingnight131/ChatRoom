@@ -151,6 +151,7 @@ public final class V1WebLoginHandler extends SimpleChannelInboundHandler<TextWeb
             var identity = established.identity();
             context.channel().attr(V1ConnectionAttributes.AUTHENTICATED).set(identity);
             state = State.AUTHENTICATED;
+            context.fireUserEventTriggered(V1ConnectionPhaseEvent.AUTHENTICATED);
             var displaced = connections.replace(identity.accountId(), context.channel());
             if (displaced != null && displaced.isActive()) {
                 displaced.writeAndFlush(new TextWebSocketFrame(

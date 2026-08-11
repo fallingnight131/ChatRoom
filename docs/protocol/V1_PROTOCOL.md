@@ -102,6 +102,10 @@ with a bounded empty-data `HEARTBEAT_ACK`, consumes redundant acknowledgements,
 and leaves all business frames for later compatibility handlers. The configured
 reader-idle deadline closes authenticated connections; it does not reinterpret
 malformed or unknown business input as lifecycle traffic.
+The inactive Java pipeline also requires login within its configured
+post-upgrade deadline. Expiry uses WebSocket policy close reason
+`V1 authentication timeout`; successful server-side identity binding cancels
+the deadline before later application traffic is accepted.
 
 ### Room messages, presence, and history
 

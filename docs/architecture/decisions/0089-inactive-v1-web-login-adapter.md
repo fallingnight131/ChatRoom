@@ -41,6 +41,10 @@ no durable device identifier, whereas Java session issuance requires one.
   acknowledgements are consumed, business frames remain downstream-owned, and
   the configured reader-idle deadline closes only authenticated connections.
   V1 remains client-heartbeat-driven, matching the existing C++ server.
+- Start one fixed authentication deadline when the detached post-upgrade pipeline
+  becomes active. Successful server-side identity binding cancels it through an
+  internal phase event; expiry sends only a fixed policy close and suppresses
+  late authentication completion through the existing active-channel guard.
 
 ## Consequences
 
@@ -49,8 +53,8 @@ V1 product server. Rejected clients reconnect rather than retrying on the same
 socket. The fixed device alias is intentionally less expressive than V2 devices
 and must not be reused for native V2 clients.
 
-Before routing is enabled, the gateway still needs an exact WSS endpoint policy,
-an unauthenticated connection-phase deadline, and every
+Before routing is enabled, the gateway still needs an exact WSS endpoint policy
+and every
 post-login command required by the supported V1 client path (or an explicit
 client capability gate that prevents entry into unsupported screens).
 
@@ -63,7 +67,8 @@ second attempt. They also prove repeated same-account replacement, compatible
 force-offline output, fixed registry cardinality, and stale-close safety. The
 heartbeat tests prove compatible acknowledgement, acknowledgement consumption,
 business-frame forwarding, and authenticated-only idle closure. The full Java
-workspace gate remains required.
+workspace gate remains required. Deterministic event-loop time tests prove the
+authentication deadline fires exactly once and is cancelled by success.
 The disposable PostgreSQL gate additionally proves the real composition accepts
 a mapped imported account, stores only the fixed V1 device alias plus hashed
 session proof, and rejects a password-valid unmapped V2-native account without
