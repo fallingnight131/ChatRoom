@@ -9,6 +9,7 @@ import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportRepo
 import com.fallingnight.chat.persistence.postgres.migration.V1SqliteIdentityBackup;
 import com.fallingnight.chat.persistence.postgres.migration.V1SqliteIdentitySource;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityBackup;
+import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityImportInput;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -47,6 +48,9 @@ public final class IdentityMigrationMain {
             }
             if (args.length == 3 && "verify-backup".equals(args[0])) {
                 return verifyBackup(args, output);
+            }
+            if (args.length == 5 && "verify-final".equals(args[0])) {
+                return verifyFinal(args, output);
             }
             if (args.length == 5 && "apply".equals(args[0])) {
                 return apply(args, environment, output);
@@ -118,20 +122,33 @@ public final class IdentityMigrationMain {
             String[] args,
             Map<String, String> environment,
             PrintStream output) {
-        String expectedFingerprint = args[4];
+        var input = verifiedFinalInput(args[1], args[2], args[3], args[4]);
+        V1IdentityImportReport report = importer(environment).apply(input);
+        printReport(output, report, "APPLIED");
+        return 0;
+    }
+
+    private static int verifyFinal(String[] args, PrintStream output) {
+        var input = verifiedFinalInput(args[1], args[2], args[3], args[4]);
+        output.println("status=FINAL_INPUT_VERIFIED");
+        output.println("source_fingerprint_sha256="
+                + input.plan().sourceFingerprintSha256());
+        output.println("identity_rows=" + input.plan().sourceRows());
+        return 0;
+    }
+
+    private static VerifiedV1IdentityImportInput verifiedFinalInput(
+            String source, String backup, String proofPath, String expectedFingerprint) {
         if (!expectedFingerprint.matches("[0-9a-f]{64}")) {
             throw new IllegalArgumentException("invalid confirmation fingerprint");
         }
         VerifiedV1IdentityBackup proof = new V1IdentityBackupProofFile()
-                .read(Path.of(args[3]));
+                .read(Path.of(proofPath));
         if (!expectedFingerprint.equals(proof.sourceFingerprintSha256())) {
             throw new IllegalArgumentException("confirmation fingerprint mismatch");
         }
-        var input = new V1IdentityImportInputVerifier()
-                .verify(Path.of(args[1]), Path.of(args[2]), proof);
-        V1IdentityImportReport report = importer(environment).apply(input);
-        printReport(output, report, "APPLIED");
-        return 0;
+        return new V1IdentityImportInputVerifier()
+                .verify(Path.of(source), Path.of(backup), proof);
     }
 
     private static PostgresV1IdentityImporter importer(Map<String, String> environment) {
@@ -178,6 +195,7 @@ public final class IdentityMigrationMain {
         error.println("  backup <v1-source.db> <new-backup.db> <new-proof.properties>");
         error.println("  verify-backup <restored-backup.db> <proof.properties>");
         error.println("  preview <v1-source.db>");
+        error.println("  verify-final <v1-source.db> <backup.db> <proof.properties> <fingerprint>");
         error.println("  apply <v1-source.db> <backup.db> <proof.properties> <fingerprint>");
     }
 }

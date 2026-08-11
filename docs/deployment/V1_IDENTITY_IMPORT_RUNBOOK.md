@@ -46,7 +46,17 @@ real paths, endpoints, or fingerprints.
    Continue only with `status=READY`, zero issues, and zero unexpected target
    rows. Archive the non-secret output with the release evidence.
 
-4. On an isolated host, start the matching V1 server binary against another copy
+4. Rehearse the target-independent final input gate with the restored copy and
+   the exact fingerprint printed by `backup`:
+
+   ```bash
+   ./gradlew --no-daemon :migration-cli:run --args='verify-final <v1.db> <restored-copy.db> <proof.properties> <source-fingerprint>'
+   ```
+
+   Require `status=FINAL_INPUT_VERIFIED` and the expected row count. This checks
+   the input set but does not prove that all writers have been stopped.
+
+5. On an isolated host, start the matching V1 server binary against another copy
    of the restored database, exercise login for designated test accounts from
    both credential generations, stop it cleanly, and record restore duration.
    This manual full-server rehearsal is not automated yet.
@@ -59,17 +69,26 @@ real paths, endpoints, or fingerprints.
    rehearsal artifact.
 3. Run `preview` again and compare the displayed source fingerprint with the
    final proof.
-4. Supply that exact non-secret fingerprint as the explicit confirmation:
+4. Before any target write, run the standalone final gate with that exact
+   non-secret fingerprint:
+
+   ```bash
+   ./gradlew --no-daemon :migration-cli:run --args='verify-final <v1.db> <final-backup.db> <final-proof.properties> <source-fingerprint>'
+   ```
+
+   Continue only with `status=FINAL_INPUT_VERIFIED`. Independently confirm the
+   V1 writer processes are still stopped; the command cannot prove quiescence.
+5. Supply the same fingerprint as the explicit apply confirmation:
 
    ```bash
    ./gradlew --no-daemon :migration-cli:run --args='apply <v1.db> <final-backup.db> <final-proof.properties> <source-fingerprint>'
    ```
 
-5. Require `status=APPLIED`, `inserted_rows + already_imported_rows =
+6. Require `status=APPLIED`, `inserted_rows + already_imported_rows =
    source_rows`, zero issues, and a non-empty `import_run_id`. Independently
    verify the corresponding `chat.identity_import_run` row through an approved
    read-only database channel.
-6. Keep V1 stopped only for the bounded rehearsal. Do not enable V2 product
+7. Keep V1 stopped only for the bounded rehearsal. Do not enable V2 product
    traffic. For the current additive milestone, discard/reset the rehearsal
    PostgreSQL database if needed and restart V1 from the unchanged source.
 

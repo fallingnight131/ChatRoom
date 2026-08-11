@@ -196,6 +196,10 @@ failure. Reading is not backup or cutover evidence.
 Online-backup tests use the SQLite backup API against an open WAL source, reopen
 and reconcile the artifact, verify hash/size/time proof, refuse overwrite, and
 remove incomplete output. Test artifacts are not production restore evidence.
+The migration CLI also provides a PostgreSQL-independent `verify-final` gate that
+reconciles the current source, restored backup, proof, and explicit fingerprint;
+tests prove post-backup source drift fails safely. This does not prove V1 writer
+quiescence or replace a timed full-server restore rehearsal.
 The real-PostgreSQL identity-import gate previews without writes, requires the
 reverified source/backup proof, atomically imports both credential generations,
 reconciles every target field, persists safe proof counts, repeats without

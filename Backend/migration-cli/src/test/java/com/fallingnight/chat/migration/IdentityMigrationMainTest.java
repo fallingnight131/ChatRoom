@@ -62,6 +62,35 @@ class IdentityMigrationMainTest {
         assertTrue(restoreOutput.toString(StandardCharsets.UTF_8)
                 .contains("status=BACKUP_VERIFIED"));
 
+        String fingerprint = output.lines()
+                .filter(line -> line.startsWith("source_fingerprint_sha256="))
+                .findFirst().orElseThrow().substring("source_fingerprint_sha256=".length());
+        ByteArrayOutputStream finalOutput = new ByteArrayOutputStream();
+        assertEquals(0, IdentityMigrationMain.run(
+                new String[] {"verify-final", source.toString(), restored.toString(),
+                    proof.toString(), fingerprint},
+                Map.of(),
+                new PrintStream(finalOutput, true, StandardCharsets.UTF_8),
+                new PrintStream(new ByteArrayOutputStream()),
+                Clock.systemUTC()));
+        assertTrue(finalOutput.toString(StandardCharsets.UTF_8)
+                .contains("status=FINAL_INPUT_VERIFIED"));
+
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:sqlite:" + source.toAbsolutePath());
+                Statement statement = connection.createStatement()) {
+            statement.execute("INSERT INTO users VALUES (2, 'bob', 'Bob', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$c2FsdA$aGFzaA', '', "
+                    + "'2026-01-02 03:04:06')");
+        }
+        assertEquals(70, IdentityMigrationMain.run(
+                new String[] {"verify-final", source.toString(), restored.toString(),
+                    proof.toString(), fingerprint},
+                Map.of(),
+                new PrintStream(new ByteArrayOutputStream()),
+                new PrintStream(new ByteArrayOutputStream()),
+                Clock.systemUTC()));
+
         int retry = IdentityMigrationMain.run(
                 new String[] {"backup", source.toString(), backup.toString(), proof.toString()},
                 Map.of(),
