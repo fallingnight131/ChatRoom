@@ -143,7 +143,8 @@ object cleanup is an idempotent post-commit compensation.
   and message signal distribution.
 - Successful credentials are retained only in process memory. A reconnect
   authenticates before publishing the restored connection, then the active
-  room resumes from its in-memory cursor in bounded mixed message/event pages.
+  room or direct conversation resumes from its in-memory cursor in bounded
+  pages.
 - `ChatWindow` coordinates a large amount of UI and application behavior.
 - `MessageModel`/`MessageDelegate` implement list data, ordered sync-page
   reconciliation, and custom rendering.
@@ -155,9 +156,11 @@ object cleanup is an idempotent post-commit compensation.
 - One WebSocket service owns reconnect and heartbeat behavior.
 - A large chat store owns rooms, messages, friends, file transfer, and much of
   synchronization orchestration.
-- Credentials and the active-room sequence cursor are kept only in page memory.
-  After transport reauthentication, the client pages forward from that cursor
-  and interleaves messages, recall state, and deletion events by `syncSequence`.
+- Credentials and active room/direct-conversation sequence cursors are kept only
+  in page memory. After transport reauthentication, the client pages forward
+  from the active cursor; room pages interleave messages, recall state, and
+  deletion events by `syncSequence`, while direct pages reconcile authoritative
+  message and recall state in that same sequence namespace.
 - Active message arrays are memory state; there is no IndexedDB message
   repository in V1, so a full page refresh starts from server history instead
   of the prior in-memory cursor.

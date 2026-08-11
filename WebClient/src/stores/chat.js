@@ -43,6 +43,7 @@ export const useChatStore = defineStore('chat', {
     currentFriendshipId: null,
     isFriendChat: false,
     friendMessages: [],       // 当前好友私聊消息
+    friendSyncCursors: {},    // friendUsername -> 当前内存视图已应用的服务端序列
     friendUnread: {},         // username -> unread count
     hasPendingFriendReq: false, // 是否有未处理的好友申请
   }),
@@ -373,6 +374,7 @@ export const useChatStore = defineStore('chat', {
         this.currentFriendDisplayName = fr.displayName || friendUsername
         this.currentFriendshipId = fr.friendshipId
         this.friendMessages = []
+        this.friendSyncCursors[friendUsername] = 0
         // 清除该好友未读计数
         delete this.friendUnread[friendUsername]
         // 清除房间选中
@@ -391,6 +393,24 @@ export const useChatStore = defineStore('chat', {
       this.currentFriendDisplayName = ''
       this.currentFriendshipId = null
       this.friendMessages = []
+    },
+
+    _advanceFriendSyncCursor(friendUsername, ...items) {
+      if (!friendUsername) return
+      const next = items.reduce((maximum, item) => Math.max(maximum, syncSequenceOf(item)),
+        Number(this.friendSyncCursors[friendUsername] || 0))
+      if (next > 0) this.friendSyncCursors[friendUsername] = next
+    },
+
+    resumeCurrentFriend() {
+      const friendUsername = this.currentFriendUsername
+      if (!this.isFriendChat || !friendUsername) return
+      const cursor = Number(this.friendSyncCursors[friendUsername] || 0)
+      if (this.friendMessages.length > 0 && cursor > 0) {
+        chatWs.requestFriendHistory(friendUsername, 100, 0, cursor)
+      } else {
+        chatWs.requestFriendHistory(friendUsername, 50)
+      }
     },
 
     async uploadFriendSmallFile(friendUsername, file) {
@@ -640,6 +660,7 @@ export const useChatStore = defineStore('chat', {
         if (this.isFriendChat && this.currentFriendUsername === d.friendUsername) {
           const m = this.friendMessages.find(m => m.id === d.messageId)
           if (m) m.recalled = true
+          this._advanceFriendSyncCursor(d.friendUsername, d)
         }
       })
 
@@ -1087,6 +1108,7 @@ export const useChatStore = defineStore('chat', {
           if (!this.friendMessages.some(existing => sameStableMessage(existing, d))) {
             this.friendMessages.push(d)
           }
+          this._advanceFriendSyncCursor(chatWith, d)
         } else if (d.sender !== userStore.username) {
           this.friendUnread[chatWith] = (this.friendUnread[chatWith] || 0) + 1
         }
@@ -1102,7 +1124,18 @@ export const useChatStore = defineStore('chat', {
         const d = msg.data
         if (this.isFriendChat && this.currentFriendUsername === d.friendUsername) {
           const msgs = d.messages || []
-          this.friendMessages = mergeUniqueMessages(this.friendMessages, msgs, { prepend: true })
+          const sequenceMode = d.mode === 'sequence'
+          this.friendMessages = sequenceMode
+            ? reconcileRoomSyncPage(this.friendMessages, msgs)
+            : mergeUniqueMessages(this.friendMessages, msgs, { prepend: true })
+          if (sequenceMode) {
+            this._advanceFriendSyncCursor(d.friendUsername, { syncSequence: d.nextSequence })
+            if (d.hasMore) {
+              chatWs.requestFriendHistory(d.friendUsername, 100, 0, d.nextSequence)
+            }
+          } else {
+            this._advanceFriendSyncCursor(d.friendUsername, ...msgs)
+          }
         }
       })
 
@@ -1112,7 +1145,10 @@ export const useChatStore = defineStore('chat', {
         const chatWith = d.sender === userStore.username ? d.friendUsername : d.sender
 
         if (this.isFriendChat && this.currentFriendUsername === chatWith) {
-          this.friendMessages.push(d)
+          if (!this.friendMessages.some(existing => sameStableMessage(existing, d))) {
+            this.friendMessages.push(d)
+          }
+          this._advanceFriendSyncCursor(chatWith, d)
         } else if (d.sender !== userStore.username) {
           this.friendUnread[chatWith] = (this.friendUnread[chatWith] || 0) + 1
         }

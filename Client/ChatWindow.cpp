@@ -1167,6 +1167,27 @@ void ChatWindow::requestCurrentRoomResume() {
     }
 }
 
+void ChatWindow::advanceFriendSyncCursor(const QString &friendUsername, qint64 sequence) {
+    if (!friendUsername.isEmpty() && sequence > m_friendSyncCursors.value(friendUsername, 0))
+        m_friendSyncCursors[friendUsername] = sequence;
+}
+
+void ChatWindow::requestCurrentFriendResume() {
+    if (!m_isFriendChat || m_currentFriendUsername.isEmpty()) return;
+    MessageModel *model = getOrCreateFriendModel(m_currentFriendUsername);
+    const qint64 cursor = m_friendSyncCursors.value(m_currentFriendUsername, 0);
+    if (model->rowCount() > 0 && cursor > 0) {
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeFriendHistoryAfterSequenceReq(m_currentFriendUsername, cursor));
+    } else if (model->rowCount() == 0) {
+        QJsonObject data;
+        data["friendUsername"] = m_currentFriendUsername;
+        data["count"] = 50;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FRIEND_HISTORY_REQ, data));
+    }
+}
+
 // ==================== 消息处理 ====================
 
 void ChatWindow::onSendMessage() {
@@ -2874,6 +2895,7 @@ void ChatWindow::onConnected() {
     // 不再额外发送 JOIN_ROOM_REQ，避免重复加入
     requestRoomList();
     requestCurrentRoomResume();
+    requestCurrentFriendResume();
 }
 
 void ChatWindow::onDisconnected() {
@@ -4195,6 +4217,7 @@ void ChatWindow::onFriendChatMessage(const QJsonObject &data) {
         msg.setContentType(Message::File);
 
     model->addMessage(msg);
+    advanceFriendSyncCursor(chatWith, syncSequenceFrom(data));
 
     // 如果当前正在和这个好友聊天，滚动到底
     if (m_isFriendChat && m_currentFriendUsername == chatWith) {
@@ -4216,6 +4239,7 @@ void ChatWindow::onFriendChatMessage(const QJsonObject &data) {
 void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
     QString friendUsername = data["friendUsername"].toString();
     QJsonArray messages    = data["messages"].toArray();
+    const bool sequenceMode = data["mode"].toString() == QStringLiteral("sequence");
 
     MessageModel *model = getOrCreateFriendModel(friendUsername);
 
@@ -4231,7 +4255,8 @@ void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
         msg.setSenderName(msgObj["senderName"].toString());
         msg.setContent(msgObj["content"].toString());
         msg.setTimestamp(msgObj["timestamp"].toVariant().toLongLong());
-        msg.setSequence(msgObj["sequence"].toVariant().toLongLong());
+        msg.setSequence(sequenceMode ? syncSequenceFrom(msgObj)
+                                     : msgObj["sequence"].toVariant().toLongLong());
         msg.setClientMessageId(msgObj["clientMessageId"].toString());
         msg.setIsMine(msgObj["sender"].toString() == m_username);
         msg.setRecalled(msgObj["recalled"].toBool(false));
@@ -4292,7 +4317,20 @@ void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
         msgList.append(msg);
     }
 
-    model->prependMessages(msgList);
+    if (sequenceMode) model->reconcileSyncPage(msgList, {});
+    else model->prependMessages(msgList);
+
+    if (sequenceMode) {
+        const qint64 nextSequence = data["nextSequence"].toVariant().toLongLong();
+        advanceFriendSyncCursor(friendUsername, nextSequence);
+        if (data["hasMore"].toBool()) {
+            NetworkManager::instance()->sendMessage(
+                Protocol::makeFriendHistoryAfterSequenceReq(friendUsername, nextSequence));
+        }
+    } else {
+        for (const QJsonValue &value : messages)
+            advanceFriendSyncCursor(friendUsername, syncSequenceFrom(value.toObject()));
+    }
 
     if (m_isFriendChat && m_currentFriendUsername == friendUsername) {
         QTimer::singleShot(0, [this] {
@@ -4399,6 +4437,7 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
     }
 
     model->addMessage(msg);
+    advanceFriendSyncCursor(chatWith, syncSequenceFrom(data));
 
     if (m_isFriendChat && m_currentFriendUsername == chatWith) {
         QTimer::singleShot(50, [this] {
@@ -4598,7 +4637,9 @@ void ChatWindow::onFriendRecallResponse(bool success, int messageId, const QStri
     }
 }
 
-void ChatWindow::onFriendRecallNotify(int messageId, const QString &friendUsername) {
+void ChatWindow::onFriendRecallNotify(const QJsonObject &data) {
+    const int messageId = data["messageId"].toInt();
+    const QString friendUsername = data["friendUsername"].toString();
     MessageModel *model = getOrCreateFriendModel(friendUsername);
 
     // 清除文件缓存
@@ -4615,6 +4656,7 @@ void ChatWindow::onFriendRecallNotify(int messageId, const QString &friendUserna
     }
 
     model->recallMessage(messageId);
+    advanceFriendSyncCursor(friendUsername, syncSequenceFrom(data));
 }
 
 void ChatWindow::switchToFriendChat(const QString &friendUsername, const QString &friendDisplayName, int friendshipId) {

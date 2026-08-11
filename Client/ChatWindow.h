@@ -204,7 +204,7 @@ private slots:
     void onSendFriendFile();
     void onSendFriendImage();
     void onFriendRecallResponse(bool success, int messageId, const QString &error);
-    void onFriendRecallNotify(int messageId, const QString &friendUsername);
+    void onFriendRecallNotify(const QJsonObject &data);
 
 
 private:
@@ -220,6 +220,8 @@ private:
     void switchRoom(int roomId);
     void advanceRoomSyncCursor(int roomId, qint64 sequence);
     void requestCurrentRoomResume();
+    void advanceFriendSyncCursor(const QString &friendUsername, qint64 sequence);
+    void requestCurrentFriendResume();
     void requestRoomList();
     MessageModel *getOrCreateModel(int roomId);
     void startChunkedUpload(const QString &filePath);
@@ -309,6 +311,7 @@ private:
     QString m_currentFriendDisplayName;          // 当前私聊好友的显示名
     int     m_currentFriendshipId = -1;          // 当前 friendshipId
     QMap<QString, MessageModel*> m_friendModels; // friendUsername -> MessageModel
+    QMap<QString, qint64> m_friendSyncCursors;
     QJsonArray m_friendData;                     // 好友列表数据缓存
 
     // 未读消息计数

@@ -378,8 +378,7 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
                                    data["error"].toString());
     }
     else if (type == Protocol::MsgType::FRIEND_RECALL_NOTIFY) {
-        emit friendRecallNotify(data["messageId"].toInt(),
-                                 data["friendUsername"].toString());
+        emit friendRecallNotify(data);
     }
     else if (type == Protocol::MsgType::FORCE_OFFLINE) {
         // 先禁止自动重连，再通知上层

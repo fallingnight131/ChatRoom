@@ -368,6 +368,16 @@ inline QJsonObject makeHistoryAfterSequenceReq(int roomId, qint64 afterSequence,
     return makeMessage(MsgType::HISTORY_REQ, data);
 }
 
+inline QJsonObject makeFriendHistoryAfterSequenceReq(const QString &friendUsername,
+                                                      qint64 afterSequence,
+                                                      int count = 100) {
+    QJsonObject data;
+    data["friendUsername"] = friendUsername;
+    data["count"] = count;
+    data["afterSequence"] = static_cast<double>(afterSequence);
+    return makeMessage(MsgType::FRIEND_HISTORY_REQ, data);
+}
+
 inline QJsonObject makeRecallReq(int messageId, int roomId) {
     QJsonObject data;
     data["messageId"] = messageId;

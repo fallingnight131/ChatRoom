@@ -67,8 +67,8 @@ consumer instead of growing an unbounded queue or silently dropping the event.
 - reconnect reauthentication uses page/process-memory credentials rather than
   a device/refresh session; business `connected` recovery occurs only after
   successful authentication;
-- the active room resumes with `afterSequence`; a rejected restore clears the
-  in-memory Windows session and returns to login.
+- the active room or direct conversation resumes with `afterSequence`; a
+  rejected restore clears the in-memory Windows session and returns to login.
 
 ## Message Type Inventory
 
@@ -209,10 +209,11 @@ Room history/member responses require current room membership, and direct
 history requires current friendship participation. Counts are clamped to 100;
 non-positive counts use 50. Negative room sequence cursors fail with
 `INVALID_SEQUENCE_CURSOR`, as do negative direct sequence cursors.
-The upgraded Web client retains the active room cursor for the page lifetime,
-requests bounded follow-up pages after reconnect login, and applies mixed
-message/event pages in cursor order. Durable browser cursor storage is deferred
-to the M2 IndexedDB repository.
+The upgraded Web and Windows clients retain active room and direct-conversation
+cursors for the page/process lifetime and request bounded follow-up pages after
+reconnect login. Room pages apply mixed message/event pages in cursor order;
+direct pages merge authoritative message/recall state using `syncSequence`.
+Durable client cursor storage is deferred to the M2 local repositories.
 
 ### Read state
 

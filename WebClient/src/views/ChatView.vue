@@ -203,6 +203,7 @@ function onReconnectLogin(msg) {
     chatWs.requestRoomList()
     chatWs.requestFriendList()
     chatStore.resumeCurrentRoom()
+    chatStore.resumeCurrentFriend()
     reconnecting.value = false
   } else {
     // 登录失败，跳转到登录页

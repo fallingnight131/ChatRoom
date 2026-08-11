@@ -118,6 +118,9 @@ Progress:
 - [x] Make the Windows client reauthenticate from process memory before
   publishing reconnect success, then resume the active room cursor in bounded
   mixed message/event pages.
+- [x] Resume the active direct conversation from its in-memory cursor after Web
+  or Windows reconnect authentication, including bounded paging and replayed
+  recall state.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

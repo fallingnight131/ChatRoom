@@ -1,4 +1,5 @@
 #include "MessageModel.h"
+#include "Protocol.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -73,6 +74,15 @@ int main(int argc, char *argv[]) {
     syncModel.reconcileSyncPage({at300}, {clearAtTwo});
     passed = passed && syncModel.rowCount() == 1
         && syncModel.messageAt(0).id() == 300;
+
+    const QJsonObject friendResume = Protocol::makeFriendHistoryAfterSequenceReq(
+        QStringLiteral("bob"), 41, 75);
+    const QJsonObject friendResumeData = friendResume["data"].toObject();
+    passed = passed
+        && friendResume["type"].toString() == Protocol::MsgType::FRIEND_HISTORY_REQ
+        && friendResumeData["friendUsername"].toString() == QStringLiteral("bob")
+        && friendResumeData["afterSequence"].toInt() == 41
+        && friendResumeData["count"].toInt() == 75;
     if (!passed) qCritical() << "Message model reconciliation verification failed";
     return passed ? 0 : 1;
 }
