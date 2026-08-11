@@ -2,6 +2,8 @@ package com.fallingnight.chat.gateway.transport;
 
 import com.fallingnight.chat.application.identity.AuthenticationUseCase;
 import com.fallingnight.chat.application.identity.SessionResumeUseCase;
+import com.fallingnight.chat.application.messaging.MessageHistoryPort;
+import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
@@ -15,6 +17,8 @@ import java.util.concurrent.TimeUnit;
 public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapter {
     private final AuthenticationUseCase authentication;
     private final SessionResumeUseCase sessionResume;
+    private final MessageSubmissionPort submissions;
+    private final MessageHistoryPort history;
     private final Executor authenticationExecutor;
     private final AuthenticationAdmissionControl admission;
     private final AuthenticationEventSink events;
@@ -25,6 +29,8 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
     public V2WebSocketUpgradeHandler(
             AuthenticationUseCase authentication,
             SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
             Executor authenticationExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
@@ -32,6 +38,8 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
             Duration authenticationTimeout) {
         this.authentication = Objects.requireNonNull(authentication, "authentication");
         this.sessionResume = Objects.requireNonNull(sessionResume, "sessionResume");
+        this.submissions = Objects.requireNonNull(submissions, "submissions");
+        this.history = Objects.requireNonNull(history, "history");
         this.authenticationExecutor = Objects.requireNonNull(
                 authenticationExecutor, "authenticationExecutor");
         this.admission = Objects.requireNonNull(admission, "admission");
@@ -63,6 +71,8 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
                     context.pipeline(),
                     authentication,
                     sessionResume,
+                    submissions,
+                    history,
                     authenticationExecutor,
                     admission,
                     events,

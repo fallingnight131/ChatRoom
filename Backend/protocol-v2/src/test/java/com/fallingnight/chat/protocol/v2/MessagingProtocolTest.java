@@ -11,13 +11,13 @@ class MessagingProtocolTest {
     private static final String CONVERSATION_ID = "00000000-0000-0000-0000-000000000001";
     private static final String SUBMIT_GOLDEN =
             "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
-                    + "10641a026869";
+                    + "10011a026869";
 
     @Test
     void submitMessageHasStableWireBytesAndPermanentRegistryKinds() throws Exception {
         SubmitMessage command = SubmitMessage.newBuilder()
                 .setConversationId(CONVERSATION_ID)
-                .setContentType(100)
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
                 .setContent(ByteString.copyFromUtf8("hi"))
                 .build();
         MessagingPayloadPolicy.requireValid(command, "client-1");
@@ -91,7 +91,7 @@ class MessagingProtocolTest {
                 .setSenderAccountId("00000000-0000-0000-0000-000000000004")
                 .setSenderDeviceId("00000000-0000-0000-0000-000000000005")
                 .setClientMessageId("client-" + sequence)
-                .setContentType(100)
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
                 .setContent(ByteString.copyFromUtf8("hi"))
                 .setAcceptedAtEpochMs(1_700_000_000_000L + sequence)
                 .build();

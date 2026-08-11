@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fallingnight.chat.application.identity.AuthenticationResult;
+import com.fallingnight.chat.application.messaging.MessageHistoryResult;
+import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
 import io.netty.handler.ssl.SslContext;
@@ -81,6 +83,8 @@ class V2GatewayServerTest {
                 config,
                 command -> AuthenticationResult.Rejected.INSTANCE,
                 command -> AuthenticationResult.Rejected.INSTANCE,
+                command -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
                 Runnable::run,
                 AuthenticationAdmissionControl.allowAll(),
                 AuthenticationEventSink.noop()));
@@ -91,6 +95,8 @@ class V2GatewayServerTest {
                 config,
                 command -> AuthenticationResult.Rejected.INSTANCE,
                 command -> AuthenticationResult.Rejected.INSTANCE,
+                command -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
                 Runnable::run,
                 AuthenticationAdmissionControl.allowAll(),
                 AuthenticationEventSink.noop(),

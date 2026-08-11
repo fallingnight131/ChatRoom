@@ -18,7 +18,7 @@ const GOLDEN_HEX = '08021001186422057265712d312a0973657373696f6e2d31' +
 const CLIENT_HELLO_GOLDEN_HEX = '0802100218012205302e312e302a086465766963652d31'
 const AUTHENTICATE_GOLDEN_HEX = '0a05616c696365120d746573742d70617373776f7264'
 const SUBMIT_MESSAGE_GOLDEN_HEX = '0a2430303030303030302d303030302d303030302d' +
-  '303030302d30303030303030303030303110641a026869'
+  '303030302d30303030303030303030303110011a026869'
 
 function bytesFromHex(hex: string): Uint8Array {
   return Uint8Array.from(hex.match(/.{2}/g) ?? [], byte => Number.parseInt(byte, 16))
@@ -89,12 +89,12 @@ test('keeps the bounded Authenticate payload compatible across generated binding
 test('keeps the bounded SubmitMessage payload compatible across generated bindings', () => {
   const decoded = fromBinary(SubmitMessageSchema, bytesFromHex(SUBMIT_MESSAGE_GOLDEN_HEX))
   assert.equal(decoded.conversationId, '00000000-0000-0000-0000-000000000001')
-  assert.equal(decoded.contentType, 100)
+  assert.equal(decoded.contentType, 1)
   assert.equal(new TextDecoder().decode(decoded.content), 'hi')
 
   const encoded = create(SubmitMessageSchema, {
     conversationId: '00000000-0000-0000-0000-000000000001',
-    contentType: 100,
+    contentType: 1,
     content: new TextEncoder().encode('hi')
   })
   assert.equal(

@@ -41,8 +41,8 @@ handler. Each outbound envelope is encoded as one final binary WebSocket
 message. Malformed/invalid input closes with fixed status 1002 and reason
 `invalid V2 frame`; oversized complete or fragmented input closes with status
 1009 and reason `V2 frame too large`. Parser or exception details are never
-reflected. The pre-cutover listener is runnable, but V2 still has no product
-route.
+reflected. The pre-cutover listener is runnable, but no supported client sends
+product traffic to V2.
 
 ## Control message registry
 
@@ -63,8 +63,11 @@ reused:
 | 102 | `ReadMessageHistory` | command | authenticated client to server; forward sequence page |
 | 103 | `MessageHistoryPage` | response | server to requesting active member |
 
-`SubmitMessage` carries a canonical conversation UUID, positive content type,
-and at most 1,000,000 content bytes. The envelope `client_message_id` is required
+`SubmitMessage` carries a canonical conversation UUID and a registered content
+type. Content type 1 is permanently assigned to nonempty valid UTF-8 text with a
+65,536-byte maximum; other values are currently rejected. The outer content
+budget remains 1,000,000 bytes for future registered schemas. The envelope
+`client_message_id` is required
 and is the sender-scoped idempotency key; envelope/session/payload identity never
 overrides the server-bound authenticated account/device. `MessageAccepted`
 returns the stable server UUID, positive conversation sequence,
@@ -76,8 +79,18 @@ and limit 1..100. `MessageHistoryPage` returns at most 100 ascending records, an
 explicit next cursor, current conversation high watermark, and `has_more`.
 Deleted rows may leave sequence gaps. Authorization failures use the opaque
 `NOT_AUTHORIZED` protocol code; conflicting reuse of a client message ID uses
-`IDEMPOTENCY_CONFLICT`. Concrete positive content-type schemas remain a later
-registry slice, so these wire messages are not dispatched yet.
+`IDEMPOTENCY_CONFLICT`.
+
+After authentication, the gateway dispatches types 100 and 102 through the
+transport-independent application ports and PostgreSQL adapter. It uses only
+the server-bound account/device identity, executes database work outside the
+Netty event loop, and serializes at most one command per connection with 16
+additional queued commands. Saturation returns retryable `RATE_LIMITED`; an
+unexpected application failure returns retryable `INTERNAL_ERROR`. Neither
+expected business denial nor retryable failure closes the authenticated
+connection. This is an additive pre-cutover path: no supported client sends V2
+product traffic yet, and delivery/read/fan-out are not implemented by these four
+types.
 
 `ClientHello` declares a minimum/maximum protocol generation, Web or Windows
 platform, app version, and client-device ID. App version is limited to 64 UTF-8

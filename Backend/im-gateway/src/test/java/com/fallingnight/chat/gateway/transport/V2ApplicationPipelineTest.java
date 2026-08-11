@@ -3,6 +3,8 @@ package com.fallingnight.chat.gateway.transport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.fallingnight.chat.application.identity.AuthenticationResult;
+import com.fallingnight.chat.application.messaging.MessageHistoryResult;
+import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.time.Duration;
 import java.util.List;
@@ -17,6 +19,8 @@ class V2ApplicationPipelineTest {
                     channel.pipeline(),
                     command -> AuthenticationResult.Rejected.INSTANCE,
                     command -> AuthenticationResult.Rejected.INSTANCE,
+                    command -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                    query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
                     Runnable::run,
                     AuthenticationAdmissionControl.allowAll(),
                     AuthenticationEventSink.noop(),
@@ -33,8 +37,9 @@ class V2ApplicationPipelineTest {
                     "v2-phase-timeouts",
                     "v2-handshake",
                     "v2-authentication",
+                    "v2-messaging",
                     "v2-authenticated-idle-close"),
-                    names.subList(0, 9));
+                    names.subList(0, 10));
         } finally {
             channel.finishAndReleaseAll();
         }

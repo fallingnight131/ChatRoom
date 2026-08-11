@@ -9,6 +9,7 @@ import com.fallingnight.chat.gateway.transport.InMemoryAuthenticationAdmissionCo
 import com.fallingnight.chat.identity.crypto.Argon2idCredentialHasher;
 import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
 import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresMessageAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
 import com.zaxxer.hikari.HikariDataSource;
 import java.time.Clock;
@@ -57,6 +58,7 @@ public final class GatewayRuntime implements AutoCloseable {
         try {
             dataSource = GatewayPostgresDataSource.create(config);
             PostgresIdentityAdapter identity = new PostgresIdentityAdapter(dataSource);
+            PostgresMessageAdapter messages = new PostgresMessageAdapter(dataSource);
             Clock clock = Clock.systemUTC();
             AuthenticationService authentication = new AuthenticationService(
                     identity,
@@ -77,6 +79,8 @@ public final class GatewayRuntime implements AutoCloseable {
                     config,
                     authentication,
                     sessionResume,
+                    messages,
+                    messages,
                     workers,
                     admission,
                     telemetry);

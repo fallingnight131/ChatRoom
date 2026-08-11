@@ -223,8 +223,9 @@ bounded HTTP/WebSocket parsing, Host/proxy/endpoint policies, connection and
 write-buffer limits, the post-upgrade application pipeline, and deterministic
 shutdown. `GatewayMain` now validates and owns PostgreSQL, identity cryptography,
 bounded workers, admin readiness/metrics, WSS, and reverse shutdown. Operator
-restore rehearsal and durable V2 message routing remain explicit cutover
-blockers. Process-local account/direct-peer/gateway admission and
+restore rehearsal, conversation discovery, and supported-client V2 adoption
+remain explicit cutover blockers. Process-local account/direct-peer/gateway
+admission and
 handshake/authentication deadlines are implemented but do not define deployment
 defaults or multi-gateway protection yet. Fixed-label authentication telemetry
 and sampled safe logs now have an exact-path, GET-only loopback health/metrics
@@ -248,8 +249,12 @@ durable-message boundary: authorized append atomically allocates a conversation
 sequence, exact concurrent retries return one stable database-timestamped
 outcome, conflicting idempotency reuse is denied, and active members can read
 bounded ascending sequence pages. Permanent bounded V2 types 100..103 now cover
-submit/accepted/history/page with Java/C++/TypeScript golden compatibility, but
-gateway dispatch does not use this boundary yet.
+submit/accepted/history/page with Java/C++/TypeScript golden compatibility.
+Authenticated gateway connections now dispatch registered UTF-8 text submission
+and sequence-history reads through this boundary outside the Netty event loop,
+using only server-bound identity and preserving per-connection command order.
+This remains a pre-cutover path without delivery fan-out, read state,
+conversation discovery, or supported-client use.
 
 The application identity module now also owns a transport-independent session
 resume command and atomic-rotation persistence port. The command destroys its

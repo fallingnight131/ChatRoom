@@ -8,6 +8,7 @@ import java.util.UUID;
 /** Structural bounds for authenticated messaging payloads before application mapping. */
 public final class MessagingPayloadPolicy {
     public static final int MAX_CONTENT_BYTES = 1_000_000;
+    public static final int MAX_TEXT_UTF8_BYTES = 65_536;
     public static final int MAX_HISTORY_LIMIT = 100;
 
     private MessagingPayloadPolicy() {}
@@ -15,12 +16,10 @@ public final class MessagingPayloadPolicy {
     public static List<String> violations(SubmitMessage command, String clientMessageId) {
         List<String> violations = new ArrayList<>();
         requireUuid("conversationId", command.getConversationId(), violations);
-        if (command.getContentType() == 0) {
-            violations.add("contentType is required");
-        }
         if (command.getContent().size() > MAX_CONTENT_BYTES) {
             violations.add("content exceeds messaging limit");
         }
+        validateContent(command.getContentType(), command.getContent(), violations);
         requireIdentifier("clientMessageId", clientMessageId, true, violations);
         return List.copyOf(violations);
     }
@@ -74,11 +73,11 @@ public final class MessagingPayloadPolicy {
             requireIdentifier("clientMessageId", message.getClientMessageId(), true, violations);
             if (!page.getConversationId().equals(message.getConversationId())
                     || message.getConversationSequence() <= previous
-                    || message.getContentType() == 0
                     || message.getContent().size() > MAX_CONTENT_BYTES
                     || message.getAcceptedAtEpochMs() <= 0) {
                 violations.add("history message is invalid or out of order");
             }
+            validateContent(message.getContentType(), message.getContent(), violations);
             previous = message.getConversationSequence();
         }
         if (!page.getMessagesList().isEmpty()
@@ -109,6 +108,18 @@ public final class MessagingPayloadPolicy {
     private static void requireNone(List<String> violations) {
         if (!violations.isEmpty()) {
             throw new IllegalArgumentException(String.join("; ", violations));
+        }
+    }
+
+    private static void validateContent(
+            int contentType,
+            com.google.protobuf.ByteString content,
+            List<String> violations) {
+        if (contentType != MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE
+                || content.isEmpty()
+                || content.size() > MAX_TEXT_UTF8_BYTES
+                || !content.isValidUtf8()) {
+            violations.add("contentType/content is unsupported or invalid");
         }
     }
 }

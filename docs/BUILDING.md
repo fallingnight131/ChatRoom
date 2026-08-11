@@ -75,9 +75,12 @@ tests also verify binary envelope egress plus fixed WebSocket 1002/1009 close
 mapping for unsafe frames. They do not open a listener or imply that V2 is ready
 to receive traffic.
 The protocol-binding gate also compiles and round-trips permanent V2 messaging
-types 100..103. It verifies the fixed bounded `SubmitMessage` golden payload in
-Java, generated TypeScript, and generated C++; this does not enable gateway
-messaging dispatch.
+types 100..103 and content type 1 (bounded nonempty UTF-8 text). It verifies the
+fixed `SubmitMessage` golden payload in Java, generated TypeScript, and generated
+C++. Gateway tests separately verify authenticated server-bound identity,
+off-event-loop submit/history dispatch, per-connection ordering, safe denial,
+and bounded saturation behavior. This is pre-cutover evidence, not product
+traffic or a capacity result.
 The authentication worker tests use a one-worker/one-slot pool to prove bounded
 admission, saturation shedding, worker naming, and lifecycle shutdown. These
 test capacities are not deployment defaults or benchmark results.
@@ -144,8 +147,10 @@ traffic or capacity evidence.
 The same disposable PostgreSQL run races two exact message submissions and
 verifies one original plus one stable duplicate, rollback of the losing sequence
 allocation, conflict rejection, database-authoritative acceptance time, bounded
-ascending cursor pages, and active-membership authorization. The adapter is not
-yet exposed through a V2 wire message.
+ascending cursor pages, and active-membership authorization. The runtime now
+exposes this adapter to already authenticated V2 connections for text submission
+and sequence-history reads. No supported client uses that route, and fan-out,
+delivery, and read semantics remain unimplemented.
 Pure migration-planner tests also verify deterministic V1 user-ID mapping,
 order-independent source fingerprints, supported credential generations, full
 plan blocking on invalid/duplicate/empty input, and non-secret issue reporting.

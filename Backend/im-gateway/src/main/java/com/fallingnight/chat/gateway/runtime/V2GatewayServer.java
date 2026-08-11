@@ -2,6 +2,8 @@ package com.fallingnight.chat.gateway.runtime;
 
 import com.fallingnight.chat.application.identity.AuthenticationUseCase;
 import com.fallingnight.chat.application.identity.SessionResumeUseCase;
+import com.fallingnight.chat.application.messaging.MessageHistoryPort;
+import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
 import com.fallingnight.chat.gateway.transport.GatewayConnectionLimitHandler;
@@ -53,6 +55,8 @@ public final class V2GatewayServer implements AutoCloseable {
     private final GatewayRuntimeConfig config;
     private final AuthenticationUseCase authentication;
     private final SessionResumeUseCase sessionResume;
+    private final MessageSubmissionPort submissions;
+    private final MessageHistoryPort history;
     private final Executor authenticationExecutor;
     private final AuthenticationAdmissionControl admission;
     private final AuthenticationEventSink events;
@@ -68,6 +72,8 @@ public final class V2GatewayServer implements AutoCloseable {
             GatewayRuntimeConfig config,
             AuthenticationUseCase authentication,
             SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
             Executor authenticationExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events) {
@@ -75,6 +81,8 @@ public final class V2GatewayServer implements AutoCloseable {
                 config,
                 authentication,
                 sessionResume,
+                submissions,
+                history,
                 authenticationExecutor,
                 admission,
                 events,
@@ -85,6 +93,8 @@ public final class V2GatewayServer implements AutoCloseable {
             GatewayRuntimeConfig config,
             AuthenticationUseCase authentication,
             SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
             Executor authenticationExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
@@ -92,6 +102,8 @@ public final class V2GatewayServer implements AutoCloseable {
         this.config = Objects.requireNonNull(config, "config");
         this.authentication = Objects.requireNonNull(authentication, "authentication");
         this.sessionResume = Objects.requireNonNull(sessionResume, "sessionResume");
+        this.submissions = Objects.requireNonNull(submissions, "submissions");
+        this.history = Objects.requireNonNull(history, "history");
         this.authenticationExecutor = Objects.requireNonNull(
                 authenticationExecutor, "authenticationExecutor");
         this.admission = Objects.requireNonNull(admission, "admission");
@@ -192,6 +204,8 @@ public final class V2GatewayServer implements AutoCloseable {
         pipeline.addLast("v2-upgrade", new V2WebSocketUpgradeHandler(
                 authentication,
                 sessionResume,
+                submissions,
+                history,
                 authenticationExecutor,
                 admission,
                 events,

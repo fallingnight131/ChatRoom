@@ -2,6 +2,8 @@ package com.fallingnight.chat.gateway.transport;
 
 import com.fallingnight.chat.application.identity.AuthenticationUseCase;
 import com.fallingnight.chat.application.identity.SessionResumeUseCase;
+import com.fallingnight.chat.application.messaging.MessageHistoryPort;
+import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
 import io.netty.channel.ChannelPipeline;
 import java.time.Duration;
 import java.util.Objects;
@@ -15,6 +17,8 @@ public final class V2ApplicationPipeline {
             ChannelPipeline pipeline,
             AuthenticationUseCase authentication,
             SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
             Executor authenticationExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
@@ -32,6 +36,8 @@ public final class V2ApplicationPipeline {
                 admission,
                 events,
                 java.time.Clock.systemUTC()));
+        pipeline.addLast("v2-messaging", new V2MessagingHandler(
+                submissions, history, authenticationExecutor));
         pipeline.addLast("v2-authenticated-idle-close", new V2AuthenticatedIdleCloseHandler());
     }
 }

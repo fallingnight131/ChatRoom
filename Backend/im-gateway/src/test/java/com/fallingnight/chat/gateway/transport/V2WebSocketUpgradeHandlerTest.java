@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fallingnight.chat.application.identity.AuthenticationResult;
+import com.fallingnight.chat.application.messaging.MessageHistoryResult;
+import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.EmptyHttpHeaders;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
@@ -50,6 +52,8 @@ class V2WebSocketUpgradeHandlerTest {
         return new V2WebSocketUpgradeHandler(
                 command -> AuthenticationResult.Rejected.INSTANCE,
                 command -> AuthenticationResult.Rejected.INSTANCE,
+                command -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
                 Runnable::run,
                 AuthenticationAdmissionControl.allowAll(),
                 AuthenticationEventSink.noop(),
