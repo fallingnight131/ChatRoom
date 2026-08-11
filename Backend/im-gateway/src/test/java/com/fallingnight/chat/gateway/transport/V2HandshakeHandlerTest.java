@@ -2,6 +2,7 @@ package com.fallingnight.chat.gateway.transport;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fallingnight.chat.protocol.v2.ClientHello;
@@ -31,7 +32,7 @@ class V2HandshakeHandlerTest {
             Envelope request = clientHelloEnvelope(validHello());
             assertFalse(channel.writeInbound(new BinaryWebSocketFrame(
                     Unpooled.wrappedBuffer(request.toByteArray()))));
-            Envelope response = channel.readOutbound();
+            Envelope response = readEnvelope(channel);
             assertEquals(MessageKind.MESSAGE_KIND_RESPONSE, response.getKind());
             assertEquals(MessageType.MESSAGE_TYPE_SERVER_HELLO_VALUE, response.getMessageType());
             assertEquals("hello-1", response.getRequestId());
@@ -94,10 +95,10 @@ class V2HandshakeHandlerTest {
         EmbeddedChannel channel = channel();
         try {
             channel.writeInbound(clientHelloEnvelope(validHello()));
-            channel.readOutbound();
+            readEnvelope(channel);
             channel.writeInbound(clientHelloEnvelope(validHello()));
             assertError(
-                    channel.readOutbound(),
+                    readEnvelope(channel),
                     ProtocolErrorCode.PROTOCOL_ERROR_CODE_INVALID_STATE,
                     "handshake already completed");
             assertFalse(channel.isActive());
@@ -111,7 +112,7 @@ class V2HandshakeHandlerTest {
         EmbeddedChannel channel = channel();
         try {
             channel.writeInbound(input);
-            assertError(channel.readOutbound(), code, safeMessage);
+            assertError(readEnvelope(channel), code, safeMessage);
             assertFalse(channel.isActive());
         } finally {
             channel.finishAndReleaseAll();
@@ -135,6 +136,16 @@ class V2HandshakeHandlerTest {
         channel.pipeline().addLast(
                 "v2-handshake", new V2HandshakeHandler(clock, () -> "connection-1"));
         return channel;
+    }
+
+    private static Envelope readEnvelope(EmbeddedChannel channel) throws Exception {
+        BinaryWebSocketFrame frame = assertInstanceOf(
+                BinaryWebSocketFrame.class, channel.readOutbound());
+        try {
+            return Envelope.parseFrom(frame.content().nioBuffer());
+        } finally {
+            frame.release();
+        }
     }
 
     private static Envelope clientHelloEnvelope(ClientHello hello) {

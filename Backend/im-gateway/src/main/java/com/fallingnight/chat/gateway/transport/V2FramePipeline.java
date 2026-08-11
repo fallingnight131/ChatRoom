@@ -15,5 +15,7 @@ public final class V2FramePipeline {
                 new WebSocketFrameAggregator(V2EnvelopeDecoder.MAX_WIRE_BYTES));
         pipeline.addLast("v2-envelope-decoder", new V2EnvelopeDecoder());
         pipeline.addLast("v2-frame-error-normalizer", new V2FrameExceptionNormalizer());
+        pipeline.addLast("v2-envelope-encoder", new V2EnvelopeEncoder());
+        pipeline.addLast("v2-frame-close", new V2FrameCloseHandler());
     }
 }

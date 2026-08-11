@@ -37,8 +37,12 @@ The implemented gateway frame boundary aggregates fragmented binary messages
 up to 1 MiB plus 1024 bytes of bounded envelope overhead. It rejects text,
 stray continuation, oversized, malformed-Protobuf, and policy-invalid input
 before dispatch. Ping, pong, and close frames are left to the WebSocket control
-handler. The listener, rate limits, complete frame-error mapping, and production
-transport policy are not enabled yet, so V2 still has no production route.
+handler. Each outbound envelope is encoded as one final binary WebSocket
+message. Malformed/invalid input closes with fixed status 1002 and reason
+`invalid V2 frame`; oversized complete or fragmented input closes with status
+1009 and reason `V2 frame too large`. Parser or exception details are never
+reflected. The listener, timeouts, rate limits, and production transport policy
+are not enabled yet, so V2 still has no production route.
 
 ## Control message registry
 

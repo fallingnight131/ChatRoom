@@ -3,7 +3,6 @@ package com.fallingnight.chat.gateway.transport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fallingnight.chat.protocol.v2.Envelope;
@@ -12,10 +11,12 @@ import com.google.protobuf.ByteString;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketCloseStatus;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
@@ -50,16 +51,16 @@ class V2EnvelopeDecoderTest {
 
     @Test
     void rejectsTextMalformedOversizedAndPolicyInvalidFrames() {
-        assertFailure(new TextWebSocketFrame("{}"), V2FrameException.Reason.UNSUPPORTED_FRAME_TYPE);
+        assertFailure(new TextWebSocketFrame("{}"), WebSocketCloseStatus.PROTOCOL_ERROR);
         assertFailure(new ContinuationWebSocketFrame(
                 true, 0, Unpooled.wrappedBuffer(new byte[] {1})),
-                V2FrameException.Reason.UNSUPPORTED_FRAME_TYPE);
+                WebSocketCloseStatus.PROTOCOL_ERROR);
         assertFailure(binary(new byte[] {(byte) 0x80}),
-                V2FrameException.Reason.MALFORMED_PROTOBUF);
+                WebSocketCloseStatus.PROTOCOL_ERROR);
         assertFailure(binary(new byte[V2EnvelopeDecoder.MAX_WIRE_BYTES + 1]),
-                V2FrameException.Reason.FRAME_TOO_LARGE);
+                WebSocketCloseStatus.MESSAGE_TOO_BIG);
         assertFailure(binary(validEnvelope().toBuilder().setProtocolVersion(1).build().toByteArray()),
-                V2FrameException.Reason.INVALID_ENVELOPE);
+                WebSocketCloseStatus.PROTOCOL_ERROR);
     }
 
     @Test
@@ -69,15 +70,12 @@ class V2EnvelopeDecoderTest {
             int firstLength = V2EnvelopeDecoder.MAX_WIRE_BYTES / 2;
             assertFalse(channel.writeInbound(new BinaryWebSocketFrame(
                     false, 0, Unpooled.wrappedBuffer(new byte[firstLength]))));
-            RuntimeException exception = assertThrows(RuntimeException.class,
-                    () -> channel.writeInbound(new ContinuationWebSocketFrame(
-                            true,
-                            0,
-                            Unpooled.wrappedBuffer(new byte[
-                                    V2EnvelopeDecoder.MAX_WIRE_BYTES - firstLength + 1]))));
-            assertEquals(
-                    V2FrameException.Reason.FRAME_TOO_LARGE,
-                    findFrameException(exception).reason());
+            channel.writeInbound(new ContinuationWebSocketFrame(
+                    true,
+                    0,
+                    Unpooled.wrappedBuffer(new byte[
+                            V2EnvelopeDecoder.MAX_WIRE_BYTES - firstLength + 1])));
+            assertClose(channel, WebSocketCloseStatus.MESSAGE_TOO_BIG);
         } finally {
             channel.finishAndReleaseAll();
         }
@@ -97,24 +95,30 @@ class V2EnvelopeDecoderTest {
         }
     }
 
-    private static void assertFailure(WebSocketFrame frame, V2FrameException.Reason reason) {
+    private static void assertFailure(WebSocketFrame frame, WebSocketCloseStatus status) {
         EmbeddedChannel channel = channel();
         try {
-            RuntimeException exception = assertThrows(
-                    RuntimeException.class, () -> channel.writeInbound(frame));
-            V2FrameException failure = findFrameException(exception);
-            assertEquals(reason, failure.reason());
+            channel.writeInbound(frame);
+            assertClose(channel, status);
         } finally {
             channel.finishAndReleaseAll();
         }
     }
 
-    private static V2FrameException findFrameException(Throwable failure) {
-        Throwable current = failure;
-        while (current != null && !(current instanceof V2FrameException)) {
-            current = current.getCause();
+    private static void assertClose(
+            EmbeddedChannel channel, WebSocketCloseStatus expectedStatus) {
+        CloseWebSocketFrame close = assertInstanceOf(
+                CloseWebSocketFrame.class, channel.readOutbound());
+        try {
+            assertEquals(expectedStatus.code(), close.statusCode());
+            String expectedReason = expectedStatus == WebSocketCloseStatus.MESSAGE_TOO_BIG
+                    ? "V2 frame too large"
+                    : "invalid V2 frame";
+            assertEquals(expectedReason, close.reasonText());
+        } finally {
+            close.release();
         }
-        return assertInstanceOf(V2FrameException.class, current);
+        assertFalse(channel.isActive());
     }
 
     private static EmbeddedChannel channel() {

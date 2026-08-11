@@ -284,9 +284,10 @@ Progress:
   - [x] Add a fresh-login gateway state machine with off-event-loop application
     dispatch, server-bound connection identity, generic rejection, secret
     cleanup, and session-spoofing denial without enabling a listener.
-  - [ ] Add bounded executor ownership, timeouts/rate limits, frame-error close
-    mapping, production observability, and outbound encoding before enabling a
-    listener.
+  - [x] Encode outbound envelopes as bounded binary WebSocket messages and map
+    malformed/oversized frames to fixed safe 1002/1009 close outcomes.
+  - [ ] Add bounded executor ownership, timeouts/rate limits, and production
+    observability before enabling a listener.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

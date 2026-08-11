@@ -197,9 +197,11 @@ Argon2id hash and PostgreSQL applies it with compare-and-set semantics.
 The V2 gateway now retains negotiated client metadata, dispatches fresh login
 through a transport-independent use-case boundary, and binds only server-issued
 account/device/session identity to the connection. Envelope session IDs cannot
-grant identity. This is still an inactive foundation: the one-way V1 import,
-bounded worker ownership and admission limits, resume rotation, hardened
-listener, and complete gateway wiring remain explicit cutover blockers.
+grant identity. Its transport pipeline now provides bounded binary WebSocket
+decode/encode and fixed safe close outcomes for invalid or oversized frames.
+This is still an inactive foundation: the one-way V1 import, bounded worker
+ownership and admission limits, deadlines, resume rotation, hardened listener,
+and complete gateway wiring remain explicit cutover blockers.
 
 ## 7. Reliable Message Flow
 
