@@ -9,12 +9,16 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -28,6 +32,10 @@ public final class GatewayRuntimeConfig {
     private final String postgresUrl;
     private final String postgresUser;
     private final String postgresPassword;
+    private final boolean postgresAllowInsecureLocal;
+    private final int postgresPoolMaximum;
+    private final int postgresPoolMinimumIdle;
+    private final Duration postgresConnectionTimeout;
     private final HttpHostPolicy hostPolicy;
     private final WebSocketEndpointPolicy endpointPolicy;
     private final TrustedProxyPolicy proxyPolicy;
@@ -51,6 +59,10 @@ public final class GatewayRuntimeConfig {
             String postgresUrl,
             String postgresUser,
             String postgresPassword,
+            boolean postgresAllowInsecureLocal,
+            int postgresPoolMaximum,
+            int postgresPoolMinimumIdle,
+            Duration postgresConnectionTimeout,
             HttpHostPolicy hostPolicy,
             WebSocketEndpointPolicy endpointPolicy,
             TrustedProxyPolicy proxyPolicy,
@@ -72,6 +84,10 @@ public final class GatewayRuntimeConfig {
         this.postgresUrl = postgresUrl;
         this.postgresUser = postgresUser;
         this.postgresPassword = postgresPassword;
+        this.postgresAllowInsecureLocal = postgresAllowInsecureLocal;
+        this.postgresPoolMaximum = postgresPoolMaximum;
+        this.postgresPoolMinimumIdle = postgresPoolMinimumIdle;
+        this.postgresConnectionTimeout = postgresConnectionTimeout;
         this.hostPolicy = hostPolicy;
         this.endpointPolicy = endpointPolicy;
         this.proxyPolicy = proxyPolicy;
@@ -108,11 +124,20 @@ public final class GatewayRuntimeConfig {
             throw invalid("TLS certificate and private key must be different files");
         }
         String postgresUrl = required(environment, "CHATROOM_POSTGRES_URL");
-        if (!postgresUrl.startsWith("jdbc:postgresql://")) {
-            throw invalid("PostgreSQL JDBC URL is required");
-        }
+        boolean allowInsecureLocal = bool(
+                environment, "CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", false);
+        validatePostgresUrl(postgresUrl, allowInsecureLocal);
         String postgresUser = required(environment, "CHATROOM_POSTGRES_USER");
         String postgresPassword = required(environment, "CHATROOM_POSTGRES_PASSWORD");
+        int postgresPoolMaximum = integer(
+                environment, "CHATROOM_POSTGRES_POOL_MAXIMUM", 8, 1, 64);
+        int postgresPoolMinimumIdle = integer(
+                environment, "CHATROOM_POSTGRES_POOL_MINIMUM_IDLE", 1, 0, 64);
+        if (postgresPoolMinimumIdle > postgresPoolMaximum) {
+            throw invalid("PostgreSQL minimum idle connections exceed pool maximum");
+        }
+        Duration postgresConnectionTimeout = seconds(
+                environment, "CHATROOM_POSTGRES_CONNECTION_TIMEOUT_SECONDS", 5, 1, 30);
 
         List<String> hosts = csv(required(environment, "CHATROOM_GATEWAY_ALLOWED_HOSTS"));
         List<String> origins = csv(required(environment, "CHATROOM_GATEWAY_WEB_ORIGINS"));
@@ -165,6 +190,10 @@ public final class GatewayRuntimeConfig {
                 postgresUrl,
                 postgresUser,
                 postgresPassword,
+                allowInsecureLocal,
+                postgresPoolMaximum,
+                postgresPoolMinimumIdle,
+                postgresConnectionTimeout,
                 new HttpHostPolicy(hosts),
                 new WebSocketEndpointPolicy(origins),
                 proxyPolicy,
@@ -210,6 +239,22 @@ public final class GatewayRuntimeConfig {
 
     String postgresPassword() {
         return postgresPassword;
+    }
+
+    boolean postgresAllowInsecureLocal() {
+        return postgresAllowInsecureLocal;
+    }
+
+    public int postgresPoolMaximum() {
+        return postgresPoolMaximum;
+    }
+
+    public int postgresPoolMinimumIdle() {
+        return postgresPoolMinimumIdle;
+    }
+
+    public Duration postgresConnectionTimeout() {
+        return postgresConnectionTimeout;
     }
 
     public HttpHostPolicy hostPolicy() {
@@ -306,6 +351,77 @@ public final class GatewayRuntimeConfig {
             int minimum,
             int maximum) {
         return Duration.ofSeconds(integer(environment, key, defaultValue, minimum, maximum));
+    }
+
+    private static boolean bool(
+            Map<String, String> environment, String key, boolean defaultValue) {
+        String raw = environment.get(key);
+        if (raw == null) {
+            return defaultValue;
+        }
+        if ("true".equals(raw)) {
+            return true;
+        }
+        if ("false".equals(raw)) {
+            return false;
+        }
+        throw invalid("gateway boolean configuration is invalid");
+    }
+
+    private static void validatePostgresUrl(String jdbcUrl, boolean allowInsecureLocal) {
+        if (jdbcUrl == null || !jdbcUrl.startsWith("jdbc:postgresql://")) {
+            throw invalid("PostgreSQL JDBC URL is required");
+        }
+        final URI uri;
+        try {
+            uri = new URI(jdbcUrl.substring("jdbc:".length()));
+        } catch (URISyntaxException exception) {
+            throw invalid("PostgreSQL JDBC URL is invalid");
+        }
+        if (!"postgresql".equals(uri.getScheme())
+                || uri.getHost() == null
+                || uri.getRawUserInfo() != null
+                || uri.getRawPath() == null
+                || uri.getRawPath().length() < 2
+                || uri.getRawFragment() != null) {
+            throw invalid("PostgreSQL JDBC URL is invalid");
+        }
+        Map<String, String> parameters = postgresQueryParameters(uri.getRawQuery());
+        if (parameters.containsKey("user") || parameters.containsKey("password")) {
+            throw invalid("PostgreSQL credentials must not be embedded in the JDBC URL");
+        }
+        boolean verifyFull = "verify-full".equalsIgnoreCase(parameters.get("sslmode"));
+        InetAddress databaseAddress = numericAddress(stripIpv6Brackets(uri.getHost()));
+        boolean numericLoopback = databaseAddress != null && databaseAddress.isLoopbackAddress();
+        if (!verifyFull && !(allowInsecureLocal && numericLoopback)) {
+            throw invalid("PostgreSQL TLS verify-full is required");
+        }
+    }
+
+    private static Map<String, String> postgresQueryParameters(String rawQuery) {
+        if (rawQuery == null || rawQuery.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, String> parameters = new HashMap<>();
+        for (String parameter : rawQuery.split("&", -1)) {
+            String[] pair = parameter.split("=", 2);
+            if (pair.length != 2
+                    || !pair[0].matches("[A-Za-z][A-Za-z0-9]*")
+                    || pair[1].isEmpty()) {
+                throw invalid("PostgreSQL JDBC query configuration is invalid");
+            }
+            String key = pair[0].toLowerCase(Locale.ROOT);
+            if (parameters.putIfAbsent(key, pair[1]) != null) {
+                throw invalid("PostgreSQL JDBC query keys must be unique");
+            }
+        }
+        return Map.copyOf(parameters);
+    }
+
+    private static String stripIpv6Brackets(String value) {
+        return value.startsWith("[") && value.endsWith("]")
+                ? value.substring(1, value.length() - 1)
+                : value;
     }
 
     private static Path regularFile(String value) {

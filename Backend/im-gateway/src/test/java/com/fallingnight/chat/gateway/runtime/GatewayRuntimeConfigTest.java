@@ -36,6 +36,10 @@ class GatewayRuntimeConfigTest {
                 config.listenerAddress());
         assertTrue(config.adminAddress().getAddress().isLoopbackAddress());
         assertEquals(4, config.eventLoopWorkers());
+        assertFalse(config.postgresAllowInsecureLocal());
+        assertEquals(8, config.postgresPoolMaximum());
+        assertEquals(1, config.postgresPoolMinimumIdle());
+        assertEquals(Duration.ofSeconds(5), config.postgresConnectionTimeout());
         assertEquals(10_000, config.maximumConnections());
         assertEquals(65_536, config.writeBufferLowWaterMark());
         assertEquals(262_144, config.writeBufferHighWaterMark());
@@ -89,6 +93,12 @@ class GatewayRuntimeConfigTest {
         csv.put("CHATROOM_GATEWAY_ALLOWED_HOSTS", "gateway.example.com,");
         assertThrows(IllegalArgumentException.class,
                 () -> GatewayRuntimeConfig.fromEnvironment(csv));
+
+        Map<String, String> pool = requiredEnvironment();
+        pool.put("CHATROOM_POSTGRES_POOL_MAXIMUM", "2");
+        pool.put("CHATROOM_POSTGRES_POOL_MINIMUM_IDLE", "3");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(pool));
     }
 
     @Test
@@ -111,6 +121,43 @@ class GatewayRuntimeConfigTest {
                 () -> GatewayRuntimeConfig.fromEnvironment(missingFile));
     }
 
+    @Test
+    void requiresVerifiedDatabaseTlsExceptExplicitNumericLoopbackDevelopment() throws Exception {
+        Map<String, String> insecureRemote = requiredEnvironment();
+        insecureRemote.put("CHATROOM_POSTGRES_URL", "jdbc:postgresql://db.internal/chat");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(insecureRemote));
+
+        Map<String, String> flagOnRemote = new HashMap<>(insecureRemote);
+        flagOnRemote.put("CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", "true");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(flagOnRemote));
+
+        Map<String, String> local = requiredEnvironment();
+        local.put("CHATROOM_POSTGRES_URL", "jdbc:postgresql://127.0.0.1/chat");
+        local.put("CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", "true");
+        assertTrue(GatewayRuntimeConfig.fromEnvironment(local).postgresAllowInsecureLocal());
+
+        Map<String, String> invalidBoolean = requiredEnvironment();
+        invalidBoolean.put("CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", "TRUE");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(invalidBoolean));
+
+        Map<String, String> embeddedPassword = requiredEnvironment();
+        embeddedPassword.put(
+                "CHATROOM_POSTGRES_URL",
+                "jdbc:postgresql://db.internal/chat?sslmode=verify-full&password=leak");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(embeddedPassword));
+
+        Map<String, String> duplicateMode = requiredEnvironment();
+        duplicateMode.put(
+                "CHATROOM_POSTGRES_URL",
+                "jdbc:postgresql://db.internal/chat?sslmode=verify-full&sslmode=disable");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(duplicateMode));
+    }
+
     private Map<String, String> requiredEnvironment() throws Exception {
         Path certificate = temporary.resolve("certificate.pem");
         Path key = temporary.resolve("private-key.pem");
@@ -119,7 +166,9 @@ class GatewayRuntimeConfigTest {
         Map<String, String> environment = new HashMap<>();
         environment.put("CHATROOM_GATEWAY_TLS_CERTIFICATE", certificate.toString());
         environment.put("CHATROOM_GATEWAY_TLS_PRIVATE_KEY", key.toString());
-        environment.put("CHATROOM_POSTGRES_URL", "jdbc:postgresql://db.internal/chat");
+        environment.put(
+                "CHATROOM_POSTGRES_URL",
+                "jdbc:postgresql://db.internal/chat?sslmode=verify-full");
         environment.put("CHATROOM_POSTGRES_USER", "chat_gateway");
         environment.put("CHATROOM_POSTGRES_PASSWORD", "required-test-password");
         environment.put("CHATROOM_GATEWAY_ALLOWED_HOSTS", "gateway.example.com");

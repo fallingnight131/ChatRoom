@@ -15,7 +15,7 @@ keys, production endpoints, or certificate material.
 | `CHATROOM_GATEWAY_TLS_PRIVATE_KEY` | different readable PEM private-key file |
 | `CHATROOM_GATEWAY_ALLOWED_HOSTS` | comma-separated exact TLS authorities |
 | `CHATROOM_GATEWAY_WEB_ORIGINS` | comma-separated exact HTTPS browser origins |
-| `CHATROOM_POSTGRES_URL` | `jdbc:postgresql://...` URL |
+| `CHATROOM_POSTGRES_URL` | `jdbc:postgresql://...?...sslmode=verify-full` URL |
 | `CHATROOM_POSTGRES_USER` | dedicated least-privilege gateway role |
 | `CHATROOM_POSTGRES_PASSWORD` | non-empty password supplied by secret storage |
 
@@ -40,6 +40,9 @@ filesystem permissions and secret delivery controls.
 | `CHATROOM_GATEWAY_HANDSHAKE_TIMEOUT_SECONDS` | `10` | `1..60` |
 | `CHATROOM_GATEWAY_AUTH_TIMEOUT_SECONDS` | `30` | `1..300` |
 | `CHATROOM_GATEWAY_IDLE_TIMEOUT_SECONDS` | `120` | `30..3600` |
+| `CHATROOM_POSTGRES_POOL_MAXIMUM` | `8` | `1..64` |
+| `CHATROOM_POSTGRES_POOL_MINIMUM_IDLE` | `1` | `0..64`, not above maximum |
+| `CHATROOM_POSTGRES_CONNECTION_TIMEOUT_SECONDS` | `5` | `1..30` |
 | `CHATROOM_GATEWAY_ADMISSION_WINDOW_SECONDS` | `60` | `1..3600` |
 | `CHATROOM_GATEWAY_ATTEMPTS` | `600` | `1..1000000` |
 | `CHATROOM_GATEWAY_PEER_ATTEMPTS` | `60` | `1..100000` |
@@ -49,6 +52,15 @@ filesystem permissions and secret delivery controls.
 The high write-buffer watermark must be strictly greater than the low watermark.
 Crossing it makes a Netty child channel non-writable so later messaging code can
 apply bounded slow-consumer policy rather than accumulating unbounded output.
+
+Remote PostgreSQL URLs must contain exactly one `sslmode=verify-full` query
+property. Credentials belong only in the dedicated secret values and are
+rejected in the URL. For isolated local development, an unencrypted numeric
+loopback URL is accepted only with
+`CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL=true`; DNS names and remote addresses do
+not qualify. The gateway-owned HikariCP pool uses bounded acquisition and
+startup timeouts, validates a connection before listener bind, enables driver
+TCP keepalive, and exports its diagnostics through JDK logging.
 
 If `CHATROOM_GATEWAY_TRUSTED_PROXY_CIDRS` is absent or blank, all forwarding
 headers are ignored and the direct socket peer is authoritative. When set to a

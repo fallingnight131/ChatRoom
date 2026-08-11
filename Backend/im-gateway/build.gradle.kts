@@ -10,8 +10,13 @@ java {
 
 dependencies {
     implementation(project(":application"))
+    implementation(project(":identity-crypto"))
+    implementation(project(":persistence-postgres"))
     implementation(project(":protocol-v2"))
+    implementation(libs.hikari)
     implementation(libs.netty.codec.http)
+    runtimeOnly(libs.postgresql)
+    runtimeOnly(libs.slf4j.jdk14)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

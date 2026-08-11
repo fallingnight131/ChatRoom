@@ -237,7 +237,9 @@ endpoints, including Windows requests that carry no browser Origin.
 The `im-gateway` runtime package now centralizes strict environment parsing with
 numeric listener addresses, loopback-only administration, required TLS/database
 material, bounded workers/queues/timeouts/connections/write buffers, and no
-secret-bearing string form. `GatewayMain` still does not connect or bind.
+secret-bearing string form. Its PostgreSQL boundary now requires verified remote
+TLS and defines a bounded fail-fast HikariCP pool; `GatewayMain` still does not
+construct the pool, connect, or bind.
 
 The application identity module now also owns a transport-independent session
 resume command and atomic-rotation persistence port. The command destroys its

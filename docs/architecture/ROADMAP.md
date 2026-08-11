@@ -316,6 +316,9 @@ Progress:
     parsing, connection cap, write watermarks, upgrade deadline, ordered policy
     handlers, real loopback upgrade tests, and deterministic shutdown without
     activating `GatewayMain`.
+  - [x] Add a bounded fail-fast PostgreSQL connection-pool boundary with remote
+    `verify-full` TLS enforcement and an explicit numeric-loopback-only local
+    development exception.
   - [ ] Attach metrics to the deployment scrape/registry path and define trusted
     proxy configuration in the runtime composition root/HTTP upgrade handler
     before enabling the IM listener; replace/coordinate limits through Redis

@@ -105,7 +105,9 @@ class V2GatewayServerTest {
         environment.put("CHATROOM_GATEWAY_PORT", Integer.toString(port));
         environment.put("CHATROOM_GATEWAY_TLS_CERTIFICATE", certificate.toString());
         environment.put("CHATROOM_GATEWAY_TLS_PRIVATE_KEY", key.toString());
-        environment.put("CHATROOM_POSTGRES_URL", "jdbc:postgresql://db.internal/chat");
+        environment.put(
+                "CHATROOM_POSTGRES_URL",
+                "jdbc:postgresql://db.internal/chat?sslmode=verify-full");
         environment.put("CHATROOM_POSTGRES_USER", "chat_gateway");
         environment.put("CHATROOM_POSTGRES_PASSWORD", "required-test-password");
         environment.put("CHATROOM_GATEWAY_ALLOWED_HOSTS", "127.0.0.1:" + port);

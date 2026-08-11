@@ -113,7 +113,10 @@ single-request ownership before upgrade.
 Runtime configuration tests use temporary placeholder TLS files and prove all
 critical settings validate before bind, admin stays loopback, DNS names are not
 resolved for listener addresses, unsafe/missing values fail, and configured
-passwords do not appear in object text. Listener integration tests use an
+passwords do not appear in object text. They also prove remote PostgreSQL
+`verify-full` enforcement, the explicit numeric-loopback development exception,
+bounded pool settings, duplicate/embedded-credential rejection, and secret-safe
+pool text without opening a database connection. Listener integration tests use an
 ephemeral loopback port and test-only certificate to prove a real TLS handshake,
 `chat.v2` 101 upgrade, missing-subprotocol 400 rejection, connection limiting,
 upgrade timeout, and deterministic shutdown. This is local transport evidence,
