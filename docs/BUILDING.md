@@ -158,7 +158,9 @@ delivery, and read semantics remain unimplemented.
 The same real-database gate verifies the transport-independent conversation
 directory: group/direct labels, role and sequence projection, stable composite-
 cursor paging, left-membership filtering, and disabled-account denial. Its wire
-command is a later slice.
+command is now composed in the real runtime. Embedded-channel tests separately
+prove server-bound account identity, bounded response projection, serial command
+execution, safe dependency failure, and fixed directory-page telemetry.
 Pure migration-planner tests also verify deterministic V1 user-ID mapping,
 order-independent source fingerprints, supported credential generations, full
 plan blocking on invalid/duplicate/empty input, and non-secret issue reporting.

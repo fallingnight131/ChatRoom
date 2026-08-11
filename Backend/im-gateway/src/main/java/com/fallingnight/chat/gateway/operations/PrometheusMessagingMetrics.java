@@ -13,6 +13,7 @@ public final class PrometheusMessagingMetrics {
         counter(output, "accepted", snapshot.accepted());
         counter(output, "duplicate", snapshot.duplicates());
         counter(output, "history_page", snapshot.historyPages());
+        counter(output, "directory_page", snapshot.directoryPages());
         counter(output, "denied", snapshot.denied());
         counter(output, "conflict", snapshot.conflicts());
         counter(output, "saturated", snapshot.saturated());

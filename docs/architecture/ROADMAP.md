@@ -336,6 +336,8 @@ Progress:
       pressure gauges through the loopback metrics endpoint.
     - [x] Permanently allocate the bounded composite-cursor V2 conversation
       directory request/page and prove Java/C++/TypeScript compatibility.
+    - [x] Dispatch the authenticated directory through the PostgreSQL adapter in
+      the connection-local serial command queue with safe failures and telemetry.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

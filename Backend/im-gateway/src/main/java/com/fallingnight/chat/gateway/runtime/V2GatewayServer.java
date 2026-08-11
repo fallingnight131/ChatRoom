@@ -1,6 +1,7 @@
 package com.fallingnight.chat.gateway.runtime;
 
 import com.fallingnight.chat.application.identity.AuthenticationUseCase;
+import com.fallingnight.chat.application.conversation.ConversationDirectoryPort;
 import com.fallingnight.chat.application.identity.SessionResumeUseCase;
 import com.fallingnight.chat.application.messaging.MessageHistoryPort;
 import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
@@ -58,6 +59,7 @@ public final class V2GatewayServer implements AutoCloseable {
     private final SessionResumeUseCase sessionResume;
     private final MessageSubmissionPort submissions;
     private final MessageHistoryPort history;
+    private final ConversationDirectoryPort directory;
     private final Executor authenticationExecutor;
     private final Executor messagingExecutor;
     private final AuthenticationAdmissionControl admission;
@@ -77,6 +79,7 @@ public final class V2GatewayServer implements AutoCloseable {
             SessionResumeUseCase sessionResume,
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
+            ConversationDirectoryPort directory,
             Executor authenticationExecutor,
             Executor messagingExecutor,
             AuthenticationAdmissionControl admission,
@@ -88,6 +91,7 @@ public final class V2GatewayServer implements AutoCloseable {
                 sessionResume,
                 submissions,
                 history,
+                directory,
                 authenticationExecutor,
                 messagingExecutor,
                 admission,
@@ -102,6 +106,7 @@ public final class V2GatewayServer implements AutoCloseable {
             SessionResumeUseCase sessionResume,
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
+            ConversationDirectoryPort directory,
             Executor authenticationExecutor,
             Executor messagingExecutor,
             AuthenticationAdmissionControl admission,
@@ -113,6 +118,7 @@ public final class V2GatewayServer implements AutoCloseable {
         this.sessionResume = Objects.requireNonNull(sessionResume, "sessionResume");
         this.submissions = Objects.requireNonNull(submissions, "submissions");
         this.history = Objects.requireNonNull(history, "history");
+        this.directory = Objects.requireNonNull(directory, "directory");
         this.authenticationExecutor = Objects.requireNonNull(
                 authenticationExecutor, "authenticationExecutor");
         this.messagingExecutor = Objects.requireNonNull(messagingExecutor, "messagingExecutor");
@@ -217,6 +223,7 @@ public final class V2GatewayServer implements AutoCloseable {
                 sessionResume,
                 submissions,
                 history,
+                directory,
                 authenticationExecutor,
                 messagingExecutor,
                 admission,

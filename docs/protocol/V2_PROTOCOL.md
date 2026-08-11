@@ -101,7 +101,10 @@ display name, caller role, latest sequence, caller read sequence, and update
 time. A nonempty page repeats its last row as the next cursor; an empty page has
 no cursor. This cursor supports bounded directory browsing only. Missing-message
 recovery still uses each conversation's contiguous sequence, never directory
-timestamps. Types 110/111 are not dispatched by the gateway yet.
+timestamps. The authenticated gateway dispatches type 110 through the same
+connection-local serial queue and isolated worker pool as message submission and
+history, using only the server-bound account identity. No supported client sends
+this pre-cutover command yet.
 
 `ClientHello` declares a minimum/maximum protocol generation, Web or Windows
 platform, app version, and client-device ID. App version is limited to 64 UTF-8

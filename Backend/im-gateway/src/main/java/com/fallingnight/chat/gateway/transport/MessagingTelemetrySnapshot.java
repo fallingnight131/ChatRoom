@@ -5,6 +5,7 @@ public record MessagingTelemetrySnapshot(
         long accepted,
         long duplicates,
         long historyPages,
+        long directoryPages,
         long denied,
         long conflicts,
         long saturated,

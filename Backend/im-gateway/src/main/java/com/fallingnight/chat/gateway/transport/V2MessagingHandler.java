@@ -1,5 +1,10 @@
 package com.fallingnight.chat.gateway.transport;
 
+import com.fallingnight.chat.application.conversation.ConversationDirectoryCursor;
+import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
+import com.fallingnight.chat.application.conversation.ConversationDirectoryPort;
+import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
+import com.fallingnight.chat.application.conversation.ConversationSummary;
 import com.fallingnight.chat.application.messaging.MessageHistoryPort;
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
@@ -8,6 +13,9 @@ import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.protocol.v2.Envelope;
+import com.fallingnight.chat.protocol.v2.ConversationDirectoryRecord;
+import com.fallingnight.chat.protocol.v2.ConversationPayloadPolicy;
+import com.fallingnight.chat.protocol.v2.ListConversations;
 import com.fallingnight.chat.protocol.v2.EnvelopePolicy;
 import com.fallingnight.chat.protocol.v2.MessageAccepted;
 import com.fallingnight.chat.protocol.v2.MessageHistoryPage;
@@ -25,18 +33,21 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 
-/** Serializes authenticated message database work per connection off the event loop. */
+/** Serializes authenticated conversation/message database work off the event loop. */
 public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelope> {
     static final int MAX_PENDING_COMMANDS = 16;
 
     private final MessageSubmissionPort submissions;
     private final MessageHistoryPort history;
+    private final ConversationDirectoryPort directory;
     private final Executor executor;
     private final MessagingEventSink events;
     private final Clock clock;
@@ -66,14 +77,35 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
         this(submissions, history, executor, events, Clock.systemUTC());
     }
 
+    public V2MessagingHandler(
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            Executor executor,
+            MessagingEventSink events) {
+        this(submissions, history, directory, executor, events, Clock.systemUTC());
+    }
+
     V2MessagingHandler(
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
             Executor executor,
             MessagingEventSink events,
             Clock clock) {
+        this(submissions, history, query -> new ConversationDirectoryPage(
+                java.util.List.of(), Optional.empty(), false), executor, events, clock);
+    }
+
+    V2MessagingHandler(
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            Executor executor,
+            MessagingEventSink events,
+            Clock clock) {
         this.submissions = Objects.requireNonNull(submissions, "submissions");
         this.history = Objects.requireNonNull(history, "history");
+        this.directory = Objects.requireNonNull(directory, "directory");
         this.executor = Objects.requireNonNull(executor, "executor");
         this.events = Objects.requireNonNull(events, "events");
         this.clock = Objects.requireNonNull(clock, "clock");
@@ -92,7 +124,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
         }
         MessageType type = MessageTypeRegistry.find(envelope.getMessageType()).orElse(null);
         if (type != MessageType.MESSAGE_TYPE_SUBMIT_MESSAGE
-                && type != MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY) {
+                && type != MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY
+                && type != MessageType.MESSAGE_TYPE_LIST_CONVERSATIONS) {
             writeError(
                     context,
                     envelope,
@@ -181,28 +214,40 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     payload.getContentType(),
                     payload.getContent().toByteArray()));
         }
-        ReadMessageHistory payload = ReadMessageHistory.parseFrom(envelope.getPayload());
-        MessagingPayloadPolicy.requireValid(payload);
-        return new HistoryWork(new MessageHistoryQuery(
-                UUID.fromString(payload.getConversationId()),
-                identity.accountId(),
-                payload.getAfterSequence(),
-                payload.getLimit()));
+        if (type == MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY) {
+            ReadMessageHistory payload = ReadMessageHistory.parseFrom(envelope.getPayload());
+            MessagingPayloadPolicy.requireValid(payload);
+            return new HistoryWork(new MessageHistoryQuery(
+                    UUID.fromString(payload.getConversationId()),
+                    identity.accountId(),
+                    payload.getAfterSequence(),
+                    payload.getLimit()));
+        }
+        ListConversations payload = ListConversations.parseFrom(envelope.getPayload());
+        ConversationPayloadPolicy.requireValid(payload);
+        Optional<ConversationDirectoryCursor> after = payload.getAfterConversationId().isEmpty()
+                ? Optional.empty()
+                : Optional.of(new ConversationDirectoryCursor(
+                        Instant.ofEpochMilli(payload.getAfterUpdatedAtEpochMs()),
+                        UUID.fromString(payload.getAfterConversationId())));
+        return new DirectoryWork(new ConversationDirectoryQuery(
+                identity.accountId(), after, payload.getLimit()));
     }
 
     private void executeOffEventLoop(
             ChannelHandlerContext context, Envelope request, Work work) {
         final Envelope response;
         try {
-            response = work instanceof SubmitWork submit
-                    ? submitResponse(
-                            request,
-                            submit.submission(),
-                            submissions.submit(submit.submission()))
-                    : historyResponse(
-                            request,
-                            ((HistoryWork) work).query(),
-                            history.readAfter(((HistoryWork) work).query()));
+            if (work instanceof SubmitWork submit) {
+                response = submitResponse(
+                        request, submit.submission(), submissions.submit(submit.submission()));
+            } else if (work instanceof HistoryWork read) {
+                response = historyResponse(
+                        request, read.query(), history.readAfter(read.query()));
+            } else {
+                DirectoryWork list = (DirectoryWork) work;
+                response = directoryResponse(request, directory.list(list.query()));
+            }
         } catch (RuntimeException exception) {
             events.failed();
             scheduleCompletion(context, errorEnvelope(
@@ -305,6 +350,42 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 request, MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE, built.toByteString());
     }
 
+    private Envelope directoryResponse(Envelope request, ConversationDirectoryPage page) {
+        com.fallingnight.chat.protocol.v2.ConversationDirectoryPage.Builder payload =
+                com.fallingnight.chat.protocol.v2.ConversationDirectoryPage.newBuilder()
+                        .setHasMore(page.hasMore());
+        for (ConversationSummary summary : page.conversations()) {
+            payload.addConversations(ConversationDirectoryRecord.newBuilder()
+                    .setConversationId(summary.conversationId().toString())
+                    .setKind(switch (summary.kind()) {
+                        case DIRECT -> com.fallingnight.chat.protocol.v2.ConversationKind
+                                .CONVERSATION_KIND_DIRECT;
+                        case GROUP -> com.fallingnight.chat.protocol.v2.ConversationKind
+                                .CONVERSATION_KIND_GROUP;
+                    })
+                    .setDisplayName(summary.displayName())
+                    .setRole(switch (summary.role()) {
+                        case OWNER -> com.fallingnight.chat.protocol.v2.ConversationRole
+                                .CONVERSATION_ROLE_OWNER;
+                        case ADMIN -> com.fallingnight.chat.protocol.v2.ConversationRole
+                                .CONVERSATION_ROLE_ADMIN;
+                        case MEMBER -> com.fallingnight.chat.protocol.v2.ConversationRole
+                                .CONVERSATION_ROLE_MEMBER;
+                    })
+                    .setLatestSequence(summary.latestSequence())
+                    .setLastReadSequence(summary.lastReadSequence())
+                    .setUpdatedAtEpochMs(summary.updatedAt().toEpochMilli()));
+        }
+        page.next().ifPresent(cursor -> payload
+                .setNextUpdatedAtEpochMs(cursor.updatedAt().toEpochMilli())
+                .setNextConversationId(cursor.conversationId().toString()));
+        com.fallingnight.chat.protocol.v2.ConversationDirectoryPage built = payload.build();
+        ConversationPayloadPolicy.requireValid(built);
+        events.directoryPage();
+        return responseEnvelope(request,
+                MessageType.MESSAGE_TYPE_CONVERSATION_DIRECTORY_PAGE, built.toByteString());
+    }
+
     private void writeError(
             ChannelHandlerContext context,
             Envelope request,
@@ -355,4 +436,6 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
     private record SubmitWork(MessageSubmission submission) implements Work {}
 
     private record HistoryWork(MessageHistoryQuery query) implements Work {}
+
+    private record DirectoryWork(ConversationDirectoryQuery query) implements Work {}
 }

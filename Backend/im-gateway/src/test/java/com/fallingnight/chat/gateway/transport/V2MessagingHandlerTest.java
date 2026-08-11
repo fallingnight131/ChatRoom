@@ -6,11 +6,19 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
+import com.fallingnight.chat.application.conversation.ConversationDirectoryCursor;
+import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
+import com.fallingnight.chat.application.conversation.ConversationDirectoryPort;
+import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
+import com.fallingnight.chat.application.conversation.ConversationKind;
+import com.fallingnight.chat.application.conversation.ConversationRole;
+import com.fallingnight.chat.application.conversation.ConversationSummary;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.protocol.v2.Envelope;
+import com.fallingnight.chat.protocol.v2.ListConversations;
 import com.fallingnight.chat.protocol.v2.EnvelopePolicy;
 import com.fallingnight.chat.protocol.v2.MessageAccepted;
 import com.fallingnight.chat.protocol.v2.MessageContentType;
@@ -219,6 +227,60 @@ class V2MessagingHandlerTest {
     }
 
     @Test
+    void listsDirectoryWithServerBoundAccountAndCompositeCursor() throws Exception {
+        AtomicReference<ConversationDirectoryQuery> captured = new AtomicReference<>();
+        Instant updated = Instant.parse("2026-08-12T05:06:07Z");
+        ConversationDirectoryPort directory = query -> {
+            captured.set(query);
+            ConversationSummary summary = new ConversationSummary(
+                    CONVERSATION_ID,
+                    ConversationKind.GROUP,
+                    "Project Room",
+                    ConversationRole.OWNER,
+                    8,
+                    6,
+                    updated);
+            return new ConversationDirectoryPage(
+                    List.of(summary),
+                    java.util.Optional.of(new ConversationDirectoryCursor(
+                            updated, CONVERSATION_ID)),
+                    false);
+        };
+        MessagingTelemetry telemetry = new MessagingTelemetry();
+        EmbeddedChannel channel = channel(
+                submission -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
+                directory,
+                Runnable::run,
+                telemetry);
+        try {
+            ListConversations payload = ListConversations.newBuilder()
+                    .setLimit(25)
+                    .build();
+            channel.writeInbound(commandEnvelope(
+                    MessageType.MESSAGE_TYPE_LIST_CONVERSATIONS,
+                    "",
+                    payload.toByteString()));
+            channel.runPendingTasks();
+
+            assertEquals(ACCOUNT_ID, captured.get().accountId());
+            assertEquals(25, captured.get().limit());
+            Envelope response = channel.readOutbound();
+            assertEquals(MessageType.MESSAGE_TYPE_CONVERSATION_DIRECTORY_PAGE_VALUE,
+                    response.getMessageType());
+            com.fallingnight.chat.protocol.v2.ConversationDirectoryPage page =
+                    com.fallingnight.chat.protocol.v2.ConversationDirectoryPage.parseFrom(
+                            response.getPayload());
+            assertEquals("Project Room", page.getConversations(0).getDisplayName());
+            assertEquals(8, page.getConversations(0).getLatestSequence());
+            assertEquals(CONVERSATION_ID.toString(), page.getNextConversationId());
+            assertEquals(1, telemetry.snapshot().directoryPages());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void preservesPerConnectionOrderAcrossOffloadedDatabaseWork() throws Exception {
         ControllableExecutor executor = new ControllableExecutor();
         ArrayDeque<String> calls = new ArrayDeque<>();
@@ -264,8 +326,24 @@ class V2MessagingHandlerTest {
             com.fallingnight.chat.application.messaging.MessageHistoryPort history,
             Executor executor,
             MessagingEventSink events) {
+        return channel(
+                submissions,
+                history,
+                query -> new ConversationDirectoryPage(
+                        List.of(), java.util.Optional.empty(), false),
+                executor,
+                events);
+    }
+
+    private static EmbeddedChannel channel(
+            com.fallingnight.chat.application.messaging.MessageSubmissionPort submissions,
+            com.fallingnight.chat.application.messaging.MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            Executor executor,
+            MessagingEventSink events) {
         EmbeddedChannel channel = new EmbeddedChannel(
-                new V2MessagingHandler(submissions, history, executor, events, CLOCK));
+                new V2MessagingHandler(
+                        submissions, history, directory, executor, events, CLOCK));
         channel.attr(V2ConnectionAttributes.AUTHENTICATED).set(
                 new AuthenticatedConnection(ACCOUNT_ID, DEVICE_ID, SESSION_ID));
         return channel;

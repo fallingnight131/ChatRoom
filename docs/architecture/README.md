@@ -261,7 +261,10 @@ message-worker active/queue gauges without identity or conversation labels.
 The application/PostgreSQL boundary now also provides a bounded, descending
 composite-cursor directory of only the authenticated account's active
 conversations, including canonical kind, direct-peer or group display name,
-role, sequence high watermark, and read cursor. It is not wired to V2 yet.
+role, sequence high watermark, and read cursor.
+The authenticated gateway now dispatches that directory through the same
+connection-local serial queue and isolated worker pool as message append/history,
+using only server-bound account identity and a fixed outcome counter.
 This remains a pre-cutover path without delivery fan-out, read state,
 conversation discovery, or supported-client use.
 

@@ -6,6 +6,8 @@ public interface MessagingEventSink {
 
     void historyPage();
 
+    void directoryPage();
+
     void denied();
 
     void conflict();
@@ -18,6 +20,7 @@ public interface MessagingEventSink {
         return new MessagingEventSink() {
             @Override public void accepted(boolean duplicate) { }
             @Override public void historyPage() { }
+            @Override public void directoryPage() { }
             @Override public void denied() { }
             @Override public void conflict() { }
             @Override public void saturated() { }

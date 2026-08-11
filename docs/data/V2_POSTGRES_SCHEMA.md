@@ -103,7 +103,9 @@ enabled account. It projects direct peer or group display name, caller role,
 latest sequence, last-read sequence, and database update time. Pages contain at
 most 100 rows ordered by `(updated_at, conversation_id)` descending and carry
 both fields as the next keyset cursor. This directory cursor is for bounded UI
-browsing; message recovery continues to use conversation sequences.
+browsing; message recovery continues to use conversation sequences. The
+authenticated V2 gateway now composes this adapter, but supported clients remain
+on V1 during the additive migration stage.
 
 ## Bounds and indexes
 

@@ -21,6 +21,9 @@ class V2ApplicationPipelineTest {
                     command -> AuthenticationResult.Rejected.INSTANCE,
                     command -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
                     query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
+                    query -> new com.fallingnight.chat.application.conversation
+                            .ConversationDirectoryPage(
+                                    java.util.List.of(), java.util.Optional.empty(), false),
                     Runnable::run,
                     Runnable::run,
                     AuthenticationAdmissionControl.allowAll(),
