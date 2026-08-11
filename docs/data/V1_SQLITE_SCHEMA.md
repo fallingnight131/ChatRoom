@@ -65,6 +65,8 @@ Run `python3 tools/m0_inventory.py --check` to detect table/index inventory drif
 - integer ID, room ID, sender user ID;
 - nullable `client_message_id` and per-room `sequence` added by the reliable
   message migration;
+- nullable `mutation_sequence` records the newer room cursor allocated by an
+  accepted recall while leaving the creation sequence immutable;
 - content and string `content_type`;
 - file name, size, and file ID;
 - `file_cleared` and `clear_reason`;
@@ -76,6 +78,15 @@ Run `python3 tools/m0_inventory.py --check` to detect table/index inventory drif
 - one durable high-watermark row per room;
 - sequence allocation and message insertion share one transaction;
 - the watermark does not move backwards after physical message deletion.
+
+`room_message_deletion_events`
+
+- one durable audit/synchronization row per new administrator delete command;
+- room, operator identity/display-name snapshot, and `client_operation_id`;
+- mode, selected-message JSON or cutoff timestamp, deleted count, and event
+  sequence;
+- currently an expand-phase table under ADR-0020; runtime deletion does not
+  write or replay it until the behavioral phase is enabled.
 
 `files`
 
@@ -100,6 +111,7 @@ Run `python3 tools/m0_inventory.py --check` to detect table/index inventory drif
 
 - friendship ID and sender ID;
 - nullable sender `client_message_id` and per-friendship `sequence`;
+- nullable `mutation_sequence` for replayable recall state;
 - content and string content type;
 - file metadata and recall state;
 - file-cleared state and reason;
@@ -122,13 +134,21 @@ Run `python3 tools/m0_inventory.py --check` to detect table/index inventory drif
 - `idx_messages_room_id_id` on `messages(room_id, id)`;
 - unique partial `idx_messages_room_sequence` on
   `messages(room_id, sequence)`;
+- partial `idx_messages_room_mutation_sequence` on
+  `messages(room_id, mutation_sequence)`;
 - unique partial `idx_messages_sender_client_id` on
   `messages(user_id, client_message_id)`;
+- unique `idx_room_deletion_events_sequence` on
+  `room_message_deletion_events(room_id, sequence)`;
+- unique `idx_room_deletion_events_operator_operation` on
+  `room_message_deletion_events(operator_user_id, client_operation_id)`;
 - `idx_friend_msg_time` on `friend_messages(friendship_id, created_at)`;
 - `idx_friend_messages_friendship_id_id` on
   `friend_messages(friendship_id, id)`;
 - unique partial `idx_friend_messages_friendship_sequence` on
   `friend_messages(friendship_id, sequence)`;
+- partial `idx_friend_messages_mutation_sequence` on
+  `friend_messages(friendship_id, mutation_sequence)`;
 - unique partial `idx_friend_messages_sender_client_id` on
   `friend_messages(sender_id, client_message_id)`;
 - `idx_room_members_user` on `room_members(user_id, room_id)`;
@@ -155,6 +175,7 @@ erDiagram
     rooms ||--o{ room_members : contains
     rooms ||--o{ messages : contains
     rooms ||--o| room_message_sequences : sequences
+    rooms ||--o{ room_message_deletion_events : audits
     users ||--o{ messages : sends
     rooms ||--o{ files : owns
     users ||--o{ files : uploads
@@ -179,20 +200,23 @@ Observed order:
 1. create users, rooms, room members, room messages, files, administrators,
    settings, and avatar tables;
 2. execute several additive alters and default-value backfills;
-3. linearly backfill only room messages with a null sequence in existing-ID
-   order, then create/raise durable room high-watermarks and unique indexes;
+3. linearly backfill room messages with a null sequence and legacy recalled rows
+   with a null mutation sequence in existing-ID order, then create/raise durable
+   room high-watermarks and unique indexes;
 4. add the room read pointer;
 5. create friend request, friendship, direct-message, and friend-file tables;
-6. add friendship read pointers, direct reliable-message columns, sequence
-   backfill/high-watermarks, and unique indexes after friendships exist;
+6. add friendship read pointers, direct reliable-message columns, creation and
+   recall-sequence backfill/high-watermarks, and unique indexes after
+   friendships exist;
 7. expire old files;
 8. mark the manager initialized after the full schema path completes.
 
 `Tests/DatabaseSchemaTest.cpp` verifies that a clean first initialization has all
-required migrated columns/tables, passes `PRAGMA integrity_check`, uses both
-room and friend sequence indexes for resume, and produces the same schema after
-a simulated restart. The V1 reliability integration tests also insert
-intentionally null sequences and prove startup resumes those partial migrations.
+required migrated columns/tables, passes `PRAGMA integrity_check`, uses room,
+friend, recall-mutation, and deletion-event indexes for resume/idempotency, and
+produces the same schema after a simulated restart. The V1 reliability
+integration tests also insert intentionally null sequences and prove startup
+resumes those partial migrations.
 
 ## Retention
 

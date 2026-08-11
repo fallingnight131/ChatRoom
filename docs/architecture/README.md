@@ -213,8 +213,10 @@ The current V1 bridge implements this model for room/direct text and emoji plus
 upgraded Web/Windows upload-finalized attachments: `clientMessageId`, durable
 send acknowledgements, per-room/per-friendship sequence, and `afterSequence`
 history resume are additive fields. Legacy inline attachments, multi-target
-forwarding, replayable recall/delete events, and durable client outboxes remain
-M1/M2 work; this compatibility slice is not the completed V2 model. Web
+forwarding, replayable administrative deletion events, and durable client
+outboxes remain M1/M2 work; room/direct recall is replayable through the shared
+conversation cursor under ADR-0019. This compatibility slice is not the
+completed V2 model. Web
 room/friend uploads and Windows composer uploads now use the
 authorized binary HTTP bridge from ADR-0013. Upgraded Windows multi-target
 forwarding submits server file identity and target conversations under

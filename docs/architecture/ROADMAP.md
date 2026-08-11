@@ -109,6 +109,8 @@ Progress:
   sequence cursor, including reconnect and process-restart recovery.
 - [x] Add stable authorization/rejection/persistence error codes to room and
   direct recall outcomes.
+- [x] Expand the V1 schema with an indexed, idempotency-keyed administrative
+  deletion event table without changing current deletion behavior yet.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

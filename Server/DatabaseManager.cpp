@@ -501,6 +501,28 @@ bool DatabaseManager::initialize() {
         return false;
     }
 
+    if (!q.exec("CREATE TABLE IF NOT EXISTS room_message_deletion_events ("
+                "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "  room_id INTEGER NOT NULL,"
+                "  operator_user_id INTEGER NOT NULL,"
+                "  operator_name TEXT NOT NULL DEFAULT '',"
+                "  client_operation_id TEXT NOT NULL,"
+                "  mode TEXT NOT NULL,"
+                "  message_ids_json TEXT NOT NULL DEFAULT '[]',"
+                "  cutoff_ms INTEGER NOT NULL DEFAULT 0,"
+                "  deleted_count INTEGER NOT NULL DEFAULT 0,"
+                "  sequence INTEGER NOT NULL,"
+                "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
+                "  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE"
+                ")") ||
+        !q.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_room_deletion_events_sequence "
+                "ON room_message_deletion_events(room_id, sequence)") ||
+        !q.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_room_deletion_events_operator_operation "
+                "ON room_message_deletion_events(operator_user_id, client_operation_id)")) {
+        qCritical() << "[DB] 创建房间删除事件表失败:" << q.lastError().text();
+        return false;
+    }
+
     // Expand/migrate deterministically from the durable high watermark. This is
     // restart-safe and never reuses a sequence removed by administration.
     if (!migrateMessageSequences(db, QStringLiteral("messages"),

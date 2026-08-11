@@ -106,6 +106,11 @@ direct messages. Runtime recall transactionally assigns them and sequence
 history exposes `syncSequence = max(sequence, mutationSequence)` as specified by
 ADR-0019.
 
+ADR-0020 has expanded the schema with an indexed
+`room_message_deletion_events` table. It is empty/unused in this phase;
+administrative deletion still physically removes rows and is not yet replayable
+until the transactional behavioral phase is enabled.
+
 ### Direct message
 
 1. `FriendMessageService` resolves and verifies the friendship and command.
@@ -177,7 +182,7 @@ These are recorded for prioritization, not silently fixed by this baseline:
    still add protocol surface and allocation cost when exercised.
 9. **Single-node presence:** session and online-room state cannot route across
     multiple server instances.
-10. **Index coverage:** fifteen explicit indexes cover current history, reconnect,
+10. **Index coverage:** seventeen explicit indexes cover current history, reconnect,
     unread, file quota, contact, idempotency, and sequence-resume paths with
     query-plan/constraint regression, but production-scale latency/write
     amplification still needs workload evidence.
