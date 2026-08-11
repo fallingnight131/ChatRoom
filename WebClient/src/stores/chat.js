@@ -6,15 +6,12 @@ import {
   applyDeletionEvents,
   mergeUniqueMessages,
   reconcileRoomSyncPage,
-  sameStableMessage,
-  syncSequenceOf
+  sameStableMessage
 } from '../messaging/messageReconciliation'
-import { conversationCache } from '../persistence/conversationCache'
 import {
-  applySendAcknowledgement,
-  makeOptimisticMessage,
-  pendingMessagesFor
-} from '../messaging/outbox'
+  ConversationCoordinator,
+  conversationCoordinator
+} from '../messaging/conversationCoordinator'
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -88,7 +85,8 @@ export const useChatStore = defineStore('chat', {
         const account = useUserStore().username
         let cached = null
         try {
-          cached = await conversationCache.load(account, 'room', roomId)
+          cached = await conversationCoordinator.hydrate(
+            account, ConversationCoordinator.room(roomId))
         } catch (error) {
           console.warn('[Cache] unable to load room snapshot:', error)
         }
@@ -98,12 +96,9 @@ export const useChatStore = defineStore('chat', {
           this.roomSyncCursors[roomId] = Number(cached.cursor || 0)
         }
         this._retryPendingRoomMessages()
-        const cursor = Number(this.roomSyncCursors[roomId] || 0)
-        if (this.messages.length > 0 && cursor > 0) {
-          chatWs.requestHistory(roomId, 100, 0, cursor)
-        } else {
-          chatWs.requestHistory(roomId, 50)
-        }
+        conversationCoordinator.requestSync(
+          ConversationCoordinator.room(roomId), this.messages,
+          this.roomSyncCursors[roomId] || 0)
       }
     },
 
@@ -117,8 +112,8 @@ export const useChatStore = defineStore('chat', {
 
     _advanceRoomSyncCursor(roomId, ...items) {
       if (!roomId) return
-      const next = items.reduce((maximum, item) => Math.max(maximum, syncSequenceOf(item)),
-        Number(this.roomSyncCursors[roomId] || 0))
+      const next = conversationCoordinator.advanceCursor(
+        this.roomSyncCursors[roomId] || 0, ...items)
       if (next > 0) this.roomSyncCursors[roomId] = next
     },
 
@@ -126,7 +121,8 @@ export const useChatStore = defineStore('chat', {
       if (!roomId || roomId !== this.currentRoomId || this.isFriendChat) return
       const account = useUserStore().username
       if (!account) return
-      void conversationCache.save(account, 'room', roomId, this.messages,
+      void conversationCoordinator.persist(
+        account, ConversationCoordinator.room(roomId), this.messages,
         this.roomSyncCursors[roomId] || 0).catch(error => {
         console.warn('[Cache] unable to persist room snapshot:', error)
       })
@@ -136,33 +132,29 @@ export const useChatStore = defineStore('chat', {
       const roomId = this.currentRoomId
       if (!roomId) return
       this._retryPendingRoomMessages()
-      const cursor = Number(this.roomSyncCursors[roomId] || 0)
-      if (this.messages.length > 0 && cursor > 0) {
-        chatWs.requestHistory(roomId, 100, 0, cursor)
-      } else {
-        chatWs.requestHistory(roomId, 50)
-      }
+      conversationCoordinator.requestSync(
+        ConversationCoordinator.room(roomId), this.messages,
+        this.roomSyncCursors[roomId] || 0)
     },
 
     sendCurrentRoomMessage(content, contentType = 'text') {
       const roomId = this.currentRoomId
       if (!roomId) return null
       const user = useUserStore()
-      const clientMessageId = chatWs.sendChat(roomId, user.username, content, contentType)
-      this.messages.push(makeOptimisticMessage({
-        roomId, sender: user.username, senderName: user.displayName,
-        content, contentType
-      }, clientMessageId))
+      const message = conversationCoordinator.stage(
+        ConversationCoordinator.room(roomId), user.username, user.displayName,
+        content, contentType)
+      if (!message) return null
+      this.messages.push(message)
       this._persistCurrentRoomSnapshot(roomId)
-      return clientMessageId
+      return message.clientMessageId
     },
 
     _retryPendingRoomMessages() {
       const user = useUserStore()
-      for (const message of pendingMessagesFor(this.messages, user.username)) {
-        chatWs.sendChat(this.currentRoomId, user.username, message.content,
-          message.contentType || 'text', message.clientMessageId)
-      }
+      conversationCoordinator.recoverPending(
+        ConversationCoordinator.room(this.currentRoomId),
+        this.messages, user.username)
     },
 
     // ==================== 聊天室头像 ====================
@@ -449,7 +441,8 @@ export const useChatStore = defineStore('chat', {
         const account = useUserStore().username
         let cached = null
         try {
-          cached = await conversationCache.load(account, 'friend', friendUsername)
+          cached = await conversationCoordinator.hydrate(
+            account, ConversationCoordinator.direct(friendUsername))
         } catch (error) {
           console.warn('[Cache] unable to load direct snapshot:', error)
         }
@@ -459,12 +452,9 @@ export const useChatStore = defineStore('chat', {
           this.friendSyncCursors[friendUsername] = Number(cached.cursor || 0)
         }
         this._retryPendingFriendMessages()
-        const cursor = Number(this.friendSyncCursors[friendUsername] || 0)
-        if (this.friendMessages.length > 0 && cursor > 0) {
-          chatWs.requestFriendHistory(friendUsername, 100, 0, cursor)
-        } else {
-          chatWs.requestFriendHistory(friendUsername, 50)
-        }
+        conversationCoordinator.requestSync(
+          ConversationCoordinator.direct(friendUsername), this.friendMessages,
+          this.friendSyncCursors[friendUsername] || 0)
       }
     },
 
@@ -478,8 +468,8 @@ export const useChatStore = defineStore('chat', {
 
     _advanceFriendSyncCursor(friendUsername, ...items) {
       if (!friendUsername) return
-      const next = items.reduce((maximum, item) => Math.max(maximum, syncSequenceOf(item)),
-        Number(this.friendSyncCursors[friendUsername] || 0))
+      const next = conversationCoordinator.advanceCursor(
+        this.friendSyncCursors[friendUsername] || 0, ...items)
       if (next > 0) this.friendSyncCursors[friendUsername] = next
     },
 
@@ -488,7 +478,8 @@ export const useChatStore = defineStore('chat', {
           friendUsername !== this.currentFriendUsername) return
       const account = useUserStore().username
       if (!account) return
-      void conversationCache.save(account, 'friend', friendUsername, this.friendMessages,
+      void conversationCoordinator.persist(
+        account, ConversationCoordinator.direct(friendUsername), this.friendMessages,
         this.friendSyncCursors[friendUsername] || 0).catch(error => {
         console.warn('[Cache] unable to persist direct snapshot:', error)
       })
@@ -497,7 +488,10 @@ export const useChatStore = defineStore('chat', {
     _removeCachedConversation(kind, conversationId) {
       const account = useUserStore().username
       if (!account) return
-      void conversationCache.remove(account, kind, conversationId).catch(error => {
+      const target = kind === 'room'
+        ? ConversationCoordinator.room(conversationId)
+        : ConversationCoordinator.direct(conversationId)
+      void conversationCoordinator.remove(account, target).catch(error => {
         console.warn('[Cache] unable to remove conversation snapshot:', error)
       })
     },
@@ -505,7 +499,9 @@ export const useChatStore = defineStore('chat', {
     _pruneCachedConversations(kind, allowedConversationIds) {
       const account = useUserStore().username
       if (!account) return
-      void conversationCache.prune(account, kind, allowedConversationIds).catch(error => {
+      void conversationCoordinator.prune(
+        account, kind === 'friend' ? 'direct' : kind,
+        allowedConversationIds).catch(error => {
         console.warn('[Cache] unable to prune conversation snapshots:', error)
       })
     },
@@ -514,47 +510,43 @@ export const useChatStore = defineStore('chat', {
       const friendUsername = this.currentFriendUsername
       if (!this.isFriendChat || !friendUsername) return
       this._retryPendingFriendMessages()
-      const cursor = Number(this.friendSyncCursors[friendUsername] || 0)
-      if (this.friendMessages.length > 0 && cursor > 0) {
-        chatWs.requestFriendHistory(friendUsername, 100, 0, cursor)
-      } else {
-        chatWs.requestFriendHistory(friendUsername, 50)
-      }
+      conversationCoordinator.requestSync(
+        ConversationCoordinator.direct(friendUsername), this.friendMessages,
+        this.friendSyncCursors[friendUsername] || 0)
     },
 
     sendCurrentFriendMessage(content, contentType = 'text') {
       const friendUsername = this.currentFriendUsername
       if (!this.isFriendChat || !friendUsername) return null
       const user = useUserStore()
-      const clientMessageId = chatWs.sendFriendChat(friendUsername, content, contentType)
-      this.friendMessages.push(makeOptimisticMessage({
-        sender: user.username, senderName: user.displayName,
-        friendUsername, content, contentType
-      }, clientMessageId))
+      const message = conversationCoordinator.stage(
+        ConversationCoordinator.direct(friendUsername), user.username,
+        user.displayName, content, contentType)
+      if (!message) return null
+      this.friendMessages.push(message)
       this._persistCurrentFriendSnapshot(friendUsername)
-      return clientMessageId
+      return message.clientMessageId
     },
 
     _retryPendingFriendMessages() {
       const user = useUserStore()
-      for (const message of pendingMessagesFor(this.friendMessages, user.username)) {
-        chatWs.sendFriendChat(this.currentFriendUsername, message.content,
-          message.contentType || 'text', message.clientMessageId)
-      }
+      conversationCoordinator.recoverPending(
+        ConversationCoordinator.direct(this.currentFriendUsername),
+        this.friendMessages, user.username)
     },
 
     retryMessage(message) {
       if (!message?.clientMessageId) return
-      message.deliveryState = 'sending'
-      message.errorCode = ''
+      const user = useUserStore()
       if (this.isFriendChat) {
-        chatWs.sendFriendChat(this.currentFriendUsername, message.content,
-          message.contentType || 'text', message.clientMessageId)
+        conversationCoordinator.retry(
+          ConversationCoordinator.direct(this.currentFriendUsername),
+          message, user.username)
         this._persistCurrentFriendSnapshot()
       } else {
-        const user = useUserStore()
-        chatWs.sendChat(this.currentRoomId, user.username, message.content,
-          message.contentType || 'text', message.clientMessageId)
+        conversationCoordinator.retry(
+          ConversationCoordinator.room(this.currentRoomId),
+          message, user.username)
         this._persistCurrentRoomSnapshot()
       }
     },
@@ -749,7 +741,7 @@ export const useChatStore = defineStore('chat', {
 
       chatWs.on(MsgType.CHAT_SEND_RSP, (msg) => {
         const d = msg.data
-        const pending = applySendAcknowledgement(this.messages, d)
+        const pending = conversationCoordinator.acknowledge(this.messages, d)
         if (pending && d.success) {
           this._advanceRoomSyncCursor(d.roomId, d)
           this._persistCurrentRoomSnapshot(d.roomId)
@@ -1312,7 +1304,7 @@ export const useChatStore = defineStore('chat', {
 
       chatWs.on(MsgType.FRIEND_CHAT_SEND_RSP, (msg) => {
         const d = msg.data
-        const pending = applySendAcknowledgement(this.friendMessages, d)
+        const pending = conversationCoordinator.acknowledge(this.friendMessages, d)
         if (pending && d.success) {
           this._advanceFriendSyncCursor(d.friendUsername, d)
           this._persistCurrentFriendSnapshot(d.friendUsername)

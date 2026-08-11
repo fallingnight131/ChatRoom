@@ -168,6 +168,10 @@ Progress:
   retry, accepted/failed presentation, and explicit same-key manual retry.
 - [ ] Extract synchronization/outbox orchestration from the large chat store and
   extend optimistic behavior to restartable attachments.
+  - [x] Move room/direct cache, cursor, sync-request, optimistic command, retry,
+    and ACK policy into a transport/cache-injected Web conversation coordinator.
+  - [ ] Add a restartable Web attachment command model that handles browser file
+    handle permissions, source revision, fresh authorization, and cleanup.
 - [x] Establish the Windows SQLite conversation repository with versioned
   schema, account isolation, bounded message metadata, cursor/draft fields,
   pruning, restart tests, and a newer-schema refusal gate.
