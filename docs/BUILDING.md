@@ -107,6 +107,10 @@ platform matching. The policy does not enable a listener.
 Host-policy tests verify one exact configured TLS authority, default-port/case
 normalization, IPv6/non-default ports, missing/duplicate/hostile rejection, and
 single-request ownership before upgrade.
+Runtime configuration tests use temporary placeholder TLS files and prove all
+critical settings validate before bind, admin stays loopback, DNS names are not
+resolved for listener addresses, unsafe/missing values fail, and configured
+passwords do not appear in object text. Placeholder files are not TLS evidence.
 Gateway resume tests verify bounded off-event-loop dispatch, rotated proof
 delivery, server-side identity binding, secret cleanup, generic invalid-proof
 rejection, and gateway/direct-peer admission without creating a fake account

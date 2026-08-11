@@ -229,6 +229,10 @@ HTTPS allowlist for Web Origin, forbids Origin on the Windows route, and binds
 that choice to the later `ClientHello.platform`; runtime installation and TLS
 remain prerequisites. A separate exact Host authority allowlist protects both
 endpoints, including Windows requests that carry no browser Origin.
+The `im-gateway` runtime package now centralizes strict environment parsing with
+numeric listener addresses, loopback-only administration, required TLS/database
+material, bounded workers/queues/timeouts, and no secret-bearing string form. It
+does not connect or bind yet.
 
 The application identity module now also owns a transport-independent session
 resume command and atomic-rotation persistence port. The command destroys its

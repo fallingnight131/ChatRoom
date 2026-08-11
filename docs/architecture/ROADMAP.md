@@ -306,6 +306,9 @@ Progress:
     allowlist, and bind the endpoint platform to `ClientHello`.
   - [x] Require one exact configured TLS Host authority before either product
     endpoint can upgrade.
+  - [x] Centralize fail-before-bind environment validation for TLS material,
+    PostgreSQL secrets, endpoints, proxy mode, workers, queues, timeouts, and
+    abuse-control bounds.
   - [ ] Attach metrics to the deployment scrape/registry path and define trusted
     proxy configuration in the runtime composition root/HTTP upgrade handler
     before enabling the IM listener; replace/coordinate limits through Redis
