@@ -2,6 +2,7 @@
 #include "chat/v2/control.pb.h"
 #include "chat/v2/authentication.pb.h"
 #include "chat/v2/messaging.pb.h"
+#include "chat/v2/conversation.pb.h"
 
 #include <cstdint>
 #include <iostream>
@@ -19,6 +20,9 @@ constexpr char kAuthenticateGoldenHex[] =
 constexpr char kSubmitMessageGoldenHex[] =
     "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
     "10011a026869";
+constexpr char kListConversationsGoldenHex[] =
+    "0880d095ffbc31122430303030303030302d303030302d303030302d303030302d"
+    "3030303030303030303030321819";
 
 int hexDigit(char value) {
     if (value >= '0' && value <= '9') return value - '0';
@@ -92,6 +96,16 @@ int main() {
             || submit.content() != "hi"
             || submit.SerializeAsString() != submitGolden) {
         std::cerr << "generated C++ binding changed the SubmitMessage golden payload\n";
+        return 1;
+    }
+    const std::string listGolden = fromHex(kListConversationsGoldenHex);
+    chat::v2::ListConversations list;
+    if (!list.ParseFromString(listGolden)
+            || list.after_updated_at_epoch_ms() != INT64_C(1700000000000)
+            || list.after_conversation_id() != "00000000-0000-0000-0000-000000000002"
+            || list.limit() != 25
+            || list.SerializeAsString() != listGolden) {
+        std::cerr << "generated C++ binding changed the ListConversations golden payload\n";
         return 1;
     }
     return 0;

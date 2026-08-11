@@ -62,6 +62,8 @@ reused:
 | 101 | `MessageAccepted` | response | server to submitting client after durable commit |
 | 102 | `ReadMessageHistory` | command | authenticated client to server; forward sequence page |
 | 103 | `MessageHistoryPage` | response | server to requesting active member |
+| 110 | `ListConversations` | command | authenticated client to server; bounded directory page |
+| 111 | `ConversationDirectoryPage` | response | server to authenticated active member |
 
 `SubmitMessage` carries a canonical conversation UUID and a registered content
 type. Content type 1 is permanently assigned to nonempty valid UTF-8 text with a
@@ -91,6 +93,15 @@ expected business denial nor retryable failure closes the authenticated
 connection. This is an additive pre-cutover path: no supported client sends V2
 product traffic yet, and delivery/read/fan-out are not implemented by these four
 types.
+
+`ListConversations` uses a limit of 1..100 and either no cursor or the complete
+pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are
+ordered by that server-owned pair descending and expose canonical kind, bounded
+display name, caller role, latest sequence, caller read sequence, and update
+time. A nonempty page repeats its last row as the next cursor; an empty page has
+no cursor. This cursor supports bounded directory browsing only. Missing-message
+recovery still uses each conversation's contiguous sequence, never directory
+timestamps. Types 110/111 are not dispatched by the gateway yet.
 
 `ClientHello` declares a minimum/maximum protocol generation, Web or Windows
 platform, app version, and client-device ID. App version is limited to 64 UTF-8

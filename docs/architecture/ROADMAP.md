@@ -334,6 +334,8 @@ Progress:
       independently configured bounded worker pool and reverse-order ownership.
     - [x] Export fixed-cardinality message outcome counters and bounded-worker
       pressure gauges through the loopback metrics endpoint.
+    - [x] Permanently allocate the bounded composite-cursor V2 conversation
+      directory request/page and prove Java/C++/TypeScript compatibility.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

@@ -37,6 +37,7 @@ add_executable(
   EnvelopeCompatibilityTest.cpp
   "${GENERATED_ROOT}/chat/v2/authentication.pb.cc"
   "${GENERATED_ROOT}/chat/v2/control.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/conversation.pb.cc"
   "${GENERATED_ROOT}/chat/v2/envelope.pb.cc"
   "${GENERATED_ROOT}/chat/v2/messaging.pb.cc"
 )
