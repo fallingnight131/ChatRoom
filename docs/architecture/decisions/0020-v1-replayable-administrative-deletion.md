@@ -23,7 +23,7 @@ the current response and live notification shapes.
 - Add `room_message_deletion_events` as durable SQL truth for new
   administrative deletion operations. It records the room, operator ID and
   display-name snapshot, `clientOperationId`, mode, selected IDs or cutoff,
-  deleted count, event sequence, and creation time.
+  deleted message/file IDs, deleted count, event sequence, and creation time.
 - Allocate one event sequence from the existing room high watermark in the same
   transaction that persists the event and physically deletes the selected
   message rows. Message creation, recall mutations, and deletion events share
@@ -33,7 +33,8 @@ the current response and live notification shapes.
   notification. Reusing the key with different command parameters is rejected.
 - Extend sequence history compatibly with an optional `events` array. Each
   deletion event exposes `eventType: "messagesDeleted"`, `syncSequence`, mode,
-  selected message IDs or cutoff, deleted count, and operator display name.
+  selected message IDs or cutoff, deleted file IDs, deleted count, and operator
+  display name.
   `nextSequence` advances across both messages and events.
 - Updated Web and Windows clients apply deletion events idempotently to current
   state. Old clients ignore `events` but retain existing online

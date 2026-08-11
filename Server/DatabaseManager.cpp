@@ -509,6 +509,7 @@ bool DatabaseManager::initialize() {
                 "  client_operation_id TEXT NOT NULL,"
                 "  mode TEXT NOT NULL,"
                 "  message_ids_json TEXT NOT NULL DEFAULT '[]',"
+                "  file_ids_json TEXT NOT NULL DEFAULT '[]',"
                 "  cutoff_ms INTEGER NOT NULL DEFAULT 0,"
                 "  deleted_count INTEGER NOT NULL DEFAULT 0,"
                 "  sequence INTEGER NOT NULL,"
@@ -520,6 +521,13 @@ bool DatabaseManager::initialize() {
         !q.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_room_deletion_events_operator_operation "
                 "ON room_message_deletion_events(operator_user_id, client_operation_id)")) {
         qCritical() << "[DB] 创建房间删除事件表失败:" << q.lastError().text();
+        return false;
+    }
+    if (!ensureColumn(db, QStringLiteral("room_message_deletion_events"),
+                      QStringLiteral("file_ids_json"),
+                      QStringLiteral("TEXT NOT NULL DEFAULT '[]'"))) {
+        qCritical() << "[DB] 扩展房间删除事件文件列失败:"
+                    << db.lastError().text();
         return false;
     }
 

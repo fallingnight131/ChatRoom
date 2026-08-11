@@ -206,6 +206,7 @@ int main(int argc, char *argv[]) {
                           QStringLiteral("client_operation_id"),
                           QStringLiteral("mode"),
                           QStringLiteral("message_ids_json"),
+                          QStringLiteral("file_ids_json"),
                           QStringLiteral("cutoff_ms"),
                           QStringLiteral("deleted_count"),
                           QStringLiteral("sequence"),

@@ -83,8 +83,8 @@ Run `python3 tools/m0_inventory.py --check` to detect table/index inventory drif
 
 - one durable audit/synchronization row per new administrator delete command;
 - room, operator identity/display-name snapshot, and `client_operation_id`;
-- mode, selected-message JSON or cutoff timestamp, deleted count, and event
-  sequence;
+- mode, deleted-message/file ID JSON, cutoff timestamp, deleted count, and
+  event sequence;
 - currently an expand-phase table under ADR-0020; runtime deletion does not
   write or replay it until the behavioral phase is enabled.
 

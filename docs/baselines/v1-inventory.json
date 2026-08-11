@@ -240,7 +240,7 @@
   "sources": {
     "database_schema": {
       "path": "Server/DatabaseManager.cpp",
-      "sha256": "01ed9ea49e3323ef4bf71b993739a146830904f3b3a69b3845d7d45e9bff5659"
+      "sha256": "9c4122d7dab5339b643ad64c49f773fca33c3a1563625d89edb6033b26bb6073"
     },
     "protocol": {
       "path": "Common/Protocol.h",
