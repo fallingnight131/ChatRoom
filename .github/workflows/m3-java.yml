@@ -1,0 +1,31 @@
+name: Java V2 Baseline
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+          cache-dependency-path: |
+            Backend/*.gradle.kts
+            Backend/gradle/libs.versions.toml
+            Backend/**/build.gradle.kts
+
+      - name: Verify Java V2 workspace
+        run: python3 tools/verify_m0.py --java

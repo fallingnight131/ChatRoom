@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run repeatable M0 inventory, web, and optional Qt build verification."""
+"""Run repeatable repository inventory and product build verification."""
 
 from __future__ import annotations
 
@@ -40,6 +40,14 @@ def verify_web(skip_install: bool) -> None:
         run([npm, "ci"], web)
     run([npm, "test"], web)
     run([npm, "run", "build"], web)
+
+
+def verify_java() -> None:
+    backend = ROOT / "Backend"
+    wrapper = backend / ("gradlew.bat" if os.name == "nt" else "gradlew")
+    if not wrapper.exists():
+        raise RuntimeError(f"Gradle wrapper not found: {wrapper}")
+    run([str(wrapper), "--no-daemon", "check"], backend)
 
 
 def select_make(qmake: str) -> tuple[str, bool]:
@@ -237,10 +245,11 @@ def verify_qt(jobs: int, build_root: Path) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Check the V1 inventory and optionally build web and Qt targets."
+        description="Check the repository inventory and optionally build product targets."
     )
     parser.add_argument("--web", action="store_true", help="run npm ci and the web production build")
     parser.add_argument("--qt", action="store_true", help="generate and compile Qt server/client release builds")
+    parser.add_argument("--java", action="store_true", help="compile and test the Java V2 workspace")
     parser.add_argument(
         "--db-schema",
         action="store_true",
@@ -264,7 +273,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--all",
         action="store_true",
-        help="run inventory, web, database schema, password hash, V1 smoke, performance, and Qt verification",
+        help="run inventory, Web, Java, database schema, password hash, V1 smoke, performance, and Qt verification",
     )
     parser.add_argument("--skip-npm-ci", action="store_true", help="reuse installed web dependencies")
     parser.add_argument("--jobs", type=int, default=max(1, min(os.cpu_count() or 1, 4)))
@@ -292,6 +301,8 @@ def main() -> int:
     verify_inventory()
     if args.web or args.all:
         verify_web(args.skip_npm_ci)
+    if args.java or args.all:
+        verify_java()
     if args.db_schema or args.all:
         verify_database_schema(args.jobs, build_root)
     if args.password_hash or args.all:
@@ -314,6 +325,7 @@ def main() -> int:
         verify_qt(args.jobs, build_root)
     if not (
         args.web
+        or args.java
         or args.db_schema
         or args.password_hash
         or args.v1_smoke
@@ -323,7 +335,7 @@ def main() -> int:
     ):
         print(
             "[M0] inventory-only verification complete; "
-            "use --web, --db-schema, --password-hash, --v1-smoke, --performance, "
+            "use --web, --java, --db-schema, --password-hash, --v1-smoke, --performance, "
             "--qt, or --all "
             "for builds/tests"
         )

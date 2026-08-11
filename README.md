@@ -61,7 +61,7 @@
 
 | 组件 | 技术 |
 |------|------|
-| 语言 | C++17 / JavaScript (ES2020+) |
+| 语言 | C++17 / Java 21 / JavaScript (ES2020+) |
 | GUI 框架 | Qt 6.11.1 (Widgets) |
 | Web 框架 | Vue 3 + Vite 5 + Pinia + Vue Router |
 | 视频播放 | DPlayer 1.27 |

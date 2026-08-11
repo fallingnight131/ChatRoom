@@ -55,6 +55,13 @@ WebClient/dist/
 WebClient/.vite/
 WebClient/*.local
 
+# ========== Java / Gradle 后端 ==========
+.gradle/
+**/.gradle/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/gradle/wrapper/gradle-wrapper.jar
+
 # ========== Python 验证工具 ==========
 __pycache__/
 *.py[cod]

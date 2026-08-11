@@ -261,9 +261,15 @@ Exit criteria:
 
 Goal: introduce the target Java platform without a big-bang cutover.
 
+Progress:
+
+- [x] Establish the checksum-pinned Gradle 8.14.3/JDK 21 multi-module workspace,
+  inward dependency boundaries, warning-clean tests, and an independent CI gate.
+
 Work:
 
-- create a Gradle multi-module Java workspace;
+- create a Gradle multi-module Java workspace (foundation complete; domain
+  modules are extracted with vertical slices);
 - implement the V2 envelope and generated Java/C++/TypeScript schemas;
 - build the Netty gateway and modular application core;
 - introduce PostgreSQL schema and repeatable migrations;

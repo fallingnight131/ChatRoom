@@ -47,6 +47,27 @@ Windows product verification and non-product Qt portability builds run through
 distinction between product and development hosts are documented in
 `docs/architecture/SUPPORT_MATRIX.md`.
 
+## Java V2 Backend
+
+The additive M3 workspace requires JDK 21. It carries its own checksum-pinned
+Gradle Wrapper, so a system Gradle installation is not required:
+
+```bash
+python3 tools/verify_m0.py --java
+```
+
+Equivalently, run `./gradlew --no-daemon check` from `Backend/`. On a macOS
+development host with multiple JDKs, select JDK 21 explicitly when needed:
+
+```bash
+JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
+  python3 tools/verify_m0.py --java
+```
+
+`.github/workflows/m3-java.yml` runs the same gate on Ubuntu with Temurin 21.
+The Java workspace is not yet on the production traffic or data path; the C++
+V1 verification remains required during the compatibility window.
+
 ## Server Password Hashing Dependency
 
 All server and database test targets require libsodium. The macOS and Ubuntu
@@ -252,10 +273,10 @@ make a local build appear successful.
 python3 tools/verify_m0.py --all
 ```
 
-The full command includes inventory, Web, SQLite schema, V1 smoke, and both Qt
-source targets. It is expected to fail when a required compiler, Qt module, or
-host SDK is unavailable. Report that environment limitation and retain the
-successful component results. On non-Windows hosts this is local
+The full command includes inventory, Web, Java, SQLite schema, V1 smoke, and
+both Qt source targets. It is expected to fail when a required compiler, JDK,
+Qt module, or host SDK is unavailable. Report that environment limitation and
+retain the successful component results. On non-Windows hosts this is local
 development/portability verification, not a supported desktop release gate.
 
 ## Windows Notes
