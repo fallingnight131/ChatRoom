@@ -7,8 +7,10 @@ import {
   MAX_DRAFT_LENGTH,
   conversationCacheKey,
   makeConversationRecord,
+  normalizeV2Sequence,
   sanitizeCachedMessage,
-  sanitizeConversationRecord
+  sanitizeConversationRecord,
+  sanitizeV2ConversationRecord
 } from '../src/persistence/conversationCache.js'
 
 function requestWith(executor) {
@@ -158,4 +160,80 @@ test('persists bounded drafts without losing cached messages', async () => {
   assert.equal(loaded.draft.length, MAX_DRAFT_LENGTH)
   await cache.saveDraft('alice', 'room', 7, '')
   assert.equal(await cache.loadDraft('alice', 'room', 7), '')
+})
+
+test('preserves exact V2 sequences without persisting secrets or media bytes', () => {
+  const record = sanitizeV2ConversationRecord({
+    accountId: 'account-1',
+    conversationId: 'conversation-1',
+    cursorSequence: '9007199254740993',
+    token: 'secret',
+    messages: [
+      ...Array.from({ length: MAX_CACHED_MESSAGES }, (_, index) => ({
+        id: `old-${index}`, sequence: String(index), content: 'old'
+      })),
+      {
+      conversationId: 'conversation-1',
+      id: 'message-1',
+      clientMessageId: 'client-1',
+      senderAccountId: 'account-1',
+      senderDeviceId: 'device-1',
+      sequence: 9007199254740995n,
+      acceptedAtEpochMs: 1700000000000,
+      content: 'hello',
+      contentType: 'text',
+      deliveryState: 'accepted',
+      resumeToken: 'secret',
+      bytes: new Uint8Array([1])
+      }
+    ]
+  })
+  assert.equal(record.messages.length, MAX_CACHED_MESSAGES)
+  assert.equal(record.messages[0].id, 'old-1')
+  assert.equal(record.cursorSequence, '9007199254740993')
+  assert.equal(record.messages.at(-1).sequence, '9007199254740995')
+  assert.equal('token' in record, false)
+  assert.equal('resumeToken' in record.messages.at(-1), false)
+  assert.equal('bytes' in record.messages.at(-1), false)
+  assert.equal(normalizeV2Sequence((1n << 63n)), '0')
+  assert.equal(normalizeV2Sequence('-1'), '0')
+})
+
+test('round trips V2 snapshots in an isolated exact-sequence store', async () => {
+  const cache = new IndexedDbConversationCache(fakeIndexedDb())
+  await cache.saveV2('account-1', 'conversation-1', [{
+    id: 'message-1', sequence: '9007199254740993', content: 'hello'
+  }], '9007199254740993')
+  const loaded = await cache.loadV2('account-1', 'conversation-1')
+  assert.equal(loaded.cursorSequence, '9007199254740993')
+  assert.equal(loaded.messages[0].sequence, '9007199254740993')
+  await cache.removeV2('account-1', 'conversation-1')
+  assert.equal(await cache.loadV2('account-1', 'conversation-1'), null)
+})
+
+test('creates the isolated V2 database without upgrading the rollback-compatible V1 database', async () => {
+  const created = []
+  let requestedName = ''
+  let requestedVersion = 0
+  const database = {
+    objectStoreNames: { contains: () => false },
+    createObjectStore: (name, options) => created.push([name, options])
+  }
+  const indexedDb = {
+    open: (name, version) => {
+      requestedName = name
+      requestedVersion = version
+      const request = { result: database, transaction: {} }
+      queueMicrotask(() => {
+        request.onupgradeneeded?.({ oldVersion: 0 })
+        request.onsuccess?.()
+      })
+      return request
+    }
+  }
+  const cache = new IndexedDbConversationCache(indexedDb)
+  await cache.openV2()
+  assert.equal(requestedName, 'chat-room-client-v2')
+  assert.equal(requestedVersion, 1)
+  assert.deepEqual(created, [['v2Conversations', { keyPath: 'key' }]])
 })

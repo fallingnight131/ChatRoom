@@ -448,6 +448,13 @@ and transport boundaries can now send an explicitly supplied resume proof and
 accept its rotated session result, but no layer persists or automatically
 replays that proof yet.
 
+The additive V2 cache uses a separate `chat-room-client-v2` IndexedDB database
+instead of upgrading the live V1 database. It partitions snapshots by V2 account
+and conversation UUID, stores bounded text metadata only, and encodes exact
+server sequences as canonical decimal strings so values above JavaScript's safe
+integer range are not rounded. Removing the V2 code leaves the V1 database and
+rollback path untouched.
+
 ### Product consistency
 
 Share these across clients:

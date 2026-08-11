@@ -2,8 +2,12 @@ const DATABASE_NAME = 'chat-room-client'
 const DATABASE_VERSION = 3
 const STORE_NAME = 'conversations'
 export const ATTACHMENT_OUTBOX_STORE_NAME = 'attachmentCommands'
+const V2_DATABASE_NAME = 'chat-room-client-v2'
+const V2_DATABASE_VERSION = 1
+export const V2_CONVERSATION_STORE_NAME = 'v2Conversations'
 export const MAX_CACHED_MESSAGES = 500
 export const MAX_DRAFT_LENGTH = 10000
+const MAX_SIGNED_SEQUENCE = (1n << 63n) - 1n
 export const NON_PERSISTED_MEDIA_FIELDS = Object.freeze([
   'imageData',
   'fileData',
@@ -33,6 +37,58 @@ export function sanitizeCachedMessage(message) {
   if (!plain || typeof plain !== 'object' || Array.isArray(plain)) return plain
   for (const field of NON_PERSISTED_MEDIA_FIELDS) delete plain[field]
   return plain
+}
+
+export function normalizeV2Sequence(value) {
+  try {
+    const sequence = BigInt(value)
+    return sequence >= 0n && sequence <= MAX_SIGNED_SEQUENCE
+      ? sequence.toString()
+      : '0'
+  } catch {
+    return '0'
+  }
+}
+
+export function sanitizeV2Message(message) {
+  if (!message || typeof message !== 'object') return null
+  const content = typeof message.content === 'string' ? message.content : ''
+  return {
+    conversationId: String(message.conversationId || ''),
+    id: String(message.id || ''),
+    clientMessageId: String(message.clientMessageId || ''),
+    senderAccountId: String(message.senderAccountId || ''),
+    senderDeviceId: String(message.senderDeviceId || ''),
+    sequence: normalizeV2Sequence(message.sequence),
+    acceptedAtEpochMs: Math.max(0, Number(message.acceptedAtEpochMs) || 0),
+    content,
+    contentType: 'text',
+    deliveryState: ['sending', 'accepted', 'failed'].includes(message.deliveryState)
+      ? message.deliveryState
+      : 'accepted',
+    errorCode: typeof message.errorCode === 'string' ? message.errorCode : ''
+  }
+}
+
+export function v2ConversationCacheKey(accountId, conversationId) {
+  return `${String(accountId)}\u001f${String(conversationId)}`
+}
+
+export function sanitizeV2ConversationRecord(record) {
+  if (!record || typeof record !== 'object') return null
+  return {
+    key: v2ConversationCacheKey(record.accountId, record.conversationId),
+    accountId: String(record.accountId || ''),
+    conversationId: String(record.conversationId || ''),
+    messages: Array.isArray(record.messages)
+      ? record.messages.slice(-MAX_CACHED_MESSAGES).map(sanitizeV2Message).filter(Boolean)
+      : [],
+    cursorSequence: normalizeV2Sequence(record.cursorSequence),
+    draft: typeof record.draft === 'string'
+      ? record.draft.slice(0, MAX_DRAFT_LENGTH)
+      : '',
+    updatedAt: Number(record.updatedAt) || Date.now()
+  }
 }
 
 export function sanitizeConversationRecord(record) {
@@ -90,6 +146,7 @@ export class IndexedDbConversationCache {
   constructor(indexedDb = globalThis.indexedDB) {
     this.indexedDb = indexedDb
     this.databasePromise = null
+    this.v2DatabasePromise = null
     this.writeQueue = Promise.resolve()
   }
 
@@ -125,6 +182,27 @@ export class IndexedDbConversationCache {
       })
     }
     return this.databasePromise
+  }
+
+  async openV2() {
+    if (!this.indexedDb) return null
+    if (!this.v2DatabasePromise) {
+      this.v2DatabasePromise = new Promise((resolve, reject) => {
+        const request = this.indexedDb.open(V2_DATABASE_NAME, V2_DATABASE_VERSION)
+        request.onupgradeneeded = () => {
+          const database = request.result
+          if (!database.objectStoreNames.contains(V2_CONVERSATION_STORE_NAME)) {
+            database.createObjectStore(V2_CONVERSATION_STORE_NAME, { keyPath: 'key' })
+          }
+        }
+        request.onsuccess = () => resolve(request.result)
+        request.onerror = () => reject(request.error || new Error('Unable to open V2 IndexedDB'))
+      }).catch(error => {
+        this.v2DatabasePromise = null
+        throw error
+      })
+    }
+    return this.v2DatabasePromise
   }
 
   async load(account, kind, conversationId) {
@@ -210,6 +288,49 @@ export class IndexedDbConversationCache {
         }
       }
       await done
+      return true
+    })
+    return this.writeQueue
+  }
+
+  async loadV2(accountId, conversationId) {
+    if (!accountId || !conversationId) return null
+    const database = await this.openV2()
+    if (!database) return null
+    const transaction = database.transaction(V2_CONVERSATION_STORE_NAME, 'readonly')
+    const record = await requestResult(transaction.objectStore(V2_CONVERSATION_STORE_NAME)
+      .get(v2ConversationCacheKey(accountId, conversationId)))
+    return sanitizeV2ConversationRecord(record)
+  }
+
+  saveV2(accountId, conversationId, messages, cursorSequence) {
+    if (!accountId || !conversationId) return Promise.resolve(false)
+    const record = sanitizeV2ConversationRecord({
+      accountId, conversationId, messages, cursorSequence, updatedAt: Date.now()
+    })
+    this.writeQueue = this.writeQueue.catch(() => {}).then(async () => {
+      const database = await this.openV2()
+      if (!database) return false
+      const transaction = database.transaction(V2_CONVERSATION_STORE_NAME, 'readwrite')
+      const store = transaction.objectStore(V2_CONVERSATION_STORE_NAME)
+      const done = transactionDone(transaction)
+      const existing = await requestResult(store.get(record.key))
+      store.put({ ...record, draft: existing?.draft || '' })
+      await done
+      return true
+    })
+    return this.writeQueue
+  }
+
+  removeV2(accountId, conversationId) {
+    if (!accountId || !conversationId) return Promise.resolve(false)
+    const key = v2ConversationCacheKey(accountId, conversationId)
+    this.writeQueue = this.writeQueue.catch(() => {}).then(async () => {
+      const database = await this.openV2()
+      if (!database) return false
+      const transaction = database.transaction(V2_CONVERSATION_STORE_NAME, 'readwrite')
+      transaction.objectStore(V2_CONVERSATION_STORE_NAME).delete(key)
+      await transactionDone(transaction)
       return true
     })
     return this.writeQueue

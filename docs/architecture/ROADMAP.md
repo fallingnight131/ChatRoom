@@ -349,6 +349,9 @@ Progress:
     - [x] Add explicit Web V2 session-resume command support with one-use proof
       copying/clearing and rotated-session validation, without persistence or
       automatic replay.
+    - [x] Add a rollback-isolated, account/conversation-partitioned Web V2
+      IndexedDB snapshot store with bounded text metadata and exact decimal
+      sequence cursors, without changing the live V1 database version.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before
