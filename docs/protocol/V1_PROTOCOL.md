@@ -136,8 +136,26 @@ list explains ownership and is reviewed manually.
 
 Request data normally includes `roomId`, `content`, and `contentType`. Clients may
 send `sender`, but persisted sender identity comes from the authenticated
-session. The server requires durable room membership before persistence. The
-server broadcast adds database `id`, `sender`, and `senderName`.
+session. Updated clients also send `clientMessageId` (1–128 UTF-8 bytes). For an
+older client that omits it, the server uses the existing envelope `id`; retrying
+that exact frame therefore retains one idempotency key. The server requires
+durable room membership before persistence.
+
+`CHAT_SEND_RSP` is the durable submission acknowledgement:
+
+- `success` and `roomId` identify the result; a valid `clientMessageId` is
+  echoed, while an invalid oversized identifier is not reflected;
+- success adds stable server `id`, per-room `sequence`, authoritative
+  `timestamp`, and `duplicate`;
+- `duplicate: false` means this request created the durable message;
+- `duplicate: true` returns a prior accepted result without another broadcast;
+- failure adds stable `errorCode` and localized `error`;
+- success means accepted by durable server storage, not delivered or read.
+
+Committed `CHAT_MSG` adds optional `clientMessageId`, stable database `id`,
+per-room `sequence`, authenticated `sender`, `senderName`, and a server
+timestamp. Reusing a sender's `clientMessageId` for different room/content/type
+fails with `CLIENT_MESSAGE_ID_CONFLICT`.
 
 ### Direct chat
 
@@ -147,11 +165,21 @@ history and last-read IDs.
 
 ### History
 
-Room and direct history accept a count and an optional `before` timestamp. This
-is timestamp pagination, not a contiguous message-sequence synchronization
-contract. Room history/member responses require current room membership.
-Requested history counts are clamped to 100; non-positive counts use the
-compatible default of 50.
+Legacy room and direct history accept a count and an optional `before`
+timestamp. Room history also supports additive sequence-resume mode:
+
+- request `afterSequence` using the last persisted cursor;
+- response messages have greater sequences in ascending order;
+- `mode: "sequence"`, `nextSequence`, `lastSequence`, and `hasMore` define the
+  next bounded request;
+- persist and resend `nextSequence`; do not infer a missing message from numeric
+  gaps because administration may physically delete rows;
+- a final/empty page advances to the durable high watermark so deletion gaps do
+  not stall synchronization.
+
+Direct history remains timestamp pagination. Room history/member responses
+require current room membership. Counts are clamped to 100; non-positive counts
+use 50. Negative sequence cursors fail with `INVALID_SEQUENCE_CURSOR`.
 
 ### Read state
 
@@ -231,7 +259,14 @@ resource identifiers do not grant room, message, upload, or attachment access.
 types, message floods, the legacy 8 MiB inline-file boundary, and a real slow
 consumer. `Tests/v1_input_validation_test.py` covers authentication work and
 field/file/upload invariants. `python3 tools/verify_m0.py --v1-smoke` runs all
-four suites against the same built server binary in separate isolated databases.
+configured suites against the same built server binary in separate isolated
+databases.
+
+`Tests/v1_room_message_reliability_test.py` proves first acceptance, exact retry,
+conflicting key reuse, old-envelope compatibility, non-member rejection,
+sequence pagination, process-restart idempotency, interrupted-migration recovery,
+deleted-high-watermark monotonicity, and structured accepted/duplicate/rejected
+monitoring.
 
 The test uses randomized users, payload tokens, temporary SQLite/files, and a
 locally available three-port range. It must not depend on production credentials,
@@ -241,11 +276,10 @@ ports, files, or external COS access.
 
 - transmitted protocol version and capability negotiation;
 - device/session identity independent of passwords;
-- idempotent client message ID;
-- stable server message ID and per-conversation sequence;
-- accepted, delivered, and read semantics;
-- sequence-based reconnect synchronization;
+- extend room idempotency/sequence/accepted semantics to direct and attachment
+  messages;
+- delivered and read acknowledgement semantics;
+- replayable sequence/cursor behavior for recalls, deletions, and other events;
 - structured error code separate from localized message;
-- gateway/account/IP authentication abuse throttling and monitoring;
 - binary attachment flow outside messaging;
 - generated Java/C++/TypeScript schemas.

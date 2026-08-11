@@ -10,6 +10,7 @@
 #include <QDateTime>
 
 #include "AuthenticationAbuseGuard.h"
+#include "RoomMessageService.h"
 
 class QWebSocketServer;
 class QWebSocket;
@@ -65,6 +66,8 @@ private:
     bool allowAuthenticationAttempt(ClientSession *session, const QString &account,
                                     const QString &operation,
                                     const QString &responseType);
+    void recordRoomMessageOutcome(RoomMessageService::Status status,
+                                  int userId, int roomId);
 
     void handleLogin(ClientSession *session, const QJsonObject &data);
     void handleRegister(ClientSession *session, const QJsonObject &data);
@@ -145,12 +148,16 @@ private:
     DatabaseManager *m_db       = nullptr;
     RoomManager     *m_roomMgr  = nullptr;
     CosManager      *m_cos      = nullptr;
+    RoomMessageService m_roomMessageService;
     QWebSocketServer *m_wsServer = nullptr;
     QTcpServer      *m_httpServer = nullptr;
     QTimer          *m_expireTimer = nullptr;
     quint16          m_httpPort = 0;
     QMap<QString, QPair<int, QDateTime>> m_fileTokens; // token -> {userId, expireAt(UTC)}
     AuthenticationAbuseGuard m_authAbuseGuard;
+    quint64 m_roomMessagesAccepted = 0;
+    quint64 m_roomMessagesDuplicate = 0;
+    quint64 m_roomMessagesRejected = 0;
 
     mutable QMutex m_mutex;
     QMap<QString, ClientSession*> m_sessions;  // username -> session

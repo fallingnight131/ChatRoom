@@ -17,6 +17,8 @@ Message Message::fromJson(const QJsonObject &json) {
     m.m_fileName    = data["fileName"].toString();
     m.m_fileSize    = static_cast<qint64>(data["fileSize"].toDouble());
     m.m_fileId      = data["fileId"].toInt();
+    m.m_sequence    = static_cast<qint64>(data["sequence"].toDouble());
+    m.m_clientMessageId = data["clientMessageId"].toString();
     m.m_fileCleared = data["fileCleared"].toBool(false);
     m.m_clearReason = data["clearReason"].toString();
 
@@ -96,6 +98,10 @@ QJsonObject Message::toJson() const {
     data["fileName"]    = m_fileName;
     data["fileSize"]    = static_cast<double>(m_fileSize);
     data["fileId"]      = m_fileId;
+    if (m_sequence > 0)
+        data["sequence"] = static_cast<double>(m_sequence);
+    if (!m_clientMessageId.isEmpty())
+        data["clientMessageId"] = m_clientMessageId;
     data["fileCleared"] = m_fileCleared;
     data["clearReason"] = m_clearReason;
 

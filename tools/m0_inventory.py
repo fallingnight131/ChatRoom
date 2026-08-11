@@ -52,7 +52,7 @@ def build_inventory() -> dict[str, object]:
         set(re.findall(r"CREATE TABLE IF NOT EXISTS\s+([a-z_]+)", database))
     )
     indexes = sorted(
-        set(re.findall(r"CREATE INDEX IF NOT EXISTS\s+([a-z_]+)", database))
+        set(re.findall(r"CREATE (?:UNIQUE )?INDEX IF NOT EXISTS\s+([a-z_]+)", database))
     )
     pragmas = sorted(set(re.findall(r'q\.exec\("PRAGMA\s+([^";]+)', database)))
 

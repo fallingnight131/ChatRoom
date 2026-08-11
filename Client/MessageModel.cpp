@@ -36,6 +36,8 @@ QVariant MessageModel::data(const QModelIndex &index, int role) const {
     case SenderNameRole:  return msg.senderName();
     case FileClearedRole: return msg.fileCleared();
     case ClearReasonRole: return msg.clearReason();
+    case SequenceRole:    return msg.sequence();
+    case ClientMessageIdRole: return msg.clientMessageId();
     }
     return {};
 }
@@ -59,20 +61,31 @@ QHash<int, QByteArray> MessageModel::roleNames() const {
         { SenderNameRole,  "senderName" },
         { FileClearedRole, "fileCleared" },
         { ClearReasonRole, "clearReason" },
+        { SequenceRole,    "sequence" },
+        { ClientMessageIdRole, "clientMessageId" },
     };
 }
 
 void MessageModel::addMessage(const Message &msg) {
+    if (msg.id() > 0 && findMessageRow(msg.id()) >= 0) return;
     beginInsertRows(QModelIndex(), m_messages.size(), m_messages.size());
     m_messages.append(msg);
     endInsertRows();
 }
 
 void MessageModel::prependMessages(const QList<Message> &msgs) {
-    if (msgs.isEmpty()) return;
-    beginInsertRows(QModelIndex(), 0, msgs.size() - 1);
-    for (int i = msgs.size() - 1; i >= 0; --i)
-        m_messages.prepend(msgs[i]);
+    QList<Message> unique;
+    QSet<int> seen;
+    for (const Message &message : msgs) {
+        if (message.id() > 0 && (findMessageRow(message.id()) >= 0 || seen.contains(message.id())))
+            continue;
+        if (message.id() > 0) seen.insert(message.id());
+        unique.append(message);
+    }
+    if (unique.isEmpty()) return;
+    beginInsertRows(QModelIndex(), 0, unique.size() - 1);
+    for (int i = unique.size() - 1; i >= 0; --i)
+        m_messages.prepend(unique[i]);
     endInsertRows();
 }
 

@@ -7,6 +7,20 @@
 #include <QMutex>
 #include <QPair>
 
+struct RoomMessageSaveResult {
+    enum class Status {
+        Created,
+        Duplicate,
+        Conflict,
+        Failed
+    };
+
+    Status status = Status::Failed;
+    int messageId = -1;
+    qint64 sequence = 0;
+    qint64 createdAtMs = 0;
+};
+
 /// 数据库管理器 —— 线程安全，使用每线程独立连接
 class DatabaseManager : public QObject {
     Q_OBJECT
@@ -62,7 +76,13 @@ public:
                      const QString &fileName = QString(),
                      qint64 fileSize = 0, int fileId = 0,
                      const QString &thumbnail = QString());
+    RoomMessageSaveResult saveRoomMessageIdempotent(
+        int roomId, int userId, const QString &clientMessageId,
+        const QString &content, const QString &contentType);
     QJsonArray getMessageHistory(int roomId, int count, qint64 beforeTimestamp = 0);
+    QJsonArray getMessageHistoryAfterSequence(int roomId, int count,
+                                              qint64 afterSequence);
+    qint64 getRoomLastMessageSequence(int roomId);
     bool isMessageInRoom(int messageId, int roomId);
     bool recallMessage(int messageId, int userId, int timeLimitSec);
     /// 获取单条消息关联的文件信息 (file_id, file_path)，用于撤回时清理文件

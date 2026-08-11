@@ -168,6 +168,9 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
     else if (type == Protocol::MsgType::CHAT_MSG) {
         emit chatMessageReceived(msg);
     }
+    else if (type == Protocol::MsgType::CHAT_SEND_RSP) {
+        emit chatSendResponse(data);
+    }
     else if (type == Protocol::MsgType::SYSTEM_MSG) {
         emit systemMessageReceived(msg);
     }

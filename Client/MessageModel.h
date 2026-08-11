@@ -25,7 +25,9 @@ public:
         DownloadProgressRole,
         SenderNameRole,
         FileClearedRole,
-        ClearReasonRole
+        ClearReasonRole,
+        SequenceRole,
+        ClientMessageIdRole
     };
 
     explicit MessageModel(QObject *parent = nullptr);

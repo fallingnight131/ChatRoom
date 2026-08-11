@@ -504,6 +504,12 @@ void ChatWindow::connectSignals() {
 
     // 消息
     connect(net, &NetworkManager::chatMessageReceived,   this, &ChatWindow::onChatMessage);
+    connect(net, &NetworkManager::chatSendResponse, this, [this](const QJsonObject &data) {
+        if (!data["success"].toBool()) {
+            QMessageBox::warning(this, QStringLiteral("发送失败"),
+                                 data["error"].toString(QStringLiteral("消息发送失败，请重试")));
+        }
+    });
     connect(net, &NetworkManager::systemMessageReceived, this, &ChatWindow::onSystemMessage);
     connect(net, &NetworkManager::historyReceived,       this, &ChatWindow::onHistoryReceived);
 

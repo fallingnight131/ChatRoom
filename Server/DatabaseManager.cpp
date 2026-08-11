@@ -11,6 +11,8 @@
 #include <QDir>
 #include <QFile>
 #include <QMutex>
+#include <QHash>
+#include <QTimeZone>
 
 namespace {
 constexpr qint64 kDefaultRoomMaxFileSize = 10LL * 1024 * 1024 * 1024; // 10GB
@@ -97,6 +99,81 @@ bool markExpiredFiles(QSqlDatabase &db,
         }
     }
     return true;
+}
+
+bool reserveRoomSequence(QSqlDatabase &db, int roomId, qint64 *sequence) {
+    QSqlQuery select(db);
+    select.prepare("SELECT last_sequence FROM room_message_sequences WHERE room_id = ?");
+    select.addBindValue(roomId);
+    if (!select.exec()) return false;
+
+    if (select.next()) {
+        *sequence = select.value(0).toLongLong() + 1;
+        QSqlQuery update(db);
+        update.prepare("UPDATE room_message_sequences SET last_sequence = ? WHERE room_id = ?");
+        update.addBindValue(*sequence);
+        update.addBindValue(roomId);
+        return update.exec() && update.numRowsAffected() == 1;
+    }
+
+    *sequence = 1;
+    QSqlQuery insert(db);
+    insert.prepare("INSERT INTO room_message_sequences (room_id, last_sequence) VALUES (?, ?)");
+    insert.addBindValue(roomId);
+    insert.addBindValue(*sequence);
+    return insert.exec();
+}
+
+qint64 utcTimestampMs(const QVariant &value) {
+    QDateTime timestamp = value.toDateTime();
+    timestamp.setTimeZone(QTimeZone::UTC);
+    return timestamp.toMSecsSinceEpoch();
+}
+
+QJsonArray roomMessagesFromQuery(QSqlQuery &query, int roomId) {
+    QJsonArray messages;
+    while (query.next()) {
+        QJsonObject message;
+        message["id"]          = query.value(0).toInt();
+        message["content"]     = query.value(1).toString();
+        message["contentType"] = query.value(2).toString();
+        message["fileName"]    = query.value(3).toString();
+        message["fileSize"]    = static_cast<double>(query.value(4).toLongLong());
+        message["fileId"]      = query.value(5).toInt();
+        message["recalled"]    = query.value(6).toInt() != 0;
+        message["timestamp"]   = utcTimestampMs(query.value(7));
+        message["sender"]      = query.value(8).toString();
+        const QString displayName = query.value(9).toString();
+        message["senderName"]  = displayName.isEmpty()
+                                      ? message["sender"].toString()
+                                      : displayName;
+        message["roomId"]      = roomId;
+
+        const QString thumbnail = query.value(10).toString();
+        if (!thumbnail.isEmpty()) message["thumbnail"] = thumbnail;
+        if (query.value(11).toInt() != 0) {
+            message["fileCleared"] = true;
+            message["clearReason"] = query.value(12).toString();
+        }
+        message["sequence"] = static_cast<double>(query.value(13).toLongLong());
+        const QString clientMessageId = query.value(14).toString();
+        if (!clientMessageId.isEmpty()) message["clientMessageId"] = clientMessageId;
+        messages.append(message);
+    }
+    return messages;
+}
+
+bool ensureColumn(QSqlDatabase &db, const QString &table,
+                  const QString &column, const QString &definition) {
+    QSqlQuery columns(db);
+    if (!columns.exec(QStringLiteral("PRAGMA table_info(%1)").arg(table)))
+        return false;
+    while (columns.next()) {
+        if (columns.value(1).toString() == column) return true;
+    }
+    QSqlQuery alter(db);
+    return alter.exec(QStringLiteral("ALTER TABLE %1 ADD COLUMN %2 %3")
+                          .arg(table, column, definition));
 }
 }
 
@@ -205,10 +282,124 @@ bool DatabaseManager::initialize() {
     q.exec("ALTER TABLE messages ADD COLUMN thumbnail TEXT DEFAULT ''");
     q.exec("ALTER TABLE messages ADD COLUMN file_cleared INTEGER DEFAULT 0");
     q.exec("ALTER TABLE messages ADD COLUMN clear_reason TEXT DEFAULT ''");
+    if (!ensureColumn(db, QStringLiteral("messages"),
+                      QStringLiteral("client_message_id"),
+                      QStringLiteral("TEXT DEFAULT NULL")) ||
+        !ensureColumn(db, QStringLiteral("messages"),
+                      QStringLiteral("sequence"),
+                      QStringLiteral("INTEGER DEFAULT NULL"))) {
+        qCritical() << "[DB] 扩展可靠消息列失败:" << db.lastError().text();
+        return false;
+    }
+
+    if (!q.exec("CREATE TABLE IF NOT EXISTS room_message_sequences ("
+                "  room_id INTEGER PRIMARY KEY,"
+                "  last_sequence INTEGER NOT NULL DEFAULT 0,"
+                "  FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE"
+                ")")) {
+        qCritical() << "[DB] 创建房间消息序列表失败:" << q.lastError().text();
+        return false;
+    }
+
+    // Expand/migrate: deterministically assign existing messages a stable,
+    // per-room sequence before the uniqueness constraint is installed. Start
+    // from the durable high watermark as it may be higher than MAX(sequence)
+    // after physical administration deletes.
+    {
+        QHash<int, qint64> lastSequences;
+        QSqlQuery durable(db);
+        if (!durable.exec("SELECT room_id, last_sequence FROM room_message_sequences")) {
+            qCritical() << "[DB] 读取持久化消息序列失败:" << durable.lastError().text();
+            return false;
+        }
+        while (durable.next())
+            lastSequences.insert(durable.value(0).toInt(), durable.value(1).toLongLong());
+        durable.finish();
+
+        QSqlQuery maxima(db);
+        if (!maxima.exec("SELECT room_id, COALESCE(MAX(sequence), 0) FROM messages GROUP BY room_id")) {
+            qCritical() << "[DB] 读取房间消息序列失败:" << maxima.lastError().text();
+            return false;
+        }
+        while (maxima.next()) {
+            const int roomId = maxima.value(0).toInt();
+            lastSequences.insert(roomId, qMax(lastSequences.value(roomId, 0),
+                                               maxima.value(1).toLongLong()));
+        }
+        maxima.finish();
+
+        QSqlQuery missing(db);
+        if (!missing.exec("SELECT id, room_id FROM messages WHERE sequence IS NULL ORDER BY room_id, id")) {
+            qCritical() << "[DB] 读取待迁移消息失败:" << missing.lastError().text();
+            return false;
+        }
+        QList<QPair<int, int>> rows;
+        while (missing.next())
+            rows.append(qMakePair(missing.value(0).toInt(), missing.value(1).toInt()));
+        missing.finish();
+
+        if (!db.transaction()) {
+            qCritical() << "[DB] 开启消息序列迁移事务失败:" << db.lastError().text();
+            return false;
+        }
+        if (!rows.isEmpty()) {
+            QSqlQuery update(db);
+            update.prepare("UPDATE messages SET sequence = ? WHERE id = ? AND sequence IS NULL");
+            for (const auto &row : rows) {
+                const qint64 next = lastSequences.value(row.second, 0) + 1;
+                lastSequences.insert(row.second, next);
+                update.bindValue(0, next);
+                update.bindValue(1, row.first);
+                if (!update.exec() || update.numRowsAffected() != 1) {
+                    qCritical() << "[DB] 回填消息序列失败:" << update.lastError().text();
+                    db.rollback();
+                    return false;
+                }
+            }
+        }
+
+        QSqlQuery insertHighWatermark(db);
+        insertHighWatermark.prepare(
+            "INSERT OR IGNORE INTO room_message_sequences (room_id, last_sequence) VALUES (?, ?)");
+        QSqlQuery updateHighWatermark(db);
+        updateHighWatermark.prepare(
+            "UPDATE room_message_sequences "
+            "SET last_sequence = MAX(last_sequence, ?) WHERE room_id = ?");
+        for (auto it = lastSequences.cbegin(); it != lastSequences.cend(); ++it) {
+            insertHighWatermark.bindValue(0, it.key());
+            insertHighWatermark.bindValue(1, it.value());
+            if (!insertHighWatermark.exec()) {
+                qCritical() << "[DB] 创建房间消息高水位失败:"
+                            << insertHighWatermark.lastError().text();
+                db.rollback();
+                return false;
+            }
+            updateHighWatermark.bindValue(0, it.value());
+            updateHighWatermark.bindValue(1, it.key());
+            if (!updateHighWatermark.exec() || updateHighWatermark.numRowsAffected() != 1) {
+                qCritical() << "[DB] 更新房间消息高水位失败:"
+                            << updateHighWatermark.lastError().text();
+                db.rollback();
+                return false;
+            }
+        }
+        if (!db.commit()) {
+            qCritical() << "[DB] 提交消息序列迁移失败:" << db.lastError().text();
+            return false;
+        }
+    }
 
     // 消息索引
     q.exec("CREATE INDEX IF NOT EXISTS idx_msg_room_time ON messages(room_id, created_at)");
     q.exec("CREATE INDEX IF NOT EXISTS idx_messages_room_id_id ON messages(room_id, id)");
+    if (!q.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_room_sequence "
+                "ON messages(room_id, sequence) WHERE sequence IS NOT NULL") ||
+        !q.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_sender_client_id "
+                "ON messages(user_id, client_message_id) "
+                "WHERE client_message_id IS NOT NULL AND client_message_id <> ''")) {
+        qCritical() << "[DB] 创建可靠消息唯一索引失败:" << q.lastError().text();
+        return false;
+    }
 
     // 文件表
     q.exec("CREATE TABLE IF NOT EXISTS files ("
@@ -868,10 +1059,21 @@ int DatabaseManager::saveMessage(int roomId, int userId, const QString &content,
                                   const QString &fileName, qint64 fileSize, int fileId,
                                   const QString &thumbnail) {
     QSqlDatabase db = getConnection();
-    QSqlQuery q(db);
+    if (!db.transaction()) {
+        qWarning() << "[DB] 开启消息保存事务失败:" << db.lastError().text();
+        return -1;
+    }
 
-    q.prepare("INSERT INTO messages (room_id, user_id, content, content_type, file_name, file_size, file_id, thumbnail)"
-              " VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    qint64 sequence = 0;
+    if (!reserveRoomSequence(db, roomId, &sequence)) {
+        qWarning() << "[DB] 分配房间消息序列失败:" << db.lastError().text();
+        db.rollback();
+        return -1;
+    }
+
+    QSqlQuery q(db);
+    q.prepare("INSERT INTO messages (room_id, user_id, content, content_type, file_name, file_size, file_id, thumbnail, sequence)"
+              " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
     q.addBindValue(roomId);
     q.addBindValue(userId);
     q.addBindValue(content);
@@ -880,12 +1082,89 @@ int DatabaseManager::saveMessage(int roomId, int userId, const QString &content,
     q.addBindValue(fileSize);
     q.addBindValue(fileId);
     q.addBindValue(thumbnail);
+    q.addBindValue(sequence);
 
-    if (q.exec())
-        return q.lastInsertId().toInt();
+    if (q.exec()) {
+        const int messageId = q.lastInsertId().toInt();
+        if (db.commit()) return messageId;
+    }
 
     qWarning() << "[DB] 保存消息失败:" << q.lastError().text();
+    db.rollback();
     return -1;
+}
+
+RoomMessageSaveResult DatabaseManager::saveRoomMessageIdempotent(
+    int roomId, int userId, const QString &clientMessageId,
+    const QString &content, const QString &contentType) {
+    RoomMessageSaveResult result;
+    QSqlDatabase db = getConnection();
+    if (!db.transaction()) {
+        qWarning() << "[DB] 开启幂等消息事务失败:" << db.lastError().text();
+        return result;
+    }
+
+    QSqlQuery existing(db);
+    existing.prepare("SELECT id, room_id, content, content_type, sequence, created_at "
+                     "FROM messages WHERE user_id = ? AND client_message_id = ?");
+    existing.addBindValue(userId);
+    existing.addBindValue(clientMessageId);
+    if (!existing.exec()) {
+        qWarning() << "[DB] 查询幂等消息失败:" << existing.lastError().text();
+        db.rollback();
+        return result;
+    }
+    if (existing.next()) {
+        result.messageId = existing.value(0).toInt();
+        result.sequence = existing.value(4).toLongLong();
+        result.createdAtMs = utcTimestampMs(existing.value(5));
+        const bool sameCommand = existing.value(1).toInt() == roomId &&
+                                 existing.value(2).toString() == content &&
+                                 existing.value(3).toString() == contentType;
+        result.status = sameCommand ? RoomMessageSaveResult::Status::Duplicate
+                                    : RoomMessageSaveResult::Status::Conflict;
+        if (!db.commit()) result.status = RoomMessageSaveResult::Status::Failed;
+        return result;
+    }
+
+    if (!reserveRoomSequence(db, roomId, &result.sequence)) {
+        qWarning() << "[DB] 分配幂等消息序列失败:" << db.lastError().text();
+        db.rollback();
+        return result;
+    }
+
+    QSqlQuery insert(db);
+    insert.prepare("INSERT INTO messages "
+                   "(room_id, user_id, content, content_type, client_message_id, sequence) "
+                   "VALUES (?, ?, ?, ?, ?, ?)");
+    insert.addBindValue(roomId);
+    insert.addBindValue(userId);
+    insert.addBindValue(content);
+    insert.addBindValue(contentType);
+    insert.addBindValue(clientMessageId);
+    insert.addBindValue(result.sequence);
+    if (!insert.exec()) {
+        qWarning() << "[DB] 保存幂等消息失败:" << insert.lastError().text();
+        db.rollback();
+        return result;
+    }
+    result.messageId = insert.lastInsertId().toInt();
+
+    QSqlQuery created(db);
+    created.prepare("SELECT created_at FROM messages WHERE id = ?");
+    created.addBindValue(result.messageId);
+    if (!created.exec() || !created.next()) {
+        qWarning() << "[DB] 读取新消息时间失败:" << created.lastError().text();
+        db.rollback();
+        return RoomMessageSaveResult{};
+    }
+    result.createdAtMs = utcTimestampMs(created.value(0));
+    if (!db.commit()) {
+        qWarning() << "[DB] 提交幂等消息失败:" << db.lastError().text();
+        return RoomMessageSaveResult{};
+    }
+    result.status = RoomMessageSaveResult::Status::Created;
+    return result;
 }
 
 QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 beforeTimestamp) {
@@ -897,58 +1176,57 @@ QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 befo
     QString sql = "SELECT * FROM ("
                   "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id,"
                   "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail,"
-                  "       m.file_cleared, m.clear_reason"
+                  "       m.file_cleared, m.clear_reason, m.sequence, m.client_message_id"
                   " FROM messages m JOIN users u ON m.user_id = u.id"
                   " WHERE m.room_id = ?";
 
     if (beforeTimestamp > 0)
         sql += " AND m.created_at < datetime(? / 1000, 'unixepoch')";
 
-    sql += " ORDER BY m.created_at DESC LIMIT ?"
-           ") ORDER BY created_at ASC";
+    sql += " ORDER BY m.sequence DESC LIMIT ?"
+           ") ORDER BY sequence ASC";
 
     q.prepare(sql);
     q.addBindValue(roomId);
     if (beforeTimestamp > 0)
         q.addBindValue(beforeTimestamp);
     q.addBindValue(count);
-    q.exec();
-
-    QJsonArray arr;
-    while (q.next()) {
-        QJsonObject msg;
-        msg["id"]          = q.value(0).toInt();
-        msg["content"]     = q.value(1).toString();
-        msg["contentType"] = q.value(2).toString();
-        msg["fileName"]    = q.value(3).toString();
-        msg["fileSize"]    = static_cast<double>(q.value(4).toLongLong());
-        msg["fileId"]      = q.value(5).toInt();
-        msg["recalled"]    = q.value(6).toInt() != 0;
-
-        // SQLite CURRENT_TIMESTAMP 存储 UTC 时间，需明确指定 TimeSpec
-        QDateTime dt = q.value(7).toDateTime();
-        dt.setTimeSpec(Qt::UTC);
-        msg["timestamp"]   = dt.toMSecsSinceEpoch();
-
-        msg["sender"]      = q.value(8).toString();  // uniqueId (username列)
-        QString dn = q.value(9).toString();
-        msg["senderName"]  = dn.isEmpty() ? msg["sender"].toString() : dn;
-        msg["roomId"]      = roomId;
-
-        // 缩略图
-        QString thumb = q.value(10).toString();
-        if (!thumb.isEmpty())
-            msg["thumbnail"] = thumb;
-
-        bool fileCleared = q.value(11).toInt() != 0;
-        if (fileCleared) {
-            msg["fileCleared"] = true;
-            msg["clearReason"] = q.value(12).toString();
-        }
-
-        arr.append(msg);
+    if (!q.exec()) {
+        qWarning() << "[DB] 查询房间消息历史失败:" << q.lastError().text();
+        return {};
     }
-    return arr;
+    return roomMessagesFromQuery(q, roomId);
+}
+
+QJsonArray DatabaseManager::getMessageHistoryAfterSequence(int roomId, int count,
+                                                           qint64 afterSequence) {
+    expireStoredFiles();
+    QSqlDatabase db = getConnection();
+    QSqlQuery query(db);
+    query.prepare(
+        "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id, "
+        "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail, "
+        "       m.file_cleared, m.clear_reason, m.sequence, m.client_message_id "
+        "FROM messages m JOIN users u ON m.user_id = u.id "
+        "WHERE m.room_id = ? AND m.sequence > ? "
+        "ORDER BY m.sequence ASC LIMIT ?");
+    query.addBindValue(roomId);
+    query.addBindValue(afterSequence);
+    query.addBindValue(count);
+    if (!query.exec()) {
+        qWarning() << "[DB] 查询房间消息增量失败:" << query.lastError().text();
+        return {};
+    }
+    return roomMessagesFromQuery(query, roomId);
+}
+
+qint64 DatabaseManager::getRoomLastMessageSequence(int roomId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery query(db);
+    query.prepare("SELECT last_sequence FROM room_message_sequences WHERE room_id = ?");
+    query.addBindValue(roomId);
+    if (!query.exec() || !query.next()) return 0;
+    return query.value(0).toLongLong();
 }
 
 bool DatabaseManager::recallMessage(int messageId, int userId, int timeLimitSec) {

@@ -23,6 +23,7 @@ SOURCES += \
     ../Server/ChatServer.cpp \
     ../Server/ClientSession.cpp \
     ../Server/InputValidator.cpp \
+    ../Server/RoomMessageService.cpp \
     ../Server/DatabaseManager.cpp \
     ../Server/PasswordHasher.cpp \
     ../Server/RoomManager.cpp \
@@ -35,6 +36,7 @@ HEADERS += \
     ../Server/ChatServer.h \
     ../Server/ClientSession.h \
     ../Server/InputValidator.h \
+    ../Server/RoomMessageService.h \
     ../Server/DatabaseManager.h \
     ../Server/PasswordHasher.h \
     ../Server/RoomManager.h \

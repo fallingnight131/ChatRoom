@@ -52,6 +52,8 @@ public:
     QString fileName() const { return m_fileName; }
     qint64 fileSize() const { return m_fileSize; }
     int fileId() const { return m_fileId; }
+    qint64 sequence() const { return m_sequence; }
+    QString clientMessageId() const { return m_clientMessageId; }
     QByteArray imageData() const { return m_imageData; }
     bool isMine() const { return m_isMine; }
     DownloadState downloadState() const { return m_downloadState; }
@@ -75,6 +77,8 @@ public:
     void setFileName(const QString &f) { m_fileName = f; }
     void setFileSize(qint64 s) { m_fileSize = s; }
     void setFileId(int id) { m_fileId = id; }
+    void setSequence(qint64 sequence) { m_sequence = sequence; }
+    void setClientMessageId(const QString &id) { m_clientMessageId = id; }
     void setThumbnail(const QString &t) { m_thumbnail = t; }
     void setFileCleared(bool v) { m_fileCleared = v; }
     void setClearReason(const QString &r) { m_clearReason = r; }
@@ -94,6 +98,8 @@ private:
     QString     m_fileName;
     qint64      m_fileSize    = 0;
     int         m_fileId      = 0;
+    qint64      m_sequence    = 0;
+    QString     m_clientMessageId;
     QByteArray  m_imageData;
     bool        m_isMine      = false;
     DownloadState m_downloadState = NotDownloaded;

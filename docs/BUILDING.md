@@ -125,6 +125,11 @@ independent TCP/WebSocket connections, recover after expiry, preserve existing
 V1 response types, emit structured denial counters, and do not log the test
 password.
 
+A sixth suite verifies V1 room-message durable acceptance, duplicate and
+conflicting retries, old-client envelope compatibility, authorization failure,
+per-room sequence resume, process restart, interrupted sequence backfill, and
+deleted-high-watermark monotonicity plus structured messaging outcome counters.
+
 CI runs the same smoke test on Ubuntu 24.04 after installing Qt Base, Qt SQLite,
 Qt WebSockets, and libsodium development packages.
 

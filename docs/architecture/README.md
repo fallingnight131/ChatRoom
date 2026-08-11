@@ -209,6 +209,12 @@ Semantics:
 Do not promise exactly-once transport. Provide at-least-once delivery with
 idempotent processing and deterministic client reconciliation.
 
+The current V1 bridge now implements this model for room text/emoji submission:
+`clientMessageId`, durable `CHAT_SEND_RSP`, per-room sequence, and
+`afterSequence` history resume are additive fields. Direct messages,
+attachments, replayable recall/delete events, and durable client outboxes remain
+M1/M2 work; this compatibility slice is not the completed V2 model.
+
 ## 8. Protocol Strategy
 
 Maintain two explicit generations during migration:

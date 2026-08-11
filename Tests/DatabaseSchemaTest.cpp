@@ -80,6 +80,7 @@ bool readSchema(const QString &connectionName,
             QStringLiteral("users"),
             QStringLiteral("rooms"),
             QStringLiteral("room_members"),
+            QStringLiteral("room_message_sequences"),
             QStringLiteral("messages"),
             QStringLiteral("files"),
             QStringLiteral("room_admins"),
@@ -191,7 +192,10 @@ int main(int argc, char *argv[]) {
                           QStringLiteral("user2_last_read_msg_id")});
     ok &= requireColumns(firstStart, QStringLiteral("messages"),
                          {QStringLiteral("thumbnail"), QStringLiteral("file_cleared"),
-                          QStringLiteral("clear_reason")});
+                          QStringLiteral("clear_reason"), QStringLiteral("sequence"),
+                          QStringLiteral("client_message_id")});
+    ok &= requireColumns(firstStart, QStringLiteral("room_message_sequences"),
+                         {QStringLiteral("room_id"), QStringLiteral("last_sequence")});
     ok &= requireColumns(firstStart, QStringLiteral("files"),
                          {QStringLiteral("cleared"), QStringLiteral("clear_reason"),
                           QStringLiteral("cleared_at"), QStringLiteral("cos_url")});
@@ -211,6 +215,9 @@ int main(int argc, char *argv[]) {
         {QStringLiteral("plan_room_unread"),
          {QStringLiteral("SELECT COUNT(*) FROM messages WHERE room_id = 1 AND id > 0"),
           QStringLiteral("idx_messages_room_id_id")}},
+        {QStringLiteral("plan_room_sequence_sync"),
+         {QStringLiteral("SELECT id FROM messages WHERE room_id = 1 AND sequence > 0 ORDER BY sequence LIMIT 50"),
+          QStringLiteral("idx_messages_room_sequence")}},
         {QStringLiteral("plan_friend_unread"),
          {QStringLiteral("SELECT COUNT(*) FROM friend_messages WHERE friendship_id = 1 AND id > 0"),
           QStringLiteral("idx_friend_messages_friendship_id_id")}},

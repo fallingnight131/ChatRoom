@@ -85,14 +85,20 @@ multi-device.
 
 1. Session parses `CHAT_MSG`.
 2. Server uses the authenticated session identity for persisted sender ID.
-3. Server verifies durable room membership.
-4. Server synchronously inserts the message into SQLite.
-5. Server constructs a new JSON message with database ID and sender display data.
-6. Server copies the in-memory room member list and queues a send to each online
+3. `RoomMessageService` verifies durable room membership, input, and the
+   client-message idempotency key.
+4. Server synchronously allocates a per-room sequence and inserts the message in
+   one SQLite transaction, or recovers the original accepted result for a retry.
+5. Server returns `CHAT_SEND_RSP` with the stable database ID and sequence.
+6. Only a newly committed message is converted to server-authoritative
+   `CHAT_MSG` data.
+7. Server copies the in-memory room member list and queues a send to each online
    session.
 
-V1 has no client send idempotency key, per-conversation sequence, durable
-accepted acknowledgement, or reconnect delta protocol.
+The compatible V1 extension supports `clientMessageId`, durable acceptance,
+per-room sequence, and `afterSequence` history resume for room text/emoji
+messages. It does not yet give the same guarantees to direct/file messages or
+replay recall/delete events.
 
 ### Direct message
 
@@ -143,8 +149,9 @@ These are recorded for prioritization, not silently fixed by this baseline:
    Web client keeps reconnect credentials only in page memory, but plaintext
    TCP/WS remains possible and V1 has no revocable device/refresh sessions.
 3. **Room password storage:** room passwords are stored and compared as plaintext.
-4. **Reliability semantics:** message retries can duplicate messages; ordering is
-   timestamp/row based; reconnect has no sequence delta sync.
+4. **Reliability semantics:** room text/emoji retries are idempotent and have
+   sequence resume, but direct/file sends can still duplicate and recall/delete
+   events have no replay sequence.
 5. **Central blocking path:** WebSocket parsing, business handlers, synchronous
    SQL, and fan-out coordination share the central application thread.
 6. **Connection scaling:** TCP consumes one thread per connection.
@@ -156,9 +163,10 @@ These are recorded for prioritization, not silently fixed by this baseline:
    still crosses the chat protocol.
 9. **Single-node presence:** session and online-room state cannot route across
     multiple server instances.
-10. **Index coverage:** nine explicit indexes cover current history, reconnect,
-    unread, file quota, and contact hot paths with query-plan regression, but
-    production-scale latency/write amplification still needs workload evidence.
+10. **Index coverage:** eleven explicit indexes cover current history, reconnect,
+    unread, file quota, contact, idempotency, and sequence-resume paths with
+    query-plan/constraint regression, but production-scale latency/write
+    amplification still needs workload evidence.
 11. **Documentation drift:** prior README/DESIGN message counts and database
     descriptions do not fully match the active implementation.
 
@@ -175,6 +183,9 @@ restarted schemas converge.
   authenticated-sender enforcement, fan-out, history, file metadata, reconnect,
   persistent membership, recall, friend request/acceptance, friend lists, direct
   message delivery/history, and direct-message recall.
+- `Tests/v1_room_message_reliability_test.py` covers room acceptance,
+  idempotent/conflicting retry, sequence resume, restart, partial migration,
+  deleted-high-watermark monotonicity, and structured outcome monitoring.
 - `CHATROOM_DISABLE_IMAGE_THUMBNAILS` is defined only by the headless test target;
   it skips server-side `QImage` thumbnail generation so the core smoke binary
   does not require QtGui. Client-provided thumbnail fallback and the production

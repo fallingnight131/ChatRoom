@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia'
 import { chatWs, MsgType, FILE_CHUNK_SIZE, MAX_SMALL_FILE, makeMessage, getHttpDownloadUrl } from '../services/websocket'
 import { useUserStore } from './user'
+import { mergeUniqueMessages, sameStableMessage } from '../messaging/messageReconciliation'
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -551,12 +552,21 @@ export const useChatStore = defineStore('chat', {
       // --- 聊天消息 ---
       chatWs.on(MsgType.CHAT_MSG, (msg) => {
         const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp }
+        const alreadyPresent = this.messages.some(existing => sameStableMessage(existing, d))
+        if (alreadyPresent) return
         if (d.roomId === this.currentRoomId) {
           this.messages.push(d)
         } else {
           // 未读+1
           const room = this.rooms.find(r => r.roomId === d.roomId)
           if (room) room.unread = (room.unread || 0) + 1
+        }
+      })
+
+      chatWs.on(MsgType.CHAT_SEND_RSP, (msg) => {
+        if (!msg.data.success) {
+          console.warn('[Messaging] room send rejected:', msg.data.errorCode, msg.data.error)
+          alert('消息发送失败: ' + (msg.data.error || '请稍后重试'))
         }
       })
 
@@ -571,7 +581,7 @@ export const useChatStore = defineStore('chat', {
         if (msg.data.roomId === this.currentRoomId) {
           const msgs = msg.data.messages || []
           // 倒序追加（历史消息从旧到新）
-          this.messages = [...msgs, ...this.messages]
+          this.messages = mergeUniqueMessages(this.messages, msgs, { prepend: true })
         }
       })
 

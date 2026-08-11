@@ -6,6 +6,7 @@
 #include "Protocol.h"
 #include "Message.h"
 #include "InputValidator.h"
+#include "RoomMessageService.h"
 
 #include <QThread>
 #include <QJsonArray>
@@ -79,12 +80,11 @@ QString readEnvValueFromFile(const QString &filePath, const QString &key) {
 } // namespace
 
 ChatServer::ChatServer(QObject *parent)
-    : QTcpServer(parent)
-{
-    m_db      = new DatabaseManager(this);
-    m_roomMgr = new RoomManager(this);
-    m_cos     = new CosManager(this);
-}
+    : QTcpServer(parent),
+      m_db(new DatabaseManager(this)),
+      m_roomMgr(new RoomManager(this)),
+      m_cos(new CosManager(this)),
+      m_roomMessageService(m_db) {}
 
 ChatServer::~ChatServer() {
     stopServer();
@@ -92,6 +92,9 @@ ChatServer::~ChatServer() {
 
 bool ChatServer::startServer(quint16 port, quint16 wsPort, quint16 httpPort) {
     m_authAbuseGuard.reset();
+    m_roomMessagesAccepted = 0;
+    m_roomMessagesDuplicate = 0;
+    m_roomMessagesRejected = 0;
     const AuthenticationAbuseGuard::Limits authLimits = m_authAbuseGuard.limits();
     qInfo().noquote()
         << QStringLiteral("[AuthAbuse] configured windowMs=%1 gatewayLimit=%2 ipLimit=%3 accountLimit=%4 maxTrackedKeys=%5")
@@ -508,6 +511,35 @@ bool ChatServer::requireRoomMembership(ClientSession *session, int roomId,
     return false;
 }
 
+void ChatServer::recordRoomMessageOutcome(RoomMessageService::Status status,
+                                          int userId, int roomId) {
+    QString outcome;
+    if (status == RoomMessageService::Status::Accepted) {
+        ++m_roomMessagesAccepted;
+        outcome = QStringLiteral("accepted");
+    } else if (status == RoomMessageService::Status::Duplicate) {
+        ++m_roomMessagesDuplicate;
+        outcome = QStringLiteral("duplicate");
+    } else {
+        ++m_roomMessagesRejected;
+        outcome = QStringLiteral("rejected");
+    }
+
+    const quint64 total = m_roomMessagesAccepted + m_roomMessagesDuplicate +
+                          m_roomMessagesRejected;
+    if (total == 1 || (total & (total - 1)) == 0 ||
+        status != RoomMessageService::Status::Accepted) {
+        qInfo().noquote()
+            << QStringLiteral("[Messaging] room-send outcome=%1 userId=%2 roomId=%3 acceptedTotal=%4 duplicateTotal=%5 rejectedTotal=%6")
+                   .arg(outcome)
+                   .arg(userId)
+                   .arg(roomId)
+                   .arg(m_roomMessagesAccepted)
+                   .arg(m_roomMessagesDuplicate)
+                   .arg(m_roomMessagesRejected);
+    }
+}
+
 bool ChatServer::requireUploadOwnership(ClientSession *session, const QString &uploadId,
                                         QJsonObject *response) const {
     const int userId = session && session->isAuthenticated() ? session->userId() : 0;
@@ -904,37 +936,70 @@ void ChatServer::handleRegister(ClientSession *session, const QJsonObject &data)
 void ChatServer::handleChatMessage(ClientSession *session, const QJsonObject &msg) {
     if (!session->isAuthenticated()) return;
 
-    QJsonObject data = msg["data"].toObject();
-    int roomId = data["roomId"].toInt();
-    if (!requireRoomMembership(session, roomId, QStringLiteral("room-message-send"))) return;
-
+    const QJsonObject data = msg["data"].toObject();
+    const int roomId = data["roomId"].toInt();
     const QString content = data["content"].toString();
     const QString contentType = data["contentType"].toString();
-    QString validationError;
-    if (!InputValidator::validateMessage(content, contentType, &validationError)) {
-        qWarning().noquote() << QStringLiteral("[Input] rejected category=room-message userId=%1")
-                                    .arg(session->userId());
-        return;
-    }
+    const QString clientMessageId = data["clientMessageId"].toString().isEmpty()
+                                        ? msg["id"].toString()
+                                        : data["clientMessageId"].toString();
 
-    // 存入数据库
 #ifdef CHATROOM_ENABLE_BENCHMARK_METRICS
     const bool benchmarkMetrics = qEnvironmentVariableIntValue("CHATROOM_BENCHMARK_METRICS") == 1;
     QElapsedTimer persistenceTimer;
     if (benchmarkMetrics)
         persistenceTimer.start();
 #endif
-    int msgId = m_db->saveMessage(roomId, session->userId(), content, contentType);
+    RoomMessageService::Command command;
+    command.roomId = roomId;
+    command.senderId = session->userId();
+    command.clientMessageId = clientMessageId;
+    command.content = content;
+    command.contentType = contentType;
+    const RoomMessageService::Result result = m_roomMessageService.submit(command);
+    recordRoomMessageOutcome(result.status, session->userId(), roomId);
 #ifdef CHATROOM_ENABLE_BENCHMARK_METRICS
     const qint64 sqliteSaveNanoseconds = benchmarkMetrics ? persistenceTimer.nsecsElapsed() : 0;
 #endif
 
+    const bool accepted = result.status == RoomMessageService::Status::Accepted;
+    const bool duplicate = result.status == RoomMessageService::Status::Duplicate;
+    QJsonObject responseData;
+    responseData["success"] = accepted || duplicate;
+    responseData["roomId"] = roomId;
+    if (!clientMessageId.isEmpty() && clientMessageId.toUtf8().size() <= 128)
+        responseData["clientMessageId"] = clientMessageId;
+    if (accepted || duplicate) {
+        responseData["id"] = result.messageId;
+        responseData["sequence"] = static_cast<double>(result.sequence);
+        responseData["timestamp"] = static_cast<double>(result.createdAtMs);
+        responseData["duplicate"] = duplicate;
+    } else {
+        responseData["errorCode"] = result.errorCode;
+        responseData["error"] = result.error;
+        qWarning().noquote()
+            << QStringLiteral("[Messaging] room-send rejected userId=%1 roomId=%2 code=%3")
+                   .arg(session->userId())
+                   .arg(roomId)
+                   .arg(result.errorCode);
+    }
+    session->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::CHAT_SEND_RSP, responseData));
+
+    if (!accepted) return;
+
     // 补全消息信息
-    QJsonObject fullData = data;
-    fullData["id"]         = msgId;
+    QJsonObject fullData;
+    fullData["roomId"]     = roomId;
+    fullData["content"]    = content;
+    fullData["contentType"] = contentType;
+    fullData["clientMessageId"] = clientMessageId;
+    fullData["id"]         = result.messageId;
+    fullData["sequence"]   = static_cast<double>(result.sequence);
     fullData["sender"]     = session->username();      // uniqueId
     fullData["senderName"] = session->displayName();   // 昵称
     QJsonObject fullMsg = Protocol::makeMessage(Protocol::MsgType::CHAT_MSG, fullData);
+    fullMsg["timestamp"] = static_cast<double>(result.createdAtMs);
 
     broadcastToRoom(roomId, fullMsg);
 
@@ -1179,7 +1244,9 @@ void ChatServer::handleUserList(ClientSession *session, const QJsonObject &data)
 void ChatServer::handleHistory(ClientSession *session, const QJsonObject &data) {
     int roomId = data["roomId"].toInt();
     int count  = InputValidator::boundedHistoryCount(data["count"].toInt(50));
-    qint64 before = static_cast<qint64>(data["before"].toDouble(0));
+    const qint64 before = static_cast<qint64>(data["before"].toDouble(0));
+    const bool sequenceMode = data.contains("afterSequence");
+    const qint64 afterSequence = static_cast<qint64>(data["afterSequence"].toDouble(0));
 
     if (!requireRoomMembership(session, roomId, QStringLiteral("room-history-read"))) {
         QJsonObject rspData;
@@ -1190,12 +1257,35 @@ void ChatServer::handleHistory(ClientSession *session, const QJsonObject &data) 
         return;
     }
 
-    QJsonArray messages = m_db->getMessageHistory(roomId, count, before);
+    if (sequenceMode && afterSequence < 0) {
+        QJsonObject rspData;
+        rspData["roomId"] = roomId;
+        rspData["success"] = false;
+        rspData["errorCode"] = QStringLiteral("INVALID_SEQUENCE_CURSOR");
+        rspData["error"] = QStringLiteral("afterSequence 不能为负数");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::HISTORY_RSP, rspData));
+        return;
+    }
+
+    const QJsonArray messages = sequenceMode
+        ? m_db->getMessageHistoryAfterSequence(roomId, count, afterSequence)
+        : m_db->getMessageHistory(roomId, count, before);
 
     QJsonObject rspData;
     rspData["roomId"]   = roomId;
     rspData["success"]  = true;
     rspData["messages"] = messages;
+    if (sequenceMode) {
+        const qint64 lastSequence = m_db->getRoomLastMessageSequence(roomId);
+        qint64 nextSequence = lastSequence;
+        if (messages.size() == count && !messages.isEmpty())
+            nextSequence = static_cast<qint64>(messages.last().toObject()["sequence"].toDouble());
+        rspData["mode"] = QStringLiteral("sequence");
+        rspData["afterSequence"] = static_cast<double>(afterSequence);
+        rspData["nextSequence"] = static_cast<double>(nextSequence);
+        rspData["lastSequence"] = static_cast<double>(lastSequence);
+        rspData["hasMore"] = nextSequence < lastSequence;
+    }
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::HISTORY_RSP, rspData));
 }
 

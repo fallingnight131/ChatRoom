@@ -40,6 +40,7 @@ namespace MsgType {
 
     // 聊天消息
     inline const QString CHAT_MSG         = QStringLiteral("CHAT_MSG");
+    inline const QString CHAT_SEND_RSP    = QStringLiteral("CHAT_SEND_RSP");
     inline const QString SYSTEM_MSG       = QStringLiteral("SYSTEM_MSG");
 
     // 房间管理
@@ -290,12 +291,16 @@ inline QJsonObject makeRegisterReq(const QString &uniqueId, const QString &displ
 
 /// 快捷创建聊天消息
 inline QJsonObject makeChatMsg(int roomId, const QString &sender, const QString &content,
-                                const QString &contentType = "text") {
+                                const QString &contentType = "text",
+                                const QString &clientMessageId = QString()) {
     QJsonObject data;
     data["roomId"]       = roomId;
     data["sender"]       = sender;
     data["content"]      = content;
     data["contentType"]  = contentType; // "text", "emoji", "image", "file"
+    data["clientMessageId"] = clientMessageId.isEmpty()
+                                  ? QUuid::createUuid().toString(QUuid::WithoutBraces)
+                                  : clientMessageId;
     return makeMessage(MsgType::CHAT_MSG, data);
 }
 

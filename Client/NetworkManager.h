@@ -37,6 +37,7 @@ signals:
 
     // 聊天消息
     void chatMessageReceived(const QJsonObject &msg);
+    void chatSendResponse(const QJsonObject &data);
     void systemMessageReceived(const QJsonObject &msg);
 
     // 房间

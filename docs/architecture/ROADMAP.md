@@ -83,6 +83,8 @@ Progress:
   enforcement remains a later gateway concern.
 - [x] Add critical SQLite indexes and lock their hot query shapes with
   `EXPLAIN QUERY PLAN` regression tests.
+- [x] Add V1-compatible idempotency, durable acceptance, stable per-room
+  sequences, and bounded reconnect resume for room text/emoji messages.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

@@ -14,7 +14,7 @@ export const MsgType = {
   LOGIN_REQ: 'LOGIN_REQ', LOGIN_RSP: 'LOGIN_RSP',
   REGISTER_REQ: 'REGISTER_REQ', REGISTER_RSP: 'REGISTER_RSP',
   LOGOUT: 'LOGOUT',
-  CHAT_MSG: 'CHAT_MSG', SYSTEM_MSG: 'SYSTEM_MSG',
+  CHAT_MSG: 'CHAT_MSG', CHAT_SEND_RSP: 'CHAT_SEND_RSP', SYSTEM_MSG: 'SYSTEM_MSG',
   CREATE_ROOM_REQ: 'CREATE_ROOM_REQ', CREATE_ROOM_RSP: 'CREATE_ROOM_RSP',
   JOIN_ROOM_REQ: 'JOIN_ROOM_REQ', JOIN_ROOM_RSP: 'JOIN_ROOM_RSP',
   LEAVE_ROOM: 'LEAVE_ROOM', LEAVE_ROOM_RSP: 'LEAVE_ROOM_RSP',
@@ -245,7 +245,9 @@ class ChatWebSocket {
   }
 
   sendChat(roomId, sender, content, contentType = 'text') {
-    this.send(makeMessage(MsgType.CHAT_MSG, { roomId, sender, content, contentType }))
+    const clientMessageId = uuid()
+    this.send(makeMessage(MsgType.CHAT_MSG, { roomId, sender, content, contentType, clientMessageId }))
+    return clientMessageId
   }
 
   createRoom(roomName, password = '') {
