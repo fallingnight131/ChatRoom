@@ -402,6 +402,9 @@ Progress:
   - [x] Compose that inactive handler from real PostgreSQL identity/session and
     V1 projection adapters plus compatible cryptography, and verify imported
     acceptance versus unmapped V2-native rejection on disposable PostgreSQL.
+  - [x] Preserve V1 single-account connection semantics in the detached Java
+    module with atomic replacement, bounded `FORCE_OFFLINE`, and stale-close-safe
+    process-local cleanup.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

@@ -34,6 +34,8 @@ public final class V1WebLoginHandler extends SimpleChannelInboundHandler<TextWeb
 
     private final LegacyV1LoginUseCase login;
     private final V1JsonLoginCodec codec;
+    private final V1JsonLifecycleCodec lifecycleCodec;
+    private final V1AccountConnectionRegistry connections;
     private final Executor authenticationExecutor;
     private final AuthenticationAdmissionControl admission;
     private final AuthenticationEventSink events;
@@ -42,11 +44,15 @@ public final class V1WebLoginHandler extends SimpleChannelInboundHandler<TextWeb
     public V1WebLoginHandler(
             LegacyV1LoginUseCase login,
             V1JsonLoginCodec codec,
+            V1JsonLifecycleCodec lifecycleCodec,
+            V1AccountConnectionRegistry connections,
             Executor authenticationExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events) {
         this.login = Objects.requireNonNull(login, "login");
         this.codec = Objects.requireNonNull(codec, "codec");
+        this.lifecycleCodec = Objects.requireNonNull(lifecycleCodec, "lifecycleCodec");
+        this.connections = Objects.requireNonNull(connections, "connections");
         this.authenticationExecutor = Objects.requireNonNull(
                 authenticationExecutor, "authenticationExecutor");
         this.admission = Objects.requireNonNull(admission, "admission");
@@ -145,6 +151,13 @@ public final class V1WebLoginHandler extends SimpleChannelInboundHandler<TextWeb
             var identity = established.identity();
             context.channel().attr(V1ConnectionAttributes.AUTHENTICATED).set(identity);
             state = State.AUTHENTICATED;
+            var displaced = connections.replace(identity.accountId(), context.channel());
+            if (displaced != null && displaced.isActive()) {
+                displaced.writeAndFlush(new TextWebSocketFrame(
+                                io.netty.buffer.Unpooled.wrappedBuffer(
+                                        lifecycleCodec.encodeForceOffline())))
+                        .addListener(ChannelFutureListener.CLOSE);
+            }
             recordAccepted(identity.credentialUpgradePending());
             recordCompleted(
                     AuthenticationOutcome.ACCEPTED,

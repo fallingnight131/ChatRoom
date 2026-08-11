@@ -3,6 +3,8 @@ package com.fallingnight.chat.gateway.runtime;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1AuthenticationService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1LoginService;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLoginCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLifecycleCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1AccountConnectionRegistry;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
@@ -19,10 +21,15 @@ import javax.sql.DataSource;
 public final class V1CompatibilityModule {
     private final LegacyV1LoginService login;
     private final Clock clock;
+    private final V1AccountConnectionRegistry connections;
 
-    private V1CompatibilityModule(LegacyV1LoginService login, Clock clock) {
+    private V1CompatibilityModule(
+            LegacyV1LoginService login,
+            Clock clock,
+            V1AccountConnectionRegistry connections) {
         this.login = Objects.requireNonNull(login, "login");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.connections = Objects.requireNonNull(connections, "connections");
     }
 
     public static V1CompatibilityModule create(DataSource dataSource, Clock clock) {
@@ -41,7 +48,9 @@ public final class V1CompatibilityModule {
                         legacy,
                         clock);
         return new V1CompatibilityModule(
-                new LegacyV1LoginService(authentication, legacy), clock);
+                new LegacyV1LoginService(authentication, legacy),
+                clock,
+                new V1AccountConnectionRegistry());
     }
 
     public V1WebLoginHandler newWebLoginHandler(
@@ -51,6 +60,8 @@ public final class V1CompatibilityModule {
         return new V1WebLoginHandler(
                 login,
                 new V1JsonLoginCodec(clock),
+                new V1JsonLifecycleCodec(clock),
+                connections,
                 authenticationExecutor,
                 admission,
                 events);

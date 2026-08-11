@@ -172,17 +172,98 @@ class V1WebLoginHandlerTest {
         }
     }
 
+    @Test
+    void newerLoginForSameAccountForcesOldConnectionOfflineWithoutStaleRemoval() {
+        V1AccountConnectionRegistry connections = new V1AccountConnectionRegistry();
+        EmbeddedChannel first = channel(
+                command -> new LegacyV1LoginResult.Established(identity(false)),
+                Runnable::run,
+                new RecordingAdmission(),
+                new RecordingEvents(),
+                connections);
+        EmbeddedChannel second = channel(
+                command -> new LegacyV1LoginResult.Established(identity(false)),
+                Runnable::run,
+                new RecordingAdmission(),
+                new RecordingEvents(),
+                connections);
+        EmbeddedChannel third = channel(
+                command -> new LegacyV1LoginResult.Established(identity(false)),
+                Runnable::run,
+                new RecordingAdmission(),
+                new RecordingEvents(),
+                connections);
+        try {
+            authenticateAndRelease(first);
+            assertEquals(1, connections.activeAccountCount());
+
+            authenticateAndRelease(second);
+            first.runPendingTasks();
+            TextWebSocketFrame forced = first.readOutbound();
+            assertNotNull(forced);
+            try {
+                assertTrue(forced.text().contains("\"type\":\"FORCE_OFFLINE\""));
+                assertTrue(forced.text().contains("您的账号在其他地方登录"));
+                assertFalse(forced.text().contains(identity(false).accountId().toString()));
+                assertFalse(forced.text().contains(identity(false).sessionId().toString()));
+            } finally {
+                forced.release();
+            }
+            assertFalse(first.isActive());
+            assertTrue(second.isActive());
+            assertEquals(1, connections.activeAccountCount());
+
+            authenticateAndRelease(third);
+            second.runPendingTasks();
+            TextWebSocketFrame secondForced = second.readOutbound();
+            assertNotNull(secondForced);
+            secondForced.release();
+            assertFalse(second.isActive());
+            assertTrue(third.isActive());
+            assertEquals(1, connections.activeAccountCount());
+        } finally {
+            first.finishAndReleaseAll();
+            second.finishAndReleaseAll();
+            third.finishAndReleaseAll();
+        }
+        assertEquals(0, connections.activeAccountCount());
+    }
+
     private static EmbeddedChannel channel(
             com.fallingnight.chat.application.compatibility.v1.LegacyV1LoginUseCase login,
             java.util.concurrent.Executor executor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events) {
+        return channel(login, executor, admission, events, new V1AccountConnectionRegistry());
+    }
+
+    private static EmbeddedChannel channel(
+            com.fallingnight.chat.application.compatibility.v1.LegacyV1LoginUseCase login,
+            java.util.concurrent.Executor executor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            V1AccountConnectionRegistry connections) {
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         return new EmbeddedChannel(new V1WebLoginHandler(
                 login,
-                new V1JsonLoginCodec(Clock.fixed(NOW, ZoneOffset.UTC)),
+                new V1JsonLoginCodec(clock),
+                new V1JsonLifecycleCodec(clock),
+                connections,
                 executor,
                 admission,
                 events));
+    }
+
+    private static void authenticateAndRelease(EmbeddedChannel channel) {
+        assertFalse(channel.writeInbound(validFrame()));
+        channel.runPendingTasks();
+        TextWebSocketFrame response = channel.readOutbound();
+        assertNotNull(response);
+        try {
+            assertTrue(response.text().contains("\"success\":true"));
+        } finally {
+            response.release();
+        }
     }
 
     private static TextWebSocketFrame validFrame() {

@@ -77,8 +77,9 @@ consumer instead of growing an unbounded queue or silently dropping the event.
 `LOGIN_REQ`, `LOGIN_RSP`, `REGISTER_REQ`, `REGISTER_RSP`, `LOGOUT`,
 `FORCE_OFFLINE`, `HEARTBEAT`, `HEARTBEAT_ACK`.
 
-The inactive Java compatibility codec and Netty handler currently cover only
-`LOGIN_REQ` and `LOGIN_RSP`; they are not connected to a listener. The codec
+The inactive Java compatibility codec and Netty handler currently cover
+`LOGIN_REQ`, `LOGIN_RSP`, and the server-emitted `FORCE_OFFLINE` replacement
+event; they are not connected to a listener. The login codec
 accepts the established envelope and credential fields, caps this small command
 at 16 KiB, rejects
 duplicates, trailing JSON, nesting/string-limit violations, missing fields,
@@ -90,6 +91,11 @@ The handler permits one attempt per connection, runs credential work on the
 bounded authentication executor, applies the shared admission limits, and binds
 the numeric V1 identity plus canonical UUID identity only in server-side channel
 state. Every failure class uses the same response and closes the connection.
+Successful login atomically owns the process-local V1 account connection. A
+newer login for that account sends the established fixed-reason `FORCE_OFFLINE`
+envelope to the displaced connection and closes it; close cleanup is conditional
+so an older connection cannot unregister its replacement. The event exposes no
+canonical UUID, session identifier, or resume proof.
 
 ### Room messages, presence, and history
 

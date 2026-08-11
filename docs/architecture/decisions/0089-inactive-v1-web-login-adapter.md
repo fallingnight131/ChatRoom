@@ -32,6 +32,10 @@ no durable device identifier, whereas Java session issuance requires one.
 - Keep real PostgreSQL/cryptography/use-case composition in one detached module
   so listener wiring cannot accidentally substitute an unrestricted V2 login
   service or a test-only identity projection.
+- Preserve V1 single-account semantics in a shared process-local registry. A
+  successful replacement receives ownership before the old channel is sent the
+  fixed `FORCE_OFFLINE` envelope and closed. Conditional close cleanup prevents
+  a displaced channel from removing its replacement.
 
 ## Consequences
 
@@ -41,7 +45,7 @@ socket. The fixed device alias is intentionally less expressive than V2 devices
 and must not be reused for native V2 clients.
 
 Before routing is enabled, the gateway still needs an exact WSS endpoint policy,
-single-account connection replacement, heartbeat/lifecycle behavior, and every
+heartbeat/lifecycle behavior, and every
 post-login command required by the supported V1 client path (or an explicit
 client capability gate that prevents entry into unsupported screens).
 
@@ -50,7 +54,9 @@ client capability gate that prevents entry into unsupported screens).
 Embedded-channel tests prove off-loop dispatch, direct-peer admission, success
 binding, later-frame forwarding, generic malformed/denied/saturated/rejected/
 failed output, close behavior, and suppression of late success after a concurrent
-second attempt. The full Java workspace gate remains required.
+second attempt. They also prove repeated same-account replacement, compatible
+force-offline output, fixed registry cardinality, and stale-close safety. The
+full Java workspace gate remains required.
 The disposable PostgreSQL gate additionally proves the real composition accepts
 a mapped imported account, stores only the fixed V1 device alias plus hashed
 session proof, and rejects a password-valid unmapped V2-native account without
