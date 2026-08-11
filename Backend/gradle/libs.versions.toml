@@ -2,12 +2,14 @@
 junit = "5.12.2"
 protobuf = "4.35.1"
 protobuf-plugin = "0.10.0"
+netty = "4.2.15.Final"
 
 [libraries]
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
+netty-codec-http = { module = "io.netty:netty-codec-http", version.ref = "netty" }
 
 [plugins]
 protobuf = { id = "com.google.protobuf", version.ref = "protobuf-plugin" }

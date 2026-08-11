@@ -11,6 +11,7 @@ java {
 dependencies {
     implementation(project(":application"))
     implementation(project(":protocol-v2"))
+    implementation(libs.netty.codec.http)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

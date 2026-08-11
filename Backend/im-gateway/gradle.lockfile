@@ -2,6 +2,15 @@
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
 com.google.protobuf:protobuf-java:4.35.1=compileClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-buffer:4.2.15.Final=compileClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-codec-base:4.2.15.Final=compileClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-codec-compression:4.2.15.Final=compileClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-codec-http:4.2.15.Final=compileClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-common:4.2.15.Final=compileClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-handler:4.2.15.Final=compileClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-resolver:4.2.15.Final=compileClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-transport-native-unix-common:4.2.15.Final=compileClasspath,testCompileClasspath,testRuntimeClasspath
+io.netty:netty-transport:4.2.15.Final=compileClasspath,testCompileClasspath,testRuntimeClasspath
 org.apiguardian:apiguardian-api:1.1.2=testCompileClasspath
 org.junit.jupiter:junit-jupiter-api:5.12.2=testCompileClasspath,testRuntimeClasspath
 org.junit.jupiter:junit-jupiter-engine:5.12.2=testRuntimeClasspath

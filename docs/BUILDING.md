@@ -67,6 +67,9 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
 `.github/workflows/m3-java.yml` runs the same gate on Ubuntu with Temurin 21.
 The Java workspace is not yet on the production traffic or data path; the C++
 V1 verification remains required during the compatibility window.
+The Java gate includes embedded-channel tests for the bounded V2 binary
+WebSocket frame decoder; these tests do not open a listener or imply that V2 is
+ready to receive traffic.
 
 Generate the non-Java V2 bindings and run the Java-to-TypeScript golden-wire
 test with Node.js 22:

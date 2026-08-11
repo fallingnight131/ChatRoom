@@ -272,12 +272,18 @@ Progress:
     Java/TypeScript golden-wire compatibility.
   - [x] Compile the generated C++ binding with the pinned runtime and parse the
     same golden envelope before declaring cross-language compatibility complete.
+- [ ] Build the Netty gateway and modular application core.
+  - [x] Add the bounded binary WebSocket frame aggregation, Protobuf decoding,
+    envelope validation, and negative-path embedded-channel tests.
+  - [ ] Add handshake/authentication, rate limits, safe error mapping,
+    observability, and transport-independent application dispatch before
+    enabling a listener.
 
 Work:
 
 - create a Gradle multi-module Java workspace (foundation complete; domain
   modules are extracted with vertical slices);
-- implement the V2 envelope and generated Java/C++/TypeScript schemas (in progress);
+- implement the V2 envelope and generated Java/C++/TypeScript schemas (complete);
 - build the Netty gateway and modular application core;
 - introduce PostgreSQL schema and repeatable migrations;
 - implement identity/device sessions, canonical conversations, message

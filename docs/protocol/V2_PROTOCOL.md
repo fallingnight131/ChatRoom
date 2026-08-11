@@ -33,6 +33,14 @@ unknown envelope kinds, zero message types, non-positive sent time, missing
 request IDs where required, and oversized identifiers/payloads before invoking
 the application core. Feature payloads retain their own smaller limits.
 
+The implemented gateway frame boundary aggregates fragmented binary messages
+up to 1 MiB plus 1024 bytes of bounded envelope overhead. It rejects text,
+stray continuation, oversized, malformed-Protobuf, and policy-invalid input
+before dispatch. Ping, pong, and close frames are left to the WebSocket control
+handler. The listener, handshake/authentication policy, rate limits, and safe
+client error/close mapping are not enabled yet, so V2 still has no production
+route.
+
 ## Compatibility rules
 
 - Field numbers are permanent. Removed fields are reserved rather than reused.
