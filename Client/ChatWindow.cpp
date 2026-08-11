@@ -7,6 +7,7 @@
 #include "TrayManager.h"
 #include "FileCache.h"
 #include "LocalConversationRepository.h"
+#include "AttachmentOutboxService.h"
 #include "OutgoingMessageService.h"
 #include "ConversationSyncService.h"
 #include "V1HistoryPageAdapter.h"
@@ -167,6 +168,7 @@ static QIcon makeStableIcon(const QPixmap &pm) {
 ChatWindow::ChatWindow(QWidget *parent)
     : QMainWindow(parent)
 {
+    m_attachmentOutboxService = std::make_unique<AttachmentOutboxService>();
     m_outgoingMessageService = std::make_unique<OutgoingMessageService>();
     m_conversationSyncService = std::make_unique<ConversationSyncService>();
     setWindowTitle("Qt聊天室");
@@ -208,6 +210,7 @@ void ChatWindow::setCurrentUser(int userId, const QString &username, const QStri
         m_statusLabel->setText(QStringLiteral("本地消息缓存不可用，已切换为在线模式"));
     }
     m_outgoingMessageService->setRepository(m_localRepository.get());
+    m_attachmentOutboxService->setRepository(m_localRepository.get());
     m_conversationSyncService->setContext(
         m_localRepository.get(), m_username, true);
 
@@ -1081,6 +1084,19 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
         m_conversationSyncService->forget(roomConversation(roomId));
         m_roomDrafts.remove(roomId);
     }
+    for (int index = m_attachmentQueue.size() - 1; index >= 0; --index) {
+        const auto &command = m_attachmentQueue[index];
+        if (command.target.kind == LocalConversationRepository::Kind::Room
+            && !allowedRoomIds.contains(command.target.roomId)) {
+            m_queuedAttachmentIds.remove(command.clientMessageId);
+            m_attachmentQueue.removeAt(index);
+        }
+    }
+    if (m_upload.kind == LocalConversationRepository::Kind::Room
+        && !m_upload.clientMessageId.isEmpty()
+        && !allowedRoomIds.contains(m_upload.roomId)) {
+        cancelUpload();
+    }
 
     // 如果之前已在某个房间，恢复到该房间
     if (m_currentRoomId > 0) {
@@ -1092,6 +1108,14 @@ void ChatWindow::onRoomListReceived(const QJsonArray &rooms) {
         }
     }
     retryPendingRoomSends(allowedRoomIds);
+    const auto attachmentCommands = m_attachmentOutboxService->recoverRooms(
+        m_username, allowedRoomIds);
+    if (!m_attachmentOutboxService->lastError().isEmpty()) {
+        qWarning().noquote() << QStringLiteral(
+            "[AttachmentOutbox] operation=recover-rooms outcome=degraded detail=%1")
+            .arg(m_attachmentOutboxService->lastError());
+    }
+    enqueueAttachments(attachmentCommands);
     updateUnreadDots();
 }
 
@@ -1509,6 +1533,163 @@ void ChatWindow::dispatchOutgoing(
     }
 }
 
+bool ChatWindow::stageAttachment(
+    const AttachmentOutboxService::Target &target, const QString &filePath,
+    const QString &contentType) {
+    AttachmentOutboxService::Command command;
+    if (!m_attachmentOutboxService->stage(
+            m_username, target, filePath, contentType, &command)) {
+        QMessageBox::warning(
+            this, QStringLiteral("文件发送"),
+            QStringLiteral("无法安全保存发送任务：%1")
+                .arg(m_attachmentOutboxService->lastError()));
+        return false;
+    }
+    if (NetworkManager::instance()->isConnected()) {
+        enqueueAttachments({command});
+    } else {
+        m_statusLabel->setText(
+            QStringLiteral("文件任务已保存，连接恢复后发送"));
+    }
+    return true;
+}
+
+void ChatWindow::enqueueAttachments(
+    const QList<AttachmentOutboxService::Command> &commands) {
+    for (const auto &command : commands) {
+        if (command.clientMessageId.isEmpty()
+            || command.clientMessageId == m_upload.clientMessageId
+            || m_queuedAttachmentIds.contains(command.clientMessageId)) continue;
+        m_attachmentQueue.append(command);
+        m_queuedAttachmentIds.insert(command.clientMessageId);
+    }
+    processNextAttachment();
+}
+
+void ChatWindow::processNextAttachment() {
+    if (!NetworkManager::instance()->isConnected()
+        || !m_upload.clientMessageId.isEmpty()) return;
+    while (!m_attachmentQueue.isEmpty()) {
+        const auto queued = m_attachmentQueue.takeFirst();
+        m_queuedAttachmentIds.remove(queued.clientMessageId);
+        AttachmentOutboxService::Command command;
+        if (!m_attachmentOutboxService->prepareRetry(
+                m_username, queued.target, queued.clientMessageId, &command)) {
+            qWarning().noquote() << QStringLiteral(
+                "[AttachmentOutbox] operation=prepare outcome=failed clientMessageId=%1 detail=%2")
+                .arg(queued.clientMessageId,
+                     m_attachmentOutboxService->lastError());
+            m_statusLabel->setText(
+                QStringLiteral("有文件任务需要重新选择源文件"));
+            continue;
+        }
+        dispatchAttachment(command);
+        return;
+    }
+}
+
+void ChatWindow::dispatchAttachment(
+    const AttachmentOutboxService::Command &command) {
+    m_upload.filePath = command.sourcePath;
+    m_upload.fileSize = command.fileSize;
+    m_upload.offset = 0;
+    m_upload.uploadId.clear();
+    m_upload.clientMessageId = command.clientMessageId;
+    m_upload.kind = command.target.kind;
+    m_upload.conversationKey = command.target.conversationKey;
+    m_upload.roomId = command.target.roomId;
+    m_upload.peerUsername = command.target.peerUsername;
+    m_upload.contentType = command.contentType;
+    m_upload.thumbnailData.clear();
+    m_upload.rawHttp = false;
+    m_uploadPaused = false;
+    m_uploadingFileName = command.fileName;
+
+    static int s_tempRoomFileId = 0;
+    static int s_tempFriendFileId = -10000;
+    m_uploadingFileId = command.target.kind
+        == LocalConversationRepository::Kind::Room
+        ? --s_tempRoomFileId : --s_tempFriendFileId;
+
+    Message uploadMsg;
+    if (command.target.kind == LocalConversationRepository::Kind::Room) {
+        uploadMsg = Message::createFileMessage(
+            command.target.roomId, m_username, command.fileName,
+            command.fileSize, m_uploadingFileId);
+    } else {
+        uploadMsg.setSender(m_username);
+        uploadMsg.setFileName(command.fileName);
+        uploadMsg.setFileSize(command.fileSize);
+        uploadMsg.setFileId(m_uploadingFileId);
+        uploadMsg.setContentType(Message::File);
+        uploadMsg.setTimestamp(QDateTime::currentMSecsSinceEpoch());
+    }
+    uploadMsg.setSenderName(m_displayName);
+    uploadMsg.setIsMine(true);
+    uploadMsg.setDownloadState(Message::Uploading);
+    uploadMsg.setDownloadProgress(0.0);
+    if (command.target.kind == LocalConversationRepository::Kind::Room) {
+        getOrCreateModel(command.target.roomId)->addMessage(uploadMsg);
+    } else {
+        getOrCreateFriendModel(command.target.peerUsername)->addMessage(uploadMsg);
+    }
+
+    m_pendingSentFiles[command.fileName] = command.sourcePath;
+    m_pendingSentFilesByClientId[command.clientMessageId] = command.sourcePath;
+
+    static const QStringList videoExtensions = {
+        "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
+    if (videoExtensions.contains(QFileInfo(command.fileName).suffix().toLower())) {
+        m_upload.thumbnailData = generateVideoThumbnailData(command.sourcePath);
+        if (!m_upload.thumbnailData.isEmpty()) {
+            const QString thumbnailPath = FileCache::instance()->thumbDir()
+                + QString("/thumb_%1.jpg").arg(m_uploadingFileId);
+            QFile thumbnail(thumbnailPath);
+            if (thumbnail.open(QIODevice::WriteOnly))
+                thumbnail.write(m_upload.thumbnailData);
+        }
+    }
+
+    QJsonObject data;
+    data["fileName"] = command.fileName;
+    data["fileSize"] = static_cast<double>(command.fileSize);
+    data["clientMessageId"] = command.clientMessageId;
+    if (command.target.kind == LocalConversationRepository::Kind::Room) {
+        data["roomId"] = command.target.roomId;
+        NetworkManager::instance()->sendMessage(Protocol::makeMessage(
+            Protocol::MsgType::FILE_UPLOAD_START, data));
+    } else {
+        data["friendUsername"] = command.target.peerUsername;
+        NetworkManager::instance()->sendMessage(Protocol::makeMessage(
+            Protocol::MsgType::FRIEND_FILE_UPLOAD_START, data));
+    }
+    m_statusLabel->setText(QString("准备上传: %1 (%2)")
+        .arg(command.fileName)
+        .arg(QLocale().formattedDataSize(command.fileSize)));
+}
+
+void ChatWindow::failActiveAttachment(
+    const QString &failureCode, const QString &message) {
+    const QString clientMessageId = m_upload.clientMessageId;
+    if (m_upload.rawHttp && !m_upload.uploadId.isEmpty())
+        NetworkManager::instance()->cancelRawUpload(m_upload.uploadId);
+    if (!m_upload.uploadId.isEmpty()) {
+        QJsonObject data;
+        data["uploadId"] = m_upload.uploadId;
+        NetworkManager::instance()->sendMessage(Protocol::makeMessage(
+            Protocol::MsgType::FILE_UPLOAD_CANCEL, data));
+    }
+    if (!clientMessageId.isEmpty()
+        && !m_attachmentOutboxService->recordFailed(
+            m_username, clientMessageId, failureCode)) {
+        qWarning().noquote() << QStringLiteral(
+            "[AttachmentOutbox] operation=fail outcome=degraded clientMessageId=%1 detail=%2")
+            .arg(clientMessageId, m_attachmentOutboxService->lastError());
+    }
+    clearUploadState(true);
+    m_statusLabel->setText(message);
+}
+
 void ChatWindow::retryPendingRoomSends(const QSet<int> &allowedRoomIds) {
     const auto commands = m_outgoingMessageService->recoverRooms(
         m_username, allowedRoomIds);
@@ -1534,6 +1715,15 @@ void ChatWindow::retryPendingFriendSends() {
             .arg(m_outgoingMessageService->lastError());
     }
     for (const auto &command : commands) dispatchOutgoing(command);
+
+    const auto attachmentCommands = m_attachmentOutboxService->recoverDirects(
+        m_username, peerByConversationKey);
+    if (!m_attachmentOutboxService->lastError().isEmpty()) {
+        qWarning().noquote() << QStringLiteral(
+            "[AttachmentOutbox] operation=recover-directs outcome=degraded detail=%1")
+            .arg(m_attachmentOutboxService->lastError());
+    }
+    enqueueAttachments(attachmentCommands);
 }
 
 void ChatWindow::requestCurrentFriendResume() {
@@ -1830,11 +2020,13 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
     QString fileName = data["fileName"].toString();
     QString sender   = data["sender"].toString();
     QString senderName = data["senderName"].toString();
+    const QString clientMessageId = data["clientMessageId"].toString();
     qint64 fSize = static_cast<qint64>(data["fileSize"].toDouble());
 
     Message msg = Message::createFileMessage(
         roomId, sender, fileName, fSize, fileId);
     msg.setId(data["id"].toInt());
+    msg.setClientMessageId(clientMessageId);
     msg.setSequence(data["sequence"].toVariant().toLongLong());
     msg.setTimestamp(data["timestamp"].toVariant().toLongLong());
     msg.setSenderName(senderName);
@@ -1866,9 +2058,18 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
     }
 
     // 发送者自己的文件：直接从本地复制到缓存，无需下载
-    if (sender == m_username && m_pendingSentFiles.contains(fileName)) {
+    QString sentLocalPath;
+    if (sender == m_username && !clientMessageId.isEmpty())
+        sentLocalPath = m_pendingSentFilesByClientId.take(clientMessageId);
+    if (sentLocalPath.isEmpty() && sender == m_username
+        && m_pendingSentFiles.contains(fileName)) {
+        sentLocalPath = m_pendingSentFiles.take(fileName);
+    }
+    if (sender == m_username && !sentLocalPath.isEmpty()) {
         // 移除临时上传消息（大文件分块上传时存在临时消息）
-        if (m_uploadingFileId != 0) {
+        if (m_uploadingFileId != 0
+            && (clientMessageId.isEmpty()
+                || clientMessageId == m_upload.clientMessageId)) {
             getOrCreateModel(roomId)->removeMessageByFileId(m_uploadingFileId);
             // 清理临时缩略图
             QString tempThumb = FileCache::instance()->thumbDir()
@@ -1879,9 +2080,9 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
             m_uploadingFileName.clear();
         }
 
-        QString localPath = m_pendingSentFiles.take(fileName);
-        if (QFile::exists(localPath)) {
-            QString cached = FileCache::instance()->cacheFromLocal(fileId, fileName, localPath);
+        if (QFile::exists(sentLocalPath)) {
+            QString cached = FileCache::instance()->cacheFromLocal(
+                fileId, fileName, sentLocalPath);
             if (!cached.isEmpty()) {
                 msg.setDownloadState(Message::Downloaded);
                 msg.setDownloadProgress(1.0);
@@ -1895,6 +2096,11 @@ void ChatWindow::onFileNotify(const QJsonObject &data) {
                     }
                 }
             }
+        }
+        if (!clientMessageId.isEmpty()) {
+            m_attachmentOutboxService->complete(m_username, clientMessageId);
+            if (clientMessageId == m_upload.clientMessageId)
+                clearUploadState(false);
         }
     }
 
@@ -1944,81 +2150,43 @@ void ChatWindow::onFileDownloadReady(const QJsonObject &data) {
 // ==================== 大文件分块传输 ====================
 
 void ChatWindow::startChunkedUpload(const QString &filePath) {
-    // 检查是否有正在进行的上传
-    if (!m_upload.uploadId.isEmpty()) {
-        QMessageBox::warning(this, "上传提示",
-            QString("当前正在上传 \"%1\"，请等待上传完成或取消后再上传新文件。")
-                .arg(m_uploadingFileName));
-        return;
-    }
-
-    QFileInfo fi(filePath);
-    m_upload.filePath  = filePath;
-    m_upload.fileSize  = fi.size();
-    m_upload.offset    = 0;
-    m_upload.uploadId.clear();
-    m_upload.clientMessageId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    m_upload.thumbnailData.clear();
-    m_upload.rawHttp = false;
-    m_uploadPaused = false;
-    m_uploadingFileName = fi.fileName();
-
-    // 生成临时负数 fileId 用于上传进度显示
-    static int s_tempFileId = 0;
-    m_uploadingFileId = --s_tempFileId; // -1, -2, -3, ...
-
-    // 添加临时上传消息到模型（显示上传进度）
-    Message uploadMsg = Message::createFileMessage(
-        m_currentRoomId, m_username, fi.fileName(), fi.size(), m_uploadingFileId);
-    uploadMsg.setSenderName(m_displayName);
-    uploadMsg.setIsMine(true);
-    uploadMsg.setDownloadState(Message::Uploading);
-    uploadMsg.setDownloadProgress(0.0);
-    getOrCreateModel(m_currentRoomId)->addMessage(uploadMsg);
-    QTimer::singleShot(50, [this] { m_messageView->scrollToBottom(); });
-
-    // 记录发送的文件路径
-    m_pendingSentFiles[fi.fileName()] = filePath;
-
-    // 视频文件：预生成缩略图，等上传完成时一并发送
-    static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
-    if (vidExts.contains(fi.suffix().toLower())) {
-        m_upload.thumbnailData = generateVideoThumbnailData(filePath);
-        // 保存缩略图到本地缓存（使用临时 fileId），以便上传期间显示缩略图背景
-        if (!m_upload.thumbnailData.isEmpty()) {
-            QString tDir = FileCache::instance()->thumbDir();
-            QString thumbPath = tDir + QString("/thumb_%1.jpg").arg(m_uploadingFileId);
-            QFile tf(thumbPath);
-            if (tf.open(QIODevice::WriteOnly)) {
-                tf.write(m_upload.thumbnailData);
-                tf.close();
-            }
-        }
-    }
-
-    // 发送上传开始请求
-    QJsonObject data;
-    data["roomId"]   = m_currentRoomId;
-    data["fileName"] = fi.fileName();
-    data["fileSize"] = static_cast<double>(fi.size());
-    data["clientMessageId"] = m_upload.clientMessageId;
-    NetworkManager::instance()->sendMessage(
-        Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START, data));
-
-    m_statusLabel->setText(QString("准备上传: %1 (%2)")
-        .arg(fi.fileName())
-        .arg(QLocale().formattedDataSize(fi.size())));
+    const QFileInfo file(filePath);
+    QString contentType = QStringLiteral("file");
+    static const QStringList imageExtensions = {
+        "png", "jpg", "jpeg", "gif", "bmp", "webp"};
+    static const QStringList videoExtensions = {
+        "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
+    if (imageExtensions.contains(file.suffix().toLower()))
+        contentType = QStringLiteral("image");
+    else if (videoExtensions.contains(file.suffix().toLower()))
+        contentType = QStringLiteral("video");
+    stageAttachment(AttachmentOutboxService::roomTarget(m_currentRoomId),
+                    filePath, contentType);
 }
 
 void ChatWindow::onUploadStartResponse(const QJsonObject &data) {
+    if (m_upload.clientMessageId.isEmpty()
+        || m_upload.kind != LocalConversationRepository::Kind::Room)
+        return;
+    const QString responseClientId = data["clientMessageId"].toString();
+    if (!responseClientId.isEmpty()
+        && responseClientId != m_upload.clientMessageId) return;
     if (!data["success"].toBool()) {
         QMessageBox::warning(this, "上传失败", data["error"].toString());
-        clearUploadState(true);
+        failActiveAttachment(data["errorCode"].toString(
+                                 QStringLiteral("UPLOAD_START_REJECTED")),
+                             QStringLiteral("文件上传失败，可稍后重试"));
         return;
     }
     m_upload.uploadId = data["uploadId"].toString();
     if (!data["clientMessageId"].toString().isEmpty())
         m_upload.clientMessageId = data["clientMessageId"].toString();
+    if (!m_attachmentOutboxService->recordUploading(
+            m_username, m_upload.clientMessageId)) {
+        qWarning().noquote() << QStringLiteral(
+            "[AttachmentOutbox] operation=uploading outcome=degraded detail=%1")
+            .arg(m_attachmentOutboxService->lastError());
+    }
     const QString uploadPath = data["httpUploadPath"].toString();
     if (!uploadPath.isEmpty()) {
         if (NetworkManager::instance()->uploadRawFile(
@@ -2028,7 +2196,8 @@ void ChatWindow::onUploadStartResponse(const QJsonObject &data) {
             return;
         }
         QMessageBox::warning(this, "上传失败", "无法启动 HTTP 上传，请重试");
-        cancelUpload();
+        failActiveAttachment(QStringLiteral("HTTP_UPLOAD_START_FAILED"),
+                             QStringLiteral("无法启动 HTTP 上传"));
         return;
     }
     // 旧服务端不返回 HTTP 地址时，保留 V1 Base64 分块兼容路径。
@@ -2046,6 +2215,8 @@ void ChatWindow::sendNextChunk() {
     QFile file(m_upload.filePath);
     if (!file.open(QIODevice::ReadOnly)) {
         QMessageBox::warning(this, "错误", "无法读取文件");
+        failActiveAttachment(QStringLiteral("SOURCE_UNAVAILABLE"),
+                             QStringLiteral("源文件不可读，请重新选择"));
         return;
     }
 
@@ -2076,7 +2247,9 @@ void ChatWindow::sendNextChunk() {
 void ChatWindow::onUploadChunkResponse(const QJsonObject &data) {
     if (!data["success"].toBool()) {
         QMessageBox::warning(this, "上传失败", data["error"].toString());
-        clearUploadState(true);
+        failActiveAttachment(data["errorCode"].toString(
+                                 QStringLiteral("UPLOAD_CHUNK_REJECTED")),
+                             QStringLiteral("文件上传中断，可稍后重试"));
         return;
     }
 
@@ -2092,6 +2265,12 @@ void ChatWindow::onUploadChunkResponse(const QJsonObject &data) {
 }
 
 void ChatWindow::completeUploadBytes() {
+    if (!m_attachmentOutboxService->recordFinalizing(
+            m_username, m_upload.clientMessageId, m_upload.fileSize)) {
+        qWarning().noquote() << QStringLiteral(
+            "[AttachmentOutbox] operation=finalizing outcome=degraded detail=%1")
+            .arg(m_attachmentOutboxService->lastError());
+    }
     QJsonObject endData;
     endData["uploadId"] = m_upload.uploadId;
     endData["clientMessageId"] = m_upload.clientMessageId;
@@ -2102,13 +2281,11 @@ void ChatWindow::completeUploadBytes() {
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_END, endData));
     m_statusLabel->setText("文件已上传，正在同步到云端...");
-    const QString savedUploadId = m_upload.uploadId;
-    QTimer::singleShot(10000, this, [this, savedUploadId]() {
-        if (m_upload.uploadId == savedUploadId) {
-            m_upload.uploadId.clear();
-            m_upload.rawHttp = false;
-            if (m_statusLabel->text().contains("云端"))
-                m_statusLabel->clear();
+    const QString savedClientId = m_upload.clientMessageId;
+    QTimer::singleShot(10000, this, [this, savedClientId]() {
+        if (m_upload.clientMessageId == savedClientId) {
+            failActiveAttachment(QStringLiteral("FINALIZE_TIMEOUT"),
+                                 QStringLiteral("服务器确认超时，可安全重试"));
         }
     });
 }
@@ -2125,11 +2302,25 @@ void ChatWindow::onUploadFinalizeResponse(const QJsonObject &data) {
         QMessageBox::warning(
             this, "上传失败",
             data["error"].toString("服务器未能确认文件消息"));
-        clearUploadState(true);
+        failActiveAttachment(data["errorCode"].toString(
+                                 QStringLiteral("UPLOAD_FINALIZE_REJECTED")),
+                             QStringLiteral("文件发送失败，可稍后重试"));
         return;
     }
     const bool duplicate = data["duplicate"].toBool();
-    clearUploadState(duplicate);
+    const QString completedClientId = m_upload.clientMessageId;
+    const QString completedFileName = QFileInfo(m_upload.filePath).fileName();
+    const QString completedSourcePath = m_upload.filePath;
+    if (!m_attachmentOutboxService->complete(m_username, completedClientId)) {
+        qWarning().noquote() << QStringLiteral(
+            "[AttachmentOutbox] operation=complete outcome=degraded clientMessageId=%1 detail=%2")
+            .arg(completedClientId, m_attachmentOutboxService->lastError());
+    }
+    clearUploadState(true);
+    if (!duplicate && !completedSourcePath.isEmpty()) {
+        m_pendingSentFiles[completedFileName] = completedSourcePath;
+        m_pendingSentFilesByClientId[completedClientId] = completedSourcePath;
+    }
     m_statusLabel->setText(duplicate ? "文件已在服务器中，已避免重复发送"
                                      : "文件发送成功");
     QTimer::singleShot(2000, this, [this]() {
@@ -2151,7 +2342,8 @@ void ChatWindow::onRawUploadFinished(const QString &uploadId, bool success,
     if (!m_upload.rawHttp || uploadId != m_upload.uploadId) return;
     if (!success) {
         QMessageBox::warning(this, "上传失败", error);
-        cancelUpload();
+        failActiveAttachment(QStringLiteral("HTTP_UPLOAD_FAILED"),
+                             QStringLiteral("HTTP 上传中断，可稍后重试"));
         return;
     }
     m_upload.offset = m_upload.fileSize;
@@ -2220,17 +2412,25 @@ void ChatWindow::resumeUpload() {
 }
 
 void ChatWindow::cancelUpload() {
-    if (m_upload.uploadId.isEmpty()) return;
+    if (m_upload.clientMessageId.isEmpty()) return;
 
     if (m_upload.rawHttp)
         NetworkManager::instance()->cancelRawUpload(m_upload.uploadId);
 
     // 通知服务器取消
-    QJsonObject data;
-    data["uploadId"] = m_upload.uploadId;
-    NetworkManager::instance()->sendMessage(
-        Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_CANCEL, data));
+    if (!m_upload.uploadId.isEmpty()) {
+        QJsonObject data;
+        data["uploadId"] = m_upload.uploadId;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_CANCEL, data));
+    }
 
+    const QString cancelledClientId = m_upload.clientMessageId;
+    if (!m_attachmentOutboxService->cancel(m_username, cancelledClientId)) {
+        qWarning().noquote() << QStringLiteral(
+            "[AttachmentOutbox] operation=cancel outcome=degraded clientMessageId=%1 detail=%2")
+            .arg(cancelledClientId, m_attachmentOutboxService->lastError());
+    }
     clearUploadState(true);
     m_statusLabel->setText("上传已取消");
 }
@@ -2251,11 +2451,18 @@ void ChatWindow::clearUploadState(bool removeTemporaryMessage) {
         QFile::remove(tempThumb);
         QPixmapCache::remove(QString("vidthumb_%1").arg(m_uploadingFileId));
     }
+    const QString clientMessageId = m_upload.clientMessageId;
     const QString fileName = QFileInfo(m_upload.filePath).fileName();
     if (!fileName.isEmpty() && m_pendingSentFiles.value(fileName) == m_upload.filePath)
         m_pendingSentFiles.remove(fileName);
+    m_pendingSentFilesByClientId.remove(clientMessageId);
     m_upload.uploadId.clear();
     m_upload.clientMessageId.clear();
+    m_upload.kind = LocalConversationRepository::Kind::Room;
+    m_upload.conversationKey.clear();
+    m_upload.roomId = 0;
+    m_upload.peerUsername.clear();
+    m_upload.contentType.clear();
     m_upload.filePath.clear();
     m_upload.fileSize = 0;
     m_upload.offset = 0;
@@ -2264,6 +2471,7 @@ void ChatWindow::clearUploadState(bool removeTemporaryMessage) {
     m_uploadPaused = false;
     m_uploadingFileId = 0;
     m_uploadingFileName.clear();
+    QTimer::singleShot(0, this, [this] { processNextAttachment(); });
 }
 
 // ==================== 文件下载管理 ====================
@@ -3290,6 +3498,15 @@ void ChatWindow::onConnected() {
 }
 
 void ChatWindow::onDisconnected() {
+    if (!m_upload.clientMessageId.isEmpty()) {
+        if (m_upload.rawHttp && !m_upload.uploadId.isEmpty())
+            NetworkManager::instance()->cancelRawUpload(m_upload.uploadId);
+        m_attachmentOutboxService->recordPendingAuthorization(
+            m_username, m_upload.clientMessageId);
+        clearUploadState(true);
+    }
+    m_attachmentQueue.clear();
+    m_queuedAttachmentIds.clear();
     m_statusLabel->setText("已断开");
     m_statusLabel->setStyleSheet("color: red;");
 }
@@ -4061,6 +4278,7 @@ void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const 
             m_statusLabel->setText(QStringLiteral("本地消息缓存迁移失败，已切换为在线模式"));
         }
         m_outgoingMessageService->setRepository(m_localRepository.get());
+        m_attachmentOutboxService->setRepository(m_localRepository.get());
         m_conversationSyncService->setContext(
             m_localRepository.get(), m_username, false);
 
@@ -4687,6 +4905,20 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFrie
         m_conversationSyncService->forget(friendConversation(username));
         m_friendDrafts.remove(username);
     }
+    for (int index = m_attachmentQueue.size() - 1; index >= 0; --index) {
+        const auto &command = m_attachmentQueue[index];
+        if (command.target.kind == LocalConversationRepository::Kind::Direct
+            && !allowedConversationKeys.contains(
+                command.target.conversationKey)) {
+            m_queuedAttachmentIds.remove(command.clientMessageId);
+            m_attachmentQueue.removeAt(index);
+        }
+    }
+    if (m_upload.kind == LocalConversationRepository::Kind::Direct
+        && !m_upload.clientMessageId.isEmpty()
+        && !allowedConversationKeys.contains(m_upload.conversationKey)) {
+        cancelUpload();
+    }
     retryPendingFriendSends();
     updateUnreadDots();
 }
@@ -4975,9 +5207,19 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
     }
 
     // 发送者自己的文件：直接从本地复制到缓存，无需下载
-    if (sender == m_username && m_pendingSentFiles.contains(fileName)) {
+    const QString clientMessageId = data["clientMessageId"].toString();
+    QString sentLocalPath;
+    if (sender == m_username && !clientMessageId.isEmpty())
+        sentLocalPath = m_pendingSentFilesByClientId.take(clientMessageId);
+    if (sentLocalPath.isEmpty() && sender == m_username
+        && m_pendingSentFiles.contains(fileName)) {
+        sentLocalPath = m_pendingSentFiles.take(fileName);
+    }
+    if (sender == m_username && !sentLocalPath.isEmpty()) {
         // 移除临时上传消息（大文件分块上传时存在临时消息，与房间 onFileNotify 一致）
-        if (m_uploadingFileId != 0) {
+        if (m_uploadingFileId != 0
+            && (clientMessageId.isEmpty()
+                || clientMessageId == m_upload.clientMessageId)) {
             model->removeMessageByFileId(m_uploadingFileId);
             // 清理临时缩略图
             QString tempThumb = FileCache::instance()->thumbDir()
@@ -4988,9 +5230,9 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
             m_uploadingFileName.clear();
         }
 
-        QString localPath = m_pendingSentFiles.take(fileName);
-        if (QFile::exists(localPath)) {
-            QString cached = FileCache::instance()->cacheFromLocal(fileId, fileName, localPath);
+        if (QFile::exists(sentLocalPath)) {
+            QString cached = FileCache::instance()->cacheFromLocal(
+                fileId, fileName, sentLocalPath);
             if (!cached.isEmpty()) {
                 msg.setDownloadState(Message::Downloaded);
                 msg.setDownloadProgress(1.0);
@@ -5003,6 +5245,11 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
                     }
                 }
             }
+        }
+        if (!clientMessageId.isEmpty()) {
+            m_attachmentOutboxService->complete(m_username, clientMessageId);
+            if (clientMessageId == m_upload.clientMessageId)
+                clearUploadState(false);
         }
     }
 
@@ -5058,13 +5305,27 @@ void ChatWindow::onFriendOfflineNotify(const QString &username) {
 }
 
 void ChatWindow::onFriendFileUploadStartResponse(const QJsonObject &data) {
+    if (m_upload.clientMessageId.isEmpty()
+        || m_upload.kind != LocalConversationRepository::Kind::Direct)
+        return;
+    const QString responseClientId = data["clientMessageId"].toString();
+    if (!responseClientId.isEmpty()
+        && responseClientId != m_upload.clientMessageId) return;
     if (!data["success"].toBool()) {
         QMessageBox::warning(this, "文件发送", data["error"].toString());
-        clearUploadState(true);
+        failActiveAttachment(data["errorCode"].toString(
+                                 QStringLiteral("UPLOAD_START_REJECTED")),
+                             QStringLiteral("好友文件发送失败，可稍后重试"));
         return;
     }
 
     m_upload.uploadId = data["uploadId"].toString();
+    if (!m_attachmentOutboxService->recordUploading(
+            m_username, m_upload.clientMessageId)) {
+        qWarning().noquote() << QStringLiteral(
+            "[AttachmentOutbox] operation=uploading outcome=degraded detail=%1")
+            .arg(m_attachmentOutboxService->lastError());
+    }
     const QString uploadPath = data["httpUploadPath"].toString();
     if (!uploadPath.isEmpty()) {
         if (NetworkManager::instance()->uploadRawFile(
@@ -5074,7 +5335,8 @@ void ChatWindow::onFriendFileUploadStartResponse(const QJsonObject &data) {
             return;
         }
         QMessageBox::warning(this, "文件发送", "无法启动 HTTP 上传，请重试");
-        cancelUpload();
+        failActiveAttachment(QStringLiteral("HTTP_UPLOAD_START_FAILED"),
+                             QStringLiteral("无法启动 HTTP 上传"));
         return;
     }
     // 旧服务端兼容路径。
@@ -5119,73 +5381,10 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
         return;
     }
 
-    Q_UNUSED(contentType)
-    {
-        // 统一建立授权上传会话；新服务端走 HTTP，旧服务端回退分块协议。
-        if (!m_upload.uploadId.isEmpty()) {
-            QMessageBox::warning(this, "上传提示",
-                QString("当前正在上传 \"%1\"，请等待上传完成或取消后再上传新文件。")
-                    .arg(m_uploadingFileName));
-            return;
-        }
-
-        m_upload.filePath  = filePath;
-        m_upload.fileSize  = fileSize;
-        m_upload.offset    = 0;
-        m_upload.uploadId.clear();
-        m_upload.clientMessageId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-        m_upload.thumbnailData.clear();
-        m_upload.rawHttp = false;
-        m_uploadPaused = false;
-        m_uploadingFileName = fi.fileName();
-
-        // 生成临时负数 fileId 用于上传进度显示（与房间上传一致）
-        static int s_tempFriendFileId = -10000;
-        m_uploadingFileId = --s_tempFriendFileId;
-
-        // 添加临时上传消息到好友模型（显示上传进度，与房间上传一致）
-        MessageModel *model = getOrCreateFriendModel(m_currentFriendUsername);
-        Message uploadMsg;
-        uploadMsg.setSender(m_username);
-        uploadMsg.setSenderName(m_displayName);
-        uploadMsg.setIsMine(true);
-        uploadMsg.setFileName(fi.fileName());
-        uploadMsg.setFileSize(fileSize);
-        uploadMsg.setFileId(m_uploadingFileId);
-        uploadMsg.setContentType(Message::File);
-        uploadMsg.setDownloadState(Message::Uploading);
-        uploadMsg.setDownloadProgress(0.0);
-        uploadMsg.setTimestamp(QDateTime::currentMSecsSinceEpoch());
-        model->addMessage(uploadMsg);
-        QTimer::singleShot(50, [this] { m_messageView->scrollToBottom(); });
-
-        // 记录发送的文件路径
-        m_pendingSentFiles[fi.fileName()] = filePath;
-
-        // 视频文件：预生成缩略图，等上传完成时一并发送（与房间上传一致）
-        static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
-        if (vidExts.contains(fi.suffix().toLower())) {
-            m_upload.thumbnailData = generateVideoThumbnailData(filePath);
-            // 保存缩略图到本地缓存（使用临时 fileId），以便上传期间显示缩略图背景
-            if (!m_upload.thumbnailData.isEmpty()) {
-                QString tDir = FileCache::instance()->thumbDir();
-                QString thumbPath = tDir + QString("/thumb_%1.jpg").arg(m_uploadingFileId);
-                QFile tf(thumbPath);
-                if (tf.open(QIODevice::WriteOnly)) {
-                    tf.write(m_upload.thumbnailData);
-                    tf.close();
-                }
-            }
-        }
-
-        QJsonObject data;
-        data["friendUsername"] = m_currentFriendUsername;
-        data["fileName"]      = fi.fileName();
-        data["fileSize"]      = static_cast<double>(fileSize);
-        data["clientMessageId"] = m_upload.clientMessageId;
-        NetworkManager::instance()->sendMessage(
-            Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_UPLOAD_START, data));
-    }
+    stageAttachment(AttachmentOutboxService::directTarget(
+                        friendConversationKey(m_currentFriendUsername),
+                        m_currentFriendUsername),
+                    filePath, contentType);
 }
 
 void ChatWindow::onFriendRecallResponse(bool success, int messageId, const QString &error) {

@@ -38,6 +38,12 @@ ordinary case where the source file was replaced before a recovery attempt.
   source fingerprints, gate recovery on authoritative room/friend membership,
   normalize stale transport state, and own terminal cleanup. UI projection and
   V1 dispatch remain at the Windows adapter boundary.
+- The Windows adapter serializes attachment commands because the legacy upload
+  protocol has one active session. It stages intent before requesting upload
+  authorization, revalidates immediately before dispatch, resets interrupted
+  sessions to fresh authorization after an authoritative room/friend list, and
+  removes durable state on authoritative notification, final ACK, or explicit
+  cancellation.
 
 ## Consequences
 
@@ -64,4 +70,6 @@ The server and wire protocol are unchanged.
 - application-service tests cover membership-gated recovery, current peer-name
   resolution, stable-ID reuse, stale-progress normalization, source replacement,
   explicit retry validation, completion, and cancellation;
+- the Qt source gate locks room/direct composer paths to the durable outbox and
+  the Qt Release gate compiles the serialized V1 adapter;
 - future-schema rejection remains covered.

@@ -6,6 +6,7 @@
 #include <QJsonArray>
 #include <memory>
 #include "Protocol.h"
+#include "AttachmentOutboxService.h"
 #include "OutgoingMessageService.h"
 #include "ConversationSyncService.h"
 
@@ -242,6 +243,14 @@ private:
     void handleRoomSendResponse(const QJsonObject &data);
     void handleFriendSendResponse(const QJsonObject &data);
     void dispatchOutgoing(const OutgoingMessageService::Command &command);
+    bool stageAttachment(const AttachmentOutboxService::Target &target,
+                         const QString &filePath, const QString &contentType);
+    void enqueueAttachments(
+        const QList<AttachmentOutboxService::Command> &commands);
+    void processNextAttachment();
+    void dispatchAttachment(const AttachmentOutboxService::Command &command);
+    void failActiveAttachment(const QString &failureCode,
+                              const QString &message);
     void retryPendingRoomSends(const QSet<int> &allowedRoomIds);
     void retryPendingFriendSends();
     void advanceFriendSyncCursor(const QString &friendUsername, qint64 sequence);
@@ -323,6 +332,7 @@ private:
     QMap<int, MessageModel*>  m_models;     // roomId -> MessageModel
     QMap<int, QString>        m_roomDrafts;
     std::unique_ptr<LocalConversationRepository> m_localRepository;
+    std::unique_ptr<AttachmentOutboxService> m_attachmentOutboxService;
     std::unique_ptr<OutgoingMessageService> m_outgoingMessageService;
     std::unique_ptr<ConversationSyncService> m_conversationSyncService;
     MessageDelegate          *m_delegate = nullptr;
@@ -360,6 +370,12 @@ private:
         QString filePath;
         QString uploadId;
         QString clientMessageId;
+        LocalConversationRepository::Kind kind =
+            LocalConversationRepository::Kind::Room;
+        QString conversationKey;
+        int roomId = 0;
+        QString peerUsername;
+        QString contentType;
         qint64 fileSize = 0;
         qint64 offset   = 0;
         int    chunkSize = Protocol::FILE_CHUNK_SIZE;
@@ -370,9 +386,12 @@ private:
     bool m_uploadPaused = false;
     int m_uploadingFileId = 0;   // 正在上传的消息 fileId（用于 UI 进度显示）
     QString m_uploadingFileName; // 正在上传的文件名
+    QList<AttachmentOutboxService::Command> m_attachmentQueue;
+    QSet<QString> m_queuedAttachmentIds;
 
     // 发送文件的本地路径记录（用于收到 FILE_NOTIFY 时直接缓存）
     QMap<QString, QString> m_pendingSentFiles; // fileName -> localPath
+    QMap<QString, QString> m_pendingSentFilesByClientId;
     QMap<int, QPair<QString, qint64>> m_httpDownloads; // fileId -> {name, size}
 
     // --- 大文件分块下载状态（支持多文件队列） ---

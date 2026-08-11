@@ -197,8 +197,10 @@ Progress:
   - [x] Add source-revision validation, membership-gated recovery, stale-state
     normalization, and completion/cancellation cleanup to a transport-neutral
     Windows application service.
-  - [ ] Add serialized V1 dispatch and user-visible recovery controls to the
-    Windows adapter/UI layer.
+  - [x] Add serialized V1 dispatch, reconnect reset, fresh authorization, and
+    ACK/notification/cancellation cleanup to the Windows adapter layer.
+  - [ ] Add user-visible failed-task retry, source reselection, and cancellation
+    controls to the Windows UI.
 - [x] Extend the Windows cache control to clear account-isolated, server-
   recoverable SQLite history while preserving drafts and unresolved sends.
 - [ ] Add remaining optimistic states, virtualization, bounded media-cache

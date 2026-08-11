@@ -132,6 +132,19 @@ bool AttachmentOutboxService::recordUploading(
     return recordProgress(account, clientMessageId, 0);
 }
 
+bool AttachmentOutboxService::recordPendingAuthorization(
+    const QString &account, const QString &clientMessageId) {
+    m_lastError.clear();
+    if (!m_repository || !m_repository->updateAttachmentCommandState(
+            account, clientMessageId,
+            LocalConversationRepository::AttachmentState::PendingAuthorization, 0)) {
+        m_lastError = m_repository ? m_repository->lastError()
+                                   : QStringLiteral("attachment command store unavailable");
+        return false;
+    }
+    return true;
+}
+
 bool AttachmentOutboxService::recordProgress(
     const QString &account, const QString &clientMessageId,
     qint64 transmittedBytes) {

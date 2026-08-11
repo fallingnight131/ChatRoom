@@ -47,6 +47,8 @@ public:
 
     bool recordUploading(const QString &account,
                          const QString &clientMessageId);
+    bool recordPendingAuthorization(const QString &account,
+                                    const QString &clientMessageId);
     bool recordProgress(const QString &account,
                         const QString &clientMessageId, qint64 transmittedBytes);
     bool recordFinalizing(const QString &account,

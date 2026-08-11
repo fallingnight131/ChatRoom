@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = (ROOT / "Client" / "ChatWindow.cpp").read_text(encoding="utf-8")
+OUTBOX = (ROOT / "Client" / "AttachmentOutboxService.cpp").read_text(encoding="utf-8")
 
 
 def between(start: str, end: str) -> str:
@@ -30,8 +31,8 @@ def main() -> int:
     if "FILE_UPLOAD_END_RSP" not in (ROOT / "Common" / "Protocol.h").read_text(encoding="utf-8"):
         print("[QtAttachmentSourceTest] FAIL: attachment finalization ACK type is absent")
         return 1
-    if "m_upload.clientMessageId = QUuid::createUuid()" not in SOURCE:
-        print("[QtAttachmentSourceTest] FAIL: Qt upload does not allocate a clientMessageId")
+    if "QUuid::createUuid()" not in OUTBOX or "stageAttachment(" not in SOURCE:
+        print("[QtAttachmentSourceTest] FAIL: durable Qt upload does not allocate a clientMessageId")
         return 1
     if 'endData["clientMessageId"] = m_upload.clientMessageId' not in SOURCE:
         print("[QtAttachmentSourceTest] FAIL: Qt finalization omits clientMessageId")
