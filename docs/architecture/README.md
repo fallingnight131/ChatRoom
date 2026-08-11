@@ -248,8 +248,11 @@ The application core and PostgreSQL adapter now also implement an inactive
 durable-message boundary: authorized append atomically allocates a conversation
 sequence, exact concurrent retries return one stable database-timestamped
 outcome, conflicting idempotency reuse is denied, and active members can read
-bounded ascending sequence pages. Permanent bounded V2 types 100..103 now cover
-submit/accepted/history/page with Java/C++/TypeScript golden compatibility.
+bounded ascending sequence pages. Permanent bounded V2 types 100..104 now cover
+submit/accepted/history/page plus a server live-message event using the same
+record projection, with generated Java/C++/TypeScript compatibility. Publication
+is not active yet; the Web client can validate, merge, and history-repair the
+event without skipping its contiguous cursor.
 Authenticated gateway connections now dispatch registered UTF-8 text submission
 and sequence-history reads through this boundary outside the Netty event loop,
 using only server-bound identity and preserving per-connection command order.

@@ -25,6 +25,7 @@ import {
   MessageAcceptedSchema,
   MessageContentType,
   MessageHistoryPageSchema,
+  MessageRecordSchema,
   ReadMessageHistorySchema,
   SubmitMessageSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
@@ -69,6 +70,28 @@ function response(
     clientMessageId: options.clientMessageId ?? request.clientMessageId,
     sentAtEpochMs: BigInt(NOW + 1),
     payload,
+  }));
+}
+
+function publishedMessage(options: { requestId?: string; sessionId?: string; kind?: MessageKind } = {}): Uint8Array {
+  return toBinary(EnvelopeSchema, create(EnvelopeSchema, {
+    protocolVersion: 2,
+    kind: options.kind ?? MessageKind.EVENT,
+    messageType: MessageType.MESSAGE_PUBLISHED,
+    requestId: options.requestId ?? "",
+    sessionId: options.sessionId ?? SESSION_ID,
+    sentAtEpochMs: BigInt(NOW + 1),
+    payload: toBinary(MessageRecordSchema, create(MessageRecordSchema, {
+      conversationId: CONVERSATION_ID,
+      messageId: MESSAGE_ID,
+      conversationSequence: 2n,
+      senderAccountId: ACCOUNT_ID,
+      senderDeviceId: DEVICE_ID,
+      clientMessageId: CLIENT_MESSAGE_ID,
+      contentType: MessageContentType.TEXT_UTF8,
+      content: new TextEncoder().encode("live"),
+      acceptedAtEpochMs: BigInt(NOW),
+    })),
   }));
 }
 
@@ -272,6 +295,20 @@ test("validates correlated directory, history, and accepted responses", () => {
   assert.equal(acceptedEvent.type, "message-accepted");
   assert.equal(acceptedEvent.requestId, submitRequest.requestId);
   assert.equal(acceptedEvent.clientMessageId, CLIENT_MESSAGE_ID);
+});
+
+test("accepts only uncorrelated authenticated live-message events", () => {
+  assert.throws(() => newClient().receive(publishedMessage()), /requires an authenticated session/);
+  const client = newClient();
+  authenticate(client);
+  const event = client.receive(publishedMessage());
+  assert.equal(event.type, "message-published");
+  assert.equal(event.requestId, "");
+  assert.equal(event.clientMessageId, "");
+  assert.equal(event.type === "message-published" && new TextDecoder().decode(event.value.content), "live");
+  assert.throws(() => client.receive(publishedMessage({ requestId: UNKNOWN_REQUEST_ID })), /must not carry request/);
+  assert.throws(() => client.receive(publishedMessage({ sessionId: DEVICE_ID })), /session does not match/);
+  assert.throws(() => client.receive(publishedMessage({ kind: MessageKind.RESPONSE })), /pending request/);
 });
 
 test("rejects invalid transitions, unknown requests, wrong sessions, and response type confusion", () => {

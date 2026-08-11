@@ -15,6 +15,7 @@ import {
   MessageAcceptedSchema,
   MessageContentType,
   MessageHistoryPageSchema,
+  MessageRecordSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
 import type { V2WebProtocolEvent } from "../src/protocol/v2/webProtocolClient";
 import type {
@@ -290,6 +291,69 @@ test("reconciles optimistic acceptance without skipping the contiguous history c
   assert.equal(application.snapshot.messages.find((message) => message.clientMessageId === "client-2")?.deliveryState, "failed");
   assert.equal(application.retryMessage("client-2"), true);
   assert.deepEqual(transport.calls.at(-1), ["submit", CONVERSATION_ID, "client-2", "retry me"]);
+  application.dispose();
+});
+
+test("merges contiguous live events and repairs sequence gaps through history", async () => {
+  const transport = new FakeTransport();
+  const cache = new FakeCache();
+  cache.records.set(`${ACCOUNT_ID}:${CONVERSATION_ID}`, {
+    messages: [cachedMessage()],
+    cursorSequence: CURSOR,
+  });
+  const application = new V2WebChatApplication({ transport, cache });
+  establish(transport);
+  directory(transport);
+  await application.openConversation(CONVERSATION_ID);
+  transport.emit(correlated({
+    type: "message-history-page",
+    value: create(MessageHistoryPageSchema, {
+      conversationId: CONVERSATION_ID,
+      nextSequence: BigInt(CURSOR),
+      latestSequence: BigInt(CURSOR),
+      hasMore: false,
+    }),
+  }));
+
+  transport.emit({
+    type: "message-published",
+    requestId: "",
+    clientMessageId: "",
+    value: create(MessageRecordSchema, {
+      conversationId: CONVERSATION_ID,
+      messageId: SECOND_MESSAGE_ID,
+      conversationSequence: BigInt(CURSOR) + 1n,
+      senderAccountId: ACCOUNT_ID,
+      senderDeviceId: DEVICE_ID,
+      clientMessageId: "live-1",
+      contentType: MessageContentType.TEXT_UTF8,
+      content: new TextEncoder().encode("live one"),
+      acceptedAtEpochMs: BigInt(NOW),
+    }),
+  });
+  assert.equal(application.snapshot.messages.at(-1)?.content, "live one");
+  assert.equal(cache.saves.at(-1)?.cursor, (BigInt(CURSOR) + 1n).toString());
+
+  transport.emit({
+    type: "message-published",
+    requestId: "",
+    clientMessageId: "",
+    value: create(MessageRecordSchema, {
+      conversationId: CONVERSATION_ID,
+      messageId: "60000000-0000-4000-8000-000000000003",
+      conversationSequence: BigInt(CURSOR) + 3n,
+      senderAccountId: ACCOUNT_ID,
+      senderDeviceId: DEVICE_ID,
+      clientMessageId: "live-3",
+      contentType: MessageContentType.TEXT_UTF8,
+      content: new TextEncoder().encode("live three"),
+      acceptedAtEpochMs: BigInt(NOW + 2),
+    }),
+  });
+  assert.deepEqual(transport.calls.at(-1), [
+    "history", CONVERSATION_ID, BigInt(CURSOR) + 1n, 100,
+  ]);
+  assert.equal(cache.saves.at(-1)?.cursor, (BigInt(CURSOR) + 1n).toString());
   application.dispose();
 });
 

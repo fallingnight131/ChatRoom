@@ -91,7 +91,8 @@ tests also verify binary envelope egress plus fixed WebSocket 1002/1009 close
 mapping for unsafe frames. They do not open a listener or imply that V2 is ready
 to receive traffic.
 The protocol-binding gate also compiles and round-trips permanent V2 messaging
-types 100..103 and content type 1 (bounded nonempty UTF-8 text). It verifies the
+types 100..104 and content type 1 (bounded nonempty UTF-8 text). Type 104 is the
+uncorrelated authenticated live `MessageRecord` event. It verifies the
 fixed `SubmitMessage` golden payload in Java, generated TypeScript, and generated
 C++. It also locks the V2 conversation-directory composite cursor across all
 three generated bindings. The generation task also publishes reviewed TypeScript

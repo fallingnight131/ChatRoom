@@ -353,6 +353,9 @@ export class V2WebChatApplication {
         this.applyHistoryPage(event.value.conversationId, event.value.messages,
           event.value.nextSequence, event.value.hasMore);
         break;
+      case "message-published":
+        this.applyPublishedMessage(event.value);
+        break;
       case "message-accepted":
         this.applyMessageAccepted(event);
         break;
@@ -426,6 +429,29 @@ export class V2WebChatApplication {
       this.replayInFlight.delete(event.value.conversationId);
       this.dispatchNextReplay(event.value.conversationId, state);
     }
+  }
+
+  private applyPublishedMessage(record: MessageRecord): void {
+    const directory = this.directoryValue.find((item) => item.conversationId === record.conversationId);
+    if (directory) {
+      directory.latestSequence = maxSequence(directory.latestSequence, record.conversationSequence.toString());
+      directory.updatedAtEpochMs = Math.max(directory.updatedAtEpochMs, Number(record.acceptedAtEpochMs));
+      this.directoryValue.sort((left, right) =>
+        right.updatedAtEpochMs - left.updatedAtEpochMs
+          || right.conversationId.localeCompare(left.conversationId));
+    }
+    const state = this.conversations.get(record.conversationId);
+    if (!state) return;
+    state.messages = mergeMessages(state.messages, [mapMessageRecord(record)]);
+    const publishedSequence = record.conversationSequence;
+    const cursor = BigInt(state.cursorSequence);
+    if (publishedSequence === cursor + 1n) {
+      state.cursorSequence = publishedSequence.toString();
+    } else if (publishedSequence > cursor + 1n && !state.loading) {
+      state.loading = true;
+      this.transport.readMessageHistory(record.conversationId, cursor, HISTORY_PAGE_SIZE);
+    }
+    this.persist(record.conversationId);
   }
 
   private applyProtocolError(event: Extract<V2WebProtocolEvent, { type: "protocol-error" }>): void {

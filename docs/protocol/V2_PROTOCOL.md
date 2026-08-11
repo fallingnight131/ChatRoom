@@ -64,6 +64,7 @@ reused:
 | 101 | `MessageAccepted` | response | server to submitting client after durable commit |
 | 102 | `ReadMessageHistory` | command | authenticated client to server; forward sequence page |
 | 103 | `MessageHistoryPage` | response | server to requesting active member |
+| 104 | `MessageRecord` | event | server to authenticated active subscriber after durable commit |
 | 110 | `ListConversations` | command | authenticated client to server; bounded directory page |
 | 111 | `ConversationDirectoryPage` | response | server to authenticated active member |
 
@@ -92,9 +93,12 @@ Netty event loop, and serializes at most one command per connection with 16
 additional queued commands. Saturation returns retryable `RATE_LIMITED`; an
 unexpected application failure returns retryable `INTERNAL_ERROR`. Neither
 expected business denial nor retryable failure closes the authenticated
-connection. This is an additive pre-cutover path: no supported client sends V2
-product traffic yet, and delivery/read/fan-out are not implemented by these four
-types.
+connection. Type 104 is permanently reserved for an unsolicited live
+`MessageRecord`: it carries the authenticated session but no request or envelope
+client-message correlation. The Web client accepts it only after authentication,
+merges stable identities, advances only an exact contiguous sequence, and repairs
+gaps through type 102 history. Gateway publication is not implemented in this
+slice, so delivery/read/fan-out remain pre-cutover work.
 
 `ListConversations` uses a limit of 1..100 and either no cursor or the complete
 pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are
@@ -112,9 +116,10 @@ The additive Web protocol client consumes the generated TypeScript schemas but
 does not yet own a WebSocket or replace the live V1 connection. Its fail-closed
 state machine emits bounded binary commands for hello, fresh authentication,
 directory listing, history reads, and idempotent UTF-8 text submission. It
-accepts only correlated response/error envelopes of the registered kind and
-type, preserves the validated `request_id` and `client_message_id` on decoded
-application events, validates the authenticated session and feature payload invariants, caps
+accepts correlated response/error envelopes plus the one uncorrelated,
+session-bound type 104 event of the registered kind. It preserves validated
+correlation on decoded command outcomes, validates the authenticated session and
+feature payload invariants, caps
 pending requests at 16, and retains the one-time resume proof only in memory.
 Password input is copied only for immediate serialization and that owned copy is
 cleared. Connection/reconnect ownership and durable resume-token storage remain
@@ -136,8 +141,10 @@ automatically submits it after a reconnect negotiation. It clears the prior copy
 on every rotation, redacts proof bytes from application observers, and clears
 the credential on rejection or explicit stop. A same-account/session resume
 preserves the active cached conversation and requests history from its existing
-contiguous cursor. Cross-reload proof persistence, online/offline integration,
-and UI rollout remain later slices.
+contiguous cursor. Cross-reload proof persistence remains intentionally absent.
+The transport pauses socket/timer work while the browser is offline and attempts
+an immediate ordinary reconnect when network state returns. The build-gated
+preview UI owns explicit connection and authentication lifecycle.
 
 The pre-cutover Web application coordinator consumes those validated events. It
 uses the envelope `client_message_id` to reconcile optimistic sends and treats a

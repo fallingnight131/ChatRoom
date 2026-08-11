@@ -57,6 +57,12 @@ public final class MessagingPayloadPolicy {
         requireNone(violations);
     }
 
+    public static void requireValid(MessageRecord event) {
+        List<String> violations = new ArrayList<>();
+        validateMessageRecord(event, violations);
+        requireNone(violations);
+    }
+
     public static void requireValid(MessageHistoryPage page) {
         List<String> violations = new ArrayList<>();
         requireUuid("conversationId", page.getConversationId(), violations);
@@ -67,17 +73,11 @@ public final class MessagingPayloadPolicy {
         }
         long previous = 0;
         for (MessageRecord message : page.getMessagesList()) {
-            requireUuid("messageId", message.getMessageId(), violations);
-            requireUuid("senderAccountId", message.getSenderAccountId(), violations);
-            requireUuid("senderDeviceId", message.getSenderDeviceId(), violations);
-            requireIdentifier("clientMessageId", message.getClientMessageId(), true, violations);
+            validateMessageRecord(message, violations);
             if (!page.getConversationId().equals(message.getConversationId())
-                    || message.getConversationSequence() <= previous
-                    || message.getContent().size() > MAX_CONTENT_BYTES
-                    || message.getAcceptedAtEpochMs() <= 0) {
+                    || message.getConversationSequence() <= previous) {
                 violations.add("history message is invalid or out of order");
             }
-            validateContent(message.getContentType(), message.getContent(), violations);
             previous = message.getConversationSequence();
         }
         if (!page.getMessagesList().isEmpty()
@@ -85,6 +85,20 @@ public final class MessagingPayloadPolicy {
             violations.add("nextSequence must equal the last message sequence");
         }
         requireNone(violations);
+    }
+
+    private static void validateMessageRecord(MessageRecord message, List<String> violations) {
+        requireUuid("conversationId", message.getConversationId(), violations);
+        requireUuid("messageId", message.getMessageId(), violations);
+        requireUuid("senderAccountId", message.getSenderAccountId(), violations);
+        requireUuid("senderDeviceId", message.getSenderDeviceId(), violations);
+        requireIdentifier("clientMessageId", message.getClientMessageId(), true, violations);
+        if (message.getConversationSequence() <= 0
+                || message.getContent().size() > MAX_CONTENT_BYTES
+                || message.getAcceptedAtEpochMs() <= 0) {
+            violations.add("message record bounds are invalid");
+        }
+        validateContent(message.getContentType(), message.getContent(), violations);
     }
 
     private static void requireUuid(String field, String value, List<String> violations) {

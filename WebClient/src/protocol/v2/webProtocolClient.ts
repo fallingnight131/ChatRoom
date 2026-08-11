@@ -27,10 +27,12 @@ import {
   MessageAcceptedSchema,
   MessageContentType,
   MessageHistoryPageSchema,
+  MessageRecordSchema,
   ReadMessageHistorySchema,
   SubmitMessageSchema,
   type MessageAccepted,
   type MessageHistoryPage,
+  type MessageRecord,
 } from "./generated/messaging_pb";
 
 const PROTOCOL_VERSION = 2;
@@ -63,6 +65,7 @@ export type V2WebProtocolEvent = ResponseCorrelation & (
   | { type: "protocol-error"; value: ProtocolError }
   | { type: "message-accepted"; value: MessageAccepted }
   | { type: "message-history-page"; value: MessageHistoryPage }
+  | { type: "message-published"; value: MessageRecord }
   | { type: "conversation-directory-page"; value: ConversationDirectoryPage }
 );
 
@@ -236,8 +239,13 @@ export class V2WebProtocolClient {
       throw new Error("invalid V2 envelope");
     }
     this.validateInboundEnvelope(envelope);
+    const serverEvent = envelope.kind === MessageKind.EVENT;
     const pending = envelope.requestId ? this.pending.get(envelope.requestId) : undefined;
-    if (envelope.messageType !== MessageType.PROTOCOL_ERROR) {
+    if (serverEvent) {
+      if (envelope.requestId || envelope.clientMessageId) {
+        throw new Error("server event must not carry request correlation");
+      }
+    } else if (envelope.messageType !== MessageType.PROTOCOL_ERROR) {
       if (!pending) throw new Error("response does not match a pending request");
       if (!pending.expected.has(envelope.messageType)) throw new Error("response message type does not match the request");
     } else if (envelope.requestId && !pending) {
@@ -297,10 +305,14 @@ export class V2WebProtocolClient {
 
   private validateInboundEnvelope(envelope: Envelope): void {
     if (envelope.protocolVersion !== PROTOCOL_VERSION) throw new Error("unsupported protocol version");
-    if (envelope.kind !== MessageKind.RESPONSE && envelope.kind !== MessageKind.ERROR) {
+    const publishedEvent = envelope.kind === MessageKind.EVENT
+      && envelope.messageType === MessageType.MESSAGE_PUBLISHED;
+    if (!publishedEvent && envelope.kind !== MessageKind.RESPONSE && envelope.kind !== MessageKind.ERROR) {
       throw new Error("unexpected inbound message kind");
     }
-    if (envelope.messageType === MessageType.PROTOCOL_ERROR
+    if (publishedEvent) {
+      if (this.currentState !== "authenticated") throw new Error("server event requires an authenticated session");
+    } else if (envelope.messageType === MessageType.PROTOCOL_ERROR
         || envelope.messageType === MessageType.AUTHENTICATION_REJECTED) {
       if (envelope.kind !== MessageKind.ERROR) throw new Error("error payload requires error message kind");
     } else if (envelope.kind !== MessageKind.RESPONSE) {
@@ -335,6 +347,8 @@ export class V2WebProtocolClient {
           return { ...correlation, type: "message-accepted", value: fromBinary(MessageAcceptedSchema, envelope.payload) };
         case MessageType.MESSAGE_HISTORY_PAGE:
           return { ...correlation, type: "message-history-page", value: fromBinary(MessageHistoryPageSchema, envelope.payload) };
+        case MessageType.MESSAGE_PUBLISHED:
+          return { ...correlation, type: "message-published", value: fromBinary(MessageRecordSchema, envelope.payload) };
         case MessageType.CONVERSATION_DIRECTORY_PAGE:
           return { ...correlation, type: "conversation-directory-page", value: fromBinary(ConversationDirectoryPageSchema, envelope.payload) };
         default:
@@ -394,6 +408,9 @@ export class V2WebProtocolClient {
       case "message-history-page":
         validateHistoryPage(event.value);
         break;
+      case "message-published":
+        validateMessageRecord(event.value);
+        break;
       case "conversation-directory-page":
         validateDirectoryPage(event.value);
         break;
@@ -414,28 +431,34 @@ function validateHistoryPage(page: MessageHistoryPage): void {
   }
   let previous = 0n;
   for (const message of page.messages) {
-    requireUuid("messageId", message.messageId);
-    requireUuid("senderAccountId", message.senderAccountId);
-    requireUuid("senderDeviceId", message.senderDeviceId);
-    requireIdentifier("clientMessageId", message.clientMessageId);
+    validateMessageRecord(message);
     if (message.conversationId !== page.conversationId
-        || message.conversationSequence <= previous
-        || message.acceptedAtEpochMs <= 0n
-        || message.contentType !== MessageContentType.TEXT_UTF8
-        || message.content.byteLength < 1
-        || message.content.byteLength > MAX_TEXT_BYTES) {
+        || message.conversationSequence <= previous) {
       throw new Error("invalid history message");
-    }
-    try {
-      strictDecoder.decode(message.content);
-    } catch {
-      throw new Error("history text is not valid UTF-8");
     }
     previous = message.conversationSequence;
   }
   if (page.messages.length > 0 && page.nextSequence !== previous) {
     throw new Error("history cursor does not identify the last message");
   }
+}
+
+function validateMessageRecord(message: MessageRecord): void {
+  requireUuid("conversationId", message.conversationId);
+  requireUuid("messageId", message.messageId);
+  requireUuid("senderAccountId", message.senderAccountId);
+  requireUuid("senderDeviceId", message.senderDeviceId);
+  requireIdentifier("clientMessageId", message.clientMessageId);
+  if (message.conversationSequence <= 0n
+      || message.conversationSequence > MAX_SIGNED_SEQUENCE
+      || message.acceptedAtEpochMs <= 0n
+      || message.contentType !== MessageContentType.TEXT_UTF8
+      || message.content.byteLength < 1
+      || message.content.byteLength > MAX_TEXT_BYTES) {
+    throw new Error("invalid message record");
+  }
+  try { strictDecoder.decode(message.content); }
+  catch { throw new Error("message text is not valid UTF-8"); }
 }
 
 function validateDirectoryPage(page: ConversationDirectoryPage): void {

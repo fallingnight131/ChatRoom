@@ -372,6 +372,9 @@ Progress:
     - [x] Pause Web V2 socket/retry work while the browser is offline, reconnect
       immediately on network recovery, and preserve only the rotated in-memory
       resume proof across that transition.
+    - [x] Permanently allocate the authenticated V2 live-message event and make
+      Web reconciliation advance only contiguous sequence or repair gaps through
+      history before enabling gateway fan-out.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

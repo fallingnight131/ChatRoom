@@ -31,6 +31,8 @@ class MessagingProtocolTest {
                 MessageTypeRegistry.requiredKind(MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY));
         assertEquals(MessageKind.MESSAGE_KIND_RESPONSE,
                 MessageTypeRegistry.requiredKind(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE));
+        assertEquals(MessageKind.MESSAGE_KIND_EVENT,
+                MessageTypeRegistry.requiredKind(MessageType.MESSAGE_TYPE_MESSAGE_PUBLISHED));
     }
 
     @Test
@@ -81,6 +83,7 @@ class MessagingProtocolTest {
                 .setLatestSequence(1)
                 .build();
         MessagingPayloadPolicy.requireValid(page);
+        MessagingPayloadPolicy.requireValid(page.getMessages(0));
     }
 
     private static MessageRecord record(long sequence, String messageId) {

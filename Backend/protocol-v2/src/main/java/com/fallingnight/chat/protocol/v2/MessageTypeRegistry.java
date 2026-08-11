@@ -28,6 +28,7 @@ public final class MessageTypeRegistry {
                     MessageKind.MESSAGE_KIND_COMMAND;
             case MESSAGE_TYPE_MESSAGE_ACCEPTED, MESSAGE_TYPE_MESSAGE_HISTORY_PAGE ->
                     MessageKind.MESSAGE_KIND_RESPONSE;
+            case MESSAGE_TYPE_MESSAGE_PUBLISHED -> MessageKind.MESSAGE_KIND_EVENT;
             case MESSAGE_TYPE_LIST_CONVERSATIONS -> MessageKind.MESSAGE_KIND_COMMAND;
             case MESSAGE_TYPE_CONVERSATION_DIRECTORY_PAGE -> MessageKind.MESSAGE_KIND_RESPONSE;
             case MESSAGE_TYPE_UNSPECIFIED, UNRECOGNIZED ->
