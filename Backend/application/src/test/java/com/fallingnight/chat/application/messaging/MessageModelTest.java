@@ -1,0 +1,52 @@
+package com.fallingnight.chat.application.messaging;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.time.Instant;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+
+class MessageModelTest {
+    @Test
+    void submissionAndStoredProjectionOwnPayloadCopiesAndEnforceBounds() {
+        byte[] source = {1, 2};
+        MessageSubmission submission = new MessageSubmission(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "client-1", 100, source);
+        source[0] = 9;
+        byte[] returned = submission.payload();
+        returned[1] = 9;
+        assertArrayEquals(new byte[] {1, 2}, submission.payload());
+
+        StoredMessage stored = new StoredMessage(
+                UUID.randomUUID(),
+                submission.conversationId(),
+                1,
+                submission.senderAccountId(),
+                submission.senderDeviceId(),
+                submission.clientMessageId(),
+                submission.messageType(),
+                submission.payload(),
+                Instant.EPOCH);
+        byte[] storedPayload = stored.payload();
+        storedPayload[0] = 8;
+        assertArrayEquals(new byte[] {1, 2}, stored.payload());
+
+        assertThrows(IllegalArgumentException.class, () -> new MessageSubmission(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "client-2",
+                100,
+                new byte[MessageSubmission.MAX_PAYLOAD_BYTES + 1]));
+        assertThrows(IllegalArgumentException.class, () -> new MessageHistoryQuery(
+                UUID.randomUUID(), UUID.randomUUID(), 0, 101));
+        assertThrows(IllegalArgumentException.class, () -> new MessageSubmission(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "   ",
+                100,
+                new byte[0]));
+    }
+}

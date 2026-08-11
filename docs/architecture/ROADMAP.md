@@ -342,6 +342,9 @@ Progress:
   - [x] Add a separate offline backup/verify/preview/apply command, versioned
     proof file, explicit fingerprint confirmation, safe output, and disposable
     PostgreSQL command-boundary verification.
+  - [x] Add transport-independent message append/history ports and a PostgreSQL
+    adapter with active account/member/device authorization, atomic sequence,
+    exact concurrent idempotency, database timestamps, and bounded cursor pages.
   - [ ] Rehearse the operator restore procedure and quiesced final fingerprint
     check before any identity authority cutover.
 - [x] Define the transport/persistence-independent fresh-login application use

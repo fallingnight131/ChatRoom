@@ -243,6 +243,13 @@ TLS and defines a bounded fail-fast HikariCP pool. `GatewayMain` can now constru
 the pool and bind when an operator supplies the complete strict environment, but
 no product traffic is routed to it.
 
+The application core and PostgreSQL adapter now also implement an inactive
+durable-message boundary: authorized append atomically allocates a conversation
+sequence, exact concurrent retries return one stable database-timestamped
+outcome, conflicting idempotency reuse is denied, and active members can read
+bounded ascending sequence pages. No V2 message wire types or gateway dispatch
+use this boundary yet.
+
 The application identity module now also owns a transport-independent session
 resume command and atomic-rotation persistence port. The command destroys its
 owned presented token after the use case returns and maps every persistence

@@ -12,6 +12,10 @@ import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.application.identity.ClientPlatform;
 import com.fallingnight.chat.application.identity.IssuedSession;
 import com.fallingnight.chat.application.identity.StoredCredential;
+import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
+import com.fallingnight.chat.application.messaging.MessageHistoryResult;
+import com.fallingnight.chat.application.messaging.MessageSubmission;
+import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.application.security.SecretBytes;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportException;
@@ -85,6 +89,74 @@ class PostgresMigratorTest {
     void refusesNonPostgresUrlsBeforeConnecting() {
         assertThrows(IllegalArgumentException.class,
                 () -> new PostgresMigrator("jdbc:sqlite:test.db", "", ""));
+    }
+
+    @Test
+    @Order(5)
+    void appendsMessagesIdempotentlyAndReadsOnlyForActiveMembers() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID account = UUID.randomUUID();
+        UUID device = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        seedMessageOwner(account, device, conversation);
+        PostgresMessageAdapter adapter = new PostgresMessageAdapter(dataSource());
+        MessageSubmission first = new MessageSubmission(
+                conversation, account, device, "client-race", 100, new byte[] {1, 2, 3});
+
+        List<MessageSubmissionResult.Accepted> raced = raceSubmit(adapter, first);
+        assertEquals(2, raced.size());
+        assertEquals(1, raced.stream().filter(result -> !result.duplicate()).count());
+        assertEquals(1, raced.stream().filter(MessageSubmissionResult.Accepted::duplicate).count());
+        assertEquals(raced.get(0).messageId(), raced.get(1).messageId());
+        assertEquals(1, raced.get(0).conversationSequence());
+        assertEquals(raced.get(0).acceptedAt(), raced.get(1).acceptedAt());
+
+        assertEquals(
+                MessageSubmissionResult.Rejected.IDEMPOTENCY_CONFLICT,
+                adapter.submit(
+                        new MessageSubmission(
+                                conversation,
+                                account,
+                                device,
+                                "client-race",
+                                100,
+                                new byte[] {9})));
+
+        MessageSubmissionResult.Accepted second = (MessageSubmissionResult.Accepted) adapter.submit(
+                new MessageSubmission(
+                        conversation, account, device, "client-2", 101, new byte[] {4}));
+        assertEquals(2, second.conversationSequence());
+
+        MessageHistoryResult.Page firstPage = (MessageHistoryResult.Page) adapter.readAfter(
+                new MessageHistoryQuery(conversation, account, 0, 1));
+        assertEquals(1, firstPage.messages().size());
+        assertEquals(1, firstPage.nextSequence());
+        assertEquals(2, firstPage.latestSequence());
+        assertTrue(firstPage.hasMore());
+        assertEquals(new byte[] {1, 2, 3}.length, firstPage.messages().getFirst().payload().length);
+
+        MessageHistoryResult.Page secondPage = (MessageHistoryResult.Page) adapter.readAfter(
+                new MessageHistoryQuery(conversation, account, firstPage.nextSequence(), 100));
+        assertEquals(List.of(second.messageId()),
+                secondPage.messages().stream().map(message -> message.messageId()).toList());
+        assertFalse(secondPage.hasMore());
+        assertEquals(2, secondPage.nextSequence());
+        assertMessageHistoryIndexEligible(conversation);
+        assertEquals(
+                MessageHistoryResult.Rejected.NOT_AUTHORIZED,
+                adapter.readAfter(new MessageHistoryQuery(
+                        conversation, UUID.randomUUID(), 0, 10)));
+
+        leaveConversation(conversation, account);
+        assertEquals(
+                MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                adapter.submit(
+                        new MessageSubmission(
+                                conversation, account, device, "client-3", 100, new byte[0])));
+        assertEquals(
+                MessageHistoryResult.Rejected.NOT_AUTHORIZED,
+                adapter.readAfter(new MessageHistoryQuery(conversation, account, 0, 10)));
     }
 
     @Test
@@ -369,6 +441,32 @@ class PostgresMigratorTest {
         }
     }
 
+    private static List<MessageSubmissionResult.Accepted> raceSubmit(
+            PostgresMessageAdapter adapter,
+            MessageSubmission submission) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<Future<MessageSubmissionResult>> futures = java.util.stream.IntStream.range(0, 2)
+                    .mapToObj(index -> executor.submit(() -> {
+                        ready.countDown();
+                        assertTrue(start.await(2, TimeUnit.SECONDS));
+                        return adapter.submit(submission);
+                    }))
+                    .toList();
+            assertTrue(ready.await(2, TimeUnit.SECONDS));
+            start.countDown();
+            return List.of(
+                    (MessageSubmissionResult.Accepted) futures.get(0).get(),
+                    (MessageSubmissionResult.Accepted) futures.get(1).get());
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
+        }
+    }
+
     private static void insertMessage(
             Connection connection,
             UUID id,
@@ -390,6 +488,79 @@ class PostgresMigratorTest {
             statement.setBytes(7, new byte[] {1});
             statement.setBytes(8, new byte[32]);
             statement.executeUpdate();
+        }
+    }
+
+    private static void seedMessageOwner(UUID account, UUID device, UUID conversation)
+            throws SQLException {
+        try (Connection connection = connect()) {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'message-owner', 'Message Owner', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')")) {
+                statement.setObject(1, account);
+                statement.executeUpdate();
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "INSERT INTO chat.device(id, account_id, client_device_id, platform) "
+                            + "VALUES (?, ?, 'message-device', 'WEB')")) {
+                statement.setObject(1, device);
+                statement.setObject(2, account);
+                statement.executeUpdate();
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')")) {
+                statement.setObject(1, conversation);
+                statement.executeUpdate();
+            }
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id) "
+                            + "VALUES (?, ?)")) {
+                statement.setObject(1, conversation);
+                statement.setObject(2, account);
+                statement.executeUpdate();
+            }
+        }
+    }
+
+    private static void leaveConversation(UUID conversation, UUID account) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "UPDATE chat.conversation_member SET left_at = transaction_timestamp() "
+                                + "WHERE conversation_id = ? AND account_id = ?")) {
+            statement.setObject(1, conversation);
+            statement.setObject(2, account);
+            assertEquals(1, statement.executeUpdate());
+        }
+    }
+
+    private static void assertMessageHistoryIndexEligible(UUID conversation) throws SQLException {
+        try (Connection connection = connect()) {
+            connection.setAutoCommit(false);
+            try (PreparedStatement disableSequentialScan = connection.prepareStatement(
+                    "SET LOCAL enable_seqscan = off")) {
+                disableSequentialScan.execute();
+            }
+            String plan = "";
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "EXPLAIN (FORMAT TEXT) SELECT id, conversation_sequence "
+                            + "FROM chat.message WHERE conversation_id = ? "
+                            + "AND conversation_sequence > ? AND deleted_at IS NULL "
+                            + "ORDER BY conversation_sequence ASC LIMIT ?")) {
+                statement.setObject(1, conversation);
+                statement.setLong(2, 0);
+                statement.setInt(3, 101);
+                try (ResultSet result = statement.executeQuery()) {
+                    StringBuilder output = new StringBuilder();
+                    while (result.next()) {
+                        output.append(result.getString(1)).append('\n');
+                    }
+                    plan = output.toString();
+                }
+            } finally {
+                connection.rollback();
+            }
+            assertTrue(plan.contains("message_conversation_history_idx"), plan);
         }
     }
 

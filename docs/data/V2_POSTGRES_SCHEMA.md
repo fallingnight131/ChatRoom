@@ -60,7 +60,7 @@ artifact immediately before commit. V1 is nevertheless still authoritative;
 the offline operator command has no traffic route, and source quiescence plus a
 final cutover check remain required.
 
-## Ordering and idempotency
+## Implemented ordering and idempotency
 
 A sender transaction allocates one sequence atomically:
 
@@ -72,13 +72,21 @@ WHERE id = ?
 RETURNING next_sequence - 1;
 ```
 
-The same transaction inserts the message. Unique constraints enforce one row
+The PostgreSQL message adapter now executes this allocation and insert in the
+same transaction. Unique constraints enforce one row
 per `(conversation_id, conversation_sequence)` and one outcome per
 `(sender_account_id, client_message_id)`. `payload_sha256` lets the application
-distinguish an exact retry from a conflicting reuse of the idempotency key.
-Membership and sender-device ownership are also foreign-key protected; current
-membership status and permissions remain application decisions inside the same
-transaction.
+distinguish an exact retry from a conflicting reuse of the idempotency key. A
+concurrent loser rolls back its tentative sequence before rereading the
+committed winner. PostgreSQL `transaction_timestamp()` is the authoritative
+acceptance time. Enabled-account, active-membership, and active-device checks run
+before append inside the transaction; the same active-member boundary protects
+history.
+
+Forward history reads at most 100 stored messages after an explicit sequence,
+ordered ascending, and returns the next applied cursor, current conversation
+high watermark, and `hasMore`. Deleted rows remain legal cursor gaps. The
+adapter is not connected to a V2 wire command yet.
 
 ## Bounds and indexes
 
@@ -90,8 +98,9 @@ transaction.
 - memberships are indexed by account for conversation-list queries;
 - active sessions are partially indexed by account and expiry.
 
-Query-plan gates will be added with the repository queries that rely on these
-indexes. An index declaration alone is not performance evidence.
+The disposable PostgreSQL gate proves the forward-history query is eligible for
+`message_conversation_history_idx` with sequential scans disabled. This is an
+index-eligibility regression check, not production planner or latency evidence.
 
 ## Implemented identity/session adapter
 
@@ -126,7 +135,9 @@ unless its schema compatibility was verified.
 cluster, migrates a clean database through V003, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence allocation plus both
-unique conflict paths. It also tests identity lookup, transactional device
+unique conflict paths. It also races exact adapter submissions, proves stable
+duplicate results without a consumed sequence, rejects conflicting reuse,
+checks bounded cursor pages, and denies outsiders/left members. It tests identity lookup, transactional device
 reuse, hashed session issuance, revoked-device denial, and account-disable race
 closure. It applies all three migrations, rejects inconsistent credential shapes,
 maps both V1 credential generations, and verifies one-time CAS upgrade. Session

@@ -137,6 +137,11 @@ revocation against a disposable real database. It then constructs the real
 and WSS on ephemeral loopback ports, observes ready state, and closes every
 resource before deleting the cluster. This is composition evidence, not product
 traffic or capacity evidence.
+The same disposable PostgreSQL run races two exact message submissions and
+verifies one original plus one stable duplicate, rollback of the losing sequence
+allocation, conflict rejection, database-authoritative acceptance time, bounded
+ascending cursor pages, and active-membership authorization. The adapter is not
+yet exposed through a V2 wire message.
 Pure migration-planner tests also verify deterministic V1 user-ID mapping,
 order-independent source fingerprints, supported credential generations, full
 plan blocking on invalid/duplicate/empty input, and non-secret issue reporting.
