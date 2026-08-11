@@ -81,6 +81,9 @@ C++. Gateway tests separately verify authenticated server-bound identity,
 off-event-loop submit/history dispatch, per-connection ordering, safe denial,
 bounded saturation behavior, and isolation from the authentication worker pool.
 This is pre-cutover evidence, not product traffic or a capacity result.
+Loopback administration tests also verify fixed-cardinality accepted, duplicate,
+history, denial, conflict, saturation, and failure counters plus message worker
+active/queue gauges; no identity or conversation value is a metric label.
 The authentication worker tests use a one-worker/one-slot pool to prove bounded
 admission, saturation shedding, worker naming, and lifecycle shutdown. These
 test capacities are not deployment defaults or benchmark results.

@@ -58,6 +58,7 @@ class V2WebSocketUpgradeHandlerTest {
                 Runnable::run,
                 AuthenticationAdmissionControl.allowAll(),
                 AuthenticationEventSink.noop(),
+                MessagingEventSink.noop(),
                 handshakeTimeout,
                 Duration.ofSeconds(1));
     }

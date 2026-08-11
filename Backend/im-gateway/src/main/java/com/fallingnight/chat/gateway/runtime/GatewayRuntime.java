@@ -7,6 +7,7 @@ import com.fallingnight.chat.gateway.transport.AuthenticationTelemetry;
 import com.fallingnight.chat.gateway.transport.AuthenticationWorkerPool;
 import com.fallingnight.chat.gateway.transport.InMemoryAuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.MessagingWorkerPool;
+import com.fallingnight.chat.gateway.transport.MessagingTelemetry;
 import com.fallingnight.chat.identity.crypto.Argon2idCredentialHasher;
 import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
 import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
@@ -74,6 +75,7 @@ public final class GatewayRuntime implements AutoCloseable {
                     clock);
             SessionResumeService sessionResume = new SessionResumeService(identity, clock);
             AuthenticationTelemetry telemetry = new AuthenticationTelemetry();
+            MessagingTelemetry messagingTelemetry = new MessagingTelemetry();
             InMemoryAuthenticationAdmissionControl admission =
                     new InMemoryAuthenticationAdmissionControl(config.admissionLimits(), clock);
             workers = new AuthenticationWorkerPool(
@@ -93,12 +95,16 @@ public final class GatewayRuntime implements AutoCloseable {
                     workers,
                     messagingWorkers,
                     admission,
-                    telemetry);
+                    telemetry,
+                    messagingTelemetry);
             AtomicBoolean readiness = new AtomicBoolean();
             adminServer = new GatewayAdminServer(
                     config.adminAddress(),
                     config.adminWorkers(),
                     telemetry,
+                    messagingTelemetry,
+                    messagingWorkers::activeCount,
+                    messagingWorkers::queuedCount,
                     readiness::get);
             return new GatewayRuntime(
                     readiness,

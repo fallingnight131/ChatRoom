@@ -23,6 +23,7 @@ public final class V2ApplicationPipeline {
             Executor messagingExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
             Duration handshakeTimeout,
             Duration authenticationTimeout) {
         Objects.requireNonNull(pipeline, "pipeline");
@@ -38,7 +39,7 @@ public final class V2ApplicationPipeline {
                 events,
                 java.time.Clock.systemUTC()));
         pipeline.addLast("v2-messaging", new V2MessagingHandler(
-                submissions, history, messagingExecutor));
+                submissions, history, messagingExecutor, messagingEvents));
         pipeline.addLast("v2-authenticated-idle-close", new V2AuthenticatedIdleCloseHandler());
     }
 }

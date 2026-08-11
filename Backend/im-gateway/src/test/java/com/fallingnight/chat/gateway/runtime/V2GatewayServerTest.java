@@ -10,6 +10,7 @@ import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
+import com.fallingnight.chat.gateway.transport.MessagingEventSink;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
@@ -88,7 +89,8 @@ class V2GatewayServerTest {
                 Runnable::run,
                 Runnable::run,
                 AuthenticationAdmissionControl.allowAll(),
-                AuthenticationEventSink.noop()));
+                AuthenticationEventSink.noop(),
+                MessagingEventSink.noop()));
     }
 
     private V2GatewayServer server(GatewayRuntimeConfig config, SslContext tls) {
@@ -102,6 +104,7 @@ class V2GatewayServerTest {
                 Runnable::run,
                 AuthenticationAdmissionControl.allowAll(),
                 AuthenticationEventSink.noop(),
+                MessagingEventSink.noop(),
                 tls);
     }
 

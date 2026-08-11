@@ -23,6 +23,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
     private final Executor messagingExecutor;
     private final AuthenticationAdmissionControl admission;
     private final AuthenticationEventSink events;
+    private final MessagingEventSink messagingEvents;
     private final Duration handshakeTimeout;
     private final Duration authenticationTimeout;
     private ScheduledFuture<?> upgradeDeadline;
@@ -36,6 +37,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
             Executor messagingExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
             Duration handshakeTimeout,
             Duration authenticationTimeout) {
         this.authentication = Objects.requireNonNull(authentication, "authentication");
@@ -47,6 +49,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
         this.messagingExecutor = Objects.requireNonNull(messagingExecutor, "messagingExecutor");
         this.admission = Objects.requireNonNull(admission, "admission");
         this.events = Objects.requireNonNull(events, "events");
+        this.messagingEvents = Objects.requireNonNull(messagingEvents, "messagingEvents");
         this.handshakeTimeout = Objects.requireNonNull(handshakeTimeout, "handshakeTimeout");
         this.authenticationTimeout = Objects.requireNonNull(
                 authenticationTimeout, "authenticationTimeout");
@@ -80,6 +83,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
                     messagingExecutor,
                     admission,
                     events,
+                    messagingEvents,
                     handshakeTimeout,
                     authenticationTimeout);
             context.pipeline().remove(this);

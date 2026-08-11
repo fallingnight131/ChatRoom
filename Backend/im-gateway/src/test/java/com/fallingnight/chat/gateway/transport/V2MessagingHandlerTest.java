@@ -192,6 +192,33 @@ class V2MessagingHandlerTest {
     }
 
     @Test
+    void recordsOnlyFixedCardinalityMessagingOutcomes() {
+        MessagingTelemetry telemetry = new MessagingTelemetry();
+        EmbeddedChannel channel = channel(
+                submission -> new MessageSubmissionResult.Accepted(
+                        MESSAGE_ID, 1, ACCEPTED_AT, true),
+                query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
+                Runnable::run,
+                telemetry);
+        try {
+            channel.writeInbound(submitEnvelope("client-message-1", "hello"));
+            channel.runPendingTasks();
+            channel.readOutbound();
+            channel.writeInbound(historyEnvelope(0, 10));
+            channel.runPendingTasks();
+            channel.readOutbound();
+
+            MessagingTelemetrySnapshot snapshot = telemetry.snapshot();
+            assertEquals(0, snapshot.accepted());
+            assertEquals(1, snapshot.duplicates());
+            assertEquals(1, snapshot.denied());
+            assertEquals(0, snapshot.failed());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void preservesPerConnectionOrderAcrossOffloadedDatabaseWork() throws Exception {
         ControllableExecutor executor = new ControllableExecutor();
         ArrayDeque<String> calls = new ArrayDeque<>();
@@ -229,8 +256,16 @@ class V2MessagingHandlerTest {
             com.fallingnight.chat.application.messaging.MessageSubmissionPort submissions,
             com.fallingnight.chat.application.messaging.MessageHistoryPort history,
             Executor executor) {
+        return channel(submissions, history, executor, MessagingEventSink.noop());
+    }
+
+    private static EmbeddedChannel channel(
+            com.fallingnight.chat.application.messaging.MessageSubmissionPort submissions,
+            com.fallingnight.chat.application.messaging.MessageHistoryPort history,
+            Executor executor,
+            MessagingEventSink events) {
         EmbeddedChannel channel = new EmbeddedChannel(
-                new V2MessagingHandler(submissions, history, executor, CLOCK));
+                new V2MessagingHandler(submissions, history, executor, events, CLOCK));
         channel.attr(V2ConnectionAttributes.AUTHENTICATED).set(
                 new AuthenticatedConnection(ACCOUNT_ID, DEVICE_ID, SESSION_ID));
         return channel;

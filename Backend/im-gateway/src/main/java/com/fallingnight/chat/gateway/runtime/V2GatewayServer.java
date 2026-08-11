@@ -10,6 +10,7 @@ import com.fallingnight.chat.gateway.transport.GatewayConnectionLimitHandler;
 import com.fallingnight.chat.gateway.transport.GatewayConnectionLimiter;
 import com.fallingnight.chat.gateway.transport.GatewayChannelExceptionHandler;
 import com.fallingnight.chat.gateway.transport.HttpHostPolicyHandler;
+import com.fallingnight.chat.gateway.transport.MessagingEventSink;
 import com.fallingnight.chat.gateway.transport.TrustedProxyHttpHandler;
 import com.fallingnight.chat.gateway.transport.V2EnvelopeDecoder;
 import com.fallingnight.chat.gateway.transport.V2WebSocketUpgradeHandler;
@@ -61,6 +62,7 @@ public final class V2GatewayServer implements AutoCloseable {
     private final Executor messagingExecutor;
     private final AuthenticationAdmissionControl admission;
     private final AuthenticationEventSink events;
+    private final MessagingEventSink messagingEvents;
     private final SslContext sslContext;
     private final GatewayConnectionLimiter connectionLimiter;
     private final ChannelGroup children = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
@@ -78,7 +80,8 @@ public final class V2GatewayServer implements AutoCloseable {
             Executor authenticationExecutor,
             Executor messagingExecutor,
             AuthenticationAdmissionControl admission,
-            AuthenticationEventSink events) {
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents) {
         this(
                 config,
                 authentication,
@@ -89,6 +92,7 @@ public final class V2GatewayServer implements AutoCloseable {
                 messagingExecutor,
                 admission,
                 events,
+                messagingEvents,
                 createSslContext(config));
     }
 
@@ -102,6 +106,7 @@ public final class V2GatewayServer implements AutoCloseable {
             Executor messagingExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
             SslContext sslContext) {
         this.config = Objects.requireNonNull(config, "config");
         this.authentication = Objects.requireNonNull(authentication, "authentication");
@@ -113,6 +118,7 @@ public final class V2GatewayServer implements AutoCloseable {
         this.messagingExecutor = Objects.requireNonNull(messagingExecutor, "messagingExecutor");
         this.admission = Objects.requireNonNull(admission, "admission");
         this.events = Objects.requireNonNull(events, "events");
+        this.messagingEvents = Objects.requireNonNull(messagingEvents, "messagingEvents");
         this.sslContext = Objects.requireNonNull(sslContext, "sslContext");
         connectionLimiter = new GatewayConnectionLimiter(config.maximumConnections());
     }
@@ -215,6 +221,7 @@ public final class V2GatewayServer implements AutoCloseable {
                 messagingExecutor,
                 admission,
                 events,
+                messagingEvents,
                 config.handshakeTimeout(),
                 config.authenticationTimeout()));
         pipeline.addLast("safe-channel-error", new GatewayChannelExceptionHandler());

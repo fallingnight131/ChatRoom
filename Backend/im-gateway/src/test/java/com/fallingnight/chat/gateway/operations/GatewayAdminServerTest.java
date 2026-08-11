@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fallingnight.chat.gateway.transport.AuthenticationTelemetry;
+import com.fallingnight.chat.gateway.transport.MessagingTelemetry;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -18,11 +19,16 @@ class GatewayAdminServerTest {
     void servesLoopbackLivenessReadinessAndMetricsWithSafeHeaders() throws Exception {
         GatewayReadiness readiness = new GatewayReadiness();
         AuthenticationTelemetry telemetry = new AuthenticationTelemetry();
+        MessagingTelemetry messaging = new MessagingTelemetry();
         telemetry.accepted(false);
+        messaging.accepted(true);
         try (GatewayAdminServer server = new GatewayAdminServer(
                 new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
                 1,
                 telemetry,
+                messaging,
+                () -> 2,
+                () -> 3,
                 readiness)) {
             server.start();
             assertResponse(server, "/health/live", 200, "live\n");
@@ -33,6 +39,10 @@ class GatewayAdminServerTest {
             assertEquals(200, metrics.statusCode());
             assertTrue(metrics.body().contains(
                     "chat_gateway_authentication_total{outcome=\"accepted\"} 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_messaging_total{outcome=\"duplicate\"} 1"));
+            assertTrue(metrics.body().contains("chat_gateway_messaging_workers_active 2"));
+            assertTrue(metrics.body().contains("chat_gateway_messaging_queue_size 3"));
             assertEquals("no-store", metrics.headers()
                     .firstValue("Cache-Control").orElseThrow());
             assertEquals("nosniff", metrics.headers()
@@ -55,11 +65,17 @@ class GatewayAdminServerTest {
                 new InetSocketAddress(InetAddress.getByName("0.0.0.0"), 0),
                 1,
                 telemetry,
+                new MessagingTelemetry(),
+                () -> 0,
+                () -> 0,
                 readiness));
         assertThrows(IllegalArgumentException.class, () -> new GatewayAdminServer(
                 new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
                 5,
                 telemetry,
+                new MessagingTelemetry(),
+                () -> 0,
+                () -> 0,
                 readiness));
     }
 

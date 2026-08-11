@@ -79,6 +79,10 @@ Authentication and messaging use separate bounded worker pools so message
 database work cannot consume password/session execution slots. Both still share
 the bounded PostgreSQL pool, so their sizes must be tuned together.
 
+The loopback-only `/metrics` response includes fixed-cardinality messaging
+outcome counters and current message-worker active/queue gauges. It deliberately
+contains no account, device, peer, session, conversation, or message labels.
+
 The process accepts no command-line configuration. On startup it validates the
 existing Flyway migration state and database pool before serving, starts the
 loopback admin endpoint as not ready, binds WSS, then returns HTTP 200 from

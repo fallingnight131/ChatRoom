@@ -256,6 +256,8 @@ using only server-bound identity and preserving per-connection command order.
 Message database work and authentication now use independently configured
 bounded worker pools so a message burst cannot consume password/session
 execution slots; both pools still share bounded PostgreSQL connections.
+The loopback metrics endpoint exposes fixed message outcome counters and current
+message-worker active/queue gauges without identity or conversation labels.
 This remains a pre-cutover path without delivery fan-out, read state,
 conversation discovery, or supported-client use.
 

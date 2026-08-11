@@ -1,6 +1,7 @@
 package com.fallingnight.chat.gateway.operations;
 
 import com.fallingnight.chat.gateway.transport.AuthenticationTelemetry;
+import com.fallingnight.chat.gateway.transport.MessagingTelemetry;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -13,6 +14,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
+import java.util.function.IntSupplier;
 
 /** Loopback-only health and metrics server with bounded worker ownership. */
 public final class GatewayAdminServer implements AutoCloseable {
@@ -24,9 +26,15 @@ public final class GatewayAdminServer implements AutoCloseable {
             InetSocketAddress address,
             int workers,
             AuthenticationTelemetry telemetry,
+            MessagingTelemetry messagingTelemetry,
+            IntSupplier messagingActiveWorkers,
+            IntSupplier messagingQueuedWork,
             BooleanSupplier readiness) {
         Objects.requireNonNull(address, "address");
         Objects.requireNonNull(telemetry, "telemetry");
+        Objects.requireNonNull(messagingTelemetry, "messagingTelemetry");
+        Objects.requireNonNull(messagingActiveWorkers, "messagingActiveWorkers");
+        Objects.requireNonNull(messagingQueuedWork, "messagingQueuedWork");
         Objects.requireNonNull(readiness, "readiness");
         if (address.getAddress() == null || !address.getAddress().isLoopbackAddress()) {
             throw new IllegalArgumentException("admin server must bind a resolved loopback address");
@@ -58,7 +66,11 @@ public final class GatewayAdminServer implements AutoCloseable {
                 exchange,
                 "/metrics",
                 200,
-                PrometheusAuthenticationMetrics.render(telemetry.snapshot())));
+                PrometheusAuthenticationMetrics.render(telemetry.snapshot())
+                        + PrometheusMessagingMetrics.render(
+                                messagingTelemetry.snapshot(),
+                                messagingActiveWorkers.getAsInt(),
+                                messagingQueuedWork.getAsInt())));
     }
 
     public void start() {

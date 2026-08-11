@@ -25,6 +25,7 @@ class V2ApplicationPipelineTest {
                     Runnable::run,
                     AuthenticationAdmissionControl.allowAll(),
                     AuthenticationEventSink.noop(),
+                    MessagingEventSink.noop(),
                     Duration.ofSeconds(10),
                     Duration.ofSeconds(30));
 

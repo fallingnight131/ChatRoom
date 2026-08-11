@@ -38,6 +38,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
     private final MessageSubmissionPort submissions;
     private final MessageHistoryPort history;
     private final Executor executor;
+    private final MessagingEventSink events;
     private final Clock clock;
     private final ArrayDeque<Envelope> pending = new ArrayDeque<>();
     private boolean inFlight;
@@ -46,7 +47,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
             Executor executor) {
-        this(submissions, history, executor, Clock.systemUTC());
+        this(submissions, history, executor, MessagingEventSink.noop(), Clock.systemUTC());
     }
 
     V2MessagingHandler(
@@ -54,9 +55,27 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessageHistoryPort history,
             Executor executor,
             Clock clock) {
+        this(submissions, history, executor, MessagingEventSink.noop(), clock);
+    }
+
+    public V2MessagingHandler(
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            Executor executor,
+            MessagingEventSink events) {
+        this(submissions, history, executor, events, Clock.systemUTC());
+    }
+
+    V2MessagingHandler(
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            Executor executor,
+            MessagingEventSink events,
+            Clock clock) {
         this.submissions = Objects.requireNonNull(submissions, "submissions");
         this.history = Objects.requireNonNull(history, "history");
         this.executor = Objects.requireNonNull(executor, "executor");
+        this.events = Objects.requireNonNull(events, "events");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -92,6 +111,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             return;
         }
         if (pending.size() >= MAX_PENDING_COMMANDS) {
+            events.saturated();
             writeError(
                     context,
                     envelope,
@@ -133,6 +153,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             executor.execute(() -> executeOffEventLoop(context, envelope, work));
         } catch (RejectedExecutionException exception) {
             inFlight = false;
+            events.saturated();
             writeError(
                     context,
                     envelope,
@@ -183,6 +204,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                             ((HistoryWork) work).query(),
                             history.readAfter(((HistoryWork) work).query()));
         } catch (RuntimeException exception) {
+            events.failed();
             scheduleCompletion(context, errorEnvelope(
                     request,
                     ProtocolErrorCode.PROTOCOL_ERROR_CODE_INTERNAL_ERROR,
@@ -217,6 +239,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessageSubmission submission,
             MessageSubmissionResult result) {
         if (result == MessageSubmissionResult.Rejected.NOT_AUTHORIZED) {
+            events.denied();
             return errorEnvelope(
                     request,
                     ProtocolErrorCode.PROTOCOL_ERROR_CODE_NOT_AUTHORIZED,
@@ -224,6 +247,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     false);
         }
         if (result == MessageSubmissionResult.Rejected.IDEMPOTENCY_CONFLICT) {
+            events.conflict();
             return errorEnvelope(
                     request,
                     ProtocolErrorCode.PROTOCOL_ERROR_CODE_IDEMPOTENCY_CONFLICT,
@@ -239,6 +263,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 .setDuplicate(accepted.duplicate())
                 .build();
         MessagingPayloadPolicy.requireValid(payload);
+        events.accepted(accepted.duplicate());
         return responseEnvelope(
                 request, MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED, payload.toByteString());
     }
@@ -248,6 +273,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessageHistoryQuery query,
             MessageHistoryResult result) {
         if (result == MessageHistoryResult.Rejected.NOT_AUTHORIZED) {
+            events.denied();
             return errorEnvelope(
                     request,
                     ProtocolErrorCode.PROTOCOL_ERROR_CODE_NOT_AUTHORIZED,
@@ -274,6 +300,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
         }
         MessageHistoryPage built = payload.build();
         MessagingPayloadPolicy.requireValid(built);
+        events.historyPage();
         return responseEnvelope(
                 request, MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE, built.toByteString());
     }
