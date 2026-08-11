@@ -43,9 +43,6 @@ abstract class GenerateClientBindings : DefaultTask() {
     @get:InputFile
     abstract val typescriptPlugin: RegularFileProperty
 
-    @get:InputFile
-    abstract val schema: RegularFileProperty
-
     @get:InputDirectory
     abstract val protoRoot: DirectoryProperty
 
@@ -58,6 +55,10 @@ abstract class GenerateClientBindings : DefaultTask() {
     @TaskAction
     fun generate() {
         val output = outputDirectory.get().asFile
+        val schemas = protoRoot.get().asFileTree.matching {
+            include("**/*.proto")
+        }.files.sortedBy { it.absolutePath }
+        require(schemas.isNotEmpty()) { "no V2 protobuf schemas found" }
         output.deleteRecursively()
         output.resolve("cpp").mkdirs()
         output.resolve("typescript").mkdirs()
@@ -71,8 +72,8 @@ abstract class GenerateClientBindings : DefaultTask() {
                 "--es_opt=target=ts",
                 "--descriptor_set_out=${output.resolve("chat-v2.desc")}",
                 "--include_imports",
-                schema.get().asFile.absolutePath,
             )
+            args(schemas.map { it.absolutePath })
         }
     }
 }
@@ -83,7 +84,6 @@ tasks.register<GenerateClientBindings>("generateClientBindings") {
     protoc.set(layout.file(protocExecutable))
     typescriptPlugin.set(layout.projectDirectory.file(
         "typescript/node_modules/.bin/protoc-gen-es"))
-    schema.set(layout.projectDirectory.file("src/main/proto/chat/v2/envelope.proto"))
     protoRoot.set(layout.projectDirectory.dir("src/main/proto"))
     outputDirectory.set(layout.projectDirectory.dir("typescript/generated"))
 }

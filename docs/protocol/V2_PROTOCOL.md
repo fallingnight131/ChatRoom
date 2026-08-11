@@ -41,6 +41,27 @@ handler. The listener, handshake/authentication policy, rate limits, and safe
 client error/close mapping are not enabled yet, so V2 still has no production
 route.
 
+## Control message registry
+
+Registry values are permanent and a removed value must be reserved rather than
+reused:
+
+| `message_type` | Payload | Required envelope kind | Direction/state |
+| ---: | --- | --- | --- |
+| 1 | `ClientHello` | command | client to server, first application frame |
+| 2 | `ServerHello` | response | server to client after successful negotiation |
+| 3 | `ProtocolError` | error | server to client for a bounded safe protocol failure |
+
+`ClientHello` declares a minimum/maximum protocol generation, Web or Windows
+platform, app version, and client-device ID. App version is limited to 64 UTF-8
+bytes and device ID to 128 UTF-8 bytes. It intentionally contains no credential
+or resumable session secret. A structurally valid range that does not include V2
+is an unsupported-version result; it is not treated as malformed input.
+
+`ServerHello.connection_id` is diagnostic connection identity, not an
+authenticated session. Authentication message types and secret-handling rules
+will be added in the next vertical slice before a listener is enabled.
+
 ## Compatibility rules
 
 - Field numbers are permanent. Removed fields are reserved rather than reused.
@@ -54,7 +75,7 @@ route.
   field quirks into V2 application types.
 
 The Java and TypeScript bindings must encode and decode the stored golden
-envelope identically. The generated C++ binding is compiled against the matching
+envelope and ClientHello identically. The generated C++ binding is compiled against the matching
 SHA-256-pinned Protobuf/Abseil test runtime and must parse and re-emit those same
 bytes. This completes envelope-level cross-language evidence; feature payload
 registries still require their own additive compatibility tests.

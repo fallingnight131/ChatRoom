@@ -1,4 +1,5 @@
 #include "chat/v2/envelope.pb.h"
+#include "chat/v2/control.pb.h"
 
 #include <cstdint>
 #include <iostream>
@@ -9,6 +10,8 @@ namespace {
 constexpr char kGoldenHex[] =
     "08021001186422057265712d312a0973657373696f6e2d31"
     "3208636c69656e742d313880d095ffbc314203616263";
+constexpr char kClientHelloGoldenHex[] =
+    "0802100218012205302e312e302a086465766963652d31";
 
 int hexDigit(char value) {
     if (value >= '0' && value <= '9') return value - '0';
@@ -51,6 +54,18 @@ int main() {
     }
     if (envelope.SerializeAsString() != golden) {
         std::cerr << "generated C++ binding changed the deterministic V2 bytes\n";
+        return 1;
+    }
+    const std::string helloGolden = fromHex(kClientHelloGoldenHex);
+    chat::v2::ClientHello hello;
+    if (!hello.ParseFromString(helloGolden)
+            || hello.minimum_protocol_version() != 2
+            || hello.maximum_protocol_version() != 2
+            || hello.platform() != chat::v2::CLIENT_PLATFORM_WEB
+            || hello.app_version() != "0.1.0"
+            || hello.client_device_id() != "device-1"
+            || hello.SerializeAsString() != helloGolden) {
+        std::cerr << "generated C++ binding changed the ClientHello golden payload\n";
         return 1;
     }
     return 0;

@@ -275,6 +275,8 @@ Progress:
 - [ ] Build the Netty gateway and modular application core.
   - [x] Add the bounded binary WebSocket frame aggregation, Protobuf decoding,
     envelope validation, and negative-path embedded-channel tests.
+  - [x] Define the permanent V2 control message registry, bounded Web/Windows
+    client hello, version negotiation semantics, and three-language golden test.
   - [ ] Add handshake/authentication, rate limits, safe error mapping,
     observability, and transport-independent application dispatch before
     enabling a listener.

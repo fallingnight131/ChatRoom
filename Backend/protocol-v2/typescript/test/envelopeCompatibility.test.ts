@@ -6,9 +6,14 @@ import {
   EnvelopeSchema,
   MessageKind
 } from '../generated/typescript/chat/v2/envelope_pb.js'
+import {
+  ClientHelloSchema,
+  ClientPlatform
+} from '../generated/typescript/chat/v2/control_pb.js'
 
 const GOLDEN_HEX = '08021001186422057265712d312a0973657373696f6e2d31' +
   '3208636c69656e742d313880d095ffbc314203616263'
+const CLIENT_HELLO_GOLDEN_HEX = '0802100218012205302e312e302a086465766963652d31'
 
 function bytesFromHex(hex: string): Uint8Array {
   return Uint8Array.from(hex.match(/.{2}/g) ?? [], byte => Number.parseInt(byte, 16))
@@ -38,4 +43,25 @@ test('encodes the same deterministic bytes as the generated Java binding', () =>
     payload: new TextEncoder().encode('abc')
   })
   assert.equal(Buffer.from(toBinary(EnvelopeSchema, envelope)).toString('hex'), GOLDEN_HEX)
+})
+
+test('keeps the ClientHello payload compatible across generated bindings', () => {
+  const decoded = fromBinary(ClientHelloSchema, bytesFromHex(CLIENT_HELLO_GOLDEN_HEX))
+  assert.equal(decoded.minimumProtocolVersion, 2)
+  assert.equal(decoded.maximumProtocolVersion, 2)
+  assert.equal(decoded.platform, ClientPlatform.WEB)
+  assert.equal(decoded.appVersion, '0.1.0')
+  assert.equal(decoded.clientDeviceId, 'device-1')
+
+  const encoded = create(ClientHelloSchema, {
+    minimumProtocolVersion: 2,
+    maximumProtocolVersion: 2,
+    platform: ClientPlatform.WEB,
+    appVersion: '0.1.0',
+    clientDeviceId: 'device-1'
+  })
+  assert.equal(
+    Buffer.from(toBinary(ClientHelloSchema, encoded)).toString('hex'),
+    CLIENT_HELLO_GOLDEN_HEX
+  )
 })

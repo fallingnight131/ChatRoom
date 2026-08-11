@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package chat.v2;
+
+option java_multiple_files = true;
+option java_package = "com.fallingnight.chat.protocol.v2";
+option java_outer_classname = "ControlSchema";
+
+// Values are permanent registry identities. Removed values must be reserved.
+enum MessageType {
+  MESSAGE_TYPE_UNSPECIFIED = 0;
+  MESSAGE_TYPE_CLIENT_HELLO = 1;
+  MESSAGE_TYPE_SERVER_HELLO = 2;
+  MESSAGE_TYPE_PROTOCOL_ERROR = 3;
+}
+
+enum ClientPlatform {
+  CLIENT_PLATFORM_UNSPECIFIED = 0;
+  CLIENT_PLATFORM_WEB = 1;
+  CLIENT_PLATFORM_WINDOWS = 2;
+}
+
+message ClientHello {
+  uint32 minimum_protocol_version = 1;
+  uint32 maximum_protocol_version = 2;
+  ClientPlatform platform = 3;
+  string app_version = 4;
+  string client_device_id = 5;
+}
+
+message ServerHello {
+  uint32 selected_protocol_version = 1;
+  string connection_id = 2;
+  int64 server_time_epoch_ms = 3;
+  uint32 maximum_frame_bytes = 4;
+}
+
+enum ProtocolErrorCode {
+  PROTOCOL_ERROR_CODE_UNSPECIFIED = 0;
+  PROTOCOL_ERROR_CODE_UNSUPPORTED_VERSION = 1;
+  PROTOCOL_ERROR_CODE_UNSUPPORTED_MESSAGE_TYPE = 2;
+  PROTOCOL_ERROR_CODE_INVALID_PAYLOAD = 3;
+  PROTOCOL_ERROR_CODE_INVALID_STATE = 4;
+  PROTOCOL_ERROR_CODE_RATE_LIMITED = 5;
+}
+
+message ProtocolError {
+  ProtocolErrorCode code = 1;
+  string safe_message = 2;
+  bool retryable = 3;
+}

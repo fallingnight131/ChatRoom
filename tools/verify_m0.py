@@ -67,7 +67,10 @@ def verify_protocol_bindings(skip_install: bool) -> None:
         "chat-v2.desc",
         "cpp/chat/v2/envelope.pb.cc",
         "cpp/chat/v2/envelope.pb.h",
+        "cpp/chat/v2/control.pb.cc",
+        "cpp/chat/v2/control.pb.h",
         "typescript/chat/v2/envelope_pb.ts",
+        "typescript/chat/v2/control_pb.ts",
     ):
         artifact = generated / relative
         if not artifact.is_file() or artifact.stat().st_size == 0:

@@ -35,6 +35,7 @@ set(GENERATED_ROOT "${CMAKE_CURRENT_LIST_DIR}/../typescript/generated/cpp")
 add_executable(
   v2_cpp_envelope_test
   EnvelopeCompatibilityTest.cpp
+  "${GENERATED_ROOT}/chat/v2/control.pb.cc"
   "${GENERATED_ROOT}/chat/v2/envelope.pb.cc"
 )
 target_compile_features(v2_cpp_envelope_test PRIVATE cxx_std_17)
