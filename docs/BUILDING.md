@@ -79,8 +79,8 @@ types 100..103 and content type 1 (bounded nonempty UTF-8 text). It verifies the
 fixed `SubmitMessage` golden payload in Java, generated TypeScript, and generated
 C++. Gateway tests separately verify authenticated server-bound identity,
 off-event-loop submit/history dispatch, per-connection ordering, safe denial,
-and bounded saturation behavior. This is pre-cutover evidence, not product
-traffic or a capacity result.
+bounded saturation behavior, and isolation from the authentication worker pool.
+This is pre-cutover evidence, not product traffic or a capacity result.
 The authentication worker tests use a one-worker/one-slot pool to prove bounded
 admission, saturation shedding, worker naming, and lifecycle shutdown. These
 test capacities are not deployment defaults or benchmark results.

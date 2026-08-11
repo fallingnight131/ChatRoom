@@ -20,6 +20,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
     private final MessageSubmissionPort submissions;
     private final MessageHistoryPort history;
     private final Executor authenticationExecutor;
+    private final Executor messagingExecutor;
     private final AuthenticationAdmissionControl admission;
     private final AuthenticationEventSink events;
     private final Duration handshakeTimeout;
@@ -32,6 +33,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
             Executor authenticationExecutor,
+            Executor messagingExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
             Duration handshakeTimeout,
@@ -42,6 +44,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
         this.history = Objects.requireNonNull(history, "history");
         this.authenticationExecutor = Objects.requireNonNull(
                 authenticationExecutor, "authenticationExecutor");
+        this.messagingExecutor = Objects.requireNonNull(messagingExecutor, "messagingExecutor");
         this.admission = Objects.requireNonNull(admission, "admission");
         this.events = Objects.requireNonNull(events, "events");
         this.handshakeTimeout = Objects.requireNonNull(handshakeTimeout, "handshakeTimeout");
@@ -74,6 +77,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
                     submissions,
                     history,
                     authenticationExecutor,
+                    messagingExecutor,
                     admission,
                     events,
                     handshakeTimeout,

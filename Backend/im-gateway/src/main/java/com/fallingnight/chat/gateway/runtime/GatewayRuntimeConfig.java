@@ -46,6 +46,8 @@ public final class GatewayRuntimeConfig {
     private final int writeBufferHighWaterMark;
     private final int authenticationWorkers;
     private final int authenticationQueueCapacity;
+    private final int messagingWorkers;
+    private final int messagingQueueCapacity;
     private final Duration handshakeTimeout;
     private final Duration authenticationTimeout;
     private final Duration authenticatedIdleTimeout;
@@ -74,6 +76,8 @@ public final class GatewayRuntimeConfig {
             int writeBufferHighWaterMark,
             int authenticationWorkers,
             int authenticationQueueCapacity,
+            int messagingWorkers,
+            int messagingQueueCapacity,
             Duration handshakeTimeout,
             Duration authenticationTimeout,
             Duration authenticatedIdleTimeout,
@@ -100,6 +104,8 @@ public final class GatewayRuntimeConfig {
         this.writeBufferHighWaterMark = writeBufferHighWaterMark;
         this.authenticationWorkers = authenticationWorkers;
         this.authenticationQueueCapacity = authenticationQueueCapacity;
+        this.messagingWorkers = messagingWorkers;
+        this.messagingQueueCapacity = messagingQueueCapacity;
         this.handshakeTimeout = handshakeTimeout;
         this.authenticationTimeout = authenticationTimeout;
         this.authenticatedIdleTimeout = authenticatedIdleTimeout;
@@ -172,6 +178,10 @@ public final class GatewayRuntimeConfig {
                 environment, "CHATROOM_GATEWAY_AUTH_WORKERS", 4, 1, 64);
         int authQueue = integer(
                 environment, "CHATROOM_GATEWAY_AUTH_QUEUE_CAPACITY", 256, 1, 100_000);
+        int messagingWorkers = integer(
+                environment, "CHATROOM_GATEWAY_MESSAGING_WORKERS", 4, 1, 64);
+        int messagingQueue = integer(
+                environment, "CHATROOM_GATEWAY_MESSAGING_QUEUE_CAPACITY", 512, 1, 100_000);
         Duration handshakeTimeout = seconds(
                 environment, "CHATROOM_GATEWAY_HANDSHAKE_TIMEOUT_SECONDS", 10, 1, 60);
         Duration authenticationTimeout = seconds(
@@ -209,6 +219,8 @@ public final class GatewayRuntimeConfig {
                 writeBufferHighWaterMark,
                 authWorkers,
                 authQueue,
+                messagingWorkers,
+                messagingQueue,
                 handshakeTimeout,
                 authenticationTimeout,
                 idleTimeout,
@@ -301,6 +313,14 @@ public final class GatewayRuntimeConfig {
 
     public int authenticationQueueCapacity() {
         return authenticationQueueCapacity;
+    }
+
+    public int messagingWorkers() {
+        return messagingWorkers;
+    }
+
+    public int messagingQueueCapacity() {
+        return messagingQueueCapacity;
     }
 
     public Duration handshakeTimeout() {

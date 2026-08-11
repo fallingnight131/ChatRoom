@@ -19,7 +19,8 @@ class GatewayRuntimeTest {
                 readiness,
                 managed("admin", events, readiness),
                 blocking("product", events, readiness, false),
-                closeable("workers", events),
+                closeable("authentication-workers", events),
+                closeable("messaging-workers", events),
                 closeable("database", events));
 
         runtime.start();
@@ -37,7 +38,8 @@ class GatewayRuntimeTest {
                 "product:await",
                 "product:close",
                 "admin:close",
-                "workers:close",
+                "messaging-workers:close",
+                "authentication-workers:close",
                 "database:close"), events);
         assertThrows(IllegalStateException.class, runtime::start);
     }
@@ -50,7 +52,8 @@ class GatewayRuntimeTest {
                 readiness,
                 managed("admin", events, readiness),
                 blocking("product", events, readiness, true),
-                closeable("workers", events),
+                closeable("authentication-workers", events),
+                closeable("messaging-workers", events),
                 closeable("database", events));
 
         assertThrows(IllegalStateException.class, runtime::start);
@@ -61,7 +64,8 @@ class GatewayRuntimeTest {
                 "product:start:false",
                 "product:close",
                 "admin:close",
-                "workers:close",
+                "messaging-workers:close",
+                "authentication-workers:close",
                 "database:close"), events);
         assertThrows(IllegalStateException.class, runtime::awaitTermination);
     }

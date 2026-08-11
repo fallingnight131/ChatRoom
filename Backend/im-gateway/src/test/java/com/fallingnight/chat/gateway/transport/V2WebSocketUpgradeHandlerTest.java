@@ -55,6 +55,7 @@ class V2WebSocketUpgradeHandlerTest {
                 command -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
                 query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
                 Runnable::run,
+                Runnable::run,
                 AuthenticationAdmissionControl.allowAll(),
                 AuthenticationEventSink.noop(),
                 handshakeTimeout,

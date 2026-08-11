@@ -6,6 +6,7 @@ import com.fallingnight.chat.gateway.operations.GatewayAdminServer;
 import com.fallingnight.chat.gateway.transport.AuthenticationTelemetry;
 import com.fallingnight.chat.gateway.transport.AuthenticationWorkerPool;
 import com.fallingnight.chat.gateway.transport.InMemoryAuthenticationAdmissionControl;
+import com.fallingnight.chat.gateway.transport.MessagingWorkerPool;
 import com.fallingnight.chat.identity.crypto.Argon2idCredentialHasher;
 import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
 import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
@@ -25,6 +26,7 @@ public final class GatewayRuntime implements AutoCloseable {
     private final ManagedServer admin;
     private final BlockingServer product;
     private final AutoCloseable authenticationWorkers;
+    private final AutoCloseable messagingWorkers;
     private final AutoCloseable dataSource;
     private boolean started;
     private boolean closed;
@@ -34,12 +36,14 @@ public final class GatewayRuntime implements AutoCloseable {
             ManagedServer admin,
             BlockingServer product,
             AutoCloseable authenticationWorkers,
+            AutoCloseable messagingWorkers,
             AutoCloseable dataSource) {
         this.readiness = Objects.requireNonNull(readiness, "readiness");
         this.admin = Objects.requireNonNull(admin, "admin");
         this.product = Objects.requireNonNull(product, "product");
         this.authenticationWorkers = Objects.requireNonNull(
                 authenticationWorkers, "authenticationWorkers");
+        this.messagingWorkers = Objects.requireNonNull(messagingWorkers, "messagingWorkers");
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
     }
 
@@ -53,6 +57,7 @@ public final class GatewayRuntime implements AutoCloseable {
 
         HikariDataSource dataSource = null;
         AuthenticationWorkerPool workers = null;
+        MessagingWorkerPool messagingWorkers = null;
         GatewayAdminServer adminServer = null;
         V2GatewayServer productServer = null;
         try {
@@ -75,6 +80,10 @@ public final class GatewayRuntime implements AutoCloseable {
                     config.authenticationWorkers(),
                     config.authenticationQueueCapacity(),
                     WORKER_CLOSE_TIMEOUT);
+            messagingWorkers = new MessagingWorkerPool(
+                    config.messagingWorkers(),
+                    config.messagingQueueCapacity(),
+                    WORKER_CLOSE_TIMEOUT);
             productServer = new V2GatewayServer(
                     config,
                     authentication,
@@ -82,6 +91,7 @@ public final class GatewayRuntime implements AutoCloseable {
                     messages,
                     messages,
                     workers,
+                    messagingWorkers,
                     admission,
                     telemetry);
             AtomicBoolean readiness = new AtomicBoolean();
@@ -95,10 +105,12 @@ public final class GatewayRuntime implements AutoCloseable {
                     managed(adminServer),
                     blocking(productServer),
                     workers,
+                    messagingWorkers,
                     dataSource);
         } catch (RuntimeException exception) {
             closeQuietly(adminServer);
             closeQuietly(productServer);
+            closeQuietly(messagingWorkers);
             closeQuietly(workers);
             closeQuietly(dataSource);
             throw exception;
@@ -110,9 +122,10 @@ public final class GatewayRuntime implements AutoCloseable {
             ManagedServer admin,
             BlockingServer product,
             AutoCloseable authenticationWorkers,
+            AutoCloseable messagingWorkers,
             AutoCloseable dataSource) {
         return new GatewayRuntime(
-                readiness, admin, product, authenticationWorkers, dataSource);
+                readiness, admin, product, authenticationWorkers, messagingWorkers, dataSource);
     }
 
     public synchronized void start() {
@@ -152,6 +165,7 @@ public final class GatewayRuntime implements AutoCloseable {
         readiness.set(false);
         closeQuietly(product);
         closeQuietly(admin);
+        closeQuietly(messagingWorkers);
         closeQuietly(authenticationWorkers);
         closeQuietly(dataSource);
     }

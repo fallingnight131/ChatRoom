@@ -330,6 +330,8 @@ Progress:
     - [x] Dispatch authenticated UTF-8 text submission and sequence-history
       reads through the durable PostgreSQL adapter with server-bound identity,
       per-connection ordering, bounded off-event-loop work, and safe errors.
+    - [x] Isolate message database work from password/session work with an
+      independently configured bounded worker pool and reverse-order ownership.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

@@ -86,6 +86,7 @@ class V2GatewayServerTest {
                 command -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
                 query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
                 Runnable::run,
+                Runnable::run,
                 AuthenticationAdmissionControl.allowAll(),
                 AuthenticationEventSink.noop()));
     }
@@ -97,6 +98,7 @@ class V2GatewayServerTest {
                 command -> AuthenticationResult.Rejected.INSTANCE,
                 command -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
                 query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
+                Runnable::run,
                 Runnable::run,
                 AuthenticationAdmissionControl.allowAll(),
                 AuthenticationEventSink.noop(),

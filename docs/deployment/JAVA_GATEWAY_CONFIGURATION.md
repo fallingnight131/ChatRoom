@@ -39,6 +39,8 @@ filesystem permissions and secret delivery controls.
 | `CHATROOM_GATEWAY_WRITE_BUFFER_HIGH_BYTES` | `262144` | `2048..16777216` |
 | `CHATROOM_GATEWAY_AUTH_WORKERS` | `4` | `1..64` |
 | `CHATROOM_GATEWAY_AUTH_QUEUE_CAPACITY` | `256` | `1..100000` |
+| `CHATROOM_GATEWAY_MESSAGING_WORKERS` | `4` | `1..64` |
+| `CHATROOM_GATEWAY_MESSAGING_QUEUE_CAPACITY` | `512` | `1..100000` |
 | `CHATROOM_GATEWAY_HANDSHAKE_TIMEOUT_SECONDS` | `10` | `1..60` |
 | `CHATROOM_GATEWAY_AUTH_TIMEOUT_SECONDS` | `30` | `1..300` |
 | `CHATROOM_GATEWAY_IDLE_TIMEOUT_SECONDS` | `120` | `30..3600` |
@@ -73,11 +75,14 @@ and network policy must prevent untrusted direct access to that listener.
 These defaults are not capacity claims. Before product routing, record a load
 baseline and set deployment-specific values for CPU, database pool size,
 reconnect storms, Argon2 work, queue saturation, and slow consumers.
+Authentication and messaging use separate bounded worker pools so message
+database work cannot consume password/session execution slots. Both still share
+the bounded PostgreSQL pool, so their sizes must be tuned together.
 
 The process accepts no command-line configuration. On startup it validates the
 existing Flyway migration state and database pool before serving, starts the
 loopback admin endpoint as not ready, binds WSS, then returns HTTP 200 from
-`/health/ready`. Shutdown clears readiness and releases listener, admin, workers,
-and pool in reverse ownership order. Do not route users to this M3 runtime yet:
-durable V2 conversation/message commands and cutover/rollback rehearsal remain
-unfinished.
+`/health/ready`. Shutdown clears readiness and releases listener, admin,
+messaging workers, authentication workers, and pool in reverse ownership order.
+Do not route users to this M3 runtime yet: conversation discovery, supported-
+client adoption, and cutover/rollback rehearsal remain unfinished.

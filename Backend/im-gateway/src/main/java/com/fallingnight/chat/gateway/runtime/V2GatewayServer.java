@@ -58,6 +58,7 @@ public final class V2GatewayServer implements AutoCloseable {
     private final MessageSubmissionPort submissions;
     private final MessageHistoryPort history;
     private final Executor authenticationExecutor;
+    private final Executor messagingExecutor;
     private final AuthenticationAdmissionControl admission;
     private final AuthenticationEventSink events;
     private final SslContext sslContext;
@@ -75,6 +76,7 @@ public final class V2GatewayServer implements AutoCloseable {
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
             Executor authenticationExecutor,
+            Executor messagingExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events) {
         this(
@@ -84,6 +86,7 @@ public final class V2GatewayServer implements AutoCloseable {
                 submissions,
                 history,
                 authenticationExecutor,
+                messagingExecutor,
                 admission,
                 events,
                 createSslContext(config));
@@ -96,6 +99,7 @@ public final class V2GatewayServer implements AutoCloseable {
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
             Executor authenticationExecutor,
+            Executor messagingExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
             SslContext sslContext) {
@@ -106,6 +110,7 @@ public final class V2GatewayServer implements AutoCloseable {
         this.history = Objects.requireNonNull(history, "history");
         this.authenticationExecutor = Objects.requireNonNull(
                 authenticationExecutor, "authenticationExecutor");
+        this.messagingExecutor = Objects.requireNonNull(messagingExecutor, "messagingExecutor");
         this.admission = Objects.requireNonNull(admission, "admission");
         this.events = Objects.requireNonNull(events, "events");
         this.sslContext = Objects.requireNonNull(sslContext, "sslContext");
@@ -207,6 +212,7 @@ public final class V2GatewayServer implements AutoCloseable {
                 submissions,
                 history,
                 authenticationExecutor,
+                messagingExecutor,
                 admission,
                 events,
                 config.handshakeTimeout(),

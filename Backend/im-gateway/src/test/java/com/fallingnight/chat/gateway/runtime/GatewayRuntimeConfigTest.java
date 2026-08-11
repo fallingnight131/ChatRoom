@@ -46,6 +46,8 @@ class GatewayRuntimeConfigTest {
         assertEquals(262_144, config.writeBufferHighWaterMark());
         assertEquals(4, config.authenticationWorkers());
         assertEquals(256, config.authenticationQueueCapacity());
+        assertEquals(4, config.messagingWorkers());
+        assertEquals(512, config.messagingQueueCapacity());
         assertEquals(Duration.ofSeconds(10), config.handshakeTimeout());
         assertEquals(Duration.ofSeconds(30), config.authenticationTimeout());
         assertEquals(Duration.ofSeconds(120), config.authenticatedIdleTimeout());
@@ -83,6 +85,11 @@ class GatewayRuntimeConfigTest {
         workers.put("CHATROOM_GATEWAY_AUTH_WORKERS", "65");
         assertThrows(IllegalArgumentException.class,
                 () -> GatewayRuntimeConfig.fromEnvironment(workers));
+
+        Map<String, String> messagingQueue = requiredEnvironment();
+        messagingQueue.put("CHATROOM_GATEWAY_MESSAGING_QUEUE_CAPACITY", "0");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(messagingQueue));
 
         Map<String, String> waterMarks = requiredEnvironment();
         waterMarks.put("CHATROOM_GATEWAY_WRITE_BUFFER_LOW_BYTES", "65536");
