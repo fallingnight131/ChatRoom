@@ -288,6 +288,11 @@ Progress:
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before
   PostgreSQL can become authoritative for any traffic slice.
+- [x] Define the transport/persistence-independent fresh-login application use
+  case, outward identity/session ports, generic rejection, and explicit secret
+  zeroing lifecycle.
+- [ ] Implement Argon2id verification, PostgreSQL identity/session adapters,
+  resume/rotation, and the negotiated-to-authenticated gateway state transition.
 
 Work:
 

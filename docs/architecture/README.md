@@ -183,6 +183,11 @@ conversation, membership, and message tables described in
 `docs/data/V2_POSTGRES_SCHEMA.md`. It has no repository, imported V1 data, or
 traffic route yet, so V1 SQLite remains authoritative.
 
+The fresh-login orchestration now exists in the transport-independent
+`application` identity package. Account lookup, dummy-capable password
+verification, and device/session issuance remain outward ports; no concrete
+adapter or gateway route is connected yet.
+
 ## 7. Reliable Message Flow
 
 ```mermaid
