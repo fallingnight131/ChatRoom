@@ -5,17 +5,19 @@
       "journal_mode=WAL"
     ],
     "engine": "SQLite",
-    "explicit_index_count": 13,
+    "explicit_index_count": 15,
     "explicit_indexes": [
       "idx_files_room_active",
       "idx_friend_messages_friendship_id_id",
       "idx_friend_messages_friendship_sequence",
+      "idx_friend_messages_mutation_sequence",
       "idx_friend_messages_sender_client_id",
       "idx_friend_msg_time",
       "idx_friend_requests_pair",
       "idx_friend_requests_recipient",
       "idx_friendships_user",
       "idx_messages_room_id_id",
+      "idx_messages_room_mutation_sequence",
       "idx_messages_room_sequence",
       "idx_messages_sender_client_id",
       "idx_msg_room_time",
@@ -235,7 +237,7 @@
   "sources": {
     "database_schema": {
       "path": "Server/DatabaseManager.cpp",
-      "sha256": "50b3098ffdec5f39b64d7f79ad0eda4f6a1ff137fd103af2cf4618e8f6cc4572"
+      "sha256": "4ca1e32914905a9234990721a28cd588aeae94214850ff1edd85ec7fae52b6c3"
     },
     "protocol": {
       "path": "Common/Protocol.h",

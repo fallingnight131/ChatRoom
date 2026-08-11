@@ -194,7 +194,8 @@ int main(int argc, char *argv[]) {
     ok &= requireColumns(firstStart, QStringLiteral("messages"),
                          {QStringLiteral("thumbnail"), QStringLiteral("file_cleared"),
                           QStringLiteral("clear_reason"), QStringLiteral("sequence"),
-                          QStringLiteral("client_message_id")});
+                          QStringLiteral("client_message_id"),
+                          QStringLiteral("mutation_sequence")});
     ok &= requireColumns(firstStart, QStringLiteral("room_message_sequences"),
                          {QStringLiteral("room_id"), QStringLiteral("last_sequence")});
     ok &= requireColumns(firstStart, QStringLiteral("files"),
@@ -202,7 +203,8 @@ int main(int argc, char *argv[]) {
                           QStringLiteral("cleared_at"), QStringLiteral("cos_url")});
     ok &= requireColumns(firstStart, QStringLiteral("friend_messages"),
                          {QStringLiteral("file_cleared"), QStringLiteral("clear_reason"),
-                          QStringLiteral("sequence"), QStringLiteral("client_message_id")});
+                          QStringLiteral("sequence"), QStringLiteral("client_message_id"),
+                          QStringLiteral("mutation_sequence")});
     ok &= requireColumns(firstStart, QStringLiteral("friendship_message_sequences"),
                          {QStringLiteral("friendship_id"), QStringLiteral("last_sequence")});
     ok &= requireColumns(firstStart, QStringLiteral("friend_files"),
@@ -222,12 +224,18 @@ int main(int argc, char *argv[]) {
         {QStringLiteral("plan_room_sequence_sync"),
          {QStringLiteral("SELECT id FROM messages WHERE room_id = 1 AND sequence > 0 ORDER BY sequence LIMIT 50"),
           QStringLiteral("idx_messages_room_sequence")}},
+        {QStringLiteral("plan_room_mutation_sync"),
+         {QStringLiteral("SELECT id FROM messages WHERE room_id = 1 AND mutation_sequence > 0 ORDER BY mutation_sequence LIMIT 50"),
+          QStringLiteral("idx_messages_room_mutation_sequence")}},
         {QStringLiteral("plan_friend_unread"),
          {QStringLiteral("SELECT COUNT(*) FROM friend_messages WHERE friendship_id = 1 AND id > 0"),
           QStringLiteral("idx_friend_messages_friendship_id_id")}},
         {QStringLiteral("plan_friend_sequence_sync"),
          {QStringLiteral("SELECT id FROM friend_messages WHERE friendship_id = 1 AND sequence > 0 ORDER BY sequence LIMIT 50"),
           QStringLiteral("idx_friend_messages_friendship_sequence")}},
+        {QStringLiteral("plan_friend_mutation_sync"),
+         {QStringLiteral("SELECT id FROM friend_messages WHERE friendship_id = 1 AND mutation_sequence > 0 ORDER BY mutation_sequence LIMIT 50"),
+          QStringLiteral("idx_friend_messages_mutation_sequence")}},
         {QStringLiteral("plan_room_files"),
          {QStringLiteral("SELECT id FROM files WHERE room_id = 1 AND cleared = 0 ORDER BY created_at, id"),
           QStringLiteral("idx_files_room_active")}},

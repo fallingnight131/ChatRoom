@@ -100,6 +100,10 @@ per-room/per-friendship sequence, and `afterSequence` history resume for room
 and direct text/emoji messages. It does not yet give the same guarantees to
 file messages or replay recall/delete events.
 
+The schema contains nullable, indexed `mutation_sequence` columns for room and
+direct messages as the expand phase of ADR-0019. Runtime recall and history do
+not consume them yet, so their presence alone is not replay support.
+
 ### Direct message
 
 1. `FriendMessageService` resolves and verifies the friendship and command.

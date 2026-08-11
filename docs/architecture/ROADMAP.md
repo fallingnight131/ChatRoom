@@ -103,6 +103,8 @@ Progress:
   restart-safe retry.
 - [x] Reconcile repeated stable message IDs from history as authoritative state
   updates in Web and Windows instead of discarding them as duplicates.
+- [x] Expand the V1 room/direct schema with indexed mutation cursors for
+  replayable recall, without changing current wire behavior yet.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

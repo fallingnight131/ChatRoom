@@ -429,6 +429,9 @@ bool DatabaseManager::initialize() {
                       QStringLiteral("TEXT DEFAULT NULL")) ||
         !ensureColumn(db, QStringLiteral("messages"),
                       QStringLiteral("sequence"),
+                      QStringLiteral("INTEGER DEFAULT NULL")) ||
+        !ensureColumn(db, QStringLiteral("messages"),
+                      QStringLiteral("mutation_sequence"),
                       QStringLiteral("INTEGER DEFAULT NULL"))) {
         qCritical() << "[DB] 扩展可靠消息列失败:" << db.lastError().text();
         return false;
@@ -457,6 +460,9 @@ bool DatabaseManager::initialize() {
     q.exec("CREATE INDEX IF NOT EXISTS idx_messages_room_id_id ON messages(room_id, id)");
     if (!q.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_room_sequence "
                 "ON messages(room_id, sequence) WHERE sequence IS NOT NULL") ||
+        !q.exec("CREATE INDEX IF NOT EXISTS idx_messages_room_mutation_sequence "
+                "ON messages(room_id, mutation_sequence) "
+                "WHERE mutation_sequence IS NOT NULL") ||
         !q.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_sender_client_id "
                 "ON messages(user_id, client_message_id) "
                 "WHERE client_message_id IS NOT NULL AND client_message_id <> ''")) {
@@ -642,6 +648,9 @@ bool DatabaseManager::initialize() {
                       QStringLiteral("TEXT DEFAULT NULL")) ||
         !ensureColumn(db, QStringLiteral("friend_messages"),
                       QStringLiteral("sequence"),
+                      QStringLiteral("INTEGER DEFAULT NULL")) ||
+        !ensureColumn(db, QStringLiteral("friend_messages"),
+                      QStringLiteral("mutation_sequence"),
                       QStringLiteral("INTEGER DEFAULT NULL"))) {
         qCritical() << "[DB] 扩展私聊可靠消息列失败:" << db.lastError().text();
         return false;
@@ -662,6 +671,9 @@ bool DatabaseManager::initialize() {
     }
     if (!q.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_friend_messages_friendship_sequence "
                 "ON friend_messages(friendship_id, sequence) WHERE sequence IS NOT NULL") ||
+        !q.exec("CREATE INDEX IF NOT EXISTS idx_friend_messages_mutation_sequence "
+                "ON friend_messages(friendship_id, mutation_sequence) "
+                "WHERE mutation_sequence IS NOT NULL") ||
         !q.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_friend_messages_sender_client_id "
                 "ON friend_messages(sender_id, client_message_id) "
                 "WHERE client_message_id IS NOT NULL AND client_message_id <> ''")) {
