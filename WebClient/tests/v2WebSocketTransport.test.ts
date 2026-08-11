@@ -79,6 +79,29 @@ class FakeTimers {
   }
 }
 
+class FakeNetwork {
+  online = true;
+  observer: { onOnline(): void; onOffline(): void } | null = null;
+  subscriptions = 0;
+  unsubscriptions = 0;
+
+  isOnline = (): boolean => this.online;
+  observe = (observer: { onOnline(): void; onOffline(): void }): (() => void) => {
+    this.observer = observer;
+    this.subscriptions += 1;
+    return () => {
+      if (this.observer === observer) this.observer = null;
+      this.unsubscriptions += 1;
+    };
+  };
+
+  setOnline(online: boolean): void {
+    this.online = online;
+    if (online) this.observer?.onOnline();
+    else this.observer?.onOffline();
+  }
+}
+
 function protocolFactory(): () => V2WebProtocolClient {
   let connection = 0;
   return () => {
@@ -318,8 +341,49 @@ test("turns synchronous socket construction failure into a cancellable retry", (
   assert.equal(timers.tasks.size, 0);
 });
 
+test("pauses attempts while offline and reconnects immediately after browser recovery", () => {
+  const network = new FakeNetwork();
+  const timers = new FakeTimers();
+  const sockets: FakeSocket[] = [];
+  network.online = false;
+  const transport = new V2WebSocketTransport({
+    endpoint: "wss://chat.example/v2/web",
+    createProtocolClient: protocolFactory(),
+    createSocket: () => {
+      const socket = new FakeSocket();
+      sockets.push(socket);
+      return socket;
+    },
+    setTimer: timers.set,
+    clearTimer: timers.clear,
+    isOnline: network.isOnline,
+    observeNetwork: network.observe,
+  });
+  transport.start();
+  assert.equal(transport.state, "offline");
+  assert.equal(sockets.length, 0);
+  assert.equal(timers.tasks.size, 0);
+
+  network.setOnline(true);
+  assert.equal(transport.state, "connecting");
+  assert.equal(sockets.length, 1);
+  network.setOnline(false);
+  assert.equal(transport.state, "offline");
+  assert.deepEqual(sockets[0]!.closes.at(-1), { code: 1001, reason: "network offline" });
+  assert.equal(timers.tasks.size, 0);
+
+  network.setOnline(true);
+  assert.equal(sockets.length, 2);
+  transport.stop();
+  assert.equal(network.subscriptions, 1);
+  assert.equal(network.unsubscriptions, 1);
+  network.setOnline(true);
+  assert.equal(sockets.length, 2, "stopped transport no longer observes browser network events");
+});
+
 test("automatically resumes with rotated memory-only proof and clears it after rejection", () => {
   const timers = new FakeTimers();
+  const network = new FakeNetwork();
   const sockets: FakeSocket[] = [];
   const transport = new V2WebSocketTransport({
     endpoint: "wss://chat.example/v2/web",
@@ -332,6 +396,8 @@ test("automatically resumes with rotated memory-only proof and clears it after r
     setTimer: timers.set,
     clearTimer: timers.clear,
     random: () => 0,
+    isOnline: network.isOnline,
+    observeNetwork: network.observe,
   });
   const firstToken = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
   const rotatedToken = Uint8Array.from({ length: 32 }, (_, index) => 32 - index);
@@ -359,8 +425,10 @@ test("automatically resumes with rotated memory-only proof and clears it after r
     }),
   ), SESSION_ID));
 
-  sockets[0]!.finishClose();
-  timers.runOnly();
+  network.setOnline(false);
+  assert.deepEqual(sockets[0]!.closes.at(-1), { code: 1001, reason: "network offline" });
+  assert.equal(timers.tasks.size, 0);
+  network.setOnline(true);
   sockets[1]!.open();
   sockets[1]!.receive(helloResponse(sentEnvelope(sockets[1]!, 0)));
   assert.equal(transport.state, "resuming");

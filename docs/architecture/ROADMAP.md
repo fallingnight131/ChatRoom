@@ -369,6 +369,9 @@ Progress:
     - [x] Add a build-gated V2 preview route that explicitly owns connection and
       transient authentication, then renders directory, cache-first history,
       optimistic text, acceptance, and retry without replacing V1 screens.
+    - [x] Pause Web V2 socket/retry work while the browser is offline, reconnect
+      immediately on network recovery, and preserve only the rotated in-memory
+      resume proof across that transition.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

@@ -442,8 +442,10 @@ pages, and idempotent text submissions without changing the live V1 path. Live
 Web traffic remains on V1. The V2 WebSocket adapter now fixes the
 secure endpoint/subprotocol, bounds connection phases, rejects non-binary data,
 clears per-connection protocol state, and performs cancellable jittered
-reconnects. Preview UI integration, browser offline signals, and production
-rollback rehearsal still require verification before any cutover. The protocol
+reconnects. Browser network events now pause futile attempts while offline and
+trigger an immediate ordinary handshake on recovery; the signal is not treated
+as gateway reachability proof. Production rollback rehearsal still requires
+verification before any cutover. The protocol
 and transport boundaries can now send an explicitly supplied resume proof and
 accept its rotated session result. The transport retains only the latest rotated
 proof in page memory, redacts it from application observers, automatically

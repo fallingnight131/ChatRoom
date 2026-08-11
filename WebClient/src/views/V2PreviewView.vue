@@ -124,10 +124,11 @@ const activeConversationName = computed(() => snapshot.value.directory.find(
 )?.displayName || '会话')
 const connectionLabel = computed(() => ({
   idle: '尚未连接', connecting: '连接中', negotiating: '协商协议中', connected: '可登录',
-  resuming: '恢复会话中', authenticated: '已安全连接', 'reconnect-wait': '等待重连', stopped: '已停止'
+  resuming: '恢复会话中', authenticated: '已安全连接', offline: '网络离线',
+  'reconnect-wait': '等待重连', stopped: '已停止'
 }[snapshot.value.connectionState] || '未知状态'))
 const connectionTone = computed(() => snapshot.value.connectionState === 'authenticated'
-  ? 'ok' : snapshot.value.connectionState === 'reconnect-wait' ? 'warn' : '')
+  ? 'ok' : ['offline', 'reconnect-wait'].includes(snapshot.value.connectionState) ? 'warn' : '')
 
 function attachRuntime(runtime) {
   unsubscribe?.()

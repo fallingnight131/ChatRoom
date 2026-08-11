@@ -10,6 +10,7 @@ export type V2WebSocketTransportState =
   | "connected"
   | "resuming"
   | "authenticated"
+  | "offline"
   | "reconnect-wait"
   | "stopped";
 
@@ -26,6 +27,7 @@ export interface V2WebSocketLike {
 }
 
 type TimerHandle = ReturnType<typeof globalThis.setTimeout>;
+type NetworkObserver = { onOnline(): void; onOffline(): void };
 
 export interface V2WebSocketTransportOptions {
   endpoint: string;
@@ -39,6 +41,8 @@ export interface V2WebSocketTransportOptions {
   authenticationTimeoutMs?: number;
   reconnectBaseMs?: number;
   reconnectMaximumMs?: number;
+  isOnline?: () => boolean;
+  observeNetwork?: (observer: NetworkObserver) => () => void;
   onStateChange?: (state: V2WebSocketTransportState) => void;
   onProtocolEvent?: (event: V2WebProtocolEvent) => void;
   onFailure?: (reason: string) => void;
@@ -62,6 +66,8 @@ export class V2WebSocketTransport {
   private readonly authenticationTimeoutMs: number;
   private readonly reconnectBaseMs: number;
   private readonly reconnectMaximumMs: number;
+  private readonly isOnline: () => boolean;
+  private readonly observeNetwork: (observer: NetworkObserver) => () => void;
   private readonly onStateChange?: (state: V2WebSocketTransportState) => void;
   private readonly onProtocolEvent?: (event: V2WebProtocolEvent) => void;
   private readonly onFailure?: (reason: string) => void;
@@ -71,6 +77,7 @@ export class V2WebSocketTransport {
   private phaseTimer: TimerHandle | null = null;
   private reconnectTimer: TimerHandle | null = null;
   private reconnectAttempt = 0;
+  private unsubscribeNetwork: (() => void) | null = null;
   private resumeCredential: { sessionId: string; token: Uint8Array } | null = null;
   private desired = false;
   private currentState: V2WebSocketTransportState = "idle";
@@ -93,6 +100,8 @@ export class V2WebSocketTransport {
     if (this.reconnectBaseMs > this.reconnectMaximumMs) {
       throw new Error("reconnectBaseMs must not exceed reconnectMaximumMs");
     }
+    this.isOnline = options.isOnline ?? browserIsOnline;
+    this.observeNetwork = options.observeNetwork ?? observeBrowserNetwork;
     this.onStateChange = options.onStateChange;
     this.onProtocolEvent = options.onProtocolEvent;
     this.onFailure = options.onFailure;
@@ -110,6 +119,18 @@ export class V2WebSocketTransport {
   start(): void {
     if (this.desired) return;
     this.desired = true;
+    try {
+      this.unsubscribeNetwork = this.observeNetwork({
+        onOnline: () => this.handleOnline(),
+        onOffline: () => this.handleOffline(),
+      });
+    } catch {
+      this.unsubscribeNetwork = null;
+    }
+    if (!this.isOnline()) {
+      this.transition("offline");
+      return;
+    }
     this.connect();
   }
 
@@ -143,6 +164,8 @@ export class V2WebSocketTransport {
 
   stop(): void {
     this.desired = false;
+    this.unsubscribeNetwork?.();
+    this.unsubscribeNetwork = null;
     this.cancelTimers();
     const socket = this.socket;
     this.socket = null;
@@ -154,6 +177,10 @@ export class V2WebSocketTransport {
 
   private connect(): void {
     if (!this.desired || this.socket) return;
+    if (!this.isOnline()) {
+      this.transition("offline");
+      return;
+    }
     this.cancelPhaseTimer();
     this.transition("connecting");
     let socket: V2WebSocketLike;
@@ -247,6 +274,10 @@ export class V2WebSocketTransport {
 
   private scheduleReconnect(): void {
     if (this.reconnectTimer || !this.desired) return;
+    if (!this.isOnline()) {
+      this.transition("offline");
+      return;
+    }
     const exponent = Math.min(this.reconnectAttempt, 30);
     const ceiling = Math.min(this.reconnectMaximumMs, this.reconnectBaseMs * (2 ** exponent));
     this.reconnectAttempt += 1;
@@ -256,6 +287,24 @@ export class V2WebSocketTransport {
       this.reconnectTimer = null;
       this.connect();
     }, delay);
+  }
+
+  private handleOffline(): void {
+    if (!this.desired) return;
+    this.cancelTimers();
+    const socket = this.socket;
+    this.socket = null;
+    this.clearProtocolClient();
+    if (socket) safeClose(socket, 1001, "network offline");
+    this.transition("offline");
+  }
+
+  private handleOnline(): void {
+    if (!this.desired || !this.isOnline()) return;
+    if (this.reconnectTimer !== null) this.clearTimer(this.reconnectTimer);
+    this.reconnectTimer = null;
+    this.reconnectAttempt = 0;
+    this.connect();
   }
 
   private armPhaseTimeout(delayMs: number, reason: string, expectedSocket = this.socket): void {
@@ -359,4 +408,19 @@ function boundedRandom(value: number): number {
 
 function safeClose(socket: V2WebSocketLike, code: number, reason: string): void {
   try { socket.close(code, reason.slice(0, 123)); } catch { /* close is best effort */ }
+}
+
+function browserIsOnline(): boolean {
+  try { return typeof navigator === "undefined" || navigator.onLine !== false; }
+  catch { return true; }
+}
+
+function observeBrowserNetwork(observer: NetworkObserver): () => void {
+  if (typeof globalThis.addEventListener !== "function") return () => {};
+  globalThis.addEventListener("online", observer.onOnline);
+  globalThis.addEventListener("offline", observer.onOffline);
+  return () => {
+    globalThis.removeEventListener("online", observer.onOnline);
+    globalThis.removeEventListener("offline", observer.onOffline);
+  };
 }

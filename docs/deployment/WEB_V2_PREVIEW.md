@@ -50,6 +50,8 @@ Before serving preview assets:
 4. verify the preview gateway Origin, Host, TLS, health, and readiness policy;
 5. exercise authentication, reconnect/resume, cache hydration, retry, and safe
    rejection through `/preview/v2` using non-production accounts.
+6. switch the browser offline and online; verify the UI reports offline without
+   retry churn, then reconnects/resumes promptly without persisting the proof.
 
 Rollback by redeploying the prior immutable asset version or a build without the
 exact preview flag, then invalidate the HTML entry point according to the Web
