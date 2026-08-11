@@ -111,7 +111,7 @@ public final class V1SqliteIdentityBackup {
         }
     }
 
-    private static String sha256(Path value) throws IOException {
+    static String sha256(Path value) throws IOException {
         MessageDigest digest;
         try {
             digest = MessageDigest.getInstance("SHA-256");

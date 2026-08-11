@@ -96,8 +96,8 @@ It also verifies a fixed libsodium 1.0.20 Argon2id interactive test vector with
 the locked Java crypto adapter; this deliberately performs memory-hard work and
 must not be interpreted as an authentication capacity benchmark.
 The same Java gate verifies exact V1 salted-SHA compatibility and current-policy
-Argon2id rehashing. The PostgreSQL gate applies V001/V002 and checks credential
-shape constraints, compare-and-set upgrade behavior, digest-only session proof
+Argon2id rehashing. The PostgreSQL gate applies V001/V002/V003 and checks
+credential shape constraints, compare-and-set upgrade behavior, digest-only session proof
 rotation, sequential/concurrent replay denial, device binding, expiry, and
 revocation against a disposable real database.
 Pure migration-planner tests also verify deterministic V1 user-ID mapping,
@@ -110,6 +110,11 @@ failure. Reading is not backup or cutover evidence.
 Online-backup tests use the SQLite backup API against an open WAL source, reopen
 and reconcile the artifact, verify hash/size/time proof, refuse overwrite, and
 remove incomplete output. Test artifacts are not production restore evidence.
+The real-PostgreSQL identity-import gate previews without writes, requires the
+reverified source/backup proof, atomically imports both credential generations,
+reconciles every target field, persists safe proof counts, repeats without
+duplicate accounts, and proves target conflicts leave account/audit state
+unchanged. This is an inactive adapter test, not an operator cutover command.
 
 Run the V2 PostgreSQL migration gate with local PostgreSQL server tools
 (`initdb`, `pg_ctl`, and `createdb`) available either on `PATH` or through

@@ -19,6 +19,13 @@ WAL state is included. It reopens and reconciles the artifact, hashes the full
 file, and refuses overwrite. Keep the returned proof with the protected backup;
 do not commit either production artifact to this repository.
 
+Before PostgreSQL apply, the migration adapter re-reads the current source and
+backup and verifies both logical plans plus the proof's physical backup hash and
+size. It repeats this check before the target transaction commits. This detects
+observed drift but does not freeze V1 writers; the eventual authority switch
+still requires an operator-controlled quiescence window and final fingerprint
+check.
+
 ## Tables
 
 ### Identity

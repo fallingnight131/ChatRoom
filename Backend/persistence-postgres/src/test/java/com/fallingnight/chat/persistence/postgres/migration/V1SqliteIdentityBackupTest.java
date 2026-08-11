@@ -45,7 +45,49 @@ class V1SqliteIdentityBackupTest {
             assertEquals(sourcePlan, backupPlan);
             assertEquals(sourcePlan.sourceFingerprintSha256(),
                     proof.sourceFingerprintSha256());
+            VerifiedV1IdentityImportInput input = new V1IdentityImportInputVerifier()
+                    .verify(source, backup, proof);
+            assertEquals(sourcePlan, input.plan());
         }
+    }
+
+    @Test
+    void rejectsAChangedSourceOrBackupProofBeforeApply() throws Exception {
+        Path source = temporary.resolve("source.db");
+        Path backup = temporary.resolve("verified-backup.db");
+        try (Connection connection = currentSource(source, false);
+                Statement statement = connection.createStatement()) {
+            statement.execute("INSERT INTO users VALUES (1, 'alice', 'Alice', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$c2FsdA$aGFzaA', '', "
+                    + "'2026-01-02 03:04:05')");
+        }
+        VerifiedV1IdentityBackup proof = backupService().createVerified(source, backup);
+        VerifiedV1IdentityBackup wrongHash = new VerifiedV1IdentityBackup(
+                proof.sourceFingerprintSha256(),
+                "0".repeat(64),
+                proof.identityRows(),
+                proof.backupBytes(),
+                proof.createdAt());
+        assertEquals(
+                "V1 identity backup artifact does not match its proof",
+                assertThrows(V1IdentitySourceException.class,
+                        () -> new V1IdentityImportInputVerifier()
+                                .verify(source, backup, wrongHash))
+                        .getMessage());
+
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:sqlite:" + source.toAbsolutePath());
+                Statement statement = connection.createStatement()) {
+            statement.execute("INSERT INTO users VALUES (2, 'bob', 'Bob', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$c2FsdA$aGFzaA', '', "
+                    + "'2026-01-02 03:04:06')");
+        }
+        assertEquals(
+                "V1 identity import source, backup, and proof do not reconcile",
+                assertThrows(V1IdentitySourceException.class,
+                        () -> new V1IdentityImportInputVerifier()
+                                .verify(source, backup, proof))
+                        .getMessage());
     }
 
     @Test

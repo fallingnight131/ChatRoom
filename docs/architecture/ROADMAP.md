@@ -310,8 +310,11 @@ Progress:
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,
     source/backup plan reconciliation, and hash/size/time proof.
-  - [ ] Add PostgreSQL dry-run/apply conflict checks, post-write reconciliation,
-    proof persistence, and rollback rehearsal.
+  - [x] Add PostgreSQL dry-run/apply conflict checks, serializable post-write
+    reconciliation, in-transaction proof persistence, and conflict rollback
+    verification.
+  - [ ] Rehearse the operator restore procedure and quiesced final fingerprint
+    check before any identity authority cutover.
 - [x] Define the transport/persistence-independent fresh-login application use
   case, outward identity/session ports, generic rejection, and explicit secret
   zeroing lifecycle.

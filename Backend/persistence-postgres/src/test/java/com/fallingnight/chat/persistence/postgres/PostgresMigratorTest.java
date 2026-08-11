@@ -13,6 +13,15 @@ import com.fallingnight.chat.application.identity.ClientPlatform;
 import com.fallingnight.chat.application.identity.IssuedSession;
 import com.fallingnight.chat.application.identity.StoredCredential;
 import com.fallingnight.chat.application.security.SecretBytes;
+import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
+import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportException;
+import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportInputVerifier;
+import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportReport;
+import com.fallingnight.chat.persistence.postgres.migration.V1IdentitySourceException;
+import com.fallingnight.chat.persistence.postgres.migration.V1SqliteIdentityBackup;
+import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityBackup;
+import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityImportInput;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
@@ -21,6 +30,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.Clock;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -36,6 +47,7 @@ import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.io.TempDir;
 import org.postgresql.ds.PGSimpleDataSource;
 
 @TestMethodOrder(OrderAnnotation.class)
@@ -44,13 +56,16 @@ class PostgresMigratorTest {
     private static final String USER = System.getenv("CHATROOM_TEST_POSTGRES_USER");
     private static final String PASSWORD = System.getenv("CHATROOM_TEST_POSTGRES_PASSWORD");
 
+    @TempDir
+    Path temporary;
+
     @Test
     @Order(1)
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
         MigrateResult initial = first.migrate();
-        assertEquals(2, initial.migrationsExecuted);
+        assertEquals(3, initial.migrationsExecuted);
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -60,17 +75,87 @@ class PostgresMigratorTest {
         try (Connection connection = connect()) {
             assertEquals(
                     Set.of("account", "device", "device_session", "conversation",
-                            "conversation_member", "direct_conversation", "message"),
+                            "conversation_member", "direct_conversation", "message",
+                            "identity_import_run"),
                     applicationTables(connection));
             proveSequenceAndIdempotencyConstraints(connection);
         }
     }
 
     @Test
-    @Order(3)
+    @Order(4)
     void refusesNonPostgresUrlsBeforeConnecting() {
         assertThrows(IllegalArgumentException.class,
                 () -> new PostgresMigrator("jdbc:sqlite:test.db", "", ""));
+    }
+
+    @Test
+    @Order(3)
+    void previewsAppliesReconcilesAndAuditsV1IdentityImport() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        Path source = temporary.resolve("v1-source.db");
+        Path backup = temporary.resolve("v1-backup.db");
+        createIdentitySource(source);
+        Instant backupTime = Instant.parse("2026-08-11T12:00:00Z");
+        VerifiedV1IdentityBackup proof = new V1SqliteIdentityBackup(
+                Clock.fixed(backupTime, ZoneOffset.UTC)).createVerified(source, backup);
+        VerifiedV1IdentityImportInput input = new V1IdentityImportInputVerifier()
+                .verify(source, backup, proof);
+        PostgresV1IdentityImporter importer = new PostgresV1IdentityImporter(dataSource());
+
+        V1IdentityImportReport preview = importer.preview(input.plan());
+        assertTrue(preview.readyToApply());
+        assertEquals(2, preview.insertableRows());
+        assertEquals(0, preview.alreadyImportedRows());
+        assertEquals(0, accountCount());
+
+        insertUnexpectedTargetAccount();
+        V1IdentityImportReport unexpected = importer.preview(input.plan());
+        assertFalse(unexpected.readyToApply());
+        assertEquals(1, unexpected.unexpectedTargetRows());
+        assertThrows(V1IdentityImportException.class, () -> importer.apply(input));
+        assertEquals(1, accountCount());
+        assertEquals(0, importRunCount());
+        truncateApplicationData();
+
+        V1IdentityImportReport applied = importer.apply(input);
+        assertTrue(applied.applied());
+        assertTrue(applied.reconciled());
+        assertEquals(2, applied.insertedRows());
+        assertEquals(2, accountCount());
+        assertEquals(1, importRunCount());
+        assertEquals(proof.backupFileSha256(), storedBackupHash(applied.importRunId()));
+
+        V1IdentityImportReport rerun = importer.apply(input);
+        assertEquals(0, rerun.insertedRows());
+        assertEquals(2, rerun.alreadyImportedRows());
+        assertEquals(2, importRunCount());
+        assertEquals(2, accountCount());
+
+        deleteOneImportedAccountAndCorruptAnother(input);
+        V1IdentityImportReport blocked = importer.preview(input.plan());
+        assertFalse(blocked.readyToApply());
+        assertEquals(1, blocked.insertableRows());
+        assertEquals("TARGET_ACCOUNT_CONFLICT", blocked.issues().getFirst().code());
+        assertThrows(V1IdentityImportException.class, () -> importer.apply(input));
+        assertEquals(1, accountCount());
+        assertEquals(2, importRunCount());
+
+        try (Connection sqlite = DriverManager.getConnection(
+                "jdbc:sqlite:" + source.toAbsolutePath());
+                PreparedStatement statement = sqlite.prepareStatement(
+                        "INSERT INTO users VALUES (?, ?, ?, ?, ?, ?)")) {
+            statement.setLong(1, 3);
+            statement.setString(2, "late-user");
+            statement.setString(3, "Late User");
+            statement.setString(4, "a".repeat(64));
+            statement.setString(5, "late-salt");
+            statement.setString(6, "2026-01-02 03:04:07");
+            statement.executeUpdate();
+        }
+        assertThrows(V1IdentitySourceException.class,
+                () -> new V1IdentityImportInputVerifier().verify(source, backup, proof));
     }
 
     @Test
@@ -400,6 +485,92 @@ class PostgresMigratorTest {
             return MessageDigest.getInstance("SHA-256").digest(value);
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException(exception);
+        }
+    }
+
+    private static PGSimpleDataSource dataSource() {
+        PGSimpleDataSource dataSource = new PGSimpleDataSource();
+        dataSource.setUrl(URL);
+        dataSource.setUser(USER);
+        dataSource.setPassword(PASSWORD);
+        return dataSource;
+    }
+
+    private static void truncateApplicationData() throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "TRUNCATE chat.account, chat.identity_import_run CASCADE")) {
+            statement.execute();
+        }
+    }
+
+    private static void insertUnexpectedTargetAccount() throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                                + "VALUES (?, 'unexpected', 'Unexpected', "
+                                + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')")) {
+            statement.setObject(1, UUID.randomUUID());
+            assertEquals(1, statement.executeUpdate());
+        }
+    }
+
+    private static void createIdentitySource(Path source) throws SQLException {
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:sqlite:" + source.toAbsolutePath());
+                java.sql.Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA journal_mode = WAL");
+            statement.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, "
+                    + "username TEXT UNIQUE NOT NULL, display_name TEXT, "
+                    + "password_hash TEXT NOT NULL, salt TEXT NOT NULL, created_at TEXT)");
+            statement.execute("INSERT INTO users VALUES (1, 'alice-v1', 'Alice V1', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$c2FsdA$aGFzaA', '', "
+                    + "'2026-01-02 03:04:05')");
+            statement.execute("INSERT INTO users VALUES (2, 'legacy-v1', 'Legacy V1', '"
+                    + "a".repeat(64) + "', 'legacy-salt', '2026-01-02 03:04:06')");
+        }
+    }
+
+    private static int accountCount() throws SQLException {
+        return count("SELECT count(*) FROM chat.account");
+    }
+
+    private static int importRunCount() throws SQLException {
+        return count("SELECT count(*) FROM chat.identity_import_run");
+    }
+
+    private static int count(String sql) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet result = statement.executeQuery()) {
+            assertTrue(result.next());
+            return result.getInt(1);
+        }
+    }
+
+    private static String storedBackupHash(UUID runId) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT backup_file_sha256 FROM chat.identity_import_run WHERE id = ?")) {
+            statement.setObject(1, runId);
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                return result.getString(1);
+            }
+        }
+    }
+
+    private static void deleteOneImportedAccountAndCorruptAnother(
+            VerifiedV1IdentityImportInput input) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement delete = connection.prepareStatement(
+                        "DELETE FROM chat.account WHERE id = ?");
+                PreparedStatement update = connection.prepareStatement(
+                        "UPDATE chat.account SET display_name = 'Changed' WHERE id = ?")) {
+            delete.setObject(1, input.plan().accounts().get(1).accountId());
+            assertEquals(1, delete.executeUpdate());
+            update.setObject(1, input.plan().accounts().get(0).accountId());
+            assertEquals(1, update.executeUpdate());
         }
     }
 
