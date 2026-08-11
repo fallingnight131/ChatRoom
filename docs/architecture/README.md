@@ -215,8 +215,10 @@ per-room/per-friendship sequence, and `afterSequence` history resume are
 additive fields. Attachments, replayable recall/delete events, and durable
 client outboxes remain M1/M2 work; this compatibility slice is not the completed
 V2 model. Web room/friend uploads and Windows composer uploads now use the
-authorized binary HTTP bridge from ADR-0013. Windows multi-target file
-forwarding and old-client compatibility handlers still use legacy V1 paths.
+authorized binary HTTP bridge from ADR-0013. Upgraded Windows multi-target
+forwarding submits server file identity and target conversations under
+ADR-0014; old-server and old-client compatibility handlers still use legacy V1
+paths.
 
 ## 8. Protocol Strategy
 

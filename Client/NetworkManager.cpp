@@ -75,6 +75,7 @@ void NetworkManager::disconnectFromServer() {
     m_autoReconnect = false;
     m_heartbeatTimer->stop();
     m_reconnectTimer->stop();
+    m_supportsServerFileForward = false;
     if (m_httpUpload) m_httpUpload->reset();
 
     if (m_socket) {
@@ -173,6 +174,7 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
         if (ok) {
             m_userId   = data["userId"].toInt();
             m_username = data["username"].toString();
+            m_supportsServerFileForward = data["serverFileForward"].toBool(false);
             if (m_httpUpload) {
                 m_httpUpload->configure(
                     m_host,
@@ -253,6 +255,9 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
     }
     else if (type == Protocol::MsgType::FILE_DOWNLOAD_RSP) {
         emit fileDownloadReady(data);
+    }
+    else if (type == Protocol::MsgType::FILE_FORWARD_RSP) {
+        emit fileForwardResponse(data);
     }
     else if (type == Protocol::MsgType::FILE_UPLOAD_START_RSP) {
         emit uploadStartResponse(data);

@@ -195,7 +195,10 @@ restarted schemas converge.
   including owner binding, integrity rejection, and interrupted upload cleanup.
 - `Tests/HttpUploadTransportTest.cpp` drives the Qt `QFile` HTTP adapter against
   a real local HTTP socket; `qt_attachment_source_test.py` prevents Windows
-  composer paths from restoring inline attachment bytes.
+  composer and upgraded forwarding paths from restoring inline attachment
+  bytes.
+- `Tests/v1_file_forward_test.py` covers server-side room/friend attachment
+  forwarding, byte integrity, source/target authorization, and partial results.
 - `CHATROOM_DISABLE_IMAGE_THUMBNAILS` is defined only by the headless test target;
   it skips server-side `QImage` thumbnail generation so the core smoke binary
   does not require QtGui. Client-provided thumbnail fallback and the production

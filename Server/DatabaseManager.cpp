@@ -1453,6 +1453,16 @@ bool DatabaseManager::canUserAccessFile(int fileId, bool isFriendFile, int userI
     return q.exec() && q.next();
 }
 
+bool DatabaseManager::deleteStoredFileRecord(int fileId, bool isFriendFile) {
+    if (fileId <= 0) return false;
+    QSqlDatabase db = getConnection();
+    QSqlQuery q(db);
+    q.prepare(isFriendFile ? "DELETE FROM friend_files WHERE id = ?"
+                           : "DELETE FROM files WHERE id = ?");
+    q.addBindValue(fileId);
+    return q.exec();
+}
+
 bool DatabaseManager::setCosUrl(int fileId, bool isFriendFile, const QString &cosUrl) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);

@@ -88,8 +88,10 @@ Progress:
 - [x] Extend idempotent submission, stable per-friendship sequences, and bounded
   reconnect resume to direct text/emoji messages.
 - [x] Move Web and Windows composer room/friend attachment bytes from
-  JSON/Base64 to the authorized streaming HTTP upload bridge; Windows
-  multi-target forwarding and legacy-path retirement remain.
+  JSON/Base64 to the authorized streaming HTTP upload bridge.
+- [x] Move upgraded Windows multi-target attachment forwarding to an
+  authorization-checked server command; old-server fallbacks and legacy-path
+  retirement remain.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

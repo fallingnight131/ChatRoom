@@ -146,6 +146,7 @@ def verify_v1_smoke(jobs: int, build_root: Path) -> None:
         "v1_room_message_reliability_test.py",
         "v1_friend_message_reliability_test.py",
         "v1_http_upload_test.py",
+        "v1_file_forward_test.py",
     ):
         run(
             [

@@ -524,6 +524,7 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::rawUploadFinished, this, &ChatWindow::onRawUploadFinished);
     connect(net, &NetworkManager::downloadChunkResponse, this, &ChatWindow::onDownloadChunkResponse);
     connect(net, &NetworkManager::fileCosProgress, this, &ChatWindow::onFileCosProgress);
+    connect(net, &NetworkManager::fileForwardResponse, this, &ChatWindow::onFileForwardResponse);
 
     // 撤回
     connect(net, &NetworkManager::recallResponse, this, &ChatWindow::onRecallResponse);
@@ -2523,60 +2524,44 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
 
                 if (msg.contentType() == Message::File || msg.contentType() == Message::Image || msg.contentType() == Message::Video) {
                     const int fileId = msg.fileId();
-                    const bool hasCache = fileId != 0 && FileCache::instance()->isCached(fileId);
-                    if (!hasCache) {
-                        if (msg.fileCleared()) {
-                            QMessageBox::warning(this, QStringLiteral("转发失败"), QStringLiteral("文件已过期且本地无缓存，无法转发"));
-                        } else {
-                            QMessageBox::warning(this, QStringLiteral("转发失败"), QStringLiteral("未找到本地缓存，请先下载文件后再转发"));
+                    if (fileId == 0 || msg.fileCleared()) {
+                        QMessageBox::warning(this, QStringLiteral("转发失败"),
+                                             QStringLiteral("文件已过期或缺少服务端标识，无法转发"));
+                        return;
+                    }
+                    if (targetRooms.size() + targetFriends.size() > Protocol::MAX_FILE_FORWARD_TARGETS) {
+                        QMessageBox::warning(this, QStringLiteral("转发失败"),
+                                             QStringLiteral("一次最多转发到 %1 个会话")
+                                                 .arg(Protocol::MAX_FILE_FORWARD_TARGETS));
+                        return;
+                    }
+                    if (!NetworkManager::instance()->supportsServerFileForward()) {
+                        const int legacyCount = forwardFileWithLegacyProtocol(
+                            fileId, msg.fileName(), targetRooms, targetFriends);
+                        if (legacyCount > 0) {
+                            QMessageBox::information(
+                                this, QStringLiteral("转发完成"),
+                                QStringLiteral("已通过兼容协议转发到 %1 个会话")
+                                    .arg(legacyCount));
                         }
                         return;
                     }
-
-                    const QString cachedPath = FileCache::instance()->cachedFilePath(fileId);
-                    QFile file(cachedPath);
-                    if (!file.open(QIODevice::ReadOnly)) {
-                        QMessageBox::warning(this, QStringLiteral("转发失败"), QStringLiteral("无法读取本地缓存文件"));
-                        return;
-                    }
-                    QByteArray raw = file.readAll();
-                    file.close();
-
-                    if (raw.size() > Protocol::MAX_SMALL_FILE) {
-                        QMessageBox::warning(this, QStringLiteral("转发失败"), QStringLiteral("当前仅支持转发不超过8MB的缓存文件"));
-                        return;
-                    }
-
-                    QString contentType = QStringLiteral("file");
-                    QString suffix = QFileInfo(msg.fileName()).suffix().toLower();
-                    static const QStringList imgExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
-                    static const QStringList vidExts = {"mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"};
-                    if (imgExts.contains(suffix)) contentType = QStringLiteral("image");
-                    else if (vidExts.contains(suffix)) contentType = QStringLiteral("video");
-
+                    QJsonArray roomIds;
                     for (int rid : targetRooms) {
-                        QJsonObject data;
-                        data["roomId"] = rid;
-                        data["fileName"] = msg.fileName();
-                        data["fileSize"] = static_cast<double>(raw.size());
-                        data["fileData"] = QString::fromLatin1(raw.toBase64());
-                        data["contentType"] = contentType;
-                        NetworkManager::instance()->sendMessage(
-                            Protocol::makeMessage(Protocol::MsgType::FILE_SEND, data));
-                        ++forwardedCount;
+                        roomIds.append(rid);
                     }
-
+                    QJsonArray friendUsernames;
                     for (const QString &uname : targetFriends) {
-                        QJsonObject data;
-                        data["friendUsername"] = uname;
-                        data["fileName"] = msg.fileName();
-                        data["fileSize"] = static_cast<double>(raw.size());
-                        data["fileData"] = QString::fromLatin1(raw.toBase64());
-                        data["contentType"] = contentType;
-                        NetworkManager::instance()->sendMessage(
-                            Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_SEND, data));
-                        ++forwardedCount;
+                        friendUsernames.append(uname);
                     }
+                    QJsonObject data;
+                    data["sourceFileId"] = fileId;
+                    data["roomIds"] = roomIds;
+                    data["friendUsernames"] = friendUsernames;
+                    NetworkManager::instance()->sendMessage(
+                        Protocol::makeMessage(Protocol::MsgType::FILE_FORWARD_REQ, data));
+                    m_statusLabel->setText("正在服务端转发文件...");
+                    return;
                 } else {
                     QString ct = (msg.contentType() == Message::Emoji) ? QStringLiteral("emoji") : QStringLiteral("text");
 
@@ -2664,6 +2649,70 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
     if (!menu.isEmpty()) {
         menu.exec(m_messageView->viewport()->mapToGlobal(pos));
     }
+}
+
+int ChatWindow::forwardFileWithLegacyProtocol(
+    int fileId, const QString &fileName, const QSet<int> &roomIds,
+    const QSet<QString> &friendUsernames) {
+    if (!FileCache::instance()->isCached(fileId)) {
+        QMessageBox::warning(this, QStringLiteral("转发失败"),
+                             QStringLiteral("旧服务端需要先下载文件后才能转发"));
+        return 0;
+    }
+    QFile file(FileCache::instance()->cachedFilePath(fileId));
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, QStringLiteral("转发失败"),
+                             QStringLiteral("无法读取本地缓存文件"));
+        return 0;
+    }
+    const QByteArray bytes = file.readAll();
+    if (bytes.isEmpty() || bytes.size() > Protocol::MAX_SMALL_FILE) {
+        QMessageBox::warning(this, QStringLiteral("转发失败"),
+                             QStringLiteral("旧服务端仅支持转发 8MB 以内的文件"));
+        return 0;
+    }
+    const QString encoded = QString::fromLatin1(bytes.toBase64());
+    int count = 0;
+    for (int roomId : roomIds) {
+        QJsonObject data;
+        data["roomId"] = roomId;
+        data["fileName"] = fileName;
+        data["fileSize"] = bytes.size();
+        data["fileData"] = encoded;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_SEND, data));
+        ++count;
+    }
+    for (const QString &friendUsername : friendUsernames) {
+        QJsonObject data;
+        data["friendUsername"] = friendUsername;
+        data["fileName"] = fileName;
+        data["fileSize"] = bytes.size();
+        data["fileData"] = encoded;
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_SEND, data));
+        ++count;
+    }
+    return count;
+}
+
+void ChatWindow::onFileForwardResponse(const QJsonObject &data) {
+    const int forwarded = data["forwardedCount"].toInt();
+    const int failed = data["failedCount"].toInt();
+    m_statusLabel->clear();
+    if (forwarded == 0) {
+        QMessageBox::warning(this, QStringLiteral("转发失败"),
+                             data["error"].toString(QStringLiteral("服务端未完成任何转发")));
+        return;
+    }
+    if (failed > 0) {
+        QMessageBox::warning(this, QStringLiteral("部分转发完成"),
+                             QStringLiteral("已转发到 %1 个会话，%2 个目标失败")
+                                 .arg(forwarded).arg(failed));
+        return;
+    }
+    QMessageBox::information(this, QStringLiteral("转发完成"),
+                             QStringLiteral("已转发到 %1 个会话").arg(forwarded));
 }
 
 // ==================== 主题 ====================

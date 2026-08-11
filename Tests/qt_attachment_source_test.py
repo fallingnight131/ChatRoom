@@ -24,6 +24,13 @@ def main() -> int:
     if "uploadRawFile" not in SOURCE or "httpUploadPath" not in SOURCE:
         print("[QtAttachmentSourceTest] FAIL: Qt HTTP upload negotiation is absent")
         return 1
+    forwarding = between("// 转发消息/文件", "// 管理员：删除此消息")
+    if "fileData" in forwarding or "FILE_SEND" in forwarding or "FRIEND_FILE_SEND" in forwarding:
+        print("[QtAttachmentSourceTest] FAIL: Qt forwarding still emits inline attachment bytes")
+        return 1
+    if "FILE_FORWARD_REQ" not in forwarding or "sourceFileId" not in forwarding:
+        print("[QtAttachmentSourceTest] FAIL: Qt forwarding does not use server-side file identity")
+        return 1
     print("[QtAttachmentSourceTest] PASS")
     return 0
 

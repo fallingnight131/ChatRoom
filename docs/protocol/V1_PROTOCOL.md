@@ -212,19 +212,30 @@ messages are not persisted.
 ### Files
 
 Updated Web clients and Windows Qt composer flows use `FILE_UPLOAD_START` or
-`FRIEND_FILE_UPLOAD_START` only as the authenticated control plane. A successful response may add
-`httpUploadPath`; the client combines it with the login-provided HTTP endpoint
-and short-lived file token, then sends one raw binary `PUT` with exact
+`FRIEND_FILE_UPLOAD_START` only as the authenticated control plane. A successful
+response may add `httpUploadPath`; the client combines it with the
+login-provided HTTP endpoint and short-lived file token, then sends one raw
+binary `PUT` with exact
 `Content-Length`. It sends the existing `FILE_UPLOAD_END` only after HTTP 204,
 so final membership/friendship authorization, metadata persistence,
 notification, and optional COS replication remain server-controlled. The
 upload ID without its owner's token is not authorization. Partial HTTP bodies
 are deleted on disconnect.
 
-The legacy paths below remain for older Qt/Web versions, new-client fallback
-against an older server, and Windows multi-target forwarding during the
-compatibility window. Upgraded Web and Windows composer uploads no longer use
-them:
+Upgraded Windows clients forward an existing attachment with
+`FILE_FORWARD_REQ {sourceFileId, roomIds[], friendUsernames[]}` after login
+advertises `serverFileForward: true`. The signed file ID follows the existing
+convention: positive IDs identify room files and negative IDs identify friend
+files. The server verifies current access to the source and each destination,
+applies room quota, creates new file/message identities per successful target,
+and returns `FILE_FORWARD_RSP` with per-target results and aggregate counts.
+The request carries no file bytes. V1 bounds this synchronous compatibility
+operation to an 8 MiB source and ten unique targets; V2 will use shared immutable
+blob identity or asynchronous copying for larger files.
+
+The legacy paths below remain for older Qt/Web versions and new-client fallback
+against an older server during the compatibility window. Upgraded Web and
+Windows normal paths no longer use them:
 
 - files up to 8 MiB can use inline Base64 transfer;
 - large source chunks default to 4 MiB and are Base64 encoded in JSON;

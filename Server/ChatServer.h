@@ -84,6 +84,7 @@ private:
     void handleHistory(ClientSession *session, const QJsonObject &data);
     void handleFileSend(ClientSession *session, const QJsonObject &msg);
     void handleFileDownload(ClientSession *session, const QJsonObject &data);
+    void handleFileForward(ClientSession *session, const QJsonObject &data);
     void handleFileUploadStart(ClientSession *session, const QJsonObject &data);
     void handleFileUploadChunk(ClientSession *session, const QJsonObject &data);
     void handleFileUploadEnd(ClientSession *session, const QJsonObject &data);
@@ -133,6 +134,12 @@ private:
     QList<int> buildCleanupPlan(int roomId, qint64 newMaxFileSize, qint64 newTotalFileSpace,
                                 int newMaxFileCount, QJsonObject *planSummary);
     bool applyFileCleanupPlan(int roomId, const QList<int> &fileIds, const QString &reason, QJsonArray *clearedIdsOut);
+    QJsonObject forwardFileToRoom(ClientSession *session, int roomId,
+                                  const QString &sourcePath, const QString &fileName,
+                                  qint64 fileSize);
+    QJsonObject forwardFileToFriend(ClientSession *session, const QString &friendUsername,
+                                    const QString &sourcePath, const QString &fileName,
+                                    qint64 fileSize);
 
     /// 根据文件名返回类型子目录 ("Image", "Video", "File")
     static QString fileTypeSubDir(const QString &fileName);

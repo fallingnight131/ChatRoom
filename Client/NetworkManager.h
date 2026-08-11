@@ -24,6 +24,7 @@ public:
     void cancelRawUpload(const QString &uploadId);
 
     bool isConnected() const;
+    bool supportsServerFileForward() const { return m_supportsServerFileForward; }
     QString currentUsername() const { return m_username; }
     int     currentUserId() const  { return m_userId; }
 
@@ -62,6 +63,7 @@ signals:
     // 文件
     void fileNotify(const QJsonObject &data);
     void fileDownloadReady(const QJsonObject &data);
+    void fileForwardResponse(const QJsonObject &data);
 
     // 大文件分块传输
     void uploadStartResponse(const QJsonObject &data);
@@ -185,6 +187,7 @@ private:
     QTimer     *m_reconnectTimer  = nullptr;
     QByteArray  m_buffer;
     HttpUploadTransport *m_httpUpload = nullptr;
+    bool m_supportsServerFileForward = false;
 
     QString     m_host;
     quint16     m_port            = 0;

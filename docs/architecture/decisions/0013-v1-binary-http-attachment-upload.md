@@ -35,10 +35,11 @@ Extend the existing upload-session flow with a raw binary HTTP transport:
   `QNetworkAccessManager` behind its transport layer. UI code does not construct
   server paths or tokens.
 - Web room/friend and Windows composer uploads use this adapter. Windows
-  multi-target forwarding is the next migration slice. The old Base64 inline
-  and chunk messages remain temporarily for old-client compatibility and are
-  instrumented before removal; new clients do not silently fall back after an
-  authorization or integrity failure.
+  multi-target forwarding now uses the server-side identity command in
+  ADR-0014. The old Base64 inline and chunk messages remain temporarily for
+  old-client/old-server compatibility and are instrumented before removal; new
+  clients do not silently fall back after an authorization or integrity
+  failure.
 - Downloads, avatars, and thumbnails are separate paths. Thumbnail metadata may
   remain a bounded Base64 field while original attachment bytes use HTTP.
 

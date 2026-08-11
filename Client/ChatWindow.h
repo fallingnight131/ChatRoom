@@ -115,6 +115,7 @@ private slots:
     void onRawUploadFinished(const QString &uploadId, bool success, const QString &error);
     void onFileCosProgress(const QJsonObject &data);
     void onDownloadChunkResponse(const QJsonObject &data);
+    void onFileForwardResponse(const QJsonObject &data);
 
     // 头像
     void onChangeAvatar();
@@ -207,6 +208,9 @@ private:
     void connectSignals();
     void completeUploadBytes();
     void clearUploadState(bool removeTemporaryMessage);
+    int forwardFileWithLegacyProtocol(int fileId, const QString &fileName,
+                                      const QSet<int> &roomIds,
+                                      const QSet<QString> &friendUsernames);
     void switchRoom(int roomId);
     void requestRoomList();
     MessageModel *getOrCreateModel(int roomId);

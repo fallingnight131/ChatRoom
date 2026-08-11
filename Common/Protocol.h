@@ -28,6 +28,7 @@ constexpr qint64 MAX_PENDING_WRITE_BYTES = 24 * 1024 * 1024; // 慢消费者待�
 constexpr int MAX_MESSAGES_PER_SECOND = 60;
 constexpr int MAX_MALFORMED_MESSAGES = 3;
 constexpr int MAX_AUTH_ATTEMPTS_PER_MINUTE = 5;
+constexpr int MAX_FILE_FORWARD_TARGETS = 10;
 
 // ==================== 消息类型 ====================
 namespace MsgType {
@@ -64,6 +65,8 @@ namespace MsgType {
     inline const QString FILE_NOTIFY      = QStringLiteral("FILE_NOTIFY");
     inline const QString FILE_DOWNLOAD_REQ= QStringLiteral("FILE_DOWNLOAD_REQ");
     inline const QString FILE_DOWNLOAD_RSP= QStringLiteral("FILE_DOWNLOAD_RSP");
+    inline const QString FILE_FORWARD_REQ  = QStringLiteral("FILE_FORWARD_REQ");
+    inline const QString FILE_FORWARD_RSP  = QStringLiteral("FILE_FORWARD_RSP");
 
     // 大文件分块传输
     inline const QString FILE_UPLOAD_START  = QStringLiteral("FILE_UPLOAD_START");

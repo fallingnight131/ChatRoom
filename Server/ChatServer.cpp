@@ -37,6 +37,8 @@
 #endif
 #include <QTextStream>
 #include <QStringList>
+#include <cmath>
+#include <limits>
 
 namespace {
 
@@ -75,6 +77,33 @@ QString readEnvValueFromFile(const QString &filePath, const QString &key) {
     }
 
     return QString();
+}
+
+QString buildForwardThumbnail(const QString &filePath, const QString &fileName,
+                              qint64 fileSize) {
+#ifndef CHATROOM_DISABLE_IMAGE_THUMBNAILS
+    static const QStringList imageExtensions = {
+        "png", "jpg", "jpeg", "gif", "bmp", "webp"
+    };
+    if (fileSize < 20 * 1024 * 1024 &&
+        imageExtensions.contains(QFileInfo(fileName).suffix().toLower())) {
+        QImage image(filePath);
+        if (!image.isNull()) {
+            const QImage thumbnail = image.scaled(
+                200, 200, Qt::KeepAspectRatio, Qt::FastTransformation);
+            QByteArray bytes;
+            QBuffer buffer(&bytes);
+            buffer.open(QIODevice::WriteOnly);
+            thumbnail.save(&buffer, "JPEG", 60);
+            return QString::fromLatin1(bytes.toBase64());
+        }
+    }
+#else
+    Q_UNUSED(filePath)
+    Q_UNUSED(fileName)
+    Q_UNUSED(fileSize)
+#endif
+    return {};
 }
 
 } // namespace
@@ -327,6 +356,8 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         handleFileSend(session, msg);
     } else if (type == Protocol::MsgType::FILE_DOWNLOAD_REQ) {
         handleFileDownload(session, msg["data"].toObject());
+    } else if (type == Protocol::MsgType::FILE_FORWARD_REQ) {
+        handleFileForward(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::FILE_UPLOAD_START) {
         handleFileUploadStart(session, msg["data"].toObject());
     } else if (type == Protocol::MsgType::FILE_UPLOAD_CHUNK) {
@@ -469,6 +500,7 @@ void ChatServer::handleLogin(ClientSession *session, const QJsonObject &data) {
         rspData["displayName"] = displayName;
         rspData["fileToken"]   = generateFileToken(userId);
         rspData["httpPort"]    = m_httpPort;
+        rspData["serverFileForward"] = true;
         m_authAbuseGuard.recordSuccess(username);
         emit session->authenticated(session);
     } else {
@@ -1800,6 +1832,278 @@ void ChatServer::handleFileDownload(ClientSession *session, const QJsonObject &d
     }
 
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_DOWNLOAD_RSP, rspData));
+}
+
+void ChatServer::handleFileForward(ClientSession *session, const QJsonObject &data) {
+    if (!session->isAuthenticated()) return;
+
+    QJsonObject response;
+    const double sourceFileValue = data["sourceFileId"].toDouble();
+    if (!std::isfinite(sourceFileValue) || sourceFileValue == 0 ||
+        std::floor(sourceFileValue) != sourceFileValue ||
+        std::abs(sourceFileValue) > std::numeric_limits<int>::max()) {
+        response["success"] = false;
+        response["forwardedCount"] = 0;
+        response["failedCount"] = 0;
+        response["errorCode"] = QStringLiteral("INVALID_SOURCE_FILE_ID");
+        response["error"] = QStringLiteral("源文件标识无效");
+        session->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_FORWARD_RSP, response));
+        return;
+    }
+    const qint64 signedFileId = static_cast<qint64>(sourceFileValue);
+    const bool isFriendFile = signedFileId < 0;
+    const qint64 absoluteFileId = isFriendFile ? -signedFileId : signedFileId;
+    if (absoluteFileId <= 0 || absoluteFileId > std::numeric_limits<int>::max() ||
+        !m_db->canUserAccessFile(static_cast<int>(absoluteFileId), isFriendFile,
+                                 session->userId())) {
+        qWarning().noquote()
+            << QStringLiteral("[Authz] denied operation=file-forward-source userId=%1 fileId=%2 friend=%3")
+                   .arg(session->userId()).arg(absoluteFileId).arg(isFriendFile);
+        response["success"] = false;
+        response["forwardedCount"] = 0;
+        response["failedCount"] = 0;
+        response["errorCode"] = QStringLiteral("SOURCE_FILE_ACCESS_DENIED");
+        response["error"] = QStringLiteral("无权访问源文件或文件已过期");
+        session->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_FORWARD_RSP, response));
+        return;
+    }
+
+    const QString sourcePath = m_db->getFilePath(static_cast<int>(absoluteFileId),
+                                                  isFriendFile);
+    const QString fileName = m_db->getFileName(static_cast<int>(absoluteFileId),
+                                               isFriendFile);
+    const QFileInfo sourceInfo(sourcePath);
+    const qint64 fileSize = sourceInfo.size();
+    QString validatedFileName;
+    QString fileNameError;
+    const bool validFileName = InputValidator::validateFileName(
+        fileName, &validatedFileName, &fileNameError);
+    if (sourcePath.isEmpty() || !validFileName || validatedFileName != fileName ||
+        !sourceInfo.isFile() ||
+        fileSize <= 0 || fileSize > Protocol::MAX_SMALL_FILE) {
+        response["success"] = false;
+        response["forwardedCount"] = 0;
+        response["failedCount"] = 0;
+        response["errorCode"] = fileSize > Protocol::MAX_SMALL_FILE
+            ? QStringLiteral("SOURCE_FILE_TOO_LARGE")
+            : QStringLiteral("SOURCE_FILE_UNAVAILABLE");
+        response["error"] = fileSize > Protocol::MAX_SMALL_FILE
+            ? QStringLiteral("当前服务端转发上限为 8MB")
+            : QStringLiteral("源文件不可用");
+        session->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_FORWARD_RSP, response));
+        return;
+    }
+
+    QSet<int> roomIds;
+    for (const QJsonValue &value : data["roomIds"].toArray()) {
+        const int roomId = value.toInt();
+        if (roomId > 0) roomIds.insert(roomId);
+    }
+    QSet<QString> friendUsernames;
+    for (const QJsonValue &value : data["friendUsernames"].toArray()) {
+        const QString username = value.toString().trimmed();
+        if (!username.isEmpty() && username.size() <= InputValidator::MAX_USERNAME_CHARS)
+            friendUsernames.insert(username);
+    }
+    const int targetCount = roomIds.size() + friendUsernames.size();
+    if (targetCount <= 0 || targetCount > Protocol::MAX_FILE_FORWARD_TARGETS) {
+        qWarning().noquote()
+            << QStringLiteral("[Input] rejected category=file-forward-targets userId=%1 count=%2")
+                   .arg(session->userId()).arg(targetCount);
+        response["success"] = false;
+        response["forwardedCount"] = 0;
+        response["failedCount"] = 0;
+        response["errorCode"] = QStringLiteral("INVALID_FORWARD_TARGETS");
+        response["error"] = QStringLiteral("转发目标数量必须在 1 到 %1 之间")
+                                .arg(Protocol::MAX_FILE_FORWARD_TARGETS);
+        session->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_FORWARD_RSP, response));
+        return;
+    }
+
+    QJsonArray results;
+    int forwardedCount = 0;
+    for (int roomId : roomIds) {
+        QJsonObject result = forwardFileToRoom(session, roomId, sourcePath,
+                                               fileName, fileSize);
+        if (result["success"].toBool()) ++forwardedCount;
+        results.append(result);
+    }
+    for (const QString &friendUsername : friendUsernames) {
+        QJsonObject result = forwardFileToFriend(session, friendUsername, sourcePath,
+                                                 fileName, fileSize);
+        if (result["success"].toBool()) ++forwardedCount;
+        results.append(result);
+    }
+
+    response["success"] = forwardedCount > 0;
+    response["forwardedCount"] = forwardedCount;
+    response["failedCount"] = targetCount - forwardedCount;
+    response["results"] = results;
+    if (forwardedCount == 0)
+        response["error"] = QStringLiteral("所有转发目标均失败");
+    qInfo().noquote()
+        << QStringLiteral("[AttachmentForward] userId=%1 targets=%2 accepted=%3 rejected=%4")
+               .arg(session->userId()).arg(targetCount).arg(forwardedCount)
+               .arg(targetCount - forwardedCount);
+    session->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::FILE_FORWARD_RSP, response));
+}
+
+QJsonObject ChatServer::forwardFileToRoom(ClientSession *session, int roomId,
+                                          const QString &sourcePath,
+                                          const QString &fileName,
+                                          qint64 fileSize) {
+    QJsonObject result;
+    result["targetType"] = QStringLiteral("room");
+    result["roomId"] = roomId;
+    if (!m_db->isUserInRoom(roomId, session->userId())) {
+        qWarning().noquote()
+            << QStringLiteral("[Authz] denied operation=file-forward-room userId=%1 roomId=%2")
+                   .arg(session->userId()).arg(roomId);
+        result["success"] = false;
+        result["errorCode"] = QStringLiteral("ROOM_ACCESS_DENIED");
+        return result;
+    }
+
+    QString quotaError;
+    if (!tryReserveRoomFileQuota(roomId, fileSize, &quotaError)) {
+        result["success"] = false;
+        result["errorCode"] = QStringLiteral("ROOM_FILE_QUOTA_EXCEEDED");
+        result["error"] = quotaError;
+        return result;
+    }
+
+    const QString targetPath = serverFileDir(roomId, fileName) + "/" +
+        QUuid::createUuid().toString(QUuid::WithoutBraces) + "_" + fileName;
+    if (!QFile::copy(sourcePath, targetPath)) {
+        releaseRoomFileQuota(roomId, fileSize);
+        result["success"] = false;
+        result["errorCode"] = QStringLiteral("FILE_COPY_FAILED");
+        return result;
+    }
+
+    const int fileId = m_db->saveFile(roomId, session->userId(), fileName,
+                                      targetPath, fileSize);
+    const QString typeDir = fileTypeSubDir(fileName);
+    const QString contentType = typeDir == QLatin1String("Image")
+        ? QStringLiteral("image")
+        : (typeDir == QLatin1String("Video")
+               ? QStringLiteral("video") : QStringLiteral("file"));
+    const QString thumbnail = buildForwardThumbnail(targetPath, fileName, fileSize);
+    const int messageId = fileId > 0
+        ? m_db->saveMessage(roomId, session->userId(), fileName, contentType,
+                            fileName, fileSize, fileId, thumbnail)
+        : -1;
+    if (fileId <= 0 || messageId <= 0) {
+        if (fileId > 0) m_db->deleteStoredFileRecord(fileId);
+        QFile::remove(targetPath);
+        releaseRoomFileQuota(roomId, fileSize);
+        result["success"] = false;
+        result["errorCode"] = QStringLiteral("FORWARD_PERSIST_FAILED");
+        return result;
+    }
+
+    QJsonObject notify;
+    notify["id"] = messageId;
+    notify["roomId"] = roomId;
+    notify["sender"] = session->username();
+    notify["senderName"] = session->displayName();
+    notify["fileName"] = fileName;
+    notify["fileSize"] = static_cast<double>(fileSize);
+    notify["fileId"] = fileId;
+    notify["contentType"] = contentType;
+    notify["content"] = fileName;
+    notify["fileCleared"] = false;
+    notify["timestamp"] = static_cast<double>(QDateTime::currentMSecsSinceEpoch());
+    if (!thumbnail.isEmpty()) notify["thumbnail"] = thumbnail;
+    broadcastToRoom(roomId,
+                    Protocol::makeMessage(Protocol::MsgType::FILE_NOTIFY, notify));
+    releaseRoomFileQuota(roomId, fileSize);
+    result["success"] = true;
+    result["fileId"] = fileId;
+    result["messageId"] = messageId;
+    return result;
+}
+
+QJsonObject ChatServer::forwardFileToFriend(ClientSession *session,
+                                            const QString &friendUsername,
+                                            const QString &sourcePath,
+                                            const QString &fileName,
+                                            qint64 fileSize) {
+    QJsonObject result;
+    result["targetType"] = QStringLiteral("friend");
+    result["friendUsername"] = friendUsername;
+    const int friendId = m_db->getUserIdByName(friendUsername);
+    const int friendshipId = friendId > 0
+        ? m_db->getFriendshipId(session->userId(), friendId) : -1;
+    if (friendshipId <= 0) {
+        qWarning().noquote()
+            << QStringLiteral("[Authz] denied operation=file-forward-friend userId=%1 targetUserId=%2")
+                   .arg(session->userId()).arg(friendId);
+        result["success"] = false;
+        result["errorCode"] = QStringLiteral("FRIENDSHIP_ACCESS_DENIED");
+        return result;
+    }
+    if (fileSize > Protocol::MAX_FRIEND_FILE) {
+        result["success"] = false;
+        result["errorCode"] = QStringLiteral("FRIEND_FILE_TOO_LARGE");
+        return result;
+    }
+
+    const QString targetPath = friendFileDir(friendshipId, fileName) + "/" +
+        QUuid::createUuid().toString(QUuid::WithoutBraces) + "_" + fileName;
+    if (!QFile::copy(sourcePath, targetPath)) {
+        result["success"] = false;
+        result["errorCode"] = QStringLiteral("FILE_COPY_FAILED");
+        return result;
+    }
+
+    const int fileId = m_db->saveFriendFile(friendshipId, session->userId(),
+                                            fileName, targetPath, fileSize);
+    const QString typeDir = fileTypeSubDir(fileName);
+    const QString contentType = typeDir == QLatin1String("Image")
+        ? QStringLiteral("image")
+        : (typeDir == QLatin1String("Video")
+               ? QStringLiteral("video") : QStringLiteral("file"));
+    const QString thumbnail = buildForwardThumbnail(targetPath, fileName, fileSize);
+    const int messageId = fileId > 0
+        ? m_db->saveFriendMessage(friendshipId, session->userId(), fileName,
+                                  contentType, fileName, fileSize, fileId, thumbnail)
+        : -1;
+    if (fileId <= 0 || messageId <= 0) {
+        if (fileId > 0) m_db->deleteStoredFileRecord(fileId, true);
+        QFile::remove(targetPath);
+        result["success"] = false;
+        result["errorCode"] = QStringLiteral("FORWARD_PERSIST_FAILED");
+        return result;
+    }
+
+    QJsonObject notify;
+    notify["id"] = messageId;
+    notify["friendshipId"] = friendshipId;
+    notify["sender"] = session->username();
+    notify["senderName"] = session->displayName();
+    notify["friendUsername"] = friendUsername;
+    notify["content"] = fileName;
+    notify["contentType"] = contentType;
+    notify["fileName"] = fileName;
+    notify["fileSize"] = static_cast<double>(fileSize);
+    notify["fileId"] = -fileId;
+    notify["timestamp"] = static_cast<double>(QDateTime::currentMSecsSinceEpoch());
+    if (!thumbnail.isEmpty()) notify["thumbnail"] = thumbnail;
+    const QJsonObject notification =
+        Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_NOTIFY, notify);
+    session->sendMessage(notification);
+    if (friendUsername != session->username())
+        sendToUser(friendUsername, notification);
+    result["success"] = true;
+    result["fileId"] = -fileId;
+    result["messageId"] = messageId;
+    return result;
 }
 
 // ==================== 大文件分块传输 ====================

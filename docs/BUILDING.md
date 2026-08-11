@@ -140,7 +140,11 @@ WebSocket finalization, and notification frames without inline file bytes.
 The Qt gate additionally compiles `HttpUploadTransportTest`; the V1 smoke gate
 runs it with loopback access and checks the real raw `PUT`. A source contract
 test keeps Windows room/file/image and friend composer entry points on the
-upload-session path.
+upload-session path and upgraded forwarding on server file identity.
+
+A ninth V1 suite verifies server-side room/friend file forwarding, copied-byte
+integrity, notifications without inline bytes, source authorization, target
+authorization, and partial-result accounting.
 
 CI runs the same smoke test on Ubuntu 24.04 after installing Qt Base, Qt SQLite,
 Qt WebSockets, and libsodium development packages.

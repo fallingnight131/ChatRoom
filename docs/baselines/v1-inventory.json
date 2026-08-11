@@ -47,7 +47,7 @@
     "default_websocket_port": 9528,
     "heartbeat_interval_ms": 30000,
     "heartbeat_timeout_ms": 90000,
-    "message_type_count": 122,
+    "message_type_count": 124,
     "message_types": [
       "LOGIN_REQ",
       "LOGIN_RSP",
@@ -73,6 +73,8 @@
       "FILE_NOTIFY",
       "FILE_DOWNLOAD_REQ",
       "FILE_DOWNLOAD_RSP",
+      "FILE_FORWARD_REQ",
+      "FILE_FORWARD_RSP",
       "FILE_UPLOAD_START",
       "FILE_UPLOAD_START_RSP",
       "FILE_UPLOAD_CHUNK",
@@ -172,7 +174,7 @@
       "FRIEND_RECALL_NOTIFY",
       "FILE_COS_PROGRESS"
     ],
-    "server_dispatched_request_count": 50,
+    "server_dispatched_request_count": 51,
     "server_dispatched_requests": [
       "LOGIN_REQ",
       "REGISTER_REQ",
@@ -185,6 +187,7 @@
       "HISTORY_REQ",
       "FILE_SEND",
       "FILE_DOWNLOAD_REQ",
+      "FILE_FORWARD_REQ",
       "FILE_UPLOAD_START",
       "FILE_UPLOAD_CHUNK",
       "FILE_UPLOAD_END",
@@ -231,15 +234,15 @@
   "sources": {
     "database_schema": {
       "path": "Server/DatabaseManager.cpp",
-      "sha256": "0f82ede0ee3135dbac1919380510c81ee38606d89a8c835f320723fab09530a2"
+      "sha256": "7f79caa1a73706b07d0c1ef0e2125831b9adce00d5c5734785b796d616d7ea25"
     },
     "protocol": {
       "path": "Common/Protocol.h",
-      "sha256": "c4e5f64f455aff3a2a36f604e601b410451b1e6fd8d0deaddf9bdc45b6bb8837"
+      "sha256": "49f27502be90a3f03ef966ac940cae825be3dd6a63f284a553f942f93acd3cfa"
     },
     "server_dispatch": {
       "path": "Server/ChatServer.cpp",
-      "sha256": "94800e422051802bf580e2f1d3500295b12e6f896122744d7697f9150a269aa7"
+      "sha256": "b6ee9b092815b4a1284c186b05dba1a0c27da506d7342dc096756ccd067cb464"
     }
   }
 }

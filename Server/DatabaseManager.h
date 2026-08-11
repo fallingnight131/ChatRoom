@@ -94,6 +94,7 @@ public:
     QString getFilePath(int fileId, bool isFriendFile = false);
     QString getFileName(int fileId, bool isFriendFile = false);
     bool canUserAccessFile(int fileId, bool isFriendFile, int userId);
+    bool deleteStoredFileRecord(int fileId, bool isFriendFile = false);
     /// 过期处理，返回需要从 COS 删除的 URL 列表
     QStringList expireStoredFiles();
 
