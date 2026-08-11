@@ -5,6 +5,7 @@ import {
   applyDeletionEvents,
   hasStableIdentity,
   mergeUniqueMessages,
+  reconcileRoomSyncPage,
   sameStableMessage
 } from '../src/messaging/messageReconciliation.js'
 
@@ -40,6 +41,13 @@ test('applies selected and predicate deletion events idempotently', () => {
     { id: 2, timestamp: 200 }
   ])
   assert.deepEqual(applyDeletionEvents(messages, [{ mode: 'all' }]), [])
+})
+
+test('reconciles mixed sync pages in cursor order', () => {
+  const existing = [{ id: 1, sequence: 1, timestamp: 100 }]
+  const messages = [{ id: 3, sequence: 3, syncSequence: 3, timestamp: 300 }]
+  const events = [{ mode: 'all', sequence: 2, syncSequence: 2 }]
+  assert.deepEqual(reconcileRoomSyncPage(existing, messages, events), messages)
 })
 
 test('deduplicates history against live state and within the incoming page', () => {

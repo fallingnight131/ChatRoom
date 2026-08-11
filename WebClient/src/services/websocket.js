@@ -275,9 +275,10 @@ class ChatWebSocket {
     this.send(makeMessage(MsgType.USER_LIST_REQ, { roomId }))
   }
 
-  requestHistory(roomId, count = 50, before = 0) {
+  requestHistory(roomId, count = 50, before = 0, afterSequence = null) {
     const data = { roomId, count }
     if (before > 0) data.before = before
+    if (afterSequence !== null) data.afterSequence = afterSequence
     this.send(makeMessage(MsgType.HISTORY_REQ, data))
   }
 

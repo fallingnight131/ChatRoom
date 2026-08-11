@@ -59,3 +59,18 @@ export function applyDeletionEvents(messages, events = []) {
       return current
     }, [...messages])
 }
+
+export function syncSequenceOf(item) {
+  return Number(item?.syncSequence || item?.mutationSequence || item?.sequence || 0)
+}
+
+export function reconcileRoomSyncPage(existing, messages = [], events = []) {
+  const items = [
+    ...messages.map(value => ({ kind: 'message', value })),
+    ...events.map(value => ({ kind: 'event', value }))
+  ].sort((left, right) => syncSequenceOf(left.value) - syncSequenceOf(right.value))
+
+  return items.reduce((current, item) => item.kind === 'event'
+    ? applyDeletionEvents(current, [item.value])
+    : mergeUniqueMessages(current, [item.value]), [...existing])
+}

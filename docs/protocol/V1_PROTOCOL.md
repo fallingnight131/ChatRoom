@@ -206,6 +206,10 @@ Room history/member responses require current room membership, and direct
 history requires current friendship participation. Counts are clamped to 100;
 non-positive counts use 50. Negative room sequence cursors fail with
 `INVALID_SEQUENCE_CURSOR`, as do negative direct sequence cursors.
+The upgraded Web client retains the active room cursor for the page lifetime,
+requests bounded follow-up pages after reconnect login, and applies mixed
+message/event pages in cursor order. Durable browser cursor storage is deferred
+to the M2 IndexedDB repository.
 
 ### Read state
 

@@ -2,7 +2,13 @@
 import { defineStore } from 'pinia'
 import { chatWs, MsgType, FILE_CHUNK_SIZE, MAX_SMALL_FILE, makeMessage, getHttpDownloadUrl, getHttpUploadUrl } from '../services/websocket'
 import { useUserStore } from './user'
-import { applyDeletionEvents, mergeUniqueMessages, sameStableMessage } from '../messaging/messageReconciliation'
+import {
+  applyDeletionEvents,
+  mergeUniqueMessages,
+  reconcileRoomSyncPage,
+  sameStableMessage,
+  syncSequenceOf
+} from '../messaging/messageReconciliation'
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -12,6 +18,7 @@ export const useChatStore = defineStore('chat', {
     isAdmin: false,
     users: [],              // [{ username, displayName, isAdmin, isOnline }]
     messages: [],           // 当前房间消息
+    roomSyncCursors: {},    // roomId -> 当前内存视图已应用的服务端序列
     // 文件上传
     uploads: {},            // uploadId -> { fileName, fileSize, sent, status, file, roomId, paused }
     _uploadQueue: [],       // 上传队列：[{ type:'room'|'friend', roomId, friendUsername, file, thumbnail }]
@@ -58,6 +65,7 @@ export const useChatStore = defineStore('chat', {
         this.isAdmin = !!room.isAdmin
         room.unread = 0
         this.messages = []
+        this.roomSyncCursors[roomId] = 0
         this.users = []
         chatWs.requestUserList(roomId)
         chatWs.requestHistory(roomId, 50)
@@ -74,6 +82,24 @@ export const useChatStore = defineStore('chat', {
 
     deleteRoomFiles(roomId, fileIds) {
       chatWs.deleteRoomFiles(roomId, fileIds)
+    },
+
+    _advanceRoomSyncCursor(roomId, ...items) {
+      if (!roomId) return
+      const next = items.reduce((maximum, item) => Math.max(maximum, syncSequenceOf(item)),
+        Number(this.roomSyncCursors[roomId] || 0))
+      if (next > 0) this.roomSyncCursors[roomId] = next
+    },
+
+    resumeCurrentRoom() {
+      const roomId = this.currentRoomId
+      if (!roomId) return
+      const cursor = Number(this.roomSyncCursors[roomId] || 0)
+      if (this.messages.length > 0 && cursor > 0) {
+        chatWs.requestHistory(roomId, 100, 0, cursor)
+      } else {
+        chatWs.requestHistory(roomId, 50)
+      }
     },
 
     // ==================== 聊天室头像 ====================
@@ -542,6 +568,7 @@ export const useChatStore = defineStore('chat', {
         if (alreadyPresent) return
         if (d.roomId === this.currentRoomId) {
           this.messages.push(d)
+          this._advanceRoomSyncCursor(d.roomId, d)
         } else {
           // 未读+1
           const room = this.rooms.find(r => r.roomId === d.roomId)
@@ -567,10 +594,18 @@ export const useChatStore = defineStore('chat', {
         if (msg.data.roomId === this.currentRoomId) {
           const msgs = msg.data.messages || []
           // 倒序追加（历史消息从旧到新）
-          this.messages = applyDeletionEvents(
-            mergeUniqueMessages(this.messages, msgs, { prepend: true }),
-            msg.data.events || []
-          )
+          const events = msg.data.events || []
+          if (msg.data.mode === 'sequence') {
+            this.messages = reconcileRoomSyncPage(this.messages, msgs, events)
+            this._advanceRoomSyncCursor(msg.data.roomId, ...msgs, ...events,
+              { syncSequence: msg.data.nextSequence })
+            if (msg.data.hasMore) {
+              chatWs.requestHistory(msg.data.roomId, 100, 0, msg.data.nextSequence)
+            }
+          } else {
+            this.messages = mergeUniqueMessages(this.messages, msgs, { prepend: true })
+            this._advanceRoomSyncCursor(msg.data.roomId, ...msgs)
+          }
         }
       })
 
@@ -586,6 +621,7 @@ export const useChatStore = defineStore('chat', {
         if (d.roomId === this.currentRoomId) {
           const m = this.messages.find(m => m.id === d.messageId)
           if (m) m.recalled = true
+          this._advanceRoomSyncCursor(d.roomId, d)
         }
       })
 
@@ -611,7 +647,10 @@ export const useChatStore = defineStore('chat', {
       chatWs.on(MsgType.FILE_NOTIFY, (msg) => {
         const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp }
         if (d.roomId === this.currentRoomId) {
-          this.messages.push(d)
+          if (!this.messages.some(existing => sameStableMessage(existing, d))) {
+            this.messages.push(d)
+          }
+          this._advanceRoomSyncCursor(d.roomId, d)
         } else {
           const room = this.rooms.find(r => r.roomId === d.roomId)
           if (room) room.unread = (room.unread || 0) + 1
@@ -751,6 +790,7 @@ export const useChatStore = defineStore('chat', {
         if (d.success) {
           if (d.roomId !== this.currentRoomId) return
           this.messages = applyDeletionEvents(this.messages, [d])
+          this._advanceRoomSyncCursor(d.roomId, d)
         }
       })
 
@@ -758,6 +798,7 @@ export const useChatStore = defineStore('chat', {
         const d = msg.data
         if (d.roomId === this.currentRoomId) {
           this.messages = applyDeletionEvents(this.messages, [d])
+          this._advanceRoomSyncCursor(d.roomId, d)
         }
       })
 
@@ -779,6 +820,7 @@ export const useChatStore = defineStore('chat', {
         const d = msg.data
         if (d.success) {
           this.messages = applyDeletionEvents(this.messages, [{ ...d, mode: 'selected' }])
+          this._advanceRoomSyncCursor(d.roomId, d)
           this.roomFileUsage = {
             used: Number(d.usedFileSpace || 0),
             max: Number(d.maxFileSpace || 0)

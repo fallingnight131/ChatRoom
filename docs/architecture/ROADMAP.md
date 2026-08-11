@@ -113,6 +113,8 @@ Progress:
   deletion event table without changing current deletion behavior yet.
 - [x] Make administrative message/file deletion idempotent and replayable on
   the room cursor, and reconcile its events in Web and Windows clients.
+- [x] Make the Web client resume the active room from its in-memory cursor after
+  reconnect login, with ordered mixed message/event pagination.
 - [ ] Add remaining reliable-message semantics.
 
 Work:
