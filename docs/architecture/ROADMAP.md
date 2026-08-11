@@ -272,7 +272,7 @@ Progress:
     Java/TypeScript golden-wire compatibility.
   - [x] Compile the generated C++ binding with the pinned runtime and parse the
     same golden envelope before declaring cross-language compatibility complete.
-- [ ] Build the Netty gateway and modular application core.
+- [x] Build the Netty gateway and modular application core.
   - [x] Add the bounded binary WebSocket frame aggregation, Protobuf decoding,
     envelope validation, and negative-path embedded-channel tests.
   - [x] Define the permanent V2 control message registry, bounded Web/Windows
@@ -414,7 +414,7 @@ Progress:
   work, and parameter/resource caps.
 - [x] Implement legacy salted-SHA storage/verification compatibility and
   compare-and-set Argon2id upgrade without forcing dormant-account resets.
-- [ ] Implement the verified one-way V1 data import and session resume/rotation.
+- [x] Implement the verified one-way V1 data import and session resume/rotation.
   - [x] Define the transport-independent owned resume command, atomic-rotation
     persistence port, generic result, and explicit token zeroing lifecycle.
   - [x] Implement PostgreSQL digest verification, row-locked proof rotation,
