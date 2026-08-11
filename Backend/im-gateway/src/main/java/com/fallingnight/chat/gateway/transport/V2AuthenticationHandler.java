@@ -5,6 +5,8 @@ import com.fallingnight.chat.application.identity.AuthenticationResult;
 import com.fallingnight.chat.application.identity.AuthenticationUseCase;
 import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.application.identity.IssuedSession;
+import com.fallingnight.chat.application.identity.ResumeSessionCommand;
+import com.fallingnight.chat.application.identity.SessionResumeUseCase;
 import com.fallingnight.chat.protocol.v2.Authenticate;
 import com.fallingnight.chat.protocol.v2.AuthenticationPayloadPolicy;
 import com.fallingnight.chat.protocol.v2.AuthenticationRejected;
@@ -16,6 +18,7 @@ import com.fallingnight.chat.protocol.v2.MessageType;
 import com.fallingnight.chat.protocol.v2.MessageTypeRegistry;
 import com.fallingnight.chat.protocol.v2.ProtocolError;
 import com.fallingnight.chat.protocol.v2.ProtocolErrorCode;
+import com.fallingnight.chat.protocol.v2.ResumeSession;
 import com.fallingnight.chat.protocol.v2.SessionEstablished;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -27,6 +30,7 @@ import java.net.SocketAddress;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 
@@ -50,6 +54,7 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
     }
 
     private final AuthenticationUseCase authentication;
+    private final SessionResumeUseCase sessionResume;
     private final Executor authenticationExecutor;
     private final AuthenticationEventSink events;
     private final AuthenticationAdmissionControl admission;
@@ -61,6 +66,7 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
             Executor authenticationExecutor) {
         this(
                 authentication,
+                rejectingResumeUseCase(),
                 authenticationExecutor,
                 AuthenticationAdmissionControl.allowAll(),
                 AuthenticationEventSink.noop(),
@@ -73,6 +79,21 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
             AuthenticationAdmissionControl admission) {
         this(
                 authentication,
+                rejectingResumeUseCase(),
+                authenticationExecutor,
+                admission,
+                AuthenticationEventSink.noop(),
+                Clock.systemUTC());
+    }
+
+    public V2AuthenticationHandler(
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            Executor authenticationExecutor,
+            AuthenticationAdmissionControl admission) {
+        this(
+                authentication,
+                sessionResume,
                 authenticationExecutor,
                 admission,
                 AuthenticationEventSink.noop(),
@@ -86,6 +107,7 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
             Clock clock) {
         this(
                 authentication,
+                rejectingResumeUseCase(),
                 authenticationExecutor,
                 AuthenticationAdmissionControl.allowAll(),
                 events,
@@ -98,7 +120,24 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
             Clock clock) {
+        this(
+                authentication,
+                rejectingResumeUseCase(),
+                authenticationExecutor,
+                admission,
+                events,
+                clock);
+    }
+
+    V2AuthenticationHandler(
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            Executor authenticationExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            Clock clock) {
         this.authentication = Objects.requireNonNull(authentication, "authentication");
+        this.sessionResume = Objects.requireNonNull(sessionResume, "sessionResume");
         this.authenticationExecutor = Objects.requireNonNull(
                 authenticationExecutor, "authenticationExecutor");
         this.events = Objects.requireNonNull(events, "events");
@@ -135,11 +174,7 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
 
         MessageType type = MessageTypeRegistry.find(envelope.getMessageType()).orElse(null);
         if (type == MessageType.MESSAGE_TYPE_RESUME_SESSION) {
-            rejectAuthentication(
-                    context,
-                    envelope.getRequestId(),
-                    AuthenticationRejectionReason.AUTHENTICATION_REJECTION_REASON_REJECTED,
-                    0);
+            handleResume(context, envelope, client);
             return;
         }
         if (type != MessageType.MESSAGE_TYPE_AUTHENTICATE
@@ -208,6 +243,99 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
         }
     }
 
+    private void handleResume(
+            ChannelHandlerContext context, Envelope envelope, ClientDescriptor client) {
+        if (envelope.getKind() != MessageKind.MESSAGE_KIND_COMMAND
+                || envelope.getPayload().size() > 256) {
+            failInvalidAuthentication(context, envelope.getRequestId());
+            return;
+        }
+        final ResumeSession payload;
+        try {
+            payload = ResumeSession.parseFrom(envelope.getPayload());
+        } catch (InvalidProtocolBufferException exception) {
+            failInvalidAuthentication(context, envelope.getRequestId());
+            return;
+        }
+        try {
+            AuthenticationPayloadPolicy.requireValid(payload);
+        } catch (IllegalArgumentException exception) {
+            rejectGenericAuthentication(context, envelope.getRequestId());
+            return;
+        }
+
+        final AuthenticationAdmissionDecision decision;
+        try {
+            decision = Objects.requireNonNull(
+                    admission.acquireResume(directPeer(context)),
+                    "session resume admission decision");
+        } catch (RuntimeException exception) {
+            recordFailed();
+            failInternal(context, envelope.getRequestId());
+            return;
+        }
+        if (!decision.allowed()) {
+            recordAdmissionDenied(decision.dimension());
+            rejectAuthentication(
+                    context,
+                    envelope.getRequestId(),
+                    AuthenticationRejectionReason.AUTHENTICATION_REJECTION_REASON_RATE_LIMITED,
+                    decision.retryAfterMs());
+            return;
+        }
+
+        final UUID sessionId;
+        try {
+            sessionId = UUID.fromString(payload.getSessionId());
+        } catch (IllegalArgumentException exception) {
+            rejectGenericAuthentication(context, envelope.getRequestId());
+            return;
+        }
+
+        byte[] token = payload.getResumeToken().toByteArray();
+        final ResumeSessionCommand command;
+        try {
+            command = new ResumeSessionCommand(sessionId, token, client);
+        } finally {
+            Arrays.fill(token, (byte) 0);
+        }
+        state = State.AUTHENTICATING;
+        try {
+            authenticationExecutor.execute(() -> resumeOffEventLoop(
+                    context, envelope.getRequestId(), command));
+        } catch (RejectedExecutionException exception) {
+            command.close();
+            recordSaturated();
+            rejectAuthentication(
+                    context,
+                    envelope.getRequestId(),
+                    AuthenticationRejectionReason.AUTHENTICATION_REJECTION_REASON_RATE_LIMITED,
+                    SATURATION_RETRY_AFTER_MS);
+        }
+    }
+
+    private void resumeOffEventLoop(
+            ChannelHandlerContext context, String requestId, ResumeSessionCommand command) {
+        long startedNanos = System.nanoTime();
+        final AuthenticationResult result;
+        try (command) {
+            result = sessionResume.resume(command);
+        } catch (RuntimeException exception) {
+            long executionNanos = elapsedNanos(startedNanos);
+            schedule(context, () -> {
+                recordFailed();
+                recordCompleted(AuthenticationOutcome.FAILED, false, executionNanos);
+                failInternal(context, requestId);
+            }, null);
+            return;
+        }
+        long executionNanos = elapsedNanos(startedNanos);
+        schedule(
+                context,
+                () -> completeAuthentication(context, requestId, null, result, executionNanos),
+                result);
+    }
+
     private void authenticateOffEventLoop(
             ChannelHandlerContext context,
             String requestId,
@@ -262,7 +390,9 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
         }
 
         AuthenticationResult.Established established = (AuthenticationResult.Established) result;
-        recordAdmissionSuccess(presentedUsername);
+        if (presentedUsername != null) {
+            recordAdmissionSuccess(presentedUsername);
+        }
         try (IssuedSession session = established.session()) {
             ByteString resumeToken = session.resumeToken().withCopy(ByteString::copyFrom);
             context.channel().attr(V2ConnectionAttributes.AUTHENTICATED).set(
@@ -315,6 +445,14 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
                 requestId,
                 ProtocolErrorCode.PROTOCOL_ERROR_CODE_INVALID_PAYLOAD,
                 "invalid authentication payload");
+    }
+
+    private void rejectGenericAuthentication(ChannelHandlerContext context, String requestId) {
+        rejectAuthentication(
+                context,
+                requestId,
+                AuthenticationRejectionReason.AUTHENTICATION_REJECTION_REASON_REJECTED,
+                0);
     }
 
     private void rejectAuthentication(
@@ -442,6 +580,13 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
 
     private static long elapsedNanos(long startedNanos) {
         return Math.max(0, System.nanoTime() - startedNanos);
+    }
+
+    private static SessionResumeUseCase rejectingResumeUseCase() {
+        return command -> {
+            command.close();
+            return AuthenticationResult.Rejected.INSTANCE;
+        };
     }
 
     private static String directPeer(ChannelHandlerContext context) {

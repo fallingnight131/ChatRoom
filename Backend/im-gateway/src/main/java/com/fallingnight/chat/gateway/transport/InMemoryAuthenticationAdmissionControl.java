@@ -65,6 +65,28 @@ public final class InMemoryAuthenticationAdmissionControl
     }
 
     @Override
+    public synchronized AuthenticationAdmissionDecision acquireResume(String directPeer) {
+        long now = clock.millis();
+        cleanupExpired(now);
+        long retry = consume(gateway, limits.gatewayAttempts(), now);
+        if (retry > 0) {
+            return deny(AuthenticationLimitDimension.GATEWAY, retry);
+        }
+        AuthenticationAdmissionDecision peerDecision = consumeKeyed(
+                directPeers,
+                normalizePeer(directPeer),
+                limits.directPeerAttempts(),
+                AuthenticationLimitDimension.DIRECT_PEER,
+                AuthenticationLimitDimension.DIRECT_PEER_CAPACITY,
+                now);
+        if (!peerDecision.allowed()) {
+            return peerDecision;
+        }
+        allowedAttempts++;
+        return AuthenticationAdmissionDecision.allow();
+    }
+
+    @Override
     public synchronized void recordSuccess(String presentedUsername) {
         accounts.remove(normalizeAccount(presentedUsername));
     }

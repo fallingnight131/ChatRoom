@@ -67,6 +67,17 @@ class InMemoryAuthenticationAdmissionControlTest {
         assertTrue(control.acquire("198.51.100.1", "overflow").allowed());
     }
 
+    @Test
+    void resumeConsumesGatewayAndPeerWithoutCreatingAFakeAccountKey() {
+        MutableClock clock = new MutableClock(1_000);
+        InMemoryAuthenticationAdmissionControl control = control(clock, 100, 1, 1, 16);
+
+        assertTrue(control.acquireResume("192.0.2.1").allowed());
+        AuthenticationAdmissionDecision denied = control.acquireResume("192.0.2.1");
+        assertEquals(AuthenticationLimitDimension.DIRECT_PEER, denied.dimension());
+        assertEquals(0, control.snapshot().activeAccountKeys());
+    }
+
     private static InMemoryAuthenticationAdmissionControl control(
             Clock clock,
             int gatewayAttempts,

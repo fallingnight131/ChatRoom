@@ -89,8 +89,11 @@ dispatches password verification through an injected non-event-loop executor,
 and binds the issued account/device/session UUIDs to server-side channel state.
 It returns the raw resume token once and clears its owned bytes. Later envelopes
 must carry the same session ID, but downstream authorization uses the bound
-server identity rather than trusting that field. Unsupported session resume and
-credential failures share the generic rejection response.
+server identity rather than trusting that field. Session resume uses the same
+bounded worker and connection state, verifies and rotates the proof atomically
+in PostgreSQL, and returns a newly rotated token. Invalid UUID/proof, unknown,
+wrong, expired, revoked, device-mismatched, and replayed sessions share the
+generic rejection response.
 
 Authentication execution uses a fixed worker count and bounded queue owned by
 the gateway lifecycle. Queue saturation clears the unadmitted password command,

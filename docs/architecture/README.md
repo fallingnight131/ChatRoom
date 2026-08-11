@@ -200,8 +200,8 @@ account/device/session identity to the connection. Envelope session IDs cannot
 grant identity. Its transport pipeline now provides bounded binary WebSocket
 decode/encode and fixed safe close outcomes for invalid or oversized frames.
 This is still an inactive foundation: the one-way V1 import, bounded worker
-pool sizing, trusted-proxy policy, metrics export, resume rotation, authenticated
-idle policy, hardened listener, and complete gateway wiring remain explicit
+pool sizing, trusted-proxy policy, metrics export, authenticated idle policy,
+hardened listener, and complete gateway wiring remain explicit
 cutover blockers. Process-local account/direct-peer/gateway admission and
 handshake/authentication deadlines are implemented but do not define deployment
 defaults or multi-gateway protection yet. Fixed-label authentication telemetry
@@ -212,8 +212,9 @@ resume command and atomic-rotation persistence port. The command destroys its
 owned presented token after the use case returns and maps every persistence
 denial to the same authentication rejection. PostgreSQL now implements that
 port with digest-only verification, transactional row locking, fresh proof
-rotation, device binding, and replay/expiry/revocation denial. No gateway route
-uses this boundary yet.
+rotation, device binding, and replay/expiry/revocation denial. The bounded V2
+gateway resume path now invokes it and binds only the returned server identity;
+no listener or production route uses the path yet.
 
 ## 7. Reliable Message Flow
 

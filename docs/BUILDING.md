@@ -88,6 +88,10 @@ Telemetry tests verify fixed-label counters, authentication execution-duration
 buckets, total/maximum duration, credential-upgrade debt, and exact power-of-two
 warning sampling without account or peer data. They do not represent a latency
 benchmark or a deployed monitoring backend.
+Gateway resume tests verify bounded off-event-loop dispatch, rotated proof
+delivery, server-side identity binding, secret cleanup, generic invalid-proof
+rejection, and gateway/direct-peer admission without creating a fake account
+limiter key. They do not open a listener.
 It also verifies a fixed libsodium 1.0.20 Argon2id interactive test vector with
 the locked Java crypto adapter; this deliberately performs memory-hard work and
 must not be interpreted as an authentication capacity benchmark.

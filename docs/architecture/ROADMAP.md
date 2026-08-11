@@ -319,7 +319,8 @@ Progress:
     persistence port, generic result, and explicit token zeroing lifecycle.
   - [x] Implement PostgreSQL digest verification, row-locked proof rotation,
     concurrent/sequential replay denial, device binding, expiry and revocation.
-  - [ ] Connect the bounded gateway resume command and rotated response.
+  - [x] Connect the bounded gateway resume command, generic denial, rotated
+    response, secret cleanup, and server-bound connection identity.
 
 Work:
 

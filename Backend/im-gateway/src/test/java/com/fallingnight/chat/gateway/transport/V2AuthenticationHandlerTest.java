@@ -11,6 +11,7 @@ import com.fallingnight.chat.application.identity.AuthenticationUseCase;
 import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.application.identity.ClientPlatform;
 import com.fallingnight.chat.application.identity.IssuedSession;
+import com.fallingnight.chat.application.identity.SessionResumeService;
 import com.fallingnight.chat.application.security.SecretBytes;
 import com.fallingnight.chat.protocol.v2.Authenticate;
 import com.fallingnight.chat.protocol.v2.AuthenticationRejected;
@@ -20,6 +21,7 @@ import com.fallingnight.chat.protocol.v2.MessageKind;
 import com.fallingnight.chat.protocol.v2.MessageType;
 import com.fallingnight.chat.protocol.v2.ProtocolError;
 import com.fallingnight.chat.protocol.v2.ProtocolErrorCode;
+import com.fallingnight.chat.protocol.v2.ResumeSession;
 import com.fallingnight.chat.protocol.v2.SessionEstablished;
 import com.google.protobuf.ByteString;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -98,7 +100,7 @@ class V2AuthenticationHandlerTest {
     }
 
     @Test
-    void returnsTheSameGenericRejectionForCredentialsAndUnsupportedResume() throws Exception {
+    void returnsTheSameGenericRejectionForCredentialsAndRejectedResume() throws Exception {
         RecordingEvents rejectedEvents = new RecordingEvents();
         EmbeddedChannel rejected = channel(
                 command -> AuthenticationResult.Rejected.INSTANCE, rejectedEvents);
@@ -116,15 +118,84 @@ class V2AuthenticationHandlerTest {
             throw new AssertionError("resume must not invoke fresh authentication");
         }, new RecordingEvents());
         try {
-            Envelope request = authenticateEnvelope(validAuthentication()).toBuilder()
-                    .setMessageType(MessageType.MESSAGE_TYPE_RESUME_SESSION_VALUE)
-                    .setPayload(ByteString.EMPTY)
-                    .build();
+            Envelope request = resumeEnvelope(SESSION_ID.toString(), new byte[32]);
             resume.writeInbound(request);
             assertRejected(resume.readOutbound());
             assertFalse(resume.isActive());
         } finally {
             resume.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void resumesThroughTheBoundedUseCaseAndBindsTheRotatedSession() throws Exception {
+        byte[] presentedToken = new byte[32];
+        presentedToken[0] = 5;
+        byte[] rotatedBytes = new byte[32];
+        rotatedBytes[0] = 9;
+        SecretBytes rotatedToken = SecretBytes.copyOf(rotatedBytes);
+        SessionResumeService resumeService = new SessionResumeService(
+                (sessionId, proof, client, now) -> {
+                    assertEquals(SESSION_ID, sessionId);
+                    assertArrayEquals(presentedToken, proof.withCopy(byte[]::clone));
+                    assertEquals("client-device-1", client.clientDeviceId());
+                    return java.util.Optional.of(new IssuedSession(
+                            ACCOUNT_ID,
+                            DEVICE_ID,
+                            SESSION_ID,
+                            rotatedToken,
+                            Instant.ofEpochMilli(NOW + 60_000),
+                            "Alice"));
+                },
+                Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC));
+        EmbeddedChannel channel = new EmbeddedChannel(new V2AuthenticationHandler(
+                command -> {
+                    throw new AssertionError("resume must not invoke password authentication");
+                },
+                resumeService,
+                Runnable::run,
+                AuthenticationAdmissionControl.allowAll()));
+        channel.attr(V2ConnectionAttributes.NEGOTIATED_CLIENT).set(
+                new ClientDescriptor("client-device-1", ClientPlatform.WEB, "0.1.0"));
+        try {
+            channel.writeInbound(resumeEnvelope(SESSION_ID.toString(), presentedToken));
+            channel.runPendingTasks();
+
+            Envelope response = channel.readOutbound();
+            assertEquals(MessageType.MESSAGE_TYPE_SESSION_ESTABLISHED_VALUE,
+                    response.getMessageType());
+            SessionEstablished established = SessionEstablished.parseFrom(response.getPayload());
+            assertEquals(SESSION_ID.toString(), established.getSessionId());
+            assertArrayEquals(rotatedBytes, established.getResumeToken().toByteArray());
+            assertEquals(SESSION_ID, channel.attr(V2ConnectionAttributes.AUTHENTICATED)
+                    .get().sessionId());
+            assertTrue(rotatedToken.isClosed());
+            assertTrue(channel.isActive());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void malformedResumeIdentityAndProofShareGenericRejection() throws Exception {
+        EmbeddedChannel invalidId = channel(
+                command -> AuthenticationResult.Rejected.INSTANCE, new RecordingEvents());
+        try {
+            invalidId.writeInbound(resumeEnvelope("not-a-uuid", new byte[32]));
+            assertRejected(invalidId.readOutbound());
+            assertFalse(invalidId.isActive());
+        } finally {
+            invalidId.finishAndReleaseAll();
+        }
+
+        EmbeddedChannel invalidProof = channel(
+                command -> AuthenticationResult.Rejected.INSTANCE, new RecordingEvents());
+        try {
+            invalidProof.writeInbound(resumeEnvelope(SESSION_ID.toString(), new byte[31]));
+            assertRejected(invalidProof.readOutbound());
+            assertFalse(invalidProof.isActive());
+        } finally {
+            invalidProof.finishAndReleaseAll();
         }
     }
 
@@ -290,6 +361,11 @@ class V2AuthenticationHandlerTest {
             }
 
             @Override
+            public AuthenticationAdmissionDecision acquireResume(String directPeer) {
+                return AuthenticationAdmissionDecision.allow();
+            }
+
+            @Override
             public void recordSuccess(String presentedUsername) {
                 throw new AssertionError("denied authentication cannot succeed");
             }
@@ -349,6 +425,21 @@ class V2AuthenticationHandlerTest {
         return Authenticate.newBuilder()
                 .setUsername("alice")
                 .setPasswordUtf8(ByteString.copyFromUtf8("correct horse battery staple"))
+                .build();
+    }
+
+    private static Envelope resumeEnvelope(String sessionId, byte[] token) {
+        ResumeSession payload = ResumeSession.newBuilder()
+                .setSessionId(sessionId)
+                .setResumeToken(ByteString.copyFrom(token))
+                .build();
+        return Envelope.newBuilder()
+                .setProtocolVersion(2)
+                .setKind(MessageKind.MESSAGE_KIND_COMMAND)
+                .setMessageType(MessageType.MESSAGE_TYPE_RESUME_SESSION_VALUE)
+                .setRequestId("resume-1")
+                .setSentAtEpochMs(NOW)
+                .setPayload(payload.toByteString())
                 .build();
     }
 

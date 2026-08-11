@@ -4,6 +4,8 @@ package com.fallingnight.chat.gateway.transport;
 public interface AuthenticationAdmissionControl {
     AuthenticationAdmissionDecision acquire(String directPeer, String presentedUsername);
 
+    AuthenticationAdmissionDecision acquireResume(String directPeer);
+
     void recordSuccess(String presentedUsername);
 
     static AuthenticationAdmissionControl allowAll() {
@@ -16,6 +18,11 @@ public interface AuthenticationAdmissionControl {
                     @Override
                     public AuthenticationAdmissionDecision acquire(
                             String directPeer, String presentedUsername) {
+                        return AuthenticationAdmissionDecision.allow();
+                    }
+
+                    @Override
+                    public AuthenticationAdmissionDecision acquireResume(String directPeer) {
                         return AuthenticationAdmissionDecision.allow();
                     }
 
