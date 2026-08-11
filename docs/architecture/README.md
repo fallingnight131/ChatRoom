@@ -351,6 +351,9 @@ The current V1 authentication risks and verified controls are tracked in
 
 - Replace fast SHA password hashing with Argon2id, scrypt, or bcrypt through a
   migration that upgrades hashes after successful login.
+- Treat room passwords as non-recoverable secrets: hash at rest, upgrade legacy
+  plaintext only after successful verification, and expose status rather than
+  the stored value.
 - Never persist plaintext passwords in browser storage or desktop settings.
 - Use short-lived access tokens, revocable refresh/device sessions, and TLS on
   every public connection.

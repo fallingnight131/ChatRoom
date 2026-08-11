@@ -191,6 +191,36 @@ def run_smoke(server_path: Path) -> None:
             login(alice, alice_name, password)
             login(bob, bob_name, password)
 
+            protected_password = "protected-room-password"
+            alice.send(
+                "CREATE_ROOM_REQ",
+                {"roomName": "Protected Smoke Room", "password": protected_password},
+            )
+            protected_room = require_success(alice.receive_type("CREATE_ROOM_RSP"))
+            protected_room_id = protected_room.get("roomId")
+            alice.send("GET_ROOM_PASSWORD_REQ", {"roomId": protected_room_id})
+            password_status = require_success(
+                alice.receive_type("GET_ROOM_PASSWORD_RSP")
+            )
+            if password_status.get("hasPassword") is not True or "password" in password_status:
+                raise SmokeFailure("room password status exposed or omitted the stored secret state")
+            bob.send("JOIN_ROOM_REQ", {"roomId": protected_room_id})
+            missing_password = data(bob.receive_type("JOIN_ROOM_RSP"))
+            if missing_password.get("needPassword") is not True:
+                raise SmokeFailure("protected room allowed a passwordless first join")
+            bob.send(
+                "JOIN_ROOM_REQ",
+                {"roomId": protected_room_id, "password": "wrong-password"},
+            )
+            wrong_password = data(bob.receive_type("JOIN_ROOM_RSP"))
+            if wrong_password.get("success") is not False or wrong_password.get("needPassword") is not True:
+                raise SmokeFailure("protected room accepted an incorrect password")
+            bob.send(
+                "JOIN_ROOM_REQ",
+                {"roomId": protected_room_id, "password": protected_password},
+            )
+            require_success(bob.receive_type("JOIN_ROOM_RSP"))
+
             alice.send("CREATE_ROOM_REQ", {"roomName": "M0 Smoke Room"})
             create = require_success(alice.receive_type("CREATE_ROOM_RSP"))
             room_id = create.get("roomId")

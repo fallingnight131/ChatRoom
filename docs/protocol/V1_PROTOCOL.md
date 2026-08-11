@@ -133,6 +133,15 @@ list explains ownership and is reviewed manually.
 
 ## Current Message Semantics
 
+### Room passwords
+
+`CREATE_ROOM_REQ` and `SET_ROOM_PASSWORD_REQ` accept an optional/non-empty
+password subject to the common 4–1024 character bound. The server stores only an
+Argon2id encoding; a successful join with a legacy plaintext row upgrades that
+row. `GET_ROOM_PASSWORD_RSP` is an administrator-only status response containing
+`success`, `roomId`, and `hasPassword`. It never contains the password value.
+Empty `SET_ROOM_PASSWORD_REQ.password` clears protection.
+
 ### Room chat
 
 Request data normally includes `roomId`, `content`, and `contentType`. Clients may

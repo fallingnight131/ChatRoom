@@ -64,9 +64,9 @@ The authentication migration regression is:
 python3 tools/verify_m0.py --password-hash
 ```
 
-It covers new Argon2id registration, correct/incorrect verification, successful
-legacy SHA-256 upgrade, wrong-password non-mutation, password change, and
-parameter-driven rehash.
+It covers new Argon2id account and room secrets, correct/incorrect verification,
+successful legacy SHA-256 account and plaintext-room upgrade, wrong-password
+non-mutation, password change, parameter-driven rehash, restart, and clearing.
 
 ## SQLite Schema Regression
 

@@ -151,7 +151,9 @@ These are recorded for prioritization, not silently fixed by this baseline:
 2. **Authentication transport/session:** passwords are Argon2id at rest and the
    Web client keeps reconnect credentials only in page memory, but plaintext
    TCP/WS remains possible and V1 has no revocable device/refresh sessions.
-3. **Room password storage:** room passwords are stored and compared as plaintext.
+3. **Room password compatibility:** room passwords are Argon2id for new/change
+   operations and legacy plaintext upgrades after successful verification; a
+   pre-ADR server cannot read migrated rows.
 4. **Reliability semantics:** room/direct text and emoji plus upgraded
    upload-finalized room/friend attachments are idempotent and have stable
    sequence metadata, but legacy inline/forwarded files can still duplicate and

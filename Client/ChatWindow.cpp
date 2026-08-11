@@ -3328,17 +3328,19 @@ void ChatWindow::onSetRoomPasswordResponse(bool success, int roomId, bool hasPas
     }
 }
 
-void ChatWindow::onGetRoomPasswordResponse(bool success, int roomId, const QString &password, bool hasPassword, const QString &error) {
+void ChatWindow::onGetRoomPasswordResponse(bool success, int roomId,
+                                           bool hasPassword,
+                                           const QString &error) {
     Q_UNUSED(roomId)
     if (success) {
         if (hasPassword) {
             QMessageBox::information(this, "聊天室密码",
-                QString("当前聊天室密码为: %1").arg(password));
+                QStringLiteral("当前聊天室已设置密码。密码不可查看，可由管理员直接重设。"));
         } else {
             QMessageBox::information(this, "聊天室密码", "当前聊天室未设置密码");
         }
     } else {
-        QMessageBox::warning(this, "查看密码失败", error);
+        QMessageBox::warning(this, "查询密码状态失败", error);
     }
 }
 

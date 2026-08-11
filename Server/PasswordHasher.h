@@ -15,6 +15,7 @@ public:
                                const QString &storedHash,
                                const QString &legacySalt);
     static bool isModernHash(const QString &storedHash);
+    static bool constantTimeEquals(const QString &left, const QString &right);
 
 private:
     static bool ensureInitialized();

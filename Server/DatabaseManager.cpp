@@ -888,13 +888,20 @@ bool DatabaseManager::changeUniqueId(int userId, const QString &newUniqueId) {
 
 // ==================== 房间管理 ====================
 
-int DatabaseManager::createRoom(const QString &name, int creatorId) {
+int DatabaseManager::createRoom(const QString &name, int creatorId,
+                                const QString &password) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
 
-    q.prepare("INSERT INTO rooms (name, creator_id) VALUES (?, ?)");
+    QString storedPassword;
+    if (!password.isEmpty()) {
+        storedPassword = PasswordHasher::createHash(password);
+        if (storedPassword.isEmpty()) return -1;
+    }
+    q.prepare("INSERT INTO rooms (name, creator_id, password) VALUES (?, ?, ?)");
     q.addBindValue(name);
     q.addBindValue(creatorId);
+    q.addBindValue(storedPassword.isEmpty() ? QVariant() : storedPassword);
 
     if (q.exec()) {
         int roomId = q.lastInsertId().toInt();
@@ -2109,22 +2116,52 @@ bool DatabaseManager::setRoomPassword(int roomId, const QString &password) {
         q.prepare("UPDATE rooms SET password = NULL WHERE id = ?");
         q.addBindValue(roomId);
     } else {
+        const QString hash = PasswordHasher::createHash(password);
+        if (hash.isEmpty()) return false;
         q.prepare("UPDATE rooms SET password = ? WHERE id = ?");
-        q.addBindValue(password);
+        q.addBindValue(hash);
         q.addBindValue(roomId);
     }
     return q.exec();
 }
 
-QString DatabaseManager::getRoomPassword(int roomId) {
+bool DatabaseManager::verifyRoomPassword(int roomId, const QString &password) {
+    if (password.isEmpty()) return false;
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
     q.prepare("SELECT password FROM rooms WHERE id = ?");
     q.addBindValue(roomId);
-    q.exec();
-    if (q.next())
-        return q.value(0).toString();
-    return {};
+    if (!q.exec() || !q.next()) return false;
+
+    const QString stored = q.value(0).toString();
+    if (stored.isEmpty()) return false;
+    if (PasswordHasher::isModernHash(stored)) {
+        const PasswordHasher::Verification verification =
+            PasswordHasher::verify(password, stored, QString());
+        if (verification == PasswordHasher::Verification::Failed) return false;
+        if (verification == PasswordHasher::Verification::ValidNeedsRehash) {
+            const QString upgraded = PasswordHasher::createHash(password);
+            if (!upgraded.isEmpty()) {
+                QSqlQuery update(db);
+                update.prepare("UPDATE rooms SET password = ? WHERE id = ? AND password = ?");
+                update.addBindValue(upgraded);
+                update.addBindValue(roomId);
+                update.addBindValue(stored);
+                update.exec();
+            }
+        }
+        return true;
+    }
+
+    if (!PasswordHasher::constantTimeEquals(password, stored)) return false;
+    const QString upgraded = PasswordHasher::createHash(password);
+    if (upgraded.isEmpty()) return false;
+    QSqlQuery update(db);
+    update.prepare("UPDATE rooms SET password = ? WHERE id = ? AND password = ?");
+    update.addBindValue(upgraded);
+    update.addBindValue(roomId);
+    update.addBindValue(stored);
+    return update.exec() && update.numRowsAffected() == 1;
 }
 
 bool DatabaseManager::roomHasPassword(int roomId) {

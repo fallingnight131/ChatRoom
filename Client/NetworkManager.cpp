@@ -419,7 +419,6 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
     else if (type == Protocol::MsgType::GET_ROOM_PASSWORD_RSP) {
         emit getRoomPasswordResponse(data["success"].toBool(),
                                      data["roomId"].toInt(),
-                                     data["password"].toString(),
                                      data["hasPassword"].toBool(),
                                      data["error"].toString());
     }

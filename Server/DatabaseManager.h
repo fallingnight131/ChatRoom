@@ -43,7 +43,8 @@ public:
     bool changeUniqueId(int userId, const QString &newUniqueId);
 
     // 房间管理
-    int  createRoom(const QString &name, int creatorId);
+    int  createRoom(const QString &name, int creatorId,
+                    const QString &password = QString());
     bool joinRoom(int roomId, int userId);
     QJsonArray getAllRooms();
     QJsonArray getUserJoinedRooms(int userId);
@@ -55,7 +56,7 @@ public:
 
     // 房间密码
     bool setRoomPassword(int roomId, const QString &password);
-    QString getRoomPassword(int roomId);
+    bool verifyRoomPassword(int roomId, const QString &password);
     bool roomHasPassword(int roomId);
     QJsonArray getRoomMembers(int roomId);
     bool leaveRoom(int roomId, int userId);

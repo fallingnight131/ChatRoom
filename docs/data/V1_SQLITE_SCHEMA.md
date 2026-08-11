@@ -33,7 +33,8 @@ Run `python3 tools/m0_inventory.py --check` to detect table/index inventory drif
 `rooms`
 
 - room ID, name, creator ID;
-- plaintext optional room password;
+- nullable optional room-password secret: Argon2id for new/updated rows, with
+  legacy plaintext upgraded after successful verification;
 - creation time.
 
 `room_members`

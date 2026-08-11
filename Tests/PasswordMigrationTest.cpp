@@ -38,6 +38,18 @@ StoredPassword readPassword(QSqlDatabase &database, const QString &username) {
     return {query.value(0).toInt(), query.value(1).toString(), query.value(2).toString()};
 }
 
+QString readRoomPassword(QSqlDatabase &database, int roomId) {
+    QSqlQuery query(database);
+    query.prepare(QStringLiteral("SELECT password FROM rooms WHERE id = ?"));
+    query.addBindValue(roomId);
+    if (!query.exec() || !query.next()) {
+        fail(QStringLiteral("cannot read room password row: %1")
+                 .arg(query.lastError().text()));
+        return {};
+    }
+    return query.value(0).toString();
+}
+
 int insertPassword(QSqlDatabase &database,
                    const QString &username,
                    const QString &hash,
@@ -156,13 +168,41 @@ int main(int argc, char *argv[]) {
     const StoredPassword rehashed = readPassword(probe, rehashUser);
     ok &= rehashed.hash != oldModernHash && PasswordHasher::isModernHash(rehashed.hash);
 
+    const QString roomPassword = QStringLiteral("room-password-房间");
+    const int protectedRoomId = manager.createRoom(
+        QStringLiteral("Protected Room"), modernId, roomPassword);
+    const QString protectedHash = readRoomPassword(probe, protectedRoomId);
+    ok &= protectedRoomId > 0 && protectedHash != roomPassword;
+    ok &= PasswordHasher::isModernHash(protectedHash);
+    ok &= !manager.verifyRoomPassword(protectedRoomId, QStringLiteral("wrong-room-password"));
+    ok &= manager.verifyRoomPassword(protectedRoomId, roomPassword);
+
+    QSqlQuery legacyRoom(probe);
+    legacyRoom.prepare(QStringLiteral(
+        "INSERT INTO rooms (name, creator_id, password) VALUES (?, ?, ?)"));
+    legacyRoom.addBindValue(QStringLiteral("Legacy Plaintext Room"));
+    legacyRoom.addBindValue(modernId);
+    legacyRoom.addBindValue(QStringLiteral("legacy-room-password"));
+    ok &= legacyRoom.exec();
+    const int legacyRoomId = legacyRoom.lastInsertId().toInt();
+    ok &= !manager.verifyRoomPassword(legacyRoomId, QStringLiteral("wrong-room-password"));
+    ok &= readRoomPassword(probe, legacyRoomId) == QStringLiteral("legacy-room-password");
+    ok &= manager.verifyRoomPassword(legacyRoomId, QStringLiteral("legacy-room-password"));
+    const QString upgradedRoomHash = readRoomPassword(probe, legacyRoomId);
+    ok &= upgradedRoomHash != QStringLiteral("legacy-room-password");
+    ok &= PasswordHasher::isModernHash(upgradedRoomHash);
+    ok &= restartedManager.verifyRoomPassword(
+        legacyRoomId, QStringLiteral("legacy-room-password"));
+    ok &= manager.setRoomPassword(legacyRoomId, QString());
+    ok &= !manager.roomHasPassword(legacyRoomId);
+
     probe.close();
     if (!ok) {
         return fail(QStringLiteral(
-            "new registration, rejection, legacy upgrade, password change, or parameter rehash failed")) ? 0 : 1;
+            "account or room password hashing/migration behavior failed")) ? 0 : 1;
     }
 
     qInfo() << "[PasswordMigrationTest] PASS: Argon2id registration, verification,"
-               " legacy upgrade, password change, and parameter rehash";
+               " legacy upgrade, password change, parameter rehash, and room-secret migration";
     return 0;
 }

@@ -154,7 +154,8 @@ private slots:
 
     // 聊天室密码
     void onSetRoomPasswordResponse(bool success, int roomId, bool hasPassword, const QString &error);
-    void onGetRoomPasswordResponse(bool success, int roomId, const QString &password, bool hasPassword, const QString &error);
+    void onGetRoomPasswordResponse(bool success, int roomId, bool hasPassword,
+                                   const QString &error);
     void onJoinRoomNeedPassword(int roomId);
 
     // 踢人

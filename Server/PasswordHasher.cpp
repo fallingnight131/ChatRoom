@@ -86,6 +86,19 @@ bool PasswordHasher::isModernHash(const QString &storedHash) {
     return storedHash.startsWith(QStringLiteral("$argon2"));
 }
 
+bool PasswordHasher::constantTimeEquals(const QString &left, const QString &right) {
+    if (!ensureInitialized()) return false;
+    QByteArray leftBytes = left.toUtf8();
+    QByteArray rightBytes = right.toUtf8();
+    const bool sameSize = leftBytes.size() == rightBytes.size();
+    const bool matches = sameSize && sodium_memcmp(
+        leftBytes.constData(), rightBytes.constData(),
+        static_cast<size_t>(leftBytes.size())) == 0;
+    clearBytes(leftBytes);
+    clearBytes(rightBytes);
+    return matches;
+}
+
 bool PasswordHasher::verifyLegacySha256(
     const QString &password,
     const QString &storedHash,

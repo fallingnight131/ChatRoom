@@ -72,6 +72,8 @@ Progress:
   browser session keys.
 - [x] Introduce libsodium Argon2id hashing for new/changed passwords and upgrade
   legacy salted SHA-256 rows after successful login.
+- [x] Hash room passwords with Argon2id, upgrade legacy plaintext after a
+  successful join, stop returning secrets, and honor protected-room creation.
 - [x] Enforce server-side membership/permission checks across room/direct
   message, administration, read-state, upload, and file-download operations.
 - [x] Bound TCP/WebSocket frames, malformed envelopes, per-connection message

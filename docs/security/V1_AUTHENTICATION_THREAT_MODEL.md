@@ -2,17 +2,18 @@
 
 ## Scope
 
-This living document covers V1 Qt/Web login credentials, browser credential
-lifetime, transport assumptions, and server password verification. Resource
+This living document covers V1 Qt/Web login and room-password credentials,
+browser credential lifetime, transport assumptions, and server secret
+verification. Resource
 authorization is maintained separately in
 [`V1_AUTHORIZATION_MATRIX.md`](V1_AUTHORIZATION_MATRIX.md).
 
 ## Assets and Trust Boundaries
 
-- Account password and authenticated user identity.
+- Account password, room password, and authenticated user identity.
 - Browser page, Web Storage, and same-origin JavaScript execution.
 - Qt/Web transport between client and `ChatServer`.
-- SQLite `users.password_hash` and `users.salt` fields.
+- SQLite `users.password_hash`, `users.salt`, and `rooms.password` fields.
 - Server logs, crash reports, and operator access.
 
 The server is authoritative for authentication. A browser identity object or
@@ -27,8 +28,9 @@ route state is never proof of authentication.
 | Network interruption loses authenticated socket | Current-page memory credential reauthenticates the new V1 socket | Add bounded retry/UI failure tests and eventually token reauth |
 | Credential interception | HTTPS pages select WSS | Plain HTTP still selects `ws://`; production TLS must become mandatory |
 | Offline cracking of server database | New/changed passwords use libsodium Argon2id; successful legacy login upgrades salted SHA-256 rows | Back up before rollout, monitor upgrades, and complete migration before removing legacy verification |
+| Room secret disclosure | Room passwords use Argon2id, legacy plaintext upgrades after a successful join, and status APIs never return the value | Existing rows remain plaintext until a correct join or administrator reset; old binaries cannot read upgraded rows |
 | Credential leakage through logs | Authentication-abuse regression captures server output and rejects password leakage; structured denial logs omit account/IP/request data | Extend redaction coverage to every authentication and crash-report sink |
-| Repeated expensive password work | Password fields are capped; connection, account, direct-peer IP, and process/gateway windows bound work before hashing | V1 state is process-local and direct-peer IP may aggregate a proxy; use trusted proxy identity and shared Redis enforcement only with the future gateway design |
+| Repeated expensive password work | Account and room-password fields are capped; connection, account/room, direct-peer IP, and process/gateway windows bound work before hashing | V1 state is process-local and direct-peer IP may aggregate a proxy; use trusted proxy identity and shared Redis enforcement only with the future gateway design |
 | Stale browser state impersonates a session | Router now checks live Pinia authenticated state | Server must continue rejecting unauthenticated socket commands |
 
 ## Security Invariants
@@ -40,6 +42,7 @@ route state is never proof of authentication.
 - Server address/theme preferences are non-secret and may remain persisted.
 - Public credentials must not be sent over plaintext WebSocket/TCP.
 - Wrong-password attempts must never mutate a stored legacy hash.
+- Room-password status APIs never return a plaintext value or encoded hash.
 - Authentication logs may contain a numeric user ID and error category, never a
   password, salt, encoded hash, or login payload.
 - Password input must be bounded before Argon2id, and one connection cannot

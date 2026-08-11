@@ -69,12 +69,12 @@
         <div class="setting-section">
           <div class="setting-label">房间密码</div>
           <div class="inline-edit">
-            <input class="input" v-model="roomPassword" type="text" placeholder="留空则取消密码" />
+            <input class="input" v-model="roomPassword" type="password" placeholder="留空则取消密码" />
             <button class="btn btn-primary" @click="setPassword">设置</button>
-            <button class="btn btn-text" @click="viewPassword">查看</button>
+            <button class="btn btn-text" @click="checkPasswordStatus">检查状态</button>
           </div>
-          <div v-if="currentPassword !== null" class="password-display">
-            当前密码: {{ currentPassword || '(无)' }}
+          <div v-if="hasRoomPassword !== null" class="password-display">
+            {{ hasRoomPassword ? '已设置密码（不可查看，可直接重设）' : '当前未设置密码' }}
           </div>
         </div>
 
@@ -160,7 +160,7 @@ const chatStore = useChatStore()
 
 const newName = ref('')
 const roomPassword = ref('')
-const currentPassword = ref(null)
+const hasRoomPassword = ref(null)
 const maxFileSize = ref(10)
 const totalFileSpace = ref(10)
 const maxFileCount = ref(1500)
@@ -280,12 +280,12 @@ function onRoomPasswordSaveFailed() {
   pendingPasswordSave.value = false
 }
 
-function viewPassword() {
+function checkPasswordStatus() {
   chatWs.getRoomPassword(chatStore.currentRoomId)
 }
 
 function onRoomPassword(data) {
-  currentPassword.value = data.password || ''
+  hasRoomPassword.value = !!data.hasPassword
 }
 
 function onRoomSettingsNeedConfirm(data) {
