@@ -21,6 +21,7 @@ Message Message::fromJson(const QJsonObject &json) {
     m.m_clientMessageId = data["clientMessageId"].toString();
     m.m_fileCleared = data["fileCleared"].toBool(false);
     m.m_clearReason = data["clearReason"].toString();
+    m.m_thumbnail   = data["thumbnail"].toString();
 
     qint64 ts = static_cast<qint64>(json["timestamp"].toDouble());
     if (ts > 0)
@@ -92,6 +93,7 @@ QJsonObject Message::toJson() const {
     data["id"]          = m_id;
     data["roomId"]      = m_roomId;
     data["sender"]      = m_sender;
+    data["senderName"]  = m_senderName;
     data["content"]     = m_content;
     data["contentType"] = contentTypeToString(m_contentType);
     data["recalled"]    = m_recalled;
@@ -104,6 +106,8 @@ QJsonObject Message::toJson() const {
         data["clientMessageId"] = m_clientMessageId;
     data["fileCleared"] = m_fileCleared;
     data["clearReason"] = m_clearReason;
+    if (!m_thumbnail.isEmpty())
+        data["thumbnail"] = m_thumbnail;
 
     if (!m_imageData.isEmpty())
         data["imageData"] = QString::fromUtf8(m_imageData.toBase64());

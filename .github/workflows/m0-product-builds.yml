@@ -118,6 +118,8 @@ jobs:
           Copy-Item $server.FullName "$artifact/server/ChatServer.exe"
           windeployqt --release --no-translations "$artifact/client/ChatClient.exe"
           windeployqt --release --no-translations "$artifact/server/ChatServer.exe"
+          $sqlitePlugin = Get-ChildItem "$artifact/client/sqldrivers" -Filter "qsqlite.dll" -ErrorAction SilentlyContinue
+          if (-not $sqlitePlugin) { throw "Windows client artifact is missing the Qt SQLite driver" }
           $sodiumDll = @(Get-ChildItem "$env:SODIUM_ROOT/bin" -Filter "*sodium*.dll")
           if ($sodiumDll.Count -ne 1) { throw "Expected one libsodium runtime DLL, found $($sodiumDll.Count)" }
           Copy-Item $sodiumDll[0].FullName "$artifact/server/$($sodiumDll[0].Name)"

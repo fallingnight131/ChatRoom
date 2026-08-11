@@ -1,4 +1,4 @@
-QT += core gui widgets network multimedia
+QT += core gui widgets network multimedia sql
 
 CONFIG += c++17
 
@@ -19,6 +19,7 @@ SOURCES += \
     ThemeManager.cpp \
     TrayManager.cpp \
     FileCache.cpp \
+    LocalConversationRepository.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -38,6 +39,7 @@ HEADERS += \
     ThemeManager.h \
     TrayManager.h \
     FileCache.h \
+    LocalConversationRepository.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \

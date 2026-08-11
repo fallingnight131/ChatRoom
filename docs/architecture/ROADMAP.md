@@ -168,7 +168,11 @@ Progress:
   retry, accepted/failed presentation, and explicit same-key manual retry.
 - [ ] Extract synchronization/outbox orchestration from the large chat store and
   extend optimistic behavior to restartable attachments.
-- [ ] Add the Windows SQLite repository and client application/sync boundaries.
+- [x] Establish the Windows SQLite conversation repository with versioned
+  schema, account isolation, bounded message metadata, cursor/draft fields,
+  pruning, restart tests, and a newer-schema refusal gate.
+- [ ] Integrate the Windows repository through client application/sync
+  boundaries for cached room/direct render, drafts, and pending sends.
 - [ ] Add optimistic states, virtualization, cache controls, and accessibility
   foundations.
 

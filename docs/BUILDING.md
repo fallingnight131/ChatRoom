@@ -146,13 +146,18 @@ binding, exact length, foreign-token denial, interrupted-body cleanup,
 room/friend idempotent finalization, duplicate/conflict responses, retry after
 restart, and notification frames without inline file bytes.
 The Qt gate additionally compiles and runs `HttpUploadTransportTest`,
-`HttpDownloadTransportTest`, `MessageModelTest`, and `NetworkReconnectTest`.
+`HttpDownloadTransportTest`, `MessageModelTest`, `NetworkReconnectTest`, and
+`LocalConversationRepositoryTest`.
 The reconnect test uses a local fake server to verify that a dropped Windows
 session reauthenticates before publishing restored connectivity. The V1 smoke gate runs
 them with loopback access where required and checks the real raw `PUT`/`GET`
 plus stable-ID state reconciliation. A source contract
 test keeps Windows room/file/image and friend composer entry points on the
 upload-session path and upgraded forwarding on server file identity.
+
+The native Windows artifact gate also requires `windeployqt` to include
+`sqldrivers/qsqlite.dll`; compiling `QtSql` without its runtime driver is not
+accepted as local-repository delivery evidence.
 
 An eleventh V1 suite verifies server-side room/friend file forwarding, copied-byte
 integrity, notifications without inline bytes, source authorization, target

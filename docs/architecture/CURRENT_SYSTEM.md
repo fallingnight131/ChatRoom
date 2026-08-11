@@ -148,6 +148,10 @@ object cleanup is an idempotent post-commit compensation.
 - `ChatWindow` coordinates a large amount of UI and application behavior.
 - `MessageModel`/`MessageDelegate` implement list data, ordered sync-page
   reconciliation, and custom rendering.
+- The first M2 `LocalConversationRepository` adapter defines a versioned,
+  account-isolated SQLite cache for bounded message metadata, cursors, and
+  drafts. It is independently tested but is not yet wired into `ChatWindow`;
+  the current rendered Windows session therefore remains memory-backed.
 - The current checked-in project is primarily exercised on Windows.
 
 ### Web
