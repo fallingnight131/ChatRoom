@@ -107,6 +107,9 @@ The locked Xerial SQLite JDBC migration adapter tests a WAL-mode, query-only V1
 source, `quick_check`, required startup-migration columns, both supported UTC
 timestamp forms, safe invalid-time reporting, and fixed pre-migration schema
 failure. Reading is not backup or cutover evidence.
+Online-backup tests use the SQLite backup API against an open WAL source, reopen
+and reconcile the artifact, verify hash/size/time proof, refuse overwrite, and
+remove incomplete output. Test artifacts are not production restore evidence.
 
 Run the V2 PostgreSQL migration gate with local PostgreSQL server tools
 (`initdb`, `pg_ctl`, and `createdb`) available either on `PATH` or through

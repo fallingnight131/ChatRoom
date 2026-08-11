@@ -14,6 +14,11 @@ and the current migrated `users` columns, and passes only the minimal identity
 projection to the pre-write planner. This reader neither creates a backup nor
 changes database authority.
 
+The separate identity backup gate uses SQLite's online backup API so committed
+WAL state is included. It reopens and reconciles the artifact, hashes the full
+file, and refuses overwrite. Keep the returned proof with the protected backup;
+do not commit either production artifact to this repository.
+
 ## Tables
 
 ### Identity

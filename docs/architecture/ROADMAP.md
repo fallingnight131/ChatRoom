@@ -308,8 +308,10 @@ Progress:
     before any target comparison or write.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
-  - [ ] Add verified backup, PostgreSQL dry-run/apply conflict checks, post-write
-    reconciliation, and rollback rehearsal.
+  - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,
+    source/backup plan reconciliation, and hash/size/time proof.
+  - [ ] Add PostgreSQL dry-run/apply conflict checks, post-write reconciliation,
+    proof persistence, and rollback rehearsal.
 - [x] Define the transport/persistence-independent fresh-login application use
   case, outward identity/session ports, generic rejection, and explicit secret
   zeroing lifecycle.

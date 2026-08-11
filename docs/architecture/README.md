@@ -189,7 +189,9 @@ timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then
 produces a safe issue list and order-independent source fingerprint. It performs
 WAL-aware query-only SQLite extraction now runs `quick_check`, requires the
 current migrated users schema, and safely projects UTC timestamps. Verified
-backup, target comparison/write, and reconciliation remain required.
+online backup now reconciles the copied identity plan and records source/file
+hash, row count, size, and creation time without overwriting artifacts. Target
+comparison/write, durable proof storage, and restore rehearsal remain required.
 
 The fresh-login orchestration exists in the transport-independent `application`
 identity package. Account lookup, dummy-capable password verification, and
