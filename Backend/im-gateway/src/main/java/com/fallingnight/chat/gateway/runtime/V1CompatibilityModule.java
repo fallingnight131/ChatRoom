@@ -5,6 +5,7 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1LoginService;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLoginCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLifecycleCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AccountConnectionRegistry;
+import com.fallingnight.chat.gateway.compatibility.v1.V1HeartbeatHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
@@ -13,9 +14,13 @@ import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
 import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1AccountProjection;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import javax.sql.DataSource;
+import io.netty.channel.ChannelPipeline;
+import io.netty.handler.timeout.IdleStateHandler;
+import java.util.concurrent.TimeUnit;
 
 /** Real V1 login composition kept detached from the product listener. */
 public final class V1CompatibilityModule {
@@ -53,17 +58,28 @@ public final class V1CompatibilityModule {
                 new V1AccountConnectionRegistry());
     }
 
-    public V1WebLoginHandler newWebLoginHandler(
+    public void installWebApplicationPipeline(
+            ChannelPipeline pipeline,
             Executor authenticationExecutor,
             AuthenticationAdmissionControl admission,
-            AuthenticationEventSink events) {
-        return new V1WebLoginHandler(
+            AuthenticationEventSink events,
+            Duration authenticatedIdleTimeout) {
+        Objects.requireNonNull(pipeline, "pipeline");
+        Objects.requireNonNull(authenticatedIdleTimeout, "authenticatedIdleTimeout");
+        if (authenticatedIdleTimeout.isZero() || authenticatedIdleTimeout.isNegative()) {
+            throw new IllegalArgumentException("authenticatedIdleTimeout must be positive");
+        }
+        V1JsonLifecycleCodec lifecycleCodec = new V1JsonLifecycleCodec(clock);
+        pipeline.addLast("v1-authenticated-idle-state", new IdleStateHandler(
+                authenticatedIdleTimeout.toMillis(), 0, 0, TimeUnit.MILLISECONDS));
+        pipeline.addLast("v1-login", new V1WebLoginHandler(
                 login,
                 new V1JsonLoginCodec(clock),
-                new V1JsonLifecycleCodec(clock),
+                lifecycleCodec,
                 connections,
                 authenticationExecutor,
                 admission,
-                events);
+                events));
+        pipeline.addLast("v1-heartbeat", new V1HeartbeatHandler(lifecycleCodec));
     }
 }

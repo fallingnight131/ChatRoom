@@ -78,8 +78,9 @@ consumer instead of growing an unbounded queue or silently dropping the event.
 `FORCE_OFFLINE`, `HEARTBEAT`, `HEARTBEAT_ACK`.
 
 The inactive Java compatibility codec and Netty handler currently cover
-`LOGIN_REQ`, `LOGIN_RSP`, and the server-emitted `FORCE_OFFLINE` replacement
-event; they are not connected to a listener. The login codec
+`LOGIN_REQ`, `LOGIN_RSP`, client-driven `HEARTBEAT`/`HEARTBEAT_ACK`, and the
+server-emitted `FORCE_OFFLINE` replacement event; they are not connected to a
+listener. The login codec
 accepts the established envelope and credential fields, caps this small command
 at 16 KiB, rejects
 duplicates, trailing JSON, nesting/string-limit violations, missing fields,
@@ -96,6 +97,11 @@ newer login for that account sends the established fixed-reason `FORCE_OFFLINE`
 envelope to the displaced connection and closes it; close cleanup is conditional
 so an older connection cannot unregister its replacement. The event exposes no
 canonical UUID, session identifier, or resume proof.
+The composed inactive pipeline responds to a valid authenticated `HEARTBEAT`
+with a bounded empty-data `HEARTBEAT_ACK`, consumes redundant acknowledgements,
+and leaves all business frames for later compatibility handlers. The configured
+reader-idle deadline closes authenticated connections; it does not reinterpret
+malformed or unknown business input as lifecycle traffic.
 
 ### Room messages, presence, and history
 

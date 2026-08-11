@@ -118,10 +118,13 @@ class GatewayRuntimePostgresIntegrationTest {
                     dataSource,
                     Clock.fixed(Instant.parse("2026-08-12T12:00:00Z"), ZoneOffset.UTC));
 
-            EmbeddedChannel imported = new EmbeddedChannel(module.newWebLoginHandler(
+            EmbeddedChannel imported = new EmbeddedChannel();
+            module.installWebApplicationPipeline(
+                    imported.pipeline(),
                     Runnable::run,
                     AuthenticationAdmissionControl.allowAll(),
-                    AuthenticationEventSink.noop()));
+                    AuthenticationEventSink.noop(),
+                    java.time.Duration.ofSeconds(90));
             try {
                 imported.writeInbound(loginFrame("imported-v1", "java-v2-test-password"));
                 imported.runPendingTasks();
@@ -141,10 +144,13 @@ class GatewayRuntimePostgresIntegrationTest {
                 imported.finishAndReleaseAll();
             }
 
-            EmbeddedChannel nativeV2 = new EmbeddedChannel(module.newWebLoginHandler(
+            EmbeddedChannel nativeV2 = new EmbeddedChannel();
+            module.installWebApplicationPipeline(
+                    nativeV2.pipeline(),
                     Runnable::run,
                     AuthenticationAdmissionControl.allowAll(),
-                    AuthenticationEventSink.noop()));
+                    AuthenticationEventSink.noop(),
+                    java.time.Duration.ofSeconds(90));
             try {
                 nativeV2.writeInbound(loginFrame("native-v2", "java-v2-test-password"));
                 nativeV2.runPendingTasks();

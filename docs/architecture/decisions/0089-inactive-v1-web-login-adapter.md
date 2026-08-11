@@ -36,6 +36,11 @@ no durable device identifier, whereas Java session issuance requires one.
   successful replacement receives ownership before the old channel is sent the
   fixed `FORCE_OFFLINE` envelope and closed. Conditional close cleanup prevents
   a displaced channel from removing its replacement.
+- Install the detached application handlers as one ordered unit: authenticated
+  clients receive a bounded `HEARTBEAT_ACK` for valid V1 `HEARTBEAT`, redundant
+  acknowledgements are consumed, business frames remain downstream-owned, and
+  the configured reader-idle deadline closes only authenticated connections.
+  V1 remains client-heartbeat-driven, matching the existing C++ server.
 
 ## Consequences
 
@@ -45,7 +50,7 @@ socket. The fixed device alias is intentionally less expressive than V2 devices
 and must not be reused for native V2 clients.
 
 Before routing is enabled, the gateway still needs an exact WSS endpoint policy,
-heartbeat/lifecycle behavior, and every
+an unauthenticated connection-phase deadline, and every
 post-login command required by the supported V1 client path (or an explicit
 client capability gate that prevents entry into unsupported screens).
 
@@ -56,7 +61,9 @@ binding, later-frame forwarding, generic malformed/denied/saturated/rejected/
 failed output, close behavior, and suppression of late success after a concurrent
 second attempt. They also prove repeated same-account replacement, compatible
 force-offline output, fixed registry cardinality, and stale-close safety. The
-full Java workspace gate remains required.
+heartbeat tests prove compatible acknowledgement, acknowledgement consumption,
+business-frame forwarding, and authenticated-only idle closure. The full Java
+workspace gate remains required.
 The disposable PostgreSQL gate additionally proves the real composition accepts
 a mapped imported account, stores only the fixed V1 device alias plus hashed
 session proof, and rejects a password-valid unmapped V2-native account without

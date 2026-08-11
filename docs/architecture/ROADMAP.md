@@ -405,6 +405,9 @@ Progress:
   - [x] Preserve V1 single-account connection semantics in the detached Java
     module with atomic replacement, bounded `FORCE_OFFLINE`, and stale-close-safe
     process-local cleanup.
+  - [x] Compose client-driven V1 heartbeat acknowledgement and authenticated
+    reader-idle closure into the detached handler pipeline without consuming
+    downstream business frames.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,
