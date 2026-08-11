@@ -185,7 +185,9 @@ Legacy room and direct history accept a count and an optional `before`
 timestamp. Both histories also support additive sequence-resume mode:
 
 - request `afterSequence` using the last persisted cursor;
-- response messages have greater sequences in ascending order;
+- response rows have a greater `syncSequence` in ascending order. For an
+  unmodified row it equals immutable creation `sequence`; for a recalled row it
+  equals the newer `mutationSequence`;
 - `mode: "sequence"`, `nextSequence`, `lastSequence`, and `hasMore` define the
   next bounded request;
 - persist and resend `nextSequence`; do not infer a missing message from numeric
@@ -209,10 +211,19 @@ not send a general read receipt event to all devices/participants.
 ### Recall
 
 Recall is limited to 120 seconds for normal user recall. Administration has
-separate deletion operations. Recall/deletion notifications identify affected
-messages but there is no universal event sequence for replay. Room/message and
-direct-message/peer relationships are resolved or checked by the server; client
-resource fields do not select an unrelated notification target.
+separate deletion operations. The first accepted room/direct recall reserves a
+new conversation sequence in the same transaction as the state change.
+`RECALL_RSP`/`FRIEND_RECALL_RSP` and live notifications add
+`mutationSequence`; the response also adds `duplicate`. An identical retry
+returns the stored sequence without another notification. Attachment cleanup is
+checked again idempotently so a retry can repair a crash between the durable
+recall commit and file deletion.
+Sequence history replays the recalled row with its immutable `sequence`, newer
+`mutationSequence`, and `syncSequence`, including after process restart.
+
+Administrative physical deletion still has no replayable event row. Room/message
+and direct-message/peer relationships are resolved or checked by the server;
+client resource fields do not select an unrelated notification target.
 
 ### Content types
 
@@ -346,10 +357,9 @@ ports, files, or external COS access.
 
 - transmitted protocol version and capability negotiation;
 - device/session identity independent of passwords;
-- extend room idempotency/sequence/accepted semantics to direct and attachment
-  messages;
 - delivered and read acknowledgement semantics;
-- replayable sequence/cursor behavior for recalls, deletions, and other events;
+- replayable sequence/cursor behavior for administrative deletions and other
+  non-message events;
 - structured error code separate from localized message;
-- binary attachment flow outside messaging;
+- retire legacy inline attachment fallbacks after the compatibility window;
 - generated Java/C++/TypeScript schemas.

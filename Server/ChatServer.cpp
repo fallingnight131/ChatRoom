@@ -1525,7 +1525,7 @@ void ChatServer::handleHistory(ClientSession *session, const QJsonObject &data) 
         const qint64 lastSequence = m_db->getRoomLastMessageSequence(roomId);
         qint64 nextSequence = lastSequence;
         if (messages.size() == count && !messages.isEmpty())
-            nextSequence = static_cast<qint64>(messages.last().toObject()["sequence"].toDouble());
+            nextSequence = static_cast<qint64>(messages.last().toObject()["syncSequence"].toDouble());
         rspData["mode"] = QStringLiteral("sequence");
         rspData["afterSequence"] = static_cast<double>(afterSequence);
         rspData["nextSequence"] = static_cast<double>(nextSequence);
@@ -2774,8 +2774,11 @@ void ChatServer::handleRecall(ClientSession *session, const QJsonObject &data) {
     }
 
     // 验证消息所有权和时间限制
-    bool ok = m_db->recallMessage(messageId, session->userId(), Protocol::RECALL_TIME_LIMIT_SEC);
-    if (ok) {
+    const RecallResult recall = m_db->recallMessage(
+        messageId, session->userId(), Protocol::RECALL_TIME_LIMIT_SEC);
+    const bool accepted = recall.status == RecallResult::Status::Applied ||
+                          recall.status == RecallResult::Status::Duplicate;
+    if (accepted) {
         // 如果是文件消息，清理服务器文件
         auto fileInfo = m_db->getFileInfoForMessage(messageId);
         if (fileInfo.first > 0) {
@@ -2790,14 +2793,21 @@ void ChatServer::handleRecall(ClientSession *session, const QJsonObject &data) {
         }
 
         rspData["success"] = true;
+        rspData["duplicate"] = recall.status == RecallResult::Status::Duplicate;
+        if (recall.mutationSequence > 0)
+            rspData["mutationSequence"] = static_cast<double>(recall.mutationSequence);
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::RECALL_RSP, rspData));
 
-        // 通知房间所有人
-        QJsonObject notifyData;
-        notifyData["messageId"] = messageId;
-        notifyData["roomId"]    = roomId;
-        notifyData["username"]  = session->username();
-        broadcastToRoom(roomId, Protocol::makeMessage(Protocol::MsgType::RECALL_NOTIFY, notifyData));
+        if (recall.status == RecallResult::Status::Applied) {
+            QJsonObject notifyData;
+            notifyData["messageId"] = messageId;
+            notifyData["roomId"]    = roomId;
+            notifyData["username"]  = session->username();
+            notifyData["mutationSequence"] =
+                static_cast<double>(recall.mutationSequence);
+            broadcastToRoom(roomId,
+                Protocol::makeMessage(Protocol::MsgType::RECALL_NOTIFY, notifyData));
+        }
 
         // 管理员撤回不再发额外系统消息，撤回通知已足够
     } else {
@@ -4207,11 +4217,10 @@ void ChatServer::handleFriendHistory(ClientSession *session, const QJsonObject &
     rspData["messages"]      = messages;
     if (sequenceMode) {
         const qint64 lastSequence = m_db->getFriendshipLastMessageSequence(friendshipId);
-        qint64 nextSequence = afterSequence;
-        if (!messages.isEmpty())
-            nextSequence = static_cast<qint64>(messages.last().toObject()["sequence"].toDouble());
+        qint64 nextSequence = lastSequence;
+        if (messages.size() == count && !messages.isEmpty())
+            nextSequence = static_cast<qint64>(messages.last().toObject()["syncSequence"].toDouble());
         const bool hasMore = nextSequence < lastSequence;
-        if (!hasMore) nextSequence = lastSequence;
         rspData["mode"] = QStringLiteral("sequence");
         rspData["nextSequence"] = static_cast<double>(nextSequence);
         rspData["lastSequence"] = static_cast<double>(lastSequence);
@@ -4437,9 +4446,13 @@ void ChatServer::handleFriendRecall(ClientSession *session, const QJsonObject &d
     rspData["messageId"] = messageId;
     rspData["friendUsername"] = friendUsername;
 
-    bool ok = friendshipId > 0 && !friendUsername.isEmpty()
-        && m_db->recallFriendMessage(messageId, session->userId(), Protocol::RECALL_TIME_LIMIT_SEC);
-    if (ok) {
+    const RecallResult recall = friendshipId > 0 && !friendUsername.isEmpty()
+        ? m_db->recallFriendMessage(messageId, session->userId(),
+                                    Protocol::RECALL_TIME_LIMIT_SEC)
+        : RecallResult{};
+    const bool accepted = recall.status == RecallResult::Status::Applied ||
+                          recall.status == RecallResult::Status::Duplicate;
+    if (accepted) {
         // 清理服务器文件
         auto fileInfo = m_db->getFileInfoForFriendMessage(messageId);
         if (fileInfo.first > 0) {
@@ -4448,21 +4461,29 @@ void ChatServer::handleFriendRecall(ClientSession *session, const QJsonObject &d
                 QFile::remove(fileInfo.second);
                 qInfo() << "[Server] 好友撤回消息，已删除文件:" << fileInfo.second;
             }
+            m_db->deleteStoredFileRecord(fileInfo.first, true);
             if (!cosUrl.isEmpty())
                 m_cos->deleteCosFile(cosUrl);
         }
 
         rspData["success"] = true;
+        rspData["duplicate"] = recall.status == RecallResult::Status::Duplicate;
+        if (recall.mutationSequence > 0)
+            rspData["mutationSequence"] = static_cast<double>(recall.mutationSequence);
         session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_RECALL_RSP, rspData));
 
         // 通知对方
-        QMutexLocker locker(&m_mutex);
-        if (friendUsername != session->username() && m_sessions.contains(friendUsername)) {
-            QJsonObject notifyData;
-            notifyData["messageId"] = messageId;
-            notifyData["friendUsername"] = session->username();
-            m_sessions[friendUsername]->sendMessage(
-                Protocol::makeMessage(Protocol::MsgType::FRIEND_RECALL_NOTIFY, notifyData));
+        if (recall.status == RecallResult::Status::Applied) {
+            QMutexLocker locker(&m_mutex);
+            if (friendUsername != session->username() && m_sessions.contains(friendUsername)) {
+                QJsonObject notifyData;
+                notifyData["messageId"] = messageId;
+                notifyData["friendUsername"] = session->username();
+                notifyData["mutationSequence"] =
+                    static_cast<double>(recall.mutationSequence);
+                m_sessions[friendUsername]->sendMessage(
+                    Protocol::makeMessage(Protocol::MsgType::FRIEND_RECALL_NOTIFY, notifyData));
+            }
         }
     } else {
         rspData["success"] = false;

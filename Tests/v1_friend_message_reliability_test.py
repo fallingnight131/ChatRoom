@@ -238,6 +238,17 @@ def run_test(server: Path) -> None:
             final_page = require_success(final.receive_type("FRIEND_HISTORY_RSP"))
             if [item.get("sequence") for item in final_page["messages"]] != [5] or final_page.get("lastSequence") != 5:
                 raise SmokeFailure("friend sequence high watermark was reused after deletion")
+            with sqlite3.connect(database) as connection:
+                connection.execute(
+                    "DELETE FROM friend_messages WHERE friendship_id = ? AND sequence = 5",
+                    (friendship_id,),
+                )
+            final.send("FRIEND_HISTORY_REQ", {
+                "friendUsername": bob_name, "count": 10, "afterSequence": 4,
+            })
+            gap_page = require_success(final.receive_type("FRIEND_HISTORY_RSP"))
+            if gap_page["messages"] or gap_page.get("nextSequence") != 5 or gap_page.get("hasMore") is not False:
+                raise SmokeFailure("empty friend deletion gap did not advance to the high watermark")
         finally:
             for client in clients:
                 client.close()

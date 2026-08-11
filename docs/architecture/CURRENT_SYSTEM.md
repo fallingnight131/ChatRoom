@@ -97,12 +97,14 @@ multi-device.
 
 The compatible V1 extension supports `clientMessageId`, durable acceptance,
 per-room/per-friendship sequence, and `afterSequence` history resume for room
-and direct text/emoji messages. It does not yet give the same guarantees to
-file messages or replay recall/delete events.
+and direct text/emoji/attachment messages. Recall mutations use the same
+conversation high watermark and can be recovered after disconnect; physical
+administrative deletion events are not replayable.
 
 The schema contains nullable, indexed `mutation_sequence` columns for room and
-direct messages as the expand phase of ADR-0019. Runtime recall and history do
-not consume them yet, so their presence alone is not replay support.
+direct messages. Runtime recall transactionally assigns them and sequence
+history exposes `syncSequence = max(sequence, mutationSequence)` as specified by
+ADR-0019.
 
 ### Direct message
 
@@ -161,7 +163,8 @@ These are recorded for prioritization, not silently fixed by this baseline:
 4. **Reliability semantics:** room/direct text and emoji plus upgraded
    upload-finalized room/friend attachments are idempotent and have stable
    sequence metadata, but legacy inline/forwarded files can still duplicate and
-   recall/delete events have no replay sequence.
+   administrative physical-deletion events have no replay sequence. Room/direct
+   recall is replayable through `mutationSequence`.
 5. **Central blocking path:** WebSocket parsing, business handlers, synchronous
    SQL, and fan-out coordination share the central application thread.
 6. **Connection scaling:** TCP consumes one thread per connection.
@@ -174,7 +177,7 @@ These are recorded for prioritization, not silently fixed by this baseline:
    still add protocol surface and allocation cost when exercised.
 9. **Single-node presence:** session and online-room state cannot route across
     multiple server instances.
-10. **Index coverage:** eleven explicit indexes cover current history, reconnect,
+10. **Index coverage:** fifteen explicit indexes cover current history, reconnect,
     unread, file quota, contact, idempotency, and sequence-resume paths with
     query-plan/constraint regression, but production-scale latency/write
     amplification still needs workload evidence.
@@ -198,12 +201,17 @@ restarted schemas converge.
   idempotent/conflicting retry, sequence resume, restart, partial migration,
   deleted-high-watermark monotonicity, and structured outcome monitoring.
 - `Tests/v1_friend_message_reliability_test.py` covers the equivalent direct
-  text/emoji guarantees plus explicit non-friend denial.
+  text/emoji guarantees, explicit non-friend denial, and deletion-gap cursor
+  advancement.
+- `Tests/v1_recall_replay_test.py` covers room/direct recall mutation cursors,
+  stable retry results, offline replay, restart durability, and deterministic
+  backfill of legacy recalled rows.
 - `Tests/v1_http_upload_test.py` covers the binary HTTP attachment bridge,
   including owner binding, integrity rejection, interrupted upload cleanup,
   room/friend idempotency, conflicts, explicit ACK identity, and restart retry.
 - `Tests/HttpUploadTransportTest.cpp` and `HttpDownloadTransportTest.cpp` drive
   the Qt streaming HTTP adapters against real local sockets;
+  `MessageModelTest.cpp` locks stable-ID authoritative state reconciliation; and
   `qt_attachment_source_test.py` prevents Windows
   composer and upgraded forwarding paths from restoring inline attachment
   bytes.

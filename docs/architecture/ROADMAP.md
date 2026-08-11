@@ -105,6 +105,8 @@ Progress:
   updates in Web and Windows instead of discarding them as duplicates.
 - [x] Expand the V1 room/direct schema with indexed mutation cursors for
   replayable recall, without changing current wire behavior yet.
+- [x] Make room/direct recall idempotent and replayable through the conversation
+  sequence cursor, including reconnect and process-restart recovery.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

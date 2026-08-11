@@ -237,7 +237,7 @@
   "sources": {
     "database_schema": {
       "path": "Server/DatabaseManager.cpp",
-      "sha256": "4ca1e32914905a9234990721a28cd588aeae94214850ff1edd85ec7fae52b6c3"
+      "sha256": "6d5bf347aa5257bdb07430cf2abeed8ab5df320b5129e9ab7b9e5de31d6a8442"
     },
     "protocol": {
       "path": "Common/Protocol.h",
@@ -245,7 +245,7 @@
     },
     "server_dispatch": {
       "path": "Server/ChatServer.cpp",
-      "sha256": "6e5cb57abde6ec29434d452877e575d188c7cc1465b31b8a2c301119645d5c99"
+      "sha256": "15ed399ed1c430aa7389587eaf26287e4b9734365b3dbf98dbd7f5c79cab0fd0"
     }
   }
 }

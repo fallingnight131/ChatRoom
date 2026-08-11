@@ -134,7 +134,10 @@ A seventh suite applies the same retry/conflict, authorization, restart,
 partial-migration, high-watermark, and ordered-resume checks to friend
 text/emoji messages.
 
-An eighth suite verifies the raw HTTP attachment data plane: owner-token
+An eighth suite verifies replayable room/direct recall, stable retry outcomes,
+incremental `syncSequence` state recovery, and process-restart durability.
+
+A ninth suite verifies the raw HTTP attachment data plane: owner-token
 binding, exact length, foreign-token denial, interrupted-body cleanup,
 room/friend idempotent finalization, duplicate/conflict responses, retry after
 restart, and notification frames without inline file bytes.
@@ -145,7 +148,7 @@ plus stable-ID state reconciliation. A source contract
 test keeps Windows room/file/image and friend composer entry points on the
 upload-session path and upgraded forwarding on server file identity.
 
-A ninth V1 suite verifies server-side room/friend file forwarding, copied-byte
+A tenth V1 suite verifies server-side room/friend file forwarding, copied-byte
 integrity, notifications without inline bytes, source authorization, target
 authorization, partial-result accounting, and durable live sequence metadata.
 The base smoke and HTTP-upload suites also require database timestamps and

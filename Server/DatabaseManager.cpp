@@ -165,6 +165,10 @@ QJsonArray roomMessagesFromQuery(QSqlQuery &query, int roomId) {
         message["sequence"] = static_cast<double>(query.value(13).toLongLong());
         const QString clientMessageId = query.value(14).toString();
         if (!clientMessageId.isEmpty()) message["clientMessageId"] = clientMessageId;
+        const qint64 mutationSequence = query.value(15).toLongLong();
+        if (mutationSequence > 0)
+            message["mutationSequence"] = static_cast<double>(mutationSequence);
+        message["syncSequence"] = static_cast<double>(query.value(16).toLongLong());
         messages.append(message);
     }
     return messages;
@@ -198,6 +202,10 @@ QJsonArray friendMessagesFromQuery(QSqlQuery &query, int friendshipId) {
         message["sequence"] = static_cast<double>(query.value(13).toLongLong());
         const QString clientMessageId = query.value(14).toString();
         if (!clientMessageId.isEmpty()) message["clientMessageId"] = clientMessageId;
+        const qint64 mutationSequence = query.value(15).toLongLong();
+        if (mutationSequence > 0)
+            message["mutationSequence"] = static_cast<double>(mutationSequence);
+        message["syncSequence"] = static_cast<double>(query.value(16).toLongLong());
         messages.append(message);
     }
     return messages;
@@ -248,6 +256,21 @@ bool migrateMessageSequences(QSqlDatabase &db,
     }
     maxima.finish();
 
+    QSqlQuery mutationMaxima(db);
+    if (!mutationMaxima.exec(QStringLiteral(
+            "SELECT %1, COALESCE(MAX(mutation_sequence), 0) FROM %2 GROUP BY %1")
+                                  .arg(ownerColumn, messageTable))) {
+        qCritical() << "[DB] 读取消息变更最大序列失败:" << messageTable
+                    << mutationMaxima.lastError().text();
+        return false;
+    }
+    while (mutationMaxima.next()) {
+        const int ownerId = mutationMaxima.value(0).toInt();
+        lastSequences.insert(ownerId, qMax(lastSequences.value(ownerId, 0),
+                                            mutationMaxima.value(1).toLongLong()));
+    }
+    mutationMaxima.finish();
+
     QSqlQuery missing(db);
     if (!missing.exec(QStringLiteral(
             "SELECT id, %1 FROM %2 WHERE sequence IS NULL ORDER BY %1, id")
@@ -260,6 +283,20 @@ bool migrateMessageSequences(QSqlDatabase &db,
     while (missing.next())
         rows.append(qMakePair(missing.value(0).toInt(), missing.value(1).toInt()));
     missing.finish();
+
+    QSqlQuery legacyRecalls(db);
+    if (!legacyRecalls.exec(QStringLiteral(
+            "SELECT id, %1 FROM %2 WHERE recalled = 1 AND mutation_sequence IS NULL "
+            "ORDER BY %1, id").arg(ownerColumn, messageTable))) {
+        qCritical() << "[DB] 读取待迁移撤回失败:" << messageTable
+                    << legacyRecalls.lastError().text();
+        return false;
+    }
+    QList<QPair<int, int>> recalledRows;
+    while (legacyRecalls.next())
+        recalledRows.append(qMakePair(legacyRecalls.value(0).toInt(),
+                                      legacyRecalls.value(1).toInt()));
+    legacyRecalls.finish();
 
     if (!db.transaction()) {
         qCritical() << "[DB] 开启消息序列迁移事务失败:" << messageTable
@@ -279,6 +316,24 @@ bool migrateMessageSequences(QSqlDatabase &db,
         if (!updateMessage.exec() || updateMessage.numRowsAffected() != 1) {
             qCritical() << "[DB] 回填消息序列失败:" << messageTable
                         << updateMessage.lastError().text();
+            db.rollback();
+            return false;
+        }
+    }
+
+    QSqlQuery updateRecall(db);
+    updateRecall.prepare(QStringLiteral(
+        "UPDATE %1 SET mutation_sequence = ? "
+        "WHERE id = ? AND recalled = 1 AND mutation_sequence IS NULL")
+                             .arg(messageTable));
+    for (const auto &row : recalledRows) {
+        const qint64 next = lastSequences.value(row.second, 0) + 1;
+        lastSequences.insert(row.second, next);
+        updateRecall.bindValue(0, next);
+        updateRecall.bindValue(1, row.first);
+        if (!updateRecall.exec() || updateRecall.numRowsAffected() != 1) {
+            qCritical() << "[DB] 回填撤回变更序列失败:" << messageTable
+                        << updateRecall.lastError().text();
             db.rollback();
             return false;
         }
@@ -1408,7 +1463,8 @@ QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 befo
     QString sql = "SELECT * FROM ("
                   "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id,"
                   "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail,"
-                  "       m.file_cleared, m.clear_reason, m.sequence, m.client_message_id"
+                  "       m.file_cleared, m.clear_reason, m.sequence, m.client_message_id,"
+                  "       m.mutation_sequence, MAX(m.sequence, COALESCE(m.mutation_sequence, 0))"
                   " FROM messages m JOIN users u ON m.user_id = u.id"
                   " WHERE m.room_id = ?";
 
@@ -1438,11 +1494,13 @@ QJsonArray DatabaseManager::getMessageHistoryAfterSequence(int roomId, int count
     query.prepare(
         "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id, "
         "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail, "
-        "       m.file_cleared, m.clear_reason, m.sequence, m.client_message_id "
+        "       m.file_cleared, m.clear_reason, m.sequence, m.client_message_id, "
+        "       m.mutation_sequence, MAX(m.sequence, COALESCE(m.mutation_sequence, 0)) "
         "FROM messages m JOIN users u ON m.user_id = u.id "
-        "WHERE m.room_id = ? AND m.sequence > ? "
-        "ORDER BY m.sequence ASC LIMIT ?");
+        "WHERE m.room_id = ? AND (m.sequence > ? OR m.mutation_sequence > ?) "
+        "ORDER BY MAX(m.sequence, COALESCE(m.mutation_sequence, 0)) ASC LIMIT ?");
     query.addBindValue(roomId);
+    query.addBindValue(afterSequence);
     query.addBindValue(afterSequence);
     query.addBindValue(count);
     if (!query.exec()) {
@@ -1461,29 +1519,63 @@ qint64 DatabaseManager::getRoomLastMessageSequence(int roomId) {
     return query.value(0).toLongLong();
 }
 
-bool DatabaseManager::recallMessage(int messageId, int userId, int timeLimitSec) {
+RecallResult DatabaseManager::recallMessage(int messageId, int userId,
+                                            int timeLimitSec) {
+    RecallResult result;
     QSqlDatabase db = getConnection();
+    if (!db.transaction()) return result;
     QSqlQuery q(db);
 
-    // 检查消息存在性
-    q.prepare("SELECT user_id, created_at, room_id FROM messages WHERE id = ? AND recalled = 0");
+    q.prepare("SELECT user_id, created_at, room_id, recalled, "
+              "       COALESCE(mutation_sequence, 0) "
+              "FROM messages WHERE id = ?");
     q.addBindValue(messageId);
-    q.exec();
-
-    if (!q.next()) return false;
+    if (!q.exec() || !q.next()) {
+        db.rollback();
+        result.status = RecallResult::Status::Rejected;
+        return result;
+    }
 
     int ownerId = q.value(0).toInt();
     QDateTime createdAt = q.value(1).toDateTime();
     createdAt.setTimeSpec(Qt::UTC);  // SQLite CURRENT_TIMESTAMP 存储 UTC
+    result.conversationId = q.value(2).toInt();
+    const bool recalled = q.value(3).toInt() != 0;
+    result.mutationSequence = q.value(4).toLongLong();
 
-    // 所有用户（包括管理员）只能撤回自己的消息，且有时间限制
-    if (ownerId != userId) return false;
-    if (createdAt.secsTo(QDateTime::currentDateTimeUtc()) > timeLimitSec) return false;
+    if (ownerId != userId) {
+        db.rollback();
+        result.status = RecallResult::Status::Rejected;
+        return result;
+    }
+    if (recalled) {
+        result.status = RecallResult::Status::Duplicate;
+        if (!db.commit()) result.status = RecallResult::Status::Failed;
+        return result;
+    }
+    if (createdAt.secsTo(QDateTime::currentDateTimeUtc()) > timeLimitSec) {
+        db.rollback();
+        result.status = RecallResult::Status::Rejected;
+        return result;
+    }
 
-    // 执行撤回
-    q.prepare("UPDATE messages SET recalled = 1, content = '此消息已被撤回' WHERE id = ?");
+    if (!reserveMessageSequence(db, QStringLiteral("room_message_sequences"),
+                                QStringLiteral("room_id"), result.conversationId,
+                                &result.mutationSequence)) {
+        db.rollback();
+        return result;
+    }
+    q.prepare("UPDATE messages SET recalled = 1, content = '此消息已被撤回', "
+              "mutation_sequence = ? WHERE id = ? AND recalled = 0");
+    q.addBindValue(result.mutationSequence);
     q.addBindValue(messageId);
-    return q.exec();
+    if (!q.exec() || q.numRowsAffected() != 1 || !db.commit()) {
+        db.rollback();
+        result.status = RecallResult::Status::Failed;
+        return result;
+    }
+    result.status = RecallResult::Status::Applied;
+    return result;
 }
 
 bool DatabaseManager::isMessageInRoom(int messageId, int roomId) {
@@ -2640,7 +2732,8 @@ QJsonArray DatabaseManager::getFriendMessageHistory(int friendshipId, int count,
     QString sql = "SELECT * FROM ("
                   "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id,"
                   "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail,"
-                  "       m.file_cleared, m.clear_reason, m.sequence, m.client_message_id"
+                  "       m.file_cleared, m.clear_reason, m.sequence, m.client_message_id,"
+                  "       m.mutation_sequence, MAX(m.sequence, COALESCE(m.mutation_sequence, 0))"
                   " FROM friend_messages m JOIN users u ON m.sender_id = u.id"
                   " WHERE m.friendship_id = ?";
     if (beforeTimestamp > 0)
@@ -2664,11 +2757,13 @@ QJsonArray DatabaseManager::getFriendMessageHistoryAfterSequence(
     query.prepare(
         "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id, "
         "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail, "
-        "       m.file_cleared, m.clear_reason, m.sequence, m.client_message_id "
+        "       m.file_cleared, m.clear_reason, m.sequence, m.client_message_id, "
+        "       m.mutation_sequence, MAX(m.sequence, COALESCE(m.mutation_sequence, 0)) "
         "FROM friend_messages m JOIN users u ON m.sender_id = u.id "
-        "WHERE m.friendship_id = ? AND m.sequence > ? "
-        "ORDER BY m.sequence ASC LIMIT ?");
+        "WHERE m.friendship_id = ? AND (m.sequence > ? OR m.mutation_sequence > ?) "
+        "ORDER BY MAX(m.sequence, COALESCE(m.mutation_sequence, 0)) ASC LIMIT ?");
     query.addBindValue(friendshipId);
+    query.addBindValue(afterSequence);
     query.addBindValue(afterSequence);
     query.addBindValue(count);
     if (!query.exec()) return {};
@@ -2700,33 +2795,72 @@ int DatabaseManager::saveFriendFile(int friendshipId, int userId, const QString 
     return -1;
 }
 
-bool DatabaseManager::recallFriendMessage(int messageId, int userId, int timeLimitSec) {
+RecallResult DatabaseManager::recallFriendMessage(int messageId, int userId,
+                                                  int timeLimitSec) {
+    RecallResult result;
     QSqlDatabase db = getConnection();
+    if (!db.transaction()) return result;
     QSqlQuery q(db);
 
-    q.prepare("SELECT sender_id, created_at FROM friend_messages WHERE id = ? AND recalled = 0");
+    q.prepare("SELECT sender_id, created_at, friendship_id, recalled, "
+              "       COALESCE(mutation_sequence, 0) "
+              "FROM friend_messages WHERE id = ?");
     q.addBindValue(messageId);
-    q.exec();
-
-    if (!q.next()) return false;
+    if (!q.exec() || !q.next()) {
+        db.rollback();
+        result.status = RecallResult::Status::Rejected;
+        return result;
+    }
 
     int ownerId = q.value(0).toInt();
     QDateTime createdAt = q.value(1).toDateTime();
     createdAt.setTimeSpec(Qt::UTC);
+    result.conversationId = q.value(2).toInt();
+    const bool recalled = q.value(3).toInt() != 0;
+    result.mutationSequence = q.value(4).toLongLong();
 
-    if (ownerId != userId) return false;
-    if (createdAt.secsTo(QDateTime::currentDateTimeUtc()) > timeLimitSec) return false;
+    if (ownerId != userId) {
+        db.rollback();
+        result.status = RecallResult::Status::Rejected;
+        return result;
+    }
+    if (recalled) {
+        result.status = RecallResult::Status::Duplicate;
+        if (!db.commit()) result.status = RecallResult::Status::Failed;
+        return result;
+    }
+    if (createdAt.secsTo(QDateTime::currentDateTimeUtc()) > timeLimitSec) {
+        db.rollback();
+        result.status = RecallResult::Status::Rejected;
+        return result;
+    }
 
-    q.prepare("UPDATE friend_messages SET recalled = 1, content = '此消息已被撤回' WHERE id = ?");
+    if (!reserveMessageSequence(db, QStringLiteral("friendship_message_sequences"),
+                                QStringLiteral("friendship_id"),
+                                result.conversationId,
+                                &result.mutationSequence)) {
+        db.rollback();
+        return result;
+    }
+    q.prepare("UPDATE friend_messages SET recalled = 1, "
+              "content = '此消息已被撤回', mutation_sequence = ? "
+              "WHERE id = ? AND recalled = 0");
+    q.addBindValue(result.mutationSequence);
     q.addBindValue(messageId);
-    return q.exec();
+    if (!q.exec() || q.numRowsAffected() != 1 || !db.commit()) {
+        db.rollback();
+        result.status = RecallResult::Status::Failed;
+        return result;
+    }
+    result.status = RecallResult::Status::Applied;
+    return result;
 }
 
 int DatabaseManager::getFriendshipIdForOwnedMessage(int messageId, int userId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
     q.prepare("SELECT friendship_id FROM friend_messages "
-              "WHERE id = ? AND sender_id = ? AND recalled = 0");
+              "WHERE id = ? AND sender_id = ?");
     q.addBindValue(messageId);
     q.addBindValue(userId);
     if (q.exec() && q.next()) return q.value(0).toInt();
@@ -2737,7 +2871,7 @@ QPair<int, QString> DatabaseManager::getFileInfoForFriendMessage(int messageId) 
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
     q.prepare("SELECT m.file_id, f.file_path FROM friend_messages m "
-              "LEFT JOIN friend_files f ON m.file_id = f.id "
+              "JOIN friend_files f ON m.file_id = f.id "
               "WHERE m.id = ? AND m.file_id > 0");
     q.addBindValue(messageId);
     if (q.exec() && q.next())

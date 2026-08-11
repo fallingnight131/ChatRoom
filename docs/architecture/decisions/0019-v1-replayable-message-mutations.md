@@ -19,16 +19,17 @@ contract and make creation ordering ambiguous.
 - Add nullable `mutation_sequence` columns to room and direct message rows. The
   first expansion commit creates these columns and conversation-scoped indexes
   without changing runtime behavior.
-- A later compatible server step will transactionally reserve a new value from
+- The compatible server transactionally reserves a new value from
   the existing room/friendship high watermark when a recall changes state, then
   store that value on the row.
-- Sequence-mode history will select rows whose creation or mutation sequence is
+- Sequence-mode history selects rows whose creation or mutation sequence is
   newer than the cursor, order them by `syncSequence = max(sequence,
   mutationSequence)`, and expose additive `mutationSequence` and `syncSequence`
   fields. Legacy timestamp history and the original `sequence` remain intact.
-- Live recall responses and notifications will expose the same mutation
+- Live recall responses and notifications expose the same mutation
   sequence. Retrying an accepted recall will return its stable result instead
-  of allocating another sequence or broadcasting another mutation.
+  of allocating another sequence or broadcasting another mutation. File
+  cleanup is an idempotent post-commit compensation and may be retried.
 - Web and Windows clients reconcile a repeated stable message ID as an
   authoritative state update. Older clients ignore the additive fields.
 - Administrative physical deletion remains a separate event-model decision;
@@ -45,9 +46,9 @@ recovery but is not an immutable audit log.
 ## Verification and Rollback
 
 The expansion is verified on first start and restart, including query-plan use
-of both mutation indexes. Later behavior tests must cover room/direct recall,
-offline replay, idempotent retry, authorization, cursor pagination, and restart
-durability.
+of both mutation indexes. The behavior suite covers room/direct recall, offline
+replay, idempotent retry, cursor pagination, and restart durability; the common
+authorization suite retains non-owner and resource-boundary coverage.
 
 Rollback of the behavioral phase stops reading and writing mutation sequences.
 The nullable columns and indexes may safely remain until a maintenance window;

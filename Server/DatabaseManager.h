@@ -22,6 +22,13 @@ struct MessageSaveResult {
     qint64 createdAtMs = 0;
 };
 
+struct RecallResult {
+    enum class Status { Applied, Duplicate, Rejected, Failed };
+    Status status = Status::Failed;
+    int conversationId = -1;
+    qint64 mutationSequence = 0;
+};
+
 /// 数据库管理器 —— 线程安全，使用每线程独立连接
 class DatabaseManager : public QObject {
     Q_OBJECT
@@ -94,7 +101,7 @@ public:
                                               qint64 afterSequence);
     qint64 getRoomLastMessageSequence(int roomId);
     bool isMessageInRoom(int messageId, int roomId);
-    bool recallMessage(int messageId, int userId, int timeLimitSec);
+    RecallResult recallMessage(int messageId, int userId, int timeLimitSec);
     /// 获取单条消息关联的文件信息 (file_id, file_path)，用于撤回时清理文件
     QPair<int, QString> getFileInfoForMessage(int messageId);
 
@@ -196,7 +203,7 @@ public:
     qint64 getFriendshipLastMessageSequence(int friendshipId);
 
     // 好友消息撤回
-    bool recallFriendMessage(int messageId, int userId, int timeLimitSec);
+    RecallResult recallFriendMessage(int messageId, int userId, int timeLimitSec);
     int getFriendshipIdForOwnedMessage(int messageId, int userId);
     QPair<int, QString> getFileInfoForFriendMessage(int messageId);
 
