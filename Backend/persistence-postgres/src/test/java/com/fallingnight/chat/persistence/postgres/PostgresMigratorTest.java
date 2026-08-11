@@ -71,7 +71,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(4, first.migrate());
+        assertEquals(5, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -82,10 +82,11 @@ class PostgresMigratorTest {
             assertEquals(
                     Set.of("account", "device", "device_session", "conversation",
                             "conversation_member", "direct_conversation", "message",
-                            "identity_import_run"),
+                            "identity_import_run", "legacy_v1_account_map"),
                     applicationTables(connection));
             proveSequenceAndIdempotencyConstraints(connection);
         }
+        proveLegacyV1MappingConstraints();
     }
 
     @Test
@@ -261,14 +262,36 @@ class PostgresMigratorTest {
         assertTrue(applied.reconciled());
         assertEquals(2, applied.insertedRows());
         assertEquals(2, accountCount());
+        assertEquals(2, legacyMappingCount());
+        assertEquals(
+                input.plan().accounts().getFirst().accountId(), mappedAccountId(1));
         assertEquals(1, importRunCount());
         assertEquals(proof.backupFileSha256(), storedBackupHash(applied.importRunId()));
+
+        deleteLegacyMapping(1);
+        V1IdentityImportReport repairPreview = importer.preview(input.plan());
+        assertTrue(repairPreview.readyToApply());
+        assertEquals(0, repairPreview.insertableRows());
+        assertEquals(2, repairPreview.alreadyImportedRows());
+        V1IdentityImportReport repaired = importer.apply(input);
+        assertEquals(0, repaired.insertedRows());
+        assertEquals(2, legacyMappingCount());
+        assertEquals(2, importRunCount());
 
         V1IdentityImportReport rerun = importer.apply(input);
         assertEquals(0, rerun.insertedRows());
         assertEquals(2, rerun.alreadyImportedRows());
-        assertEquals(2, importRunCount());
+        assertEquals(3, importRunCount());
         assertEquals(2, accountCount());
+        assertEquals(2, legacyMappingCount());
+
+        changeLegacyMapping(1, 99);
+        V1IdentityImportReport mappingConflict = importer.preview(input.plan());
+        assertFalse(mappingConflict.readyToApply());
+        assertEquals("TARGET_LEGACY_MAPPING_CONFLICT",
+                mappingConflict.issues().getFirst().code());
+        assertThrows(V1IdentityImportException.class, () -> importer.apply(input));
+        changeLegacyMapping(99, 1);
 
         deleteOneImportedAccountAndCorruptAnother(input);
         V1IdentityImportReport blocked = importer.preview(input.plan());
@@ -277,7 +300,7 @@ class PostgresMigratorTest {
         assertEquals("TARGET_ACCOUNT_CONFLICT", blocked.issues().getFirst().code());
         assertThrows(V1IdentityImportException.class, () -> importer.apply(input));
         assertEquals(1, accountCount());
-        assertEquals(2, importRunCount());
+        assertEquals(3, importRunCount());
 
         try (Connection sqlite = DriverManager.getConnection(
                 "jdbc:sqlite:" + source.toAbsolutePath());
@@ -783,6 +806,96 @@ class PostgresMigratorTest {
 
     private static int importRunCount() throws SQLException {
         return count("SELECT count(*) FROM chat.identity_import_run");
+    }
+
+    private static int legacyMappingCount() throws SQLException {
+        return count("SELECT count(*) FROM chat.legacy_v1_account_map");
+    }
+
+    private static UUID mappedAccountId(long legacyId) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT account_id FROM chat.legacy_v1_account_map "
+                                + "WHERE legacy_user_id = ?")) {
+            statement.setLong(1, legacyId);
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                return result.getObject(1, UUID.class);
+            }
+        }
+    }
+
+    private static void changeLegacyMapping(long from, long to) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "UPDATE chat.legacy_v1_account_map SET legacy_user_id = ? "
+                                + "WHERE legacy_user_id = ?")) {
+            statement.setLong(1, to);
+            statement.setLong(2, from);
+            assertEquals(1, statement.executeUpdate());
+        }
+    }
+
+    private static void deleteLegacyMapping(long legacyId) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "DELETE FROM chat.legacy_v1_account_map WHERE legacy_user_id = ?")) {
+            statement.setLong(1, legacyId);
+            assertEquals(1, statement.executeUpdate());
+        }
+    }
+
+    private static void proveLegacyV1MappingConstraints() throws SQLException {
+        UUID account = UUID.randomUUID();
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                                + "VALUES (?, 'mapping-constraint', 'Mapping Constraint', "
+                                + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')")) {
+            statement.setObject(1, account);
+            assertEquals(1, statement.executeUpdate());
+        }
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                                + "VALUES (0, ?)")) {
+            statement.setObject(1, account);
+            SQLException exception = assertThrows(SQLException.class, statement::executeUpdate);
+            assertEquals("23514", exception.getSQLState());
+        }
+        try (Connection connection = connect();
+                PreparedStatement first = connection.prepareStatement(
+                        "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                                + "VALUES (41, ?)");
+                PreparedStatement duplicate = connection.prepareStatement(
+                        "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                                + "VALUES (42, ?)")) {
+            first.setObject(1, account);
+            assertEquals(1, first.executeUpdate());
+            duplicate.setObject(1, account);
+            SQLException exception = assertThrows(SQLException.class, duplicate::executeUpdate);
+            assertEquals("23505", exception.getSQLState());
+        }
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "DELETE FROM chat.account WHERE id = ?")) {
+            statement.setObject(1, account);
+            assertEquals(1, statement.executeUpdate());
+        }
+        assertEquals(0, mappingCountForAccount(account));
+    }
+
+    private static int mappingCountForAccount(UUID account) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT count(*) FROM chat.legacy_v1_account_map "
+                                + "WHERE account_id = ?")) {
+            statement.setObject(1, account);
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                return result.getInt(1);
+            }
+        }
     }
 
     private static int count(String sql) throws SQLException {

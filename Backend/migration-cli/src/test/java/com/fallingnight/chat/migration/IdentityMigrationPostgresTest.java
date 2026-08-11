@@ -65,6 +65,7 @@ class IdentityMigrationPostgresTest {
         assertTrue(applied.output().contains("inserted_rows=1"));
         assertFalse(applied.output().contains(source.toString()));
         assertEquals(1, count("chat.account"));
+        assertEquals(1, count("chat.legacy_v1_account_map"));
         assertEquals(1, count("chat.identity_import_run"));
 
         CommandResult repeated = run(new String[] {
@@ -73,6 +74,7 @@ class IdentityMigrationPostgresTest {
         assertEquals(0, repeated.status());
         assertTrue(repeated.output().contains("inserted_rows=0"));
         assertEquals(1, count("chat.account"));
+        assertEquals(1, count("chat.legacy_v1_account_map"));
         assertEquals(2, count("chat.identity_import_run"));
     }
 

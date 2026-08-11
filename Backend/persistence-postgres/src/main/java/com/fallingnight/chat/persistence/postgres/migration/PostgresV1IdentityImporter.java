@@ -22,6 +22,10 @@ public final class PostgresV1IdentityImporter {
                    legacy_password_salt, created_at, disabled_at
             FROM chat.account
             """;
+    private static final String MAPPING_READ = """
+            SELECT legacy_user_id, account_id
+            FROM chat.legacy_v1_account_map
+            """;
     private final DataSource dataSource;
 
     public PostgresV1IdentityImporter(DataSource dataSource) {
@@ -63,6 +67,7 @@ public final class PostgresV1IdentityImporter {
                             "V1 identity target contains blocking conflicts");
                 }
                 int inserted = insertMissing(connection, before.insertableAccounts());
+                insertMissingMappings(connection, before.mappingInsertableAccounts());
                 Comparison after = compare(connection, plan);
                 if (!after.fullyReconciled(plan.sourceRows())) {
                     throw new V1IdentityImportException(
@@ -98,6 +103,8 @@ public final class PostgresV1IdentityImporter {
             throws SQLException {
         Map<UUID, TargetAccount> byId = new HashMap<>();
         Map<String, TargetAccount> byUsername = new HashMap<>();
+        Map<Long, UUID> accountByLegacyId = new HashMap<>();
+        Map<UUID, Long> legacyIdByAccount = new HashMap<>();
         try (PreparedStatement statement = connection.prepareStatement(TARGET_READ);
                 ResultSet result = statement.executeQuery()) {
             while (result.next()) {
@@ -106,8 +113,18 @@ public final class PostgresV1IdentityImporter {
                 byUsername.put(account.usernameKey(), account);
             }
         }
+        try (PreparedStatement statement = connection.prepareStatement(MAPPING_READ);
+                ResultSet result = statement.executeQuery()) {
+            while (result.next()) {
+                long legacyId = result.getLong("legacy_user_id");
+                UUID accountId = result.getObject("account_id", UUID.class);
+                accountByLegacyId.put(legacyId, accountId);
+                legacyIdByAccount.put(accountId, legacyId);
+            }
+        }
 
         List<PlannedIdentityAccount> insertable = new ArrayList<>();
+        List<PlannedIdentityAccount> mappingInsertable = new ArrayList<>();
         List<IdentityImportIssue> issues = new ArrayList<>();
         Set<UUID> plannedIds = new HashSet<>();
         int alreadyImported = 0;
@@ -115,12 +132,28 @@ public final class PostgresV1IdentityImporter {
             plannedIds.add(planned.accountId());
             TargetAccount idMatch = byId.get(planned.accountId());
             TargetAccount usernameMatch = byUsername.get(planned.usernameKey());
-            if (idMatch == null && usernameMatch == null) {
+            UUID mappedAccount = accountByLegacyId.get(planned.legacyId());
+            Long mappedLegacyId = legacyIdByAccount.get(planned.accountId());
+            boolean mappingAbsent = mappedAccount == null && mappedLegacyId == null;
+            boolean mappingMatches = planned.accountId().equals(mappedAccount)
+                    && Long.valueOf(planned.legacyId()).equals(mappedLegacyId);
+            if (idMatch == null && usernameMatch == null && mappingAbsent) {
                 insertable.add(planned);
+                mappingInsertable.add(planned);
             } else if (idMatch != null
                     && idMatch == usernameMatch
                     && idMatch.matches(planned)) {
-                alreadyImported++;
+                if (mappingAbsent) {
+                    mappingInsertable.add(planned);
+                    alreadyImported++;
+                } else if (mappingMatches) {
+                    alreadyImported++;
+                } else {
+                    issues.add(new IdentityImportIssue(
+                            planned.legacyId(),
+                            "TARGET_LEGACY_MAPPING_CONFLICT",
+                            "target V1 account mapping does not match the planned identity"));
+                }
             } else {
                 issues.add(new IdentityImportIssue(
                         planned.legacyId(),
@@ -132,7 +165,11 @@ public final class PostgresV1IdentityImporter {
                 .filter(id -> !plannedIds.contains(id))
                 .count();
         return new Comparison(
-                List.copyOf(insertable), alreadyImported, unexpected, List.copyOf(issues));
+                List.copyOf(insertable),
+                List.copyOf(mappingInsertable),
+                alreadyImported,
+                unexpected,
+                List.copyOf(issues));
     }
 
     private static int insertMissing(
@@ -164,6 +201,27 @@ public final class PostgresV1IdentityImporter {
             }
         }
         return inserted;
+    }
+
+    private static void insertMissingMappings(
+            Connection connection,
+            List<PlannedIdentityAccount> accounts) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id)
+                VALUES (?, ?)
+                """)) {
+            for (PlannedIdentityAccount account : accounts) {
+                statement.setLong(1, account.legacyId());
+                statement.setObject(2, account.accountId());
+                statement.addBatch();
+            }
+            for (int count : statement.executeBatch()) {
+                if (count != 1) {
+                    throw new SQLException(
+                            "legacy V1 account mapping insert did not affect exactly one row");
+                }
+            }
+        }
     }
 
     private static void persistProof(
@@ -208,7 +266,8 @@ public final class PostgresV1IdentityImporter {
 
     private static void lockTarget(Connection connection) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
-                "LOCK TABLE chat.account IN SHARE ROW EXCLUSIVE MODE")) {
+                "LOCK TABLE chat.account, chat.legacy_v1_account_map "
+                        + "IN SHARE ROW EXCLUSIVE MODE")) {
             statement.execute();
         }
     }
@@ -231,6 +290,7 @@ public final class PostgresV1IdentityImporter {
 
     private record Comparison(
             List<PlannedIdentityAccount> insertableAccounts,
+            List<PlannedIdentityAccount> mappingInsertableAccounts,
             int alreadyImportedRows,
             int unexpectedTargetRows,
             List<IdentityImportIssue> issues) {

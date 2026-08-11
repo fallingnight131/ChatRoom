@@ -385,6 +385,9 @@ Progress:
   - [x] Add deterministic V1 numeric-user-ID to V2 UUID mapping, two-generation
     credential validation, safe issue reporting, and source fingerprinting
     before any target comparison or write.
+  - [x] Persist the otherwise non-invertible V1 numeric-user-ID to account UUID
+    compatibility projection atomically with verified identity import, without
+    polluting the V2 account domain.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,
