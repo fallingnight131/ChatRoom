@@ -19,6 +19,9 @@ durable data layer.
   conversation identity so different users on one browser never share a key.
 - Store only message/attachment metadata and the last applied server cursor;
   attachment bytes remain in the authorized HTTP/object-storage data plane.
+- Store a bounded text draft alongside each conversation snapshot. Draft writes
+  are debounced by the composer, flushed when it is unmounted or changes
+  conversation, and cleared after the user submits the message.
 - Bound each conversation snapshot to the newest 500 messages in this first
   slice. Later virtualization and retention work may replace snapshots with
   normalized message rows without changing the store/repository boundary.
@@ -40,7 +43,7 @@ notifications remove the corresponding snapshot immediately.
 
 IndexedDB is not an authentication store and must never contain passwords,
 tokens, or signing material. Cache management UI, quota/eviction telemetry,
-schema migrations beyond version 1, drafts/pending sends, and the Windows SQLite
+schema migrations beyond version 1, pending sends, and the Windows SQLite
 repository follow as separate M2 slices.
 
 ## Rollback
@@ -51,8 +54,9 @@ Deleting the database is optional and must not be coupled to rollback.
 
 ## Verification
 
-- unit tests cover account/conversation partitioning, the 500-message bound,
-  cursor normalization, IndexedDB round trip, and unavailable-storage fallback;
+- unit tests cover account/conversation partitioning, message/draft bounds,
+  cursor normalization, IndexedDB round trip, pruning, and unavailable-storage
+  fallback;
 - Web production build verifies browser bundling;
 - manual browser verification should cover cached render, forward sync, rapid
   room switching, private/incognito storage denial, and server-authoritative

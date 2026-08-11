@@ -162,8 +162,10 @@ Progress:
 - [x] Add account-partitioned, 500-message-bounded Web IndexedDB room/direct
   snapshots and sequence cursors; hydrate on selection, synchronize forward,
   and evict snapshots when room or friendship access is lost.
-- [ ] Extend durable Web storage to drafts and pending sends, then extract
-  synchronization orchestration from the large chat store.
+- [x] Persist bounded Web room/direct text drafts with debounced writes,
+  conversation-switch/unmount flush, and send-time clearing.
+- [ ] Extend durable Web storage to pending sends, then extract synchronization
+  orchestration from the large chat store.
 - [ ] Add the Windows SQLite repository and client application/sync boundaries.
 - [ ] Add optimistic states, virtualization, cache controls, and accessibility
   foundations.

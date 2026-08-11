@@ -41,10 +41,11 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
 import { chatWs, MAX_SMALL_FILE } from '../services/websocket'
+import { conversationCache } from '../persistence/conversationCache'
 import EmojiPicker from './EmojiPicker.vue'
 
 const props = defineProps({
@@ -58,6 +59,68 @@ const text = ref('')
 const showEmoji = ref(false)
 const fileInput = ref(null)
 const textareaRef = ref(null)
+let activeDraftIdentity = null
+let draftSaveTimer = null
+let draftLoadGeneration = 0
+let restoringDraft = false
+
+function currentDraftIdentity() {
+  if (!userStore.username) return null
+  if (props.friendMode) {
+    return chatStore.currentFriendUsername
+      ? { account: userStore.username, kind: 'friend', id: chatStore.currentFriendUsername }
+      : null
+  }
+  return chatStore.currentRoomId
+    ? { account: userStore.username, kind: 'room', id: chatStore.currentRoomId }
+    : null
+}
+
+function persistDraft(identity, value) {
+  if (!identity) return
+  void conversationCache.saveDraft(identity.account, identity.kind, identity.id, value)
+    .catch(error => console.warn('[Cache] unable to persist draft:', error))
+}
+
+function flushDraft() {
+  if (draftSaveTimer) clearTimeout(draftSaveTimer)
+  draftSaveTimer = null
+  persistDraft(activeDraftIdentity, text.value)
+}
+
+watch(text, () => {
+  if (restoringDraft || !activeDraftIdentity) return
+  if (draftSaveTimer) clearTimeout(draftSaveTimer)
+  const identity = activeDraftIdentity
+  const value = text.value
+  draftSaveTimer = setTimeout(() => persistDraft(identity, value), 250)
+}, { flush: 'sync' })
+
+watch(
+  () => [props.friendMode, chatStore.currentRoomId,
+    chatStore.currentFriendUsername, userStore.username],
+  async () => {
+    flushDraft()
+    const identity = currentDraftIdentity()
+    activeDraftIdentity = identity
+    const generation = ++draftLoadGeneration
+    restoringDraft = true
+    text.value = ''
+    try {
+      if (!identity) return
+      const draft = await conversationCache.loadDraft(
+        identity.account, identity.kind, identity.id)
+      if (generation === draftLoadGeneration) text.value = draft
+    } catch (error) {
+      console.warn('[Cache] unable to load draft:', error)
+    } finally {
+      if (generation === draftLoadGeneration) restoringDraft = false
+    }
+  },
+  { immediate: true }
+)
+
+onBeforeUnmount(flushDraft)
 
 function sendMessage(e) {
   if (e) e.preventDefault()
@@ -72,6 +135,7 @@ function sendMessage(e) {
     chatWs.sendChat(chatStore.currentRoomId, userStore.username, msg, 'text')
   }
   text.value = ''
+  persistDraft(activeDraftIdentity, '')
 }
 
 function onEmojiSelect(emoji) {

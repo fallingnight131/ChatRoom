@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import {
   IndexedDbConversationCache,
   MAX_CACHED_MESSAGES,
+  MAX_DRAFT_LENGTH,
   conversationCacheKey,
   makeConversationRecord
 } from '../src/persistence/conversationCache.js'
@@ -98,4 +99,17 @@ test('prunes inaccessible conversations without crossing account or kind boundar
   assert.equal(await cache.load('alice', 'room', 2), null)
   assert.ok(await cache.load('alice', 'friend', 'bob'))
   assert.ok(await cache.load('carol', 'room', 2))
+})
+
+test('persists bounded drafts without losing cached messages', async () => {
+  const cache = new IndexedDbConversationCache(fakeIndexedDb())
+  await cache.save('alice', 'room', 7, [{ id: 1 }], 9)
+  await cache.saveDraft('alice', 'room', 7, 'x'.repeat(MAX_DRAFT_LENGTH + 20))
+  assert.equal((await cache.loadDraft('alice', 'room', 7)).length, MAX_DRAFT_LENGTH)
+  await cache.save('alice', 'room', 7, [{ id: 1 }, { id: 2 }], 10)
+  const loaded = await cache.load('alice', 'room', 7)
+  assert.equal(loaded.messages.length, 2)
+  assert.equal(loaded.draft.length, MAX_DRAFT_LENGTH)
+  await cache.saveDraft('alice', 'room', 7, '')
+  assert.equal(await cache.loadDraft('alice', 'room', 7), '')
 })

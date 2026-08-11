@@ -2,6 +2,7 @@ const DATABASE_NAME = 'chat-room-client'
 const DATABASE_VERSION = 1
 const STORE_NAME = 'conversations'
 export const MAX_CACHED_MESSAGES = 500
+export const MAX_DRAFT_LENGTH = 10000
 
 export function conversationCacheKey(account, kind, conversationId) {
   return `${String(account)}\u001f${String(kind)}\u001f${String(conversationId)}`
@@ -85,8 +86,35 @@ export class IndexedDbConversationCache {
       const database = await this.open()
       if (!database) return false
       const transaction = database.transaction(STORE_NAME, 'readwrite')
-      transaction.objectStore(STORE_NAME).put(record)
-      await transactionDone(transaction)
+      const store = transaction.objectStore(STORE_NAME)
+      const done = transactionDone(transaction)
+      const existing = await requestResult(store.get(record.key))
+      store.put({ ...record, draft: existing?.draft || '' })
+      await done
+      return true
+    })
+    return this.writeQueue
+  }
+
+  async loadDraft(account, kind, conversationId) {
+    const record = await this.load(account, kind, conversationId)
+    return typeof record?.draft === 'string' ? record.draft : ''
+  }
+
+  saveDraft(account, kind, conversationId, draft) {
+    if (!account) return Promise.resolve(false)
+    const key = conversationCacheKey(account, kind, conversationId)
+    const normalizedDraft = String(draft || '').slice(0, MAX_DRAFT_LENGTH)
+    this.writeQueue = this.writeQueue.catch(() => {}).then(async () => {
+      const database = await this.open()
+      if (!database) return false
+      const transaction = database.transaction(STORE_NAME, 'readwrite')
+      const store = transaction.objectStore(STORE_NAME)
+      const done = transactionDone(transaction)
+      const existing = await requestResult(store.get(key)) ||
+        makeConversationRecord(account, kind, conversationId, [], 0)
+      store.put({ ...existing, draft: normalizedDraft, updatedAt: Date.now() })
+      await done
       return true
     })
     return this.writeQueue

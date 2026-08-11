@@ -163,7 +163,8 @@ object cleanup is an idempotent post-commit compensation.
   snapshots after access is lost.
 - Mixed room messages, recall state, and deletion events reconcile by
   `syncSequence`; direct messages and recall state use the equivalent friendship
-  cursor. Drafts and pending sends remain memory state until later M2 slices.
+  cursor. Bounded room/direct text drafts share the account-partitioned IndexedDB
+  record; pending sends remain memory state until a later M2 slice.
 
 ## Known M0 Risks
 
