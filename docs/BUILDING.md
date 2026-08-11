@@ -80,6 +80,10 @@ test capacities are not deployment defaults or benchmark results.
 Virtual-time gateway tests verify independent handshake/authentication deadlines,
 fixed WebSocket 1008 close reasons, phase transitions, and timer cancellation;
 their millisecond test values are not deployment defaults.
+Deterministic admission tests verify account normalization, direct IPv4/IPv6
+peer aggregation, gateway totals, bounded key capacity, success/expiry recovery,
+and non-identifying snapshots. These process-local tests do not prove distributed
+rate limiting or define deployment limits.
 It also verifies a fixed libsodium 1.0.20 Argon2id interactive test vector with
 the locked Java crypto adapter; this deliberately performs memory-hard work and
 must not be interpreted as an authentication capacity benchmark.

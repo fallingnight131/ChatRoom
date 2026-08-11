@@ -10,6 +10,8 @@ public interface AuthenticationEventSink {
 
     void saturated();
 
+    void admissionDenied(AuthenticationLimitDimension dimension);
+
     static AuthenticationEventSink noop() {
         return NoopHolder.INSTANCE;
     }
@@ -30,6 +32,10 @@ public interface AuthenticationEventSink {
 
             @Override
             public void saturated() {
+            }
+
+            @Override
+            public void admissionDenied(AuthenticationLimitDimension dimension) {
             }
         };
 

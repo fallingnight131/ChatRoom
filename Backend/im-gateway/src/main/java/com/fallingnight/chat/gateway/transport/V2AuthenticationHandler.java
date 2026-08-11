@@ -22,6 +22,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Objects;
@@ -50,13 +52,31 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
     private final AuthenticationUseCase authentication;
     private final Executor authenticationExecutor;
     private final AuthenticationEventSink events;
+    private final AuthenticationAdmissionControl admission;
     private final Clock clock;
     private State state = State.EXPECTING_AUTHENTICATION;
 
     public V2AuthenticationHandler(
             AuthenticationUseCase authentication,
             Executor authenticationExecutor) {
-        this(authentication, authenticationExecutor, AuthenticationEventSink.noop(), Clock.systemUTC());
+        this(
+                authentication,
+                authenticationExecutor,
+                AuthenticationAdmissionControl.allowAll(),
+                AuthenticationEventSink.noop(),
+                Clock.systemUTC());
+    }
+
+    public V2AuthenticationHandler(
+            AuthenticationUseCase authentication,
+            Executor authenticationExecutor,
+            AuthenticationAdmissionControl admission) {
+        this(
+                authentication,
+                authenticationExecutor,
+                admission,
+                AuthenticationEventSink.noop(),
+                Clock.systemUTC());
     }
 
     V2AuthenticationHandler(
@@ -64,10 +84,25 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
             Executor authenticationExecutor,
             AuthenticationEventSink events,
             Clock clock) {
+        this(
+                authentication,
+                authenticationExecutor,
+                AuthenticationAdmissionControl.allowAll(),
+                events,
+                clock);
+    }
+
+    V2AuthenticationHandler(
+            AuthenticationUseCase authentication,
+            Executor authenticationExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            Clock clock) {
         this.authentication = Objects.requireNonNull(authentication, "authentication");
         this.authenticationExecutor = Objects.requireNonNull(
                 authenticationExecutor, "authenticationExecutor");
         this.events = Objects.requireNonNull(events, "events");
+        this.admission = Objects.requireNonNull(admission, "admission");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
@@ -130,6 +165,26 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
             return;
         }
 
+        final AuthenticationAdmissionDecision admissionDecision;
+        try {
+            admissionDecision = Objects.requireNonNull(
+                    admission.acquire(directPeer(context), payload.getUsername()),
+                    "authentication admission decision");
+        } catch (RuntimeException exception) {
+            recordFailed();
+            failInternal(context, envelope.getRequestId());
+            return;
+        }
+        if (!admissionDecision.allowed()) {
+            recordAdmissionDenied(admissionDecision.dimension());
+            rejectAuthentication(
+                    context,
+                    envelope.getRequestId(),
+                    AuthenticationRejectionReason.AUTHENTICATION_REJECTION_REASON_RATE_LIMITED,
+                    admissionDecision.retryAfterMs());
+            return;
+        }
+
         byte[] password = payload.getPasswordUtf8().toByteArray();
         final AuthenticateCommand command;
         try {
@@ -141,7 +196,7 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
         state = State.AUTHENTICATING;
         try {
             authenticationExecutor.execute(() -> authenticateOffEventLoop(
-                    context, envelope.getRequestId(), command));
+                    context, envelope.getRequestId(), payload.getUsername(), command));
         } catch (RejectedExecutionException exception) {
             command.close();
             recordSaturated();
@@ -154,7 +209,10 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
     }
 
     private void authenticateOffEventLoop(
-            ChannelHandlerContext context, String requestId, AuthenticateCommand command) {
+            ChannelHandlerContext context,
+            String requestId,
+            String presentedUsername,
+            AuthenticateCommand command) {
         final AuthenticationResult result;
         try (command) {
             result = authentication.authenticate(command);
@@ -165,11 +223,17 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
             }, null);
             return;
         }
-        schedule(context, () -> completeAuthentication(context, requestId, result), result);
+        schedule(
+                context,
+                () -> completeAuthentication(context, requestId, presentedUsername, result),
+                result);
     }
 
     private void completeAuthentication(
-            ChannelHandlerContext context, String requestId, AuthenticationResult result) {
+            ChannelHandlerContext context,
+            String requestId,
+            String presentedUsername,
+            AuthenticationResult result) {
         if (state != State.AUTHENTICATING || !context.channel().isActive()) {
             closeResult(result);
             return;
@@ -190,6 +254,7 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
         }
 
         AuthenticationResult.Established established = (AuthenticationResult.Established) result;
+        recordAdmissionSuccess(presentedUsername);
         try (IssuedSession session = established.session()) {
             ByteString resumeToken = session.resumeToken().withCopy(ByteString::copyFrom);
             context.channel().attr(V2ConnectionAttributes.AUTHENTICATED).set(
@@ -334,6 +399,30 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
         } catch (RuntimeException ignored) {
             // Diagnostics must not replace the bounded admission response.
         }
+    }
+
+    private void recordAdmissionDenied(AuthenticationLimitDimension dimension) {
+        try {
+            events.admissionDenied(dimension);
+        } catch (RuntimeException ignored) {
+            // Diagnostics must not replace the bounded admission response.
+        }
+    }
+
+    private void recordAdmissionSuccess(String presentedUsername) {
+        try {
+            admission.recordSuccess(presentedUsername);
+        } catch (RuntimeException ignored) {
+            // A verified login remains valid if ephemeral limiter cleanup fails.
+        }
+    }
+
+    private static String directPeer(ChannelHandlerContext context) {
+        SocketAddress remote = context.channel().remoteAddress();
+        if (remote instanceof InetSocketAddress address && address.getAddress() != null) {
+            return address.getAddress().getHostAddress();
+        }
+        return "<unknown>";
     }
 
     private static void schedule(

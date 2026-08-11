@@ -106,9 +106,16 @@ binding. Expiry closes with WebSocket status 1008 and the fixed reason
 and disconnect cancel their scheduled tasks. Deployment durations remain
 explicit configuration and are not defined by the short virtual-time tests.
 
+Before password copying or worker submission, the single-process gateway
+applies cumulative fixed-window limits to total attempts, the resolved direct
+socket peer, and a normalized account key. Key maps are bounded and fail closed
+at capacity. A verified login clears only its account bucket. Denials use the
+same generic `RATE_LIMITED` payload and expose neither limiting key. Forwarded
+headers are not trusted; multi-gateway coordination remains an M5 Redis concern.
+
 These messages are not allowed on a production route until WSS, origin policy,
-account/IP/gateway rate limits, redaction, token rotation, authenticated idle
-policy, and listener lifecycle are implemented and verified.
+metrics/log export, trusted-proxy policy, redaction, token rotation,
+authenticated idle policy, and listener lifecycle are implemented and verified.
 
 ## Compatibility rules
 

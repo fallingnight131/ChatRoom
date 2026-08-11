@@ -276,6 +276,51 @@ class V2AuthenticationHandlerTest {
         }
     }
 
+    @Test
+    void deniesAccountLimitedWorkBeforeCopyingOrDispatchingCredentials() throws Exception {
+        RecordingEvents events = new RecordingEvents();
+        AuthenticationAdmissionControl admission = new AuthenticationAdmissionControl() {
+            @Override
+            public AuthenticationAdmissionDecision acquire(
+                    String directPeer, String presentedUsername) {
+                assertEquals("<unknown>", directPeer);
+                assertEquals("alice", presentedUsername);
+                return AuthenticationAdmissionDecision.deny(
+                        AuthenticationLimitDimension.ACCOUNT, 1_234);
+            }
+
+            @Override
+            public void recordSuccess(String presentedUsername) {
+                throw new AssertionError("denied authentication cannot succeed");
+            }
+        };
+        Clock clock = Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC);
+        EmbeddedChannel channel = new EmbeddedChannel(new V2AuthenticationHandler(
+                command -> {
+                    throw new AssertionError("denied work must not reach authentication");
+                },
+                Runnable::run,
+                admission,
+                events,
+                clock));
+        channel.attr(V2ConnectionAttributes.NEGOTIATED_CLIENT).set(
+                new ClientDescriptor("client-device-1", ClientPlatform.WEB, "0.1.0"));
+        try {
+            channel.writeInbound(authenticateEnvelope(validAuthentication()));
+            Envelope envelope = channel.readOutbound();
+            AuthenticationRejected rejection = AuthenticationRejected.parseFrom(
+                    envelope.getPayload());
+            assertEquals(
+                    AuthenticationRejectionReason.AUTHENTICATION_REJECTION_REASON_RATE_LIMITED,
+                    rejection.getReason());
+            assertEquals(1_234, rejection.getRetryAfterMs());
+            assertEquals(AuthenticationLimitDimension.ACCOUNT, events.deniedDimension);
+            assertFalse(channel.isActive());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
     private static EmbeddedChannel channel(
             AuthenticationUseCase useCase, RecordingEvents events) {
         Clock clock = Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC);
@@ -336,6 +381,7 @@ class V2AuthenticationHandlerTest {
         private int failed;
         private int saturated;
         private boolean upgradePending;
+        private AuthenticationLimitDimension deniedDimension;
 
         @Override
         public void accepted(boolean credentialUpgradePending) {
@@ -356,6 +402,11 @@ class V2AuthenticationHandlerTest {
         @Override
         public void saturated() {
             saturated++;
+        }
+
+        @Override
+        public void admissionDenied(AuthenticationLimitDimension dimension) {
+            deniedDimension = dimension;
         }
     }
 }
