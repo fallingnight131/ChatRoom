@@ -629,6 +629,14 @@ void ChatWindow::connectSignals() {
     connect(net, &NetworkManager::friendListReceived,     this, &ChatWindow::onFriendListReceived);
     connect(net, &NetworkManager::friendPendingReceived,  this, &ChatWindow::onFriendPendingReceived);
     connect(net, &NetworkManager::friendChatMessageReceived, this, &ChatWindow::onFriendChatMessage);
+    connect(net, &NetworkManager::friendChatSendResponse, this,
+            [this](const QJsonObject &data) {
+                if (!data["success"].toBool()) {
+                    QMessageBox::warning(this, QStringLiteral("发送失败"),
+                                         data["error"].toString(
+                                             QStringLiteral("好友消息发送失败")));
+                }
+            });
     connect(net, &NetworkManager::friendHistoryReceived,  this, &ChatWindow::onFriendHistoryReceived);
     connect(net, &NetworkManager::friendFileNotify,       this, &ChatWindow::onFriendFileNotify);
     connect(net, &NetworkManager::friendOnlineNotify,     this, &ChatWindow::onFriendOnlineNotify);
@@ -1137,12 +1145,8 @@ void ChatWindow::onSendMessage() {
     if (m_isFriendChat) {
         // 好友私聊模式
         if (m_currentFriendUsername.isEmpty()) return;
-        QJsonObject data;
-        data["friendUsername"] = m_currentFriendUsername;
-        data["content"]       = text;
-        data["contentType"]   = QStringLiteral("text");
         NetworkManager::instance()->sendMessage(
-            Protocol::makeMessage(Protocol::MsgType::FRIEND_CHAT_MSG, data));
+            Protocol::makeFriendChatMsg(m_currentFriendUsername, text));
         m_inputEdit->clear();
         return;
     }
@@ -2606,12 +2610,8 @@ void ChatWindow::onMessageContextMenu(const QPoint &pos) {
                     }
 
                     for (const QString &uname : targetFriends) {
-                        QJsonObject data;
-                        data["friendUsername"] = uname;
-                        data["content"] = msg.content();
-                        data["contentType"] = ct;
                         NetworkManager::instance()->sendMessage(
-                            Protocol::makeMessage(Protocol::MsgType::FRIEND_CHAT_MSG, data));
+                            Protocol::makeFriendChatMsg(uname, msg.content(), ct));
                         ++forwardedCount;
                     }
                 }
@@ -4011,6 +4011,8 @@ void ChatWindow::onFriendChatMessage(const QJsonObject &data) {
     msg.setSenderName(senderName);
     msg.setContent(content);
     msg.setTimestamp(data["timestamp"].toVariant().toLongLong());
+    msg.setSequence(data["sequence"].toVariant().toLongLong());
+    msg.setClientMessageId(data["clientMessageId"].toString());
     msg.setIsMine(sender == m_username);
 
     if (contentType == "text")
@@ -4057,6 +4059,8 @@ void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
         msg.setSenderName(msgObj["senderName"].toString());
         msg.setContent(msgObj["content"].toString());
         msg.setTimestamp(msgObj["timestamp"].toVariant().toLongLong());
+        msg.setSequence(msgObj["sequence"].toVariant().toLongLong());
+        msg.setClientMessageId(msgObj["clientMessageId"].toString());
         msg.setIsMine(msgObj["sender"].toString() == m_username);
         msg.setRecalled(msgObj["recalled"].toBool(false));
 

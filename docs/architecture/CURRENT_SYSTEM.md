@@ -96,18 +96,21 @@ multi-device.
    session.
 
 The compatible V1 extension supports `clientMessageId`, durable acceptance,
-per-room sequence, and `afterSequence` history resume for room text/emoji
-messages. It does not yet give the same guarantees to direct/file messages or
-replay recall/delete events.
+per-room/per-friendship sequence, and `afterSequence` history resume for room
+and direct text/emoji messages. It does not yet give the same guarantees to
+file messages or replay recall/delete events.
 
 ### Direct message
 
-1. Server resolves and verifies the friendship.
-2. Server synchronously inserts a `friend_messages` row.
-3. Server echoes the committed message to the sender.
-4. Server sends it to the recipient only when that username has an online
+1. `FriendMessageService` resolves and verifies the friendship and command.
+2. Server transactionally allocates a per-friendship sequence and inserts the
+   row, or recovers the original result for an exact retry.
+3. Server returns `FRIEND_CHAT_SEND_RSP` with stable ID and sequence.
+4. Only a newly committed message is echoed to the sender.
+5. Server sends it to the recipient only when that username has an online
    session.
-5. Offline presentation later derives from message history and read pointers.
+6. Offline presentation later derives from sequence-capable history and read
+   pointers.
 
 ### File
 
@@ -149,8 +152,8 @@ These are recorded for prioritization, not silently fixed by this baseline:
    Web client keeps reconnect credentials only in page memory, but plaintext
    TCP/WS remains possible and V1 has no revocable device/refresh sessions.
 3. **Room password storage:** room passwords are stored and compared as plaintext.
-4. **Reliability semantics:** room text/emoji retries are idempotent and have
-   sequence resume, but direct/file sends can still duplicate and recall/delete
+4. **Reliability semantics:** room and direct text/emoji retries are idempotent
+   and have sequence resume, but file sends can still duplicate and recall/delete
    events have no replay sequence.
 5. **Central blocking path:** WebSocket parsing, business handlers, synchronous
    SQL, and fan-out coordination share the central application thread.
@@ -186,6 +189,8 @@ restarted schemas converge.
 - `Tests/v1_room_message_reliability_test.py` covers room acceptance,
   idempotent/conflicting retry, sequence resume, restart, partial migration,
   deleted-high-watermark monotonicity, and structured outcome monitoring.
+- `Tests/v1_friend_message_reliability_test.py` covers the equivalent direct
+  text/emoji guarantees plus explicit non-friend denial.
 - `CHATROOM_DISABLE_IMAGE_THUMBNAILS` is defined only by the headless test target;
   it skips server-side `QImage` thumbnail generation so the core smoke binary
   does not require QtGui. Client-provided thumbnail fallback and the production

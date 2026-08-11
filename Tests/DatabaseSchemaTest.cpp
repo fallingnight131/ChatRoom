@@ -89,6 +89,7 @@ bool readSchema(const QString &connectionName,
             QStringLiteral("room_avatars"),
             QStringLiteral("friend_requests"),
             QStringLiteral("friendships"),
+            QStringLiteral("friendship_message_sequences"),
             QStringLiteral("friend_messages"),
             QStringLiteral("friend_files"),
         };
@@ -200,7 +201,10 @@ int main(int argc, char *argv[]) {
                          {QStringLiteral("cleared"), QStringLiteral("clear_reason"),
                           QStringLiteral("cleared_at"), QStringLiteral("cos_url")});
     ok &= requireColumns(firstStart, QStringLiteral("friend_messages"),
-                         {QStringLiteral("file_cleared"), QStringLiteral("clear_reason")});
+                         {QStringLiteral("file_cleared"), QStringLiteral("clear_reason"),
+                          QStringLiteral("sequence"), QStringLiteral("client_message_id")});
+    ok &= requireColumns(firstStart, QStringLiteral("friendship_message_sequences"),
+                         {QStringLiteral("friendship_id"), QStringLiteral("last_sequence")});
     ok &= requireColumns(firstStart, QStringLiteral("friend_files"),
                          {QStringLiteral("cleared"), QStringLiteral("clear_reason"),
                           QStringLiteral("cleared_at"), QStringLiteral("cos_url")});
@@ -221,6 +225,9 @@ int main(int argc, char *argv[]) {
         {QStringLiteral("plan_friend_unread"),
          {QStringLiteral("SELECT COUNT(*) FROM friend_messages WHERE friendship_id = 1 AND id > 0"),
           QStringLiteral("idx_friend_messages_friendship_id_id")}},
+        {QStringLiteral("plan_friend_sequence_sync"),
+         {QStringLiteral("SELECT id FROM friend_messages WHERE friendship_id = 1 AND sequence > 0 ORDER BY sequence LIMIT 50"),
+          QStringLiteral("idx_friend_messages_friendship_sequence")}},
         {QStringLiteral("plan_room_files"),
          {QStringLiteral("SELECT id FROM files WHERE room_id = 1 AND cleared = 0 ORDER BY created_at, id"),
           QStringLiteral("idx_files_room_active")}},

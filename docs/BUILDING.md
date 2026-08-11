@@ -127,8 +127,12 @@ password.
 
 A sixth suite verifies V1 room-message durable acceptance, duplicate and
 conflicting retries, old-client envelope compatibility, authorization failure,
-per-room sequence resume, process restart, interrupted sequence backfill, and
-deleted-high-watermark monotonicity plus structured messaging outcome counters.
+per-room sequence resume, process restart, interrupted sequence backfill,
+deleted-high-watermark monotonicity, and structured messaging outcome counters.
+
+A seventh suite applies the same retry/conflict, authorization, restart,
+partial-migration, high-watermark, and ordered-resume checks to friend
+text/emoji messages.
 
 CI runs the same smoke test on Ubuntu 24.04 after installing Qt Base, Qt SQLite,
 Qt WebSockets, and libsodium development packages.

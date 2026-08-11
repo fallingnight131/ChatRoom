@@ -5,10 +5,12 @@
       "journal_mode=WAL"
     ],
     "engine": "SQLite",
-    "explicit_index_count": 11,
+    "explicit_index_count": 13,
     "explicit_indexes": [
       "idx_files_room_active",
       "idx_friend_messages_friendship_id_id",
+      "idx_friend_messages_friendship_sequence",
+      "idx_friend_messages_sender_client_id",
       "idx_friend_msg_time",
       "idx_friend_requests_pair",
       "idx_friend_requests_recipient",
@@ -19,12 +21,13 @@
       "idx_msg_room_time",
       "idx_room_members_user"
     ],
-    "table_count": 14,
+    "table_count": 15,
     "tables": [
       "files",
       "friend_files",
       "friend_messages",
       "friend_requests",
+      "friendship_message_sequences",
       "friendships",
       "messages",
       "room_admins",
@@ -44,7 +47,7 @@
     "default_websocket_port": 9528,
     "heartbeat_interval_ms": 30000,
     "heartbeat_timeout_ms": 90000,
-    "message_type_count": 121,
+    "message_type_count": 122,
     "message_types": [
       "LOGIN_REQ",
       "LOGIN_RSP",
@@ -153,6 +156,7 @@
       "FRIEND_PENDING_REQ",
       "FRIEND_PENDING_RSP",
       "FRIEND_CHAT_MSG",
+      "FRIEND_CHAT_SEND_RSP",
       "FRIEND_HISTORY_REQ",
       "FRIEND_HISTORY_RSP",
       "FRIEND_FILE_SEND",
@@ -227,15 +231,15 @@
   "sources": {
     "database_schema": {
       "path": "Server/DatabaseManager.cpp",
-      "sha256": "163121bbdbdf505ae8474fcf34b4211d2d3c7e1cbeee10b92efb31e1fd077023"
+      "sha256": "0f82ede0ee3135dbac1919380510c81ee38606d89a8c835f320723fab09530a2"
     },
     "protocol": {
       "path": "Common/Protocol.h",
-      "sha256": "8d44acea26b7f45708ff67eb8a17198108660e2f820a0e8ca6eb4e27208b9c4c"
+      "sha256": "c4e5f64f455aff3a2a36f604e601b410451b1e6fd8d0deaddf9bdc45b6bb8837"
     },
     "server_dispatch": {
       "path": "Server/ChatServer.cpp",
-      "sha256": "d1552ad12a6ba01eced9b025630250db39ccb8b13e9a398e895951b5d4df8870"
+      "sha256": "b0ab175548f781a97a515ae5192ff3113196733cbb86a24b04d1426257932a06"
     }
   }
 }

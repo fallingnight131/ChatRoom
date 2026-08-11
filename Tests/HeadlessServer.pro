@@ -22,6 +22,7 @@ SOURCES += \
     ../Server/AuthenticationAbuseGuard.cpp \
     ../Server/ChatServer.cpp \
     ../Server/ClientSession.cpp \
+    ../Server/FriendMessageService.cpp \
     ../Server/InputValidator.cpp \
     ../Server/RoomMessageService.cpp \
     ../Server/DatabaseManager.cpp \
@@ -35,6 +36,7 @@ HEADERS += \
     ../Server/AuthenticationAbuseGuard.h \
     ../Server/ChatServer.h \
     ../Server/ClientSession.h \
+    ../Server/FriendMessageService.h \
     ../Server/InputValidator.h \
     ../Server/RoomMessageService.h \
     ../Server/DatabaseManager.h \

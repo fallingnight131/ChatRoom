@@ -98,10 +98,17 @@ Run `python3 tools/m0_inventory.py --check` to detect table/index inventory drif
 `friend_messages`
 
 - friendship ID and sender ID;
+- nullable sender `client_message_id` and per-friendship `sequence`;
 - content and string content type;
 - file metadata and recall state;
 - file-cleared state and reason;
 - thumbnail and creation timestamp.
+
+`friendship_message_sequences`
+
+- one durable high-watermark row per friendship;
+- shares the room-sequence migration/allocation algorithm and does not move
+  backwards after physical deletion.
 
 `friend_files`
 
@@ -119,6 +126,10 @@ Run `python3 tools/m0_inventory.py --check` to detect table/index inventory drif
 - `idx_friend_msg_time` on `friend_messages(friendship_id, created_at)`;
 - `idx_friend_messages_friendship_id_id` on
   `friend_messages(friendship_id, id)`;
+- unique partial `idx_friend_messages_friendship_sequence` on
+  `friend_messages(friendship_id, sequence)`;
+- unique partial `idx_friend_messages_sender_client_id` on
+  `friend_messages(sender_id, client_message_id)`;
 - `idx_room_members_user` on `room_members(user_id, room_id)`;
 - `idx_files_room_active` on `files(room_id, cleared, created_at, id)`;
 - `idx_friend_requests_recipient` on
@@ -149,6 +160,7 @@ erDiagram
     users ||--o{ friend_requests : participates
     users ||--o{ friendships : participates
     friendships ||--o{ friend_messages : contains
+    friendships ||--o| friendship_message_sequences : sequences
     friendships ||--o{ friend_files : owns
 ```
 
@@ -170,15 +182,16 @@ Observed order:
    order, then create/raise durable room high-watermarks and unique indexes;
 4. add the room read pointer;
 5. create friend request, friendship, direct-message, and friend-file tables;
-6. add friendship read pointers after the friendship table exists;
+6. add friendship read pointers, direct reliable-message columns, sequence
+   backfill/high-watermarks, and unique indexes after friendships exist;
 7. expire old files;
 8. mark the manager initialized after the full schema path completes.
 
 `Tests/DatabaseSchemaTest.cpp` verifies that a clean first initialization has all
-required migrated columns/table, passes `PRAGMA integrity_check`, uses the room
-sequence index for resume, and produces the same schema after a simulated
-restart. The V1 reliability integration test also inserts an intentionally null
-sequence and proves startup resumes that partial migration.
+required migrated columns/tables, passes `PRAGMA integrity_check`, uses both
+room and friend sequence indexes for resume, and produces the same schema after
+a simulated restart. The V1 reliability integration tests also insert
+intentionally null sequences and prove startup resumes those partial migrations.
 
 ## Retention
 

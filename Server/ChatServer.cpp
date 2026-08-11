@@ -84,7 +84,8 @@ ChatServer::ChatServer(QObject *parent)
       m_db(new DatabaseManager(this)),
       m_roomMgr(new RoomManager(this)),
       m_cos(new CosManager(this)),
-      m_roomMessageService(m_db) {}
+      m_roomMessageService(m_db),
+      m_friendMessageService(m_db) {}
 
 ChatServer::~ChatServer() {
     stopServer();
@@ -95,6 +96,9 @@ bool ChatServer::startServer(quint16 port, quint16 wsPort, quint16 httpPort) {
     m_roomMessagesAccepted = 0;
     m_roomMessagesDuplicate = 0;
     m_roomMessagesRejected = 0;
+    m_friendMessagesAccepted = 0;
+    m_friendMessagesDuplicate = 0;
+    m_friendMessagesRejected = 0;
     const AuthenticationAbuseGuard::Limits authLimits = m_authAbuseGuard.limits();
     qInfo().noquote()
         << QStringLiteral("[AuthAbuse] configured windowMs=%1 gatewayLimit=%2 ipLimit=%3 accountLimit=%4 maxTrackedKeys=%5")
@@ -537,6 +541,35 @@ void ChatServer::recordRoomMessageOutcome(RoomMessageService::Status status,
                    .arg(m_roomMessagesAccepted)
                    .arg(m_roomMessagesDuplicate)
                    .arg(m_roomMessagesRejected);
+    }
+}
+
+void ChatServer::recordFriendMessageOutcome(FriendMessageService::Status status,
+                                            int userId, int friendshipId) {
+    QString outcome;
+    if (status == FriendMessageService::Status::Accepted) {
+        ++m_friendMessagesAccepted;
+        outcome = QStringLiteral("accepted");
+    } else if (status == FriendMessageService::Status::Duplicate) {
+        ++m_friendMessagesDuplicate;
+        outcome = QStringLiteral("duplicate");
+    } else {
+        ++m_friendMessagesRejected;
+        outcome = QStringLiteral("rejected");
+    }
+
+    const quint64 total = m_friendMessagesAccepted + m_friendMessagesDuplicate +
+                          m_friendMessagesRejected;
+    if (total == 1 || (total & (total - 1)) == 0 ||
+        status != FriendMessageService::Status::Accepted) {
+        qInfo().noquote()
+            << QStringLiteral("[Messaging] friend-send outcome=%1 userId=%2 friendshipId=%3 acceptedTotal=%4 duplicateTotal=%5 rejectedTotal=%6")
+                   .arg(outcome)
+                   .arg(userId)
+                   .arg(friendshipId)
+                   .arg(m_friendMessagesAccepted)
+                   .arg(m_friendMessagesDuplicate)
+                   .arg(m_friendMessagesRejected);
     }
 }
 
@@ -3380,38 +3413,60 @@ void ChatServer::handleFriendPending(ClientSession *session) {
 void ChatServer::handleFriendChatMessage(ClientSession *session, const QJsonObject &msg) {
     if (!session->isAuthenticated()) return;
 
-    QJsonObject data = msg["data"].toObject();
-    QString friendUsername = data["friendUsername"].toString();
-    QString content       = data["content"].toString();
-    QString contentType   = data["contentType"].toString("text");
+    const QJsonObject data = msg["data"].toObject();
+    const QString friendUsername = data["friendUsername"].toString();
+    const QString content = data["content"].toString();
+    const QString contentType = data["contentType"].toString("text");
+    const QString clientMessageId = data["clientMessageId"].toString().isEmpty()
+                                        ? msg["id"].toString()
+                                        : data["clientMessageId"].toString();
 
-    QString validationError;
-    if (!InputValidator::validateMessage(content, contentType, &validationError)) {
-        qWarning().noquote() << QStringLiteral("[Input] rejected category=friend-message userId=%1")
-                                    .arg(session->userId());
-        return;
+    FriendMessageService::Command command;
+    command.senderId = session->userId();
+    command.friendUsername = friendUsername;
+    command.clientMessageId = clientMessageId;
+    command.content = content;
+    command.contentType = contentType;
+    const FriendMessageService::Result result = m_friendMessageService.submit(command);
+    recordFriendMessageOutcome(result.status, session->userId(), result.friendshipId);
+
+    const bool accepted = result.status == FriendMessageService::Status::Accepted;
+    const bool duplicate = result.status == FriendMessageService::Status::Duplicate;
+    QJsonObject responseData;
+    responseData["success"] = accepted || duplicate;
+    responseData["friendUsername"] = friendUsername;
+    if (!clientMessageId.isEmpty() && clientMessageId.toUtf8().size() <= 128)
+        responseData["clientMessageId"] = clientMessageId;
+    if (accepted || duplicate) {
+        responseData["friendshipId"] = result.friendshipId;
+        responseData["id"] = result.messageId;
+        responseData["sequence"] = static_cast<double>(result.sequence);
+        responseData["timestamp"] = static_cast<double>(result.createdAtMs);
+        responseData["duplicate"] = duplicate;
+    } else {
+        responseData["errorCode"] = result.errorCode;
+        responseData["error"] = result.error;
+        qWarning().noquote()
+            << QStringLiteral("[Messaging] friend-send rejected userId=%1 friendshipId=%2 code=%3")
+                   .arg(session->userId())
+                   .arg(result.friendshipId)
+                   .arg(result.errorCode);
     }
+    session->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::FRIEND_CHAT_SEND_RSP, responseData));
+    if (!accepted) return;
 
-    int friendId = m_db->getUserIdByName(friendUsername);
-    if (friendId < 0) return;
-
-    int friendshipId = m_db->getFriendshipId(session->userId(), friendId);
-    if (friendshipId < 0) return; // 不是好友
-
-    // 保存消息
-    int msgId = m_db->saveFriendMessage(friendshipId, session->userId(), content, contentType);
-    if (msgId < 0) return;
-
-    // 构建消息
     QJsonObject chatData;
-    chatData["id"]           = msgId;
-    chatData["friendshipId"] = friendshipId;
+    chatData["id"]           = result.messageId;
+    chatData["friendshipId"] = result.friendshipId;
+    chatData["sequence"]     = static_cast<double>(result.sequence);
+    chatData["clientMessageId"] = clientMessageId;
     chatData["sender"]       = session->username();
     chatData["senderName"]   = session->displayName();
     chatData["friendUsername"] = friendUsername;
     chatData["content"]      = content;
     chatData["contentType"]  = contentType;
-    chatData["timestamp"]    = QDateTime::currentMSecsSinceEpoch();
+    chatData["timestamp"]    = static_cast<double>(result.createdAtMs);
 
     QJsonObject chatMsg = Protocol::makeMessage(Protocol::MsgType::FRIEND_CHAT_MSG, chatData);
 
@@ -3427,20 +3482,50 @@ void ChatServer::handleFriendHistory(ClientSession *session, const QJsonObject &
 
     QString friendUsername = data["friendUsername"].toString();
     int count = InputValidator::boundedHistoryCount(data["count"].toInt(50));
-    qint64 before = static_cast<qint64>(data["before"].toDouble(0));
-
-    int friendId = m_db->getUserIdByName(friendUsername);
-    if (friendId < 0) return;
-
-    int friendshipId = m_db->getFriendshipId(session->userId(), friendId);
-    if (friendshipId < 0) return;
-
-    QJsonArray messages = m_db->getFriendMessageHistory(friendshipId, count, before);
+    const qint64 before = static_cast<qint64>(data["before"].toDouble(0));
+    const bool sequenceMode = data.contains("afterSequence");
+    const qint64 afterSequence = static_cast<qint64>(data["afterSequence"].toDouble(0));
 
     QJsonObject rspData;
     rspData["friendUsername"] = friendUsername;
+    if (sequenceMode && afterSequence < 0) {
+        rspData["success"] = false;
+        rspData["errorCode"] = QStringLiteral("INVALID_SEQUENCE_CURSOR");
+        rspData["error"] = QStringLiteral("消息序列游标无效");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_HISTORY_RSP, rspData));
+        return;
+    }
+
+    int friendId = m_db->getUserIdByName(friendUsername);
+    int friendshipId = friendId > 0 ? m_db->getFriendshipId(session->userId(), friendId) : -1;
+    if (friendshipId < 0) {
+        rspData["success"] = false;
+        rspData["errorCode"] = QStringLiteral("FRIENDSHIP_ACCESS_DENIED");
+        rspData["error"] = QStringLiteral("无权读取该会话历史");
+        session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_HISTORY_RSP, rspData));
+        return;
+    }
+
+    QJsonArray messages = sequenceMode
+                              ? m_db->getFriendMessageHistoryAfterSequence(
+                                    friendshipId, count, afterSequence)
+                              : m_db->getFriendMessageHistory(friendshipId, count, before);
+
+    rspData["success"] = true;
     rspData["friendshipId"]  = friendshipId;
     rspData["messages"]      = messages;
+    if (sequenceMode) {
+        const qint64 lastSequence = m_db->getFriendshipLastMessageSequence(friendshipId);
+        qint64 nextSequence = afterSequence;
+        if (!messages.isEmpty())
+            nextSequence = static_cast<qint64>(messages.last().toObject()["sequence"].toDouble());
+        const bool hasMore = nextSequence < lastSequence;
+        if (!hasMore) nextSequence = lastSequence;
+        rspData["mode"] = QStringLiteral("sequence");
+        rspData["nextSequence"] = static_cast<double>(nextSequence);
+        rspData["lastSequence"] = static_cast<double>(lastSequence);
+        rspData["hasMore"] = hasMore;
+    }
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FRIEND_HISTORY_RSP, rspData));
 }
 

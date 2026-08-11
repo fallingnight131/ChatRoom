@@ -101,25 +101,32 @@ bool markExpiredFiles(QSqlDatabase &db,
     return true;
 }
 
-bool reserveRoomSequence(QSqlDatabase &db, int roomId, qint64 *sequence) {
+bool reserveMessageSequence(QSqlDatabase &db,
+                            const QString &sequenceTable,
+                            const QString &ownerColumn,
+                            int ownerId,
+                            qint64 *sequence) {
     QSqlQuery select(db);
-    select.prepare("SELECT last_sequence FROM room_message_sequences WHERE room_id = ?");
-    select.addBindValue(roomId);
+    select.prepare(QStringLiteral("SELECT last_sequence FROM %1 WHERE %2 = ?")
+                       .arg(sequenceTable, ownerColumn));
+    select.addBindValue(ownerId);
     if (!select.exec()) return false;
 
     if (select.next()) {
         *sequence = select.value(0).toLongLong() + 1;
         QSqlQuery update(db);
-        update.prepare("UPDATE room_message_sequences SET last_sequence = ? WHERE room_id = ?");
+        update.prepare(QStringLiteral("UPDATE %1 SET last_sequence = ? WHERE %2 = ?")
+                           .arg(sequenceTable, ownerColumn));
         update.addBindValue(*sequence);
-        update.addBindValue(roomId);
+        update.addBindValue(ownerId);
         return update.exec() && update.numRowsAffected() == 1;
     }
 
     *sequence = 1;
     QSqlQuery insert(db);
-    insert.prepare("INSERT INTO room_message_sequences (room_id, last_sequence) VALUES (?, ?)");
-    insert.addBindValue(roomId);
+    insert.prepare(QStringLiteral("INSERT INTO %1 (%2, last_sequence) VALUES (?, ?)")
+                       .arg(sequenceTable, ownerColumn));
+    insert.addBindValue(ownerId);
     insert.addBindValue(*sequence);
     return insert.exec();
 }
@@ -163,6 +170,39 @@ QJsonArray roomMessagesFromQuery(QSqlQuery &query, int roomId) {
     return messages;
 }
 
+QJsonArray friendMessagesFromQuery(QSqlQuery &query, int friendshipId) {
+    QJsonArray messages;
+    while (query.next()) {
+        QJsonObject message;
+        message["id"] = query.value(0).toInt();
+        message["content"] = query.value(1).toString();
+        message["contentType"] = query.value(2).toString();
+        message["fileName"] = query.value(3).toString();
+        message["fileSize"] = static_cast<double>(query.value(4).toLongLong());
+        const int rawFileId = query.value(5).toInt();
+        message["fileId"] = rawFileId > 0 ? -rawFileId : 0;
+        message["recalled"] = query.value(6).toInt() != 0;
+        message["timestamp"] = utcTimestampMs(query.value(7));
+        message["sender"] = query.value(8).toString();
+        const QString displayName = query.value(9).toString();
+        message["senderName"] = displayName.isEmpty()
+                                    ? message["sender"].toString()
+                                    : displayName;
+        message["friendshipId"] = friendshipId;
+        const QString thumbnail = query.value(10).toString();
+        if (!thumbnail.isEmpty()) message["thumbnail"] = thumbnail;
+        if (query.value(11).toInt() != 0) {
+            message["fileCleared"] = true;
+            message["clearReason"] = query.value(12).toString();
+        }
+        message["sequence"] = static_cast<double>(query.value(13).toLongLong());
+        const QString clientMessageId = query.value(14).toString();
+        if (!clientMessageId.isEmpty()) message["clientMessageId"] = clientMessageId;
+        messages.append(message);
+    }
+    return messages;
+}
+
 bool ensureColumn(QSqlDatabase &db, const QString &table,
                   const QString &column, const QString &definition) {
     QSqlQuery columns(db);
@@ -174,6 +214,108 @@ bool ensureColumn(QSqlDatabase &db, const QString &table,
     QSqlQuery alter(db);
     return alter.exec(QStringLiteral("ALTER TABLE %1 ADD COLUMN %2 %3")
                           .arg(table, column, definition));
+}
+
+bool migrateMessageSequences(QSqlDatabase &db,
+                             const QString &messageTable,
+                             const QString &ownerColumn,
+                             const QString &sequenceTable,
+                             const QString &sequenceOwnerColumn) {
+    QHash<int, qint64> lastSequences;
+    QSqlQuery durable(db);
+    if (!durable.exec(QStringLiteral("SELECT %1, last_sequence FROM %2")
+                          .arg(sequenceOwnerColumn, sequenceTable))) {
+        qCritical() << "[DB] 读取持久化消息序列失败:" << messageTable
+                    << durable.lastError().text();
+        return false;
+    }
+    while (durable.next())
+        lastSequences.insert(durable.value(0).toInt(), durable.value(1).toLongLong());
+    durable.finish();
+
+    QSqlQuery maxima(db);
+    if (!maxima.exec(QStringLiteral(
+            "SELECT %1, COALESCE(MAX(sequence), 0) FROM %2 GROUP BY %1")
+                         .arg(ownerColumn, messageTable))) {
+        qCritical() << "[DB] 读取消息最大序列失败:" << messageTable
+                    << maxima.lastError().text();
+        return false;
+    }
+    while (maxima.next()) {
+        const int ownerId = maxima.value(0).toInt();
+        lastSequences.insert(ownerId, qMax(lastSequences.value(ownerId, 0),
+                                            maxima.value(1).toLongLong()));
+    }
+    maxima.finish();
+
+    QSqlQuery missing(db);
+    if (!missing.exec(QStringLiteral(
+            "SELECT id, %1 FROM %2 WHERE sequence IS NULL ORDER BY %1, id")
+                          .arg(ownerColumn, messageTable))) {
+        qCritical() << "[DB] 读取待迁移消息失败:" << messageTable
+                    << missing.lastError().text();
+        return false;
+    }
+    QList<QPair<int, int>> rows;
+    while (missing.next())
+        rows.append(qMakePair(missing.value(0).toInt(), missing.value(1).toInt()));
+    missing.finish();
+
+    if (!db.transaction()) {
+        qCritical() << "[DB] 开启消息序列迁移事务失败:" << messageTable
+                    << db.lastError().text();
+        return false;
+    }
+
+    QSqlQuery updateMessage(db);
+    updateMessage.prepare(QStringLiteral(
+        "UPDATE %1 SET sequence = ? WHERE id = ? AND sequence IS NULL")
+                              .arg(messageTable));
+    for (const auto &row : rows) {
+        const qint64 next = lastSequences.value(row.second, 0) + 1;
+        lastSequences.insert(row.second, next);
+        updateMessage.bindValue(0, next);
+        updateMessage.bindValue(1, row.first);
+        if (!updateMessage.exec() || updateMessage.numRowsAffected() != 1) {
+            qCritical() << "[DB] 回填消息序列失败:" << messageTable
+                        << updateMessage.lastError().text();
+            db.rollback();
+            return false;
+        }
+    }
+
+    QSqlQuery insertHighWatermark(db);
+    insertHighWatermark.prepare(QStringLiteral(
+        "INSERT OR IGNORE INTO %1 (%2, last_sequence) VALUES (?, ?)")
+                                    .arg(sequenceTable, sequenceOwnerColumn));
+    QSqlQuery updateHighWatermark(db);
+    updateHighWatermark.prepare(QStringLiteral(
+        "UPDATE %1 SET last_sequence = MAX(last_sequence, ?) WHERE %2 = ?")
+                                    .arg(sequenceTable, sequenceOwnerColumn));
+    for (auto it = lastSequences.cbegin(); it != lastSequences.cend(); ++it) {
+        insertHighWatermark.bindValue(0, it.key());
+        insertHighWatermark.bindValue(1, it.value());
+        if (!insertHighWatermark.exec()) {
+            qCritical() << "[DB] 创建消息高水位失败:" << sequenceTable
+                        << insertHighWatermark.lastError().text();
+            db.rollback();
+            return false;
+        }
+        updateHighWatermark.bindValue(0, it.value());
+        updateHighWatermark.bindValue(1, it.key());
+        if (!updateHighWatermark.exec() || updateHighWatermark.numRowsAffected() != 1) {
+            qCritical() << "[DB] 更新消息高水位失败:" << sequenceTable
+                        << updateHighWatermark.lastError().text();
+            db.rollback();
+            return false;
+        }
+    }
+    if (!db.commit()) {
+        qCritical() << "[DB] 提交消息序列迁移失败:" << messageTable
+                    << db.lastError().text();
+        return false;
+    }
+    return true;
 }
 }
 
@@ -301,92 +443,13 @@ bool DatabaseManager::initialize() {
         return false;
     }
 
-    // Expand/migrate: deterministically assign existing messages a stable,
-    // per-room sequence before the uniqueness constraint is installed. Start
-    // from the durable high watermark as it may be higher than MAX(sequence)
-    // after physical administration deletes.
-    {
-        QHash<int, qint64> lastSequences;
-        QSqlQuery durable(db);
-        if (!durable.exec("SELECT room_id, last_sequence FROM room_message_sequences")) {
-            qCritical() << "[DB] 读取持久化消息序列失败:" << durable.lastError().text();
-            return false;
-        }
-        while (durable.next())
-            lastSequences.insert(durable.value(0).toInt(), durable.value(1).toLongLong());
-        durable.finish();
-
-        QSqlQuery maxima(db);
-        if (!maxima.exec("SELECT room_id, COALESCE(MAX(sequence), 0) FROM messages GROUP BY room_id")) {
-            qCritical() << "[DB] 读取房间消息序列失败:" << maxima.lastError().text();
-            return false;
-        }
-        while (maxima.next()) {
-            const int roomId = maxima.value(0).toInt();
-            lastSequences.insert(roomId, qMax(lastSequences.value(roomId, 0),
-                                               maxima.value(1).toLongLong()));
-        }
-        maxima.finish();
-
-        QSqlQuery missing(db);
-        if (!missing.exec("SELECT id, room_id FROM messages WHERE sequence IS NULL ORDER BY room_id, id")) {
-            qCritical() << "[DB] 读取待迁移消息失败:" << missing.lastError().text();
-            return false;
-        }
-        QList<QPair<int, int>> rows;
-        while (missing.next())
-            rows.append(qMakePair(missing.value(0).toInt(), missing.value(1).toInt()));
-        missing.finish();
-
-        if (!db.transaction()) {
-            qCritical() << "[DB] 开启消息序列迁移事务失败:" << db.lastError().text();
-            return false;
-        }
-        if (!rows.isEmpty()) {
-            QSqlQuery update(db);
-            update.prepare("UPDATE messages SET sequence = ? WHERE id = ? AND sequence IS NULL");
-            for (const auto &row : rows) {
-                const qint64 next = lastSequences.value(row.second, 0) + 1;
-                lastSequences.insert(row.second, next);
-                update.bindValue(0, next);
-                update.bindValue(1, row.first);
-                if (!update.exec() || update.numRowsAffected() != 1) {
-                    qCritical() << "[DB] 回填消息序列失败:" << update.lastError().text();
-                    db.rollback();
-                    return false;
-                }
-            }
-        }
-
-        QSqlQuery insertHighWatermark(db);
-        insertHighWatermark.prepare(
-            "INSERT OR IGNORE INTO room_message_sequences (room_id, last_sequence) VALUES (?, ?)");
-        QSqlQuery updateHighWatermark(db);
-        updateHighWatermark.prepare(
-            "UPDATE room_message_sequences "
-            "SET last_sequence = MAX(last_sequence, ?) WHERE room_id = ?");
-        for (auto it = lastSequences.cbegin(); it != lastSequences.cend(); ++it) {
-            insertHighWatermark.bindValue(0, it.key());
-            insertHighWatermark.bindValue(1, it.value());
-            if (!insertHighWatermark.exec()) {
-                qCritical() << "[DB] 创建房间消息高水位失败:"
-                            << insertHighWatermark.lastError().text();
-                db.rollback();
-                return false;
-            }
-            updateHighWatermark.bindValue(0, it.value());
-            updateHighWatermark.bindValue(1, it.key());
-            if (!updateHighWatermark.exec() || updateHighWatermark.numRowsAffected() != 1) {
-                qCritical() << "[DB] 更新房间消息高水位失败:"
-                            << updateHighWatermark.lastError().text();
-                db.rollback();
-                return false;
-            }
-        }
-        if (!db.commit()) {
-            qCritical() << "[DB] 提交消息序列迁移失败:" << db.lastError().text();
-            return false;
-        }
+    // Expand/migrate deterministically from the durable high watermark. This is
+    // restart-safe and never reuses a sequence removed by administration.
+    if (!migrateMessageSequences(db, QStringLiteral("messages"),
+                                 QStringLiteral("room_id"),
+                                 QStringLiteral("room_message_sequences"),
+                                 QStringLiteral("room_id"))) {
+        return false;
     }
 
     // 消息索引
@@ -574,6 +637,37 @@ bool DatabaseManager::initialize() {
 
     q.exec("ALTER TABLE friend_messages ADD COLUMN file_cleared INTEGER DEFAULT 0");
     q.exec("ALTER TABLE friend_messages ADD COLUMN clear_reason TEXT DEFAULT ''");
+    if (!ensureColumn(db, QStringLiteral("friend_messages"),
+                      QStringLiteral("client_message_id"),
+                      QStringLiteral("TEXT DEFAULT NULL")) ||
+        !ensureColumn(db, QStringLiteral("friend_messages"),
+                      QStringLiteral("sequence"),
+                      QStringLiteral("INTEGER DEFAULT NULL"))) {
+        qCritical() << "[DB] 扩展私聊可靠消息列失败:" << db.lastError().text();
+        return false;
+    }
+    if (!q.exec("CREATE TABLE IF NOT EXISTS friendship_message_sequences ("
+                "  friendship_id INTEGER PRIMARY KEY,"
+                "  last_sequence INTEGER NOT NULL DEFAULT 0,"
+                "  FOREIGN KEY (friendship_id) REFERENCES friendships(id) ON DELETE CASCADE"
+                ")")) {
+        qCritical() << "[DB] 创建私聊消息序列表失败:" << q.lastError().text();
+        return false;
+    }
+    if (!migrateMessageSequences(db, QStringLiteral("friend_messages"),
+                                 QStringLiteral("friendship_id"),
+                                 QStringLiteral("friendship_message_sequences"),
+                                 QStringLiteral("friendship_id"))) {
+        return false;
+    }
+    if (!q.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_friend_messages_friendship_sequence "
+                "ON friend_messages(friendship_id, sequence) WHERE sequence IS NOT NULL") ||
+        !q.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_friend_messages_sender_client_id "
+                "ON friend_messages(sender_id, client_message_id) "
+                "WHERE client_message_id IS NOT NULL AND client_message_id <> ''")) {
+        qCritical() << "[DB] 创建私聊可靠消息唯一索引失败:" << q.lastError().text();
+        return false;
+    }
 
     // 好友文件表
     q.exec("CREATE TABLE IF NOT EXISTS friend_files ("
@@ -1065,7 +1159,8 @@ int DatabaseManager::saveMessage(int roomId, int userId, const QString &content,
     }
 
     qint64 sequence = 0;
-    if (!reserveRoomSequence(db, roomId, &sequence)) {
+    if (!reserveMessageSequence(db, QStringLiteral("room_message_sequences"),
+                                QStringLiteral("room_id"), roomId, &sequence)) {
         qWarning() << "[DB] 分配房间消息序列失败:" << db.lastError().text();
         db.rollback();
         return -1;
@@ -1094,10 +1189,10 @@ int DatabaseManager::saveMessage(int roomId, int userId, const QString &content,
     return -1;
 }
 
-RoomMessageSaveResult DatabaseManager::saveRoomMessageIdempotent(
+MessageSaveResult DatabaseManager::saveRoomMessageIdempotent(
     int roomId, int userId, const QString &clientMessageId,
     const QString &content, const QString &contentType) {
-    RoomMessageSaveResult result;
+    MessageSaveResult result;
     QSqlDatabase db = getConnection();
     if (!db.transaction()) {
         qWarning() << "[DB] 开启幂等消息事务失败:" << db.lastError().text();
@@ -1121,13 +1216,15 @@ RoomMessageSaveResult DatabaseManager::saveRoomMessageIdempotent(
         const bool sameCommand = existing.value(1).toInt() == roomId &&
                                  existing.value(2).toString() == content &&
                                  existing.value(3).toString() == contentType;
-        result.status = sameCommand ? RoomMessageSaveResult::Status::Duplicate
-                                    : RoomMessageSaveResult::Status::Conflict;
-        if (!db.commit()) result.status = RoomMessageSaveResult::Status::Failed;
+        result.status = sameCommand ? MessageSaveResult::Status::Duplicate
+                                    : MessageSaveResult::Status::Conflict;
+        if (!db.commit()) result.status = MessageSaveResult::Status::Failed;
         return result;
     }
 
-    if (!reserveRoomSequence(db, roomId, &result.sequence)) {
+    if (!reserveMessageSequence(db, QStringLiteral("room_message_sequences"),
+                                QStringLiteral("room_id"), roomId,
+                                &result.sequence)) {
         qWarning() << "[DB] 分配幂等消息序列失败:" << db.lastError().text();
         db.rollback();
         return result;
@@ -1156,14 +1253,14 @@ RoomMessageSaveResult DatabaseManager::saveRoomMessageIdempotent(
     if (!created.exec() || !created.next()) {
         qWarning() << "[DB] 读取新消息时间失败:" << created.lastError().text();
         db.rollback();
-        return RoomMessageSaveResult{};
+        return MessageSaveResult{};
     }
     result.createdAtMs = utcTimestampMs(created.value(0));
     if (!db.commit()) {
         qWarning() << "[DB] 提交幂等消息失败:" << db.lastError().text();
-        return RoomMessageSaveResult{};
+        return MessageSaveResult{};
     }
-    result.status = RoomMessageSaveResult::Status::Created;
+    result.status = MessageSaveResult::Status::Created;
     return result;
 }
 
@@ -2149,9 +2246,17 @@ int DatabaseManager::saveFriendMessage(int friendshipId, int senderId, const QSt
                                        const QString &fileName, qint64 fileSize, int fileId,
                                        const QString &thumbnail) {
     QSqlDatabase db = getConnection();
+    if (!db.transaction()) return -1;
+    qint64 sequence = 0;
+    if (!reserveMessageSequence(db, QStringLiteral("friendship_message_sequences"),
+                                QStringLiteral("friendship_id"), friendshipId,
+                                &sequence)) {
+        db.rollback();
+        return -1;
+    }
     QSqlQuery q(db);
-    q.prepare("INSERT INTO friend_messages (friendship_id, sender_id, content, content_type, file_name, file_size, file_id, thumbnail)"
-              " VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    q.prepare("INSERT INTO friend_messages (friendship_id, sender_id, content, content_type, file_name, file_size, file_id, thumbnail, sequence)"
+              " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
     q.addBindValue(friendshipId);
     q.addBindValue(senderId);
     q.addBindValue(content);
@@ -2160,8 +2265,80 @@ int DatabaseManager::saveFriendMessage(int friendshipId, int senderId, const QSt
     q.addBindValue(fileSize);
     q.addBindValue(fileId);
     q.addBindValue(thumbnail);
-    if (q.exec()) return q.lastInsertId().toInt();
+    q.addBindValue(sequence);
+    if (q.exec()) {
+        const int messageId = q.lastInsertId().toInt();
+        if (db.commit()) return messageId;
+    }
+    db.rollback();
     return -1;
+}
+
+MessageSaveResult DatabaseManager::saveFriendMessageIdempotent(
+    int friendshipId, int senderId, const QString &clientMessageId,
+    const QString &content, const QString &contentType) {
+    MessageSaveResult result;
+    QSqlDatabase db = getConnection();
+    if (!db.transaction()) return result;
+
+    QSqlQuery existing(db);
+    existing.prepare(
+        "SELECT id, friendship_id, content, content_type, sequence, created_at "
+        "FROM friend_messages WHERE sender_id = ? AND client_message_id = ?");
+    existing.addBindValue(senderId);
+    existing.addBindValue(clientMessageId);
+    if (!existing.exec()) {
+        qWarning() << "[DB] 查询私聊幂等消息失败:" << existing.lastError().text();
+        db.rollback();
+        return result;
+    }
+    if (existing.next()) {
+        result.messageId = existing.value(0).toInt();
+        result.sequence = existing.value(4).toLongLong();
+        result.createdAtMs = utcTimestampMs(existing.value(5));
+        const bool sameCommand = existing.value(1).toInt() == friendshipId &&
+                                 existing.value(2).toString() == content &&
+                                 existing.value(3).toString() == contentType;
+        result.status = sameCommand ? MessageSaveResult::Status::Duplicate
+                                    : MessageSaveResult::Status::Conflict;
+        if (!db.commit()) result.status = MessageSaveResult::Status::Failed;
+        return result;
+    }
+
+    if (!reserveMessageSequence(db, QStringLiteral("friendship_message_sequences"),
+                                QStringLiteral("friendship_id"), friendshipId,
+                                &result.sequence)) {
+        db.rollback();
+        return result;
+    }
+    QSqlQuery insert(db);
+    insert.prepare(
+        "INSERT INTO friend_messages "
+        "(friendship_id, sender_id, content, content_type, client_message_id, sequence) "
+        "VALUES (?, ?, ?, ?, ?, ?)");
+    insert.addBindValue(friendshipId);
+    insert.addBindValue(senderId);
+    insert.addBindValue(content);
+    insert.addBindValue(contentType);
+    insert.addBindValue(clientMessageId);
+    insert.addBindValue(result.sequence);
+    if (!insert.exec()) {
+        qWarning() << "[DB] 保存私聊幂等消息失败:" << insert.lastError().text();
+        db.rollback();
+        return result;
+    }
+    result.messageId = insert.lastInsertId().toInt();
+    QSqlQuery created(db);
+    created.prepare("SELECT created_at FROM friend_messages WHERE id = ?");
+    created.addBindValue(result.messageId);
+    if (!created.exec() || !created.next()) {
+        db.rollback();
+        return MessageSaveResult{};
+    }
+    result.createdAtMs = utcTimestampMs(created.value(0));
+    if (!db.commit()) return MessageSaveResult{};
+    result.status = MessageSaveResult::Status::Created;
+    return result;
 }
 
 QJsonArray DatabaseManager::getFriendMessageHistory(int friendshipId, int count, qint64 beforeTimestamp) {
@@ -2172,48 +2349,49 @@ QJsonArray DatabaseManager::getFriendMessageHistory(int friendshipId, int count,
     QString sql = "SELECT * FROM ("
                   "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id,"
                   "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail,"
-                  "       m.file_cleared, m.clear_reason"
+                  "       m.file_cleared, m.clear_reason, m.sequence, m.client_message_id"
                   " FROM friend_messages m JOIN users u ON m.sender_id = u.id"
                   " WHERE m.friendship_id = ?";
     if (beforeTimestamp > 0)
         sql += " AND m.created_at < datetime(? / 1000, 'unixepoch')";
-    sql += " ORDER BY m.created_at DESC LIMIT ?"
-           ") ORDER BY created_at ASC";
+    sql += " ORDER BY m.sequence DESC LIMIT ?"
+           ") ORDER BY sequence ASC";
 
     q.prepare(sql);
     q.addBindValue(friendshipId);
     if (beforeTimestamp > 0) q.addBindValue(beforeTimestamp);
     q.addBindValue(count);
-    q.exec();
+    if (!q.exec()) return {};
+    return friendMessagesFromQuery(q, friendshipId);
+}
 
-    QJsonArray arr;
-    while (q.next()) {
-        QJsonObject msg;
-        msg["id"]          = q.value(0).toInt();
-        msg["content"]     = q.value(1).toString();
-        msg["contentType"] = q.value(2).toString();
-        msg["fileName"]    = q.value(3).toString();
-        msg["fileSize"]    = static_cast<double>(q.value(4).toLongLong());
-        int rawFileId      = q.value(5).toInt();
-        msg["fileId"]      = rawFileId > 0 ? -rawFileId : 0;  // 负数标识好友文件
-        msg["recalled"]    = q.value(6).toInt() != 0;
-        QDateTime dt = q.value(7).toDateTime();
-        dt.setTimeSpec(Qt::UTC);
-        msg["timestamp"]   = dt.toMSecsSinceEpoch();
-        msg["sender"]      = q.value(8).toString();
-        QString dn = q.value(9).toString();
-        msg["senderName"]  = dn.isEmpty() ? msg["sender"].toString() : dn;
-        msg["friendshipId"] = friendshipId;
-        QString thumb = q.value(10).toString();
-        if (!thumb.isEmpty()) msg["thumbnail"] = thumb;
-        bool fileCleared = q.value(11).toInt() != 0;
-        if (fileCleared) {
-            msg["fileCleared"] = true;
-            msg["clearReason"] = q.value(12).toString();
-        }
-        arr.append(msg);
-    }
-    return arr;
+QJsonArray DatabaseManager::getFriendMessageHistoryAfterSequence(
+    int friendshipId, int count, qint64 afterSequence) {
+    expireStoredFiles();
+    QSqlDatabase db = getConnection();
+    QSqlQuery query(db);
+    query.prepare(
+        "SELECT m.id, m.content, m.content_type, m.file_name, m.file_size, m.file_id, "
+        "       m.recalled, m.created_at, u.username, u.display_name, m.thumbnail, "
+        "       m.file_cleared, m.clear_reason, m.sequence, m.client_message_id "
+        "FROM friend_messages m JOIN users u ON m.sender_id = u.id "
+        "WHERE m.friendship_id = ? AND m.sequence > ? "
+        "ORDER BY m.sequence ASC LIMIT ?");
+    query.addBindValue(friendshipId);
+    query.addBindValue(afterSequence);
+    query.addBindValue(count);
+    if (!query.exec()) return {};
+    return friendMessagesFromQuery(query, friendshipId);
+}
+
+qint64 DatabaseManager::getFriendshipLastMessageSequence(int friendshipId) {
+    QSqlDatabase db = getConnection();
+    QSqlQuery query(db);
+    query.prepare(
+        "SELECT last_sequence FROM friendship_message_sequences WHERE friendship_id = ?");
+    query.addBindValue(friendshipId);
+    if (!query.exec() || !query.next()) return 0;
+    return query.value(0).toLongLong();
 }
 
 int DatabaseManager::saveFriendFile(int friendshipId, int userId, const QString &fileName,

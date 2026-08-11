@@ -4,7 +4,7 @@ Status: active compatibility protocol at M0.
 
 Authoritative declaration: `Common/Protocol.h`.
 
-The machine-readable inventory records 120 declared message types and 50 message
+The machine-readable inventory records 122 declared message types and 50 message
 types explicitly dispatched from client to server. Run
 `python3 tools/m0_inventory.py --check` after changing protocol or dispatch code.
 
@@ -122,6 +122,7 @@ consumer instead of growing an unbounded queue or silently dropping the event.
 `FRIEND_REJECT_RSP`, `FRIEND_REMOVE_REQ`, `FRIEND_REMOVE_RSP`,
 `FRIEND_REMOVE_NOTIFY`, `FRIEND_LIST_REQ`, `FRIEND_LIST_RSP`,
 `FRIEND_PENDING_REQ`, `FRIEND_PENDING_RSP`, `FRIEND_CHAT_MSG`,
+`FRIEND_CHAT_SEND_RSP`,
 `FRIEND_HISTORY_REQ`, `FRIEND_HISTORY_RSP`, `FRIEND_FILE_SEND`,
 `FRIEND_FILE_NOTIFY`, `FRIEND_ONLINE_NOTIFY`, `FRIEND_OFFLINE_NOTIFY`,
 `FRIEND_FILE_UPLOAD_START`, `FRIEND_FILE_UPLOAD_START_RSP`, `MARK_FRIEND_READ`,
@@ -159,14 +160,20 @@ fails with `CLIENT_MESSAGE_ID_CONFLICT`.
 
 ### Direct chat
 
-The server resolves friendship, persists the message, and sends a server-built
-message to sender and online recipient. Offline delivery is reconstructed from
-history and last-read IDs.
+Direct text/emoji submission follows the room reliability contract with a
+sender-scoped `clientMessageId`, envelope-ID fallback, stable database `id`,
+per-friendship `sequence`, authoritative timestamp, and explicit
+`FRIEND_CHAT_SEND_RSP`. Exact retries recover the original result without a
+second insert or broadcast; conflicting reuse returns
+`CLIENT_MESSAGE_ID_CONFLICT`. Missing users and non-friends both return
+`FRIENDSHIP_ACCESS_DENIED`. Success means durable acceptance, not recipient
+delivery or read. Offline delivery is reconstructed from history and last-read
+IDs.
 
 ### History
 
 Legacy room and direct history accept a count and an optional `before`
-timestamp. Room history also supports additive sequence-resume mode:
+timestamp. Both histories also support additive sequence-resume mode:
 
 - request `afterSequence` using the last persisted cursor;
 - response messages have greater sequences in ascending order;
@@ -177,9 +184,10 @@ timestamp. Room history also supports additive sequence-resume mode:
 - a final/empty page advances to the durable high watermark so deletion gaps do
   not stall synchronization.
 
-Direct history remains timestamp pagination. Room history/member responses
-require current room membership. Counts are clamped to 100; non-positive counts
-use 50. Negative sequence cursors fail with `INVALID_SEQUENCE_CURSOR`.
+Room history/member responses require current room membership, and direct
+history requires current friendship participation. Counts are clamped to 100;
+non-positive counts use 50. Negative room sequence cursors fail with
+`INVALID_SEQUENCE_CURSOR`, as do negative direct sequence cursors.
 
 ### Read state
 

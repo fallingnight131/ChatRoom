@@ -7,7 +7,7 @@
 #include <QMutex>
 #include <QPair>
 
-struct RoomMessageSaveResult {
+struct MessageSaveResult {
     enum class Status {
         Created,
         Duplicate,
@@ -76,7 +76,7 @@ public:
                      const QString &fileName = QString(),
                      qint64 fileSize = 0, int fileId = 0,
                      const QString &thumbnail = QString());
-    RoomMessageSaveResult saveRoomMessageIdempotent(
+    MessageSaveResult saveRoomMessageIdempotent(
         int roomId, int userId, const QString &clientMessageId,
         const QString &content, const QString &contentType);
     QJsonArray getMessageHistory(int roomId, int count, qint64 beforeTimestamp = 0);
@@ -168,7 +168,13 @@ public:
                            const QString &fileName = QString(),
                            qint64 fileSize = 0, int fileId = 0,
                            const QString &thumbnail = QString());
+    MessageSaveResult saveFriendMessageIdempotent(
+        int friendshipId, int senderId, const QString &clientMessageId,
+        const QString &content, const QString &contentType);
     QJsonArray getFriendMessageHistory(int friendshipId, int count, qint64 beforeTimestamp = 0);
+    QJsonArray getFriendMessageHistoryAfterSequence(int friendshipId, int count,
+                                                    qint64 afterSequence);
+    qint64 getFriendshipLastMessageSequence(int friendshipId);
 
     // 好友消息撤回
     bool recallFriendMessage(int messageId, int userId, int timeLimitSec);

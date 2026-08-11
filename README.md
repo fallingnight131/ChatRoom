@@ -79,7 +79,7 @@ ChatRoom/
 ├── AGENTS.md             # 工程和架构演进规则
 ├── docs/                 # 权威架构、协议、数据与验证文档
 ├── Common/               # 共享协议层
-│   ├── Protocol.h        # 消息协议定义（当前 120 种消息类型）
+│   ├── Protocol.h        # 消息协议定义（当前 122 种消息类型）
 │   └── Message.h/cpp     # 消息数据模型
 ├── Server/               # 服务端（控制台程序，TCP + WebSocket 双协议）
 │   ├── ChatServer        # TCP + WebSocket 服务器
@@ -257,7 +257,7 @@ ChatServer.exe --port 8888 --ws-port 9999
 
 ## 协议概览
 
-服务端与客户端通过 JSON 消息通信，当前共声明 120 种消息类型。完整、以代码为准的清单见 [V1 协议基线](docs/protocol/V1_PROTOCOL.md)：
+服务端与客户端通过 JSON 消息通信，当前共声明 122 种消息类型。完整、以代码为准的清单见 [V1 协议基线](docs/protocol/V1_PROTOCOL.md)：
 
 | 类别 | 消息类型 |
 |------|---------|

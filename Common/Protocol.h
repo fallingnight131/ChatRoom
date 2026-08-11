@@ -184,6 +184,7 @@ namespace MsgType {
     inline const QString FRIEND_PENDING_REQ     = QStringLiteral("FRIEND_PENDING_REQ");
     inline const QString FRIEND_PENDING_RSP     = QStringLiteral("FRIEND_PENDING_RSP");
     inline const QString FRIEND_CHAT_MSG        = QStringLiteral("FRIEND_CHAT_MSG");
+    inline const QString FRIEND_CHAT_SEND_RSP   = QStringLiteral("FRIEND_CHAT_SEND_RSP");
     inline const QString FRIEND_HISTORY_REQ     = QStringLiteral("FRIEND_HISTORY_REQ");
     inline const QString FRIEND_HISTORY_RSP     = QStringLiteral("FRIEND_HISTORY_RSP");
     inline const QString FRIEND_FILE_SEND       = QStringLiteral("FRIEND_FILE_SEND");
@@ -302,6 +303,20 @@ inline QJsonObject makeChatMsg(int roomId, const QString &sender, const QString 
                                   ? QUuid::createUuid().toString(QUuid::WithoutBraces)
                                   : clientMessageId;
     return makeMessage(MsgType::CHAT_MSG, data);
+}
+
+inline QJsonObject makeFriendChatMsg(const QString &friendUsername,
+                                     const QString &content,
+                                     const QString &contentType = QStringLiteral("text"),
+                                     const QString &clientMessageId = QString()) {
+    QJsonObject data;
+    data["friendUsername"] = friendUsername;
+    data["content"] = content;
+    data["contentType"] = contentType;
+    data["clientMessageId"] = clientMessageId.isEmpty()
+                                  ? QUuid::createUuid().toString(QUuid::WithoutBraces)
+                                  : clientMessageId;
+    return makeMessage(MsgType::FRIEND_CHAT_MSG, data);
 }
 
 /// 快捷创建系统消息

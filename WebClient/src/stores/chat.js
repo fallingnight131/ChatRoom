@@ -1036,9 +1036,17 @@ export const useChatStore = defineStore('chat', {
         const chatWith = d.sender === userStore.username ? d.friendUsername : d.sender
 
         if (this.isFriendChat && this.currentFriendUsername === chatWith) {
-          this.friendMessages.push(d)
+          if (!this.friendMessages.some(existing => sameStableMessage(existing, d))) {
+            this.friendMessages.push(d)
+          }
         } else if (d.sender !== userStore.username) {
           this.friendUnread[chatWith] = (this.friendUnread[chatWith] || 0) + 1
+        }
+      })
+
+      chatWs.on(MsgType.FRIEND_CHAT_SEND_RSP, (msg) => {
+        if (!msg.data.success) {
+          this._emit('error', msg.data.error || '好友消息发送失败')
         }
       })
 
@@ -1046,7 +1054,7 @@ export const useChatStore = defineStore('chat', {
         const d = msg.data
         if (this.isFriendChat && this.currentFriendUsername === d.friendUsername) {
           const msgs = d.messages || []
-          this.friendMessages = [...msgs, ...this.friendMessages]
+          this.friendMessages = mergeUniqueMessages(this.friendMessages, msgs, { prepend: true })
         }
       })
 

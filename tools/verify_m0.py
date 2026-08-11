@@ -133,6 +133,7 @@ def verify_v1_smoke(jobs: int, build_root: Path) -> None:
         "v1_input_validation_test.py",
         "v1_authentication_abuse_test.py",
         "v1_room_message_reliability_test.py",
+        "v1_friend_message_reliability_test.py",
     ):
         run(
             [

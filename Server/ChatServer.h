@@ -10,6 +10,7 @@
 #include <QDateTime>
 
 #include "AuthenticationAbuseGuard.h"
+#include "FriendMessageService.h"
 #include "RoomMessageService.h"
 
 class QWebSocketServer;
@@ -68,6 +69,8 @@ private:
                                     const QString &responseType);
     void recordRoomMessageOutcome(RoomMessageService::Status status,
                                   int userId, int roomId);
+    void recordFriendMessageOutcome(FriendMessageService::Status status,
+                                    int userId, int friendshipId);
 
     void handleLogin(ClientSession *session, const QJsonObject &data);
     void handleRegister(ClientSession *session, const QJsonObject &data);
@@ -149,6 +152,7 @@ private:
     RoomManager     *m_roomMgr  = nullptr;
     CosManager      *m_cos      = nullptr;
     RoomMessageService m_roomMessageService;
+    FriendMessageService m_friendMessageService;
     QWebSocketServer *m_wsServer = nullptr;
     QTcpServer      *m_httpServer = nullptr;
     QTimer          *m_expireTimer = nullptr;
@@ -158,6 +162,9 @@ private:
     quint64 m_roomMessagesAccepted = 0;
     quint64 m_roomMessagesDuplicate = 0;
     quint64 m_roomMessagesRejected = 0;
+    quint64 m_friendMessagesAccepted = 0;
+    quint64 m_friendMessagesDuplicate = 0;
+    quint64 m_friendMessagesRejected = 0;
 
     mutable QMutex m_mutex;
     QMap<QString, ClientSession*> m_sessions;  // username -> session

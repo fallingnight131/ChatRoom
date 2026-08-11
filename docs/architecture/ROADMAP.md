@@ -85,6 +85,8 @@ Progress:
   `EXPLAIN QUERY PLAN` regression tests.
 - [x] Add V1-compatible idempotency, durable acceptance, stable per-room
   sequences, and bounded reconnect resume for room text/emoji messages.
+- [x] Extend idempotent submission, stable per-friendship sequences, and bounded
+  reconnect resume to direct text/emoji messages.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

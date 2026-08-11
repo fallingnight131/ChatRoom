@@ -73,6 +73,7 @@ export const MsgType = {
   FRIEND_LIST_REQ: 'FRIEND_LIST_REQ', FRIEND_LIST_RSP: 'FRIEND_LIST_RSP',
   FRIEND_PENDING_REQ: 'FRIEND_PENDING_REQ', FRIEND_PENDING_RSP: 'FRIEND_PENDING_RSP',
   FRIEND_CHAT_MSG: 'FRIEND_CHAT_MSG',
+  FRIEND_CHAT_SEND_RSP: 'FRIEND_CHAT_SEND_RSP',
   FRIEND_HISTORY_REQ: 'FRIEND_HISTORY_REQ', FRIEND_HISTORY_RSP: 'FRIEND_HISTORY_RSP',
   FRIEND_FILE_SEND: 'FRIEND_FILE_SEND', FRIEND_FILE_NOTIFY: 'FRIEND_FILE_NOTIFY',
   FRIEND_ONLINE_NOTIFY: 'FRIEND_ONLINE_NOTIFY', FRIEND_OFFLINE_NOTIFY: 'FRIEND_OFFLINE_NOTIFY',
@@ -440,12 +441,17 @@ class ChatWebSocket {
   }
 
   sendFriendChat(friendUsername, content, contentType = 'text') {
-    this.send(makeMessage(MsgType.FRIEND_CHAT_MSG, { friendUsername, content, contentType }))
+    const clientMessageId = uuid()
+    this.send(makeMessage(MsgType.FRIEND_CHAT_MSG, {
+      friendUsername, content, contentType, clientMessageId,
+    }))
+    return clientMessageId
   }
 
-  requestFriendHistory(friendUsername, count = 50, before = 0) {
+  requestFriendHistory(friendUsername, count = 50, before = 0, afterSequence = null) {
     const data = { friendUsername, count }
     if (before > 0) data.before = before
+    if (afterSequence !== null) data.afterSequence = afterSequence
     this.send(makeMessage(MsgType.FRIEND_HISTORY_REQ, data))
   }
 

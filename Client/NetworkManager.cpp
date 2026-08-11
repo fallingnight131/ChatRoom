@@ -490,6 +490,9 @@ void NetworkManager::processMessage(const QJsonObject &msg) {
     else if (type == Protocol::MsgType::FRIEND_CHAT_MSG) {
         emit friendChatMessageReceived(data);
     }
+    else if (type == Protocol::MsgType::FRIEND_CHAT_SEND_RSP) {
+        emit friendChatSendResponse(data);
+    }
     else if (type == Protocol::MsgType::FRIEND_HISTORY_RSP) {
         emit friendHistoryReceived(data);
     }

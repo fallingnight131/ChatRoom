@@ -148,6 +148,7 @@ signals:
     void friendListReceived(const QJsonArray &friends, int pendingFriendRequests);
     void friendPendingReceived(const QJsonArray &requests);
     void friendChatMessageReceived(const QJsonObject &data);
+    void friendChatSendResponse(const QJsonObject &data);
     void friendHistoryReceived(const QJsonObject &data);
     void friendFileNotify(const QJsonObject &data);
     void friendOnlineNotify(const QString &username, const QString &displayName);

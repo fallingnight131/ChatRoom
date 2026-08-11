@@ -1,14 +1,14 @@
-#include "RoomMessageService.h"
+#include "FriendMessageService.h"
 
 #include "InputValidator.h"
 
 namespace {
 constexpr int kMaxClientMessageIdBytes = 128;
 
-RoomMessageService::Result rejected(RoomMessageService::Status status,
-                                    const QString &code,
-                                    const QString &message) {
-    RoomMessageService::Result result;
+FriendMessageService::Result rejected(FriendMessageService::Status status,
+                                      const QString &code,
+                                      const QString &message) {
+    FriendMessageService::Result result;
     result.status = status;
     result.errorCode = code;
     result.error = message;
@@ -16,14 +16,22 @@ RoomMessageService::Result rejected(RoomMessageService::Status status,
 }
 }
 
-RoomMessageService::RoomMessageService(DatabaseManager *database)
+FriendMessageService::FriendMessageService(DatabaseManager *database)
     : m_database(database) {}
 
-RoomMessageService::Result RoomMessageService::submit(const Command &command) const {
-    if (!m_database || command.senderId <= 0 || command.roomId <= 0 ||
-        !m_database->isUserInRoom(command.roomId, command.senderId)) {
-        return rejected(Status::Unauthorized, QStringLiteral("ROOM_ACCESS_DENIED"),
-                        QStringLiteral("无权向该聊天室发送消息"));
+FriendMessageService::Result FriendMessageService::submit(const Command &command) const {
+    if (!m_database || command.senderId <= 0) {
+        return rejected(Status::Unauthorized, QStringLiteral("FRIENDSHIP_ACCESS_DENIED"),
+                        QStringLiteral("无权向该用户发送消息"));
+    }
+
+    const int friendId = m_database->getUserIdByName(command.friendUsername);
+    const int friendshipId = friendId > 0
+                                 ? m_database->getFriendshipId(command.senderId, friendId)
+                                 : -1;
+    if (friendshipId < 0) {
+        return rejected(Status::Unauthorized, QStringLiteral("FRIENDSHIP_ACCESS_DENIED"),
+                        QStringLiteral("无权向该用户发送消息"));
     }
 
     QString validationError;
@@ -32,18 +40,18 @@ RoomMessageService::Result RoomMessageService::submit(const Command &command) co
         return rejected(Status::Invalid, QStringLiteral("INVALID_MESSAGE"),
                         validationError);
     }
-
     if (command.clientMessageId.isEmpty() ||
         command.clientMessageId.toUtf8().size() > kMaxClientMessageIdBytes) {
         return rejected(Status::Invalid, QStringLiteral("INVALID_CLIENT_MESSAGE_ID"),
                         QStringLiteral("clientMessageId 必须为 1 到 128 字节"));
     }
 
-    const MessageSaveResult stored = m_database->saveRoomMessageIdempotent(
-        command.roomId, command.senderId, command.clientMessageId,
+    const MessageSaveResult stored = m_database->saveFriendMessageIdempotent(
+        friendshipId, command.senderId, command.clientMessageId,
         command.content, command.contentType);
 
     Result result;
+    result.friendshipId = friendshipId;
     result.messageId = stored.messageId;
     result.sequence = stored.sequence;
     result.createdAtMs = stored.createdAtMs;
