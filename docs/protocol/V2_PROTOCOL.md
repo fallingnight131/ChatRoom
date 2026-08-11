@@ -9,9 +9,11 @@ production route depends on it yet; V1 remains authoritative.
 
 The schema source is
 `Backend/protocol-v2/src/main/proto/chat/v2/envelope.proto`. Generated files are
-build output and are not edited or committed by hand. The Gradle binding task
-uses the same pinned compiler to emit Java, C++, TypeScript, and a descriptor;
-the TypeScript generator/runtime are pinned by their own npm lockfile.
+never edited by hand. Java/C++ verification output is ephemeral; the Web
+TypeScript output is committed as reviewed application source and checked for
+staleness by regeneration. The Gradle binding task uses the same pinned compiler
+to emit Java, C++, TypeScript, and a descriptor; the TypeScript generator/runtime
+are pinned by their own npm lockfile.
 
 ## Envelope v2
 
@@ -105,6 +107,17 @@ timestamps. The authenticated gateway dispatches type 110 through the same
 connection-local serial queue and isolated worker pool as message submission and
 history, using only the server-bound account identity. No supported client sends
 this pre-cutover command yet.
+
+The additive Web protocol client consumes the generated TypeScript schemas but
+does not yet own a WebSocket or replace the live V1 connection. Its fail-closed
+state machine emits bounded binary commands for hello, fresh authentication,
+directory listing, history reads, and idempotent UTF-8 text submission. It
+accepts only correlated response/error envelopes of the registered kind and
+type, validates the authenticated session and feature payload invariants, caps
+pending requests at 16, and retains the one-time resume proof only in memory.
+Password input is copied only for immediate serialization and that owned copy is
+cleared. Connection/reconnect ownership and durable resume-token storage remain
+explicitly deferred; therefore this is not a V2 traffic cutover.
 
 `ClientHello` declares a minimum/maximum protocol generation, Web or Windows
 platform, app version, and client-device ID. App version is limited to 64 UTF-8

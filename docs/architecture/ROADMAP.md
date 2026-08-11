@@ -340,6 +340,9 @@ Progress:
       the connection-local serial command queue with safe failures and telemetry.
     - [x] Publish the authoritative generated V2 TypeScript bindings into the Web
       source tree and fail compatibility verification when committed output is stale.
+    - [x] Add an unconnected Web V2 TypeScript protocol/session state machine with
+      bounded frames/requests, strict response correlation, ephemeral credentials,
+      server-session validation, and negative-path tests while V1 remains live.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

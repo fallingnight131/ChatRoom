@@ -435,9 +435,12 @@ Responsive browser layouts may serve phones or tablets, but they do not create
 native Android or iOS application support.
 
 The pinned V2 generator now publishes reviewed TypeScript bindings directly to
-the Web source tree, and the protocol gate rejects stale committed output. Live
-Web traffic remains on V1 until the additive V2 transport/session adapter and
-rollback behavior are verified.
+the Web source tree, and the protocol gate rejects stale committed output. An
+additive TypeScript protocol/session state machine now validates negotiation,
+authentication, request correlation, server-bound sessions, directory/history
+pages, and idempotent text submissions without changing the live V1 path. Live
+Web traffic remains on V1 until the WebSocket/reconnect adapter, application
+integration, and rollback behavior are verified.
 
 ### Product consistency
 
