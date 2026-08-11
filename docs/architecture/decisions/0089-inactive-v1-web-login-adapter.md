@@ -49,6 +49,9 @@ no durable device identifier, whereas Java session issuance requires one.
   `chat.v1` subprotocol and exactly one origin from the existing HTTPS allowlist.
   Reject queries, V2 paths/subprotocols, malformed upgrades, and repeated upgrade
   attempts with a fixed no-store HTTP 400. This guard remains uninstalled.
+- Add a detached upgrade adapter that independently requires the guard marker,
+  exact path, and exact negotiated subprotocol before installing the complete V1
+  application pipeline. Bound time waiting for upgrade and close on mismatch.
 
 ## Consequences
 
@@ -58,7 +61,7 @@ socket. The fixed device alias is intentionally less expressive than V2 devices
 and must not be reused for native V2 clients.
 
 Before routing is enabled, the gateway still needs a mutually exclusive V1/V2
-upgrade dispatcher, an updated V1 Web transport that requests `chat.v1`, and every
+HTTP upgrade dispatcher, an updated V1 Web transport that requests `chat.v1`, and every
 post-login command required by the supported V1 client path (or an explicit
 client capability gate that prevents entry into unsupported screens).
 
@@ -75,6 +78,8 @@ workspace gate remains required. Deterministic event-loop time tests prove the
 authentication deadline fires exactly once and is cancelled by success.
 Endpoint tests prove the exact path/subprotocol/origin success and fixed rejection
 of missing or hostile origins, queries, V2 crossover, malformed input, and repeat.
+Upgrade-adapter tests prove no application handler exists before a policy-approved
+matching handshake, mismatch closure, and bounded wait for handshake completion.
 The disposable PostgreSQL gate additionally proves the real composition accepts
 a mapped imported account, stores only the fixed V1 device alias plus hashed
 session proof, and rejects a password-valid unmapped V2-native account without

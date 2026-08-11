@@ -2,26 +2,27 @@ package com.fallingnight.chat.gateway.runtime;
 
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1AuthenticationService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1LoginService;
-import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLoginCodec;
-import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLifecycleCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AccountConnectionRegistry;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AuthenticationTimeoutHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1HeartbeatHandler;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLifecycleCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLoginCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
+import com.fallingnight.chat.gateway.compatibility.v1.V1WebSocketUpgradeHandler;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
 import com.fallingnight.chat.identity.crypto.Argon2idCredentialHasher;
 import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
 import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1AccountProjection;
+import io.netty.channel.ChannelPipeline;
+import io.netty.handler.timeout.IdleStateHandler;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.Executor;
-import javax.sql.DataSource;
-import io.netty.channel.ChannelPipeline;
-import io.netty.handler.timeout.IdleStateHandler;
 import java.util.concurrent.TimeUnit;
+import javax.sql.DataSource;
 
 /** Real V1 login composition kept detached from the product listener. */
 public final class V1CompatibilityModule {
@@ -59,7 +60,25 @@ public final class V1CompatibilityModule {
                 new V1AccountConnectionRegistry());
     }
 
-    public void installWebApplicationPipeline(
+    public V1WebSocketUpgradeHandler newWebSocketUpgradeHandler(
+            Executor authenticationExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            Duration upgradeTimeout,
+            Duration authenticationTimeout,
+            Duration authenticatedIdleTimeout) {
+        return new V1WebSocketUpgradeHandler(
+                pipeline -> installWebApplicationPipeline(
+                        pipeline,
+                        authenticationExecutor,
+                        admission,
+                        events,
+                        authenticationTimeout,
+                        authenticatedIdleTimeout),
+                upgradeTimeout);
+    }
+
+    private void installWebApplicationPipeline(
             ChannelPipeline pipeline,
             Executor authenticationExecutor,
             AuthenticationAdmissionControl admission,

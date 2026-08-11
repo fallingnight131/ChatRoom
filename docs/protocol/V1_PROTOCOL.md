@@ -111,6 +111,10 @@ the single WebSocket subprotocol `chat.v1`, one configured HTTPS Origin, and no
 query string. It is distinct from `/v2/web` + `chat.v2`; the guard is tested but
 remains outside all active listeners until routing and the required post-login
 commands are complete.
+After a future HTTP dispatcher selects that route, the detached upgrade adapter
+still requires the server-side guard marker plus the exact handshake path and
+negotiated subprotocol before it installs login, timeout, replacement, and
+heartbeat handlers. Upgrade mismatch is a fixed policy close.
 
 ### Room messages, presence, and history
 

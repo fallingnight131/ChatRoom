@@ -13,6 +13,8 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.handler.codec.http.EmptyHttpHeaders;
+import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -118,14 +120,10 @@ class GatewayRuntimePostgresIntegrationTest {
                     dataSource,
                     Clock.fixed(Instant.parse("2026-08-12T12:00:00Z"), ZoneOffset.UTC));
 
-            EmbeddedChannel imported = new EmbeddedChannel();
-            module.installWebApplicationPipeline(
-                    imported.pipeline(),
+            EmbeddedChannel imported = upgradedChannel(module,
                     Runnable::run,
                     AuthenticationAdmissionControl.allowAll(),
-                    AuthenticationEventSink.noop(),
-                    java.time.Duration.ofSeconds(15),
-                    java.time.Duration.ofSeconds(90));
+                    AuthenticationEventSink.noop());
             try {
                 imported.writeInbound(loginFrame("imported-v1", "java-v2-test-password"));
                 imported.runPendingTasks();
@@ -145,14 +143,10 @@ class GatewayRuntimePostgresIntegrationTest {
                 imported.finishAndReleaseAll();
             }
 
-            EmbeddedChannel nativeV2 = new EmbeddedChannel();
-            module.installWebApplicationPipeline(
-                    nativeV2.pipeline(),
+            EmbeddedChannel nativeV2 = upgradedChannel(module,
                     Runnable::run,
                     AuthenticationAdmissionControl.allowAll(),
-                    AuthenticationEventSink.noop(),
-                    java.time.Duration.ofSeconds(15),
-                    java.time.Duration.ofSeconds(90));
+                    AuthenticationEventSink.noop());
             try {
                 nativeV2.writeInbound(loginFrame("native-v2", "java-v2-test-password"));
                 nativeV2.runPendingTasks();
@@ -168,6 +162,27 @@ class GatewayRuntimePostgresIntegrationTest {
                 nativeV2.finishAndReleaseAll();
             }
         }
+    }
+
+    private static EmbeddedChannel upgradedChannel(
+            V1CompatibilityModule module,
+            java.util.concurrent.Executor executor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events) {
+        EmbeddedChannel channel = new EmbeddedChannel(module.newWebSocketUpgradeHandler(
+                executor,
+                admission,
+                events,
+                java.time.Duration.ofSeconds(10),
+                java.time.Duration.ofSeconds(15),
+                java.time.Duration.ofSeconds(90)));
+        channel.attr(V1ConnectionAttributes.WEB_UPGRADE_ACCEPTED).set(true);
+        channel.pipeline().fireUserEventTriggered(
+                new WebSocketServerProtocolHandler.HandshakeComplete(
+                        "/v1/web",
+                        EmptyHttpHeaders.INSTANCE,
+                        "chat.v1"));
+        return channel;
     }
 
     private static TextWebSocketFrame loginFrame(String username, String password) {
