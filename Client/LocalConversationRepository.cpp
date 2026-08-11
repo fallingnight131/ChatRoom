@@ -172,7 +172,10 @@ LocalConversationRepository::Snapshot LocalConversationRepository::loadSnapshot(
         fail(QStringLiteral("loadSnapshot"), conversation.lastError().text());
         return snapshot;
     }
-    if (!conversation.next()) return snapshot;
+    if (!conversation.next()) {
+        m_lastError.clear();
+        return snapshot;
+    }
     snapshot.cursor = conversation.value(0).toLongLong();
     snapshot.draft = conversation.value(1).toString();
 
@@ -259,6 +262,55 @@ bool LocalConversationRepository::pruneConversations(
     return true;
 }
 
+bool LocalConversationRepository::copyAccountTo(
+    LocalConversationRepository &target, const QString &sourceAccount,
+    const QString &targetAccount) {
+    if (sourceAccount.isEmpty() || targetAccount.isEmpty()
+        || !m_database.isOpen() || !target.m_database.isOpen()) {
+        return fail(QStringLiteral("copyAccountTo"),
+                    QStringLiteral("source/target repository or account is invalid"));
+    }
+
+    struct ConversationRef { Kind kind; QString key; };
+    QList<ConversationRef> conversations;
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "SELECT kind, conversation_key FROM conversations WHERE account = ?"));
+    query.addBindValue(sourceAccount);
+    if (!query.exec()) return fail(QStringLiteral("copyAccountTo"), query.lastError().text());
+    while (query.next()) {
+        const QString storedKind = query.value(0).toString();
+        if (storedKind != QStringLiteral("room") && storedKind != QStringLiteral("direct"))
+            return fail(QStringLiteral("copyAccountTo"),
+                        QStringLiteral("unknown conversation kind: %1").arg(storedKind));
+        conversations.append({storedKind == QStringLiteral("room") ? Kind::Room : Kind::Direct,
+                              query.value(1).toString()});
+    }
+    query.finish();
+
+    for (const ConversationRef &conversation : conversations) {
+        const Snapshot snapshot = loadSnapshot(sourceAccount, conversation.kind,
+                                               conversation.key);
+        if (!m_lastError.isEmpty()) return false;
+        QList<Message> migratedMessages = snapshot.messages;
+        for (Message &message : migratedMessages) {
+            if (message.sender() == sourceAccount)
+                message.setSender(targetAccount);
+        }
+        if (!target.replaceMessages(targetAccount, conversation.kind,
+                                    conversation.key, migratedMessages,
+                                    snapshot.cursor)) {
+            return fail(QStringLiteral("copyAccountTo"), target.lastError());
+        }
+        if (!target.saveDraft(targetAccount, conversation.kind,
+                              conversation.key, snapshot.draft)) {
+            return fail(QStringLiteral("copyAccountTo"), target.lastError());
+        }
+    }
+    m_lastError.clear();
+    return true;
+}
+
 QString LocalConversationRepository::kindValue(Kind kind) {
     return kind == Kind::Room ? QStringLiteral("room") : QStringLiteral("direct");
 }
@@ -276,6 +328,7 @@ QByteArray LocalConversationRepository::serializeMessage(const Message &message)
     QJsonObject envelope = message.toJson();
     QJsonObject data = envelope["data"].toObject();
     data.remove(QStringLiteral("imageData"));
+    data.remove(QStringLiteral("thumbnail"));
     envelope["data"] = data;
     return QJsonDocument(envelope).toJson(QJsonDocument::Compact);
 }

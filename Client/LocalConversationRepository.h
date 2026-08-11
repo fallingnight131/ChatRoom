@@ -40,6 +40,9 @@ public:
                             const QString &conversationKey);
     bool pruneConversations(const QString &account, Kind kind,
                             const QSet<QString> &allowedConversationKeys);
+    bool copyAccountTo(LocalConversationRepository &target,
+                       const QString &sourceAccount,
+                       const QString &targetAccount);
 
     QString lastError() const { return m_lastError; }
 

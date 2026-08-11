@@ -152,8 +152,10 @@ object cleanup is an idempotent post-commit compensation.
   account-isolated SQLite cache for bounded message metadata, cursors, and
   drafts. `ChatWindow` now hydrates room snapshots before requesting history,
   persists authoritative live/history/recall/deletion changes, resumes from the
-  durable room cursor, and evicts inaccessible rooms. Direct conversations,
-  composer drafts, and pending sends are still memory-backed.
+  durable room cursor, and evicts inaccessible rooms. Direct conversations now
+  use the same cached-render, durable-cursor, mutation, relationship-eviction,
+  and account/peer rename behavior. Composer drafts and pending sends are still
+  memory-backed.
 - The current checked-in project is primarily exercised on Windows.
 
 ### Web

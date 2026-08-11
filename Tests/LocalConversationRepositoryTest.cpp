@@ -21,6 +21,7 @@ Message makeMessage(int id, qint64 sequence, qint64 timestamp) {
     message.setTimestamp(timestamp);
     message.setSenderName(QStringLiteral("Alice"));
     message.setClientMessageId(QStringLiteral("client-%1").arg(id));
+    message.setThumbnail(QStringLiteral("base64-thumbnail-bytes"));
     return message;
 }
 }
@@ -58,6 +59,8 @@ int main(int argc, char *argv[]) {
             !check(snapshot.messages.last().id() == 520, QStringLiteral("wrong bounded last message")) ||
             !check(snapshot.messages.last().senderName() == QStringLiteral("Alice"),
                    QStringLiteral("sender name not restored")) ||
+            !check(snapshot.messages.last().thumbnail().isEmpty(),
+                   QStringLiteral("thumbnail bytes leaked into metadata cache")) ||
             !check(snapshot.cursor == 520, QStringLiteral("cursor not restored")) ||
             !check(snapshot.draft.size() == LocalConversationRepository::MaxDraftLength,
                    QStringLiteral("draft bound not enforced"))) return 1;
@@ -97,6 +100,31 @@ int main(int argc, char *argv[]) {
         if (!check(repository.loadSnapshot(QStringLiteral("bob"),
                   LocalConversationRepository::Kind::Room, QStringLiteral("7"))
                   .messages.size() == 1, QStringLiteral("prune crossed account boundary"))) return 1;
+
+        if (!check(repository.replaceMessages(QStringLiteral("alice"),
+                  LocalConversationRepository::Kind::Direct, QStringLiteral("carol"),
+                  {makeMessage(901, 8, 9100)}, 8), repository.lastError()) ||
+            !check(repository.saveDraft(QStringLiteral("alice"),
+                  LocalConversationRepository::Kind::Direct, QStringLiteral("carol"),
+                  QStringLiteral("unloaded draft")), repository.lastError())) return 1;
+
+        const QString copiedPath = directory.filePath(QStringLiteral("copied.sqlite"));
+        LocalConversationRepository copied(copiedPath);
+        if (!check(copied.initialize(), copied.lastError()) ||
+            !check(repository.copyAccountTo(copied, QStringLiteral("alice"),
+                                            QStringLiteral("alice-renamed")),
+                   repository.lastError())) return 1;
+        const auto copiedDirect = copied.loadSnapshot(
+            QStringLiteral("alice-renamed"), LocalConversationRepository::Kind::Direct,
+            QStringLiteral("carol"));
+        if (!check(copiedDirect.messages.size() == 1 && copiedDirect.messages.first().id() == 901,
+                   QStringLiteral("account copy lost unloaded messages")) ||
+            !check(copiedDirect.messages.first().sender() == QStringLiteral("alice-renamed"),
+                   QStringLiteral("account copy did not remap sender identity")) ||
+            !check(copiedDirect.cursor == 8,
+                   QStringLiteral("account copy lost cursor")) ||
+            !check(copiedDirect.draft == QStringLiteral("unloaded draft"),
+                   QStringLiteral("account copy lost draft"))) return 1;
     }
 
     const QString futurePath = directory.filePath(QStringLiteral("future.sqlite"));

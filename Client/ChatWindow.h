@@ -224,6 +224,9 @@ private:
     void requestCurrentRoomResume();
     void persistRoomSnapshot(int roomId);
     void removeCachedRoom(int roomId);
+    void persistFriendSnapshot(const QString &friendUsername);
+    void removeCachedFriend(const QString &friendUsername);
+    QString friendConversationKey(const QString &friendUsername) const;
     void advanceFriendSyncCursor(const QString &friendUsername, qint64 sequence);
     void requestCurrentFriendResume();
     void requestRoomList();
@@ -317,6 +320,7 @@ private:
     int     m_currentFriendshipId = -1;          // 当前 friendshipId
     QMap<QString, MessageModel*> m_friendModels; // friendUsername -> MessageModel
     QMap<QString, qint64> m_friendSyncCursors;
+    QMap<QString, int> m_friendshipIds;
     QJsonArray m_friendData;                     // 好友列表数据缓存
 
     // 未读消息计数

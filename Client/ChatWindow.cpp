@@ -1250,14 +1250,46 @@ void ChatWindow::advanceFriendSyncCursor(const QString &friendUsername, qint64 s
         m_friendSyncCursors[friendUsername] = sequence;
 }
 
+void ChatWindow::persistFriendSnapshot(const QString &friendUsername) {
+    if (!m_localRepository || m_username.isEmpty()
+        || friendUsername.isEmpty() || !m_friendModels.contains(friendUsername)) return;
+    if (!m_localRepository->replaceMessages(
+            m_username, LocalConversationRepository::Kind::Direct,
+            friendConversationKey(friendUsername),
+            m_friendModels.value(friendUsername)->messages(),
+            m_friendSyncCursors.value(friendUsername, 0))) {
+        qWarning().noquote() << QStringLiteral(
+            "[LocalStore] operation=persist-direct outcome=degraded peer=%1 detail=%2")
+            .arg(friendUsername, m_localRepository->lastError());
+    }
+}
+
+void ChatWindow::removeCachedFriend(const QString &friendUsername) {
+    m_friendSyncCursors.remove(friendUsername);
+    if (!m_localRepository || m_username.isEmpty() || friendUsername.isEmpty()) return;
+    if (!m_localRepository->removeConversation(
+            m_username, LocalConversationRepository::Kind::Direct,
+            friendConversationKey(friendUsername))) {
+        qWarning().noquote() << QStringLiteral(
+            "[LocalStore] operation=remove-direct outcome=degraded peer=%1 detail=%2")
+            .arg(friendUsername, m_localRepository->lastError());
+    }
+}
+
+QString ChatWindow::friendConversationKey(const QString &friendUsername) const {
+    const int friendshipId = m_friendshipIds.value(friendUsername, 0);
+    return friendshipId > 0 ? QString::number(friendshipId)
+                            : QStringLiteral("peer:%1").arg(friendUsername);
+}
+
 void ChatWindow::requestCurrentFriendResume() {
     if (!m_isFriendChat || m_currentFriendUsername.isEmpty()) return;
-    MessageModel *model = getOrCreateFriendModel(m_currentFriendUsername);
+    getOrCreateFriendModel(m_currentFriendUsername);
     const qint64 cursor = m_friendSyncCursors.value(m_currentFriendUsername, 0);
-    if (model->rowCount() > 0 && cursor > 0) {
+    if (cursor > 0) {
         NetworkManager::instance()->sendMessage(
             Protocol::makeFriendHistoryAfterSequenceReq(m_currentFriendUsername, cursor));
-    } else if (model->rowCount() == 0) {
+    } else {
         QJsonObject data;
         data["friendUsername"] = m_currentFriendUsername;
         data["count"] = 50;
@@ -3658,6 +3690,10 @@ void ChatWindow::onNicknameChangeNotify(int roomId, const QString &username, con
         it.value()->updateSenderName(username, newDisplayName);
         persistRoomSnapshot(it.key());
     }
+    for (auto it = m_friendModels.begin(); it != m_friendModels.end(); ++it) {
+        it.value()->updateSenderName(username, newDisplayName);
+        persistFriendSnapshot(it.key());
+    }
 }
 
 // ==================== 修改用户ID ====================
@@ -3679,11 +3715,18 @@ void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const 
         for (auto it = m_models.begin(); it != m_models.end(); ++it) {
             it.value()->updateSenderUid(oldUid, newUid);
         }
+        for (auto it = m_friendModels.begin(); it != m_friendModels.end(); ++it) {
+            it.value()->updateSenderUid(oldUid, newUid);
+        }
 
         // uniqueId 是本地库隔离键：先将已加载快照写入新账号库，再切换句柄。
         auto newRepository = std::make_unique<LocalConversationRepository>(
             LocalConversationRepository::defaultDatabasePath(newUid));
         bool migrated = newRepository->initialize();
+        if (migrated && m_localRepository) {
+            migrated = m_localRepository->copyAccountTo(
+                *newRepository, oldUid, newUid);
+        }
         if (migrated) {
             for (auto it = m_models.cbegin(); it != m_models.cend(); ++it) {
                 if (!newRepository->replaceMessages(
@@ -3694,17 +3737,32 @@ void ChatWindow::onChangeUidResponse(bool success, const QString &oldUid, const 
                     break;
                 }
             }
+            for (auto it = m_friendModels.cbegin();
+                 migrated && it != m_friendModels.cend(); ++it) {
+                if (!newRepository->replaceMessages(
+                        newUid, LocalConversationRepository::Kind::Direct,
+                        friendConversationKey(it.key()), it.value()->messages(),
+                        m_friendSyncCursors.value(it.key(), 0))) {
+                    migrated = false;
+                }
+            }
         }
         if (migrated) {
             if (m_localRepository) {
                 m_localRepository->pruneConversations(
                     oldUid, LocalConversationRepository::Kind::Room, QSet<QString>{});
+                m_localRepository->pruneConversations(
+                    oldUid, LocalConversationRepository::Kind::Direct, QSet<QString>{});
             }
             m_localRepository = std::move(newRepository);
         } else {
+            const QString migrationError = !newRepository->lastError().isEmpty()
+                ? newRepository->lastError()
+                : (m_localRepository ? m_localRepository->lastError()
+                                     : QStringLiteral("repository unavailable"));
             qWarning().noquote() << QStringLiteral(
                 "[LocalStore] operation=migrate-account outcome=degraded detail=%1")
-                .arg(newRepository->lastError());
+                .arg(migrationError);
             m_localRepository.reset();
             m_statusLabel->setText(QStringLiteral("本地消息缓存迁移失败，已切换为在线模式"));
         }
@@ -3742,6 +3800,10 @@ void ChatWindow::onUidChangeNotify(int roomId, const QString &oldUid, const QStr
     for (auto it = m_models.begin(); it != m_models.end(); ++it) {
         it.value()->updateSenderUid(oldUid, newUid);
         persistRoomSnapshot(it.key());
+    }
+    for (auto it = m_friendModels.begin(); it != m_friendModels.end(); ++it) {
+        it.value()->updateSenderUid(oldUid, newUid);
+        persistFriendSnapshot(it.key());
     }
 }
 
@@ -4155,10 +4217,13 @@ void ChatWindow::onFriendRejectResponse(bool success, const QString &error) {
 
 void ChatWindow::onFriendRemoveResponse(bool success, const QString &username, const QString &error) {
     if (success) {
+        removeCachedFriend(username);
         m_statusLabel->setText(QString("已删除好友 %1").arg(username));
         // 如果当前正在和这个好友聊天，切回房间模式
         if (m_isFriendChat && m_currentFriendUsername == username)
             switchToRoomMode();
+        if (m_friendModels.contains(username)) delete m_friendModels.take(username);
+        m_friendshipIds.remove(username);
         onRefreshFriendList();
     } else {
         QMessageBox::warning(this, "删除好友", error);
@@ -4166,22 +4231,43 @@ void ChatWindow::onFriendRemoveResponse(bool success, const QString &username, c
 }
 
 void ChatWindow::onFriendRemoveNotify(const QString &username, const QString &displayName) {
+    removeCachedFriend(username);
     m_statusLabel->setText(QString("%1 已将你从好友列表移除").arg(displayName.isEmpty() ? username : displayName));
     // 如果当前正在和这个好友聊天，切回房间模式
     if (m_isFriendChat && m_currentFriendUsername == username)
         switchToRoomMode();
+    if (m_friendModels.contains(username)) delete m_friendModels.take(username);
+    m_friendshipIds.remove(username);
     onRefreshFriendList();
 }
 
 void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFriendRequests) {
+    QMap<int, QString> previousFriendById;
+    for (const QJsonValue &value : m_friendData) {
+        const QJsonObject previous = value.toObject();
+        const int friendshipId = previous["friendshipId"].toInt();
+        if (friendshipId > 0)
+            previousFriendById.insert(friendshipId, previous["username"].toString());
+    }
     m_friendData = friends;
     m_friendList->clear();
     m_friendUnread.clear();
     m_hasPendingFriendReq = (pendingFriendRequests > 0);
+    QSet<QString> allowedFriendUsernames;
+    QSet<QString> allowedConversationKeys;
+    QMap<QString, QString> renamedFriends;
+    m_friendshipIds.clear();
 
     for (const QJsonValue &v : friends) {
         QJsonObject fr = v.toObject();
         QString username = fr["username"].toString();
+        const int friendshipId = fr["friendshipId"].toInt();
+        allowedFriendUsernames.insert(username);
+        if (friendshipId > 0) m_friendshipIds.insert(username, friendshipId);
+        allowedConversationKeys.insert(friendConversationKey(username));
+        const QString previousUsername = previousFriendById.value(friendshipId);
+        if (!previousUsername.isEmpty() && previousUsername != username)
+            renamedFriends.insert(previousUsername, username);
         QString displayName = fr["displayName"].toString();
         bool isOnline = fr["isOnline"].toBool();
         int unread = fr["unread"].toInt(0);
@@ -4194,7 +4280,7 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFrie
         auto *item = new QListWidgetItem(label);
         item->setData(Qt::UserRole,     username);
         item->setData(Qt::UserRole + 1, displayName);
-        item->setData(Qt::UserRole + 2, fr["friendshipId"].toInt());
+        item->setData(Qt::UserRole + 2, friendshipId);
         item->setForeground(isOnline ? QColor("#4CAF50") : QColor("#999"));
 
         // 头像：优先使用缓存，否则显示默认头像
@@ -4205,6 +4291,77 @@ void ChatWindow::onFriendListReceived(const QJsonArray &friends, int pendingFrie
         }
 
         m_friendList->addItem(item);
+    }
+
+    for (auto it = renamedFriends.cbegin(); it != renamedFriends.cend(); ++it) {
+        const QString oldUsername = it.key();
+        const QString newUsername = it.value();
+        if (m_friendModels.contains(oldUsername) && !m_friendModels.contains(newUsername)) {
+            MessageModel *model = m_friendModels.take(oldUsername);
+            model->updateSenderUid(oldUsername, newUsername);
+            m_friendModels.insert(newUsername, model);
+            const qint64 cursor = m_friendSyncCursors.take(oldUsername);
+            if (cursor > 0) m_friendSyncCursors.insert(newUsername, cursor);
+            persistFriendSnapshot(newUsername);
+        }
+        if (m_isFriendChat && m_currentFriendUsername == oldUsername)
+            m_currentFriendUsername = newUsername;
+    }
+    if (m_isFriendChat && !m_currentFriendUsername.isEmpty()) {
+        for (const QJsonValue &value : friends) {
+            const QJsonObject current = value.toObject();
+            if (current["username"].toString() != m_currentFriendUsername) continue;
+            m_currentFriendDisplayName = current["displayName"].toString();
+            m_currentFriendshipId = current["friendshipId"].toInt();
+            m_roomTitle->setText(QString("私聊 - %1").arg(
+                m_currentFriendDisplayName.isEmpty() ? m_currentFriendUsername
+                                                     : m_currentFriendDisplayName));
+            break;
+        }
+    }
+
+    // A message may arrive before the first friend-list response. Promote that
+    // temporary username-keyed snapshot to the stable friendship ID.
+    if (m_localRepository) {
+        for (auto it = m_friendshipIds.cbegin(); it != m_friendshipIds.cend(); ++it) {
+            const QString provisionalKey = QStringLiteral("peer:%1").arg(it.key());
+            const QString stableKey = QString::number(it.value());
+            const auto provisional = m_localRepository->loadSnapshot(
+                m_username, LocalConversationRepository::Kind::Direct, provisionalKey);
+            if (provisional.messages.isEmpty() && provisional.cursor == 0
+                && provisional.draft.isEmpty()) continue;
+            bool promoted = m_localRepository->replaceMessages(
+                m_username, LocalConversationRepository::Kind::Direct,
+                stableKey, provisional.messages, provisional.cursor);
+            if (promoted) {
+                promoted = m_localRepository->saveDraft(
+                    m_username, LocalConversationRepository::Kind::Direct,
+                    stableKey, provisional.draft);
+            }
+            if (promoted) {
+                m_localRepository->removeConversation(
+                    m_username, LocalConversationRepository::Kind::Direct,
+                    provisionalKey);
+            } else {
+                allowedConversationKeys.insert(provisionalKey);
+            }
+        }
+    }
+
+    if (m_localRepository && !m_localRepository->pruneConversations(
+            m_username, LocalConversationRepository::Kind::Direct,
+            allowedConversationKeys)) {
+        qWarning().noquote() << QStringLiteral(
+            "[LocalStore] operation=prune-direct outcome=degraded detail=%1")
+            .arg(m_localRepository->lastError());
+    }
+    const QList<QString> cachedFriends = m_friendModels.keys();
+    for (const QString &username : cachedFriends) {
+        if (allowedFriendUsernames.contains(username)) continue;
+        if (m_isFriendChat && m_currentFriendUsername == username)
+            switchToRoomMode();
+        delete m_friendModels.take(username);
+        m_friendSyncCursors.remove(username);
     }
     updateUnreadDots();
 }
@@ -4335,6 +4492,8 @@ void ChatWindow::onFriendChatMessage(const QJsonObject &data) {
 
     // 确定对话对象
     QString chatWith = (sender == m_username) ? friendUsername : sender;
+    const int friendshipId = data["friendshipId"].toInt();
+    if (friendshipId > 0) m_friendshipIds[chatWith] = friendshipId;
 
     MessageModel *model = getOrCreateFriendModel(chatWith);
 
@@ -4357,6 +4516,7 @@ void ChatWindow::onFriendChatMessage(const QJsonObject &data) {
 
     model->addMessage(msg);
     advanceFriendSyncCursor(chatWith, syncSequenceFrom(data));
+    persistFriendSnapshot(chatWith);
 
     // 如果当前正在和这个好友聊天，滚动到底
     if (m_isFriendChat && m_currentFriendUsername == chatWith) {
@@ -4377,6 +4537,8 @@ void ChatWindow::onFriendChatMessage(const QJsonObject &data) {
 
 void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
     QString friendUsername = data["friendUsername"].toString();
+    const int friendshipId = data["friendshipId"].toInt();
+    if (friendshipId > 0) m_friendshipIds[friendUsername] = friendshipId;
     QJsonArray messages    = data["messages"].toArray();
     const bool sequenceMode = data["mode"].toString() == QStringLiteral("sequence");
 
@@ -4470,6 +4632,7 @@ void ChatWindow::onFriendHistoryReceived(const QJsonObject &data) {
         for (const QJsonValue &value : messages)
             advanceFriendSyncCursor(friendUsername, syncSequenceFrom(value.toObject()));
     }
+    persistFriendSnapshot(friendUsername);
 
     if (m_isFriendChat && m_currentFriendUsername == friendUsername) {
         QTimer::singleShot(0, [this] {
@@ -4488,6 +4651,8 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
     QString sender     = data["sender"].toString();
     QString friendUsername = data["friendUsername"].toString();
     QString chatWith = (sender == m_username) ? friendUsername : sender;
+    const int friendshipId = data["friendshipId"].toInt();
+    if (friendshipId > 0) m_friendshipIds[chatWith] = friendshipId;
 
     MessageModel *model = getOrCreateFriendModel(chatWith);
 
@@ -4498,6 +4663,7 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
     Message msg;
     msg.setId(data["id"].toInt());
     msg.setSequence(data["sequence"].toVariant().toLongLong());
+    msg.setClientMessageId(data["clientMessageId"].toString());
     msg.setSender(sender);
     msg.setSenderName(data["senderName"].toString());
     msg.setContent(data["content"].toString());
@@ -4577,6 +4743,7 @@ void ChatWindow::onFriendFileNotify(const QJsonObject &data) {
 
     model->addMessage(msg);
     advanceFriendSyncCursor(chatWith, syncSequenceFrom(data));
+    persistFriendSnapshot(chatWith);
 
     if (m_isFriendChat && m_currentFriendUsername == chatWith) {
         QTimer::singleShot(50, [this] {
@@ -4773,12 +4940,15 @@ void ChatWindow::onFriendRecallResponse(bool success, int messageId, const QStri
         }
 
         model->recallMessage(messageId);
+        persistFriendSnapshot(m_currentFriendUsername);
     }
 }
 
 void ChatWindow::onFriendRecallNotify(const QJsonObject &data) {
     const int messageId = data["messageId"].toInt();
     const QString friendUsername = data["friendUsername"].toString();
+    const int friendshipId = data["friendshipId"].toInt();
+    if (friendshipId > 0) m_friendshipIds[friendUsername] = friendshipId;
     MessageModel *model = getOrCreateFriendModel(friendUsername);
 
     // 清除文件缓存
@@ -4796,6 +4966,7 @@ void ChatWindow::onFriendRecallNotify(const QJsonObject &data) {
 
     model->recallMessage(messageId);
     advanceFriendSyncCursor(friendUsername, syncSequenceFrom(data));
+    persistFriendSnapshot(friendUsername);
 }
 
 void ChatWindow::switchToFriendChat(const QString &friendUsername, const QString &friendDisplayName, int friendshipId) {
@@ -4803,6 +4974,7 @@ void ChatWindow::switchToFriendChat(const QString &friendUsername, const QString
     m_currentFriendUsername = friendUsername;
     m_currentFriendDisplayName = friendDisplayName;
     m_currentFriendshipId = friendshipId;
+    if (friendshipId > 0) m_friendshipIds[friendUsername] = friendshipId;
     m_currentRoomId = -1; // 清除房间选择
 
     // 清除该好友的未读计数
@@ -4833,8 +5005,11 @@ void ChatWindow::switchToFriendChat(const QString &friendUsername, const QString
     m_messageView->setUpdatesEnabled(false);
     m_messageView->setModel(model);
 
-    // 如果模型为空，请求历史
-    if (model->rowCount() == 0) {
+    const qint64 cursor = m_friendSyncCursors.value(friendUsername, 0);
+    if (cursor > 0) {
+        NetworkManager::instance()->sendMessage(
+            Protocol::makeFriendHistoryAfterSequenceReq(friendUsername, cursor));
+    } else {
         QJsonObject data;
         data["friendUsername"] = friendUsername;
         data["count"] = 50;
@@ -4869,6 +5044,21 @@ MessageModel *ChatWindow::getOrCreateFriendModel(const QString &friendUsername) 
     if (!m_friendModels.contains(friendUsername)) {
         auto *model = new MessageModel(this);
         m_friendModels[friendUsername] = model;
+        if (m_localRepository && !m_username.isEmpty()) {
+            const auto snapshot = m_localRepository->loadSnapshot(
+                m_username, LocalConversationRepository::Kind::Direct,
+                friendConversationKey(friendUsername));
+            QList<Message> cached = snapshot.messages;
+            for (Message &message : cached) {
+                message.setIsMine(message.sender() == m_username);
+                if (message.fileId() > 0 && FileCache::instance()->isCached(message.fileId())) {
+                    message.setDownloadState(Message::Downloaded);
+                    message.setDownloadProgress(1.0);
+                }
+            }
+            if (!cached.isEmpty()) model->prependMessages(cached);
+            if (snapshot.cursor > 0) m_friendSyncCursors[friendUsername] = snapshot.cursor;
+        }
     }
     return m_friendModels[friendUsername];
 }

@@ -174,8 +174,11 @@ Progress:
 - [x] Render cached Windows room conversations before network history, persist
   room message/mutation state and cursor high watermarks, and evict local room
   data after membership access is lost.
+- [x] Apply the same durable cached-render and incremental reconciliation to
+  Windows direct conversations, including relationship eviction and safe
+  account/peer rename migration.
 - [ ] Integrate the Windows repository through client application/sync
-  boundaries for cached direct render, drafts, and pending sends.
+  boundaries for drafts and pending sends.
 - [ ] Add optimistic states, virtualization, cache controls, and accessibility
   foundations.
 

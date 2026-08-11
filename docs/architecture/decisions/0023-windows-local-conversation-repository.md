@@ -25,6 +25,9 @@ the large window would deepen the current UI/application/persistence coupling.
 - Store room/direct conversation cursor and bounded draft state plus at most the
   newest 500 message metadata records. Do not store attachment bytes or inline
   image data; the existing bounded media cache remains the byte owner.
+- Key durable direct conversations by the server-owned stable `friendshipId`,
+  while keeping mutable usernames at the transport/UI boundary. Promote the
+  temporary username key if a legacy event arrives before the friend list.
 - Reconcile storage identities by server message ID, then `clientMessageId`, then
   sequence/local fallback. Replacing a snapshot removes locally stale deleted
   messages while preserving its draft.
@@ -60,6 +63,13 @@ deletions, and file-clear mutations. Authoritative membership lists and
 leave/delete/kick events evict inaccessible room data. Repository failure is a
 degraded online-only mode and never overrides server authority.
 
+The next integration slice applies the same behavior to direct conversations.
+Friendship IDs detect peer-identifier renames, and account identifier changes
+copy every repository conversation, not only currently loaded models, before
+the old partition is removed. Relationship loss evicts both the model and
+durable snapshot. Base64 thumbnails are excluded from SQLite alongside inline
+image data; the media cache remains their owner.
+
 ## Migration and Rollback
 
 Version 1 creates new local-only tables; there is no legacy client database to
@@ -73,7 +83,8 @@ server history restores the view. A newer schema is never downgraded in place.
 
 - a Qt SQL unit test covers clean creation, restart, the 500-message and
   10,000-character draft bounds, account isolation, authoritative replacement,
-  monotonic cursor persistence, pruning, and draft preservation;
+  monotonic cursor persistence, pruning, draft preservation, whole-account
+  copying, and exclusion of thumbnail bytes;
 - the standard Qt gate compiles the repository into the desktop client;
 - the Qt gate compiles the cached-render and reconnect-resume integration and
   runs restart, deletion/recall repository, and reconnect model coverage on the
