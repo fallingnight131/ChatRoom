@@ -46,6 +46,7 @@ the application core. Feature payloads retain their own smaller limits.
   field quirks into V2 application types.
 
 The Java and TypeScript bindings must encode and decode the stored golden
-envelope identically. C++ generation is active; compiling it against the pinned
-C++ runtime and parsing the same golden bytes is the remaining cross-language
-gate before this envelope slice is complete.
+envelope identically. The generated C++ binding is compiled against the matching
+SHA-256-pinned Protobuf/Abseil test runtime and must parse and re-emit those same
+bytes. This completes envelope-level cross-language evidence; feature payload
+registries still require their own additive compatibility tests.

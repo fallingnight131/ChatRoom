@@ -39,6 +39,6 @@ reused; incompatible evolution requires a new protocol generation.
 Java generation runs inside the standard Gradle `check`. Tests validate the
 wire-compatible golden envelope, round trip, UTF-8 byte limits, required
 routing fields, and event/command request-ID rules. The binding gate generates
-C++/TypeScript output and proves Java/TypeScript golden compatibility. Compiling
-the generated C++ with the pinned runtime and parsing that golden envelope
-remains the next acceptance gate.
+C++/TypeScript output, proves Java/TypeScript golden compatibility, and compiles
+the C++ binding against SHA-256-pinned Protobuf 35.1 and Abseil 20250512.1
+source archives before parsing and re-emitting the same golden bytes.

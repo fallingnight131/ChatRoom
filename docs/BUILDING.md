@@ -78,8 +78,10 @@ python3 tools/verify_m0.py --protocol-bindings
 This installs the lockfile-pinned generator, invokes the same Protobuf 4.35.1
 compiler used by Gradle, and writes C++, TypeScript, and descriptor output below
 ignored generated/build directories. Generated files are never edited or
-committed. The C++ binding is generation evidence until its runtime compile and
-golden parse gate is added.
+committed. It then compiles the generated C++ against SHA-256-pinned Protobuf
+35.1 and Abseil 20250512.1 source archives and requires Java, TypeScript, and C++
+to parse/emit the same golden envelope. The first run downloads and builds the
+isolated C++ test runtime; it is not linked into the current Qt product.
 
 ## Server Password Hashing Dependency
 

@@ -69,6 +69,21 @@ def verify_protocol_bindings(skip_install: bool) -> None:
         if not artifact.is_file() or artifact.stat().st_size == 0:
             raise RuntimeError(f"generated V2 binding missing or empty: {artifact}")
     run([npm, "test"], typescript)
+    cmake = command_path("cmake")
+    ctest = command_path("ctest")
+    cpp_source = backend / "protocol-v2" / "cpp"
+    cpp_build = ROOT / "build" / "m3" / "v2-cpp-binding"
+    run(
+        [cmake, "-S", str(cpp_source), "-B", str(cpp_build),
+         "-DCMAKE_BUILD_TYPE=Release"],
+        ROOT,
+    )
+    run(
+        [cmake, "--build", str(cpp_build), "--target", "v2_cpp_envelope_test",
+         "--parallel"],
+        ROOT,
+    )
+    run([ctest, "--test-dir", str(cpp_build), "--output-on-failure"], ROOT)
 
 
 def select_make(qmake: str) -> tuple[str, bool]:
