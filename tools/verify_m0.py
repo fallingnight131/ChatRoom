@@ -143,6 +143,7 @@ def run_qt_client_unit_tests(jobs: int, build_root: Path) -> None:
         "MessageModelTest",
         "NetworkReconnectTest",
         "LocalConversationRepositoryTest",
+        "AttachmentOutboxServiceTest",
         "OutgoingMessageServiceTest",
         "ConversationSyncServiceTest",
         "V1HistoryPageAdapterTest",

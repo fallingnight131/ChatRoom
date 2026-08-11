@@ -33,9 +33,11 @@ ordinary case where the source file was replaced before a recovery attempt.
 - Cascade commands when an authoritative room/friend eviction removes the
   conversation. Preserve commands during ordinary cache clearing and copy them
   during an account-identity migration.
-- Keep failed commands durable for explicit retry or cancellation. A later
-  application-service slice owns source fingerprint creation, recovery gating,
-  and UI projection.
+- Keep failed commands durable for explicit retry or cancellation.
+- Use the transport-neutral `AttachmentOutboxService` to create and validate
+  source fingerprints, gate recovery on authoritative room/friend membership,
+  normalize stale transport state, and own terminal cleanup. UI projection and
+  V1 dispatch remain at the Windows adapter boundary.
 
 ## Consequences
 
@@ -59,4 +61,7 @@ The server and wire protocol are unchanged.
   progress updates, cache-clear preservation, account isolation and copy, and
   authorization-eviction cascade;
 - schema inspection verifies that upload tokens and upload IDs are absent;
+- application-service tests cover membership-gated recovery, current peer-name
+  resolution, stable-ID reuse, stale-progress normalization, source replacement,
+  explicit retry validation, completion, and cancellation;
 - future-schema rejection remains covered.

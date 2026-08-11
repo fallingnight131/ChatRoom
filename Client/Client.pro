@@ -20,6 +20,7 @@ SOURCES += \
     TrayManager.cpp \
     FileCache.cpp \
     LocalConversationRepository.cpp \
+    AttachmentOutboxService.cpp \
     OutgoingMessageService.cpp \
     ConversationSyncService.cpp \
     V1HistoryPageAdapter.cpp \
@@ -43,6 +44,7 @@ HEADERS += \
     TrayManager.h \
     FileCache.h \
     LocalConversationRepository.h \
+    AttachmentOutboxService.h \
     OutgoingMessageService.h \
     ConversationSyncService.h \
     V1HistoryPageAdapter.h \
