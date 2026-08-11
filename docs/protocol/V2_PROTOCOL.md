@@ -127,8 +127,12 @@ stalled sockets. Unexpected closure clears all per-connection protocol/session
 state and schedules capped exponential full-jitter reconnect; successful session
 establishment resets the attempt counter. Stop cancels phase and reconnect timers.
 The adapter does not silently replay credentials or authenticated commands after
-reconnect. Resume-session support, a browser-appropriate liveness mechanism,
-online/offline integration, and UI rollout remain later slices.
+reconnect. Once negotiated, callers may explicitly supply a session UUID and
+32-byte proof; the protocol boundary copies and clears its serialization buffer,
+then validates and retains only the rotated proof returned by the server.
+Persistent proof custody, automatic resume orchestration, a browser-appropriate
+liveness mechanism, online/offline integration, and UI rollout remain later
+slices.
 
 `ClientHello` declares a minimum/maximum protocol generation, Web or Windows
 platform, app version, and client-device ID. App version is limited to 64 UTF-8

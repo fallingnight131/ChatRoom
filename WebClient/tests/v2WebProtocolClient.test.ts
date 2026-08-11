@@ -5,6 +5,7 @@ import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 
 import {
   AuthenticateSchema,
+  ResumeSessionSchema,
   SessionEstablishedSchema,
 } from "../src/protocol/v2/generated/authentication_pb";
 import {
@@ -132,6 +133,36 @@ test("negotiates and authenticates without retaining caller password bytes", () 
   client.close();
   assert.equal(client.state, "closed");
   assert.equal(client.session, null);
+});
+
+test("encodes an explicit resume proof and accepts only the rotated session response", () => {
+  const client = newClient();
+  negotiate(client);
+  const callerToken = Uint8Array.from({ length: 32 }, (_, index) => 32 - index);
+  const before = callerToken.slice();
+  const resumeEnvelope = decodeEnvelope(client.resumeSession(SESSION_ID, callerToken));
+  assert.deepEqual(callerToken, before, "the caller retains ownership of its proof buffer");
+  assert.equal(resumeEnvelope.messageType, MessageType.RESUME_SESSION);
+  const resume = fromBinary(ResumeSessionSchema, resumeEnvelope.payload);
+  assert.equal(resume.sessionId, SESSION_ID);
+  assert.deepEqual(resume.resumeToken, before);
+
+  const rotated = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
+  client.receive(response(
+    resumeEnvelope,
+    MessageType.SESSION_ESTABLISHED,
+    toBinary(SessionEstablishedSchema, create(SessionEstablishedSchema, {
+      accountId: ACCOUNT_ID,
+      deviceId: DEVICE_ID,
+      sessionId: SESSION_ID,
+      resumeToken: rotated,
+      expiresAtEpochMs: BigInt(NOW + 60_000),
+      displayName: "Alice",
+    })),
+    { sessionId: SESSION_ID },
+  ));
+  assert.equal(client.state, "authenticated");
+  assert.deepEqual(client.session?.resumeToken, rotated);
 });
 
 test("encodes authenticated directory, history, and idempotent text commands", () => {

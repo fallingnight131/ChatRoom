@@ -222,6 +222,37 @@ test("fails closed on subprotocol, non-binary data, and phase timeout", () => {
   assert.ok(failures.includes("V2 WebSocket subprotocol mismatch"));
 });
 
+test("sends an explicitly supplied resume proof after negotiation", () => {
+  const timers = new FakeTimers();
+  const socket = new FakeSocket();
+  const transport = new V2WebSocketTransport({
+    endpoint: "wss://chat.example/v2/web",
+    createProtocolClient: protocolFactory(),
+    createSocket: () => socket,
+    setTimer: timers.set,
+    clearTimer: timers.clear,
+  });
+  transport.start();
+  socket.open();
+  socket.receive(helloResponse(sentEnvelope(socket, 0)));
+  transport.resumeSession(SESSION_ID, new Uint8Array(32));
+  const resume = sentEnvelope(socket, 1);
+  assert.equal(resume.messageType, MessageType.RESUME_SESSION);
+  socket.receive(response(resume, MessageType.SESSION_ESTABLISHED, toBinary(
+    SessionEstablishedSchema,
+    create(SessionEstablishedSchema, {
+      accountId: ACCOUNT_ID,
+      deviceId: DEVICE_ID,
+      sessionId: SESSION_ID,
+      resumeToken: new Uint8Array(32),
+      expiresAtEpochMs: BigInt(NOW + 60_000),
+      displayName: "Alice",
+    }),
+  ), SESSION_ID));
+  assert.equal(transport.state, "authenticated");
+  transport.stop();
+});
+
 test("clears per-connection protocol state and backs off before reconnect", () => {
   const timers = new FakeTimers();
   const sockets: FakeSocket[] = [];

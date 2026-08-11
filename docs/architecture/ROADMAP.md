@@ -346,6 +346,9 @@ Progress:
     - [x] Add an unconnected Web V2 WebSocket lifecycle adapter for the exact WSS
       route/subprotocol with phase deadlines, binary-only delivery, cancellable
       jittered reconnect, fresh per-connection protocol state, and transport tests.
+    - [x] Add explicit Web V2 session-resume command support with one-use proof
+      copying/clearing and rotated-session validation, without persistence or
+      automatic replay.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

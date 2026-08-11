@@ -3,6 +3,7 @@ import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import {
   AuthenticateSchema,
   AuthenticationRejectedSchema,
+  ResumeSessionSchema,
   SessionEstablishedSchema,
   type AuthenticationRejected,
   type SessionEstablished,
@@ -138,6 +139,28 @@ export class V2WebProtocolClient {
       return bytes;
     } finally {
       transientPassword.fill(0);
+    }
+  }
+
+  resumeSession(sessionId: string, resumeToken: Uint8Array): Uint8Array {
+    this.requireState("negotiated");
+    requireUuid("sessionId", sessionId);
+    if (resumeToken.byteLength !== 32) throw new Error("resumeToken must contain exactly 32 bytes");
+    const transientToken = resumeToken.slice();
+    try {
+      const payload = toBinary(ResumeSessionSchema, create(ResumeSessionSchema, {
+        sessionId,
+        resumeToken: transientToken,
+      }));
+      const bytes = this.command(
+        MessageType.RESUME_SESSION,
+        payload,
+        new Set([MessageType.SESSION_ESTABLISHED, MessageType.AUTHENTICATION_REJECTED]),
+      );
+      this.currentState = "authentication-sent";
+      return bytes;
+    } finally {
+      transientToken.fill(0);
     }
   }
 

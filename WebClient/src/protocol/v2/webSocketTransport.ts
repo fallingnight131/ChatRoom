@@ -107,6 +107,14 @@ export class V2WebSocketTransport {
     this.armPhaseTimeout(this.authenticationTimeoutMs, "V2 authentication timeout");
   }
 
+  resumeSession(sessionId: string, resumeToken: Uint8Array): void {
+    if (this.currentState !== "connected" || !this.protocolClient) {
+      throw new Error("V2 transport is not ready for session resume");
+    }
+    this.send(this.protocolClient.resumeSession(sessionId, resumeToken));
+    this.armPhaseTimeout(this.authenticationTimeoutMs, "V2 authentication timeout");
+  }
+
   listConversations(limit: number, after?: { updatedAtEpochMs: bigint; conversationId: string }): void {
     this.send(this.requireAuthenticated().listConversations(limit, after));
   }
