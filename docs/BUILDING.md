@@ -96,7 +96,10 @@ yet, so these tests are a deployment contract rather than a live service.
 Trusted-proxy policy tests verify direct-header spoofing is ignored, configured
 IPv4/IPv6 CIDRs use bounded right-to-left forwarding-chain resolution, and
 trusted missing, hostname, invalid, or excessive forwarding chains fail closed.
-The policy is not wired to an HTTP upgrade handler yet.
+Pre-upgrade handler tests verify direct/proxied canonical address freezing,
+generic rejection for missing trusted forwarding and repeat requests, reference
+ownership, and consumption by authentication admission. No listener installs
+the handler yet.
 Gateway resume tests verify bounded off-event-loop dispatch, rotated proof
 delivery, server-side identity binding, secret cleanup, generic invalid-proof
 rejection, and gateway/direct-peer admission without creating a fake account

@@ -590,6 +590,12 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
     }
 
     private static String directPeer(ChannelHandlerContext context) {
+        String resolved = context.channel()
+                .attr(V2ConnectionAttributes.CLIENT_PEER_ADDRESS)
+                .get();
+        if (resolved != null) {
+            return resolved;
+        }
         SocketAddress remote = context.channel().remoteAddress();
         if (remote instanceof InetSocketAddress address && address.getAddress() != null) {
             return address.getAddress().getHostAddress();

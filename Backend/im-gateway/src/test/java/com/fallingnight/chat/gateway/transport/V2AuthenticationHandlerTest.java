@@ -354,7 +354,7 @@ class V2AuthenticationHandlerTest {
             @Override
             public AuthenticationAdmissionDecision acquire(
                     String directPeer, String presentedUsername) {
-                assertEquals("<unknown>", directPeer);
+                assertEquals("198.51.100.7", directPeer);
                 assertEquals("alice", presentedUsername);
                 return AuthenticationAdmissionDecision.deny(
                         AuthenticationLimitDimension.ACCOUNT, 1_234);
@@ -381,6 +381,7 @@ class V2AuthenticationHandlerTest {
                 clock));
         channel.attr(V2ConnectionAttributes.NEGOTIATED_CLIENT).set(
                 new ClientDescriptor("client-device-1", ClientPlatform.WEB, "0.1.0"));
+        channel.attr(V2ConnectionAttributes.CLIENT_PEER_ADDRESS).set("198.51.100.7");
         try {
             channel.writeInbound(authenticateEnvelope(validAuthentication()));
             Envelope envelope = channel.readOutbound();

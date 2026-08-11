@@ -30,16 +30,19 @@ before an HTTP/WebSocket listener can consume forwarding headers.
   cases because that would hide a deployment error and collapse rate limiting.
 - Return only a canonical address plus a fixed enum decision. Do not include raw
   header text in errors, metrics, or logs.
-- Keep this policy transport-independent and inactive until the future HTTP
-  upgrade handler is added. That handler must run before WebSocket upgrade,
-  close rejected resolutions, and pass only the accepted canonical address to
-  authentication admission. The reverse proxy must overwrite/sanitize inbound
-  forwarding headers and be protected by network policy.
+- Keep the policy transport-independent and add a reusable HTTP handler that
+  runs before WebSocket upgrade. It closes rejected resolutions with a generic
+  response, freezes one accepted canonical address in server-side channel
+  state, rejects a second upgrade attempt, and makes authentication admission
+  prefer that state over the raw socket peer. The handler is not installed on a
+  listener yet. The reverse proxy must overwrite/sanitize inbound forwarding
+  headers and be protected by network policy.
 
 ## Consequences
 
 - Direct deployments remain safe without configuration, and a future proxied
-  deployment has an auditable chain algorithm rather than ad hoc header parsing.
+  deployment has an auditable chain algorithm and one pre-upgrade enforcement
+  point rather than ad hoc header parsing.
 - CIDR trust is security configuration. A broad or stale CIDR can authorize a
   hostile sender to choose forwarded addresses; deployment review remains
   mandatory.
@@ -52,8 +55,12 @@ Tests prove direct spoofing is ignored, a trusted multi-proxy chain resolves
 right-to-left, injected leftmost values do not win, IPv6 CIDRs work, trusted
 missing/hostname/over-hop inputs reject, unresolved direct peers reject, and
 invalid prefix/configuration bounds fail.
+Handler tests prove accepted direct/proxied requests freeze the canonical
+address, trusted missing forwarding and repeat upgrades close with a generic
+400, retained HTTP messages remain balanced, and admission consumes the frozen
+address.
 
 ## Rollback
 
-Remove the unused policy types and tests. No listener consumes forwarding
-headers yet, so rollback changes no network behavior.
+Remove the unused policy/handler types, channel attribute, and tests. No listener
+installs the handler yet, so rollback changes no network behavior.

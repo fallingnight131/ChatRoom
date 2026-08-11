@@ -9,6 +9,8 @@ public final class V2ConnectionAttributes {
             AttributeKey.valueOf("v2.negotiatedClient");
     public static final AttributeKey<AuthenticatedConnection> AUTHENTICATED =
             AttributeKey.valueOf("v2.authenticated");
+    public static final AttributeKey<String> CLIENT_PEER_ADDRESS =
+            AttributeKey.valueOf("v2.clientPeerAddress");
 
     private V2ConnectionAttributes() {
     }

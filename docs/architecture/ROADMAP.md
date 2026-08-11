@@ -300,6 +300,8 @@ Progress:
     readiness, bounded workers, and fixed-label Prometheus rendering.
   - [x] Define bounded direct/trusted-CIDR peer resolution with right-to-left
     sanitized forwarding-chain parsing and fail-closed proxy errors.
+  - [x] Enforce that policy in a reusable pre-WebSocket HTTP handler and pass
+    only the frozen canonical address into authentication admission.
   - [ ] Attach metrics to the deployment scrape/registry path and define trusted
     proxy configuration in the runtime composition root/HTTP upgrade handler
     before enabling the IM listener; replace/coordinate limits through Redis
