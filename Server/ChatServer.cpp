@@ -452,7 +452,19 @@ void ChatServer::onClientMessage(ClientSession *session, const QJsonObject &msg)
         if (session->isAuthenticated()) {
             int friendshipId = msg["data"].toObject()["friendshipId"].toInt();
             if (m_db->isUserInFriendship(friendshipId, session->userId())) {
-                m_db->markFriendRead(friendshipId, session->userId());
+                const int lastReadMessageId =
+                    m_db->markFriendRead(friendshipId, session->userId());
+                const QString peerUsername = m_db->getOtherFriendUsername(
+                    friendshipId, session->userId());
+                if (lastReadMessageId >= 0 && !peerUsername.isEmpty()
+                    && peerUsername != session->username()) {
+                    QJsonObject notify;
+                    notify["friendshipId"] = friendshipId;
+                    notify["readerUsername"] = session->username();
+                    notify["lastReadMessageId"] = lastReadMessageId;
+                    sendToUser(peerUsername, Protocol::makeMessage(
+                        Protocol::MsgType::FRIEND_READ_NOTIFY, notify));
+                }
             } else {
                 qWarning().noquote() << QStringLiteral("[Authz] denied operation=friend-mark-read userId=%1")
                                             .arg(session->userId());

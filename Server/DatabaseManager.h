@@ -203,7 +203,7 @@ public:
     int  getUnreadRoomCount(int roomId, int userId);
     void markRoomRead(int roomId, int userId);
     int  getUnreadFriendCount(int friendshipId, int userId);
-    void markFriendRead(int friendshipId, int userId);
+    int  markFriendRead(int friendshipId, int userId);
     int  getPendingFriendRequestCount(int userId);
 
     // 好友私聊消息

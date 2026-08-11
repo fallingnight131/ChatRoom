@@ -134,6 +134,22 @@ def run_test(server: Path) -> None:
             if second["sequence"] != 2:
                 raise SmokeFailure("friend sequence did not advance")
 
+            bob.send("MARK_FRIEND_READ", {"friendshipId": first["friendshipId"]})
+            receipt = data(alice.receive_type("FRIEND_READ_NOTIFY"))
+            if (
+                receipt.get("readerUsername") != bob_name
+                or receipt.get("lastReadMessageId") != second["id"]
+            ):
+                raise SmokeFailure("friend read watermark was not published")
+            alice.send("FRIEND_LIST_REQ")
+            friend_list = data(alice.receive_type("FRIEND_LIST_RSP")).get("friends", [])
+            bob_entry = next(
+                (friend for friend in friend_list if friend.get("username") == bob_name),
+                None,
+            )
+            if not bob_entry or bob_entry.get("peerLastReadMessageId") != second["id"]:
+                raise SmokeFailure("friend read watermark was not persisted")
+
             legacy_payload = {
                 "friendUsername": bob_name,
                 "content": "legacy compatible friend message",

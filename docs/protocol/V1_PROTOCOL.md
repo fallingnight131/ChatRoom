@@ -228,8 +228,13 @@ delivery guarantees. Windows attachment commands are not yet restartable.
 
 ### Read state
 
-`MARK_ROOM_READ` and `MARK_FRIEND_READ` update last-read database IDs. V1 does
-not send a general read receipt event to all devices/participants.
+`MARK_ROOM_READ` updates a last-read database ID without publishing a receipt.
+`MARK_FRIEND_READ` monotonically advances the reader's persisted message-ID
+watermark. Upgraded servers publish `FRIEND_READ_NOTIFY` to the peer with
+`friendshipId`, `readerUsername`, and `lastReadMessageId`; `FRIEND_LIST_RSP`
+also includes `peerLastReadMessageId` for restart recovery. This is a private-
+conversation read watermark, not a per-device delivered receipt or a general
+room receipt.
 
 ### Recall
 

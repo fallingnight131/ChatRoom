@@ -201,6 +201,7 @@ namespace MsgType {
     // 标记已读
     inline const QString MARK_ROOM_READ       = QStringLiteral("MARK_ROOM_READ");
     inline const QString MARK_FRIEND_READ     = QStringLiteral("MARK_FRIEND_READ");
+    inline const QString FRIEND_READ_NOTIFY   = QStringLiteral("FRIEND_READ_NOTIFY");
 
     // 好友私聊撤回
     inline const QString FRIEND_RECALL_REQ    = QStringLiteral("FRIEND_RECALL_REQ");

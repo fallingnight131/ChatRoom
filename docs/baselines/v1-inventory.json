@@ -52,7 +52,7 @@
     "default_websocket_port": 9528,
     "heartbeat_interval_ms": 30000,
     "heartbeat_timeout_ms": 90000,
-    "message_type_count": 125,
+    "message_type_count": 126,
     "message_types": [
       "LOGIN_REQ",
       "LOGIN_RSP",
@@ -175,6 +175,7 @@
       "FRIEND_FILE_UPLOAD_START_RSP",
       "MARK_ROOM_READ",
       "MARK_FRIEND_READ",
+      "FRIEND_READ_NOTIFY",
       "FRIEND_RECALL_REQ",
       "FRIEND_RECALL_RSP",
       "FRIEND_RECALL_NOTIFY",
@@ -240,15 +241,15 @@
   "sources": {
     "database_schema": {
       "path": "Server/DatabaseManager.cpp",
-      "sha256": "c01ae7ca802bbc4354bc5a843a9cc2edacd8e638ca2c4129a0b04042f08dd4d0"
+      "sha256": "39e83847a28a224b3bcc92fecf64f64c6bf862953d44fc61a3f0aa66caf28076"
     },
     "protocol": {
       "path": "Common/Protocol.h",
-      "sha256": "2add3bc856d04c541c42c659903ca4bd18afdb36ae5f3aa854a676e16639d8ac"
+      "sha256": "40634db8909ca1b57f4fbeb2ebe0a3574a000baddf38fbab60d1aa1fb11d8c08"
     },
     "server_dispatch": {
       "path": "Server/ChatServer.cpp",
-      "sha256": "2bd203d56af793dfe291352e68b3ed2f9d5fd82870526e808e02d54f8c08e1d7"
+      "sha256": "f3012d2ad1a1cbe22a26147ade59205feae9e216730aba0c2712f7e1bd3fc820"
     }
   }
 }

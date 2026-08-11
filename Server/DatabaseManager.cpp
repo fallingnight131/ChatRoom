@@ -2701,11 +2701,14 @@ QJsonArray DatabaseManager::getFriendList(int userId) {
 
     q.prepare("SELECT f.id, "
               "  CASE WHEN f.user_id1 = ? THEN f.user_id2 ELSE f.user_id1 END AS friend_id, "
-              "  u.username, u.display_name "
+              "  u.username, u.display_name, "
+              "  CASE WHEN f.user_id1 = ? THEN f.user2_last_read_msg_id "
+              "       ELSE f.user1_last_read_msg_id END AS peer_last_read_msg_id "
               "FROM friendships f "
               "JOIN users u ON u.id = CASE WHEN f.user_id1 = ? THEN f.user_id2 ELSE f.user_id1 END "
               "WHERE f.user_id1 = ? OR f.user_id2 = ? "
               "ORDER BY u.display_name");
+    q.addBindValue(userId);
     q.addBindValue(userId);
     q.addBindValue(userId);
     q.addBindValue(userId);
@@ -2720,6 +2723,7 @@ QJsonArray DatabaseManager::getFriendList(int userId) {
         fr["username"]     = q.value(2).toString();
         QString dn = q.value(3).toString();
         fr["displayName"]  = dn.isEmpty() ? q.value(2).toString() : dn;
+        fr["peerLastReadMessageId"] = q.value(4).toInt();
         arr.append(fr);
     }
     return arr;
@@ -3217,21 +3221,25 @@ int DatabaseManager::getUnreadFriendCount(int friendshipId, int userId) {
     return 0;
 }
 
-void DatabaseManager::markFriendRead(int friendshipId, int userId) {
+int DatabaseManager::markFriendRead(int friendshipId, int userId) {
     QSqlDatabase db = getConnection();
     QSqlQuery q(db);
     q.prepare("SELECT user_id1 FROM friendships WHERE id = ?");
     q.addBindValue(friendshipId);
-    if (!q.exec() || !q.next()) return;
+    if (!q.exec() || !q.next()) return -1;
     int uid1 = q.value(0).toInt();
     QString col = (userId == uid1) ? "user1_last_read_msg_id" : "user2_last_read_msg_id";
 
-    q.prepare(QString("UPDATE friendships SET %1 = "
-              "(SELECT COALESCE(MAX(id), 0) FROM friend_messages WHERE friendship_id = ?) "
+    q.prepare(QString("UPDATE friendships SET %1 = MAX(COALESCE(%1, 0), "
+              "(SELECT COALESCE(MAX(id), 0) FROM friend_messages WHERE friendship_id = ?)) "
               "WHERE id = ?").arg(col));
     q.addBindValue(friendshipId);
     q.addBindValue(friendshipId);
-    q.exec();
+    if (!q.exec()) return -1;
+    q.prepare(QString("SELECT COALESCE(%1, 0) FROM friendships WHERE id = ?").arg(col));
+    q.addBindValue(friendshipId);
+    if (!q.exec() || !q.next()) return -1;
+    return q.value(0).toInt();
 }
 
 int DatabaseManager::getPendingFriendRequestCount(int userId) {
