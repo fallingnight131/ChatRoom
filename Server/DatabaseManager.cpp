@@ -1280,6 +1280,106 @@ MessageSaveResult DatabaseManager::saveRoomMessageIdempotent(
     return result;
 }
 
+MessageSaveResult DatabaseManager::findRoomAttachmentByClientMessageId(
+    int userId, const QString &clientMessageId) {
+    MessageSaveResult result;
+    QSqlDatabase db = getConnection();
+    QSqlQuery query(db);
+    query.prepare(
+        "SELECT id, file_id, sequence, created_at, content_type "
+        "FROM messages WHERE user_id = ? AND client_message_id = ?");
+    query.addBindValue(userId);
+    query.addBindValue(clientMessageId);
+    if (!query.exec() || !query.next()) return result;
+
+    result.messageId = query.value(0).toInt();
+    result.fileId = query.value(1).toInt();
+    result.sequence = query.value(2).toLongLong();
+    result.createdAtMs = utcTimestampMs(query.value(3));
+    const QString contentType = query.value(4).toString();
+    result.status = result.fileId > 0 &&
+                            (contentType == QLatin1String("file") ||
+                             contentType == QLatin1String("image") ||
+                             contentType == QLatin1String("video"))
+                        ? MessageSaveResult::Status::Duplicate
+                        : MessageSaveResult::Status::Conflict;
+    return result;
+}
+
+MessageSaveResult DatabaseManager::saveRoomAttachmentIdempotent(
+    int roomId, int userId, const QString &clientMessageId,
+    const QString &fileName, const QString &contentType,
+    qint64 fileSize, int fileId, const QString &thumbnail) {
+    MessageSaveResult result;
+    QSqlDatabase db = getConnection();
+    if (!db.transaction()) return result;
+
+    QSqlQuery existing(db);
+    existing.prepare(
+        "SELECT id, room_id, file_name, file_size, file_id, content_type, sequence, created_at "
+        "FROM messages WHERE user_id = ? AND client_message_id = ?");
+    existing.addBindValue(userId);
+    existing.addBindValue(clientMessageId);
+    if (!existing.exec()) {
+        db.rollback();
+        return result;
+    }
+    if (existing.next()) {
+        result.messageId = existing.value(0).toInt();
+        result.fileId = existing.value(4).toInt();
+        result.sequence = existing.value(6).toLongLong();
+        result.createdAtMs = utcTimestampMs(existing.value(7));
+        const bool sameCommand = existing.value(1).toInt() == roomId &&
+                                 existing.value(2).toString() == fileName &&
+                                 existing.value(3).toLongLong() == fileSize &&
+                                 existing.value(5).toString() == contentType &&
+                                 result.fileId > 0;
+        result.status = sameCommand ? MessageSaveResult::Status::Duplicate
+                                    : MessageSaveResult::Status::Conflict;
+        if (!db.commit()) result.status = MessageSaveResult::Status::Failed;
+        return result;
+    }
+
+    if (!reserveMessageSequence(db, QStringLiteral("room_message_sequences"),
+                                QStringLiteral("room_id"), roomId,
+                                &result.sequence)) {
+        db.rollback();
+        return result;
+    }
+    QSqlQuery insert(db);
+    insert.prepare(
+        "INSERT INTO messages "
+        "(room_id, user_id, content, content_type, file_name, file_size, file_id, thumbnail, "
+        " client_message_id, sequence) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    insert.addBindValue(roomId);
+    insert.addBindValue(userId);
+    insert.addBindValue(fileName);
+    insert.addBindValue(contentType);
+    insert.addBindValue(fileName);
+    insert.addBindValue(fileSize);
+    insert.addBindValue(fileId);
+    insert.addBindValue(thumbnail);
+    insert.addBindValue(clientMessageId);
+    insert.addBindValue(result.sequence);
+    if (!insert.exec()) {
+        db.rollback();
+        return findRoomAttachmentByClientMessageId(userId, clientMessageId);
+    }
+    result.messageId = insert.lastInsertId().toInt();
+    result.fileId = fileId;
+    QSqlQuery created(db);
+    created.prepare("SELECT created_at FROM messages WHERE id = ?");
+    created.addBindValue(result.messageId);
+    if (!created.exec() || !created.next()) {
+        db.rollback();
+        return MessageSaveResult{};
+    }
+    result.createdAtMs = utcTimestampMs(created.value(0));
+    if (!db.commit()) return MessageSaveResult{};
+    result.status = MessageSaveResult::Status::Created;
+    return result;
+}
+
 QJsonArray DatabaseManager::getMessageHistory(int roomId, int count, qint64 beforeTimestamp) {
     expireStoredFiles();
     QSqlDatabase db = getConnection();
@@ -2370,6 +2470,106 @@ MessageSaveResult DatabaseManager::saveFriendMessageIdempotent(
         return result;
     }
     result.messageId = insert.lastInsertId().toInt();
+    QSqlQuery created(db);
+    created.prepare("SELECT created_at FROM friend_messages WHERE id = ?");
+    created.addBindValue(result.messageId);
+    if (!created.exec() || !created.next()) {
+        db.rollback();
+        return MessageSaveResult{};
+    }
+    result.createdAtMs = utcTimestampMs(created.value(0));
+    if (!db.commit()) return MessageSaveResult{};
+    result.status = MessageSaveResult::Status::Created;
+    return result;
+}
+
+MessageSaveResult DatabaseManager::findFriendAttachmentByClientMessageId(
+    int senderId, const QString &clientMessageId) {
+    MessageSaveResult result;
+    QSqlDatabase db = getConnection();
+    QSqlQuery query(db);
+    query.prepare(
+        "SELECT id, file_id, sequence, created_at, content_type "
+        "FROM friend_messages WHERE sender_id = ? AND client_message_id = ?");
+    query.addBindValue(senderId);
+    query.addBindValue(clientMessageId);
+    if (!query.exec() || !query.next()) return result;
+
+    result.messageId = query.value(0).toInt();
+    result.fileId = query.value(1).toInt();
+    result.sequence = query.value(2).toLongLong();
+    result.createdAtMs = utcTimestampMs(query.value(3));
+    const QString contentType = query.value(4).toString();
+    result.status = result.fileId > 0 &&
+                            (contentType == QLatin1String("file") ||
+                             contentType == QLatin1String("image") ||
+                             contentType == QLatin1String("video"))
+                        ? MessageSaveResult::Status::Duplicate
+                        : MessageSaveResult::Status::Conflict;
+    return result;
+}
+
+MessageSaveResult DatabaseManager::saveFriendAttachmentIdempotent(
+    int friendshipId, int senderId, const QString &clientMessageId,
+    const QString &fileName, const QString &contentType,
+    qint64 fileSize, int fileId, const QString &thumbnail) {
+    MessageSaveResult result;
+    QSqlDatabase db = getConnection();
+    if (!db.transaction()) return result;
+
+    QSqlQuery existing(db);
+    existing.prepare(
+        "SELECT id, friendship_id, file_name, file_size, file_id, content_type, sequence, created_at "
+        "FROM friend_messages WHERE sender_id = ? AND client_message_id = ?");
+    existing.addBindValue(senderId);
+    existing.addBindValue(clientMessageId);
+    if (!existing.exec()) {
+        db.rollback();
+        return result;
+    }
+    if (existing.next()) {
+        result.messageId = existing.value(0).toInt();
+        result.fileId = existing.value(4).toInt();
+        result.sequence = existing.value(6).toLongLong();
+        result.createdAtMs = utcTimestampMs(existing.value(7));
+        const bool sameCommand = existing.value(1).toInt() == friendshipId &&
+                                 existing.value(2).toString() == fileName &&
+                                 existing.value(3).toLongLong() == fileSize &&
+                                 existing.value(5).toString() == contentType &&
+                                 result.fileId > 0;
+        result.status = sameCommand ? MessageSaveResult::Status::Duplicate
+                                    : MessageSaveResult::Status::Conflict;
+        if (!db.commit()) result.status = MessageSaveResult::Status::Failed;
+        return result;
+    }
+
+    if (!reserveMessageSequence(db, QStringLiteral("friendship_message_sequences"),
+                                QStringLiteral("friendship_id"), friendshipId,
+                                &result.sequence)) {
+        db.rollback();
+        return result;
+    }
+    QSqlQuery insert(db);
+    insert.prepare(
+        "INSERT INTO friend_messages "
+        "(friendship_id, sender_id, content, content_type, file_name, file_size, file_id, thumbnail, "
+        " client_message_id, sequence) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    insert.addBindValue(friendshipId);
+    insert.addBindValue(senderId);
+    insert.addBindValue(fileName);
+    insert.addBindValue(contentType);
+    insert.addBindValue(fileName);
+    insert.addBindValue(fileSize);
+    insert.addBindValue(fileId);
+    insert.addBindValue(thumbnail);
+    insert.addBindValue(clientMessageId);
+    insert.addBindValue(result.sequence);
+    if (!insert.exec()) {
+        db.rollback();
+        return findFriendAttachmentByClientMessageId(senderId, clientMessageId);
+    }
+    result.messageId = insert.lastInsertId().toInt();
+    result.fileId = fileId;
     QSqlQuery created(db);
     created.prepare("SELECT created_at FROM friend_messages WHERE id = ?");
     created.addBindValue(result.messageId);

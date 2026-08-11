@@ -24,6 +24,15 @@ def main() -> int:
     if "uploadRawFile" not in SOURCE or "httpUploadPath" not in SOURCE:
         print("[QtAttachmentSourceTest] FAIL: Qt HTTP upload negotiation is absent")
         return 1
+    if "FILE_UPLOAD_END_RSP" not in (ROOT / "Common" / "Protocol.h").read_text(encoding="utf-8"):
+        print("[QtAttachmentSourceTest] FAIL: attachment finalization ACK type is absent")
+        return 1
+    if "m_upload.clientMessageId = QUuid::createUuid()" not in SOURCE:
+        print("[QtAttachmentSourceTest] FAIL: Qt upload does not allocate a clientMessageId")
+        return 1
+    if 'endData["clientMessageId"] = m_upload.clientMessageId' not in SOURCE:
+        print("[QtAttachmentSourceTest] FAIL: Qt finalization omits clientMessageId")
+        return 1
     forwarding = between("// 转发消息/文件", "// 管理员：删除此消息")
     if "fileData" in forwarding or "FILE_SEND" in forwarding or "FRIEND_FILE_SEND" in forwarding:
         print("[QtAttachmentSourceTest] FAIL: Qt forwarding still emits inline attachment bytes")

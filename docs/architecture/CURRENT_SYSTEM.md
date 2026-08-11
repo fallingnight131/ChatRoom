@@ -152,9 +152,10 @@ These are recorded for prioritization, not silently fixed by this baseline:
    Web client keeps reconnect credentials only in page memory, but plaintext
    TCP/WS remains possible and V1 has no revocable device/refresh sessions.
 3. **Room password storage:** room passwords are stored and compared as plaintext.
-4. **Reliability semantics:** room and direct text/emoji retries are idempotent
-   and have sequence resume, but file sends can still duplicate and recall/delete
-   events have no replay sequence.
+4. **Reliability semantics:** room/direct text and emoji plus upgraded
+   upload-finalized room/friend attachments are idempotent and have stable
+   sequence metadata, but legacy inline/forwarded files can still duplicate and
+   recall/delete events have no replay sequence.
 5. **Central blocking path:** WebSocket parsing, business handlers, synchronous
    SQL, and fan-out coordination share the central application thread.
 6. **Connection scaling:** TCP consumes one thread per connection.
@@ -192,7 +193,8 @@ restarted schemas converge.
 - `Tests/v1_friend_message_reliability_test.py` covers the equivalent direct
   text/emoji guarantees plus explicit non-friend denial.
 - `Tests/v1_http_upload_test.py` covers the binary HTTP attachment bridge,
-  including owner binding, integrity rejection, and interrupted upload cleanup.
+  including owner binding, integrity rejection, interrupted upload cleanup,
+  room/friend idempotency, conflicts, explicit ACK identity, and restart retry.
 - `Tests/HttpUploadTransportTest.cpp` drives the Qt `QFile` HTTP adapter against
   a real local HTTP socket; `qt_attachment_source_test.py` prevents Windows
   composer and upgraded forwarding paths from restoring inline attachment

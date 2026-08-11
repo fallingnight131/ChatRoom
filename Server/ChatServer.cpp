@@ -42,6 +42,13 @@
 
 namespace {
 
+constexpr int kMaxClientMessageIdBytes = 128;
+
+bool validOptionalClientMessageId(const QString &clientMessageId) {
+    return clientMessageId.isEmpty() ||
+           clientMessageId.toUtf8().size() <= kMaxClientMessageIdBytes;
+}
+
 QString readEnvValueFromFile(const QString &filePath, const QString &key) {
     QFile envFile(filePath);
     if (!envFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -621,6 +628,54 @@ bool ChatServer::requireUploadOwnership(ClientSession *session, const QString &u
     qWarning().noquote() << QStringLiteral("[Authz] denied operation=upload-owner userId=%1")
                                 .arg(userId);
     return false;
+}
+
+void ChatServer::sendUploadFinalizeResponse(
+    ClientSession *session, const QString &uploadId,
+    const QString &clientMessageId, const MessageSaveResult &result,
+    bool isFriendFile, const QString &errorCode, const QString &error) {
+    if (!session) return;
+
+    const bool success = result.status == MessageSaveResult::Status::Created ||
+                         result.status == MessageSaveResult::Status::Duplicate;
+    QJsonObject response;
+    response["success"] = success;
+    response["uploadId"] = uploadId;
+    if (!clientMessageId.isEmpty()) response["clientMessageId"] = clientMessageId;
+    if (success) {
+        response["id"] = result.messageId;
+        response["fileId"] = isFriendFile ? -result.fileId : result.fileId;
+        response["sequence"] = static_cast<double>(result.sequence);
+        response["timestamp"] = static_cast<double>(result.createdAtMs);
+        response["duplicate"] = result.status == MessageSaveResult::Status::Duplicate;
+    } else {
+        response["errorCode"] = errorCode.isEmpty()
+            ? QStringLiteral("FINALIZE_PERSIST_FAILED") : errorCode;
+        response["error"] = error.isEmpty()
+            ? QStringLiteral("服务器无法确认文件消息") : error;
+    }
+    session->sendMessage(
+        Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_END_RSP, response));
+
+    QString outcome;
+    if (result.status == MessageSaveResult::Status::Created) {
+        ++m_attachmentFinalizationsAccepted;
+        outcome = QStringLiteral("accepted");
+    } else if (result.status == MessageSaveResult::Status::Duplicate) {
+        ++m_attachmentFinalizationsDuplicate;
+        outcome = QStringLiteral("duplicate");
+    } else {
+        ++m_attachmentFinalizationsRejected;
+        outcome = QStringLiteral("rejected");
+    }
+    qInfo().noquote()
+        << QStringLiteral("[AttachmentFinalize] outcome=%1 userId=%2 uploadId=%3 acceptedTotal=%4 duplicateTotal=%5 rejectedTotal=%6")
+               .arg(outcome)
+               .arg(session->userId())
+               .arg(uploadId)
+               .arg(m_attachmentFinalizationsAccepted)
+               .arg(m_attachmentFinalizationsDuplicate)
+               .arg(m_attachmentFinalizationsRejected);
 }
 
 bool ChatServer::allowAuthenticationAttempt(ClientSession *session,
@@ -2130,8 +2185,17 @@ void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject
     int roomId       = data["roomId"].toInt();
     QString fileName = data["fileName"].toString();
     qint64 fileSize  = static_cast<qint64>(data["fileSize"].toDouble());
+    const QString clientMessageId = data["clientMessageId"].toString();
 
     QJsonObject rspData;
+    if (!validOptionalClientMessageId(clientMessageId)) {
+        rspData["success"] = false;
+        rspData["errorCode"] = QStringLiteral("INVALID_CLIENT_MESSAGE_ID");
+        rspData["error"] = QStringLiteral("客户端消息 ID 过长");
+        session->sendMessage(
+            Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
+        return;
+    }
 
     if (!requireRoomMembership(session, roomId, QStringLiteral("room-file-upload-start"))) {
         rspData["success"] = false;
@@ -2189,6 +2253,7 @@ void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject
     state.userId      = session->userId();
     state.username    = session->username();
     state.displayName = session->displayName();
+    state.clientMessageId = clientMessageId;
     state.fileName    = fileName;
     state.filePath = filePath;
     state.fileSize = fileSize;
@@ -2199,6 +2264,7 @@ void ChatServer::handleFileUploadStart(ClientSession *session, const QJsonObject
 
     rspData["success"]  = true;
     rspData["uploadId"] = uploadId;
+    if (!clientMessageId.isEmpty()) rspData["clientMessageId"] = clientMessageId;
     rspData["httpUploadPath"] = QStringLiteral("/api/upload/%1").arg(uploadId);
     session->sendMessage(Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START_RSP, rspData));
 
@@ -2250,24 +2316,102 @@ void ChatServer::handleFileUploadChunk(ClientSession *session, const QJsonObject
 }
 
 void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &data) {
-    QString uploadId = data["uploadId"].toString();
+    const QString uploadId = data["uploadId"].toString();
+    const QString requestedClientMessageId = data["clientMessageId"].toString();
+    if (!validOptionalClientMessageId(requestedClientMessageId)) {
+        MessageSaveResult rejected;
+        sendUploadFinalizeResponse(session, uploadId, requestedClientMessageId,
+                                   rejected, false,
+                                   QStringLiteral("INVALID_CLIENT_MESSAGE_ID"),
+                                   QStringLiteral("客户端消息 ID 过长"));
+        return;
+    }
 
-    if (!m_uploads.contains(uploadId)) return;
-    if (!requireUploadOwnership(session, uploadId)) return;
+    if (!m_uploads.contains(uploadId)) {
+        if (!requestedClientMessageId.isEmpty() && session->isAuthenticated()) {
+            const MessageSaveResult room =
+                m_db->findRoomAttachmentByClientMessageId(
+                    session->userId(), requestedClientMessageId);
+            const MessageSaveResult friendResult =
+                m_db->findFriendAttachmentByClientMessageId(
+                    session->userId(), requestedClientMessageId);
+            const bool roomFound = room.status != MessageSaveResult::Status::Failed;
+            const bool friendFound = friendResult.status != MessageSaveResult::Status::Failed;
+            if (roomFound != friendFound) {
+                const MessageSaveResult &found = roomFound ? room : friendResult;
+                if (found.status == MessageSaveResult::Status::Duplicate) {
+                    sendUploadFinalizeResponse(session, uploadId,
+                                               requestedClientMessageId, found,
+                                               friendFound);
+                } else {
+                    sendUploadFinalizeResponse(
+                        session, uploadId, requestedClientMessageId, found,
+                        friendFound, QStringLiteral("CLIENT_MESSAGE_ID_CONFLICT"),
+                        QStringLiteral("客户端消息 ID 已用于其他命令"));
+                }
+                return;
+            }
+            if (roomFound && friendFound) {
+                MessageSaveResult conflict;
+                conflict.status = MessageSaveResult::Status::Conflict;
+                sendUploadFinalizeResponse(
+                    session, uploadId, requestedClientMessageId, conflict, false,
+                    QStringLiteral("CLIENT_MESSAGE_ID_CONFLICT"),
+                    QStringLiteral("客户端消息 ID 同时匹配多个会话"));
+                return;
+            }
+        }
+        MessageSaveResult missing;
+        sendUploadFinalizeResponse(session, uploadId, requestedClientMessageId,
+                                   missing, false,
+                                   QStringLiteral("UNKNOWN_UPLOAD_ID"),
+                                   QStringLiteral("上传 ID 不存在或已过期"));
+        return;
+    }
+    if (!requireUploadOwnership(session, uploadId)) {
+        MessageSaveResult rejected;
+        sendUploadFinalizeResponse(session, uploadId, requestedClientMessageId,
+                                   rejected, false,
+                                   QStringLiteral("UPLOAD_OWNER_MISMATCH"),
+                                   QStringLiteral("无权完成该上传"));
+        return;
+    }
 
     const UploadState &pending = m_uploads[uploadId];
+    const QString clientMessageId = pending.clientMessageId;
+    if (!requestedClientMessageId.isEmpty() &&
+        requestedClientMessageId != clientMessageId) {
+        MessageSaveResult conflict;
+        conflict.status = MessageSaveResult::Status::Conflict;
+        sendUploadFinalizeResponse(
+            session, uploadId, requestedClientMessageId, conflict,
+            pending.roomId < 0, QStringLiteral("CLIENT_MESSAGE_ID_CONFLICT"),
+            QStringLiteral("完成请求与上传开始的客户端消息 ID 不一致"));
+        handleFileUploadCancel(session, data);
+        return;
+    }
     const bool stillAuthorized = pending.roomId < 0
         ? m_db->isUserInFriendship(-pending.roomId, pending.userId)
         : m_db->isUserInRoom(pending.roomId, pending.userId);
     if (!stillAuthorized) {
         qWarning().noquote() << QStringLiteral("[Authz] denied operation=upload-finalize userId=%1")
                                     .arg(pending.userId);
+        MessageSaveResult rejected;
+        sendUploadFinalizeResponse(session, uploadId, clientMessageId, rejected,
+                                   pending.roomId < 0,
+                                   QStringLiteral("UPLOAD_AUTHORIZATION_REVOKED"),
+                                   QStringLiteral("会话权限已变更，无法完成上传"));
         handleFileUploadCancel(session, data);
         return;
     }
     if (pending.received != pending.fileSize) {
         qWarning().noquote() << QStringLiteral("[Input] rejected category=upload-size userId=%1")
                                     .arg(pending.userId);
+        MessageSaveResult rejected;
+        sendUploadFinalizeResponse(session, uploadId, clientMessageId, rejected,
+                                   pending.roomId < 0,
+                                   QStringLiteral("UPLOAD_INCOMPLETE"),
+                                   QStringLiteral("文件字节尚未全部上传"));
         handleFileUploadCancel(session, data);
         return;
     }
@@ -2306,6 +2450,11 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
         thumbnail = data["thumbnail"].toString();
     }
 
+    auto cleanupCandidate = [this, &state](int fileId, bool isFriendFile) {
+        if (fileId > 0) m_db->deleteStoredFileRecord(fileId, isFriendFile);
+        QFile::remove(state.filePath);
+    };
+
     // 保存文件信息到数据库
     if (state.roomId < 0) {
         // 好友文件上传 (roomId = -friendshipId)
@@ -2313,17 +2462,34 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
         int fileId = m_db->saveFriendFile(friendshipId, state.userId, state.fileName, state.filePath, state.fileSize);
         if (fileId <= 0) {
             QFile::remove(state.filePath);
+            MessageSaveResult failed;
+            sendUploadFinalizeResponse(session, uploadId, clientMessageId,
+                                       failed, true);
             return;
         }
-        qint64 sequence = 0;
-        qint64 timestamp = 0;
-        int msgId = m_db->saveFriendMessage(
-            friendshipId, state.userId, state.fileName, contentType,
-            state.fileName, state.fileSize, fileId, thumbnail,
-            &sequence, &timestamp);
-        if (msgId <= 0) {
-            m_db->deleteStoredFileRecord(fileId, true);
-            QFile::remove(state.filePath);
+        MessageSaveResult saveResult;
+        if (!clientMessageId.isEmpty()) {
+            saveResult = m_db->saveFriendAttachmentIdempotent(
+                friendshipId, state.userId, clientMessageId, state.fileName,
+                contentType, state.fileSize, fileId, thumbnail);
+        } else {
+            saveResult.messageId = m_db->saveFriendMessage(
+                friendshipId, state.userId, state.fileName, contentType,
+                state.fileName, state.fileSize, fileId, thumbnail,
+                &saveResult.sequence, &saveResult.createdAtMs);
+            saveResult.fileId = fileId;
+            saveResult.status = saveResult.messageId > 0
+                ? MessageSaveResult::Status::Created
+                : MessageSaveResult::Status::Failed;
+        }
+        if (saveResult.status != MessageSaveResult::Status::Created) {
+            cleanupCandidate(fileId, true);
+            sendUploadFinalizeResponse(
+                session, uploadId, clientMessageId, saveResult, true,
+                saveResult.status == MessageSaveResult::Status::Conflict
+                    ? QStringLiteral("CLIENT_MESSAGE_ID_CONFLICT") : QString(),
+                saveResult.status == MessageSaveResult::Status::Conflict
+                    ? QStringLiteral("客户端消息 ID 已用于其他命令") : QString());
             return;
         }
 
@@ -2338,18 +2504,20 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
         }
 
         QJsonObject notifyData;
-        notifyData["id"]           = msgId;
+        notifyData["id"]           = saveResult.messageId;
         notifyData["friendshipId"] = friendshipId;
         notifyData["sender"]       = state.username;
         notifyData["senderName"]   = state.displayName;
         notifyData["friendUsername"] = friendUsername;
         notifyData["fileName"]     = state.fileName;
         notifyData["fileSize"]     = static_cast<double>(state.fileSize);
-        notifyData["fileId"]       = -fileId;  // 负数标识好友文件
+        notifyData["fileId"]       = -saveResult.fileId;  // 负数标识好友文件
         notifyData["contentType"]  = contentType;
         notifyData["content"]      = state.fileName;
-        notifyData["sequence"]     = static_cast<double>(sequence);
-        notifyData["timestamp"]    = static_cast<double>(timestamp);
+        notifyData["sequence"]     = static_cast<double>(saveResult.sequence);
+        notifyData["timestamp"]    = static_cast<double>(saveResult.createdAtMs);
+        if (!clientMessageId.isEmpty())
+            notifyData["clientMessageId"] = clientMessageId;
         if (!thumbnail.isEmpty())
             notifyData["thumbnail"] = thumbnail;
 
@@ -2359,12 +2527,14 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
             sendToUser(friendUsername, notifyMsg);
 
         qInfo() << "[Server] 好友大文件上传完成:" << state.fileName << state.fileSize << "bytes";
+        sendUploadFinalizeResponse(session, uploadId, clientMessageId,
+                                   saveResult, true);
 
         // COS 异步上传（好友文件）
         if (m_cos->isEnabled()) {
             startCosUpload(state.filePath, state.fileName,
                            QStringLiteral("friends/%1/%2").arg(friendshipId).arg(typeDir),
-                           fileId, true, state.username, uploadId);
+                           saveResult.fileId, true, state.username, uploadId);
         }
     } else {
         // 房间文件上传
@@ -2373,35 +2543,54 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
             QFile::remove(state.filePath);
             if (state.roomQuotaReserved)
                 releaseRoomFileQuota(state.roomId, state.fileSize);
+            MessageSaveResult failed;
+            sendUploadFinalizeResponse(session, uploadId, clientMessageId,
+                                       failed, false);
             return;
         }
-        qint64 sequence = 0;
-        qint64 timestamp = 0;
-        int msgId = m_db->saveMessage(
-            state.roomId, state.userId, state.fileName, contentType,
-            state.fileName, state.fileSize, fileId, thumbnail,
-            &sequence, &timestamp);
-        if (msgId <= 0) {
-            m_db->deleteStoredFileRecord(fileId);
-            QFile::remove(state.filePath);
+        MessageSaveResult saveResult;
+        if (!clientMessageId.isEmpty()) {
+            saveResult = m_db->saveRoomAttachmentIdempotent(
+                state.roomId, state.userId, clientMessageId, state.fileName,
+                contentType, state.fileSize, fileId, thumbnail);
+        } else {
+            saveResult.messageId = m_db->saveMessage(
+                state.roomId, state.userId, state.fileName, contentType,
+                state.fileName, state.fileSize, fileId, thumbnail,
+                &saveResult.sequence, &saveResult.createdAtMs);
+            saveResult.fileId = fileId;
+            saveResult.status = saveResult.messageId > 0
+                ? MessageSaveResult::Status::Created
+                : MessageSaveResult::Status::Failed;
+        }
+        if (saveResult.status != MessageSaveResult::Status::Created) {
+            cleanupCandidate(fileId, false);
             if (state.roomQuotaReserved)
                 releaseRoomFileQuota(state.roomId, state.fileSize);
+            sendUploadFinalizeResponse(
+                session, uploadId, clientMessageId, saveResult, false,
+                saveResult.status == MessageSaveResult::Status::Conflict
+                    ? QStringLiteral("CLIENT_MESSAGE_ID_CONFLICT") : QString(),
+                saveResult.status == MessageSaveResult::Status::Conflict
+                    ? QStringLiteral("客户端消息 ID 已用于其他命令") : QString());
             return;
         }
 
         // 通知房间所有成员有新文件
         QJsonObject notifyData;
-        notifyData["id"]          = msgId;
+        notifyData["id"]          = saveResult.messageId;
         notifyData["roomId"]      = state.roomId;
         notifyData["sender"]      = state.username;
         notifyData["senderName"]  = state.displayName;
         notifyData["fileName"]    = state.fileName;
         notifyData["fileSize"]    = static_cast<double>(state.fileSize);
-        notifyData["fileId"]      = fileId;
+        notifyData["fileId"]      = saveResult.fileId;
         notifyData["contentType"] = contentType;
         notifyData["content"]     = state.fileName;
-        notifyData["sequence"]    = static_cast<double>(sequence);
-        notifyData["timestamp"]   = static_cast<double>(timestamp);
+        notifyData["sequence"]    = static_cast<double>(saveResult.sequence);
+        notifyData["timestamp"]   = static_cast<double>(saveResult.createdAtMs);
+        if (!clientMessageId.isEmpty())
+            notifyData["clientMessageId"] = clientMessageId;
 
         if (!thumbnail.isEmpty())
             notifyData["thumbnail"] = thumbnail;
@@ -2413,12 +2602,14 @@ void ChatServer::handleFileUploadEnd(ClientSession *session, const QJsonObject &
             releaseRoomFileQuota(state.roomId, state.fileSize);
 
         qInfo() << "[Server] 大文件上传完成:" << state.fileName << state.fileSize << "bytes";
+        sendUploadFinalizeResponse(session, uploadId, clientMessageId,
+                                   saveResult, false);
 
         // COS 异步上传（房间文件）
         if (m_cos->isEnabled()) {
             startCosUpload(state.filePath, state.fileName,
                            QStringLiteral("room/%1/%2").arg(state.roomId).arg(typeDir),
-                           fileId, false, state.username, uploadId);
+                           saveResult.fileId, false, state.username, uploadId);
         }
     }
 }
@@ -4122,9 +4313,18 @@ void ChatServer::handleFriendFileUploadStart(ClientSession *session, const QJson
     QString friendUsername = data["friendUsername"].toString();
     QString fileName = data["fileName"].toString();
     qint64 fileSize  = static_cast<qint64>(data["fileSize"].toDouble());
+    const QString clientMessageId = data["clientMessageId"].toString();
 
     int friendId = m_db->getUserIdByName(friendUsername);
     QJsonObject rspData;
+    if (!validOptionalClientMessageId(clientMessageId)) {
+        rspData["success"] = false;
+        rspData["errorCode"] = QStringLiteral("INVALID_CLIENT_MESSAGE_ID");
+        rspData["error"] = QStringLiteral("客户端消息 ID 过长");
+        session->sendMessage(Protocol::makeMessage(
+            Protocol::MsgType::FRIEND_FILE_UPLOAD_START_RSP, rspData));
+        return;
+    }
 
     QString validationError;
     QString validatedFileName;
@@ -4180,6 +4380,7 @@ void ChatServer::handleFriendFileUploadStart(ClientSession *session, const QJson
     state.userId      = session->userId();
     state.username    = session->username();
     state.displayName = session->displayName();
+    state.clientMessageId = clientMessageId;
     state.fileName    = fileName;
     state.filePath    = filePath;
     state.fileSize    = fileSize;
@@ -4189,6 +4390,7 @@ void ChatServer::handleFriendFileUploadStart(ClientSession *session, const QJson
 
     rspData["success"]        = true;
     rspData["uploadId"]       = uploadId;
+    if (!clientMessageId.isEmpty()) rspData["clientMessageId"] = clientMessageId;
     rspData["httpUploadPath"] = QStringLiteral("/api/upload/%1").arg(uploadId);
     rspData["friendUsername"]  = friendUsername;
     rspData["friendshipId"]   = friendshipId;

@@ -72,6 +72,13 @@ private:
                                   int userId, int roomId);
     void recordFriendMessageOutcome(FriendMessageService::Status status,
                                     int userId, int friendshipId);
+    void sendUploadFinalizeResponse(ClientSession *session,
+                                    const QString &uploadId,
+                                    const QString &clientMessageId,
+                                    const MessageSaveResult &result,
+                                    bool isFriendFile,
+                                    const QString &errorCode = QString(),
+                                    const QString &error = QString());
 
     void handleLogin(ClientSession *session, const QJsonObject &data);
     void handleRegister(ClientSession *session, const QJsonObject &data);
@@ -173,6 +180,9 @@ private:
     quint64 m_friendMessagesAccepted = 0;
     quint64 m_friendMessagesDuplicate = 0;
     quint64 m_friendMessagesRejected = 0;
+    quint64 m_attachmentFinalizationsAccepted = 0;
+    quint64 m_attachmentFinalizationsDuplicate = 0;
+    quint64 m_attachmentFinalizationsRejected = 0;
 
     mutable QMutex m_mutex;
     QMap<QString, ClientSession*> m_sessions;  // username -> session
@@ -183,6 +193,7 @@ private:
         int userId = 0;
         QString username;
         QString displayName;
+        QString clientMessageId;
         QString fileName;
         QString filePath;    // 临时文件路径
         qint64 fileSize = 0;

@@ -177,11 +177,12 @@ export const useChatStore = defineStore('chat', {
       }
       this._isUploading = true
 
-      chatWs.startUpload(roomId, file.name, file.size, contentType)
       // 保存 file 对象，等 START_RSP 返回 uploadId 后开始发块
       this._pendingUploadFile = file
       this._pendingUploadRoom = roomId
       this._pendingUploadThumbnail = thumbnail
+      this._pendingUploadClientMessageId = chatWs.startUpload(
+        roomId, file.name, file.size, contentType)
     },
 
     async _sendNextChunk(uploadId) {
@@ -190,7 +191,7 @@ export const useChatStore = defineStore('chat', {
 
       if (u.sent >= u.fileSize) {
         // 完成，发送缩略图
-        chatWs.endUpload(uploadId, u.thumbnail || '')
+        chatWs.endUpload(uploadId, u.clientMessageId, u.thumbnail || '')
         u.status = 'cos_uploading'
         u.cosPhase = true
         u.cosSent = 0
@@ -229,7 +230,7 @@ export const useChatStore = defineStore('chat', {
       })
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       u.sent = u.fileSize
-      chatWs.endUpload(uploadId, u.thumbnail || '')
+      chatWs.endUpload(uploadId, u.clientMessageId, u.thumbnail || '')
       u.status = 'cos_uploading'
       u.cosPhase = true
       this._isUploading = false
@@ -271,10 +272,12 @@ export const useChatStore = defineStore('chat', {
       this._pendingUploadThumbnail = next.thumbnail
       if (next.type === 'room') {
         this._pendingUploadRoom = next.roomId
-        chatWs.startUpload(next.roomId, next.file.name, next.file.size, next.contentType)
+        this._pendingUploadClientMessageId = chatWs.startUpload(
+          next.roomId, next.file.name, next.file.size, next.contentType)
       } else {
         this._pendingFriendUpload = next.friendUsername
-        chatWs.startFriendUpload(next.friendUsername, next.file.name, next.file.size)
+        this._pendingUploadClientMessageId = chatWs.startFriendUpload(
+          next.friendUsername, next.file.name, next.file.size)
       }
     },
 
@@ -388,10 +391,11 @@ export const useChatStore = defineStore('chat', {
       }
       this._isUploading = true
 
-      chatWs.startFriendUpload(friendUsername, file.name, file.size)
       this._pendingUploadFile = file
       this._pendingFriendUpload = friendUsername
       this._pendingUploadThumbnail = thumbnail
+      this._pendingUploadClientMessageId = chatWs.startFriendUpload(
+        friendUsername, file.name, file.size)
     },
 
     // ==================== 初始化消息监听 ====================
@@ -653,7 +657,8 @@ export const useChatStore = defineStore('chat', {
             file: file,
             roomId,
             paused: false,
-            thumbnail: this._pendingUploadThumbnail || ''
+            thumbnail: this._pendingUploadThumbnail || '',
+            clientMessageId: d.clientMessageId || this._pendingUploadClientMessageId
           }
           if (d.httpUploadPath) {
             this._uploadRawHttp(d.uploadId, d.httpUploadPath).catch((error) => {
@@ -675,6 +680,27 @@ export const useChatStore = defineStore('chat', {
         if (u && d.success) {
           u.sent = d.received
           this._sendNextChunk(d.uploadId)
+        }
+      })
+
+      chatWs.on(MsgType.FILE_UPLOAD_END_RSP, (msg) => {
+        const d = msg.data
+        const u = this.uploads[d.uploadId]
+        if (!d.success) {
+          if (u) {
+            u.status = 'failed'
+            u.error = d.error || '服务器未能确认文件消息'
+          }
+          this._emit('error', `文件发送失败: ${d.error || '未知错误'}`)
+          return
+        }
+        if (u) {
+          u.status = d.duplicate ? 'duplicate' : 'accepted'
+          u.messageId = d.id
+          u.fileId = d.fileId
+          u.sequence = d.sequence
+          clearTimeout(u._finishTimer)
+          setTimeout(() => { delete this.uploads[d.uploadId] }, 1500)
         }
       })
 
@@ -1082,7 +1108,8 @@ export const useChatStore = defineStore('chat', {
             file: file,
             roomId: -d.friendshipId,
             paused: false,
-            thumbnail: this._pendingUploadThumbnail || ''
+            thumbnail: this._pendingUploadThumbnail || '',
+            clientMessageId: d.clientMessageId || this._pendingUploadClientMessageId
           }
           if (d.httpUploadPath) {
             this._uploadRawHttp(d.uploadId, d.httpUploadPath).catch((error) => {

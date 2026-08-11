@@ -135,8 +135,9 @@ partial-migration, high-watermark, and ordered-resume checks to friend
 text/emoji messages.
 
 An eighth suite verifies the raw HTTP attachment data plane: owner-token
-binding, exact length, foreign-token denial, interrupted-body cleanup, existing
-WebSocket finalization, and notification frames without inline file bytes.
+binding, exact length, foreign-token denial, interrupted-body cleanup,
+room/friend idempotent finalization, duplicate/conflict responses, retry after
+restart, and notification frames without inline file bytes.
 The Qt gate additionally compiles `HttpUploadTransportTest`; the V1 smoke gate
 runs it with loopback access and checks the real raw `PUT`. A source contract
 test keeps Windows room/file/image and friend composer entry points on the

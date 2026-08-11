@@ -94,6 +94,9 @@ Progress:
   retirement remain.
 - [x] Publish the already-durable room/friend sequence and authoritative
   timestamp on every live attachment notification.
+- [x] Make upgraded Web/Windows room and friend upload finalization idempotent
+  with durable `clientMessageId`, explicit acceptance, conflict detection, and
+  restart-safe retry.
 - [ ] Add remaining reliable-message semantics.
 
 Work:

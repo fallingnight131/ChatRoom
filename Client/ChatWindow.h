@@ -207,6 +207,7 @@ private:
     void setupMenuBar();
     void connectSignals();
     void completeUploadBytes();
+    void onUploadFinalizeResponse(const QJsonObject &data);
     void clearUploadState(bool removeTemporaryMessage);
     int forwardFileWithLegacyProtocol(int fileId, const QString &fileName,
                                       const QSet<int> &roomIds,
@@ -315,6 +316,7 @@ private:
     struct ChunkedUpload {
         QString filePath;
         QString uploadId;
+        QString clientMessageId;
         qint64 fileSize = 0;
         qint64 offset   = 0;
         int    chunkSize = Protocol::FILE_CHUNK_SIZE;

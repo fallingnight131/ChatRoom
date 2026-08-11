@@ -100,7 +100,7 @@ consumer instead of growing an unbounded queue or silently dropping the event.
 
 `FILE_SEND`, `FILE_NOTIFY`, `FILE_DOWNLOAD_REQ`, `FILE_DOWNLOAD_RSP`,
 `FILE_UPLOAD_START`, `FILE_UPLOAD_START_RSP`, `FILE_UPLOAD_CHUNK`,
-`FILE_UPLOAD_CHUNK_RSP`, `FILE_UPLOAD_END`, `FILE_UPLOAD_CANCEL`,
+`FILE_UPLOAD_CHUNK_RSP`, `FILE_UPLOAD_END`, `FILE_UPLOAD_END_RSP`, `FILE_UPLOAD_CANCEL`,
 `FILE_DOWNLOAD_CHUNK_REQ`, `FILE_DOWNLOAD_CHUNK_RSP`, `FILE_COS_PROGRESS`,
 `ROOM_FILES_REQ`, `ROOM_FILES_RSP`, `ROOM_FILES_DELETE_REQ`,
 `ROOM_FILES_DELETE_RSP`, `ROOM_FILES_NOTIFY`.
@@ -221,6 +221,16 @@ so final membership/friendship authorization, metadata persistence,
 notification, and optional COS replication remain server-controlled. The
 upload ID without its owner's token is not authorization. Partial HTTP bodies
 are deleted on disconnect.
+
+Upgraded clients add the same `clientMessageId` to upload start and
+`FILE_UPLOAD_END`. The server echoes it during negotiation and replies to
+finalization with `FILE_UPLOAD_END_RSP`. Successful response data contains
+`success`, `uploadId`, `clientMessageId`, stable message `id`, signed `fileId`,
+`sequence`, authoritative `timestamp`, and `duplicate`. An identical retry,
+including one after restart, returns the original values and emits no second
+notification. Reuse for a different command returns
+`CLIENT_MESSAGE_ID_CONFLICT`. Clients that omit the field retain the old
+at-least-once behavior and can ignore the additive response.
 
 Upgraded Windows clients forward an existing attachment with
 `FILE_FORWARD_REQ {sourceFileId, roomIds[], friendUsernames[]}` after login

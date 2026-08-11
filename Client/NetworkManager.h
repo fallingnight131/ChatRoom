@@ -68,6 +68,7 @@ signals:
     // 大文件分块传输
     void uploadStartResponse(const QJsonObject &data);
     void uploadChunkResponse(const QJsonObject &data);
+    void uploadFinalizeResponse(const QJsonObject &data);
     void downloadChunkResponse(const QJsonObject &data);
     void fileCosProgress(const QJsonObject &data);
     void rawUploadProgress(const QString &uploadId, qint64 sent, qint64 total);

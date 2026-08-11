@@ -17,6 +17,7 @@ struct MessageSaveResult {
 
     Status status = Status::Failed;
     int messageId = -1;
+    int fileId = 0;
     qint64 sequence = 0;
     qint64 createdAtMs = 0;
 };
@@ -81,6 +82,12 @@ public:
     MessageSaveResult saveRoomMessageIdempotent(
         int roomId, int userId, const QString &clientMessageId,
         const QString &content, const QString &contentType);
+    MessageSaveResult saveRoomAttachmentIdempotent(
+        int roomId, int userId, const QString &clientMessageId,
+        const QString &fileName, const QString &contentType,
+        qint64 fileSize, int fileId, const QString &thumbnail);
+    MessageSaveResult findRoomAttachmentByClientMessageId(
+        int userId, const QString &clientMessageId);
     QJsonArray getMessageHistory(int roomId, int count, qint64 beforeTimestamp = 0);
     QJsonArray getMessageHistoryAfterSequence(int roomId, int count,
                                               qint64 afterSequence);
@@ -176,6 +183,12 @@ public:
     MessageSaveResult saveFriendMessageIdempotent(
         int friendshipId, int senderId, const QString &clientMessageId,
         const QString &content, const QString &contentType);
+    MessageSaveResult saveFriendAttachmentIdempotent(
+        int friendshipId, int senderId, const QString &clientMessageId,
+        const QString &fileName, const QString &contentType,
+        qint64 fileSize, int fileId, const QString &thumbnail);
+    MessageSaveResult findFriendAttachmentByClientMessageId(
+        int senderId, const QString &clientMessageId);
     QJsonArray getFriendMessageHistory(int friendshipId, int count, qint64 beforeTimestamp = 0);
     QJsonArray getFriendMessageHistoryAfterSequence(int friendshipId, int count,
                                                     qint64 afterSequence);

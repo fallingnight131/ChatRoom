@@ -209,18 +209,21 @@ Semantics:
 Do not promise exactly-once transport. Provide at-least-once delivery with
 idempotent processing and deterministic client reconciliation.
 
-The current V1 bridge implements this model for room and direct text/emoji
-submission: `clientMessageId`, durable send acknowledgements,
-per-room/per-friendship sequence, and `afterSequence` history resume are
-additive fields. Attachments, replayable recall/delete events, and durable
-client outboxes remain M1/M2 work; this compatibility slice is not the completed
-V2 model. Web room/friend uploads and Windows composer uploads now use the
+The current V1 bridge implements this model for room/direct text and emoji plus
+upgraded Web/Windows upload-finalized attachments: `clientMessageId`, durable
+send acknowledgements, per-room/per-friendship sequence, and `afterSequence`
+history resume are additive fields. Legacy inline attachments, multi-target
+forwarding, replayable recall/delete events, and durable client outboxes remain
+M1/M2 work; this compatibility slice is not the completed V2 model. Web
+room/friend uploads and Windows composer uploads now use the
 authorized binary HTTP bridge from ADR-0013. Upgraded Windows multi-target
 forwarding submits server file identity and target conversations under
 ADR-0014; old-server and old-client compatibility handlers still use legacy V1
 paths. ADR-0015 closes the live delivery metadata gap: inline, HTTP-uploaded,
 and forwarded attachment notifications now expose their durable conversation
-sequence and database timestamp just like history rows.
+sequence and database timestamp just like history rows. ADR-0016 adds explicit,
+restart-safe finalization acceptance and suppresses duplicate room/friend upload
+messages on identical retries.
 
 ## 8. Protocol Strategy
 

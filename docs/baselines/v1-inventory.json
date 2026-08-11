@@ -47,7 +47,7 @@
     "default_websocket_port": 9528,
     "heartbeat_interval_ms": 30000,
     "heartbeat_timeout_ms": 90000,
-    "message_type_count": 124,
+    "message_type_count": 125,
     "message_types": [
       "LOGIN_REQ",
       "LOGIN_RSP",
@@ -80,6 +80,7 @@
       "FILE_UPLOAD_CHUNK",
       "FILE_UPLOAD_CHUNK_RSP",
       "FILE_UPLOAD_END",
+      "FILE_UPLOAD_END_RSP",
       "FILE_DOWNLOAD_CHUNK_REQ",
       "FILE_DOWNLOAD_CHUNK_RSP",
       "FILE_UPLOAD_CANCEL",
@@ -234,15 +235,15 @@
   "sources": {
     "database_schema": {
       "path": "Server/DatabaseManager.cpp",
-      "sha256": "f28ee474c86e7abda51d4cb322e34a3b17c910cae2e8a5d406046efb4e058af7"
+      "sha256": "4f6bba3b2316778f2a606db2a8503371cce83bf7c63a0048099ef09840afeb38"
     },
     "protocol": {
       "path": "Common/Protocol.h",
-      "sha256": "49f27502be90a3f03ef966ac940cae825be3dd6a63f284a553f942f93acd3cfa"
+      "sha256": "62da9398c86117c0a2771a075ce0cd319838fdd8b240073a437ecf72ac65d0d0"
     },
     "server_dispatch": {
       "path": "Server/ChatServer.cpp",
-      "sha256": "fed5d9af9a554b12bd678aacbc7575756f241edce24aa54a906dd294721f10dd"
+      "sha256": "4c574871d818730e911c0f78d841c4565c4ef3e383f76390b75ca27f0e67bf2e"
     }
   }
 }

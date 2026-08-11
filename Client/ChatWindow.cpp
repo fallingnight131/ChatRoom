@@ -43,6 +43,7 @@
 #include <QScrollBar>
 #include <QFile>
 #include <QFileInfo>
+#include <QUuid>
 #include <QDir>
 #include <QRegularExpression>
 #include <QKeyEvent>
@@ -520,6 +521,7 @@ void ChatWindow::connectSignals() {
     // 大文件分块传输
     connect(net, &NetworkManager::uploadStartResponse, this, &ChatWindow::onUploadStartResponse);
     connect(net, &NetworkManager::uploadChunkResponse, this, &ChatWindow::onUploadChunkResponse);
+    connect(net, &NetworkManager::uploadFinalizeResponse, this, &ChatWindow::onUploadFinalizeResponse);
     connect(net, &NetworkManager::rawUploadProgress, this, &ChatWindow::onRawUploadProgress);
     connect(net, &NetworkManager::rawUploadFinished, this, &ChatWindow::onRawUploadFinished);
     connect(net, &NetworkManager::downloadChunkResponse, this, &ChatWindow::onDownloadChunkResponse);
@@ -1532,6 +1534,7 @@ void ChatWindow::startChunkedUpload(const QString &filePath) {
     m_upload.fileSize  = fi.size();
     m_upload.offset    = 0;
     m_upload.uploadId.clear();
+    m_upload.clientMessageId = QUuid::createUuid().toString(QUuid::WithoutBraces);
     m_upload.thumbnailData.clear();
     m_upload.rawHttp = false;
     m_uploadPaused = false;
@@ -1575,6 +1578,7 @@ void ChatWindow::startChunkedUpload(const QString &filePath) {
     data["roomId"]   = m_currentRoomId;
     data["fileName"] = fi.fileName();
     data["fileSize"] = static_cast<double>(fi.size());
+    data["clientMessageId"] = m_upload.clientMessageId;
     NetworkManager::instance()->sendMessage(
         Protocol::makeMessage(Protocol::MsgType::FILE_UPLOAD_START, data));
 
@@ -1590,6 +1594,8 @@ void ChatWindow::onUploadStartResponse(const QJsonObject &data) {
         return;
     }
     m_upload.uploadId = data["uploadId"].toString();
+    if (!data["clientMessageId"].toString().isEmpty())
+        m_upload.clientMessageId = data["clientMessageId"].toString();
     const QString uploadPath = data["httpUploadPath"].toString();
     if (!uploadPath.isEmpty()) {
         if (NetworkManager::instance()->uploadRawFile(
@@ -1665,6 +1671,7 @@ void ChatWindow::onUploadChunkResponse(const QJsonObject &data) {
 void ChatWindow::completeUploadBytes() {
     QJsonObject endData;
     endData["uploadId"] = m_upload.uploadId;
+    endData["clientMessageId"] = m_upload.clientMessageId;
     if (!m_upload.thumbnailData.isEmpty()) {
         endData["thumbnail"] = QString::fromLatin1(m_upload.thumbnailData.toBase64());
         m_upload.thumbnailData.clear();
@@ -1680,6 +1687,30 @@ void ChatWindow::completeUploadBytes() {
             if (m_statusLabel->text().contains("云端"))
                 m_statusLabel->clear();
         }
+    });
+}
+
+void ChatWindow::onUploadFinalizeResponse(const QJsonObject &data) {
+    if (!data["uploadId"].toString().isEmpty() &&
+        data["uploadId"].toString() != m_upload.uploadId)
+        return;
+    if (!data["clientMessageId"].toString().isEmpty() &&
+        data["clientMessageId"].toString() != m_upload.clientMessageId)
+        return;
+
+    if (!data["success"].toBool()) {
+        QMessageBox::warning(
+            this, "上传失败",
+            data["error"].toString("服务器未能确认文件消息"));
+        clearUploadState(true);
+        return;
+    }
+    const bool duplicate = data["duplicate"].toBool();
+    clearUploadState(duplicate);
+    m_statusLabel->setText(duplicate ? "文件已在服务器中，已避免重复发送"
+                                     : "文件发送成功");
+    QTimer::singleShot(2000, this, [this]() {
+        if (m_statusLabel->text().contains("文件")) m_statusLabel->clear();
     });
 }
 
@@ -1801,6 +1832,7 @@ void ChatWindow::clearUploadState(bool removeTemporaryMessage) {
     if (!fileName.isEmpty() && m_pendingSentFiles.value(fileName) == m_upload.filePath)
         m_pendingSentFiles.remove(fileName);
     m_upload.uploadId.clear();
+    m_upload.clientMessageId.clear();
     m_upload.filePath.clear();
     m_upload.fileSize = 0;
     m_upload.offset = 0;
@@ -4373,6 +4405,7 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
         m_upload.fileSize  = fileSize;
         m_upload.offset    = 0;
         m_upload.uploadId.clear();
+        m_upload.clientMessageId = QUuid::createUuid().toString(QUuid::WithoutBraces);
         m_upload.thumbnailData.clear();
         m_upload.rawHttp = false;
         m_uploadPaused = false;
@@ -4421,6 +4454,7 @@ void ChatWindow::sendFriendFile(const QString &filePath, const QString &contentT
         data["friendUsername"] = m_currentFriendUsername;
         data["fileName"]      = fi.fileName();
         data["fileSize"]      = static_cast<double>(fileSize);
+        data["clientMessageId"] = m_upload.clientMessageId;
         NetworkManager::instance()->sendMessage(
             Protocol::makeMessage(Protocol::MsgType::FRIEND_FILE_UPLOAD_START, data));
     }

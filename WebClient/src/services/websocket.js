@@ -25,7 +25,7 @@ export const MsgType = {
   FILE_DOWNLOAD_REQ: 'FILE_DOWNLOAD_REQ', FILE_DOWNLOAD_RSP: 'FILE_DOWNLOAD_RSP',
   FILE_UPLOAD_START: 'FILE_UPLOAD_START', FILE_UPLOAD_START_RSP: 'FILE_UPLOAD_START_RSP',
   FILE_UPLOAD_CHUNK: 'FILE_UPLOAD_CHUNK', FILE_UPLOAD_CHUNK_RSP: 'FILE_UPLOAD_CHUNK_RSP',
-  FILE_UPLOAD_END: 'FILE_UPLOAD_END', FILE_UPLOAD_CANCEL: 'FILE_UPLOAD_CANCEL',
+  FILE_UPLOAD_END: 'FILE_UPLOAD_END', FILE_UPLOAD_END_RSP: 'FILE_UPLOAD_END_RSP', FILE_UPLOAD_CANCEL: 'FILE_UPLOAD_CANCEL',
   FILE_DOWNLOAD_CHUNK_REQ: 'FILE_DOWNLOAD_CHUNK_REQ', FILE_DOWNLOAD_CHUNK_RSP: 'FILE_DOWNLOAD_CHUNK_RSP',
   RECALL_REQ: 'RECALL_REQ', RECALL_RSP: 'RECALL_RSP', RECALL_NOTIFY: 'RECALL_NOTIFY',
   HEARTBEAT: 'HEARTBEAT', HEARTBEAT_ACK: 'HEARTBEAT_ACK',
@@ -303,16 +303,17 @@ class ChatWebSocket {
   }
 
   // 大文件分块上传
-  startUpload(roomId, fileName, fileSize, contentType = 'file') {
-    this.send(makeMessage(MsgType.FILE_UPLOAD_START, { roomId, fileName, fileSize, contentType }))
+  startUpload(roomId, fileName, fileSize, contentType = 'file', clientMessageId = uuid()) {
+    this.send(makeMessage(MsgType.FILE_UPLOAD_START, { roomId, fileName, fileSize, contentType, clientMessageId }))
+    return clientMessageId
   }
 
   sendChunk(uploadId, chunkIndex, chunkData) {
     this.send(makeMessage(MsgType.FILE_UPLOAD_CHUNK, { uploadId, chunkIndex, chunkData }))
   }
 
-  endUpload(uploadId, thumbnail = '') {
-    const data = { uploadId }
+  endUpload(uploadId, clientMessageId, thumbnail = '') {
+    const data = { uploadId, clientMessageId }
     if (thumbnail) data.thumbnail = thumbnail
     this.send(makeMessage(MsgType.FILE_UPLOAD_END, data))
   }
@@ -461,8 +462,9 @@ class ChatWebSocket {
     this.send(makeMessage(MsgType.FRIEND_FILE_SEND, data))
   }
 
-  startFriendUpload(friendUsername, fileName, fileSize) {
-    this.send(makeMessage(MsgType.FRIEND_FILE_UPLOAD_START, { friendUsername, fileName, fileSize }))
+  startFriendUpload(friendUsername, fileName, fileSize, clientMessageId = uuid()) {
+    this.send(makeMessage(MsgType.FRIEND_FILE_UPLOAD_START, { friendUsername, fileName, fileSize, clientMessageId }))
+    return clientMessageId
   }
 }
 
