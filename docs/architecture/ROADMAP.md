@@ -358,6 +358,8 @@ Progress:
     - [x] Add a transport/cache-injected Web V2 application coordinator for
       cached-first directory/history use cases, bounded paging, optimistic text,
       correlated ACK/error handling, exact cursors, and at-least-once deduplication.
+    - [x] Add memory-only automatic Web session resume with proof rotation,
+      observer redaction, rejection/stop cleanup, and same-session cursor recovery.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

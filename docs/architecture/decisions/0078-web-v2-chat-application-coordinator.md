@@ -39,8 +39,9 @@ ahead of messages the client has not synchronized yet.
 Messaging invariants now have one Web V2 application owner independent of UI and
 network implementations. Cached content can render before a round trip and
 out-of-order local acceptance cannot create a synchronization hole. Directory
-metadata itself is not yet persisted, and reconnect does not automatically
-resume or replay unresolved sends.
+metadata itself is not yet persisted. ADR-0080 now resumes a valid session in
+page memory and continues active history synchronization, but does not replay
+unresolved sends automatically.
 
 ## Verification
 

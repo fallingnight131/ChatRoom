@@ -8,6 +8,7 @@ export type V2WebSocketTransportState =
   | "connecting"
   | "negotiating"
   | "connected"
+  | "resuming"
   | "authenticated"
   | "reconnect-wait"
   | "stopped";
@@ -70,6 +71,7 @@ export class V2WebSocketTransport {
   private phaseTimer: TimerHandle | null = null;
   private reconnectTimer: TimerHandle | null = null;
   private reconnectAttempt = 0;
+  private resumeCredential: { sessionId: string; token: Uint8Array } | null = null;
   private desired = false;
   private currentState: V2WebSocketTransportState = "idle";
 
@@ -145,6 +147,7 @@ export class V2WebSocketTransport {
     const socket = this.socket;
     this.socket = null;
     this.clearProtocolClient();
+    this.clearResumeCredential();
     if (socket) safeClose(socket, 1000, "client stopped");
     this.transition("stopped");
   }
@@ -199,17 +202,35 @@ export class V2WebSocketTransport {
     }
     try {
       const event = this.protocolClient.receive(new Uint8Array(data));
+      let observableEvent = event;
       if (event.type === "server-hello") {
         this.cancelPhaseTimer();
-        this.transition("connected");
+        if (this.resumeCredential) {
+          const credential = this.resumeCredential;
+          this.transition("resuming");
+          try {
+            this.send(this.protocolClient.resumeSession(credential.sessionId, credential.token));
+            this.armPhaseTimeout(this.authenticationTimeoutMs, "V2 authentication timeout", socket);
+          } catch {
+            return;
+          }
+        } else {
+          this.transition("connected");
+        }
       } else if (event.type === "session-established") {
         this.cancelPhaseTimer();
+        this.replaceResumeCredential(event.value.sessionId, event.value.resumeToken);
+        observableEvent = {
+          ...event,
+          value: { ...event.value, resumeToken: new Uint8Array() },
+        };
         this.reconnectAttempt = 0;
         this.transition("authenticated");
       } else if (event.type === "authentication-rejected") {
         this.cancelPhaseTimer();
+        this.clearResumeCredential();
       }
-      this.emitProtocolEvent(event);
+      this.emitProtocolEvent(observableEvent);
     } catch {
       this.failSocket(socket, "V2 WebSocket received invalid protocol data", 1002);
     }
@@ -270,6 +291,16 @@ export class V2WebSocketTransport {
   private clearProtocolClient(): void {
     this.protocolClient?.close();
     this.protocolClient = null;
+  }
+
+  private replaceResumeCredential(sessionId: string, token: Uint8Array): void {
+    this.clearResumeCredential();
+    this.resumeCredential = { sessionId, token: token.slice() };
+  }
+
+  private clearResumeCredential(): void {
+    this.resumeCredential?.token.fill(0);
+    this.resumeCredential = null;
   }
 
   private cancelPhaseTimer(): void {

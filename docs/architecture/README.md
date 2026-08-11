@@ -442,11 +442,13 @@ pages, and idempotent text submissions without changing the live V1 path. Live
 Web traffic remains on V1. The unconnected V2 WebSocket adapter now fixes the
 secure endpoint/subprotocol, bounds connection phases, rejects non-binary data,
 clears per-connection protocol state, and performs cancellable jittered
-reconnects. Application integration, automatic session resume, browser offline signals, and
+reconnects. Application integration, browser offline signals, and
 rollback behavior still require verification before any cutover. The protocol
 and transport boundaries can now send an explicitly supplied resume proof and
-accept its rotated session result, but no layer persists or automatically
-replays that proof yet.
+accept its rotated session result. The transport retains only the latest rotated
+proof in page memory, redacts it from application observers, automatically
+resumes after transient reconnect, and clears it on rejection or explicit stop.
+No proof is persisted across a reload.
 
 The additive V2 cache uses a separate `chat-room-client-v2` IndexedDB database
 instead of upgrading the live V1 database. It partitions snapshots by V2 account

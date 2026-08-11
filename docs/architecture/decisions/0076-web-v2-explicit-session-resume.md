@@ -1,6 +1,7 @@
 # ADR-0076: Explicit Web V2 Session Resume
 
 - Status: Accepted
+- Extended by: ADR-0080
 - Date: 2026-08-12
 - Related milestone: M3
 

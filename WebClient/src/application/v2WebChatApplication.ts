@@ -270,6 +270,9 @@ export class V2WebChatApplication {
     if (this.disposed) return;
     switch (event.type) {
       case "session-established":
+        {
+        const sameSession = this.sessionValue?.accountId === event.value.accountId
+          && this.sessionValue.sessionId === event.value.sessionId;
         this.sessionValue = {
           accountId: event.value.accountId,
           deviceId: event.value.deviceId,
@@ -280,10 +283,23 @@ export class V2WebChatApplication {
         this.directoryValue = [];
         this.directoryCursor = null;
         this.directoryHasMoreValue = false;
-        this.activeConversationIdValue = null;
-        this.conversations.clear();
+        if (!sameSession) {
+          this.activeConversationIdValue = null;
+          this.conversations.clear();
+        } else if (this.activeConversationIdValue) {
+          const active = this.conversations.get(this.activeConversationIdValue);
+          if (active) {
+            active.loading = true;
+            this.transport.readMessageHistory(
+              this.activeConversationIdValue,
+              BigInt(active.cursorSequence),
+              HISTORY_PAGE_SIZE,
+            );
+          }
+        }
         this.transport.listConversations(DIRECTORY_PAGE_SIZE);
         break;
+        }
       case "conversation-directory-page":
         this.applyDirectoryPage(event.value.conversations, event.value.hasMore,
           event.value.nextUpdatedAtEpochMs, event.value.nextConversationId);
@@ -300,6 +316,12 @@ export class V2WebChatApplication {
         break;
       case "authentication-rejected":
         this.lastFailureValue = "Authentication rejected";
+        this.sessionValue = null;
+        this.directoryValue = [];
+        this.directoryCursor = null;
+        this.directoryHasMoreValue = false;
+        this.activeConversationIdValue = null;
+        this.conversations.clear();
         break;
       default:
         break;

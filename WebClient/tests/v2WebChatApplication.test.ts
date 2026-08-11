@@ -309,3 +309,31 @@ test("surfaces generic authentication rejection without retaining session secret
   assert.equal(application.snapshot.session, null);
   application.dispose();
 });
+
+test("preserves active cached state across same-session resume and clears it on rejection", async () => {
+  const transport = new FakeTransport();
+  const cache = new FakeCache();
+  cache.records.set(`${ACCOUNT_ID}:${CONVERSATION_ID}`, {
+    messages: [cachedMessage()],
+    cursorSequence: CURSOR,
+  });
+  const application = new V2WebChatApplication({ transport, cache });
+  establish(transport);
+  directory(transport);
+  await application.openConversation(CONVERSATION_ID);
+  const historyCallsBeforeResume = transport.calls.filter((call) => call[0] === "history").length;
+  establish(transport);
+  assert.equal(application.snapshot.activeConversationId, CONVERSATION_ID);
+  assert.equal(application.snapshot.messages[0]?.content, "cached");
+  assert.equal(transport.calls.filter((call) => call[0] === "history").length, historyCallsBeforeResume + 1);
+  assert.ok(transport.calls.some((call) => call[0] === "history" && call[2] === BigInt(CURSOR)));
+
+  transport.emit(correlated({
+    type: "authentication-rejected",
+    value: create(AuthenticationRejectedSchema, { retryAfterMs: 1000n }),
+  }));
+  assert.equal(application.snapshot.session, null);
+  assert.equal(application.snapshot.activeConversationId, null);
+  assert.deepEqual(application.snapshot.messages, []);
+  application.dispose();
+});

@@ -131,9 +131,13 @@ The adapter does not silently replay credentials or authenticated commands after
 reconnect. Once negotiated, callers may explicitly supply a session UUID and
 32-byte proof; the protocol boundary copies and clears its serialization buffer,
 then validates and retains only the rotated proof returned by the server.
-Persistent proof custody, automatic resume orchestration, a browser-appropriate
-liveness mechanism, online/offline integration, and UI rollout remain later
-slices.
+The Web transport now keeps the latest rotated proof only in page memory and
+automatically submits it after a reconnect negotiation. It clears the prior copy
+on every rotation, redacts proof bytes from application observers, and clears
+the credential on rejection or explicit stop. A same-account/session resume
+preserves the active cached conversation and requests history from its existing
+contiguous cursor. Cross-reload proof persistence, online/offline integration,
+and UI rollout remain later slices.
 
 The pre-cutover Web application coordinator consumes those validated events. It
 uses the envelope `client_message_id` to reconcile optimistic sends and treats a

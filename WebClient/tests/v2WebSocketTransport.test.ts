@@ -3,7 +3,11 @@ import test from "node:test";
 
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 
-import { SessionEstablishedSchema } from "../src/protocol/v2/generated/authentication_pb";
+import {
+  AuthenticationRejectedSchema,
+  ResumeSessionSchema,
+  SessionEstablishedSchema,
+} from "../src/protocol/v2/generated/authentication_pb";
 import { MessageType, ServerHelloSchema } from "../src/protocol/v2/generated/control_pb";
 import { EnvelopeSchema, MessageKind, type Envelope } from "../src/protocol/v2/generated/envelope_pb";
 import { V2WebProtocolClient } from "../src/protocol/v2/webProtocolClient";
@@ -93,10 +97,16 @@ function sentEnvelope(socket: FakeSocket, index: number): Envelope {
   return fromBinary(EnvelopeSchema, new Uint8Array(socket.sent[index]!));
 }
 
-function response(request: Envelope, type: MessageType, payload: Uint8Array, sessionId = ""): ArrayBuffer {
+function response(
+  request: Envelope,
+  type: MessageType,
+  payload: Uint8Array,
+  sessionId = "",
+  kind = MessageKind.RESPONSE,
+): ArrayBuffer {
   return toBinary(EnvelopeSchema, create(EnvelopeSchema, {
     protocolVersion: 2,
-    kind: MessageKind.RESPONSE,
+    kind,
     messageType: type,
     requestId: request.requestId,
     sessionId,
@@ -306,4 +316,88 @@ test("turns synchronous socket construction failure into a cancellable retry", (
   assert.equal(attempts, 2);
   transport.stop();
   assert.equal(timers.tasks.size, 0);
+});
+
+test("automatically resumes with rotated memory-only proof and clears it after rejection", () => {
+  const timers = new FakeTimers();
+  const sockets: FakeSocket[] = [];
+  const transport = new V2WebSocketTransport({
+    endpoint: "wss://chat.example/v2/web",
+    createProtocolClient: protocolFactory(),
+    createSocket: () => {
+      const socket = new FakeSocket();
+      sockets.push(socket);
+      return socket;
+    },
+    setTimer: timers.set,
+    clearTimer: timers.clear,
+    random: () => 0,
+  });
+  const firstToken = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
+  const rotatedToken = Uint8Array.from({ length: 32 }, (_, index) => 32 - index);
+  const exposedTokenLengths: number[] = [];
+  transport.subscribe({
+    onProtocolEvent: (event) => {
+      if (event.type === "session-established") exposedTokenLengths.push(event.value.resumeToken.byteLength);
+    },
+  });
+
+  transport.start();
+  sockets[0]!.open();
+  sockets[0]!.receive(helloResponse(sentEnvelope(sockets[0]!, 0)));
+  transport.authenticate("alice", new TextEncoder().encode("password"));
+  const authentication = sentEnvelope(sockets[0]!, 1);
+  sockets[0]!.receive(response(authentication, MessageType.SESSION_ESTABLISHED, toBinary(
+    SessionEstablishedSchema,
+    create(SessionEstablishedSchema, {
+      accountId: ACCOUNT_ID,
+      deviceId: DEVICE_ID,
+      sessionId: SESSION_ID,
+      resumeToken: firstToken,
+      expiresAtEpochMs: BigInt(NOW + 60_000),
+      displayName: "Alice",
+    }),
+  ), SESSION_ID));
+
+  sockets[0]!.finishClose();
+  timers.runOnly();
+  sockets[1]!.open();
+  sockets[1]!.receive(helloResponse(sentEnvelope(sockets[1]!, 0)));
+  assert.equal(transport.state, "resuming");
+  const firstResumeEnvelope = sentEnvelope(sockets[1]!, 1);
+  const firstResume = fromBinary(ResumeSessionSchema, firstResumeEnvelope.payload);
+  assert.deepEqual(firstResume.resumeToken, firstToken);
+  sockets[1]!.receive(response(firstResumeEnvelope, MessageType.SESSION_ESTABLISHED, toBinary(
+    SessionEstablishedSchema,
+    create(SessionEstablishedSchema, {
+      accountId: ACCOUNT_ID,
+      deviceId: DEVICE_ID,
+      sessionId: SESSION_ID,
+      resumeToken: rotatedToken,
+      expiresAtEpochMs: BigInt(NOW + 120_000),
+      displayName: "Alice",
+    }),
+  ), SESSION_ID));
+
+  sockets[1]!.finishClose();
+  timers.runOnly();
+  sockets[2]!.open();
+  sockets[2]!.receive(helloResponse(sentEnvelope(sockets[2]!, 0)));
+  const rotatedResumeEnvelope = sentEnvelope(sockets[2]!, 1);
+  assert.deepEqual(fromBinary(ResumeSessionSchema, rotatedResumeEnvelope.payload).resumeToken, rotatedToken);
+  sockets[2]!.receive(response(
+    rotatedResumeEnvelope,
+    MessageType.AUTHENTICATION_REJECTED,
+    toBinary(AuthenticationRejectedSchema, create(AuthenticationRejectedSchema, {})),
+    "",
+    MessageKind.ERROR,
+  ));
+  sockets[2]!.finishClose();
+  timers.runOnly();
+  sockets[3]!.open();
+  sockets[3]!.receive(helloResponse(sentEnvelope(sockets[3]!, 0)));
+  assert.equal(transport.state, "connected");
+  assert.equal(sockets[3]!.sent.length, 1, "rejected proof is not replayed again");
+  assert.deepEqual(exposedTokenLengths, [0, 0], "resume proofs stay inside the transport boundary");
+  transport.stop();
 });
