@@ -199,6 +199,7 @@ function onReconnectLogin(msg) {
     userStore.onLoginSuccess(msg.data)
     userStore.initListeners()
     chatStore.initListeners()
+    chatStore.beginAttachmentSession(msg.data.username)
     chatWs.getAvatar(msg.data.username)
     chatWs.requestRoomList()
     chatWs.requestFriendList()
@@ -208,6 +209,7 @@ function onReconnectLogin(msg) {
   } else {
     // 登录失败，跳转到登录页
     reconnecting.value = false
+    chatStore.endAttachmentSession()
     userStore.onLogout()
     router.push('/login')
   }
@@ -224,6 +226,7 @@ function onReconnected() {
     chatWs.login(creds.username, creds.password)
   } else {
     reconnecting.value = false
+    chatStore.endAttachmentSession()
     userStore.onLogout()
     router.push('/login')
   }
@@ -257,6 +260,7 @@ function onDisconnected() {
 
 function onForceOfflineConfirm() {
   userStore.forceOfflineReason = ''
+  chatStore.endAttachmentSession()
   userStore.onLogout()
   router.push('/login')
 }

@@ -185,6 +185,7 @@ function changePassword() {
 
 function doLogout() {
   chatWs.logout()
+  chatStore.endAttachmentSession()
   userStore.onLogout()
   emit('close')
   router.push('/login')

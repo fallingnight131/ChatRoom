@@ -121,6 +121,7 @@ function onLoginRsp(msg) {
     // 初始化消息监听
     userStore.initListeners()
     chatStore.initListeners()
+    chatStore.beginAttachmentSession(msg.data.username)
     // 请求头像和房间列表
     chatWs.getAvatar(msg.data.username)
     chatWs.requestRoomList()

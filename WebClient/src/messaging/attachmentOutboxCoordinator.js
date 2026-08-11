@@ -17,7 +17,13 @@ export class AttachmentOutboxCoordinator {
   async stage(input) {
     const command = makeAttachmentCommand(input)
     this.runtimeSources.set(command.key, input.file)
-    await this.repository.save(command)
+    try {
+      await this.repository.save(command)
+    } catch (error) {
+      // Persistence is a recovery enhancement. A transient IndexedDB failure
+      // must not block a file that the user has just selected in this page.
+      command.persistenceError = String(error?.message || error)
+    }
     return command
   }
 

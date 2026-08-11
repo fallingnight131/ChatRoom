@@ -40,6 +40,16 @@ test('stages runtime source and prepares it without persisting bytes', async () 
   assert.equal(repository.records[0].file, undefined)
 })
 
+test('keeps a freshly selected runtime source usable when persistence fails', async () => {
+  const repository = new MemoryRepository()
+  repository.save = async () => { throw new Error('storage unavailable') }
+  const coordinator = new AttachmentOutboxCoordinator(repository)
+  const command = await coordinator.stage(input())
+  const prepared = await coordinator.prepare(command)
+  assert.equal(command.persistenceError, 'storage unavailable')
+  assert.equal(prepared.file.name, 'a.png')
+})
+
 test('recovers granted handles and never prompts outside a user gesture', async () => {
   let requestCalls = 0
   const file = input().file

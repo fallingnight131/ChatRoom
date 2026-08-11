@@ -13,6 +13,15 @@ import {
   conversationCoordinator
 } from '../messaging/conversationCoordinator'
 import { advanceReadWatermark, applyPeerReadWatermark } from '../messaging/readReceipts'
+import {
+  AttachmentOutboxCoordinator,
+  attachmentOutboxCoordinator
+} from '../messaging/attachmentOutboxCoordinator'
+
+function newClientMessageId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
+  return `attachment-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -25,8 +34,12 @@ export const useChatStore = defineStore('chat', {
     roomSyncCursors: {},    // roomId -> 当前内存视图已应用的服务端序列
     // 文件上传
     uploads: {},            // uploadId -> { fileName, fileSize, sent, status, file, roomId, paused }
-    _uploadQueue: [],       // 上传队列：[{ type:'room'|'friend', roomId, friendUsername, file, thumbnail }]
+    attachmentCommands: [], // 可恢复的附件发送意图（不包含文件字节或上传授权）
+    _uploadQueue: [],       // 上传队列：[{ command, file, thumbnail }]
     _isUploading: false,    // 是否有正在进行的大文件上传
+    _roomAccessLoaded: false,
+    _friendAccessLoaded: false,
+    _attachmentAccount: '',
     // 文件下载
     downloads: {},          // fileId -> { fileName, fileSize, received, blob, status, paused }
     // 房间设置
@@ -62,6 +75,23 @@ export const useChatStore = defineStore('chat', {
   },
 
   actions: {
+    beginAttachmentSession(account) {
+      if (this._attachmentAccount === account) return
+      this._attachmentAccount = String(account || '')
+      this._roomAccessLoaded = false
+      this._friendAccessLoaded = false
+      this.attachmentCommands = []
+    },
+
+    endAttachmentSession() {
+      this._attachmentAccount = ''
+      this._roomAccessLoaded = false
+      this._friendAccessLoaded = false
+      this.attachmentCommands = []
+      this._uploadQueue = []
+      this._pendingAttachmentCommand = null
+    },
+
     // ==================== 房间 ====================
     async setCurrentRoom(roomId) {
       const room = this.rooms.find(r => r.roomId === roomId)
@@ -240,10 +270,162 @@ export const useChatStore = defineStore('chat', {
     },
 
     // ==================== 大文件分块上传 ====================
-    async startChunkedUpload(roomId, file) {
+    async _stageAttachment(kind, conversationId, file, contentType, sourceHandle = null) {
+      const account = useUserStore().username
+      if (!account) throw new Error('用户未登录，无法发送文件')
+      const command = await attachmentOutboxCoordinator.stage({
+        account,
+        kind,
+        conversationId,
+        clientMessageId: newClientMessageId(),
+        file,
+        sourceHandle,
+        contentType
+      })
+      this._upsertAttachmentCommand(command)
+      if (command.persistenceError) {
+        console.warn('[AttachmentOutbox] recovery persistence unavailable:',
+          command.persistenceError)
+      }
+      return command
+    },
+
+    _upsertAttachmentCommand(command) {
+      const index = this.attachmentCommands.findIndex(item =>
+        item.clientMessageId === command.clientMessageId)
+      if (index >= 0) this.attachmentCommands[index] = command
+      else this.attachmentCommands.push(command)
+    },
+
+    _removeAttachmentCommand(clientMessageId) {
+      this.attachmentCommands = this.attachmentCommands.filter(item =>
+        item.clientMessageId !== clientMessageId)
+    },
+
+    async _markAttachmentFailed(command, errorCode = 'UPLOAD_FAILED') {
+      if (!command) return
+      try {
+        const updated = await attachmentOutboxCoordinator.fail(command, errorCode)
+        this._upsertAttachmentCommand(updated)
+      } catch (error) {
+        this._upsertAttachmentCommand({ ...command, state: 'failed', errorCode })
+        console.warn('[AttachmentOutbox] unable to persist failure:', error)
+      }
+    },
+
+    async _completeAttachmentCommand(command) {
+      if (!command) return
+      this._removeAttachmentCommand(command.clientMessageId)
+      try {
+        await attachmentOutboxCoordinator.complete(command)
+      } catch (error) {
+        console.warn('[AttachmentOutbox] unable to remove completed command:', error)
+      }
+    },
+
+    async cancelAttachmentCommand(command) {
+      if (!command) return
+      this._uploadQueue = this._uploadQueue.filter(item =>
+        item.command?.clientMessageId !== command.clientMessageId)
+      this._removeAttachmentCommand(command.clientMessageId)
+      try {
+        await attachmentOutboxCoordinator.cancel(command)
+      } catch (error) {
+        console.warn('[AttachmentOutbox] unable to remove cancelled command:', error)
+      }
+    },
+
+    async _failActiveUpload(uploadId, message) {
+      const upload = this.uploads[uploadId]
+      if (!upload) return
+      upload.status = 'failed'
+      upload.error = message
+      if (upload.abortController) upload.abortController.abort()
+      chatWs.cancelUpload(uploadId)
+      delete this.uploads[uploadId]
+      await this._markAttachmentFailed(upload.command, message || 'UPLOAD_FAILED')
+      this._isUploading = false
+      this._processNextUpload()
+    },
+
+    async recoverAttachmentCommands() {
+      if (!this._roomAccessLoaded || !this._friendAccessLoaded) return
+      const account = useUserStore().username
+      if (!account) return
+      const allowedTargets = new Set([
+        ...this.rooms.map(room => AttachmentOutboxCoordinator.targetKey('room', room.roomId)),
+        ...this.friends.map(friend => AttachmentOutboxCoordinator.targetKey(
+          'direct', friend.username))
+      ])
+      try {
+        const commands = await attachmentOutboxCoordinator.recover(account, allowedTargets)
+        this.attachmentCommands = commands
+        for (const command of commands) {
+          if (command.state === 'pending') void this.retryAttachmentCommand(command)
+        }
+      } catch (error) {
+        console.warn('[AttachmentOutbox] unable to recover commands:', error)
+      }
+    },
+
+    async retryAttachmentCommand(command) {
+      if (!command) return
+      const clientMessageId = command.clientMessageId
+      const alreadyInFlight = this._pendingAttachmentCommand?.clientMessageId === clientMessageId
+        || this._uploadQueue.some(item => item.command?.clientMessageId === clientMessageId)
+        || Object.values(this.uploads).some(upload =>
+          upload.command?.clientMessageId === clientMessageId)
+      if (alreadyInFlight) return
+      try {
+        const prepared = await attachmentOutboxCoordinator.prepare(command)
+        if (!prepared.file) {
+          this._upsertAttachmentCommand(prepared.command)
+          return
+        }
+        const updated = await attachmentOutboxCoordinator.reselect(
+          command, prepared.file, command.sourceHandle || null)
+        this._upsertAttachmentCommand(updated)
+        if (updated.kind === 'room') {
+          await this.startChunkedUpload(Number(updated.conversationId), prepared.file,
+            { command: updated })
+        } else {
+          await this.startFriendChunkedUpload(updated.conversationId, prepared.file,
+            { command: updated })
+        }
+      } catch (error) {
+        await this._markAttachmentFailed(command, error.code || error.message)
+      }
+    },
+
+    async _startOrQueueAttachment(command, file, thumbnail) {
+      if (this._isUploading) {
+        this._uploadQueue.push({ command, file, thumbnail })
+        return command.clientMessageId
+      }
+      this._isUploading = true
+      this._pendingUploadFile = file
+      this._pendingUploadThumbnail = thumbnail
+      this._pendingAttachmentCommand = command
+      this._pendingUploadClientMessageId = command.clientMessageId
+      if (command.kind === 'room') {
+        this._pendingUploadRoom = Number(command.conversationId)
+        chatWs.startUpload(Number(command.conversationId), file.name, file.size,
+          command.contentType, command.clientMessageId)
+      } else {
+        this._pendingFriendUpload = command.conversationId
+        chatWs.startFriendUpload(command.conversationId, file.name, file.size,
+          command.clientMessageId)
+      }
+      return command.clientMessageId
+    },
+
+    async startChunkedUpload(roomId, file, options = {}) {
       let contentType = 'file'
       if (file.type.startsWith('image/')) contentType = 'image'
       else if (file.type.startsWith('video/')) contentType = 'video'
+
+      const command = options.command || await this._stageAttachment(
+        'room', roomId, file, contentType, options.sourceHandle || null)
 
       // 预先生成缩略图，等上传完成后随 END 消息发送
       let thumbnail = ''
@@ -253,19 +435,7 @@ export const useChatStore = defineStore('chat', {
         thumbnail = await this._generateVideoThumbnail(file)
       }
 
-      // 如果有正在进行的上传，加入队列等待
-      if (this._isUploading) {
-        this._uploadQueue.push({ type: 'room', roomId, file, thumbnail, contentType })
-        return
-      }
-      this._isUploading = true
-
-      // 保存 file 对象，等 START_RSP 返回 uploadId 后开始发块
-      this._pendingUploadFile = file
-      this._pendingUploadRoom = roomId
-      this._pendingUploadThumbnail = thumbnail
-      this._pendingUploadClientMessageId = chatWs.startUpload(
-        roomId, file.name, file.size, contentType)
+      return this._startOrQueueAttachment(command, file, thumbnail)
     },
 
     async _sendNextChunk(uploadId) {
@@ -341,6 +511,7 @@ export const useChatStore = defineStore('chat', {
         if (u.abortController) u.abortController.abort()
         chatWs.cancelUpload(uploadId)
         delete this.uploads[uploadId]
+        void this.cancelAttachmentCommand(u.command)
         this._isUploading = false
         this._processNextUpload()
       }
@@ -350,18 +521,7 @@ export const useChatStore = defineStore('chat', {
     _processNextUpload() {
       if (this._uploadQueue.length === 0) return
       const next = this._uploadQueue.shift()
-      this._isUploading = true
-      this._pendingUploadFile = next.file
-      this._pendingUploadThumbnail = next.thumbnail
-      if (next.type === 'room') {
-        this._pendingUploadRoom = next.roomId
-        this._pendingUploadClientMessageId = chatWs.startUpload(
-          next.roomId, next.file.name, next.file.size, next.contentType)
-      } else {
-        this._pendingFriendUpload = next.friendUsername
-        this._pendingUploadClientMessageId = chatWs.startFriendUpload(
-          next.friendUsername, next.file.name, next.file.size)
-      }
+      void this._startOrQueueAttachment(next.command, next.file, next.thumbnail)
     },
 
     // ==================== 大文件分块下载 ====================
@@ -574,11 +734,14 @@ export const useChatStore = defineStore('chat', {
       return this.startFriendChunkedUpload(friendUsername, file)
     },
 
-    async startFriendChunkedUpload(friendUsername, file) {
+    async startFriendChunkedUpload(friendUsername, file, options = {}) {
       // 预先生成缩略图，等上传完成后随 END 消息发送（与房间大文件上传一致）
       let contentType = 'file'
       if (file.type.startsWith('image/')) contentType = 'image'
       else if (file.type.startsWith('video/')) contentType = 'video'
+
+      const command = options.command || await this._stageAttachment(
+        'direct', friendUsername, file, contentType, options.sourceHandle || null)
 
       let thumbnail = ''
       if (contentType === 'image') {
@@ -587,18 +750,7 @@ export const useChatStore = defineStore('chat', {
         thumbnail = await this._generateVideoThumbnail(file)
       }
 
-      // 如果有正在进行的上传，加入队列等待
-      if (this._isUploading) {
-        this._uploadQueue.push({ type: 'friend', friendUsername, file, thumbnail, contentType })
-        return
-      }
-      this._isUploading = true
-
-      this._pendingUploadFile = file
-      this._pendingFriendUpload = friendUsername
-      this._pendingUploadThumbnail = thumbnail
-      this._pendingUploadClientMessageId = chatWs.startFriendUpload(
-        friendUsername, file.name, file.size)
+      return this._startOrQueueAttachment(command, file, thumbnail)
     },
 
     // ==================== 初始化消息监听 ====================
@@ -613,6 +765,8 @@ export const useChatStore = defineStore('chat', {
           return { ...r, unread: r.unread || 0, isAdmin: !!r.isAdmin }
         })
         this._pruneCachedConversations('room', list.map(room => room.roomId))
+        this._roomAccessLoaded = true
+        void this.recoverAttachmentCommands()
       })
 
       chatWs.on(MsgType.CREATE_ROOM_RSP, (msg) => {
@@ -846,6 +1000,9 @@ export const useChatStore = defineStore('chat', {
       // --- 文件消息 ---
       chatWs.on(MsgType.FILE_NOTIFY, (msg) => {
         const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp }
+        const command = this.attachmentCommands.find(item =>
+          item.clientMessageId === d.clientMessageId)
+        if (command) void this._completeAttachmentCommand(command)
         if (d.roomId === this.currentRoomId) {
           if (!this.messages.some(existing => sameStableMessage(existing, d))) {
             this.messages.push(d)
@@ -889,6 +1046,7 @@ export const useChatStore = defineStore('chat', {
       // --- 大文件分块上传 ---
       chatWs.on(MsgType.FILE_UPLOAD_START_RSP, (msg) => {
         const d = msg.data
+        const command = this._pendingAttachmentCommand
         if (d.success && d.uploadId) {
           const file = this._pendingUploadFile
           const roomId = this._pendingUploadRoom
@@ -901,20 +1059,25 @@ export const useChatStore = defineStore('chat', {
             roomId,
             paused: false,
             thumbnail: this._pendingUploadThumbnail || '',
-            clientMessageId: d.clientMessageId || this._pendingUploadClientMessageId
+            clientMessageId: d.clientMessageId || this._pendingUploadClientMessageId,
+            command
           }
           if (d.httpUploadPath) {
             this._uploadRawHttp(d.uploadId, d.httpUploadPath).catch((error) => {
               if (error.name === 'AbortError') return
-              this.cancelUpload(d.uploadId)
+              void this._failActiveUpload(d.uploadId, error.message)
               this._emit('error', `文件上传失败: ${error.message}`)
             })
           } else {
             this._sendNextChunk(d.uploadId)
           }
         } else {
-          alert('上传失败: ' + (d.error || ''))
+          void this._markAttachmentFailed(command, d.errorCode || d.error || 'UPLOAD_START_FAILED')
+          this._isUploading = false
+          this._processNextUpload()
+          this._emit('error', '上传失败: ' + (d.error || ''))
         }
+        this._pendingAttachmentCommand = null
       })
 
       chatWs.on(MsgType.FILE_UPLOAD_CHUNK_RSP, (msg) => {
@@ -923,6 +1086,9 @@ export const useChatStore = defineStore('chat', {
         if (u && d.success) {
           u.sent = d.received
           this._sendNextChunk(d.uploadId)
+        } else if (u && !d.success) {
+          void this._failActiveUpload(d.uploadId, d.error || 'UPLOAD_CHUNK_FAILED')
+          this._emit('error', `文件上传失败: ${d.error || '分块未被服务器接受'}`)
         }
       })
 
@@ -934,6 +1100,7 @@ export const useChatStore = defineStore('chat', {
             u.status = 'failed'
             u.error = d.error || '服务器未能确认文件消息'
           }
+          void this._markAttachmentFailed(u?.command, d.errorCode || d.error)
           this._emit('error', `文件发送失败: ${d.error || '未知错误'}`)
           return
         }
@@ -943,6 +1110,7 @@ export const useChatStore = defineStore('chat', {
           u.fileId = d.fileId
           u.sequence = d.sequence
           clearTimeout(u._finishTimer)
+          void this._completeAttachmentCommand(u.command)
           setTimeout(() => { delete this.uploads[d.uploadId] }, 1500)
         }
       })
@@ -1256,6 +1424,8 @@ export const useChatStore = defineStore('chat', {
         this.friendUnread = newUnread
         this.hasPendingFriendReq = (msg.data.pendingFriendRequests || 0) > 0
         this._persistCurrentFriendSnapshot()
+        this._friendAccessLoaded = true
+        void this.recoverAttachmentCommands()
       })
 
       chatWs.on(MsgType.FRIEND_READ_NOTIFY, (msg) => {
@@ -1371,6 +1541,9 @@ export const useChatStore = defineStore('chat', {
 
       chatWs.on(MsgType.FRIEND_FILE_NOTIFY, (msg) => {
         const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp }
+        const command = this.attachmentCommands.find(item =>
+          item.clientMessageId === d.clientMessageId)
+        if (command) void this._completeAttachmentCommand(command)
         const userStore = useUserStore()
         const chatWith = d.sender === userStore.username ? d.friendUsername : d.sender
 
@@ -1397,6 +1570,7 @@ export const useChatStore = defineStore('chat', {
 
       chatWs.on(MsgType.FRIEND_FILE_UPLOAD_START_RSP, (msg) => {
         const d = msg.data
+        const command = this._pendingAttachmentCommand
         if (d.success && d.uploadId) {
           const file = this._pendingUploadFile
           this.uploads[d.uploadId] = {
@@ -1408,20 +1582,25 @@ export const useChatStore = defineStore('chat', {
             roomId: -d.friendshipId,
             paused: false,
             thumbnail: this._pendingUploadThumbnail || '',
-            clientMessageId: d.clientMessageId || this._pendingUploadClientMessageId
+            clientMessageId: d.clientMessageId || this._pendingUploadClientMessageId,
+            command
           }
           if (d.httpUploadPath) {
             this._uploadRawHttp(d.uploadId, d.httpUploadPath).catch((error) => {
               if (error.name === 'AbortError') return
-              this.cancelUpload(d.uploadId)
+              void this._failActiveUpload(d.uploadId, error.message)
               this._emit('error', `好友文件上传失败: ${error.message}`)
             })
           } else {
             this._sendNextChunk(d.uploadId)
           }
         } else {
-          alert('好友文件上传失败: ' + (d.error || ''))
+          void this._markAttachmentFailed(command, d.errorCode || d.error || 'UPLOAD_START_FAILED')
+          this._isUploading = false
+          this._processNextUpload()
+          this._emit('error', '好友文件上传失败: ' + (d.error || ''))
         }
+        this._pendingAttachmentCommand = null
       })
     },
 
