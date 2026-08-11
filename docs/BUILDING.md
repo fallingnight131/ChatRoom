@@ -68,8 +68,10 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home \
 The Java workspace is not yet on the production traffic or data path; the C++
 V1 verification remains required during the compatibility window.
 The Java gate includes embedded-channel tests for the bounded V2 binary
-WebSocket frame decoder and single-use ClientHello negotiation state machine;
-these tests do not open a listener or imply that V2 is ready to receive traffic.
+WebSocket frame decoder, single-use ClientHello negotiation, and fresh-login
+connection state machine. They verify server-bound identity, secret cleanup,
+generic rejection, failure normalization, and session-spoofing denial. These
+tests do not open a listener or imply that V2 is ready to receive traffic.
 It also verifies a fixed libsodium 1.0.20 Argon2id interactive test vector with
 the locked Java crypto adapter; this deliberately performs memory-hard work and
 must not be interpreted as an authentication capacity benchmark.

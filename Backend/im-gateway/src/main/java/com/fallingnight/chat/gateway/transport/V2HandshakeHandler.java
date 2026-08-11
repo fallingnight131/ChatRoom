@@ -1,5 +1,6 @@
 package com.fallingnight.chat.gateway.transport;
 
+import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.protocol.v2.ClientHello;
 import com.fallingnight.chat.protocol.v2.ClientHelloPolicy;
 import com.fallingnight.chat.protocol.v2.Envelope;
@@ -97,6 +98,11 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
         }
 
         negotiated = true;
+        context.channel().attr(V2ConnectionAttributes.NEGOTIATED_CLIENT).set(
+                new ClientDescriptor(
+                        hello.getClientDeviceId(),
+                        toApplicationPlatform(hello.getPlatform()),
+                        hello.getAppVersion()));
         long now = clock.millis();
         ServerHello response = ServerHello.newBuilder()
                 .setSelectedProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
@@ -112,6 +118,18 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
                 .setSentAtEpochMs(now)
                 .setPayload(response.toByteString())
                 .build());
+    }
+
+    private static com.fallingnight.chat.application.identity.ClientPlatform toApplicationPlatform(
+            com.fallingnight.chat.protocol.v2.ClientPlatform platform) {
+        return switch (platform) {
+            case CLIENT_PLATFORM_WEB ->
+                    com.fallingnight.chat.application.identity.ClientPlatform.WEB;
+            case CLIENT_PLATFORM_WINDOWS ->
+                    com.fallingnight.chat.application.identity.ClientPlatform.WINDOWS;
+            case CLIENT_PLATFORM_UNSPECIFIED, UNRECOGNIZED ->
+                    throw new IllegalArgumentException("unsupported negotiated platform");
+        };
     }
 
     private void failAndClose(

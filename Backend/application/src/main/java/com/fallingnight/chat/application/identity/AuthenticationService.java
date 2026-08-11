@@ -5,7 +5,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /** Transport-independent fresh-login use case with generic rejection semantics. */
-public final class AuthenticationService {
+public final class AuthenticationService implements AuthenticationUseCase {
     private final AccountCredentialPort accounts;
     private final CredentialVerifierPort verifier;
     private final SessionIssuePort sessions;
@@ -28,6 +28,7 @@ public final class AuthenticationService {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
+    @Override
     public AuthenticationResult authenticate(AuthenticateCommand command) {
         Objects.requireNonNull(command, "command");
         try (command) {

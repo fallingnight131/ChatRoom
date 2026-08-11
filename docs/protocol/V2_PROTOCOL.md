@@ -37,9 +37,8 @@ The implemented gateway frame boundary aggregates fragmented binary messages
 up to 1 MiB plus 1024 bytes of bounded envelope overhead. It rejects text,
 stray continuation, oversized, malformed-Protobuf, and policy-invalid input
 before dispatch. Ping, pong, and close frames are left to the WebSocket control
-handler. The listener, handshake/authentication policy, rate limits, and safe
-client error/close mapping are not enabled yet, so V2 still has no production
-route.
+handler. The listener, rate limits, complete frame-error mapping, and production
+transport policy are not enabled yet, so V2 still has no production route.
 
 ## Control message registry
 
@@ -63,15 +62,15 @@ or resumable session secret. A structurally valid range that does not include V2
 is an unsupported-version result; it is not treated as malformed input.
 
 `ServerHello.connection_id` is diagnostic connection identity, not an
-authenticated session. Authentication message types and secret-handling rules
-will be added in the next vertical slice before a listener is enabled.
+authenticated session.
 
 The implemented pre-auth state machine requires ClientHello as the first
 application frame, limits its serialized payload to 512 bytes, and permits only
 one successful negotiation. It returns fixed safe protocol errors and closes on
 wrong first frame, invalid payload, unsupported version, or repeated hello.
-After success, messages still require a separate authenticated dispatch layer;
-`ServerHello` alone grants no identity or permissions.
+After success, the negotiated client descriptor is retained as untrusted
+server-side channel state; `ServerHello` alone grants no identity or
+permissions.
 
 `Authenticate.password_utf8` is limited to 1..1024 valid UTF-8 bytes and must
 never be logged, persisted, cached, or echoed. `ResumeSession.resume_token` is
@@ -79,9 +78,20 @@ exactly 32 opaque bytes; only its SHA-256 digest may be stored. A successful
 session response returns a newly issued raw token once and binds identity in
 server-side connection state. Unknown account, wrong password, disabled account,
 invalid token, and expired/revoked session all use the same generic rejection to
-avoid enumeration. These messages are not allowed on a production route until
-WSS, origin policy, rate limits, redaction, password verification, token
-rotation, and persistence are implemented and verified.
+avoid enumeration.
+
+The fresh-login gateway state machine accepts one `Authenticate` command,
+dispatches password verification through an injected non-event-loop executor,
+and binds the issued account/device/session UUIDs to server-side channel state.
+It returns the raw resume token once and clears its owned bytes. Later envelopes
+must carry the same session ID, but downstream authorization uses the bound
+server identity rather than trusting that field. Unsupported session resume and
+credential failures share the generic rejection response.
+
+These messages are not allowed on a production route until WSS, origin policy,
+bounded executor ownership, timeouts, rate limits, redaction, token rotation,
+outbound WebSocket encoding, and listener lifecycle are implemented and
+verified.
 
 ## Compatibility rules
 

@@ -42,6 +42,10 @@ class V2HandshakeHandlerTest {
             assertEquals(NOW, hello.getServerTimeEpochMs());
             assertEquals(V2EnvelopeDecoder.MAX_WIRE_BYTES, hello.getMaximumFrameBytes());
             assertTrue(channel.isActive());
+            assertEquals(
+                    "device-1",
+                    channel.attr(V2ConnectionAttributes.NEGOTIATED_CLIENT)
+                            .get().clientDeviceId());
 
             Envelope next = clientHelloEnvelope(validHello()).toBuilder()
                     .setMessageType(99)

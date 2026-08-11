@@ -183,21 +183,23 @@ conversation, membership, and message tables described in
 `docs/data/V2_POSTGRES_SCHEMA.md`. It has no repository, imported V1 data, or
 traffic route yet, so V1 SQLite remains authoritative.
 
-The fresh-login orchestration now exists in the transport-independent
-`application` identity package. Account lookup, dummy-capable password
-verification, and device/session issuance remain outward ports; no concrete
-adapter or gateway route is connected yet.
+The fresh-login orchestration exists in the transport-independent `application`
+identity package. Account lookup, dummy-capable password verification, and
+device/session issuance remain outward ports.
 
-The PostgreSQL identity adapter now implements exact V1-compatible account
-lookup plus transactional device/session issuance with raw-token digest-only
-storage. The password-verification and gateway adapters are still absent, so
-this remains an inactive foundation rather than a usable login route.
+The PostgreSQL identity adapter implements exact V1-compatible account lookup
+plus transactional device/session issuance with raw-token digest-only storage.
 
 The separate `identity-crypto` adapter verifies modern V1/libsodium Argon2id and
 temporary legacy salted-SHA credentials. Correct legacy login creates a fresh
-Argon2id hash and PostgreSQL applies it with compare-and-set semantics. The
-one-way V1 import job, bounded worker dispatch, and gateway wiring remain
-explicit cutover blockers.
+Argon2id hash and PostgreSQL applies it with compare-and-set semantics.
+
+The V2 gateway now retains negotiated client metadata, dispatches fresh login
+through a transport-independent use-case boundary, and binds only server-issued
+account/device/session identity to the connection. Envelope session IDs cannot
+grant identity. This is still an inactive foundation: the one-way V1 import,
+bounded worker ownership and admission limits, resume rotation, hardened
+listener, and complete gateway wiring remain explicit cutover blockers.
 
 ## 7. Reliable Message Flow
 

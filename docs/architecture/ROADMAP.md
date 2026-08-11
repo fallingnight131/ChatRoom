@@ -281,9 +281,12 @@ Progress:
     errors without enabling a listener.
   - [x] Define bounded generated authentication/session payloads, fixed token
     length, non-enumerating rejection semantics, and three-language wire tests.
-  - [ ] Add authentication, timeouts/rate limits, frame-error close mapping,
-    observability, outbound encoding, and transport-independent application
-    dispatch before enabling a listener.
+  - [x] Add a fresh-login gateway state machine with off-event-loop application
+    dispatch, server-bound connection identity, generic rejection, secret
+    cleanup, and session-spoofing denial without enabling a listener.
+  - [ ] Add bounded executor ownership, timeouts/rate limits, frame-error close
+    mapping, production observability, and outbound encoding before enabling a
+    listener.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before
@@ -299,8 +302,7 @@ Progress:
   work, and parameter/resource caps.
 - [x] Implement legacy salted-SHA storage/verification compatibility and
   compare-and-set Argon2id upgrade without forcing dormant-account resets.
-- [ ] Implement the verified one-way V1 data import, session resume/rotation,
-  and the negotiated-to-authenticated gateway state transition.
+- [ ] Implement the verified one-way V1 data import and session resume/rotation.
 
 Work:
 
