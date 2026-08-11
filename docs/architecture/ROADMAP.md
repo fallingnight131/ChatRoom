@@ -164,8 +164,10 @@ Progress:
   and evict snapshots when room or friendship access is lost.
 - [x] Persist bounded Web room/direct text drafts with debounced writes,
   conversation-switch/unmount flush, and send-time clearing.
-- [ ] Extend durable Web storage to pending sends, then extract synchronization
-  orchestration from the large chat store.
+- [x] Add a durable Web text/emoji optimistic outbox with stable-key reconnect
+  retry, accepted/failed presentation, and explicit same-key manual retry.
+- [ ] Extract synchronization/outbox orchestration from the large chat store and
+  extend optimistic behavior to restartable attachments.
 - [ ] Add the Windows SQLite repository and client application/sync boundaries.
 - [ ] Add optimistic states, virtualization, cache controls, and accessibility
   foundations.

@@ -209,11 +209,18 @@ Room history/member responses require current room membership, and direct
 history requires current friendship participation. Counts are clamped to 100;
 non-positive counts use 50. Negative room sequence cursors fail with
 `INVALID_SEQUENCE_CURSOR`, as do negative direct sequence cursors.
-The upgraded Web and Windows clients retain active room and direct-conversation
-cursors for the page/process lifetime and request bounded follow-up pages after
-reconnect login. Room pages apply mixed message/event pages in cursor order;
-direct pages merge authoritative message/recall state using `syncSequence`.
-Durable client cursor storage is deferred to the M2 local repositories.
+The upgraded Windows client retains active room and direct-conversation cursors
+for the process lifetime. The M2 Web client persists those cursors in IndexedDB.
+Both request bounded follow-up pages after reconnect login. Room pages apply
+mixed message/event pages in cursor order; direct pages merge authoritative
+message/recall state using `syncSequence`. Durable Windows cursor storage remains
+part of its M2 local repository work.
+
+The M2 Web client persists room/direct snapshots and unresolved text/emoji sends
+in an account-partitioned IndexedDB repository. A reconnect or page-reload retry
+reuses the original `clientMessageId`; ACK, live echo, and history reconcile that
+optimistic record in place. Client `sending`/`failed`/`accepted` values are local
+presentation state, not new V1 delivery guarantees.
 
 ### Read state
 

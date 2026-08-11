@@ -2,7 +2,7 @@
   <div class="message-list" ref="listRef" @scroll="onScroll">
     <div v-if="loadingMore" class="loading-more">加载中...</div>
 
-    <div v-for="(msg, idx) in displayMessages" :key="msg.id || idx" class="message-wrapper">
+    <div v-for="(msg, idx) in displayMessages" :key="msg.id || msg.clientMessageId || idx" class="message-wrapper">
       <!-- 系统消息 -->
       <div v-if="msg.contentType === 'system'" class="system-message">
         {{ msg.content }}
@@ -97,6 +97,9 @@
           <!-- 时间 -->
           <div class="msg-time" :class="{ 'time-mine': isMine(msg) }">
             {{ formatTime(msg.timestamp) }}
+            <span v-if="msg.deliveryState === 'sending'" class="delivery-state"> 发送中…</span>
+            <button v-else-if="msg.deliveryState === 'failed'" class="delivery-retry"
+                    @click="chatStore.retryMessage(msg)">发送失败，点击重试</button>
           </div>
         </div>
       </div>
@@ -131,7 +134,7 @@
 
           <!-- 转发 -->
           <div class="context-menu-item"
-               v-if="contextMenu.msg && !contextMenu.msg.recalled && contextMenu.msg.contentType !== 'system'"
+               v-if="contextMenu.msg && contextMenu.msg.id && !contextMenu.msg.recalled && contextMenu.msg.contentType !== 'system'"
                @click="forwardFromMenu(contextMenu.msg)">
             <span class="menu-icon">📨</span> 转发到其他会话
           </div>
@@ -145,7 +148,7 @@
 
           <!-- 管理员: 删除此消息 -->
           <div class="context-menu-item danger"
-               v-if="!isPrivateMode() && chatStore.isAdmin && contextMenu.msg && !contextMenu.msg.recalled"
+               v-if="!isPrivateMode() && chatStore.isAdmin && contextMenu.msg && contextMenu.msg.id && !contextMenu.msg.recalled"
                @click="deleteMsg(contextMenu.msg)">
             <span class="menu-icon">🗑️</span> 删除此消息
           </div>
@@ -294,6 +297,7 @@ function canRecall(msg) {
   if (!msg) return false
   if (msg.sender !== userStore.username) return false
   if (msg.recalled) return false
+  if (!msg.id || msg.deliveryState === 'sending' || msg.deliveryState === 'failed') return false
   const elapsed = Date.now() - (msg.timestamp || 0)
   return elapsed < 120000
 }
@@ -664,6 +668,17 @@ onUnmounted(() => {
 .msg-time.time-mine {
   text-align: right;
   margin-right: 4px;
+}
+.delivery-state {
+  color: var(--text-tertiary);
+}
+.delivery-retry {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #d9534f;
+  cursor: pointer;
+  font-size: inherit;
 }
 
 /* 视频卡片 */

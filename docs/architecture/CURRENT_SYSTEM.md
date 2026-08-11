@@ -164,7 +164,9 @@ object cleanup is an idempotent post-commit compensation.
 - Mixed room messages, recall state, and deletion events reconcile by
   `syncSequence`; direct messages and recall state use the equivalent friendship
   cursor. Bounded room/direct text drafts share the account-partitioned IndexedDB
-  record; pending sends remain memory state until a later M2 slice.
+  record. Text/emoji sends render optimistically, persist unresolved intent,
+  retry with the same `clientMessageId`, and show accepted/failed state; binary
+  attachment outbox behavior remains a later M2 slice.
 
 ## Known M0 Risks
 

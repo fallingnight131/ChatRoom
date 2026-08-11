@@ -10,6 +10,11 @@ import {
   syncSequenceOf
 } from '../messaging/messageReconciliation'
 import { conversationCache } from '../persistence/conversationCache'
+import {
+  applySendAcknowledgement,
+  makeOptimisticMessage,
+  pendingMessagesFor
+} from '../messaging/outbox'
 
 export const useChatStore = defineStore('chat', {
   state: () => ({
@@ -92,6 +97,7 @@ export const useChatStore = defineStore('chat', {
           this.messages = cached.messages
           this.roomSyncCursors[roomId] = Number(cached.cursor || 0)
         }
+        this._retryPendingRoomMessages()
         const cursor = Number(this.roomSyncCursors[roomId] || 0)
         if (this.messages.length > 0 && cursor > 0) {
           chatWs.requestHistory(roomId, 100, 0, cursor)
@@ -129,11 +135,33 @@ export const useChatStore = defineStore('chat', {
     resumeCurrentRoom() {
       const roomId = this.currentRoomId
       if (!roomId) return
+      this._retryPendingRoomMessages()
       const cursor = Number(this.roomSyncCursors[roomId] || 0)
       if (this.messages.length > 0 && cursor > 0) {
         chatWs.requestHistory(roomId, 100, 0, cursor)
       } else {
         chatWs.requestHistory(roomId, 50)
+      }
+    },
+
+    sendCurrentRoomMessage(content, contentType = 'text') {
+      const roomId = this.currentRoomId
+      if (!roomId) return null
+      const user = useUserStore()
+      const clientMessageId = chatWs.sendChat(roomId, user.username, content, contentType)
+      this.messages.push(makeOptimisticMessage({
+        roomId, sender: user.username, senderName: user.displayName,
+        content, contentType
+      }, clientMessageId))
+      this._persistCurrentRoomSnapshot(roomId)
+      return clientMessageId
+    },
+
+    _retryPendingRoomMessages() {
+      const user = useUserStore()
+      for (const message of pendingMessagesFor(this.messages, user.username)) {
+        chatWs.sendChat(this.currentRoomId, user.username, message.content,
+          message.contentType || 'text', message.clientMessageId)
       }
     },
 
@@ -430,6 +458,7 @@ export const useChatStore = defineStore('chat', {
           this.friendMessages = cached.messages
           this.friendSyncCursors[friendUsername] = Number(cached.cursor || 0)
         }
+        this._retryPendingFriendMessages()
         const cursor = Number(this.friendSyncCursors[friendUsername] || 0)
         if (this.friendMessages.length > 0 && cursor > 0) {
           chatWs.requestFriendHistory(friendUsername, 100, 0, cursor)
@@ -484,11 +513,49 @@ export const useChatStore = defineStore('chat', {
     resumeCurrentFriend() {
       const friendUsername = this.currentFriendUsername
       if (!this.isFriendChat || !friendUsername) return
+      this._retryPendingFriendMessages()
       const cursor = Number(this.friendSyncCursors[friendUsername] || 0)
       if (this.friendMessages.length > 0 && cursor > 0) {
         chatWs.requestFriendHistory(friendUsername, 100, 0, cursor)
       } else {
         chatWs.requestFriendHistory(friendUsername, 50)
+      }
+    },
+
+    sendCurrentFriendMessage(content, contentType = 'text') {
+      const friendUsername = this.currentFriendUsername
+      if (!this.isFriendChat || !friendUsername) return null
+      const user = useUserStore()
+      const clientMessageId = chatWs.sendFriendChat(friendUsername, content, contentType)
+      this.friendMessages.push(makeOptimisticMessage({
+        sender: user.username, senderName: user.displayName,
+        friendUsername, content, contentType
+      }, clientMessageId))
+      this._persistCurrentFriendSnapshot(friendUsername)
+      return clientMessageId
+    },
+
+    _retryPendingFriendMessages() {
+      const user = useUserStore()
+      for (const message of pendingMessagesFor(this.friendMessages, user.username)) {
+        chatWs.sendFriendChat(this.currentFriendUsername, message.content,
+          message.contentType || 'text', message.clientMessageId)
+      }
+    },
+
+    retryMessage(message) {
+      if (!message?.clientMessageId) return
+      message.deliveryState = 'sending'
+      message.errorCode = ''
+      if (this.isFriendChat) {
+        chatWs.sendFriendChat(this.currentFriendUsername, message.content,
+          message.contentType || 'text', message.clientMessageId)
+        this._persistCurrentFriendSnapshot()
+      } else {
+        const user = useUserStore()
+        chatWs.sendChat(this.currentRoomId, user.username, message.content,
+          message.contentType || 'text', message.clientMessageId)
+        this._persistCurrentRoomSnapshot()
       }
     },
 
@@ -667,11 +734,10 @@ export const useChatStore = defineStore('chat', {
 
       // --- 聊天消息 ---
       chatWs.on(MsgType.CHAT_MSG, (msg) => {
-        const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp }
-        const alreadyPresent = this.messages.some(existing => sameStableMessage(existing, d))
-        if (alreadyPresent) return
+        const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp,
+          deliveryState: 'accepted' }
         if (d.roomId === this.currentRoomId) {
-          this.messages.push(d)
+          this.messages = mergeUniqueMessages(this.messages, [d])
           this._advanceRoomSyncCursor(d.roomId, d)
           this._persistCurrentRoomSnapshot(d.roomId)
         } else {
@@ -682,14 +748,21 @@ export const useChatStore = defineStore('chat', {
       })
 
       chatWs.on(MsgType.CHAT_SEND_RSP, (msg) => {
-        if (!msg.data.success) {
+        const d = msg.data
+        const pending = applySendAcknowledgement(this.messages, d)
+        if (pending && d.success) {
+          this._advanceRoomSyncCursor(d.roomId, d)
+          this._persistCurrentRoomSnapshot(d.roomId)
+        } else if (!d.success) {
+          if (pending) this._persistCurrentRoomSnapshot(d.roomId)
           console.warn('[Messaging] room send rejected:', msg.data.errorCode, msg.data.error)
-          alert('消息发送失败: ' + (msg.data.error || '请稍后重试'))
+          this._emit('error', msg.data.error || '消息发送失败，可点击重试')
         }
       })
 
       chatWs.on(MsgType.SYSTEM_MSG, (msg) => {
-        const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp }
+        const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp,
+          deliveryState: 'accepted' }
         if (d.roomId === this.currentRoomId) {
           this.messages.push({ ...d, contentType: 'system', sender: '' })
           this._advanceRoomSyncCursor(d.roomId, d)
@@ -699,7 +772,9 @@ export const useChatStore = defineStore('chat', {
 
       chatWs.on(MsgType.HISTORY_RSP, (msg) => {
         if (msg.data.roomId === this.currentRoomId) {
-          const msgs = msg.data.messages || []
+          const msgs = (msg.data.messages || []).map(message => ({
+            ...message, deliveryState: 'accepted'
+          }))
           // 倒序追加（历史消息从旧到新）
           const events = msg.data.events || []
           if (msg.data.mode === 'sequence') {
@@ -1221,14 +1296,13 @@ export const useChatStore = defineStore('chat', {
       })
 
       chatWs.on(MsgType.FRIEND_CHAT_MSG, (msg) => {
-        const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp }
+        const d = { ...msg.data, timestamp: msg.data.timestamp || msg.timestamp,
+          deliveryState: 'accepted' }
         const userStore = useUserStore()
         const chatWith = d.sender === userStore.username ? d.friendUsername : d.sender
 
         if (this.isFriendChat && this.currentFriendUsername === chatWith) {
-          if (!this.friendMessages.some(existing => sameStableMessage(existing, d))) {
-            this.friendMessages.push(d)
-          }
+          this.friendMessages = mergeUniqueMessages(this.friendMessages, [d])
           this._advanceFriendSyncCursor(chatWith, d)
           this._persistCurrentFriendSnapshot(chatWith)
         } else if (d.sender !== userStore.username) {
@@ -1237,7 +1311,13 @@ export const useChatStore = defineStore('chat', {
       })
 
       chatWs.on(MsgType.FRIEND_CHAT_SEND_RSP, (msg) => {
-        if (!msg.data.success) {
+        const d = msg.data
+        const pending = applySendAcknowledgement(this.friendMessages, d)
+        if (pending && d.success) {
+          this._advanceFriendSyncCursor(d.friendUsername, d)
+          this._persistCurrentFriendSnapshot(d.friendUsername)
+        } else if (!d.success) {
+          if (pending) this._persistCurrentFriendSnapshot(d.friendUsername)
           this._emit('error', msg.data.error || '好友消息发送失败')
         }
       })
@@ -1245,7 +1325,9 @@ export const useChatStore = defineStore('chat', {
       chatWs.on(MsgType.FRIEND_HISTORY_RSP, (msg) => {
         const d = msg.data
         if (this.isFriendChat && this.currentFriendUsername === d.friendUsername) {
-          const msgs = d.messages || []
+          const msgs = (d.messages || []).map(message => ({
+            ...message, deliveryState: 'accepted'
+          }))
           const sequenceMode = d.mode === 'sequence'
           this.friendMessages = sequenceMode
             ? reconcileRoomSyncPage(this.friendMessages, msgs)

@@ -129,10 +129,10 @@ function sendMessage(e) {
 
   if (props.friendMode) {
     if (!chatStore.currentFriendUsername) return
-    chatWs.sendFriendChat(chatStore.currentFriendUsername, msg)
+    chatStore.sendCurrentFriendMessage(msg)
   } else {
     if (!chatStore.currentRoomId) return
-    chatWs.sendChat(chatStore.currentRoomId, userStore.username, msg, 'text')
+    chatStore.sendCurrentRoomMessage(msg, 'text')
   }
   text.value = ''
   persistDraft(activeDraftIdentity, '')
@@ -141,9 +141,9 @@ function sendMessage(e) {
 function onEmojiSelect(emoji) {
   if (props.friendMode) {
     if (!chatStore.currentFriendUsername) return
-    chatWs.sendFriendChat(chatStore.currentFriendUsername, emoji)
+    chatStore.sendCurrentFriendMessage(emoji, 'emoji')
   } else {
-    chatWs.sendChat(chatStore.currentRoomId, userStore.username, emoji, 'emoji')
+    chatStore.sendCurrentRoomMessage(emoji, 'emoji')
   }
   showEmoji.value = false
 }

@@ -245,8 +245,7 @@ class ChatWebSocket {
     this.disconnect()
   }
 
-  sendChat(roomId, sender, content, contentType = 'text') {
-    const clientMessageId = uuid()
+  sendChat(roomId, sender, content, contentType = 'text', clientMessageId = uuid()) {
     this.send(makeMessage(MsgType.CHAT_MSG, { roomId, sender, content, contentType, clientMessageId }))
     return clientMessageId
   }
@@ -444,8 +443,7 @@ class ChatWebSocket {
     this.send(makeMessage(MsgType.FRIEND_PENDING_REQ))
   }
 
-  sendFriendChat(friendUsername, content, contentType = 'text') {
-    const clientMessageId = uuid()
+  sendFriendChat(friendUsername, content, contentType = 'text', clientMessageId = uuid()) {
     this.send(makeMessage(MsgType.FRIEND_CHAT_MSG, {
       friendUsername, content, contentType, clientMessageId,
     }))
