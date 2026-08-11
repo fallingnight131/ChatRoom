@@ -317,8 +317,9 @@ Progress:
 - [ ] Implement the verified one-way V1 data import and session resume/rotation.
   - [x] Define the transport-independent owned resume command, atomic-rotation
     persistence port, generic result, and explicit token zeroing lifecycle.
-  - [ ] Implement PostgreSQL atomic proof rotation/replay denial and connect the
-    bounded gateway resume command.
+  - [x] Implement PostgreSQL digest verification, row-locked proof rotation,
+    concurrent/sequential replay denial, device binding, expiry and revocation.
+  - [ ] Connect the bounded gateway resume command and rotated response.
 
 Work:
 

@@ -93,7 +93,9 @@ the locked Java crypto adapter; this deliberately performs memory-hard work and
 must not be interpreted as an authentication capacity benchmark.
 The same Java gate verifies exact V1 salted-SHA compatibility and current-policy
 Argon2id rehashing. The PostgreSQL gate applies V001/V002 and checks credential
-shape constraints plus compare-and-set upgrade behavior.
+shape constraints, compare-and-set upgrade behavior, digest-only session proof
+rotation, sequential/concurrent replay denial, device binding, expiry, and
+revocation against a disposable real database.
 
 Run the V2 PostgreSQL migration gate with local PostgreSQL server tools
 (`initdb`, `pg_ctl`, and `createdb`) available either on `PATH` or through

@@ -210,8 +210,10 @@ and sampled safe logs exist; deployment registry/scrape integration remains.
 The application identity module now also owns a transport-independent session
 resume command and atomic-rotation persistence port. The command destroys its
 owned presented token after the use case returns and maps every persistence
-denial to the same authentication rejection. No adapter or gateway route uses
-this boundary yet.
+denial to the same authentication rejection. PostgreSQL now implements that
+port with digest-only verification, transactional row locking, fresh proof
+rotation, device binding, and replay/expiry/revocation denial. No gateway route
+uses this boundary yet.
 
 ## 7. Reliable Message Flow
 

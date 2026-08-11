@@ -12,6 +12,7 @@ import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.application.identity.ClientPlatform;
 import com.fallingnight.chat.application.identity.IssuedSession;
 import com.fallingnight.chat.application.identity.StoredCredential;
+import com.fallingnight.chat.application.security.SecretBytes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
@@ -21,8 +22,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.flywaydb.core.api.output.MigrateResult;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
@@ -101,32 +109,97 @@ class PostgresMigratorTest {
             byte[] rawToken = first.resumeToken().withCopy(byte[]::clone);
             byte[] expectedHash = sha256(rawToken);
             byte[] storedHash = sessionHash(first.sessionId());
+            byte[] rotatedToken = null;
             try {
                 assertTrue(Arrays.equals(expectedHash, storedHash));
                 assertFalse(Arrays.equals(rawToken, storedHash));
                 assertFalse(Arrays.equals(new byte[32], storedHash));
+                assertEquals("WEB", devicePlatform(first.deviceId()));
+
+                try (SecretBytes proof = SecretBytes.copyOf(rawToken);
+                        IssuedSession rotated = adapter.resumeAndRotate(
+                                first.sessionId(), proof, client, now.plusSeconds(30))
+                                .orElseThrow()) {
+                    assertEquals(first.accountId(), rotated.accountId());
+                    assertEquals(first.deviceId(), rotated.deviceId());
+                    assertEquals(first.sessionId(), rotated.sessionId());
+                    rotatedToken = rotated.resumeToken().withCopy(byte[]::clone);
+                    assertFalse(Arrays.equals(rawToken, rotatedToken));
+                    assertFalse(Arrays.equals(storedHash, sessionHash(first.sessionId())));
+                    assertTrue(Arrays.equals(
+                            sha256(rotatedToken), sessionHash(first.sessionId())));
+                }
+                try (SecretBytes replay = SecretBytes.copyOf(rawToken)) {
+                    assertTrue(adapter.resumeAndRotate(
+                            first.sessionId(), replay, client, now.plusSeconds(31)).isEmpty());
+                }
+                ClientDescriptor wrongDevice = new ClientDescriptor(
+                        "other-browser", ClientPlatform.WEB, "0.1.0");
+                try (SecretBytes proof = SecretBytes.copyOf(rotatedToken)) {
+                    assertTrue(adapter.resumeAndRotate(
+                            first.sessionId(), proof, wrongDevice, now.plusSeconds(31)).isEmpty());
+                }
+                try (SecretBytes proof = SecretBytes.copyOf(rotatedToken)) {
+                    assertTrue(adapter.resumeAndRotate(
+                            first.sessionId(),
+                            proof,
+                            client,
+                            now.plus(PostgresIdentityAdapter.DEFAULT_SESSION_LIFETIME)
+                                    .plusSeconds(31))
+                            .isEmpty());
+                }
+
+                IssuedSession restarted = adapter.issue(
+                        account, client, now.plusSeconds(60)).orElseThrow();
+                try (restarted) {
+                    assertEquals(first.deviceId(), restarted.deviceId());
+                    assertNotEquals(first.sessionId(), restarted.sessionId());
+                    assertFalse(Arrays.equals(
+                            storedHash,
+                            sessionHash(restarted.sessionId())));
+                }
+
+                IssuedSession concurrentBase = adapter.issue(
+                        account, client, now.plusSeconds(70)).orElseThrow();
+                try (concurrentBase) {
+                    byte[] concurrentToken = concurrentBase.resumeToken().withCopy(byte[]::clone);
+                    try {
+                        List<Optional<IssuedSession>> outcomes = raceResume(
+                                adapter,
+                                concurrentBase.sessionId(),
+                                concurrentToken,
+                                client,
+                                now.plusSeconds(71));
+                        try {
+                            assertEquals(
+                                    1, outcomes.stream().filter(Optional::isPresent).count());
+                        } finally {
+                            outcomes.stream()
+                                    .flatMap(Optional::stream)
+                                    .forEach(IssuedSession::close);
+                        }
+                    } finally {
+                        Arrays.fill(concurrentToken, (byte) 0);
+                    }
+                }
+
+                revokeDevice(first.deviceId());
+                try (SecretBytes proof = SecretBytes.copyOf(rotatedToken)) {
+                    assertTrue(adapter.resumeAndRotate(
+                            first.sessionId(), proof, client, now.plusSeconds(120)).isEmpty());
+                }
+                assertTrue(adapter.issue(account, client, now.plusSeconds(120)).isEmpty());
+                disableAccount(account.accountId());
+                ClientDescriptor otherClient = new ClientDescriptor(
+                        "browser-3", ClientPlatform.WEB, "0.1.0");
+                assertTrue(adapter.issue(account, otherClient, now.plusSeconds(180)).isEmpty());
             } finally {
                 Arrays.fill(rawToken, (byte) 0);
                 Arrays.fill(expectedHash, (byte) 0);
+                if (rotatedToken != null) {
+                    Arrays.fill(rotatedToken, (byte) 0);
+                }
             }
-            assertEquals("WEB", devicePlatform(first.deviceId()));
-
-            IssuedSession restarted = adapter.issue(
-                    account, client, now.plusSeconds(60)).orElseThrow();
-            try (restarted) {
-                assertEquals(first.deviceId(), restarted.deviceId());
-                assertNotEquals(first.sessionId(), restarted.sessionId());
-                assertFalse(Arrays.equals(
-                        storedHash,
-                        sessionHash(restarted.sessionId())));
-            }
-
-            revokeDevice(first.deviceId());
-            assertTrue(adapter.issue(account, client, now.plusSeconds(120)).isEmpty());
-            disableAccount(account.accountId());
-            ClientDescriptor otherClient = new ClientDescriptor(
-                    "browser-3", ClientPlatform.WEB, "0.1.0");
-            assertTrue(adapter.issue(account, otherClient, now.plusSeconds(180)).isEmpty());
         }
     }
 
@@ -182,6 +255,35 @@ class PostgresMigratorTest {
                 () -> insertMessage(connection, UUID.randomUUID(), conversation, sequence,
                         account, device, "client-2"));
         assertEquals("23505", duplicateSequence.getSQLState());
+    }
+
+    private static List<Optional<IssuedSession>> raceResume(
+            PostgresIdentityAdapter adapter,
+            UUID sessionId,
+            byte[] token,
+            ClientDescriptor client,
+            Instant now) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<Future<Optional<IssuedSession>>> futures = java.util.stream.IntStream.range(0, 2)
+                    .mapToObj(index -> executor.submit(() -> {
+                        ready.countDown();
+                        assertTrue(start.await(2, TimeUnit.SECONDS));
+                        try (SecretBytes proof = SecretBytes.copyOf(token)) {
+                            return adapter.resumeAndRotate(sessionId, proof, client, now);
+                        }
+                    }))
+                    .toList();
+            assertTrue(ready.await(2, TimeUnit.SECONDS));
+            start.countDown();
+            return List.of(futures.get(0).get(), futures.get(1).get());
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
+        }
     }
 
     private static void insertMessage(

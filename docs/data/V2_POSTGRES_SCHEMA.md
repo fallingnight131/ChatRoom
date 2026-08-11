@@ -79,7 +79,11 @@ preserve V1 semantics. Session issuance re-locks an enabled account, upserts an
 active Web/Windows device by `(account_id, client_device_id)`, refuses revoked
 devices, generates a 32-byte random token, and inserts only its SHA-256 digest in
 one transaction. A reconnect reuses the device UUID but receives a new session
-UUID and token. Session resume/rotation and cleanup are not implemented yet.
+UUID and token. Resume locks the session/account/device, verifies digest, expiry,
+revocation and negotiated device identity, atomically replaces the digest with a
+fresh proof, extends expiry, and keeps the session UUID stable. Sequential and
+concurrent reuse of the old proof is rejected. Expired-session cleanup is not
+implemented yet.
 
 ## Deployment and rollback
 
@@ -103,6 +107,7 @@ validates checksums/table shape, and tests atomic sequence allocation plus both
 unique conflict paths. It also tests identity lookup, transactional device
 reuse, hashed session issuance, revoked-device denial, and account-disable race
 closure. It applies both migrations, rejects inconsistent credential shapes,
-maps both V1 credential generations, and verifies one-time CAS upgrade. The
-evidence is environment-specific and does not by
-itself qualify a production database configuration.
+maps both V1 credential generations, and verifies one-time CAS upgrade. Session
+tests cover digest rotation, sequential and concurrent replay denial, device
+binding, expiry, and revocation. The evidence is environment-specific and does
+not by itself qualify a production database configuration.

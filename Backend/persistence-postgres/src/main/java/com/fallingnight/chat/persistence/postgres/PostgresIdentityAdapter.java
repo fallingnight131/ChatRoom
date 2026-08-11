@@ -6,6 +6,7 @@ import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.application.identity.CredentialUpgradePort;
 import com.fallingnight.chat.application.identity.IssuedSession;
 import com.fallingnight.chat.application.identity.SessionIssuePort;
+import com.fallingnight.chat.application.identity.SessionResumePort;
 import com.fallingnight.chat.application.identity.StoredCredential;
 import com.fallingnight.chat.application.security.SecretBytes;
 import java.security.MessageDigest;
@@ -28,7 +29,7 @@ import javax.sql.DataSource;
 
 /** PostgreSQL account lookup and transactional device/session issuance adapter. */
 public final class PostgresIdentityAdapter
-        implements AccountCredentialPort, SessionIssuePort, CredentialUpgradePort {
+        implements AccountCredentialPort, SessionIssuePort, SessionResumePort, CredentialUpgradePort {
     public static final int TOKEN_BYTES = 32;
     public static final Duration DEFAULT_SESSION_LIFETIME = Duration.ofDays(30);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -146,6 +147,59 @@ public final class PostgresIdentityAdapter
     }
 
     @Override
+    public Optional<IssuedSession> resumeAndRotate(
+            UUID sessionId,
+            SecretBytes presentedToken,
+            ClientDescriptor client,
+            Instant now) {
+        Objects.requireNonNull(sessionId, "sessionId");
+        Objects.requireNonNull(presentedToken, "presentedToken");
+        Objects.requireNonNull(client, "client");
+        Objects.requireNonNull(now, "now");
+        byte[] presentedHash = presentedToken.withCopy(PostgresIdentityAdapter::sha256);
+        byte[] replacementToken = requireToken(tokenSupplier.get());
+        byte[] replacementHash = sha256(replacementToken);
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            IssuedSession issued = null;
+            try {
+                Optional<ResumableSession> resumable = lockResumableSession(
+                        connection, sessionId, presentedHash, client.clientDeviceId(), now);
+                if (resumable.isEmpty()) {
+                    connection.rollback();
+                    return Optional.empty();
+                }
+                ResumableSession current = resumable.orElseThrow();
+                Instant expiresAt = now.plus(sessionLifetime);
+                issued = new IssuedSession(
+                        current.accountId(),
+                        current.deviceId(),
+                        sessionId,
+                        SecretBytes.copyOf(replacementToken),
+                        expiresAt,
+                        current.displayName());
+                rotateSessionProof(
+                        connection, sessionId, replacementHash, expiresAt);
+                touchResumedDevice(connection, current.deviceId(), client, now);
+                connection.commit();
+                return Optional.of(issued);
+            } catch (SQLException | RuntimeException exception) {
+                if (issued != null) {
+                    issued.close();
+                }
+                rollbackAfterFailure(connection, exception);
+                throw exception;
+            }
+        } catch (SQLException exception) {
+            throw new IdentityPersistenceException("session resume/rotation failed", exception);
+        } finally {
+            Arrays.fill(presentedHash, (byte) 0);
+            Arrays.fill(replacementToken, (byte) 0);
+            Arrays.fill(replacementHash, (byte) 0);
+        }
+    }
+
+    @Override
     public boolean replace(
             UUID accountId,
             StoredCredential expected,
@@ -191,6 +245,69 @@ public final class PostgresIdentityAdapter
             statement.setObject(1, accountId);
             try (ResultSet result = statement.executeQuery()) {
                 return result.next();
+            }
+        }
+    }
+
+    private static Optional<ResumableSession> lockResumableSession(
+            Connection connection,
+            UUID sessionId,
+            byte[] presentedHash,
+            String clientDeviceId,
+            Instant now) throws SQLException {
+        String sql = "SELECT ds.account_id, ds.device_id, a.display_name "
+                + "FROM chat.device_session ds "
+                + "JOIN chat.account a ON a.id = ds.account_id "
+                + "JOIN chat.device d ON d.id = ds.device_id AND d.account_id = ds.account_id "
+                + "WHERE ds.id = ? AND ds.token_sha256 = ? "
+                + "AND ds.revoked_at IS NULL AND ds.expires_at > ? "
+                + "AND a.disabled_at IS NULL AND d.revoked_at IS NULL "
+                + "AND d.client_device_id = ? FOR UPDATE OF ds, a, d";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, sessionId);
+            statement.setBytes(2, presentedHash);
+            statement.setObject(3, utc(now));
+            statement.setString(4, clientDeviceId);
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) {
+                    return Optional.empty();
+                }
+                return Optional.of(new ResumableSession(
+                        result.getObject(1, UUID.class),
+                        result.getObject(2, UUID.class),
+                        result.getString(3)));
+            }
+        }
+    }
+
+    private static void rotateSessionProof(
+            Connection connection,
+            UUID sessionId,
+            byte[] replacementHash,
+            Instant expiresAt) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE chat.device_session SET token_sha256 = ?, expires_at = ? WHERE id = ?")) {
+            statement.setBytes(1, replacementHash);
+            statement.setObject(2, utc(expiresAt));
+            statement.setObject(3, sessionId);
+            if (statement.executeUpdate() != 1) {
+                throw new SQLException("locked session disappeared during token rotation");
+            }
+        }
+    }
+
+    private static void touchResumedDevice(
+            Connection connection,
+            UUID deviceId,
+            ClientDescriptor client,
+            Instant now) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE chat.device SET platform = ?, last_seen_at = ? WHERE id = ?")) {
+            statement.setString(1, client.platform().name());
+            statement.setObject(2, utc(now));
+            statement.setObject(3, deviceId);
+            if (statement.executeUpdate() != 1) {
+                throw new SQLException("locked device disappeared during session rotation");
             }
         }
     }
@@ -283,5 +400,8 @@ public final class PostgresIdentityAdapter
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is unavailable", exception);
         }
+    }
+
+    private record ResumableSession(UUID accountId, UUID deviceId, String displayName) {
     }
 }
