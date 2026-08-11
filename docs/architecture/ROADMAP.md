@@ -366,6 +366,9 @@ Progress:
     - [x] Compose the Web V2 stack behind an exact default-off build flag, strict
       WSS/app-version configuration, lazy chunk boundary, non-secret device
       identity, and deterministic page-exit cleanup without starting traffic.
+    - [x] Add a build-gated V2 preview route that explicitly owns connection and
+      transient authentication, then renders directory, cache-first history,
+      optimistic text, acceptance, and retry without replacing V1 screens.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before

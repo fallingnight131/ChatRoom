@@ -20,6 +20,14 @@ const routes = [
   }
 ]
 
+if (import.meta.env.VITE_CHAT_V2_PREVIEW === 'true') {
+  routes.push({
+    path: '/preview/v2',
+    name: 'V2Preview',
+    component: () => import('../views/V2PreviewView.vue')
+  })
+}
+
 const router = createRouter({
   history: createWebHashHistory(),
   routes

@@ -100,6 +100,7 @@ export class V2WebChatApplication {
   private readonly createClientMessageId: () => string;
   private readonly now: () => number;
   private readonly onChange?: (snapshot: V2WebChatSnapshot) => void;
+  private readonly observers = new Set<(snapshot: V2WebChatSnapshot) => void>();
   private readonly conversations = new Map<string, ConversationState>();
   private readonly unsubscribeTransport: () => void;
   private sessionValue: V2WebChatSnapshot["session"] = null;
@@ -153,7 +154,16 @@ export class V2WebChatApplication {
 
   authenticate(username: string, passwordUtf8: Uint8Array): void {
     this.requireActive();
+    this.lastFailureValue = "";
+    this.emit();
     this.transport.authenticate(username, passwordUtf8);
+  }
+
+  subscribe(observer: (snapshot: V2WebChatSnapshot) => void): () => void {
+    this.requireActive();
+    this.observers.add(observer);
+    try { observer(this.snapshot); } catch { /* views do not own application state */ }
+    return () => this.observers.delete(observer);
   }
 
   resumeSession(sessionId: string, resumeToken: Uint8Array): void {
@@ -252,11 +262,29 @@ export class V2WebChatApplication {
     return message.deliveryState === "sending";
   }
 
+  stop(): void {
+    this.requireActive();
+    this.selectionGeneration += 1;
+    this.sessionGeneration += 1;
+    this.sessionValue = null;
+    this.directoryValue = [];
+    this.directoryCursor = null;
+    this.directoryHasMoreValue = false;
+    this.activeConversationIdValue = null;
+    this.conversations.clear();
+    this.replayedAtGeneration.clear();
+    this.replayQueues.clear();
+    this.replayInFlight.clear();
+    this.transport.stop();
+    this.emit();
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     this.selectionGeneration += 1;
     this.unsubscribeTransport();
+    this.observers.clear();
     this.transport.stop();
     this.sessionValue = null;
     this.conversations.clear();
@@ -286,6 +314,7 @@ export class V2WebChatApplication {
         const sameSession = this.sessionValue?.accountId === event.value.accountId
           && this.sessionValue.sessionId === event.value.sessionId;
         this.sessionGeneration += 1;
+        this.lastFailureValue = "";
         this.replayQueues.clear();
         this.replayInFlight.clear();
         this.sessionValue = {
@@ -490,6 +519,9 @@ export class V2WebChatApplication {
 
   private emit(): void {
     try { this.onChange?.(this.snapshot); } catch { /* views do not own application state */ }
+    for (const observer of this.observers) {
+      try { observer(this.snapshot); } catch { /* views do not own application state */ }
+    }
   }
 
   private requireActive(): void {

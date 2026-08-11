@@ -476,8 +476,11 @@ The Web entry point now exposes that stack through a default-off Vue composition
 boundary. Only an exact `VITE_CHAT_V2_PREVIEW=true` build with a valid WSS route
 and bounded app version dynamically loads the separate V2 chunk; an ordinary
 build retains the V1 initial asset graph. Composition creates no connection by
-itself. The future preview screen must explicitly start and authenticate the
-application. A stable random device hint may use the isolated
+itself. The build-gated `/preview/v2` screen explicitly starts and authenticates
+the route-owned connection, and stops it on route exit. It renders the current
+directory, cache-first history, optimistic text, acceptance, and retry slice;
+V1-only registration, attachments, administration, and other missing behavior
+remain visible cutover blockers. A stable random device hint may use the isolated
 `chat.v2.device-id` browser key, while credentials and resume proofs remain in
 memory. Deployment and rollback rules are in
 [`WEB_V2_PREVIEW.md`](../deployment/WEB_V2_PREVIEW.md).

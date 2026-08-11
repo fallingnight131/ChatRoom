@@ -186,6 +186,39 @@ test("hydrates exact cursor, synchronizes forward, and paginates directory/histo
   application.dispose();
 });
 
+test("publishes immutable snapshots to detachable view observers", () => {
+  const transport = new FakeTransport();
+  const application = new V2WebChatApplication({ transport, cache: new FakeCache() });
+  const states: string[] = [];
+  const unsubscribe = application.subscribe((snapshot) => {
+    states.push(snapshot.connectionState);
+    snapshot.directory.push({} as never);
+  });
+  assert.deepEqual(states, ["idle"]);
+  transport.transition("connecting");
+  unsubscribe();
+  transport.transition("connected");
+  assert.deepEqual(states, ["idle", "connecting"]);
+  assert.equal(application.snapshot.directory.length, 0);
+  application.dispose();
+});
+
+test("stops route-owned transport state without deleting durable cache", () => {
+  const transport = new FakeTransport();
+  const cache = new FakeCache();
+  const application = new V2WebChatApplication({ transport, cache });
+  establish(transport);
+  directory(transport);
+  assert.ok(application.snapshot.session);
+  application.stop();
+  assert.deepEqual(transport.calls.at(-1), ["stop"]);
+  assert.equal(application.snapshot.session, null);
+  assert.deepEqual(application.snapshot.directory, []);
+  application.start();
+  assert.deepEqual(transport.calls.at(-1), ["start"]);
+  application.dispose();
+});
+
 test("reconciles optimistic acceptance without skipping the contiguous history cursor", async () => {
   const transport = new FakeTransport();
   const cache = new FakeCache();

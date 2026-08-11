@@ -27,8 +27,9 @@ All `VITE_` values are readable in shipped JavaScript. Never put passwords,
 tokens, signing material, or other secrets in them. Configure the gateway's
 allowed TLS authority and HTTPS Web Origin separately and consistently.
 
-The composition root is lazy. A preview build emits a separate V2 chunk, but it
-does not open the socket until a preview UI explicitly starts the application.
+The composition root is lazy. A preview build emits separate V2 runtime and view
+chunks, but it does not open the socket until `/preview/v2` mounts and explicitly
+starts the application. Leaving that route stops the background connection.
 A normal `npm run build` does not include the inactive V2 runtime in the initial
 V1 asset graph.
 
@@ -48,7 +49,7 @@ Before serving preview assets:
 3. verify CSP/connect policy permits only the intended WSS authority;
 4. verify the preview gateway Origin, Host, TLS, health, and readiness policy;
 5. exercise authentication, reconnect/resume, cache hydration, retry, and safe
-   rejection using non-production accounts once the preview UI exists.
+   rejection through `/preview/v2` using non-production accounts.
 
 Rollback by redeploying the prior immutable asset version or a build without the
 exact preview flag, then invalidate the HTML entry point according to the Web

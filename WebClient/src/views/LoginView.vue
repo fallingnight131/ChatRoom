@@ -41,6 +41,9 @@
         <span @click="isRegister = !isRegister" class="switch-link">
           {{ isRegister ? '已有账号？去登录' : '没有账号？注册' }}
         </span>
+        <router-link v-if="v2PreviewEnabled" to="/preview/v2" class="switch-link">
+          V2 工程预览
+        </router-link>
       </div>
 
       <!-- 主题切换 -->
@@ -69,6 +72,7 @@ const confirmPassword = ref('')
 const isRegister = ref(false)
 const loading = ref(false)
 const errorMsg = ref('')
+const v2PreviewEnabled = import.meta.env.VITE_CHAT_V2_PREVIEW === 'true'
 
 
 function doLogin() {
