@@ -11,6 +11,7 @@ import com.fallingnight.chat.application.identity.AccountCredential;
 import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.application.identity.ClientPlatform;
 import com.fallingnight.chat.application.identity.IssuedSession;
+import com.fallingnight.chat.application.identity.StoredCredential;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
@@ -41,7 +42,7 @@ class PostgresMigratorTest {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
         MigrateResult initial = first.migrate();
-        assertEquals(1, initial.migrationsExecuted);
+        assertEquals(2, initial.migrationsExecuted);
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -76,8 +77,21 @@ class PostgresMigratorTest {
 
         AccountCredential account = adapter.findByPresentedUsername("alice").orElseThrow();
         assertEquals("Alice", account.displayName());
+        assertTrue(account.credential() instanceof StoredCredential.Argon2id);
         assertTrue(account.enabled());
         assertTrue(adapter.findByPresentedUsername("Alice").isEmpty());
+        insertLegacyAccount();
+        AccountCredential legacy = adapter.findByPresentedUsername("legacy-user").orElseThrow();
+        assertEquals(
+                new StoredCredential.LegacySha256("a".repeat(64), "legacy-salt-1234"),
+                legacy.credential());
+        StoredCredential.Argon2id replacement = new StoredCredential.Argon2id(
+                "$argon2id$v=19$m=65536,t=2,p=1$test$replacement");
+        assertTrue(adapter.replace(legacy.accountId(), legacy.credential(), replacement));
+        assertEquals(replacement,
+                adapter.findByPresentedUsername("legacy-user").orElseThrow().credential());
+        assertFalse(adapter.replace(legacy.accountId(), legacy.credential(), replacement));
+        assertCredentialShapeConstraint();
 
         ClientDescriptor client = new ClientDescriptor(
                 "browser-2", ClientPlatform.WEB, "0.1.0");
@@ -124,7 +138,8 @@ class PostgresMigratorTest {
         UUID message = UUID.randomUUID();
         try (PreparedStatement statement = connection.prepareStatement(
                 "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
-                        + "VALUES (?, 'alice', 'Alice', 'argon2id')")) {
+                        + "VALUES (?, 'alice', 'Alice', "
+                        + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')")) {
             statement.setObject(1, account);
             statement.executeUpdate();
         }
@@ -249,6 +264,32 @@ class PostgresMigratorTest {
                         "UPDATE chat.account SET disabled_at = transaction_timestamp() WHERE id = ?")) {
             statement.setObject(1, accountId);
             assertEquals(1, statement.executeUpdate());
+        }
+    }
+
+    private static void insertLegacyAccount() throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "INSERT INTO chat.account(id, username_key, display_name, password_hash, "
+                                + "password_scheme, legacy_password_salt) "
+                                + "VALUES (?, 'legacy-user', 'Legacy', ?, 'V1_SHA256', ?)")) {
+            statement.setObject(1, UUID.randomUUID());
+            statement.setString(2, "a".repeat(64));
+            statement.setString(3, "legacy-salt-1234");
+            assertEquals(1, statement.executeUpdate());
+        }
+    }
+
+    private static void assertCredentialShapeConstraint() throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "INSERT INTO chat.account(id, username_key, display_name, password_hash, "
+                                + "password_scheme, legacy_password_salt) "
+                                + "VALUES (?, 'invalid-legacy', 'Invalid', 'not-hex', "
+                                + "'V1_SHA256', '')")) {
+            statement.setObject(1, UUID.randomUUID());
+            SQLException exception = assertThrows(SQLException.class, statement::executeUpdate);
+            assertEquals("23514", exception.getSQLState());
         }
     }
 

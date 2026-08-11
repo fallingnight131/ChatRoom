@@ -29,9 +29,9 @@ username-enumeration timing differences.
   to clear the callback password copy.
 - Authentication hashing must later run on a bounded worker pool behind
   per-IP/account/gateway rate limits, never on a Netty event loop.
-- This adapter supports Argon2id only. V1 legacy salted-SHA rows require a
-  documented import/upgrade compatibility slice before Java identity cutover;
-  no dormant account may be silently locked out.
+- This adapter supports Argon2id only; ADR-0042 adds a composition adapter and
+  PostgreSQL expansion for legacy salted-SHA verification and login-time
+  upgrade so dormant accounts are not silently locked out.
 
 ## Evidence
 

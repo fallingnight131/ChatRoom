@@ -7,11 +7,11 @@ import java.util.UUID;
 public record AccountCredential(
         UUID accountId,
         String displayName,
-        String passwordHash,
+        StoredCredential credential,
         boolean enabled) {
     public AccountCredential {
         Objects.requireNonNull(accountId, "accountId");
         Objects.requireNonNull(displayName, "displayName");
-        Objects.requireNonNull(passwordHash, "passwordHash");
+        Objects.requireNonNull(credential, "credential");
     }
 }

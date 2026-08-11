@@ -1,6 +1,8 @@
 package com.fallingnight.chat.identity.crypto;
 
 import com.fallingnight.chat.application.identity.CredentialVerifierPort;
+import com.fallingnight.chat.application.identity.CredentialVerification;
+import com.fallingnight.chat.application.identity.StoredCredential;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Base64;
@@ -25,10 +27,15 @@ public final class Argon2idCredentialVerifier implements CredentialVerifierPort 
     private static final ParsedHash DUMMY_PARSED = parse(DUMMY_HASH).orElseThrow();
 
     @Override
-    public boolean matchesOrDummy(byte[] passwordUtf8, Optional<String> storedHash) {
+    public CredentialVerification verifyOrDummy(
+            byte[] passwordUtf8, Optional<StoredCredential> storedCredential) {
         Objects.requireNonNull(passwordUtf8, "passwordUtf8");
-        Objects.requireNonNull(storedHash, "storedHash");
-        Optional<ParsedHash> parsedStored = storedHash.flatMap(Argon2idCredentialVerifier::parse);
+        Objects.requireNonNull(storedCredential, "storedCredential");
+        Optional<ParsedHash> parsedStored = storedCredential
+                .filter(StoredCredential.Argon2id.class::isInstance)
+                .map(StoredCredential.Argon2id.class::cast)
+                .map(StoredCredential.Argon2id::encodedHash)
+                .flatMap(Argon2idCredentialVerifier::parse);
         ParsedHash selected = parsedStored.orElse(DUMMY_PARSED);
         byte[] actual = new byte[selected.expected().length];
         try {
@@ -47,10 +54,16 @@ public final class Argon2idCredentialVerifier implements CredentialVerifierPort 
                 parameters.clear();
             }
             return parsedStored.isPresent()
-                    && MessageDigest.isEqual(actual, selected.expected());
+                    && MessageDigest.isEqual(actual, selected.expected())
+                            ? CredentialVerification.VERIFIED
+                            : CredentialVerification.REJECTED;
         } finally {
             Arrays.fill(actual, (byte) 0);
         }
+    }
+
+    void performDummy(byte[] passwordUtf8) {
+        verifyOrDummy(passwordUtf8, Optional.empty());
     }
 
     static Optional<ParsedHash> parse(String encoded) {

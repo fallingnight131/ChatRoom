@@ -7,6 +7,10 @@ public final class IdentityPersistenceException extends RuntimeException {
     @Serial
     private static final long serialVersionUID = 1L;
 
+    public IdentityPersistenceException(String message) {
+        super(message);
+    }
+
     public IdentityPersistenceException(String message, Throwable cause) {
         super(message, cause);
     }

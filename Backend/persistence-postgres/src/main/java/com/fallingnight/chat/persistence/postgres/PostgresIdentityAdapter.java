@@ -3,8 +3,10 @@ package com.fallingnight.chat.persistence.postgres;
 import com.fallingnight.chat.application.identity.AccountCredential;
 import com.fallingnight.chat.application.identity.AccountCredentialPort;
 import com.fallingnight.chat.application.identity.ClientDescriptor;
+import com.fallingnight.chat.application.identity.CredentialUpgradePort;
 import com.fallingnight.chat.application.identity.IssuedSession;
 import com.fallingnight.chat.application.identity.SessionIssuePort;
+import com.fallingnight.chat.application.identity.StoredCredential;
 import com.fallingnight.chat.application.security.SecretBytes;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -26,7 +28,7 @@ import javax.sql.DataSource;
 
 /** PostgreSQL account lookup and transactional device/session issuance adapter. */
 public final class PostgresIdentityAdapter
-        implements AccountCredentialPort, SessionIssuePort {
+        implements AccountCredentialPort, SessionIssuePort, CredentialUpgradePort {
     public static final int TOKEN_BYTES = 32;
     public static final Duration DEFAULT_SESSION_LIFETIME = Duration.ofDays(30);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
@@ -58,7 +60,8 @@ public final class PostgresIdentityAdapter
     @Override
     public Optional<AccountCredential> findByPresentedUsername(String username) {
         Objects.requireNonNull(username, "username");
-        String sql = "SELECT id, display_name, password_hash, disabled_at IS NULL "
+        String sql = "SELECT id, display_name, password_hash, password_scheme, "
+                + "legacy_password_salt, disabled_at IS NULL "
                 + "FROM chat.account WHERE username_key = ?";
         try (Connection connection = dataSource.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -67,11 +70,19 @@ public final class PostgresIdentityAdapter
                 if (!result.next()) {
                     return Optional.empty();
                 }
+                String scheme = result.getString(4);
+                StoredCredential credential = switch (scheme) {
+                    case "ARGON2ID" -> new StoredCredential.Argon2id(result.getString(3));
+                    case "V1_SHA256" -> new StoredCredential.LegacySha256(
+                            result.getString(3), result.getString(5));
+                    default -> throw new IdentityPersistenceException(
+                            "unsupported stored credential scheme");
+                };
                 return Optional.of(new AccountCredential(
                         result.getObject(1, UUID.class),
                         result.getString(2),
-                        result.getString(3),
-                        result.getBoolean(4)));
+                        credential,
+                        result.getBoolean(6)));
             }
         } catch (SQLException exception) {
             throw new IdentityPersistenceException("account credential lookup failed", exception);
@@ -131,6 +142,45 @@ public final class PostgresIdentityAdapter
         } finally {
             Arrays.fill(token, (byte) 0);
             Arrays.fill(tokenHash, (byte) 0);
+        }
+    }
+
+    @Override
+    public boolean replace(
+            UUID accountId,
+            StoredCredential expected,
+            StoredCredential.Argon2id replacement) {
+        Objects.requireNonNull(accountId, "accountId");
+        Objects.requireNonNull(expected, "expected");
+        Objects.requireNonNull(replacement, "replacement");
+        String expectedScheme;
+        String expectedHash;
+        String expectedSalt;
+        if (expected instanceof StoredCredential.Argon2id argon2id) {
+            expectedScheme = "ARGON2ID";
+            expectedHash = argon2id.encodedHash();
+            expectedSalt = null;
+        } else if (expected instanceof StoredCredential.LegacySha256 legacy) {
+            expectedScheme = "V1_SHA256";
+            expectedHash = legacy.hexDigest();
+            expectedSalt = legacy.salt();
+        } else {
+            throw new IllegalArgumentException("unsupported expected credential");
+        }
+        String sql = "UPDATE chat.account SET password_hash = ?, "
+                + "password_scheme = 'ARGON2ID', legacy_password_salt = NULL "
+                + "WHERE id = ? AND password_scheme = ? AND password_hash = ? "
+                + "AND legacy_password_salt IS NOT DISTINCT FROM ?";
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, replacement.encodedHash());
+            statement.setObject(2, accountId);
+            statement.setString(3, expectedScheme);
+            statement.setString(4, expectedHash);
+            statement.setString(5, expectedSalt);
+            return statement.executeUpdate() == 1;
+        } catch (SQLException exception) {
+            throw new IdentityPersistenceException("credential upgrade failed", exception);
         }
     }
 

@@ -22,7 +22,7 @@ class AuthenticationServiceTest {
     private static final AccountCredential ENABLED = new AccountCredential(
             UUID.fromString("00000000-0000-0000-0000-000000000001"),
             "Alice",
-            "argon2id-hash",
+            new StoredCredential.Argon2id("argon2id-hash"),
             true);
 
     @Test
@@ -31,8 +31,10 @@ class AuthenticationServiceTest {
         AtomicReference<ClientDescriptor> issuedFor = new AtomicReference<>();
         AuthenticationService service = service(
                 Optional.of(ENABLED),
-                (password, hash) -> hash.orElseThrow().equals("argon2id-hash")
-                        && new String(password, StandardCharsets.UTF_8).equals("test-password"),
+                (password, credential) -> credential.orElseThrow().equals(ENABLED.credential())
+                        && new String(password, StandardCharsets.UTF_8).equals("test-password")
+                                ? CredentialVerification.VERIFIED
+                                : CredentialVerification.REJECTED,
                 (account, client, now) -> {
                     assertEquals(ENABLED, account);
                     assertEquals(NOW, now);
@@ -45,6 +47,7 @@ class AuthenticationServiceTest {
                 AuthenticationResult.Established.class, service.authenticate(command));
 
         assertSame(issued, result.session());
+        assertFalse(result.credentialUpgradePending());
         assertEquals(ClientPlatform.WEB, issuedFor.get().platform());
         assertTrue(command.isClosed());
         issued.close();
@@ -56,10 +59,10 @@ class AuthenticationServiceTest {
         AtomicBoolean issued = new AtomicBoolean();
         AuthenticationService service = service(
                 Optional.empty(),
-                (password, hash) -> {
-                    assertTrue(hash.isEmpty());
+                (password, credential) -> {
+                    assertTrue(credential.isEmpty());
                     verified.set(true);
-                    return false;
+                    return CredentialVerification.REJECTED;
                 },
                 (account, client, now) -> {
                     issued.set(true);
@@ -81,11 +84,15 @@ class AuthenticationServiceTest {
             return Optional.of(issuedSession());
         };
         AuthenticationService wrongPassword = service(
-                Optional.of(ENABLED), (password, hash) -> false, sessions);
+                Optional.of(ENABLED),
+                (password, credential) -> CredentialVerification.REJECTED,
+                sessions);
         AccountCredential disabled = new AccountCredential(
-                ENABLED.accountId(), ENABLED.displayName(), ENABLED.passwordHash(), false);
+                ENABLED.accountId(), ENABLED.displayName(), ENABLED.credential(), false);
         AuthenticationService disabledAccount = service(
-                Optional.of(disabled), (password, hash) -> true, sessions);
+                Optional.of(disabled),
+                (password, credential) -> CredentialVerification.VERIFIED,
+                sessions);
 
         assertSame(AuthenticationResult.Rejected.INSTANCE,
                 wrongPassword.authenticate(command()));
@@ -98,21 +105,76 @@ class AuthenticationServiceTest {
     void issuancePolicyDenialUsesTheSameRejection() {
         AuthenticationService service = service(
                 Optional.of(ENABLED),
-                (password, hash) -> true,
+                (password, credential) -> CredentialVerification.VERIFIED,
                 (account, client, now) -> Optional.empty());
 
         assertSame(AuthenticationResult.Rejected.INSTANCE,
                 service.authenticate(command()));
     }
 
+    @Test
+    void legacySuccessUsesCasUpgradeAndReportsPersistenceFailure() {
+        StoredCredential.LegacySha256 legacy = new StoredCredential.LegacySha256(
+                "a".repeat(64), "legacy-salt");
+        AccountCredential legacyAccount = new AccountCredential(
+                ENABLED.accountId(), ENABLED.displayName(), legacy, true);
+        AtomicReference<StoredCredential> replaced = new AtomicReference<>();
+        IssuedSession successfulSession = issuedSession();
+        AuthenticationService successful = service(
+                Optional.of(legacyAccount),
+                (password, credential) -> CredentialVerification.VERIFIED_NEEDS_UPGRADE,
+                (account, client, now) -> Optional.of(successfulSession),
+                password -> new StoredCredential.Argon2id("new-argon2id"),
+                (accountId, expected, replacement) -> {
+                    assertEquals(legacy, expected);
+                    replaced.set(replacement);
+                    return true;
+                });
+        AuthenticationResult.Established upgraded = assertInstanceOf(
+                AuthenticationResult.Established.class,
+                successful.authenticate(command()));
+        assertEquals(new StoredCredential.Argon2id("new-argon2id"), replaced.get());
+        assertFalse(upgraded.credentialUpgradePending());
+        upgraded.session().close();
+
+        IssuedSession pendingSession = issuedSession();
+        AuthenticationService failedUpgrade = service(
+                Optional.of(legacyAccount),
+                (password, credential) -> CredentialVerification.VERIFIED_NEEDS_UPGRADE,
+                (account, client, now) -> Optional.of(pendingSession),
+                password -> new StoredCredential.Argon2id("new-argon2id"),
+                (accountId, expected, replacement) -> false);
+        AuthenticationResult.Established pending = assertInstanceOf(
+                AuthenticationResult.Established.class,
+                failedUpgrade.authenticate(command()));
+        assertTrue(pending.credentialUpgradePending());
+        pending.session().close();
+    }
+
     private static AuthenticationService service(
             Optional<AccountCredential> account,
             CredentialVerifierPort verifier,
             SessionIssuePort sessions) {
+        return service(
+                account,
+                verifier,
+                sessions,
+                password -> new StoredCredential.Argon2id("upgraded-hash"),
+                (accountId, expected, replacement) -> true);
+    }
+
+    private static AuthenticationService service(
+            Optional<AccountCredential> account,
+            CredentialVerifierPort verifier,
+            SessionIssuePort sessions,
+            CredentialHashPort hasher,
+            CredentialUpgradePort upgrades) {
         return new AuthenticationService(
                 username -> account,
                 verifier,
                 sessions,
+                hasher,
+                upgrades,
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

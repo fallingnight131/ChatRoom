@@ -1,10 +1,12 @@
 package com.fallingnight.chat.identity.crypto;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
+import com.fallingnight.chat.application.identity.CredentialVerification;
+import com.fallingnight.chat.application.identity.StoredCredential;
 import org.junit.jupiter.api.Test;
 
 class Argon2idCredentialVerifierTest {
@@ -15,17 +17,21 @@ class Argon2idCredentialVerifierTest {
 
     @Test
     void verifiesTheV1LibsodiumInteractiveVector() {
-        assertTrue(verifier.matchesOrDummy(
-                bytes("java-v2-test-password"), Optional.of(LIBSODIUM_INTERACTIVE_HASH)));
-        assertFalse(verifier.matchesOrDummy(
-                bytes("wrong-test-password"), Optional.of(LIBSODIUM_INTERACTIVE_HASH)));
+        StoredCredential credential = new StoredCredential.Argon2id(LIBSODIUM_INTERACTIVE_HASH);
+        assertEquals(CredentialVerification.VERIFIED, verifier.verifyOrDummy(
+                bytes("java-v2-test-password"), Optional.of(credential)));
+        assertEquals(CredentialVerification.REJECTED, verifier.verifyOrDummy(
+                bytes("wrong-test-password"), Optional.of(credential)));
     }
 
     @Test
     void absentOrMalformedHashesStillRejectAfterDummyWork() {
-        assertFalse(verifier.matchesOrDummy(bytes("test-password"), Optional.empty()));
-        assertFalse(verifier.matchesOrDummy(
-                bytes("test-password"), Optional.of("$argon2id$v=19$m=999999999,t=2,p=1$bad$bad")));
+        assertEquals(CredentialVerification.REJECTED,
+                verifier.verifyOrDummy(bytes("test-password"), Optional.empty()));
+        assertEquals(CredentialVerification.REJECTED, verifier.verifyOrDummy(
+                bytes("test-password"),
+                Optional.of(new StoredCredential.Argon2id(
+                        "$argon2id$v=19$m=999999999,t=2,p=1$bad$bad"))));
     }
 
     @Test

@@ -297,8 +297,10 @@ Progress:
 - [x] Verify V1/libsodium Argon2id hashes through a bounded Bouncy Castle adapter
   with a cross-implementation vector, constant-cost missing/malformed dummy
   work, and parameter/resource caps.
-- [ ] Implement legacy salted-SHA import/upgrade compatibility,
-  resume/rotation, and the negotiated-to-authenticated gateway state transition.
+- [x] Implement legacy salted-SHA storage/verification compatibility and
+  compare-and-set Argon2id upgrade without forcing dormant-account resets.
+- [ ] Implement the verified one-way V1 data import, session resume/rotation,
+  and the negotiated-to-authenticated gateway state transition.
 
 Work:
 

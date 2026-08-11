@@ -4,7 +4,9 @@ import java.util.Objects;
 
 /** Non-enumerating identity use-case outcome. */
 public sealed interface AuthenticationResult {
-    record Established(IssuedSession session) implements AuthenticationResult {
+    record Established(
+            IssuedSession session,
+            boolean credentialUpgradePending) implements AuthenticationResult {
         public Established {
             Objects.requireNonNull(session, "session");
         }
