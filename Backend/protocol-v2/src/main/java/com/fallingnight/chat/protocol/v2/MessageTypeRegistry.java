@@ -20,6 +20,10 @@ public final class MessageTypeRegistry {
             case MESSAGE_TYPE_CLIENT_HELLO -> MessageKind.MESSAGE_KIND_COMMAND;
             case MESSAGE_TYPE_SERVER_HELLO -> MessageKind.MESSAGE_KIND_RESPONSE;
             case MESSAGE_TYPE_PROTOCOL_ERROR -> MessageKind.MESSAGE_KIND_ERROR;
+            case MESSAGE_TYPE_AUTHENTICATE, MESSAGE_TYPE_RESUME_SESSION ->
+                    MessageKind.MESSAGE_KIND_COMMAND;
+            case MESSAGE_TYPE_SESSION_ESTABLISHED -> MessageKind.MESSAGE_KIND_RESPONSE;
+            case MESSAGE_TYPE_AUTHENTICATION_REJECTED -> MessageKind.MESSAGE_KIND_ERROR;
             case MESSAGE_TYPE_UNSPECIFIED, UNRECOGNIZED ->
                     throw new IllegalArgumentException("unregistered message type");
         };

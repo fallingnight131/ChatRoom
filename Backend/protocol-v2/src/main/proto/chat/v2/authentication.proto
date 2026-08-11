@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package chat.v2;
+
+option java_multiple_files = true;
+option java_package = "com.fallingnight.chat.protocol.v2";
+option java_outer_classname = "AuthenticationSchema";
+
+message Authenticate {
+  string username = 1;
+  bytes password_utf8 = 2;
+}
+
+message ResumeSession {
+  string session_id = 1;
+  bytes resume_token = 2;
+}
+
+message SessionEstablished {
+  string account_id = 1;
+  string device_id = 2;
+  string session_id = 3;
+  bytes resume_token = 4;
+  int64 expires_at_epoch_ms = 5;
+  string display_name = 6;
+}
+
+enum AuthenticationRejectionReason {
+  AUTHENTICATION_REJECTION_REASON_UNSPECIFIED = 0;
+  AUTHENTICATION_REJECTION_REASON_REJECTED = 1;
+  AUTHENTICATION_REJECTION_REASON_RATE_LIMITED = 2;
+}
+
+message AuthenticationRejected {
+  AuthenticationRejectionReason reason = 1;
+  int64 retry_after_ms = 2;
+}

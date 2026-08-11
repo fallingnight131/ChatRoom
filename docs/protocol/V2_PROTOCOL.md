@@ -51,6 +51,10 @@ reused:
 | 1 | `ClientHello` | command | client to server, first application frame |
 | 2 | `ServerHello` | response | server to client after successful negotiation |
 | 3 | `ProtocolError` | error | server to client for a bounded safe protocol failure |
+| 10 | `Authenticate` | command | negotiated client to server; fresh credentials |
+| 11 | `ResumeSession` | command | negotiated client to server; opaque resume proof |
+| 12 | `SessionEstablished` | response | server to client; authenticated connection context |
+| 13 | `AuthenticationRejected` | error | server to client; generic rejection or rate limit |
 
 `ClientHello` declares a minimum/maximum protocol generation, Web or Windows
 platform, app version, and client-device ID. App version is limited to 64 UTF-8
@@ -69,6 +73,16 @@ wrong first frame, invalid payload, unsupported version, or repeated hello.
 After success, messages still require a separate authenticated dispatch layer;
 `ServerHello` alone grants no identity or permissions.
 
+`Authenticate.password_utf8` is limited to 1..1024 valid UTF-8 bytes and must
+never be logged, persisted, cached, or echoed. `ResumeSession.resume_token` is
+exactly 32 opaque bytes; only its SHA-256 digest may be stored. A successful
+session response returns a newly issued raw token once and binds identity in
+server-side connection state. Unknown account, wrong password, disabled account,
+invalid token, and expired/revoked session all use the same generic rejection to
+avoid enumeration. These messages are not allowed on a production route until
+WSS, origin policy, rate limits, redaction, password verification, token
+rotation, and persistence are implemented and verified.
+
 ## Compatibility rules
 
 - Field numbers are permanent. Removed fields are reserved rather than reused.
@@ -82,7 +96,8 @@ After success, messages still require a separate authenticated dispatch layer;
   field quirks into V2 application types.
 
 The Java and TypeScript bindings must encode and decode the stored golden
-envelope and ClientHello identically. The generated C++ binding is compiled against the matching
+envelope, ClientHello, and non-secret Authenticate fixture identically. The
+generated C++ binding is compiled against the matching
 SHA-256-pinned Protobuf/Abseil test runtime and must parse and re-emit those same
 bytes. This completes envelope-level cross-language evidence; feature payload
 registries still require their own additive compatibility tests.

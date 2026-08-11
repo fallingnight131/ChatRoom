@@ -10,10 +10,12 @@ import {
   ClientHelloSchema,
   ClientPlatform
 } from '../generated/typescript/chat/v2/control_pb.js'
+import { AuthenticateSchema } from '../generated/typescript/chat/v2/authentication_pb.js'
 
 const GOLDEN_HEX = '08021001186422057265712d312a0973657373696f6e2d31' +
   '3208636c69656e742d313880d095ffbc314203616263'
 const CLIENT_HELLO_GOLDEN_HEX = '0802100218012205302e312e302a086465766963652d31'
+const AUTHENTICATE_GOLDEN_HEX = '0a05616c696365120d746573742d70617373776f7264'
 
 function bytesFromHex(hex: string): Uint8Array {
   return Uint8Array.from(hex.match(/.{2}/g) ?? [], byte => Number.parseInt(byte, 16))
@@ -63,5 +65,20 @@ test('keeps the ClientHello payload compatible across generated bindings', () =>
   assert.equal(
     Buffer.from(toBinary(ClientHelloSchema, encoded)).toString('hex'),
     CLIENT_HELLO_GOLDEN_HEX
+  )
+})
+
+test('keeps the bounded Authenticate payload compatible across generated bindings', () => {
+  const decoded = fromBinary(AuthenticateSchema, bytesFromHex(AUTHENTICATE_GOLDEN_HEX))
+  assert.equal(decoded.username, 'alice')
+  assert.equal(new TextDecoder().decode(decoded.passwordUtf8), 'test-password')
+
+  const encoded = create(AuthenticateSchema, {
+    username: 'alice',
+    passwordUtf8: new TextEncoder().encode('test-password')
+  })
+  assert.equal(
+    Buffer.from(toBinary(AuthenticateSchema, encoded)).toString('hex'),
+    AUTHENTICATE_GOLDEN_HEX
   )
 })

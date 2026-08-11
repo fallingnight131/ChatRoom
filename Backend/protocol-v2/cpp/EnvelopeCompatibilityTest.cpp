@@ -1,5 +1,6 @@
 #include "chat/v2/envelope.pb.h"
 #include "chat/v2/control.pb.h"
+#include "chat/v2/authentication.pb.h"
 
 #include <cstdint>
 #include <iostream>
@@ -12,6 +13,8 @@ constexpr char kGoldenHex[] =
     "3208636c69656e742d313880d095ffbc314203616263";
 constexpr char kClientHelloGoldenHex[] =
     "0802100218012205302e312e302a086465766963652d31";
+constexpr char kAuthenticateGoldenHex[] =
+    "0a05616c696365120d746573742d70617373776f7264";
 
 int hexDigit(char value) {
     if (value >= '0' && value <= '9') return value - '0';
@@ -66,6 +69,15 @@ int main() {
             || hello.client_device_id() != "device-1"
             || hello.SerializeAsString() != helloGolden) {
         std::cerr << "generated C++ binding changed the ClientHello golden payload\n";
+        return 1;
+    }
+    const std::string authenticateGolden = fromHex(kAuthenticateGoldenHex);
+    chat::v2::Authenticate authenticate;
+    if (!authenticate.ParseFromString(authenticateGolden)
+            || authenticate.username() != "alice"
+            || authenticate.password_utf8() != "test-password"
+            || authenticate.SerializeAsString() != authenticateGolden) {
+        std::cerr << "generated C++ binding changed the Authenticate golden payload\n";
         return 1;
     }
     return 0;

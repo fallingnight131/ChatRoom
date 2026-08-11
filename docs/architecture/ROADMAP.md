@@ -279,6 +279,8 @@ Progress:
     client hello, version negotiation semantics, and three-language golden test.
   - [x] Add the single-use bounded ClientHello state machine and safe negotiation
     errors without enabling a listener.
+  - [x] Define bounded generated authentication/session payloads, fixed token
+    length, non-enumerating rejection semantics, and three-language wire tests.
   - [ ] Add authentication, timeouts/rate limits, frame-error close mapping,
     observability, outbound encoding, and transport-independent application
     dispatch before enabling a listener.
