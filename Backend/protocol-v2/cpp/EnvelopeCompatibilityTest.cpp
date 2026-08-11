@@ -1,6 +1,7 @@
 #include "chat/v2/envelope.pb.h"
 #include "chat/v2/control.pb.h"
 #include "chat/v2/authentication.pb.h"
+#include "chat/v2/messaging.pb.h"
 
 #include <cstdint>
 #include <iostream>
@@ -15,6 +16,9 @@ constexpr char kClientHelloGoldenHex[] =
     "0802100218012205302e312e302a086465766963652d31";
 constexpr char kAuthenticateGoldenHex[] =
     "0a05616c696365120d746573742d70617373776f7264";
+constexpr char kSubmitMessageGoldenHex[] =
+    "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+    "10641a026869";
 
 int hexDigit(char value) {
     if (value >= '0' && value <= '9') return value - '0';
@@ -78,6 +82,16 @@ int main() {
             || authenticate.password_utf8() != "test-password"
             || authenticate.SerializeAsString() != authenticateGolden) {
         std::cerr << "generated C++ binding changed the Authenticate golden payload\n";
+        return 1;
+    }
+    const std::string submitGolden = fromHex(kSubmitMessageGoldenHex);
+    chat::v2::SubmitMessage submit;
+    if (!submit.ParseFromString(submitGolden)
+            || submit.conversation_id() != "00000000-0000-0000-0000-000000000001"
+            || submit.content_type() != 100
+            || submit.content() != "hi"
+            || submit.SerializeAsString() != submitGolden) {
+        std::cerr << "generated C++ binding changed the SubmitMessage golden payload\n";
         return 1;
     }
     return 0;

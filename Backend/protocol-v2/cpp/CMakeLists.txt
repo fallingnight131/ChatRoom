@@ -38,6 +38,7 @@ add_executable(
   "${GENERATED_ROOT}/chat/v2/authentication.pb.cc"
   "${GENERATED_ROOT}/chat/v2/control.pb.cc"
   "${GENERATED_ROOT}/chat/v2/envelope.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/messaging.pb.cc"
 )
 target_compile_features(v2_cpp_envelope_test PRIVATE cxx_std_17)
 target_include_directories(v2_cpp_envelope_test PRIVATE "${GENERATED_ROOT}")

@@ -74,6 +74,10 @@ generic rejection, failure normalization, and session-spoofing denial. These
 tests also verify binary envelope egress plus fixed WebSocket 1002/1009 close
 mapping for unsafe frames. They do not open a listener or imply that V2 is ready
 to receive traffic.
+The protocol-binding gate also compiles and round-trips permanent V2 messaging
+types 100..103. It verifies the fixed bounded `SubmitMessage` golden payload in
+Java, generated TypeScript, and generated C++; this does not enable gateway
+messaging dispatch.
 The authentication worker tests use a one-worker/one-slot pool to prove bounded
 admission, saturation shedding, worker naming, and lifecycle shutdown. These
 test capacities are not deployment defaults or benchmark results.

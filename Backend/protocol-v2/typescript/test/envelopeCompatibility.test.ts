@@ -11,11 +11,14 @@ import {
   ClientPlatform
 } from '../generated/typescript/chat/v2/control_pb.js'
 import { AuthenticateSchema } from '../generated/typescript/chat/v2/authentication_pb.js'
+import { SubmitMessageSchema } from '../generated/typescript/chat/v2/messaging_pb.js'
 
 const GOLDEN_HEX = '08021001186422057265712d312a0973657373696f6e2d31' +
   '3208636c69656e742d313880d095ffbc314203616263'
 const CLIENT_HELLO_GOLDEN_HEX = '0802100218012205302e312e302a086465766963652d31'
 const AUTHENTICATE_GOLDEN_HEX = '0a05616c696365120d746573742d70617373776f7264'
+const SUBMIT_MESSAGE_GOLDEN_HEX = '0a2430303030303030302d303030302d303030302d' +
+  '303030302d30303030303030303030303110641a026869'
 
 function bytesFromHex(hex: string): Uint8Array {
   return Uint8Array.from(hex.match(/.{2}/g) ?? [], byte => Number.parseInt(byte, 16))
@@ -80,5 +83,22 @@ test('keeps the bounded Authenticate payload compatible across generated binding
   assert.equal(
     Buffer.from(toBinary(AuthenticateSchema, encoded)).toString('hex'),
     AUTHENTICATE_GOLDEN_HEX
+  )
+})
+
+test('keeps the bounded SubmitMessage payload compatible across generated bindings', () => {
+  const decoded = fromBinary(SubmitMessageSchema, bytesFromHex(SUBMIT_MESSAGE_GOLDEN_HEX))
+  assert.equal(decoded.conversationId, '00000000-0000-0000-0000-000000000001')
+  assert.equal(decoded.contentType, 100)
+  assert.equal(new TextDecoder().decode(decoded.content), 'hi')
+
+  const encoded = create(SubmitMessageSchema, {
+    conversationId: '00000000-0000-0000-0000-000000000001',
+    contentType: 100,
+    content: new TextEncoder().encode('hi')
+  })
+  assert.equal(
+    Buffer.from(toBinary(SubmitMessageSchema, encoded)).toString('hex'),
+    SUBMIT_MESSAGE_GOLDEN_HEX
   )
 })

@@ -86,7 +86,7 @@ history.
 Forward history reads at most 100 stored messages after an explicit sequence,
 ordered ascending, and returns the next applied cursor, current conversation
 high watermark, and `hasMore`. Deleted rows remain legal cursor gaps. The
-adapter is not connected to a V2 wire command yet.
+adapter is not connected to the now-defined V2 messaging wire commands yet.
 
 ## Bounds and indexes
 

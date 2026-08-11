@@ -41,8 +41,8 @@ handler. Each outbound envelope is encoded as one final binary WebSocket
 message. Malformed/invalid input closes with fixed status 1002 and reason
 `invalid V2 frame`; oversized complete or fragmented input closes with status
 1009 and reason `V2 frame too large`. Parser or exception details are never
-reflected. The production listener is not enabled yet, so V2 still has no
-product route.
+reflected. The pre-cutover listener is runnable, but V2 still has no product
+route.
 
 ## Control message registry
 
@@ -58,6 +58,26 @@ reused:
 | 11 | `ResumeSession` | command | negotiated client to server; opaque resume proof |
 | 12 | `SessionEstablished` | response | server to client; authenticated connection context |
 | 13 | `AuthenticationRejected` | error | server to client; generic rejection or rate limit |
+| 100 | `SubmitMessage` | command | authenticated client to server; durable idempotent append |
+| 101 | `MessageAccepted` | response | server to submitting client after durable commit |
+| 102 | `ReadMessageHistory` | command | authenticated client to server; forward sequence page |
+| 103 | `MessageHistoryPage` | response | server to requesting active member |
+
+`SubmitMessage` carries a canonical conversation UUID, positive content type,
+and at most 1,000,000 content bytes. The envelope `client_message_id` is required
+and is the sender-scoped idempotency key; envelope/session/payload identity never
+overrides the server-bound authenticated account/device. `MessageAccepted`
+returns the stable server UUID, positive conversation sequence,
+PostgreSQL-authoritative acceptance time, and duplicate flag. Durable acceptance
+does not mean destination delivery or read acknowledgement.
+
+`ReadMessageHistory` accepts a nonnegative signed-server-range `after_sequence`
+and limit 1..100. `MessageHistoryPage` returns at most 100 ascending records, an
+explicit next cursor, current conversation high watermark, and `has_more`.
+Deleted rows may leave sequence gaps. Authorization failures use the opaque
+`NOT_AUTHORIZED` protocol code; conflicting reuse of a client message ID uses
+`IDEMPOTENCY_CONFLICT`. Concrete positive content-type schemas remain a later
+registry slice, so these wire messages are not dispatched yet.
 
 `ClientHello` declares a minimum/maximum protocol generation, Web or Windows
 platform, app version, and client-device ID. App version is limited to 64 UTF-8

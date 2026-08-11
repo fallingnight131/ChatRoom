@@ -325,6 +325,8 @@ Progress:
   - [ ] Route durable V2 conversation/message commands through this gateway
     before any product traffic cutover; coordinate distributed limits through
     Redis in M5.
+    - [x] Permanently allocate bounded submit/accepted/history/page Protobuf
+      payloads and prove Java/C++/TypeScript golden-wire compatibility.
 - [x] Establish the forward-only PostgreSQL migration module and V2 core schema
   with real clean/restart, sequence, idempotency, and constraint verification.
 - [ ] Implement persistence repositories and a verified one-way V1 import before
