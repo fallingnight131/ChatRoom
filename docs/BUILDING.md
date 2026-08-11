@@ -100,6 +100,9 @@ Argon2id rehashing. The PostgreSQL gate applies V001/V002 and checks credential
 shape constraints, compare-and-set upgrade behavior, digest-only session proof
 rotation, sequential/concurrent replay denial, device binding, expiry, and
 revocation against a disposable real database.
+Pure migration-planner tests also verify deterministic V1 user-ID mapping,
+order-independent source fingerprints, supported credential generations, full
+plan blocking on invalid/duplicate/empty input, and non-secret issue reporting.
 
 Run the V2 PostgreSQL migration gate with local PostgreSQL server tools
 (`initdb`, `pg_ctl`, and `createdb`) available either on `PATH` or through

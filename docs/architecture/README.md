@@ -183,6 +183,13 @@ conversation, membership, and message tables described in
 `docs/data/V2_POSTGRES_SCHEMA.md`. It has no repository, imported V1 data, or
 traffic route yet, so V1 SQLite remains authoritative.
 
+The identity import foundation deterministically maps each positive V1 numeric
+user ID to a stable V2 UUID, validates exact usernames, display bounds,
+timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then
+produces a safe issue list and order-independent source fingerprint. It performs
+no I/O yet; SQLite extraction, backup, target comparison/write, and reconciliation
+remain required.
+
 The fresh-login orchestration exists in the transport-independent `application`
 identity package. Account lookup, dummy-capable password verification, and
 device/session issuance remain outward ports.
