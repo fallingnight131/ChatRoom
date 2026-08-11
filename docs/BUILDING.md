@@ -100,6 +100,10 @@ Pre-upgrade handler tests verify direct/proxied canonical address freezing,
 generic rejection for missing trusted forwarding and repeat requests, reference
 ownership, and consumption by authentication admission. No listener installs
 the handler yet.
+Endpoint-policy tests verify exact `/v2/web` and `/v2/windows` upgrade shapes,
+HTTPS Web Origin normalization/allowlisting, browser-origin rejection on the
+Windows route, malformed/repeated upgrade failure, and later ClientHello
+platform matching. The policy does not enable a listener.
 Gateway resume tests verify bounded off-event-loop dispatch, rotated proof
 delivery, server-side identity binding, secret cleanup, generic invalid-proof
 rejection, and gateway/direct-peer admission without creating a fake account

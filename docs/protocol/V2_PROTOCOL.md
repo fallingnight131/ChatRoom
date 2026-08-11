@@ -41,8 +41,8 @@ handler. Each outbound envelope is encoded as one final binary WebSocket
 message. Malformed/invalid input closes with fixed status 1002 and reason
 `invalid V2 frame`; oversized complete or fragmented input closes with status
 1009 and reason `V2 frame too large`. Parser or exception details are never
-reflected. The listener, timeouts, rate limits, and production transport policy
-are not enabled yet, so V2 still has no production route.
+reflected. The production listener is not enabled yet, so V2 still has no
+product route.
 
 ## Control message registry
 
@@ -76,6 +76,13 @@ After success, the negotiated client descriptor is retained as untrusted
 server-side channel state; `ServerHello` alone grants no identity or
 permissions.
 
+Before WebSocket upgrade, the inactive listener policy reserves `/v2/web` for a
+configured HTTPS Origin allowlist and `/v2/windows` for native requests without
+Origin. It freezes the expected platform in server-owned channel state. A later
+`ClientHello.platform` must match that endpoint or the gateway returns a fixed
+invalid-payload error and closes. Paths, headers, and platform claims do not
+authenticate an account.
+
 `Authenticate.password_utf8` is limited to 1..1024 valid UTF-8 bytes and must
 never be logged, persisted, cached, or echoed. `ResumeSession.resume_token` is
 exactly 32 opaque bytes; only its SHA-256 digest may be stored. A successful
@@ -99,8 +106,8 @@ Authentication execution uses a fixed worker count and bounded queue owned by
 the gateway lifecycle. Queue saturation clears the unadmitted password command,
 does not invoke Argon2id or persistence, and returns the generic
 `AuthenticationRejected` payload with reason `RATE_LIMITED` and a fixed
-one-second retry hint. This protects executor capacity; it is not a substitute
-for the pending account, direct-peer-IP, and gateway-window abuse limits.
+one-second retry hint. This protects executor capacity alongside the implemented
+process-local account, direct-peer-IP, and gateway-window abuse limits.
 
 Once installed on a channel, independent positive deadlines bound the time to
 send a valid `ClientHello` and the time from negotiation to server-side identity
@@ -113,8 +120,11 @@ Before password copying or worker submission, the single-process gateway
 applies cumulative fixed-window limits to total attempts, the resolved direct
 socket peer, and a normalized account key. Key maps are bounded and fail closed
 at capacity. A verified login clears only its account bucket. Denials use the
-same generic `RATE_LIMITED` payload and expose neither limiting key. Forwarded
-headers are not trusted; multi-gateway coordination remains an M5 Redis concern.
+same generic `RATE_LIMITED` payload and expose neither limiting key. Direct mode
+ignores forwarded headers. The implemented but not-yet-installed proxy boundary
+accepts them only from configured numeric CIDRs, uses bounded right-to-left
+chain resolution, freezes the canonical peer before upgrade, and fails closed
+on trusted-proxy errors. Multi-gateway coordination remains an M5 Redis concern.
 
 Authentication telemetry uses only fixed outcome/limiter labels. It counts
 accepted, rejected, failed, saturated, and credential-upgrade-pending outcomes
@@ -122,9 +132,9 @@ and records fixed execution-duration buckets. Saturation and admission warnings
 are sampled at power-of-two totals and contain only event, dimension, and count.
 Account, peer, request, exception, password, and token values are excluded.
 
-These messages are not allowed on a production route until WSS, origin policy,
-deployment metrics registry/scrape wiring, trusted-proxy policy, redaction,
-token rotation, authenticated idle policy, and listener lifecycle are
+These messages are not allowed on a production route until WSS, Host policy,
+runtime composition of the implemented Origin/proxy/metrics controls,
+authenticated idle policy, dependency wiring, and listener lifecycle are
 implemented and verified.
 
 ## Compatibility rules

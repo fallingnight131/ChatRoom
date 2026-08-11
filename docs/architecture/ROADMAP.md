@@ -302,6 +302,8 @@ Progress:
     sanitized forwarding-chain parsing and fail-closed proxy errors.
   - [x] Enforce that policy in a reusable pre-WebSocket HTTP handler and pass
     only the frozen canonical address into authentication admission.
+  - [x] Separate exact Web/Windows upgrade paths, enforce an HTTPS Web Origin
+    allowlist, and bind the endpoint platform to `ClientHello`.
   - [ ] Attach metrics to the deployment scrape/registry path and define trusted
     proxy configuration in the runtime composition root/HTTP upgrade handler
     before enabling the IM listener; replace/coordinate limits through Redis

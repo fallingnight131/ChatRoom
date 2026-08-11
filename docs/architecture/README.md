@@ -215,17 +215,19 @@ through a transport-independent use-case boundary, and binds only server-issued
 account/device/session identity to the connection. Envelope session IDs cannot
 grant identity. Its transport pipeline now provides bounded binary WebSocket
 decode/encode and fixed safe close outcomes for invalid or oversized frames.
-This is still an inactive foundation: the one-way V1 import, bounded worker
-pool sizing, trusted-proxy policy, metrics export, authenticated idle policy,
-hardened listener, and complete gateway wiring remain explicit
-cutover blockers. Process-local account/direct-peer/gateway admission and
+This is still an inactive foundation: operator restore rehearsal, authenticated
+idle policy, hardened TLS listener/runtime configuration, and complete gateway
+wiring remain explicit cutover blockers. Process-local account/direct-peer/gateway admission and
 handshake/authentication deadlines are implemented but do not define deployment
 defaults or multi-gateway protection yet. Fixed-label authentication telemetry
 and sampled safe logs now have an exact-path, GET-only loopback health/metrics
 server with explicit readiness and bounded workers. Runtime composition still
 must start it and install the reusable pre-upgrade handler that freezes the
 bounded trusted-CIDR/right-to-left forwarding result for authentication
-admission. TLS and origin policy also remain IM-listener prerequisites.
+admission. The endpoint policy now reserves exact Web/Windows paths, requires an
+HTTPS allowlist for Web Origin, forbids Origin on the Windows route, and binds
+that choice to the later `ClientHello.platform`; runtime installation and TLS
+remain prerequisites.
 
 The application identity module now also owns a transport-independent session
 resume command and atomic-rotation persistence port. The command destroys its

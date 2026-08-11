@@ -11,6 +11,8 @@ public final class V2ConnectionAttributes {
             AttributeKey.valueOf("v2.authenticated");
     public static final AttributeKey<String> CLIENT_PEER_ADDRESS =
             AttributeKey.valueOf("v2.clientPeerAddress");
+    public static final AttributeKey<com.fallingnight.chat.application.identity.ClientPlatform>
+            EXPECTED_CLIENT_PLATFORM = AttributeKey.valueOf("v2.expectedClientPlatform");
 
     private V2ConnectionAttributes() {
     }

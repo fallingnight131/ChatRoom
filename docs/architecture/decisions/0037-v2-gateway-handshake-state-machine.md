@@ -27,6 +27,9 @@ unauthenticated peers.
 - After negotiation, pass non-hello envelopes to the next application adapter.
   That adapter must still enforce registry direction, authentication state,
   authorization, and payload policy.
+- When the pre-upgrade endpoint policy has frozen an expected Web/Windows
+  platform, require `ClientHello.platform` to match it. This additive constraint
+  is defined by ADR-0058 and prevents endpoint-policy bypass.
 - Do not bind a listener until timeout/rate-limit handling, frame-error close
   mapping, observability, authentication dispatch, and an outbound encoder are
   installed and tested as one pipeline.

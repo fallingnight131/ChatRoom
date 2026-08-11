@@ -96,12 +96,27 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
                     false);
             return;
         }
+        com.fallingnight.chat.application.identity.ClientPlatform platform =
+                toApplicationPlatform(hello.getPlatform());
+        com.fallingnight.chat.application.identity.ClientPlatform expectedPlatform =
+                context.channel()
+                        .attr(V2ConnectionAttributes.EXPECTED_CLIENT_PLATFORM)
+                        .get();
+        if (expectedPlatform != null && expectedPlatform != platform) {
+            failAndClose(
+                    context,
+                    envelope.getRequestId(),
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_INVALID_PAYLOAD,
+                    "client platform does not match endpoint",
+                    false);
+            return;
+        }
 
         negotiated = true;
         context.channel().attr(V2ConnectionAttributes.NEGOTIATED_CLIENT).set(
                 new ClientDescriptor(
                         hello.getClientDeviceId(),
-                        toApplicationPlatform(hello.getPlatform()),
+                        platform,
                         hello.getAppVersion()));
         long now = clock.millis();
         ServerHello response = ServerHello.newBuilder()

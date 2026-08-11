@@ -91,6 +91,23 @@ class V2HandshakeHandlerTest {
     }
 
     @Test
+    void rejectsClientHelloPlatformThatDoesNotMatchUpgradeEndpoint() throws Exception {
+        EmbeddedChannel channel = channel();
+        channel.attr(V2ConnectionAttributes.EXPECTED_CLIENT_PLATFORM).set(
+                com.fallingnight.chat.application.identity.ClientPlatform.WINDOWS);
+        try {
+            channel.writeInbound(clientHelloEnvelope(validHello()));
+            assertError(
+                    readEnvelope(channel),
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_INVALID_PAYLOAD,
+                    "client platform does not match endpoint");
+            assertFalse(channel.isActive());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void rejectsRepeatedHandshakeAfterNegotiation() throws Exception {
         EmbeddedChannel channel = channel();
         try {
