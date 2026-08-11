@@ -1,0 +1,58 @@
+package com.fallingnight.chat.gateway.runtime;
+
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1AuthenticationService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1LoginService;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLoginCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
+import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
+import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
+import com.fallingnight.chat.identity.crypto.Argon2idCredentialHasher;
+import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
+import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1AccountProjection;
+import java.time.Clock;
+import java.util.Objects;
+import java.util.concurrent.Executor;
+import javax.sql.DataSource;
+
+/** Real V1 login composition kept detached from the product listener. */
+public final class V1CompatibilityModule {
+    private final LegacyV1LoginService login;
+    private final Clock clock;
+
+    private V1CompatibilityModule(LegacyV1LoginService login, Clock clock) {
+        this.login = Objects.requireNonNull(login, "login");
+        this.clock = Objects.requireNonNull(clock, "clock");
+    }
+
+    public static V1CompatibilityModule create(DataSource dataSource, Clock clock) {
+        Objects.requireNonNull(dataSource, "dataSource");
+        Objects.requireNonNull(clock, "clock");
+        PostgresIdentityAdapter identity = new PostgresIdentityAdapter(dataSource);
+        PostgresLegacyV1AccountProjection legacy =
+                new PostgresLegacyV1AccountProjection(dataSource);
+        LegacyV1AuthenticationService authentication =
+                new LegacyV1AuthenticationService(
+                        identity,
+                        new CompatibleCredentialVerifier(),
+                        identity,
+                        new Argon2idCredentialHasher(),
+                        identity,
+                        legacy,
+                        clock);
+        return new V1CompatibilityModule(
+                new LegacyV1LoginService(authentication, legacy), clock);
+    }
+
+    public V1WebLoginHandler newWebLoginHandler(
+            Executor authenticationExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events) {
+        return new V1WebLoginHandler(
+                login,
+                new V1JsonLoginCodec(clock),
+                authenticationExecutor,
+                admission,
+                events);
+    }
+}

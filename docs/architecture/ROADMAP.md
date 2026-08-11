@@ -399,6 +399,9 @@ Progress:
   - [x] Add an inactive V1 Web login handler with bounded-worker dispatch,
     shared admission control, server-bound identity, generic failure, and
     late-result suppression without opening a partial product route.
+  - [x] Compose that inactive handler from real PostgreSQL identity/session and
+    V1 projection adapters plus compatible cryptography, and verify imported
+    acceptance versus unmapped V2-native rejection on disposable PostgreSQL.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

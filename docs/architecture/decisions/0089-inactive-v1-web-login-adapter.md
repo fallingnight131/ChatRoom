@@ -29,6 +29,9 @@ no durable device identifier, whereas Java session issuance requires one.
   expose retry internals, database errors, UUIDs, sessions, or resume secrets.
 - Reuse fixed-cardinality authentication metrics. Diagnostics and limiter cleanup
   must never change a successful or rejected protocol outcome.
+- Keep real PostgreSQL/cryptography/use-case composition in one detached module
+  so listener wiring cannot accidentally substitute an unrestricted V2 login
+  service or a test-only identity projection.
 
 ## Consequences
 
@@ -48,6 +51,10 @@ Embedded-channel tests prove off-loop dispatch, direct-peer admission, success
 binding, later-frame forwarding, generic malformed/denied/saturated/rejected/
 failed output, close behavior, and suppression of late success after a concurrent
 second attempt. The full Java workspace gate remains required.
+The disposable PostgreSQL gate additionally proves the real composition accepts
+a mapped imported account, stores only the fixed V1 device alias plus hashed
+session proof, and rejects a password-valid unmapped V2-native account without
+issuing another session.
 
 ## Rollback
 
