@@ -166,17 +166,17 @@ Progress:
   conversation-switch/unmount flush, and send-time clearing.
 - [x] Add a durable Web text/emoji optimistic outbox with stable-key reconnect
   retry, accepted/failed presentation, and explicit same-key manual retry.
-- [ ] Extract synchronization/outbox orchestration from the large chat store and
+- [x] Extract synchronization/outbox orchestration from the large chat store and
   extend optimistic behavior to restartable attachments.
   - [x] Move room/direct cache, cursor, sync-request, optimistic command, retry,
     and ACK policy into a transport/cache-injected Web conversation coordinator.
-  - [ ] Add a restartable Web attachment command model that handles browser file
+  - [x] Add a restartable Web attachment command model that handles browser file
     handle permissions, source revision, fresh authorization, and cleanup.
     - [x] Add the IndexedDB-v3 account/conversation-scoped command store with
       source revision, optional file handle, and no persisted authorization/bytes.
     - [x] Add transport-neutral permission/source recovery, exact-revision
       reselection, cancellation, failure, and revoked-conversation cleanup policy.
-    - [ ] Integrate user-visible recovery controls and serialized
+    - [x] Integrate user-visible recovery controls and serialized
       fresh-authorized dispatch with the existing upload adapter.
 - [x] Establish the Windows SQLite conversation repository with versioned
   schema, account isolation, bounded message metadata, cursor/draft fields,

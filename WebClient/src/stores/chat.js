@@ -397,6 +397,23 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
+    async reselectAttachmentSource(command, file, sourceHandle = null) {
+      if (!command || !file) return false
+      try {
+        const updated = await attachmentOutboxCoordinator.reselect(
+          command, file, sourceHandle)
+        this._upsertAttachmentCommand(updated)
+        await this.retryAttachmentCommand(updated)
+        return true
+      } catch (error) {
+        const message = error.code === 'SOURCE_REVISION_MISMATCH'
+          ? '所选文件与原文件的名称、大小或修改时间不一致'
+          : `无法恢复文件发送: ${error.message}`
+        this._emit('error', message)
+        return false
+      }
+    },
+
     async _startOrQueueAttachment(command, file, thumbnail) {
       if (this._isUploading) {
         this._uploadQueue.push({ command, file, thumbnail })
@@ -1099,6 +1116,8 @@ export const useChatStore = defineStore('chat', {
           if (u) {
             u.status = 'failed'
             u.error = d.error || '服务器未能确认文件消息'
+            clearTimeout(u._finishTimer)
+            delete this.uploads[d.uploadId]
           }
           void this._markAttachmentFailed(u?.command, d.errorCode || d.error)
           this._emit('error', `文件发送失败: ${d.error || '未知错误'}`)

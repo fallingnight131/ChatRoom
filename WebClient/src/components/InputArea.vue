@@ -8,6 +8,8 @@
               aria-label="选择要发送的文件">📎</button>
       <input ref="fileInput" type="file" class="visually-hidden" tabindex="-1"
              aria-label="选择要发送的文件" @change="onFileSelected" />
+      <input ref="recoveryFileInput" type="file" class="visually-hidden" tabindex="-1"
+             aria-label="重新选择待发送文件" @change="onRecoveryFileSelected" />
 
       <!-- 上传进度 -->
       <div v-if="Object.keys(chatStore.uploads).length > 0" class="upload-status"
@@ -24,6 +26,24 @@
           <button v-if="u.status === 'uploading'" class="btn-icon" @click="chatStore.pauseUpload(uid)" title="暂停">⏸</button>
           <button v-if="u.status === 'paused'" class="btn-icon" @click="chatStore.resumeUpload(uid)" title="继续">▶</button>
           <button class="btn-icon" @click="chatStore.cancelUpload(uid)" title="取消">✖</button>
+        </div>
+      </div>
+
+      <div v-if="recoverableAttachmentCommands.length" class="attachment-recovery"
+           role="status" aria-live="polite" aria-label="待恢复的文件发送">
+        <div v-for="command in recoverableAttachmentCommands"
+             :key="command.clientMessageId" class="upload-item recovery-item">
+          <span class="text-ellipsis recovery-name">{{ command.fileName }}</span>
+          <span class="recovery-state">{{ attachmentStateLabel(command) }}</span>
+          <button v-if="command.state === 'needs_source'" type="button" class="btn-link"
+                  :aria-label="`重新选择 ${command.fileName}`"
+                  @click="chooseReplacement(command)">重新选择</button>
+          <button v-else type="button" class="btn-link"
+                  :aria-label="`重试发送 ${command.fileName}`"
+                  @click="chatStore.retryAttachmentCommand(command)">重试</button>
+          <button type="button" class="btn-link btn-link-danger"
+                  :aria-label="`取消发送 ${command.fileName}`"
+                  @click="chatStore.cancelAttachmentCommand(command)">取消</button>
         </div>
       </div>
     </div>
@@ -49,7 +69,7 @@
 </template>
 
 <script setup>
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
 import { chatWs, MAX_SMALL_FILE } from '../services/websocket'
@@ -66,7 +86,9 @@ const chatStore = useChatStore()
 const text = ref('')
 const showEmoji = ref(false)
 const fileInput = ref(null)
+const recoveryFileInput = ref(null)
 const textareaRef = ref(null)
+const replacementCommand = ref(null)
 let activeDraftIdentity = null
 let draftSaveTimer = null
 let draftLoadGeneration = 0
@@ -160,16 +182,39 @@ function triggerFileInput() {
   fileInput.value?.click()
 }
 
+const recoverableAttachmentCommands = computed(() => {
+  const kind = props.friendMode ? 'direct' : 'room'
+  const conversationId = String(props.friendMode
+    ? chatStore.currentFriendUsername || ''
+    : chatStore.currentRoomId || '')
+  return chatStore.attachmentCommands.filter(command =>
+    command.kind === kind
+      && command.conversationId === conversationId
+      && ['failed', 'needs_source'].includes(command.state))
+})
+
+function attachmentStateLabel(command) {
+  return command.state === 'needs_source' ? '需要重新选择原文件' : '发送失败'
+}
+
+function chooseReplacement(command) {
+  replacementCommand.value = command
+  recoveryFileInput.value?.click()
+}
+
+async function onRecoveryFileSelected(event) {
+  const file = event.target.files[0]
+  event.target.value = ''
+  const command = replacementCommand.value
+  replacementCommand.value = null
+  if (!file || !command) return
+  await chatStore.reselectAttachmentSource(command, file)
+}
+
 async function onFileSelected(e) {
   const file = e.target.files[0]
   if (!file) return
   e.target.value = '' // 重置
-
-  // 有文件正在上传时禁止发送下一个
-  if (chatStore._isUploading || Object.keys(chatStore.uploads).length > 0) {
-    alert('当前有文件正在上传，请等待完成后再发送新文件')
-    return
-  }
 
   if (props.friendMode) {
     if (!chatStore.currentFriendUsername) return
@@ -267,6 +312,31 @@ function uploadPercent(u) {
   color: var(--text-tertiary);
   min-width: 30px;
   text-align: right;
+}
+.attachment-recovery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: 8px;
+}
+.recovery-item {
+  border: 1px solid var(--border-color);
+}
+.recovery-name {
+  max-width: 150px;
+}
+.recovery-state {
+  color: var(--warning);
+}
+.btn-link {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.btn-link-danger {
+  color: var(--danger);
 }
 
 /* ========== 移动端适配 ========== */

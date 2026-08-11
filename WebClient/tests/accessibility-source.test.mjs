@@ -28,6 +28,9 @@ test('supports keyboard access to files, profiles, retry, and message actions', 
 test('labels composer controls and honors focus and reduced-motion preferences', () => {
   assert.match(input, /role="toolbar" aria-label="消息工具"/)
   assert.match(input, /role="progressbar"/)
+  assert.match(input, /aria-label="待恢复的文件发送"/)
+  assert.match(input, /`重新选择 \$\{command\.fileName\}`/)
+  assert.match(input, /`取消发送 \$\{command\.fileName\}`/)
   assert.match(input, /aria-label="消息内容"/)
   assert.match(styles, /:focus-visible/)
   assert.match(styles, /prefers-reduced-motion: reduce/)
