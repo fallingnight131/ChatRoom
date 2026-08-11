@@ -174,8 +174,10 @@ Progress:
     handle permissions, source revision, fresh authorization, and cleanup.
     - [x] Add the IndexedDB-v3 account/conversation-scoped command store with
       source revision, optional file handle, and no persisted authorization/bytes.
-    - [ ] Integrate permission-aware recovery, reselection, retry, cancellation,
-      membership cleanup, and serialized fresh-authorized dispatch.
+    - [x] Add transport-neutral permission/source recovery, exact-revision
+      reselection, cancellation, failure, and revoked-conversation cleanup policy.
+    - [ ] Integrate user-visible recovery controls and serialized
+      fresh-authorized dispatch with the existing upload adapter.
 - [x] Establish the Windows SQLite conversation repository with versioned
   schema, account isolation, bounded message metadata, cursor/draft fields,
   pruning, restart tests, and a newer-schema refusal gate.

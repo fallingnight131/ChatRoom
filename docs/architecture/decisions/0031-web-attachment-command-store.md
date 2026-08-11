@@ -21,6 +21,11 @@ after restart.
   or byte offset.
 - Recover commands without a persistent handle as `needs_source`; the user must
   reselect a source matching the stored revision.
+- Keep permission and source-resolution policy in a transport-neutral
+  coordinator. Background recovery may call `queryPermission` but never
+  `requestPermission`; permission prompts require an explicit user gesture.
+- Remove commands during recovery when the authoritative room/friend list no
+  longer grants access to their conversation.
 - A recovered command always requests fresh upload authorization and starts
   again at byte zero. This is restartable intent, not byte-range resume.
 
@@ -34,5 +39,6 @@ feature is considered complete.
 ## Verification
 
 Unit tests cover identity, source revision, no-handle recovery, cloneable-handle
-round trip, account filtering, and removal. UI/reconnect orchestration and
-browser permission tests follow as the next slice.
+round trip, account filtering, permission-denied recovery, revoked-conversation
+cleanup, reselection mismatch, and removal. UI/reconnect orchestration follows
+as the next slice.
