@@ -29,6 +29,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.UUID;
+import java.util.concurrent.RejectedExecutionException;
 import org.junit.jupiter.api.Test;
 
 class V2AuthenticationHandlerTest {
@@ -241,6 +242,40 @@ class V2AuthenticationHandlerTest {
         }
     }
 
+    @Test
+    void rejectsSaturatedAuthenticationBeforeInvokingTheUseCase() throws Exception {
+        RecordingEvents events = new RecordingEvents();
+        AuthenticationUseCase useCase = command -> {
+            throw new AssertionError("saturated work must not reach authentication");
+        };
+        Clock clock = Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC);
+        EmbeddedChannel channel = new EmbeddedChannel(new V2AuthenticationHandler(
+                useCase,
+                command -> {
+                    throw new RejectedExecutionException("queue full");
+                },
+                events,
+                clock));
+        channel.attr(V2ConnectionAttributes.NEGOTIATED_CLIENT).set(
+                new ClientDescriptor("client-device-1", ClientPlatform.WEB, "0.1.0"));
+        try {
+            channel.writeInbound(authenticateEnvelope(validAuthentication()));
+            Envelope envelope = channel.readOutbound();
+            assertEquals(MessageKind.MESSAGE_KIND_ERROR, envelope.getKind());
+            AuthenticationRejected rejection = AuthenticationRejected.parseFrom(
+                    envelope.getPayload());
+            assertEquals(
+                    AuthenticationRejectionReason.AUTHENTICATION_REJECTION_REASON_RATE_LIMITED,
+                    rejection.getReason());
+            assertEquals(V2AuthenticationHandler.SATURATION_RETRY_AFTER_MS,
+                    rejection.getRetryAfterMs());
+            assertEquals(1, events.saturated);
+            assertFalse(channel.isActive());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
     private static EmbeddedChannel channel(
             AuthenticationUseCase useCase, RecordingEvents events) {
         Clock clock = Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC);
@@ -299,6 +334,7 @@ class V2AuthenticationHandlerTest {
         private int accepted;
         private int rejected;
         private int failed;
+        private int saturated;
         private boolean upgradePending;
 
         @Override
@@ -315,6 +351,11 @@ class V2AuthenticationHandlerTest {
         @Override
         public void failed() {
             failed++;
+        }
+
+        @Override
+        public void saturated() {
+            saturated++;
         }
     }
 }

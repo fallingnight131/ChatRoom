@@ -34,6 +34,7 @@ import java.util.concurrent.RejectedExecutionException;
  * the Netty event loop.
  */
 public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<Envelope> {
+    public static final long SATURATION_RETRY_AFTER_MS = 1_000;
     public static final int MAX_AUTHENTICATE_BYTES =
             AuthenticationPayloadPolicy.MAX_USERNAME_BYTES
                     + AuthenticationPayloadPolicy.MAX_PASSWORD_BYTES
@@ -99,7 +100,11 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
 
         MessageType type = MessageTypeRegistry.find(envelope.getMessageType()).orElse(null);
         if (type == MessageType.MESSAGE_TYPE_RESUME_SESSION) {
-            rejectAuthentication(context, envelope.getRequestId());
+            rejectAuthentication(
+                    context,
+                    envelope.getRequestId(),
+                    AuthenticationRejectionReason.AUTHENTICATION_REJECTION_REASON_REJECTED,
+                    0);
             return;
         }
         if (type != MessageType.MESSAGE_TYPE_AUTHENTICATE
@@ -139,8 +144,12 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
                     context, envelope.getRequestId(), command));
         } catch (RejectedExecutionException exception) {
             command.close();
-            recordFailed();
-            failInternal(context, envelope.getRequestId());
+            recordSaturated();
+            rejectAuthentication(
+                    context,
+                    envelope.getRequestId(),
+                    AuthenticationRejectionReason.AUTHENTICATION_REJECTION_REASON_RATE_LIMITED,
+                    SATURATION_RETRY_AFTER_MS);
         }
     }
 
@@ -172,7 +181,11 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
         }
         if (result == AuthenticationResult.Rejected.INSTANCE) {
             recordRejected();
-            rejectAuthentication(context, requestId);
+            rejectAuthentication(
+                    context,
+                    requestId,
+                    AuthenticationRejectionReason.AUTHENTICATION_REJECTION_REASON_REJECTED,
+                    0);
             return;
         }
 
@@ -226,10 +239,15 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
                 "invalid authentication payload");
     }
 
-    private void rejectAuthentication(ChannelHandlerContext context, String requestId) {
+    private void rejectAuthentication(
+            ChannelHandlerContext context,
+            String requestId,
+            AuthenticationRejectionReason reason,
+            long retryAfterMs) {
         state = State.TERMINAL;
         AuthenticationRejected payload = AuthenticationRejected.newBuilder()
-                .setReason(AuthenticationRejectionReason.AUTHENTICATION_REJECTION_REASON_REJECTED)
+                .setReason(reason)
+                .setRetryAfterMs(retryAfterMs)
                 .build();
         context.writeAndFlush(responseEnvelope(
                         MessageKind.MESSAGE_KIND_ERROR,
@@ -306,6 +324,14 @@ public final class V2AuthenticationHandler extends SimpleChannelInboundHandler<E
             events.failed();
         } catch (RuntimeException ignored) {
             // Diagnostics must not replace the normalized client failure.
+        }
+    }
+
+    private void recordSaturated() {
+        try {
+            events.saturated();
+        } catch (RuntimeException ignored) {
+            // Diagnostics must not replace the bounded admission response.
         }
     }
 

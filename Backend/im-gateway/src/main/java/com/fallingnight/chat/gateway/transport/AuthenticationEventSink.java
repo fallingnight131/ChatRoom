@@ -8,6 +8,8 @@ public interface AuthenticationEventSink {
 
     void failed();
 
+    void saturated();
+
     static AuthenticationEventSink noop() {
         return NoopHolder.INSTANCE;
     }
@@ -24,6 +26,10 @@ public interface AuthenticationEventSink {
 
             @Override
             public void failed() {
+            }
+
+            @Override
+            public void saturated() {
             }
         };
 

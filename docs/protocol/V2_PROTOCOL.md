@@ -92,10 +92,16 @@ must carry the same session ID, but downstream authorization uses the bound
 server identity rather than trusting that field. Unsupported session resume and
 credential failures share the generic rejection response.
 
+Authentication execution uses a fixed worker count and bounded queue owned by
+the gateway lifecycle. Queue saturation clears the unadmitted password command,
+does not invoke Argon2id or persistence, and returns the generic
+`AuthenticationRejected` payload with reason `RATE_LIMITED` and a fixed
+one-second retry hint. This protects executor capacity; it is not a substitute
+for the pending account, direct-peer-IP, and gateway-window abuse limits.
+
 These messages are not allowed on a production route until WSS, origin policy,
-bounded executor ownership, timeouts, rate limits, redaction, token rotation,
-outbound WebSocket encoding, and listener lifecycle are implemented and
-verified.
+timeouts, account/IP/gateway rate limits, redaction, token rotation, and listener
+lifecycle are implemented and verified.
 
 ## Compatibility rules
 
