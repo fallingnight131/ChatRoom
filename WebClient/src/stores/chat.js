@@ -400,7 +400,7 @@ export const useChatStore = defineStore('chat', {
     },
 
     // ==================== 好友系统 ====================
-    setCurrentFriend(friendUsername) {
+    async setCurrentFriend(friendUsername) {
       const fr = this.friends.find(f => f.username === friendUsername)
       if (fr) {
         this.isFriendChat = true
@@ -416,8 +416,26 @@ export const useChatStore = defineStore('chat', {
         this.currentRoomName = ''
         this.messages = []
         this.users = []
-        chatWs.requestFriendHistory(friendUsername, 50)
         chatWs.send(makeMessage(MsgType.MARK_FRIEND_READ, { friendshipId: fr.friendshipId }))
+
+        const account = useUserStore().username
+        let cached = null
+        try {
+          cached = await conversationCache.load(account, 'friend', friendUsername)
+        } catch (error) {
+          console.warn('[Cache] unable to load direct snapshot:', error)
+        }
+        if (!this.isFriendChat || this.currentFriendUsername !== friendUsername) return
+        if (cached?.messages?.length) {
+          this.friendMessages = cached.messages
+          this.friendSyncCursors[friendUsername] = Number(cached.cursor || 0)
+        }
+        const cursor = Number(this.friendSyncCursors[friendUsername] || 0)
+        if (this.friendMessages.length > 0 && cursor > 0) {
+          chatWs.requestFriendHistory(friendUsername, 100, 0, cursor)
+        } else {
+          chatWs.requestFriendHistory(friendUsername, 50)
+        }
       }
     },
 
@@ -434,6 +452,33 @@ export const useChatStore = defineStore('chat', {
       const next = items.reduce((maximum, item) => Math.max(maximum, syncSequenceOf(item)),
         Number(this.friendSyncCursors[friendUsername] || 0))
       if (next > 0) this.friendSyncCursors[friendUsername] = next
+    },
+
+    _persistCurrentFriendSnapshot(friendUsername = this.currentFriendUsername) {
+      if (!this.isFriendChat || !friendUsername ||
+          friendUsername !== this.currentFriendUsername) return
+      const account = useUserStore().username
+      if (!account) return
+      void conversationCache.save(account, 'friend', friendUsername, this.friendMessages,
+        this.friendSyncCursors[friendUsername] || 0).catch(error => {
+        console.warn('[Cache] unable to persist direct snapshot:', error)
+      })
+    },
+
+    _removeCachedConversation(kind, conversationId) {
+      const account = useUserStore().username
+      if (!account) return
+      void conversationCache.remove(account, kind, conversationId).catch(error => {
+        console.warn('[Cache] unable to remove conversation snapshot:', error)
+      })
+    },
+
+    _pruneCachedConversations(kind, allowedConversationIds) {
+      const account = useUserStore().username
+      if (!account) return
+      void conversationCache.prune(account, kind, allowedConversationIds).catch(error => {
+        console.warn('[Cache] unable to prune conversation snapshots:', error)
+      })
     },
 
     resumeCurrentFriend() {
@@ -489,6 +534,7 @@ export const useChatStore = defineStore('chat', {
         this.rooms = list.map(r => {
           return { ...r, unread: r.unread || 0, isAdmin: !!r.isAdmin }
         })
+        this._pruneCachedConversations('room', list.map(room => room.roomId))
       })
 
       chatWs.on(MsgType.CREATE_ROOM_RSP, (msg) => {
@@ -524,6 +570,8 @@ export const useChatStore = defineStore('chat', {
       chatWs.on(MsgType.LEAVE_ROOM_RSP, (msg) => {
         if (msg.data.success) {
           const rid = msg.data.roomId
+          this._removeCachedConversation('room', rid)
+          delete this.roomSyncCursors[rid]
           this.rooms = this.rooms.filter(r => r.roomId !== rid)
           if (this.currentRoomId === rid) {
             this.currentRoomId = null
@@ -536,6 +584,8 @@ export const useChatStore = defineStore('chat', {
 
       chatWs.on(MsgType.DELETE_ROOM_NOTIFY, (msg) => {
         const d = msg.data
+        this._removeCachedConversation('room', d.roomId)
+        delete this.roomSyncCursors[d.roomId]
         this.rooms = this.rooms.filter(r => r.roomId !== d.roomId)
         if (this.currentRoomId === d.roomId) {
           this.currentRoomId = null
@@ -691,6 +741,9 @@ export const useChatStore = defineStore('chat', {
         } else if (this.isFriendChat) {
           const m = this.friendMessages.find(m => m.id === msg.data.messageId)
           if (m) m.recalled = true
+          const friendUsername = msg.data.friendUsername || this.currentFriendUsername
+          this._advanceFriendSyncCursor(friendUsername, msg.data)
+          this._persistCurrentFriendSnapshot(friendUsername)
         }
       })
 
@@ -700,6 +753,7 @@ export const useChatStore = defineStore('chat', {
           const m = this.friendMessages.find(m => m.id === d.messageId)
           if (m) m.recalled = true
           this._advanceFriendSyncCursor(d.friendUsername, d)
+          this._persistCurrentFriendSnapshot(d.friendUsername)
         }
       })
 
@@ -910,6 +964,8 @@ export const useChatStore = defineStore('chat', {
       chatWs.on(MsgType.KICK_USER_NOTIFY, (msg) => {
         const d = msg.data
         const userStore = useUserStore()
+        this._removeCachedConversation('room', d.roomId)
+        delete this.roomSyncCursors[d.roomId]
         // 被踢出
         this.rooms = this.rooms.filter(r => r.roomId !== d.roomId)
         if (this.currentRoomId === d.roomId) {
@@ -1020,6 +1076,8 @@ export const useChatStore = defineStore('chat', {
 
       chatWs.on(MsgType.DELETE_ROOM_RSP, (msg) => {
         if (msg.data.success) {
+          this._removeCachedConversation('room', msg.data.roomId)
+          delete this.roomSyncCursors[msg.data.roomId]
           this.rooms = this.rooms.filter(r => r.roomId !== msg.data.roomId)
           if (this.currentRoomId === msg.data.roomId) {
             this.currentRoomId = null
@@ -1072,6 +1130,9 @@ export const useChatStore = defineStore('chat', {
 
       chatWs.on(MsgType.FRIEND_REMOVE_RSP, (msg) => {
         if (msg.data.success) {
+          this._removeCachedConversation('friend', msg.data.username)
+          delete this.friendSyncCursors[msg.data.username]
+          delete this.friendUnread[msg.data.username]
           this.friends = this.friends.filter(f => f.username !== msg.data.username)
           if (this.isFriendChat && this.currentFriendUsername === msg.data.username) {
             this.exitFriendChat()
@@ -1082,8 +1143,21 @@ export const useChatStore = defineStore('chat', {
         }
       })
 
+      chatWs.on(MsgType.FRIEND_REMOVE_NOTIFY, (msg) => {
+        const username = msg.data.username
+        this._removeCachedConversation('friend', username)
+        delete this.friendSyncCursors[username]
+        delete this.friendUnread[username]
+        this.friends = this.friends.filter(friend => friend.username !== username)
+        if (this.isFriendChat && this.currentFriendUsername === username) {
+          this.exitFriendChat()
+        }
+        this._emit('info', `${msg.data.displayName || username} 已将你从好友中删除`)
+      })
+
       chatWs.on(MsgType.FRIEND_LIST_RSP, (msg) => {
         this.friends = msg.data.friends || []
+        this._pruneCachedConversations('friend', this.friends.map(friend => friend.username))
         // 使用服务器返回的未读计数
         const newUnread = {}
         for (const fr of this.friends) {
@@ -1156,6 +1230,7 @@ export const useChatStore = defineStore('chat', {
             this.friendMessages.push(d)
           }
           this._advanceFriendSyncCursor(chatWith, d)
+          this._persistCurrentFriendSnapshot(chatWith)
         } else if (d.sender !== userStore.username) {
           this.friendUnread[chatWith] = (this.friendUnread[chatWith] || 0) + 1
         }
@@ -1183,6 +1258,7 @@ export const useChatStore = defineStore('chat', {
           } else {
             this._advanceFriendSyncCursor(d.friendUsername, ...msgs)
           }
+          this._persistCurrentFriendSnapshot(d.friendUsername)
         }
       })
 
@@ -1196,6 +1272,7 @@ export const useChatStore = defineStore('chat', {
             this.friendMessages.push(d)
           }
           this._advanceFriendSyncCursor(chatWith, d)
+          this._persistCurrentFriendSnapshot(chatWith)
         } else if (d.sender !== userStore.username) {
           this.friendUnread[chatWith] = (this.friendUnread[chatWith] || 0) + 1
         }

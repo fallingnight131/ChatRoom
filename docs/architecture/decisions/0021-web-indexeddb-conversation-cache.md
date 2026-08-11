@@ -22,8 +22,8 @@ durable data layer.
 - Bound each conversation snapshot to the newest 500 messages in this first
   slice. Later virtualization and retention work may replace snapshots with
   normalized message rows without changing the store/repository boundary.
-- Hydrate the selected conversation asynchronously, guard against stale
-  room-switch completions, render the cached snapshot, and then request
+- Hydrate the selected room or direct conversation asynchronously, guard against
+  stale conversation-switch completions, render the cached snapshot, and then request
   `afterSequence`. Fall back to normal server history when IndexedDB is absent,
   blocked, corrupt, or empty.
 - Serialize repository writes so an older asynchronous write cannot overwrite a
@@ -31,16 +31,17 @@ durable data layer.
 
 ## Consequences
 
-The current room becomes available immediately after login and selection even
-across page refreshes, subject to browser storage retention. The server remains
-authoritative: every hydrated view synchronizes forward and reconciles stable
-message IDs and mutation/deletion events.
+Recent room and direct conversations become available immediately after login
+and selection across page refreshes, subject to browser storage retention. The
+server remains authoritative: every hydrated view synchronizes forward and
+reconciles stable message IDs and mutation/deletion events. Authenticated room
+and friend lists prune inaccessible snapshots, while live removal responses and
+notifications remove the corresponding snapshot immediately.
 
 IndexedDB is not an authentication store and must never contain passwords,
-tokens, or signing material. This first slice caches the active Web room only;
-direct conversations, cache management UI, quota/eviction telemetry, schema
-migrations beyond version 1, and the Windows SQLite repository follow as
-separate M2 slices.
+tokens, or signing material. Cache management UI, quota/eviction telemetry,
+schema migrations beyond version 1, drafts/pending sends, and the Windows SQLite
+repository follow as separate M2 slices.
 
 ## Rollback
 

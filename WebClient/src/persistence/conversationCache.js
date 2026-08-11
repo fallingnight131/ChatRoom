@@ -91,6 +91,42 @@ export class IndexedDbConversationCache {
     })
     return this.writeQueue
   }
+
+  remove(account, kind, conversationId) {
+    if (!account) return Promise.resolve(false)
+    const key = conversationCacheKey(account, kind, conversationId)
+    this.writeQueue = this.writeQueue.catch(() => {}).then(async () => {
+      const database = await this.open()
+      if (!database) return false
+      const transaction = database.transaction(STORE_NAME, 'readwrite')
+      transaction.objectStore(STORE_NAME).delete(key)
+      await transactionDone(transaction)
+      return true
+    })
+    return this.writeQueue
+  }
+
+  prune(account, kind, allowedConversationIds) {
+    if (!account) return Promise.resolve(false)
+    const allowed = new Set([...allowedConversationIds].map(String))
+    this.writeQueue = this.writeQueue.catch(() => {}).then(async () => {
+      const database = await this.open()
+      if (!database) return false
+      const transaction = database.transaction(STORE_NAME, 'readwrite')
+      const store = transaction.objectStore(STORE_NAME)
+      const done = transactionDone(transaction)
+      const records = await requestResult(store.getAll())
+      for (const record of records) {
+        if (record.account === String(account) && record.kind === String(kind) &&
+            !allowed.has(record.conversationId)) {
+          store.delete(record.key)
+        }
+      }
+      await done
+      return true
+    })
+    return this.writeQueue
+  }
 }
 
 export const conversationCache = new IndexedDbConversationCache()

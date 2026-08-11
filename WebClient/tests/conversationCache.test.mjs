@@ -27,14 +27,16 @@ function fakeIndexedDb() {
   let database
   const objectStore = {
     get: key => requestWith(() => records.get(key)),
-    put: record => requestWith(() => records.set(record.key, structuredClone(record)))
+    getAll: () => requestWith(() => [...records.values()].map(value => structuredClone(value))),
+    put: record => requestWith(() => records.set(record.key, structuredClone(record))),
+    delete: key => requestWith(() => records.delete(key))
   }
   database = {
     objectStoreNames: { contains: () => true },
     createObjectStore: () => objectStore,
     transaction: (_name, mode) => {
       const transaction = { objectStore: () => objectStore }
-      if (mode === 'readwrite') queueMicrotask(() => queueMicrotask(() => transaction.oncomplete?.()))
+      if (mode === 'readwrite') setTimeout(() => transaction.oncomplete?.(), 0)
       return transaction
     }
   }
@@ -76,10 +78,24 @@ test('round trips an IndexedDB conversation snapshot', async () => {
   const loaded = await cache.load('alice', 'room', 7)
   assert.deepEqual(loaded.messages, [{ id: 1, content: 'hello' }])
   assert.equal(loaded.cursor, 9)
+  await cache.remove('alice', 'room', 7)
+  assert.equal(await cache.load('alice', 'room', 7), null)
 })
 
 test('degrades to an empty cache when IndexedDB is unavailable', async () => {
   const cache = new IndexedDbConversationCache(null)
   assert.equal(await cache.load('alice', 'room', 7), null)
   assert.equal(await cache.save('alice', 'room', 7, [], 0), false)
+})
+
+test('prunes inaccessible conversations without crossing account or kind boundaries', async () => {
+  const cache = new IndexedDbConversationCache(fakeIndexedDb())
+  await cache.save('alice', 'room', 1, [{ id: 1 }], 1)
+  await cache.save('alice', 'room', 2, [{ id: 2 }], 2)
+  await cache.save('alice', 'friend', 'bob', [{ id: 3 }], 3)
+  await cache.save('carol', 'room', 2, [{ id: 4 }], 4)
+  await cache.prune('alice', 'room', [1])
+  assert.equal(await cache.load('alice', 'room', 2), null)
+  assert.ok(await cache.load('alice', 'friend', 'bob'))
+  assert.ok(await cache.load('carol', 'room', 2))
 })

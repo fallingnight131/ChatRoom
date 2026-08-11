@@ -159,11 +159,11 @@ Goal: make clients fast and offline-tolerant before major UI expansion.
 
 Progress:
 
-- [x] Add the first account-partitioned, 500-message-bounded Web IndexedDB
-  repository slice for active room snapshots and sequence cursors; hydrate on
-  selection and synchronize forward from the cached cursor.
-- [ ] Extend durable Web caching to direct conversations, drafts, and pending
-  sends, then extract synchronization orchestration from the large chat store.
+- [x] Add account-partitioned, 500-message-bounded Web IndexedDB room/direct
+  snapshots and sequence cursors; hydrate on selection, synchronize forward,
+  and evict snapshots when room or friendship access is lost.
+- [ ] Extend durable Web storage to drafts and pending sends, then extract
+  synchronization orchestration from the large chat store.
 - [ ] Add the Windows SQLite repository and client application/sync boundaries.
 - [ ] Add optimistic states, virtualization, cache controls, and accessibility
   foundations.
