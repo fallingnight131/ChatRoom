@@ -278,6 +278,10 @@ Progress:
   - [ ] Add handshake/authentication, rate limits, safe error mapping,
     observability, and transport-independent application dispatch before
     enabling a listener.
+- [x] Establish the forward-only PostgreSQL migration module and V2 core schema
+  with real clean/restart, sequence, idempotency, and constraint verification.
+- [ ] Implement persistence repositories and a verified one-way V1 import before
+  PostgreSQL can become authoritative for any traffic slice.
 
 Work:
 
@@ -285,7 +289,8 @@ Work:
   modules are extracted with vertical slices);
 - implement the V2 envelope and generated Java/C++/TypeScript schemas (complete);
 - build the Netty gateway and modular application core;
-- introduce PostgreSQL schema and repeatable migrations;
+- introduce PostgreSQL schema and repeatable migrations (foundation complete;
+  repositories and V1 import remain);
 - implement identity/device sessions, canonical conversations, message
   idempotency, per-conversation sequences, and incremental sync;
 - keep a V1 JSON adapter at the gateway boundary;

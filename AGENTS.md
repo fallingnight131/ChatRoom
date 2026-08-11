@@ -164,6 +164,8 @@ Run what applies to the touched scope:
   not supported-client evidence.
 - Future Java modules: run the Gradle unit and integration test tasks once the
   Java workspace exists.
+- PostgreSQL: use `python3 tools/verify_m0.py --postgres` for clean migration,
+  same-database restart, checksum, and core constraint verification.
 - Protocol: test old-client/new-server and new-client/compatible-server paths.
 - Database: test migration forward, restart after migration, and rollback or
   documented restore procedure.

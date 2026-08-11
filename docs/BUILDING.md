@@ -71,6 +71,21 @@ The Java gate includes embedded-channel tests for the bounded V2 binary
 WebSocket frame decoder; these tests do not open a listener or imply that V2 is
 ready to receive traffic.
 
+Run the V2 PostgreSQL migration gate with local PostgreSQL server tools
+(`initdb`, `pg_ctl`, and `createdb`) available either on `PATH` or through
+`pg_config --bindir`:
+
+```bash
+python3 tools/verify_m0.py --postgres
+```
+
+The verifier creates a trust-authenticated, disposable cluster under `/tmp`,
+listens only on `127.0.0.1` at a random port, migrates a clean database, validates
+a same-database restart, exercises sequence/idempotency constraints, stops the
+server, and deletes the cluster. It never reads or modifies a developer or
+production database. CI runs the same gate using the PostgreSQL tools bundled
+with the Ubuntu runner.
+
 Generate the non-Java V2 bindings and run the Java-to-TypeScript golden-wire
 test with Node.js 22:
 

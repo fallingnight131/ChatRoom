@@ -50,6 +50,10 @@ def verify_java() -> None:
     run([str(wrapper), "--no-daemon", "check"], backend)
 
 
+def verify_postgres() -> None:
+    run([sys.executable, str(ROOT / "tools" / "verify_postgres.py")], ROOT)
+
+
 def verify_protocol_bindings(skip_install: bool) -> None:
     npm = command_path("npm", "npm.cmd")
     backend = ROOT / "Backend"
@@ -287,6 +291,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--qt", action="store_true", help="generate and compile Qt server/client release builds")
     parser.add_argument("--java", action="store_true", help="compile and test the Java V2 workspace")
     parser.add_argument(
+        "--postgres",
+        action="store_true",
+        help="run V2 migrations against a disposable local PostgreSQL cluster",
+    )
+    parser.add_argument(
         "--protocol-bindings",
         action="store_true",
         help="generate and verify V2 C++ and TypeScript client bindings",
@@ -344,6 +353,8 @@ def main() -> int:
         verify_web(args.skip_npm_ci)
     if args.java or args.all:
         verify_java()
+    if args.postgres or args.all:
+        verify_postgres()
     if args.protocol_bindings or args.all:
         verify_protocol_bindings(args.skip_npm_ci)
     if args.db_schema or args.all:
@@ -370,6 +381,7 @@ def main() -> int:
         args.web
         or args.java
         or args.protocol_bindings
+        or args.postgres
         or args.db_schema
         or args.password_hash
         or args.v1_smoke
@@ -379,7 +391,7 @@ def main() -> int:
     ):
         print(
             "[M0] inventory-only verification complete; "
-            "use --web, --java, --protocol-bindings, --db-schema, --password-hash, "
+            "use --web, --java, --postgres, --protocol-bindings, --db-schema, --password-hash, "
             "--v1-smoke, --performance, "
             "--qt, or --all "
             "for builds/tests"
