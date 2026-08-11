@@ -78,7 +78,8 @@ permissions.
 
 Before WebSocket upgrade, the inactive listener policy reserves `/v2/web` for a
 configured HTTPS Origin allowlist and `/v2/windows` for native requests without
-Origin. It freezes the expected platform in server-owned channel state. A later
+Origin. Both require one exact configured TLS Host authority. It freezes the
+expected platform in server-owned channel state. A later
 `ClientHello.platform` must match that endpoint or the gateway returns a fixed
 invalid-payload error and closes. Paths, headers, and platform claims do not
 authenticate an account.
@@ -132,8 +133,8 @@ and records fixed execution-duration buckets. Saturation and admission warnings
 are sampled at power-of-two totals and contain only event, dimension, and count.
 Account, peer, request, exception, password, and token values are excluded.
 
-These messages are not allowed on a production route until WSS, Host policy,
-runtime composition of the implemented Origin/proxy/metrics controls,
+These messages are not allowed on a production route until WSS and runtime
+composition of the implemented Host/Origin/proxy/metrics controls,
 authenticated idle policy, dependency wiring, and listener lifecycle are
 implemented and verified.
 

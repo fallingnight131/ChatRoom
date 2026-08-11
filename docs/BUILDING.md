@@ -104,6 +104,9 @@ Endpoint-policy tests verify exact `/v2/web` and `/v2/windows` upgrade shapes,
 HTTPS Web Origin normalization/allowlisting, browser-origin rejection on the
 Windows route, malformed/repeated upgrade failure, and later ClientHello
 platform matching. The policy does not enable a listener.
+Host-policy tests verify one exact configured TLS authority, default-port/case
+normalization, IPv6/non-default ports, missing/duplicate/hostile rejection, and
+single-request ownership before upgrade.
 Gateway resume tests verify bounded off-event-loop dispatch, rotated proof
 delivery, server-side identity binding, secret cleanup, generic invalid-proof
 rejection, and gateway/direct-peer admission without creating a fake account

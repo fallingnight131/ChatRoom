@@ -227,7 +227,8 @@ bounded trusted-CIDR/right-to-left forwarding result for authentication
 admission. The endpoint policy now reserves exact Web/Windows paths, requires an
 HTTPS allowlist for Web Origin, forbids Origin on the Windows route, and binds
 that choice to the later `ClientHello.platform`; runtime installation and TLS
-remain prerequisites.
+remain prerequisites. A separate exact Host authority allowlist protects both
+endpoints, including Windows requests that carry no browser Origin.
 
 The application identity module now also owns a transport-independent session
 resume command and atomic-rotation persistence port. The command destroys its
