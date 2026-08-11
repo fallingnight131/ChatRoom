@@ -56,10 +56,20 @@ real paths, endpoints, or fingerprints.
    Require `status=FINAL_INPUT_VERIFIED` and the expected row count. This checks
    the input set but does not prove that all writers have been stopped.
 
-5. On an isolated host, start the matching V1 server binary against another copy
-   of the restored database, exercise login for designated test accounts from
-   both credential generations, stop it cleanly, and record restore duration.
-   This manual full-server rehearsal is not automated yet.
+5. Run the repository's isolated full-server rehearsal from the repository root:
+
+   ```bash
+   python3 tools/verify_m0.py --v1-identity-restore
+   ```
+
+   Archive `build/m0/<host>/v1-identity-restore-evidence.json`. The harness uses
+   the matching C++ server and Java CLI to verify both credential generations,
+   restored history, and bounded timings. Its
+   `production_writer_quiescence_verified=false` field is intentional: it owns
+   and can prove exit only for its temporary source process.
+6. Separately rehearse and record how operators identify and stop every V1
+   writer in the deployment topology. Do not replace this evidence with the
+   automated isolated-host result.
 
 ## Final apply rehearsal
 

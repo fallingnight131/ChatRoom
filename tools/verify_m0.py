@@ -250,6 +250,38 @@ def verify_v1_smoke(jobs: int, build_root: Path) -> None:
         )
 
 
+def build_migration_cli() -> Path:
+    backend = ROOT / "Backend"
+    wrapper = backend / ("gradlew.bat" if os.name == "nt" else "gradlew")
+    run([str(wrapper), "--no-daemon", ":migration-cli:installDist"], backend)
+    executable_name = "migration-cli.bat" if os.name == "nt" else "migration-cli"
+    executable = (
+        backend / "migration-cli" / "build" / "install" / "migration-cli"
+        / "bin" / executable_name
+    )
+    if not executable.is_file():
+        raise RuntimeError(f"migration CLI executable not found: {executable}")
+    return executable
+
+
+def verify_v1_identity_restore(jobs: int, build_root: Path) -> None:
+    executable = build_headless_server(jobs, build_root, "v1-identity-restore-server")
+    migration_cli = build_migration_cli()
+    run(
+        [
+            sys.executable,
+            str(ROOT / "Tests" / "v1_identity_restore_rehearsal.py"),
+            "--server",
+            str(executable),
+            "--migration-cli",
+            str(migration_cli),
+            "--evidence",
+            str(build_root / "v1-identity-restore-evidence.json"),
+        ],
+        ROOT,
+    )
+
+
 def verify_performance(
     jobs: int,
     build_root: Path,
@@ -335,6 +367,11 @@ def parse_args() -> argparse.Namespace:
         help="build a headless server and run critical V1 TCP smoke flows",
     )
     parser.add_argument(
+        "--v1-identity-restore",
+        action="store_true",
+        help="rehearse a timed V1 identity backup, restore, login, and history check",
+    )
+    parser.add_argument(
         "--password-hash",
         action="store_true",
         help="verify Argon2id registration and legacy password hash migration",
@@ -347,7 +384,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--all",
         action="store_true",
-        help="run inventory, Web, Java, database schema, password hash, V1 smoke, performance, and Qt verification",
+        help=(
+            "run inventory, Web, Java, database schema, password hash, V1 smoke, "
+            "V1 identity restore, performance, and Qt verification"
+        ),
     )
     parser.add_argument("--skip-npm-ci", action="store_true", help="reuse installed web dependencies")
     parser.add_argument("--jobs", type=int, default=max(1, min(os.cpu_count() or 1, 4)))
@@ -387,6 +427,8 @@ def main() -> int:
         verify_password_hash(args.jobs, build_root)
     if args.v1_smoke or args.all:
         verify_v1_smoke(args.jobs, build_root)
+    if args.v1_identity_restore or args.all:
+        verify_v1_identity_restore(args.jobs, build_root)
     if args.performance or args.all:
         performance_output = args.performance_output or build_root / "v1-performance.json"
         if not performance_output.is_absolute():
@@ -409,6 +451,7 @@ def main() -> int:
         or args.db_schema
         or args.password_hash
         or args.v1_smoke
+        or args.v1_identity_restore
         or args.performance
         or args.qt
         or args.all
@@ -416,7 +459,7 @@ def main() -> int:
         print(
             "[M0] inventory-only verification complete; "
             "use --web, --java, --postgres, --protocol-bindings, --db-schema, --password-hash, "
-            "--v1-smoke, --performance, "
+            "--v1-smoke, --v1-identity-restore, --performance, "
             "--qt, or --all "
             "for builds/tests"
         )

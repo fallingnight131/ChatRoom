@@ -365,6 +365,30 @@ positive room sequences on their live attachment notifications.
 CI runs the same smoke test on Ubuntu 24.04 after installing Qt Base, Qt SQLite,
 Qt WebSockets, and libsodium development packages.
 
+## V1 Identity Restore Rehearsal
+
+Requires the headless Qt server dependencies above plus Java 21:
+
+```bash
+python3 tools/verify_m0.py --v1-identity-restore
+```
+
+The command builds the matching C++ V1 server and Java migration CLI, creates a
+temporary V1 source through the real TCP API, adds a controlled legacy SHA-256
+fixture only after the source process exits, creates and verifies an online
+backup, and launches the same server against an isolated restored copy. It then
+proves that Argon2id and legacy accounts can log in and that message history is
+present. The source, backup, proof, restored database, and test credentials are
+temporary.
+
+The generated `build/m0/<host>/v1-identity-restore-evidence.json` records the
+server digest, non-secret source fingerprint, identity count, tested credential
+generations, history result, and bounded phase timings. It deliberately records
+`production_writer_quiescence_verified=false`: the harness proves only that its
+owned source process exited. CI archives this non-secret evidence for 14 days.
+Production cutover still requires independent operator evidence that every V1
+writer was stopped for the maintenance window.
+
 ## V1 Authentication-abuse Configuration
 
 The current single-node server reads these optional process environment

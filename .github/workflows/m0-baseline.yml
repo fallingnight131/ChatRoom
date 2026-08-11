@@ -39,6 +39,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes qt6-base-dev libqt6sql6-sqlite qt6-websockets-dev libsodium-dev pkg-config
 
+      - name: Set up Java 21 for the migration CLI
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+          cache-dependency-path: |
+            Backend/*.gradle.kts
+            Backend/gradle/libs.versions.toml
+            Backend/**/build.gradle.kts
+
       - name: Verify clean and restarted SQLite schemas
         run: python3 tools/verify_m0.py --db-schema
 
@@ -47,6 +58,17 @@ jobs:
 
       - name: Verify critical V1 TCP flows
         run: python3 tools/verify_m0.py --v1-smoke
+
+      - name: Rehearse V1 identity backup and restore
+        run: python3 tools/verify_m0.py --v1-identity-restore
+
+      - name: Archive V1 identity restore evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: v1-identity-restore-evidence-linux
+          path: build/m0/linux/v1-identity-restore-evidence.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Verify reproducible V1 performance scenario
         run: >-

@@ -406,8 +406,11 @@ Progress:
     - [x] Add a PostgreSQL-independent final source/backup/proof/fingerprint gate
       that rejects source drift before target writes without claiming it proves
       writer quiescence.
-    - [ ] Record a timed isolated C++ V1 server restore/login rehearsal and
-      independently verified writer shutdown evidence.
+    - [x] Automate a timed isolated C++ V1 server backup/restore rehearsal that
+      verifies both credential generations and durable history, and records
+      explicitly non-production evidence.
+    - [ ] Record independently verified production-topology writer shutdown
+      evidence for the maintenance-window rehearsal.
 - [x] Define the transport/persistence-independent fresh-login application use
   case, outward identity/session ports, generic rejection, and explicit secret
   zeroing lifecycle.
