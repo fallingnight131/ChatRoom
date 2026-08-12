@@ -34,6 +34,12 @@ observed drift but does not freeze V1 writers; the eventual authority switch
 still requires an operator-controlled quiescence window and final fingerprint
 check.
 
+Conversation import reuses that same complete online-backup artifact but obtains
+a separate verified capability: it checks the artifact's recorded hash/size and
+requires exact equality between current-source and backup conversation plans.
+The existing identity-only CLI remains unchanged until a later unified
+conversation apply command can require both capabilities in one transaction.
+
 ## Tables
 
 ### Identity

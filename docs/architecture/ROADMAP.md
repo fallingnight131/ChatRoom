@@ -423,6 +423,8 @@ Progress:
     projection, retained read pointers, and blocking graph validation.
   - [x] Add WAL-aware query-only SQLite extraction for the current V1 room,
     membership, administrator, friendship, and read-pointer graph.
+  - [x] Reconcile the V1 conversation graph against the same physically verified
+    whole-file backup with a separate re-verifiable import capability.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

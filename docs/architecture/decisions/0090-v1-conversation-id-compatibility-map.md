@@ -61,6 +61,13 @@ wait, and `quick_check`. It includes committed WAL rows, requires migrated read
 cursor columns, and turns unparseable timestamps into planner issues. Paths and
 source names never enter fixed infrastructure errors.
 
+Conversation final-input verification reuses the existing whole-file SQLite
+backup artifact and its physical hash/size proof, but produces a separate
+in-memory capability from identity verification. It requires exact current-source
+and backup conversation plans and supports re-verification during a future
+target transaction. This preserves the current identity-only CLI contract while
+making conversation import incapable of accepting an identity-only comparison.
+
 ## Verification
 
 The disposable PostgreSQL gate migrates clean and restarted databases through
@@ -75,6 +82,8 @@ namespace-separated UUIDv5 identities, canonical direct pairs, role precedence,
 retained read pointers, and safe rejection of inconsistent source graphs.
 SQLite tests prove WAL visibility without source writes, all three supported
 timestamp forms, safe invalid-time blocking, and refusal of an older schema.
+Final-input tests prove the same physical backup protects conversation metadata,
+and reject both post-backup room drift and a mismatched artifact hash.
 
 ## Rollback
 
