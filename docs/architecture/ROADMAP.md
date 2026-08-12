@@ -571,9 +571,12 @@ Progress:
   - [x] Define authenticated V1 room joining with idempotent existing
     membership, owned password bytes, credential verification, and an exact
     access snapshot that persistence must compare during atomic admission.
-  - [ ] Implement atomic PostgreSQL V1 room joining with enabled-account,
+  - [x] Implement atomic PostgreSQL V1 room joining with enabled-account,
     GROUP/ROOM mapping, credential-snapshot, active-membership, and bounded
     capacity enforcement.
+  - [ ] Import and reconcile custom V1 `room_settings.max_members` into the
+    GROUP admission policy before activating Java room joining; default 50 is
+    valid only when the verified source has no explicit override.
   - [ ] Compose detached strict V1 room joining with password-attempt admission,
     compatible responses and first-join notification intent, fixed telemetry,
     and real PostgreSQL/relogin proof.

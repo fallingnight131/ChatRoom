@@ -331,9 +331,15 @@ credential, verifies owned bounded UTF-8 password bytes through the shared
 credential port, then sends an exact access snapshot to an atomic membership
 mutation. The persistence boundary must recheck account, target, credential,
 and capacity under the write transaction so a password or policy race cannot
-authorize a different room state. Canonical identities and stored hashes never
-cross V1 responses. PostgreSQL persistence and gateway composition remain later
-slices; the product listener is unchanged.
+authorize a different room state. V024 now stores a GROUP-only bounded member
+limit; creation and verified conversation import create the policy row. The
+serializable adapter locks that policy, rechecks the exact credential snapshot,
+and atomically inserts or reactivates membership. Concurrent contenders for the
+last place converge to one admission and one `ROOM_FULL`; existing membership
+is password-free and idempotent. Canonical identities and stored hashes never
+cross V1 responses. Imported custom V1 room limits are not yet part of the
+verified source bundle, so handler activation remains blocked on that migration
+proof. The product listener is unchanged.
 
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target

@@ -336,6 +336,19 @@ public final class PostgresV1ConversationImporter {
             }
             requireBatch(statement.executeBatch(), "conversation");
         }
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO chat.group_admission_policy(conversation_id)
+                VALUES (?)
+                """)) {
+            int expected = 0;
+            for (PlannedV1Conversation value : planned) {
+                if (value.legacyKind() != LegacyV1ConversationKind.ROOM) continue;
+                statement.setObject(1, value.conversationId());
+                statement.addBatch();
+                expected++;
+            }
+            if (expected > 0) requireBatch(statement.executeBatch(), "group admission policy");
+        }
     }
 
     private static void insertDirectPairs(

@@ -49,6 +49,7 @@ public final class PostgresLegacyV1RoomCreationAdapter implements LegacyV1RoomCr
                 }
                 UUID conversationId = UUID.randomUUID();
                 insertConversation(connection, conversationId, intent.roomName());
+                insertAdmissionPolicy(connection, conversationId);
                 insertOwner(connection, conversationId, intent.actorAccountId());
                 if (intent.encodedPassword().isPresent()) {
                     insertCredential(connection, conversationId,
@@ -152,6 +153,15 @@ public final class PostgresLegacyV1RoomCreationAdapter implements LegacyV1RoomCr
                 """)) {
             statement.setObject(1, conversation); statement.setObject(2, actor);
             requireOne(statement, "owner membership");
+        }
+    }
+    private static void insertAdmissionPolicy(Connection connection, UUID conversation)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO chat.group_admission_policy(conversation_id) VALUES (?)
+                """)) {
+            statement.setObject(1, conversation);
+            requireOne(statement, "group admission policy");
         }
     }
     private static void insertCredential(Connection connection, UUID conversation, String hash)

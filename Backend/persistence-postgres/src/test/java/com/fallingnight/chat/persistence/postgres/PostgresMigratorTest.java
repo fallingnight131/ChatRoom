@@ -47,6 +47,9 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomReadResult
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomCreationIntent;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomCreationResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordEncoding;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomJoinAccess;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomJoinIntent;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomJoinResult;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -138,7 +141,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(23, first.migrate());
+        assertEquals(24, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -157,7 +160,7 @@ class PostgresMigratorTest {
                             "attachment", "contact_request",
                             "legacy_v1_contact_request_map",
                             "contact_request_import_run", "group_join_credential",
-                            "legacy_v1_room_creation"),
+                            "legacy_v1_room_creation", "group_admission_policy"),
                     applicationTables(connection));
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
@@ -432,6 +435,11 @@ class PostgresMigratorTest {
                 + "JOIN chat.legacy_v1_conversation_map m "
                 + "ON m.conversation_id = d.conversation_id "
                 + "WHERE m.legacy_kind = 'FRIENDSHIP' AND m.legacy_conversation_id = 20"));
+        assertEquals(1, count("SELECT count(*) FROM chat.group_admission_policy policy "
+                + "JOIN chat.legacy_v1_conversation_map mapping "
+                + "ON mapping.conversation_id = policy.conversation_id "
+                + "WHERE mapping.legacy_kind = 'ROOM' "
+                + "AND mapping.legacy_conversation_id = 10 AND policy.max_members = 50"));
         assertEquals(1, count("SELECT count(*) FROM chat.conversation_import_run"));
 
         V1ConversationImportReport rerun = importer.apply(input);
@@ -921,6 +929,97 @@ class PostgresMigratorTest {
 
     @Test
     @Order(93)
+    void joinsV1RoomsAtomicallyWithSnapshotAndConcurrentCapacityEnforcement() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID owner = UUID.randomUUID(), first = UUID.randomUUID(), second = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'join-owner', 'Owner', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'join-first', 'First', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'join-second', 'Second', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    owner, first, second);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                            + "VALUES (61, ?), (62, ?), (63, ?)", owner, first, second);
+        }
+        var encoding = new LegacyV1RoomPasswordEncoding(
+                "$argon2id$v=19$m=65536,t=2,p=1$c2FsdA$Zml4dHVyZQ",
+                "hmac-sha256:v1:CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC");
+        var created = (LegacyV1RoomCreationResult.Created)
+                new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
+                        new LegacyV1RoomCreationIntent(owner, "join-room-create",
+                                "Join Room", Optional.of(encoding)));
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.group_admission_policy SET max_members = 2 "
+                    + "WHERE conversation_id = ?", created.conversationId());
+        }
+        PostgresLegacyV1RoomJoinAdapter adapter =
+                new PostgresLegacyV1RoomJoinAdapter(dataSource());
+        var firstCandidate = (LegacyV1RoomJoinAccess.Candidate)
+                adapter.inspect(first, created.legacyRoomId());
+        assertEquals(Optional.of(new StoredCredential.Argon2id(encoding.encodedHash())),
+                firstCandidate.joinCredential());
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2), start = new CountDownLatch(1);
+        List<LegacyV1RoomJoinResult> results;
+        try {
+            var firstIntent = new LegacyV1RoomJoinIntent(first, created.conversationId(),
+                    created.legacyRoomId(), firstCandidate.joinCredential());
+            var secondCandidate = (LegacyV1RoomJoinAccess.Candidate)
+                    adapter.inspect(second, created.legacyRoomId());
+            var secondIntent = new LegacyV1RoomJoinIntent(second, created.conversationId(),
+                    created.legacyRoomId(), secondCandidate.joinCredential());
+            var left = executor.submit(() -> {
+                ready.countDown(); assertTrue(start.await(5, TimeUnit.SECONDS));
+                return adapter.join(firstIntent);
+            });
+            var right = executor.submit(() -> {
+                ready.countDown(); assertTrue(start.await(5, TimeUnit.SECONDS));
+                return adapter.join(secondIntent);
+            });
+            assertTrue(ready.await(5, TimeUnit.SECONDS)); start.countDown();
+            results = List.of(left.get(10, TimeUnit.SECONDS),
+                    right.get(10, TimeUnit.SECONDS));
+        } finally { executor.shutdownNow(); }
+        assertEquals(1, results.stream().filter(
+                LegacyV1RoomJoinResult.Joined.class::isInstance).count());
+        assertEquals(1, results.stream().filter(
+                LegacyV1RoomJoinResult.Rejected.ROOM_FULL::equals).count());
+        assertEquals(2, count("SELECT count(*) FROM chat.conversation_member "
+                + "WHERE conversation_id = '" + created.conversationId()
+                + "' AND left_at IS NULL"));
+
+        LegacyV1RoomJoinResult.Joined admitted = results.stream()
+                .filter(LegacyV1RoomJoinResult.Joined.class::isInstance)
+                .map(LegacyV1RoomJoinResult.Joined.class::cast).findFirst().orElseThrow();
+        var existing = (LegacyV1RoomJoinAccess.AlreadyMember)
+                adapter.inspect(admitted.actorAccountId(), created.legacyRoomId());
+        assertFalse(existing.membership().newJoin());
+
+        UUID rejectedActor = admitted.actorAccountId().equals(first) ? second : first;
+        var stale = (LegacyV1RoomJoinAccess.Candidate)
+                adapter.inspect(rejectedActor, created.legacyRoomId());
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.group_join_credential SET encoded_password = "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$bmV3$Zml4dHVyZQ' "
+                    + "WHERE conversation_id = ?", created.conversationId());
+            SQLException invalidLimit = assertThrows(SQLException.class, () -> execute(connection,
+                    "UPDATE chat.group_admission_policy SET max_members = 0 "
+                            + "WHERE conversation_id = ?", created.conversationId()));
+            assertEquals("23514", invalidLimit.getSQLState());
+        }
+        assertEquals(LegacyV1RoomJoinResult.Rejected.ACCESS_CHANGED,
+                adapter.join(new LegacyV1RoomJoinIntent(rejectedActor, created.conversationId(),
+                        created.legacyRoomId(), stale.joinCredential())));
+    }
+
+    @Test
+    @Order(94)
     void createsV1FriendRequestsWithConcurrentRetryAndReverseDetection() throws Exception {
         requireDatabase();
         truncateApplicationData();
@@ -978,7 +1077,7 @@ class PostgresMigratorTest {
     }
 
     @Test
-    @Order(94)
+    @Order(95)
     void removesV1FriendshipIdempotentlyWithoutDeletingDurableHistory() throws Exception {
         requireDatabase();
         truncateApplicationData();

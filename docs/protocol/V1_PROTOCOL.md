@@ -258,10 +258,13 @@ Authenticated state owns the joining account and only a positive mapped
 active membership succeeds idempotently without another password challenge. A
 first join distinguishes missing and invalid credentials, verifies the exact
 stored credential through the shared crypto port, and passes that access
-snapshot into the future atomic persistence mutation. The mutation must recheck
-the snapshot and capacity; a changed credential or target fails closed. Success
-will preserve `roomId`, `roomName`, `isAdmin`, and `newJoin`; UUIDs and password
-hashes remain internal. No PostgreSQL adapter or handler exists yet.
+snapshot into the atomic PostgreSQL mutation. V024 stores a bounded GROUP
+member limit. The adapter locks that policy and rechecks enabled mapped account,
+GROUP/ROOM target, credential snapshot, active membership, and capacity before
+inserting or reactivating one member. Concurrent last-place attempts admit only
+one account. Success will preserve `roomId`, `roomName`, `isAdmin`, and
+`newJoin`; UUIDs and password hashes remain internal. Custom imported V1 room
+limits still need verified-source migration, so no handler exists yet.
 
 ### Room chat
 
