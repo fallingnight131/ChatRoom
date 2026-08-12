@@ -237,9 +237,12 @@ points. An optional valid UTF-8 password retains the V1 4–1024 character polic
 is copied into owned secret memory, hashed before persistence, and zeroed on
 every exit. Protected-room retry comparison uses a dedicated server-keyed,
 domain-separated stable tag beside the salted slow hash, never an unkeyed fast
-password digest. A future atomic result returns positive `roomId`, normalized
-`roomName`, `isAdmin: true`, and duplicate state without exposing UUIDs. No
-schema, adapter, handler, or product route exists yet.
+password digest. The atomic result returns positive `roomId`, normalized
+`roomName`, `isAdmin: true`, and duplicate state without exposing UUIDs. V023 and the serializable
+PostgreSQL adapter now persist GROUP, OWNER, optional Argon2id credential, ROOM
+mapping, and keyed idempotency record atomically; exact retries recover the same
+numeric room ID while conflicting title or password-tag reuse is rejected. No
+handler or product route exists yet.
 
 ### Room chat
 

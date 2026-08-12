@@ -557,6 +557,9 @@ Progress:
     atomic GROUP/OWNER/ROOM-mapping requirements.
   - [x] Separate salted room-password verification hashes from dedicated server-
     keyed stable idempotency tags before designing protected-room retry storage.
+  - [x] Add V023 and serializable PostgreSQL V1 room creation with atomic GROUP,
+    OWNER, optional Argon2id credential, ROOM mapping, idempotency record, and
+    collision-safe descending runtime room ID.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

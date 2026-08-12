@@ -44,6 +44,9 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRecallComm
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRecallResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomReadCommand;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomReadResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomCreationIntent;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomCreationResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordEncoding;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -135,7 +138,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(22, first.migrate());
+        assertEquals(23, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -153,7 +156,8 @@ class PostgresMigratorTest {
                             "legacy_v1_deletion_event_map", "message_import_run",
                             "attachment", "contact_request",
                             "legacy_v1_contact_request_map",
-                            "contact_request_import_run"),
+                            "contact_request_import_run", "group_join_credential",
+                            "legacy_v1_room_creation"),
                     applicationTables(connection));
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
@@ -173,6 +177,11 @@ class PostgresMigratorTest {
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
                     + "AND sequencename = 'legacy_v1_room_message_id_seq' "
+                    + "AND increment_by = -1 AND min_value = 1 "
+                    + "AND max_value = 2147483647"));
+            assertEquals(1, count("SELECT count(*) FROM pg_sequences "
+                    + "WHERE schemaname = 'chat' "
+                    + "AND sequencename = 'legacy_v1_room_id_seq' "
                     + "AND increment_by = -1 AND min_value = 1 "
                     + "AND max_value = 2147483647"));
             proveSequenceAndIdempotencyConstraints(connection);
@@ -811,6 +820,103 @@ class PostgresMigratorTest {
         assertThrows(ConversationPersistenceException.class,
                 () -> search.search(actor, "project", 20));
         assertThrows(IllegalArgumentException.class, () -> search.search(actor, "room", 0));
+    }
+
+    @Test
+    @Order(92)
+    void createsProtectedV1RoomsAtomicallyAndConvergesConcurrentRetry() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID actor = UUID.randomUUID(), disabled = UUID.randomUUID(), occupied = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'room-create-owner', 'Owner', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'room-create-disabled', 'Disabled', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    actor, disabled);
+            execute(connection, "UPDATE chat.account SET disabled_at = transaction_timestamp() "
+                    + "WHERE id = ?", disabled);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                            + "VALUES (51, ?), (52, ?)", actor, disabled);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind, title) VALUES (?, 'GROUP', 'Old')",
+                    occupied);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map(legacy_kind, "
+                            + "legacy_conversation_id, conversation_id) "
+                            + "VALUES ('ROOM', 2147483647, ?)", occupied);
+        }
+        var password = new LegacyV1RoomPasswordEncoding(
+                "$argon2id$v=19$m=65536,t=2,p=1$c2FsdA$Zml4dHVyZQ",
+                "hmac-sha256:v1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        LegacyV1RoomCreationIntent intent = new LegacyV1RoomCreationIntent(
+                actor, "create-race", "Protected Room", Optional.of(password));
+        PostgresLegacyV1RoomCreationAdapter adapter =
+                new PostgresLegacyV1RoomCreationAdapter(dataSource());
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2), start = new CountDownLatch(1);
+        List<LegacyV1RoomCreationResult> results;
+        try {
+            var task = (java.util.concurrent.Callable<LegacyV1RoomCreationResult>) () -> {
+                ready.countDown(); assertTrue(start.await(5, TimeUnit.SECONDS));
+                return adapter.create(intent);
+            };
+            Future<LegacyV1RoomCreationResult> left = executor.submit(task);
+            Future<LegacyV1RoomCreationResult> right = executor.submit(task);
+            assertTrue(ready.await(5, TimeUnit.SECONDS)); start.countDown();
+            results = List.of(left.get(10, TimeUnit.SECONDS), right.get(10, TimeUnit.SECONDS));
+        } finally { executor.shutdownNow(); }
+        var created = results.stream().map(LegacyV1RoomCreationResult.Created.class::cast).toList();
+        assertEquals(1, created.stream().filter(result -> !result.duplicate()).count());
+        assertEquals(1, created.stream().filter(LegacyV1RoomCreationResult.Created::duplicate).count());
+        assertEquals(created.get(0).conversationId(), created.get(1).conversationId());
+        assertEquals(created.get(0).legacyRoomId(), created.get(1).legacyRoomId());
+        assertNotEquals(2147483647L, created.get(0).legacyRoomId());
+        assertEquals(1, count("SELECT count(*) FROM chat.conversation WHERE id = '"
+                + created.get(0).conversationId() + "' AND kind = 'GROUP' "
+                + "AND title = 'Protected Room'"));
+        assertEquals(1, count("SELECT count(*) FROM chat.conversation_member WHERE conversation_id = '"
+                + created.get(0).conversationId() + "' AND account_id = '" + actor
+                + "' AND role = 'OWNER' AND left_at IS NULL"));
+        assertEquals(1, count("SELECT count(*) FROM chat.group_join_credential WHERE conversation_id = '"
+                + created.get(0).conversationId() + "' AND encoded_password LIKE '$argon2id$%'"));
+        assertEquals(LegacyV1RoomCreationResult.Rejected.CLIENT_REQUEST_ID_CONFLICT,
+                adapter.create(new LegacyV1RoomCreationIntent(actor, "create-race",
+                        "Other Room", Optional.of(password))));
+        var otherPassword = new LegacyV1RoomPasswordEncoding(password.encodedHash(),
+                "hmac-sha256:v1:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
+        assertEquals(LegacyV1RoomCreationResult.Rejected.CLIENT_REQUEST_ID_CONFLICT,
+                adapter.create(new LegacyV1RoomCreationIntent(actor, "create-race",
+                        "Protected Room", Optional.of(otherPassword))));
+        assertEquals(LegacyV1RoomCreationResult.Rejected.CREATION_DENIED,
+                adapter.create(new LegacyV1RoomCreationIntent(disabled, "disabled-create",
+                        "Denied", Optional.empty())));
+        LegacyV1RoomCreationResult.Created open = (LegacyV1RoomCreationResult.Created)
+                adapter.create(new LegacyV1RoomCreationIntent(actor, "open-create",
+                        "Open Room", Optional.empty()));
+        assertFalse(open.duplicate());
+        assertTrue(((LegacyV1RoomCreationResult.Created) adapter.create(
+                new LegacyV1RoomCreationIntent(actor, "open-create",
+                        "Open Room", Optional.empty()))).duplicate());
+        assertEquals(0, count("SELECT count(*) FROM chat.group_join_credential "
+                + "WHERE conversation_id = '" + open.conversationId() + "'"));
+        try (Connection connection = connect()) {
+            SQLException invalidTag = assertThrows(SQLException.class, () -> execute(connection,
+                    "UPDATE chat.legacy_v1_room_creation "
+                            + "SET password_idempotency_tag = 'plain-sha256' "
+                            + "WHERE conversation_id = ?", created.get(0).conversationId()));
+            assertEquals("23514", invalidTag.getSQLState());
+            SQLException invalidHash = assertThrows(SQLException.class, () -> execute(connection,
+                    "UPDATE chat.group_join_credential SET encoded_password = 'plaintext' "
+                            + "WHERE conversation_id = ?", created.get(0).conversationId()));
+            assertEquals("23514", invalidHash.getSQLState());
+            execute(connection, "DELETE FROM chat.group_join_credential WHERE conversation_id = ?",
+                    created.get(0).conversationId());
+        }
+        assertThrows(ConversationPersistenceException.class, () -> adapter.create(intent));
+        assertEquals(3, count("SELECT count(*) FROM chat.conversation"));
     }
 
     @Test

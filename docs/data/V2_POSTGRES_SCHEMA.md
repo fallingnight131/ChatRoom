@@ -115,6 +115,14 @@ V022 adds a descending positive signed-32-bit allocator for runtime V1 ROOM
 message IDs. It is separate from the FRIENDSHIP allocator; runtime writers skip
 occupied mappings and commit the chosen numeric identity only with its canonical
 message and presentation mapping.
+V023 adds the protected-GROUP join credential, V1 room-creation idempotency
+record, and descending runtime V1 ROOM ID allocator. The credential accepts only
+Argon2id encodings and targets a GROUP through the canonical `(id, kind)` key.
+The idempotency row targets the actor's OWNER membership and stores only the
+normalized title plus optional versioned server-keyed password tag. Creation
+commits GROUP, OWNER, optional credential, ROOM mapping, and idempotency record
+atomically; occupied imported room IDs are skipped and allocation gaps are
+normal.
 The read-only application compatibility port keeps the namespace type alongside
 the numeric ID and supports both V1-to-V2 request translation and V2-to-V1 event
 projection. Its PostgreSQL adapter does not create mappings, infer identities,
@@ -404,7 +412,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V022, reruns migration as a simulated
+cluster, migrates a clean database through current V023, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable

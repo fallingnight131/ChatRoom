@@ -309,9 +309,11 @@ bounded outer request ID for future idempotency, normalizes the room title, and
 owns and zeroes the optional password bytes. Passwords must be hashed through an
 application port before persistence. Because salted Argon2id output cannot
 classify retries, that port also returns a dedicated server-keyed stable HMAC
-tag; an unkeyed fast password digest is forbidden. A future transaction must create the GROUP,
-active OWNER, and positive ROOM mapping atomically. No schema, adapter, or
-handler exists yet.
+tag; an unkeyed fast password digest is forbidden. V023 and the serializable
+PostgreSQL adapter now create the
+GROUP, OWNER, optional Argon2id credential, ROOM mapping, and keyed idempotency
+record atomically, skip occupied imported room IDs, and converge concurrent
+exact retries. No handler exists yet.
 
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target
