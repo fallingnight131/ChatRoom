@@ -2,6 +2,7 @@ package com.fallingnight.chat.gateway.runtime;
 
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1AuthenticationService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectHistoryService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectRecallService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectMessageService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1LoginService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendDirectoryService;
@@ -15,6 +16,8 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1UserSearchServ
 import com.fallingnight.chat.gateway.compatibility.v1.V1AccountConnectionRegistry;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectHistoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectHistoryHandler;
+import com.fallingnight.chat.gateway.compatibility.v1.V1DirectRecallEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1DirectRecallHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectMessageHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AuthenticationTimeoutHandler;
@@ -40,6 +43,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1PendingFriendRequestHand
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLifecycleCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonDirectMessageCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonDirectHistoryCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonDirectRecallCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLoginCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomDirectoryCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
@@ -56,6 +60,7 @@ import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
 import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1DirectMessageAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1DirectHistoryAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1DirectRecallAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresConversationDirectoryAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1AccountProjection;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1ConversationProjection;
@@ -79,6 +84,7 @@ import javax.sql.DataSource;
 public final class V1CompatibilityModule {
     private final LegacyV1LoginService login;
     private final LegacyV1DirectHistoryService directHistory;
+    private final LegacyV1DirectRecallService directRecalls;
     private final LegacyV1DirectMessageService directMessages;
     private final LegacyV1RoomDirectoryService roomDirectory;
     private final LegacyV1FriendDirectoryService friendDirectory;
@@ -94,6 +100,7 @@ public final class V1CompatibilityModule {
     private V1CompatibilityModule(
             LegacyV1LoginService login,
             LegacyV1DirectHistoryService directHistory,
+            LegacyV1DirectRecallService directRecalls,
             LegacyV1DirectMessageService directMessages,
             LegacyV1RoomDirectoryService roomDirectory,
             LegacyV1FriendDirectoryService friendDirectory,
@@ -107,6 +114,7 @@ public final class V1CompatibilityModule {
             V1AccountConnectionRegistry connections) {
         this.login = Objects.requireNonNull(login, "login");
         this.directHistory = Objects.requireNonNull(directHistory, "directHistory");
+        this.directRecalls = Objects.requireNonNull(directRecalls, "directRecalls");
         this.directMessages = Objects.requireNonNull(directMessages, "directMessages");
         this.roomDirectory = Objects.requireNonNull(roomDirectory, "roomDirectory");
         this.friendDirectory = Objects.requireNonNull(friendDirectory, "friendDirectory");
@@ -145,6 +153,8 @@ public final class V1CompatibilityModule {
                 new LegacyV1LoginService(authentication, legacy),
                 new LegacyV1DirectHistoryService(
                         new PostgresLegacyV1DirectHistoryAdapter(dataSource)),
+                new LegacyV1DirectRecallService(
+                        new PostgresLegacyV1DirectRecallAdapter(dataSource)),
                 new LegacyV1DirectMessageService(
                         new PostgresLegacyV1DirectMessageAdapter(dataSource)),
                 new LegacyV1RoomDirectoryService(
@@ -184,6 +194,7 @@ public final class V1CompatibilityModule {
             V1FriendRequestRejectionEventSink rejectionEvents,
             V1FriendRemovalEventSink removalEvents,
             V1DirectHistoryEventSink directHistoryEvents,
+            V1DirectRecallEventSink directRecallEvents,
             V1DirectMessageEventSink directMessageEvents,
             V1UserSearchEventSink searchEvents,
             Duration upgradeTimeout,
@@ -204,6 +215,7 @@ public final class V1CompatibilityModule {
                         rejectionEvents,
                         removalEvents,
                         directHistoryEvents,
+                        directRecallEvents,
                         directMessageEvents,
                         searchEvents,
                         authenticationTimeout,
@@ -225,6 +237,7 @@ public final class V1CompatibilityModule {
             V1FriendRequestRejectionEventSink rejectionEvents,
             V1FriendRemovalEventSink removalEvents,
             V1DirectHistoryEventSink directHistoryEvents,
+            V1DirectRecallEventSink directRecallEvents,
             V1DirectMessageEventSink directMessageEvents,
             V1UserSearchEventSink searchEvents,
             Duration authenticationTimeout,
@@ -291,6 +304,12 @@ public final class V1CompatibilityModule {
                 new V1JsonDirectHistoryCodec(clock),
                 directoryExecutor,
                 directHistoryEvents));
+        pipeline.addLast("v1-direct-recall", new V1DirectRecallHandler(
+                directRecalls,
+                new V1JsonDirectRecallCodec(clock),
+                connections,
+                directoryExecutor,
+                directRecallEvents));
         pipeline.addLast("v1-direct-messages", new V1DirectMessageHandler(
                 directMessages,
                 new V1JsonDirectMessageCodec(clock),

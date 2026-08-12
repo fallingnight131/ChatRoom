@@ -272,8 +272,9 @@ the actor from authentication; client peer/sequence/time fields are not
 authority. First apply retains the existing 120-second policy and allocates an
 atomic canonical mutation sequence. The PostgreSQL adapter enforces these
 rules with database time and retry-convergent serialization. Exact owner retry
-returns the same event with `duplicate: true` and no second notification. No
-gateway handler exists yet.
+returns the same event with `duplicate: true` and no second notification. The
+detached handler returns mapped peer/mutation fields and schedules a local peer
+notification only on first apply; the product listener remains unchanged.
 
 ### History
 

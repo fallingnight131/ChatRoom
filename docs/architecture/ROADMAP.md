@@ -499,6 +499,8 @@ Progress:
     first-apply window, atomic mutation sequence, and notification-safe retry.
   - [x] Implement retry-convergent PostgreSQL V1 direct recall with sender and
     active-relationship checks plus database-enforced one-event integrity.
+  - [x] Compose detached strict V1 direct recall with authenticated ownership,
+    first-only local notification, duplicate suppression, and fixed telemetry.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

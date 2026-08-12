@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fallingnight.chat.gateway.compatibility.v1.V1ConnectionAttributes;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectHistoryEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1DirectRecallEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
@@ -361,6 +362,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1FriendRequestRejectionEventSink.noop(),
                 V1FriendRemovalEventSink.noop(),
                 V1DirectHistoryEventSink.noop(),
+                V1DirectRecallEventSink.noop(),
                 V1DirectMessageEventSink.noop(),
                 V1UserSearchEventSink.noop(),
                 java.time.Duration.ofSeconds(10),
