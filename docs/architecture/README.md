@@ -654,7 +654,14 @@ credential-free HTTPS `manifest.json` and same-origin `manifest.json.sig` pair,
 never follows redirects, bounds the responses at 64 KiB and exactly 64 bytes,
 and discards both after any failure or cancellation. The returned bytes remain
 untrusted until ADR-0122 verifies and accepts them; no product origin, key,
-scheduler, UI, or preparation invocation is configured.
+scheduler, UI, or product invocation is configured.
+
+ADR-0127 makes the complete pre-launch trust order non-bypassable behind one
+inactive check service: bounded discovery precedes ADR-0122 acceptance, and only
+signed `Eligible` policy reaches ADR-0124 download and background installer
+trust. Invalid signatures and deferred rollout never request Setup bytes. The
+service exposes explicit product-facing outcomes but still has no production
+configuration, scheduler, consent UI, launcher, or restart behavior.
 
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,

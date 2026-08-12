@@ -39,6 +39,7 @@ SOURCES += \
     UpdatePreparationApplicationService.cpp \
     WindowsClientInstanceGuard.cpp \
     UpdateManifestFetchTransport.cpp \
+    UpdateCheckApplicationService.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -72,6 +73,7 @@ HEADERS += \
     UpdatePreparationApplicationService.h \
     WindowsClientInstanceGuard.h \
     UpdateManifestFetchTransport.h \
+    UpdateCheckApplicationService.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \

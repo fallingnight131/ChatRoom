@@ -190,6 +190,13 @@ redirect refusal, 64 KiB/64-byte response bounds, timeout headers, cancellation,
 and failure-byte suppression. It does not configure a product origin or weaken
 normal Qt TLS validation.
 
+`UpdateCheckApplicationServiceTest` drives the inactive complete pre-launch
+pipeline with ephemeral trust. It proves the exact manifest/signature/installer
+request order, successful verified-file handoff, signature rejection before an
+installer request, staged-rollout deferral without an installer request, and
+parallel-check refusal. It does not prove product keys, public TLS, Authenticode,
+launch, or update UX.
+
 `WindowsClientInstanceGuardTest` checks the shared liveness-mutex contract. On
 Windows it requires first acquisition, duplicate refusal, and release/reacquire;
 non-Windows development hosts report the platform boundary. Installer policy

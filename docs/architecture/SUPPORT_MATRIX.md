@@ -113,7 +113,12 @@ remain absent.
 An inactive manifest transport now fetches only the exact credential-free HTTPS
 `manifest.json` plus same-origin `manifest.json.sig` pair, refuses redirects,
 and bounds/discards unverified responses. No product origin, trusted key,
-scheduler, UI, or call into the preparation service is configured.
+scheduler, UI, or product invocation is configured.
+
+An inactive check service now composes that transport with signature/replay/
+policy acceptance and verified installer preparation. Invalid trust and staged
+deferral cannot reach Setup download. The composition has no product origin,
+trusted key, AppData/staging configuration, scheduler, consent UI, or launcher.
 
 The Windows client now owns a session-local liveness mutex and refuses a second
 instance. NSIS checks the same mutex before mutation and returns 4 for a silent

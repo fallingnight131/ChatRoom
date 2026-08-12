@@ -586,6 +586,9 @@ Progress:
 - [x] Add a default-off, bounded HTTPS transport for the exact manifest and
   detached-signature pair, with same-origin path binding, no redirects,
   timeout/cancel, and no unverified-byte exposure after failure.
+- [x] Compose discovery, signature/replay/policy acceptance, bounded installer
+  transfer, and background installer trust behind one default-off check service
+  with explicit no-update/manual/deferred/rejected/cancelled outcomes.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

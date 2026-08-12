@@ -37,8 +37,11 @@ shared liveness mutex before any install mutation. A future launcher must reques
 normal shutdown and wait; it must never terminate the client silently.
 ADR-0126 adds an inactive, bounded HTTPS fetcher for the exact
 `manifest.json`/`manifest.json.sig` pair. It provides untrusted bytes only to the
-future orchestrator; ADR-0122 verification must run before ADR-0124 preparation.
+check coordinator; ADR-0122 verification runs before ADR-0124 preparation.
 No production update origin or key is configured.
+ADR-0127 composes fetch, ADR-0122 acceptance, and ADR-0124 verified preparation
+behind one inactive check entry point. Invalid signatures and deferred rollout
+cannot reach the installer request; no launcher consumes its verified result.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin
