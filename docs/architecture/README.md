@@ -571,6 +571,13 @@ from its lockfile and retain a rollback-ready versioned deployment. Keep signing
 credentials in the CI secret store. macOS and Linux jobs, when retained for
 development or portability feedback, must not publish supported releases.
 
+ADR-0108 establishes the pre-installer boundary: root `VERSION` is the Windows
+desktop version source, native CI uploads only the `windeployqt` client payload,
+and deterministic JSON/SHA-256 metadata binds every file to the exact source
+revision and toolchain. The metadata is deliberately labeled
+`unsigned-verification-only`; it is integrity and traceability evidence, not
+publisher authentication or installation evidence.
+
 The Windows updater must use a signed manifest containing architecture, channel,
 version, minimum compatible version, hash, signature, and URL. Support stable
 and beta channels and preserve rollback capability. Web rollback uses immutable

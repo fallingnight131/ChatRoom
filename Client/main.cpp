@@ -6,6 +6,10 @@
 #include "NetworkManager.h"
 #include "ThemeManager.h"
 
+#ifndef CHAT_APP_VERSION
+#error "CHAT_APP_VERSION must come from the repository VERSION file"
+#endif
+
 // 全局退出函数，供 TrayManager 调用
 void cleanupAndQuit() {
     NetworkManager::instance()->disconnectFromServer();
@@ -15,7 +19,7 @@ void cleanupAndQuit() {
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
     app.setApplicationName("ChatClient");
-    app.setApplicationVersion("1.0.0");
+    app.setApplicationVersion(CHAT_APP_VERSION);
     app.setOrganizationName("QtChatRoom");
     app.setQuitOnLastWindowClosed(false);
     app.setWindowIcon(QIcon(":/icons/app.png"));

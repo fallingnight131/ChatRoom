@@ -4,6 +4,11 @@ CONFIG += c++17
 
 TARGET = ChatClient
 
+CHAT_APP_VERSION = $$cat($$PWD/../VERSION, lines)
+isEmpty(CHAT_APP_VERSION): error("VERSION is missing or empty")
+VERSION = $$CHAT_APP_VERSION
+DEFINES += CHAT_APP_VERSION=\\\"$$CHAT_APP_VERSION\\\"
+
 include(../Common/Common.pri)
 
 SOURCES += \

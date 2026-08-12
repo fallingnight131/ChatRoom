@@ -52,12 +52,14 @@ operating systems are supported.
 
 Windows product verification runs natively with Windows Server 2025, x86_64
 MSVC 2022, and pinned Qt 6.11.1. The build uses `windeployqt` and includes the
-required runtime libraries, including the server's libsodium dependency when a
-server verification artifact is assembled.
+required client runtime libraries. The current server is still compiled as a
+compatibility gate, but it is excluded from the client distribution payload.
 
-The unsigned M0 artifact is short-lived build evidence only. It is not an
-installer because it has no Authenticode signature, installation/upgrade policy,
-uninstall behavior, or signed automatic-update manifest.
+The client-only verification payload records canonical version, Git revision,
+toolchain, file sizes, and SHA-256 hashes in a deterministic manifest. It remains
+short-lived build evidence only and is explicitly labeled unsigned. It is not
+an installer because it has no Authenticode signature, installation/upgrade
+policy, uninstall behavior, or signed automatic-update manifest.
 
 M4 must provide:
 

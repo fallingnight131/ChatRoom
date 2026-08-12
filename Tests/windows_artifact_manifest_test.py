@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tools"))
+
+from windows_artifact_manifest import ManifestError, build_manifest, write_manifest  # noqa: E402
+
+
+class WindowsArtifactManifestTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        self.payload = self.root / "client"
+        (self.payload / "platforms").mkdir(parents=True)
+        (self.payload / "ChatClient.exe").write_bytes(b"client")
+        (self.payload / "platforms" / "qwindows.dll").write_bytes(b"plugin")
+        self.version_file = self.root / "VERSION"
+        self.version_file.write_text("1.2.3\n", encoding="utf-8")
+
+    def tearDown(self) -> None:
+        self.temporary.cleanup()
+
+    def build(self):
+        return build_manifest(
+            self.payload,
+            self.version_file,
+            "a" * 40,
+            "6.11.1",
+        )
+
+    def test_builds_sorted_deterministic_unsigned_client_manifest(self) -> None:
+        first, checksums = self.build()
+        second, repeated_checksums = self.build()
+
+        self.assertEqual(first, second)
+        self.assertEqual(checksums, repeated_checksums)
+        self.assertEqual(first["version"], "1.2.3")
+        self.assertEqual(first["signatureStatus"], "unsigned-verification-only")
+        self.assertEqual(
+            [entry["path"] for entry in first["files"]],
+            ["client/ChatClient.exe", "client/platforms/qwindows.dll"],
+        )
+        self.assertTrue(all("server" not in line.lower() for line in checksums))
+
+        output = self.root / "artifact"
+        write_manifest(output, first, checksums)
+        parsed = json.loads((output / "artifact-manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(parsed, first)
+        self.assertEqual((output / "SHA256SUMS").read_text(encoding="utf-8").count("\n"), 2)
+
+    def test_rejects_noncanonical_identity_and_empty_payload(self) -> None:
+        self.version_file.write_text(" 1.2.3\n", encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "SemVer"):
+            self.build()
+        self.version_file.write_text("1.2.3-beta.1\n", encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "SemVer"):
+            self.build()
+
+        self.version_file.write_text("1.2.3\n", encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "Git SHA"):
+            build_manifest(self.payload, self.version_file, "ABC", "6.11.1")
+        with self.assertRaisesRegex(ManifestError, "Qt version"):
+            build_manifest(self.payload, self.version_file, "a" * 40, "latest")
+
+        for path in sorted(self.payload.rglob("*"), reverse=True):
+            if path.is_file():
+                path.unlink()
+            else:
+                path.rmdir()
+        with self.assertRaisesRegex(ManifestError, "must not be empty"):
+            self.build()
+
+    @unittest.skipIf(os.name == "nt", "Windows symlink creation requires optional privileges")
+    def test_rejects_symbolic_links(self) -> None:
+        (self.payload / "linked.dll").symlink_to(self.payload / "ChatClient.exe")
+        with self.assertRaisesRegex(ManifestError, "symbolic links"):
+            self.build()
+
+
+if __name__ == "__main__":
+    unittest.main()

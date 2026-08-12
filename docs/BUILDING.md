@@ -505,9 +505,15 @@ development/portability verification, not a supported desktop release gate.
 - The verifier selects `nmake` for an MSVC qmake spec and
   `mingw32-make`/`make` otherwise.
 - Native CI uses MSVC 2022 and pinned Qt 6.11.1, then runs `windeployqt` to
-  assemble a short-lived unsigned verification artifact.
+  assemble a short-lived client-only unsigned verification payload. Root
+  `VERSION` supplies both the Qt application version and artifact version.
+- CI writes deterministic `artifact-manifest.json` and `SHA256SUMS` metadata
+  containing the exact Git revision, toolchain identity, file sizes, and hashes.
+  Run its cross-platform policy test with
+  `python3 Tests/windows_artifact_manifest_test.py`.
 - A signed installer, upgrade/uninstall behavior, and automatic updates are
-  separate M4 concerns.
+  separate M4 concerns. The verification payload and checksum manifest are not
+  an installer or publisher signature.
 
 ## macOS Development-host Notes
 

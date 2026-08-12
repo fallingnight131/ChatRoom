@@ -78,13 +78,25 @@ jobs:
           retention-days: 14
 
   windows-release:
-    name: Windows product verification
+    name: Windows client payload verification
     runs-on: windows-2025
     timeout-minutes: 30
 
     steps:
       - name: Check out source
         uses: actions/checkout@v6
+
+      - name: Read canonical product version
+        id: product-version
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = (Get-Content VERSION -Raw).Trim()
+          if (-not $version) { throw "VERSION is empty" }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Test Windows artifact manifest policy
+        run: python Tests/windows_artifact_manifest_test.py
 
       - name: Install pinned Qt SDK
         uses: jurplel/install-qt-action@v4.3.1
@@ -113,25 +125,22 @@ jobs:
           if (-not $client -or -not $server) { throw "Qt Release executables were not found" }
 
           $artifact = "build/m0/artifacts/windows"
-          New-Item -ItemType Directory -Force "$artifact/client", "$artifact/server" | Out-Null
+          New-Item -ItemType Directory -Force "$artifact/client" | Out-Null
           Copy-Item $client.FullName "$artifact/client/ChatClient.exe"
-          Copy-Item $server.FullName "$artifact/server/ChatServer.exe"
           windeployqt --release --no-translations "$artifact/client/ChatClient.exe"
-          windeployqt --release --no-translations "$artifact/server/ChatServer.exe"
           $sqlitePlugin = Get-ChildItem "$artifact/client/sqldrivers" -Filter "qsqlite.dll" -ErrorAction SilentlyContinue
           if (-not $sqlitePlugin) { throw "Windows client artifact is missing the Qt SQLite driver" }
-          $sodiumDll = @(Get-ChildItem "$env:SODIUM_ROOT/bin" -Filter "*sodium*.dll")
-          if ($sodiumDll.Count -ne 1) { throw "Expected one libsodium runtime DLL, found $($sodiumDll.Count)" }
-          Copy-Item $sodiumDll[0].FullName "$artifact/server/$($sodiumDll[0].Name)"
-          Get-ChildItem $artifact -Recurse -File |
-            Get-FileHash -Algorithm SHA256 |
-            ForEach-Object { "{0}  {1}" -f $_.Hash.ToLower(), $_.Path.Substring((Resolve-Path $artifact).Path.Length + 1) } |
-            Set-Content "$artifact/SHA256SUMS"
+          python tools/windows_artifact_manifest.py `
+            --payload-root "$artifact/client" `
+            --version-file VERSION `
+            --source-revision "${{ github.sha }}" `
+            --qt-version "${{ env.QT_VERSION }}" `
+            --output-dir "$artifact"
 
       - name: Upload unsigned Windows verification artifact
         uses: actions/upload-artifact@v7
         with:
-          name: chat-room-windows-${{ env.QT_VERSION }}-${{ github.sha }}
+          name: chat-room-windows-client-${{ steps.product-version.outputs.version }}-unsigned-verification-${{ github.sha }}
           path: build/m0/artifacts/windows
           if-no-files-found: error
           retention-days: 14
