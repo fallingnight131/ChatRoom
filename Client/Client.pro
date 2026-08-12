@@ -42,6 +42,7 @@ SOURCES += \
     UpdateCheckApplicationService.cpp \
     WindowsUpdateHandoffApplicationService.cpp \
     UpdateLauncherResult.cpp \
+    UpdateLifecycleRepository.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -78,6 +79,7 @@ HEADERS += \
     UpdateCheckApplicationService.h \
     WindowsUpdateHandoffApplicationService.h \
     UpdateLauncherResult.h \
+    UpdateLifecycleRepository.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \

@@ -181,6 +181,10 @@ schema-1 result. It accepts coherent install success/failure and rejects UUID
 mismatch, unknown fields/outcomes, contradictory exit codes, unsafe error text,
 and timestamps outside the pending-request window.
 
+`UpdateLifecycleRepositoryTest` uses real private directories to prove atomic
+single-pending creation, result-not-yet-ready behavior, UUID-derived one-time
+consumption, run cleanup, replay prevention, and retention of invalid evidence.
+
 `UpdateStateRepositoryTest` checks creation/reload of an owner-only UUIDv4,
 atomic per-channel sequence/digest persistence, idempotence, replay/conflict
 rejection, and corrupt-state failure. The repository is compiled but no product

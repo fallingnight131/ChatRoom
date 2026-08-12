@@ -58,6 +58,9 @@ quit only after the helper signals that it owns the parent-process wait.
 ADR-0132 makes result interpretation fail closed on schema, request UUID,
 outcome/exit-code, timestamp, size, and error-text policy before a future startup
 repository can expose the result to product UI.
+ADR-0133 persists one pending UUID/version/time before exit and derives only its
+result/run names, allowing valid startup consumption exactly once without
+turning missing or malformed helper evidence into success.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin

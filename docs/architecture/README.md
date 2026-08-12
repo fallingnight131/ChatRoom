@@ -696,6 +696,11 @@ only the exact schema-1 launcher fields, the pending request UUID, coherent
 outcome/exit-code pairs, and a bounded UTC timestamp; unknown or contradictory
 records fail closed before they can become product state.
 
+ADR-0133 adds the inactive durable lifecycle around that parser. One atomic
+pending UUID/version/time record binds the derived result and run names across
+client exit and restart; valid evidence is consumed once, while missing or
+invalid evidence is never promoted to success.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

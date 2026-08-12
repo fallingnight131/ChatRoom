@@ -605,6 +605,9 @@ Progress:
 - [x] Define a strict client-side schema-1 launcher-result parser that binds the
   expected request UUID and rejects unknown fields/outcomes, contradictory exit
   codes, unsafe text, and implausible timestamps.
+- [x] Add an inactive owner-only update lifecycle repository that persists one
+  pending UUID/version/time across exit, derives result/run paths, consumes valid
+  evidence once, and retains missing or invalid evidence without claiming success.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,
