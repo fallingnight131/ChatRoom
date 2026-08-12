@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fallingnight.chat.gateway.compatibility.v1.V1ConnectionAttributes;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectHistoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomHistoryEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomRecallEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectRecallEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
@@ -230,7 +231,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     peer.runPendingTasks();
                     ((TextWebSocketFrame) peer.readOutbound()).release();
                     assertUserSearch(imported, true);
-                    assertRoomMessageFirst(imported, peer);
+                    long roomMessageId = assertRoomMessageFirst(imported, peer);
                     assertRoomMessageDuplicate(imported, peer);
 
                     imported.writeInbound(new TextWebSocketFrame(
@@ -271,6 +272,9 @@ class GatewayRuntimePostgresIntegrationTest {
                         reconnected.runPendingTasks();
                         ((TextWebSocketFrame) reconnected.readOutbound()).release();
                         assertRoomHistoryAfterReconnect(reconnected);
+                        assertRoomRecallFirst(reconnected, peer, roomMessageId);
+                        assertRoomRecallDuplicate(reconnected, peer, roomMessageId);
+                        assertRecalledRoomHistoryAfterSequence(reconnected, roomMessageId);
                         assertDirectHistoryAfterReconnect(reconnected);
                         assertDirectRecallFirst(reconnected, peer, directMessageId);
                         assertDirectRecallDuplicate(reconnected, peer, directMessageId);
@@ -366,6 +370,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomDirectoryEventSink.noop(),
                 V1RoomMessageEventSink.noop(),
                 V1RoomHistoryEventSink.noop(),
+                V1RoomRecallEventSink.noop(),
                 V1FriendDirectoryEventSink.noop(),
                 V1PendingFriendRequestEventSink.noop(),
                 V1FriendRequestCreationEventSink.noop(),
@@ -464,7 +469,7 @@ class GatewayRuntimePostgresIntegrationTest {
         return messageId;
     }
 
-    private static void assertRoomMessageFirst(
+    private static long assertRoomMessageFirst(
             EmbeddedChannel sender, EmbeddedChannel recipient) {
         sendRoomMessage(sender); sender.runPendingTasks();
         Object outbound = sender.readOutbound();
@@ -474,11 +479,13 @@ class GatewayRuntimePostgresIntegrationTest {
         }
         TextWebSocketFrame response = (TextWebSocketFrame) outbound;
         TextWebSocketFrame senderLive = sender.readOutbound();
+        long messageId;
         try {
             assertTrue(response.text().contains("\"type\":\"CHAT_SEND_RSP\""));
             assertTrue(response.text().contains("\"success\":true"));
             assertTrue(response.text().contains("\"duplicate\":false"));
             assertTrue(response.text().contains("\"roomId\":7"));
+            messageId = numericDataField(response.text(), "id");
             assertTrue(senderLive.text().contains("\"type\":\"CHAT_MSG\""));
             assertTrue(senderLive.text().contains("\"sender\":\"imported-v1\""));
             assertTrue(senderLive.text().contains("\"sequence\":8"));
@@ -488,6 +495,7 @@ class GatewayRuntimePostgresIntegrationTest {
             assertTrue(live.text().contains("\"content\":\"hello Java room\""));
             assertFalse(live.text().contains("30000000-0000"));
         } finally { live.release(); }
+        return messageId;
     }
 
     private static void assertRoomMessageDuplicate(
@@ -513,6 +521,63 @@ class GatewayRuntimePostgresIntegrationTest {
             assertTrue(response.text().contains("\"lastSequence\":8"));
             assertFalse(response.text().contains("10000000-0000"));
         } finally { response.release(); }
+    }
+
+    private static void assertRoomRecallFirst(
+            EmbeddedChannel sender, EmbeddedChannel recipient, long messageId) {
+        sendRoomRecall(sender, messageId); sender.runPendingTasks();
+        TextWebSocketFrame response = sender.readOutbound(), echo = sender.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"RECALL_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"duplicate\":false"));
+            assertTrue(response.text().contains("\"mutationSequence\":9"));
+            assertTrue(echo.text().contains("\"type\":\"RECALL_NOTIFY\""));
+            assertTrue(echo.text().contains("\"username\":\"imported-v1\""));
+            assertTrue(echo.text().contains("\"messageId\":" + messageId));
+        } finally { response.release(); echo.release(); }
+        recipient.runPendingTasks(); TextWebSocketFrame notification = recipient.readOutbound();
+        try {
+            assertTrue(notification.text().contains("\"type\":\"RECALL_NOTIFY\""));
+            assertTrue(notification.text().contains("\"mutationSequence\":9"));
+            assertFalse(notification.text().contains("10000000-0000"));
+        } finally { notification.release(); }
+    }
+
+    private static void assertRoomRecallDuplicate(
+            EmbeddedChannel sender, EmbeddedChannel recipient, long messageId) {
+        sendRoomRecall(sender, messageId); sender.runPendingTasks();
+        TextWebSocketFrame response = sender.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"duplicate\":true"));
+            assertTrue(response.text().contains("\"mutationSequence\":9"));
+        } finally { response.release(); }
+        assertNull(sender.readOutbound()); recipient.runPendingTasks();
+        assertNull(recipient.readOutbound());
+    }
+
+    private static void assertRecalledRoomHistoryAfterSequence(
+            EmbeddedChannel channel, long messageId) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"HISTORY_REQ\",\"data\":{\"roomId\":7,"
+                        + "\"count\":50,\"afterSequence\":8}}"));
+        channel.runPendingTasks(); TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"id\":" + messageId));
+            assertTrue(response.text().contains("\"recalled\":true"));
+            assertTrue(response.text().contains("\"sequence\":8"));
+            assertTrue(response.text().contains("\"mutationSequence\":9"));
+            assertTrue(response.text().contains("\"syncSequence\":9"));
+            assertTrue(response.text().contains("\"nextSequence\":9"));
+            assertTrue(response.text().contains("\"lastSequence\":9"));
+        } finally { response.release(); }
+    }
+
+    private static void sendRoomRecall(EmbeddedChannel sender, long messageId) {
+        sender.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"RECALL_REQ\",\"data\":{\"roomId\":7,\"messageId\":"
+                        + messageId + "}}"));
     }
 
     private static void sendRoomMessage(EmbeddedChannel sender) {

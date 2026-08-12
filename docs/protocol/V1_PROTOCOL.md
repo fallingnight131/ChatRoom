@@ -482,7 +482,11 @@ sequence together. Exact retry must return the same mapped result with
 `duplicate: true` and no second notification. The serializable PostgreSQL
 adapter now enforces those checks, converges concurrent first/retry races, and
 permits only the durable original actor to recover an exact result after the
-window or membership removal. No handler exists yet.
+window or membership removal. The detached strict handler now returns mapped
+`RECALL_RSP`, echoes first apply to the sender, and notifies only connected
+accounts confirmed by a batch active-membership query. Exact retry emits no
+notification. Real replacement-login verification proves room history folds the
+new mutation sequence; the product listener remains inactive.
 
 Administrative deletion uses a required `clientOperationId` (with the envelope
 ID as a compatibility fallback), one durable room sequence, and a canonical

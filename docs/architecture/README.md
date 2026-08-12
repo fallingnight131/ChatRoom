@@ -404,8 +404,12 @@ and makes exact retry notification-safe. Room/resource denial remains distinct
 from ownership/window rejection; client actor, time, and sequence fields are
 not accepted. Its serializable PostgreSQL adapter now locks the mapped room
 message, uses database time, creates one canonical recall entry, and converges
-concurrent or later exact owner retries on the durable result. No handler exists
-yet.
+concurrent or later exact owner retries on the durable result. The detached
+strict handler now returns compatible ACKs, emits a first-only
+sender echo, and batch-filters connected accounts through current PostgreSQL
+membership before process-local notification. Exact retry emits no notification;
+replacement-login history recovers the mutation sequence. The product listener
+remains unchanged.
 
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.

@@ -525,6 +525,9 @@ Progress:
   - [x] Implement retry-convergent PostgreSQL V1 room recall with mapped resource,
     enabled-account, active-membership, sender, and database-time checks plus
     database-enforced one-event integrity.
+  - [x] Compose detached strict V1 room recall with authenticated ownership,
+    authoritative first-only local fan-out, duplicate suppression, fixed
+    telemetry, and replacement-login history recovery.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application
