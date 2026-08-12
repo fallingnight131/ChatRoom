@@ -120,7 +120,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(19, first.migrate());
+        assertEquals(20, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -983,7 +983,7 @@ class PostgresMigratorTest {
                 List.of(new PlannedV1LegacyDevice(account, device, "v1-history-import")),
                 List.of(new PlannedV1HistoricalMessage(
                         LegacyV1ConversationKind.ROOM, 77, 501, message, conversation, 1,
-                        null, account, device, "v1-import-room-501", 1, "hello",
+                        null, account, device, "v1-import-room-501", 1, "text", "hello",
                         false, true, Instant.parse("2026-01-02T03:04:05Z"))),
                 List.of(),
                 List.of(new PlannedV1ConversationCursor(
@@ -1072,6 +1072,8 @@ class PostgresMigratorTest {
         assertEquals(1, count("SELECT count(*) FROM chat.messages_deleted_event"));
         assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_deletion_event_map"));
         assertEquals(2, count("SELECT count(*) FROM chat.legacy_v1_message_map"));
+        assertEquals(2, count("SELECT count(*) FROM chat.legacy_v1_message_map "
+                + "WHERE legacy_content_type IN ('text', 'emoji')"));
         assertEquals(1, count("SELECT count(*) FROM chat.message_import_run"));
         assertEquals(5, count("SELECT next_sequence FROM chat.conversation WHERE id = '"
                 + conversation + "'"));
@@ -1096,11 +1098,25 @@ class PostgresMigratorTest {
         assertEquals(4, mixed.latestSequence());
         assertFalse(mixed.hasMore());
 
+        try (Connection connection = connect()) {
+            SQLException invalidType = assertThrows(SQLException.class, () -> execute(connection,
+                    "UPDATE chat.legacy_v1_message_map SET legacy_content_type = 'file' "
+                            + "WHERE legacy_message_id = 100"));
+            assertEquals("23514", invalidType.getSQLState());
+            execute(connection,
+                    "UPDATE chat.legacy_v1_message_map SET legacy_content_type = NULL "
+                            + "WHERE legacy_message_id = 100");
+        }
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_message_map "
+                + "WHERE legacy_content_type IS NULL"));
+
         V1MessageImportReport rerun = importer.apply(bundle);
         assertEquals(0, rerun.insertableMessages());
         assertEquals(2, rerun.alreadyImportedMessages());
         assertEquals(0, rerun.insertableEntries());
         assertEquals(4, rerun.alreadyImportedEntries());
+        assertEquals(0, count("SELECT count(*) FROM chat.legacy_v1_message_map "
+                + "WHERE legacy_content_type IS NULL"));
         assertEquals(2, count("SELECT count(*) FROM chat.message_import_run"));
 
         try (Connection sourceConnection = DriverManager.getConnection(

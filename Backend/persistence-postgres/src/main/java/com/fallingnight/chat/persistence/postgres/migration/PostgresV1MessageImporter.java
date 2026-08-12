@@ -316,7 +316,7 @@ public final class PostgresV1MessageImporter {
             List<V1MessageTargetIssue> issues) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 SELECT legacy_kind, legacy_message_id, legacy_conversation_id,
-                       conversation_id, message_id
+                       conversation_id, message_id, legacy_content_type
                 FROM chat.legacy_v1_message_map
                 WHERE (legacy_kind = ? AND legacy_message_id = ?) OR message_id = ?
                 """)) {
@@ -332,6 +332,9 @@ public final class PostgresV1MessageImporter {
                         && result.getObject("conversation_id", UUID.class)
                                 .equals(planned.conversationId())
                         && result.getObject("message_id", UUID.class).equals(planned.messageId())
+                        && (result.getString("legacy_content_type") == null
+                            || result.getString("legacy_content_type")
+                                    .equals(planned.legacyContentType()))
                         && !result.next();
                 if (!exact) {
                     issues.add(issue(planned, "TARGET_MESSAGE_MAPPING_CONFLICT",
@@ -589,8 +592,11 @@ public final class PostgresV1MessageImporter {
         try (PreparedStatement statement = connection.prepareStatement("""
                 INSERT INTO chat.legacy_v1_message_map(
                     legacy_kind, legacy_message_id, legacy_conversation_id,
-                    conversation_id, message_id)
-                VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
+                    conversation_id, message_id, legacy_content_type)
+                VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (legacy_kind, legacy_message_id)
+                DO UPDATE SET legacy_content_type = EXCLUDED.legacy_content_type
+                WHERE legacy_v1_message_map.message_id = EXCLUDED.message_id
+                  AND legacy_v1_message_map.legacy_content_type IS NULL
                 """)) {
             for (PlannedV1HistoricalMessage value : messages) {
                 statement.setString(1, value.legacyKind().name());
@@ -598,6 +604,7 @@ public final class PostgresV1MessageImporter {
                 statement.setLong(3, value.legacyConversationId());
                 statement.setObject(4, value.conversationId());
                 statement.setObject(5, value.messageId());
+                statement.setString(6, value.legacyContentType());
                 statement.addBatch();
             }
             statement.executeBatch();

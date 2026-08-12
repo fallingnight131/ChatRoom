@@ -489,6 +489,8 @@ Progress:
     first-only local fan-out, fixed telemetry, and real PostgreSQL dual-login proof.
   - [x] Define a bounded UUID-free V1 direct-history projection that folds recall
     entries into strict creation/mutation sequence pages for reconnect recovery.
+  - [x] Preserve V1 text/emoji presentation in the isolated message mapping and
+    backfill pre-cutover nulls only through verified source import.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

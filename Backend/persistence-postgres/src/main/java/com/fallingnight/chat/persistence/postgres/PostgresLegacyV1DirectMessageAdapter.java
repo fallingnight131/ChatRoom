@@ -67,7 +67,8 @@ public final class PostgresLegacyV1DirectMessageAdapter implements LegacyV1Direc
                 Instant acceptedAt = insertMessage(
                         connection, command, target, messageId, sequence, payload, hash);
                 long legacyMessageId = nextUnusedMessageId(connection);
-                insertMapping(connection, target, messageId, legacyMessageId);
+                insertMapping(connection, target, messageId, legacyMessageId,
+                        command.contentType());
                 connection.commit();
                 return accepted(false, target, legacyMessageId, sequence, acceptedAt);
             } catch (RuntimeException | SQLException exception) {
@@ -157,20 +158,23 @@ public final class PostgresLegacyV1DirectMessageAdapter implements LegacyV1Direc
             Existing existing, byte[] payload, byte[] hash) throws SQLException {
         if (!existing.conversationId().equals(target.conversationId())
                 || !existing.senderDeviceId().equals(command.senderDeviceId())
-                || existing.messageType() != messageType(command.contentType())
+                || existing.messageType() != 1
                 || !Arrays.equals(existing.payload(), payload)
                 || !MessageDigest.isEqual(existing.hash(), hash)) {
             return LegacyV1DirectMessageResult.Rejected.CLIENT_MESSAGE_ID_CONFLICT;
         }
-        long legacyMessageId = mappedMessageId(connection, target, existing.messageId());
+        long legacyMessageId = mappedMessageId(
+                connection, target, existing.messageId(), command.contentType());
         return accepted(true, target, legacyMessageId,
                 existing.sequence(), existing.acceptedAt());
     }
 
     private static long mappedMessageId(
-            Connection connection, Target target, UUID messageId) throws SQLException {
+            Connection connection, Target target, UUID messageId, String legacyContentType)
+            throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
-                SELECT legacy_message_id FROM chat.legacy_v1_message_map
+                SELECT legacy_message_id, legacy_content_type
+                FROM chat.legacy_v1_message_map
                 WHERE legacy_kind = 'FRIENDSHIP' AND message_id = ?
                   AND legacy_conversation_id = ? AND conversation_id = ?
                 """)) {
@@ -178,7 +182,8 @@ public final class PostgresLegacyV1DirectMessageAdapter implements LegacyV1Direc
             statement.setLong(2, target.legacyFriendshipId());
             statement.setObject(3, target.conversationId());
             try (ResultSet row = statement.executeQuery()) {
-                if (!row.next() || row.getLong(1) <= 0 || row.getLong(1) > Integer.MAX_VALUE) {
+                if (!row.next() || row.getLong(1) <= 0 || row.getLong(1) > Integer.MAX_VALUE
+                        || !legacyContentType.equals(row.getString(2))) {
                     throw new SQLException("canonical V1 message has no valid mapping");
                 }
                 long result = row.getLong(1);
@@ -228,7 +233,7 @@ public final class PostgresLegacyV1DirectMessageAdapter implements LegacyV1Direc
             statement.setObject(4, command.senderAccountId());
             statement.setObject(5, command.senderDeviceId());
             statement.setString(6, command.clientMessageId());
-            statement.setInt(7, messageType(command.contentType()));
+            statement.setInt(7, 1);
             statement.setBytes(8, payload);
             statement.setBytes(9, hash);
             try (ResultSet row = statement.executeQuery()) {
@@ -261,17 +266,19 @@ public final class PostgresLegacyV1DirectMessageAdapter implements LegacyV1Direc
     }
 
     private static void insertMapping(
-            Connection connection, Target target, UUID messageId, long legacyMessageId)
+            Connection connection, Target target, UUID messageId, long legacyMessageId,
+            String legacyContentType)
             throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 INSERT INTO chat.legacy_v1_message_map(legacy_kind, legacy_message_id,
-                    legacy_conversation_id, conversation_id, message_id)
-                VALUES ('FRIENDSHIP', ?, ?, ?, ?)
+                    legacy_conversation_id, conversation_id, message_id, legacy_content_type)
+                VALUES ('FRIENDSHIP', ?, ?, ?, ?, ?)
                 """)) {
             statement.setLong(1, legacyMessageId);
             statement.setLong(2, target.legacyFriendshipId());
             statement.setObject(3, target.conversationId());
             statement.setObject(4, messageId);
+            statement.setString(5, legacyContentType);
             if (statement.executeUpdate() != 1) throw new SQLException("V1 mapping insert failed");
         }
     }
@@ -284,9 +291,6 @@ public final class PostgresLegacyV1DirectMessageAdapter implements LegacyV1Direc
                 acceptedAt, target.targetAccountId(), target.targetUsername());
     }
 
-    private static int messageType(String contentType) {
-        return "emoji".equals(contentType) ? 2 : 1;
-    }
     private static byte[] sha256(byte[] value) {
         try { return MessageDigest.getInstance("SHA-256").digest(value); }
         catch (NoSuchAlgorithmException exception) {

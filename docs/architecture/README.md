@@ -351,6 +351,12 @@ strict `syncSequence`. A recall entry is folded into its original mapped message
 with a separate mutation sequence. Missing compatibility mappings or unsupported
 entry state fail the whole page. No PostgreSQL adapter or handler exists yet.
 
+V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
+original `text`/`emoji` presentation value only in the V1 compatibility mapping.
+Verified import can backfill a pre-cutover null mapping from the reverified
+source; runtime mappings write it atomically. History fails closed if it remains
+unknown.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then

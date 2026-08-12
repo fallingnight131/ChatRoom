@@ -51,6 +51,7 @@ public final class V1MessageTargetImportPlanner {
                     device.deviceId(),
                     payload.targetClientMessageId(),
                     payload.targetContentType(),
+                    payload.legacyContentType(),
                     payload.targetText(),
                     state.recalled(),
                     payload.historicalContentAvailable(),

@@ -17,6 +17,7 @@ public record PlannedV1HistoricalMessage(
         UUID senderDeviceId,
         String clientMessageId,
         int contentType,
+        String legacyContentType,
         String text,
         boolean recalled,
         boolean historicalContentAvailable,

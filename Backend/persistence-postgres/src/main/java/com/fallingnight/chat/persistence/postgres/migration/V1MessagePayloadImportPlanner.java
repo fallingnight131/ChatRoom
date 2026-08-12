@@ -65,6 +65,7 @@ public final class V1MessagePayloadImportPlanner {
                     "v1-import-" + row.legacyKind().name().toLowerCase(java.util.Locale.ROOT)
                             + "-" + row.legacyMessageId(),
                     TEXT_UTF8,
+                    row.contentType(),
                     content,
                     !row.recalled()));
         }

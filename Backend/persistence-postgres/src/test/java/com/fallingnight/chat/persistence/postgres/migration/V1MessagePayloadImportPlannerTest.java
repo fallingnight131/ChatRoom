@@ -27,6 +27,9 @@ class V1MessagePayloadImportPlannerTest {
         assertEquals(first, reordered);
         assertEquals(2, first.messages().size());
         assertTrue(first.messages().stream().allMatch(row -> row.targetContentType() == 1));
+        assertEquals(Set.of("text", "emoji"), first.messages().stream()
+                .map(PlannedV1MessagePayload::legacyContentType)
+                .collect(java.util.stream.Collectors.toSet()));
         assertTrue(first.messages().stream().anyMatch(
                 row -> row.targetClientMessageId().equals("v1-import-room-100")));
         assertTrue(first.messages().stream().anyMatch(

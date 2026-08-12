@@ -11,5 +11,6 @@ public record PlannedV1MessagePayload(
         UUID messageId,
         String targetClientMessageId,
         int targetContentType,
+        String legacyContentType,
         String targetText,
         boolean historicalContentAvailable) {}

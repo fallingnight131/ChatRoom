@@ -306,6 +306,11 @@ with `mutationSequence` and `recalled=true`. Sequence pages are strictly ordered
 by `syncSequence`, bounded to 100, and fail closed on missing V1 IDs or partial
 state. No PostgreSQL adapter or handler exists yet.
 
+Canonical PostgreSQL stores both V1 text and emoji as registered UTF-8 message
+type 1. V020 preserves the original `contentType` only in the V1 message mapping
+so history can reproduce presentation exactly; missing pre-cutover metadata must
+be repaired by verified import and is not guessed.
+
 The M2 Web client persists room/direct snapshots and unresolved text/emoji sends
 in an account-partitioned IndexedDB repository. The Windows client persists
 bounded room/direct drafts and unresolved text/emoji messages in its SQLite
