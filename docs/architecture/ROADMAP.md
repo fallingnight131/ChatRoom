@@ -519,6 +519,9 @@ Progress:
   - [x] Compose detached strict V1 room history with bounded off-loop mixed-page
     reads, compatible response fields, fixed telemetry, and real reconnect
     recovery after replacement login.
+  - [x] Define owner-only V1 room recall with server-bound room/message identity,
+    a database-time 120-second first-apply window, atomic mutation sequence,
+    and notification-safe exact retry intent.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

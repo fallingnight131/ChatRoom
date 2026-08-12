@@ -397,6 +397,13 @@ only fixed telemetry. Real PostgreSQL verifies a durable room message is
 recovered by `afterSequence` after replacement login. The product listener
 remains unchanged.
 
+The room-message mutation boundary now defines owner-only V1 recall from an
+authenticated actor plus positive mapped room/message IDs. It preserves the
+120-second first-apply window, requires one atomic future mutation sequence,
+and makes exact retry notification-safe. Room/resource denial remains distinct
+from ownership/window rejection; client actor, time, and sequence fields are
+not accepted. No PostgreSQL adapter or handler exists yet.
+
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.
 Verified import can backfill a pre-cutover null mapping from the reverified

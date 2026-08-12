@@ -474,6 +474,13 @@ recall uses `FRIEND_RECALL_REJECTED` or
 `FRIEND_RECALL_PERSISTENCE_FAILED` without revealing whether an unrelated
 message ID exists.
 
+The detached Java boundary now also reserves room recall. It accepts only the
+positive V1 `roomId` and `messageId`, binds the actor from authentication, and
+requires the future PostgreSQL transaction to resolve both mappings, active
+membership, ownership, database-time window, and one canonical mutation
+sequence together. Exact retry must return the same mapped result with
+`duplicate: true` and no second notification. No adapter or handler exists yet.
+
 Administrative deletion uses a required `clientOperationId` (with the envelope
 ID as a compatibility fallback), one durable room sequence, and a canonical
 command fingerprint. Exact retries return the original result with
