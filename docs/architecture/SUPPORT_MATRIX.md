@@ -21,7 +21,7 @@ evidence, but it does not make that operating system a supported client.
 
 | Product | Committed target | Toolchain policy | Current evidence | M4 release gate |
 | --- | --- | --- | --- | --- |
-| Windows desktop | Windows 10/11, x86_64 | Qt 6.11.1, MSVC 2022, native Windows CI | unsigned, DLL-complete verification artifact | signed and timestamped `Setup.exe`, install/upgrade/uninstall checks, signed updater |
+| Windows desktop | Windows 10 22H2 (19045), Windows 11 23H2 (22631) and 24H2 (26100), x86_64; public claim still gated | Qt 6.11.1, MSVC 2022, native Windows CI | unsigned, DLL-complete verification artifact; protected candidate policy | signed and timestamped `Setup.exe`, per-target clean-host install/launch/real-upgrade/data/uninstall evidence, signed updater |
 | Web | current + previous stable desktop Chrome, Edge, and Firefox (public claim still gated) | Node.js 22; locked Playwright 1.62.0 with Chromium 151 and Firefox 153 engine gates | production build, versioned response-policy artifact, local two-engine browser smoke | branded browser matrix, production HTTPS/WSS/API observation, staged health and rollback evidence |
 
 The Web engine gate proves startup, required capabilities, endpoint isolation,
@@ -33,6 +33,11 @@ Windows Server CI artifact proves native compilation and
 dependency assembly, not Windows 10/11 clean-host compatibility. Formal public
 support begins only after the M4 install, launch, upgrade, and uninstall matrix
 passes on the named target versions.
+
+The authoritative initial Windows target list is
+[`packaging/windows/support-matrix-policy.json`](../../packaging/windows/support-matrix-policy.json).
+Each gate must report ProductType 1; Windows Server build agents cannot satisfy
+it. ADR-0201 defines the independently verified per-host evidence contract.
 
 The Windows desktop client remains Qt 6/C++. Java is planned for the backend in
 M3 and does not replace the Windows UI toolkit. New or substantially redesigned

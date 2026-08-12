@@ -1573,6 +1573,13 @@ development/portability verification, not a supported desktop release gate.
 - A signed installer, upgrade/uninstall behavior, and automatic updates are
   still separate M4 release concerns. This CI Setup exercises install/uninstall
   mechanics but is not a publisher-signed or publicly supported installer.
+- `packaging/windows/support-matrix-policy.json` pins the initial client hosts
+  to Windows 10 22H2 build 19045 and Windows 11 23H2/24H2 builds 22631/26100.
+  `tools/windows_support_host_evidence.py` rejects Windows Server and binds all
+  clean-host, real-prior-version launch/upgrade, AppData preservation, current
+  launch, running-upgrade/downgrade rejection, uninstall, and cleanup results to
+  both complete signed candidates. Fixture verification is not native host
+  evidence; see ADR-0201.
 
 ## macOS Development-host Notes
 

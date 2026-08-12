@@ -1267,6 +1267,13 @@ incident evidence are retained before the open marker is removed. This proves
 one externally observed recovery instant, not fleet-wide installation or
 continuous health.
 
+ADR-0201 makes the desktop compatibility claim exact: Windows 10 22H2 and
+Windows 11 23H2/24H2 x86_64 are the initial named client targets. A fresh
+ProductType-1 record must bind a real previous signed candidate to the current
+signed candidate and prove install, both launches, upgrade/data preservation,
+running-client and downgrade rejection, uninstall, and cleanup. Windows Server
+CI and synthetic candidate fixtures cannot satisfy this gate.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

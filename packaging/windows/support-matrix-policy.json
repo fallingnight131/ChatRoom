@@ -1,0 +1,22 @@
+{
+  "architecture": "x86_64",
+  "product": "chat-room-windows-client",
+  "schemaVersion": 1,
+  "targets": [
+    {
+      "build": 19045,
+      "captionContains": "Windows 10",
+      "targetId": "windows-10-22h2"
+    },
+    {
+      "build": 22631,
+      "captionContains": "Windows 11",
+      "targetId": "windows-11-23h2"
+    },
+    {
+      "build": 26100,
+      "captionContains": "Windows 11",
+      "targetId": "windows-11-24h2"
+    }
+  ]
+}
