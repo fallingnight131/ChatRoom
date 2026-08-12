@@ -32,6 +32,8 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectMessageR
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectHistoryMessage;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectHistoryQuery;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectHistoryResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectRecallCommand;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectRecallResult;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -123,7 +125,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(20, first.migrate());
+        assertEquals(21, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -1100,6 +1102,141 @@ class PostgresMigratorTest {
         assertThrows(MessagePersistenceException.class,
                 () -> reader.read(new LegacyV1DirectHistoryQuery(
                         sender, "history-target", 10, 0, 3L)));
+    }
+
+    @Test
+    @Order(97)
+    void recallsOwnedMappedV1DirectMessageExactlyOnce() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID sender = UUID.randomUUID();
+        UUID target = UUID.randomUUID();
+        UUID outsider = UUID.randomUUID();
+        UUID senderDevice = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        UUID firstAccount = sender.toString().compareTo(target.toString()) < 0 ? sender : target;
+        UUID secondAccount = firstAccount.equals(sender) ? target : sender;
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'recall-sender', 'Recall Sender', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'recall-target', 'Recall Target', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'recall-outsider', 'Recall Outsider', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    sender, target, outsider);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                            + "VALUES (21, ?), (22, ?), (23, ?)", sender, target, outsider);
+            execute(connection,
+                    "INSERT INTO chat.device(id, account_id, client_device_id, platform) "
+                            + "VALUES (?, ?, 'recall-device', 'LEGACY')",
+                    senderDevice, sender);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')", conversation);
+            execute(connection,
+                    "INSERT INTO chat.direct_conversation VALUES (?, ?, ?)",
+                    conversation, firstAccount, secondAccount);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id) "
+                            + "VALUES (?, ?), (?, ?)",
+                    conversation, sender, conversation, target);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map(legacy_kind, "
+                            + "legacy_conversation_id, conversation_id) "
+                            + "VALUES ('FRIENDSHIP', 299, ?)", conversation);
+        }
+        PostgresLegacyV1DirectMessageAdapter writer =
+                new PostgresLegacyV1DirectMessageAdapter(dataSource());
+        LegacyV1DirectMessageResult.Accepted first =
+                (LegacyV1DirectMessageResult.Accepted) writer.submit(
+                        new LegacyV1DirectMessageCommand(sender, senderDevice,
+                                "recall-target", "recall-client-1", "first", "text"));
+        LegacyV1DirectMessageResult.Accepted expired =
+                (LegacyV1DirectMessageResult.Accepted) writer.submit(
+                        new LegacyV1DirectMessageCommand(sender, senderDevice,
+                                "recall-target", "recall-client-2", "old", "text"));
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.message SET accepted_at = transaction_timestamp() "
+                            + "- interval '121 seconds' WHERE client_message_id = "
+                            + "'recall-client-2'");
+            UUID firstMessage;
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "SELECT id FROM chat.message WHERE client_message_id = 'recall-client-1'")) {
+                try (ResultSet row = statement.executeQuery()) {
+                    assertTrue(row.next());
+                    firstMessage = row.getObject(1, UUID.class);
+                }
+            }
+            SQLException wrongEntryKind = assertThrows(SQLException.class, () -> execute(
+                    connection,
+                    "INSERT INTO chat.message_recall_event(conversation_id, "
+                            + "conversation_sequence, message_id, actor_account_id, source) "
+                            + "VALUES (?, 1, ?, ?, 'V2')",
+                    conversation, firstMessage, sender));
+            assertEquals("23503", wrongEntryKind.getSQLState());
+        }
+
+        PostgresLegacyV1DirectRecallAdapter adapter =
+                new PostgresLegacyV1DirectRecallAdapter(dataSource());
+        LegacyV1DirectRecallCommand command =
+                new LegacyV1DirectRecallCommand(sender, first.legacyMessageId());
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        List<LegacyV1DirectRecallResult> results;
+        try {
+            var task = (java.util.concurrent.Callable<LegacyV1DirectRecallResult>) () -> {
+                ready.countDown();
+                assertTrue(start.await(5, TimeUnit.SECONDS));
+                return adapter.recall(command);
+            };
+            Future<LegacyV1DirectRecallResult> left = executor.submit(task);
+            Future<LegacyV1DirectRecallResult> right = executor.submit(task);
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+            results = List.of(left.get(10, TimeUnit.SECONDS),
+                    right.get(10, TimeUnit.SECONDS));
+        } finally {
+            executor.shutdownNow();
+        }
+        assertEquals(1, results.stream()
+                .map(LegacyV1DirectRecallResult.Recalled.class::cast)
+                .filter(result -> !result.duplicate()).count());
+        assertEquals(1, results.stream()
+                .map(LegacyV1DirectRecallResult.Recalled.class::cast)
+                .filter(LegacyV1DirectRecallResult.Recalled::duplicate).count());
+        LegacyV1DirectRecallResult.Recalled recalled = results.stream()
+                .map(LegacyV1DirectRecallResult.Recalled.class::cast)
+                .findFirst().orElseThrow();
+        assertEquals(299, recalled.legacyFriendshipId());
+        assertEquals(first.legacyMessageId(), recalled.legacyMessageId());
+        assertEquals(3, recalled.mutationSequence());
+        assertEquals(target, recalled.targetAccountId());
+        assertEquals("recall-target", recalled.targetUsername());
+        assertEquals(LegacyV1DirectRecallResult.Rejected.RECALL_DENIED,
+                adapter.recall(new LegacyV1DirectRecallCommand(
+                        outsider, first.legacyMessageId())));
+        assertEquals(LegacyV1DirectRecallResult.Rejected.RECALL_DENIED,
+                adapter.recall(new LegacyV1DirectRecallCommand(
+                        sender, expired.legacyMessageId())));
+        assertEquals(1, count("SELECT count(*) FROM chat.message_recall_event "
+                + "WHERE conversation_id = '" + conversation + "'"));
+        assertEquals(4, count("SELECT next_sequence FROM chat.conversation WHERE id = '"
+                + conversation + "'"));
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.conversation_member SET left_at = transaction_timestamp() "
+                            + "WHERE conversation_id = ?", conversation);
+        }
+        LegacyV1DirectRecallResult.Recalled retryAfterRemoval =
+                (LegacyV1DirectRecallResult.Recalled) adapter.recall(command);
+        assertTrue(retryAfterRemoval.duplicate());
+        assertEquals(recalled.mutationSequence(), retryAfterRemoval.mutationSequence());
+        assertEquals(recalled.occurredAt(), retryAfterRemoval.occurredAt());
     }
 
     @Test

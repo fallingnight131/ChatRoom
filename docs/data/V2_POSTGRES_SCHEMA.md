@@ -106,6 +106,11 @@ storage continues using UTF-8 type 1 for both text and emoji; verified import an
 runtime compatibility writes preserve the original `text`/`emoji` presentation
 there. A pre-cutover null requires verified-source backfill before V1 history is
 served.
+V021 makes recall integrity explicit. A recall row references the matching
+`MESSAGE_RECALLED` entry kind, not merely an occupied conversation sequence, and
+the canonical `(conversation_id, message_id)` target is unique. This prevents
+wrong-kind references and multiple mutation events for one message before
+runtime recall writers are composed.
 The read-only application compatibility port keeps the namespace type alongside
 the numeric ID and supports both V1-to-V2 request translation and V2-to-V1 event
 projection. Its PostgreSQL adapter does not create mappings, infer identities,
@@ -395,7 +400,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V020, reruns migration as a simulated
+cluster, migrates a clean database through current V021, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable

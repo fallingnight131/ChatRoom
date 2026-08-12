@@ -269,10 +269,11 @@ product listener remains inactive.
 The detached Java application boundary now also reserves owner-only direct
 recall. It accepts only the positive V1 `messageId` from the request and binds
 the actor from authentication; client peer/sequence/time fields are not
-authority. First apply retains the existing 120-second policy and a future
-atomic canonical mutation sequence. Exact owner retry will return the same
-event with `duplicate: true` and no second notification. No adapter or handler
-exists yet.
+authority. First apply retains the existing 120-second policy and allocates an
+atomic canonical mutation sequence. The PostgreSQL adapter enforces these
+rules with database time and retry-convergent serialization. Exact owner retry
+returns the same event with `duplicate: true` and no second notification. No
+gateway handler exists yet.
 
 ### History
 

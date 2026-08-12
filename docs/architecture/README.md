@@ -356,12 +356,13 @@ now binds authenticated identity, executes off-loop, emits only legacy message
 identity and compatible sequence metadata, and has real reconnect proof. The
 product listener remains unchanged.
 
-The next direct-message mutation boundary defines owner-only V1 recall from an
-authenticated actor and positive legacy message ID. A future PostgreSQL adapter
-will use database time for the 120-second first-apply window and atomically add
-one canonical recall sequence; an exact owner retry recovers that event without
-another notification. Peer names and sequence values from the wire are never
-authority. No persistence adapter or handler exists yet.
+The direct-message mutation boundary defines owner-only V1 recall from an
+authenticated actor and positive legacy message ID. Its serializable PostgreSQL
+adapter uses database time for the 120-second first-apply window and atomically
+adds one canonical recall sequence. V021 requires a correctly typed entry and
+at most one event per message. Concurrent or later exact owner retries recover
+that event without another notification. Peer names and sequence values from
+the wire are never authority. No gateway handler exists yet.
 
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.
