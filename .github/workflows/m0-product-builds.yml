@@ -10,6 +10,7 @@ permissions:
 
 env:
   QT_VERSION: "6.11.1"
+  NSIS_VERSION: "3.12.0"
 
 jobs:
   linux-release:
@@ -96,7 +97,9 @@ jobs:
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Test Windows artifact manifest policy
-        run: python Tests/windows_artifact_manifest_test.py
+        run: |
+          python Tests/windows_artifact_manifest_test.py
+          python Tests/windows_installer_policy_test.py
 
       - name: Install pinned Qt SDK
         uses: jurplel/install-qt-action@v4.3.1
@@ -116,7 +119,7 @@ jobs:
       - name: Build Qt server and desktop client in Release mode
         run: python tools/verify_m0.py --qt
 
-      - name: Assemble unsigned Windows verification artifact
+      - name: Assemble unsigned Windows client payload
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -130,11 +133,81 @@ jobs:
           windeployqt --release --no-translations "$artifact/client/ChatClient.exe"
           $sqlitePlugin = Get-ChildItem "$artifact/client/sqldrivers" -Filter "qsqlite.dll" -ErrorAction SilentlyContinue
           if (-not $sqlitePlugin) { throw "Windows client artifact is missing the Qt SQLite driver" }
+
+      - name: Install pinned NSIS compiler
+        shell: pwsh
+        run: choco install nsis --version="$env:NSIS_VERSION" --yes --no-progress
+
+      - name: Compile and exercise unsigned Windows installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $artifact = (Resolve-Path "build/m0/artifacts/windows").Path
+          $payload = (Resolve-Path "$artifact/client").Path
+          $icon = (Resolve-Path "Client/resources/app_icon.ico").Path
+          $version = "${{ steps.product-version.outputs.version }}"
+          $installerDirectory = "$artifact/installer"
+          New-Item -ItemType Directory -Force $installerDirectory | Out-Null
+          $installerDirectory = (Resolve-Path $installerDirectory).Path
+          $makensis = Join-Path ${env:ProgramFiles(x86)} "NSIS/makensis.exe"
+          if (-not (Test-Path $makensis -PathType Leaf)) { throw "Pinned NSIS compiler was not found" }
+
+          & $makensis /WX /NOCONFIG /V2 "/DVERSION=$version" "/DSOURCE_REVISION=${{ github.sha }}" `
+            "/DPAYLOAD_DIR=$payload" "/DOUTPUT_DIR=$installerDirectory" "/DICON_FILE=$icon" `
+            packaging/windows/ChatRoom.nsi
+          if ($LASTEXITCODE -ne 0) { throw "NSIS compilation failed with exit code $LASTEXITCODE" }
+
+          $installer = "$installerDirectory/ChatRoom-$version-unsigned-verification-Setup.exe"
+          if (-not (Test-Path $installer -PathType Leaf)) { throw "Unsigned Setup.exe was not created" }
+          if ((Get-AuthenticodeSignature $installer).Status -ne "NotSigned") {
+            throw "Verification installer must remain explicitly unsigned"
+          }
+
+          $installRoot = "$env:RUNNER_TEMP/ChatRoomInstall"
+          if ($installRoot.Contains(" ")) { throw "Silent verification install path must not contain spaces" }
+          $install = Start-Process -FilePath $installer -ArgumentList @("/S", "/D=$installRoot") -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Silent install failed with exit code $($install.ExitCode)" }
+          $installedClient = "$installRoot/ChatClient.exe"
+          if (-not (Test-Path $installedClient -PathType Leaf)) { throw "Installed client executable is missing" }
+          if (-not (Test-Path "$installRoot/sqldrivers/qsqlite.dll" -PathType Leaf)) {
+            throw "Installed client is missing the Qt SQLite driver"
+          }
+          if (-not (Get-Item $installedClient).VersionInfo.ProductVersion.StartsWith($version)) {
+            throw "Installed client version does not match canonical VERSION"
+          }
+          $uninstallKey = Get-ItemProperty "HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/ChatRoom"
+          if ($uninstallKey.DisplayVersion -ne $version -or $uninstallKey.SourceRevision -ne "${{ github.sha }}") {
+            throw "Installed Add/Remove Programs metadata is not traceable"
+          }
+
+          $sentinelDirectory = "$env:APPDATA/QtChatRoom/ChatClient"
+          New-Item -ItemType Directory -Force $sentinelDirectory | Out-Null
+          $sentinel = "$sentinelDirectory/.m4-installer-verification"
+          Set-Content -Path $sentinel -Value "preserve"
+          $uninstall = Start-Process -FilePath "$installRoot/Uninstall.exe" -ArgumentList "/S" -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0) { throw "Silent uninstall failed with exit code $($uninstall.ExitCode)" }
+          for ($attempt = 0; $attempt -lt 20 -and (Test-Path $installRoot); $attempt++) {
+            Start-Sleep -Milliseconds 250
+          }
+          if (Test-Path $installRoot) { throw "Uninstall left the application directory behind" }
+          if (-not (Test-Path $sentinel -PathType Leaf)) { throw "Uninstall deleted account-local client data" }
+          if (Test-Path "HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/ChatRoom") {
+            throw "Uninstall registration was not removed"
+          }
+          Remove-Item $sentinel -Force
+
+      - name: Generate Windows artifact integrity manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $artifact = "build/m0/artifacts/windows"
+          $version = "${{ steps.product-version.outputs.version }}"
           python tools/windows_artifact_manifest.py `
             --payload-root "$artifact/client" `
             --version-file VERSION `
             --source-revision "${{ github.sha }}" `
             --qt-version "${{ env.QT_VERSION }}" `
+            --installer "$artifact/installer/ChatRoom-$version-unsigned-verification-Setup.exe" `
             --output-dir "$artifact"
 
       - name: Upload unsigned Windows verification artifact

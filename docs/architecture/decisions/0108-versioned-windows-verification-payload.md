@@ -46,6 +46,9 @@ Every Windows verification payload is now traceable to source and has a
 machine-readable integrity inventory suitable as an input to installer work.
 The client/server product boundary is explicit.
 
+ADR-0110 subsequently advances the manifest to schema 2 and records the exact
+unsigned NSIS verification installer separately from its client payload.
+
 The payload is still not an installer or a supported release. SHA-256 detects
 change but does not authenticate the publisher. Windows 10/11 clean-host
 install, launch, upgrade, local-data preservation, uninstall, Authenticode, and

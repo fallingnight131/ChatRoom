@@ -58,6 +58,22 @@ class WindowsArtifactManifestTest(unittest.TestCase):
         self.assertEqual(parsed, first)
         self.assertEqual((output / "SHA256SUMS").read_text(encoding="utf-8").count("\n"), 2)
 
+    def test_records_only_the_expected_unsigned_nsis_installer(self) -> None:
+        installer = self.root / "ChatRoom-1.2.3-beta-Setup.exe"
+        installer.write_bytes(b"wrong")
+        with self.assertRaisesRegex(ManifestError, "installer path or name"):
+            build_manifest(self.payload, self.version_file, "a" * 40, "6.11.1", installer)
+
+        installer = self.root / "ChatRoom-1.2.3-unsigned-verification-Setup.exe"
+        installer.write_bytes(b"setup")
+        manifest, checksums = build_manifest(
+            self.payload, self.version_file, "a" * 40, "6.11.1", installer,
+        )
+        self.assertEqual(manifest["schemaVersion"], 2)
+        self.assertEqual(manifest["installer"]["format"], "nsis")
+        self.assertEqual(manifest["installer"]["signatureStatus"], "unsigned-verification-only")
+        self.assertTrue(checksums[-1].endswith("installer/ChatRoom-1.2.3-unsigned-verification-Setup.exe"))
+
     def test_rejects_noncanonical_identity_and_empty_payload(self) -> None:
         self.version_file.write_text(" 1.2.3\n", encoding="utf-8")
         with self.assertRaisesRegex(ManifestError, "SemVer"):

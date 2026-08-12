@@ -553,6 +553,8 @@ Progress:
 
 - [x] Establish one canonical Windows desktop version source and a deterministic,
   client-only, explicitly unsigned verification-payload manifest tied to source.
+- [x] Add an unsigned NSIS direct-installer skeleton with native CI install,
+  uninstall, registry traceability, and account-local data preservation checks.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

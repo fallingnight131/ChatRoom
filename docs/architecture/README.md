@@ -578,6 +578,14 @@ revision and toolchain. The metadata is deliberately labeled
 `unsigned-verification-only`; it is integrity and traceability evidence, not
 publisher authentication or installation evidence.
 
+ADR-0110 adds the next Windows delivery boundary: pinned NSIS compiles a
+per-user, client-only Setup/uninstaller from that verified payload. Native CI
+checks silent install, canonical executable/version/SQLite runtime and HKCU
+uninstall metadata, then silent uninstall while account-local data survives.
+The artifact remains named and manifested as unsigned verification output;
+Windows 10/11 launch/upgrade, Authenticode/RFC 3161 timestamping, updater, and
+rollback remain release gates.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

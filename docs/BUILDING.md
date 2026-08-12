@@ -524,9 +524,14 @@ development/portability verification, not a supported desktop release gate.
   containing the exact Git revision, toolchain identity, file sizes, and hashes.
   Run its cross-platform policy test with
   `python3 Tests/windows_artifact_manifest_test.py`.
+- The native job also pins NSIS 3.12, compiles an explicitly unsigned per-user
+  `Setup.exe`, silently installs it in an isolated directory, validates version,
+  SQLite runtime and HKCU uninstall metadata, then uninstalls it while proving
+  account-local data survives. Its source-policy test is
+  `python3 Tests/windows_installer_policy_test.py`.
 - A signed installer, upgrade/uninstall behavior, and automatic updates are
-  separate M4 concerns. The verification payload and checksum manifest are not
-  an installer or publisher signature.
+  still separate M4 release concerns. This CI Setup exercises install/uninstall
+  mechanics but is not a publisher-signed or publicly supported installer.
 
 ## macOS Development-host Notes
 

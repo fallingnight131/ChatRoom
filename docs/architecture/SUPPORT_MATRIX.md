@@ -57,9 +57,11 @@ compatibility gate, but it is excluded from the client distribution payload.
 
 The client-only verification payload records canonical version, Git revision,
 toolchain, file sizes, and SHA-256 hashes in a deterministic manifest. It remains
-short-lived build evidence only and is explicitly labeled unsigned. It is not
-an installer because it has no Authenticode signature, installation/upgrade
-policy, uninstall behavior, or signed automatic-update manifest.
+short-lived build evidence only and is explicitly labeled unsigned. Native CI
+now compiles an NSIS Setup and exercises isolated silent install/uninstall plus
+account-local data preservation, but that Setup still has no Authenticode
+signature, clean Windows 10/11 launch/upgrade matrix, or signed automatic-update
+manifest and is not a supported release.
 
 M4 must provide:
 

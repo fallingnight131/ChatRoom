@@ -26,10 +26,12 @@ def build_manifest(
     version_file: Path,
     source_revision: str,
     qt_version: str,
+    installer: Path | None = None,
 ) -> tuple[dict[str, object], list[str]]:
     validate_revision(source_revision)
     if not QT_VERSION.fullmatch(qt_version):
         raise ManifestError("Qt version must use major.minor.patch")
+    version = read_version(version_file)
 
     entries: list[dict[str, object]] = []
     checksum_lines: list[str] = []
@@ -41,9 +43,9 @@ def build_manifest(
         checksum_lines.append(f"{digest}  {artifact_path}")
 
     manifest: dict[str, object] = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "product": "chat-room-windows-client",
-        "version": read_version(version_file),
+        "version": version,
         "channel": "verification",
         "platform": "windows",
         "architecture": "x86_64",
@@ -53,6 +55,20 @@ def build_manifest(
         "signatureStatus": "unsigned-verification-only",
         "files": entries,
     }
+    if installer is not None:
+        expected_name = f"ChatRoom-{version}-unsigned-verification-Setup.exe"
+        if installer.is_symlink() or not installer.is_file() or installer.name != expected_name:
+            raise ManifestError("installer path or name is invalid")
+        digest, size = sha256_file(installer)
+        artifact_path = f"installer/{installer.name}"
+        manifest["installer"] = {
+            "path": artifact_path,
+            "format": "nsis",
+            "sha256": digest,
+            "size": size,
+            "signatureStatus": "unsigned-verification-only",
+        }
+        checksum_lines.append(f"{digest}  {artifact_path}")
     return manifest, checksum_lines
 
 
@@ -70,6 +86,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--version-file", type=Path, required=True)
     parser.add_argument("--source-revision", required=True)
     parser.add_argument("--qt-version", required=True)
+    parser.add_argument("--installer", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     return parser.parse_args()
 
@@ -82,6 +99,7 @@ def main() -> int:
             args.version_file,
             args.source_revision,
             args.qt_version,
+            args.installer,
         )
         write_manifest(args.output_dir, manifest, checksums)
     except (ManifestError, OSError) as error:
