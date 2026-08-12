@@ -143,6 +143,20 @@ and rejects tampering/expiry/unsafe URLs. It does not create or trust a product
 key and refuses the unsigned verification Setup name. See
 [`UPDATE_MANIFEST.md`](../packaging/windows/UPDATE_MANIFEST.md) and ADR-0117.
 
+The provider-neutral post-signing acceptance policy is checked with:
+
+```bash
+python3 Tests/windows_release_signature_policy_test.py
+```
+
+On Windows, `tools/verify_windows_release_signatures.ps1` accepts only the final
+canonical client, update helper, and `ChatRoom-<version>-Setup.exe`. Each must
+have valid Authenticode, the reviewed SHA-256 publisher certificate, and a
+timestamp certificate before immutable evidence is created. The script accepts
+no private key or password input. Native unsigned CI renames its Setup only for
+a negative check and requires rejection with no evidence; it does not exercise
+the positive signed path.
+
 The Qt gate also compiles `UpdateManifestSignatureVerifierTest`. It generates an
 ephemeral Ed25519 keypair and proves canonical verification plus empty-key,
 unknown-key, tamper, and non-canonical rejection. The client now links libsodium;
@@ -731,6 +745,10 @@ development/portability verification, not a supported desktop release gate.
   SQLite runtime and HKCU uninstall metadata, then uninstalls it while proving
   account-local data survives. Its source-policy test is
   `python3 Tests/windows_installer_policy_test.py`.
+- The same job invokes the provider-neutral release-signature verifier against
+  unsigned payloads and a renamed Setup, and requires fail-closed rejection with
+  no evidence. Positive client/helper/Setup signature evidence is reserved for
+  a protected release job with external key custody.
 - A signed installer, upgrade/uninstall behavior, and automatic updates are
   still separate M4 release concerns. This CI Setup exercises install/uninstall
   mechanics but is not a publisher-signed or publicly supported installer.

@@ -623,6 +623,9 @@ Progress:
 - [x] Activate discovery and installation UX only for compiled-trust Windows
   builds, with first-login/manual checks, cancellable preparation, default-No
   consent, prepared-file cleanup, and the normal draft/disconnect quit path.
+- [x] Add a provider-neutral post-signing Windows release evidence boundary for
+  the client, update helper, and final Setup, and prove unsigned artifacts fail
+  without producing evidence in native CI.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

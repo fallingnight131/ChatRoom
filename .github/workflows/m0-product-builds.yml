@@ -100,6 +100,7 @@ jobs:
         run: |
           python Tests/windows_artifact_manifest_test.py
           python Tests/windows_installer_policy_test.py
+          python Tests/windows_release_signature_policy_test.py
 
       - name: Install pinned Qt SDK
         uses: jurplel/install-qt-action@v4.3.1
@@ -176,6 +177,33 @@ jobs:
           if (-not (Test-Path $installer -PathType Leaf)) { throw "Unsigned Setup.exe was not created" }
           if ((Get-AuthenticodeSignature $installer).Status -ne "NotSigned") {
             throw "Verification installer must remain explicitly unsigned"
+          }
+
+          $unsignedReleaseName = "$env:RUNNER_TEMP/ChatRoom-$version-Setup.exe"
+          $unsignedSignatureEvidence = "$env:RUNNER_TEMP/windows-release-signatures.json"
+          Copy-Item $installer $unsignedReleaseName
+          try {
+            $signatureRejected = $false
+            try {
+              & tools/verify_windows_release_signatures.ps1 `
+                -ClientPath "$payload/ChatClient.exe" `
+                -LauncherPath "$payload/ChatRoomUpdateLauncher.exe" `
+                -InstallerPath $unsignedReleaseName `
+                -Version $version `
+                -SourceRevision "${{ github.sha }}" `
+                -ExpectedSignerSha256 ("0" * 64) `
+                -EvidencePath $unsignedSignatureEvidence
+            } catch {
+              $signatureRejected = $true
+            }
+            if (-not $signatureRejected) {
+              throw "Unsigned verification artifacts unexpectedly passed release signature policy"
+            }
+            if (Test-Path $unsignedSignatureEvidence) {
+              throw "Unsigned release-signature rejection created evidence"
+            }
+          } finally {
+            Remove-Item $unsignedReleaseName,$unsignedSignatureEvidence -Force -ErrorAction SilentlyContinue
           }
 
           $installRoot = "$env:RUNNER_TEMP/ChatRoomInstall"

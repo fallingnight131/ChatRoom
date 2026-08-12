@@ -81,6 +81,10 @@ checks once after first login and on manual request, offers cancellation while
 preparing, requires default-No install consent after trust succeeds, removes a
 declined/failed prepared file, and uses the normal draft/disconnect quit path
 only after two-phase handoff authorization.
+ADR-0139 defines provider-neutral post-signing evidence for the exact client,
+update helper, and final Setup. All three must have valid timestamped
+Authenticode from the reviewed SHA-256 publisher certificate before evidence is
+written. Current CI proves only unsigned rejection and supplies no private key.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin

@@ -169,6 +169,12 @@ uses the existing draft-flush/disconnect quit path only after committed handoff.
 This is reachable product composition, not native Windows release evidence;
 production keys, signed Setup acceptance, and restart remain unverified.
 
+A provider-neutral native signature probe now defines the positive release
+contract for the client, update helper, and final Setup: exact names, valid
+timestamped Authenticode, one reviewed publisher-certificate SHA-256, and atomic
+final-byte evidence. Current CI exercises only its unsigned rejection path and
+does not satisfy the Windows support gate.
+
 The Windows client now owns a session-local liveness mutex and refuses a second
 instance. NSIS checks the same mutex before mutation and returns 4 for a silent
 running-client attempt; native CI is configured to prove the current install and
