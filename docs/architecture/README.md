@@ -314,11 +314,11 @@ first-only notification, retry suppression, and mapped pending-list visibility
 across real imported logins. The product listener remains unchanged.
 
 Friend removal now has a transport-independent boundary. The authenticated
-actor and exact target username are the only inputs. The future PostgreSQL
-decision will atomically end both active DIRECT memberships while retaining the
-conversation, compatibility mapping, messages, entries, and cursors. First
-removal and exact response-loss retry remain distinguishable so only the first
-may notify the peer. No adapter or route exists for this boundary yet.
+actor and exact target username are the only inputs. Its PostgreSQL adapter
+atomically ends both active DIRECT memberships while retaining the conversation,
+compatibility mapping, messages, entries, and cursors. Two inactive memberships
+behind the retained mapping prove an exact retry; mixed membership state fails
+closed. Only first removal may later notify the peer. No route exists yet.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,

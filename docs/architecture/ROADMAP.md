@@ -475,6 +475,8 @@ Progress:
     real imported logins on disposable PostgreSQL.
   - [x] Define V1 friend removal as an idempotent, server-authorized termination
     of active DIRECT memberships that preserves durable history and mapping.
+  - [x] Implement atomic PostgreSQL friend removal with retained conversation
+    state, exact-retry detection, and fail-closed partial-membership handling.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

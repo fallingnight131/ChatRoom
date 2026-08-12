@@ -26,6 +26,7 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendDirector
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestRejectionResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestAcceptanceResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestCreationResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRemovalResult;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -769,6 +770,89 @@ class PostgresMigratorTest {
                 + "JOIN chat.contact_request request ON request.id = mapping.contact_request_id "
                 + "WHERE request.requester_account_id = '" + requester + "' "
                 + "AND mapping.legacy_request_id BETWEEN 1 AND 2147483647"));
+    }
+
+    @Test
+    @Order(94)
+    void removesV1FriendshipIdempotentlyWithoutDeletingDurableHistory() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID actor = UUID.randomUUID();
+        UUID target = UUID.randomUUID();
+        UUID stranger = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        UUID first = actor.toString().compareTo(target.toString()) < 0 ? actor : target;
+        UUID second = first.equals(actor) ? target : actor;
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'remove-owner', 'Owner', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'remove-peer', 'Peer', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'remove-stranger', 'Stranger', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    actor, target, stranger);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                            + "VALUES (1, ?), (2, ?), (3, ?)", actor, target, stranger);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind, next_sequence) "
+                            + "VALUES (?, 'DIRECT', 7)", conversation);
+            execute(connection,
+                    "INSERT INTO chat.direct_conversation("
+                            + "conversation_id, first_account_id, second_account_id) "
+                            + "VALUES (?, ?, ?)", conversation, first, second);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member("
+                            + "conversation_id, account_id, last_read_sequence) "
+                            + "VALUES (?, ?, 4), (?, ?, 5)",
+                    conversation, actor, conversation, target);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map("
+                            + "legacy_kind, legacy_conversation_id, conversation_id) "
+                            + "VALUES ('FRIENDSHIP', 88, ?)", conversation);
+        }
+
+        PostgresLegacyV1FriendRemovalAdapter adapter =
+                new PostgresLegacyV1FriendRemovalAdapter(dataSource());
+        assertEquals(LegacyV1FriendRemovalResult.Rejected.TARGET_NOT_FOUND,
+                adapter.remove(actor, "missing"));
+        assertEquals(LegacyV1FriendRemovalResult.Rejected.SELF_REMOVAL,
+                adapter.remove(actor, "remove-owner"));
+        assertEquals(LegacyV1FriendRemovalResult.Rejected.NOT_FRIENDS,
+                adapter.remove(actor, "remove-stranger"));
+        assertEquals(new LegacyV1FriendRemovalResult.Removed(
+                        false, target, "remove-peer"),
+                adapter.remove(actor, "remove-peer"));
+        assertEquals(new LegacyV1FriendRemovalResult.Removed(
+                        true, target, "remove-peer"),
+                adapter.remove(actor, "remove-peer"));
+
+        assertEquals(2, count("SELECT count(*) FROM chat.conversation_member "
+                + "WHERE conversation_id = '" + conversation + "' AND left_at IS NOT NULL"));
+        assertEquals(1, count("SELECT count(DISTINCT left_at) "
+                + "FROM chat.conversation_member WHERE conversation_id = '"
+                + conversation + "'"));
+        assertEquals(1, count("SELECT count(*) FROM chat.conversation "
+                + "WHERE id = '" + conversation + "' AND next_sequence = 7"));
+        assertEquals(2, count("SELECT count(*) FROM chat.conversation_member "
+                + "WHERE conversation_id = '" + conversation
+                + "' AND last_read_sequence IN (4, 5)"));
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_conversation_map "
+                + "WHERE legacy_kind = 'FRIENDSHIP' AND legacy_conversation_id = 88 "
+                + "AND conversation_id = '" + conversation + "'"));
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.conversation_member SET left_at = NULL "
+                            + "WHERE conversation_id = ? AND account_id = ?",
+                    conversation, actor);
+        }
+        assertThrows(ConversationPersistenceException.class,
+                () -> adapter.remove(actor, "remove-peer"));
+        assertEquals(1, count("SELECT count(*) FROM chat.conversation_member "
+                + "WHERE conversation_id = '" + conversation + "' AND left_at IS NULL"));
     }
 
     @Test
