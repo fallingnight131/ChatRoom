@@ -19,6 +19,30 @@ from artifact_manifest_common import (
 )
 
 QT_VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
+PARITY_EXECUTABLES = {"ChatClient.exe", "ChatRoomUpdateLauncher.exe"}
+
+
+def valid_parity_inventory(value: object) -> bool:
+    if not isinstance(value, dict) or not PARITY_EXECUTABLES.issubset(value):
+        return False
+    if "sqldrivers/qsqlite.dll" not in value:
+        return False
+    if len({name.casefold() for name in value}) != len(value):
+        return False
+    sodium = [name for name in value
+              if "/" not in name and "sodium" in name.casefold()
+              and name.casefold().endswith(".dll")]
+    if len(sodium) != 1:
+        return False
+    for name, entry in value.items():
+        if (not isinstance(name, str) or not isinstance(entry, dict)
+                or set(entry) != {"size", "sha256"}
+                or not isinstance(entry["size"], int) or entry["size"] <= 0
+                or not isinstance(entry["sha256"], str)
+                or not SHA256.fullmatch(entry["sha256"])):
+            return False
+    return True
 
 
 def build_manifest(
@@ -27,6 +51,7 @@ def build_manifest(
     source_revision: str,
     qt_version: str,
     installer: Path | None = None,
+    cmake_payload_parity: Path | None = None,
 ) -> tuple[dict[str, object], list[str]]:
     validate_revision(source_revision)
     if not QT_VERSION.fullmatch(qt_version):
@@ -69,6 +94,46 @@ def build_manifest(
             "signatureStatus": "unsigned-verification-only",
         }
         checksum_lines.append(f"{digest}  {artifact_path}")
+    if cmake_payload_parity is not None:
+        if (cmake_payload_parity.is_symlink()
+                or not cmake_payload_parity.is_file()
+                or cmake_payload_parity.name != "cmake-payload-parity.json"):
+            raise ManifestError("CMake payload parity evidence path is invalid")
+        try:
+            evidence = json.loads(cmake_payload_parity.read_text(encoding="utf-8"))
+        except (UnicodeError, json.JSONDecodeError) as error:
+            raise ManifestError("CMake payload parity evidence JSON is invalid") from error
+        expected_keys = {
+            "schemaVersion", "version", "sourceRevision",
+            "baselineBuildSystem", "candidateBuildSystem",
+            "runtimeBytesEquivalent", "executableByteDifferencesAllowed",
+            "baseline", "candidate",
+        }
+        if (not isinstance(evidence, dict) or set(evidence) != expected_keys
+                or evidence.get("schemaVersion") != 1
+                or evidence.get("version") != version
+                or evidence.get("sourceRevision") != source_revision
+                or evidence.get("baselineBuildSystem") != "qmake"
+                or evidence.get("candidateBuildSystem") != "cmake"
+                or evidence.get("runtimeBytesEquivalent") is not True
+                or evidence.get("executableByteDifferencesAllowed")
+                    != ["ChatClient.exe", "ChatRoomUpdateLauncher.exe"]
+                or not valid_parity_inventory(evidence.get("baseline"))
+                or not valid_parity_inventory(evidence.get("candidate"))
+                or set(evidence["baseline"]) != set(evidence["candidate"])):
+            raise ManifestError("CMake payload parity evidence policy rejected the record")
+        for name in set(evidence["baseline"]) - PARITY_EXECUTABLES:
+            if evidence["baseline"][name] != evidence["candidate"][name]:
+                raise ManifestError("CMake payload parity runtime evidence differs")
+        digest, size = sha256_file(cmake_payload_parity)
+        artifact_path = "cmake-payload-parity.json"
+        manifest["cmakePayloadParity"] = {
+            "path": artifact_path,
+            "sha256": digest,
+            "size": size,
+            "runtimeBytesEquivalent": True,
+        }
+        checksum_lines.append(f"{digest}  {artifact_path}")
     return manifest, checksum_lines
 
 
@@ -87,6 +152,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-revision", required=True)
     parser.add_argument("--qt-version", required=True)
     parser.add_argument("--installer", type=Path)
+    parser.add_argument("--cmake-payload-parity", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     return parser.parse_args()
 
@@ -100,6 +166,7 @@ def main() -> int:
             args.source_revision,
             args.qt_version,
             args.installer,
+            args.cmake_payload_parity,
         )
         write_manifest(args.output_dir, manifest, checksums)
     except (ManifestError, OSError) as error:

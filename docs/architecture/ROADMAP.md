@@ -687,6 +687,9 @@ Progress:
 - [x] Add Windows-only CMake `ChatClient` and update-helper verification targets,
   canonical PE version/icon resources, qmake source-graph parity policy, and a
   native MSVC build lane while retaining qmake packaging as rollback.
+- [x] Independently deploy the CMake Windows targets in native CI, require exact
+  qmake/CMake runtime inventory and non-executable byte parity, and bind the
+  closed comparison evidence into the uploaded artifact manifest.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

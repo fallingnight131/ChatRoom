@@ -244,6 +244,27 @@ payload/NSIS gates still consume qmake outputs as the rollback path. Do not
 switch packaging until CMake `windeployqt`, runtime inventory, install/upgrade,
 uninstall, and unsigned-rejection behavior have matching native evidence.
 
+As the first parity stage, Windows CI runs `windeployqt` on the CMake client in
+an isolated directory and invokes:
+
+```bash
+python3 tools/compare_windows_client_payloads.py \
+  --baseline /absolute/qmake/payload \
+  --candidate /absolute/cmake/payload \
+  --version 1.2.3 \
+  --source-revision 0123456789abcdef0123456789abcdef01234567 \
+  --output /absolute/evidence/cmake-payload-parity.json
+```
+
+The inventories must be exactly equal and all files except `ChatClient.exe` and
+`ChatRoomUpdateLauncher.exe` must have identical size/SHA-256. Those two PE
+files may differ because the build systems generate different binaries; each is
+still version-checked separately. The comparator rejects symlinks, empty files,
+case-insensitive path collisions, debug/server artifacts, missing SQLite or
+libsodium, and any runtime drift without writing evidence. Its closed evidence
+is validated and hashed by `windows_artifact_manifest.py`. Run the portable
+negative policy with `python3 Tests/windows_client_payload_parity_test.py`.
+
 The unsigned Windows NSIS gate now compiles a synthetic predecessor outside the
 uploaded artifact, installs it, and upgrades to canonical `VERSION`. It checks
 whole-program-directory replacement, marker ownership, rollback scaffolding,

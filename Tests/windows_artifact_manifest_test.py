@@ -74,6 +74,60 @@ class WindowsArtifactManifestTest(unittest.TestCase):
         self.assertEqual(manifest["installer"]["signatureStatus"], "unsigned-verification-only")
         self.assertTrue(checksums[-1].endswith("installer/ChatRoom-1.2.3-unsigned-verification-Setup.exe"))
 
+    def test_binds_closed_cmake_payload_parity_evidence(self) -> None:
+        entry = {"size": 7, "sha256": "b" * 64}
+        executable = {"size": 8, "sha256": "c" * 64}
+        evidence = self.root / "cmake-payload-parity.json"
+        document = {
+            "schemaVersion": 1,
+            "version": "1.2.3",
+            "sourceRevision": "a" * 40,
+            "baselineBuildSystem": "qmake",
+            "candidateBuildSystem": "cmake",
+            "runtimeBytesEquivalent": True,
+            "executableByteDifferencesAllowed": [
+                "ChatClient.exe", "ChatRoomUpdateLauncher.exe"],
+            "baseline": {
+                "ChatClient.exe": executable,
+                "ChatRoomUpdateLauncher.exe": executable,
+                "Qt6Core.dll": entry,
+                "libsodium-26.dll": entry,
+                "sqldrivers/qsqlite.dll": entry,
+            },
+            "candidate": {
+                "ChatClient.exe": {"size": 9, "sha256": "d" * 64},
+                "ChatRoomUpdateLauncher.exe": {"size": 9, "sha256": "d" * 64},
+                "Qt6Core.dll": entry,
+                "libsodium-26.dll": entry,
+                "sqldrivers/qsqlite.dll": entry,
+            },
+        }
+        evidence.write_text(json.dumps(document), encoding="utf-8")
+        manifest, checksums = build_manifest(
+            self.payload, self.version_file, "a" * 40, "6.11.1",
+            cmake_payload_parity=evidence,
+        )
+        self.assertTrue(manifest["cmakePayloadParity"]["runtimeBytesEquivalent"])
+        self.assertTrue(checksums[-1].endswith("cmake-payload-parity.json"))
+
+        document["candidate"]["Qt6Core.dll"] = {
+            "size": 7, "sha256": "e" * 64}
+        evidence.write_text(json.dumps(document), encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "runtime evidence differs"):
+            build_manifest(
+                self.payload, self.version_file, "a" * 40, "6.11.1",
+                cmake_payload_parity=evidence,
+            )
+
+        document["candidate"]["Qt6Core.dll"] = entry
+        document["unexpected"] = True
+        evidence.write_text(json.dumps(document), encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "policy rejected"):
+            build_manifest(
+                self.payload, self.version_file, "a" * 40, "6.11.1",
+                cmake_payload_parity=evidence,
+            )
+
     def test_rejects_noncanonical_identity_and_empty_payload(self) -> None:
         self.version_file.write_text(" 1.2.3\n", encoding="utf-8")
         with self.assertRaisesRegex(ManifestError, "SemVer"):

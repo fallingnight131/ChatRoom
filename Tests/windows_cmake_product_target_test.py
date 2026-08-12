@@ -52,6 +52,9 @@ def main() -> int:
         "--target ChatClient ChatRoomUpdateLauncher",
         "CMake client version does not match canonical VERSION",
         "CMake update launcher version does not match canonical VERSION",
+        "Compare deployed CMake and qmake Windows payloads",
+        "compare_windows_client_payloads.py",
+        "windows_client_payload_parity_test.py",
     )
     for marker in required_workflow:
         if marker not in workflow:

@@ -912,6 +912,15 @@ Packaging intentionally continues to consume the exercised qmake payload until
 the CMake `windeployqt`, runtime inventory, installer, and unsigned-rejection
 evidence is equivalent; this keeps the migration reversible.
 
+ADR-0156 establishes that first deployment-equivalence gate. Native Windows CI
+deploys the CMake executables into a separate directory and compares it with the
+qmake payload. The two executable byte streams may differ by build system, but
+the relative file inventory and every Qt/SQLite/libsodium runtime size and
+SHA-256 must match exactly. Closed evidence records both inventories and is
+itself hashed into the uploaded unsigned artifact manifest. The NSIS input still
+remains qmake until native installer and helper-negative paths exercise the
+CMake payload directly.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

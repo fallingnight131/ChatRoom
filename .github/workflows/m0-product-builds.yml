@@ -102,6 +102,7 @@ jobs:
           python Tests/windows_installer_policy_test.py
           python Tests/windows_release_signature_policy_test.py
           python Tests/windows_cmake_product_target_test.py
+          python Tests/windows_client_payload_parity_test.py
 
       - name: Install pinned Qt SDK
         uses: jurplel/install-qt-action@v4.3.1
@@ -164,6 +165,30 @@ jobs:
           Copy-Item $sodiumDll.FullName "$artifact/client/$($sodiumDll.Name)"
           $sqlitePlugin = Get-ChildItem "$artifact/client/sqldrivers" -Filter "qsqlite.dll" -ErrorAction SilentlyContinue
           if (-not $sqlitePlugin) { throw "Windows client artifact is missing the Qt SQLite driver" }
+
+      - name: Compare deployed CMake and qmake Windows payloads
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $baseline = (Resolve-Path "build/m0/artifacts/windows/client").Path
+          $candidate = "$env:GITHUB_WORKSPACE/build/m4/windows-cmake-payload"
+          if (Test-Path $candidate) { Remove-Item $candidate -Recurse -Force }
+          New-Item -ItemType Directory -Force $candidate | Out-Null
+          Copy-Item build/m4/windows-cmake/Release/ChatClient.exe "$candidate/ChatClient.exe"
+          Copy-Item build/m4/windows-cmake/Release/ChatRoomUpdateLauncher.exe `
+            "$candidate/ChatRoomUpdateLauncher.exe"
+          windeployqt --release --no-translations "$candidate/ChatClient.exe"
+          $sodiumDll = Get-ChildItem "$env:SODIUM_ROOT/bin" -Filter "*sodium*.dll" | Select-Object -First 1
+          if (-not $sodiumDll) { throw "CMake payload is missing the libsodium runtime source" }
+          Copy-Item $sodiumDll.FullName "$candidate/$($sodiumDll.Name)"
+          $evidence = "$env:GITHUB_WORKSPACE/build/m0/artifacts/windows/cmake-payload-parity.json"
+          python tools/compare_windows_client_payloads.py `
+            --baseline $baseline `
+            --candidate $candidate `
+            --version "${{ steps.product-version.outputs.version }}" `
+            --source-revision "${{ github.sha }}" `
+            --output $evidence
+          if ($LASTEXITCODE -ne 0) { throw "CMake/qmake payload parity failed" }
 
       - name: Install pinned NSIS compiler
         shell: pwsh
@@ -380,6 +405,7 @@ jobs:
             --source-revision "${{ github.sha }}" `
             --qt-version "${{ env.QT_VERSION }}" `
             --installer "$artifact/installer/ChatRoom-$version-unsigned-verification-Setup.exe" `
+            --cmake-payload-parity "$artifact/cmake-payload-parity.json" `
             --output-dir "$artifact"
 
       - name: Upload unsigned Windows verification artifact
