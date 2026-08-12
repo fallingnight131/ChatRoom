@@ -424,6 +424,13 @@ executes off-loop, and emits fixed outcome/delta telemetry. Real PostgreSQL
 verifies the subsequent room directory reports zero unread without updating
 another member. The product listener remains unchanged.
 
+The direct-read boundary now defines server-authorized, monotonic advancement
+of one active participant's canonical `last_read_sequence` for a positive mapped
+V1 friendship. Its future adapter must return the V1 ID of the newest message by
+canonical creation sequence at or below the cursor, plus the mapped peer for a
+compatible `FRIEND_READ_NOTIFY`. It must not use numeric maximum because runtime
+V1 message IDs allocate downward. No PostgreSQL adapter or handler exists yet.
+
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.
 Verified import can backfill a pre-cutover null mapping from the reverified

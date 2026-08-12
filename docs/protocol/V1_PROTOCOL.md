@@ -279,6 +279,14 @@ the sender and current local target only on first acceptance. Exact retry emits
 no live message. Malformed or infrastructure-failed handling closes and the
 product listener remains inactive.
 
+The detached Java boundary now also reserves `MARK_FRIEND_READ`. It binds the
+reader from authentication, accepts only a positive mapped friendship ID, and
+requires monotonic canonical sequence advancement. `lastReadMessageId` is the
+mapped V1 ID of the newest message by creation sequence at or below that cursor;
+it is never `MAX(id)` because runtime V1 message IDs allocate downward. The
+future result carries the mapped peer for compatible `FRIEND_READ_NOTIFY` and
+directory recovery. No PostgreSQL adapter or handler exists yet.
+
 The detached Java application boundary now also reserves owner-only direct
 recall. It accepts only the positive V1 `messageId` from the request and binds
 the actor from authentication; client peer/sequence/time fields are not
