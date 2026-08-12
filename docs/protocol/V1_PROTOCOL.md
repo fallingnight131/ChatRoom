@@ -267,8 +267,16 @@ one account. Success will preserve `roomId`, `roomName`, `isAdmin`, and
 `room_settings.max_members` is now required in the physically verified SQLite
 schema, bound into the import fingerprint, validated from 1 through 1000000,
 and exactly reconciled into the GROUP policy. A V024 default may change only by
-counted compare-and-set from 50; any other mismatch blocks import. No handler
-exists yet.
+counted compare-and-set from 50; any other mismatch blocks import. The detached
+strict handler now accepts only `roomId`
+plus optional password, applies process/peer/room admission before password
+verification, and executes off-loop. `JOIN_ROOM_RSP` preserves `needPassword`,
+`isAdmin`, and `newJoin`, adds stable `errorCode` and optional `retryAfterMs`,
+and never exposes UUIDs or hashes. Only a committed `newJoin:true` emits one
+process-local `USER_JOINED`; exact repeat and every rejection emit none. Real
+PostgreSQL proves missing/wrong/correct password behavior, one membership, one
+notification, duplicate suppression, and replacement-login room recovery. The
+product listener remains inactive.
 
 ### Room chat
 

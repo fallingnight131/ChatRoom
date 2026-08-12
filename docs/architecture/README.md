@@ -343,7 +343,15 @@ fingerprint, and is validated in the supported 1..1000000 range. Fresh imports
 write the exact value; databases backfilled by V024 may replace only the
 untouched default 50 through a counted compare-and-set update. Any other target
 value is a blocking conflict and post-write comparison must exactly reconcile.
-The product listener is unchanged.
+The detached strict handler now accepts only numeric `roomId` and optional owned
+password bytes, applies the existing process/peer/room admission boundary before
+Argon2 work, and runs authorization off the event loop. Compatible responses
+preserve `needPassword`, `isAdmin`, and `newJoin`. Only a committed first join
+projects current mapped members and emits one process-local `USER_JOINED`;
+duplicate and rejected attempts never notify. Routing failure cannot turn a
+committed join into a client failure and is recorded separately. Real
+PostgreSQL proves protected first/duplicate behavior and replacement-login
+directory recovery. The product listener is unchanged.
 
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target

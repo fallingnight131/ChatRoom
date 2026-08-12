@@ -577,7 +577,7 @@ Progress:
   - [x] Import and reconcile custom V1 `room_settings.max_members` into the
     GROUP admission policy before activating Java room joining; default 50 is
     valid only when the verified source has no explicit override.
-  - [ ] Compose detached strict V1 room joining with password-attempt admission,
+  - [x] Compose detached strict V1 room joining with password-attempt admission,
     compatible responses and first-join notification intent, fixed telemetry,
     and real PostgreSQL/relogin proof.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
