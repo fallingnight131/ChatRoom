@@ -663,6 +663,13 @@ trust. Invalid signatures and deferred rollout never request Setup bytes. The
 service exposes explicit product-facing outcomes but still has no production
 configuration, scheduler, consent UI, launcher, or restart behavior.
 
+ADR-0128 closes the verified-path replacement gap at the final process boundary.
+The Windows verifier can re-open Setup read-only without write/delete sharing,
+repeat integrity and Authenticode/timestamp/publisher checks on that locked file,
+and retain the handle through `CreateProcessW`. It launches only NSIS silent
+mode, waits with a fixed caller bound, and returns the real exit code. No client
+or helper invokes this primitive yet.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

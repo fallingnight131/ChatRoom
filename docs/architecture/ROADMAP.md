@@ -589,6 +589,9 @@ Progress:
 - [x] Compose discovery, signature/replay/policy acceptance, bounded installer
   transfer, and background installer trust behind one default-off check service
   with explicit no-update/manual/deferred/rejected/cancelled outcomes.
+- [x] Add a Windows-only locked re-verification-and-launch primitive that holds
+  Setup against replacement through `CreateProcess`, permits only silent NSIS,
+  waits with a bound, and reports the actual installer exit code.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

@@ -160,6 +160,8 @@ On non-Windows development hosts it then reports Authenticode unsupported; on
 native Windows CI it also compiles WinTrust/crypt32 integration and requires the
 deliberately unsigned fixture to be rejected. Acceptance of the future real,
 signed and RFC 3161-timestamped Setup remains a separate release test.
+The same test requires the locked silent-launch entry point to reject that
+unsigned fixture before process creation (or report unsupported off Windows).
 
 `UpdateStateRepositoryTest` checks creation/reload of an owner-only UUIDv4,
 atomic per-channel sequence/digest persistence, idempotence, replay/conflict

@@ -120,6 +120,11 @@ policy acceptance and verified installer preparation. Invalid trust and staged
 deferral cannot reach Setup download. The composition has no product origin,
 trusted key, AppData/staging configuration, scheduler, consent UI, or launcher.
 
+The Windows verifier also has an inactive final-boundary operation that repeats
+all installer trust checks while holding the file against replacement through
+silent `CreateProcessW`, then observes its bounded exit. It has no external
+helper or product call path and has not accepted a real signed Setup in CI.
+
 The Windows client now owns a session-local liveness mutex and refuses a second
 instance. NSIS checks the same mutex before mutation and returns 4 for a silent
 running-client attempt; native CI is configured to prove the current install and

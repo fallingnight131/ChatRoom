@@ -42,6 +42,9 @@ No production update origin or key is configured.
 ADR-0127 composes fetch, ADR-0122 acceptance, and ADR-0124 verified preparation
 behind one inactive check entry point. Invalid signatures and deferred rollout
 cannot reach the installer request; no launcher consumes its verified result.
+ADR-0128 adds the final Windows primitive that repeats trust while holding Setup
+against replacement through silent process creation, waits, and returns its
+exit code. It is not yet invoked by a client or external helper.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin
