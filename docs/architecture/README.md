@@ -1227,6 +1227,12 @@ precedes atomic pointer replacement. Finalization failure restores the old
 pointer but does not restore authorization usability; public observation is
 still required before expansion is complete.
 
+ADR-0195 closes the point-in-time expansion result. A strict HTTPS observation
+of the exact target manifest, detached signature, and unchanged Setup must
+follow execution within the bounded window. Completion retains current/target
+percentages and seed, but every later step starts a new health window and
+authorization rather than reusing the prior result.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

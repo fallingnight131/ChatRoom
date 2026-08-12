@@ -272,6 +272,12 @@ store paths, consumes before atomic pointer mutation, restores the old pointer
 on finalization failure, and remains pending public HTTPS observation; see
 ADR-0194.
 
+`windows_update_rollout_expansion_completion.py` closes that pending state only
+after the strict HTTPS probe sees the exact expanded manifest, signature, and
+unchanged Setup within the bounded post-switch window. The record retains both
+percentages and the cohort seed and does not authorize the next step; see
+ADR-0195.
+
 Client trust provisioning begins with a write-once
 `windows_update_product_trust_intent.py` record. It extracts canonical raw
 Ed25519 public bytes from reviewed PEM files and binds their IDs/digests to one

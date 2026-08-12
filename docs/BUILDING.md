@@ -754,6 +754,13 @@ the pointer. Evidence failure restores the previous pointer without making the
 authorization reusable. Its result still awaits strict public HTTPS
 observation; local success is not rollout completion. See ADR-0194.
 
+Probe the expanded target through `windows_update_release_probe.py`, then use
+`windows_update_rollout_expansion_completion.py record` to bind that exact
+manifest/signature/Setup observation to expansion execution within ten minutes.
+The `production-rollout-expansion-observed` record retains both percentages and
+the seed. It is point-in-time delivery evidence; every later percentage still
+requires a new post-completion metrics window and authorization. See ADR-0195.
+
 Before compiling a product-update-enabled Windows client, create and verify a
 short-lived public trust intent with
 `tools/windows_update_product_trust_intent.py`. It binds exact source/version,
