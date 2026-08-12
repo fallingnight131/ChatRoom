@@ -516,6 +516,9 @@ Progress:
   - [x] Implement repeatable-read PostgreSQL V1 room history with complete
     mapping checks, mixed message/recall/deletion pagination, and gap-safe
     cursor advancement.
+  - [x] Compose detached strict V1 room history with bounded off-loop mixed-page
+    reads, compatible response fields, fixed telemetry, and real reconnect
+    recovery after replacement login.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

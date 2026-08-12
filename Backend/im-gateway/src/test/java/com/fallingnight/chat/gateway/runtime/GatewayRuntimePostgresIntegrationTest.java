@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fallingnight.chat.gateway.compatibility.v1.V1ConnectionAttributes;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectHistoryEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomHistoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectRecallEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
@@ -269,6 +270,7 @@ class GatewayRuntimePostgresIntegrationTest {
                                 "imported-v1", "java-v2-test-password"));
                         reconnected.runPendingTasks();
                         ((TextWebSocketFrame) reconnected.readOutbound()).release();
+                        assertRoomHistoryAfterReconnect(reconnected);
                         assertDirectHistoryAfterReconnect(reconnected);
                         assertDirectRecallFirst(reconnected, peer, directMessageId);
                         assertDirectRecallDuplicate(reconnected, peer, directMessageId);
@@ -363,6 +365,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 events,
                 V1RoomDirectoryEventSink.noop(),
                 V1RoomMessageEventSink.noop(),
+                V1RoomHistoryEventSink.noop(),
                 V1FriendDirectoryEventSink.noop(),
                 V1PendingFriendRequestEventSink.noop(),
                 V1FriendRequestCreationEventSink.noop(),
@@ -494,6 +497,22 @@ class GatewayRuntimePostgresIntegrationTest {
         try { assertTrue(response.text().contains("\"duplicate\":true")); }
         finally { response.release(); }
         assertNull(sender.readOutbound()); recipient.runPendingTasks(); assertNull(recipient.readOutbound());
+    }
+
+    private static void assertRoomHistoryAfterReconnect(EmbeddedChannel channel) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"HISTORY_REQ\",\"data\":{\"roomId\":7,"
+                        + "\"count\":50,\"afterSequence\":7}}"));
+        channel.runPendingTasks(); TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"HISTORY_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"content\":\"hello Java room\""));
+            assertTrue(response.text().contains("\"sequence\":8"));
+            assertTrue(response.text().contains("\"nextSequence\":8"));
+            assertTrue(response.text().contains("\"lastSequence\":8"));
+            assertFalse(response.text().contains("10000000-0000"));
+        } finally { response.release(); }
     }
 
     private static void sendRoomMessage(EmbeddedChannel sender) {

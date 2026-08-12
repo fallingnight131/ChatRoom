@@ -333,7 +333,10 @@ Latest timestamp pages contain messages only, preserving the existing response
 shape. The PostgreSQL adapter now reads one repeatable snapshot, verifies the
 complete mapped room state before paging, merges message/recall/deletion cursor
 items before enforcing the combined bound, and advances final pages across
-physical-deletion gaps. No transport handler exists yet.
+physical-deletion gaps. The detached strict handler now returns bounded
+`HISTORY_RSP` pages and closes generically for malformed, saturated, or failed
+reads. Real replacement-login verification proves a durable room message is
+recovered after its prior cursor; the product listener remains inactive.
 
 The detached Java direct-history boundary preserves both direct modes. Its
 PostgreSQL adapter now reads one repeatable snapshot and resolves the exact peer

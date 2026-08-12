@@ -390,8 +390,12 @@ deletion identity arrays are bounded, positive, and duplicate-free. Missing or
 inconsistent compatibility state fails the whole read. Its repeatable-read
 PostgreSQL adapter now resolves active membership, proves the complete room is
 representable, merges messages/recalls/deletions before applying the combined
-page limit, and advances a final page to the durable high watermark. No handler
-exists yet.
+page limit, and advances a final page to the durable high watermark. The
+detached strict handler now binds authenticated identity,
+executes reads off-loop, returns bounded compatible `HISTORY_RSP`, and records
+only fixed telemetry. Real PostgreSQL verifies a durable room message is
+recovered by `afterSequence` after replacement login. The product listener
+remains unchanged.
 
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.
