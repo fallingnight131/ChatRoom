@@ -161,6 +161,25 @@ V2 as a lazy chunk and still sends no V2 traffic until a preview UI explicitly
 starts it. See [`WEB_V2_PREVIEW.md`](deployment/WEB_V2_PREVIEW.md) for gateway
 alignment, verification, and rollback.
 
+## Incremental CMake server path
+
+The root `CMakeLists.txt` currently represents only the V1 `ChatServerHeadless`
+verification target. It compiles the same Common/Server sources as the qmake
+headless project and does not replace the Windows product build or installer.
+On a macOS Homebrew development host:
+
+```bash
+SODIUM_ROOT="$(brew --prefix libsodium)" \
+python3 tools/verify_m0.py --cmake-headless
+```
+
+On Ubuntu, the installed `libsodium-dev` search paths need no override. The
+command performs inventory validation, Release configuration/build, starts the
+resulting process, and verifies the exact V1 HTTP health contract. CMake never
+installs or downloads a dependency; use `SODIUM_ROOT` or normal CMake search
+paths. Continue using qmake for Windows product artifacts until a later ADR
+records native target and packaging equivalence.
+
 CI runs inventory and web verification on every push and pull request through
 `.github/workflows/m0-baseline.yml`.
 

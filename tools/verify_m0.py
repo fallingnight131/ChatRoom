@@ -199,6 +199,32 @@ def build_headless_server(jobs: int, build_root: Path, target_name: str) -> Path
     return locate_executable(target_dir, "ChatServerHeadless")
 
 
+def verify_cmake_headless(jobs: int, build_root: Path) -> None:
+    cmake = command_path("cmake")
+    target_dir = build_root / "cmake-headless-server"
+    configure = [
+        cmake,
+        "-S", str(ROOT),
+        "-B", str(target_dir),
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCHATROOM_BUILD_HEADLESS_SERVER=ON",
+    ]
+    sodium_root = os.environ.get("SODIUM_ROOT")
+    if sodium_root:
+        configure.append(f"-DSODIUM_ROOT={sodium_root}")
+    run(configure, ROOT)
+    run([
+        cmake, "--build", str(target_dir), "--config", "Release",
+        "--target", "ChatServerHeadless", "--parallel", str(jobs),
+    ], ROOT)
+    executable = locate_executable(target_dir, "ChatServerHeadless")
+    run([
+        sys.executable,
+        str(ROOT / "Tests" / "v1_http_health_test.py"),
+        "--server", str(executable),
+    ], ROOT)
+
+
 def build_qt_unit_test(
     jobs: int, build_root: Path, name: str
 ) -> Path:
@@ -368,6 +394,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--web", action="store_true", help="run npm ci and the web production build")
     parser.add_argument("--qt", action="store_true", help="generate and compile Qt server/client release builds")
+    parser.add_argument(
+        "--cmake-headless",
+        action="store_true",
+        help="configure, build, and health-test the Qt V1 headless server with CMake",
+    )
     parser.add_argument("--java", action="store_true", help="compile and test the Java V2 workspace")
     parser.add_argument(
         "--postgres",
@@ -408,8 +439,8 @@ def parse_args() -> argparse.Namespace:
         "--all",
         action="store_true",
         help=(
-            "run inventory, Web, Java, database schema, password hash, V1 smoke, "
-            "V1 identity restore, performance, and Qt verification"
+            "run inventory, Web, Java, database schema, password hash, CMake headless, "
+            "V1 smoke, V1 identity restore, performance, and Qt verification"
         ),
     )
     parser.add_argument("--skip-npm-ci", action="store_true", help="reuse installed web dependencies")
@@ -446,6 +477,8 @@ def main() -> int:
         verify_protocol_bindings(args.skip_npm_ci)
     if args.db_schema or args.all:
         verify_database_schema(args.jobs, build_root)
+    if args.cmake_headless or args.all:
+        verify_cmake_headless(args.jobs, build_root)
     if args.password_hash or args.all:
         verify_password_hash(args.jobs, build_root)
     if args.v1_smoke or args.all:
@@ -472,6 +505,7 @@ def main() -> int:
         or args.protocol_bindings
         or args.postgres
         or args.db_schema
+        or args.cmake_headless
         or args.password_hash
         or args.v1_smoke
         or args.v1_identity_restore
@@ -482,7 +516,7 @@ def main() -> int:
         print(
             "[M0] inventory-only verification complete; "
             "use --web, --java, --postgres, --protocol-bindings, --db-schema, --password-hash, "
-            "--v1-smoke, --v1-identity-restore, --performance, "
+            "--cmake-headless, --v1-smoke, --v1-identity-restore, --performance, "
             "--qt, or --all "
             "for builds/tests"
         )

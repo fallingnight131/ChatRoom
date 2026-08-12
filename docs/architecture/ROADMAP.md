@@ -655,6 +655,9 @@ Progress:
 - [x] Bind a fresh candidate static observation, fresh route observation, exact
   immutable artifact, and a distinct retained rollback artifact/observation into
   one independently verifiable, explicitly not-published technical promotion record.
+- [x] Establish a root CMake Release path for the exact V1 HeadlessServer
+  production sources, Qt/libsodium dependency discovery, AUTOMOC, CI build, and
+  real process-health test while leaving Windows product packaging on qmake.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
@@ -663,7 +666,7 @@ Progress:
 
 Work:
 
-- move the Qt build from qmake toward CMake when touching build architecture;
+- continue the verified target-by-target Qt migration from qmake toward CMake;
 - create Windows `windeployqt` packaging and a signed installer;
 - add an optional MSIX/Store channel after the direct installer is stable;
 - implement a signed Windows update manifest, stable/beta channels, staged

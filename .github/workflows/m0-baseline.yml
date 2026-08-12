@@ -117,6 +117,9 @@ jobs:
       - name: Verify Argon2id and legacy password migration
         run: python3 tools/verify_m0.py --password-hash
 
+      - name: Verify CMake headless server path
+        run: python3 tools/verify_m0.py --cmake-headless
+
       - name: Verify critical V1 TCP flows
         run: python3 tools/verify_m0.py --v1-smoke
 

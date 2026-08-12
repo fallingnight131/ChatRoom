@@ -827,6 +827,13 @@ are retained and independently reconstructable. Its status is explicitly
 branded browsers, monitoring, business authorization, and bootstrap of the first
 release remain outside the record.
 
+ADR-0146 starts the Qt build migration at a deliberately narrow boundary. The
+root CMake project compiles the exact V1 HeadlessServer production sources with
+Qt 6, libsodium, C++17, and AUTOMOC, and the unified verifier starts that binary
+for a real HTTP health test. qmake remains authoritative for the Windows client,
+updater, installer payload, Qt unit tests, and current Windows product build;
+future targets move only after native equivalence and packaging evidence.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

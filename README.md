@@ -143,7 +143,8 @@ ChatRoom/
 
 - Qt 6.11.1（Windows x64 + MSVC 2022 产品构建基线）
 - C++17 编译器
-- qmake
+- qmake（当前 Windows 产品构建）
+- CMake 3.24+（增量 HeadlessServer 验证路径）
 
 macOS 和 Linux 可以作为开发或服务端验证环境，但不是当前客户端产品
 支持范围。
@@ -186,6 +187,13 @@ CHATROOM_DEVELOPER_KEY=请替换成你的强密码
 
 ```bash
 python3 tools/verify_m0.py --web --db-schema --v1-smoke --performance
+```
+
+服务端 CMake 增量路径可在 macOS 开发机上单独验证：
+
+```bash
+SODIUM_ROOT="$(brew --prefix libsodium)" \
+python3 tools/verify_m0.py --cmake-headless
 ```
 
 Windows Qt 产品构建、非产品开发主机命令、依赖与已知工具链边界见
