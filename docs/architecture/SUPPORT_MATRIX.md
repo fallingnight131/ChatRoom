@@ -141,6 +141,13 @@ Core outside the installed directory and returns quit authorization only after
 the helper has opened the current parent and signaled the UUID event. It is not
 instantiated by product UI; successful signed install and restart are unproven.
 
+The Windows entry point now activates only post-restart reconciliation. It uses
+owner-local derived directories, consumes a valid UUID-bound result once,
+requires the running version to match reported success, and exits before login
+while a recent result is pending so it cannot obstruct Setup. Discovery,
+production trust, consent, and installation invocation remain inactive; real
+signed restart/dialog behavior is unproven.
+
 The Windows client now owns a session-local liveness mutex and refuses a second
 instance. NSIS checks the same mutex before mutation and returns 4 for a silent
 running-client attempt; native CI is configured to prove the current install and

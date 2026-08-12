@@ -44,6 +44,8 @@ SOURCES += \
     UpdateLauncherResult.cpp \
     UpdateLifecycleRepository.cpp \
     WindowsUpdateInstallCoordinator.cpp \
+    WindowsUpdateRuntimePaths.cpp \
+    WindowsUpdateStartupService.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -82,6 +84,8 @@ HEADERS += \
     UpdateLauncherResult.h \
     UpdateLifecycleRepository.h \
     WindowsUpdateInstallCoordinator.h \
+    WindowsUpdateRuntimePaths.h \
+    WindowsUpdateStartupService.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \

@@ -190,6 +190,12 @@ parallel refusal, helper handshake, UUID continuity into durable pending state,
 quit authorization only after persistence, and continued execution when an
 existing pending lifecycle blocks persistence.
 
+`WindowsUpdateStartupServiceTest` exercises the active post-restart policy with
+real private directories: empty state, recent update blocking startup, stale
+pending recovery, matching installed version, version mismatch, and nonzero
+installer failure. The Windows entry point owns only presentation and never
+turns raw helper diagnostics into user-facing text.
+
 `UpdateStateRepositoryTest` checks creation/reload of an owner-only UUIDv4,
 atomic per-channel sequence/digest persistence, idempotence, replay/conflict
 rejection, and corrupt-state failure. The repository is compiled but no product

@@ -64,6 +64,10 @@ turning missing or malformed helper evidence into success.
 ADR-0134 exposes one inactive coordinator decision: the client may begin normal
 shutdown only after both helper handshake and pending lifecycle persistence;
 either failure keeps the client alive.
+ADR-0135 activates only startup reconciliation under the owner-local update
+root. Recent pending work exits before login, success must match the running
+version, and failure/rejection is presented without enabling discovery or
+installation.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin

@@ -706,6 +706,14 @@ authorizes normal client quit only after both the helper owns the parent wait
 and the exact pending UUID/version/time is durable; persistence failure leaves
 the client running.
 
+ADR-0135 activates only the post-restart product boundary. Windows derives
+owner-local update paths, consumes the UUID-bound result before login, reconciles
+reported success with the running binary version, and presents a friendly
+success/failure warning. A recent missing result exits before login so a manual
+launch cannot reacquire the client mutex and obstruct Setup; stale pending state
+warns without permanently locking the user out. Discovery and installation
+remain default-off.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

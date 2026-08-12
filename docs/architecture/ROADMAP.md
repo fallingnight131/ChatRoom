@@ -611,6 +611,9 @@ Progress:
 - [x] Add an inactive install coordinator that rejects parallel work and permits
   normal client quit only after both the helper handshake and atomic pending
   lifecycle persistence succeed.
+- [x] Activate Windows startup reconciliation for UUID-bound update results,
+  require the running binary version to match reported success, and avoid
+  blocking a recent in-progress Setup while permitting stale-state recovery.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

@@ -1,11 +1,16 @@
 #include <QApplication>
+#include <QDateTime>
+#include <QDebug>
 #include <QMessageBox>
 #include <QIcon>
+#include <QStandardPaths>
 #include "LoginDialog.h"
 #include "ChatWindow.h"
 #include "NetworkManager.h"
 #include "ThemeManager.h"
 #include "WindowsClientInstanceGuard.h"
+#include "WindowsUpdateRuntimePaths.h"
+#include "WindowsUpdateStartupService.h"
 
 #ifndef CHAT_APP_VERSION
 #error "CHAT_APP_VERSION must come from the repository VERSION file"
@@ -16,6 +21,66 @@ void cleanupAndQuit() {
     NetworkManager::instance()->disconnectFromServer();
     qApp->quit();
 }
+
+#ifdef Q_OS_WIN
+namespace {
+bool handleWindowsUpdateStartup(const QString &currentVersion) {
+    const auto paths = WindowsUpdateRuntimePaths::fromAppLocalData(
+        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation));
+    WindowsUpdateStartupService service(
+        paths.lifecycleStateDirectory, paths.resultDirectory,
+        paths.runRootDirectory);
+    const auto result = service.inspect(currentVersion, QDateTime::currentDateTimeUtc());
+    using Outcome = WindowsUpdateStartupService::Outcome;
+    switch (result.outcome) {
+    case Outcome::None:
+        return true;
+    case Outcome::UpdateInProgress:
+        QMessageBox::information(
+            nullptr, QStringLiteral("正在完成更新"),
+            QStringLiteral("聊天软件正在完成更新，请稍候。\n\n"
+                           "更新完成后应用会自动重新打开。"));
+        return false;
+    case Outcome::StalePending:
+        qWarning().noquote()
+            << "[Updater] operation=startup-result outcome=stale-pending detail="
+            << result.error;
+        QMessageBox::warning(
+            nullptr, QStringLiteral("更新未完成"),
+            QStringLiteral("上次自动更新未在预期时间内完成。\n\n"
+                           "您可以继续使用当前版本，稍后再次检查更新。"));
+        return true;
+    case Outcome::Installed:
+        QMessageBox::information(
+            nullptr, QStringLiteral("更新完成"),
+            QStringLiteral("聊天软件已成功更新到版本 %1。")
+                .arg(result.targetVersion));
+        return true;
+    case Outcome::Failed:
+        qWarning().noquote()
+            << "[Updater] operation=startup-result outcome="
+            << result.launcherOutcome
+            << "installerExitCode=" << result.installerExitCode
+            << "detail=" << result.error;
+        QMessageBox::warning(
+            nullptr, QStringLiteral("更新失败"),
+            QStringLiteral("自动更新未能完成，当前版本未被标记为更新成功。\n\n"
+                           "请继续使用当前版本，或从官方渠道重新下载。"));
+        return true;
+    case Outcome::Rejected:
+        qWarning().noquote()
+            << "[Updater] operation=startup-result outcome=rejected detail="
+            << result.error;
+        QMessageBox::warning(
+            nullptr, QStringLiteral("无法验证更新结果"),
+            QStringLiteral("无法安全验证上次自动更新的结果，本次不会将其视为更新成功。\n\n"
+                           "请使用当前版本，或从官方渠道重新下载。"));
+        return true;
+    }
+    return true;
+}
+}
+#endif
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
@@ -38,6 +103,7 @@ int main(int argc, char *argv[]) {
         QMessageBox::critical(nullptr, QStringLiteral("启动失败"), instanceError);
         return 1;
     }
+    if (!handleWindowsUpdateStartup(app.applicationVersion())) return 0;
 #endif
 
     // 应用默认主题
