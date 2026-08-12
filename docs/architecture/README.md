@@ -438,6 +438,13 @@ URLs are transient response data that clients must not persist or log. The
 gateway still rejects these types until provider acceptance and a later handler
 slice explicitly activate them.
 
+ADR-0106 maps those commands to the existing application boundaries in a
+separate inactive Netty handler. It uses only server-bound account/device
+identity, bounded serialized off-event-loop work, non-enumerating denials,
+redacted dependency failures, deterministic grant headers, and fixed-cardinality
+telemetry. The handler is deliberately absent from the runnable pipeline until
+real-provider evidence and supported-client rollout gates are satisfied.
+
 ## 11. Client Architecture
 
 ### Windows desktop
