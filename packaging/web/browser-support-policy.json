@@ -1,0 +1,48 @@
+{
+  "product": "chat-room-web-client",
+  "schemaVersion": 1,
+  "targets": [
+    {
+      "browserFamily": "chrome",
+      "browserProduct": "Google Chrome",
+      "supportPosition": "current",
+      "targetId": "chrome-current",
+      "userAgentToken": "Chrome/"
+    },
+    {
+      "browserFamily": "chrome",
+      "browserProduct": "Google Chrome",
+      "supportPosition": "previous",
+      "targetId": "chrome-previous",
+      "userAgentToken": "Chrome/"
+    },
+    {
+      "browserFamily": "edge",
+      "browserProduct": "Microsoft Edge",
+      "supportPosition": "current",
+      "targetId": "edge-current",
+      "userAgentToken": "Edg/"
+    },
+    {
+      "browserFamily": "edge",
+      "browserProduct": "Microsoft Edge",
+      "supportPosition": "previous",
+      "targetId": "edge-previous",
+      "userAgentToken": "Edg/"
+    },
+    {
+      "browserFamily": "firefox",
+      "browserProduct": "Mozilla Firefox",
+      "supportPosition": "current",
+      "targetId": "firefox-current",
+      "userAgentToken": "Firefox/"
+    },
+    {
+      "browserFamily": "firefox",
+      "browserProduct": "Mozilla Firefox",
+      "supportPosition": "previous",
+      "targetId": "firefox-previous",
+      "userAgentToken": "Firefox/"
+    }
+  ]
+}
