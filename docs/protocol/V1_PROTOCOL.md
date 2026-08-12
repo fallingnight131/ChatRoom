@@ -172,7 +172,11 @@ now durably dissolves through V026 `group_lifecycle` rather than physically
 deleting the canonical conversation. The serializable adapter preserves exact
 retry, deterministically promotes one remaining owner, and all current Java room
 authorization/projection paths reject a dissolved room. Real PostgreSQL verifies
-the transition and retained rows. No handler exists yet and the product listener
+the transition and retained rows. The detached strict handler returns compatible
+`LEAVE_ROOM_RSP`, adds stable `errorCode` on rejection, and only a first
+non-dissolving leave emits process-local `USER_LEFT` plus optional successor
+`ADMIN_STATUS` and system message. Exact retry emits no notification. Real
+PostgreSQL proves replacement-login directory exclusion; the product listener
 remains unchanged.
 
 ### Administration and recall

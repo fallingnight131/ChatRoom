@@ -367,7 +367,13 @@ retains inactive membership for exact retry, and timestamps last-member closure.
 Generic directory/message/attachment authorization and every existing V1 room
 adapter require an active lifecycle row, including under corrupt membership
 reactivation. Real PostgreSQL proves migration/restart, succession, dissolution,
-durable-row retention, retry, and read-path exclusion. No handler exists yet.
+durable-row retention, retry, and read-path exclusion. The detached strict
+handler accepts only integral `roomId`, executes off-loop, and emits
+`USER_LEFT` plus optional successor `ADMIN_STATUS`/system notification only for
+the first committed non-dissolving leave. Post-commit routing failure remains
+observable but cannot reinterpret durable success. Real PostgreSQL proves exact
+retry suppression and replacement-login directory exclusion. The product
+listener remains unchanged.
 
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target

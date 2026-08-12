@@ -584,7 +584,7 @@ Progress:
     ownership succession and durable last-member dissolution semantics.
   - [x] Add explicit GROUP lifecycle state and atomic PostgreSQL V1 room leaving,
     then exclude dissolved rooms from every room authorization/projection path.
-  - [ ] Compose detached strict V1 room leaving with first-only presence and
+  - [x] Compose detached strict V1 room leaving with first-only presence and
     ownership notifications plus real PostgreSQL/relogin proof.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.

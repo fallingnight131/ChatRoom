@@ -18,6 +18,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomCreationEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomJoinEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomLeaveEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestAcceptanceEventSink;
@@ -182,7 +183,7 @@ class GatewayRuntimePostgresIntegrationTest {
                                 + "AND creation.password_idempotency_tag "
                                 + "LIKE 'hmac-sha256:v1:%'"));
                 assertProtectedRoomJoinAndRecovery(module, imported, createdRoomId);
-                assertEquals(2, countQuery(jdbcUrl, username, password,
+                assertEquals(1, countQuery(jdbcUrl, username, password,
                         "SELECT count(*) FROM chat.conversation_member member "
                                 + "JOIN chat.legacy_v1_conversation_map mapping "
                                 + "ON mapping.conversation_id = member.conversation_id "
@@ -386,7 +387,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     response.release();
                 }
                 assertFalse(nativeV2.isActive());
-                assertEquals(6, sessionCount(jdbcUrl, username, password));
+                assertEquals(7, sessionCount(jdbcUrl, username, password));
             } finally {
                 nativeV2.finishAndReleaseAll();
             }
@@ -405,6 +406,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 events,
                 V1RoomCreationEventSink.noop(),
                 V1RoomJoinEventSink.noop(),
+                V1RoomLeaveEventSink.noop(),
                 V1RoomDirectoryEventSink.noop(),
                 V1RoomMessageEventSink.noop(),
                 V1RoomHistoryEventSink.noop(),
@@ -940,7 +942,42 @@ class GatewayRuntimePostgresIntegrationTest {
                 assertTrue(rooms.text().contains("\"roomName\":\"Java Protected Room\""));
                 assertTrue(rooms.text().contains("\"isAdmin\":false"));
             } finally { rooms.release(); }
+            replacement.writeInbound(new TextWebSocketFrame(
+                    "{\"type\":\"LEAVE_ROOM\",\"data\":{\"roomId\":" + roomId + "}}"));
+            replacement.runPendingTasks(); TextWebSocketFrame left = replacement.readOutbound();
+            try {
+                assertTrue(left.text().contains("\"type\":\"LEAVE_ROOM_RSP\""));
+                assertTrue(left.text().contains("\"success\":true"));
+            } finally { left.release(); }
+            owner.runPendingTasks(); TextWebSocketFrame notification = owner.readOutbound();
+            try {
+                assertTrue(notification.text().contains("\"type\":\"USER_LEFT\""));
+                assertTrue(notification.text().contains(
+                        "\"username\":\"imported-newcomer\""));
+            } finally { notification.release(); }
+            replacement.writeInbound(new TextWebSocketFrame(
+                    "{\"type\":\"LEAVE_ROOM\",\"data\":{\"roomId\":" + roomId + "}}"));
+            replacement.runPendingTasks(); TextWebSocketFrame repeated = replacement.readOutbound();
+            try { assertTrue(repeated.text().contains("\"success\":true")); }
+            finally { repeated.release(); }
+            owner.runPendingTasks(); assertNull(owner.readOutbound());
         } finally { replacement.finishAndReleaseAll(); }
+
+        EmbeddedChannel afterLeave = upgradedChannel(module, Runnable::run,
+                AuthenticationAdmissionControl.allowAll(), AuthenticationEventSink.noop());
+        try {
+            afterLeave.writeInbound(loginFrame(
+                    "imported-newcomer", "java-v2-test-password"));
+            afterLeave.runPendingTasks();
+            ((TextWebSocketFrame) afterLeave.readOutbound()).release();
+            afterLeave.writeInbound(new TextWebSocketFrame(
+                    "{\"type\":\"ROOM_LIST_REQ\",\"data\":{}}"));
+            afterLeave.runPendingTasks(); TextWebSocketFrame rooms = afterLeave.readOutbound();
+            try {
+                assertFalse(rooms.text().contains("\"roomId\":" + roomId));
+                assertFalse(rooms.text().contains("Java Protected Room"));
+            } finally { rooms.release(); }
+        } finally { afterLeave.finishAndReleaseAll(); }
     }
 
     private static TextWebSocketFrame joinFrame(long roomId, String password) {
