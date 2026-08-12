@@ -477,6 +477,8 @@ Progress:
     of active DIRECT memberships that preserves durable history and mapping.
   - [x] Implement atomic PostgreSQL friend removal with retained conversation
     state, exact-retry detection, and fail-closed partial-membership handling.
+  - [x] Compose detached strict V1 friend removal with compatible responses,
+    fixed telemetry, authoritative first notification, and real PostgreSQL proof.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

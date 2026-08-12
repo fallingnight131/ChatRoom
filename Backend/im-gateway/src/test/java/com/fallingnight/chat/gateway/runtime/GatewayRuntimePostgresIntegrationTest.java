@@ -12,6 +12,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestAcceptanceEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestCreationEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestRejectionEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRemovalEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1PendingFriendRequestEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1UserSearchEventSink;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
@@ -249,6 +250,26 @@ class GatewayRuntimePostgresIntegrationTest {
                     peer.runPendingTasks();
                     assertNull(peer.readOutbound());
                     assertEquals(1, acceptedRequestCount(jdbcUrl, username, password));
+
+                    assertFriendRemovalSuccess(imported, "imported-peer");
+                    peer.runPendingTasks();
+                    TextWebSocketFrame removalNotification = peer.readOutbound();
+                    try {
+                        assertTrue(removalNotification.text().contains(
+                                "\"type\":\"FRIEND_REMOVE_NOTIFY\""));
+                        assertTrue(removalNotification.text().contains(
+                                "\"username\":\"imported-v1\""));
+                        assertTrue(removalNotification.text().contains(
+                                "\"displayName\":\"Imported V1\""));
+                    } finally { removalNotification.release(); }
+                    assertFriendRemovalSuccess(imported, "imported-peer");
+                    peer.runPendingTasks();
+                    assertNull(peer.readOutbound());
+                    assertEquals(2, inactiveFriendMembers(jdbcUrl, username, password));
+                    assertEquals(2, retainedFriendEntries(jdbcUrl, username, password));
+                    assertEmptyFriendList(imported);
+                    assertEmptyFriendList(peer);
+
                     EmbeddedChannel newcomer = upgradedChannel(module, Runnable::run,
                             AuthenticationAdmissionControl.allowAll(),
                             AuthenticationEventSink.noop());
@@ -322,6 +343,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1FriendRequestCreationEventSink.noop(),
                 V1FriendRequestAcceptanceEventSink.noop(),
                 V1FriendRequestRejectionEventSink.noop(),
+                V1FriendRemovalEventSink.noop(),
                 V1UserSearchEventSink.noop(),
                 java.time.Duration.ofSeconds(10),
                 java.time.Duration.ofSeconds(15),
@@ -363,6 +385,34 @@ class GatewayRuntimePostgresIntegrationTest {
         try {
             assertTrue(response.text().contains("\"type\":\"FRIEND_ACCEPT_RSP\""));
             assertTrue(response.text().contains("\"success\":true"));
+            assertFalse(response.text().contains("10000000-0000"));
+        } finally { response.release(); }
+    }
+
+    private static void assertFriendRemovalSuccess(
+            EmbeddedChannel channel, String targetUsername) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"FRIEND_REMOVE_REQ\",\"data\":{\"username\":\""
+                        + targetUsername + "\"}}"));
+        channel.runPendingTasks();
+        TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"FRIEND_REMOVE_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"username\":\""
+                    + targetUsername + "\""));
+            assertFalse(response.text().contains("10000000-0000"));
+        } finally { response.release(); }
+    }
+
+    private static void assertEmptyFriendList(EmbeddedChannel channel) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"FRIEND_LIST_REQ\",\"data\":{}}"));
+        channel.runPendingTasks();
+        TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"FRIEND_LIST_RSP\""));
+            assertTrue(response.text().contains("\"friends\":[]"));
             assertFalse(response.text().contains("10000000-0000"));
         } finally { response.release(); }
     }
@@ -598,6 +648,37 @@ class GatewayRuntimePostgresIntegrationTest {
                         "SELECT count(*) FROM chat.contact_request "
                                 + "WHERE id = '70000000-0000-0000-0000-000000000071' "
                                 + "AND state = 'ACCEPTED' AND resolved_at IS NOT NULL")) {
+            assertTrue(result.next());
+            return result.getInt(1);
+        }
+    }
+
+    private static int inactiveFriendMembers(
+            String url, String user, String password) throws Exception {
+        return countQuery(url, user, password,
+                "SELECT count(*) FROM chat.conversation_member member "
+                        + "JOIN chat.legacy_v1_conversation_map mapping "
+                        + "ON mapping.conversation_id = member.conversation_id "
+                        + "WHERE mapping.legacy_kind = 'FRIENDSHIP' "
+                        + "AND mapping.legacy_conversation_id = 9 "
+                        + "AND member.left_at IS NOT NULL");
+    }
+
+    private static int retainedFriendEntries(
+            String url, String user, String password) throws Exception {
+        return countQuery(url, user, password,
+                "SELECT count(*) FROM chat.conversation_entry entry "
+                        + "JOIN chat.legacy_v1_conversation_map mapping "
+                        + "ON mapping.conversation_id = entry.conversation_id "
+                        + "WHERE mapping.legacy_kind = 'FRIENDSHIP' "
+                        + "AND mapping.legacy_conversation_id = 9");
+    }
+
+    private static int countQuery(
+            String url, String user, String password, String sql) throws Exception {
+        try (Connection connection = DriverManager.getConnection(url, user, password);
+                Statement statement = connection.createStatement();
+                ResultSet result = statement.executeQuery(sql)) {
             assertTrue(result.next());
             return result.getInt(1);
         }

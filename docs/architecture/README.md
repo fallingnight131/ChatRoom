@@ -318,7 +318,10 @@ actor and exact target username are the only inputs. Its PostgreSQL adapter
 atomically ends both active DIRECT memberships while retaining the conversation,
 compatibility mapping, messages, entries, and cursors. Two inactive memberships
 behind the retained mapping prove an exact retry; mixed membership state fails
-closed. Only first removal may later notify the peer. No route exists yet.
+closed. The detached strict handler returns compatible responses and only first
+removal schedules an authoritative process-local peer notification. Real
+PostgreSQL verification covers two imported logins, list refresh, and retained
+history. Multi-gateway routing remains M5 and the product listener is unchanged.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,

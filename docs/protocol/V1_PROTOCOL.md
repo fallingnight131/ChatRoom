@@ -381,7 +381,10 @@ the first may emit `FRIEND_REMOVE_NOTIFY`. Removal ends both active canonical
 DIRECT memberships and retains the conversation, V1 mapping, messages, entries,
 and read cursors. Self removal retains its specific legacy error; other denials
 retain the generic failure. The PostgreSQL adapter now implements this atomic
-decision and fails closed on partial membership state; no handler exists yet.
+decision and fails closed on partial membership state. The detached handler now
+composes compatible responses and authoritative first-only notification;
+malformed or infrastructure-failed handling closes. The product listener remains
+inactive.
 
 ### Recall
 
