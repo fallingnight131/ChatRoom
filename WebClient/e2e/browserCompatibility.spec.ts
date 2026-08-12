@@ -1,4 +1,4 @@
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { readFileSync, writeFileSync } from "node:fs";
 
 const brandedTarget = process.env.CHATROOM_BRANDED_BROWSER_TARGET;
@@ -133,6 +133,22 @@ async function exerciseAuthenticatedClientShell(page: Page, context: BrowserCont
   return storage;
 }
 
+async function exerciseDelayedClientBoot(browser: Browser) {
+  const context = await browser.newContext();
+  await context.route("**/*", async route => {
+    if (["document", "script", "stylesheet"].includes(route.request().resourceType())) {
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+    await route.continue();
+  });
+  const page = await context.newPage();
+  const errors: Error[] = [];
+  page.on("pageerror", error => errors.push(error));
+  await exerciseAuthenticatedClientShell(page, context);
+  expect(errors).toEqual([]);
+  await context.close();
+}
+
 test("loads the production login surface with required browser capabilities", async ({ page }) => {
   const pageErrors: Error[] = [];
   page.on("pageerror", error => pageErrors.push(error));
@@ -244,6 +260,10 @@ test("decodes the baseline WebM video and Opus audio fixtures", async ({ page })
   await exerciseMediaDecode(page);
 });
 
+test("loads the authenticated production shell with fixed high response latency", async ({ browser }) => {
+  await exerciseDelayedClientBoot(browser);
+});
+
 test("records one exact branded-browser candidate smoke", async ({ browser }) => {
   test.skip(!brandedTarget, "Only the protected branded-browser matrix emits support evidence");
   const required = (name: string): string => {
@@ -351,6 +371,7 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
   await exerciseMediaDecode(authenticatedPage);
   await authenticatedContext.close();
   expect(pageErrors).toEqual([]);
+  await exerciseDelayedClientBoot(browser);
 
   const architecture = process.arch === "x64" ? "x86_64" : process.arch;
   const evidence = {
@@ -385,6 +406,7 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
       credentialsRemainMemoryOnly: true,
       authenticatedOfflineRecovery: true,
       baselineMediaDecoded: true,
+      delayedClientBoot: true,
       noPageErrors: true,
     },
     observedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),

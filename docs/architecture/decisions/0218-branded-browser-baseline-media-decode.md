@@ -1,6 +1,6 @@
 # ADR-0218: Require Real Baseline Media Decode in Branded Browser Evidence
 
-- Status: Accepted
+- Status: Superseded by ADR-0219
 - Date: 2026-08-13
 - Owners: Web client and quality
 - Related milestone: M4

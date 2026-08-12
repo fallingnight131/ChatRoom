@@ -857,6 +857,9 @@ Progress:
   authentication.
 - [x] Require real metadata decoding of tiny synthetic VP9 WebM and Opus/Ogg
   fixtures on every branded browser slot instead of trusting codec declarations.
+- [x] Require the production login, lazy chat shell, offline UI, and recovery
+  journey to pass with fixed 250ms document/script/style response latency,
+  without presenting it as a bandwidth or capacity benchmark.
 - [x] Pin exact Windows 10 22H2 and Windows 11 23H2/24H2 x86_64 client targets
   and independently verify a per-host, two-real-signed-candidate install/launch/
   upgrade/data-preservation/downgrade/uninstall evidence contract.
