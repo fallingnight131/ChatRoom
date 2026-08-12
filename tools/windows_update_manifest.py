@@ -298,6 +298,8 @@ def parse_args() -> argparse.Namespace:
     sign.add_argument("--manifest", type=Path, required=True)
     sign.add_argument("--private-key", type=Path, required=True)
     sign.add_argument("--signature", type=Path, required=True)
+    inspect = subparsers.add_parser("inspect")
+    inspect.add_argument("--manifest", type=Path, required=True)
     verify = subparsers.add_parser("verify")
     verify.add_argument("--manifest", type=Path, required=True)
     verify.add_argument("--signature", type=Path, required=True)
@@ -331,7 +333,7 @@ def main() -> int:
         elif args.command == "sign":
             sign_manifest(args.manifest, args.private_key, args.signature)
             result = {"status": "signed", "signatureBytes": args.signature.stat().st_size}
-        else:
+        elif args.command == "verify":
             observed_at = (
                 _parse_timestamp(args.observed_at, "observedAt")
                 if args.observed_at else datetime.now(timezone.utc)
@@ -340,6 +342,15 @@ def main() -> int:
                 args.manifest, args.signature, args.public_key, observed_at,
             )
             result = {"status": "verified", "version": manifest["version"], "channel": manifest["channel"]}
+        else:
+            manifest = read_canonical_manifest(args.manifest, datetime.now(timezone.utc))
+            result = {
+                "status": "inspected",
+                "version": manifest["version"],
+                "channel": manifest["channel"],
+                "signingKeyId": manifest["signingKeyId"],
+                "sourceRevision": manifest["sourceRevision"],
+            }
     except (ManifestError, OSError) as error:
         raise SystemExit(f"Windows update manifest failed: {error}") from None
     print(json.dumps(result, ensure_ascii=True, sort_keys=True))

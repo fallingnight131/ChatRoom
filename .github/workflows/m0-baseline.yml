@@ -48,6 +48,7 @@ jobs:
       - name: Verify Windows release trust policies
         run: |
           python3 Tests/windows_update_manifest_test.py
+          python3 Tests/windows_update_protected_signer_policy_test.py
           python3 Tests/windows_release_signature_policy_test.py
           python3 Tests/windows_release_evidence_test.py
           python3 Tests/windows_release_candidate_test.py

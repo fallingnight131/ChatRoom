@@ -1084,6 +1084,15 @@ detached Ed25519 signature output is write-once with link/unsafe-directory
 rejection. The existing fixture PEM flow remains test-only/offline; production
 update-key custody and protected execution are still separate M4 work.
 
+ADR-0175 adds the production-compatible private-key operation boundary without
+provisioning a key. The PowerShell adapter accepts only a credential-free
+PKCS#11 object URI from protected runner configuration, preinstalled OpenSSL 3,
+and a reviewed public PEM/key ID/file digest. It accepts no PEM private key, PIN,
+password, provider installation, or secret workflow input; HSM authentication
+is owned out of band by the runner service. The detached signature is verified
+immediately and created once. Workflow orchestration, product public trust, and
+channel publication remain separate gates.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

@@ -546,6 +546,25 @@ and rejects tampering/expiry/unsafe URLs. It does not create or trust a product
 key and refuses the unsigned verification Setup name. See
 [`UPDATE_MANIFEST.md`](../packaging/windows/UPDATE_MANIFEST.md) and ADR-0117.
 
+Production update-manifest signing uses the separate static policy boundary:
+
+```bash
+python3 Tests/windows_update_protected_signer_policy_test.py
+```
+
+Provision a dedicated protected runner with OpenSSL 3 plus its reviewed PKCS#11
+provider, a hardware-backed non-exportable Ed25519 key, and the matching public
+PEM. The runner service authenticates to the HSM out of band. Set only the
+credential-free PKCS#11 object URI in `CHATROOM_UPDATE_SIGNING_KEY_URI`; do not
+put a PIN, password, key bytes, PEM private-key path, or provider installer in
+workflow input, environment secrets, arguments, logs, or artifacts. Invoke
+`sign_windows_update_manifest_protected.ps1` with the canonical manifest,
+previously absent signature path, reviewed manifest key ID, public PEM path, and
+public-key-file SHA-256. It inspects canonical identity, signs through PKCS#11,
+immediately verifies through the public PEM, and publishes only the exact
+64-byte detached signature. Protected workflow orchestration and positive HSM
+execution evidence remain later M4 steps.
+
 The provider-neutral post-signing acceptance policy is checked with:
 
 ```bash

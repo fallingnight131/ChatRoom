@@ -151,3 +151,13 @@ Never echo, archive, or upload the private key. The public key can be committed
 only in a future key-enablement ADR after fingerprint review and two-person key
 custody. A key rotation publishes a client that trusts both old and new key IDs
 before signing any manifest exclusively with the new key.
+
+Production automation must not use the fixture-oriented `--private-key` path.
+`sign_windows_update_manifest_protected.ps1` instead accepts only a preconfigured
+`CHATROOM_UPDATE_SIGNING_KEY_URI` beginning with `pkcs11:`. PIN values/sources,
+passwords, secrets, private-key files, and provider installation are not inputs;
+HSM authentication belongs to the protected runner service and provider setup.
+The adapter requires preinstalled OpenSSL 3, a reviewed regular public-key PEM
+whose file SHA-256 and manifest key ID are explicit public inputs, then verifies
+the 64-byte signature with that public key before atomically creating a
+previously absent output. This is a signing primitive, not channel publication.
