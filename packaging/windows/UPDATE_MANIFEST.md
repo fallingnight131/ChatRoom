@@ -201,3 +201,12 @@ uploads one seven-day evidence artifact. Its inputs contain public release
 policy only; the key URI and public PEM path are runner configuration. The
 workflow intentionally has read-only repository permissions and no release,
 endpoint upload, client-trust provisioning, or channel pointer operation.
+
+Existing-channel promotion requires a separate short-lived authorization from
+`windows_update_release_authorization.py`. It independently verifies the closed
+candidate and derives the exact expected current sequence/SHA-256 from a
+canonical current-manifest snapshot. The target sequence must advance, the
+candidate may be at most 24 hours old, and approval lasts 60–900 seconds. The
+record contains no credentials and performs no network operation; a future
+executor must compare the live channel bytes with that approved digest before
+switching. This path deliberately does not bootstrap an empty channel.

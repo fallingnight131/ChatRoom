@@ -571,6 +571,9 @@ Progress:
 - [x] Orchestrate that candidate on a distinct protected update-signing
   environment/runner, consuming exactly one prior signed Windows artifact and
   emitting one short-retention candidate without publication authority.
+- [x] Add a short-lived write-once Windows update promotion authorization that
+  reconstructs the signed candidate, binds a canonical expected-current
+  manifest for compare-and-swap, and requires a strictly advancing sequence.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

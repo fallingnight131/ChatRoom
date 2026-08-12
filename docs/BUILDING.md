@@ -602,6 +602,25 @@ A real approved run is still required before claiming the HSM/provider,
 signature, Windows candidate, or update channel works in production. See
 ADR-0177.
 
+Before a provider adapter may mutate an existing stable or beta endpoint, use
+`tools/windows_update_release_authorization.py create` with the exact closed
+candidate and a canonical snapshot of the manifest expected to be current. The
+tool revalidates the complete candidate, requires its signature and manifest to
+be live, rejects a candidate older than 24 hours, derives the current sequence
+and SHA-256 from the snapshot, and requires a strictly advancing target
+sequence. It emits a 60–900-second write-once
+`update-channel-promotion-approved-not-executed` record for the fixed
+`windows-update-production` environment. It has no network or mutation logic:
+
+```bash
+python3 Tests/windows_update_release_authorization_test.py
+```
+
+The current snapshot is a compare-and-swap expectation, not evidence of a live
+fetch. A later executor must observe exact endpoint equality immediately before
+mutation. Initial channel bootstrap is intentionally not authorized by this
+path. See ADR-0178.
+
 The provider-neutral post-signing acceptance policy is checked with:
 
 ```bash

@@ -1111,6 +1111,15 @@ distinct from Authenticode signing. Public endpoint/rollout inputs remain
 reviewable, while key URI and public PEM location never become dispatch inputs.
 There is still no product trust provisioning or stable/beta publication.
 
+ADR-0178 adds the separate operational authorization boundary for an existing
+stable or beta channel. It reconstructs a fresh signed candidate and derives
+the exact expected-current sequence/digest from a canonical manifest snapshot,
+then grants only 60–900 seconds for a compare-and-swap execution. The target
+must strictly advance and the candidate may be no more than 24 hours old. The
+authorization has no provider or network capability; a live endpoint check and
+atomic mutation remain the next boundary, and empty-channel bootstrap remains
+explicitly unsupported here.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,
