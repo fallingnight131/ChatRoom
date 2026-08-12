@@ -16,6 +16,7 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomAudienceSe
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomHistoryService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRecallService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomReadService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1UserSearchService;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AccountConnectionRegistry;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectHistoryEventSink;
@@ -61,6 +62,9 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomHistoryHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomRecallCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomRecallEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomRecallHandler;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomReadCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomReadEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomReadHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonUserSearchCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1UserSearchEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1UserSearchHandler;
@@ -88,6 +92,7 @@ import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomAudienceAd
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomMessageAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomHistoryAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomRecallAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomReadAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.timeout.IdleStateHandler;
 import java.time.Clock;
@@ -108,6 +113,7 @@ public final class V1CompatibilityModule {
     private final LegacyV1RoomMessageService roomMessages;
     private final LegacyV1RoomHistoryService roomHistory;
     private final LegacyV1RoomRecallService roomRecalls;
+    private final LegacyV1RoomReadService roomReads;
     private final LegacyV1FriendDirectoryService friendDirectory;
     private final LegacyV1PendingFriendRequestService pendingRequests;
     private final LegacyV1FriendRequestAcceptanceService friendRequestAcceptance;
@@ -128,6 +134,7 @@ public final class V1CompatibilityModule {
             LegacyV1RoomMessageService roomMessages,
             LegacyV1RoomHistoryService roomHistory,
             LegacyV1RoomRecallService roomRecalls,
+            LegacyV1RoomReadService roomReads,
             LegacyV1FriendDirectoryService friendDirectory,
             LegacyV1PendingFriendRequestService pendingRequests,
             LegacyV1FriendRequestCreationService friendRequestCreation,
@@ -146,6 +153,7 @@ public final class V1CompatibilityModule {
         this.roomMessages = Objects.requireNonNull(roomMessages, "roomMessages");
         this.roomHistory = Objects.requireNonNull(roomHistory, "roomHistory");
         this.roomRecalls = Objects.requireNonNull(roomRecalls, "roomRecalls");
+        this.roomReads = Objects.requireNonNull(roomReads, "roomReads");
         this.friendDirectory = Objects.requireNonNull(friendDirectory, "friendDirectory");
         this.pendingRequests = Objects.requireNonNull(pendingRequests, "pendingRequests");
         this.friendRequestCreation = Objects.requireNonNull(
@@ -196,6 +204,8 @@ public final class V1CompatibilityModule {
                         new PostgresLegacyV1RoomHistoryAdapter(dataSource)),
                 new LegacyV1RoomRecallService(
                         new PostgresLegacyV1RoomRecallAdapter(dataSource)),
+                new LegacyV1RoomReadService(
+                        new PostgresLegacyV1RoomReadAdapter(dataSource)),
                 new LegacyV1FriendDirectoryService(
                         new PostgresLegacyV1FriendDirectoryAdapter(dataSource),
                         legacyConversations,
@@ -227,6 +237,7 @@ public final class V1CompatibilityModule {
             V1RoomMessageEventSink roomMessageEvents,
             V1RoomHistoryEventSink roomHistoryEvents,
             V1RoomRecallEventSink roomRecallEvents,
+            V1RoomReadEventSink roomReadEvents,
             V1FriendDirectoryEventSink friendEvents,
             V1PendingFriendRequestEventSink pendingEvents,
             V1FriendRequestCreationEventSink creationEvents,
@@ -251,6 +262,7 @@ public final class V1CompatibilityModule {
                         roomMessageEvents,
                         roomHistoryEvents,
                         roomRecallEvents,
+                        roomReadEvents,
                         friendEvents,
                         pendingEvents,
                         creationEvents,
@@ -276,6 +288,7 @@ public final class V1CompatibilityModule {
             V1RoomMessageEventSink roomMessageEvents,
             V1RoomHistoryEventSink roomHistoryEvents,
             V1RoomRecallEventSink roomRecallEvents,
+            V1RoomReadEventSink roomReadEvents,
             V1FriendDirectoryEventSink friendEvents,
             V1PendingFriendRequestEventSink pendingEvents,
             V1FriendRequestCreationEventSink creationEvents,
@@ -331,6 +344,11 @@ public final class V1CompatibilityModule {
                 connections,
                 directoryExecutor,
                 roomRecallEvents));
+        pipeline.addLast("v1-room-read", new V1RoomReadHandler(
+                roomReads,
+                new V1JsonRoomReadCodec(),
+                directoryExecutor,
+                roomReadEvents));
         pipeline.addLast("v1-friend-directory", new V1FriendDirectoryHandler(
                 friendDirectory,
                 new V1JsonFriendDirectoryCodec(clock),

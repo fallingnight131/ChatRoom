@@ -533,6 +533,9 @@ Progress:
   - [x] Implement serializable PostgreSQL V1 room-read advancement with exact
     active-member locking, high-watermark observation, one-account update, and
     repeat-idempotent monotonic results.
+  - [x] Compose detached response-free V1 room-read handling with authenticated
+    identity, bounded off-loop execution, fixed telemetry, and real PostgreSQL
+    unread-directory reconciliation.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

@@ -385,7 +385,10 @@ monotonically to a transactionally observed durable high watermark; it does not
 interpret descending runtime V1 message IDs as order and emits no room receipt.
 The serializable PostgreSQL adapter now locks the exact active member and room,
 advances only that account to the observed durable high watermark, and returns
-unchanged on repeat. No handler exists yet.
+unchanged on repeat. The detached strict handler preserves the response-free V1
+shape, closes malformed or unavailable work, and records fixed outcome/delta
+telemetry. Real PostgreSQL verifies the next room list reports zero unread; the
+product listener remains inactive.
 Any incomplete compatibility projection closes the detached connection rather
 than sending an empty authoritative list. This route remains inactive.
 

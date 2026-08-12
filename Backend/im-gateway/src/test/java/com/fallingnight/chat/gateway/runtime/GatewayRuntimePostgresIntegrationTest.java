@@ -9,6 +9,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1ConnectionAttributes;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectHistoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomHistoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomRecallEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomReadEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectRecallEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
@@ -275,6 +276,7 @@ class GatewayRuntimePostgresIntegrationTest {
                         assertRoomRecallFirst(reconnected, peer, roomMessageId);
                         assertRoomRecallDuplicate(reconnected, peer, roomMessageId);
                         assertRecalledRoomHistoryAfterSequence(reconnected, roomMessageId);
+                        assertRoomReadClearsUnread(reconnected);
                         assertDirectHistoryAfterReconnect(reconnected);
                         assertDirectRecallFirst(reconnected, peer, directMessageId);
                         assertDirectRecallDuplicate(reconnected, peer, directMessageId);
@@ -371,6 +373,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomMessageEventSink.noop(),
                 V1RoomHistoryEventSink.noop(),
                 V1RoomRecallEventSink.noop(),
+                V1RoomReadEventSink.noop(),
                 V1FriendDirectoryEventSink.noop(),
                 V1PendingFriendRequestEventSink.noop(),
                 V1FriendRequestCreationEventSink.noop(),
@@ -578,6 +581,20 @@ class GatewayRuntimePostgresIntegrationTest {
         sender.writeInbound(new TextWebSocketFrame(
                 "{\"type\":\"RECALL_REQ\",\"data\":{\"roomId\":7,\"messageId\":"
                         + messageId + "}}"));
+    }
+
+    private static void assertRoomReadClearsUnread(EmbeddedChannel channel) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"MARK_ROOM_READ\",\"data\":{\"roomId\":7}}"));
+        channel.runPendingTasks(); assertNull(channel.readOutbound());
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"ROOM_LIST_REQ\",\"data\":{}}"));
+        channel.runPendingTasks(); TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"ROOM_LIST_RSP\""));
+            assertTrue(response.text().contains("\"roomId\":7"));
+            assertTrue(response.text().contains("\"unread\":0"));
+        } finally { response.release(); }
     }
 
     private static void sendRoomMessage(EmbeddedChannel sender) {

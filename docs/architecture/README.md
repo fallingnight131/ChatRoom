@@ -419,6 +419,10 @@ and resulting values for fixed telemetry. V1 publishes no room read receipt.
 Its serializable PostgreSQL adapter now locks the exact active member and GROUP
 conversation, advances only that account to the observed high watermark, and
 returns unchanged on exact repeat. No handler exists yet.
+The detached strict response-free handler now binds authenticated identity,
+executes off-loop, and emits fixed outcome/delta telemetry. Real PostgreSQL
+verifies the subsequent room directory reports zero unread without updating
+another member. The product listener remains unchanged.
 
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.
