@@ -33,8 +33,15 @@ original body, so a retained recalled row cannot prove its former content.
 
 Text-like history now has an explicit deterministic mapping, while attachments
 remain a visible migration blocker rather than being lost or mislabeled. This
-planner is pre-write only; it does not yet read bodies from SQLite, create
-synthetic legacy devices, or insert target messages.
+planner and source reader are pre-write only; they do not yet create synthetic
+legacy devices or insert target messages.
+
+The implemented query-only SQLite reader requires the complete body and
+attachment-metadata columns, runs `quick_check`, and reads both message tables
+inside one transaction snapshot. Its query deliberately excludes attachment
+storage paths and bytes. Attachment names/thumbnails are used only to construct
+an in-memory row for later reviewed metadata mapping and never appear in issue
+output.
 
 ## Verification and Rollback
 
