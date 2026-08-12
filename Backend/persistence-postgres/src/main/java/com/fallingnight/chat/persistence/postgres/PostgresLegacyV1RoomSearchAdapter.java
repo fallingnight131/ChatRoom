@@ -76,6 +76,9 @@ public final class PostgresLegacyV1RoomSearchAdapter implements LegacyV1RoomSear
                     JOIN chat.legacy_v1_conversation_map room_map
                       ON room_map.conversation_id = conversation.id
                      AND room_map.legacy_kind = 'ROOM'
+                    JOIN chat.group_lifecycle lifecycle
+                      ON lifecycle.conversation_id = conversation.id
+                     AND lifecycle.closed_at IS NULL
                     WHERE conversation.kind = 'GROUP'
                       AND ((? IS NOT NULL AND room_map.legacy_conversation_id = ?)
                            OR (? IS NULL AND conversation.title ILIKE ? ESCAPE '\\'))

@@ -65,12 +65,15 @@ public final class PostgresLegacyV1RoomReadAdapter implements LegacyV1RoomReadPo
                  AND member.left_at IS NULL
                 JOIN chat.conversation conversation ON conversation.id = member.conversation_id
                  AND conversation.kind = 'GROUP'
+                JOIN chat.group_lifecycle lifecycle
+                  ON lifecycle.conversation_id = conversation.id
+                 AND lifecycle.closed_at IS NULL
                 JOIN chat.legacy_v1_conversation_map mapping
                   ON mapping.conversation_id = conversation.id AND mapping.legacy_kind = 'ROOM'
                  AND mapping.legacy_conversation_id = ?
                 WHERE actor.id = ? AND actor.disabled_at IS NULL
                   AND mapping.legacy_conversation_id BETWEEN 1 AND 2147483647
-                FOR UPDATE OF member, conversation
+                FOR UPDATE OF member, conversation, lifecycle
                 """)) {
             statement.setLong(1, command.legacyRoomId());
             statement.setObject(2, command.actorAccountId());

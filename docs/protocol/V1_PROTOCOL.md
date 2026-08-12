@@ -168,9 +168,12 @@ The inactive Java application boundary for `LEAVE_ROOM` binds the actor from
 authenticated state and accepts only a positive 32-bit `roomId`. A committed
 leave is retry-idempotent; only the first apply may emit `USER_LEFT` or ownership
 notifications. Owner succession is deterministic and atomic. Last-member leave
-will durably dissolve rather than physically delete the canonical conversation,
-but no PostgreSQL adapter or handler exists yet and the product listener remains
-unchanged.
+now durably dissolves through V026 `group_lifecycle` rather than physically
+deleting the canonical conversation. The serializable adapter preserves exact
+retry, deterministically promotes one remaining owner, and all current Java room
+authorization/projection paths reject a dissolved room. Real PostgreSQL verifies
+the transition and retained rows. No handler exists yet and the product listener
+remains unchanged.
 
 ### Administration and recall
 

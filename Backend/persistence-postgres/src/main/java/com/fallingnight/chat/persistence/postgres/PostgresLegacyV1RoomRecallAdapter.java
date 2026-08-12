@@ -67,6 +67,9 @@ public final class PostgresLegacyV1RoomRecallAdapter implements LegacyV1RoomReca
                   ON room.legacy_kind = 'ROOM' AND room.legacy_conversation_id = ?
                 JOIN chat.conversation conversation
                   ON conversation.id = room.conversation_id AND conversation.kind = 'GROUP'
+                JOIN chat.group_lifecycle lifecycle
+                  ON lifecycle.conversation_id = conversation.id
+                 AND lifecycle.closed_at IS NULL
                 JOIN chat.legacy_v1_message_map mapping
                   ON mapping.legacy_kind = 'ROOM'
                  AND mapping.legacy_conversation_id = room.legacy_conversation_id

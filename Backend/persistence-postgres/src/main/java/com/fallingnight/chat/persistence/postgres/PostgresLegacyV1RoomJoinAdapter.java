@@ -136,13 +136,16 @@ public final class PostgresLegacyV1RoomJoinAdapter implements LegacyV1RoomJoinPo
                  AND conversation.kind = 'GROUP'
                 JOIN chat.group_admission_policy policy
                   ON policy.conversation_id = conversation.id
+                JOIN chat.group_lifecycle lifecycle
+                  ON lifecycle.conversation_id = conversation.id
+                 AND lifecycle.closed_at IS NULL
                 LEFT JOIN chat.group_join_credential credential
                   ON credential.conversation_id = conversation.id
                 LEFT JOIN chat.conversation_member member
                   ON member.conversation_id = conversation.id AND member.account_id = ?
                 WHERE mapping.legacy_kind = 'ROOM'
                   AND mapping.legacy_conversation_id = ?
-                """ + (lock ? " FOR UPDATE OF conversation, policy" : "");
+                """ + (lock ? " FOR UPDATE OF conversation, policy, lifecycle" : "");
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setObject(1, actor); statement.setLong(2, roomId);
             try (ResultSet row = statement.executeQuery()) {

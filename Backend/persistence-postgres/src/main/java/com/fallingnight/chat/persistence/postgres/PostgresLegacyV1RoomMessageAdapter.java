@@ -91,6 +91,9 @@ public final class PostgresLegacyV1RoomMessageAdapter implements LegacyV1RoomMes
                 JOIN chat.conversation conversation
                   ON conversation.id = mapping.conversation_id
                  AND conversation.kind = 'GROUP'
+                JOIN chat.group_lifecycle lifecycle
+                  ON lifecycle.conversation_id = conversation.id
+                 AND lifecycle.closed_at IS NULL
                 JOIN chat.conversation_member member
                   ON member.conversation_id = conversation.id
                  AND member.account_id = actor.id AND member.left_at IS NULL

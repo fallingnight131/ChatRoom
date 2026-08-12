@@ -23,6 +23,9 @@ public final class PostgresLegacyV1RoomAudienceAdapter implements LegacyV1RoomAu
                     FROM chat.conversation_member member
                     JOIN chat.conversation conversation ON conversation.id = member.conversation_id
                      AND conversation.kind = 'GROUP'
+                    JOIN chat.group_lifecycle lifecycle
+                      ON lifecycle.conversation_id = conversation.id
+                     AND lifecycle.closed_at IS NULL
                     JOIN chat.legacy_v1_conversation_map room
                       ON room.conversation_id = conversation.id AND room.legacy_kind = 'ROOM'
                     JOIN chat.account account ON account.id = member.account_id

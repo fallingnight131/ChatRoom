@@ -28,11 +28,14 @@ public final class PostgresConversationDirectoryAdapter implements ConversationD
             + "FROM chat.conversation_member cm "
             + "JOIN chat.conversation c ON c.id = cm.conversation_id "
             + "JOIN chat.account owner ON owner.id = cm.account_id "
+            + "LEFT JOIN chat.group_lifecycle lifecycle ON lifecycle.conversation_id = c.id "
             + "LEFT JOIN chat.direct_conversation dc ON dc.conversation_id = c.id "
             + "LEFT JOIN chat.account peer ON peer.id = CASE "
             + "WHEN dc.first_account_id = cm.account_id THEN dc.second_account_id "
             + "ELSE dc.first_account_id END "
-            + "WHERE cm.account_id = ? AND cm.left_at IS NULL AND owner.disabled_at IS NULL ";
+            + "WHERE cm.account_id = ? AND cm.left_at IS NULL AND owner.disabled_at IS NULL "
+            + "AND (c.kind = 'DIRECT' OR (lifecycle.conversation_id IS NOT NULL "
+            + "AND lifecycle.closed_at IS NULL)) ";
 
     private final DataSource dataSource;
 

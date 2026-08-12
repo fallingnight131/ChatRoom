@@ -360,9 +360,14 @@ is idempotent, while a never-member is rejected. If an owner leaves a non-empty
 room, one remaining administrator/member is promoted deterministically by role,
 join time, and account ID. The last member dissolves the room instead of
 physically deleting messages, attachments, mappings, and audit evidence.
-Dissolved-room exclusion requires an explicit schema marker across every room
-authorization/projection adapter before any handler is composed. No adapter or
-handler exists yet.
+Dissolved-room exclusion now uses V026 `group_lifecycle`, backfilled for existing
+GROUPs and trigger-created for every future GROUP. The serializable leave adapter
+locks and validates the complete active role graph, promotes deterministically,
+retains inactive membership for exact retry, and timestamps last-member closure.
+Generic directory/message/attachment authorization and every existing V1 room
+adapter require an active lifecycle row, including under corrupt membership
+reactivation. Real PostgreSQL proves migration/restart, succession, dissolution,
+durable-row retention, retry, and read-path exclusion. No handler exists yet.
 
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target

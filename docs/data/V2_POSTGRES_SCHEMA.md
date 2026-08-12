@@ -137,6 +137,13 @@ upgraded through V024, only an untouched 50 may be updated by counted
 compare-and-set; a different target is a conflict. Preview and CLI report the
 pending policy-update count, and post-write comparison requires exact policy
 reconciliation.
+V026 adds one lifecycle row for every GROUP through the canonical `(id, kind)`
+key, backfills existing rows, and installs a schema-qualified insert trigger so
+all future GROUP writers receive the row. A null `closed_at` is active; a
+timestamp is durable dissolution. Last-member V1 leave closes the lifecycle
+without deleting messages, entries, attachments, mappings, or audit evidence.
+Generic directory/message/attachment authorization and all current V1 room
+adapters require an active lifecycle row and fail closed when it is missing.
 The read-only application compatibility port keeps the namespace type alongside
 the numeric ID and supports both V1-to-V2 request translation and V2-to-V1 event
 projection. Its PostgreSQL adapter does not create mappings, infer identities,
@@ -426,7 +433,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V025, reruns migration as a simulated
+cluster, migrates a clean database through current V026, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable

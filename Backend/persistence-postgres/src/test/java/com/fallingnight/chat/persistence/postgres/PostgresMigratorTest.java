@@ -50,6 +50,8 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordEn
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomJoinAccess;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomJoinIntent;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomJoinResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomLeaveIntent;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomLeaveResult;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -141,7 +143,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(25, first.migrate());
+        assertEquals(26, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -160,7 +162,8 @@ class PostgresMigratorTest {
                             "attachment", "contact_request",
                             "legacy_v1_contact_request_map",
                             "contact_request_import_run", "group_join_credential",
-                            "legacy_v1_room_creation", "group_admission_policy"),
+                            "legacy_v1_room_creation", "group_admission_policy",
+                            "group_lifecycle"),
                     applicationTables(connection));
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
@@ -1051,6 +1054,119 @@ class PostgresMigratorTest {
         assertEquals(LegacyV1RoomJoinResult.Rejected.ACCESS_CHANGED,
                 adapter.join(new LegacyV1RoomJoinIntent(rejectedActor, created.conversationId(),
                         created.legacyRoomId(), stale.joinCredential())));
+    }
+
+    @Test
+    @Order(93)
+    void leavesV1RoomsAtomicallyTransfersOwnerAndDurablyDissolves() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID owner = UUID.randomUUID(), admin = UUID.randomUUID();
+        UUID member = UUID.randomUUID(), outsider = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'leave-owner', 'Owner', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'leave-admin', 'Next Admin', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'leave-member', 'Member', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'leave-outsider', 'Outsider', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    owner, admin, member, outsider);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                            + "VALUES (71, ?), (72, ?), (73, ?), (74, ?)",
+                    owner, admin, member, outsider);
+        }
+        var created = (LegacyV1RoomCreationResult.Created)
+                new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
+                        new LegacyV1RoomCreationIntent(owner, "leave-room-create",
+                                "Leave Room", Optional.empty()));
+        PostgresLegacyV1RoomJoinAdapter joins =
+                new PostgresLegacyV1RoomJoinAdapter(dataSource());
+        for (UUID actor : List.of(admin, member)) {
+            var access = (LegacyV1RoomJoinAccess.Candidate)
+                    joins.inspect(actor, created.legacyRoomId());
+            assertTrue(joins.join(new LegacyV1RoomJoinIntent(actor,
+                    access.conversationId(), access.legacyRoomId(),
+                    access.joinCredential())) instanceof LegacyV1RoomJoinResult.Joined);
+        }
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.conversation_member SET role = 'ADMIN' "
+                    + "WHERE conversation_id = ? AND account_id = ?",
+                    created.conversationId(), admin);
+        }
+
+        PostgresLegacyV1RoomLeaveAdapter leaves =
+                new PostgresLegacyV1RoomLeaveAdapter(dataSource());
+        assertEquals(LegacyV1RoomLeaveResult.Rejected.NOT_MEMBER,
+                leaves.leave(new LegacyV1RoomLeaveIntent(outsider, created.legacyRoomId())));
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.account SET disabled_at = transaction_timestamp() "
+                    + "WHERE id = ?", outsider);
+        }
+        assertEquals(LegacyV1RoomLeaveResult.Rejected.LEAVE_DENIED,
+                leaves.leave(new LegacyV1RoomLeaveIntent(outsider, created.legacyRoomId())));
+
+        var ownerLeft = (LegacyV1RoomLeaveResult.Left) leaves.leave(
+                new LegacyV1RoomLeaveIntent(owner, created.legacyRoomId()));
+        assertTrue(ownerLeft.newLeave()); assertFalse(ownerLeft.dissolved());
+        assertEquals(admin, ownerLeft.ownershipTransfer().orElseThrow().successorAccountId());
+        assertEquals("Next Admin",
+                ownerLeft.ownershipTransfer().orElseThrow().successorDisplayName());
+        assertEquals(1, count("SELECT count(*) FROM chat.conversation_member WHERE conversation_id = '"
+                + created.conversationId() + "' AND account_id = '" + admin
+                + "' AND role = 'OWNER' AND left_at IS NULL"));
+        var ownerRetry = (LegacyV1RoomLeaveResult.Left) leaves.leave(
+                new LegacyV1RoomLeaveIntent(owner, created.legacyRoomId()));
+        assertFalse(ownerRetry.newLeave()); assertFalse(ownerRetry.dissolved());
+        assertTrue(ownerRetry.ownershipTransfer().isEmpty());
+        assertTrue(new PostgresConversationDirectoryAdapter(dataSource()).list(
+                new ConversationDirectoryQuery(owner, Optional.empty(), 100))
+                .conversations().isEmpty());
+
+        assertTrue(((LegacyV1RoomLeaveResult.Left) leaves.leave(
+                new LegacyV1RoomLeaveIntent(member, created.legacyRoomId()))).newLeave());
+        var dissolved = (LegacyV1RoomLeaveResult.Left) leaves.leave(
+                new LegacyV1RoomLeaveIntent(admin, created.legacyRoomId()));
+        assertTrue(dissolved.newLeave()); assertTrue(dissolved.dissolved());
+        assertTrue(dissolved.ownershipTransfer().isEmpty());
+        assertEquals(1, count("SELECT count(*) FROM chat.group_lifecycle WHERE conversation_id = '"
+                + created.conversationId() + "' AND closed_at IS NOT NULL"));
+        assertEquals(1, count("SELECT count(*) FROM chat.conversation WHERE id = '"
+                + created.conversationId() + "'"));
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_conversation_map "
+                + "WHERE conversation_id = '" + created.conversationId() + "'"));
+        assertTrue(new PostgresLegacyV1RoomSearchAdapter(dataSource())
+                .search(owner, "Leave Room", 20).isEmpty());
+        assertEquals(LegacyV1RoomJoinAccess.Rejected.NOT_FOUND,
+                joins.inspect(member, created.legacyRoomId()));
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.account SET disabled_at = NULL WHERE id = ?",
+                    outsider);
+        }
+        assertEquals(LegacyV1RoomLeaveResult.Rejected.NOT_FOUND,
+                leaves.leave(new LegacyV1RoomLeaveIntent(
+                        outsider, created.legacyRoomId())));
+
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.conversation_member SET left_at = NULL "
+                    + "WHERE conversation_id = ? AND account_id = ?",
+                    created.conversationId(), admin);
+        }
+        assertTrue(new PostgresConversationDirectoryAdapter(dataSource()).list(
+                new ConversationDirectoryQuery(admin, Optional.empty(), 100))
+                .conversations().isEmpty());
+        assertTrue(new PostgresLegacyV1RoomAudienceAdapter(dataSource())
+                .activeMappedMembers(created.conversationId(), Set.of(admin)).isEmpty());
+        assertEquals(LegacyV1RoomHistoryResult.Rejected.ROOM_ACCESS_DENIED,
+                new PostgresLegacyV1RoomHistoryAdapter(dataSource()).read(
+                        new LegacyV1RoomHistoryQuery(admin, created.legacyRoomId(),
+                                20, 0, 0L)));
+        assertEquals(LegacyV1RoomReadResult.Rejected.ROOM_ACCESS_DENIED,
+                new PostgresLegacyV1RoomReadAdapter(dataSource()).markRead(
+                        new LegacyV1RoomReadCommand(admin, created.legacyRoomId())));
     }
 
     @Test

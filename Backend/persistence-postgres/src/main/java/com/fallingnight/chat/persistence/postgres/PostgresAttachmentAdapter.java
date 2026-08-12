@@ -221,12 +221,17 @@ public final class PostgresAttachmentAdapter
         String sql = """
                 SELECT 1
                 FROM chat.conversation_member cm
+                JOIN chat.conversation c ON c.id = cm.conversation_id
+                LEFT JOIN chat.group_lifecycle lifecycle
+                  ON lifecycle.conversation_id = c.id
                 JOIN chat.account a ON a.id = cm.account_id
                 JOIN chat.device d ON d.account_id = cm.account_id
                 WHERE cm.conversation_id = ? AND cm.account_id = ?
                   AND cm.left_at IS NULL AND a.disabled_at IS NULL
                   AND d.id = ? AND d.revoked_at IS NULL
-                FOR SHARE OF cm, a, d
+                  AND (c.kind = 'DIRECT' OR (lifecycle.conversation_id IS NOT NULL
+                       AND lifecycle.closed_at IS NULL))
+                FOR SHARE OF cm, c, a, d
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setObject(1, value.conversationId());
@@ -270,6 +275,9 @@ public final class PostgresAttachmentAdapter
                 JOIN chat.conversation_member cm
                   ON cm.conversation_id = att.conversation_id
                  AND cm.account_id = att.owner_account_id
+                JOIN chat.conversation c ON c.id = cm.conversation_id
+                LEFT JOIN chat.group_lifecycle lifecycle
+                  ON lifecycle.conversation_id = c.id
                 JOIN chat.account a ON a.id = att.owner_account_id
                 JOIN chat.device d
                   ON d.id = att.owner_device_id
@@ -277,7 +285,9 @@ public final class PostgresAttachmentAdapter
                 WHERE att.id = ? AND att.owner_account_id = ? AND att.owner_device_id = ?
                   AND cm.left_at IS NULL AND a.disabled_at IS NULL
                   AND d.revoked_at IS NULL
-                """ + (lock ? "FOR UPDATE OF att FOR SHARE OF cm, a, d" : "");
+                  AND (c.kind = 'DIRECT' OR (lifecycle.conversation_id IS NOT NULL
+                       AND lifecycle.closed_at IS NULL))
+                """ + (lock ? "FOR UPDATE OF att FOR SHARE OF cm, c, a, d" : "");
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setObject(1, attachmentId);
             statement.setObject(2, actor.accountId());

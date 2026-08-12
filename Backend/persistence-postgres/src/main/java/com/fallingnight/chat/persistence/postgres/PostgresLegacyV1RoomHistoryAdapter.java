@@ -79,6 +79,9 @@ public final class PostgresLegacyV1RoomHistoryAdapter implements LegacyV1RoomHis
                  AND member.left_at IS NULL
                 JOIN chat.conversation conversation ON conversation.id = member.conversation_id
                  AND conversation.kind = 'GROUP'
+                JOIN chat.group_lifecycle lifecycle
+                  ON lifecycle.conversation_id = conversation.id
+                 AND lifecycle.closed_at IS NULL
                 JOIN chat.legacy_v1_conversation_map mapping
                   ON mapping.conversation_id = conversation.id AND mapping.legacy_kind = 'ROOM'
                  AND mapping.legacy_conversation_id = ?

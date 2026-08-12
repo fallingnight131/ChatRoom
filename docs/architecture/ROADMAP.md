@@ -582,7 +582,7 @@ Progress:
     and real PostgreSQL/relogin proof.
   - [x] Define authenticated idempotent V1 room leaving with atomic deterministic
     ownership succession and durable last-member dissolution semantics.
-  - [ ] Add explicit GROUP lifecycle state and atomic PostgreSQL V1 room leaving,
+  - [x] Add explicit GROUP lifecycle state and atomic PostgreSQL V1 room leaving,
     then exclude dissolved rooms from every room authorization/projection path.
   - [ ] Compose detached strict V1 room leaving with first-only presence and
     ownership notifications plus real PostgreSQL/relogin proof.

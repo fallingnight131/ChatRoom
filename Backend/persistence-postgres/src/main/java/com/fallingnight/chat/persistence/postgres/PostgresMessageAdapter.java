@@ -225,10 +225,14 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
     private static boolean authorizedSender(Connection connection, MessageSubmission submission)
             throws SQLException {
         String sql = "SELECT 1 FROM chat.conversation_member cm "
+                + "JOIN chat.conversation c ON c.id = cm.conversation_id "
+                + "LEFT JOIN chat.group_lifecycle lifecycle ON lifecycle.conversation_id = c.id "
                 + "JOIN chat.device d ON d.account_id = cm.account_id "
                 + "JOIN chat.account a ON a.id = cm.account_id "
                 + "WHERE cm.conversation_id = ? AND cm.account_id = ? AND cm.left_at IS NULL "
-                + "AND d.id = ? AND d.revoked_at IS NULL AND a.disabled_at IS NULL";
+                + "AND d.id = ? AND d.revoked_at IS NULL AND a.disabled_at IS NULL "
+                + "AND (c.kind = 'DIRECT' OR (lifecycle.conversation_id IS NOT NULL "
+                + "AND lifecycle.closed_at IS NULL))";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setObject(1, submission.conversationId());
             statement.setObject(2, submission.senderAccountId());
@@ -243,9 +247,12 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
             Connection connection, MessageHistoryQuery query) throws SQLException {
         String sql = "SELECT c.next_sequence - 1 FROM chat.conversation c "
                 + "JOIN chat.conversation_member cm ON cm.conversation_id = c.id "
+                + "LEFT JOIN chat.group_lifecycle lifecycle ON lifecycle.conversation_id = c.id "
                 + "JOIN chat.account a ON a.id = cm.account_id "
                 + "WHERE c.id = ? AND cm.account_id = ? AND cm.left_at IS NULL "
-                + "AND a.disabled_at IS NULL";
+                + "AND a.disabled_at IS NULL "
+                + "AND (c.kind = 'DIRECT' OR (lifecycle.conversation_id IS NOT NULL "
+                + "AND lifecycle.closed_at IS NULL))";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setObject(1, query.conversationId());
             statement.setObject(2, query.accountId());
