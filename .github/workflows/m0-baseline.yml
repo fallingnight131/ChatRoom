@@ -69,6 +69,7 @@ jobs:
           python3 Tests/web_promotion_evidence_test.py
           python3 Tests/web_release_authorization_test.py
           python3 Tests/web_release_execution_test.py
+          python3 Tests/web_release_completion_test.py
 
       - name: Assemble undeployed Web verification artifact
         id: web-version

@@ -122,6 +122,15 @@ evidence persistence fails. A successful record still says
 static and application-route probes. Filesystem activation is not evidence that
 CDN caches or public traffic observed the new release.
 
+After that switch, rerun `web_release_probe.py` and
+`web_application_route_probe.py` into new write-once files; never reuse preview
+observations. Bind the pointer execution and these two post-switch files with
+`web_release_completion.py record`. Only its
+`production-promotion-observed` result proves the configured HTTPS origin served
+the candidate bytes, response policy, `/api/health`, and `/ws` after the switch.
+It remains a point-in-time observation, not continuous availability or branded-
+browser evidence.
+
 ## Roll back without rebuilding
 
 Keep the previous release directory throughout the rollback window. To roll

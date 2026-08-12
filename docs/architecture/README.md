@@ -1063,6 +1063,14 @@ or evidence persistence fails. Its write-once result is explicitly
 `pointer-switched-awaiting-external-observation`; CDN/public HTTPS and
 application-route probes must still bind what users actually received.
 
+ADR-0172 closes that post-switch evidence gap. Fresh static and route
+observations must identify the authorized origin and candidate, occur after the
+pointer execution, finish within a bounded ten-minute window, and remain within
+five minutes of one another. The write-once completion record binds execution
+and both observations by SHA-256 and is durably reconstructed at its recorded
+completion instant. It is point-in-time production delivery evidence, not a
+claim of continuous availability or branded-browser compatibility.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

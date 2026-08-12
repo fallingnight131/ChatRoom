@@ -187,6 +187,32 @@ pure evidence verifier omits `--store-root` and uses `verify` with the same
 remaining inputs. Run `python3 Tests/web_release_execution_test.py` for replay,
 wrong-current-state, rollback-on-failure, and mutation coverage.
 
+After the pointer switch, create fresh external static and application-route
+observations, then bind them to the execution record:
+
+```bash
+python3 tools/web_release_completion.py record \
+  --execution /path/to/evidence/web-pointer-execution.json \
+  --authorization /path/to/evidence/web-production-authorization.json \
+  --technical-promotion /path/to/evidence/web-technical-promotion.json \
+  --release-root /srv/chat-room-web/releases/<candidate-id> \
+  --pre-release-observation /path/to/evidence/candidate-static-before.json \
+  --pre-route-observation /path/to/evidence/candidate-routes-before.json \
+  --rollback-release-root /srv/chat-room-web/releases/<previous-id> \
+  --rollback-observation /path/to/evidence/previous-static.json \
+  --post-release-observation /path/to/evidence/candidate-static-after.json \
+  --post-route-observation /path/to/evidence/candidate-routes-after.json \
+  --output /path/to/evidence/web-production-completion.json
+```
+
+Both post-switch observations must match the exact production origin and
+candidate, occur no earlier than the pointer execution, complete within 60–900
+seconds (default 600), and remain within five minutes of one another. The
+write-once `production-promotion-observed` result binds SHA-256 of execution and
+both post-switch observations. Reverify it later with `verify` and the same
+inputs. `Tests/web_release_completion_test.py` rejects pre-switch reuse, late or
+split observations, identity mutation, duplicate fields, and changed evidence.
+
 Production Web builds resolve V1 WebSocket traffic to `wss://<page-authority>/ws`
 and file traffic below same-origin `/api/`; the HTTPS reverse proxy must own both
 routes. A different same-origin WebSocket path can be selected at build time,
