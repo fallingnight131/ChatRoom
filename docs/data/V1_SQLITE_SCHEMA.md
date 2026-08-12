@@ -156,6 +156,12 @@ conversation apply command can require both capabilities in one transaction.
 - shares the room-sequence migration/allocation algorithm and does not move
   backwards after physical deletion.
 
+For V2 migration, the room/friendship high watermark preserves the complete
+allocated cursor range, including gaps left by physical deletion. V1
+`last_read_msg_id` values are table-row identifiers rather than those cursor
+values and must be translated conservatively as specified by ADR-0091; they
+must never be copied directly into V2 `last_read_sequence`.
+
 `friend_files`
 
 - friendship and uploader IDs;
