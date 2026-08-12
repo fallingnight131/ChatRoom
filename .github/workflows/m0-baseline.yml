@@ -55,6 +55,7 @@ jobs:
           python3 Tests/windows_update_channel_store_test.py
           python3 Tests/windows_update_release_execution_test.py
           python3 Tests/windows_update_release_probe_test.py
+          python3 Tests/windows_update_release_completion_test.py
           python3 Tests/windows_release_signature_policy_test.py
           python3 Tests/windows_release_evidence_test.py
           python3 Tests/windows_release_candidate_test.py

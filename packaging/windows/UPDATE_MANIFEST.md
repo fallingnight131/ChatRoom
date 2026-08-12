@@ -230,3 +230,10 @@ The three URLs must share an origin/directory; redirects, credentials,
 transformation, cookies, CORS, wrong length/type/cache/security headers, or any
 byte mismatch fail. Manifest/signature use `no-store`; content-addressed release
 Setup uses `public, max-age=31536000, immutable`.
+
+Promotion is complete only when
+`windows_update_release_completion.py record` binds the pointer execution and a
+matching post-switch HTTPS observation within ten minutes. The completion
+record retains both input SHA-256 values, exact target and rollback IDs, channel
+sequence, release identity, URL, and timestamps. It remains point-in-time
+evidence and does not replace staged-rollout health monitoring.

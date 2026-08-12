@@ -666,6 +666,21 @@ python3 Tests/windows_update_release_probe_test.py
 The test uses an isolated localhost CA and proves failure semantics only. A real
 production-origin observation is required for release completion. See ADR-0181.
 
+`tools/windows_update_release_completion.py record` binds that post-switch
+observation to the exact authorization/execution and target/rollback candidates.
+Channel, manifest SHA, sequence, version, and revision must agree; observation
+must occur after execution and the complete operation must finish within
+60–900 seconds (ten minutes by default). The immutable result is
+`production-update-promotion-observed`:
+
+```bash
+python3 Tests/windows_update_release_completion_test.py
+```
+
+This is point-in-time public delivery evidence, not continuous availability,
+global CDN convergence, successful client installation, or rollout health. See
+ADR-0182.
+
 The provider-neutral post-signing acceptance policy is checked with:
 
 ```bash

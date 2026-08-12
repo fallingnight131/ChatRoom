@@ -1140,6 +1140,13 @@ all bytes with the signed candidate. Its write-once record is point-in-time
 client-visible evidence; it neither mutates the provider nor claims continuous
 or geographically complete availability.
 
+ADR-0182 closes the point-in-time promotion chain. It reconstructs execution
+and HTTPS observation, requires exact release/sequence/version/revision identity
+and a bounded post-switch window, then binds both evidence files by SHA-256 in
+an immutable `production-update-promotion-observed` record. Client install
+success, rollout health, continuous availability, and global convergence remain
+separate operational gates.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,
