@@ -68,6 +68,12 @@ and backup conversation plans and supports re-verification during a future
 target transaction. This preserves the current identity-only CLI contract while
 making conversation import incapable of accepting an identity-only comparison.
 
+V007 adds append-only `conversation_import_run` audit rows. A committed apply
+must record the conversation fingerprint, the same physical backup proof, source
+room/friendship/membership counts, and exactly reconciled inserted/already-present
+counts in the same transaction as target writes. Database checks reject malformed
+hashes, negative counts, non-positive backup sizes, and incomplete reconciliation.
+
 ## Verification
 
 The disposable PostgreSQL gate migrates clean and restarted databases through
@@ -84,6 +90,8 @@ SQLite tests prove WAL visibility without source writes, all three supported
 timestamp forms, safe invalid-time blocking, and refusal of an older schema.
 Final-input tests prove the same physical backup protects conversation metadata,
 and reject both post-backup room drift and a mismatched artifact hash.
+The disposable PostgreSQL gate also rejects an audit row whose conversation
+result counts do not reconcile with its source counts.
 
 ## Rollback
 

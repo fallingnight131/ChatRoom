@@ -74,7 +74,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(6, first.migrate());
+        assertEquals(7, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -86,12 +86,13 @@ class PostgresMigratorTest {
                     Set.of("account", "device", "device_session", "conversation",
                             "conversation_member", "direct_conversation", "message",
                             "identity_import_run", "legacy_v1_account_map",
-                            "legacy_v1_conversation_map"),
+                            "legacy_v1_conversation_map", "conversation_import_run"),
                     applicationTables(connection));
             proveSequenceAndIdempotencyConstraints(connection);
         }
         proveLegacyV1MappingConstraints();
         proveLegacyV1ConversationMappingConstraints();
+        proveConversationImportAuditConstraints();
     }
 
     @Test
@@ -1010,6 +1011,27 @@ class PostgresMigratorTest {
             statement.setObject(3, conversationId);
             SQLException exception = assertThrows(SQLException.class, statement::executeUpdate);
             assertEquals(sqlState, exception.getSQLState());
+        }
+    }
+
+    private static void proveConversationImportAuditConstraints() throws SQLException {
+        String sql = """
+                INSERT INTO chat.conversation_import_run(
+                    id, source_fingerprint_sha256, backup_file_sha256,
+                    source_rooms, source_friendships, source_memberships,
+                    inserted_conversations, already_imported_conversations,
+                    inserted_memberships, already_imported_memberships,
+                    backup_bytes, backup_created_at)
+                VALUES (?, ?, ?, 1, 1, 4, 1, 0, 4, 0, 128, ?)
+                """;
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, UUID.randomUUID());
+            statement.setString(2, "a".repeat(64));
+            statement.setString(3, "b".repeat(64));
+            statement.setObject(4, OffsetDateTime.parse("2026-08-12T12:00:00Z"));
+            SQLException exception = assertThrows(SQLException.class, statement::executeUpdate);
+            assertEquals("23514", exception.getSQLState());
         }
     }
 
