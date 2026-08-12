@@ -185,7 +185,11 @@ After independent evidence verification, the complete `windeployqt` payload is
 assembled with Setup and evidence into one immutable candidate. Required Qt
 Core/platform, SQLite, and libsodium runtimes are closed by a sorted file
 manifest; server/debug/key/environment files are rejected. Candidate assembly
-still does not satisfy clean-host or public support gates.
+also requires a closed native install/uninstall record that binds installed
+client/helper/uninstaller bytes, signatures, registration, and cleanup to the
+four signed source files. The policy and parser are implemented, but they do not
+satisfy clean-host or public support gates until the protected Windows runner
+produces positive evidence.
 
 The Windows client now owns a session-local liveness mutex and refuses a second
 instance. NSIS checks the same mutex before mutation and returns 4 for a silent

@@ -975,7 +975,7 @@ and runner class, and a two-hour-bounded UTC record. It contains no certificate,
 private key, password, token, or publication authorization. A future signing
 workflow must verify it again and bind it into candidate evidence.
 
-ADR-0163 completes that binding; ADR-0167 advances the candidate to schema 3 so
+ADR-0163 completes that binding; ADR-0167 advanced the candidate to schema 3 so
 the externally signed uninstaller is also a closed candidate file. It requires
 `evidence/protected-signing-intent.json`; assembly verifies it before copying,
 hashes it into the sorted candidate file list and `SHA256SUMS`, and candidate
@@ -1014,7 +1014,7 @@ code-signing certificate with private key is selected only from
 SHA-256 and a reviewed HTTPS RFC 3161 timestamp endpoint. The client/helper are
 signed before NSIS exports the uninstaller; that PE is signed and imported into
 release-mode Setup before Setup is signed. Provider-neutral evidence
-and the schema-3 candidate are independently verified. Only a seven-day
+and the current schema-4 candidate are independently verified. Only a seven-day
 `signed-not-published` workflow artifact is uploaded. The repository contains no
 positive execution evidence yet, so signed Windows support and publication
 remain M4 gates.
@@ -1022,10 +1022,20 @@ remain M4 gates.
 ADR-0167 connects the two-pass uninstaller boundary to protected signing. The
 workflow exports the generated PE, signs it explicitly, imports those final
 bytes into Setup, signs Setup, then records client/helper/uninstaller/Setup in
-closed schema-2 signature evidence. Candidate schema 3 retains the standalone
+closed schema-2 signature evidence. Candidate schema 4 retains the standalone
 signed uninstaller beside Setup and independently revalidates all four hashes,
-signer identities, timestamps, intent, and final bytes. A native install must
-still prove the embedded installed `Uninstall.exe` matches that retained file.
+signer identities, timestamps, intent, native install evidence, and final bytes.
+
+ADR-0168 adds the native install/uninstall acceptance boundary. On the dedicated
+protected runner, signed Setup must install into a previously absent absolute
+path with no existing product registration. The installed client, helper, and
+`Uninstall.exe` must match the signed sources byte-for-byte, retain valid
+timestamped Authenticode from the reviewed publisher, and register the exact
+version/revision/location. The signed uninstaller must then return success and
+remove both program directory and registration. Closed schema-1 evidence is
+independently rebound to all four source files and retained by candidate schema
+4. Static tests exist, but no repository evidence claims this native run has
+already succeeded.
 
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,

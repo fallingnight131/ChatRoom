@@ -1,6 +1,6 @@
 # ADR-0167: Four-Subject Windows Signing Candidate
 
-- Status: Accepted
+- Status: Accepted; candidate schema advanced by ADR-0168
 - Date: 2026-08-12
 - Owners: Release engineering and security
 - Extends: ADR-0139, ADR-0140, ADR-0141, ADR-0163, ADR-0165, ADR-0166

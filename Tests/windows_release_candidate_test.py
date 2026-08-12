@@ -49,6 +49,8 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
         self.uninstaller.write_bytes(b"signed-uninstaller")
         self.evidence = self.root / "windows-release-signatures.json"
         self.write_evidence()
+        self.install_evidence = self.root / "windows-install-acceptance.json"
+        self.write_install_evidence()
         self.intent = self.root / "protected-signing-intent.json"
         self.intent.write_text(json.dumps(create_signing_intent(
             self.version_file, self.revision, "stable", "123456789",
@@ -89,10 +91,46 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
             "artifacts": artifacts,
         }), encoding="utf-8")
 
+    def write_install_evidence(self) -> None:
+        roles = (
+            ("client", self.payload / "ChatClient.exe"),
+            ("update-launcher", self.payload / "ChatRoomUpdateLauncher.exe"),
+            ("uninstaller", self.uninstaller),
+            ("installer", self.installer),
+        )
+        source = []
+        installed = []
+        for role, path in roles:
+            digest, size = sha256_file(path)
+            source.append({"role": role, "name": path.name, "size": size, "sha256": digest})
+            if role != "installer":
+                installed.append({"role": role,
+                                  "name": "Uninstall.exe" if role == "uninstaller" else path.name,
+                                  "size": size, "sha256": digest})
+        self.install_evidence.write_text(json.dumps({
+            "schemaVersion": 1,
+            "evidenceType": "windows-native-install-acceptance",
+            "status": "install-uninstall-observed",
+            "product": "chat-room-windows-client",
+            "version": self.version,
+            "sourceRevision": self.revision,
+            "architecture": "x86_64",
+            "observedAt": "2026-08-12T12:00:00Z",
+            "expectedSignerCertificateSha256": self.signer,
+            "sourceArtifacts": source,
+            "installedArtifacts": installed,
+            "installExitCode": 0,
+            "uninstallExitCode": 0,
+            "registrationMatched": True,
+            "installRootRemoved": True,
+            "temporaryPathsRemoved": True,
+            "registrationRemoved": True,
+        }), encoding="utf-8")
+
     def assemble(self):
         return assemble_candidate(
             self.payload, self.uninstaller, self.installer, self.evidence,
-            self.intent, self.candidate,
+            self.intent, self.install_evidence, self.candidate,
             self.version_file, self.revision, "stable", "6.11.1",
             self.signer, self.now,
         )
@@ -114,13 +152,14 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
         self.assertTrue((self.candidate / "client/Qt6Core.dll").is_file())
         self.assertTrue((self.candidate / "evidence/windows-release-signatures.json").is_file())
         self.assertTrue((self.candidate / "evidence/protected-signing-intent.json").is_file())
+        self.assertTrue((self.candidate / "evidence/windows-install-acceptance.json").is_file())
         self.assertEqual(
             (self.candidate / f"installer/ChatRoom-{self.version}-Uninstall.exe").read_bytes(),
             b"signed-uninstaller",
         )
         manifest = json.loads((self.candidate / "windows-release-candidate.json").read_text(
             encoding="utf-8"))
-        self.assertEqual(manifest["schemaVersion"], 3)
+        self.assertEqual(manifest["schemaVersion"], 4)
         self.assertFalse(any(path.name.startswith(".windows-candidate-")
                              for path in self.root.iterdir()))
 
@@ -152,7 +191,7 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
         with self.assertRaisesRegex(ManifestError, "overlaps"):
             assemble_candidate(
                 self.payload, self.uninstaller, self.installer,
-                self.evidence, self.intent,
+                self.evidence, self.intent, self.install_evidence,
                 self.payload / "nested-candidate", self.version_file,
                 self.revision, "stable", "6.11.1", self.signer, self.now)
 
@@ -202,6 +241,29 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
             lines.append(line)
         checksum_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
         with self.assertRaisesRegex(ManifestError, "intent identity"):
+            self.validate()
+
+    def test_rejects_rehashed_install_acceptance_mutation(self) -> None:
+        self.assemble()
+        relative = "evidence/windows-install-acceptance.json"
+        path = self.candidate / relative
+        evidence = json.loads(path.read_text(encoding="utf-8"))
+        evidence["registrationRemoved"] = False
+        path.write_text(json.dumps(evidence), encoding="utf-8")
+        manifest_path = self.candidate / "windows-release-candidate.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        for entry in manifest["files"]:
+            if entry["path"] == relative:
+                entry["sha256"], entry["size"] = sha256_file(path)
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        checksum_path = self.candidate / "SHA256SUMS"
+        digest, _ = sha256_file(path)
+        lines = [
+            f"{digest}  {relative}" if line.endswith(f"  {relative}") else line
+            for line in checksum_path.read_text(encoding="utf-8").splitlines()
+        ]
+        checksum_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "identity or result"):
             self.validate()
 
     def test_rejects_manifest_checksum_and_missing_file_mutations(self) -> None:

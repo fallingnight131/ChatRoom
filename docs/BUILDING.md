@@ -341,7 +341,7 @@ assembly must hash and retain it, and publication requires a later independent
 authorization boundary.
 
 `windows_release_candidate.py assemble` now requires
-`--protected-signing-intent`. Candidate schema 3 stores the exact bytes at
+`--protected-signing-intent`. Candidate schema 4 stores the exact intent bytes at
 `evidence/protected-signing-intent.json`, declares its path explicitly, hashes it
 in the candidate file list and `SHA256SUMS`, then reruns semantic intent
 verification during both assembly and independent candidate verification. The
@@ -400,8 +400,11 @@ workflow inputs into shell blocks is forbidden. The workflow then:
 6. exports and signs the generated uninstaller, imports it into release-mode
    Setup, then signs Setup;
 7. generates and independently verifies four-subject signature evidence;
-8. assembles and independently verifies a schema-3 candidate; and
-9. uploads one seven-day `signed-not-published` evidence artifact.
+8. installs Setup into a clean dedicated path, requires the installed
+   client/helper/uninstaller bytes and signatures to match, verifies registration,
+   uninstalls, and independently verifies the closed acceptance evidence;
+9. assembles and independently verifies a schema-4 candidate; and
+10. uploads one seven-day `signed-not-published` evidence artifact.
 
 It cannot create a GitHub Release, sign or publish an update manifest, contact a
 release endpoint, or promote a channel. Check this static boundary with:
@@ -479,6 +482,7 @@ python3 tools/windows_release_candidate.py assemble \
   --installer /release/ChatRoom-1.2.3-Setup.exe \
   --signature-evidence /release/windows-release-signatures.json \
   --protected-signing-intent /release/protected-signing-intent.json \
+  --install-acceptance-evidence /release/windows-install-acceptance.json \
   --output-root /release/candidates/windows-stable-1.2.3 \
   --version-file VERSION \
   --source-revision <40-lowercase-git-sha> \
@@ -499,6 +503,11 @@ The assembler requires Qt Core/platform, SQLite, and libsodium runtimes; rejects
 server/debug/key/environment files and links; rechecks evidence after copying;
 and atomically exposes the destination only after full validation.
 `python3 Tests/windows_release_candidate_test.py` covers its negative paths.
+The native acceptance producer is additionally guarded by
+`Tests/windows_signed_install_policy_test.py`; its independent closed-schema and
+final-byte verifier is covered by `Tests/windows_install_evidence_test.py`.
+These local tests are not substitutes for executing the signed installer on the
+protected Windows runner.
 
 The Qt gate also compiles `UpdateManifestSignatureVerifierTest`. It generates an
 ephemeral Ed25519 keypair and proves canonical verification plus empty-key,

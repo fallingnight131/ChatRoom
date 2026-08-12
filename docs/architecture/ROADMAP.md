@@ -724,6 +724,10 @@ Progress:
 - [x] Sign the exported uninstaller as a fourth protected subject, advance
   signature evidence to schema 2 and the immutable candidate to schema 3, and
   retain its exact bytes for independent verification and installed-byte proof.
+- [x] Add a fail-closed native install/uninstall acceptance step that compares
+  installed client/helper/uninstaller bytes and signatures, validates product
+  registration and cleanup, and binds independently verified evidence into
+  candidate schema 4.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

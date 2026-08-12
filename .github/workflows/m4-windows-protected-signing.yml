@@ -229,6 +229,37 @@ jobs:
             --source-revision $env:RELEASE_REVISION `
             --expected-signer-sha256 $env:SIGNER_SHA256
 
+      - name: Install, verify, uninstall, and bind native acceptance
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "$env:GITHUB_WORKSPACE/build/m4/protected-signing"
+          $installRoot = "$root/native-install"
+          if ($installRoot.Contains(" ")) {
+            throw "Protected native install path must not contain spaces"
+          }
+          $uninstaller = "$root/release-installer/ChatRoom-${{ steps.identity.outputs.version }}-Uninstall.exe"
+          $setup = "$root/release-installer/ChatRoom-${{ steps.identity.outputs.version }}-Setup.exe"
+          tools/verify_windows_signed_install.ps1 `
+            -ClientPath "$root/signed-client/ChatClient.exe" `
+            -LauncherPath "$root/signed-client/ChatRoomUpdateLauncher.exe" `
+            -UninstallerPath $uninstaller `
+            -InstallerPath $setup `
+            -InstallRoot $installRoot `
+            -Version "${{ steps.identity.outputs.version }}" `
+            -SourceRevision $env:RELEASE_REVISION `
+            -ExpectedSignerSha256 $env:SIGNER_SHA256 `
+            -EvidencePath "$root/windows-install-acceptance.json"
+          python tools/windows_install_evidence.py `
+            --evidence "$root/windows-install-acceptance.json" `
+            --client "$root/signed-client/ChatClient.exe" `
+            --launcher "$root/signed-client/ChatRoomUpdateLauncher.exe" `
+            --uninstaller $uninstaller `
+            --installer $setup `
+            --version-file VERSION `
+            --source-revision $env:RELEASE_REVISION `
+            --expected-signer-sha256 $env:SIGNER_SHA256
+
       - name: Assemble and independently verify unpublished candidate
         shell: pwsh
         run: |
@@ -240,6 +271,7 @@ jobs:
             --installer "$root/release-installer/ChatRoom-${{ steps.identity.outputs.version }}-Setup.exe" `
             --signature-evidence "$root/windows-release-signatures.json" `
             --protected-signing-intent "$root/protected-signing-intent.json" `
+            --install-acceptance-evidence "$root/windows-install-acceptance.json" `
             --output-root "$root/candidate" `
             --version-file VERSION `
             --source-revision $env:RELEASE_REVISION `
