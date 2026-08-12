@@ -322,6 +322,24 @@ Windows runner must additionally require all three signing subjects to be
 unsigned before applying its machine-store certificate. Run its mutation suite
 with `python3 Tests/windows_unsigned_artifact_verifier_test.py`.
 
+A protected signing invocation must also create and immediately verify a closed
+intent with `tools/windows_protected_release_intent.py`. The intent records the
+approved canonical version/revision, exact ordinary-CI artifact run and derived
+artifact name, stable/beta channel, machine-store certificate SHA-1 selector,
+expected certificate SHA-256 identity, credential-free HTTPS RFC 3161 URL,
+`windows-production-signing` environment, `self-hosted-windows-signing` runner
+class, and fresh UTC time. It accepts no certificate bytes, private key,
+password, or token. Intents older than two hours or more than five minutes in
+the future fail. Run its mutation suite with:
+
+```bash
+python3 Tests/windows_protected_release_intent_test.py
+```
+
+An intent means “approved for protected signing, not published”; candidate
+assembly must hash and retain it, and publication requires a later independent
+authorization boundary.
+
 The unsigned Windows NSIS gate now compiles a synthetic predecessor outside the
 uploaded artifact, installs it, and upgrades to canonical `VERSION`. It checks
 whole-program-directory replacement, marker ownership, rollback scaffolding,

@@ -705,6 +705,9 @@ Progress:
 - [x] Add an independent protected-signing intake verifier for the complete
   schema-3 unsigned CMake artifact, closed identity/inventory/checksums, exact
   final bytes, parity evidence, required runtimes, and zero extra files.
+- [x] Define a fresh closed protected-signing intent binding version/revision,
+  unsigned artifact run/name, channel, certificate SHA-1/SHA-256 identities,
+  RFC 3161 URL, protected environment, and signing runner class without secrets.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

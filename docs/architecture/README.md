@@ -966,6 +966,14 @@ identity, parity-evidence metadata, matching `SHA256SUMS`, exact bytes, no links
 and no undeclared files. A signing runner may consume only an artifact that
 passes this gate; native Authenticode absence is checked separately on Windows.
 
+ADR-0162 makes environment approval concrete through a closed protected-signing
+intent. It binds the canonical version/commit, exact unsigned artifact run/name,
+stable/beta channel, certificate-store SHA-1 selector, expected certificate
+SHA-256 identity, credential-free HTTPS RFC 3161 URL, fixed protected environment
+and runner class, and a two-hour-bounded UTC record. It contains no certificate,
+private key, password, token, or publication authorization. A future signing
+workflow must verify it again and bind it into candidate evidence.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,
