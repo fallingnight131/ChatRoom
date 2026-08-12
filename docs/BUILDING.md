@@ -59,12 +59,14 @@ Exercise immutable staging, activation health, and no-rebuild rollback policy:
 
 ```bash
 python3 Tests/web_release_store_test.py
+python3 Tests/web_release_probe_test.py
 ```
 
 The operator commands and filesystem layout are documented in
 [`WEB_RELEASE_ROLLBACK.md`](deployment/WEB_RELEASE_ROLLBACK.md). This isolated
-release-store evidence is intentionally separate from live HTTPS/header and
-browser verification.
+suite generates a one-day localhost certificate/key in a temporary directory,
+observes exact HTTPS headers and bytes, and deletes the key after the test. It is
+still intentionally separate from production-provider and browser verification.
 
 Production Web builds resolve V1 WebSocket traffic to `wss://<page-authority>/ws`
 and file traffic below same-origin `/api/`; the HTTPS reverse proxy must own both

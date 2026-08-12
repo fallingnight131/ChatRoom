@@ -57,6 +57,24 @@ HTTPS URL, observe every bound response/cache/identity header, open `/ws`, and
 check `/api/` before promotion. Those live checks and browser gates are not
 implemented by this filesystem tool.
 
+When an HTTPS adapter is available, observe the selected external response
+contract before and after activation. For a private acceptance CA, pass its
+certificate explicitly; production normally uses the system trust store:
+
+```bash
+python3 tools/web_release_probe.py \
+  --base-url https://chat.example.com \
+  --release-root /srv/chat-room-web/releases/<release-id> \
+  --output /path/to/evidence/web-release-probe.json
+```
+
+The probe refuses HTTP, redirects, invalid certificates, altered bytes, missing
+or duplicate policy headers, wrong cache classes, cookies, CORS, and unbound
+compression when identity encoding was requested. It reads every static file
+declared by the immutable manifest.
+Keep the JSON evidence with the rollout record; it contains identities and
+paths, not response bodies or credentials.
+
 ## Roll back without rebuilding
 
 Keep the previous release directory throughout the rollback window. To roll
@@ -70,6 +88,9 @@ python3 tools/web_release_store.py activate \
 python3 tools/web_release_store.py status \
   --store-root /srv/chat-room-web
 ```
+
+Probe the restored HTTPS release again. Filesystem status alone is insufficient
+when routing or response-header configuration caused the incident.
 
 Do not copy old bytes over the new directory, rebuild from an old branch, or
 reuse the new release's response policy. Stop the rollout if status fails. Any

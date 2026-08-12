@@ -25,3 +25,6 @@ through a security ADR and domain-wide verification.
 the exact policy bytes into schema-2 artifact metadata. This proves artifact
 intent, not that a hosting provider served the headers. Deployment observation,
 health checks, browser coverage, and rollback rehearsal remain separate gates.
+`tools/web_release_probe.py` closes the observation part only after an HTTPS
+adapter exists: it requests identity encoding, verifies every declared byte and
+exact header, and emits bounded release evidence.

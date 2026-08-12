@@ -30,6 +30,7 @@ jobs:
         run: |
           python3 Tests/web_artifact_manifest_test.py
           python3 Tests/web_release_store_test.py
+          python3 Tests/web_release_probe_test.py
 
       - name: Assemble undeployed Web verification artifact
         id: web-version

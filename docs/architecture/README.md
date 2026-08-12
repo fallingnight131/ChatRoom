@@ -615,6 +615,12 @@ and isolated tests rehearse A-to-B activation and rollback to the unchanged A
 bytes without rebuilding. A provider adapter must still apply and observe the
 bound headers and probe HTTPS, `/ws`, and `/api/` before public promotion.
 
+ADR-0114 adds the external HTTPS half of that gate. It verifies certificate
+trust, forbids redirects, fetches every declared static file, compares immutable
+bytes, and observes exact security/cache/release-identity headers. CI runs it
+against an ephemeral trusted localhost server; production DNS/certificates,
+provider routing, backend path health, staged traffic, and browsers remain open.
+
 The Windows updater must use a signed manifest containing architecture, channel,
 version, minimum compatible version, hash, signature, and URL. Support stable
 and beta channels and preserve rollback capability. Web rollback uses immutable

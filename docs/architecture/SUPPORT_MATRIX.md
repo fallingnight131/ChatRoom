@@ -80,11 +80,13 @@ schema-2 CSP/HSTS/release-identity response contract. The artifact still labels
 that policy `required-not-observed`. Isolated tests retain immutable versions,
 atomically select one release, verify its identity and bytes, and rehearse
 A-to-B-to-A rollback without rebuilding. Public delivery must additionally
-observe and prove:
+use the provider-neutral HTTPS probe to observe selected bytes and the exact
+bound headers. CI already runs that probe against an ephemeral trusted localhost
+TLS server. Public delivery must additionally observe and prove:
 
 - the supported browser/version matrix and automated coverage;
-- valid HTTPS/WSS and response headers matching the bound CSP/cache/source-map
-  policy;
+- production DNS/certificate validity, WSS/API reachability, and response
+  headers/bytes matching the bound policy and release;
 - immutable versioned assets and a traceable deployment identifier;
 - health checks, staged rollout, monitoring, and rollback without rebuilding;
 - compatibility with at least one previous supported client/server protocol
