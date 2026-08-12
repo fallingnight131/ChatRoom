@@ -61,14 +61,22 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
             "https://timestamp.example.test/rfc3161", self.now)), encoding="utf-8")
         self.product_trust_private = self.root / "product-trust-private.pem"
         self.product_trust_public = self.root / "product-trust-public.pem"
-        subprocess.run(
-            ["openssl", "genpkey", "-algorithm", "Ed25519",
-             "-out", str(self.product_trust_private)],
-            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(
-            ["openssl", "pkey", "-in", str(self.product_trust_private), "-pubout",
-             "-out", str(self.product_trust_public)],
-            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        provided_private = getattr(self, "provided_product_trust_private", None)
+        provided_public = getattr(self, "provided_product_trust_public", None)
+        if provided_private is not None or provided_public is not None:
+            if provided_private is None or provided_public is None:
+                raise AssertionError("provided product trust key pair is incomplete")
+            shutil.copyfile(provided_private, self.product_trust_private)
+            shutil.copyfile(provided_public, self.product_trust_public)
+        else:
+            subprocess.run(
+                ["openssl", "genpkey", "-algorithm", "Ed25519",
+                 "-out", str(self.product_trust_private)],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(
+                ["openssl", "pkey", "-in", str(self.product_trust_private), "-pubout",
+                 "-out", str(self.product_trust_public)],
+                check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.product_trust_url = (
             "https://updates.example.test/windows/stable/manifest.json")
         self.product_trust_intent = self.root / "product-update-trust-intent.json"

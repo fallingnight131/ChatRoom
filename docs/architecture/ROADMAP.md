@@ -621,6 +621,9 @@ Progress:
   bounded immutable completion record retaining percentages and cohort seed.
 - [x] Require every update-channel candidate's manifest signing key ID and PEM
   bytes to match an exact primary/secondary key compiled into the signed client.
+- [x] Add a dedicated short-lived forward-fix authorization after an observed
+  rollout halt, requiring a higher version/sequence, new source, 100 percent
+  rollout, B-compatible minimum version, and an update key compiled into B.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

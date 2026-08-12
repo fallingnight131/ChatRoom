@@ -154,11 +154,9 @@ def verify_completion(record_path: Path, *inputs) -> dict[str, object]:
     return recorded
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("record", "verify"))
+def add_completion_arguments(parser: argparse.ArgumentParser) -> None:
     for name in (
-        "output", "rollback-evidence", "promotion-completion", "execution",
+        "rollback-evidence", "promotion-completion", "execution",
         "authorization", "candidate-root", "rollback-release-root",
         "current-manifest", "version-file", "promotion-observation",
         "restored-observation",
@@ -169,9 +167,10 @@ def main() -> int:
     parser.add_argument("--qt-version", required=True)
     parser.add_argument("--authenticode-signer-sha256", required=True)
     parser.add_argument("--public-key-file-sha256", required=True)
-    parser.add_argument("--maximum-completion-seconds", type=int, default=600)
-    args = parser.parse_args()
-    inputs = (
+
+
+def completion_values(args: argparse.Namespace) -> tuple[object, ...]:
+    return (
         args.rollback_evidence, args.promotion_completion, args.execution,
         args.authorization, args.candidate_root, args.rollback_release_root,
         args.current_manifest, args.version_file, args.source_revision,
@@ -179,6 +178,16 @@ def main() -> int:
         args.public_key_file_sha256, args.promotion_observation,
         args.restored_observation,
     )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", choices=("record", "verify"))
+    parser.add_argument("--output", type=Path, required=True)
+    add_completion_arguments(parser)
+    parser.add_argument("--maximum-completion-seconds", type=int, default=600)
+    args = parser.parse_args()
+    inputs = completion_values(args)
     now = datetime.now(timezone.utc).replace(microsecond=0)
     try:
         if args.command == "record":

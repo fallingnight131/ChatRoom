@@ -1239,6 +1239,14 @@ primary/secondary key retained by signed candidate schema 6. A manifest that is
 cryptographically valid under an unrelated key is rejected because the shipped
 client could not authenticate it.
 
+ADR-0197 makes post-halt recovery explicit. Only after the B-to-A rollback is
+externally observed may a short-lived forward-fix authorization bind release C.
+C must advance B's version and sequence, use new source, target 100 percent of
+the deterministic cohort, include B in its minimum-updatable range, and sign
+with an exact key already compiled into B. The authorization is deliberately
+unexecuted; incident-bound one-time activation and public observation remain
+the next M4 boundary.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

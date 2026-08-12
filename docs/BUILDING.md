@@ -618,9 +618,9 @@ sequence. It emits a 60–900-second write-once
 `update-channel-promotion-approved-not-executed` record for the fixed
 `windows-update-production` environment. Schema 2 binds both current and target
 rollout percentages. For the same version/source, a percentage change is
-rejected and must use the future health-bound expansion authorization; a new
-forward-fix version/source remains eligible for this general path. It has no
-network or mutation logic:
+rejected and must use the health-bound expansion authorization. Incident
+forward fixes use the dedicated post-halt authorization described below. The
+general path has no network or mutation logic:
 
 ```bash
 python3 Tests/windows_update_release_authorization_test.py
@@ -718,6 +718,25 @@ python3 Tests/windows_update_rollback_completion_test.py
 
 This proves the restored channel bytes at one instant, not downgrade of clients
 already on B or global continuous availability. See ADR-0184.
+
+After that observed halt, authorize the corrective release C with
+`tools/windows_update_forward_fix_authorization.py create`. The tool
+reconstructs the complete rollback chain and live A/B/C candidates. C must use
+a higher numeric version and manifest sequence than B, a different source
+revision, exactly 100 percent rollout, and a minimum updatable version that
+includes B. C's update key ID and exact public PEM must already be compiled into
+B, otherwise stranded B clients could not authenticate the repair. The
+60-to-900-second write-once result is
+`forward-fix-approved-not-executed`; it contains no credential and performs no
+staging, publication, pointer mutation, or network request:
+
+```bash
+python3 Tests/windows_update_forward_fix_authorization_test.py
+```
+
+Execution still requires one-time incident-bound consumption and strict public
+HTTPS observation. An authorization record alone is not recovery evidence. See
+ADR-0197.
 
 Before broadening a staged rollout, evaluate a reviewed aggregate observability
 export against `packaging/windows/rollout-health-policy.json`:
