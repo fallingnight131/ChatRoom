@@ -221,8 +221,11 @@ jobs:
           $launcherRequestId = [guid]::NewGuid().ToString("D").ToLowerInvariant()
           $launcherResult = "$env:RUNNER_TEMP/result-$launcherRequestId.json"
           $launcherEventName = "Local\ChatRoom.UpdateLauncher.Ready.$launcherRequestId"
+          $launcherCommitEventName = "Local\ChatRoom.UpdateLauncher.Commit.$launcherRequestId"
           $launcherReady = [System.Threading.EventWaitHandle]::new(
             $false, [System.Threading.EventResetMode]::AutoReset, $launcherEventName)
+          $launcherCommit = [System.Threading.EventWaitHandle]::new(
+            $false, [System.Threading.EventResetMode]::AutoReset, $launcherCommitEventName)
           $launcherParent = Start-Process powershell -ArgumentList @(
             "-NoProfile", "-Command", "Start-Sleep -Seconds 120") -PassThru
           try {
@@ -235,10 +238,12 @@ jobs:
               "--restart-executable", $installedClient,
               "--result-file", $launcherResult,
               "--request-id", $launcherRequestId,
-              "--ready-event", $launcherEventName) -PassThru
+              "--ready-event", $launcherEventName,
+              "--commit-event", $launcherCommitEventName) -PassThru
             if (-not $launcherReady.WaitOne([TimeSpan]::FromSeconds(15))) {
               throw "Update launcher did not complete its parent-process handshake"
             }
+            $launcherCommit.Set() | Out-Null
             Stop-Process -Id $launcherParent.Id
             $launcherParent.WaitForExit()
             if (-not $launcherProcess.WaitForExit(30000)) {
@@ -255,6 +260,7 @@ jobs:
             }
           } finally {
             $launcherReady.Dispose()
+            $launcherCommit.Dispose()
             if (-not $launcherParent.HasExited) { Stop-Process -Id $launcherParent.Id -Force }
             if ($launcherProcess -and -not $launcherProcess.HasExited) {
               Stop-Process -Id $launcherProcess.Id -Force

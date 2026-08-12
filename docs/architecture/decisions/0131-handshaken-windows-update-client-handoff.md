@@ -1,6 +1,6 @@
 # ADR-0131: Handshaken Windows Update Client Handoff
 
-- Status: Accepted
+- Status: Amended by ADR-0137
 - Date: 2026-08-12
 - Owners: project maintainers
 - Related milestone: M4

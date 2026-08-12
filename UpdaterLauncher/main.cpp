@@ -55,14 +55,28 @@ int main(int argc, char *argv[]) {
     const HANDLE readyEvent = OpenEventW(
         EVENT_MODIFY_STATE, FALSE,
         reinterpret_cast<LPCWSTR>(command.readyEventName.utf16()));
-    if (!readyEvent || !SetEvent(readyEvent)) {
+    const HANDLE commitEvent = OpenEventW(
+        SYNCHRONIZE, FALSE,
+        reinterpret_cast<LPCWSTR>(command.commitEventName.utf16()));
+    if (!readyEvent || !commitEvent || !SetEvent(readyEvent)) {
         if (readyEvent) CloseHandle(readyEvent);
+        if (commitEvent) CloseHandle(commitEvent);
         CloseHandle(parent);
         writeResult(command, QStringLiteral("handshake-failed"), 0,
                     QStringLiteral("client/helper handshake failed"));
         return 3;
     }
     CloseHandle(readyEvent);
+    const DWORD commitWait = WaitForSingleObject(commitEvent, 15 * 1000);
+    CloseHandle(commitEvent);
+    if (commitWait != WAIT_OBJECT_0) {
+        CloseHandle(parent);
+        writeResult(command, QStringLiteral("handoff-aborted"), 0,
+                    commitWait == WAIT_TIMEOUT
+                        ? QStringLiteral("client did not commit the update handoff")
+                        : QStringLiteral("update handoff commit wait failed"));
+        return 3;
+    }
     const DWORD parentWait = WaitForSingleObject(parent, 2 * 60 * 1000);
     CloseHandle(parent);
     if (parentWait != WAIT_OBJECT_0) {

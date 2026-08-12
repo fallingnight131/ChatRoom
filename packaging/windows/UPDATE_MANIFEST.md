@@ -72,6 +72,9 @@ ADR-0136 makes activation an explicit compiled release input: exact channel and
 HTTPS manifest URL plus one/two reviewed public keys. Ordinary builds remain
 disabled, writable settings cannot redirect trust, and private keys are never
 accepted by the client build.
+ADR-0137 adds a second UUID commit event: helper-ready is insufficient, pending
+lifecycle state must be durable before the client commits and may exit. Missing
+commit records `handoff-aborted` and never starts Setup.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin

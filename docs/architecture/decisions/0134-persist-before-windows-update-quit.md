@@ -1,6 +1,6 @@
 # ADR-0134: Persist Before Windows Update Quit
 
-- Status: Accepted
+- Status: Amended by ADR-0137
 - Date: 2026-08-12
 - Owners: project maintainers
 - Related milestone: M4

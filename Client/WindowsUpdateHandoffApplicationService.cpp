@@ -57,15 +57,17 @@ WindowsUpdateHandoffApplicationService::~WindowsUpdateHandoffApplicationService(
 }
 
 bool WindowsUpdateHandoffApplicationService::start(
-        const Request &request, QString *error) {
+        const Request &request, CommitAuthorizationFunction authorizeCommit,
+        QString *error) {
     if (error) error->clear();
-    if (isActive() || !m_launchHandshake) {
+    if (isActive() || !m_launchHandshake || !authorizeCommit) {
         if (error) *error = QStringLiteral("Windows update handoff is unavailable or active");
         return false;
     }
     m_watcher->setFuture(QtConcurrent::run(
-        [request, launchHandshake = m_launchHandshake]() {
-            return execute(request, launchHandshake);
+        [request, launchHandshake = m_launchHandshake,
+         authorizeCommit = std::move(authorizeCommit)]() {
+            return execute(request, launchHandshake, authorizeCommit);
         }));
     return true;
 }
@@ -77,7 +79,8 @@ bool WindowsUpdateHandoffApplicationService::isActive() const {
 WindowsUpdateHandoffApplicationService::Result
 WindowsUpdateHandoffApplicationService::execute(
         const Request &request,
-        const LaunchHandshakeFunction &launchHandshake) {
+        const LaunchHandshakeFunction &launchHandshake,
+        const CommitAuthorizationFunction &authorizeCommit) {
     Result result;
     const QFileInfo launcherInfo(request.installedLauncherPath);
     const QFileInfo coreInfo(request.qtCoreRuntimePath);
@@ -137,10 +140,14 @@ WindowsUpdateHandoffApplicationService::execute(
 
     const QString eventName = QStringLiteral(
         "Local\\ChatRoom.UpdateLauncher.Ready.%1").arg(result.requestId);
+    const QString commitEventName = QStringLiteral(
+        "Local\\ChatRoom.UpdateLauncher.Commit.%1").arg(result.requestId);
     HelperLaunch launch;
+    launch.requestId = result.requestId;
     launch.program = stagedLauncher;
     launch.workingDirectory = result.helperRunDirectory;
     launch.readyEventName = eventName;
+    launch.commitEventName = commitEventName;
     launch.arguments = {
         QStringLiteral("--parent-pid"),
         QString::number(QCoreApplication::applicationPid()),
@@ -153,10 +160,12 @@ WindowsUpdateHandoffApplicationService::execute(
         QStringLiteral("--restart-executable"), request.restartExecutablePath,
         QStringLiteral("--result-file"), result.resultFilePath,
         QStringLiteral("--request-id"), result.requestId,
-        QStringLiteral("--ready-event"), eventName
+        QStringLiteral("--ready-event"), eventName,
+        QStringLiteral("--commit-event"), commitEventName
     };
 
-    const PlatformResult platform = launchHandshake(launch, HandshakeTimeoutMs);
+    const PlatformResult platform = launchHandshake(
+        launch, HandshakeTimeoutMs, authorizeCommit);
     if (!platform.handshaken) {
         if (cleanupRunDirectory(result.helperRunDirectory))
             result.helperRunDirectory.clear();
@@ -171,10 +180,12 @@ WindowsUpdateHandoffApplicationService::execute(
 
 WindowsUpdateHandoffApplicationService::PlatformResult
 WindowsUpdateHandoffApplicationService::launchAndHandshake(
-        const HelperLaunch &launch, int timeoutMs) {
+        const HelperLaunch &launch, int timeoutMs,
+        const CommitAuthorizationFunction &authorizeCommit) {
 #ifndef Q_OS_WIN
     Q_UNUSED(launch)
     Q_UNUSED(timeoutMs)
+    Q_UNUSED(authorizeCommit)
     return {false, QStringLiteral("Windows update handoff requires Windows")};
 #else
     const HANDLE ready = CreateEventW(
@@ -182,20 +193,42 @@ WindowsUpdateHandoffApplicationService::launchAndHandshake(
         reinterpret_cast<LPCWSTR>(launch.readyEventName.utf16()));
     if (!ready)
         return {false, QStringLiteral("Windows update ready event could not be created")};
+    const HANDLE commit = CreateEventW(
+        nullptr, FALSE, FALSE,
+        reinterpret_cast<LPCWSTR>(launch.commitEventName.utf16()));
+    if (!commit) {
+        CloseHandle(ready);
+        return {false, QStringLiteral("Windows update commit event could not be created")};
+    }
     qint64 helperPid = 0;
     const bool started = QProcess::startDetached(
         launch.program, launch.arguments, launch.workingDirectory, &helperPid);
     if (!started || helperPid <= 0) {
         CloseHandle(ready);
+        CloseHandle(commit);
         return {false, QStringLiteral("Windows update helper could not be started")};
     }
     const DWORD wait = WaitForSingleObject(ready, static_cast<DWORD>(timeoutMs));
     CloseHandle(ready);
-    return wait == WAIT_OBJECT_0
+    if (wait != WAIT_OBJECT_0) {
+        CloseHandle(commit);
+        return {false, wait == WAIT_TIMEOUT
+            ? QStringLiteral("Windows update helper handshake timed out")
+            : QStringLiteral("Windows update helper handshake wait failed")};
+    }
+    QString authorizationError;
+    if (!authorizeCommit(launch.requestId, &authorizationError)) {
+        CloseHandle(commit);
+        return {false, authorizationError.isEmpty()
+            ? QStringLiteral("Windows update handoff was not committed")
+            : authorizationError};
+    }
+    const bool committed = SetEvent(commit);
+    CloseHandle(commit);
+    return committed
         ? PlatformResult{true, {}}
-        : PlatformResult{false, wait == WAIT_TIMEOUT
-              ? QStringLiteral("Windows update helper handshake timed out")
-              : QStringLiteral("Windows update helper handshake wait failed")};
+        : PlatformResult{false,
+              QStringLiteral("Windows update helper commit signal failed")};
 #endif
 }
 

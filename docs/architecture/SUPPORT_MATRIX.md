@@ -154,6 +154,12 @@ stable/beta HTTPS manifest URL and one or two reviewed Ed25519 public keys.
 Writable settings cannot enable or redirect trust. No production values are
 currently provisioned, and no discovery UI instantiates the configuration.
 
+The helper handoff now has a second UUID commit event. Ready proves only that the
+helper owns the parent wait; the client must atomically persist pending lifecycle
+state and signal commit before quit is authorized. Missing commit aborts without
+starting Setup. This closes the persistence-failure race, but real signed install
+and restart evidence remains absent.
+
 The Windows client now owns a session-local liveness mutex and refuses a second
 instance. NSIS checks the same mutex before mutation and returns 4 for a silent
 running-client attempt; native CI is configured to prove the current install and

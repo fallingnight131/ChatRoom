@@ -617,6 +617,9 @@ Progress:
 - [x] Add a default-off compiled Windows update product configuration with exact
   stable/beta HTTPS origin policy and a reviewed one/two-public-key rotation
   ring; keep all private signing material outside client and build arguments.
+- [x] Replace the inactive one-phase helper handoff with a two-phase
+  ready/persist/commit barrier so persistence failure can never become a later
+  untracked Setup launch after the user exits.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

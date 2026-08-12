@@ -51,6 +51,7 @@ bool parseOutcome(const QString &name, UpdateLauncherResult::Outcome *outcome) {
         {QStringLiteral("installer-wait-failed"), Outcome::InstallerWaitFailed},
         {QStringLiteral("parent-open-failed"), Outcome::ParentOpenFailed},
         {QStringLiteral("handshake-failed"), Outcome::HandshakeFailed},
+        {QStringLiteral("handoff-aborted"), Outcome::HandoffAborted},
         {QStringLiteral("parent-timeout"), Outcome::ParentTimeout},
         {QStringLiteral("parent-wait-failed"), Outcome::ParentWaitFailed},
         {QStringLiteral("unsupported-platform"), Outcome::UnsupportedPlatform}
@@ -148,6 +149,7 @@ QString UpdateLauncherResult::outcomeName(Outcome outcome) {
     case Outcome::InstallerWaitFailed: return QStringLiteral("installer-wait-failed");
     case Outcome::ParentOpenFailed: return QStringLiteral("parent-open-failed");
     case Outcome::HandshakeFailed: return QStringLiteral("handshake-failed");
+    case Outcome::HandoffAborted: return QStringLiteral("handoff-aborted");
     case Outcome::ParentTimeout: return QStringLiteral("parent-timeout");
     case Outcome::ParentWaitFailed: return QStringLiteral("parent-wait-failed");
     case Outcome::UnsupportedPlatform: return QStringLiteral("unsupported-platform");

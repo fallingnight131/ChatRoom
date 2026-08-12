@@ -58,7 +58,8 @@ int main(int argc, char *argv[]) {
 
     std::atomic_bool background{false};
     std::atomic_int launches{0};
-    Service service([&](const Service::HelperLaunch &launch, int timeoutMs) {
+    Service service([&](const Service::HelperLaunch &launch, int timeoutMs,
+                        const Service::CommitAuthorizationFunction &authorize) {
         ++launches;
         background = QThread::currentThread() != app.thread();
         UpdateLauncherCommand parsed;
@@ -74,18 +75,27 @@ int main(int argc, char *argv[]) {
             && QFile::exists(QDir(launch.workingDirectory).filePath(
                 QStringLiteral("Qt6Core.dll")))
             && UpdateLauncherCommand::parse(parseArguments, &parsed, &error)
-            && parsed.readyEventName == launch.readyEventName;
+            && parsed.readyEventName == launch.readyEventName
+            && parsed.commitEventName == launch.commitEventName;
+        QString authorizationError;
+        const bool authorized = valid
+            && authorize(launch.requestId, &authorizationError);
         return Service::PlatformResult{
-            valid, valid ? QString() : (error.isEmpty()
-                ? QStringLiteral("fixture handshake rejected") : error)};
+            authorized, authorized ? QString()
+                : (!authorizationError.isEmpty() ? authorizationError
+                    : (error.isEmpty()
+                        ? QStringLiteral("fixture handshake rejected") : error))};
     });
     Service::Request request{
         {installer, 9, QByteArray(32, '\xaa'), QByteArray(32, '\xbb')},
         launcher, core, restart, root.filePath(QStringLiteral("run")),
         root.filePath(QStringLiteral("results"))};
     QString error;
-    if (!check(service.start(request, &error), error)
-            || !check(!service.start(request, &error),
+    const auto authorize = [](const QString &requestId, QString *) {
+        return !requestId.isEmpty();
+    };
+    if (!check(service.start(request, authorize, &error), error)
+            || !check(!service.start(request, authorize, &error),
                       QStringLiteral("parallel handoff was allowed"))) return 1;
     const auto ready = waitFor(service);
     if (!check(ready.readyToQuit && !ready.requestId.isEmpty()
@@ -98,7 +108,7 @@ int main(int argc, char *argv[]) {
     QDir(ready.helperRunDirectory).removeRecursively();
 
     QFile::remove(core);
-    if (!service.start(request)) return 1;
+    if (!service.start(request, authorize)) return 1;
     const auto rejected = waitFor(service);
     if (!check(!rejected.readyToQuit && !rejected.error.isEmpty()
                    && launches.load() == 1

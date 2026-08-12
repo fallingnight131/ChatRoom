@@ -15,6 +15,7 @@ public:
         InstallerWaitFailed,
         ParentOpenFailed,
         HandshakeFailed,
+        HandoffAborted,
         ParentTimeout,
         ParentWaitFailed,
         UnsupportedPlatform

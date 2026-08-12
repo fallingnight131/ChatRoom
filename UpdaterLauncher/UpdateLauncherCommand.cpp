@@ -36,7 +36,7 @@ bool UpdateLauncherCommand::parse(
         const QStringList &arguments, UpdateLauncherCommand *command,
         QString *error) {
     if (error) error->clear();
-    if (!command || arguments.size() != 18) {
+    if (!command || arguments.size() != 20) {
         fail(error, QStringLiteral("update launcher arguments are incomplete"));
         return false;
     }
@@ -57,7 +57,8 @@ bool UpdateLauncherCommand::parse(
         QStringLiteral("--installer-size"), QStringLiteral("--installer-sha256"),
         QStringLiteral("--signer-thumbprint-sha256"),
         QStringLiteral("--restart-executable"), QStringLiteral("--result-file"),
-        QStringLiteral("--request-id"), QStringLiteral("--ready-event")};
+        QStringLiteral("--request-id"), QStringLiteral("--ready-event"),
+        QStringLiteral("--commit-event")};
     QSet<QString> actual;
     for (auto it = values.cbegin(); it != values.cend(); ++it) actual.insert(it.key());
     if (actual != required) {
@@ -78,11 +79,14 @@ bool UpdateLauncherCommand::parse(
     const QString restart = values.value(QStringLiteral("--restart-executable"));
     const QString result = values.value(QStringLiteral("--result-file"));
     const QString event = values.value(QStringLiteral("--ready-event"));
+    const QString commitEvent = values.value(QStringLiteral("--commit-event"));
     const QFileInfo resultInfo(result);
     const QFileInfo resultDirectory(resultInfo.absolutePath());
     const QString expectedResultName = QStringLiteral("result-%1.json").arg(canonicalId);
     const QString expectedEvent = QStringLiteral(
         "Local\\ChatRoom.UpdateLauncher.Ready.%1").arg(canonicalId);
+    const QString expectedCommitEvent = QStringLiteral(
+        "Local\\ChatRoom.UpdateLauncher.Commit.%1").arg(canonicalId);
 
     if (!pidOk || pid == 0 || pid > 0xffffffffULL
             || pid == static_cast<quint64>(QCoreApplication::applicationPid())
@@ -95,6 +99,7 @@ bool UpdateLauncherCommand::parse(
             || resultInfo.fileName() != expectedResultName
             || !resultDirectory.exists() || !resultDirectory.isDir()
             || resultDirectory.isSymLink() || event != expectedEvent
+            || commitEvent != expectedCommitEvent
             || !lowercaseHex(values.value(QStringLiteral("--installer-sha256")),
                              64, &digest)
             || !lowercaseHex(values.value(
@@ -113,5 +118,6 @@ bool UpdateLauncherCommand::parse(
     command->resultFilePath = result;
     command->requestId = canonicalId;
     command->readyEventName = event;
+    command->commitEventName = commitEvent;
     return true;
 }

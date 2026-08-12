@@ -34,7 +34,9 @@ int main(int argc, char *argv[]) {
             QStringLiteral("result-%1.json").arg(id)),
         QStringLiteral("--request-id"), id,
         QStringLiteral("--ready-event"), QStringLiteral(
-            "Local\\ChatRoom.UpdateLauncher.Ready.%1").arg(id)};
+            "Local\\ChatRoom.UpdateLauncher.Ready.%1").arg(id),
+        QStringLiteral("--commit-event"), QStringLiteral(
+            "Local\\ChatRoom.UpdateLauncher.Commit.%1").arg(id)};
     UpdateLauncherCommand command;
     QString error;
     if (!check(UpdateLauncherCommand::parse(arguments, &command, &error), error)
@@ -43,7 +45,7 @@ int main(int argc, char *argv[]) {
                           && command.signerThumbprintSha256 == QByteArray(32, '\xbb'),
                       QStringLiteral("valid launcher metadata changed"))) return 1;
 
-    for (int index : {0, 5, 7, 9, 13, 15, 17}) {
+    for (int index : {0, 5, 7, 9, 13, 15, 17, 19}) {
         QStringList invalid = arguments;
         invalid[index] = index == 0 ? QStringLiteral("--unknown")
             : QStringLiteral("INVALID");

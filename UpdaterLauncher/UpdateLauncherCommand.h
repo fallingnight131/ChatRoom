@@ -14,6 +14,7 @@ struct UpdateLauncherCommand {
     QString resultFilePath;
     QString requestId;
     QString readyEventName;
+    QString commitEventName;
 
     static bool parse(const QStringList &arguments,
                       UpdateLauncherCommand *command,

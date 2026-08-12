@@ -1,6 +1,6 @@
 # ADR-0129: External Windows Update Launcher
 
-- Status: Accepted
+- Status: Amended by ADR-0137
 - Date: 2026-08-12
 - Owners: project maintainers
 - Related milestone: M4

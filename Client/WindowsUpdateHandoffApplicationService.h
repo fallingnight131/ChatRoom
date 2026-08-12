@@ -20,10 +20,12 @@ public:
     };
 
     struct HelperLaunch {
+        QString requestId;
         QString program;
         QStringList arguments;
         QString workingDirectory;
         QString readyEventName;
+        QString commitEventName;
     };
 
     struct PlatformResult {
@@ -39,15 +41,19 @@ public:
         QString error;
     };
 
+    using CommitAuthorizationFunction = std::function<bool(
+        const QString &, QString *)>;
     using LaunchHandshakeFunction = std::function<PlatformResult(
-        const HelperLaunch &, int)>;
+        const HelperLaunch &, int, const CommitAuthorizationFunction &)>;
 
     explicit WindowsUpdateHandoffApplicationService(QObject *parent = nullptr);
     explicit WindowsUpdateHandoffApplicationService(
         LaunchHandshakeFunction launchHandshake, QObject *parent = nullptr);
     ~WindowsUpdateHandoffApplicationService() override;
 
-    bool start(const Request &request, QString *error = nullptr);
+    bool start(const Request &request,
+               CommitAuthorizationFunction authorizeCommit,
+               QString *error = nullptr);
     bool isActive() const;
 
 signals:
@@ -55,9 +61,11 @@ signals:
 
 private:
     static Result execute(const Request &request,
-                          const LaunchHandshakeFunction &launchHandshake);
+                          const LaunchHandshakeFunction &launchHandshake,
+                          const CommitAuthorizationFunction &authorizeCommit);
     static PlatformResult launchAndHandshake(const HelperLaunch &launch,
-                                             int timeoutMs);
+                                             int timeoutMs,
+                                             const CommitAuthorizationFunction &authorizeCommit);
     void handleFinished();
 
     QFutureWatcher<Result> *m_watcher = nullptr;

@@ -53,6 +53,13 @@ int main(int argc, char *argv[]) {
                           && parsed.installerExitCode == 1603,
                       error.isEmpty() ? QStringLiteral("failure exit code was lost") : error))
         return 1;
+    if (!check(UpdateLauncherResult::parse(
+                   record(QStringLiteral("handoff-aborted")), RequestId,
+                   started, now, &parsed, &error)
+                   && parsed.outcome
+                       == UpdateLauncherResult::Outcome::HandoffAborted,
+               error.isEmpty() ? QStringLiteral("aborted handoff was not preserved")
+                               : error)) return 1;
 
     QJsonObject extra = QJsonDocument::fromJson(record()).object();
     extra.insert(QStringLiteral("futureField"), true);

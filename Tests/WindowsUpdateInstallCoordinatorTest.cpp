@@ -55,8 +55,13 @@ int main(int argc, char *argv[]) {
         root.filePath(QStringLiteral("state")),
         root.filePath(QStringLiteral("results")),
         root.filePath(QStringLiteral("runs")),
-        [](const auto &, int) {
-            return WindowsUpdateHandoffApplicationService::PlatformResult{true, {}};
+        [](const auto &launch, int,
+           const WindowsUpdateHandoffApplicationService::CommitAuthorizationFunction
+               &authorize) {
+            QString error;
+            const bool committed = authorize(launch.requestId, &error);
+            return WindowsUpdateHandoffApplicationService::PlatformResult{
+                committed, error};
         });
     const QDateTime started = QDateTime::fromString(
         QStringLiteral("2026-08-12T10:00:00Z"), Qt::ISODate).toUTC();

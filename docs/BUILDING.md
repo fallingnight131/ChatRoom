@@ -189,6 +189,10 @@ consumption, run cleanup, replay prevention, and retention of invalid evidence.
 parallel refusal, helper handshake, UUID continuity into durable pending state,
 quit authorization only after persistence, and continued execution when an
 existing pending lifecycle blocks persistence.
+The handoff is two-phase: its parser and service tests require the UUID commit
+event, invoke durable authorization only after ready, and deny quit when commit
+authorization fails. `UpdateLauncherResultTest` accepts the resulting bounded
+`handoff-aborted` evidence without treating it as an install attempt.
 
 `WindowsUpdateStartupServiceTest` exercises the active post-restart policy with
 real private directories: empty state, recent update blocking startup, stale

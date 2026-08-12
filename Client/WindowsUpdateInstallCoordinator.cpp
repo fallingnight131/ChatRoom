@@ -48,7 +48,15 @@ bool WindowsUpdateInstallCoordinator::start(
         return false;
     }
     m_request = request;
-    if (!m_handoff->start(request.handoff, error)) {
+    const QString targetVersion = request.targetVersion;
+    const QDateTime createdAtUtc = request.createdAtUtc;
+    if (!m_handoff->start(
+            request.handoff,
+            [this, targetVersion, createdAtUtc](
+                    const QString &requestId, QString *authorizationError) {
+                return m_lifecycle.recordPending(
+                    {requestId, targetVersion, createdAtUtc}, authorizationError);
+            }, error)) {
         m_request = {};
         return false;
     }
@@ -64,20 +72,8 @@ void WindowsUpdateInstallCoordinator::handleHandoff(
     Result result;
     result.requestId = handoff.requestId;
     result.error = handoff.error;
-    if (handoff.readyToQuit) {
-        QString persistenceError;
-        const bool recorded = m_lifecycle.recordPending(
-            {handoff.requestId, m_request.targetVersion, m_request.createdAtUtc},
-            &persistenceError);
-        if (recorded) {
-            result.quitAuthorized = true;
-            result.error.clear();
-        } else {
-            result.error = persistenceError.isEmpty()
-                ? QStringLiteral("pending update could not be persisted")
-                : persistenceError;
-        }
-    }
+    result.quitAuthorized = handoff.readyToQuit;
+    if (result.quitAuthorized) result.error.clear();
     m_request = {};
     emit finished(result);
 }
