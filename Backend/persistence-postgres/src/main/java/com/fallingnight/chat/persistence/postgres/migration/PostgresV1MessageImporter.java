@@ -20,7 +20,7 @@ import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
 
-/** Strict PostgreSQL preview boundary for the verified V1 historical-message plan. */
+/** Strict PostgreSQL preview/apply boundary for verified V1 historical-message data. */
 public final class PostgresV1MessageImporter {
     private final DataSource dataSource;
 
@@ -47,6 +47,46 @@ public final class PostgresV1MessageImporter {
         }
     }
 
+    public V1MessageImportReport apply(VerifiedV1MessageImportBundle bundle) {
+        Objects.requireNonNull(bundle, "bundle");
+        V1MessageTargetImportPlan plan = new V1MessageTargetImportPlanner().plan(bundle);
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+            connection.setAutoCommit(false);
+            try {
+                lockTarget(connection);
+                Comparison before = compare(connection, plan);
+                if (!before.ready()) {
+                    throw new V1MessageImportException(
+                            "V1 message target contains blocking conflicts");
+                }
+                insertDevices(connection, plan.legacyDevices());
+                insertCreationEntries(connection, plan.messages());
+                insertMessages(connection, plan.messages());
+                insertMessageMappings(connection, plan.messages());
+                insertRecallEntriesAndEvents(connection, plan.messages());
+                insertDeletionEntriesAndEvents(connection, plan.deletionEvents());
+                updateReadCursors(connection, plan.memberReadCursors());
+                updateConversationCursors(connection, plan.conversationCursors());
+                Comparison after = compare(connection, plan);
+                if (!after.fullyReconciled(plan)) {
+                    throw new V1MessageImportException(
+                            "V1 message post-write reconciliation failed");
+                }
+                bundle.reverify();
+                UUID runId = UUID.randomUUID();
+                persistProof(connection, runId, bundle, plan, before);
+                connection.commit();
+                return before.appliedReport(plan, runId);
+            } catch (RuntimeException | SQLException exception) {
+                rollback(connection, exception);
+                throw exception;
+            }
+        } catch (SQLException exception) {
+            throw new V1MessageImportException("V1 message target apply failed", exception);
+        }
+    }
+
     private static Comparison compare(Connection connection, V1MessageTargetImportPlan plan)
             throws SQLException {
         List<V1MessageTargetIssue> issues = new ArrayList<>();
@@ -67,6 +107,7 @@ public final class PostgresV1MessageImporter {
         int existingMessages = 0;
         int insertEntries = 0;
         int existingEntries = 0;
+        int missingAuxiliaryRows = 0;
         Map<UUID, Set<Long>> expectedEntries = new HashMap<>();
         Map<UUID, Set<UUID>> expectedMessages = new HashMap<>();
         for (PlannedV1HistoricalMessage message : plan.messages()) {
@@ -82,7 +123,8 @@ public final class PostgresV1MessageImporter {
             TargetDisposition stored = compareMessage(connection, message, issues);
             if (stored == TargetDisposition.ABSENT) insertMessages++;
             if (stored == TargetDisposition.EXACT) existingMessages++;
-            compareMessageMapping(connection, message, issues);
+            if (compareMessageMapping(connection, message, issues)
+                    == TargetDisposition.ABSENT) missingAuxiliaryRows++;
             if (message.recalled()) {
                 long mutation = Objects.requireNonNull(message.mutationSequence());
                 expectedEntries.get(message.conversationId()).add(mutation);
@@ -91,7 +133,8 @@ public final class PostgresV1MessageImporter {
                         "MESSAGE_RECALLED", null, message, issues);
                 if (recallEntry == TargetDisposition.ABSENT) insertEntries++;
                 if (recallEntry == TargetDisposition.EXACT) existingEntries++;
-                compareRecall(connection, message, issues);
+                if (compareRecall(connection, message, issues)
+                        == TargetDisposition.ABSENT) missingAuxiliaryRows++;
             }
         }
         for (PlannedV1DeletionEvent event : plan.deletionEvents()) {
@@ -102,7 +145,7 @@ public final class PostgresV1MessageImporter {
                     "MESSAGES_DELETED", event.occurredAt(), event, issues);
             if (deletionEntry == TargetDisposition.ABSENT) insertEntries++;
             if (deletionEntry == TargetDisposition.EXACT) existingEntries++;
-            compareDeletion(connection, event, issues);
+            missingAuxiliaryRows += compareDeletion(connection, event, issues);
         }
         compareUnexpectedRows(connection, expectedEntries, expectedMessages, issues);
 
@@ -115,7 +158,8 @@ public final class PostgresV1MessageImporter {
         }
         return new Comparison(
                 insertMessages, existingMessages, insertEntries, existingEntries,
-                insertDevices, existingDevices, updateReads, existingReads, List.copyOf(issues));
+                insertDevices, existingDevices, updateReads, existingReads,
+                missingAuxiliaryRows, List.copyOf(issues));
     }
 
     private static void compareConversation(
@@ -163,6 +207,11 @@ public final class PostgresV1MessageImporter {
             Connection connection,
             PlannedV1LegacyDevice planned,
             List<V1MessageTargetIssue> issues) throws SQLException {
+        if (!accountExists(connection, planned.accountId())) {
+            issues.add(issue(null, 0, 0, "TARGET_ACCOUNT_MISSING",
+                    "target legacy device account is absent or disabled"));
+            return TargetDisposition.CONFLICT;
+        }
         try (PreparedStatement statement = connection.prepareStatement("""
                 SELECT id, account_id, client_device_id, platform, revoked_at
                 FROM chat.device
@@ -261,7 +310,7 @@ public final class PostgresV1MessageImporter {
         }
     }
 
-    private static void compareMessageMapping(
+    private static TargetDisposition compareMessageMapping(
             Connection connection,
             PlannedV1HistoricalMessage planned,
             List<V1MessageTargetIssue> issues) throws SQLException {
@@ -275,7 +324,7 @@ public final class PostgresV1MessageImporter {
             statement.setLong(2, planned.legacyMessageId());
             statement.setObject(3, planned.messageId());
             try (ResultSet result = statement.executeQuery()) {
-                if (!result.next()) return;
+                if (!result.next()) return TargetDisposition.ABSENT;
                 boolean exact = result.getString("legacy_kind").equals(planned.legacyKind().name())
                         && result.getLong("legacy_message_id") == planned.legacyMessageId()
                         && result.getLong("legacy_conversation_id")
@@ -284,13 +333,17 @@ public final class PostgresV1MessageImporter {
                                 .equals(planned.conversationId())
                         && result.getObject("message_id", UUID.class).equals(planned.messageId())
                         && !result.next();
-                if (!exact) issues.add(issue(planned, "TARGET_MESSAGE_MAPPING_CONFLICT",
-                        "target V1 message mapping differs from plan"));
+                if (!exact) {
+                    issues.add(issue(planned, "TARGET_MESSAGE_MAPPING_CONFLICT",
+                            "target V1 message mapping differs from plan"));
+                    return TargetDisposition.CONFLICT;
+                }
+                return TargetDisposition.EXACT;
             }
         }
     }
 
-    private static void compareRecall(
+    private static TargetDisposition compareRecall(
             Connection connection,
             PlannedV1HistoricalMessage planned,
             List<V1MessageTargetIssue> issues) throws SQLException {
@@ -302,22 +355,31 @@ public final class PostgresV1MessageImporter {
             statement.setObject(1, planned.conversationId());
             statement.setLong(2, Objects.requireNonNull(planned.mutationSequence()));
             try (ResultSet result = statement.executeQuery()) {
-                if (!result.next()) return;
+                if (!result.next()) return TargetDisposition.ABSENT;
                 boolean exact = result.getObject("message_id", UUID.class).equals(planned.messageId())
                         && result.getObject("actor_account_id", UUID.class)
                                 .equals(planned.senderAccountId())
                         && result.getString("source").equals("V1_IMPORT")
                         && !result.next();
-                if (!exact) issues.add(issue(planned, "TARGET_RECALL_EVENT_CONFLICT",
-                        "target recall event differs from plan"));
+                if (!exact) {
+                    issues.add(issue(planned, "TARGET_RECALL_EVENT_CONFLICT",
+                            "target recall event differs from plan"));
+                    return TargetDisposition.CONFLICT;
+                }
+                return TargetDisposition.EXACT;
             }
         }
     }
 
-    private static void compareDeletion(
+    private static int compareDeletion(
             Connection connection,
             PlannedV1DeletionEvent planned,
             List<V1MessageTargetIssue> issues) throws SQLException {
+        if (!accountExists(connection, planned.actorAccountId())) {
+            issues.add(issue(planned, "TARGET_DELETION_ACTOR_MISSING",
+                    "target deletion actor account is absent or disabled"));
+        }
+        int missing = 0;
         try (PreparedStatement statement = connection.prepareStatement("""
                 SELECT actor_account_id, source, mode, client_operation_id,
                        command_fingerprint, message_ids::text, file_ids::text,
@@ -348,7 +410,7 @@ public final class PostgresV1MessageImporter {
                             && !result.next();
                     if (!exact) issues.add(issue(planned, "TARGET_DELETION_EVENT_CONFLICT",
                             "target deletion event differs from plan"));
-                }
+                } else missing++;
             }
         }
         try (PreparedStatement statement = connection.prepareStatement("""
@@ -361,7 +423,7 @@ public final class PostgresV1MessageImporter {
             statement.setObject(2, planned.conversationId());
             statement.setLong(3, planned.conversationSequence());
             try (ResultSet result = statement.executeQuery()) {
-                if (!result.next()) return;
+                if (!result.next()) return missing + 1;
                 boolean exact = result.getLong("legacy_event_id") == planned.legacyEventId()
                         && result.getLong("legacy_room_id") == planned.legacyRoomId()
                         && result.getObject("conversation_id", UUID.class)
@@ -371,6 +433,7 @@ public final class PostgresV1MessageImporter {
                         && !result.next();
                 if (!exact) issues.add(issue(planned, "TARGET_DELETION_MAPPING_CONFLICT",
                         "target V1 deletion event mapping differs from plan"));
+                return missing;
             }
         }
     }
@@ -436,6 +499,17 @@ public final class PostgresV1MessageImporter {
         }
     }
 
+    private static boolean accountExists(Connection connection, UUID accountId)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT 1 FROM chat.account WHERE id = ? AND disabled_at IS NULL")) {
+            statement.setObject(1, accountId);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() && !result.next();
+            }
+        }
+    }
+
     private static boolean jsonEquals(Connection connection, String first, String second)
             throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
@@ -445,6 +519,263 @@ public final class PostgresV1MessageImporter {
             try (ResultSet result = statement.executeQuery()) {
                 return result.next() && result.getBoolean(1);
             }
+        }
+    }
+
+    private static void insertDevices(
+            Connection connection, List<PlannedV1LegacyDevice> devices) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO chat.device(id, account_id, client_device_id, platform)
+                VALUES (?, ?, ?, 'LEGACY') ON CONFLICT DO NOTHING
+                """)) {
+            for (PlannedV1LegacyDevice value : devices) {
+                statement.setObject(1, value.deviceId());
+                statement.setObject(2, value.accountId());
+                statement.setString(3, value.clientDeviceId());
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        }
+    }
+
+    private static void insertCreationEntries(
+            Connection connection, List<PlannedV1HistoricalMessage> messages) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO chat.conversation_entry(
+                    conversation_id, conversation_sequence, entry_kind, occurred_at)
+                VALUES (?, ?, 'MESSAGE', ?) ON CONFLICT DO NOTHING
+                """)) {
+            for (PlannedV1HistoricalMessage value : messages) {
+                statement.setObject(1, value.conversationId());
+                statement.setLong(2, value.creationSequence());
+                statement.setObject(3, OffsetDateTime.ofInstant(
+                        value.acceptedAt(), ZoneOffset.UTC));
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        }
+    }
+
+    private static void insertMessages(
+            Connection connection, List<PlannedV1HistoricalMessage> messages) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO chat.message(
+                    id, conversation_id, conversation_sequence, sender_account_id,
+                    sender_device_id, client_message_id, message_type, payload,
+                    payload_sha256, accepted_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
+                """)) {
+            for (PlannedV1HistoricalMessage value : messages) {
+                byte[] payload = value.text().getBytes(StandardCharsets.UTF_8);
+                statement.setObject(1, value.messageId());
+                statement.setObject(2, value.conversationId());
+                statement.setLong(3, value.creationSequence());
+                statement.setObject(4, value.senderAccountId());
+                statement.setObject(5, value.senderDeviceId());
+                statement.setString(6, value.clientMessageId());
+                statement.setInt(7, value.contentType());
+                statement.setBytes(8, payload);
+                statement.setBytes(9, sha256(payload));
+                statement.setObject(10, OffsetDateTime.ofInstant(
+                        value.acceptedAt(), ZoneOffset.UTC));
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        }
+    }
+
+    private static void insertMessageMappings(
+            Connection connection, List<PlannedV1HistoricalMessage> messages) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO chat.legacy_v1_message_map(
+                    legacy_kind, legacy_message_id, legacy_conversation_id,
+                    conversation_id, message_id)
+                VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
+                """)) {
+            for (PlannedV1HistoricalMessage value : messages) {
+                statement.setString(1, value.legacyKind().name());
+                statement.setLong(2, value.legacyMessageId());
+                statement.setLong(3, value.legacyConversationId());
+                statement.setObject(4, value.conversationId());
+                statement.setObject(5, value.messageId());
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        }
+    }
+
+    private static void insertRecallEntriesAndEvents(
+            Connection connection, List<PlannedV1HistoricalMessage> messages) throws SQLException {
+        try (PreparedStatement entry = connection.prepareStatement("""
+                INSERT INTO chat.conversation_entry(
+                    conversation_id, conversation_sequence, entry_kind, occurred_at)
+                VALUES (?, ?, 'MESSAGE_RECALLED', NULL) ON CONFLICT DO NOTHING
+                """);
+                PreparedStatement event = connection.prepareStatement("""
+                INSERT INTO chat.message_recall_event(
+                    conversation_id, conversation_sequence, message_id,
+                    actor_account_id, source)
+                VALUES (?, ?, ?, ?, 'V1_IMPORT') ON CONFLICT DO NOTHING
+                """)) {
+            for (PlannedV1HistoricalMessage value : messages) {
+                if (!value.recalled()) continue;
+                long sequence = Objects.requireNonNull(value.mutationSequence());
+                entry.setObject(1, value.conversationId());
+                entry.setLong(2, sequence);
+                entry.addBatch();
+                event.setObject(1, value.conversationId());
+                event.setLong(2, sequence);
+                event.setObject(3, value.messageId());
+                event.setObject(4, value.senderAccountId());
+                event.addBatch();
+            }
+            entry.executeBatch();
+            event.executeBatch();
+        }
+    }
+
+    private static void insertDeletionEntriesAndEvents(
+            Connection connection, List<PlannedV1DeletionEvent> deletions) throws SQLException {
+        try (PreparedStatement entry = connection.prepareStatement("""
+                INSERT INTO chat.conversation_entry(
+                    conversation_id, conversation_sequence, entry_kind, occurred_at)
+                VALUES (?, ?, 'MESSAGES_DELETED', ?) ON CONFLICT DO NOTHING
+                """);
+                PreparedStatement event = connection.prepareStatement("""
+                INSERT INTO chat.messages_deleted_event(
+                    conversation_id, conversation_sequence, actor_account_id, source,
+                    mode, client_operation_id, command_fingerprint, message_ids,
+                    file_ids, cutoff_epoch_ms, deleted_count, operator_name_snapshot)
+                VALUES (?, ?, ?, 'V1_IMPORT', ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?)
+                ON CONFLICT DO NOTHING
+                """);
+                PreparedStatement mapping = connection.prepareStatement("""
+                INSERT INTO chat.legacy_v1_deletion_event_map(
+                    legacy_event_id, legacy_room_id, conversation_id,
+                    conversation_sequence)
+                VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING
+                """)) {
+            for (PlannedV1DeletionEvent value : deletions) {
+                entry.setObject(1, value.conversationId());
+                entry.setLong(2, value.conversationSequence());
+                entry.setObject(3, OffsetDateTime.ofInstant(
+                        value.occurredAt(), ZoneOffset.UTC));
+                entry.addBatch();
+                event.setObject(1, value.conversationId());
+                event.setLong(2, value.conversationSequence());
+                event.setObject(3, value.actorAccountId());
+                event.setString(4, value.mode());
+                event.setString(5, value.clientOperationId());
+                event.setString(6, value.commandFingerprint());
+                event.setString(7, value.messageIdsJson());
+                event.setString(8, value.fileIdsJson());
+                event.setLong(9, value.cutoffEpochMs());
+                event.setInt(10, value.deletedCount());
+                event.setString(11, nullToEmpty(value.operatorName()));
+                event.addBatch();
+                mapping.setLong(1, value.legacyEventId());
+                mapping.setLong(2, value.legacyRoomId());
+                mapping.setObject(3, value.conversationId());
+                mapping.setLong(4, value.conversationSequence());
+                mapping.addBatch();
+            }
+            entry.executeBatch();
+            event.executeBatch();
+            mapping.executeBatch();
+        }
+    }
+
+    private static void updateReadCursors(
+            Connection connection, List<PlannedV1MemberReadCursor> cursors) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                UPDATE chat.conversation_member SET last_read_sequence = ?
+                WHERE conversation_id = ? AND account_id = ? AND left_at IS NULL
+                  AND (last_read_sequence = 0 OR last_read_sequence = ?)
+                """)) {
+            for (PlannedV1MemberReadCursor value : cursors) {
+                statement.setLong(1, value.targetLastReadSequence());
+                statement.setObject(2, value.conversationId());
+                statement.setObject(3, value.accountId());
+                statement.setLong(4, value.targetLastReadSequence());
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        }
+    }
+
+    private static void updateConversationCursors(
+            Connection connection, List<PlannedV1ConversationCursor> cursors) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                UPDATE chat.conversation
+                SET next_sequence = ?, updated_at = transaction_timestamp()
+                WHERE id = ? AND (next_sequence = 1 OR next_sequence = ?)
+                """)) {
+            for (PlannedV1ConversationCursor value : cursors) {
+                statement.setLong(1, value.targetNextSequence());
+                statement.setObject(2, value.conversationId());
+                statement.setLong(3, value.targetNextSequence());
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        }
+    }
+
+    private static void persistProof(
+            Connection connection,
+            UUID runId,
+            VerifiedV1MessageImportBundle bundle,
+            V1MessageTargetImportPlan plan,
+            Comparison before) throws SQLException {
+        int recalled = (int) plan.messages().stream()
+                .filter(PlannedV1HistoricalMessage::recalled).count();
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO chat.message_import_run(
+                    id, state_fingerprint_sha256, payload_fingerprint_sha256,
+                    backup_file_sha256, source_messages, source_recalled_messages,
+                    source_deletion_events, source_legacy_devices,
+                    source_member_read_cursors, inserted_messages,
+                    already_imported_messages, inserted_entries,
+                    already_imported_entries, inserted_legacy_devices,
+                    already_imported_legacy_devices, updated_read_cursors,
+                    already_translated_read_cursors, backup_bytes, backup_created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """)) {
+            statement.setObject(1, runId);
+            statement.setString(2, plan.stateFingerprintSha256());
+            statement.setString(3, plan.payloadFingerprintSha256());
+            statement.setString(4, bundle.backupProof().backupFileSha256());
+            statement.setInt(5, plan.messages().size());
+            statement.setInt(6, recalled);
+            statement.setInt(7, plan.deletionEvents().size());
+            statement.setInt(8, plan.legacyDevices().size());
+            statement.setInt(9, plan.memberReadCursors().size());
+            statement.setInt(10, before.insertMessages());
+            statement.setInt(11, before.existingMessages());
+            statement.setInt(12, before.insertEntries());
+            statement.setInt(13, before.existingEntries());
+            statement.setInt(14, before.insertDevices());
+            statement.setInt(15, before.existingDevices());
+            statement.setInt(16, before.updateReads());
+            statement.setInt(17, before.existingReads());
+            statement.setLong(18, bundle.backupProof().backupBytes());
+            statement.setObject(19, OffsetDateTime.ofInstant(
+                    bundle.backupProof().createdAt(), ZoneOffset.UTC));
+            if (statement.executeUpdate() != 1) {
+                throw new SQLException("message import proof was not persisted");
+            }
+        }
+    }
+
+    private static void lockTarget(Connection connection) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                LOCK TABLE chat.account, chat.device, chat.conversation,
+                    chat.conversation_member, chat.message, chat.conversation_entry,
+                    chat.message_recall_event, chat.messages_deleted_event,
+                    chat.legacy_v1_conversation_map, chat.legacy_v1_message_map,
+                    chat.legacy_v1_deletion_event_map, chat.message_import_run
+                IN SHARE ROW EXCLUSIVE MODE
+                """)) {
+            statement.execute();
         }
     }
 
@@ -498,7 +829,29 @@ public final class PostgresV1MessageImporter {
             int existingDevices,
             int updateReads,
             int existingReads,
+            int missingAuxiliaryRows,
             List<V1MessageTargetIssue> issues) {
+        boolean ready() {
+            return issues.isEmpty();
+        }
+
+        boolean fullyReconciled(V1MessageTargetImportPlan plan) {
+            int expectedEntries = plan.messages().size()
+                    + (int) plan.messages().stream()
+                            .filter(PlannedV1HistoricalMessage::recalled).count()
+                    + plan.deletionEvents().size();
+            return ready()
+                    && insertMessages == 0
+                    && existingMessages == plan.messages().size()
+                    && insertEntries == 0
+                    && existingEntries == expectedEntries
+                    && insertDevices == 0
+                    && existingDevices == plan.legacyDevices().size()
+                    && updateReads == 0
+                    && existingReads == plan.memberReadCursors().size()
+                    && missingAuxiliaryRows == 0;
+        }
+
         V1MessageImportReport report(V1MessageTargetImportPlan plan) {
             return new V1MessageImportReport(
                     plan.stateFingerprintSha256(), plan.payloadFingerprintSha256(),
@@ -511,6 +864,19 @@ public final class PostgresV1MessageImporter {
                     insertMessages, existingMessages, insertEntries, existingEntries,
                     insertDevices, existingDevices, updateReads, existingReads,
                     issues, false, false, null);
+        }
+
+        V1MessageImportReport appliedReport(V1MessageTargetImportPlan plan, UUID runId) {
+            V1MessageImportReport preview = report(plan);
+            return new V1MessageImportReport(
+                    preview.stateFingerprintSha256(), preview.payloadFingerprintSha256(),
+                    preview.sourceMessages(), preview.sourceEntries(),
+                    preview.sourceLegacyDevices(), preview.sourceReadCursors(),
+                    preview.insertableMessages(), preview.alreadyImportedMessages(),
+                    preview.insertableEntries(), preview.alreadyImportedEntries(),
+                    preview.insertableLegacyDevices(), preview.alreadyImportedLegacyDevices(),
+                    preview.readCursorsToUpdate(), preview.alreadyTranslatedReadCursors(),
+                    List.of(), true, true, runId);
         }
     }
 }

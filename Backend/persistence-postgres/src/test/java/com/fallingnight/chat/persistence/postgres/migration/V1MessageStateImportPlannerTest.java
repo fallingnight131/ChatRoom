@@ -104,6 +104,26 @@ class V1MessageStateImportPlannerTest {
                 issue -> "MESSAGE_SENDER_NOT_MEMBER".equals(issue.code())));
     }
 
+    @Test
+    void blocksDeletionOperatorSnapshotThatExceedsTheTargetBound() {
+        V1MessageStateImportPlan plan = new V1MessageStateImportPlanner().plan(
+                new V1MessageStateSourceSnapshot(
+                        conversationPlan(),
+                        List.of(
+                                new V1ConversationWatermarkRow(
+                                        LegacyV1ConversationKind.ROOM, 9, 1),
+                                new V1ConversationWatermarkRow(
+                                        LegacyV1ConversationKind.FRIENDSHIP, 4, 0)),
+                        List.of(),
+                        List.of(new V1RoomDeletionCursorRow(
+                                1, 9, 1, "管".repeat(101), "operation-1", "fingerprint-1",
+                                "selected", "[]", "[]", 0, 0, 1, CREATED))));
+
+        assertFalse(plan.readyToCompareWithTarget());
+        assertTrue(plan.issues().stream().anyMatch(
+                issue -> "INVALID_DELETION_PAYLOAD".equals(issue.code())));
+    }
+
     private static V1MessageCursorRow message(
             LegacyV1ConversationKind kind,
             long conversationId,

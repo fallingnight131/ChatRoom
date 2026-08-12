@@ -316,7 +316,8 @@ public final class V1MessageStateImportPlanner {
                 issues.add(issue(key, "INVALID_DELETION_METADATA",
                         "deletion event operator and timestamp are required"));
             }
-            if (row.clientOperationId() == null || row.clientOperationId().isEmpty()
+            if (!operatorNameFitsTarget(row.operatorName())
+                    || row.clientOperationId() == null || row.clientOperationId().isEmpty()
                     || row.clientOperationId().length() > 128
                     || row.commandFingerprint() == null
                     || row.commandFingerprint().isEmpty()
@@ -335,6 +336,10 @@ public final class V1MessageStateImportPlanner {
     private static boolean validPositiveIntegerArray(String value) {
         return value != null && value.matches(
                 "\\[\\s*(?:[1-9][0-9]*(?:\\s*,\\s*[1-9][0-9]*)*)?\\s*\\]");
+    }
+
+    private static boolean operatorNameFitsTarget(String value) {
+        return value == null || value.codePointCount(0, value.length()) <= 100;
     }
 
     private static void validateSequence(

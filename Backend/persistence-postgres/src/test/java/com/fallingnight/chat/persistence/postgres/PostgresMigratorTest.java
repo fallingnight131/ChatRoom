@@ -32,7 +32,13 @@ import com.fallingnight.chat.persistence.postgres.migration.PlannedV1HistoricalM
 import com.fallingnight.chat.persistence.postgres.migration.PlannedV1LegacyDevice;
 import com.fallingnight.chat.persistence.postgres.migration.PlannedV1MemberReadCursor;
 import com.fallingnight.chat.persistence.postgres.migration.V1MessageImportReport;
+import com.fallingnight.chat.persistence.postgres.migration.V1MessageImportException;
+import com.fallingnight.chat.persistence.postgres.migration.V1MessageImportBundleVerifier;
+import com.fallingnight.chat.persistence.postgres.migration.V1MessagePayloadImportInputVerifier;
+import com.fallingnight.chat.persistence.postgres.migration.V1MessagePayloadSourceException;
+import com.fallingnight.chat.persistence.postgres.migration.V1MessageStateImportInputVerifier;
 import com.fallingnight.chat.persistence.postgres.migration.V1MessageTargetImportPlan;
+import com.fallingnight.chat.persistence.postgres.migration.V1MessageTargetImportPlanner;
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportInputVerifier;
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportException;
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportPlanner;
@@ -47,6 +53,7 @@ import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityBa
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityImportInput;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1ConversationImportInput;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
@@ -59,6 +66,7 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -457,6 +465,95 @@ class PostgresMigratorTest {
     }
 
     @Test
+    @Order(10)
+    void appliesV1MessagesAtomicallyReconcilesAndRerunsIdempotently() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        Path source = temporary.resolve("message-source.db");
+        Path backup = temporary.resolve("message-backup.db");
+        createMessageImportSource(source);
+        Files.copy(source, backup);
+        VerifiedV1IdentityBackup proof = new VerifiedV1IdentityBackup(
+                "0".repeat(64),
+                HexFormat.of().formatHex(sha256(Files.readAllBytes(backup))),
+                1,
+                Files.size(backup),
+                Instant.parse("2026-08-12T12:00:00Z"));
+        var state = new V1MessageStateImportInputVerifier().verify(source, backup, proof);
+        var payload = new V1MessagePayloadImportInputVerifier().verify(source, backup, proof);
+        var bundle = new V1MessageImportBundleVerifier().combine(state, payload);
+        V1MessageTargetImportPlan plan = new V1MessageTargetImportPlanner().plan(bundle);
+        UUID account = V1IdentityImportPlanner.deterministicUserId(1);
+        UUID conversation = V1ConversationImportPlanner.deterministicRoomId(77);
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'message-apply-user', 'Apply User', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    account);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind, title, created_at, updated_at) "
+                            + "VALUES (?, 'GROUP', 'Room', ?, ?)",
+                    conversation,
+                    OffsetDateTime.parse("2026-01-02T03:04:05Z"),
+                    OffsetDateTime.parse("2026-01-02T03:04:05Z"));
+            execute(connection,
+                    "INSERT INTO chat.conversation_member("
+                            + "conversation_id, account_id, role, joined_at) "
+                            + "VALUES (?, ?, 'OWNER', ?)",
+                    conversation, account, OffsetDateTime.parse("2026-01-02T03:04:05Z"));
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map("
+                            + "legacy_kind, legacy_conversation_id, conversation_id) "
+                            + "VALUES ('ROOM', 77, ?)",
+                    conversation);
+        }
+        PostgresV1MessageImporter importer = new PostgresV1MessageImporter(dataSource());
+
+        V1MessageImportReport applied = importer.apply(bundle);
+
+        assertTrue(applied.applied());
+        assertTrue(applied.reconciled());
+        assertEquals(2, applied.insertableMessages());
+        assertEquals(4, applied.insertableEntries());
+        assertEquals(1, applied.insertableLegacyDevices());
+        assertEquals(2, count("SELECT count(*) FROM chat.message"));
+        assertEquals(4, allConversationEntryCount(conversation));
+        assertEquals(1, count("SELECT count(*) FROM chat.message_recall_event"));
+        assertEquals(1, count("SELECT count(*) FROM chat.messages_deleted_event"));
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_deletion_event_map"));
+        assertEquals(2, count("SELECT count(*) FROM chat.legacy_v1_message_map"));
+        assertEquals(1, count("SELECT count(*) FROM chat.message_import_run"));
+        assertEquals(5, count("SELECT next_sequence FROM chat.conversation WHERE id = '"
+                + conversation + "'"));
+
+        V1MessageImportReport rerun = importer.apply(bundle);
+        assertEquals(0, rerun.insertableMessages());
+        assertEquals(2, rerun.alreadyImportedMessages());
+        assertEquals(0, rerun.insertableEntries());
+        assertEquals(4, rerun.alreadyImportedEntries());
+        assertEquals(2, count("SELECT count(*) FROM chat.message_import_run"));
+
+        try (Connection sourceConnection = DriverManager.getConnection(
+                "jdbc:sqlite:" + source.toAbsolutePath())) {
+            execute(sourceConnection,
+                    "UPDATE messages SET content = 'source drift' WHERE id = 100");
+        }
+        assertThrows(V1MessagePayloadSourceException.class, () -> importer.apply(bundle));
+        assertEquals(2, count("SELECT count(*) FROM chat.message_import_run"));
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.message SET payload = convert_to('conflict', 'UTF8') "
+                            + "WHERE conversation_id = ? AND conversation_sequence = 1",
+                    conversation);
+        }
+        assertFalse(importer.preview(plan).readyToApply());
+        assertThrows(V1MessageImportException.class, () -> importer.apply(bundle));
+        assertEquals(2, count("SELECT count(*) FROM chat.message_import_run"));
+    }
+
+    @Test
     @Order(3)
     void previewsAppliesReconcilesAndAuditsV1IdentityImport() throws Exception {
         requireDatabase();
@@ -843,6 +940,19 @@ class PostgresMigratorTest {
         }
     }
 
+    private static int allConversationEntryCount(UUID conversationId) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT COUNT(*) FROM chat.conversation_entry "
+                                + "WHERE conversation_id = ?")) {
+            statement.setObject(1, conversationId);
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                return result.getInt(1);
+            }
+        }
+    }
+
     private static void proveMessageImportAuditConstraints(Connection connection) {
         SQLException mismatch = assertThrows(SQLException.class, () -> execute(
                 connection,
@@ -1085,7 +1195,9 @@ class PostgresMigratorTest {
     private static void truncateApplicationData() throws SQLException {
         try (Connection connection = connect();
                 PreparedStatement statement = connection.prepareStatement(
-                        "TRUNCATE chat.account, chat.identity_import_run CASCADE")) {
+                        "TRUNCATE chat.account, chat.conversation, "
+                                + "chat.identity_import_run, chat.conversation_import_run, "
+                                + "chat.message_import_run CASCADE")) {
             statement.execute();
         }
     }
@@ -1146,6 +1258,56 @@ class PostgresMigratorTest {
             statement.execute("INSERT INTO room_admins VALUES (10, 2)");
             statement.execute("INSERT INTO friendships VALUES "
                     + "(20, 1, 2, '2026-01-02 03:04:07', 0, 3)");
+        }
+    }
+
+    private static void createMessageImportSource(Path source) throws SQLException {
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:sqlite:" + source.toAbsolutePath());
+                java.sql.Statement statement = connection.createStatement()) {
+            statement.execute("CREATE TABLE users(id INTEGER PRIMARY KEY)");
+            statement.execute("CREATE TABLE rooms(id INTEGER PRIMARY KEY, name TEXT, "
+                    + "creator_id INTEGER, created_at TEXT)");
+            statement.execute("CREATE TABLE room_members(room_id INTEGER, user_id INTEGER, "
+                    + "joined_at TEXT, last_read_msg_id INTEGER)");
+            statement.execute("CREATE TABLE room_admins(room_id INTEGER, user_id INTEGER)");
+            statement.execute("CREATE TABLE friendships(id INTEGER PRIMARY KEY, user_id1 INTEGER, "
+                    + "user_id2 INTEGER, created_at TEXT, user1_last_read_msg_id INTEGER, "
+                    + "user2_last_read_msg_id INTEGER)");
+            statement.execute("CREATE TABLE messages(id INTEGER PRIMARY KEY, room_id INTEGER, "
+                    + "user_id INTEGER, content TEXT, content_type TEXT, file_name TEXT, "
+                    + "file_size INTEGER, file_id INTEGER, file_cleared INTEGER, "
+                    + "clear_reason TEXT, thumbnail TEXT, recalled INTEGER, sequence INTEGER, "
+                    + "mutation_sequence INTEGER, created_at TEXT)");
+            statement.execute("CREATE TABLE room_message_sequences("
+                    + "room_id INTEGER PRIMARY KEY, last_sequence INTEGER)");
+            statement.execute("CREATE TABLE room_message_deletion_events("
+                    + "id INTEGER PRIMARY KEY, room_id INTEGER, operator_user_id INTEGER, "
+                    + "operator_name TEXT, client_operation_id TEXT, command_fingerprint TEXT, "
+                    + "mode TEXT, message_ids_json TEXT, file_ids_json TEXT, cutoff_ms INTEGER, "
+                    + "deleted_count INTEGER, sequence INTEGER, created_at TEXT)");
+            statement.execute("CREATE TABLE friend_messages(id INTEGER PRIMARY KEY, "
+                    + "friendship_id INTEGER, sender_id INTEGER, content TEXT, content_type TEXT, "
+                    + "file_name TEXT, file_size INTEGER, file_id INTEGER, file_cleared INTEGER, "
+                    + "clear_reason TEXT, thumbnail TEXT, recalled INTEGER, sequence INTEGER, "
+                    + "mutation_sequence INTEGER, created_at TEXT)");
+            statement.execute("CREATE TABLE friendship_message_sequences("
+                    + "friendship_id INTEGER PRIMARY KEY, last_sequence INTEGER)");
+            statement.execute("INSERT INTO users VALUES (1)");
+            statement.execute("INSERT INTO rooms VALUES "
+                    + "(77, 'Room', 1, '2026-01-02 03:04:05')");
+            statement.execute("INSERT INTO room_members VALUES "
+                    + "(77, 1, '2026-01-02 03:04:05', 101)");
+            statement.execute("INSERT INTO messages VALUES "
+                    + "(100, 77, 1, 'hello', 'text', '', 0, 0, 0, '', '', 0, 1, NULL, "
+                    + "'2026-01-02 03:04:06'), "
+                    + "(101, 77, 1, '此消息已被撤回', 'text', '', 0, 0, 0, '', '', 1, 2, 3, "
+                    + "'2026-01-02 03:04:07')");
+            statement.execute("INSERT INTO room_message_sequences VALUES (77, 4)");
+            statement.execute("INSERT INTO room_message_deletion_events VALUES "
+                    + "(900, 77, 1, 'Apply User', 'delete-900', 'd900', "
+                    + "'selected', '[100]', '[]', 0, 0, 4, "
+                    + "'2026-01-02 03:04:08')");
         }
     }
 

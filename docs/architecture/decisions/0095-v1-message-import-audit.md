@@ -36,9 +36,28 @@ apply exists this table is empty and additive. After applies exist, rollback
 requires the documented pre-import database restore rather than deleting audit
 evidence independently.
 
-The implemented repeatable-read preview performs no writes and fail-closes on
+The repeatable-read preview performs no writes and fail-closes on
 conversation/mapping/high-watermark drift, legacy-device conflicts, any of the
 three message uniqueness identities, creation/recall/deletion entry differences,
 mapping conflicts, unexpected target rows, missing memberships, or read-cursor
 drift. It reports only typed numeric source identities and fixed issue codes;
 message bodies and operator/profile metadata are never included.
+
+The implemented apply boundary accepts only the composed, verified state and
+payload capability. It obtains a serializable transaction, locks the complete
+message-import target set, rejects preview conflicts, and inserts missing legacy
+devices, creation messages, recall/deletion entries and events, compatibility
+maps, translated read cursors, and preserved conversation high watermarks. It
+then compares every durable target projection again, re-verifies the current
+SQLite source against the protected backup, writes the audit row, and commits.
+All inserts are replay-safe but an `ON CONFLICT` outcome is never trusted by
+itself: exact post-write reconciliation must account for every message, entry,
+event, map, device, and cursor.
+
+Disposable PostgreSQL integration verification exercises a mixed import with
+retained messages, a recalled message, a deletion audit event and legacy ID
+maps. It proves an identical apply is idempotent, a target payload conflict
+blocks before writes, and source SQLite drift detected before commit rolls back
+the whole transaction without adding an audit row. This completes the internal
+atomic writer; exposing it through the offline operator CLI remains a separate
+delivery slice.

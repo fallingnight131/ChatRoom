@@ -438,7 +438,7 @@ Progress:
     and deletion sequences, including non-authenticating legacy provenance.
   - [x] Add database-enforced typed V1 retained-message and deletion-event
     compatibility maps plus exact read-only message identity projection.
-  - [ ] Import verified V1 message payloads, recall/deletion entries, translated
+  - [x] Import verified V1 message payloads, recall/deletion entries, translated
     read cursors, and preserved high watermarks atomically before message cutover.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
