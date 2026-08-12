@@ -24,6 +24,25 @@ keys, production endpoints, or certificate material.
 PEM key must be usable without an application password and protected by host
 filesystem permissions and secret delivery controls.
 
+## Inactive attachment object-storage values
+
+The isolated `object-storage-s3` module validates the following non-secret
+values, but `GatewayRuntimeConfig` and `GatewayMain` do not read them yet. Setting
+them does not enable uploads or make a provider request.
+
+| Variable | Meaning |
+| --- | --- |
+| `CHATROOM_ATTACHMENT_S3_ENDPOINT` | explicit HTTPS origin; no user info, query, fragment, or path |
+| `CHATROOM_ATTACHMENT_S3_REGION` | bounded S3 signing region |
+| `CHATROOM_ATTACHMENT_S3_BUCKET` | private attachment bucket |
+| `CHATROOM_ATTACHMENT_S3_PATH_STYLE` | optional exact `true` or `false`; defaults to `false` |
+
+Credentials are deliberately not parsed into this configuration. A future
+composition root must inject a reviewed AWS credential provider supplied by the
+deployment platform. Do not enable ambient developer-profile fallback in
+production. Before composition, the real bucket must pass the create-only,
+SHA-256 HEAD, expiry, Web CORS, and cleanup acceptance described by ADR-0099.
+
 ## Bounded defaults
 
 | Variable | Default | Accepted range |

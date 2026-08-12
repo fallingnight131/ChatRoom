@@ -456,9 +456,10 @@ Progress:
     with concurrent idempotent READY transition.
   - [x] Add the inactive S3-compatible simple-PUT adapter with signed create-
     only/checksum constraints, checksum-enabled HEAD, and locked dependencies.
-  - [ ] Add strict object-store runtime configuration, real-provider capability
-    acceptance, lifecycle metrics, and failure-safe cleanup before activating
-    upload commands.
+  - [x] Add strict inactive S3 runtime configuration, injected credential-
+    provider ownership, explicit JDK HTTP transport, and deterministic closure.
+  - [ ] Add real-provider capability acceptance, lifecycle metrics, and failure-
+    safe cleanup before activating upload commands.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

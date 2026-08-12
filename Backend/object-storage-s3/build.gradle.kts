@@ -14,7 +14,7 @@ dependencies {
         exclude(group = "software.amazon.awssdk", module = "apache5-client")
         exclude(group = "software.amazon.awssdk", module = "netty-nio-client")
     }
-    runtimeOnly(libs.aws.url.connection.client)
+    implementation(libs.aws.url.connection.client)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
