@@ -36,6 +36,8 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectRecallCo
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectRecallResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageCommand;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomHistoryQuery;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomHistoryResult;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -1423,6 +1425,9 @@ class PostgresMigratorTest {
                             + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
                     account);
             execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                            + "VALUES (1, ?)", account);
+            execute(connection,
                     "INSERT INTO chat.conversation(id, kind, title, created_at, updated_at) "
                             + "VALUES (?, 'GROUP', 'Room', ?, ?)",
                     conversation,
@@ -1479,6 +1484,36 @@ class PostgresMigratorTest {
         assertEquals(4, mixed.nextSequence());
         assertEquals(4, mixed.latestSequence());
         assertFalse(mixed.hasMore());
+
+        PostgresLegacyV1RoomHistoryAdapter roomHistory =
+                new PostgresLegacyV1RoomHistoryAdapter(dataSource());
+        LegacyV1RoomHistoryResult.Page roomPage = (LegacyV1RoomHistoryResult.Page)
+                roomHistory.read(new LegacyV1RoomHistoryQuery(account, 77, 2, 0, 0L));
+        assertEquals(List.of(1L, 3L), roomPage.messages().stream()
+                .map(message -> message.syncSequence()).toList());
+        assertTrue(roomPage.messages().getLast().recalled());
+        assertTrue(roomPage.events().isEmpty());
+        assertEquals(3, roomPage.nextSequence());
+        assertTrue(roomPage.hasMore());
+        LegacyV1RoomHistoryResult.Page roomTail = (LegacyV1RoomHistoryResult.Page)
+                roomHistory.read(new LegacyV1RoomHistoryQuery(account, 77, 2, 0,
+                        roomPage.nextSequence()));
+        assertTrue(roomTail.messages().isEmpty());
+        assertEquals(1, roomTail.events().size());
+        assertEquals(900, roomTail.events().getFirst().legacyEventId());
+        assertEquals(List.of(100L), roomTail.events().getFirst().legacyMessageIds());
+        assertEquals(4, roomTail.nextSequence());
+        assertFalse(roomTail.hasMore());
+        assertEquals(LegacyV1RoomHistoryResult.Rejected.INVALID_SEQUENCE_CURSOR,
+                roomHistory.read(new LegacyV1RoomHistoryQuery(account, 77, 2, 0, 5L)));
+        assertEquals(LegacyV1RoomHistoryResult.Rejected.ROOM_ACCESS_DENIED,
+                roomHistory.read(new LegacyV1RoomHistoryQuery(UUID.randomUUID(), 77,
+                        2, 0, 0L)));
+        LegacyV1RoomHistoryResult.Page latest = (LegacyV1RoomHistoryResult.Page)
+                roomHistory.read(new LegacyV1RoomHistoryQuery(account, 77, 1, 0, null));
+        assertEquals(List.of(2L), latest.messages().stream()
+                .map(message -> message.sequence()).toList());
+        assertTrue(latest.events().isEmpty());
 
         try (Connection connection = connect()) {
             SQLException invalidType = assertThrows(SQLException.class, () -> execute(connection,

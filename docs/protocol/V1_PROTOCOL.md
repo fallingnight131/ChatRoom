@@ -330,7 +330,10 @@ room ID, and limits each page to 100 combined message/event items. Text/emoji
 messages fold recall state through `mutationSequence`; deletion events retain
 their shared sequence and bounded positive V1 message/file identity lists.
 Latest timestamp pages contain messages only, preserving the existing response
-shape. No PostgreSQL adapter or transport handler exists yet.
+shape. The PostgreSQL adapter now reads one repeatable snapshot, verifies the
+complete mapped room state before paging, merges message/recall/deletion cursor
+items before enforcing the combined bound, and advances final pages across
+physical-deletion gaps. No transport handler exists yet.
 
 The detached Java direct-history boundary preserves both direct modes. Its
 PostgreSQL adapter now reads one repeatable snapshot and resolves the exact peer
