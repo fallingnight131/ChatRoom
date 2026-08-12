@@ -299,6 +299,13 @@ in IndexedDB. Both request bounded follow-up pages after reconnect login. Room
 pages apply mixed message/event pages in cursor order; direct pages merge
 authoritative message/recall state using `syncSequence`.
 
+The detached Java direct-history boundary preserves both direct modes. It
+resolves the exact peer and active friendship from authenticated state, emits
+only mapped text/emoji messages, and folds a recall entry into the original row
+with `mutationSequence` and `recalled=true`. Sequence pages are strictly ordered
+by `syncSequence`, bounded to 100, and fail closed on missing V1 IDs or partial
+state. No PostgreSQL adapter or handler exists yet.
+
 The M2 Web client persists room/direct snapshots and unresolved text/emoji sends
 in an account-partitioned IndexedDB repository. The Windows client persists
 bounded room/direct drafts and unresolved text/emoji messages in its SQLite

@@ -344,6 +344,13 @@ one authoritative live message to the target's current local connection. Exact
 retry emits no live message. Real PostgreSQL verifies both imported logins and
 retained history; product routing remains inactive.
 
+The next compatibility boundary defines V1 direct history as a bounded,
+server-authorized projection rather than exposing canonical mixed entries.
+Latest pages preserve the existing timestamp path; reconnect pages advance by
+strict `syncSequence`. A recall entry is folded into its original mapped message
+with a separate mutation sequence. Missing compatibility mappings or unsupported
+entry state fail the whole page. No PostgreSQL adapter or handler exists yet.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then

@@ -487,6 +487,8 @@ Progress:
     relationship authorization, canonical/V1 mapping, and exact retry recovery.
   - [x] Compose detached V1 direct messaging with authoritative ACK/live fields,
     first-only local fan-out, fixed telemetry, and real PostgreSQL dual-login proof.
+  - [x] Define a bounded UUID-free V1 direct-history projection that folds recall
+    entries into strict creation/mutation sequence pages for reconnect recovery.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application
