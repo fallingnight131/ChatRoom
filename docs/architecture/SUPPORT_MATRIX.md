@@ -148,6 +148,12 @@ while a recent result is pending so it cannot obstruct Setup. Discovery,
 production trust, consent, and installation invocation remain inactive; real
 signed restart/dialog behavior is unproven.
 
+The client also has a compiled product-trust boundary. Ordinary and unsigned CI
+builds remain disabled; a future release build must explicitly provide an exact
+stable/beta HTTPS manifest URL and one or two reviewed Ed25519 public keys.
+Writable settings cannot enable or redirect trust. No production values are
+currently provisioned, and no discovery UI instantiates the configuration.
+
 The Windows client now owns a session-local liveness mutex and refuses a second
 instance. NSIS checks the same mutex before mutation and returns 4 for a silent
 running-client attempt; native CI is configured to prove the current install and

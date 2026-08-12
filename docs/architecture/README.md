@@ -714,6 +714,12 @@ launch cannot reacquire the client mutex and obstruct Setup; stale pending state
 warns without permanently locking the user out. Discovery and installation
 remain default-off.
 
+ADR-0136 adds the explicit release-trust activation boundary. Ordinary builds
+remain disabled; an enabled build must compile a canonical stable/beta HTTPS
+manifest URL and one or two reviewed Ed25519 public-key IDs into the client.
+Writable user settings cannot select update trust, and no private key is an
+accepted build input. Discovery and UI still remain uninstantiated.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

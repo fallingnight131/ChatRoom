@@ -9,6 +9,27 @@ isEmpty(CHAT_APP_VERSION): error("VERSION is missing or empty")
 VERSION = $$CHAT_APP_VERSION
 DEFINES += CHAT_APP_VERSION=\\\"$$CHAT_APP_VERSION\\\"
 
+equals(CHAT_UPDATE_ENABLED, 1) {
+    isEmpty(CHAT_UPDATE_CHANNEL): error("CHAT_UPDATE_CHANNEL is required")
+    isEmpty(CHAT_UPDATE_MANIFEST_URL): error("CHAT_UPDATE_MANIFEST_URL is required")
+    isEmpty(CHAT_UPDATE_PRIMARY_KEY_ID): error("CHAT_UPDATE_PRIMARY_KEY_ID is required")
+    isEmpty(CHAT_UPDATE_PRIMARY_PUBLIC_KEY_HEX): error("CHAT_UPDATE_PRIMARY_PUBLIC_KEY_HEX is required")
+    DEFINES += CHAT_UPDATE_CONFIGURATION_ENABLED=1
+    DEFINES += CHAT_UPDATE_CHANNEL=\\\"$$CHAT_UPDATE_CHANNEL\\\"
+    DEFINES += CHAT_UPDATE_MANIFEST_URL=\\\"$$CHAT_UPDATE_MANIFEST_URL\\\"
+    DEFINES += CHAT_UPDATE_PRIMARY_KEY_ID=\\\"$$CHAT_UPDATE_PRIMARY_KEY_ID\\\"
+    DEFINES += CHAT_UPDATE_PRIMARY_PUBLIC_KEY_HEX=\\\"$$CHAT_UPDATE_PRIMARY_PUBLIC_KEY_HEX\\\"
+    !isEmpty(CHAT_UPDATE_SECONDARY_KEY_ID) {
+        isEmpty(CHAT_UPDATE_SECONDARY_PUBLIC_KEY_HEX): error("CHAT_UPDATE_SECONDARY_PUBLIC_KEY_HEX is required")
+        DEFINES += CHAT_UPDATE_SECONDARY_KEY_ID=\\\"$$CHAT_UPDATE_SECONDARY_KEY_ID\\\"
+        DEFINES += CHAT_UPDATE_SECONDARY_PUBLIC_KEY_HEX=\\\"$$CHAT_UPDATE_SECONDARY_PUBLIC_KEY_HEX\\\"
+    } else:!isEmpty(CHAT_UPDATE_SECONDARY_PUBLIC_KEY_HEX) {
+        error("CHAT_UPDATE_SECONDARY_KEY_ID is required")
+    }
+} else:!isEmpty(CHAT_UPDATE_ENABLED) {
+    error("CHAT_UPDATE_ENABLED must be exactly 1 when supplied")
+}
+
 include(../Common/Common.pri)
 include(../Common/Libsodium.pri)
 
@@ -46,6 +67,7 @@ SOURCES += \
     WindowsUpdateInstallCoordinator.cpp \
     WindowsUpdateRuntimePaths.cpp \
     WindowsUpdateStartupService.cpp \
+    WindowsUpdateProductConfiguration.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -86,6 +108,7 @@ HEADERS += \
     WindowsUpdateInstallCoordinator.h \
     WindowsUpdateRuntimePaths.h \
     WindowsUpdateStartupService.h \
+    WindowsUpdateProductConfiguration.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \

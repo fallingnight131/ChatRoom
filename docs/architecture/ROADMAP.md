@@ -614,6 +614,9 @@ Progress:
 - [x] Activate Windows startup reconciliation for UUID-bound update results,
   require the running binary version to match reported success, and avoid
   blocking a recent in-progress Setup while permitting stale-state recovery.
+- [x] Add a default-off compiled Windows update product configuration with exact
+  stable/beta HTTPS origin policy and a reviewed one/two-public-key rotation
+  ring; keep all private signing material outside client and build arguments.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

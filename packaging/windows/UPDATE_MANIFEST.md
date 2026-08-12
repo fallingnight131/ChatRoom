@@ -68,6 +68,10 @@ ADR-0135 activates only startup reconciliation under the owner-local update
 root. Recent pending work exits before login, success must match the running
 version, and failure/rejection is presented without enabling discovery or
 installation.
+ADR-0136 makes activation an explicit compiled release input: exact channel and
+HTTPS manifest URL plus one/two reviewed public keys. Ordinary builds remain
+disabled, writable settings cannot redirect trust, and private keys are never
+accepted by the client build.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin

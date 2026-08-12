@@ -196,6 +196,26 @@ pending recovery, matching installed version, version mismatch, and nonzero
 installer failure. The Windows entry point owns only presentation and never
 turns raw helper diagnostics into user-facing text.
 
+`WindowsUpdateProductConfigurationTest` proves ordinary builds stay default-off
+and validates channel/URL/key policy. Its enabled companion compiles a non-
+production fixture through the same preprocessor boundary. A release build can
+provide reviewed public configuration to qmake as follows (values shown are
+placeholders, and no private key is accepted):
+
+```powershell
+qmake Client/Client.pro CONFIG+=release `
+  CHAT_UPDATE_ENABLED=1 `
+  CHAT_UPDATE_CHANNEL=stable `
+  CHAT_UPDATE_MANIFEST_URL=https://updates.example.invalid/windows/stable/manifest.json `
+  CHAT_UPDATE_PRIMARY_KEY_ID=windows-update-YYYY-NN `
+  CHAT_UPDATE_PRIMARY_PUBLIC_KEY_HEX=<64-lowercase-hex-characters>
+```
+
+For rotation, provide both `CHAT_UPDATE_SECONDARY_KEY_ID` and
+`CHAT_UPDATE_SECONDARY_PUBLIC_KEY_HEX`. qmake rejects partial enabled or
+secondary configuration. Public keys and URLs are reviewable release inputs;
+private Ed25519 and Authenticode keys must never be command-line values.
+
 `UpdateStateRepositoryTest` checks creation/reload of an owner-only UUIDv4,
 atomic per-channel sequence/digest persistence, idempotence, replay/conflict
 rejection, and corrupt-state failure. The repository is compiled but no product
