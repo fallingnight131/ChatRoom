@@ -430,6 +430,8 @@ Progress:
   - [x] Add strict PostgreSQL conversation preview/apply with serializable
     insertion, exact post-write/source reconciliation, idempotent rerun, and
     membership/mapping conflict rollback.
+  - [x] Add offline conversation preview/final-verify/apply commands with an
+    independent explicit graph fingerprint and a maintenance-window runbook.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

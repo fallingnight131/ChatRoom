@@ -108,6 +108,13 @@ preview, atomic first apply, role/direct/member projection, exact idempotent
 rerun, durable audit counts, and rollback without a new audit on membership or
 mapping conflicts.
 
+The offline CLI exposes separate `conversation-preview`,
+`conversation-verify-final`, and `conversation-apply` commands. Final verification
+and apply require an explicit conversation fingerprint rather than reusing the
+identity fingerprint. Output contains only counts, UUID run ID, typed legacy ID,
+and safe issue code; source paths, names, credentials, and database secrets are
+never printed. Identity apply must precede conversation apply operationally.
+
 ## Rollback
 
 Before traffic cutover, disable the uninstalled Java compatibility path and

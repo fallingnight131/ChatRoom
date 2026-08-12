@@ -9,6 +9,7 @@ java {
 }
 
 dependencies {
+    implementation(project(":application"))
     implementation(project(":persistence-postgres"))
     implementation(libs.postgresql)
     testImplementation(platform(libs.junit.bom))

@@ -2,8 +2,11 @@
 
 Status: M3 rehearsal runbook. Do not use it to switch production authority yet.
 
-This runbook covers only V1 `users` identity material. Rooms, contacts,
-messages, files, avatars, and active sessions are not migrated by this command.
+The existing `preview`/`verify-final`/`apply` commands cover V1 `users` identity
+material. The additive `conversation-*` commands cover rooms, room memberships,
+administrators, and accepted friendships only after identities exist. Messages,
+friend requests, files, avatars, read-sequence translation, and active sessions
+remain outside this runbook.
 Completing an apply does not authorize routing user traffic to Java V2.
 
 ## Preconditions
@@ -102,6 +105,40 @@ real paths, endpoints, or fingerprints.
    traffic. For the current additive milestone, discard/reset the rehearsal
    PostgreSQL database if needed and restart V1 from the unchanged source.
 
+## Conversation metadata apply rehearsal
+
+Run this only after the exact identity apply above has succeeded against the
+same source, backup, proof, and PostgreSQL target. Keep every V1 writer stopped.
+
+1. Preview the target with the independent conversation graph fingerprint:
+
+   ```bash
+   ./gradlew --no-daemon :migration-cli:run --args='conversation-preview <v1.db>'
+   ```
+
+   Require `status=READY`, zero issues, and archive the printed
+   `conversation_fingerprint_sha256`. It intentionally differs from the identity
+   fingerprint because unchanged users do not imply unchanged rooms.
+
+2. Reconcile current source, final backup, physical proof, and the explicitly
+   confirmed conversation fingerprint without touching PostgreSQL:
+
+   ```bash
+   ./gradlew --no-daemon :migration-cli:run --args='conversation-verify-final <v1.db> <final-backup.db> <final-proof.properties> <conversation-fingerprint>'
+   ```
+
+3. Apply using the same confirmed fingerprint:
+
+   ```bash
+   ./gradlew --no-daemon :migration-cli:run --args='conversation-apply <v1.db> <final-backup.db> <final-proof.properties> <conversation-fingerprint>'
+   ```
+
+4. Require `status=APPLIED`, conversation and membership inserted/already
+   counts equal their source counts, zero issues, and a non-empty
+   `import_run_id`. Verify the corresponding `chat.conversation_import_run` row.
+   Imported `last_read_sequence` remains zero until message import translates
+   retained V1 read-message IDs.
+
 ## Stop conditions
 
 Stop immediately on a changed fingerprint, backup/proof mismatch, target
@@ -109,3 +146,6 @@ conflict, unexpected target account, Flyway validation failure, partial
 operational evidence, or missed maintenance-window deadline. Do not edit the
 proof, delete target conflicts, or rerun with a different source merely to make
 the command pass. Preserve artifacts and investigate under a new reviewed plan.
+For conversation commands, also stop on self friendship, dangling/duplicate
+room graph, missing imported account, unexpected target membership, direct-pair
+collision, or any mapping/role/title/timestamp difference.
