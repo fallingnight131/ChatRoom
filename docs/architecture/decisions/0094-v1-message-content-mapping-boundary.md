@@ -43,6 +43,11 @@ storage paths and bytes. Attachment names/thumbnails are used only to construct
 an in-memory row for later reviewed metadata mapping and never appear in issue
 output.
 
+The deterministic payload fingerprint covers every selected body and attachment
+metadata field, including fields that do not affect the current text mapping.
+Target apply must receive a re-verifiable capability produced only after exact
+current-source, protected-backup, and whole-file SHA-256 reconciliation.
+
 ## Verification and Rollback
 
 Unit tests cover namespace-separated deterministic UUIDs, input-order

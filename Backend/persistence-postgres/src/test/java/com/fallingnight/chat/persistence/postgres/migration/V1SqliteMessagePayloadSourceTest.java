@@ -71,7 +71,7 @@ class V1SqliteMessagePayloadSourceTest {
         assertTrue(failure.getMessage().contains("missing required migrated columns"));
     }
 
-    private static void createSchema(Path database, boolean current) throws Exception {
+    static void createSchema(Path database, boolean current) throws Exception {
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database);
                 Statement statement = connection.createStatement()) {
             String clearedColumns = current

@@ -3,11 +3,16 @@ package com.fallingnight.chat.persistence.postgres.migration;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1ConversationKind;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -63,7 +68,44 @@ public final class V1MessagePayloadImportPlanner {
                     content,
                     !row.recalled()));
         }
-        return new V1MessagePayloadImportPlan(planned, issues);
+        return new V1MessagePayloadImportPlan(fingerprint(rows), rows.size(), planned, issues);
+    }
+
+    private static String fingerprint(List<V1MessagePayloadRow> rows) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (DataOutputStream data = new DataOutputStream(
+                    new DigestOutputStream(OutputStream.nullOutputStream(), digest))) {
+                data.writeInt(rows.size());
+                for (V1MessagePayloadRow row : rows) {
+                    writeNullable(data, row.legacyKind() == null ? null : row.legacyKind().name());
+                    data.writeLong(row.legacyConversationId());
+                    data.writeLong(row.legacyMessageId());
+                    writeNullable(data, row.contentType());
+                    writeNullable(data, row.content());
+                    writeNullable(data, row.fileName());
+                    data.writeLong(row.fileSize());
+                    data.writeLong(row.fileId());
+                    data.writeBoolean(row.fileCleared());
+                    writeNullable(data, row.clearReason());
+                    writeNullable(data, row.thumbnail());
+                    data.writeBoolean(row.recalled());
+                }
+                return HexFormat.of().formatHex(digest.digest());
+            }
+        } catch (NoSuchAlgorithmException | IOException exception) {
+            throw new IllegalStateException("message payload fingerprint failed", exception);
+        }
+    }
+
+    private static void writeNullable(DataOutputStream data, String value) throws IOException {
+        if (value == null) {
+            data.writeInt(-1);
+            return;
+        }
+        byte[] encoded = value.getBytes(StandardCharsets.UTF_8);
+        data.writeInt(encoded.length);
+        data.write(encoded);
     }
 
     public static UUID deterministicMessageId(
