@@ -58,6 +58,12 @@ shape, and device-platform constraints are verified on disposable PostgreSQL.
 Message append tests must prove that an accepted message creates exactly one
 matching entry and that idempotent retries create neither row twice.
 
+The implemented target planner derives each legacy device UUID from the
+canonical account UUID, reuses one device per historical sender, and emits the
+fixed client ID `v1-history-import`. It requires every source sender to be an
+imported member of the corresponding conversation before producing target
+message rows. The planner still performs no database writes or authentication.
+
 Rollback before imported events exist removes the additive event/entry tables
 and restores the former device constraint. After event rows exist, rollback
 requires restoring the pre-import PostgreSQL backup; contract migration is not

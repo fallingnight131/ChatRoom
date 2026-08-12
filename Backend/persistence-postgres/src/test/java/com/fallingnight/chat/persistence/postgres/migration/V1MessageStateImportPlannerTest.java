@@ -83,6 +83,26 @@ class V1MessageStateImportPlannerTest {
         assertTrue(codes.contains("INCONSISTENT_RECALL_STATE"));
     }
 
+    @Test
+    void blocksHistoricalSenderWhoIsNotAConversationMember() {
+        V1MessageStateImportPlan plan = new V1MessageStateImportPlanner().plan(
+                new V1MessageStateSourceSnapshot(
+                        conversationPlan(),
+                        List.of(
+                                new V1ConversationWatermarkRow(
+                                        LegacyV1ConversationKind.ROOM, 9, 1),
+                                new V1ConversationWatermarkRow(
+                                        LegacyV1ConversationKind.FRIENDSHIP, 4, 0)),
+                        List.of(message(
+                                LegacyV1ConversationKind.ROOM, 9, 100, 99,
+                                1, null, false)),
+                        List.of()));
+
+        assertFalse(plan.readyToCompareWithTarget());
+        assertTrue(plan.issues().stream().anyMatch(
+                issue -> "MESSAGE_SENDER_NOT_MEMBER".equals(issue.code())));
+    }
+
     private static V1MessageCursorRow message(
             LegacyV1ConversationKind kind,
             long conversationId,

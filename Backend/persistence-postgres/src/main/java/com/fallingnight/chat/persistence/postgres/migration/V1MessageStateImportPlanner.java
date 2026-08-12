@@ -47,6 +47,7 @@ public final class V1MessageStateImportPlanner {
                 sourceWatermarks, conversations.keySet(), issues);
         Map<LegacyKey, List<V1MessageCursorRow>> messages = validateMessages(
                 sourceMessages, conversations.keySet(), watermarks, issues);
+        validateMessageSenders(messages, conversations, source.conversationPlan(), issues);
         validateDeletionEvents(sourceDeletionEvents, conversations.keySet(),
                 watermarks, messages, issues);
 
@@ -82,6 +83,34 @@ public final class V1MessageStateImportPlanner {
         return new V1MessageStateImportPlan(
                 fingerprint, sourceMessages.size(), sourceDeletionEvents.size(),
                 sourceMessages, sourceDeletionEvents, cursors, readCursors, issues);
+    }
+
+    private static void validateMessageSenders(
+            Map<LegacyKey, List<V1MessageCursorRow>> messages,
+            Map<LegacyKey, PlannedV1Conversation> conversations,
+            V1ConversationImportPlan conversationPlan,
+            List<V1MessageStateImportIssue> issues) {
+        Map<UUID, Set<UUID>> members = new HashMap<>();
+        for (PlannedV1ConversationMember member : conversationPlan.memberships()) {
+            members.computeIfAbsent(member.conversationId(), ignored -> new HashSet<>())
+                    .add(member.accountId());
+        }
+        for (Map.Entry<LegacyKey, List<V1MessageCursorRow>> entry : messages.entrySet()) {
+            PlannedV1Conversation conversation = conversations.get(entry.getKey());
+            if (conversation == null) {
+                continue;
+            }
+            Set<UUID> conversationMembers = members.getOrDefault(
+                    conversation.conversationId(), Set.of());
+            for (V1MessageCursorRow message : entry.getValue()) {
+                UUID sender = V1IdentityImportPlanner.deterministicUserId(
+                        message.legacySenderUserId());
+                if (!conversationMembers.contains(sender)) {
+                    issues.add(issue(entry.getKey(), "MESSAGE_SENDER_NOT_MEMBER",
+                            "message sender must reference an imported conversation member"));
+                }
+            }
+        }
     }
 
     private static List<V1ConversationWatermarkRow> sortedWatermarks(
