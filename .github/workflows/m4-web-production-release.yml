@@ -1,0 +1,337 @@
+name: M4 Web Production Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: M0 workflow run containing the undeployed Web artifact
+        required: true
+        type: string
+      candidate_artifact_name:
+        description: Exact undeployed Web artifact name
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  WEB_STORE_ROOT: ${{ vars.CHATROOM_WEB_STORE_ROOT }}
+  WEB_PREVIEW_ORIGIN: ${{ vars.CHATROOM_WEB_PREVIEW_ORIGIN }}
+  WEB_PRODUCTION_ORIGIN: ${{ vars.CHATROOM_WEB_PRODUCTION_ORIGIN }}
+  WEB_SOCKET_PATH: ${{ vars.CHATROOM_WEB_SOCKET_PATH }}
+
+jobs:
+  technical-readiness:
+    name: Stage and observe Web candidate without production mutation
+    runs-on: [self-hosted, Linux, X64, chatroom-web-release-store]
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out release verifier source
+        uses: actions/checkout@v6
+
+      - name: Validate fixed runner release configuration
+        shell: bash
+        env:
+          CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$WEB_STORE_ROOT" = /* && -d "$WEB_STORE_ROOT" && ! -L "$WEB_STORE_ROOT" ]]
+          [[ "$WEB_PREVIEW_ORIGIN" =~ ^https://[^/]+$ ]]
+          [[ "$WEB_PRODUCTION_ORIGIN" =~ ^https://[^/]+$ ]]
+          [[ "$WEB_PREVIEW_ORIGIN" != "$WEB_PRODUCTION_ORIGIN" ]]
+          [[ "$WEB_SOCKET_PATH" =~ ^/[A-Za-z0-9._~/-]+$ ]]
+
+      - name: Download exact undeployed candidate
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.candidate_artifact_name }}
+          path: build/m4/web-candidate
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.candidate_run_id }}
+
+      - name: Stage candidate and preserve active production rollback
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/web-technical-evidence"
+          python3 tools/web_release_store.py stage \
+            --artifact-root build/m4/web-candidate \
+            --store-root "$WEB_STORE_ROOT" > "$RUNNER_TEMP/staged.json"
+          python3 tools/web_release_store.py status \
+            --store-root "$WEB_STORE_ROOT" > "$RUNNER_TEMP/active.json"
+          candidate_id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["releaseId"])' "$RUNNER_TEMP/staged.json")
+          rollback_id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["releaseId"])' "$RUNNER_TEMP/active.json")
+          [[ "$candidate_id" != "$rollback_id" ]]
+          printf 'candidate_id=%s\n' "$candidate_id" >> "$GITHUB_OUTPUT"
+          printf 'rollback_id=%s\n' "$rollback_id" >> "$GITHUB_OUTPUT"
+
+      - name: Select and observe candidate on preview only
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/web-technical-evidence"
+          candidate="$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.candidate_id }}"
+          python3 tools/web_preview_release.py select \
+            --store-root "$WEB_STORE_ROOT" \
+            --release-id "${{ steps.identity.outputs.candidate_id }}"
+          python3 tools/web_release_store.py status --store-root "$WEB_STORE_ROOT" \
+            | python3 -c 'import json,sys; value=json.load(sys.stdin); expected=sys.argv[1]; assert value["releaseId"] == expected' \
+              "${{ steps.identity.outputs.rollback_id }}"
+          python3 tools/web_release_probe.py \
+            --base-url "$WEB_PREVIEW_ORIGIN" --release-root "$candidate" \
+            --output "$evidence/candidate-static.json"
+          python3 tools/web_application_route_probe.py \
+            --base-url "$WEB_PREVIEW_ORIGIN" --websocket-path "$WEB_SOCKET_PATH" \
+            --output "$evidence/candidate-routes.json"
+
+      - name: Observe retained rollback on production and close technical promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/web-technical-evidence"
+          candidate="$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.candidate_id }}"
+          rollback="$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.rollback_id }}"
+          python3 tools/web_release_probe.py \
+            --base-url "$WEB_PRODUCTION_ORIGIN" --release-root "$rollback" \
+            --output "$evidence/rollback-static.json"
+          common=(
+            --release-root "$candidate"
+            --release-observation "$evidence/candidate-static.json"
+            --route-observation "$evidence/candidate-routes.json"
+            --rollback-release-root "$rollback"
+            --rollback-observation "$evidence/rollback-static.json"
+            --output "$evidence/technical-promotion.json"
+          )
+          python3 tools/web_promotion_evidence.py record "${common[@]}"
+          python3 tools/web_promotion_evidence.py verify "${common[@]}"
+
+      - name: Retain technical evidence for reviewed production approval
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-technical-promotion-${{ github.run_id }}
+          path: ${{ runner.temp }}/web-technical-evidence
+          if-no-files-found: error
+          retention-days: 1
+
+  production-promotion:
+    name: Approve, switch, observe, or restore Web production
+    needs: technical-readiness
+    environment: web-production
+    runs-on: [self-hosted, Linux, X64, chatroom-web-release-store]
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out release verifier source
+        uses: actions/checkout@v6
+
+      - name: Download exact undeployed candidate again
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.candidate_artifact_name }}
+          path: build/m4/web-candidate
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.candidate_run_id }}
+
+      - name: Download exact technical promotion evidence
+        uses: actions/download-artifact@v8
+        with:
+          name: web-technical-promotion-${{ github.run_id }}
+          path: ${{ runner.temp }}/web-release-evidence
+
+      - name: Reconstruct reviewed technical inputs
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/web-release-evidence"
+          python3 tools/web_release_store.py stage \
+            --artifact-root build/m4/web-candidate --store-root "$WEB_STORE_ROOT" \
+            > "$RUNNER_TEMP/staged.json"
+          candidate_id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["releaseId"])' "$RUNNER_TEMP/staged.json")
+          rollback_id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["rollbackReleaseId"])' "$evidence/technical-promotion.json")
+          candidate="$WEB_STORE_ROOT/releases/$candidate_id"
+          rollback="$WEB_STORE_ROOT/releases/$rollback_id"
+          common=(
+            --release-root "$candidate"
+            --release-observation "$evidence/candidate-static.json"
+            --route-observation "$evidence/candidate-routes.json"
+            --rollback-release-root "$rollback"
+            --rollback-observation "$evidence/rollback-static.json"
+            --output "$evidence/technical-promotion.json"
+          )
+          python3 tools/web_promotion_evidence.py verify "${common[@]}"
+          printf 'candidate_id=%s\n' "$candidate_id" >> "$GITHUB_OUTPUT"
+          printf 'rollback_id=%s\n' "$rollback_id" >> "$GITHUB_OUTPUT"
+
+      - name: Refresh exact technical evidence after production approval
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/web-release-evidence"
+          candidate="$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.candidate_id }}"
+          rollback="$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.rollback_id }}"
+          python3 tools/web_preview_release.py select \
+            --store-root "$WEB_STORE_ROOT" \
+            --release-id "${{ steps.identity.outputs.candidate_id }}"
+          python3 tools/web_release_store.py status --store-root "$WEB_STORE_ROOT" \
+            | python3 -c 'import json,sys; value=json.load(sys.stdin); assert value["releaseId"] == sys.argv[1]' \
+              "${{ steps.identity.outputs.rollback_id }}"
+          python3 tools/web_release_probe.py \
+            --base-url "$WEB_PREVIEW_ORIGIN" --release-root "$candidate" \
+            --output "$evidence/candidate-static-reviewed.json"
+          python3 tools/web_application_route_probe.py \
+            --base-url "$WEB_PREVIEW_ORIGIN" --websocket-path "$WEB_SOCKET_PATH" \
+            --output "$evidence/candidate-routes-reviewed.json"
+          python3 tools/web_release_probe.py \
+            --base-url "$WEB_PRODUCTION_ORIGIN" --release-root "$rollback" \
+            --output "$evidence/rollback-static-reviewed.json"
+          common=(
+            --release-root "$candidate"
+            --release-observation "$evidence/candidate-static-reviewed.json"
+            --route-observation "$evidence/candidate-routes-reviewed.json"
+            --rollback-release-root "$rollback"
+            --rollback-observation "$evidence/rollback-static-reviewed.json"
+            --output "$evidence/technical-promotion-reviewed.json"
+          )
+          python3 tools/web_promotion_evidence.py record "${common[@]}"
+          python3 tools/web_promotion_evidence.py verify "${common[@]}"
+
+      - name: Create and reverify short-lived production authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/web-release-evidence"
+          common=(
+            --technical-promotion "$evidence/technical-promotion-reviewed.json"
+            --release-root "$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.candidate_id }}"
+            --release-observation "$evidence/candidate-static-reviewed.json"
+            --route-observation "$evidence/candidate-routes-reviewed.json"
+            --rollback-release-root "$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.rollback_id }}"
+            --rollback-observation "$evidence/rollback-static-reviewed.json"
+            --output "$evidence/production-authorization.json"
+          )
+          python3 tools/web_release_authorization.py create "${common[@]}"
+          python3 tools/web_release_authorization.py verify "${common[@]}"
+
+      - name: Consume authorization and atomically switch production pointer
+        id: execute
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/web-release-evidence"
+          python3 tools/web_release_execution.py execute \
+            --authorization "$evidence/production-authorization.json" \
+            --technical-promotion "$evidence/technical-promotion-reviewed.json" \
+            --release-root "$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.candidate_id }}" \
+            --release-observation "$evidence/candidate-static-reviewed.json" \
+            --route-observation "$evidence/candidate-routes-reviewed.json" \
+            --rollback-release-root "$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.rollback_id }}" \
+            --rollback-observation "$evidence/rollback-static-reviewed.json" \
+            --store-root "$WEB_STORE_ROOT" \
+            --output "$evidence/pointer-execution.json"
+
+      - name: Observe exact candidate bytes on production
+        id: post_static
+        shell: bash
+        run: |
+          python3 tools/web_release_probe.py \
+            --base-url "$WEB_PRODUCTION_ORIGIN" \
+            --release-root "$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.candidate_id }}" \
+            --output "$RUNNER_TEMP/web-release-evidence/post-static.json"
+
+      - name: Observe production API and WebSocket routes
+        id: post_routes
+        shell: bash
+        run: |
+          python3 tools/web_application_route_probe.py \
+            --base-url "$WEB_PRODUCTION_ORIGIN" --websocket-path "$WEB_SOCKET_PATH" \
+            --output "$RUNNER_TEMP/web-release-evidence/post-routes.json"
+
+      - name: Complete observed production promotion
+        id: complete
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/web-release-evidence"
+          python3 tools/web_release_completion.py record \
+            --execution "$evidence/pointer-execution.json" \
+            --authorization "$evidence/production-authorization.json" \
+            --technical-promotion "$evidence/technical-promotion-reviewed.json" \
+            --release-root "$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.candidate_id }}" \
+            --pre-release-observation "$evidence/candidate-static-reviewed.json" \
+            --pre-route-observation "$evidence/candidate-routes-reviewed.json" \
+            --rollback-release-root "$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.rollback_id }}" \
+            --rollback-observation "$evidence/rollback-static-reviewed.json" \
+            --post-release-observation "$evidence/post-static.json" \
+            --post-route-observation "$evidence/post-routes.json" \
+            --output "$evidence/production-completion.json"
+
+      - name: Restore pre-authorized release after observation failure
+        id: rollback
+        if: ${{ failure() && steps.execute.outcome == 'success' && steps.complete.outcome != 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/web-release-evidence"
+          python3 tools/web_release_rollback_execution.py execute \
+            --execution "$evidence/pointer-execution.json" \
+            --authorization "$evidence/production-authorization.json" \
+            --technical-promotion "$evidence/technical-promotion-reviewed.json" \
+            --release-root "$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.candidate_id }}" \
+            --pre-release-observation "$evidence/candidate-static-reviewed.json" \
+            --pre-route-observation "$evidence/candidate-routes-reviewed.json" \
+            --rollback-release-root "$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.rollback_id }}" \
+            --rollback-observation "$evidence/rollback-static-reviewed.json" \
+            --store-root "$WEB_STORE_ROOT" \
+            --output "$evidence/rollback-execution.json"
+
+      - name: Observe restored static release
+        if: ${{ failure() && steps.rollback.outcome == 'success' }}
+        shell: bash
+        run: |
+          python3 tools/web_release_probe.py \
+            --base-url "$WEB_PRODUCTION_ORIGIN" \
+            --release-root "$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.rollback_id }}" \
+            --output "$RUNNER_TEMP/web-release-evidence/restored-static.json"
+
+      - name: Observe restored application routes
+        if: ${{ failure() && steps.rollback.outcome == 'success' }}
+        shell: bash
+        run: |
+          python3 tools/web_application_route_probe.py \
+            --base-url "$WEB_PRODUCTION_ORIGIN" --websocket-path "$WEB_SOCKET_PATH" \
+            --output "$RUNNER_TEMP/web-release-evidence/restored-routes.json"
+
+      - name: Complete observed incident rollback
+        if: ${{ failure() && steps.rollback.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/web-release-evidence"
+          python3 tools/web_release_rollback_completion.py record \
+            --rollback-execution "$evidence/rollback-execution.json" \
+            --execution "$evidence/pointer-execution.json" \
+            --authorization "$evidence/production-authorization.json" \
+            --technical-promotion "$evidence/technical-promotion-reviewed.json" \
+            --release-root "$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.candidate_id }}" \
+            --pre-release-observation "$evidence/candidate-static-reviewed.json" \
+            --pre-route-observation "$evidence/candidate-routes-reviewed.json" \
+            --rollback-release-root "$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.rollback_id }}" \
+            --rollback-observation "$evidence/rollback-static-reviewed.json" \
+            --restored-release-observation "$evidence/restored-static.json" \
+            --restored-route-observation "$evidence/restored-routes.json" \
+            --output "$evidence/rollback-completion.json"
+
+      - name: Retain production and recovery evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-production-release-${{ github.run_id }}
+          path: ${{ runner.temp }}/web-release-evidence
+          if-no-files-found: error
+          retention-days: 90

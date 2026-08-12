@@ -110,6 +110,13 @@ The filesystem adapter selects B for preview with
 `tools/web_preview_release.py select`. This atomically changes only
 `preview-release.json`; production continues to read `active-release.json`.
 Both selectors reference the same immutable `releases/<release-id>/` tree.
+
+The supported orchestration for this topology is the manual
+`M4 Web Production Release` workflow. Its first job stages and observes preview
+B while production remains A. Its `web-production` job refreshes evidence after
+approval, consumes a short authorization, observes production B, and runs exact
+B-to-A rollback plus restored probes when completion fails. Fixed runner
+variables own store/origins; dispatch cannot redirect deployment.
 The result says `technical-gates-observed-not-published`; it is not proof that
 traffic changed or that an incident rollback met its recovery objective.
 

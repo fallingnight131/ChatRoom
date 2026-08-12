@@ -1304,6 +1304,12 @@ pointer selects an already validated immutable B without changing production's
 active A pointer. Hosting must expose it through the configured preview origin;
 selection alone is not network observation evidence.
 
+ADR-0207 composes these primitives for the filesystem-pointer topology. One job
+prepares preview evidence without production mutation; a separately approved
+job refreshes evidence, consumes authorization once, switches, observes, and
+executes/observes exact rollback on failure. Fixed runner configuration owns
+paths and origins. The workflow is not evidence that production has passed.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

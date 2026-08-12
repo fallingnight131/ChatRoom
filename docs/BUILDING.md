@@ -169,6 +169,16 @@ minutes old. It contains no cloud token, DNS/CDN credential, provider command,
 or broad deployment permission and remains labeled `approved-not-executed`.
 Run `python3 Tests/web_release_authorization_test.py` for the mutation suite.
 
+For the filesystem-pointer hosting topology,
+`.github/workflows/m4-web-production-release.yml` composes the full boundary.
+Configure `CHATROOM_WEB_STORE_ROOT`, `CHATROOM_WEB_PREVIEW_ORIGIN`,
+`CHATROOM_WEB_PRODUCTION_ORIGIN`, and `CHATROOM_WEB_SOCKET_PATH` on the dedicated
+runner. Dispatch supplies only an exact CI run/artifact. Technical readiness
+mutates preview only; the production job waits for `web-production` approval
+and refreshes observations after approval. Failed post-switch observation runs
+the pre-authorized rollback and strict completion. It has no build/provider
+credential and does not support first-release bootstrap. See ADR-0207.
+
 The provider-neutral filesystem adapter may then consume that authorization
 exactly once:
 

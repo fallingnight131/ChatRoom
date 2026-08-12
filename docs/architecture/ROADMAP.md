@@ -748,6 +748,9 @@ Progress:
 - [x] Bind post-rollback strict HTTPS observation of exact A and same-origin
   `/api/health` plus `/ws` routing to rollback execution in a bounded immutable
   production rollback-completion record.
+- [x] Add a two-stage Web production workflow that verifies preview B and
+  production A before approval, refreshes evidence after approval, atomically
+  promotes B, and automatically observes rollback on post-switch failure.
 - [x] Establish a root CMake Release path for the exact V1 HeadlessServer
   production sources, Qt/libsodium dependency discovery, AUTOMOC, CI build, and
   real process-health test while leaving Windows product packaging on qmake.

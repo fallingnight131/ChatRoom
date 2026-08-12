@@ -22,7 +22,7 @@ evidence, but it does not make that operating system a supported client.
 | Product | Committed target | Toolchain policy | Current evidence | M4 release gate |
 | --- | --- | --- | --- | --- |
 | Windows desktop | Windows 10 22H2 (19045), Windows 11 23H2 (22631) and 24H2 (26100), x86_64; public claim still gated | Qt 6.11.1, MSVC 2022, native Windows CI | unsigned, DLL-complete verification artifact; protected candidate policy | signed and timestamped `Setup.exe`, per-target clean-host install/launch/real-upgrade/data/uninstall evidence, signed updater |
-| Web | current + previous stable desktop Chrome, Edge, and Firefox (public claim still gated) | Node.js 22; locked Playwright 1.62.0 with Chromium 151 and Firefox 153 engine gates | production build, versioned response-policy artifact, local two-engine browser smoke | branded browser matrix, production HTTPS/WSS/API observation, staged health and rollback evidence |
+| Web | current + previous stable desktop Chrome, Edge, and Firefox (public claim still gated) | Node.js 22; locked Playwright 1.62.0 with Chromium 151 and Firefox 153 engine gates | production build, response-policy artifact, local browser smoke, reviewed production workflow definition (no real run claimed) | branded browser matrix, real production HTTPS/WSS/API completion, staged health and rollback evidence |
 
 The Web engine gate proves startup, required capabilities, endpoint isolation,
 and narrow login layout in the Playwright builds named above. It does not yet
