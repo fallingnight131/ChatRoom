@@ -352,11 +352,24 @@ The NSIS policy has two explicit output identities. Ordinary builds omit
 `RELEASE_BUILD` and produce
 `ChatRoom-<version>-unsigned-verification-Setup.exe`. A protected signing build
 passes `/DRELEASE_BUILD=1` and produces exactly
-`ChatRoom-<version>-Setup.exe`. The NSIS script deliberately contains no
-`!finalize`/`!uninstfinalize` signing hook: the protected workflow must sign the
-client and helper, compile Setup around those signed bytes, then sign and
-timestamp Setup as three visible operations. Validate the mode policy with
-`python3 Tests/windows_release_installer_mode_test.py`.
+`ChatRoom-<version>-Setup.exe`. Release mode also has an explicit two-pass
+uninstaller boundary. `/DEXPORT_UNINSTALLER=1` lets NSIS generate the real
+uninstaller and invokes only `export_windows_uninstaller.py` to copy its exact
+bytes to `ChatRoom-<version>-Uninstall.exe`; no signing command or credential is
+passed to NSIS. After the protected workflow signs that standalone file,
+`/DIMPORT_SIGNED_UNINSTALLER=1` embeds it as the installed `Uninstall.exe` while
+omitting a second generated uninstaller. Ordinary unsigned CI still uses
+`WriteUninstaller` directly and is unchanged. Validate the closed export and
+mode policies with:
+
+```bash
+python3 Tests/windows_release_installer_mode_test.py
+python3 Tests/windows_uninstaller_export_test.py
+```
+
+The protected candidate workflow does not consume this boundary yet; until its
+signature evidence and candidate schema cover the fourth subject, signed
+uninstall remains an explicit M4 blocker.
 
 ## Protected Windows Signing Candidate
 

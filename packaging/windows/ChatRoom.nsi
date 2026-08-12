@@ -15,6 +15,19 @@ Unicode true
 !ifndef ICON_FILE
   !error "ICON_FILE define is required"
 !endif
+!ifdef EXPORT_UNINSTALLER
+  !ifndef RELEASE_BUILD
+    !error "EXPORT_UNINSTALLER requires RELEASE_BUILD"
+  !endif
+  !ifdef IMPORT_SIGNED_UNINSTALLER
+    !error "EXPORT_UNINSTALLER and IMPORT_SIGNED_UNINSTALLER are mutually exclusive"
+  !endif
+!endif
+!ifdef IMPORT_SIGNED_UNINSTALLER
+  !ifndef RELEASE_BUILD
+    !error "IMPORT_SIGNED_UNINSTALLER requires RELEASE_BUILD"
+  !endif
+!endif
 
 !include "MUI2.nsh"
 !include "WordFunc.nsh"
@@ -34,7 +47,9 @@ Var ExistingInstall
 Var OwnStage
 
 Name "${PRODUCT_NAME}"
-!ifdef RELEASE_BUILD
+!ifdef EXPORT_UNINSTALLER
+  OutFile "${OUTPUT_DIR}\ChatRoom-${VERSION}-uninstaller-export-helper.exe"
+!else ifdef RELEASE_BUILD
   OutFile "${OUTPUT_DIR}\ChatRoom-${VERSION}-Setup.exe"
 !else
   OutFile "${OUTPUT_DIR}\ChatRoom-${VERSION}-unsigned-verification-Setup.exe"
@@ -63,10 +78,16 @@ VIAddVersionKey /LANG=1033 "LegalCopyright" "Chat Room project contributors"
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_INSTFILES
 !insertmacro MUI_PAGE_FINISH
-!insertmacro MUI_UNPAGE_CONFIRM
-!insertmacro MUI_UNPAGE_INSTFILES
+!ifndef IMPORT_SIGNED_UNINSTALLER
+  !insertmacro MUI_UNPAGE_CONFIRM
+  !insertmacro MUI_UNPAGE_INSTFILES
+!endif
 !insertmacro MUI_LANGUAGE "SimpChinese"
 !insertmacro MUI_LANGUAGE "English"
+
+!ifdef EXPORT_UNINSTALLER
+  !uninstfinalize 'python "../../tools/export_windows_uninstaller.py" "%1" "${OUTPUT_DIR}/ChatRoom-${VERSION}-Uninstall.exe"'
+!endif
 
 Function .onInit
   System::Call 'kernel32::OpenMutexW(i 0x00100000, i 0, w "${PRODUCT_RUNNING_MUTEX}") p.r0'
@@ -121,7 +142,11 @@ Section "$(MainSectionName)" MainSection
   WriteINIStr "$StageDir\${PRODUCT_INSTALL_MARKER}" "Installation" "ProductId" "${PRODUCT_INSTALL_ID}"
   WriteINIStr "$StageDir\${PRODUCT_INSTALL_MARKER}" "Installation" "Version" "${VERSION}"
   WriteINIStr "$StageDir\${PRODUCT_INSTALL_MARKER}" "Installation" "SourceRevision" "${SOURCE_REVISION}"
-  WriteUninstaller "$StageDir\Uninstall.exe"
+  !ifdef IMPORT_SIGNED_UNINSTALLER
+    File /oname=Uninstall.exe "${OUTPUT_DIR}\ChatRoom-${VERSION}-Uninstall.exe"
+  !else
+    WriteUninstaller "$StageDir\Uninstall.exe"
+  !endif
   IfFileExists "$StageDir\${PRODUCT_EXE}" 0 stage_invalid
   IfFileExists "$StageDir\${PRODUCT_UPDATE_LAUNCHER}" 0 stage_invalid
   IfFileExists "$StageDir\sqldrivers\qsqlite.dll" 0 stage_invalid
@@ -203,6 +228,7 @@ Section "$(MainSectionName)" MainSection
   WriteRegDWORD HKCU "${PRODUCT_UNINSTALL_KEY}" "NoRepair" 1
 SectionEnd
 
+!ifndef IMPORT_SIGNED_UNINSTALLER
 Section "Uninstall"
   SetShellVarContext current
   IfFileExists "$INSTDIR\${PRODUCT_EXE}" 0 unsafe_uninstall
@@ -223,3 +249,4 @@ Section "Uninstall"
 
   uninstall_done:
 SectionEnd
+!endif

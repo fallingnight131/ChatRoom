@@ -20,10 +20,14 @@ class WindowsInstallerPolicyTest(unittest.TestCase):
         for name in ["VERSION", "SOURCE_REVISION", "PAYLOAD_DIR", "OUTPUT_DIR", "ICON_FILE"]:
             self.assertRegex(self.source, rf"!ifndef {name}\b")
         self.assertIn("ChatRoom-${VERSION}-unsigned-verification-Setup.exe", self.source)
-        self.assertIn("!ifdef RELEASE_BUILD", self.source)
+        self.assertIn("!else ifdef RELEASE_BUILD", self.source)
         self.assertIn("ChatRoom-${VERSION}-Setup.exe", self.source)
         self.assertNotRegex(self.source, r"(?im)^\s*!finalize\b")
-        self.assertNotRegex(self.source, r"(?im)^\s*!uninstfinalize\b")
+        self.assertIn("export_windows_uninstaller.py", self.source)
+        self.assertNotRegex(
+            self.source,
+            r"(?im)^\s*!uninstfinalize[^\n]*(signtool|certificate|timestamp|password|private.?key)",
+        )
 
         workflow = (ROOT / ".github" / "workflows" / "m0-product-builds.yml").read_text(encoding="utf-8")
         self.assertIn("& $makensis /WX /NOCONFIG /V2", workflow)
@@ -58,6 +62,7 @@ class WindowsInstallerPolicyTest(unittest.TestCase):
     def test_installs_only_payload_and_preserves_account_local_data(self) -> None:
         self.assertIn('File /r "${PAYLOAD_DIR}\\*"', self.source)
         self.assertIn('WriteUninstaller "$StageDir\\Uninstall.exe"', self.source)
+        self.assertIn('File /oname=Uninstall.exe "${OUTPUT_DIR}\\ChatRoom-${VERSION}-Uninstall.exe"', self.source)
         self.assertIn('IfFileExists "$INSTDIR\\${PRODUCT_EXE}" 0 unsafe_uninstall', self.source)
         self.assertNotRegex(self.source, r"(?i)(APPDATA|LOCALAPPDATA).*RMDir|RMDir.*(APPDATA|LOCALAPPDATA)")
         self.assertNotIn("ChatServer.exe", self.source)

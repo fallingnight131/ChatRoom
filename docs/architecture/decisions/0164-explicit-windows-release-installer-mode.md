@@ -1,6 +1,6 @@
 # ADR-0164: Explicit Windows Release Installer Mode
 
-- Status: Accepted
+- Status: Accepted; uninstaller-finalization rule amended by ADR-0166
 - Date: 2026-08-12
 - Owners: project maintainers
 - Related milestone: M4

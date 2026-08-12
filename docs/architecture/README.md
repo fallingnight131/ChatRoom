@@ -990,6 +990,16 @@ command, certificate, credential, or provider logic. A protected workflow must
 sign the client/helper first, compile release-mode Setup from those final payload
 bytes, and then sign/timestamp Setup explicitly.
 
+ADR-0166 amends only ADR-0164's uninstaller-finalization rule. NSIS release mode
+now supports a two-pass external-signing boundary: an export build uses
+`!uninstfinalize` only to copy the generated PE through a fail-closed Python
+tool, the protected layer signs that standalone `Uninstall.exe`, and an import
+build embeds those exact bytes instead of generating another uninstaller. NSIS
+still receives no certificate, key, password, timestamp URL, or signing command.
+Ordinary CI behavior is unchanged. The boundary compiles on the macOS
+development host, but protected-workflow integration, four-subject evidence,
+and native installed-signature proof remain unfinished M4 gates.
+
 ADR-0165 adds that protected execution boundary without declaring a release.
 The manual workflow has read-only repository/artifact permissions, serializes
 signing, requires the `windows-production-signing` environment and a dedicated

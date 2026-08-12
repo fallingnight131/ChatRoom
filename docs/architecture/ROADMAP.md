@@ -718,6 +718,9 @@ Progress:
   that verifies exact unsigned intake and intent, uses only a machine-store
   certificate, signs/timestamps three subjects, and emits a verified unpublished
   schema-2 candidate without release or update-channel mutation.
+- [x] Add a two-pass NSIS release boundary that exports the generated uninstaller
+  without signing inside NSIS and imports the externally signed exact bytes,
+  while leaving ordinary unsigned installer behavior unchanged.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
