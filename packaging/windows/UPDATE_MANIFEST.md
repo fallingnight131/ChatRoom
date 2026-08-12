@@ -61,6 +61,9 @@ repository can expose the result to product UI.
 ADR-0133 persists one pending UUID/version/time before exit and derives only its
 result/run names, allowing valid startup consumption exactly once without
 turning missing or malformed helper evidence into success.
+ADR-0134 exposes one inactive coordinator decision: the client may begin normal
+shutdown only after both helper handshake and pending lifecycle persistence;
+either failure keeps the client alive.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin

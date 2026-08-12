@@ -701,6 +701,11 @@ pending UUID/version/time record binds the derived result and run names across
 client exit and restart; valid evidence is consumed once, while missing or
 invalid evidence is never promoted to success.
 
+ADR-0134 combines handoff and persistence behind one inactive coordinator. It
+authorizes normal client quit only after both the helper owns the parent wait
+and the exact pending UUID/version/time is durable; persistence failure leaves
+the client running.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

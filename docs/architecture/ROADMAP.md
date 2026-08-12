@@ -608,6 +608,9 @@ Progress:
 - [x] Add an inactive owner-only update lifecycle repository that persists one
   pending UUID/version/time across exit, derives result/run paths, consumes valid
   evidence once, and retains missing or invalid evidence without claiming success.
+- [x] Add an inactive install coordinator that rejects parallel work and permits
+  normal client quit only after both the helper handshake and atomic pending
+  lifecycle persistence succeed.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,
