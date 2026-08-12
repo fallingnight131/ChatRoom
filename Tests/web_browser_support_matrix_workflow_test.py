@@ -35,7 +35,10 @@ class WebBrowserSupportMatrixWorkflowTest(unittest.TestCase):
             "web_release_store import validate_release", "sha256sum",
             "npm ci", "npm run test:browser", "web_browser_host_evidence.py",
             "EXPECTED_BROWSER_VERSION", "EXPECTED_BROWSER_EXECUTABLE_SHA256",
-            "retention-days: 30",
+            "retention-days: 30", "close-matrix:",
+            "web_browser_matrix_completion.py record",
+            "web_browser_matrix_completion.py verify", "merge-multiple: true",
+            "retention-days: 90",
         ):
             self.assertIn(value, self.workflow)
         self.assertIn("launchOptions: { executablePath: brandedExecutable }", self.config)

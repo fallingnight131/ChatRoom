@@ -61,8 +61,11 @@ Firefox. Each host must expose one preinstalled non-symlink executable through
 reviewed version and SHA-256 plus the exact undeployed candidate artifact. The
 workflow hashes the binary before and after Playwright, emits a candidate-bound
 record, and verifies it with `tools/web_browser_host_evidence.py`. It does not
-install browsers, mutate production, or by itself close the six-slot matrix.
-See ADR-0208 and ADR-0209.
+install browsers or mutate production. After all six hosts pass, a separate
+Ubuntu job redownloads the exact candidate, closes the ordered records with
+`tools/web_browser_matrix_completion.py`, independently reverifies the result,
+and retains it for 90 days. See ADR-0208 through ADR-0210. The workflow has not
+yet produced real browser or support evidence.
 
 CI then copies the real Vite tree and `packaging/web/response-policy.json` into a
 short-lived, explicitly undeployed Web verification artifact.

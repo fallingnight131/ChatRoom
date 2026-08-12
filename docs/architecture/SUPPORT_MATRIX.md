@@ -38,8 +38,8 @@ The authoritative Web browser slots are listed in
 [`packaging/web/browser-support-policy.json`](../../packaging/web/browser-support-policy.json).
 ADR-0208 requires every branded-browser record to identify the exact binary
 version and digest and bind its smoke results to one immutable candidate. This
-is an evidence contract only; no six-browser run or public support claim has
-been completed yet.
+is now paired with an exact six-slot completion boundary (ADR-0210), but no
+six-browser run or public support claim has been completed yet.
 
 The authoritative initial Windows target list is
 [`packaging/windows/support-matrix-policy.json`](../../packaging/windows/support-matrix-policy.json).

@@ -157,7 +157,8 @@ jobs:
           [[ "$actual_sha" = "$EXPECTED_BROWSER_EXECUTABLE_SHA256" ]]
           printf 'CHATROOM_BRANDED_BROWSER_EXECUTABLE_SHA256=%s\n' "$actual_sha" >> "$GITHUB_ENV"
           printf 'CHATROOM_BRANDED_BROWSER_HOST=%s\n' "$RUNNER_NAME" >> "$GITHUB_ENV"
-          printf 'CHATROOM_BRANDED_BROWSER_EVIDENCE=%s/browser-evidence.json\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+          printf 'CHATROOM_BRANDED_BROWSER_EVIDENCE=%s/%s.json\n' \
+            "$RUNNER_TEMP" "$CHATROOM_BRANDED_BROWSER_TARGET" >> "$GITHUB_ENV"
 
       - name: Download exact undeployed Web candidate
         uses: actions/download-artifact@v8
@@ -207,7 +208,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: web-browser-${{ matrix.target }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/browser-evidence.json
+          path: ${{ runner.temp }}/${{ matrix.target }}.json
           if-no-files-found: error
           retention-days: 30
 
@@ -221,3 +222,79 @@ jobs:
             WebClient/test-results
           if-no-files-found: ignore
           retention-days: 14
+
+  close-matrix:
+    name: Close exact six-browser candidate matrix
+    needs: browser-host
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      CHROME_CURRENT_VERSION: ${{ inputs.chrome_current_version }}
+      CHROME_CURRENT_SHA256: ${{ inputs.chrome_current_sha256 }}
+      CHROME_PREVIOUS_VERSION: ${{ inputs.chrome_previous_version }}
+      CHROME_PREVIOUS_SHA256: ${{ inputs.chrome_previous_sha256 }}
+      EDGE_CURRENT_VERSION: ${{ inputs.edge_current_version }}
+      EDGE_CURRENT_SHA256: ${{ inputs.edge_current_sha256 }}
+      EDGE_PREVIOUS_VERSION: ${{ inputs.edge_previous_version }}
+      EDGE_PREVIOUS_SHA256: ${{ inputs.edge_previous_sha256 }}
+      FIREFOX_CURRENT_VERSION: ${{ inputs.firefox_current_version }}
+      FIREFOX_CURRENT_SHA256: ${{ inputs.firefox_current_sha256 }}
+      FIREFOX_PREVIOUS_VERSION: ${{ inputs.firefox_previous_version }}
+      FIREFOX_PREVIOUS_SHA256: ${{ inputs.firefox_previous_sha256 }}
+    steps:
+      - name: Check out independent matrix verifier
+        uses: actions/checkout@v6
+
+      - name: Download exact Web candidate again
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.candidate_artifact_name }}
+          path: build/m4/web-browser-candidate
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.candidate_run_id }}
+
+      - name: Download all successful host records
+        uses: actions/download-artifact@v8
+        with:
+          pattern: web-browser-*-${{ github.run_id }}
+          path: build/m4/web-browser-evidence
+          merge-multiple: true
+
+      - name: Record and independently reverify exact matrix closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/web-browser-support-matrix.json"
+          common=(
+            --chrome-current-evidence build/m4/web-browser-evidence/chrome-current.json
+            --chrome-current-version "$CHROME_CURRENT_VERSION"
+            --chrome-current-sha256 "$CHROME_CURRENT_SHA256"
+            --chrome-previous-evidence build/m4/web-browser-evidence/chrome-previous.json
+            --chrome-previous-version "$CHROME_PREVIOUS_VERSION"
+            --chrome-previous-sha256 "$CHROME_PREVIOUS_SHA256"
+            --edge-current-evidence build/m4/web-browser-evidence/edge-current.json
+            --edge-current-version "$EDGE_CURRENT_VERSION"
+            --edge-current-sha256 "$EDGE_CURRENT_SHA256"
+            --edge-previous-evidence build/m4/web-browser-evidence/edge-previous.json
+            --edge-previous-version "$EDGE_PREVIOUS_VERSION"
+            --edge-previous-sha256 "$EDGE_PREVIOUS_SHA256"
+            --firefox-current-evidence build/m4/web-browser-evidence/firefox-current.json
+            --firefox-current-version "$FIREFOX_CURRENT_VERSION"
+            --firefox-current-sha256 "$FIREFOX_CURRENT_SHA256"
+            --firefox-previous-evidence build/m4/web-browser-evidence/firefox-previous.json
+            --firefox-previous-version "$FIREFOX_PREVIOUS_VERSION"
+            --firefox-previous-sha256 "$FIREFOX_PREVIOUS_SHA256"
+            --policy packaging/web/browser-support-policy.json
+            --release-root build/m4/web-browser-candidate
+            --output "$output"
+          )
+          python3 tools/web_browser_matrix_completion.py record "${common[@]}"
+          python3 tools/web_browser_matrix_completion.py verify "${common[@]}"
+
+      - name: Retain immutable six-browser completion
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-browser-support-matrix-${{ github.run_id }}
+          path: ${{ runner.temp }}/web-browser-support-matrix.json
+          if-no-files-found: error
+          retention-days: 90

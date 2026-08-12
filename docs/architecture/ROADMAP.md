@@ -832,6 +832,9 @@ Progress:
 - [x] Define six branded current/previous Chrome, Edge, and Firefox support
   slots and a candidate-bound protected workflow for version-dedicated hosts,
   without browser-install or production-mutation authority; no real run claimed.
+- [x] Close exactly six fresh branded-browser records against one immutable Web
+  candidate and strictly ordered current/previous versions in a separately
+  reverified, 90-day completion artifact; no real run claimed.
 - [x] Pin exact Windows 10 22H2 and Windows 11 23H2/24H2 x86_64 client targets
   and independently verify a per-host, two-real-signed-candidate install/launch/
   upgrade/data-preservation/downgrade/uninstall evidence contract.
