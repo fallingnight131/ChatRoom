@@ -53,6 +53,8 @@ The inactive PostgreSQL importer now consumes this capability, performs an exact
 no-write preview, inserts only missing pending request/mapping pairs in a
 serialized transaction, re-verifies the source and backup, and writes a separate
 constrained audit before commit. No runtime or client route invokes it.
+The shared offline migration executable exposes this path only through explicit
+contact preview, final-fingerprint verification, and apply commands.
 
 ## Tables
 

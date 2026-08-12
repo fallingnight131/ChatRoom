@@ -176,6 +176,46 @@ class IdentityMigrationMainTest {
     }
 
     @Test
+    void verifiesContactFinalInputWithoutDatabaseOrSensitiveOutput() throws Exception {
+        Path source = temporary.resolve("contact-private-source.db");
+        Path backup = temporary.resolve("contact-protected-backup.db");
+        Path proof = temporary.resolve("contact-proof.properties");
+        createContactSource(source);
+        assertEquals(0, IdentityMigrationMain.run(
+                new String[] {"backup", source.toString(), backup.toString(), proof.toString()},
+                Map.of(),
+                new PrintStream(new ByteArrayOutputStream()),
+                new PrintStream(new ByteArrayOutputStream()),
+                Clock.fixed(Instant.parse("2026-08-13T12:00:00Z"), ZoneOffset.UTC)));
+
+        var contactPlan = new com.fallingnight.chat.persistence.postgres.migration
+                .V1SqliteContactRequestSource(source).readPlan();
+        ByteArrayOutputStream verifiedOutput = new ByteArrayOutputStream();
+        assertEquals(0, IdentityMigrationMain.run(
+                new String[] {"contact-verify-final", source.toString(), backup.toString(),
+                    proof.toString(), contactPlan.sourceFingerprint()},
+                Map.of(),
+                new PrintStream(verifiedOutput, true, StandardCharsets.UTF_8),
+                new PrintStream(new ByteArrayOutputStream()),
+                Clock.systemUTC()));
+
+        String output = verifiedOutput.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("status=CONTACT_FINAL_INPUT_VERIFIED"));
+        assertTrue(output.contains("source_requests=2"));
+        assertTrue(output.contains("source_pending_requests=1"));
+        assertTrue(output.contains("source_terminal_requests=1"));
+        assertFalse(output.contains(source.toString()));
+        assertFalse(output.contains("private-contact"));
+        assertEquals(70, IdentityMigrationMain.run(
+                new String[] {"contact-verify-final", source.toString(), backup.toString(),
+                    proof.toString(), "0".repeat(64)},
+                Map.of(),
+                new PrintStream(new ByteArrayOutputStream()),
+                new PrintStream(new ByteArrayOutputStream()),
+                Clock.systemUTC()));
+    }
+
+    @Test
     void verifiesComposedMessageInputWithoutDatabaseOrSensitiveOutput() throws Exception {
         Path source = temporary.resolve("message-private-source.db");
         Path backup = temporary.resolve("message-protected-backup.db");
@@ -262,6 +302,27 @@ class IdentityMigrationMainTest {
                     + "(10, 2, '2026-01-02 03:04:06', 0)");
             statement.execute("INSERT INTO friendships VALUES "
                     + "(20, 1, 2, '2026-01-02 03:04:07', 0, 0)");
+        }
+    }
+
+    private static void createContactSource(Path source) throws Exception {
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:sqlite:" + source.toAbsolutePath());
+                Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA journal_mode = WAL");
+            statement.execute("CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE, "
+                    + "display_name TEXT, password_hash TEXT, salt TEXT, created_at TEXT)");
+            statement.execute("CREATE TABLE friendships(user_id1 INTEGER, user_id2 INTEGER)");
+            statement.execute("CREATE TABLE friend_requests(id INTEGER PRIMARY KEY, "
+                    + "from_user_id INTEGER, to_user_id INTEGER, status TEXT, created_at TEXT)");
+            statement.execute("INSERT INTO users VALUES "
+                    + "(1, 'private-contact-a', 'Private A', '" + "a".repeat(64)
+                    + "', 'salt-a', '2026-01-02 03:04:01'), "
+                    + "(2, 'private-contact-b', 'Private B', '" + "b".repeat(64)
+                    + "', 'salt-b', '2026-01-02 03:04:02')");
+            statement.execute("INSERT INTO friend_requests VALUES "
+                    + "(10, 1, 2, 'pending', '2026-01-02 03:04:05'), "
+                    + "(11, 2, 1, 'rejected', '2026-01-02 03:04:06')");
         }
     }
 

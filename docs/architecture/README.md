@@ -194,8 +194,10 @@ conversations, while rejected/accepted history is counted but not fabricated as
 terminal state without a trustworthy V1 resolution time. The PostgreSQL adapter
 now previews exact target state, applies missing pending rows and numeric mappings
 under a serialized transaction, re-verifies the source/backup proof, and commits
-a constrained non-secret audit atomically. The importer has no CLI or runtime
-owner yet.
+a constrained non-secret audit atomically. The importer remains detached from
+runtime. The offline migration command now exposes explicit contact preview,
+final fingerprint verification, and apply for maintenance-window rehearsal; no
+runtime owner or product route exists.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,

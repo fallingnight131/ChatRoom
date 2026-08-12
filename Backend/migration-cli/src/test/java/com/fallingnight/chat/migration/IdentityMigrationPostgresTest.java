@@ -36,7 +36,7 @@ class IdentityMigrationPostgresTest {
                 Statement statement = connection.createStatement()) {
             statement.execute("TRUNCATE chat.account, chat.conversation, "
                     + "chat.identity_import_run, chat.conversation_import_run, "
-                    + "chat.message_import_run CASCADE");
+                    + "chat.message_import_run, chat.contact_request_import_run CASCADE");
         }
 
         Path source = temporary.resolve("source.db");
@@ -64,10 +64,10 @@ class IdentityMigrationPostgresTest {
         }, database);
         assertEquals(0, applied.status());
         assertTrue(applied.output().contains("status=APPLIED"));
-        assertTrue(applied.output().contains("inserted_rows=1"));
+        assertTrue(applied.output().contains("inserted_rows=2"));
         assertFalse(applied.output().contains(source.toString()));
-        assertEquals(1, count("chat.account"));
-        assertEquals(1, count("chat.legacy_v1_account_map"));
+        assertEquals(2, count("chat.account"));
+        assertEquals(2, count("chat.legacy_v1_account_map"));
         assertEquals(1, count("chat.identity_import_run"));
 
         CommandResult repeated = run(new String[] {
@@ -75,9 +75,37 @@ class IdentityMigrationPostgresTest {
         }, database);
         assertEquals(0, repeated.status());
         assertTrue(repeated.output().contains("inserted_rows=0"));
-        assertEquals(1, count("chat.account"));
-        assertEquals(1, count("chat.legacy_v1_account_map"));
+        assertEquals(2, count("chat.account"));
+        assertEquals(2, count("chat.legacy_v1_account_map"));
         assertEquals(2, count("chat.identity_import_run"));
+
+        CommandResult contactPreview = run(
+                new String[] {"contact-preview", source.toString()}, database);
+        assertEquals(0, contactPreview.status(), contactPreview.error());
+        assertTrue(contactPreview.output().contains("status=READY"));
+        assertTrue(contactPreview.output().contains("source_pending_requests=1"));
+        assertFalse(contactPreview.output().contains("operator-contact"));
+        String contactFingerprint = value(
+                contactPreview.output(), "contact_fingerprint_sha256");
+        CommandResult contactApplied = run(new String[] {
+                "contact-apply", source.toString(), backup.toString(), proof.toString(),
+                contactFingerprint
+        }, database);
+        assertEquals(0, contactApplied.status(), contactApplied.error());
+        assertTrue(contactApplied.output().contains("status=APPLIED"));
+        assertTrue(contactApplied.output().contains("insertable_pending_requests=1"));
+        assertEquals(1, count("chat.contact_request"));
+        assertEquals(1, count("chat.legacy_v1_contact_request_map"));
+        assertEquals(1, count("chat.contact_request_import_run"));
+
+        CommandResult contactRepeated = run(new String[] {
+                "contact-apply", source.toString(), backup.toString(), proof.toString(),
+                contactFingerprint
+        }, database);
+        assertEquals(0, contactRepeated.status(), contactRepeated.error());
+        assertTrue(contactRepeated.output().contains("insertable_pending_requests=0"));
+        assertEquals(1, count("chat.contact_request"));
+        assertEquals(2, count("chat.contact_request_import_run"));
 
         CommandResult conversationPreview = run(
                 new String[] {"conversation-preview", source.toString()}, database);
@@ -165,7 +193,9 @@ class IdentityMigrationPostgresTest {
                     + "password_hash TEXT NOT NULL, salt TEXT NOT NULL, created_at TEXT)");
             statement.execute("INSERT INTO users VALUES (1, 'operator-test', 'Operator Test', "
                     + "'$argon2id$v=19$m=65536,t=2,p=1$c2FsdA$aGFzaA', '', "
-                    + "'2026-01-02 03:04:05')");
+                    + "'2026-01-02 03:04:05'), "
+                    + "(2, 'operator-contact', 'Operator Contact', '"
+                    + "a".repeat(64) + "', 'contact-salt', '2026-01-02 03:04:06')");
             statement.execute("CREATE TABLE rooms(id INTEGER PRIMARY KEY, name TEXT, "
                     + "creator_id INTEGER, created_at TEXT)");
             statement.execute("CREATE TABLE room_members(room_id INTEGER, user_id INTEGER, "
@@ -174,6 +204,8 @@ class IdentityMigrationPostgresTest {
             statement.execute("CREATE TABLE friendships(id INTEGER PRIMARY KEY, user_id1 INTEGER, "
                     + "user_id2 INTEGER, created_at TEXT, user1_last_read_msg_id INTEGER, "
                     + "user2_last_read_msg_id INTEGER)");
+            statement.execute("CREATE TABLE friend_requests(id INTEGER PRIMARY KEY, "
+                    + "from_user_id INTEGER, to_user_id INTEGER, status TEXT, created_at TEXT)");
             statement.execute("CREATE TABLE messages(id INTEGER PRIMARY KEY, room_id INTEGER, "
                     + "user_id INTEGER, content TEXT, content_type TEXT, file_name TEXT, "
                     + "file_size INTEGER, file_id INTEGER, file_cleared INTEGER, "
@@ -201,6 +233,9 @@ class IdentityMigrationPostgresTest {
                     + "(100, 77, 1, 'private message', 'text', '', 0, 0, 0, '', '', "
                     + "0, 1, NULL, '2026-01-02 03:04:06')");
             statement.execute("INSERT INTO room_message_sequences VALUES (77, 1)");
+            statement.execute("INSERT INTO friend_requests VALUES "
+                    + "(10, 1, 2, 'pending', '2026-01-02 03:04:07'), "
+                    + "(11, 2, 1, 'rejected', '2026-01-02 03:04:08')");
         }
     }
 

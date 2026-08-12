@@ -1,4 +1,4 @@
-# V1 Identity, Conversation, and Message Import Runbook
+# V1 Identity, Conversation, Contact, and Message Import Runbook
 
 Status: M3 rehearsal runbook. Do not use it to switch production authority yet.
 
@@ -7,8 +7,10 @@ material. The additive `conversation-*` commands cover rooms, room memberships,
 administrators, and accepted friendships only after identities exist. The
 additive `message-*` commands then cover retained message text, recalls,
 administrative deletion audit events, translated read sequences, compatibility
-maps, and preserved high watermarks. Attachment bytes, friend requests, avatars,
-and active sessions remain outside this runbook.
+maps, and preserved high watermarks. The `contact-*` commands preserve pending
+friend requests after identity import without fabricating accepted/rejected
+resolution history. Attachment bytes, avatars, and active sessions remain
+outside this runbook.
 Completing an apply does not authorize routing user traffic to Java V2.
 
 ## Preconditions
@@ -141,6 +143,39 @@ same source, backup, proof, and PostgreSQL target. Keep every V1 writer stopped.
    Imported `last_read_sequence` remains zero until message import translates
    retained V1 read-message IDs.
 
+## Pending contact-request apply rehearsal
+
+Run this only after identity apply succeeded against the same quiesced source,
+final backup/proof, and PostgreSQL target. Conversation import may run before or
+after this slice; accepted friendship truth belongs to conversation import.
+
+1. Preview the verified contact graph against PostgreSQL:
+
+   ```bash
+   ./gradlew --no-daemon :migration-cli:run --args='contact-preview <v1.db>'
+   ```
+
+   Require `status=READY`, zero issues, and archive the independent
+   `contact_fingerprint_sha256` plus pending/terminal source counts.
+
+2. Reconcile current source, protected backup, physical proof, and the explicit
+   contact fingerprint without touching PostgreSQL:
+
+   ```bash
+   ./gradlew --no-daemon :migration-cli:run --args='contact-verify-final <v1.db> <final-backup.db> <final-proof.properties> <contact-fingerprint>'
+   ```
+
+3. Apply with the exact same confirmation fingerprint:
+
+   ```bash
+   ./gradlew --no-daemon :migration-cli:run --args='contact-apply <v1.db> <final-backup.db> <final-proof.properties> <contact-fingerprint>'
+   ```
+
+4. Require `status=APPLIED`; inserted plus already-imported pending counts must
+   equal `source_pending_requests`; issues must be zero; and `import_run_id` must
+   be non-empty. Verify `chat.contact_request_import_run` through an approved
+   read-only database channel. An exact rerun must report zero insertable rows.
+
 ## Message history apply rehearsal
 
 Run this only after identity and conversation applies succeeded against the same
@@ -186,6 +221,9 @@ the command pass. Preserve artifacts and investigate under a new reviewed plan.
 For conversation commands, also stop on self friendship, dangling/duplicate
 room graph, missing imported account, unexpected target membership, direct-pair
 collision, or any mapping/role/title/timestamp difference.
+For contact commands, also stop on a dangling/self request, invalid status/time,
+pending request for accepted friends, reverse duplicate pending pair, missing or
+disabled imported account, target request/pair collision, or mapping difference.
 For message commands, also stop on either fingerprint changing, source/backup
 bundle disagreement, missing or disabled actors, message/sequence/idempotency
 collision, unexpected target entries/messages, mapping/event differences, or

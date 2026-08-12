@@ -3,11 +3,16 @@ package com.fallingnight.chat.migration;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ConversationImporter;
+import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ContactRequestImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1MessageImporter;
+import com.fallingnight.chat.persistence.postgres.migration.V1ContactRequestImportInputVerifier;
+import com.fallingnight.chat.persistence.postgres.migration.V1ContactRequestImportPlan;
+import com.fallingnight.chat.persistence.postgres.migration.V1ContactRequestImportReport;
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportInputVerifier;
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportPlan;
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportReport;
 import com.fallingnight.chat.persistence.postgres.migration.V1SqliteConversationSource;
+import com.fallingnight.chat.persistence.postgres.migration.V1SqliteContactRequestSource;
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentityBackupProofFile;
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportInputVerifier;
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportPlan;
@@ -22,6 +27,7 @@ import com.fallingnight.chat.persistence.postgres.migration.V1SqliteIdentitySour
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityBackup;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityImportInput;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1ConversationImportInput;
+import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1ContactRequestImportInput;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1MessageImportBundle;
 import java.io.PrintStream;
 import java.nio.file.Path;
@@ -76,6 +82,15 @@ public final class IdentityMigrationMain {
             }
             if (args.length == 5 && "conversation-apply".equals(args[0])) {
                 return conversationApply(args, environment, output);
+            }
+            if (args.length == 2 && "contact-preview".equals(args[0])) {
+                return contactPreview(args, environment, output);
+            }
+            if (args.length == 5 && "contact-verify-final".equals(args[0])) {
+                return contactVerifyFinal(args, output);
+            }
+            if (args.length == 5 && "contact-apply".equals(args[0])) {
+                return contactApply(args, environment, output);
             }
             if (args.length == 4 && "message-preview".equals(args[0])) {
                 return messagePreview(args, environment, output);
@@ -233,6 +248,54 @@ public final class IdentityMigrationMain {
         return input;
     }
 
+    private static int contactPreview(
+            String[] args, Map<String, String> environment, PrintStream output) {
+        V1ContactRequestImportPlan plan =
+                new V1SqliteContactRequestSource(Path.of(args[1])).readPlan();
+        if (!plan.readyToCompareWithTarget()) {
+            output.println("status=BLOCKED");
+            output.println("contact_fingerprint_sha256=" + plan.sourceFingerprint());
+            output.println("source_issues=" + plan.issues().size());
+            return 2;
+        }
+        V1ContactRequestImportReport report = contactImporter(environment).preview(plan);
+        printContactReport(output, report, report.readyToApply() ? "READY" : "BLOCKED");
+        return report.readyToApply() ? 0 : 2;
+    }
+
+    private static int contactVerifyFinal(String[] args, PrintStream output) {
+        VerifiedV1ContactRequestImportInput input = verifiedContactInput(
+                args[1], args[2], args[3], args[4]);
+        output.println("status=CONTACT_FINAL_INPUT_VERIFIED");
+        output.println("contact_fingerprint_sha256=" + input.plan().sourceFingerprint());
+        output.println("source_requests=" + input.plan().sourceRows());
+        output.println("source_pending_requests=" + input.plan().sourcePendingRows());
+        output.println("source_terminal_requests=" + input.plan().sourceTerminalRows());
+        return 0;
+    }
+
+    private static int contactApply(
+            String[] args, Map<String, String> environment, PrintStream output) {
+        VerifiedV1ContactRequestImportInput input = verifiedContactInput(
+                args[1], args[2], args[3], args[4]);
+        V1ContactRequestImportReport report = contactImporter(environment).apply(input);
+        printContactReport(output, report, "APPLIED");
+        return 0;
+    }
+
+    private static VerifiedV1ContactRequestImportInput verifiedContactInput(
+            String source, String backup, String proofPath, String expectedFingerprint) {
+        requireFingerprint(expectedFingerprint, "invalid contact confirmation fingerprint");
+        VerifiedV1IdentityBackup proof = new V1IdentityBackupProofFile()
+                .read(Path.of(proofPath));
+        VerifiedV1ContactRequestImportInput input = new V1ContactRequestImportInputVerifier()
+                .verify(Path.of(source), Path.of(backup), proof);
+        if (!expectedFingerprint.equals(input.plan().sourceFingerprint())) {
+            throw new IllegalArgumentException("contact confirmation fingerprint mismatch");
+        }
+        return input;
+    }
+
     private static int messagePreview(
             String[] args, Map<String, String> environment, PrintStream output) {
         VerifiedV1MessageImportBundle bundle = verifiedMessageBundle(
@@ -300,6 +363,11 @@ public final class IdentityMigrationMain {
     private static PostgresV1ConversationImporter conversationImporter(
             Map<String, String> environment) {
         return new PostgresV1ConversationImporter(dataSource(environment));
+    }
+
+    private static PostgresV1ContactRequestImporter contactImporter(
+            Map<String, String> environment) {
+        return new PostgresV1ContactRequestImporter(dataSource(environment));
     }
 
     private static PostgresV1MessageImporter messageImporter(
@@ -388,6 +456,24 @@ public final class IdentityMigrationMain {
         }
     }
 
+    private static void printContactReport(
+            PrintStream output, V1ContactRequestImportReport report, String status) {
+        output.println("status=" + status);
+        output.println("contact_fingerprint_sha256=" + report.sourceFingerprint());
+        output.println("source_requests=" + report.sourceRequests());
+        output.println("source_pending_requests=" + report.sourcePendingRequests());
+        output.println("source_terminal_requests=" + report.sourceTerminalRequests());
+        output.println("insertable_pending_requests=" + report.insertablePendingRequests());
+        output.println("already_imported_pending_requests="
+                + report.alreadyImportedPendingRequests());
+        output.println("issues=" + report.issues().size());
+        report.issues().forEach(issue -> output.println(
+                "issue=" + issue.legacyRequestId() + ":" + issue.code()));
+        if (report.importRunId() != null) {
+            output.println("import_run_id=" + report.importRunId());
+        }
+    }
+
     private static void usage(PrintStream error) {
         error.println("usage:");
         error.println("  backup <v1-source.db> <new-backup.db> <new-proof.properties>");
@@ -400,6 +486,11 @@ public final class IdentityMigrationMain {
                 + "<proof.properties> <conversation-fingerprint>");
         error.println("  conversation-apply <v1-source.db> <backup.db> "
                 + "<proof.properties> <conversation-fingerprint>");
+        error.println("  contact-preview <v1-source.db>");
+        error.println("  contact-verify-final <v1-source.db> <backup.db> "
+                + "<proof.properties> <contact-fingerprint>");
+        error.println("  contact-apply <v1-source.db> <backup.db> "
+                + "<proof.properties> <contact-fingerprint>");
         error.println("  message-preview <v1-source.db> <backup.db> <proof.properties>");
         error.println("  message-verify-final <v1-source.db> <backup.db> "
                 + "<proof.properties> <state-fingerprint> <payload-fingerprint>");

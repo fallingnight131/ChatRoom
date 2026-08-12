@@ -190,7 +190,9 @@ pending outcomes. The importer previews without writes, detects UUID, unordered
 pair, direction, timestamp, state, account, and numeric-mapping conflicts, and
 applies only missing exact request/mapping pairs under a serialized transaction.
 It rechecks the source and physical backup proof before committing the audit.
-No CLI, runtime handler, or product traffic path invokes it yet.
+The offline migration command exposes separate contact preview, final-verify,
+and apply operations with explicit contact-fingerprint confirmation and bounded
+non-sensitive output. No runtime handler or product traffic path invokes it.
 
 The message importer provides a repeatable-read, no-write target preview.
 It compares the exact typed conversation mapping and allowed pre/post high
