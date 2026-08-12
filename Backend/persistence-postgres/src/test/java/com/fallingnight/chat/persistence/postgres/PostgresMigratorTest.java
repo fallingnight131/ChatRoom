@@ -106,7 +106,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(13, first.migrate());
+        assertEquals(14, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -122,11 +122,13 @@ class PostgresMigratorTest {
                             "conversation_entry", "message_recall_event",
                             "messages_deleted_event", "legacy_v1_message_map",
                             "legacy_v1_deletion_event_map", "message_import_run",
-                            "attachment"),
+                            "attachment", "contact_request",
+                            "legacy_v1_contact_request_map"),
                     applicationTables(connection));
             proveSequenceAndIdempotencyConstraints(connection);
             proveMessageImportAuditConstraints(connection);
             proveAttachmentRegistryConstraints(connection);
+            proveContactRequestConstraints(connection);
         }
         proveLegacyV1MappingConstraints();
         proveLegacyV1ConversationMappingConstraints();
@@ -1075,6 +1077,66 @@ class PostgresMigratorTest {
                         + "revoked_at = transaction_timestamp(), "
                         + "object_deleted_at = transaction_timestamp() WHERE id = ?",
                 attachment);
+    }
+
+    private static void proveContactRequestConstraints(Connection connection)
+            throws SQLException {
+        UUID requester = UUID.randomUUID();
+        UUID recipient = UUID.randomUUID();
+        UUID request = UUID.randomUUID();
+        execute(connection,
+                "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                        + "VALUES (?, 'contact-requester', 'Requester', "
+                        + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                        + "(?, 'contact-recipient', 'Recipient', "
+                        + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                requester, recipient);
+        execute(connection,
+                "INSERT INTO chat.contact_request("
+                        + "id, requester_account_id, recipient_account_id) VALUES (?, ?, ?)",
+                request, requester, recipient);
+        execute(connection,
+                "INSERT INTO chat.legacy_v1_contact_request_map("
+                        + "legacy_request_id, contact_request_id) VALUES (71, ?)",
+                request);
+
+        SQLException selfRequest = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "INSERT INTO chat.contact_request("
+                        + "id, requester_account_id, recipient_account_id) VALUES (?, ?, ?)",
+                UUID.randomUUID(), requester, requester));
+        assertEquals("23514", selfRequest.getSQLState());
+        SQLException reversePending = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "INSERT INTO chat.contact_request("
+                        + "id, requester_account_id, recipient_account_id) VALUES (?, ?, ?)",
+                UUID.randomUUID(), recipient, requester));
+        assertEquals("23505", reversePending.getSQLState());
+        SQLException unresolvedTerminal = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "UPDATE chat.contact_request SET state = 'ACCEPTED' WHERE id = ?",
+                request));
+        assertEquals("23514", unresolvedTerminal.getSQLState());
+        execute(connection,
+                "UPDATE chat.contact_request SET state = 'ACCEPTED', "
+                        + "resolved_at = transaction_timestamp() WHERE id = ?",
+                request);
+        execute(connection,
+                "INSERT INTO chat.contact_request("
+                        + "id, requester_account_id, recipient_account_id) VALUES (?, ?, ?)",
+                UUID.randomUUID(), recipient, requester);
+        SQLException duplicateLegacyTarget = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "INSERT INTO chat.legacy_v1_contact_request_map("
+                        + "legacy_request_id, contact_request_id) VALUES (72, ?)",
+                request));
+        assertEquals("23505", duplicateLegacyTarget.getSQLState());
+        SQLException invalidLegacyId = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "INSERT INTO chat.legacy_v1_contact_request_map("
+                        + "legacy_request_id, contact_request_id) VALUES (0, ?)",
+                request));
+        assertEquals("23514", invalidLegacyId.getSQLState());
     }
 
     private static List<Optional<IssuedSession>> raceResume(

@@ -158,7 +158,7 @@ Message
 
 Required durable concepts:
 
-- `users` and `devices`;
+- `users`, `devices`, and contact requests with explicit lifecycle;
 - `conversations` and `conversation_members`;
 - `messages` with a per-conversation sequence;
 - `read_cursors` rather than one read row per group message and member;
@@ -185,6 +185,9 @@ production traffic cutover, so V1 SQLite remains authoritative. The offline
 migration path now imports identity, conversation metadata, retained messages,
 recalls/deletion audit entries, and translated cursors in that explicit order;
 it still grants no authority to the Java runtime.
+The contacts foundation now includes constrained canonical contact requests and
+an isolated V1 numeric-request mapping. It has no importer or runtime owner yet;
+accepted relationships remain canonical DIRECT conversations.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
