@@ -724,7 +724,16 @@ ADR-0136 adds the explicit release-trust activation boundary. Ordinary builds
 remain disabled; an enabled build must compile a canonical stable/beta HTTPS
 manifest URL and one or two reviewed Ed25519 public-key IDs into the client.
 Writable user settings cannot select update trust, and no private key is an
-accepted build input. Discovery and UI still remain uninstantiated.
+accepted build input.
+
+ADR-0138 instantiates the complete product flow only for those explicitly
+configured Windows builds. One automatic check follows the first login and a
+visible Help action supports manual checks. Signed eligibility alone may reach
+bounded download and Authenticode verification; installation remains default-No
+user consent. Decline/failure deletes prepared Setup, while successful
+two-phase handoff requests the chat window's existing draft-flush, disconnect,
+and normal quit path. Production trust values and native signed install/restart
+evidence remain M4 release gates.
 
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,

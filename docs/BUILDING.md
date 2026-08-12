@@ -147,7 +147,8 @@ The Qt gate also compiles `UpdateManifestSignatureVerifierTest`. It generates an
 ephemeral Ed25519 keypair and proves canonical verification plus empty-key,
 unknown-key, tamper, and non-canonical rejection. The client now links libsodium;
 Windows CI copies the vcpkg runtime DLL into the payload and checks it after
-install. No trusted update key or network update path exists.
+install. Ordinary builds have no trusted update key and instantiate no update
+network path; only the explicit compiled release configuration below enables it.
 
 `UpdateManifestDecisionPolicyTest`, also included by `--qt`, checks the inactive
 post-verification policy: exact signed object/schema/architecture, UTC validity,
@@ -220,15 +221,25 @@ For rotation, provide both `CHAT_UPDATE_SECONDARY_KEY_ID` and
 secondary configuration. Public keys and URLs are reviewable release inputs;
 private Ed25519 and Authenticode keys must never be command-line values.
 
+ADR-0138 connects this compiled configuration to `WindowsUpdateController`.
+Enabled builds perform one automatic check after the first login and expose a
+manual Help action. Preparation is cancellable; only a downloaded and
+Authenticode-verified Setup reaches a default-No install prompt. Decline or
+handoff failure removes the prepared file. Successful two-phase handoff requests
+the chat window's normal draft-flush/disconnect quit path. This composition is
+compiled on macOS as portability evidence, but consent, disconnect, successful
+signed install, and restart require native Windows release verification.
+
 `UpdateStateRepositoryTest` checks creation/reload of an owner-only UUIDv4,
 atomic per-channel sequence/digest persistence, idempotence, replay/conflict
-rejection, and corrupt-state failure. The repository is compiled but no product
-path chooses an AppData location or creates update state yet.
+rejection, and corrupt-state failure. Enabled Windows builds derive its `state`
+directory separately from lifecycle/results/runs/staging under AppLocalData.
 
 `UpdateManifestApplicationServiceTest` proves the mandatory signature-to-state-
 to-policy-to-atomic-acceptance order with an ephemeral key. Tampered or empty
 trust creates no state, retries are idempotent, and a signed replay is rejected.
-No product key/path or network/update action invokes this service.
+Ordinary builds do not invoke it; ADR-0138 invokes it only through validated
+compiled product trust and owner-local state.
 
 `UpdateInstallerDownloadTransportTest` injects deterministic responses while
 retaining the production HTTPS-only request policy. It checks exact success,
@@ -252,12 +263,12 @@ redirect refusal, 64 KiB/64-byte response bounds, timeout headers, cancellation,
 and failure-byte suppression. It does not configure a product origin or weaken
 normal Qt TLS validation.
 
-`UpdateCheckApplicationServiceTest` drives the inactive complete pre-launch
-pipeline with ephemeral trust. It proves the exact manifest/signature/installer
+`UpdateCheckApplicationServiceTest` drives the complete pre-launch service with
+ephemeral trust. It proves the exact manifest/signature/installer
 request order, successful verified-file handoff, signature rejection before an
 installer request, staged-rollout deferral without an installer request, and
-parallel-check refusal. It does not prove product keys, public TLS, Authenticode,
-launch, or update UX.
+parallel-check refusal. It does not prove production keys, public TLS,
+Authenticode, product composition, or native update UX.
 It also verifies that the complete signed installer evidence survives the
 discovery-to-ready composition unchanged.
 

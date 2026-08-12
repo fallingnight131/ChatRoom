@@ -3,7 +3,9 @@
 #include <QDebug>
 #include <QMessageBox>
 #include <QIcon>
+#include <QPointer>
 #include <QStandardPaths>
+#include <QTimer>
 #include "LoginDialog.h"
 #include "ChatWindow.h"
 #include "NetworkManager.h"
@@ -11,6 +13,8 @@
 #include "WindowsClientInstanceGuard.h"
 #include "WindowsUpdateRuntimePaths.h"
 #include "WindowsUpdateStartupService.h"
+#include "WindowsUpdateController.h"
+#include "WindowsUpdateProductConfiguration.h"
 
 #ifndef CHAT_APP_VERSION
 #error "CHAT_APP_VERSION must come from the repository VERSION file"
@@ -24,9 +28,8 @@ void cleanupAndQuit() {
 
 #ifdef Q_OS_WIN
 namespace {
-bool handleWindowsUpdateStartup(const QString &currentVersion) {
-    const auto paths = WindowsUpdateRuntimePaths::fromAppLocalData(
-        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation));
+bool handleWindowsUpdateStartup(const WindowsUpdateRuntimePaths &paths,
+                                const QString &currentVersion) {
     WindowsUpdateStartupService service(
         paths.lifecycleStateDirectory, paths.resultDirectory,
         paths.runRootDirectory);
@@ -103,13 +106,57 @@ int main(int argc, char *argv[]) {
         QMessageBox::critical(nullptr, QStringLiteral("启动失败"), instanceError);
         return 1;
     }
-    if (!handleWindowsUpdateStartup(app.applicationVersion())) return 0;
+    const auto updatePaths = WindowsUpdateRuntimePaths::fromAppLocalData(
+        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation));
+    if (!handleWindowsUpdateStartup(updatePaths, app.applicationVersion())) return 0;
+    const auto updateConfiguration = WindowsUpdateProductConfiguration::fromBuild();
+    if (!updateConfiguration.enabled && !updateConfiguration.error.isEmpty()) {
+        qWarning().noquote()
+            << "[Updater] operation=configuration outcome=disabled detail="
+            << updateConfiguration.error;
+    }
+    WindowsUpdateController updateController(
+        updateConfiguration, updatePaths, &app);
 #endif
 
     // 应用默认主题
     ThemeManager::instance()->applyTheme(&app);
 
     ChatWindow *chatWindow = nullptr;
+#ifdef Q_OS_WIN
+    bool automaticUpdateCheckStarted = false;
+    auto configureUpdateUi = [&](ChatWindow *window) {
+        if (!window) return;
+        window->setUpdateCheckAvailable(updateController.isEnabled());
+        QObject::connect(window, &ChatWindow::checkForUpdatesRequested,
+                         &updateController, [&updateController, window] {
+            QString error;
+            if (!updateController.checkForUpdates(window, true, &error)) {
+                QMessageBox::information(window, QStringLiteral("检查更新"),
+                                         QStringLiteral("当前无法开始更新检查。"));
+                qWarning().noquote()
+                    << "[Updater] operation=manual-check-start detail=" << error;
+            }
+        });
+        if (!automaticUpdateCheckStarted && updateController.isEnabled()) {
+            automaticUpdateCheckStarted = true;
+            const QPointer<ChatWindow> guardedWindow(window);
+            QTimer::singleShot(0, &updateController, [&updateController, guardedWindow] {
+                if (!guardedWindow) return;
+                QString error;
+                if (!updateController.checkForUpdates(
+                        guardedWindow.data(), false, &error))
+                    qWarning().noquote()
+                        << "[Updater] operation=automatic-check-start detail=" << error;
+            });
+        }
+    };
+    QObject::connect(&updateController, &WindowsUpdateController::quitRequested,
+                     &app, [&] {
+        if (chatWindow) chatWindow->requestApplicationQuit();
+        else cleanupAndQuit();
+    });
+#endif
 
     // 强制下线处理（包括异地登录和用户主动注销）
     QObject::connect(NetworkManager::instance(), &NetworkManager::forceOffline,
@@ -131,6 +178,9 @@ int main(int argc, char *argv[]) {
                          [&](int userId, const QString &username, const QString &displayName) {
             chatWindow = new ChatWindow;
             chatWindow->setCurrentUser(userId, username, displayName);
+#ifdef Q_OS_WIN
+            configureUpdateUi(chatWindow);
+#endif
             chatWindow->show();
         });
         QObject::connect(loginDialog, &QDialog::rejected, [&]() {
@@ -147,6 +197,9 @@ int main(int argc, char *argv[]) {
                      [&](int userId, const QString &username, const QString &displayName) {
         chatWindow = new ChatWindow;
         chatWindow->setCurrentUser(userId, username, displayName);
+#ifdef Q_OS_WIN
+        configureUpdateUi(chatWindow);
+#endif
         chatWindow->show();
     });
 

@@ -1,6 +1,6 @@
 # ADR-0136: Compiled Windows Update Product Trust
 
-- Status: Accepted
+- Status: Amended by ADR-0138
 - Date: 2026-08-12
 - Owners: project maintainers
 - Related milestone: M4

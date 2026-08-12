@@ -41,9 +41,14 @@ public:
     ~ChatWindow() override;
 
     void setCurrentUser(int userId, const QString &username, const QString &displayName);
+    void setUpdateCheckAvailable(bool available);
+    void requestApplicationQuit();
 
     /// 获取用户头像缓存
     static QPixmap avatarForUser(const QString &username);
+
+signals:
+    void checkForUpdatesRequested();
 
 protected:
     void closeEvent(QCloseEvent *event) override;
@@ -412,5 +417,6 @@ private:
     // 贴边隐藏（已移除）
 
     bool     m_forceQuit  = false;  // 菜单退出时强制关闭（不最小化到托盘）
+    QAction *m_checkForUpdatesAction = nullptr;
     bool     m_waitingRoomSettingsSave = false;
 };

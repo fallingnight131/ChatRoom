@@ -155,6 +155,16 @@ QPixmap ChatWindow::avatarForUser(const QString &username) {
     return s_avatarCache.value(username);
 }
 
+void ChatWindow::setUpdateCheckAvailable(bool available) {
+    if (m_checkForUpdatesAction)
+        m_checkForUpdatesAction->setVisible(available);
+}
+
+void ChatWindow::requestApplicationQuit() {
+    m_forceQuit = true;
+    close();
+}
+
 // 创建不随选中状态变色的 QIcon
 static QIcon makeStableIcon(const QPixmap &pm) {
     QIcon icon;
@@ -551,6 +561,11 @@ void ChatWindow::setupMenuBar() {
                             &ChatWindow::showPendingAttachments);
 
     auto *helpMenu = menuBar()->addMenu("帮助(&H)");
+    m_checkForUpdatesAction = helpMenu->addAction(
+        QStringLiteral("检查更新(&U)..."), this,
+        &ChatWindow::checkForUpdatesRequested);
+    m_checkForUpdatesAction->setVisible(false);
+    helpMenu->addSeparator();
     helpMenu->addAction("关于(&A)", [this] {
         QMessageBox::about(this, "关于",
                            "Qt聊天室 v1.0\n\n"

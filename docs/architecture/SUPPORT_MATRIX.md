@@ -74,9 +74,9 @@ expected Authenticode signer. It has no product key and is a default-off
 protocol foundation, not an update channel.
 
 The Windows client now compiles a default-deny canonical Ed25519 verifier and
-the installer payload includes its pinned libsodium DLL. Because the trusted key
-ring is empty and no fetch/decision/install path calls it, this remains a local
-primitive rather than an enabled updater.
+the installer payload includes its pinned libsodium DLL. Ordinary verification
+builds keep an empty trusted-key ring and instantiate no network path. Only an
+explicit compiled-trust release build may enable the product controller.
 
 An inactive decision policy now validates the signed object/schema,
 architecture, UTC window, per-channel replay state, versions, deterministic
@@ -89,10 +89,10 @@ certificate thumbprint. Native CI is configured to require unsigned rejection,
 not acceptance of a real signed/timestamped Setup. No product downloader or
 launcher invokes it.
 
-An inactive state repository now preserves a device UUIDv4 and stable/beta
+The update state repository preserves a device UUIDv4 and stable/beta
 sequence-plus-digest replay watermarks through locked atomic owner-only writes.
-Malformed state fails closed. No Windows AppData path or updater service creates
-this state in the product.
+Malformed state fails closed. Enabled builds derive a dedicated `state`
+directory under AppLocalData, separate from install lifecycle evidence.
 
 An inactive application service now enforces signature verification, durable
 state, semantic decision, and atomic replay acceptance in that order. Its
@@ -133,26 +133,27 @@ signed upgrade remains an M4 release gate.
 
 The inactive preparation/check APIs now hand off one typed installer value with
 the verified path and exact signed size, digest, and publisher thumbprint. This
-is sufficient for final locked re-verification but is still not connected to
-the packaged helper or product lifecycle.
+is sufficient for final locked re-verification and is consumed by the packaged
+helper only in an explicitly configured product build.
 
-An inactive asynchronous Windows handoff now stages the helper and matching Qt
+The asynchronous Windows handoff stages the helper and matching Qt
 Core outside the installed directory and returns quit authorization only after
-the helper has opened the current parent and signaled the UUID event. It is not
-instantiated by product UI; successful signed install and restart are unproven.
+the helper has opened the current parent, lifecycle state is durable, and the
+UUID commit event is signaled. Configured product UI instantiates it only after
+default-No consent; successful signed install and restart remain unproven.
 
 The Windows entry point now activates only post-restart reconciliation. It uses
 owner-local derived directories, consumes a valid UUID-bound result once,
 requires the running version to match reported success, and exits before login
 while a recent result is pending so it cannot obstruct Setup. Discovery,
-production trust, consent, and installation invocation remain inactive; real
-signed restart/dialog behavior is unproven.
+consent, and installation are reachable only with valid compiled product trust;
+real signed restart/dialog behavior is unproven.
 
 The client also has a compiled product-trust boundary. Ordinary and unsigned CI
-builds remain disabled; a future release build must explicitly provide an exact
+builds remain disabled; a release build must explicitly provide an exact
 stable/beta HTTPS manifest URL and one or two reviewed Ed25519 public keys.
 Writable settings cannot enable or redirect trust. No production values are
-currently provisioned, and no discovery UI instantiates the configuration.
+currently provisioned.
 
 The helper handoff now has a second UUID commit event. Ready proves only that the
 helper owns the parent wait; the client must atomically persist pending lifecycle
@@ -160,11 +161,19 @@ state and signal commit before quit is authorized. Missing commit aborts without
 starting Setup. This closes the persistence-failure race, but real signed install
 and restart evidence remains absent.
 
+For explicitly configured builds, the product controller now performs one
+first-login automatic check and exposes a manual Help action. It permits
+cancellation during preparation, asks default-No consent only after Setup passes
+manifest and Authenticode trust, deletes declined/failed prepared files, and
+uses the existing draft-flush/disconnect quit path only after committed handoff.
+This is reachable product composition, not native Windows release evidence;
+production keys, signed Setup acceptance, and restart remain unverified.
+
 The Windows client now owns a session-local liveness mutex and refuses a second
 instance. NSIS checks the same mutex before mutation and returns 4 for a silent
 running-client attempt; native CI is configured to prove the current install and
-AppData remain unchanged. Cross-session/arbitrary locks and graceful update
-shutdown/launch remain release work.
+AppData remain unchanged. Cross-session/arbitrary locks and native graceful
+update shutdown/launch evidence remain release work.
 
 M4 must provide:
 

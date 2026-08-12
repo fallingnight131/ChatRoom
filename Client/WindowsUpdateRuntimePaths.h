@@ -3,6 +3,7 @@
 #include <QString>
 
 struct WindowsUpdateRuntimePaths {
+    QString manifestStateDirectory;
     QString lifecycleStateDirectory;
     QString resultDirectory;
     QString runRootDirectory;

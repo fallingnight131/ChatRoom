@@ -620,6 +620,9 @@ Progress:
 - [x] Replace the inactive one-phase helper handoff with a two-phase
   ready/persist/commit barrier so persistence failure can never become a later
   untracked Setup launch after the user exits.
+- [x] Activate discovery and installation UX only for compiled-trust Windows
+  builds, with first-login/manual checks, cancellable preparation, default-No
+  consent, prepared-file cleanup, and the normal draft/disconnect quit path.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

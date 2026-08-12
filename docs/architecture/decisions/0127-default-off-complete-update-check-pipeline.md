@@ -1,6 +1,6 @@
 # ADR-0127: Default-Off Complete Update Check Pipeline
 
-- Status: Accepted
+- Status: Amended by ADR-0138
 - Date: 2026-08-12
 - Owners: project maintainers
 - Related milestone: M4

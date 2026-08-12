@@ -7,6 +7,7 @@ WindowsUpdateRuntimePaths WindowsUpdateRuntimePaths::fromAppLocalData(
     const QDir updateRoot(QDir(appLocalDataDirectory).filePath(
         QStringLiteral("updates")));
     return {
+        updateRoot.filePath(QStringLiteral("state")),
         updateRoot.filePath(QStringLiteral("lifecycle")),
         updateRoot.filePath(QStringLiteral("results")),
         updateRoot.filePath(QStringLiteral("runs")),

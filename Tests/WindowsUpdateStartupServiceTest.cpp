@@ -5,6 +5,7 @@
 #include <QDebug>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
@@ -66,6 +67,14 @@ int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
 
     Fixture empty;
+    if (!check(QFileInfo(empty.paths.manifestStateDirectory).fileName()
+                   == QStringLiteral("state")
+               && QFileInfo(empty.paths.lifecycleStateDirectory).fileName()
+                   == QStringLiteral("lifecycle")
+               && empty.paths.manifestStateDirectory
+                   != empty.paths.lifecycleStateDirectory,
+               QStringLiteral("manifest replay and install lifecycle paths overlap")))
+        return 1;
     if (!check(empty.service().inspect(QStringLiteral("1.0.0"), Started).outcome
                    == WindowsUpdateStartupService::Outcome::None,
                QStringLiteral("empty lifecycle was not silent"))) return 1;

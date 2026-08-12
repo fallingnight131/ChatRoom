@@ -1,6 +1,6 @@
 # Windows Signed Update Manifest
 
-The future Windows updater uses two independent trust checks:
+The compiled-trust Windows updater uses two independent trust checks:
 
 1. the canonical update manifest has a detached 64-byte Ed25519 signature from
    a dedicated offline update key;
@@ -11,8 +11,9 @@ The future Windows updater uses two independent trust checks:
 `tools/windows_update_manifest.py` implements schema-1 creation and offline
 OpenSSL Ed25519 signing/verification. It deliberately refuses the current
 `unsigned-verification-Setup.exe` name. No production update private/public key
-is committed, and the product updater remains disabled until the client has a
-reviewed fixed-public-key ring and the release owner provisions protected keys.
+is committed. Ordinary builds remain disabled; a release build must provide a
+reviewed fixed-public-key ring while release owners provision protected private
+keys outside the repository and build command.
 ADR-0118 adds the default-deny verifier primitive, but deliberately injects an
 empty trusted-key ring and adds no network/update activation.
 ADR-0119 adds an inactive semantic decision policy for schema, replay, version,
@@ -75,6 +76,11 @@ accepted by the client build.
 ADR-0137 adds a second UUID commit event: helper-ready is insufficient, pending
 lifecycle state must be durable before the client commits and may exit. Missing
 commit records `handoff-aborted` and never starts Setup.
+ADR-0138 instantiates the chain only in an explicitly compiled-trust build. It
+checks once after first login and on manual request, offers cancellation while
+preparing, requires default-No install consent after trust succeeds, removes a
+declined/failed prepared file, and uses the normal draft/disconnect quit path
+only after two-phase handoff authorization.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin
@@ -106,7 +112,8 @@ manifest at the same sequence is rejected; an identical retry is idempotent.
 They must use a stable, non-secret device identifier, never account identity.
 The rollout bucket is SHA-256 of device-ID UTF-8, one NUL byte, and the raw
 32-byte seed; the first eight digest bytes are unsigned big-endian modulo 100.
-ADR-0119 implements these rules locally, but no product path invokes them yet.
+ADR-0119 implements these rules locally; ADR-0138 invokes them only when the
+client contains a valid compiled product-trust configuration.
 
 ## Offline flow
 
