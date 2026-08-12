@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.24)
 
 project(ChatRoom LANGUAGES CXX)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 option(CHATROOM_BUILD_HEADLESS_SERVER "Build the Qt V1 headless server" ON)
 include(CTest)
 
@@ -215,6 +219,48 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             PUBLIC Qt6::Core Sodium::Sodium
         )
 
+        add_library(
+            chatroom_windows_update_transport
+            STATIC
+            Client/UpdateManifestFetchTransport.cpp
+            Client/UpdateInstallerDownloadTransport.cpp
+            Client/UpdateManifestFetchTransport.h
+            Client/UpdateInstallerDownloadTransport.h
+        )
+        set_target_properties(
+            chatroom_windows_update_transport
+            PROPERTIES
+                AUTOMOC ON
+                CXX_STANDARD 17
+                CXX_STANDARD_REQUIRED ON
+                CXX_EXTENSIONS OFF
+        )
+        target_include_directories(chatroom_windows_update_transport PUBLIC Client)
+        target_link_libraries(
+            chatroom_windows_update_transport
+            PUBLIC Qt6::Core Qt6::Network
+        )
+
+        add_library(
+            chatroom_windows_installer_trust
+            STATIC
+            Client/UpdateInstallerTrustVerifier.cpp
+            Client/UpdateInstallerTrustVerifier.h
+        )
+        set_target_properties(
+            chatroom_windows_installer_trust
+            PROPERTIES
+                CXX_STANDARD 17
+                CXX_STANDARD_REQUIRED ON
+                CXX_EXTENSIONS OFF
+        )
+        target_include_directories(chatroom_windows_installer_trust PUBLIC Client)
+        target_link_libraries(chatroom_windows_installer_trust PUBLIC Qt6::Core)
+        if(WIN32)
+            target_link_libraries(
+                chatroom_windows_installer_trust PUBLIC wintrust crypt32)
+        endif()
+
         function(chatroom_add_local_data_test target test_name)
             add_executable(${target} Tests/${target}.cpp)
             set_target_properties(
@@ -315,5 +361,37 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             UpdateStateRepositoryTest m4_update_state_repository)
         chatroom_add_update_trust_test(
             UpdateManifestApplicationServiceTest m4_update_manifest_application)
+
+        add_executable(
+            UpdateManifestFetchTransportTest
+            Tests/UpdateManifestFetchTransportTest.cpp)
+        target_link_libraries(
+            UpdateManifestFetchTransportTest PRIVATE chatroom_windows_update_transport)
+        add_test(
+            NAME m4_update_manifest_fetch_transport
+            COMMAND UpdateManifestFetchTransportTest)
+
+        add_executable(
+            UpdateInstallerDownloadTransportTest
+            Tests/UpdateInstallerDownloadTransportTest.cpp)
+        target_link_libraries(
+            UpdateInstallerDownloadTransportTest PRIVATE chatroom_windows_update_transport)
+        add_test(
+            NAME m4_update_installer_download_transport
+            COMMAND UpdateInstallerDownloadTransportTest)
+
+        add_executable(
+            UpdateInstallerTrustVerifierTest
+            Tests/UpdateInstallerTrustVerifierTest.cpp)
+        target_link_libraries(
+            UpdateInstallerTrustVerifierTest PRIVATE chatroom_windows_installer_trust)
+        add_test(
+            NAME m4_update_installer_trust_verifier
+            COMMAND UpdateInstallerTrustVerifierTest)
+        set_tests_properties(
+            m4_update_manifest_fetch_transport
+            m4_update_installer_download_transport
+            m4_update_installer_trust_verifier
+            PROPERTIES TIMEOUT 30)
     endif()
 endif()

@@ -875,6 +875,13 @@ high-watermarks, and their enforced application order. Four unchanged focused
 suites run as `m4_update_*` beside the V1 gates. No product key, channel,
 download, WinTrust call, process launch, or UI is introduced by this boundary.
 
+ADR-0152 adds two adjacent but separate CMake boundaries. Update transport owns
+credential-free bounded HTTPS fetch/staging and exposes only untrusted results;
+installer trust owns exact integrity plus Windows Authenticode/timestamp/
+publisher verification and locked launch. Off Windows, tests require explicit
+`UnsupportedPlatform` rather than manufacturing positive trust. Native Windows
+signing and clean-host results remain the only product evidence for those paths.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

@@ -675,6 +675,9 @@ Progress:
 - [x] Extract the portable Windows update signature/decision/replay-state/
   application trust core into CMake and execute four existing tamper, policy,
   atomic-state, and non-bypassable-order suites through the M4 CTest gate.
+- [x] Separate Windows update manifest/Setup transport from installer trust in
+  CMake and run fail-closed URL, redirect, bound, cancellation, cleanup,
+  integrity, unsupported-platform, and unsigned-launch tests.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

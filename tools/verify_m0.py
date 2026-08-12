@@ -223,6 +223,8 @@ def verify_cmake_headless(jobs: int, build_root: Path) -> None:
         "NetworkTlsPolicyTest",
         "UpdateManifestSignatureVerifierTest", "UpdateManifestDecisionPolicyTest",
         "UpdateStateRepositoryTest", "UpdateManifestApplicationServiceTest",
+        "UpdateManifestFetchTransportTest", "UpdateInstallerDownloadTransportTest",
+        "UpdateInstallerTrustVerifierTest",
         "--parallel", str(jobs),
     ], ROOT)
     ctest = command_path("ctest")
