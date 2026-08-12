@@ -411,6 +411,13 @@ membership before process-local notification. Exact retry emits no notification;
 replacement-login history recovers the mutation sequence. The product listener
 remains unchanged.
 
+The room-read boundary now defines server-authorized, monotonic advancement of
+one active member's canonical `last_read_sequence` for a positive mapped V1
+room. The future persistence adapter must advance to a transactionally observed
+durable room high watermark, never decrease the cursor, and return the previous
+and resulting values for fixed telemetry. V1 publishes no room read receipt.
+No PostgreSQL adapter or handler exists yet.
+
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.
 Verified import can backfill a pre-cutover null mapping from the reverified

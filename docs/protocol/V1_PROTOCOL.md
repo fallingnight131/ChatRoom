@@ -378,6 +378,12 @@ room receipt.
 The detached Java compatibility module now reproduces `FRIEND_LIST_RSP` from
 imported PostgreSQL state, including numeric friendship/friend IDs, online,
 message-row unread count, `peerLastReadMessageId`, and pending request count.
+
+The detached Java boundary now reserves `MARK_ROOM_READ` as an authenticated,
+positive mapped room command. It advances canonical `last_read_sequence`
+monotonically to a transactionally observed durable high watermark; it does not
+interpret descending runtime V1 message IDs as order and emits no room receipt.
+No PostgreSQL adapter or handler exists yet.
 Any incomplete compatibility projection closes the detached connection rather
 than sending an empty authoritative list. This route remains inactive.
 
