@@ -40,10 +40,10 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
         }
         for relative, content in self.files.items():
             (self.payload / relative).write_bytes(content)
-        self.version = "1.2.3"
+        self.version = getattr(self, "release_version", "1.2.3")
         self.version_file = self.root / "VERSION"
         self.version_file.write_text(self.version + "\n", encoding="utf-8")
-        self.revision = "a" * 40
+        self.revision = getattr(self, "source_revision", "a" * 40)
         self.signer = "b" * 64
         self.now = datetime(2026, 8, 12, 12, 0, 0, tzinfo=timezone.utc)
         self.installer = self.root / f"ChatRoom-{self.version}-Setup.exe"
@@ -59,13 +59,14 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
             self.version_file, self.revision, "stable", "123456789",
             "d" * 40, self.signer,
             "https://timestamp.example.test/rfc3161", self.now)), encoding="utf-8")
-        trust_private = self.root / "product-trust-private.pem"
+        self.product_trust_private = self.root / "product-trust-private.pem"
         self.product_trust_public = self.root / "product-trust-public.pem"
         subprocess.run(
-            ["openssl", "genpkey", "-algorithm", "Ed25519", "-out", str(trust_private)],
+            ["openssl", "genpkey", "-algorithm", "Ed25519",
+             "-out", str(self.product_trust_private)],
             check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(
-            ["openssl", "pkey", "-in", str(trust_private), "-pubout",
+            ["openssl", "pkey", "-in", str(self.product_trust_private), "-pubout",
              "-out", str(self.product_trust_public)],
             check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.product_trust_url = (

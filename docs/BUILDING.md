@@ -579,6 +579,9 @@ verified schema-6 Windows candidate, canonical manifest, detached signature,
 reviewed public PEM, and public release identity. It closes those exact bytes
 in one atomic, immutable `signed-update-channel-not-published-candidate` and
 requires manifest Setup hash/size/publisher/version/revision/channel equality.
+The manifest `signingKeyId` must select a primary/secondary public PEM retained
+by signed candidate schema 6, and the external verification PEM must be byte-
+identical; a valid signature under an uncompiled key is rejected. See ADR-0196.
 Its recorded UTC assembly instant permits durable later verification without
 weakening live freshness at assembly. It contains no private key and performs
 no upload or channel mutation. Fixture tests are not positive PKCS#11,

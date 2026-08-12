@@ -74,6 +74,48 @@ def _read(path: Path) -> dict[str, object]:
     return value
 
 
+def _read_object(path: Path, label: str) -> dict[str, object]:
+    if path.is_symlink() or not path.is_file():
+        raise ManifestError(f"{label} must be a regular file")
+
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ManifestError(f"{label} has duplicate keys")
+            result[key] = value
+        return result
+
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ManifestError(f"{label} is unreadable") from error
+    if not isinstance(value, dict):
+        raise ManifestError(f"{label} must be an object")
+    return value
+
+
+def _require_client_trusted_update_key(
+    windows_root: Path,
+    signing_key_id: str,
+    public_key_path: Path,
+) -> None:
+    intent = _read_object(
+        windows_root / "evidence/product-update-trust-intent.json",
+        "Windows candidate product trust intent")
+    selected_path: Path | None = None
+    primary = intent.get("primaryKey")
+    secondary = intent.get("secondaryKey")
+    if isinstance(primary, dict) and primary.get("keyId") == signing_key_id:
+        selected_path = windows_root / "evidence/product-update-primary-public.pem"
+    elif isinstance(secondary, dict) and secondary.get("keyId") == signing_key_id:
+        selected_path = windows_root / "evidence/product-update-secondary-public.pem"
+    if (selected_path is None or selected_path.is_symlink() or not selected_path.is_file()
+            or public_key_path.is_symlink() or not public_key_path.is_file()
+            or selected_path.read_bytes() != public_key_path.read_bytes()):
+        raise ManifestError("Windows update signing key is not compiled into the client")
+
+
 def _checksums(path: Path) -> dict[str, str]:
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -164,6 +206,8 @@ def validate_candidate(
     update_manifest = verify_manifest_signature(
         root / "update/manifest.json", root / "update/manifest.json.sig",
         public_key, assembled)
+    _require_client_trusted_update_key(
+        windows_root, str(update_manifest["signingKeyId"]), public_key)
     installer = windows_root / f"installer/ChatRoom-{windows_identity['version']}-Setup.exe"
     installer_digest, installer_size = sha256_file(installer)
     metadata = update_manifest["installer"]
@@ -209,6 +253,8 @@ def assemble_candidate(
         qt_version, authenticode_signer_sha256, now_utc)
     update = verify_manifest_signature(
         update_manifest_path, signature_path, public_key_path, now_utc)
+    _require_client_trusted_update_key(
+        windows_candidate_root, str(update["signingKeyId"]), public_key_path)
     public_digest, _ = sha256_file(public_key_path)
     if public_digest != public_key_file_sha256:
         raise ManifestError("Windows update public key does not match reviewed SHA-256")

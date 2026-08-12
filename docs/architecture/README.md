@@ -1233,6 +1233,12 @@ follow execution within the bounded window. Completion retains current/target
 percentages and seed, but every later step starts a new health window and
 authorization rather than reusing the prior result.
 
+ADR-0196 closes the cross-domain key binding. Update-channel assembly now
+requires the manifest `signingKeyId` and verification PEM to match an exact
+primary/secondary key retained by signed candidate schema 6. A manifest that is
+cryptographically valid under an unrelated key is rejected because the shipped
+client could not authenticate it.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

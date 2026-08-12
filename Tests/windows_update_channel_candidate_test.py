@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
-import subprocess
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -34,13 +33,8 @@ class WindowsUpdateChannelCandidateTest(WindowsReleaseCandidateTest):
     def prepare_update_inputs(self) -> None:
         if not self.candidate.exists():
             self.assemble()
-        subprocess.run(
-            ["openssl", "genpkey", "-algorithm", "Ed25519", "-out", str(self.private_key)],
-            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        subprocess.run(
-            ["openssl", "pkey", "-in", str(self.private_key), "-pubout",
-             "-out", str(self.public_key)],
-            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.private_key = self.product_trust_private
+        self.public_key = self.product_trust_public
         manifest = build_manifest(
             self.candidate / f"installer/ChatRoom-{self.version}-Setup.exe",
             version=self.version, channel="stable", manifest_sequence=42,
@@ -129,6 +123,29 @@ class WindowsUpdateChannelCandidateTest(WindowsReleaseCandidateTest):
                 self.public_key, self.update_candidate, self.version_file,
                 self.revision, "stable", "6.11.1", self.signer,
                 self.public_digest(), self.now,
+            )
+
+    def test_rejects_update_key_not_compiled_into_client(self) -> None:
+        self.prepare_update_inputs()
+        import subprocess
+        other_private = self.root / "other-update-private.pem"
+        other_public = self.root / "other-update-public.pem"
+        other_signature = self.root / "other-manifest.json.sig"
+        subprocess.run(
+            ["openssl", "genpkey", "-algorithm", "Ed25519",
+             "-out", str(other_private)], check=True,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            ["openssl", "pkey", "-in", str(other_private), "-pubout",
+             "-out", str(other_public)], check=True,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        sign_manifest(self.update_manifest, other_private, other_signature)
+        with self.assertRaisesRegex(ManifestError, "not compiled into the client"):
+            assemble_candidate(
+                self.candidate, self.update_manifest, other_signature,
+                other_public, self.root / "other-key-candidate", self.version_file,
+                self.revision, "stable", "6.11.1", self.signer,
+                hashlib.sha256(other_public.read_bytes()).hexdigest(), self.now,
             )
 
 

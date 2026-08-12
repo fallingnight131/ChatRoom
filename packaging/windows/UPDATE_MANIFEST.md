@@ -185,6 +185,9 @@ python3 tools/windows_update_channel_candidate.py assemble \
 The assembler independently verifies the complete schema-6 Windows candidate
 and the detached Ed25519 signature, then requires the update manifest to name
 the exact Setup size, SHA-256, publisher, version, revision, and channel. It
+also requires `signingKeyId` to select a retained primary/secondary PEM from the
+signed client's product-trust bundle and requires the external verification PEM
+bytes to match it exactly; see ADR-0196. It
 copies the reviewed public PEM but never private key material, closes every
 file in a sorted manifest and `SHA256SUMS`, records the assembly instant, and
 renames atomically into a previously absent destination. `verify` can later

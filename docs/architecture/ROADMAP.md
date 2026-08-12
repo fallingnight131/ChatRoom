@@ -619,6 +619,8 @@ Progress:
   pointer after finalization failure, and await external observation.
 - [x] Bind a strict post-switch HTTPS observation to expansion execution in a
   bounded immutable completion record retaining percentages and cohort seed.
+- [x] Require every update-channel candidate's manifest signing key ID and PEM
+  bytes to match an exact primary/secondary key compiled into the signed client.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.
