@@ -223,3 +223,10 @@ consumption before mutation, and atomically switches one `active-channel.json`
 pointer. Its evidence remains `awaiting-external-observation`; failed evidence
 persistence restores the old pointer without making the authorization reusable.
 Provider implementations must preserve those compare-and-swap semantics.
+
+Post-switch completion requires `windows_update_release_probe.py` to observe
+the exact manifest, adjacent signature, and Setup bytes through trusted HTTPS.
+The three URLs must share an origin/directory; redirects, credentials,
+transformation, cookies, CORS, wrong length/type/cache/security headers, or any
+byte mismatch fail. Manifest/signature use `no-store`; content-addressed release
+Setup uses `public, max-age=31536000, immutable`.

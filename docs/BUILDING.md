@@ -651,6 +651,21 @@ This proves local adapter semantics only. A provider must supply equivalent
 conditional pointer mutation, and public HTTPS observations remain required.
 See ADR-0180.
 
+After pointer execution, run `tools/windows_update_release_probe.py` from an
+independent network location against the fixed production `manifest.json` URL.
+It fetches that manifest, adjacent detached signature, and the manifest's exact
+Setup URL over trusted TLS without redirects or transformation. All three must
+match candidate bytes and the update origin must return HSTS, `nosniff`, exact
+length/content type, `no-store` for manifest/signature, and immutable caching
+for Setup. Evidence is write-once and contains no provider credential:
+
+```bash
+python3 Tests/windows_update_release_probe_test.py
+```
+
+The test uses an isolated localhost CA and proves failure semantics only. A real
+production-origin observation is required for release completion. See ADR-0181.
+
 The provider-neutral post-signing acceptance policy is checked with:
 
 ```bash

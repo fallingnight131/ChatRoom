@@ -1133,6 +1133,13 @@ switches one pointer. Failure after switching restores the old pointer while
 keeping the authorization spent. Result evidence remains pending until public
 HTTPS proves the manifest, detached signature, and Setup bytes users receive.
 
+ADR-0181 defines that independent observation. A trusted-TLS probe fetches the
+co-located manifest, detached signature, and Setup without redirects or content
+transformation, requires deliberate security/type/cache headers, and compares
+all bytes with the signed candidate. Its write-once record is point-in-time
+client-visible evidence; it neither mutates the provider nor claims continuous
+or geographically complete availability.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

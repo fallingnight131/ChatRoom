@@ -579,6 +579,8 @@ Progress:
 - [x] Consume update promotion authorization once, compare-and-swap an exact
   existing channel pointer to a pre-staged release, and restore the old pointer
   on final-validation/evidence failure while awaiting external observation.
+- [x] Observe the exact canonical manifest, detached signature, and Setup bytes
+  through strict trusted HTTPS with deliberate security and cache policy.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.
