@@ -801,6 +801,13 @@ paths or provider URLs. This is only the expand phase: historical V1 file import
 remains fail-closed until a verified object-evidence input reconciles the SQLite
 file/message/uploader graph with size, SHA-256, MIME, lifecycle, and a real
 target object key. No fabricated hash or local path can become durable V2 truth.
+The deterministic source planner now validates the complete typed file/message
+graph before object work: exactly one retained message per file, matching
+conversation/uploader/name/size/cleared metadata, supported media message type,
+safe basename, bounded size, and consistent lifecycle timestamps. Its logical
+fingerprint includes legacy locators for drift detection, but candidates and
+fixed-code issues omit paths and URLs. Passing this stage does not prove bytes,
+hash, MIME, target object existence, or sealed state.
 
 ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
 create-only, length, type, and SHA-256 constraints and reads checksum-enabled

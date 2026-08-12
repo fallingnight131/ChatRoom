@@ -163,6 +163,11 @@ same-conversation canonical attachment. It stores no V1 path, URL, hash, name,
 or object credential. Historical file rows remain blocked until an independently
 verified object-evidence input can create the attachment, mapping, and message
 atomically.
+Before that evidence is accepted, the pure V1 source planner reconciles every
+typed `files`/`friend_files` row to exactly one retained attachment message and
+derives deterministic target identities. Its fingerprint includes local/object
+locators so a final read can detect drift, while planned rows, fixed-code issues,
+and future audit records exclude those locator values.
 The read-only application compatibility port keeps the namespace type alongside
 the numeric ID and supports both V1-to-V2 request translation and V2-to-V1 event
 projection. Its PostgreSQL adapter does not create mappings, infer identities,
