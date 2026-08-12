@@ -81,7 +81,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(7, first.migrate());
+        assertEquals(8, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -93,7 +93,9 @@ class PostgresMigratorTest {
                     Set.of("account", "device", "device_session", "conversation",
                             "conversation_member", "direct_conversation", "message",
                             "identity_import_run", "legacy_v1_account_map",
-                            "legacy_v1_conversation_map", "conversation_import_run"),
+                            "legacy_v1_conversation_map", "conversation_import_run",
+                            "conversation_entry", "message_recall_event",
+                            "messages_deleted_event"),
                     applicationTables(connection));
             proveSequenceAndIdempotencyConstraints(connection);
         }
@@ -145,6 +147,7 @@ class PostgresMigratorTest {
                 new MessageSubmission(
                         conversation, account, device, "client-2", 101, new byte[] {4}));
         assertEquals(2, second.conversationSequence());
+        assertEquals(2, conversationEntryCount(conversation));
 
         MessageHistoryResult.Page firstPage = (MessageHistoryResult.Page) adapter.readAfter(
                 new MessageHistoryQuery(conversation, account, 0, 1));
@@ -714,18 +717,38 @@ class PostgresMigratorTest {
             UUID device,
             String clientMessageId) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
-                "INSERT INTO chat.message(id, conversation_id, conversation_sequence, "
+                "WITH inserted_entry AS ("
+                        + "INSERT INTO chat.conversation_entry("
+                        + "conversation_id, conversation_sequence, entry_kind, occurred_at) "
+                        + "VALUES (?, ?, 'MESSAGE', transaction_timestamp()) RETURNING 1) "
+                        + "INSERT INTO chat.message(id, conversation_id, conversation_sequence, "
                         + "sender_account_id, sender_device_id, client_message_id, message_type, "
-                        + "payload, payload_sha256) VALUES (?, ?, ?, ?, ?, ?, 100, ?, ?)")) {
-            statement.setObject(1, id);
-            statement.setObject(2, conversation);
-            statement.setLong(3, sequence);
-            statement.setObject(4, account);
-            statement.setObject(5, device);
-            statement.setString(6, clientMessageId);
-            statement.setBytes(7, new byte[] {1});
-            statement.setBytes(8, new byte[32]);
+                        + "payload, payload_sha256) "
+                        + "SELECT ?, ?, ?, ?, ?, ?, 100, ?, ? FROM inserted_entry")) {
+            statement.setObject(1, conversation);
+            statement.setLong(2, sequence);
+            statement.setObject(3, id);
+            statement.setObject(4, conversation);
+            statement.setLong(5, sequence);
+            statement.setObject(6, account);
+            statement.setObject(7, device);
+            statement.setString(8, clientMessageId);
+            statement.setBytes(9, new byte[] {1});
+            statement.setBytes(10, new byte[32]);
             statement.executeUpdate();
+        }
+    }
+
+    private static int conversationEntryCount(UUID conversationId) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT COUNT(*) FROM chat.conversation_entry "
+                                + "WHERE conversation_id = ? AND entry_kind = 'MESSAGE'")) {
+            statement.setObject(1, conversationId);
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                return result.getInt(1);
+            }
         }
     }
 

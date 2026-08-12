@@ -203,6 +203,7 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
             MessageSubmission submission,
             byte[] payload,
             byte[] payloadHash) throws SQLException {
+        insertConversationEntry(connection, submission.conversationId(), sequence);
         String sql = "INSERT INTO chat.message(id, conversation_id, conversation_sequence, "
                 + "sender_account_id, sender_device_id, client_message_id, message_type, "
                 + "payload, payload_sha256) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) "
@@ -223,6 +224,18 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                         ? Optional.of(result.getObject(1, OffsetDateTime.class).toInstant())
                         : Optional.empty();
             }
+        }
+    }
+
+    private static void insertConversationEntry(
+            Connection connection, UUID conversationId, long sequence) throws SQLException {
+        String sql = "INSERT INTO chat.conversation_entry("
+                + "conversation_id, conversation_sequence, entry_kind, occurred_at) "
+                + "VALUES (?, ?, 'MESSAGE', transaction_timestamp())";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, conversationId);
+            statement.setLong(2, sequence);
+            statement.executeUpdate();
         }
     }
 
