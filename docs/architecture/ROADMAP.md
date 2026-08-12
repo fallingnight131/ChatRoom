@@ -631,6 +631,10 @@ Progress:
     and update the isolated Web preview before activating the new history path.
   - [x] Add the V2 PostgreSQL attachment metadata registry with membership/device
     ownership, idempotency, hash/size bounds, and explicit lifecycle constraints.
+  - [x] Bind canonical attachment messages and typed V1 file identities with
+    same-conversation foreign keys before importing any historical file.
+  - [ ] Add verified V1 file-object evidence and atomically import historical
+    attachments, mappings, and attachment messages without local-path leakage.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-

@@ -154,6 +154,15 @@ admission policy rows. Only an untouched V027 resource default may be replaced
 by counted compare-and-set; a customized mismatch blocks the import. The V1
 settings projection joins both policy rows and active lifecycle/membership in a
 repeatable-read transaction.
+V028 binds one canonical message to at most one same-conversation attachment.
+Message content type 2 is reserved for an attachment reference with an empty
+payload; other current message types cannot carry an attachment. A typed
+`legacy_v1_attachment_map` preserves the separate ROOM/FRIENDSHIP numeric file
+namespaces and requires both the exact imported conversation mapping and the
+same-conversation canonical attachment. It stores no V1 path, URL, hash, name,
+or object credential. Historical file rows remain blocked until an independently
+verified object-evidence input can create the attachment, mapping, and message
+atomically.
 The read-only application compatibility port keeps the namespace type alongside
 the numeric ID and supports both V1-to-V2 request translation and V2-to-V1 event
 projection. Its PostgreSQL adapter does not create mappings, infer identities,
@@ -443,7 +452,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V027, reruns migration as a simulated
+cluster, migrates a clean database through current V028, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable

@@ -146,7 +146,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(27, first.migrate());
+        assertEquals(28, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -166,7 +166,8 @@ class PostgresMigratorTest {
                             "legacy_v1_contact_request_map",
                             "contact_request_import_run", "group_join_credential",
                             "legacy_v1_room_creation", "group_admission_policy",
-                            "group_lifecycle", "group_resource_policy"),
+                            "group_lifecycle", "group_resource_policy",
+                            "legacy_v1_attachment_map"),
                     applicationTables(connection));
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
@@ -2685,6 +2686,50 @@ class PostgresMigratorTest {
                 "UPDATE chat.attachment SET state = 'READY', "
                         + "ready_at = transaction_timestamp() WHERE id = ?",
                 attachment);
+        execute(connection,
+                "INSERT INTO chat.legacy_v1_conversation_map(legacy_kind, "
+                        + "legacy_conversation_id, conversation_id) "
+                        + "VALUES ('ROOM', 900, ?)", conversation);
+        execute(connection,
+                "INSERT INTO chat.conversation_entry(conversation_id, "
+                        + "conversation_sequence, entry_kind) VALUES (?, 1, 'MESSAGE')",
+                conversation);
+        UUID attachmentMessage = UUID.randomUUID();
+        execute(connection,
+                "INSERT INTO chat.message(id, conversation_id, conversation_sequence, "
+                        + "sender_account_id, sender_device_id, client_message_id, "
+                        + "message_type, payload, payload_sha256, attachment_id) "
+                        + "VALUES (?, ?, 1, ?, ?, 'attachment-message-1', 2, ?, ?, ?)",
+                attachmentMessage, conversation, account, device,
+                new byte[0], new byte[32], attachment);
+        execute(connection,
+                "INSERT INTO chat.legacy_v1_attachment_map(legacy_kind, legacy_file_id, "
+                        + "legacy_conversation_id, conversation_id, attachment_id) "
+                        + "VALUES ('ROOM', 700, 900, ?, ?)", conversation, attachment);
+        SQLException missingAttachment = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "INSERT INTO chat.message(id, conversation_id, conversation_sequence, "
+                        + "sender_account_id, sender_device_id, client_message_id, "
+                        + "message_type, payload, payload_sha256) "
+                        + "VALUES (?, ?, 2, ?, ?, 'attachment-message-2', 2, ?, ?)",
+                UUID.randomUUID(), conversation, account, device,
+                new byte[0], new byte[32]));
+        assertEquals("23514", missingAttachment.getSQLState());
+        SQLException attachmentOnText = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "INSERT INTO chat.message(id, conversation_id, conversation_sequence, "
+                        + "sender_account_id, sender_device_id, client_message_id, "
+                        + "message_type, payload, payload_sha256, attachment_id) "
+                        + "VALUES (?, ?, 2, ?, ?, 'attachment-message-3', 1, ?, ?, ?)",
+                UUID.randomUUID(), conversation, account, device,
+                new byte[] {1}, new byte[32], attachment));
+        assertEquals("23514", attachmentOnText.getSQLState());
+        SQLException duplicateLegacyFile = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "INSERT INTO chat.legacy_v1_attachment_map(legacy_kind, legacy_file_id, "
+                        + "legacy_conversation_id, conversation_id, attachment_id) "
+                        + "VALUES ('ROOM', 700, 900, ?, ?)", conversation, attachment));
+        assertEquals("23505", duplicateLegacyFile.getSQLState());
         SQLException deletedWhileReady = assertThrows(SQLException.class, () -> execute(
                 connection,
                 "UPDATE chat.attachment SET object_deleted_at = transaction_timestamp() "

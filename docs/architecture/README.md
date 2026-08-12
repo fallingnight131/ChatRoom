@@ -793,6 +793,15 @@ Virus scanning, thumbnails, media metadata, and retention should run as
 asynchronous jobs. A file message may remain in a processing state until required
 checks finish.
 
+V028 now supplies the missing durable attachment-message relation. Content type
+2 requires one same-conversation canonical attachment and an empty message
+payload; one attachment cannot be reused by multiple messages. A separate typed
+V1 file-ID map preserves ROOM and FRIENDSHIP namespaces without retaining local
+paths or provider URLs. This is only the expand phase: historical V1 file import
+remains fail-closed until a verified object-evidence input reconciles the SQLite
+file/message/uploader graph with size, SHA-256, MIME, lifecycle, and a real
+target object key. No fabricated hash or local path can become durable V2 truth.
+
 ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
 create-only, length, type, and SHA-256 constraints and reads checksum-enabled
 HEAD metadata without putting provider types in the application core. It rejects
