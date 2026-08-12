@@ -822,6 +822,9 @@ the exact source fingerprint. It accepts only `attachments/{deterministicId}`
 keys, exact size and 32-byte SHA-256, validated MIME, and a seal time after file
 creation. Missing, duplicate, unknown, stale, or cleared-file evidence blocks the
 whole plan; fixed issues omit all locator and object metadata.
+The attachment import capability also verifies the protected backup artifact,
+requires the live and backup graphs to be exactly equal, and repeats source plus
+manifest reconciliation at the target commit boundary.
 
 ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
 create-only, length, type, and SHA-256 constraints and reads checksum-enabled

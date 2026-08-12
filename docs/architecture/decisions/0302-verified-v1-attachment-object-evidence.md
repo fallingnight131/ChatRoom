@@ -29,6 +29,11 @@ producer must inspect or copy bytes into the target object store, calculate the
 hash, and confirm sealed metadata before constructing it. The target importer
 must reverify the source and evidence immediately before commit.
 
+The verified import capability first matches the physical backup artifact to its
+existing whole-file size/SHA-256 proof, then requires the attachment graph from
+the live source and backup to be exactly equal. It binds the validated evidence
+plan to both paths and re-runs all checks at the final target transaction edge.
+
 ## Consequences
 
 - Active files cannot be imported from path/URL metadata alone.
@@ -36,3 +41,5 @@ must reverify the source and evidence immediately before commit.
   the previous preview/apply intent.
 - PostgreSQL import can consume one normalized plan for both ready objects and
   unavailable history without weakening runtime upload invariants.
+- A changed source, backup, or manifest invalidates the capability before commit;
+  public failures remain fixed and locator-free.

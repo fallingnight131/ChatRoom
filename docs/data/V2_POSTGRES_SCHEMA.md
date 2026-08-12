@@ -174,6 +174,9 @@ source fingerprint. One evidence row supplies the canonical target key, MIME,
 exact size, 32-byte SHA-256, and seal time. Cleared rows reject object evidence
 and derive `unavailable_at` from V1 `cleared_at`. Both the source and normalized
 evidence have deterministic fingerprints for final apply-time reverification.
+The verified capability additionally binds that plan to the same protected
+whole-file backup proof used by earlier V1 imports. Live and backup attachment
+graphs must match exactly and are reread before a target transaction may commit.
 Before that evidence is accepted, the pure V1 source planner reconciles every
 typed `files`/`friend_files` row to exactly one retained attachment message and
 derives deterministic target identities. Its fingerprint includes local/object

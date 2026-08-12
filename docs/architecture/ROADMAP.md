@@ -641,6 +641,8 @@ Progress:
     metadata without fabricated object key, MIME, or SHA-256 evidence.
   - [x] Bind every active V1 file to a source-fingerprinted manifest of canonical
     object key, exact size/SHA-256, validated MIME, and sealed time.
+  - [x] Reconcile the attachment graph against the physically verified backup
+    and expose a final-apply re-verifiable evidence capability.
   - [ ] Add verified V1 file-object evidence and atomically import historical
     attachments, mappings, and attachment messages without local-path leakage.
   - [x] Add the inactive attachment registration application port and exact
