@@ -419,6 +419,8 @@ Progress:
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application
     port and exact PostgreSQL lookup in both translation directions.
+  - [x] Add a pure deterministic V1 room/friendship pre-write planner with role
+    projection, retained read pointers, and blocking graph validation.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

@@ -81,6 +81,13 @@ projection. Its PostgreSQL adapter does not create mappings, infer identities,
 or authorize conversation access; the consuming use case must still enforce
 server-bound account membership.
 
+The conversation pre-write planner is deterministic and has no target database
+dependency. It maps only source metadata that passes semantic validation. Room
+creator, administrator, and member roles become V2 roles; friendship account
+pairs become canonical UUID pairs. V1 read-message IDs remain explicitly
+untranslated in planned memberships until message import can resolve them to
+conversation sequences. Any source issue blocks readiness for target comparison.
+
 ## V1 identity import boundary
 
 The identity importer first offers a repeatable-read, no-write preview. Any
