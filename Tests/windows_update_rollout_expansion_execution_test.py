@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 from artifact_manifest_common import ManifestError, atomic_write  # noqa: E402
 from windows_update_channel_store import stage_release  # noqa: E402
 from windows_update_release_execution import inspect_active  # noqa: E402
+from windows_update_incident_state import open_incident  # noqa: E402
 import windows_update_rollout_expansion_authorization_test as authorization_fixture  # noqa: E402
 from windows_update_rollout_expansion_authorization import (  # noqa: E402
     create_authorization, write_once as write_authorization,
@@ -114,6 +115,18 @@ class WindowsUpdateRolloutExpansionExecutionTest(unittest.TestCase):
         self.evidence.write_text(json.dumps(value), encoding="utf-8")
         with self.assertRaisesRegex(ManifestError, "differs"):
             verify_execution(self.evidence, self.base.authorization, self.values)
+
+    def test_rejects_expansion_while_rollout_incident_is_open(self) -> None:
+        fixture = self.base.fixture
+        open_incident(
+            fixture.store, self.base.authorization, "stable", "c" * 64,
+            "d" * 64, self.base.now)
+        with self.assertRaisesRegex(ManifestError, "dedicated forward-fix"):
+            execute(
+                self.base.authorization, self.values, fixture.store,
+                self.evidence, self.base.now)
+        self.assertFalse(
+            (fixture.store / ".rollout-expansion-consumptions").exists())
 
 
 if __name__ == "__main__":

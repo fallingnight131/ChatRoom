@@ -13,6 +13,7 @@ from pathlib import Path
 
 from artifact_manifest_common import ManifestError, atomic_write, sha256_file
 from windows_update_channel_store import validate_release, validate_release_from_candidate
+from windows_update_incident_state import require_no_open_incident
 from windows_update_release_authorization import verify_authorization
 
 
@@ -142,6 +143,7 @@ def execute(
             or (store_root / "releases").is_symlink()
             or (store_root / "active-channel.json").is_symlink()):
         raise ManifestError("Windows update execution store boundary is unsafe")
+    require_no_open_incident(store_root, channel, now_utc)
     release_id = str(authorization["updateManifestSha256"])
     target_root = store_root / "releases" / release_id
     if candidate_root.resolve() != target_root.resolve():

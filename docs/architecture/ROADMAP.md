@@ -624,6 +624,9 @@ Progress:
 - [x] Add a dedicated short-lived forward-fix authorization after an observed
   rollout halt, requiring a higher version/sequence, new source, 100 percent
   rollout, B-compatible minimum version, and an update key compiled into B.
+- [x] Persist an exclusive open rollout-incident marker during B-to-A rollback
+  and make ordinary promotion/expansion execution fail closed until the
+  dedicated forward-fix path resolves it.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

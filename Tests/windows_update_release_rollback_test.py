@@ -17,6 +17,7 @@ from windows_update_release_completion_test import (  # noqa: E402
     WindowsUpdateReleaseCompletionTest,
 )
 from windows_update_release_execution import inspect_active  # noqa: E402
+from windows_update_incident_state import inspect_open_incident  # noqa: E402
 from windows_update_release_rollback import (  # noqa: E402
     execute_rollback, verify_rollback,
 )
@@ -69,6 +70,9 @@ class WindowsUpdateReleaseRollbackTest(WindowsUpdateReleaseCompletionTest):
                          "rollback-pointer-restored-awaiting-external-observation")
         self.assertEqual(inspect_active(self.store, self.rollback_now)["releaseId"],
                          value["restoredReleaseId"])
+        incident = inspect_open_incident(self.store, self.rollback_now)
+        self.assertEqual(incident["failedReleaseId"], value["failedReleaseId"])
+        self.assertEqual(incident["restoredReleaseId"], value["restoredReleaseId"])
         self.assertEqual(self.verify_rollback_file(), value)
         self.activate_target_for_test()
         with self.assertRaisesRegex(ManifestError, "already exists"):

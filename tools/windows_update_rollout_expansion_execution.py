@@ -10,6 +10,7 @@ from pathlib import Path
 
 from artifact_manifest_common import ManifestError, atomic_write
 from windows_update_channel_store import validate_release, validate_release_from_candidate
+from windows_update_incident_state import require_no_open_incident
 from windows_update_manifest import verify_manifest_signature
 from windows_update_release_execution import (
     POINTER_KEYS, _digest, _pointer, _read_json, _write_once, inspect_active,
@@ -70,6 +71,7 @@ def execute(
             or (store_root / "releases").is_symlink()
             or (store_root / "active-channel.json").is_symlink()):
         raise ManifestError("Windows rollout expansion execution store boundary is unsafe")
+    require_no_open_incident(store_root, channel, now_utc)
     target_id = str(authorization["targetManifestSha256"])
     current_id = str(authorization["expectedCurrentManifestSha256"])
     expected_target = store_root / "releases" / target_id

@@ -13,6 +13,7 @@ from pathlib import Path
 
 from artifact_manifest_common import ManifestError, atomic_write
 from windows_update_channel_store import validate_release, validate_release_from_candidate
+from windows_update_incident_state import open_incident
 from windows_update_release_completion import verify_completion
 from windows_update_release_execution import inspect_active
 from windows_update_manifest import verify_manifest_signature
@@ -147,6 +148,10 @@ def execute_rollback(
         "restoredReleaseId": restored["releaseId"],
         "consumedAt": now_utc.strftime("%Y-%m-%dT%H:%M:%SZ"),
     }, "Windows update rollback consumption marker")
+
+    open_incident(
+        store_root, completion_path, channel, str(failed["releaseId"]),
+        str(restored["releaseId"]), now_utc)
 
     rolled_back_at = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
     pointer = {

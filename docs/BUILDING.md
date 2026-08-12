@@ -704,7 +704,13 @@ python3 Tests/windows_update_release_rollback_test.py
 
 This is a rollout halt, not an automatic client downgrade. Devices that already
 accepted B's higher manifest sequence reject old A and remain on B until a newly
-signed, higher-sequence forward corrective release. See ADR-0183.
+signed, higher-sequence forward corrective release. Before restoring A, the
+filesystem adapter retains the exact promotion-completion-bound incident under
+`.rollout-incidents/` and exclusively opens `.open-rollout-incident.json`.
+While that marker exists, ordinary promotion and rollout-expansion executors
+fail before consuming their authorizations. Missing retention, byte divergence,
+links, malformed identity, and future time fail closed. See ADR-0183 and
+ADR-0198.
 
 After A is restored, run the HTTPS probe against A and bind its new observation
 with `tools/windows_update_rollback_completion.py record`. A manifest SHA,

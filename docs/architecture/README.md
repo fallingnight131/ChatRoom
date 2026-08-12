@@ -1247,6 +1247,12 @@ with an exact key already compiled into B. The authorization is deliberately
 unexecuted; incident-bound one-time activation and public observation remain
 the next M4 boundary.
 
+ADR-0198 prevents the general channel paths from bypassing that recovery. The
+B-to-A executor opens an exclusive, immutable-evidence-backed incident marker
+before restoring A. Ordinary promotion and percentage expansion both reject
+mutation while it exists. Only the future dedicated forward-fix executor may
+resolve it, and malformed or detached marker/retention state fails closed.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

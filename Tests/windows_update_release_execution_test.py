@@ -22,6 +22,7 @@ from windows_update_release_authorization_test import (  # noqa: E402
 from windows_update_release_execution import (  # noqa: E402
     execute, inspect_active, verify_execution,
 )
+from windows_update_incident_state import open_incident  # noqa: E402
 
 
 class WindowsUpdateReleaseExecutionTest(WindowsUpdateReleaseAuthorizationTest):
@@ -130,6 +131,15 @@ class WindowsUpdateReleaseExecutionTest(WindowsUpdateReleaseAuthorizationTest):
                 self.revision, "stable", "6.11.1", self.signer,
                 self.public_digest(),
             )
+
+    def test_rejects_general_promotion_while_rollout_incident_is_open(self) -> None:
+        self.prepare_execution()
+        open_incident(
+            self.store, self.authorization, "stable", "c" * 64, "d" * 64,
+            self.now)
+        with self.assertRaisesRegex(ManifestError, "dedicated forward-fix"):
+            self.run_execution()
+        self.assertFalse((self.store / ".promotion-consumptions").exists())
 
     @__import__("unittest").skipIf(os.name == "nt", "Windows symlink needs privileges")
     def test_rejects_symlinked_consumption_boundary(self) -> None:
