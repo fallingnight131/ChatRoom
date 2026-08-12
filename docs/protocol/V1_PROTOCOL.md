@@ -225,6 +225,14 @@ older client that omits it, the server uses the existing envelope `id`; retrying
 that exact frame therefore retains one idempotency key. The server requires
 durable room membership before persistence.
 
+The detached Java application boundary reserves the same room text/emoji
+contract. Authenticated state owns sender account/device identity; only the V1
+room ID, stable client ID, content, and presentation type are accepted as
+intent. A future PostgreSQL transaction must create canonical and V1 message
+identity atomically after active membership checks. Exact retry will preserve
+the durable result and suppress a second broadcast. No adapter or handler
+exists yet.
+
 `CHAT_SEND_RSP` is the durable submission acknowledgement:
 
 - `success` and `roomId` identify the result; a valid `clientMessageId` is

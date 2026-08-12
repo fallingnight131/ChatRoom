@@ -503,6 +503,8 @@ Progress:
     first-only local notification, duplicate suppression, and fixed telemetry.
   - [x] Prove V1 direct send, replacement login, recall, duplicate suppression,
     and mutation-sequence history recovery against disposable PostgreSQL.
+  - [x] Define authenticated V1 room text/emoji submission with atomic future
+    canonical/V1 identity, retry semantics, and first-accept broadcast intent.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application
