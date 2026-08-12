@@ -36,13 +36,15 @@ passes on the named target versions.
 
 The authoritative Web browser slots are listed in
 [`packaging/web/browser-support-policy.json`](../../packaging/web/browser-support-policy.json).
-ADR-0219 requires every schema-6 branded-browser record to identify the exact binary
+ADR-0220 requires every schema-7 branded-browser record to identify the exact binary
 version and digest and bind its smoke results to one immutable candidate. The
 checks include keyboard traversal, announced validation errors, offline login,
 and an authenticated client-shell/offline-recovery fixture that keeps passwords
 out of browser storage, plus real VP9 WebM and Opus/Ogg metadata decoding.
 The same client journey must also pass with fixed 250ms document/script/style
 response latency; this is not a bandwidth or performance-capacity claim.
+Each slot also runs the native schema-1-to-3 IndexedDB cleanup and proves
+bounded messages/drafts plus removal of legacy media and temporary secrets.
 ADR-0210 pairs these records with an exact
 six-slot completion boundary, but no
 six-browser run or public support claim has been completed yet.

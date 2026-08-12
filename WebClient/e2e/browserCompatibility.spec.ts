@@ -149,6 +149,90 @@ async function exerciseDelayedClientBoot(browser: Browser) {
   await context.close();
 }
 
+async function exerciseNativeIndexedDbMigration(page: Page) {
+  await installV1ClientFixture(page);
+  await page.goto("/");
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve, reject) => {
+      const deletion = indexedDB.deleteDatabase("chat-room-client");
+      deletion.onerror = () => reject(deletion.error);
+      deletion.onblocked = () => reject(new Error("legacy database deletion blocked"));
+      deletion.onsuccess = () => resolve();
+    });
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open("chat-room-client", 1);
+      request.onerror = () => reject(request.error);
+      request.onupgradeneeded = () => {
+        const store = request.result.createObjectStore("conversations", { keyPath: "key" });
+        store.put({
+          key: "browser_gate_user\u001froom\u001f42",
+          account: "browser_gate_user",
+          kind: "room",
+          conversationId: "42",
+          cursor: 9,
+          draft: "d".repeat(10020),
+          token: "legacy-secret",
+          messages: Array.from({ length: 510 }, (_, id) => ({
+            id, content: `message-${id}`, thumbnail: "legacy-base64",
+            fileData: "legacy-file-bytes", cosUrl: "https://temporary.invalid/secret",
+          })),
+        });
+      };
+      request.onsuccess = () => {
+        request.result.close();
+        resolve();
+      };
+    });
+  });
+  await page.getByLabel("用户ID (唯一标识)").fill("browser_gate_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await expect(page).toHaveURL(/#\/chat$/);
+  await expect.poll(() => page.evaluate(async () => {
+    return await new Promise<Record<string, unknown> | null>((resolve, reject) => {
+      const request = indexedDB.open("chat-room-client");
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const database = request.result;
+        if (database.version !== 3
+            || !database.objectStoreNames.contains("attachmentCommands")) {
+          database.close();
+          resolve(null);
+          return;
+        }
+        const transaction = database.transaction("conversations", "readonly");
+        const read = transaction.objectStore("conversations")
+          .get("browser_gate_user\u001froom\u001f42");
+        read.onerror = () => reject(read.error);
+        read.onsuccess = () => {
+          database.close();
+          resolve(read.result ?? null);
+        };
+      };
+    });
+  })).not.toBeNull();
+  const record = await page.evaluate(async () => await new Promise<Record<string, any>>((resolve, reject) => {
+    const request = indexedDB.open("chat-room-client");
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const database = request.result;
+      const read = database.transaction("conversations", "readonly")
+        .objectStore("conversations").get("browser_gate_user\u001froom\u001f42");
+      read.onerror = () => reject(read.error);
+      read.onsuccess = () => { database.close(); resolve(read.result); };
+    };
+  }));
+  expect(record.messages).toHaveLength(500);
+  expect(record.messages[0].id).toBe(10);
+  expect(record.draft).toHaveLength(10000);
+  expect(record.token).toBeUndefined();
+  for (const message of record.messages) {
+    expect(message.thumbnail).toBeUndefined();
+    expect(message.fileData).toBeUndefined();
+    expect(message.cosUrl).toBeUndefined();
+  }
+}
+
 test("loads the production login surface with required browser capabilities", async ({ page }) => {
   const pageErrors: Error[] = [];
   page.on("pageerror", error => pageErrors.push(error));
@@ -264,6 +348,10 @@ test("loads the authenticated production shell with fixed high response latency"
   await exerciseDelayedClientBoot(browser);
 });
 
+test("migrates a native schema-1 conversation cache without retained media or secrets", async ({ page }) => {
+  await exerciseNativeIndexedDbMigration(page);
+});
+
 test("records one exact branded-browser candidate smoke", async ({ browser }) => {
   test.skip(!brandedTarget, "Only the protected branded-browser matrix emits support evidence");
   const required = (name: string): string => {
@@ -372,6 +460,11 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
   await authenticatedContext.close();
   expect(pageErrors).toEqual([]);
   await exerciseDelayedClientBoot(browser);
+  const migrationContext = await browser.newContext();
+  const migrationPage = await migrationContext.newPage();
+  migrationPage.on("pageerror", error => pageErrors.push(error));
+  await exerciseNativeIndexedDbMigration(migrationPage);
+  await migrationContext.close();
 
   const architecture = process.arch === "x64" ? "x86_64" : process.arch;
   const evidence = {
@@ -407,6 +500,7 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
       authenticatedOfflineRecovery: true,
       baselineMediaDecoded: true,
       delayedClientBoot: true,
+      nativeIndexedDbMigration: true,
       noPageErrors: true,
     },
     observedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),

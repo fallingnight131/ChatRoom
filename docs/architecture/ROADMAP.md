@@ -860,6 +860,8 @@ Progress:
 - [x] Require the production login, lazy chat shell, offline UI, and recovery
   journey to pass with fixed 250ms document/script/style response latency,
   without presenting it as a bandwidth or capacity benchmark.
+- [x] Run the native V1 schema-1-to-3 IndexedDB migration in every branded
+  browser slot and prove bounded retention plus legacy media/secret removal.
 - [x] Pin exact Windows 10 22H2 and Windows 11 23H2/24H2 x86_64 client targets
   and independently verify a per-host, two-real-signed-candidate install/launch/
   upgrade/data-preservation/downgrade/uninstall evidence contract.

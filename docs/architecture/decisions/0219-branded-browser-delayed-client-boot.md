@@ -1,6 +1,6 @@
 # ADR-0219: Gate the Branded Client Journey Under Fixed Response Latency
 
-- Status: Accepted
+- Status: Superseded by ADR-0220
 - Date: 2026-08-13
 - Owners: Web client and quality
 - Related milestone: M4
