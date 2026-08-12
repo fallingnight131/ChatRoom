@@ -428,6 +428,8 @@ Progress:
     V1 numeric request-ID mapping before importing or serving friend state.
   - [x] Add deterministic pending-only V1 contact-request planning, WAL-aware
     query-only extraction, and exact protected-backup input reconciliation.
+  - [x] Add constrained contact-request import audit plus strict PostgreSQL
+    preview/apply, exact reconciliation, conflict rollback, and idempotent rerun.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

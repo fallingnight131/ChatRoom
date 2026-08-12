@@ -191,8 +191,11 @@ validates the V1 user/friend/request graph and issues a re-verifiable import
 capability only when the current source and protected whole-file backup match.
 Only pending rows are planned: accepted relationships remain canonical DIRECT
 conversations, while rejected/accepted history is counted but not fabricated as
-terminal state without a trustworthy V1 resolution time. It has no PostgreSQL
-importer or runtime owner yet.
+terminal state without a trustworthy V1 resolution time. The PostgreSQL adapter
+now previews exact target state, applies missing pending rows and numeric mappings
+under a serialized transaction, re-verifies the source/backup proof, and commits
+a constrained non-secret audit atomically. The importer has no CLI or runtime
+owner yet.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,

@@ -49,6 +49,10 @@ Only `pending` rows are eligible for a future target write. `accepted` and
 `rejected` rows remain in the fingerprint and terminal count but are not
 imported because V1 supplies no resolution timestamp; accepted relationship
 truth is preserved by the separate friendship-to-DIRECT-conversation import.
+The inactive PostgreSQL importer now consumes this capability, performs an exact
+no-write preview, inserts only missing pending request/mapping pairs in a
+serialized transaction, re-verifies the source and backup, and writes a separate
+constrained audit before commit. No runtime or client route invokes it.
 
 ## Tables
 

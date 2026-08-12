@@ -34,6 +34,7 @@ import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.application.security.SecretBytes;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ConversationImporter;
+import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ContactRequestImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1MessageImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PlannedV1ConversationCursor;
 import com.fallingnight.chat.persistence.postgres.migration.PlannedV1HistoricalMessage;
@@ -52,6 +53,11 @@ import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImport
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportException;
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportPlanner;
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportReport;
+import com.fallingnight.chat.persistence.postgres.migration.V1ContactRequestImportException;
+import com.fallingnight.chat.persistence.postgres.migration.V1ContactRequestImportInputVerifier;
+import com.fallingnight.chat.persistence.postgres.migration.V1ContactRequestImportReport;
+import com.fallingnight.chat.persistence.postgres.migration.V1ContactRequestImportPlanner;
+import com.fallingnight.chat.persistence.postgres.migration.V1ContactRequestSourceException;
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportException;
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportInputVerifier;
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportPlanner;
@@ -61,6 +67,7 @@ import com.fallingnight.chat.persistence.postgres.migration.V1SqliteIdentityBack
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityBackup;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityImportInput;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1ConversationImportInput;
+import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1ContactRequestImportInput;
 import java.nio.file.Path;
 import java.nio.file.Files;
 import java.security.MessageDigest;
@@ -106,7 +113,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(14, first.migrate());
+        assertEquals(15, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -123,12 +130,14 @@ class PostgresMigratorTest {
                             "messages_deleted_event", "legacy_v1_message_map",
                             "legacy_v1_deletion_event_map", "message_import_run",
                             "attachment", "contact_request",
-                            "legacy_v1_contact_request_map"),
+                            "legacy_v1_contact_request_map",
+                            "contact_request_import_run"),
                     applicationTables(connection));
             proveSequenceAndIdempotencyConstraints(connection);
             proveMessageImportAuditConstraints(connection);
             proveAttachmentRegistryConstraints(connection);
             proveContactRequestConstraints(connection);
+            proveContactRequestImportAuditConstraints(connection);
         }
         proveLegacyV1MappingConstraints();
         proveLegacyV1ConversationMappingConstraints();
@@ -410,6 +419,91 @@ class PostgresMigratorTest {
                 issue -> "TARGET_CONVERSATION_MAPPING_CONFLICT".equals(issue.code())));
         assertThrows(V1ConversationImportException.class, () -> importer.apply(input));
         assertEquals(2, count("SELECT count(*) FROM chat.conversation_import_run"));
+    }
+
+    @Test
+    @Order(90)
+    void previewsAppliesReconcilesAndAuditsV1PendingContactRequests() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        Path source = temporary.resolve("contact-request-source.db");
+        Path backup = temporary.resolve("contact-request-backup.db");
+        createContactRequestSource(source);
+        VerifiedV1IdentityBackup proof = new V1SqliteIdentityBackup(
+                Clock.fixed(Instant.parse("2026-08-13T12:00:00Z"), ZoneOffset.UTC))
+                .createVerified(source, backup);
+        VerifiedV1ContactRequestImportInput input =
+                new V1ContactRequestImportInputVerifier().verify(source, backup, proof);
+        seedContactRequestImportAccounts();
+        PostgresV1ContactRequestImporter importer =
+                new PostgresV1ContactRequestImporter(dataSource());
+
+        V1ContactRequestImportReport preview = importer.preview(input.plan());
+        assertTrue(preview.readyToApply(), preview.issues().toString());
+        assertEquals(2, preview.sourceRequests());
+        assertEquals(1, preview.sourcePendingRequests());
+        assertEquals(1, preview.sourceTerminalRequests());
+        assertEquals(1, preview.insertablePendingRequests());
+
+        V1ContactRequestImportReport applied = importer.apply(input);
+        assertTrue(applied.applied());
+        assertTrue(applied.reconciled());
+        assertEquals(1, applied.insertablePendingRequests());
+        assertEquals(1, count("SELECT count(*) FROM chat.contact_request "
+                + "WHERE state = 'PENDING'"));
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_contact_request_map "
+                + "WHERE legacy_request_id = 10"));
+        assertEquals(1, count("SELECT count(*) FROM chat.contact_request_import_run"));
+
+        V1ContactRequestImportReport rerun = importer.apply(input);
+        assertEquals(0, rerun.insertablePendingRequests());
+        assertEquals(1, rerun.alreadyImportedPendingRequests());
+        assertEquals(2, count("SELECT count(*) FROM chat.contact_request_import_run"));
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.contact_request SET requester_account_id = ?, "
+                            + "recipient_account_id = ? WHERE id = ?",
+                    V1IdentityImportPlanner.deterministicUserId(2),
+                    V1IdentityImportPlanner.deterministicUserId(1),
+                    V1ContactRequestImportPlanner.deterministicRequestId(10));
+        }
+        V1ContactRequestImportReport targetConflict = importer.preview(input.plan());
+        assertTrue(targetConflict.issues().stream().anyMatch(
+                issue -> "TARGET_CONTACT_REQUEST_CONFLICT".equals(issue.code())));
+        assertThrows(V1ContactRequestImportException.class, () -> importer.apply(input));
+        assertEquals(2, count("SELECT count(*) FROM chat.contact_request_import_run"));
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.contact_request SET requester_account_id = ?, "
+                            + "recipient_account_id = ? WHERE id = ?",
+                    V1IdentityImportPlanner.deterministicUserId(1),
+                    V1IdentityImportPlanner.deterministicUserId(2),
+                    V1ContactRequestImportPlanner.deterministicRequestId(10));
+            execute(connection,
+                    "UPDATE chat.legacy_v1_contact_request_map SET legacy_request_id = 999 "
+                            + "WHERE legacy_request_id = 10");
+        }
+        V1ContactRequestImportReport mappingConflict = importer.preview(input.plan());
+        assertTrue(mappingConflict.issues().stream().anyMatch(
+                issue -> "TARGET_CONTACT_REQUEST_MAPPING_CONFLICT".equals(issue.code())));
+        assertThrows(V1ContactRequestImportException.class, () -> importer.apply(input));
+        assertEquals(2, count("SELECT count(*) FROM chat.contact_request_import_run"));
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.legacy_v1_contact_request_map SET legacy_request_id = 10 "
+                            + "WHERE legacy_request_id = 999");
+        }
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:sqlite:" + source.toAbsolutePath())) {
+            execute(connection,
+                    "UPDATE friend_requests SET created_at = '2026-01-02 03:05:00' "
+                            + "WHERE id = 10");
+        }
+        assertThrows(V1ContactRequestSourceException.class, () -> importer.apply(input));
+        assertEquals(2, count("SELECT count(*) FROM chat.contact_request_import_run"));
     }
 
     @Test
@@ -1139,6 +1233,19 @@ class PostgresMigratorTest {
         assertEquals("23514", invalidLegacyId.getSQLState());
     }
 
+    private static void proveContactRequestImportAuditConstraints(Connection connection) {
+        SQLException mismatch = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "INSERT INTO chat.contact_request_import_run("
+                        + "id, source_fingerprint_sha256, backup_file_sha256, "
+                        + "source_requests, source_pending_requests, source_terminal_requests, "
+                        + "inserted_pending_requests, already_imported_pending_requests, "
+                        + "backup_bytes, backup_created_at) "
+                        + "VALUES (?, ?, ?, 2, 1, 1, 0, 0, 1024, transaction_timestamp())",
+                UUID.randomUUID(), "a".repeat(64), "b".repeat(64)));
+        assertEquals("23514", mismatch.getSQLState());
+    }
+
     private static List<Optional<IssuedSession>> raceResume(
             PostgresIdentityAdapter adapter,
             UUID sessionId,
@@ -1604,7 +1711,8 @@ class PostgresMigratorTest {
                 PreparedStatement statement = connection.prepareStatement(
                         "TRUNCATE chat.account, chat.conversation, "
                                 + "chat.identity_import_run, chat.conversation_import_run, "
-                                + "chat.message_import_run CASCADE")) {
+                                + "chat.message_import_run, chat.contact_request_import_run "
+                                + "CASCADE")) {
             statement.execute();
         }
     }
@@ -1668,6 +1776,29 @@ class PostgresMigratorTest {
         }
     }
 
+    private static void createContactRequestSource(Path source) throws SQLException {
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:sqlite:" + source.toAbsolutePath());
+                java.sql.Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA journal_mode = WAL");
+            statement.execute("CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE, "
+                    + "display_name TEXT, password_hash TEXT, salt TEXT, created_at TEXT)");
+            statement.execute("CREATE TABLE friendships(user_id1 INTEGER, user_id2 INTEGER)");
+            statement.execute("CREATE TABLE friend_requests(id INTEGER PRIMARY KEY, "
+                    + "from_user_id INTEGER, to_user_id INTEGER, status TEXT, created_at TEXT)");
+            statement.execute("INSERT INTO users VALUES "
+                    + "(1, 'contact-a', 'Contact A', '" + "a".repeat(64)
+                    + "', 'salt-a', '2026-01-02 03:04:01'), "
+                    + "(2, 'contact-b', 'Contact B', '" + "b".repeat(64)
+                    + "', 'salt-b', '2026-01-02 03:04:02'), "
+                    + "(3, 'contact-c', 'Contact C', '" + "c".repeat(64)
+                    + "', 'salt-c', '2026-01-02 03:04:03')");
+            statement.execute("INSERT INTO friend_requests VALUES "
+                    + "(10, 1, 2, 'pending', '2026-01-02 03:04:05'), "
+                    + "(11, 2, 3, 'rejected', '2026-01-02 03:04:06')");
+        }
+    }
+
     private static void createMessageImportSource(Path source) throws SQLException {
         try (Connection connection = DriverManager.getConnection(
                 "jdbc:sqlite:" + source.toAbsolutePath());
@@ -1725,6 +1856,19 @@ class PostgresMigratorTest {
                             + "VALUES (?, 'conversation-a', 'Conversation A', "
                             + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
                             + "(?, 'conversation-b', 'Conversation B', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    V1IdentityImportPlanner.deterministicUserId(1),
+                    V1IdentityImportPlanner.deterministicUserId(2));
+        }
+    }
+
+    private static void seedContactRequestImportAccounts() throws SQLException {
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'contact-a', 'Contact A', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'contact-b', 'Contact B', "
                             + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
                     V1IdentityImportPlanner.deterministicUserId(1),
                     V1IdentityImportPlanner.deterministicUserId(2));
