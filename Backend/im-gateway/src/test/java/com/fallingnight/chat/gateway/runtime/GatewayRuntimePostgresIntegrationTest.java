@@ -16,6 +16,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1DirectReadEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomCreationEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestAcceptanceEventSink;
@@ -49,6 +50,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HashMap;
+import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -134,10 +136,15 @@ class GatewayRuntimePostgresIntegrationTest {
         pool.setUsername(username);
         pool.setPassword(password);
         pool.setMaximumPoolSize(2);
-        try (HikariDataSource dataSource = new HikariDataSource(pool)) {
-            V1CompatibilityModule module = V1CompatibilityModule.create(
-                    dataSource,
-                    Clock.fixed(Instant.parse("2026-08-12T12:00:00Z"), ZoneOffset.UTC));
+        try (HikariDataSource dataSource = new HikariDataSource(pool);
+                V1RoomPasswordKeyMaterial roomPasswordKey =
+                        V1RoomPasswordKeyMaterial.fromEnvironment(Map.of(
+                                V1RoomPasswordKeyMaterial.ENVIRONMENT_KEY,
+                                Base64.getEncoder().encodeToString(new byte[32])));
+                V1CompatibilityModule module = V1CompatibilityModule.create(
+                        dataSource,
+                        Clock.fixed(Instant.parse("2026-08-12T12:00:00Z"), ZoneOffset.UTC),
+                        roomPasswordKey)) {
 
             EmbeddedChannel imported = upgradedChannel(module,
                     Runnable::run,
@@ -161,6 +168,18 @@ class GatewayRuntimePostgresIntegrationTest {
 
                 assertUserSearch(imported, false);
                 assertRoomSearch(imported);
+                long createdRoomId = assertRoomCreationRetryAndConflict(imported);
+                assertEquals(1, countQuery(jdbcUrl, username, password,
+                        "SELECT count(*) FROM chat.legacy_v1_room_creation creation "
+                                + "JOIN chat.legacy_v1_conversation_map mapping "
+                                + "ON mapping.conversation_id = creation.conversation_id "
+                                + "JOIN chat.group_join_credential credential "
+                                + "ON credential.conversation_id = creation.conversation_id "
+                                + "WHERE mapping.legacy_kind = 'ROOM' "
+                                + "AND mapping.legacy_conversation_id = " + createdRoomId
+                                + " AND credential.encoded_password LIKE '$argon2id$%' "
+                                + "AND creation.password_idempotency_tag "
+                                + "LIKE 'hmac-sha256:v1:%'"));
 
                 imported.writeInbound(new TextWebSocketFrame(
                         "{\"type\":\"ROOM_LIST_REQ\",\"id\":\"rooms-1\",\"data\":{}}"));
@@ -276,6 +295,7 @@ class GatewayRuntimePostgresIntegrationTest {
                                 "imported-v1", "java-v2-test-password"));
                         reconnected.runPendingTasks();
                         ((TextWebSocketFrame) reconnected.readOutbound()).release();
+                        assertCreatedRoomRecovered(reconnected, createdRoomId);
                         assertDirectReadRecovered(reconnected, directMessageId);
                         assertRoomHistoryAfterReconnect(reconnected);
                         assertRoomRecallFirst(reconnected, peer, roomMessageId);
@@ -374,6 +394,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 executor,
                 admission,
                 events,
+                V1RoomCreationEventSink.noop(),
                 V1RoomDirectoryEventSink.noop(),
                 V1RoomMessageEventSink.noop(),
                 V1RoomHistoryEventSink.noop(),
@@ -800,6 +821,50 @@ class GatewayRuntimePostgresIntegrationTest {
             assertTrue(response.text().contains("\"memberCount\":2"));
             assertFalse(response.text().contains("30000000-0000"));
             assertFalse(response.text().contains("Unrelated Room"));
+        } finally { response.release(); }
+    }
+
+    private static long assertRoomCreationRetryAndConflict(EmbeddedChannel channel) {
+        String first = "{\"type\":\"CREATE_ROOM_REQ\",\"id\":\"room-create-1\","
+                + "\"data\":{\"roomName\":\"Java Protected Room\","
+                + "\"password\":\"room-secret\"}}";
+        channel.writeInbound(new TextWebSocketFrame(first)); channel.runPendingTasks();
+        TextWebSocketFrame response = channel.readOutbound(); long roomId;
+        try {
+            assertTrue(response.text().contains("\"type\":\"CREATE_ROOM_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"duplicate\":false"));
+            assertTrue(response.text().contains("\"isAdmin\":true"));
+            roomId = numericDataField(response.text(), "roomId");
+        } finally { response.release(); }
+        channel.writeInbound(new TextWebSocketFrame(first)); channel.runPendingTasks();
+        TextWebSocketFrame duplicate = channel.readOutbound();
+        try {
+            assertTrue(duplicate.text().contains("\"duplicate\":true"));
+            assertEquals(roomId, numericDataField(duplicate.text(), "roomId"));
+        } finally { duplicate.release(); }
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"CREATE_ROOM_REQ\",\"id\":\"room-create-1\","
+                        + "\"data\":{\"roomName\":\"Conflicting Room\","
+                        + "\"password\":\"room-secret\"}}"));
+        channel.runPendingTasks(); TextWebSocketFrame conflict = channel.readOutbound();
+        try {
+            assertTrue(conflict.text().contains("\"success\":false"));
+            assertTrue(conflict.text().contains(
+                    "\"errorCode\":\"CLIENT_REQUEST_ID_CONFLICT\""));
+        } finally { conflict.release(); }
+        return roomId;
+    }
+
+    private static void assertCreatedRoomRecovered(EmbeddedChannel channel, long roomId) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"ROOM_LIST_REQ\",\"data\":{}}"));
+        channel.runPendingTasks(); TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"roomId\":" + roomId));
+            assertTrue(response.text().contains(
+                    "\"roomName\":\"Java Protected Room\""));
+            assertTrue(response.text().contains("\"isAdmin\":true"));
         } finally { response.release(); }
     }
 

@@ -241,12 +241,16 @@ password digest. The atomic result returns positive `roomId`, normalized
 `roomName`, `isAdmin: true`, and duplicate state without exposing UUIDs. V023 and the serializable
 PostgreSQL adapter now persist GROUP, OWNER, optional Argon2id credential, ROOM
 mapping, and keyed idempotency record atomically; exact retries recover the same
-numeric room ID while conflicting title or password-tag reuse is rejected. No
-handler or product route exists yet. The crypto adapter now emits compatible
+numeric room ID while conflicting title or password-tag reuse is rejected. The crypto adapter now emits compatible
 salted Argon2id plus `hmac-sha256:v1` tags under an owned, close-zeroed 32-byte
-runtime key. The detached runtime parser now requires explicit canonical padded Base64 for
-exactly 32 bytes and provides no default; it is not yet composed into a handler
-or product route.
+runtime key. The detached runtime parser now requires explicit canonical padded
+Base64 for exactly 32 bytes and provides no default. The detached strict handler
+now binds authenticated creator
+and outer envelope ID, accepts only `roomName` plus optional `password`, clears
+all password copies, and returns UUID-free `CREATE_ROOM_RSP`. Success includes
+`isAdmin: true` and optional-compatible `duplicate`; failures include stable
+`errorCode`. Exact retry recovers the same room ID and replacement login
+recovers the room through `ROOM_LIST_RSP`. The product listener remains inactive.
 
 ### Room chat
 

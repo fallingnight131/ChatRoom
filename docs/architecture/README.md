@@ -315,9 +315,14 @@ GROUP, OWNER, optional Argon2id credential, ROOM mapping, and keyed idempotency
 record atomically, skip occupied imported room IDs, and converge concurrent
 exact retries. The identity-crypto adapter now produces compatible salted
 Argon2id plus fixed-domain HMAC-SHA-256 tags from an owned 32-byte runtime key
-and zeros that key on close. The detached runtime key boundary now requires canonical padded Base64 for
+and zeros that key on close. The detached runtime key boundary now requires
+canonical padded Base64 for
 exactly 32 bytes, has no default, and owns deterministic cleanup. It is not yet
-wired into the module or product listener.
+wired into the product listener. The detached strict handler now binds creator
+and envelope request ID, clears every password copy, executes off-loop, and
+returns compatible UUID-free creation responses. Real PostgreSQL verifies
+first/duplicate/conflict behavior, protected credential storage, and replacement-
+login room-directory recovery. The product listener remains unchanged.
 
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target

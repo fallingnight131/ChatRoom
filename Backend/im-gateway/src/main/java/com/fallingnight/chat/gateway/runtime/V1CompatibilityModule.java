@@ -13,6 +13,7 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestR
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRemovalService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1PendingFriendRequestService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomDirectoryService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomCreationService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomAudienceService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomHistoryService;
@@ -56,8 +57,11 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1JsonDirectRecallCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonDirectReadCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLoginCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomDirectoryCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomCreationCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryHandler;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomCreationEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomCreationHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomMessageCodec;
@@ -82,12 +86,14 @@ import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
 import com.fallingnight.chat.identity.crypto.Argon2idCredentialHasher;
 import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
+import com.fallingnight.chat.identity.crypto.LegacyV1RoomPasswordEncoder;
 import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1DirectMessageAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1DirectHistoryAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1DirectRecallAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1DirectReadAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresConversationDirectoryAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomCreationAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1AccountProjection;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1ConversationProjection;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1FriendDirectoryAdapter;
@@ -113,12 +119,13 @@ import java.util.concurrent.TimeUnit;
 import javax.sql.DataSource;
 
 /** Real V1 login composition kept detached from the product listener. */
-public final class V1CompatibilityModule {
+public final class V1CompatibilityModule implements AutoCloseable {
     private final LegacyV1LoginService login;
     private final LegacyV1DirectHistoryService directHistory;
     private final LegacyV1DirectRecallService directRecalls;
     private final LegacyV1DirectReadService directReads;
     private final LegacyV1DirectMessageService directMessages;
+    private final LegacyV1RoomCreationService roomCreation;
     private final LegacyV1RoomDirectoryService roomDirectory;
     private final LegacyV1RoomAudienceService roomAudience;
     private final LegacyV1RoomMessageService roomMessages;
@@ -135,6 +142,7 @@ public final class V1CompatibilityModule {
     private final LegacyV1UserSearchService userSearch;
     private final Clock clock;
     private final V1AccountConnectionRegistry connections;
+    private final LegacyV1RoomPasswordEncoder roomPasswordEncoder;
 
     private V1CompatibilityModule(
             LegacyV1LoginService login,
@@ -142,6 +150,7 @@ public final class V1CompatibilityModule {
             LegacyV1DirectRecallService directRecalls,
             LegacyV1DirectReadService directReads,
             LegacyV1DirectMessageService directMessages,
+            LegacyV1RoomCreationService roomCreation,
             LegacyV1RoomDirectoryService roomDirectory,
             LegacyV1RoomAudienceService roomAudience,
             LegacyV1RoomMessageService roomMessages,
@@ -157,12 +166,14 @@ public final class V1CompatibilityModule {
             LegacyV1FriendRemovalService friendRemoval,
             LegacyV1UserSearchService userSearch,
             Clock clock,
-            V1AccountConnectionRegistry connections) {
+            V1AccountConnectionRegistry connections,
+            LegacyV1RoomPasswordEncoder roomPasswordEncoder) {
         this.login = Objects.requireNonNull(login, "login");
         this.directHistory = Objects.requireNonNull(directHistory, "directHistory");
         this.directRecalls = Objects.requireNonNull(directRecalls, "directRecalls");
         this.directReads = Objects.requireNonNull(directReads, "directReads");
         this.directMessages = Objects.requireNonNull(directMessages, "directMessages");
+        this.roomCreation = Objects.requireNonNull(roomCreation, "roomCreation");
         this.roomDirectory = Objects.requireNonNull(roomDirectory, "roomDirectory");
         this.roomAudience = Objects.requireNonNull(roomAudience, "roomAudience");
         this.roomMessages = Objects.requireNonNull(roomMessages, "roomMessages");
@@ -182,11 +193,15 @@ public final class V1CompatibilityModule {
         this.userSearch = Objects.requireNonNull(userSearch, "userSearch");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.connections = Objects.requireNonNull(connections, "connections");
+        this.roomPasswordEncoder = Objects.requireNonNull(
+                roomPasswordEncoder, "roomPasswordEncoder");
     }
 
-    public static V1CompatibilityModule create(DataSource dataSource, Clock clock) {
+    public static V1CompatibilityModule create(DataSource dataSource, Clock clock,
+            V1RoomPasswordKeyMaterial roomPasswordKey) {
         Objects.requireNonNull(dataSource, "dataSource");
         Objects.requireNonNull(clock, "clock");
+        Objects.requireNonNull(roomPasswordKey, "roomPasswordKey");
         PostgresIdentityAdapter identity = new PostgresIdentityAdapter(dataSource);
         PostgresLegacyV1AccountProjection legacy =
                 new PostgresLegacyV1AccountProjection(dataSource);
@@ -202,7 +217,9 @@ public final class V1CompatibilityModule {
         PostgresLegacyV1ConversationProjection legacyConversations =
                 new PostgresLegacyV1ConversationProjection(dataSource);
         V1AccountConnectionRegistry connections = new V1AccountConnectionRegistry();
-        return new V1CompatibilityModule(
+        LegacyV1RoomPasswordEncoder roomPasswordEncoder = roomPasswordKey.newEncoder();
+        try {
+            return new V1CompatibilityModule(
                 new LegacyV1LoginService(authentication, legacy),
                 new LegacyV1DirectHistoryService(
                         new PostgresLegacyV1DirectHistoryAdapter(dataSource)),
@@ -212,6 +229,8 @@ public final class V1CompatibilityModule {
                         new PostgresLegacyV1DirectReadAdapter(dataSource)),
                 new LegacyV1DirectMessageService(
                         new PostgresLegacyV1DirectMessageAdapter(dataSource)),
+                new LegacyV1RoomCreationService(roomPasswordEncoder,
+                        new PostgresLegacyV1RoomCreationAdapter(dataSource)),
                 new LegacyV1RoomDirectoryService(
                         new PostgresConversationDirectoryAdapter(dataSource), legacyConversations),
                 new LegacyV1RoomAudienceService(
@@ -245,7 +264,12 @@ public final class V1CompatibilityModule {
                         new PostgresLegacyV1UserSearchAdapter(dataSource),
                         connections::onlineAccounts),
                 clock,
-                connections);
+                connections,
+                roomPasswordEncoder);
+        } catch (RuntimeException exception) {
+            roomPasswordEncoder.close();
+            throw exception;
+        }
     }
 
     public V1WebSocketUpgradeHandler newWebSocketUpgradeHandler(
@@ -253,6 +277,7 @@ public final class V1CompatibilityModule {
             Executor directoryExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
+            V1RoomCreationEventSink roomCreationEvents,
             V1RoomDirectoryEventSink directoryEvents,
             V1RoomMessageEventSink roomMessageEvents,
             V1RoomHistoryEventSink roomHistoryEvents,
@@ -280,6 +305,7 @@ public final class V1CompatibilityModule {
                         directoryExecutor,
                         admission,
                         events,
+                        roomCreationEvents,
                         directoryEvents,
                         roomMessageEvents,
                         roomHistoryEvents,
@@ -308,6 +334,7 @@ public final class V1CompatibilityModule {
             Executor directoryExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
+            V1RoomCreationEventSink roomCreationEvents,
             V1RoomDirectoryEventSink directoryEvents,
             V1RoomMessageEventSink roomMessageEvents,
             V1RoomHistoryEventSink roomHistoryEvents,
@@ -346,6 +373,11 @@ public final class V1CompatibilityModule {
                 admission,
                 events));
         pipeline.addLast("v1-heartbeat", new V1HeartbeatHandler(lifecycleCodec));
+        pipeline.addLast("v1-room-creation", new V1RoomCreationHandler(
+                roomCreation,
+                new V1JsonRoomCreationCodec(clock),
+                directoryExecutor,
+                roomCreationEvents));
         pipeline.addLast("v1-room-directory", new V1RoomDirectoryHandler(
                 roomDirectory,
                 new V1JsonRoomDirectoryCodec(clock),
@@ -442,4 +474,6 @@ public final class V1CompatibilityModule {
                 directoryExecutor,
                 searchEvents));
     }
+
+    @Override public void close() { roomPasswordEncoder.close(); }
 }

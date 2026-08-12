@@ -565,6 +565,9 @@ Progress:
     deterministic secret cleanup.
   - [x] Add mandatory canonical 32-byte secret-manager input for detached V1
     protected-room retry tags, with no default and close-zeroed lifecycle.
+  - [x] Compose detached strict V1 room creation with envelope idempotency,
+    server-bound creator, zeroed password copies, compatible responses, fixed
+    telemetry, and real protected-room PostgreSQL/relogin proof.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application
