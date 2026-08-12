@@ -658,6 +658,9 @@ Progress:
 - [x] Establish a root CMake Release path for the exact V1 HeadlessServer
   production sources, Qt/libsodium dependency discovery, AUTOMOC, CI build, and
   real process-health test while leaving Windows product packaging on qmake.
+- [x] Extract reusable CMake V1 persistence/server-core static targets, keep the
+  executable entry point thin, and migrate the unchanged clean/restart/query-plan
+  SQLite schema suite to CTest.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

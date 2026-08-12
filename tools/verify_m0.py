@@ -208,6 +208,7 @@ def verify_cmake_headless(jobs: int, build_root: Path) -> None:
         "-B", str(target_dir),
         "-DCMAKE_BUILD_TYPE=Release",
         "-DCHATROOM_BUILD_HEADLESS_SERVER=ON",
+        "-DBUILD_TESTING=ON",
     ]
     sodium_root = os.environ.get("SODIUM_ROOT")
     if sodium_root:
@@ -215,7 +216,12 @@ def verify_cmake_headless(jobs: int, build_root: Path) -> None:
     run(configure, ROOT)
     run([
         cmake, "--build", str(target_dir), "--config", "Release",
-        "--target", "ChatServerHeadless", "--parallel", str(jobs),
+        "--target", "ChatServerHeadless", "DatabaseSchemaTest", "--parallel", str(jobs),
+    ], ROOT)
+    ctest = command_path("ctest")
+    run([
+        ctest, "--test-dir", str(target_dir), "--build-config", "Release",
+        "--output-on-failure", "-R", "^v1_database_schema$",
     ], ROOT)
     executable = locate_executable(target_dir, "ChatServerHeadless")
     run([

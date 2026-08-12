@@ -834,6 +834,14 @@ for a real HTTP health test. qmake remains authoritative for the Windows client,
 updater, installer payload, Qt unit tests, and current Windows product build;
 future targets move only after native equivalence and packaging evidence.
 
+ADR-0147 makes that CMake seam reusable without changing runtime ownership.
+`chatroom_v1_persistence` contains the existing `DatabaseManager` and
+`PasswordHasher`; `chatroom_v1_server_core` consumes it, and the executable is a
+thin `main.cpp`. The unchanged SQLite schema test now links only persistence and
+runs through CTest, covering clean/restart identity, required columns, integrity,
+and indexed query plans. SQL remains inside the V1 manager; these build targets
+do not pretend the legacy class is already the target Java repository model.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,
