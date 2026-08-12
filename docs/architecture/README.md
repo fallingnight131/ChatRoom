@@ -982,6 +982,14 @@ intent plus candidate hashes cannot turn an unprotected environment, different
 artifact, stale approval, channel, revision, or signer into an acceptable
 candidate.
 
+ADR-0164 makes the signed installer filename an explicit packaging mode rather
+than a post-build rename. The shared NSIS policy emits
+`ChatRoom-<version>-Setup.exe` only with `RELEASE_BUILD`; ordinary builds retain
+the `unsigned-verification` identity. NSIS still contains no finalize/signing
+command, certificate, credential, or provider logic. A protected workflow must
+sign the client/helper first, compile release-mode Setup from those final payload
+bytes, and then sign/timestamp Setup explicitly.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

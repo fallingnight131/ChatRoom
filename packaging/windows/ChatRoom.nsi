@@ -34,7 +34,11 @@ Var ExistingInstall
 Var OwnStage
 
 Name "${PRODUCT_NAME}"
-OutFile "${OUTPUT_DIR}\ChatRoom-${VERSION}-unsigned-verification-Setup.exe"
+!ifdef RELEASE_BUILD
+  OutFile "${OUTPUT_DIR}\ChatRoom-${VERSION}-Setup.exe"
+!else
+  OutFile "${OUTPUT_DIR}\ChatRoom-${VERSION}-unsigned-verification-Setup.exe"
+!endif
 InstallDir "$LOCALAPPDATA\Programs\ChatRoom"
 InstallDirRegKey HKCU "${PRODUCT_UNINSTALL_KEY}" "InstallLocation"
 RequestExecutionLevel user

@@ -711,6 +711,9 @@ Progress:
 - [x] Advance the immutable Windows candidate to schema 2, require the protected
   signing intent during assemble/verify, and bind its bytes into the candidate
   file inventory and checksums with independent semantic revalidation.
+- [x] Add an explicit NSIS `RELEASE_BUILD` output mode for the canonical
+  `ChatRoom-<version>-Setup.exe` identity while keeping ordinary CI explicitly
+  unsigned and prohibiting implicit NSIS signing commands.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

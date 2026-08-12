@@ -348,6 +348,16 @@ verification during both assembly and independent candidate verification. The
 candidate mutation suite proves that rewriting intent content and recomputing
 the surrounding manifest/checksum still fails semantic validation.
 
+The NSIS policy has two explicit output identities. Ordinary builds omit
+`RELEASE_BUILD` and produce
+`ChatRoom-<version>-unsigned-verification-Setup.exe`. A protected signing build
+passes `/DRELEASE_BUILD=1` and produces exactly
+`ChatRoom-<version>-Setup.exe`. The NSIS script deliberately contains no
+`!finalize`/`!uninstfinalize` signing hook: the protected workflow must sign the
+client and helper, compile Setup around those signed bytes, then sign and
+timestamp Setup as three visible operations. Validate the mode policy with
+`python3 Tests/windows_release_installer_mode_test.py`.
+
 The unsigned Windows NSIS gate now compiles a synthetic predecessor outside the
 uploaded artifact, installs it, and upgrades to canonical `VERSION`. It checks
 whole-program-directory replacement, marker ownership, rollback scaffolding,

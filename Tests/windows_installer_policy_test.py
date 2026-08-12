@@ -20,6 +20,8 @@ class WindowsInstallerPolicyTest(unittest.TestCase):
         for name in ["VERSION", "SOURCE_REVISION", "PAYLOAD_DIR", "OUTPUT_DIR", "ICON_FILE"]:
             self.assertRegex(self.source, rf"!ifndef {name}\b")
         self.assertIn("ChatRoom-${VERSION}-unsigned-verification-Setup.exe", self.source)
+        self.assertIn("!ifdef RELEASE_BUILD", self.source)
+        self.assertIn("ChatRoom-${VERSION}-Setup.exe", self.source)
         self.assertNotRegex(self.source, r"(?im)^\s*!finalize\b")
         self.assertNotRegex(self.source, r"(?im)^\s*!uninstfinalize\b")
 
