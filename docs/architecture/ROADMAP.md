@@ -456,6 +456,8 @@ Progress:
     with bounded payload policy and Java/C++/TypeScript golden compatibility.
   - [x] Add the inactive authenticated V2 attachment command handler with
     server-bound identity, bounded off-loop work, safe errors, and fixed telemetry.
+  - [x] Add the inactive Web V2 attachment coordinator with transient SHA/grants,
+    direct create-only PUT, expiry refresh, cancellation, and no durable bytes.
   - [x] Add the authorization-rechecked PostgreSQL attachment lifecycle adapter
     with concurrent idempotent READY transition.
   - [x] Add the inactive S3-compatible simple-PUT adapter with signed create-

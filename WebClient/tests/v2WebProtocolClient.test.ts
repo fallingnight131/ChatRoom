@@ -32,6 +32,14 @@ import {
   SubmitMessageSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
 import { V2WebProtocolClient } from "../src/protocol/v2/webProtocolClient";
+import {
+  AttachmentReadySchema,
+  AttachmentRegisteredSchema,
+  AttachmentUploadAuthorizedSchema,
+  AuthorizeAttachmentUploadSchema,
+  CompleteAttachmentUploadSchema,
+  RegisterAttachmentSchema,
+} from "../src/protocol/v2/generated/attachment_pb";
 
 const UNKNOWN_REQUEST_ID = "10000000-0000-4000-8000-999999999999";
 const ACCOUNT_ID = "20000000-0000-4000-8000-000000000001";
@@ -217,6 +225,111 @@ test("encodes authenticated directory, history, and idempotent text commands", (
   const submit = fromBinary(SubmitMessageSchema, submitEnvelope.payload);
   assert.equal(submit.contentType, MessageContentType.TEXT_UTF8);
   assert.equal(new TextDecoder().decode(submit.content), "hello V2");
+});
+
+test("encodes and correlates the bounded V2 attachment workflow", () => {
+  const client = newClient();
+  authenticate(client);
+  const attachmentId = "70000000-0000-4000-8000-000000000001";
+  const clientAttachmentId = "client-attachment-1";
+  const hash = new Uint8Array(32).fill(7);
+
+  const registerCommand = client.registerAttachment(
+    CONVERSATION_ID,
+    clientAttachmentId,
+    "photo.bin",
+    "application/octet-stream",
+    4n,
+    hash,
+  );
+  const registerRequest = decodeEnvelope(registerCommand.bytes);
+  assert.equal(registerCommand.requestId, registerRequest.requestId);
+  assert.equal(registerRequest.messageType, MessageType.REGISTER_ATTACHMENT);
+  assert.equal(registerRequest.clientMessageId, clientAttachmentId);
+  const register = fromBinary(RegisterAttachmentSchema, registerRequest.payload);
+  assert.equal(register.conversationId, CONVERSATION_ID);
+  assert.deepEqual(register.contentSha256, hash);
+  const registered = client.receive(response(
+    registerRequest,
+    MessageType.ATTACHMENT_REGISTERED,
+    toBinary(AttachmentRegisteredSchema, create(AttachmentRegisteredSchema, {
+      attachmentId,
+      conversationId: CONVERSATION_ID,
+      clientAttachmentId,
+      duplicate: false,
+    })),
+    { sessionId: SESSION_ID },
+  ));
+  assert.equal(registered.type, "attachment-registered");
+
+  const authorizeRequest = decodeEnvelope(client.authorizeAttachmentUpload(attachmentId).bytes);
+  assert.equal(fromBinary(AuthorizeAttachmentUploadSchema, authorizeRequest.payload).attachmentId, attachmentId);
+  const authorized = client.receive(response(
+    authorizeRequest,
+    MessageType.ATTACHMENT_UPLOAD_AUTHORIZED,
+    toBinary(AttachmentUploadAuthorizedSchema, create(AttachmentUploadAuthorizedSchema, {
+      attachmentId,
+      uploadUri: "https://objects.example.test/key?signature=secret",
+      requiredHeaders: [{ name: "if-none-match", value: "*" }],
+      expiresAtEpochMs: BigInt(NOW + 60_000),
+    })),
+    { sessionId: SESSION_ID },
+  ));
+  assert.equal(authorized.type, "attachment-upload-authorized");
+
+  const completeRequest = decodeEnvelope(client.completeAttachmentUpload(attachmentId).bytes);
+  assert.equal(fromBinary(CompleteAttachmentUploadSchema, completeRequest.payload).attachmentId, attachmentId);
+  const ready = client.receive(response(
+    completeRequest,
+    MessageType.ATTACHMENT_READY,
+    toBinary(AttachmentReadySchema, create(AttachmentReadySchema, {
+      attachmentId,
+      conversationId: CONVERSATION_ID,
+      readyAtEpochMs: BigInt(NOW + 1),
+    })),
+    { sessionId: SESSION_ID },
+  ));
+  assert.equal(ready.type, "attachment-ready");
+});
+
+test("rejects unsafe or malformed attachment grants", () => {
+  const client = newClient();
+  authenticate(client);
+  const attachmentId = "70000000-0000-4000-8000-000000000001";
+  const request = decodeEnvelope(client.authorizeAttachmentUpload(attachmentId).bytes);
+
+  assert.throws(() => client.receive(response(
+    request,
+    MessageType.ATTACHMENT_UPLOAD_AUTHORIZED,
+    toBinary(AttachmentUploadAuthorizedSchema, create(AttachmentUploadAuthorizedSchema, {
+      attachmentId,
+      uploadUri: "http://objects.example.test/key",
+      requiredHeaders: [{ name: "Host", value: "objects.example.test" }],
+      expiresAtEpochMs: BigInt(NOW + 60_000),
+    })),
+    { sessionId: SESSION_ID },
+  )), /invalid attachment upload authorization|invalid V2 response payload/);
+});
+
+test("tombstones cancelled attachment requests without consuming active capacity", () => {
+  const client = newClient();
+  authenticate(client);
+  const attachmentId = "70000000-0000-4000-8000-000000000001";
+  const first = client.authorizeAttachmentUpload(attachmentId);
+  client.cancelPendingRequest(first.requestId);
+  const ignored = client.receive(response(
+    decodeEnvelope(first.bytes),
+    MessageType.ATTACHMENT_UPLOAD_AUTHORIZED,
+    new Uint8Array(),
+    { sessionId: SESSION_ID },
+  ));
+  assert.equal(ignored.type, "cancelled-response");
+
+  for (let index = 0; index < 40; index += 1) {
+    const command = client.authorizeAttachmentUpload(attachmentId);
+    client.cancelPendingRequest(command.requestId);
+  }
+  assert.doesNotThrow(() => client.authorizeAttachmentUpload(attachmentId));
 });
 
 test("validates correlated directory, history, and accepted responses", () => {

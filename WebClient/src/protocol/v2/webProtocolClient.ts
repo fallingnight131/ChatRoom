@@ -34,6 +34,17 @@ import {
   type MessageHistoryPage,
   type MessageRecord,
 } from "./generated/messaging_pb";
+import {
+  AttachmentReadySchema,
+  AttachmentRegisteredSchema,
+  AttachmentUploadAuthorizedSchema,
+  AuthorizeAttachmentUploadSchema,
+  CompleteAttachmentUploadSchema,
+  RegisterAttachmentSchema,
+  type AttachmentReady,
+  type AttachmentRegistered,
+  type AttachmentUploadAuthorized,
+} from "./generated/attachment_pb";
 
 const PROTOCOL_VERSION = 2;
 const MAX_IDENTIFIER_BYTES = 128;
@@ -44,6 +55,7 @@ const MAX_TEXT_BYTES = 65_536;
 const MAX_PAGE_SIZE = 100;
 const MAX_DELETION_TARGETS = 1_000;
 const MAX_PENDING_REQUESTS = 16;
+const MAX_CANCELLED_REQUESTS = 32;
 const MAX_SIGNED_SEQUENCE = (1n << 63n) - 1n;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const encoder = new TextEncoder();
@@ -68,9 +80,18 @@ export type V2WebProtocolEvent = ResponseCorrelation & (
   | { type: "message-history-page"; value: MessageHistoryPage }
   | { type: "message-published"; value: MessageRecord }
   | { type: "conversation-directory-page"; value: ConversationDirectoryPage }
+  | { type: "attachment-registered"; value: AttachmentRegistered }
+  | { type: "attachment-upload-authorized"; value: AttachmentUploadAuthorized }
+  | { type: "attachment-ready"; value: AttachmentReady }
+  | { type: "cancelled-response"; value: undefined }
 );
 
-type PendingRequest = { expected: ReadonlySet<MessageType>; clientMessageId: string };
+type PendingRequest = {
+  expected: ReadonlySet<MessageType>;
+  clientMessageId: string;
+  cancelled: boolean;
+};
+export type V2CorrelatedCommand = { requestId: string; bytes: Uint8Array };
 
 export interface V2WebProtocolClientOptions {
   appVersion: string;
@@ -228,6 +249,73 @@ export class V2WebProtocolClient {
     );
   }
 
+  registerAttachment(
+    conversationId: string,
+    clientAttachmentId: string,
+    fileName: string,
+    mediaType: string,
+    byteSize: bigint,
+    contentSha256: Uint8Array,
+  ): V2CorrelatedCommand {
+    this.requireState("authenticated");
+    requireUuid("conversationId", conversationId);
+    requireIdentifier("clientAttachmentId", clientAttachmentId);
+    requireUtf8("fileName", fileName, 1, 255);
+    if (fileName === "." || fileName === ".." || fileName.includes("/") || fileName.includes("\\")) {
+      throw new Error("fileName must be a basename");
+    }
+    requireUtf8("mediaType", mediaType, 1, 127);
+    if (!/^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$/.test(mediaType)) {
+      throw new Error("mediaType must be canonical");
+    }
+    if (byteSize < 1n || byteSize > 10n * 1024n * 1024n * 1024n) {
+      throw new Error("byteSize is outside the V2 attachment bound");
+    }
+    if (contentSha256.byteLength !== 32) throw new Error("contentSha256 must contain 32 bytes");
+    const payload = toBinary(RegisterAttachmentSchema, create(RegisterAttachmentSchema, {
+      conversationId,
+      clientAttachmentId,
+      fileName,
+      mediaType,
+      byteSize,
+      contentSha256: contentSha256.slice(),
+    }));
+    return correlated(this.command(
+      MessageType.REGISTER_ATTACHMENT,
+      payload,
+      new Set([MessageType.ATTACHMENT_REGISTERED]),
+      clientAttachmentId,
+    ));
+  }
+
+  authorizeAttachmentUpload(attachmentId: string): V2CorrelatedCommand {
+    this.requireState("authenticated");
+    requireUuid("attachmentId", attachmentId);
+    return correlated(this.command(
+      MessageType.AUTHORIZE_ATTACHMENT_UPLOAD,
+      toBinary(AuthorizeAttachmentUploadSchema, create(AuthorizeAttachmentUploadSchema, { attachmentId })),
+      new Set([MessageType.ATTACHMENT_UPLOAD_AUTHORIZED]),
+    ));
+  }
+
+  completeAttachmentUpload(attachmentId: string): V2CorrelatedCommand {
+    this.requireState("authenticated");
+    requireUuid("attachmentId", attachmentId);
+    return correlated(this.command(
+      MessageType.COMPLETE_ATTACHMENT_UPLOAD,
+      toBinary(CompleteAttachmentUploadSchema, create(CompleteAttachmentUploadSchema, { attachmentId })),
+      new Set([MessageType.ATTACHMENT_READY]),
+    ));
+  }
+
+  cancelPendingRequest(requestId: string): void {
+    const pending = this.pending.get(requestId);
+    if (!pending) return;
+    pending.cancelled = true;
+    const cancelled = [...this.pending.entries()].filter(([, value]) => value.cancelled);
+    if (cancelled.length > MAX_CANCELLED_REQUESTS) this.pending.delete(cancelled[0]![0]);
+  }
+
   receive(bytes: Uint8Array): V2WebProtocolEvent {
     if (this.currentState === "closed") throw new Error("protocol client is closed");
     if (bytes.byteLength > Math.min(MAX_WIRE_BYTES, this.negotiatedMaximumFrameBytes)) {
@@ -254,6 +342,15 @@ export class V2WebProtocolClient {
     }
     if (pending && envelope.clientMessageId !== pending.clientMessageId) {
       throw new Error("response clientMessageId does not match the request");
+    }
+    if (pending?.cancelled) {
+      this.pending.delete(envelope.requestId);
+      return {
+        requestId: envelope.requestId,
+        clientMessageId: envelope.clientMessageId,
+        type: "cancelled-response",
+        value: undefined,
+      };
     }
 
     const event = this.decodeEvent(envelope);
@@ -283,7 +380,8 @@ export class V2WebProtocolClient {
     const requestId = this.createRequestId();
     requireUuid("requestId", requestId);
     if (this.pending.has(requestId)) throw new Error("requestId is already pending");
-    if (this.pending.size >= MAX_PENDING_REQUESTS) throw new Error("too many pending V2 requests");
+    const activePending = [...this.pending.values()].filter((value) => !value.cancelled).length;
+    if (activePending >= MAX_PENDING_REQUESTS) throw new Error("too many pending V2 requests");
     const sentAt = this.now();
     if (!Number.isSafeInteger(sentAt) || sentAt <= 0) throw new Error("clock must return a positive safe integer");
     const envelope = create(EnvelopeSchema, {
@@ -300,7 +398,7 @@ export class V2WebProtocolClient {
     if (bytes.byteLength > Math.min(MAX_WIRE_BYTES, this.negotiatedMaximumFrameBytes)) {
       throw new Error("V2 frame exceeds the negotiated limit");
     }
-    this.pending.set(requestId, { expected, clientMessageId });
+    this.pending.set(requestId, { expected, clientMessageId, cancelled: false });
     return bytes;
   }
 
@@ -352,6 +450,12 @@ export class V2WebProtocolClient {
           return { ...correlation, type: "message-published", value: fromBinary(MessageRecordSchema, envelope.payload) };
         case MessageType.CONVERSATION_DIRECTORY_PAGE:
           return { ...correlation, type: "conversation-directory-page", value: fromBinary(ConversationDirectoryPageSchema, envelope.payload) };
+        case MessageType.ATTACHMENT_REGISTERED:
+          return { ...correlation, type: "attachment-registered", value: fromBinary(AttachmentRegisteredSchema, envelope.payload) };
+        case MessageType.ATTACHMENT_UPLOAD_AUTHORIZED:
+          return { ...correlation, type: "attachment-upload-authorized", value: fromBinary(AttachmentUploadAuthorizedSchema, envelope.payload) };
+        case MessageType.ATTACHMENT_READY:
+          return { ...correlation, type: "attachment-ready", value: fromBinary(AttachmentReadySchema, envelope.payload) };
         default:
           throw new Error("unsupported inbound message type");
       }
@@ -415,12 +519,53 @@ export class V2WebProtocolClient {
       case "conversation-directory-page":
         validateDirectoryPage(event.value);
         break;
+      case "attachment-registered":
+        requireUuid("attachmentId", event.value.attachmentId);
+        requireUuid("conversationId", event.value.conversationId);
+        requireIdentifier("clientAttachmentId", event.value.clientAttachmentId);
+        break;
+      case "attachment-upload-authorized":
+        validateUploadAuthorization(event.value);
+        break;
+      case "attachment-ready":
+        requireUuid("attachmentId", event.value.attachmentId);
+        requireUuid("conversationId", event.value.conversationId);
+        if (event.value.readyAtEpochMs <= 0n) throw new Error("invalid attachment ready response");
+        break;
+      case "cancelled-response":
+        break;
     }
   }
 
   private requireState(expected: V2WebProtocolState): void {
     if (this.currentState !== expected) throw new Error(`expected ${expected} state, found ${this.currentState}`);
   }
+}
+
+function validateUploadAuthorization(value: AttachmentUploadAuthorized): void {
+  requireUuid("attachmentId", value.attachmentId);
+  let uri: URL;
+  try { uri = new URL(value.uploadUri); } catch { throw new Error("invalid attachment upload authorization"); }
+  if (uri.protocol !== "https:" || uri.username || uri.password || uri.hash
+      || value.expiresAtEpochMs <= 0n || value.requiredHeaders.length < 1
+      || value.requiredHeaders.length > 32) {
+    throw new Error("invalid attachment upload authorization");
+  }
+  const names = new Set<string>();
+  for (const header of value.requiredHeaders) {
+    requireUtf8("upload header name", header.name, 1, 128);
+    requireUtf8("upload header value", header.value, 1, 4096);
+    if (header.name !== header.name.toLowerCase() || names.has(header.name)
+        || header.name === "host" || header.name === "content-length") {
+      throw new Error("invalid attachment upload authorization");
+    }
+    names.add(header.name);
+  }
+}
+
+function correlated(bytes: Uint8Array): V2CorrelatedCommand {
+  const requestId = fromBinary(EnvelopeSchema, bytes).requestId;
+  return { requestId, bytes };
 }
 
 function validateHistoryPage(page: MessageHistoryPage): void {

@@ -121,6 +121,10 @@ subscription without a snapshot/stream gap, a new durable acceptance emits type
 104 after ACK, duplicates do not republish, closed routes are removed, and live
 or slow-consumer outcomes use fixed-cardinality counters.
 This is pre-cutover evidence, not product traffic or a capacity result.
+Web V2 tests also exercise the inactive attachment register/authorize/direct-
+PUT/complete coordinator. They use injected transports and fetch responses, do
+not contact object storage, and prove transient grant/byte cleanup rather than a
+real-provider acceptance result.
 Loopback administration tests also verify fixed-cardinality accepted, duplicate,
 history, denial, conflict, saturation, and failure counters plus message worker
 active/queue gauges; no identity or conversation value is a metric label.

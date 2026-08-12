@@ -162,6 +162,37 @@ export class V2WebSocketTransport {
     this.send(this.requireAuthenticated().submitText(conversationId, clientMessageId, text));
   }
 
+  registerAttachment(
+    conversationId: string,
+    clientAttachmentId: string,
+    fileName: string,
+    mediaType: string,
+    byteSize: bigint,
+    contentSha256: Uint8Array,
+  ): string {
+    const command = this.requireAuthenticated().registerAttachment(
+      conversationId, clientAttachmentId, fileName, mediaType, byteSize, contentSha256,
+    );
+    this.send(command.bytes);
+    return command.requestId;
+  }
+
+  authorizeAttachmentUpload(attachmentId: string): string {
+    const command = this.requireAuthenticated().authorizeAttachmentUpload(attachmentId);
+    this.send(command.bytes);
+    return command.requestId;
+  }
+
+  completeAttachmentUpload(attachmentId: string): string {
+    const command = this.requireAuthenticated().completeAttachmentUpload(attachmentId);
+    this.send(command.bytes);
+    return command.requestId;
+  }
+
+  cancelAttachmentRequest(requestId: string): void {
+    this.protocolClient?.cancelPendingRequest(requestId);
+  }
+
   stop(): void {
     this.desired = false;
     this.unsubscribeNetwork?.();
@@ -229,6 +260,7 @@ export class V2WebSocketTransport {
     }
     try {
       const event = this.protocolClient.receive(new Uint8Array(data));
+      if (event.type === "cancelled-response") return;
       let observableEvent = event;
       if (event.type === "server-hello") {
         this.cancelPhaseTimer();

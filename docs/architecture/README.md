@@ -445,6 +445,15 @@ redacted dependency failures, deterministic grant headers, and fixed-cardinality
 telemetry. The handler is deliberately absent from the runnable pipeline until
 real-provider evidence and supported-client rollout gates are satisfied.
 
+ADR-0107 implements the matching inactive Web application service and protocol
+transport. It keeps file bytes, SHA-256, and signed authorization in one
+cancelable memory-only call, performs direct credential-free PUT, refreshes a
+near-expiry grant, correlates each stage by exact request ID with bounded
+cancellation tombstones, and completes only matching stable attachment identity. The
+whole-buffer simple-PUT preview is capped at 100 MiB pending a restartable
+multipart/incremental-hash design; it is not connected to Vue routes or durable
+storage and does not change the default-off V2 runtime.
+
 ## 11. Client Architecture
 
 ### Windows desktop

@@ -203,6 +203,19 @@ test("owns exact Web V2 upgrade, negotiation, authentication, and command sendin
 
   transport.listConversations(20);
   assert.equal(sentEnvelope(socket, 2).messageType, MessageType.LIST_CONVERSATIONS);
+  transport.registerAttachment(
+    "50000000-0000-4000-8000-000000000001",
+    "client-attachment-1",
+    "a.bin",
+    "application/octet-stream",
+    4n,
+    new Uint8Array(32),
+  );
+  assert.equal(sentEnvelope(socket, 3).messageType, MessageType.REGISTER_ATTACHMENT);
+  transport.authorizeAttachmentUpload("60000000-0000-4000-8000-000000000001");
+  assert.equal(sentEnvelope(socket, 4).messageType, MessageType.AUTHORIZE_ATTACHMENT_UPLOAD);
+  transport.completeAttachmentUpload("60000000-0000-4000-8000-000000000001");
+  assert.equal(sentEnvelope(socket, 5).messageType, MessageType.COMPLETE_ATTACHMENT_UPLOAD);
   transport.stop();
   assert.equal(transport.state, "stopped");
   assert.deepEqual(socket.closes.at(-1), { code: 1000, reason: "client stopped" });
