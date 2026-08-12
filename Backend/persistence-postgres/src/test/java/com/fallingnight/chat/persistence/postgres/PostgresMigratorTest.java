@@ -34,6 +34,8 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectHistoryQ
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectHistoryResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectRecallCommand;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectRecallResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectReadCommand;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectReadResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageCommand;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomHistoryQuery;
@@ -598,8 +600,8 @@ class PostgresMigratorTest {
             execute(connection,
                     "INSERT INTO chat.legacy_v1_message_map(legacy_kind, legacy_message_id, "
                             + "legacy_conversation_id, conversation_id, message_id) "
-                            + "VALUES ('FRIENDSHIP', 101, 50, ?, ?), "
-                            + "('FRIENDSHIP', 102, 50, ?, ?)",
+                            + "VALUES ('FRIENDSHIP', 202, 50, ?, ?), "
+                            + "('FRIENDSHIP', 101, 50, ?, ?)",
                     conversation, firstMessage, conversation, secondMessage);
             execute(connection,
                     "INSERT INTO chat.contact_request("
@@ -619,7 +621,15 @@ class PostgresMigratorTest {
         assertEquals("friend-peer", state.friends().getFirst().username());
         assertEquals("Peer", state.friends().getFirst().displayName());
         assertEquals(2, state.friends().getFirst().unread());
-        assertEquals(101, state.friends().getFirst().peerLastReadMessageId());
+        assertEquals(202, state.friends().getFirst().peerLastReadMessageId());
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.conversation_member SET last_read_sequence = 2 "
+                            + "WHERE conversation_id = ? AND account_id = ?",
+                    conversation, peer);
+        }
+        assertEquals(101, new PostgresLegacyV1FriendDirectoryAdapter(dataSource())
+                .read(owner, 10).friends().getFirst().peerLastReadMessageId());
         assertEquals(1, state.pendingFriendRequests());
         assertEquals(Set.of(peer, requester), new PostgresLegacyV1AccountProjection(dataSource())
                 .findByAccountIds(Set.of(peer, requester)).keySet());
@@ -1239,6 +1249,31 @@ class PostgresMigratorTest {
                 + "WHERE conversation_id = '" + conversation + "'"));
         assertEquals(4, count("SELECT next_sequence FROM chat.conversation WHERE id = '"
                 + conversation + "'"));
+
+        PostgresLegacyV1DirectReadAdapter reads =
+                new PostgresLegacyV1DirectReadAdapter(dataSource());
+        LegacyV1DirectReadResult.Marked marked =
+                (LegacyV1DirectReadResult.Marked) reads.markRead(
+                        new LegacyV1DirectReadCommand(sender, 299));
+        assertEquals(conversation, marked.conversationId());
+        assertEquals(0, marked.previousSequence());
+        assertEquals(3, marked.lastReadSequence());
+        assertTrue(marked.changed());
+        assertEquals(expired.legacyMessageId(), marked.legacyLastReadMessageId());
+        assertEquals(target, marked.targetAccountId());
+        assertEquals("recall-target", marked.targetUsername());
+        LegacyV1DirectReadResult.Marked duplicate =
+                (LegacyV1DirectReadResult.Marked) reads.markRead(
+                        new LegacyV1DirectReadCommand(sender, 299));
+        assertEquals(3, duplicate.previousSequence());
+        assertEquals(3, duplicate.lastReadSequence());
+        assertFalse(duplicate.changed());
+        assertEquals(expired.legacyMessageId(), duplicate.legacyLastReadMessageId());
+        assertEquals(LegacyV1DirectReadResult.Rejected.FRIENDSHIP_ACCESS_DENIED,
+                reads.markRead(new LegacyV1DirectReadCommand(outsider, 299)));
+        assertEquals(0, count("SELECT last_read_sequence FROM chat.conversation_member "
+                + "WHERE conversation_id = '" + conversation + "' AND account_id = '"
+                + target + "'"));
 
         try (Connection connection = connect()) {
             execute(connection,

@@ -26,7 +26,7 @@ public final class PostgresLegacyV1FriendDirectoryAdapter
                     WHERE message.conversation_id = c.id
                       AND message.conversation_sequence > member.last_read_sequence) AS unread,
                    COALESCE((
-                       SELECT max(mapping.legacy_message_id)
+                       SELECT mapping.legacy_message_id
                        FROM chat.message message
                        JOIN chat.legacy_v1_message_map mapping
                          ON mapping.message_id = message.id
@@ -34,6 +34,7 @@ public final class PostgresLegacyV1FriendDirectoryAdapter
                         AND mapping.legacy_kind = 'FRIENDSHIP'
                        WHERE message.conversation_id = c.id
                          AND message.conversation_sequence <= peer_member.last_read_sequence
+                       ORDER BY message.conversation_sequence DESC LIMIT 1
                    ), 0) AS peer_last_read_message_id
             FROM chat.conversation_member member
             JOIN chat.conversation c

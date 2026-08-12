@@ -426,10 +426,14 @@ another member. The product listener remains unchanged.
 
 The direct-read boundary now defines server-authorized, monotonic advancement
 of one active participant's canonical `last_read_sequence` for a positive mapped
-V1 friendship. Its future adapter must return the V1 ID of the newest message by
+V1 friendship. Its adapter returns the V1 ID of the newest message by
 canonical creation sequence at or below the cursor, plus the mapped peer for a
 compatible `FRIEND_READ_NOTIFY`. It must not use numeric maximum because runtime
-V1 message IDs allocate downward. No PostgreSQL adapter or handler exists yet.
+V1 message IDs allocate downward. Its serializable PostgreSQL adapter now locks
+the exact active participant and DIRECT conversation, advances only that
+account to the observed high watermark, and returns the sequence-ordered mapped
+message ID; the friend directory uses the same ordering for restart recovery.
+No handler exists yet.
 
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.

@@ -284,8 +284,12 @@ reader from authentication, accepts only a positive mapped friendship ID, and
 requires monotonic canonical sequence advancement. `lastReadMessageId` is the
 mapped V1 ID of the newest message by creation sequence at or below that cursor;
 it is never `MAX(id)` because runtime V1 message IDs allocate downward. The
-future result carries the mapped peer for compatible `FRIEND_READ_NOTIFY` and
-directory recovery. No PostgreSQL adapter or handler exists yet.
+result carries the mapped peer for compatible `FRIEND_READ_NOTIFY` and
+directory recovery. The serializable PostgreSQL adapter now locks the exact
+active participant and DIRECT conversation, advances only that account to the
+observed durable high watermark, and selects the mapped message by canonical
+creation sequence. `FRIEND_LIST_RSP.peerLastReadMessageId` uses the same
+sequence ordering, including when runtime IDs descend. No handler exists yet.
 
 The detached Java application boundary now also reserves owner-only direct
 recall. It accepts only the positive V1 `messageId` from the request and binds
