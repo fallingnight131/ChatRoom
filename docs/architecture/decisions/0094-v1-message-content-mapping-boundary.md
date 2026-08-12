@@ -48,6 +48,12 @@ metadata field, including fields that do not affect the current text mapping.
 Target apply must receive a re-verifiable capability produced only after exact
 current-source, protected-backup, and whole-file SHA-256 reconciliation.
 
+The sequence-state and payload capabilities are composed only when they share
+the identical physical backup proof and every typed source message agrees on
+conversation, recall provenance, and deterministic target UUID. The future
+target writer receives this composed capability rather than independently
+trusted plans.
+
 ## Verification and Rollback
 
 Unit tests cover namespace-separated deterministic UUIDs, input-order

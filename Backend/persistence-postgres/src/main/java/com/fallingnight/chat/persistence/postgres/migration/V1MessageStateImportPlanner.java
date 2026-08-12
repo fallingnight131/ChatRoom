@@ -32,7 +32,7 @@ public final class V1MessageStateImportPlanner {
                     "conversation metadata must be valid before message state"));
             return new V1MessageStateImportPlan(
                     fingerprint, sourceMessages.size(), sourceDeletionEvents.size(),
-                    List.of(), List.of(), issues);
+                    sourceMessages, sourceDeletionEvents, List.of(), List.of(), issues);
         }
 
         Map<LegacyKey, PlannedV1Conversation> conversations = new HashMap<>();
@@ -81,7 +81,7 @@ public final class V1MessageStateImportPlanner {
                 .thenComparing(value -> value.accountId().toString()));
         return new V1MessageStateImportPlan(
                 fingerprint, sourceMessages.size(), sourceDeletionEvents.size(),
-                cursors, readCursors, issues);
+                sourceMessages, sourceDeletionEvents, cursors, readCursors, issues);
     }
 
     private static List<V1ConversationWatermarkRow> sortedWatermarks(
