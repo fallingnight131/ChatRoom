@@ -1299,6 +1299,11 @@ origin, while retained A identifies the active production origin. Schema-2
 technical promotion and authorization bind both; only post-switch evidence may
 claim B at production. Legacy single-origin records are rejected.
 
+ADR-0206 implements the corresponding storage separation. A dedicated preview
+pointer selects an already validated immutable B without changing production's
+active A pointer. Hosting must expose it through the configured preview origin;
+selection alone is not network observation evidence.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

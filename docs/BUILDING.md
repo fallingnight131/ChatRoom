@@ -129,6 +129,11 @@ python3 tools/web_promotion_evidence.py verify \
 Schema 2 requires candidate static/routes to share the preview origin and the
 rollback observation to name a different production origin. The production URL
 is derived from observed A rather than accepted as an arbitrary mutation input.
+Select staged B for the configured preview host with
+`web_preview_release.py select`; its `preview-release.json` is independent from
+production `active-release.json` and is revalidated after atomic replacement.
+The hosting adapter must route preview and production through their respective
+selectors. See ADR-0206.
 The default candidate observation freshness is 15 minutes and both current
 observations must be within five minutes of one another. The record is labeled
 not-published and performs no provider mutation.

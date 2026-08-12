@@ -88,6 +88,7 @@ jobs:
         run: |
           python3 Tests/web_artifact_manifest_test.py
           python3 Tests/web_release_store_test.py
+          python3 Tests/web_preview_release_test.py
           python3 Tests/web_release_probe_test.py
           python3 Tests/web_rollback_evidence_test.py
           python3 Tests/web_application_route_probe_test.py

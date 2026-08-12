@@ -105,6 +105,11 @@ provider adapter changes traffic. The complete command is in `docs/BUILDING.md`.
 Schema 2 requires preview and production origins to differ and derives the
 production target from A's retained observation. It never requires B to occupy
 the production root before approval.
+
+The filesystem adapter selects B for preview with
+`tools/web_preview_release.py select`. This atomically changes only
+`preview-release.json`; production continues to read `active-release.json`.
+Both selectors reference the same immutable `releases/<release-id>/` tree.
 The result says `technical-gates-observed-not-published`; it is not proof that
 traffic changed or that an incident rollback met its recovery objective.
 

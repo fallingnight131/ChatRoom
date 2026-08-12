@@ -731,6 +731,8 @@ Progress:
 - [x] Advance Web technical promotion/authorization to schema 2 with a distinct
   candidate preview origin and production rollback origin, so B is verified
   without pretending A and B occupy one production root URL.
+- [x] Add an isolated atomic Web preview selector over the same immutable
+  release store and prove selecting B cannot mutate production's active A.
 - [x] Add a separate write-once, short-lived `web-production` authorization that
   revalidates and binds the exact technical promotion without containing provider
   credentials or executing traffic mutation.
