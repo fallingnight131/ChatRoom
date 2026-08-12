@@ -101,6 +101,7 @@ jobs:
           python Tests/windows_artifact_manifest_test.py
           python Tests/windows_installer_policy_test.py
           python Tests/windows_release_signature_policy_test.py
+          python Tests/windows_cmake_product_target_test.py
 
       - name: Install pinned Qt SDK
         uses: jurplel/install-qt-action@v4.3.1
@@ -119,6 +120,30 @@ jobs:
 
       - name: Build Qt server and desktop client in Release mode
         run: python tools/verify_m0.py --qt
+
+      - name: Build Windows CMake client targets in Release mode
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cmake -S . -B build/m4/windows-cmake -A x64 `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCHATROOM_BUILD_HEADLESS_SERVER=ON `
+            -DCHATROOM_BUILD_WINDOWS_CLIENT=ON `
+            -DBUILD_TESTING=OFF `
+            "-DSODIUM_ROOT=$env:SODIUM_ROOT"
+          if ($LASTEXITCODE -ne 0) { throw "Windows CMake configuration failed" }
+          cmake --build build/m4/windows-cmake --config Release `
+            --target ChatClient ChatRoomUpdateLauncher --parallel 4
+          if ($LASTEXITCODE -ne 0) { throw "Windows CMake client build failed" }
+          $cmakeClient = Get-Item build/m4/windows-cmake/Release/ChatClient.exe
+          $cmakeLauncher = Get-Item build/m4/windows-cmake/Release/ChatRoomUpdateLauncher.exe
+          $version = "${{ steps.product-version.outputs.version }}"
+          if (-not $cmakeClient.VersionInfo.ProductVersion.StartsWith($version)) {
+            throw "CMake client version does not match canonical VERSION"
+          }
+          if (-not $cmakeLauncher.VersionInfo.ProductVersion.StartsWith($version)) {
+            throw "CMake update launcher version does not match canonical VERSION"
+          }
 
       - name: Assemble unsigned Windows client payload
         shell: pwsh

@@ -684,6 +684,9 @@ Progress:
 - [x] Extract CMake lifecycle, helper-command, startup reconciliation, and
   two-phase handoff/install-coordination boundaries with closed evidence,
   replay, parallel-work, persistence-before-quit, and cleanup tests.
+- [x] Add Windows-only CMake `ChatClient` and update-helper verification targets,
+  canonical PE version/icon resources, qmake source-graph parity policy, and a
+  native MSVC build lane while retaining qmake packaging as rollback.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
@@ -692,7 +695,8 @@ Progress:
 
 Work:
 
-- continue the verified target-by-target Qt migration from qmake toward CMake;
+- promote the native CMake Windows client/helper outputs into packaging only
+  after their deployed payload and installer gates match the qmake fallback;
 - create Windows `windeployqt` packaging and a signed installer;
 - add an optional MSIX/Store channel after the direct installer is stable;
 - implement a signed Windows update manifest, stable/beta channels, staged

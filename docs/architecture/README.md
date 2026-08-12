@@ -903,6 +903,15 @@ for diagnosis instead of treating it as success. Injected handshakes exercise
 the portable two-phase protocol; actual Windows event/process behavior remains
 a native product gate.
 
+ADR-0155 assembles those libraries into Windows-only CMake verification
+executables for `ChatClient` and `ChatRoomUpdateLauncher`. The graph uses the
+canonical repository version for compiled PE metadata and icon resources, and a
+source-parity policy prevents the qmake fallback and CMake target from silently
+drifting. Native MSVC CI builds both targets with product updates disabled.
+Packaging intentionally continues to consume the exercised qmake payload until
+the CMake `windeployqt`, runtime inventory, installer, and unsigned-rejection
+evidence is equivalent; this keeps the migration reversible.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

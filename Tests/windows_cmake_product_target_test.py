@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""Keep the Windows CMake product graph aligned with the qmake fallback."""
+
+from pathlib import Path
+import re
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def qmake_sources(project: Path, prefix: str) -> set[str]:
+    text = project.read_text(encoding="utf-8")
+    match = re.search(r"SOURCES\s*\+=\s*\\\n(?P<body>.*?)(?:\n\s*\n|\nHEADERS)", text, re.S)
+    if not match:
+        raise AssertionError(f"SOURCES block missing from {project}")
+    sources = set()
+    for raw in match.group("body").splitlines():
+        value = raw.strip().removesuffix("\\").strip()
+        if value:
+            sources.add(str(Path(prefix, value)))
+    return sources
+
+
+def main() -> int:
+    cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github/workflows/m0-product-builds.yml").read_text(
+        encoding="utf-8"
+    )
+    expected = qmake_sources(ROOT / "Client/Client.pro", "Client")
+    expected |= qmake_sources(ROOT / "UpdaterLauncher/UpdaterLauncher.pro", "UpdaterLauncher")
+    expected = {str((ROOT / value).resolve().relative_to(ROOT)) for value in expected}
+    missing = sorted(value for value in expected if value not in cmake)
+    if missing:
+        raise AssertionError(f"CMake product graph omits qmake sources: {missing}")
+
+    required_cmake = (
+        "CHATROOM_BUILD_WINDOWS_CLIENT",
+        'message(FATAL_ERROR "CHATROOM_BUILD_WINDOWS_CLIENT requires a Windows host")',
+        '"CHATROOM_BUILD_WINDOWS_CLIENT currently requires the shared Qt V1 graph"',
+        "add_executable(\n                ChatClient WIN32",
+        "add_executable(\n                ChatRoomUpdateLauncher WIN32",
+        "Client/resources/windows_product.rc.in",
+        'CHAT_APP_VERSION="${CHATROOM_PRODUCT_VERSION}"',
+    )
+    for marker in required_cmake:
+        if marker not in cmake:
+            raise AssertionError(f"Windows CMake policy marker missing: {marker}")
+
+    required_workflow = (
+        "Build Windows CMake client targets in Release mode",
+        "-DCHATROOM_BUILD_WINDOWS_CLIENT=ON",
+        "--target ChatClient ChatRoomUpdateLauncher",
+        "CMake client version does not match canonical VERSION",
+        "CMake update launcher version does not match canonical VERSION",
+    )
+    for marker in required_workflow:
+        if marker not in workflow:
+            raise AssertionError(f"native Windows CMake gate missing: {marker}")
+
+    print("Windows CMake product target policy passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -7,10 +7,23 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(CHATROOM_BUILD_HEADLESS_SERVER "Build the Qt V1 headless server" ON)
+option(CHATROOM_BUILD_WINDOWS_CLIENT "Build the supported Windows Qt client" OFF)
 include(CTest)
 
+if(CHATROOM_BUILD_WINDOWS_CLIENT AND NOT WIN32)
+    message(FATAL_ERROR "CHATROOM_BUILD_WINDOWS_CLIENT requires a Windows host")
+endif()
+if(CHATROOM_BUILD_WINDOWS_CLIENT AND NOT CHATROOM_BUILD_HEADLESS_SERVER)
+    message(FATAL_ERROR
+        "CHATROOM_BUILD_WINDOWS_CLIENT currently requires the shared Qt V1 graph")
+endif()
+
 if(CHATROOM_BUILD_HEADLESS_SERVER)
-    find_package(Qt6 6.5 REQUIRED COMPONENTS Core Concurrent Network Sql WebSockets)
+    set(CHATROOM_QT_COMPONENTS Core Concurrent Network Sql WebSockets)
+    if(CHATROOM_BUILD_WINDOWS_CLIENT)
+        list(APPEND CHATROOM_QT_COMPONENTS Gui Widgets Multimedia)
+    endif()
+    find_package(Qt6 6.5 REQUIRED COMPONENTS ${CHATROOM_QT_COMPONENTS})
 
     set(SODIUM_ROOT "" CACHE PATH "libsodium installation prefix")
     find_path(
@@ -140,6 +153,9 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
 
     if(BUILD_TESTING)
         find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    endif()
+
+    if(BUILD_TESTING OR CHATROOM_BUILD_WINDOWS_CLIENT)
         add_library(
             chatroom_client_local_data
             STATIC
@@ -336,6 +352,101 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 chatroom_windows_update_orchestration
                 chatroom_windows_update_lifecycle
         )
+
+        if(CHATROOM_BUILD_WINDOWS_CLIENT)
+            enable_language(RC)
+            file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION"
+                 CHATROOM_PRODUCT_VERSION LIMIT_COUNT 1)
+            if(NOT CHATROOM_PRODUCT_VERSION MATCHES
+                    "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$")
+                message(FATAL_ERROR "VERSION must contain one numeric semantic version")
+            endif()
+            string(REPLACE "." "," CHATROOM_PRODUCT_VERSION_COMMAS
+                   "${CHATROOM_PRODUCT_VERSION}")
+            set(CHATROOM_RC_ICON
+                "${CMAKE_CURRENT_SOURCE_DIR}/Client/resources/app_icon.ico")
+            set(CHATROOM_RC_FILE_DESCRIPTION "Chat Room Windows Client")
+            set(CHATROOM_RC_ORIGINAL_FILENAME "ChatClient.exe")
+            configure_file(
+                Client/resources/windows_product.rc.in
+                generated/ChatClient.rc @ONLY)
+            set(CHATROOM_RC_FILE_DESCRIPTION "Chat Room Update Launcher")
+            set(CHATROOM_RC_ORIGINAL_FILENAME "ChatRoomUpdateLauncher.exe")
+            configure_file(
+                Client/resources/windows_product.rc.in
+                generated/ChatRoomUpdateLauncher.rc @ONLY)
+
+            add_executable(
+                ChatClient WIN32
+                Client/main.cpp
+                Client/LoginDialog.cpp
+                Client/ChatWindow.cpp
+                Client/MessageDelegate.cpp
+                Client/EmojiPicker.cpp
+                Client/ThemeManager.cpp
+                Client/TrayManager.cpp
+                Client/FileCache.cpp
+                Client/WindowsClientInstanceGuard.cpp
+                Client/WindowsUpdateProductConfiguration.cpp
+                Client/WindowsUpdateController.cpp
+                Client/AvatarCropDialog.cpp
+                Client/ForwardSelectDialog.cpp
+                Client/RoomSettingsDialog.cpp
+                Client/RoomFileManagerDialog.cpp
+                Client/ProfileDialog.cpp
+                Client/UserInfoDialog.cpp
+                Client/resources/resources.qrc
+                "${CMAKE_CURRENT_BINARY_DIR}/generated/ChatClient.rc"
+            )
+            set_target_properties(
+                ChatClient
+                PROPERTIES
+                    AUTOMOC ON
+                    AUTORCC ON
+                    VERSION "${CHATROOM_PRODUCT_VERSION}"
+            )
+            target_compile_definitions(
+                ChatClient PRIVATE CHAT_APP_VERSION="${CHATROOM_PRODUCT_VERSION}")
+            target_include_directories(ChatClient PRIVATE Client Common)
+            target_link_libraries(
+                ChatClient
+                PRIVATE
+                    Qt6::Core
+                    Qt6::Gui
+                    Qt6::Widgets
+                    Qt6::Network
+                    Qt6::Multimedia
+                    Qt6::Sql
+                    chatroom_client_local_data
+                    chatroom_client_transport
+                    chatroom_windows_update_orchestration
+                    chatroom_windows_update_lifecycle
+                    chatroom_windows_update_handoff
+                    ole32
+                    uuid
+                    gdi32
+            )
+
+            add_executable(
+                ChatRoomUpdateLauncher WIN32
+                UpdaterLauncher/main.cpp
+                "${CMAKE_CURRENT_BINARY_DIR}/generated/ChatRoomUpdateLauncher.rc"
+            )
+            target_include_directories(
+                ChatRoomUpdateLauncher PRIVATE Client UpdaterLauncher)
+            target_link_libraries(
+                ChatRoomUpdateLauncher
+                PRIVATE
+                    Qt6::Core
+                    chatroom_update_launcher_protocol
+                    chatroom_windows_installer_trust
+            )
+            set_target_properties(
+                ChatRoomUpdateLauncher
+                PROPERTIES VERSION "${CHATROOM_PRODUCT_VERSION}")
+        endif()
+
+        if(BUILD_TESTING)
 
         function(chatroom_add_local_data_test target test_name)
             add_executable(${target} Tests/${target}.cpp)
@@ -538,5 +649,6 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             m4_update_handoff_application
             m4_update_install_coordinator
             PROPERTIES TIMEOUT 30)
+        endif()
     endif()
 endif()

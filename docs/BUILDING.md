@@ -229,6 +229,21 @@ Windows product verification and non-product Qt portability builds run through
 distinction between product and development hosts are documented in
 `docs/architecture/SUPPORT_MATRIX.md`.
 
+The native Windows job also configures the root CMake project with
+`CHATROOM_BUILD_WINDOWS_CLIENT=ON` and `BUILD_TESTING=OFF`, then builds the
+`ChatClient` and `ChatRoomUpdateLauncher` targets using MSVC. Both PE files must
+carry the canonical `VERSION`. The source-graph policy is available on any host:
+
+```bash
+python3 Tests/windows_cmake_product_target_test.py
+```
+
+`CHATROOM_BUILD_WINDOWS_CLIENT=ON` fails configuration on non-Windows hosts.
+The CMake executables are currently verification outputs only: the unsigned
+payload/NSIS gates still consume qmake outputs as the rollback path. Do not
+switch packaging until CMake `windeployqt`, runtime inventory, install/upgrade,
+uninstall, and unsigned-rejection behavior have matching native evidence.
+
 The unsigned Windows NSIS gate now compiles a synthetic predecessor outside the
 uploaded artifact, installs it, and upgrades to canonical `VERSION`. It checks
 whole-program-directory replacement, marker ownership, rollback scaffolding,
