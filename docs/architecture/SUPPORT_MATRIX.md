@@ -83,6 +83,12 @@ architecture, UTC window, per-channel replay state, versions, deterministic
 rollout, and installer metadata. There is still no durable replay/device state,
 trusted product key, downloader, Authenticode check, scheduler, launch, or UI.
 
+An inactive installer verifier now checks local size/SHA-256 and, on Windows,
+WinTrust chain/revocation, counter-signature presence, and the signed publisher
+certificate thumbprint. Native CI is configured to require unsigned rejection,
+not acceptance of a real signed/timestamped Setup. No product downloader or
+launcher invokes it.
+
 M4 must provide:
 
 - a signed and timestamped direct installer;

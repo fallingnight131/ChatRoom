@@ -566,6 +566,9 @@ Progress:
 - [x] Add a default-off Windows update decision policy for exact schema and
   architecture, UTC validity, per-channel replay state, numeric versions,
   deterministic staged rollout, and bounded installer metadata.
+- [x] Add a default-off installer trust verifier for exact size/SHA-256,
+  Windows Authenticode chain/revocation, RFC 3161 counter-signature presence,
+  and signed leaf-certificate thumbprint matching.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

@@ -18,6 +18,9 @@ empty trusted-key ring and adds no network/update activation.
 ADR-0119 adds an inactive semantic decision policy for schema, replay, version,
 validity, rollout, and installer metadata. It still has no persistent state,
 download, Authenticode verification, launch, scheduler, or UI path.
+ADR-0120 adds inactive local payload verification: exact size/SHA-256 followed
+on Windows by WinTrust chain/revocation, a validated counter-signature, and
+leaf-certificate SHA-256 thumbprint matching. No downloader invokes it.
 
 ## Canonical format
 

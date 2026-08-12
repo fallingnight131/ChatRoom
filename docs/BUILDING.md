@@ -155,6 +155,12 @@ per-channel replay state, version routing, deterministic staged rollout, and
 bounded installer metadata. It does not persist state, download, authenticate,
 or launch an installer.
 
+`UpdateInstallerTrustVerifierTest` accepts only exact local file size/SHA-256.
+On non-Windows development hosts it then reports Authenticode unsupported; on
+native Windows CI it also compiles WinTrust/crypt32 integration and requires the
+deliberately unsigned fixture to be rejected. Acceptance of the future real,
+signed and RFC 3161-timestamped Setup remains a separate release test.
+
 ## Java V2 Backend
 
 The additive M3 workspace requires JDK 21. It carries its own checksum-pinned

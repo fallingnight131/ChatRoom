@@ -613,6 +613,12 @@ state across key rotations, numeric Windows versions, deterministic cross-client
 rollout, and bounded HTTPS installer metadata. It performs no persistence,
 network I/O, Authenticode validation, launch, or UI action.
 
+ADR-0120 adds the inactive payload trust boundary. Exact local-file size and
+SHA-256 are portable; Windows additionally locks the regular file against
+replacement, asks WinTrust for the Authenticode chain with revocation policy,
+requires a validated counter-signature, and matches the leaf certificate's
+SHA-256 thumbprint to signed metadata. No downloader or launcher calls it.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

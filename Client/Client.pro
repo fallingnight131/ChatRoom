@@ -32,6 +32,7 @@ SOURCES += \
     V1HistoryPageAdapter.cpp \
     UpdateManifestSignatureVerifier.cpp \
     UpdateManifestDecisionPolicy.cpp \
+    UpdateInstallerTrustVerifier.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -58,6 +59,7 @@ HEADERS += \
     V1HistoryPageAdapter.h \
     UpdateManifestSignatureVerifier.h \
     UpdateManifestDecisionPolicy.h \
+    UpdateInstallerTrustVerifier.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \
@@ -70,4 +72,4 @@ RESOURCES += \
 
 RC_ICONS = resources/app_icon.ico
 
-win32: LIBS += -lole32 -luuid -lgdi32
+win32: LIBS += -lole32 -luuid -lgdi32 -lwintrust -lcrypt32
