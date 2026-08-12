@@ -83,7 +83,7 @@ def create(version_file: Path, source_revision: str, channel: str,
         "buildSystem": "cmake",
         "unsignedArtifactRunId": run_id,
         "unsignedArtifactName": (
-            f"chat-room-windows-client-{version}-unsigned-verification-{source_revision}"),
+            f"windows-{channel}-{version}-unsigned-product-trust-{source_revision}"),
         "expectedSignerCertificateSha1": signer_sha1,
         "expectedSignerCertificateSha256": signer_sha256,
         "timestampUrl": timestamp,
@@ -132,7 +132,7 @@ def verify(path: Path, version_file: Path, source_revision: str, channel: str,
         value.get("expectedSignerCertificateSha1", ""), signer_sha256,
         value.get("timestampUrl", ""))
     expected_name = (
-        f"chat-room-windows-client-{version}-unsigned-verification-{source_revision}")
+        f"windows-{channel}-{version}-unsigned-product-trust-{source_revision}")
     if value.get("unsignedArtifactName") != expected_name:
         raise ManifestError("Windows protected signing artifact identity is invalid")
     recorded = exact_utc(value.get("recordedAt"))

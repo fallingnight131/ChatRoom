@@ -432,8 +432,8 @@ with `python3 Tests/windows_unsigned_artifact_verifier_test.py`.
 
 A protected signing invocation must also create and immediately verify a closed
 intent with `tools/windows_protected_release_intent.py`. The intent records the
-approved canonical version/revision, exact ordinary-CI artifact run and derived
-artifact name, stable/beta channel, machine-store certificate SHA-1 selector,
+approved canonical version/revision, exact product-trust artifact run and
+derived channel-specific artifact name, stable/beta channel, machine-store certificate SHA-1 selector,
 expected certificate SHA-256 identity, credential-free HTTPS RFC 3161 URL,
 `windows-production-signing` environment, `self-hosted-windows-signing` runner
 class, and fresh UTC time. It accepts no certificate bytes, private key,
@@ -448,8 +448,8 @@ An intent means “approved for protected signing, not published”; candidate
 assembly must hash and retain it, and publication requires a later independent
 authorization boundary.
 
-`windows_release_candidate.py assemble` now requires
-`--protected-signing-intent`. Candidate schema 5 stores the exact intent bytes at
+`windows_release_candidate.py assemble` requires
+`--protected-signing-intent`. Candidate schema 6 stores the exact intent bytes at
 `evidence/protected-signing-intent.json`, declares its path explicitly, hashes it
 in the candidate file list and `SHA256SUMS`, then reruns semantic intent
 verification during both assembly and independent candidate verification. The
@@ -475,9 +475,9 @@ python3 Tests/windows_release_installer_mode_test.py
 python3 Tests/windows_uninstaller_export_test.py
 ```
 
-The protected candidate workflow does not consume this boundary yet; until its
-signature evidence and candidate schema cover the fourth subject, signed
-uninstall remains an explicit M4 blocker.
+The protected candidate workflow consumes this two-pass boundary and closes the
+standalone signed uninstaller as the fourth Authenticode subject. Positive
+execution still depends on the dedicated protected Windows runner.
 
 ## Protected Windows Signing Candidate
 
@@ -494,7 +494,7 @@ Provision the runner outside this repository with Python, Git, PowerShell, NSIS
 only to the runner service identity. The workflow accepts no PFX, certificate
 password, private key, cloud signing credential, or dependency installer.
 
-The reviewer supplies the exact protected commit, ordinary-CI run ID,
+The reviewer supplies the exact protected commit, product-trust-build run ID,
 stable/beta channel, public SHA-1 certificate selector, expected public SHA-256
 certificate identity, and credential-free HTTPS RFC 3161 URL. Dispatch strings
 enter PowerShell only through environment variables; direct interpolation of
@@ -502,17 +502,20 @@ workflow inputs into shell blocks is forbidden. The workflow then:
 
 1. checks out and validates the exact reviewed revision;
 2. creates and verifies the two-hour-bounded protected-signing intent;
-3. downloads the exact unsigned CMake artifact from the named CI run;
-4. reopens the closed artifact and confirms all three subjects are unsigned;
+3. downloads the exact channel-specific unsigned product-trust artifact;
+4. requires its closed schema-4 trust and confirms all three subjects are unsigned;
 5. signs the client and update helper from the machine certificate store;
-6. exports and signs the generated uninstaller, imports it into release-mode
+6. re-runs the signed client diagnostic, requires equality with the unsigned
+   diagnostic, and binds fresh trust evidence to the signed PE;
+7. exports and signs the generated uninstaller, imports it into release-mode
    Setup, then signs Setup;
-7. generates and independently verifies four-subject signature evidence;
-8. installs Setup into a clean dedicated path, requires the installed
+8. generates and independently verifies four-subject signature evidence;
+9. installs Setup into a clean dedicated path, requires the installed
    client/helper/uninstaller bytes and signatures to match, verifies registration,
    uninstalls, and independently verifies the closed acceptance evidence;
-9. assembles and independently verifies a schema-5 candidate; and
-10. uploads one seven-day `signed-not-published` evidence artifact.
+10. assembles and independently verifies a schema-6 candidate closing signed-PE
+    product trust; and
+11. uploads one seven-day `signed-not-published` evidence artifact.
 
 It cannot create a GitHub Release, sign or publish an update manifest, contact a
 release endpoint, or promote a channel. Check this static boundary with:
@@ -572,7 +575,7 @@ python3 Tests/windows_update_channel_candidate_test.py
 ```
 
 `tools/windows_update_channel_candidate.py assemble` accepts only an already
-verified schema-5 Windows candidate, canonical manifest, detached signature,
+verified schema-6 Windows candidate, canonical manifest, detached signature,
 reviewed public PEM, and public release identity. It closes those exact bytes
 in one atomic, immutable `signed-update-channel-not-published-candidate` and
 requires manifest Setup hash/size/publisher/version/revision/channel equality.
@@ -813,6 +816,10 @@ python3 tools/windows_release_candidate.py assemble \
   --signature-evidence /release/windows-release-signatures.json \
   --protected-signing-intent /release/protected-signing-intent.json \
   --install-acceptance-evidence /release/windows-install-acceptance.json \
+  --product-trust-intent /release/product-update-trust-intent.json \
+  --product-trust-diagnostic /release/signed-product-update-trust-diagnostic.json \
+  --product-trust-evidence /release/signed-product-update-trust-evidence.json \
+  --product-trust-primary-public-key /release/product-update-primary-public.pem \
   --output-root /release/candidates/windows-stable-1.2.3 \
   --version-file VERSION \
   --source-revision <40-lowercase-git-sha> \

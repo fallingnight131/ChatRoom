@@ -1002,19 +1002,20 @@ Ordinary CI behavior is unchanged. The boundary compiles on the macOS
 development host, but protected-workflow integration, four-subject evidence,
 and native installed-signature proof remain unfinished M4 gates.
 
-ADR-0165 adds that protected execution boundary without declaring a release.
+ADR-0165 added that protected execution boundary without declaring a release.
 The manual workflow has read-only repository/artifact permissions, serializes
 signing, requires the `windows-production-signing` environment and a dedicated
 `self-hosted-windows-signing` Windows/x64 runner, and never installs build
 dependencies. It validates dispatch strings through environment variables,
-downloads the exact ordinary-CI artifact, reruns unsigned intake verification,
-and requires all three ordinary-CI intake subjects to be `NotSigned`. A unique valid
+now downloads the exact channel-specific product-trust artifact, reruns required-
+trust intake verification, and requires all three intake subjects to be
+`NotSigned`. A unique valid
 code-signing certificate with private key is selected only from
 `LocalMachine\My`, bound by SHA-1 selector and SHA-256 identity; `signtool` uses
 SHA-256 and a reviewed HTTPS RFC 3161 timestamp endpoint. The client/helper are
 signed before NSIS exports the uninstaller; that PE is signed and imported into
 release-mode Setup before Setup is signed. Provider-neutral evidence
-and the current schema-5 candidate are independently verified. Only a seven-day
+and the current schema-6 candidate are independently verified. Only a seven-day
 `signed-not-published` workflow artifact is uploaded. The repository contains no
 positive execution evidence yet, so signed Windows support and publication
 remain M4 gates.
@@ -1022,9 +1023,10 @@ remain M4 gates.
 ADR-0167 connects the two-pass uninstaller boundary to protected signing. The
 workflow exports the generated PE, signs it explicitly, imports those final
 bytes into Setup, signs Setup, then records client/helper/uninstaller/Setup in
-closed schema-2 signature evidence. Candidate schema 5 retains the standalone
+closed schema-2 signature evidence. ADR-0167's schema-5 candidate retained the standalone
 signed uninstaller beside Setup and independently revalidates all four hashes,
 signer identities, timestamps, intent, native install evidence, and final bytes.
+ADR-0190 advances the current candidate to schema 6 without weakening that rule.
 
 ADR-0168 adds the native install/uninstall acceptance boundary. On the dedicated
 protected runner, signed Setup must install into a previously absent absolute
@@ -1094,7 +1096,7 @@ immediately and created once. Workflow orchestration, product public trust, and
 channel publication remain separate gates.
 
 ADR-0176 closes the handoff between the two independent Windows trust domains.
-One immutable unpublished candidate now contains the complete schema-5
+One immutable unpublished candidate now contains the complete schema-6
 Authenticode-accepted Windows candidate, canonical Ed25519 update manifest,
 detached signature, and reviewed public PEM. Independent verification requires
 the manifest to authorize the exact inner Setup bytes, publisher, version,
@@ -1190,6 +1192,13 @@ canonical CMake client with reviewed public trust, requires runtime/update-
 helper byte parity and installed diagnostic parity, then emits a short-lived
 unsigned/unpublished schema-4 trust artifact. Signing keys and channel mutation
 remain outside this environment, and a successful native run is not yet claimed.
+
+ADR-0190 makes protected Authenticode consume that artifact rather than the
+ordinary null-trust build. The workflow re-attests exact public trust from the
+signed client, and candidate schema 6 closes its intent, signed-PE diagnostic,
+evidence, and public PEMs alongside publisher and native-install evidence.
+Downstream update signing therefore rejects historical schema 5 and any signed
+client whose compiled stable/beta trust cannot be reconstructed.
 
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,

@@ -49,6 +49,9 @@ class WindowsProtectedReleaseIntentTest(unittest.TestCase):
             self.signer_sha256, self.now)
         self.assertEqual(verified, value)
         self.assertEqual(verified["environment"], "windows-production-signing")
+        self.assertEqual(
+            verified["unsignedArtifactName"],
+            f"windows-stable-1.2.3-unsigned-product-trust-{self.revision}")
         self.assertNotIn("password", json.dumps(verified).lower())
         self.assertNotIn("private", json.dumps(verified).lower())
 

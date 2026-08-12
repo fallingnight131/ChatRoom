@@ -182,7 +182,7 @@ python3 tools/windows_update_channel_candidate.py assemble \
   --public-key-file-sha256 <reviewed-public-pem-sha256>
 ```
 
-The assembler independently verifies the complete schema-5 Windows candidate
+The assembler independently verifies the complete schema-6 Windows candidate
 and the detached Ed25519 signature, then requires the update manifest to name
 the exact Setup size, SHA-256, publisher, version, revision, and channel. It
 copies the reviewed public PEM but never private key material, closes every

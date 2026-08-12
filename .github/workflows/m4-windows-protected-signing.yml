@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       unsigned_artifact_run_id:
-        description: Completed Windows Product build run containing the unsigned artifact
+        description: Completed product-trust build run containing the unsigned artifact
         required: true
         type: string
       channel:
@@ -82,7 +82,8 @@ jobs:
           }
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "run-id=$runId" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "artifact=chat-room-windows-client-$version-unsigned-verification-$revision" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "artifact=windows-$env:RELEASE_CHANNEL-$version-unsigned-product-trust-$revision" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Create the approved protected-signing intent
         shell: pwsh
@@ -125,7 +126,8 @@ jobs:
             --artifact-root $artifact `
             --version-file VERSION `
             --source-revision $env:RELEASE_REVISION `
-            --qt-version "6.11.1"
+            --qt-version "6.11.1" `
+            --require-product-update-trust
           foreach ($subject in @(
               "$artifact/client/ChatClient.exe",
               "$artifact/client/ChatRoomUpdateLauncher.exe",
@@ -148,6 +150,45 @@ jobs:
             -CertificateSha1 $env:SIGNER_SHA1 `
             -ExpectedCertificateSha256 $env:SIGNER_SHA256 `
             -TimestampUrl $env:RFC3161_URL
+
+      - name: Re-attest product trust from the signed client
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "$env:GITHUB_WORKSPACE/build/m4/protected-signing"
+          $unsigned = "$root/unsigned"
+          $intentPath = "$unsigned/product-update-trust-intent.json"
+          $intent = Get-Content $intentPath -Raw | ConvertFrom-Json
+          if ($intent.channel -cne $env:RELEASE_CHANNEL) {
+            throw "product trust channel differs from protected signing channel"
+          }
+          $diagnosticText = (& "$root/signed-client/ChatClient.exe" `
+            --chatroom-print-update-trust-json | Out-String).TrimEnd() + "`n"
+          if ($LASTEXITCODE -ne 0) { throw "signed client trust diagnostic failed" }
+          $diagnostic = "$root/signed-product-update-trust-diagnostic.json"
+          [IO.File]::WriteAllText($diagnostic, $diagnosticText,
+            [Text.UTF8Encoding]::new($false))
+          $unsignedDiagnostic = (Get-Content `
+            "$unsigned/product-update-trust-diagnostic.json" -Raw).Trim()
+          if ($diagnosticText.Trim() -cne $unsignedDiagnostic) {
+            throw "Authenticode changed the compiled product trust diagnostic"
+          }
+          $arguments = @(
+            "tools/windows_update_product_trust_evidence.py", "create",
+            "--evidence", "$root/signed-product-update-trust-evidence.json",
+            "--client", "$root/signed-client/ChatClient.exe",
+            "--diagnostic", $diagnostic, "--intent", $intentPath,
+            "--version-file", "VERSION", "--source-revision", $env:RELEASE_REVISION,
+            "--channel", $intent.channel, "--manifest-url", $intent.manifestUrl,
+            "--primary-key-id", $intent.primaryKey.keyId,
+            "--primary-public-key", "$unsigned/product-update-primary-public.pem")
+          if ($intent.secondaryKey) {
+            $arguments += @(
+              "--secondary-key-id", $intent.secondaryKey.keyId,
+              "--secondary-public-key", "$unsigned/product-update-secondary-public.pem")
+          }
+          python @arguments
+          if ($LASTEXITCODE -ne 0) { throw "signed client product trust evidence failed" }
 
       - name: Export, sign, import, and sign canonical release installer
         shell: pwsh
@@ -265,19 +306,28 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $root = "$env:GITHUB_WORKSPACE/build/m4/protected-signing"
-          python tools/windows_release_candidate.py assemble `
-            --payload-root "$root/signed-client" `
-            --uninstaller "$root/release-installer/ChatRoom-${{ steps.identity.outputs.version }}-Uninstall.exe" `
-            --installer "$root/release-installer/ChatRoom-${{ steps.identity.outputs.version }}-Setup.exe" `
-            --signature-evidence "$root/windows-release-signatures.json" `
-            --protected-signing-intent "$root/protected-signing-intent.json" `
-            --install-acceptance-evidence "$root/windows-install-acceptance.json" `
-            --output-root "$root/candidate" `
-            --version-file VERSION `
-            --source-revision $env:RELEASE_REVISION `
-            --channel $env:RELEASE_CHANNEL `
-            --qt-version "6.11.1" `
-            --expected-signer-sha256 $env:SIGNER_SHA256
+          $arguments = @(
+            "tools/windows_release_candidate.py", "assemble",
+            "--payload-root", "$root/signed-client",
+            "--uninstaller", "$root/release-installer/ChatRoom-${{ steps.identity.outputs.version }}-Uninstall.exe",
+            "--installer", "$root/release-installer/ChatRoom-${{ steps.identity.outputs.version }}-Setup.exe",
+            "--signature-evidence", "$root/windows-release-signatures.json",
+            "--protected-signing-intent", "$root/protected-signing-intent.json",
+            "--install-acceptance-evidence", "$root/windows-install-acceptance.json",
+            "--product-trust-intent", "$root/unsigned/product-update-trust-intent.json",
+            "--product-trust-diagnostic", "$root/signed-product-update-trust-diagnostic.json",
+            "--product-trust-evidence", "$root/signed-product-update-trust-evidence.json",
+            "--product-trust-primary-public-key", "$root/unsigned/product-update-primary-public.pem",
+            "--output-root", "$root/candidate", "--version-file", "VERSION",
+            "--source-revision", $env:RELEASE_REVISION,
+            "--channel", $env:RELEASE_CHANNEL, "--qt-version", "6.11.1",
+            "--expected-signer-sha256", $env:SIGNER_SHA256)
+          $secondary = "$root/unsigned/product-update-secondary-public.pem"
+          if (Test-Path $secondary -PathType Leaf) {
+            $arguments += @("--product-trust-secondary-public-key", $secondary)
+          }
+          python @arguments
+          if ($LASTEXITCODE -ne 0) { throw "Windows candidate assembly failed" }
           python tools/windows_release_candidate.py verify `
             --candidate-root "$root/candidate" `
             --version-file VERSION `

@@ -23,6 +23,9 @@ from artifact_manifest_common import (
 from windows_release_evidence import HEX64, verify_evidence
 from windows_install_evidence import verify_install_evidence
 from windows_protected_release_intent import verify as verify_signing_intent
+from windows_update_product_trust_evidence import (
+    verify_evidence as verify_product_trust_evidence,
+)
 
 
 QT_VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
@@ -33,6 +36,11 @@ CHECKSUMS_NAME = "SHA256SUMS"
 EVIDENCE_PATH = "evidence/windows-release-signatures.json"
 INTENT_PATH = "evidence/protected-signing-intent.json"
 INSTALL_EVIDENCE_PATH = "evidence/windows-install-acceptance.json"
+PRODUCT_TRUST_INTENT_PATH = "evidence/product-update-trust-intent.json"
+PRODUCT_TRUST_DIAGNOSTIC_PATH = "evidence/signed-product-update-trust-diagnostic.json"
+PRODUCT_TRUST_EVIDENCE_PATH = "evidence/signed-product-update-trust-evidence.json"
+PRODUCT_TRUST_PRIMARY_KEY_PATH = "evidence/product-update-primary-public.pem"
+PRODUCT_TRUST_SECONDARY_KEY_PATH = "evidence/product-update-secondary-public.pem"
 FORBIDDEN_SUFFIXES = {
     ".env", ".exp", ".ilk", ".key", ".lib", ".obj", ".pdb", ".pem", ".pfx",
 }
@@ -48,9 +56,13 @@ ROOT_KEYS = {
     "sourceRevision", "platform", "architecture", "toolchain", "qtVersion",
     "expectedSignerCertificateSha256", "signatureEvidencePath", "installerPath",
     "uninstallerPath", "protectedSigningIntentPath", "installAcceptanceEvidencePath",
-    "assembledAt", "files",
+    "productUpdateTrust", "assembledAt", "files",
 }
 FILE_KEYS = {"path", "sha256", "size"}
+PRODUCT_TRUST_KEYS = {
+    "intentPath", "diagnosticPath", "evidencePath", "primaryPublicKeyPath",
+    "secondaryPublicKeyPath", "manifestUrl", "keyIds",
+}
 
 
 def _exact_utc(value: object) -> datetime:
@@ -134,6 +146,49 @@ def _read_checksums(path: Path) -> dict[str, str]:
     return result
 
 
+def _verify_product_trust(
+    client_path: Path,
+    intent_path: Path,
+    diagnostic_path: Path,
+    evidence_path: Path,
+    primary_public_key: Path,
+    secondary_public_key: Path | None,
+    version_file: Path,
+    source_revision: str,
+    channel: str,
+) -> dict[str, object]:
+    intent = _strict_json(intent_path, "Windows product trust intent")
+    primary = intent.get("primaryKey")
+    secondary = intent.get("secondaryKey")
+    if (not isinstance(primary, dict) or not isinstance(primary.get("keyId"), str)
+            or (secondary is not None and
+                (not isinstance(secondary, dict)
+                 or not isinstance(secondary.get("keyId"), str)))):
+        raise ManifestError("Windows product trust intent key identity is invalid")
+    if (secondary is None) != (secondary_public_key is None):
+        raise ManifestError("Windows product trust secondary key closure is inconsistent")
+    manifest_url = intent.get("manifestUrl")
+    if not isinstance(manifest_url, str):
+        raise ManifestError("Windows product trust manifest URL is invalid")
+    result = verify_product_trust_evidence(
+        evidence_path, client_path, diagnostic_path, intent_path, version_file,
+        source_revision, channel, manifest_url, primary["keyId"],
+        primary_public_key,
+        secondary["keyId"] if isinstance(secondary, dict) else None,
+        secondary_public_key,
+    )
+    return {
+        "intentPath": PRODUCT_TRUST_INTENT_PATH,
+        "diagnosticPath": PRODUCT_TRUST_DIAGNOSTIC_PATH,
+        "evidencePath": PRODUCT_TRUST_EVIDENCE_PATH,
+        "primaryPublicKeyPath": PRODUCT_TRUST_PRIMARY_KEY_PATH,
+        "secondaryPublicKeyPath": (
+            PRODUCT_TRUST_SECONDARY_KEY_PATH if secondary_public_key else None),
+        "manifestUrl": manifest_url,
+        "keyIds": result["keyIds"],
+    }
+
+
 def _identity(
     version_file: Path,
     source_revision: str,
@@ -183,7 +238,7 @@ def validate_candidate(
     if assembled_at > verification_now:
         raise ManifestError("Windows release candidate assembly time is from the future")
     if (type(manifest["schemaVersion"]) is not int
-            or manifest["schemaVersion"] != 5
+            or manifest["schemaVersion"] != 6
             or manifest["product"] != "chat-room-windows-client"
             or manifest["releaseStatus"] != RELEASE_STATUS
             or manifest["channel"] != channel
@@ -200,6 +255,19 @@ def validate_candidate(
             or manifest["installerPath"] != expected_installer_path
             or manifest["uninstallerPath"] != expected_uninstaller_path):
         raise ManifestError("Windows release candidate identity is invalid")
+
+    product_trust = manifest["productUpdateTrust"]
+    if (not isinstance(product_trust, dict)
+            or set(product_trust) != PRODUCT_TRUST_KEYS
+            or product_trust.get("intentPath") != PRODUCT_TRUST_INTENT_PATH
+            or product_trust.get("diagnosticPath") != PRODUCT_TRUST_DIAGNOSTIC_PATH
+            or product_trust.get("evidencePath") != PRODUCT_TRUST_EVIDENCE_PATH
+            or product_trust.get("primaryPublicKeyPath") != PRODUCT_TRUST_PRIMARY_KEY_PATH
+            or product_trust.get("secondaryPublicKeyPath") not in {
+                None, PRODUCT_TRUST_SECONDARY_KEY_PATH}
+            or not isinstance(product_trust.get("manifestUrl"), str)
+            or not isinstance(product_trust.get("keyIds"), list)):
+        raise ManifestError("Windows release candidate product trust is malformed")
 
     entries = manifest["files"]
     if not isinstance(entries, list) or not entries:
@@ -222,7 +290,13 @@ def validate_candidate(
 
     client_paths = {path for path in declared if path.startswith("client/")}
     _validate_payload_policy(client_paths)
-    if set(declared) != client_paths | {
+    trust_paths = {
+        PRODUCT_TRUST_INTENT_PATH, PRODUCT_TRUST_DIAGNOSTIC_PATH,
+        PRODUCT_TRUST_EVIDENCE_PATH, PRODUCT_TRUST_PRIMARY_KEY_PATH,
+    }
+    if product_trust["secondaryPublicKeyPath"] is not None:
+        trust_paths.add(PRODUCT_TRUST_SECONDARY_KEY_PATH)
+    if set(declared) != client_paths | trust_paths | {
             expected_installer_path, expected_uninstaller_path,
             EVIDENCE_PATH, INTENT_PATH, INSTALL_EVIDENCE_PATH}:
         raise ManifestError("Windows release candidate contains an unsupported file class")
@@ -262,6 +336,18 @@ def validate_candidate(
         candidate_root / expected_uninstaller_path,
         candidate_root / expected_installer_path,
         version_file, source_revision, expected_signer_sha256, assembled_at)
+    verified_product_trust = _verify_product_trust(
+        candidate_root / "client/ChatClient.exe",
+        candidate_root / PRODUCT_TRUST_INTENT_PATH,
+        candidate_root / PRODUCT_TRUST_DIAGNOSTIC_PATH,
+        candidate_root / PRODUCT_TRUST_EVIDENCE_PATH,
+        candidate_root / PRODUCT_TRUST_PRIMARY_KEY_PATH,
+        (candidate_root / PRODUCT_TRUST_SECONDARY_KEY_PATH
+         if product_trust["secondaryPublicKeyPath"] is not None else None),
+        version_file, source_revision, channel,
+    )
+    if product_trust != verified_product_trust:
+        raise ManifestError("Windows release candidate product trust identity differs")
     return {
         "releaseId": f"windows-{channel}-{version}-{source_revision}",
         "version": version,
@@ -279,6 +365,11 @@ def assemble_candidate(
     evidence_path: Path,
     intent_path: Path,
     install_evidence_path: Path,
+    product_trust_intent_path: Path,
+    product_trust_diagnostic_path: Path,
+    product_trust_evidence_path: Path,
+    product_trust_primary_public_key: Path,
+    product_trust_secondary_public_key: Path | None,
     output_root: Path,
     version_file: Path,
     source_revision: str,
@@ -315,6 +406,12 @@ def assemble_candidate(
         payload_root / "ChatRoomUpdateLauncher.exe",
         uninstaller_path, installer_path, version_file, source_revision,
         expected_signer_sha256, now_utc)
+    product_trust = _verify_product_trust(
+        payload_root / "ChatClient.exe", product_trust_intent_path,
+        product_trust_diagnostic_path, product_trust_evidence_path,
+        product_trust_primary_public_key, product_trust_secondary_public_key,
+        version_file, source_revision, channel,
+    )
     if installer_path.name != installer_name:
         raise ManifestError("Windows release installer name is invalid")
     if uninstaller_path.name != uninstaller_name:
@@ -354,6 +451,21 @@ def assemble_candidate(
         target_install_evidence = temporary / INSTALL_EVIDENCE_PATH
         shutil.copyfile(install_evidence_path, target_install_evidence)
         copied.append(target_install_evidence)
+        product_trust_sources = (
+            (product_trust_intent_path, PRODUCT_TRUST_INTENT_PATH),
+            (product_trust_diagnostic_path, PRODUCT_TRUST_DIAGNOSTIC_PATH),
+            (product_trust_evidence_path, PRODUCT_TRUST_EVIDENCE_PATH),
+            (product_trust_primary_public_key, PRODUCT_TRUST_PRIMARY_KEY_PATH),
+        )
+        for source, relative in product_trust_sources:
+            target = temporary / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(source, target)
+            copied.append(target)
+        if product_trust_secondary_public_key is not None:
+            target = temporary / PRODUCT_TRUST_SECONDARY_KEY_PATH
+            shutil.copyfile(product_trust_secondary_public_key, target)
+            copied.append(target)
 
         verify_evidence(
             target_evidence,
@@ -366,6 +478,18 @@ def assemble_candidate(
             expected_signer_sha256,
             now_utc,
         )
+        copied_product_trust = _verify_product_trust(
+            temporary / "client/ChatClient.exe",
+            temporary / PRODUCT_TRUST_INTENT_PATH,
+            temporary / PRODUCT_TRUST_DIAGNOSTIC_PATH,
+            temporary / PRODUCT_TRUST_EVIDENCE_PATH,
+            temporary / PRODUCT_TRUST_PRIMARY_KEY_PATH,
+            (temporary / PRODUCT_TRUST_SECONDARY_KEY_PATH
+             if product_trust_secondary_public_key is not None else None),
+            version_file, source_revision, channel,
+        )
+        if copied_product_trust != product_trust:
+            raise ManifestError("Copied Windows product trust differs")
         entries: list[dict[str, object]] = []
         checksums: list[str] = []
         for path in sorted(copied, key=lambda value: value.relative_to(temporary).as_posix()):
@@ -374,7 +498,7 @@ def assemble_candidate(
             entries.append({"path": relative, "sha256": digest, "size": size})
             checksums.append(f"{digest}  {relative}")
         manifest = {
-            "schemaVersion": 5,
+            "schemaVersion": 6,
             "product": "chat-room-windows-client",
             "releaseStatus": RELEASE_STATUS,
             "channel": channel,
@@ -388,6 +512,7 @@ def assemble_candidate(
             "signatureEvidencePath": EVIDENCE_PATH,
             "protectedSigningIntentPath": INTENT_PATH,
             "installAcceptanceEvidencePath": INSTALL_EVIDENCE_PATH,
+            "productUpdateTrust": product_trust,
             "assembledAt": now_utc.astimezone(timezone.utc).replace(
                 microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "installerPath": f"installer/{installer_name}",
@@ -427,6 +552,11 @@ def parse_args() -> argparse.Namespace:
     assemble.add_argument("--signature-evidence", type=Path, required=True)
     assemble.add_argument("--protected-signing-intent", type=Path, required=True)
     assemble.add_argument("--install-acceptance-evidence", type=Path, required=True)
+    assemble.add_argument("--product-trust-intent", type=Path, required=True)
+    assemble.add_argument("--product-trust-diagnostic", type=Path, required=True)
+    assemble.add_argument("--product-trust-evidence", type=Path, required=True)
+    assemble.add_argument("--product-trust-primary-public-key", type=Path, required=True)
+    assemble.add_argument("--product-trust-secondary-public-key", type=Path)
     assemble.add_argument("--output-root", type=Path, required=True)
     _common(assemble)
     verify = commands.add_parser("verify")
@@ -444,6 +574,11 @@ def main() -> int:
                 args.signature_evidence,
                 args.protected_signing_intent,
                 args.install_acceptance_evidence,
+                args.product_trust_intent,
+                args.product_trust_diagnostic,
+                args.product_trust_evidence,
+                args.product_trust_primary_public_key,
+                args.product_trust_secondary_public_key,
                 args.output_root, args.version_file, args.source_revision,
                 args.channel, args.qt_version, args.expected_signer_sha256,
                 datetime.now(timezone.utc).replace(microsecond=0),

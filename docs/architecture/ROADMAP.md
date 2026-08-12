@@ -601,6 +601,9 @@ Progress:
   ordinary null-trust artifact, changes only the reviewed client trust PE,
   proves installed diagnostic parity, and emits an unsigned/unpublished
   trust-required schema-4 artifact.
+- [x] Require that artifact at protected Authenticode intake, re-attest public
+  update trust from the signed client PE, and close it in signed candidate
+  schema 6 beside signature and native install evidence.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.
