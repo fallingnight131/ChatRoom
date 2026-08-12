@@ -253,6 +253,14 @@ second insert or broadcast; conflicting reuse returns
 delivery or read. Offline delivery is reconstructed from history and last-read
 IDs.
 
+The detached Java boundary now reserves the same direct text/emoji contract.
+Authenticated state owns sender account/device identity and the exact target
+username is resolved server-side. PostgreSQL must atomically create the
+canonical message plus its positive 32-bit V1 message mapping before the
+compatible ACK can succeed. Exact retry must return the same friendship/message
+IDs, sequence, and timestamp with `duplicate=true`; only first acceptance may
+later emit `FRIEND_CHAT_MSG`. No adapter or handler exists yet.
+
 ### History
 
 Legacy room and direct history accept a count and an optional `before`

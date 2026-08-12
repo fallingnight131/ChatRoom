@@ -479,6 +479,8 @@ Progress:
     state, exact-retry detection, and fail-closed partial-membership handling.
   - [x] Compose detached strict V1 friend removal with compatible responses,
     fixed telemetry, authoritative first notification, and real PostgreSQL proof.
+  - [x] Define server-bound V1 direct text/emoji submission with atomic future
+    canonical/V1 identity, retry semantics, and first-accept-only fan-out intent.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

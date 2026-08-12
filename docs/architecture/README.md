@@ -323,6 +323,15 @@ removal schedules an authoritative process-local peer notification. Real
 PostgreSQL verification covers two imported logins, list refresh, and retained
 history. Multi-gateway routing remains M5 and the product listener is unchanged.
 
+The next messaging boundary defines V1 direct text/emoji submission without
+letting legacy transport fields become authority. Authenticated state supplies
+sender account/device identity and PostgreSQL will resolve the exact target
+username to an active mapped DIRECT conversation. One future atomic decision
+must create the canonical message and positive V1 message mapping; success may
+not expose a UUID or leave either identity missing. Exact retry preserves the
+same result and only first acceptance may fan out. No adapter or handler exists
+for this boundary yet.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then
