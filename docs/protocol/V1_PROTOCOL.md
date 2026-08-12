@@ -328,6 +328,13 @@ added. Malformed, saturated, or dependency-failed handling closes rather than
 inventing a mutation result. This composed route remains detached from the
 product listener.
 
+The detached user-search boundary reserves the existing `USER_SEARCH_REQ` shape:
+`data.keyword` is trimmed, non-empty, free of control characters, and limited to
+256 UTF-8 bytes. It will return at most 20 compatible `users` with only
+`userId`, `username`, `displayName`, and rebuildable `online`; the authenticated
+caller is excluded and no UUID is exposed. `%` and `_` are literal search text,
+not client-controlled SQL wildcards. No database adapter or handler is composed yet.
+
 The next detached compatibility boundary defines `FRIEND_ACCEPT_REQ` with the
 same positive `data.requestId` and authenticated-recipient rule. First apply and
 an exact retry will both preserve `FRIEND_ACCEPT_RSP.data.success=true`, but only

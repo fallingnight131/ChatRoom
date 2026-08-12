@@ -270,6 +270,13 @@ succeeds without another notification. Fixed telemetry distinguishes scheduled
 local routing, no local route, duplicate, denial, failure, and saturation without identifiers. This
 does not provide multi-gateway routing and the product listener remains unchanged.
 
+The next contacts boundary defines bounded V1 user search. It excludes the
+authenticated account server-side, treats a trimmed keyword as a literal
+case-insensitive substring, and returns at most 20 enabled identities that own a
+V1 numeric mapping. Durable identity and process-local presence remain separate;
+canonical UUIDs never cross the response. Invalid input and inconsistent partial
+projections fail closed. No PostgreSQL adapter or handler exists yet.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then

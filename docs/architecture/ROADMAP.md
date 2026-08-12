@@ -459,6 +459,8 @@ Progress:
     active memberships, descending runtime V1 IDs, and full retry validation.
   - [x] Add and compose detached strict V1 acceptance plus first-apply online
     notification with authoritative routing and real PostgreSQL dual-login proof.
+  - [x] Define a bounded transport-independent V1 user-search projection with
+    server-bound self exclusion, literal keywords, presence, and legacy-only IDs.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application
