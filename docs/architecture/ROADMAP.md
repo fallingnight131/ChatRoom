@@ -555,6 +555,9 @@ Progress:
   client-only, explicitly unsigned verification-payload manifest tied to source.
 - [x] Add an unsigned NSIS direct-installer skeleton with native CI install,
   uninstall, registry traceability, and account-local data preservation checks.
+- [x] Stage and atomically swap installer-owned Windows program directories,
+  restore the old directory on activation failure, reject direct downgrades,
+  and configure a synthetic version-upgrade/data-preservation CI gate.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

@@ -17,10 +17,19 @@ Unicode true
 !endif
 
 !include "MUI2.nsh"
+!include "WordFunc.nsh"
+!insertmacro VersionCompare
 
 !define PRODUCT_NAME "Chat Room"
 !define PRODUCT_EXE "ChatClient.exe"
 !define PRODUCT_UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\ChatRoom"
+!define PRODUCT_INSTALL_ID "chat-room-windows-client-v1"
+!define PRODUCT_INSTALL_MARKER ".chat-room-install.ini"
+
+Var StageDir
+Var BackupDir
+Var ExistingInstall
+Var OwnStage
 
 Name "${PRODUCT_NAME}"
 OutFile "${OUTPUT_DIR}\ChatRoom-${VERSION}-unsigned-verification-Setup.exe"
@@ -56,12 +65,107 @@ VIAddVersionKey /LANG=1033 "LegalCopyright" "Chat Room project contributors"
 LangString MainSectionName ${LANG_SIMPCHINESE} "聊天软件客户端（必需）"
 LangString MainSectionName ${LANG_ENGLISH} "Chat client (required)"
 
+Function .onInstFailed
+  StrCmp $OwnStage "1" 0 cleanup_done
+  RMDir /r "$StageDir"
+  cleanup_done:
+FunctionEnd
+
 Section "$(MainSectionName)" MainSection
   SectionIn RO
   SetShellVarContext current
-  SetOutPath "$INSTDIR"
+  StrCpy $StageDir "$INSTDIR.__chatroom_stage"
+  StrCpy $BackupDir "$INSTDIR.__chatroom_backup"
+  StrCpy $ExistingInstall "0"
+  StrCpy $OwnStage "0"
+
+  IfFileExists "$StageDir\*.*" unsafe_install
+  IfFileExists "$BackupDir\*.*" unsafe_install
+  IfFileExists "$INSTDIR\*.*" 0 target_ready
+  IfFileExists "$INSTDIR\${PRODUCT_INSTALL_MARKER}" 0 unsafe_install
+  ReadINIStr $0 "$INSTDIR\${PRODUCT_INSTALL_MARKER}" "Installation" "ProductId"
+  StrCmp $0 "${PRODUCT_INSTALL_ID}" 0 unsafe_install
+  ReadINIStr $1 "$INSTDIR\${PRODUCT_INSTALL_MARKER}" "Installation" "Version"
+  StrCmp $1 "" unsafe_install
+  ${VersionCompare} "${VERSION}" "$1" $2
+  StrCmp $2 "2" downgrade_install
+  IfFileExists "$INSTDIR\${PRODUCT_EXE}" 0 unsafe_install
+  StrCpy $ExistingInstall "1"
+
+  target_ready:
+  CreateDirectory "$StageDir"
+  SetOutPath "$StageDir"
+  WriteINIStr "$StageDir\${PRODUCT_INSTALL_MARKER}" "Installation" "ProductId" "${PRODUCT_INSTALL_ID}"
+  WriteINIStr "$StageDir\${PRODUCT_INSTALL_MARKER}" "Installation" "Version" "${VERSION}"
+  WriteINIStr "$StageDir\${PRODUCT_INSTALL_MARKER}" "Installation" "SourceRevision" "${SOURCE_REVISION}"
+  StrCpy $OwnStage "1"
   File /r "${PAYLOAD_DIR}\*"
-  WriteUninstaller "$INSTDIR\Uninstall.exe"
+  WriteINIStr "$StageDir\${PRODUCT_INSTALL_MARKER}" "Installation" "ProductId" "${PRODUCT_INSTALL_ID}"
+  WriteINIStr "$StageDir\${PRODUCT_INSTALL_MARKER}" "Installation" "Version" "${VERSION}"
+  WriteINIStr "$StageDir\${PRODUCT_INSTALL_MARKER}" "Installation" "SourceRevision" "${SOURCE_REVISION}"
+  WriteUninstaller "$StageDir\Uninstall.exe"
+  IfFileExists "$StageDir\${PRODUCT_EXE}" 0 stage_invalid
+  IfFileExists "$StageDir\sqldrivers\qsqlite.dll" 0 stage_invalid
+
+  StrCmp $ExistingInstall "1" upgrade_swap fresh_swap
+
+  upgrade_swap:
+    ClearErrors
+    Rename "$INSTDIR" "$BackupDir"
+    IfErrors swap_failed
+    ClearErrors
+    Rename "$StageDir" "$INSTDIR"
+    IfErrors restore_previous
+    StrCpy $OwnStage "0"
+    RMDir /r "$BackupDir"
+    IfFileExists "$BackupDir\*.*" cleanup_failed 0
+    Goto swap_complete
+
+  restore_previous:
+    ClearErrors
+    Rename "$BackupDir" "$INSTDIR"
+    IfErrors rollback_failed
+    SetErrorLevel 2
+    Abort "The new Chat Room version could not be activated; the previous version was restored."
+
+  fresh_swap:
+    RMDir "$INSTDIR"
+    ClearErrors
+    Rename "$StageDir" "$INSTDIR"
+    IfErrors swap_failed
+    StrCpy $OwnStage "0"
+    Goto swap_complete
+
+  stage_invalid:
+    RMDir /r "$StageDir"
+    StrCpy $OwnStage "0"
+    SetErrorLevel 2
+    Abort "The staged Chat Room payload is incomplete."
+
+  cleanup_failed:
+    SetErrorLevel 2
+    Abort "The previous Chat Room program directory could not be removed."
+
+  rollback_failed:
+    SetErrorLevel 3
+    Abort "Chat Room upgrade rollback failed; manual repair is required."
+
+  swap_failed:
+    RMDir /r "$StageDir"
+    StrCpy $OwnStage "0"
+    SetErrorLevel 2
+    Abort "The Chat Room program directory could not be activated."
+
+  unsafe_install:
+    SetErrorLevel 2
+    Abort "The target or temporary directory is not owned by Chat Room; refusing installation."
+
+  downgrade_install:
+    SetErrorLevel 2
+    Abort "Installing an older Chat Room version over a newer version is not allowed."
+
+  swap_complete:
+  SetOutPath "$INSTDIR"
 
   CreateDirectory "$SMPROGRAMS\Chat Room"
   CreateShortcut "$SMPROGRAMS\Chat Room\Chat Room.lnk" "$INSTDIR\${PRODUCT_EXE}"
@@ -75,6 +179,7 @@ Section "$(MainSectionName)" MainSection
   WriteRegStr HKCU "${PRODUCT_UNINSTALL_KEY}" "UninstallString" "$\"$INSTDIR\Uninstall.exe$\""
   WriteRegStr HKCU "${PRODUCT_UNINSTALL_KEY}" "QuietUninstallString" "$\"$INSTDIR\Uninstall.exe$\" /S"
   WriteRegStr HKCU "${PRODUCT_UNINSTALL_KEY}" "SourceRevision" "${SOURCE_REVISION}"
+  WriteRegStr HKCU "${PRODUCT_UNINSTALL_KEY}" "InstallId" "${PRODUCT_INSTALL_ID}"
   WriteRegDWORD HKCU "${PRODUCT_UNINSTALL_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${PRODUCT_UNINSTALL_KEY}" "NoRepair" 1
 SectionEnd
@@ -82,6 +187,9 @@ SectionEnd
 Section "Uninstall"
   SetShellVarContext current
   IfFileExists "$INSTDIR\${PRODUCT_EXE}" 0 unsafe_uninstall
+  IfFileExists "$INSTDIR\${PRODUCT_INSTALL_MARKER}" 0 unsafe_uninstall
+  ReadINIStr $0 "$INSTDIR\${PRODUCT_INSTALL_MARKER}" "Installation" "ProductId"
+  StrCmp $0 "${PRODUCT_INSTALL_ID}" 0 unsafe_uninstall
   Delete "$SMPROGRAMS\Chat Room\Chat Room.lnk"
   Delete "$SMPROGRAMS\Chat Room\Uninstall Chat Room.lnk"
   RMDir "$SMPROGRAMS\Chat Room"

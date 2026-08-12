@@ -586,6 +586,15 @@ The artifact remains named and manifested as unsigned verification output;
 Windows 10/11 launch/upgrade, Authenticode/RFC 3161 timestamping, updater, and
 rollback remain release gates.
 
+ADR-0116 strengthens the unsigned installer upgrade boundary. An owned marker
+guards recursive program-directory operations; the complete new payload is
+validated in a sibling staging directory, the old tree is renamed to backup,
+and activation failure restores it. Native CI is configured for a synthetic
+0.9.0-to-current transition that removes stale program files while retaining
+AppData, then rejects a direct older-Setup downgrade without mutation. This does
+not replace real old-binary, locked-process, signing, or Windows 10/11 release
+evidence.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

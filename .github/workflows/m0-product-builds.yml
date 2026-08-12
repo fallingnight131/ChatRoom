@@ -149,8 +149,18 @@ jobs:
           $installerDirectory = "$artifact/installer"
           New-Item -ItemType Directory -Force $installerDirectory | Out-Null
           $installerDirectory = (Resolve-Path $installerDirectory).Path
+          $priorInstallerDirectory = "$env:RUNNER_TEMP/ChatRoomPriorInstaller"
+          New-Item -ItemType Directory -Force $priorInstallerDirectory | Out-Null
+          $priorInstallerDirectory = (Resolve-Path $priorInstallerDirectory).Path
           $makensis = Join-Path ${env:ProgramFiles(x86)} "NSIS/makensis.exe"
           if (-not (Test-Path $makensis -PathType Leaf)) { throw "Pinned NSIS compiler was not found" }
+
+          $priorVersion = "0.9.0"
+          & $makensis /WX /NOCONFIG /V2 "/DVERSION=$priorVersion" `
+            "/DSOURCE_REVISION=0000000000000000000000000000000000000000" `
+            "/DPAYLOAD_DIR=$payload" "/DOUTPUT_DIR=$priorInstallerDirectory" "/DICON_FILE=$icon" `
+            packaging/windows/ChatRoom.nsi
+          if ($LASTEXITCODE -ne 0) { throw "Prior NSIS compilation failed with exit code $LASTEXITCODE" }
 
           & $makensis /WX /NOCONFIG /V2 "/DVERSION=$version" "/DSOURCE_REVISION=${{ github.sha }}" `
             "/DPAYLOAD_DIR=$payload" "/DOUTPUT_DIR=$installerDirectory" "/DICON_FILE=$icon" `
@@ -165,8 +175,26 @@ jobs:
 
           $installRoot = "$env:RUNNER_TEMP/ChatRoomInstall"
           if ($installRoot.Contains(" ")) { throw "Silent verification install path must not contain spaces" }
-          $install = Start-Process -FilePath $installer -ArgumentList @("/S", "/D=$installRoot") -Wait -PassThru
-          if ($install.ExitCode -ne 0) { throw "Silent install failed with exit code $($install.ExitCode)" }
+          $priorInstaller = "$priorInstallerDirectory/ChatRoom-$priorVersion-unsigned-verification-Setup.exe"
+          $priorInstall = Start-Process -FilePath $priorInstaller -ArgumentList @("/S", "/D=$installRoot") -Wait -PassThru
+          if ($priorInstall.ExitCode -ne 0) { throw "Prior silent install failed with exit code $($priorInstall.ExitCode)" }
+          $priorRegistration = Get-ItemProperty "HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/ChatRoom"
+          if ($priorRegistration.DisplayVersion -ne $priorVersion) { throw "Prior installer version was not registered" }
+
+          $oldProgramSentinel = "$installRoot/.m4-old-program-sentinel"
+          Set-Content -Path $oldProgramSentinel -Value "must-be-replaced"
+          $sentinelDirectory = "$env:APPDATA/QtChatRoom/ChatClient"
+          New-Item -ItemType Directory -Force $sentinelDirectory | Out-Null
+          $sentinel = "$sentinelDirectory/.m4-installer-verification"
+          Set-Content -Path $sentinel -Value "preserve"
+
+          $upgrade = Start-Process -FilePath $installer -ArgumentList @("/S", "/D=$installRoot") -Wait -PassThru
+          if ($upgrade.ExitCode -ne 0) { throw "Silent upgrade failed with exit code $($upgrade.ExitCode)" }
+          if (Test-Path $oldProgramSentinel) { throw "Upgrade retained a stale program file" }
+          if ((Test-Path "$installRoot.__chatroom_stage") -or (Test-Path "$installRoot.__chatroom_backup")) {
+            throw "Upgrade left a staging or backup directory behind"
+          }
+          if (-not (Test-Path $sentinel -PathType Leaf)) { throw "Upgrade deleted account-local client data" }
           $installedClient = "$installRoot/ChatClient.exe"
           if (-not (Test-Path $installedClient -PathType Leaf)) { throw "Installed client executable is missing" }
           if (-not (Test-Path "$installRoot/sqldrivers/qsqlite.dll" -PathType Leaf)) {
@@ -176,14 +204,24 @@ jobs:
             throw "Installed client version does not match canonical VERSION"
           }
           $uninstallKey = Get-ItemProperty "HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/ChatRoom"
-          if ($uninstallKey.DisplayVersion -ne $version -or $uninstallKey.SourceRevision -ne "${{ github.sha }}") {
+          if ($uninstallKey.DisplayVersion -ne $version -or $uninstallKey.SourceRevision -ne "${{ github.sha }}" `
+              -or $uninstallKey.InstallId -ne "chat-room-windows-client-v1") {
             throw "Installed Add/Remove Programs metadata is not traceable"
           }
+          $installMarker = "$installRoot/.chat-room-install.ini"
+          if (-not (Test-Path $installMarker -PathType Leaf)) { throw "Installed ownership marker is missing" }
+          if (-not (Select-String -Path $installMarker -SimpleMatch "ProductId=chat-room-windows-client-v1" -Quiet)) {
+            throw "Installed ownership marker is invalid"
+          }
 
-          $sentinelDirectory = "$env:APPDATA/QtChatRoom/ChatClient"
-          New-Item -ItemType Directory -Force $sentinelDirectory | Out-Null
-          $sentinel = "$sentinelDirectory/.m4-installer-verification"
-          Set-Content -Path $sentinel -Value "preserve"
+          $downgrade = Start-Process -FilePath $priorInstaller -ArgumentList @("/S", "/D=$installRoot") -Wait -PassThru
+          if ($downgrade.ExitCode -eq 0) { throw "Older installer was allowed to downgrade the current version" }
+          $afterDowngrade = Get-ItemProperty "HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/ChatRoom"
+          if ($afterDowngrade.DisplayVersion -ne $version -or -not (Test-Path $installedClient -PathType Leaf) `
+              -or -not (Test-Path $sentinel -PathType Leaf)) {
+            throw "Rejected downgrade changed the current installation or account data"
+          }
+
           $uninstall = Start-Process -FilePath "$installRoot/Uninstall.exe" -ArgumentList "/S" -Wait -PassThru
           if ($uninstall.ExitCode -ne 0) { throw "Silent uninstall failed with exit code $($uninstall.ExitCode)" }
           for ($attempt = 0; $attempt -lt 20 -and (Test-Path $installRoot); $attempt++) {

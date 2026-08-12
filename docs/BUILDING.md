@@ -122,6 +122,16 @@ Windows product verification and non-product Qt portability builds run through
 distinction between product and development hosts are documented in
 `docs/architecture/SUPPORT_MATRIX.md`.
 
+The unsigned Windows NSIS gate now compiles a synthetic predecessor outside the
+uploaded artifact, installs it, and upgrades to canonical `VERSION`. It checks
+whole-program-directory replacement, marker ownership, rollback scaffolding,
+stale-file removal, registry traceability, AppData preservation, and cleanup of
+staging/backup directories. The predecessor uses the current payload and proves
+installer mechanics only; real previous-binary/schema compatibility, running-app
+handling, signing, and Windows 10/11 clean-host behavior remain M4 work. CI also
+re-runs the older Setup after upgrade and requires a nonzero downgrade result
+without changing the current program registration, executable, or AppData.
+
 ## Java V2 Backend
 
 The additive M3 workspace requires JDK 21. It carries its own checksum-pinned
