@@ -25,10 +25,12 @@ class WebReleaseCompletionTest(WebReleaseExecutionTest):
         super().setUp()
         self.post_release = self.root / "post-release.json"
         release = json.loads(self.current_observation.read_text(encoding="utf-8"))
+        release["baseUrl"] = "https://chat.example.test"
         release["observedAt"] = "2026-08-12T02:11:00+00:00"
         self.post_release.write_text(json.dumps(release), encoding="utf-8")
         self.post_routes = self.root / "post-routes.json"
         routes = json.loads(self.route_observation.read_text(encoding="utf-8"))
+        routes["baseUrl"] = "https://chat.example.test"
         routes["observedAt"] = "2026-08-12T02:11:30+00:00"
         self.post_routes.write_text(json.dumps(routes), encoding="utf-8")
         self.completed_at = self.now + timedelta(minutes=2)

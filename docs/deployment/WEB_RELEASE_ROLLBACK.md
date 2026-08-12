@@ -84,12 +84,13 @@ python3 tools/web_release_probe.py \
   --verify-evidence /path/to/evidence/web-release-A.json
 ```
 
-Before promotion, separately prove that the same HTTPS authority reaches the
-V1 application routes without credentials:
+Before promotion, serve candidate B on a dedicated preview HTTPS origin and
+prove that preview authority reaches the V1 application routes without
+credentials:
 
 ```bash
 python3 tools/web_application_route_probe.py \
-  --base-url https://chat.example.com \
+  --base-url https://preview-chat.example.com \
   --output /path/to/evidence/web-application-routes.json
 ```
 
@@ -97,10 +98,13 @@ This requires exact `/api/health` process/route identity and a valid random-
 challenge WebSocket upgrade at `/ws`. If the Web build uses a reviewed custom
 same-origin WebSocket path, pass that exact path with `--websocket-path`.
 
-Join the candidate static/route observations with the exact candidate and a
-different retained rollback release using `tools/web_promotion_evidence.py
+Join the preview candidate static/route observations with exact B and the
+different retained production rollback A using `tools/web_promotion_evidence.py
 record`; independently reconstruct it with the `verify` command before any
 provider adapter changes traffic. The complete command is in `docs/BUILDING.md`.
+Schema 2 requires preview and production origins to differ and derives the
+production target from A's retained observation. It never requires B to occupy
+the production root before approval.
 The result says `technical-gates-observed-not-published`; it is not proof that
 traffic changed or that an incident rollback met its recovery objective.
 
@@ -159,6 +163,13 @@ promotion approval: the original authorization already selected A, and delaying
 an incident rollback for a new version choice would increase recovery time. If
 evidence persistence fails after A is restored, leave A active and investigate;
 never automatically return to failed B.
+
+After restoration, rerun both the strict static probe and application-route
+probe against production A, then bind those fresh files to the exact rollback
+execution with `web_release_rollback_completion.py record`. Only
+`production-rollback-observed` closes the incident; the generic three-static-
+observation record below remains useful no-rebuild evidence but is insufficient
+without restored `/api/health` and `/ws`.
 
 ```bash
 python3 tools/web_rollback_evidence.py record \

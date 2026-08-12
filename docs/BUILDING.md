@@ -104,9 +104,9 @@ nonce-bound RFC 6455 upgrade at `/ws`. Use `--websocket-path` only when it exact
 matches the reviewed path compiled into the Web release. This is route evidence,
 not login, database, file, load, or continuous-availability evidence.
 
-After observing a candidate and its routes, bind them to the exact immutable
-candidate and a different retained rollback release before any provider adapter
-changes traffic:
+Observe candidate B and its routes on a dedicated preview HTTPS origin while
+production still serves retained A. Bind both immutable releases before any
+provider adapter changes production traffic:
 
 ```bash
 python3 tools/web_promotion_evidence.py record \
@@ -126,6 +126,9 @@ python3 tools/web_promotion_evidence.py verify \
   --output /path/to/evidence/web-technical-promotion.json
 ```
 
+Schema 2 requires candidate static/routes to share the preview origin and the
+rollback observation to name a different production origin. The production URL
+is derived from observed A rather than accepted as an arbitrary mutation input.
 The default candidate observation freshness is 15 minutes and both current
 observations must be within five minutes of one another. The record is labeled
 not-published and performs no provider mutation.
@@ -154,7 +157,7 @@ python3 tools/web_release_authorization.py verify \
   --output /path/to/evidence/web-production-authorization.json
 ```
 
-The write-once authorization binds the production origin, candidate and
+The schema-2 write-once authorization binds preview and production origins, candidate and
 rollback IDs, source identity, and exact technical-record SHA-256. Its lifetime
 is 60–900 seconds, and the technical promotion itself must be no more than 15
 minutes old. It contains no cloud token, DNS/CDN credential, provider command,

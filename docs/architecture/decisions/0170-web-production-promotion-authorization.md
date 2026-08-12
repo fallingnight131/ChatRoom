@@ -1,6 +1,6 @@
 # ADR-0170: Web Production Promotion Authorization
 
-- Status: Accepted
+- Status: Superseded by ADR-0205
 - Date: 2026-08-12
 - Owners: Web release engineering and operations
 - Extends: ADR-0145

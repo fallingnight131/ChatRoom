@@ -32,6 +32,7 @@ class WebReleaseRollbackCompletionTest(unittest.TestCase):
         self.restored_release.write_text(json.dumps(release), encoding="utf-8")
         self.restored_routes = self.base.root / "restored-routes.json"
         routes = json.loads(self.base.route_observation.read_text(encoding="utf-8"))
+        routes["baseUrl"] = "https://chat.example.test"
         routes["observedAt"] = "2026-08-12T02:14:30+00:00"
         self.restored_routes.write_text(json.dumps(routes), encoding="utf-8")
         self.now = self.base.now + timedelta(minutes=5)

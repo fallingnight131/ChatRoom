@@ -45,6 +45,10 @@ class WebReleaseAuthorizationTest(WebPromotionEvidenceTest):
         value = self.create()
         write_once(self.authorization, value)
         self.assertEqual(self.verify()["environment"], "web-production")
+        self.assertEqual(value["schemaVersion"], 2)
+        self.assertEqual(value["candidateBaseUrl"],
+                         "https://preview.chat.example.test")
+        self.assertEqual(value["baseUrl"], "https://chat.example.test")
         with self.assertRaisesRegex(ManifestError, "already exists"):
             write_once(self.authorization, value)
 

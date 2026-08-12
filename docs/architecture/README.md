@@ -1293,6 +1293,12 @@ same origin answers both `/api/health` and a nonce-bound `/ws` upgrade inside a
 bounded window. Static-only A/B/A evidence remains useful rehearsal but cannot
 close a production rollback by itself.
 
+ADR-0205 removes a pre-production circular dependency. Candidate B is observed
+with its static policy and application routes on a distinct preview HTTPS
+origin, while retained A identifies the active production origin. Schema-2
+technical promotion and authorization bind both; only post-switch evidence may
+claim B at production. Legacy single-origin records are rejected.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

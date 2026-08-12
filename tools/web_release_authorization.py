@@ -19,6 +19,7 @@ ENVIRONMENT = "web-production"
 STATUS = "production-promotion-approved-not-executed"
 KEYS = {
     "schemaVersion", "authorizationType", "status", "environment", "baseUrl",
+    "candidateBaseUrl",
     "releaseId", "rollbackReleaseId", "version", "sourceRevision",
     "technicalPromotionSha256", "approvedAt", "expiresAt",
 }
@@ -83,11 +84,12 @@ def create_authorization(
             or now_utc - technical_approved.astimezone(timezone.utc) > timedelta(minutes=15)):
         raise ManifestError("Web technical promotion approval is stale or from the future")
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "authorizationType": "web-production-promotion",
         "status": STATUS,
         "environment": ENVIRONMENT,
-        "baseUrl": promotion["baseUrl"],
+        "baseUrl": promotion["productionBaseUrl"],
+        "candidateBaseUrl": promotion["candidateBaseUrl"],
         "releaseId": promotion["releaseId"],
         "rollbackReleaseId": promotion["rollbackReleaseId"],
         "version": promotion["version"],

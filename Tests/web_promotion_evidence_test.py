@@ -30,6 +30,7 @@ class WebPromotionEvidenceTest(unittest.TestCase):
         self.rollback = self._artifact("1.0.0", "a" * 40, "rollback")
         self.current_observation = self._release_observation(
             self.current, "2026-08-12T02:05:00+00:00",
+            "https://preview.chat.example.test",
         )
         self.rollback_observation = self._release_observation(
             self.rollback, "2026-08-01T02:00:00+00:00",
@@ -39,7 +40,7 @@ class WebPromotionEvidenceTest(unittest.TestCase):
             "schemaVersion": 1,
             "evidenceType": "web-application-route-observation",
             "status": "healthy",
-            "baseUrl": "https://chat.example.test",
+            "baseUrl": "https://preview.chat.example.test",
             "apiHealthPath": "/api/health",
             "webSocketPath": "/ws",
             "apiStatus": 200,
@@ -75,7 +76,10 @@ class WebPromotionEvidenceTest(unittest.TestCase):
         write_manifest(artifact, manifest, checksums)
         return artifact
 
-    def _release_observation(self, artifact: Path, observed_at: str) -> Path:
+    def _release_observation(
+        self, artifact: Path, observed_at: str,
+        base_url: str = "https://chat.example.test",
+    ) -> Path:
         manifest_bytes = (artifact / "web-artifact-manifest.json").read_bytes()
         manifest = json.loads(manifest_bytes)
         path = self.root / f"observation-{manifest['version']}.json"
@@ -83,7 +87,7 @@ class WebPromotionEvidenceTest(unittest.TestCase):
             "schemaVersion": 1,
             "evidenceType": "web-release-https-observation",
             "status": "healthy",
-            "baseUrl": "https://chat.example.test",
+            "baseUrl": base_url,
             "releaseId": f"{manifest['version']}-{manifest['sourceRevision']}",
             "version": manifest["version"],
             "sourceRevision": manifest["sourceRevision"],
@@ -104,6 +108,11 @@ class WebPromotionEvidenceTest(unittest.TestCase):
     def test_binds_fresh_release_routes_and_distinct_retained_rollback(self) -> None:
         evidence = self._build()
         self.assertEqual(evidence["status"], "technical-gates-observed-not-published")
+        self.assertEqual(evidence["schemaVersion"], 2)
+        self.assertEqual(evidence["candidateBaseUrl"],
+                         "https://preview.chat.example.test")
+        self.assertEqual(evidence["productionBaseUrl"],
+                         "https://chat.example.test")
         self.assertNotEqual(evidence["releaseId"], evidence["rollbackReleaseId"])
         output = self.root / "promotion.json"
         write_promotion_once(output, evidence)
@@ -146,16 +155,24 @@ class WebPromotionEvidenceTest(unittest.TestCase):
         route = json.loads(self.route_observation.read_text(encoding="utf-8"))
         route["baseUrl"] = "https://other.example.test"
         self.route_observation.write_text(json.dumps(route), encoding="utf-8")
-        with self.assertRaisesRegex(ManifestError, "one HTTPS origin"):
+        with self.assertRaisesRegex(ManifestError, "one preview origin"):
             self._build()
 
-        route["baseUrl"] = "https://chat.example.test"
+        route["baseUrl"] = "https://preview.chat.example.test"
         self.route_observation.write_text(json.dumps(route), encoding="utf-8")
         with self.assertRaisesRegex(ManifestError, "different release"):
             build_promotion_evidence(
                 self.current, self.current_observation, self.route_observation,
                 self.current, self.current_observation, self.now, 900,
             )
+
+        rollback = json.loads(self.rollback_observation.read_text(encoding="utf-8"))
+        rollback["baseUrl"] = "https://preview.chat.example.test"
+        self.rollback_observation.write_text(json.dumps(rollback), encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "must differ"):
+            self._build()
+        rollback["baseUrl"] = "https://chat.example.test"
+        self.rollback_observation.write_text(json.dumps(rollback), encoding="utf-8")
 
         evidence = self._build()
         output = self.root / "promotion.json"

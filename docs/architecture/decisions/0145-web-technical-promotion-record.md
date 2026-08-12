@@ -1,6 +1,6 @@
 # ADR-0145: Web Technical Promotion Record
 
-- Status: Accepted
+- Status: Superseded by ADR-0205
 - Date: 2026-08-12
 - Owners: project maintainers
 - Related milestone: M4

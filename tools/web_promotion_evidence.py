@@ -17,7 +17,8 @@ from web_release_probe import read_observation
 
 
 PROMOTION_KEYS = {
-    "schemaVersion", "evidenceType", "status", "baseUrl", "releaseId", "version",
+    "schemaVersion", "evidenceType", "status", "candidateBaseUrl",
+    "productionBaseUrl", "releaseId", "version",
     "sourceRevision", "rollbackReleaseId", "releaseObservationSha256",
     "routeObservationSha256", "rollbackObservationSha256", "artifactManifestSha256",
     "rollbackArtifactManifestSha256", "releaseObservedAt", "routesObservedAt",
@@ -60,10 +61,12 @@ def build_promotion_evidence(
     release = read_observation(release_observation_path, release_root)
     routes = read_route_observation(route_observation_path)
     rollback = read_observation(rollback_observation_path, rollback_release_root)
-    if release["baseUrl"] != routes["baseUrl"] or release["baseUrl"] != rollback["baseUrl"]:
-        raise ManifestError("Web promotion evidence must refer to one HTTPS origin")
     if release["releaseId"] == rollback["releaseId"]:
         raise ManifestError("Web promotion rollback target must be a different release")
+    if release["baseUrl"] != routes["baseUrl"]:
+        raise ManifestError("Web candidate static and routes must use one preview origin")
+    if release["baseUrl"] == rollback["baseUrl"]:
+        raise ManifestError("Web candidate preview and production origins must differ")
 
     release_time = _read_time(release["observedAt"], "Web release observation time")
     route_time = _read_time(routes["observedAt"], "Web route observation time")
@@ -79,10 +82,11 @@ def build_promotion_evidence(
         raise ManifestError("Web rollback observation is from the future")
 
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "evidenceType": "web-release-technical-promotion",
         "status": "technical-gates-observed-not-published",
-        "baseUrl": release["baseUrl"],
+        "candidateBaseUrl": release["baseUrl"],
+        "productionBaseUrl": rollback["baseUrl"],
         "releaseId": release["releaseId"],
         "version": release["version"],
         "sourceRevision": release["sourceRevision"],
