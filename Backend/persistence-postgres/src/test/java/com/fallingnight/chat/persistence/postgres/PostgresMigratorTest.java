@@ -11,6 +11,9 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1AccountIdentit
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1ConversationIdentity;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1ConversationKind;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1MessageIdentity;
+import com.fallingnight.chat.application.attachment.AttachmentRegistration;
+import com.fallingnight.chat.application.attachment.AttachmentRegistrationResult;
+import com.fallingnight.chat.application.attachment.AttachmentState;
 import com.fallingnight.chat.application.identity.AccountCredential;
 import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.application.identity.ClientPlatform;
@@ -579,6 +582,73 @@ class PostgresMigratorTest {
     }
 
     @Test
+    @Order(11)
+    void registersAttachmentMetadataWithExactConcurrentIdempotencyAndAuthorization()
+            throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID account = UUID.randomUUID();
+        UUID device = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        seedMessageOwner(account, device, conversation);
+        PostgresAttachmentAdapter adapter = new PostgresAttachmentAdapter(dataSource());
+        byte[] hash = new byte[32];
+        hash[0] = 7;
+        AttachmentRegistration registration = new AttachmentRegistration(
+                conversation, account, device, "client-file-1", "报告.pdf",
+                "application/pdf", 1024, hash);
+
+        List<AttachmentRegistrationResult.Accepted> raced =
+                raceAttachmentRegistration(adapter, registration);
+
+        assertEquals(2, raced.size());
+        assertEquals(1, raced.stream().filter(value -> !value.duplicate()).count());
+        assertEquals(1, raced.stream().filter(
+                AttachmentRegistrationResult.Accepted::duplicate).count());
+        assertEquals(raced.getFirst().attachment().attachmentId(),
+                raced.getLast().attachment().attachmentId());
+        assertEquals(AttachmentState.UPLOAD_PENDING,
+                raced.getFirst().attachment().state());
+        assertTrue(raced.getFirst().attachment().objectKey().startsWith("attachments/"));
+        assertFalse(raced.getFirst().attachment().objectKey().contains("报告.pdf"));
+        assertEquals(1, count("SELECT count(*) FROM chat.attachment"));
+
+        AttachmentRegistration conflict = new AttachmentRegistration(
+                conversation, account, device, "client-file-1", "报告.pdf",
+                "application/pdf", 2048, hash);
+        assertEquals(AttachmentRegistrationResult.Rejected.IDEMPOTENCY_CONFLICT,
+                adapter.register(conflict));
+        assertEquals(1, count("SELECT count(*) FROM chat.attachment"));
+
+        AttachmentRegistration wrongAccount = new AttachmentRegistration(
+                conversation, UUID.randomUUID(), UUID.randomUUID(), "client-file-2",
+                "file.txt", "text/plain", 1, new byte[32]);
+        assertEquals(AttachmentRegistrationResult.Rejected.NOT_AUTHORIZED,
+                adapter.register(wrongAccount));
+
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.attachment SET state = 'READY', "
+                    + "ready_at = transaction_timestamp() WHERE owner_account_id = ?",
+                    account);
+        }
+        AttachmentRegistrationResult.Accepted completedRetry =
+                (AttachmentRegistrationResult.Accepted) adapter.register(registration);
+        assertTrue(completedRetry.duplicate());
+        assertEquals(AttachmentState.READY, completedRetry.attachment().state());
+
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.device SET revoked_at = transaction_timestamp() "
+                    + "WHERE id = ?", device);
+        }
+        AttachmentRegistration afterRevocation = new AttachmentRegistration(
+                conversation, account, device, "client-file-3", "file.txt",
+                "text/plain", 1, new byte[32]);
+        assertEquals(AttachmentRegistrationResult.Rejected.NOT_AUTHORIZED,
+                adapter.register(afterRevocation));
+        assertEquals(1, count("SELECT count(*) FROM chat.attachment"));
+    }
+
+    @Test
     @Order(3)
     void previewsAppliesReconcilesAndAuditsV1IdentityImport() throws Exception {
         requireDatabase();
@@ -975,6 +1045,33 @@ class PostgresMigratorTest {
             return List.of(
                     (MessageSubmissionResult.Accepted) futures.get(0).get(),
                     (MessageSubmissionResult.Accepted) futures.get(1).get());
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
+        }
+    }
+
+    private static List<AttachmentRegistrationResult.Accepted> raceAttachmentRegistration(
+            PostgresAttachmentAdapter adapter,
+            AttachmentRegistration registration) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<Future<AttachmentRegistrationResult>> futures =
+                    java.util.stream.IntStream.range(0, 2)
+                            .mapToObj(index -> executor.submit(() -> {
+                                ready.countDown();
+                                assertTrue(start.await(2, TimeUnit.SECONDS));
+                                return adapter.register(registration);
+                            }))
+                            .toList();
+            assertTrue(ready.await(2, TimeUnit.SECONDS));
+            start.countDown();
+            return List.of(
+                    (AttachmentRegistrationResult.Accepted) futures.get(0).get(),
+                    (AttachmentRegistrationResult.Accepted) futures.get(1).get());
         } finally {
             start.countDown();
             executor.shutdownNow();

@@ -448,8 +448,10 @@ Progress:
     and update the isolated Web preview before activating the new history path.
   - [x] Add the V2 PostgreSQL attachment metadata registry with membership/device
     ownership, idempotency, hash/size bounds, and explicit lifecycle constraints.
-  - [ ] Add the inactive attachment registration application port and exact
+  - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
+  - [ ] Add object-store abstraction, object-scoped short-lived upload grants,
+    completion verification, lifecycle metrics, and failure-safe cleanup.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

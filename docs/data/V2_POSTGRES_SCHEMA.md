@@ -141,7 +141,10 @@ scoped client attachment id for future idempotent registration. PostgreSQL
 bounds filename/media type/size/SHA-256 and enforces `UPLOAD_PENDING`, `READY`,
 or `REVOKED` timestamp consistency. It stores no bytes, local paths, endpoints,
 credentials, or temporary authorization. No application or wire command uses
-this table yet.
+this table yet. An inactive application port and PostgreSQL adapter now reserve
+pending rows with active membership/account/device locking and exact owner-
+scoped idempotency. They return no storage credential or endpoint; object
+verification and the READY transition remain a separate boundary.
 
 The message importer provides a repeatable-read, no-write target preview.
 It compares the exact typed conversation mapping and allowed pre/post high

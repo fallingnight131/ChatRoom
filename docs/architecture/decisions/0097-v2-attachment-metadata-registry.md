@@ -31,19 +31,36 @@ durable metadata identity with explicit lifecycle and idempotency constraints.
 - Start with `UPLOAD_PENDING`, `READY`, and `REVOKED`. PostgreSQL enforces state
   timestamp consistency. Object-store verification is required before a future
   application service may transition a row to `READY`.
+- Add a transport-neutral registration port. It validates basename/path safety,
+  bounded UTF-8 identifiers, canonical parameter-free MIME type, size, and exact
+  SHA-256 before persistence.
+- In the PostgreSQL adapter, lock and require an active conversation membership,
+  enabled account, and owned non-revoked device in the registration transaction.
+  Server-bound identity must populate the command when a future transport is
+  added; payload identity can never grant access.
+- Treat the owner-scoped client attachment ID as an idempotency key. An exact
+  concurrent or later retry returns the original UUID, object key, lifecycle,
+  and creation time with `duplicate=true`. Any metadata difference returns an
+  opaque idempotency conflict and creates no row.
 
 ## Consequences
 
 Attachment identity and metadata can evolve independently of message payloads
-and storage authorization. This migration alone exposes no command, grants no
-upload, reads no object, and does not unblock V1 attachment import.
+and storage authorization. The application boundary is currently inactive: it
+exposes no wire command, grants no upload, reads no object, and does not unblock
+V1 attachment import. Gateway telemetry is therefore deferred until a command
+can actually invoke the boundary.
 
 ## Verification and Rollback
 
 Disposable PostgreSQL verification applies all twelve migrations, validates a
 same-database restart, inserts one pending registry row, rejects duplicate
 client identity and malformed SHA-256, rejects an unverified ready transition,
-and accepts a ready transition only with its timestamp.
+and accepts a ready transition only with its timestamp. Adapter integration
+verification races two exact registrations, proves one durable row and stable
+identity, rejects conflicting reuse and an outsider, returns existing READY
+metadata on exact retry, and rejects a revoked device.
 
-Rollback restores the database from the pre-V012 backup or applies a separately
+Rollback of the inactive code removes the application port and adapter. Schema
+rollback restores the database from the pre-V012 backup or applies a separately
 reviewed forward migration. Never edit or delete an applied Flyway migration.
