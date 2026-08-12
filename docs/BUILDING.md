@@ -723,6 +723,19 @@ python3 Tests/windows_update_product_trust_intent_test.py
 Ordinary builds remain disabled. A later protected build workflow must consume
 and retain this exact intent before the client can be signed. See ADR-0185.
 
+The final Windows client exposes one side-effect-free release diagnostic:
+
+```powershell
+ChatClient.exe --chatroom-print-update-trust-json
+```
+
+It exits before UI, single-instance locking, local state, or network work and
+reports only compiled public update trust. Ordinary Windows CI requires
+`enabled: false` and an empty key ring. A protected product build must instead
+match every field to ADR-0185 before packaging/signing. Check the source/build
+boundary with `python3 Tests/windows_update_trust_diagnostic_policy_test.py`.
+See ADR-0186.
+
 The provider-neutral post-signing acceptance policy is checked with:
 
 ```bash

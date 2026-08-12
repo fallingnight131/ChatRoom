@@ -256,3 +256,9 @@ Ed25519 public bytes from reviewed PEM files and binds their IDs/digests to one
 exact source/version/channel/manifest URL for at most two hours. One optional
 secondary key supports overlap rotation. This public intent contains no private
 key and does not itself enable, build, sign, or publish a client.
+
+`ChatClient.exe --chatroom-print-update-trust-json` provides final-binary
+attestation of that compiled public trust. It runs before UI, state, or network
+startup and emits only enabled/channel/URLs/key IDs/raw public keys. Ordinary CI
+requires disabled/empty output; protected builds must match the reviewed intent
+exactly before Authenticode signing.

@@ -68,6 +68,7 @@ SOURCES += \
     WindowsUpdateRuntimePaths.cpp \
     WindowsUpdateStartupService.cpp \
     WindowsUpdateProductConfiguration.cpp \
+    WindowsUpdateTrustDiagnostic.cpp \
     WindowsUpdateController.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
@@ -110,6 +111,7 @@ HEADERS += \
     WindowsUpdateRuntimePaths.h \
     WindowsUpdateStartupService.h \
     WindowsUpdateProductConfiguration.h \
+    WindowsUpdateTrustDiagnostic.h \
     WindowsUpdateController.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \

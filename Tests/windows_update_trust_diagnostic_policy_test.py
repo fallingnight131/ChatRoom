@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def main() -> int:
+    source = (ROOT / "Client/main.cpp").read_text(encoding="utf-8")
+    diagnostic = (ROOT / "Client/WindowsUpdateTrustDiagnostic.cpp").read_text(
+        encoding="utf-8")
+    cmake = (ROOT / "CMakeLists.txt").read_text(encoding="utf-8")
+    qmake = (ROOT / "Client/Client.pro").read_text(encoding="utf-8")
+    argument = "--chatroom-print-update-trust-json"
+    required = (
+        "WindowsUpdateProductConfiguration::fromBuild()",
+        "WindowsUpdateTrustDiagnostic::canonicalJson",
+        "std::fwrite",
+        argument,
+    )
+    for marker in required:
+        if marker not in source:
+            raise AssertionError(f"Windows trust diagnostic marker missing: {marker}")
+    positions = [
+        source.find(argument), source.find("QApplication app(argc, argv)"),
+        source.find("WindowsClientInstanceGuard instanceGuard"),
+        source.find("WindowsUpdateController updateController"),
+    ]
+    if any(position < 0 for position in positions) or positions != sorted(positions):
+        raise AssertionError("Windows trust diagnostic is not before UI/network/update startup")
+    for marker in (
+        'QStringLiteral("enabled")', 'QStringLiteral("channel")',
+        'QStringLiteral("manifestUrl")', 'QStringLiteral("signatureUrl")',
+        'QStringLiteral("trustedKeys")', 'QStringLiteral("keyId")',
+        'QStringLiteral("publicKeyHex")', "QJsonDocument::Compact",
+    ):
+        if marker not in diagnostic:
+            raise AssertionError(f"Windows trust diagnostic schema missing: {marker}")
+    lowered = diagnostic.lower()
+    for marker in ("privatekey", "password", "secret", "token", "credential"):
+        if marker in lowered:
+            raise AssertionError(f"Windows trust diagnostic exposes forbidden field: {marker}")
+    for graph, name in ((cmake, "CMake"), (qmake, "qmake")):
+        for marker in (
+            "WindowsUpdateTrustDiagnostic.cpp", "WindowsUpdateTrustDiagnostic.h"):
+            if marker not in graph:
+                raise AssertionError(f"{name} omits Windows trust diagnostic: {marker}")
+    print("Windows update trust diagnostic policy passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

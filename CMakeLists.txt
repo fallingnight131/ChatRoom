@@ -372,6 +372,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             STATIC
             Client/WindowsUpdateProductConfiguration.cpp
             Client/WindowsUpdateProductConfiguration.h
+            Client/WindowsUpdateTrustDiagnostic.cpp
+            Client/WindowsUpdateTrustDiagnostic.h
         )
         target_include_directories(
             chatroom_windows_update_product_configuration PUBLIC Client)
@@ -414,6 +416,7 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/FileCache.cpp
                 Client/WindowsClientInstanceGuard.cpp
                 Client/WindowsUpdateProductConfiguration.cpp
+                Client/WindowsUpdateTrustDiagnostic.cpp
                 Client/WindowsUpdateController.cpp
                 Client/AvatarCropDialog.cpp
                 Client/ForwardSelectDialog.cpp
@@ -698,7 +701,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
         add_executable(
             WindowsUpdateProductConfigurationEnabledTest
             Tests/WindowsUpdateProductConfigurationEnabledTest.cpp
-            Client/WindowsUpdateProductConfiguration.cpp)
+            Client/WindowsUpdateProductConfiguration.cpp
+            Client/WindowsUpdateTrustDiagnostic.cpp)
         target_include_directories(
             WindowsUpdateProductConfigurationEnabledTest PRIVATE Client)
         target_compile_definitions(

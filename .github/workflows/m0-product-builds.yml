@@ -106,6 +106,7 @@ jobs:
           python Tests/windows_cmake_installer_gate_test.py
           python Tests/windows_cmake_packaging_promotion_test.py
           python Tests/windows_cmake_update_configuration_test.py
+          python Tests/windows_update_trust_diagnostic_policy_test.py
           python Tests/windows_unsigned_artifact_verifier_test.py
 
       - name: Install pinned Qt SDK
@@ -148,6 +149,12 @@ jobs:
           }
           if (-not $cmakeLauncher.VersionInfo.ProductVersion.StartsWith($version)) {
             throw "CMake update launcher version does not match canonical VERSION"
+          }
+          $trust = (& $cmakeClient.FullName --chatroom-print-update-trust-json) |
+            ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $trust.enabled -ne $false `
+              -or $trust.trustedKeys.Count -ne 0) {
+            throw "Ordinary Windows client did not retain default-off update trust"
           }
 
       - name: Assemble qmake Windows fallback payload

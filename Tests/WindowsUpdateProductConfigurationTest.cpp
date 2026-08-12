@@ -1,4 +1,5 @@
 #include "WindowsUpdateProductConfiguration.h"
+#include "WindowsUpdateTrustDiagnostic.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -33,6 +34,11 @@ int main(int argc, char *argv[]) {
             || !check(!Configuration::fromBuild().enabled
                           && Configuration::fromBuild().error.isEmpty(),
                       QStringLiteral("default build enabled product updates"))) return 1;
+    const QByteArray disabledDiagnostic =
+        WindowsUpdateTrustDiagnostic::canonicalJson(Configuration::fromBuild());
+    if (!check(disabledDiagnostic.contains("\"enabled\":false")
+                   && disabledDiagnostic.contains("\"trustedKeys\":[]"),
+               QStringLiteral("disabled trust diagnostic is not fail closed"))) return 1;
 
     const QList<Configuration::Value> rejected{
         Configuration::validate(QStringLiteral("preview"),

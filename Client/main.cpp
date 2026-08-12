@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QDebug>
 #include <QMessageBox>
@@ -6,6 +7,7 @@
 #include <QPointer>
 #include <QStandardPaths>
 #include <QTimer>
+#include <cstdio>
 #include "LoginDialog.h"
 #include "ChatWindow.h"
 #include "NetworkManager.h"
@@ -15,6 +17,7 @@
 #include "WindowsUpdateStartupService.h"
 #include "WindowsUpdateController.h"
 #include "WindowsUpdateProductConfiguration.h"
+#include "WindowsUpdateTrustDiagnostic.h"
 
 #ifndef CHAT_APP_VERSION
 #error "CHAT_APP_VERSION must come from the repository VERSION file"
@@ -86,6 +89,18 @@ bool handleWindowsUpdateStartup(const WindowsUpdateRuntimePaths &paths,
 #endif
 
 int main(int argc, char *argv[]) {
+#ifdef Q_OS_WIN
+    if (argc == 2
+            && QByteArray(argv[1]) == "--chatroom-print-update-trust-json") {
+        QCoreApplication diagnosticApplication(argc, argv);
+        const QByteArray output = WindowsUpdateTrustDiagnostic::canonicalJson(
+            WindowsUpdateProductConfiguration::fromBuild());
+        if (std::fwrite(output.constData(), 1,
+                        static_cast<size_t>(output.size()), stdout)
+                != static_cast<size_t>(output.size())) return 2;
+        return 0;
+    }
+#endif
     QApplication app(argc, argv);
     app.setApplicationName("ChatClient");
     app.setApplicationVersion(CHAT_APP_VERSION);

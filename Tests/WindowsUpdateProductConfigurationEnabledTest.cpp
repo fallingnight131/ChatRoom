@@ -1,4 +1,5 @@
 #include "WindowsUpdateProductConfiguration.h"
+#include "WindowsUpdateTrustDiagnostic.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -18,6 +19,15 @@ int main(int argc, char *argv[]) {
             << (configured.error.isEmpty()
                     ? QStringLiteral("compiled product configuration was not enabled")
                     : configured.error);
+        return 1;
+    }
+    const QByteArray diagnostic = WindowsUpdateTrustDiagnostic::canonicalJson(configured);
+    if (!diagnostic.endsWith('\n')
+            || !diagnostic.contains("\"enabled\":true")
+            || !diagnostic.contains("\"keyId\":\"windows-update-2026-01\"")
+            || !diagnostic.contains(QByteArray(64, 'a'))
+            || diagnostic.contains("private") || diagnostic.contains("secret")) {
+        qCritical() << "[WindowsUpdateProductConfigurationEnabledTest] unsafe diagnostic";
         return 1;
     }
     qInfo() << "[WindowsUpdateProductConfigurationEnabledTest] PASS";

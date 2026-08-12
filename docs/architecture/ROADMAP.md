@@ -591,6 +591,8 @@ Progress:
 - [x] Define a short-lived reviewed Windows product-update trust intent binding
   exact source/version/channel/URL and one/two canonical Ed25519 public keys,
   while ordinary builds remain disabled.
+- [x] Add a pre-UI, side-effect-free final-binary diagnostic for exact compiled
+  public update trust and require ordinary native CI to prove disabled/empty.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.
