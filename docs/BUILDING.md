@@ -76,6 +76,7 @@ Exercise immutable staging, activation health, and no-rebuild rollback policy:
 python3 Tests/web_release_store_test.py
 python3 Tests/web_release_probe_test.py
 python3 Tests/web_rollback_evidence_test.py
+python3 Tests/web_application_route_probe_test.py
 ```
 
 The operator commands and filesystem layout are documented in
@@ -87,6 +88,20 @@ still intentionally separate from production-provider and browser verification.
 The V1 smoke gate also starts the real Qt HTTP listener and verifies the exact,
 query-free, credential-free `GET /api/health` routing contract. It is a process
 and `/api/` reachability signal only, not database or attachment readiness.
+
+Once an HTTPS reverse proxy owns both application paths, create separate
+write-once route evidence without credentials:
+
+```bash
+python3 tools/web_application_route_probe.py \
+  --base-url https://chat.example.com \
+  --output /path/to/evidence/web-application-routes.json
+```
+
+The probe requires the exact V1 health body/headers and completes a fresh
+nonce-bound RFC 6455 upgrade at `/ws`. Use `--websocket-path` only when it exactly
+matches the reviewed path compiled into the Web release. This is route evidence,
+not login, database, file, load, or continuous-availability evidence.
 
 Production Web builds resolve V1 WebSocket traffic to `wss://<page-authority>/ws`
 and file traffic below same-origin `/api/`; the HTTPS reverse proxy must own both

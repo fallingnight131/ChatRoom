@@ -809,6 +809,14 @@ exposes no readiness, user, file, build, or dependency detail. Path variants,
 queries, and non-GET methods fail closed. The public HTTPS probe still needs to
 consume this contract and verify the `/ws` upgrade before promotion.
 
+ADR-0144 implements that public-boundary observation without mixing it into the
+static byte result. One trusted HTTPS origin must return the exact V1 health
+contract and a valid random-challenge RFC 6455 upgrade on the reviewed
+same-origin paths. Redirects, unsafe paths, untrusted TLS, wrong response bytes
+or headers, cookies, wildcard CORS, duplicate critical headers, and malformed or
+oversized upgrade responses fail. This proves routing and upgrade reachability,
+not authenticated chat, storage health, file access, load, or availability.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

@@ -33,3 +33,7 @@ manifest bytes. The same tool can independently re-probe a retained observation.
 observations by digest, origin, exact release identity, and strict time order.
 Neither tool publishes a release or turns isolated fixture output into production
 evidence.
+`tools/web_application_route_probe.py` separately verifies that the same trusted
+HTTPS origin serves the exact credential-free V1 `/api/health` contract and a
+nonce-bound RFC 6455 `/ws` upgrade. Keeping route and static evidence separate
+makes a failed reverse proxy distinguishable from stale release bytes.

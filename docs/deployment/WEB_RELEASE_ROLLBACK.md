@@ -84,6 +84,19 @@ python3 tools/web_release_probe.py \
   --verify-evidence /path/to/evidence/web-release-A.json
 ```
 
+Before promotion, separately prove that the same HTTPS authority reaches the
+V1 application routes without credentials:
+
+```bash
+python3 tools/web_application_route_probe.py \
+  --base-url https://chat.example.com \
+  --output /path/to/evidence/web-application-routes.json
+```
+
+This requires exact `/api/health` process/route identity and a valid random-
+challenge WebSocket upgrade at `/ws`. If the Web build uses a reviewed custom
+same-origin WebSocket path, pass that exact path with `--websocket-path`.
+
 ## Roll back without rebuilding
 
 Keep the previous release directory throughout the rollback window. To roll

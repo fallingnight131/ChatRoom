@@ -649,6 +649,9 @@ Progress:
 - [x] Add an exact, query-free, credential-free V1 `/api/health` contract so the
   Web release gate can distinguish working same-origin application routing from
   a proxy/CDN 404 without exposing application or dependency state.
+- [x] Observe `/api/health` and an RFC 6455 nonce-bound `/ws` upgrade on one
+  trusted HTTPS origin, with closed write-once route evidence and fail-closed
+  redirect, TLS, path, response, and mutation tests.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
