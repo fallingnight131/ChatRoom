@@ -54,6 +54,16 @@ Firefox 153.0. They are engine-level evidence; branded current/previous Chrome,
 Edge, and Firefox checks remain a public-release gate. Playwright reports and
 test results are local/short-lived CI output and are ignored by Git.
 
+The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
+six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and
+Firefox. Each host must expose one preinstalled non-symlink executable through
+`CHATROOM_BRANDED_BROWSER_EXECUTABLE`; dispatch approval supplies its exact
+reviewed version and SHA-256 plus the exact undeployed candidate artifact. The
+workflow hashes the binary before and after Playwright, emits a candidate-bound
+record, and verifies it with `tools/web_browser_host_evidence.py`. It does not
+install browsers, mutate production, or by itself close the six-slot matrix.
+See ADR-0208 and ADR-0209.
+
 CI then copies the real Vite tree and `packaging/web/response-policy.json` into a
 short-lived, explicitly undeployed Web verification artifact.
 `tools/web_artifact_manifest.py` requires matching package/lock versions, local

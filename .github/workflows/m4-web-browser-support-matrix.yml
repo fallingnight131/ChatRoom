@@ -1,0 +1,223 @@
+name: M4 Web Branded Browser Support Matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: M0 run containing the exact undeployed Web candidate
+        required: true
+        type: string
+      candidate_artifact_name:
+        description: Exact undeployed Web candidate artifact name
+        required: true
+        type: string
+      chrome_current_version:
+        description: Reviewed current stable Google Chrome version
+        required: true
+        type: string
+      chrome_current_sha256:
+        description: SHA-256 of the preinstalled current Chrome executable
+        required: true
+        type: string
+      chrome_previous_version:
+        description: Reviewed previous stable Google Chrome version
+        required: true
+        type: string
+      chrome_previous_sha256:
+        description: SHA-256 of the preinstalled previous Chrome executable
+        required: true
+        type: string
+      edge_current_version:
+        description: Reviewed current stable Microsoft Edge version
+        required: true
+        type: string
+      edge_current_sha256:
+        description: SHA-256 of the preinstalled current Edge executable
+        required: true
+        type: string
+      edge_previous_version:
+        description: Reviewed previous stable Microsoft Edge version
+        required: true
+        type: string
+      edge_previous_sha256:
+        description: SHA-256 of the preinstalled previous Edge executable
+        required: true
+        type: string
+      firefox_current_version:
+        description: Reviewed current stable Mozilla Firefox version
+        required: true
+        type: string
+      firefox_current_sha256:
+        description: SHA-256 of the preinstalled current Firefox executable
+        required: true
+        type: string
+      firefox_previous_version:
+        description: Reviewed previous stable Mozilla Firefox version
+        required: true
+        type: string
+      firefox_previous_sha256:
+        description: SHA-256 of the preinstalled previous Firefox executable
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+
+jobs:
+  browser-host:
+    name: ${{ matrix.target }} candidate smoke
+    environment: web-browser-support
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: chrome-current
+            family: chrome
+            product: Google Chrome
+            position: current
+            runner: chatroom-web-chrome-current
+            expected_version: ${{ inputs.chrome_current_version }}
+            expected_sha256: ${{ inputs.chrome_current_sha256 }}
+          - target: chrome-previous
+            family: chrome
+            product: Google Chrome
+            position: previous
+            runner: chatroom-web-chrome-previous
+            expected_version: ${{ inputs.chrome_previous_version }}
+            expected_sha256: ${{ inputs.chrome_previous_sha256 }}
+          - target: edge-current
+            family: edge
+            product: Microsoft Edge
+            position: current
+            runner: chatroom-web-edge-current
+            expected_version: ${{ inputs.edge_current_version }}
+            expected_sha256: ${{ inputs.edge_current_sha256 }}
+          - target: edge-previous
+            family: edge
+            product: Microsoft Edge
+            position: previous
+            runner: chatroom-web-edge-previous
+            expected_version: ${{ inputs.edge_previous_version }}
+            expected_sha256: ${{ inputs.edge_previous_sha256 }}
+          - target: firefox-current
+            family: firefox
+            product: Mozilla Firefox
+            position: current
+            runner: chatroom-web-firefox-current
+            expected_version: ${{ inputs.firefox_current_version }}
+            expected_sha256: ${{ inputs.firefox_current_sha256 }}
+          - target: firefox-previous
+            family: firefox
+            product: Mozilla Firefox
+            position: previous
+            runner: chatroom-web-firefox-previous
+            expected_version: ${{ inputs.firefox_previous_version }}
+            expected_sha256: ${{ inputs.firefox_previous_sha256 }}
+    runs-on: [self-hosted, Linux, X64, chatroom-web-browser, "${{ matrix.runner }}"]
+    timeout-minutes: 20
+    env:
+      CHATROOM_BRANDED_BROWSER_TARGET: ${{ matrix.target }}
+      CHATROOM_BRANDED_BROWSER_FAMILY: ${{ matrix.family }}
+      CHATROOM_BRANDED_BROWSER_PRODUCT: ${{ matrix.product }}
+      CHATROOM_BRANDED_BROWSER_POSITION: ${{ matrix.position }}
+      EXPECTED_BROWSER_VERSION: ${{ matrix.expected_version }}
+      EXPECTED_BROWSER_EXECUTABLE_SHA256: ${{ matrix.expected_sha256 }}
+      CHATROOM_BROWSER_BASE_URL: http://127.0.0.1:4173
+      CHATROOM_BROWSER_SERVER_COMMAND: >-
+        python3 -m http.server 4173 --bind 127.0.0.1
+        --directory ../build/m4/web-browser-candidate/site
+
+    steps:
+      - name: Check out browser verifier source
+        uses: actions/checkout@v6
+
+      - name: Set up locked Node.js line
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: WebClient/package-lock.json
+
+      - name: Validate reviewed browser and runner identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$EXPECTED_BROWSER_VERSION" =~ ^[1-9][0-9]*(\.[0-9]+){1,3}$ ]]
+          [[ "$EXPECTED_BROWSER_EXECUTABLE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "${CHATROOM_BRANDED_BROWSER_EXECUTABLE:-}" = /* ]]
+          [[ -f "$CHATROOM_BRANDED_BROWSER_EXECUTABLE" ]]
+          [[ ! -L "$CHATROOM_BRANDED_BROWSER_EXECUTABLE" ]]
+          [[ -x "$CHATROOM_BRANDED_BROWSER_EXECUTABLE" ]]
+          actual_sha=$(sha256sum "$CHATROOM_BRANDED_BROWSER_EXECUTABLE" | cut -d ' ' -f 1)
+          [[ "$actual_sha" = "$EXPECTED_BROWSER_EXECUTABLE_SHA256" ]]
+          printf 'CHATROOM_BRANDED_BROWSER_EXECUTABLE_SHA256=%s\n' "$actual_sha" >> "$GITHUB_ENV"
+          printf 'CHATROOM_BRANDED_BROWSER_HOST=%s\n' "$RUNNER_NAME" >> "$GITHUB_ENV"
+          printf 'CHATROOM_BRANDED_BROWSER_EVIDENCE=%s/browser-evidence.json\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+
+      - name: Download exact undeployed Web candidate
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.candidate_artifact_name }}
+          path: build/m4/web-browser-candidate
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.candidate_run_id }}
+
+      - name: Close candidate identity before browser launch
+        shell: bash
+        run: |
+          set -euo pipefail
+          identity=$(PYTHONPATH=tools python3 -c 'import json,sys; from pathlib import Path; from web_release_store import validate_release; print(json.dumps(validate_release(Path(sys.argv[1]))))' build/m4/web-browser-candidate)
+          release_id=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["releaseId"])' "$identity")
+          version=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["version"])' "$identity")
+          revision=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["sourceRevision"])' "$identity")
+          manifest_sha=$(sha256sum build/m4/web-browser-candidate/web-artifact-manifest.json | cut -d ' ' -f 1)
+          printf 'CHATROOM_WEB_RELEASE_ID=%s\n' "$release_id" >> "$GITHUB_ENV"
+          printf 'CHATROOM_WEB_VERSION=%s\n' "$version" >> "$GITHUB_ENV"
+          printf 'CHATROOM_WEB_SOURCE_REVISION=%s\n' "$revision" >> "$GITHUB_ENV"
+          printf 'CHATROOM_WEB_MANIFEST_SHA256=%s\n' "$manifest_sha" >> "$GITHUB_ENV"
+
+      - name: Install locked Web test dependencies without browser downloads
+        working-directory: WebClient
+        run: npm ci
+
+      - name: Exercise exact branded browser against exact candidate
+        working-directory: WebClient
+        run: npm run test:browser -- --project "$CHATROOM_BRANDED_BROWSER_TARGET"
+
+      - name: Recheck binary and independently verify host evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          final_sha=$(sha256sum "$CHATROOM_BRANDED_BROWSER_EXECUTABLE" | cut -d ' ' -f 1)
+          [[ "$final_sha" = "$EXPECTED_BROWSER_EXECUTABLE_SHA256" ]]
+          python3 tools/web_browser_host_evidence.py \
+            --evidence "$CHATROOM_BRANDED_BROWSER_EVIDENCE" \
+            --policy packaging/web/browser-support-policy.json \
+            --target-id "$CHATROOM_BRANDED_BROWSER_TARGET" \
+            --release-root build/m4/web-browser-candidate \
+            --expected-browser-version "$EXPECTED_BROWSER_VERSION" \
+            --expected-executable-sha256 "$EXPECTED_BROWSER_EXECUTABLE_SHA256"
+
+      - name: Retain verified branded-browser evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-browser-${{ matrix.target }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/browser-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Retain browser failure diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-browser-${{ matrix.target }}-failure-${{ github.run_id }}
+          path: |
+            WebClient/playwright-report
+            WebClient/test-results
+          if-no-files-found: ignore
+          retention-days: 14
