@@ -1,12 +1,15 @@
 package com.fallingnight.chat.persistence.postgres.migration;
 
 import java.time.Instant;
+import java.util.UUID;
 
-/** Minimal V1 administrative deletion event state in the room cursor namespace. */
-public record V1RoomDeletionCursorRow(
+/** Complete typed target row for one durable V1 room deletion event. */
+public record PlannedV1DeletionEvent(
         long legacyEventId,
         long legacyRoomId,
-        long legacyOperatorUserId,
+        UUID conversationId,
+        long conversationSequence,
+        UUID actorAccountId,
         String operatorName,
         String clientOperationId,
         String commandFingerprint,
@@ -15,5 +18,4 @@ public record V1RoomDeletionCursorRow(
         String fileIdsJson,
         long cutoffEpochMs,
         int deletedCount,
-        long sequence,
-        Instant createdAt) {}
+        Instant occurredAt) {}

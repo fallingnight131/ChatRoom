@@ -29,7 +29,10 @@ public final class V1SqliteMessageStateSource {
                     "recalled", "created_at"),
             "room_message_sequences", Set.of("room_id", "last_sequence"),
             "room_message_deletion_events", Set.of(
-                    "id", "room_id", "operator_user_id", "sequence", "created_at"),
+                    "id", "room_id", "operator_user_id", "operator_name",
+                    "client_operation_id", "command_fingerprint", "mode",
+                    "message_ids_json", "file_ids_json", "cutoff_ms", "deleted_count",
+                    "sequence", "created_at"),
             "friend_messages", Set.of(
                     "id", "friendship_id", "sender_id", "sequence", "mutation_sequence",
                     "recalled", "created_at"),
@@ -175,13 +178,24 @@ public final class V1SqliteMessageStateSource {
         List<V1RoomDeletionCursorRow> result = new ArrayList<>();
         try (Statement statement = connection.createStatement();
                 ResultSet rows = statement.executeQuery(
-                        "SELECT id, room_id, operator_user_id, sequence, created_at "
+                        "SELECT id, room_id, operator_user_id, operator_name, "
+                                + "client_operation_id, command_fingerprint, mode, "
+                                + "message_ids_json, file_ids_json, cutoff_ms, deleted_count, "
+                                + "sequence, created_at "
                                 + "FROM room_message_deletion_events ORDER BY id")) {
             while (rows.next()) {
                 result.add(new V1RoomDeletionCursorRow(
                         rows.getLong("id"),
                         rows.getLong("room_id"),
                         rows.getLong("operator_user_id"),
+                        rows.getString("operator_name"),
+                        rows.getString("client_operation_id"),
+                        rows.getString("command_fingerprint"),
+                        rows.getString("mode"),
+                        rows.getString("message_ids_json"),
+                        rows.getString("file_ids_json"),
+                        rows.getLong("cutoff_ms"),
+                        rows.getInt("deleted_count"),
                         rows.getLong("sequence"),
                         parseTimestamp(rows.getString("created_at"))));
             }

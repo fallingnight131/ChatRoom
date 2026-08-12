@@ -63,7 +63,10 @@ iteration order.
 The implemented source reader requires the complete migrated cursor schema,
 runs SQLite `quick_check`, enables `query_only`, and reads conversation and
 message state inside one transaction snapshot. It reads no message body, file
-payload, credential, or deletion-command JSON in this planning phase.
+payload, credential, or attachment storage path. The reader now includes the
+complete durable deletion-command metadata required to rebuild typed deletion
+entries; strict validation rejects malformed modes, IDs, operation keys,
+fingerprints, cutoffs, counts, and positive-integer JSON arrays.
 
 The plan fingerprint covers the validated conversation fingerprint, every
 watermark, retained message ID/sender/creation/mutation/recall/timestamp field,

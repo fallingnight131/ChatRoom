@@ -59,9 +59,32 @@ public final class V1MessageTargetImportPlanner {
                 .thenComparingLong(PlannedV1HistoricalMessage::creationSequence));
         List<PlannedV1LegacyDevice> sortedDevices = new ArrayList<>(devices.values());
         sortedDevices.sort(Comparator.comparing(value -> value.accountId().toString()));
+        List<PlannedV1DeletionEvent> deletions = bundle.statePlan().sourceDeletionEventRows()
+                .stream()
+                .map(row -> new PlannedV1DeletionEvent(
+                        row.legacyEventId(),
+                        row.legacyRoomId(),
+                        V1ConversationImportPlanner.deterministicRoomId(row.legacyRoomId()),
+                        row.sequence(),
+                        V1IdentityImportPlanner.deterministicUserId(
+                                row.legacyOperatorUserId()),
+                        row.operatorName(),
+                        row.clientOperationId(),
+                        row.commandFingerprint(),
+                        row.mode(),
+                        row.messageIdsJson(),
+                        row.fileIdsJson(),
+                        row.cutoffEpochMs(),
+                        row.deletedCount(),
+                        row.createdAt()))
+                .sorted(Comparator.comparing(
+                        (PlannedV1DeletionEvent value) -> value.conversationId().toString())
+                        .thenComparingLong(PlannedV1DeletionEvent::conversationSequence))
+                .toList();
         return new V1MessageTargetImportPlan(
                 sortedDevices,
                 messages,
+                deletions,
                 bundle.statePlan().conversationCursors(),
                 bundle.statePlan().memberReadCursors());
     }

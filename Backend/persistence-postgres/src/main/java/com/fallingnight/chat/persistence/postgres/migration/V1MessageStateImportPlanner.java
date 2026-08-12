@@ -171,6 +171,14 @@ public final class V1MessageStateImportPlanner {
                 data.writeLong(row.legacyEventId());
                 data.writeLong(row.legacyRoomId());
                 data.writeLong(row.legacyOperatorUserId());
+                writeNullable(data, row.operatorName());
+                writeNullable(data, row.clientOperationId());
+                writeNullable(data, row.commandFingerprint());
+                writeNullable(data, row.mode());
+                writeNullable(data, row.messageIdsJson());
+                writeNullable(data, row.fileIdsJson());
+                data.writeLong(row.cutoffEpochMs());
+                data.writeInt(row.deletedCount());
                 data.writeLong(row.sequence());
                 data.writeUTF(row.createdAt() == null ? "" : row.createdAt().toString());
             }
@@ -186,6 +194,16 @@ public final class V1MessageStateImportPlanner {
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is unavailable", exception);
         }
+    }
+
+    private static void writeNullable(DataOutputStream data, String value) throws IOException {
+        if (value == null) {
+            data.writeInt(-1);
+            return;
+        }
+        byte[] encoded = value.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        data.writeInt(encoded.length);
+        data.write(encoded);
     }
 
     private static Map<LegacyKey, Long> validateWatermarks(
@@ -297,7 +315,25 @@ public final class V1MessageStateImportPlanner {
                 issues.add(issue(key, "INVALID_DELETION_METADATA",
                         "deletion event operator and timestamp are required"));
             }
+            if (row.clientOperationId() == null || row.clientOperationId().isEmpty()
+                    || row.clientOperationId().length() > 128
+                    || row.commandFingerprint() == null
+                    || row.commandFingerprint().isEmpty()
+                    || row.commandFingerprint().length() > 128
+                    || !Set.of("selected", "all", "before", "after").contains(row.mode())
+                    || !validPositiveIntegerArray(row.messageIdsJson())
+                    || !validPositiveIntegerArray(row.fileIdsJson())
+                    || row.cutoffEpochMs() < 0
+                    || row.deletedCount() < 0) {
+                issues.add(issue(key, "INVALID_DELETION_PAYLOAD",
+                        "deletion event payload must match the bounded V1 event shape"));
+            }
         }
+    }
+
+    private static boolean validPositiveIntegerArray(String value) {
+        return value != null && value.matches(
+                "\\[\\s*(?:[1-9][0-9]*(?:\\s*,\\s*[1-9][0-9]*)*)?\\s*\\]");
     }
 
     private static void validateSequence(

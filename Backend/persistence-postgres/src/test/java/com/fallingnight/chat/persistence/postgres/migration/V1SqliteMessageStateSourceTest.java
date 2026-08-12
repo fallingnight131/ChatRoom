@@ -65,7 +65,10 @@ class V1SqliteMessageStateSourceTest {
             statement.execute("CREATE TABLE room_message_sequences (room_id INTEGER PRIMARY KEY, "
                     + "last_sequence INTEGER)");
             statement.execute("CREATE TABLE room_message_deletion_events (id INTEGER PRIMARY KEY, "
-                    + "room_id INTEGER, operator_user_id INTEGER, sequence INTEGER, created_at TEXT)");
+                    + "room_id INTEGER, operator_user_id INTEGER, operator_name TEXT, "
+                    + "client_operation_id TEXT, command_fingerprint TEXT, mode TEXT, "
+                    + "message_ids_json TEXT, file_ids_json TEXT, cutoff_ms INTEGER, "
+                    + "deleted_count INTEGER, sequence INTEGER, created_at TEXT)");
             statement.execute("CREATE TABLE friend_messages (id INTEGER PRIMARY KEY, "
                     + "friendship_id INTEGER, sender_id INTEGER, sequence INTEGER, "
                     + "mutation_sequence INTEGER, recalled INTEGER, created_at TEXT)");
@@ -87,7 +90,8 @@ class V1SqliteMessageStateSourceTest {
                     + "(105, 9, 2, 4, 7, 1, '2026-01-02 03:05:05')");
             statement.execute("INSERT INTO room_message_sequences VALUES (9, 8)");
             statement.execute("INSERT INTO room_message_deletion_events VALUES "
-                    + "(1, 9, 1, 6, '2026-01-02 03:06:05')");
+                    + "(1, 9, 1, 'Admin', 'operation-1', 'fingerprint-1', "
+                    + "'selected', '[100]', '[]', 0, 1, 6, '2026-01-02 03:06:05')");
             statement.execute("INSERT INTO friend_messages VALUES "
                     + "(50, 4, 2, 1, NULL, 0, '2026-01-02 03:04:05'), "
                     + "(60, 4, 3, 3, NULL, 0, '2026-01-02 03:05:05')");

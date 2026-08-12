@@ -28,7 +28,7 @@ class V1MessageStateImportPlannerTest {
                         message(LegacyV1ConversationKind.ROOM, 9, 105, 2, 4, 7L, true),
                         message(LegacyV1ConversationKind.FRIENDSHIP, 4, 50, 1, 1, null, false),
                         message(LegacyV1ConversationKind.FRIENDSHIP, 4, 60, 2, 3, null, false)),
-                List.of(new V1RoomDeletionCursorRow(1, 9, 1, 6, CREATED)));
+                List.of(deletionEvent(6)));
 
         V1MessageStateImportPlan first = new V1MessageStateImportPlanner().plan(source);
         V1MessageStateImportPlan reordered = new V1MessageStateImportPlanner().plan(
@@ -71,7 +71,7 @@ class V1MessageStateImportPlannerTest {
                                         9, 100, 1, 2, 2L, false),
                                 message(LegacyV1ConversationKind.ROOM,
                                         9, 101, 2, 2, null, false)),
-                        List.of(new V1RoomDeletionCursorRow(1, 9, 1, 2, CREATED))));
+                        List.of(invalidDeletionEvent(2))));
 
         assertFalse(plan.readyToCompareWithTarget());
         Set<String> codes = plan.issues().stream()
@@ -81,6 +81,7 @@ class V1MessageStateImportPlannerTest {
         assertTrue(codes.contains("DUPLICATE_CONVERSATION_SEQUENCE"));
         assertTrue(codes.contains("MUTATION_NOT_AFTER_CREATION"));
         assertTrue(codes.contains("INCONSISTENT_RECALL_STATE"));
+        assertTrue(codes.contains("INVALID_DELETION_PAYLOAD"));
     }
 
     @Test
@@ -114,6 +115,18 @@ class V1MessageStateImportPlannerTest {
         return new V1MessageCursorRow(
                 kind, conversationId, messageId, senderId, sequence,
                 mutationSequence, recalled, CREATED);
+    }
+
+    private static V1RoomDeletionCursorRow deletionEvent(long sequence) {
+        return new V1RoomDeletionCursorRow(
+                1, 9, 1, "Admin", "operation-1", "fingerprint-1",
+                "selected", "[100]", "[]", 0, 1, sequence, CREATED);
+    }
+
+    private static V1RoomDeletionCursorRow invalidDeletionEvent(long sequence) {
+        return new V1RoomDeletionCursorRow(
+                1, 9, 1, "Admin", "", "fingerprint-1",
+                "unknown", "[0]", "not-json", -1, -1, sequence, CREATED);
     }
 
     private static V1ConversationImportPlan conversationPlan() {
