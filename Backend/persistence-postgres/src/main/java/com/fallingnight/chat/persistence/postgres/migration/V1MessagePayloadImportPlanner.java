@@ -30,6 +30,7 @@ public final class V1MessagePayloadImportPlanner {
                 .thenComparingLong(V1MessagePayloadRow::legacyMessageId)
                 .thenComparingLong(V1MessagePayloadRow::legacyConversationId));
         List<PlannedV1MessagePayload> planned = new ArrayList<>();
+        List<DeferredV1AttachmentPayload> deferredAttachments = new ArrayList<>();
         List<V1MessagePayloadImportIssue> issues = new ArrayList<>();
         Set<LegacyMessageKey> identities = new HashSet<>();
         for (V1MessagePayloadRow row : rows) {
@@ -41,8 +42,9 @@ public final class V1MessagePayloadImportPlanner {
                 continue;
             }
             if (isAttachment(row.contentType())) {
-                issues.add(issue(row, "ATTACHMENT_MAPPING_REQUIRED",
-                        "attachment metadata requires the V2 attachment registry"));
+                deferredAttachments.add(new DeferredV1AttachmentPayload(
+                        row.legacyKind(), row.legacyConversationId(), row.legacyMessageId(),
+                        row.fileId(), row.contentType(), row.recalled()));
                 continue;
             }
             if (!"text".equals(row.contentType()) && !"emoji".equals(row.contentType())) {
@@ -69,7 +71,8 @@ public final class V1MessagePayloadImportPlanner {
                     content,
                     !row.recalled()));
         }
-        return new V1MessagePayloadImportPlan(fingerprint(rows), rows.size(), planned, issues);
+        return new V1MessagePayloadImportPlan(
+                fingerprint(rows), rows.size(), planned, deferredAttachments, issues);
     }
 
     private static String fingerprint(List<V1MessagePayloadRow> rows) {

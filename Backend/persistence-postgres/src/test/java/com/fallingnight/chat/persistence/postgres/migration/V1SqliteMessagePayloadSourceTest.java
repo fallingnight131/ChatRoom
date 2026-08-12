@@ -40,7 +40,7 @@ class V1SqliteMessagePayloadSourceTest {
     }
 
     @Test
-    void surfacesAttachmentAsSafeBlockingIssueWithoutReadingFileStorage() throws Exception {
+    void defersAttachmentMetadataWithoutReadingFileStorage() throws Exception {
         Path database = temporary.resolve("attachment.db");
         createSchema(database, true);
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database);
@@ -54,9 +54,11 @@ class V1SqliteMessagePayloadSourceTest {
                 new V1SqliteMessagePayloadSource(database).readPlan();
 
         assertFalse(plan.readyToCompareWithTarget());
-        assertEquals("ATTACHMENT_MAPPING_REQUIRED", plan.issues().getFirst().code());
-        assertFalse(plan.issues().toString().contains("private-name.zip"));
-        assertFalse(plan.issues().toString().contains("base64-thumbnail"));
+        assertTrue(plan.readyForUnifiedImport());
+        assertEquals(1, plan.deferredAttachments().size());
+        assertEquals(99, plan.deferredAttachments().getFirst().legacyFileId());
+        assertFalse(plan.deferredAttachments().toString().contains("private-name.zip"));
+        assertFalse(plan.deferredAttachments().toString().contains("base64-thumbnail"));
     }
 
     @Test

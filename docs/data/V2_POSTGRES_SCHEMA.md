@@ -177,6 +177,11 @@ evidence have deterministic fingerprints for final apply-time reverification.
 The verified capability additionally binds that plan to the same protected
 whole-file backup proof used by earlier V1 imports. Live and backup attachment
 graphs must match exactly and are reread before a target transaction may commit.
+V1 payload planning separates text-like rows from typed deferred attachment
+identities without copying legacy attachment bodies or display metadata. A
+unified capability requires those identities, the attachment plan, and every
+message sequence/sender/timestamp/recall field to reconcile under the same
+physical backup proof before target comparison.
 Before that evidence is accepted, the pure V1 source planner reconciles every
 typed `files`/`friend_files` row to exactly one retained attachment message and
 derives deterministic target identities. Its fingerprint includes local/object

@@ -825,6 +825,11 @@ whole plan; fixed issues omit all locator and object metadata.
 The attachment import capability also verifies the protected backup artifact,
 requires the live and backup graphs to be exactly equal, and repeats source plus
 manifest reconciliation at the target commit boundary.
+Because text and file messages share the V1 conversation sequence, ADR-0303
+keeps attachment payloads as explicit deferred identities and composes them with
+the verified message-state and attachment plans under one physical backup proof.
+The legacy text-only importer remains strict; only the unified path may preserve
+mixed text/file history in one serializable target transaction.
 
 ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
 create-only, length, type, and SHA-256 constraints and reads checksum-enabled

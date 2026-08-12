@@ -643,6 +643,8 @@ Progress:
     object key, exact size/SHA-256, validated MIME, and sealed time.
   - [x] Reconcile the attachment graph against the physically verified backup
     and expose a final-apply re-verifiable evidence capability.
+  - [x] Compose text, deferred attachment, and shared sequence inputs under one
+    physical backup proof so mixed history retains its original ordering.
   - [ ] Add verified V1 file-object evidence and atomically import historical
     attachments, mappings, and attachment messages without local-path leakage.
   - [x] Add the inactive attachment registration application port and exact

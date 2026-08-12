@@ -42,10 +42,11 @@ class V1MessagePayloadImportPlannerTest {
     }
 
     @Test
-    void blocksAttachmentsUnknownTypesOversizeAndDuplicateSourceIdsWithoutLeakingContent() {
+    void defersAttachmentsButBlocksUnknownOversizeAndDuplicateRowsWithoutLeakingContent() {
         String secret = "private-attachment-name";
         V1MessagePayloadImportPlan plan = new V1MessagePayloadImportPlanner().plan(List.of(
-                row(LegacyV1ConversationKind.ROOM, 9, 1, "file", secret, false),
+                new V1MessagePayloadRow(LegacyV1ConversationKind.ROOM, 9, 1,
+                        "file", secret, secret, 1, 1, false, "", "", false),
                 row(LegacyV1ConversationKind.ROOM, 9, 2, "system", secret, false),
                 row(LegacyV1ConversationKind.ROOM, 9, 3, "text", "x".repeat(65_537), false),
                 row(LegacyV1ConversationKind.ROOM, 10, 1, "text", "duplicate", false)));
@@ -54,11 +55,26 @@ class V1MessagePayloadImportPlannerTest {
         Set<String> codes = plan.issues().stream()
                 .map(V1MessagePayloadImportIssue::code)
                 .collect(java.util.stream.Collectors.toSet());
-        assertTrue(codes.contains("ATTACHMENT_MAPPING_REQUIRED"));
+        assertEquals(1, plan.deferredAttachments().size());
+        assertEquals(1, plan.deferredAttachments().getFirst().legacyFileId());
+        assertFalse(plan.readyForUnifiedImport());
         assertTrue(codes.contains("UNSUPPORTED_CONTENT_TYPE"));
         assertTrue(codes.contains("INVALID_TEXT_CONTENT"));
         assertTrue(codes.contains("INVALID_OR_DUPLICATE_MESSAGE_ID"));
         assertFalse(plan.issues().toString().contains(secret));
+    }
+
+    @Test
+    void completeAttachmentSetIsReadyOnlyForUnifiedImport() {
+        V1MessagePayloadImportPlan plan = new V1MessagePayloadImportPlanner().plan(List.of(
+                new V1MessagePayloadRow(LegacyV1ConversationKind.ROOM, 9, 1,
+                        "file", "secret", "a.pdf", 1, 1, false, "", "", false),
+                row(LegacyV1ConversationKind.ROOM, 9, 2, "text", "hello", false)));
+
+        assertFalse(plan.readyToCompareWithTarget());
+        assertTrue(plan.readyForUnifiedImport());
+        assertEquals(1, plan.messages().size());
+        assertEquals(1, plan.deferredAttachments().size());
     }
 
     private static V1MessagePayloadRow row(

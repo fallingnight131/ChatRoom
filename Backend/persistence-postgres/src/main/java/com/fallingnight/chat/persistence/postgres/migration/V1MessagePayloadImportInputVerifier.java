@@ -17,8 +17,8 @@ public final class V1MessagePayloadImportInputVerifier {
                 new V1SqliteMessagePayloadSource(currentSource).readPlan();
         V1MessagePayloadImportPlan backupPlan =
                 new V1SqliteMessagePayloadSource(backupArtifact).readPlan();
-        if (!sourcePlan.readyToCompareWithTarget()
-                || !backupPlan.readyToCompareWithTarget()
+        if (!sourcePlan.readyForUnifiedImport()
+                || !backupPlan.readyForUnifiedImport()
                 || !sourcePlan.equals(backupPlan)) {
             throw new V1MessagePayloadSourceException(
                     "V1 message payload source and backup do not reconcile");
