@@ -177,6 +177,12 @@ manual redirect refusal, 2 GiB/schema alignment, Content-Length and streaming
 bounds, cancellation, and partial-file cleanup. It does not claim a public TLS
 origin or end-to-end Windows update.
 
+`UpdatePreparationApplicationServiceTest` exercises the default-off signed-
+manifest-to-download-to-trust composition with an ephemeral key and deterministic
+transport. It proves deferred rollout makes no request, concurrent work is
+rejected, trust runs off the application thread, and trust failure removes the
+file. Native real-Setup acceptance and launch are still not claimed.
+
 ## Java V2 Backend
 
 The additive M3 workspace requires JDK 21. It carries its own checksum-pinned

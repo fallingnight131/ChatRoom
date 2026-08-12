@@ -1,4 +1,4 @@
-QT += core gui widgets network multimedia sql
+QT += core gui widgets network multimedia sql concurrent
 
 CONFIG += c++17
 
@@ -36,6 +36,7 @@ SOURCES += \
     UpdateStateRepository.cpp \
     UpdateManifestApplicationService.cpp \
     UpdateInstallerDownloadTransport.cpp \
+    UpdatePreparationApplicationService.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -66,6 +67,7 @@ HEADERS += \
     UpdateStateRepository.h \
     UpdateManifestApplicationService.h \
     UpdateInstallerDownloadTransport.h \
+    UpdatePreparationApplicationService.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \

@@ -102,7 +102,12 @@ transport, scheduler, UI, or installer launch.
 An inactive dedicated installer transport now enforces credential-free HTTPS,
 no redirects, an aligned 2 GiB signed/streamed limit, timeout/cancel, private
 partial staging, and failure cleanup. It is not connected to a product endpoint,
-trust orchestrator, scheduler, or launcher.
+scheduler, UI, or launcher.
+
+An inactive preparation service now permits only signed `Eligible` policy to
+download and exposes a file only after background installer trust succeeds.
+Failure/cancellation removes bytes. Product keys, paths, manifest discovery,
+consent UI, process launch, and install/rollback observation remain absent.
 
 M4 must provide:
 

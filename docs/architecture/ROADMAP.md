@@ -577,6 +577,9 @@ Progress:
 - [x] Add a dedicated default-off HTTPS installer transport with a shared 2 GiB
   signed bound, no redirects/credentials, timeout/cancel, private partial
   staging, and failure cleanup.
+- [x] Compose signed eligibility, bounded download, and background installer
+  trust behind one default-off preparation service that exposes only verified
+  bytes and deletes every rejected/cancelled file.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

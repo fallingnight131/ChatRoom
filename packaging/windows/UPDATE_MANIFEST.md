@@ -29,6 +29,9 @@ inactive entry point so future transport cannot bypass trust ordering.
 ADR-0123 adds an inactive credential-free HTTPS-only installer transport with
 no redirects, a schema-aligned 2 GiB limit, bounded streaming, cancellation,
 and partial-file cleanup. Returned bytes still require ADR-0120 verification.
+ADR-0124 composes signed eligibility, download, and background trust into one
+inactive preparation path; only verified bytes are returned and all rejected
+bytes are deleted. It does not launch an installer.
 
 ## Canonical format
 

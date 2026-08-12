@@ -637,6 +637,12 @@ redirect, shares a 2 GiB signed bound with authoring/decision code, uses bounded
 streaming plus timeout/cancel, and removes every failed partial. Successful
 bytes still require ADR-0120 trust verification before any use.
 
+ADR-0124 composes signed eligibility, bounded download, and installer trust into
+one inactive preparation service. Non-eligible policy never reaches the network;
+WinTrust runs off the UI thread; and rejected, cancelled, exceptional, or
+destroyed work deletes its file. Only verified bytes can become `Ready`, but no
+product key/configuration, discovery, UI, or installer launch exists.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint
