@@ -135,6 +135,14 @@ write this row in the same transaction as all message target state.
 V011 adds the bounded deletion-operator display-name snapshot required to
 preserve V1 moderation history independently of later account profile changes.
 
+V012 adds the attachment metadata registry. Rows bind a stable UUID and unique
+server object key to a conversation member and owned device, with a sender-
+scoped client attachment id for future idempotent registration. PostgreSQL
+bounds filename/media type/size/SHA-256 and enforces `UPLOAD_PENDING`, `READY`,
+or `REVOKED` timestamp consistency. It stores no bytes, local paths, endpoints,
+credentials, or temporary authorization. No application or wire command uses
+this table yet.
+
 The message importer provides a repeatable-read, no-write target preview.
 It compares the exact typed conversation mapping and allowed pre/post high
 watermark, synthetic legacy device, message UUID/sequence/idempotency identity,

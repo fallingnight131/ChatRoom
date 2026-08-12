@@ -446,6 +446,10 @@ Progress:
     port with PostgreSQL message/recall/deletion ordering and V1 ID translation.
   - [x] Expose mixed conversation entries through an additive V2 protocol field
     and update the isolated Web preview before activating the new history path.
+  - [x] Add the V2 PostgreSQL attachment metadata registry with membership/device
+    ownership, idempotency, hash/size bounds, and explicit lifecycle constraints.
+  - [ ] Add the inactive attachment registration application port and exact
+    PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

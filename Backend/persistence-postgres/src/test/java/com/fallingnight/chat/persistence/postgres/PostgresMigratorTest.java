@@ -100,7 +100,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(11, first.migrate());
+        assertEquals(12, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -115,10 +115,12 @@ class PostgresMigratorTest {
                             "legacy_v1_conversation_map", "conversation_import_run",
                             "conversation_entry", "message_recall_event",
                             "messages_deleted_event", "legacy_v1_message_map",
-                            "legacy_v1_deletion_event_map", "message_import_run"),
+                            "legacy_v1_deletion_event_map", "message_import_run",
+                            "attachment"),
                     applicationTables(connection));
             proveSequenceAndIdempotencyConstraints(connection);
             proveMessageImportAuditConstraints(connection);
+            proveAttachmentRegistryConstraints(connection);
         }
         proveLegacyV1MappingConstraints();
         proveLegacyV1ConversationMappingConstraints();
@@ -862,6 +864,67 @@ class PostgresMigratorTest {
                 () -> insertMessage(connection, UUID.randomUUID(), conversation, sequence,
                         account, device, "client-2"));
         assertEquals("23505", duplicateSequence.getSQLState());
+    }
+
+    private static void proveAttachmentRegistryConstraints(Connection connection)
+            throws SQLException {
+        UUID account = UUID.randomUUID();
+        UUID device = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        execute(connection,
+                "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                        + "VALUES (?, 'attachment-owner', 'Attachment Owner', "
+                        + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                account);
+        execute(connection,
+                "INSERT INTO chat.device(id, account_id, client_device_id, platform) "
+                        + "VALUES (?, ?, 'attachment-device', 'WEB')",
+                device, account);
+        execute(connection,
+                "INSERT INTO chat.conversation(id, kind) VALUES (?, 'GROUP')",
+                conversation);
+        execute(connection,
+                "INSERT INTO chat.conversation_member(conversation_id, account_id) "
+                        + "VALUES (?, ?)",
+                conversation, account);
+        UUID attachment = UUID.randomUUID();
+        execute(connection,
+                "INSERT INTO chat.attachment(id, conversation_id, owner_account_id, "
+                        + "owner_device_id, client_attachment_id, object_key, file_name, "
+                        + "media_type, byte_size, content_sha256) "
+                        + "VALUES (?, ?, ?, ?, 'client-attachment-1', ?, 'report.pdf', "
+                        + "'application/pdf', 1024, ?)",
+                attachment, conversation, account, device,
+                "attachments/" + attachment, new byte[32]);
+        SQLException duplicateClient = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "INSERT INTO chat.attachment(id, conversation_id, owner_account_id, "
+                        + "owner_device_id, client_attachment_id, object_key, file_name, "
+                        + "media_type, byte_size, content_sha256) "
+                        + "VALUES (?, ?, ?, ?, 'client-attachment-1', ?, 'other.pdf', "
+                        + "'application/pdf', 1024, ?)",
+                UUID.randomUUID(), conversation, account, device,
+                "attachments/" + UUID.randomUUID(), new byte[32]));
+        assertEquals("23505", duplicateClient.getSQLState());
+        SQLException invalidHash = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "INSERT INTO chat.attachment(id, conversation_id, owner_account_id, "
+                        + "owner_device_id, client_attachment_id, object_key, file_name, "
+                        + "media_type, byte_size, content_sha256) "
+                        + "VALUES (?, ?, ?, ?, 'client-attachment-2', ?, 'other.pdf', "
+                        + "'application/pdf', 1024, ?)",
+                UUID.randomUUID(), conversation, account, device,
+                "attachments/" + UUID.randomUUID(), new byte[31]));
+        assertEquals("23514", invalidHash.getSQLState());
+        SQLException invalidReadyState = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "UPDATE chat.attachment SET state = 'READY' WHERE id = ?",
+                attachment));
+        assertEquals("23514", invalidReadyState.getSQLState());
+        execute(connection,
+                "UPDATE chat.attachment SET state = 'READY', "
+                        + "ready_at = transaction_timestamp() WHERE id = ?",
+                attachment);
     }
 
     private static List<Optional<IssuedSession>> raceResume(
