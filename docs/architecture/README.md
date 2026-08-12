@@ -402,7 +402,10 @@ authenticated actor plus positive mapped room/message IDs. It preserves the
 120-second first-apply window, requires one atomic future mutation sequence,
 and makes exact retry notification-safe. Room/resource denial remains distinct
 from ownership/window rejection; client actor, time, and sequence fields are
-not accepted. No PostgreSQL adapter or handler exists yet.
+not accepted. Its serializable PostgreSQL adapter now locks the mapped room
+message, uses database time, creates one canonical recall entry, and converges
+concurrent or later exact owner retries on the durable result. No handler exists
+yet.
 
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.

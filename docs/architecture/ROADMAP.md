@@ -522,6 +522,9 @@ Progress:
   - [x] Define owner-only V1 room recall with server-bound room/message identity,
     a database-time 120-second first-apply window, atomic mutation sequence,
     and notification-safe exact retry intent.
+  - [x] Implement retry-convergent PostgreSQL V1 room recall with mapped resource,
+    enabled-account, active-membership, sender, and database-time checks plus
+    database-enforced one-event integrity.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

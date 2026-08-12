@@ -38,6 +38,8 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageCom
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomHistoryQuery;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomHistoryResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRecallCommand;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRecallResult;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -1324,9 +1326,66 @@ class PostgresMigratorTest {
         assertEquals(Set.of(sender), new PostgresLegacyV1RoomAudienceAdapter(dataSource())
                 .activeMappedMembers(room, Set.of(sender, outsider)));
         try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id) "
+                            + "VALUES (?, ?)", room, outsider);
+        }
+        PostgresLegacyV1RoomRecallAdapter recalls =
+                new PostgresLegacyV1RoomRecallAdapter(dataSource());
+        LegacyV1RoomRecallCommand recallCommand = new LegacyV1RoomRecallCommand(
+                sender, 77, accepted.getFirst().legacyMessageId());
+        ExecutorService recallExecutor = Executors.newFixedThreadPool(2);
+        CountDownLatch recallReady = new CountDownLatch(2), recallStart = new CountDownLatch(1);
+        List<LegacyV1RoomRecallResult> recallResults;
+        try {
+            var task = (java.util.concurrent.Callable<LegacyV1RoomRecallResult>) () -> {
+                recallReady.countDown(); assertTrue(recallStart.await(5, TimeUnit.SECONDS));
+                return recalls.recall(recallCommand);
+            };
+            Future<LegacyV1RoomRecallResult> left = recallExecutor.submit(task);
+            Future<LegacyV1RoomRecallResult> right = recallExecutor.submit(task);
+            assertTrue(recallReady.await(5, TimeUnit.SECONDS)); recallStart.countDown();
+            recallResults = List.of(left.get(10, TimeUnit.SECONDS),
+                    right.get(10, TimeUnit.SECONDS));
+        } finally { recallExecutor.shutdownNow(); }
+        List<LegacyV1RoomRecallResult.Recalled> recalled = recallResults.stream()
+                .map(LegacyV1RoomRecallResult.Recalled.class::cast).toList();
+        assertEquals(1, recalled.stream().filter(result -> !result.duplicate()).count());
+        assertEquals(1, recalled.stream().filter(LegacyV1RoomRecallResult.Recalled::duplicate)
+                .count());
+        assertEquals(2, recalled.getFirst().mutationSequence());
+        assertEquals(LegacyV1RoomRecallResult.Rejected.ROOM_ACCESS_DENIED,
+                recalls.recall(new LegacyV1RoomRecallCommand(sender, 78,
+                        accepted.getFirst().legacyMessageId())));
+        assertEquals(LegacyV1RoomRecallResult.Rejected.RECALL_REJECTED,
+                recalls.recall(new LegacyV1RoomRecallCommand(outsider, 77,
+                        accepted.getFirst().legacyMessageId())));
+        LegacyV1RoomMessageResult.Accepted expired = (LegacyV1RoomMessageResult.Accepted)
+                adapter.submit(new LegacyV1RoomMessageCommand(sender, senderDevice, 77,
+                        "room-client-expired", "expired", "text"));
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.message SET accepted_at = "
+                    + "transaction_timestamp() - interval '121 seconds' WHERE id = "
+                    + "(SELECT message_id FROM chat.legacy_v1_message_map "
+                    + "WHERE legacy_kind = 'ROOM' AND legacy_message_id = ?)",
+                    expired.legacyMessageId());
+        }
+        assertEquals(LegacyV1RoomRecallResult.Rejected.RECALL_REJECTED,
+                recalls.recall(new LegacyV1RoomRecallCommand(
+                        sender, 77, expired.legacyMessageId())));
+        assertEquals(1, count("SELECT count(*) FROM chat.message_recall_event "
+                + "WHERE conversation_id = '" + room + "'"));
+        assertEquals(4, count("SELECT next_sequence FROM chat.conversation WHERE id = '"
+                + room + "'"));
+        try (Connection connection = connect()) {
             execute(connection, "UPDATE chat.conversation_member SET left_at = "
                     + "transaction_timestamp() WHERE conversation_id = ?", room);
         }
+        LegacyV1RoomRecallResult.Recalled retryAfterLeave =
+                (LegacyV1RoomRecallResult.Recalled) recalls.recall(recallCommand);
+        assertTrue(retryAfterLeave.duplicate());
+        assertEquals(recalled.getFirst().mutationSequence(), retryAfterLeave.mutationSequence());
+        assertEquals(recalled.getFirst().occurredAt(), retryAfterLeave.occurredAt());
         assertEquals(LegacyV1RoomMessageResult.Rejected.ROOM_ACCESS_DENIED,
                 adapter.submit(new LegacyV1RoomMessageCommand(sender, senderDevice, 77,
                         "room-client-3", "after leave", "emoji")));

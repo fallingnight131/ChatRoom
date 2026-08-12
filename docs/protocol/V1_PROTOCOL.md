@@ -479,7 +479,10 @@ positive V1 `roomId` and `messageId`, binds the actor from authentication, and
 requires the future PostgreSQL transaction to resolve both mappings, active
 membership, ownership, database-time window, and one canonical mutation
 sequence together. Exact retry must return the same mapped result with
-`duplicate: true` and no second notification. No adapter or handler exists yet.
+`duplicate: true` and no second notification. The serializable PostgreSQL
+adapter now enforces those checks, converges concurrent first/retry races, and
+permits only the durable original actor to recover an exact result after the
+window or membership removal. No handler exists yet.
 
 Administrative deletion uses a required `clientOperationId` (with the envelope
 ID as a compatibility fallback), one durable room sequence, and a canonical
