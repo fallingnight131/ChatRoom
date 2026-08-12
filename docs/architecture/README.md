@@ -404,6 +404,13 @@ Virus scanning, thumbnails, media metadata, and retention should run as
 asynchronous jobs. A file message may remain in a processing state until required
 checks finish.
 
+ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
+create-only, length, type, and SHA-256 constraints and reads checksum-enabled
+HEAD metadata without putting provider types in the application core. It rejects
+objects above 5 GiB until a restartable multipart design exists. COS/S3-compatible
+deployment still requires real-bucket capability and Web CORS acceptance; SDK
+compatibility or a mocked unit test is not release evidence.
+
 ## 11. Client Architecture
 
 ### Windows desktop
