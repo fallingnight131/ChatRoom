@@ -50,6 +50,13 @@ def main() -> int:
         assert document["baseline"]["Qt6Core.dll"] == document["candidate"]["Qt6Core.dll"]
         assert document["baseline"]["ChatClient.exe"] != document["candidate"]["ChatClient.exe"]
 
+        trust_evidence = root / "evidence/trust.json"
+        result = invoke(left, right, trust_evidence, [
+            "--baseline-build-system", "cmake-default-off"])
+        assert result.returncode == 0, result.stderr
+        assert json.loads(trust_evidence.read_text(encoding="utf-8"))["baselineBuildSystem"] \
+            == "cmake-default-off"
+
         rejected = root / "evidence/executable-drift.json"
         result = invoke(
             left, right, rejected, ["--require-executable-byte-equality"])

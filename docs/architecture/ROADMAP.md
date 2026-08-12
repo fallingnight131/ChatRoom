@@ -597,6 +597,10 @@ Progress:
   the live reviewed intent into immutable compiled-public-trust evidence.
 - [x] Advance unsigned Windows artifacts to schema 4 with explicit null or
   fully closed product update trust and a fail-closed required-trust intake.
+- [x] Add a distinct protected native Windows build that consumes the exact
+  ordinary null-trust artifact, changes only the reviewed client trust PE,
+  proves installed diagnostic parity, and emits an unsigned/unpublished
+  trust-required schema-4 artifact.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

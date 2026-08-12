@@ -1184,6 +1184,13 @@ closes the intent, final diagnostic/evidence, and public PEM files against the
 exact PE. Signing intake can now fail closed with
 `--require-product-update-trust`; schema 3 remains historical evidence only.
 
+ADR-0189 provides the protected native producer for that release-intended
+artifact. It consumes one exact ordinary null-trust artifact, rebuilds only the
+canonical CMake client with reviewed public trust, requires runtime/update-
+helper byte parity and installed diagnostic parity, then emits a short-lived
+unsigned/unpublished schema-4 trust artifact. Signing keys and channel mutation
+remain outside this environment, and a successful native run is not yet claimed.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

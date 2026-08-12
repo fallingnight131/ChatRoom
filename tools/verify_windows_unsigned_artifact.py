@@ -87,7 +87,10 @@ def checksums(path: Path) -> dict[str, str]:
 
 
 def verify(root: Path, version_file: Path, source_revision: str,
-           qt_version: str, require_product_update_trust: bool = False) -> dict[str, object]:
+           qt_version: str, require_product_update_trust: bool = False,
+           forbid_product_update_trust: bool = False) -> dict[str, object]:
+    if require_product_update_trust and forbid_product_update_trust:
+        raise ManifestError("Windows unsigned artifact trust expectation is contradictory")
     validate_revision(source_revision)
     if not QT_VERSION.fullmatch(qt_version):
         raise ManifestError("Qt version must use major.minor.patch")
@@ -156,6 +159,8 @@ def verify(root: Path, version_file: Path, source_revision: str,
     trust_enabled = trust is not None
     if require_product_update_trust and not trust_enabled:
         raise ManifestError("Windows unsigned artifact lacks required product update trust")
+    if forbid_product_update_trust and trust_enabled:
+        raise ManifestError("Windows unsigned artifact unexpectedly contains product update trust")
     if trust_enabled:
         if not isinstance(trust, dict) or set(trust) != TRUST_KEYS:
             raise ManifestError("Windows product update trust metadata is malformed")
@@ -226,11 +231,13 @@ def main() -> int:
     parser.add_argument("--source-revision", required=True)
     parser.add_argument("--qt-version", required=True)
     parser.add_argument("--require-product-update-trust", action="store_true")
+    parser.add_argument("--forbid-product-update-trust", action="store_true")
     args = parser.parse_args()
     try:
         result = verify(
             args.artifact_root, args.version_file, args.source_revision,
-            args.qt_version, args.require_product_update_trust)
+            args.qt_version, args.require_product_update_trust,
+            args.forbid_product_update_trust)
     except (ManifestError, OSError) as error:
         raise SystemExit(f"Windows unsigned artifact verification failed: {error}") from None
     print(json.dumps(result, ensure_ascii=True, sort_keys=True))

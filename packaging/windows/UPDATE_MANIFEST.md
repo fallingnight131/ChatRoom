@@ -274,3 +274,11 @@ Windows artifact schema 4 makes that retention explicit. Ordinary CI records
 diagnostic, PE evidence, and reviewed public PEM files into its closed inventory.
 Protected signing intake must use `--require-product-update-trust` and will not
 accept historical schema 3 or a schema-4 null trust bundle.
+
+`m4-windows-product-trust-build.yml` is the only automated producer of the
+release-intended unsigned trust bundle. On its dedicated protected Windows
+runner it verifies the exact ordinary null-trust artifact, rebuilds only the
+client PE from the live reviewed intent, requires all runtime and update-helper
+bytes to remain equal, and proves the installed unsigned-Setup diagnostic
+matches the built PE. Its seven-day artifact is unsigned and unpublished;
+Authenticode must consume it in a later protected boundary. See ADR-0189.

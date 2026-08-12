@@ -1,0 +1,337 @@
+name: Windows Product Update Trust Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_revision:
+        description: Exact 40-character source commit
+        required: true
+        type: string
+      ordinary_artifact_run_id:
+        description: Windows Product build run containing schema-4 null-trust artifact
+        required: true
+        type: string
+      channel:
+        description: Product update channel compiled into the client
+        required: true
+        type: choice
+        options: [stable, beta]
+      manifest_url:
+        description: Exact credential-free production manifest HTTPS URL
+        required: true
+        type: string
+      primary_key_id:
+        description: Reviewed primary Ed25519 key ID
+        required: true
+        type: string
+      primary_public_key_file_sha256:
+        description: Reviewed lowercase SHA-256 of runner primary public PEM
+        required: true
+        type: string
+      secondary_key_id:
+        description: Optional reviewed secondary Ed25519 key ID
+        required: false
+        type: string
+      secondary_public_key_file_sha256:
+        description: Required with secondary key; reviewed runner PEM SHA-256
+        required: false
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: windows-product-update-trust-${{ inputs.channel }}
+  cancel-in-progress: false
+
+jobs:
+  build-trusted-client:
+    name: Build an unsigned product-trust Windows candidate
+    environment: windows-update-product-trust
+    runs-on: [self-hosted, windows, x64, self-hosted-windows-update-trust-build]
+    timeout-minutes: 30
+    env:
+      RELEASE_REVISION: ${{ inputs.source_revision }}
+      ORDINARY_RUN_ID: ${{ inputs.ordinary_artifact_run_id }}
+      UPDATE_CHANNEL: ${{ inputs.channel }}
+      UPDATE_MANIFEST_URL: ${{ inputs.manifest_url }}
+      UPDATE_PRIMARY_KEY_ID: ${{ inputs.primary_key_id }}
+      UPDATE_PRIMARY_PUBLIC_KEY_SHA256: ${{ inputs.primary_public_key_file_sha256 }}
+      UPDATE_SECONDARY_KEY_ID: ${{ inputs.secondary_key_id }}
+      UPDATE_SECONDARY_PUBLIC_KEY_SHA256: ${{ inputs.secondary_public_key_file_sha256 }}
+      QT_VERSION: "6.11.1"
+
+    steps:
+      - name: Check out the exact approved revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_revision }}
+          persist-credentials: false
+
+      - name: Validate public trust build inputs
+        id: identity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ($env:RELEASE_REVISION -cnotmatch '^[0-9a-f]{40}$' `
+              -or (git rev-parse HEAD).Trim() -cne $env:RELEASE_REVISION) {
+            throw "source revision is invalid"
+          }
+          if ($env:ORDINARY_RUN_ID -cnotmatch '^[1-9][0-9]{0,19}$') {
+            throw "ordinary artifact run ID is invalid"
+          }
+          if ($env:UPDATE_PRIMARY_KEY_ID -cnotmatch '^[a-z0-9][a-z0-9.-]{0,63}$' `
+              -or $env:UPDATE_PRIMARY_PUBLIC_KEY_SHA256 -cnotmatch '^[0-9a-f]{64}$') {
+            throw "primary public trust identity is invalid"
+          }
+          $secondaryId = $env:UPDATE_SECONDARY_KEY_ID
+          $secondarySha = $env:UPDATE_SECONDARY_PUBLIC_KEY_SHA256
+          if ([string]::IsNullOrEmpty($secondaryId) -ne [string]::IsNullOrEmpty($secondarySha)) {
+            throw "secondary public trust identity is incomplete"
+          }
+          if ($secondaryId -and ($secondaryId -cnotmatch '^[a-z0-9][a-z0-9.-]{0,63}$' `
+              -or $secondarySha -cnotmatch '^[0-9a-f]{64}$')) {
+            throw "secondary public trust identity is invalid"
+          }
+          if (-not $env:CHATROOM_UPDATE_PRIMARY_PUBLIC_KEY_PATH `
+              -or -not $env:SODIUM_ROOT) {
+            throw "runner public key or libsodium configuration is absent"
+          }
+          $primary = Get-Item -LiteralPath $env:CHATROOM_UPDATE_PRIMARY_PUBLIC_KEY_PATH -Force
+          if ($primary.PSIsContainer -or ($primary.Attributes -band [IO.FileAttributes]::ReparsePoint) `
+              -or (Get-FileHash $primary.FullName -Algorithm SHA256).Hash.ToLowerInvariant() `
+                  -cne $env:UPDATE_PRIMARY_PUBLIC_KEY_SHA256) {
+            throw "runner primary public key does not match review"
+          }
+          if ($secondaryId) {
+            if (-not $env:CHATROOM_UPDATE_SECONDARY_PUBLIC_KEY_PATH) {
+              throw "runner secondary public key path is absent"
+            }
+            $secondary = Get-Item -LiteralPath $env:CHATROOM_UPDATE_SECONDARY_PUBLIC_KEY_PATH -Force
+            if ($secondary.PSIsContainer `
+                -or ($secondary.Attributes -band [IO.FileAttributes]::ReparsePoint) `
+                -or (Get-FileHash $secondary.FullName -Algorithm SHA256).Hash.ToLowerInvariant() `
+                    -cne $secondarySha) {
+              throw "runner secondary public key does not match review"
+            }
+          }
+          $version = (Get-Content VERSION -Raw).Trim()
+          if ($version -cnotmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+            throw "VERSION is invalid"
+          }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "run-id=$env:ORDINARY_RUN_ID" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "artifact=chat-room-windows-client-$version-unsigned-verification-$env:RELEASE_REVISION" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Create and verify reviewed product trust intent
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "$env:GITHUB_WORKSPACE/build/m4/product-trust"
+          if (Test-Path $root) { Remove-Item $root -Recurse -Force }
+          New-Item -ItemType Directory -Force $root | Out-Null
+          $arguments = @(
+            "tools/windows_update_product_trust_intent.py", "create",
+            "--intent", "$root/product-update-trust-intent.json",
+            "--version-file", "VERSION", "--source-revision", $env:RELEASE_REVISION,
+            "--channel", $env:UPDATE_CHANNEL, "--manifest-url", $env:UPDATE_MANIFEST_URL,
+            "--primary-key-id", $env:UPDATE_PRIMARY_KEY_ID,
+            "--primary-public-key", $env:CHATROOM_UPDATE_PRIMARY_PUBLIC_KEY_PATH)
+          if ($env:UPDATE_SECONDARY_KEY_ID) {
+            $arguments += @(
+              "--secondary-key-id", $env:UPDATE_SECONDARY_KEY_ID,
+              "--secondary-public-key", $env:CHATROOM_UPDATE_SECONDARY_PUBLIC_KEY_PATH)
+          }
+          python @arguments
+          if ($LASTEXITCODE -ne 0) { throw "product trust intent creation failed" }
+          $verifyArguments = $arguments.Clone()
+          $verifyArguments[1] = "verify"
+          python @verifyArguments
+          if ($LASTEXITCODE -ne 0) { throw "product trust intent verification failed" }
+
+      - name: Download exact ordinary null-trust artifact
+        uses: actions/download-artifact@v8
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.identity.outputs.run-id }}
+          name: ${{ steps.identity.outputs.artifact }}
+          path: build/m4/product-trust/ordinary
+
+      - name: Verify ordinary null-trust baseline
+        shell: pwsh
+        run: |
+          python tools/verify_windows_unsigned_artifact.py `
+            --artifact-root build/m4/product-trust/ordinary `
+            --version-file VERSION --source-revision $env:RELEASE_REVISION `
+            --qt-version $env:QT_VERSION --forbid-product-update-trust
+          if ($LASTEXITCODE -ne 0) { throw "ordinary artifact intake failed" }
+
+      - name: Build exact trust-enabled CMake client
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $intent = Get-Content build/m4/product-trust/product-update-trust-intent.json -Raw |
+            ConvertFrom-Json
+          $arguments = @(
+            "-S", ".", "-B", "build/m4/product-trust/cmake", "-A", "x64",
+            "-DCMAKE_BUILD_TYPE=Release", "-DCHATROOM_BUILD_HEADLESS_SERVER=ON",
+            "-DCHATROOM_BUILD_WINDOWS_CLIENT=ON", "-DBUILD_TESTING=OFF",
+            "-DCHATROOM_ENABLE_WINDOWS_UPDATES=ON",
+            "-DCHATROOM_UPDATE_CHANNEL=$($intent.channel)",
+            "-DCHATROOM_UPDATE_MANIFEST_URL=$($intent.manifestUrl)",
+            "-DCHATROOM_UPDATE_PRIMARY_KEY_ID=$($intent.primaryKey.keyId)",
+            "-DCHATROOM_UPDATE_PRIMARY_PUBLIC_KEY_HEX=$($intent.primaryKey.publicKeyHex)",
+            "-DSODIUM_ROOT=$env:SODIUM_ROOT")
+          if ($intent.secondaryKey) {
+            $arguments += @(
+              "-DCHATROOM_UPDATE_SECONDARY_KEY_ID=$($intent.secondaryKey.keyId)",
+              "-DCHATROOM_UPDATE_SECONDARY_PUBLIC_KEY_HEX=$($intent.secondaryKey.publicKeyHex)")
+          }
+          cmake @arguments
+          if ($LASTEXITCODE -ne 0) { throw "trust-enabled CMake configuration failed" }
+          cmake --build build/m4/product-trust/cmake --config Release `
+            --target ChatClient --parallel 4
+          if ($LASTEXITCODE -ne 0) { throw "trust-enabled client build failed" }
+
+      - name: Attest final binary trust and runtime parity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "$env:GITHUB_WORKSPACE/build/m4/product-trust"
+          $payload = "$root/payload"
+          Copy-Item "$root/ordinary/client" $payload -Recurse
+          Copy-Item "$root/cmake/Release/ChatClient.exe" "$payload/ChatClient.exe" -Force
+          foreach ($subject in @(
+              "$payload/ChatClient.exe", "$payload/ChatRoomUpdateLauncher.exe")) {
+            if ((Get-AuthenticodeSignature $subject).Status -ne "NotSigned") {
+              throw "product-trust payload must remain unsigned: $subject"
+            }
+          }
+          $diagnosticText = (& "$payload/ChatClient.exe" --chatroom-print-update-trust-json |
+            Out-String).TrimEnd() + "`n"
+          if ($LASTEXITCODE -ne 0) { throw "final client trust diagnostic failed" }
+          [IO.File]::WriteAllText(
+            "$root/product-update-trust-diagnostic.json", $diagnosticText,
+            [Text.UTF8Encoding]::new($false))
+          $arguments = @(
+            "tools/windows_update_product_trust_evidence.py", "create",
+            "--evidence", "$root/product-update-trust-evidence.json",
+            "--client", "$payload/ChatClient.exe",
+            "--diagnostic", "$root/product-update-trust-diagnostic.json",
+            "--intent", "$root/product-update-trust-intent.json",
+            "--version-file", "VERSION", "--source-revision", $env:RELEASE_REVISION,
+            "--channel", $env:UPDATE_CHANNEL, "--manifest-url", $env:UPDATE_MANIFEST_URL,
+            "--primary-key-id", $env:UPDATE_PRIMARY_KEY_ID,
+            "--primary-public-key", $env:CHATROOM_UPDATE_PRIMARY_PUBLIC_KEY_PATH)
+          if ($env:UPDATE_SECONDARY_KEY_ID) {
+            $arguments += @(
+              "--secondary-key-id", $env:UPDATE_SECONDARY_KEY_ID,
+              "--secondary-public-key", $env:CHATROOM_UPDATE_SECONDARY_PUBLIC_KEY_PATH)
+          }
+          python @arguments
+          if ($LASTEXITCODE -ne 0) { throw "final client trust evidence failed" }
+          python tools/compare_windows_client_payloads.py `
+            --baseline "$root/ordinary/client" --candidate $payload `
+            --baseline-build-system cmake-default-off --candidate-build-system cmake `
+            --version "${{ steps.identity.outputs.version }}" `
+            --source-revision $env:RELEASE_REVISION `
+            --output "$root/cmake-payload-parity.json"
+          if ($LASTEXITCODE -ne 0) { throw "trust build runtime parity failed" }
+
+      - name: Package and exercise unsigned trust-enabled installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "$env:GITHUB_WORKSPACE/build/m4/product-trust"
+          $version = "${{ steps.identity.outputs.version }}"
+          $output = "$root/artifact/installer"
+          New-Item -ItemType Directory -Force $output | Out-Null
+          $makensis = Join-Path ${env:ProgramFiles(x86)} "NSIS/makensis.exe"
+          if (-not (Test-Path $makensis -PathType Leaf) `
+              -or (& $makensis /VERSION).Trim() -cne "v3.12") {
+            throw "runner NSIS 3.12 is unavailable"
+          }
+          & $makensis /WX /NOCONFIG /V2 "/DVERSION=$version" `
+            "/DSOURCE_REVISION=$env:RELEASE_REVISION" `
+            "/DPAYLOAD_DIR=$root/payload" "/DOUTPUT_DIR=$output" `
+            "/DICON_FILE=$env:GITHUB_WORKSPACE/Client/resources/app_icon.ico" `
+            packaging/windows/ChatRoom.nsi
+          if ($LASTEXITCODE -ne 0) { throw "trust-enabled NSIS build failed" }
+          $setup = "$output/ChatRoom-$version-unsigned-verification-Setup.exe"
+          if ((Get-AuthenticodeSignature $setup).Status -ne "NotSigned") {
+            throw "trust-enabled verification Setup must remain unsigned"
+          }
+          $installRoot = "$env:RUNNER_TEMP/ChatRoomProductTrustInstall"
+          $install = Start-Process $setup -ArgumentList @("/S", "/D=$installRoot") `
+            -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "trust-enabled install failed" }
+          try {
+            $installed = (& "$installRoot/ChatClient.exe" `
+              --chatroom-print-update-trust-json | Out-String).Trim()
+            $built = (Get-Content "$root/product-update-trust-diagnostic.json" -Raw).Trim()
+            if ($installed -cne $built) { throw "installed trust differs from built PE" }
+          } finally {
+            $uninstall = Start-Process "$installRoot/Uninstall.exe" -ArgumentList "/S" `
+              -Wait -PassThru
+            if ($uninstall.ExitCode -ne 0) { throw "trust-enabled uninstall failed" }
+            for ($attempt = 0; $attempt -lt 20 -and (Test-Path $installRoot); $attempt++) {
+              Start-Sleep -Milliseconds 250
+            }
+            if (Test-Path $installRoot) { throw "trust-enabled uninstall left install files" }
+          }
+
+      - name: Assemble and independently verify schema-four trust artifact
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "$env:GITHUB_WORKSPACE/build/m4/product-trust"
+          $artifact = "$root/artifact"
+          Copy-Item "$root/payload" "$artifact/client" -Recurse
+          Copy-Item "$root/cmake-payload-parity.json" "$artifact/cmake-payload-parity.json"
+          Copy-Item "$root/product-update-trust-intent.json" `
+            "$artifact/product-update-trust-intent.json"
+          Copy-Item "$root/product-update-trust-diagnostic.json" `
+            "$artifact/product-update-trust-diagnostic.json"
+          Copy-Item "$root/product-update-trust-evidence.json" `
+            "$artifact/product-update-trust-evidence.json"
+          Copy-Item $env:CHATROOM_UPDATE_PRIMARY_PUBLIC_KEY_PATH `
+            "$artifact/product-update-primary-public.pem"
+          $secondaryArgument = @()
+          if ($env:UPDATE_SECONDARY_KEY_ID) {
+            Copy-Item $env:CHATROOM_UPDATE_SECONDARY_PUBLIC_KEY_PATH `
+              "$artifact/product-update-secondary-public.pem"
+            $secondaryArgument = @(
+              "--product-trust-secondary-public-key",
+              "$artifact/product-update-secondary-public.pem")
+          }
+          $manifestArguments = @(
+            "tools/windows_artifact_manifest.py",
+            "--payload-root", "$artifact/client", "--version-file", "VERSION",
+            "--source-revision", $env:RELEASE_REVISION,
+            "--qt-version", $env:QT_VERSION,
+            "--installer", "$artifact/installer/ChatRoom-${{ steps.identity.outputs.version }}-unsigned-verification-Setup.exe",
+            "--cmake-payload-parity", "$artifact/cmake-payload-parity.json",
+            "--build-system", "cmake",
+            "--product-trust-intent", "$artifact/product-update-trust-intent.json",
+            "--product-trust-diagnostic", "$artifact/product-update-trust-diagnostic.json",
+            "--product-trust-evidence", "$artifact/product-update-trust-evidence.json",
+            "--product-trust-primary-public-key", "$artifact/product-update-primary-public.pem")
+          $manifestArguments += $secondaryArgument
+          $manifestArguments += @("--output-dir", $artifact)
+          python @manifestArguments
+          if ($LASTEXITCODE -ne 0) { throw "trust artifact manifest failed" }
+          python tools/verify_windows_unsigned_artifact.py `
+            --artifact-root $artifact --version-file VERSION `
+            --source-revision $env:RELEASE_REVISION --qt-version $env:QT_VERSION `
+            --require-product-update-trust
+          if ($LASTEXITCODE -ne 0) { throw "trust artifact verification failed" }
+
+      - name: Upload unsigned product-trust candidate
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-${{ inputs.channel }}-${{ steps.identity.outputs.version }}-unsigned-product-trust-${{ inputs.source_revision }}
+          path: build/m4/product-trust/artifact
+          if-no-files-found: error
+          retention-days: 7

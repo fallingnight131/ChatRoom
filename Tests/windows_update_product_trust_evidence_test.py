@@ -137,12 +137,11 @@ class WindowsUpdateProductTrustEvidenceTest(WindowsUpdateProductTrustIntentTest)
         }
         baseline = {name: dict(value) for name, value in candidate.items()}
         baseline["ChatClient.exe"] = {"size": 8, "sha256": "b" * 64}
-        baseline["ChatRoomUpdateLauncher.exe"] = {"size": 8, "sha256": "c" * 64}
         parity = artifact / "cmake-payload-parity.json"
         parity.parent.mkdir(parents=True, exist_ok=True)
         parity.write_text(json.dumps({
             "schemaVersion": 1, "version": "1.2.3", "sourceRevision": self.revision,
-            "baselineBuildSystem": "qmake", "candidateBuildSystem": "cmake",
+            "baselineBuildSystem": "cmake-default-off", "candidateBuildSystem": "cmake",
             "runtimeBytesEquivalent": True,
             "executableByteDifferencesAllowed": [
                 "ChatClient.exe", "ChatRoomUpdateLauncher.exe"],
@@ -178,6 +177,10 @@ class WindowsUpdateProductTrustEvidenceTest(WindowsUpdateProductTrustIntentTest)
         self.assertEqual(manifest["schemaVersion"], 4)
         self.assertEqual(manifest["productUpdateTrust"]["keyIds"], [
             "windows-update-2026-01", "windows-update-2027-01"])
+        with self.assertRaisesRegex(ManifestError, "unexpectedly contains"):
+            verify_artifact(
+                artifact, self.version, self.revision, "6.11.1",
+                forbid_product_update_trust=True)
 
     def test_trusted_artifact_rejects_removed_or_changed_trust_bundle(self) -> None:
         artifact = self.artifact()

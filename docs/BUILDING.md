@@ -755,6 +755,19 @@ binary evidence, and reviewed public PEM files and rebind them to the exact
 client PE. Signing intake uses `--require-product-update-trust` to reject null,
 old-schema, missing, or changed trust. See ADR-0188.
 
+The manual `m4-windows-product-trust-build.yml` workflow creates that
+release-intended artifact on the dedicated
+`self-hosted-windows-update-trust-build` runner in the protected
+`windows-update-product-trust` environment. It first verifies the exact
+ordinary schema-4 artifact with `--forbid-product-update-trust`, then rebuilds
+only `ChatClient.exe` from the reviewed public intent. Runtime DLLs and the
+update helper must be byte-identical to the ordinary CMake/default-off payload.
+The final PE and installed unsigned-Setup PE must report identical trust before
+the workflow uploads one seven-day `unsigned-product-trust` artifact. The
+workflow has no signing or publication authority. Run its source-policy test
+with `python3 Tests/windows_product_trust_build_workflow_test.py`. No successful
+native protected run is recorded in this repository yet; see ADR-0189.
+
 The provider-neutral post-signing acceptance policy is checked with:
 
 ```bash

@@ -103,7 +103,8 @@ def main() -> int:
     parser.add_argument("--candidate", type=Path, required=True)
     parser.add_argument("--version", required=True)
     parser.add_argument("--source-revision", required=True)
-    parser.add_argument("--baseline-build-system", choices=("qmake", "cmake"),
+    parser.add_argument("--baseline-build-system",
+                        choices=("qmake", "cmake", "cmake-default-off"),
                         default="qmake")
     parser.add_argument("--candidate-build-system", choices=("qmake", "cmake"),
                         default="cmake")

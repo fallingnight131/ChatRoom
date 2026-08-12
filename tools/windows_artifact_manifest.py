@@ -121,6 +121,13 @@ def build_manifest(
     if build_system not in {"cmake", "qmake"}:
         raise ManifestError("Windows artifact build system is invalid")
     version = read_version(version_file)
+    trust_required = (
+        product_trust_intent, product_trust_diagnostic, product_trust_evidence,
+        product_trust_primary_public_key,
+    )
+    trust_requested = (
+        any(value is not None for value in trust_required)
+        or product_trust_secondary_public_key is not None)
 
     entries: list[dict[str, object]] = []
     checksum_lines: list[str] = []
@@ -179,7 +186,8 @@ def build_manifest(
                 or evidence.get("schemaVersion") != 1
                 or evidence.get("version") != version
                 or evidence.get("sourceRevision") != source_revision
-                or evidence.get("baselineBuildSystem") != "qmake"
+                or evidence.get("baselineBuildSystem")
+                    != ("cmake-default-off" if trust_requested else "qmake")
                 or evidence.get("candidateBuildSystem") != "cmake"
                 or evidence.get("runtimeBytesEquivalent") is not True
                 or evidence.get("executableByteDifferencesAllowed")
@@ -188,6 +196,10 @@ def build_manifest(
                 or not valid_parity_inventory(evidence.get("candidate"))
                 or set(evidence["baseline"]) != set(evidence["candidate"])):
             raise ManifestError("CMake payload parity evidence policy rejected the record")
+        if (trust_requested
+                and evidence["baseline"]["ChatRoomUpdateLauncher.exe"]
+                    != evidence["candidate"]["ChatRoomUpdateLauncher.exe"]):
+            raise ManifestError("Product trust build changed the update launcher")
         for name in set(evidence["baseline"]) - PARITY_EXECUTABLES:
             if evidence["baseline"][name] != evidence["candidate"][name]:
                 raise ManifestError("CMake payload parity runtime evidence differs")
@@ -207,11 +219,7 @@ def build_manifest(
             "runtimeBytesEquivalent": True,
         }
         checksum_lines.append(f"{digest}  {artifact_path}")
-    trust_required = (
-        product_trust_intent, product_trust_diagnostic, product_trust_evidence,
-        product_trust_primary_public_key,
-    )
-    if any(value is not None for value in trust_required) or product_trust_secondary_public_key is not None:
+    if trust_requested:
         if any(value is None for value in trust_required):
             raise ManifestError("Windows product update trust bundle is incomplete")
         client = payload_root / "ChatClient.exe"
