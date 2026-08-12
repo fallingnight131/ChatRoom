@@ -97,6 +97,13 @@ This requires exact `/api/health` process/route identity and a valid random-
 challenge WebSocket upgrade at `/ws`. If the Web build uses a reviewed custom
 same-origin WebSocket path, pass that exact path with `--websocket-path`.
 
+Join the candidate static/route observations with the exact candidate and a
+different retained rollback release using `tools/web_promotion_evidence.py
+record`; independently reconstruct it with the `verify` command before any
+provider adapter changes traffic. The complete command is in `docs/BUILDING.md`.
+The result says `technical-gates-observed-not-published`; it is not proof that
+traffic changed or that an incident rollback met its recovery objective.
+
 ## Roll back without rebuilding
 
 Keep the previous release directory throughout the rollback window. To roll

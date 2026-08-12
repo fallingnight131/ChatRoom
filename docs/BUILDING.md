@@ -77,6 +77,7 @@ python3 Tests/web_release_store_test.py
 python3 Tests/web_release_probe_test.py
 python3 Tests/web_rollback_evidence_test.py
 python3 Tests/web_application_route_probe_test.py
+python3 Tests/web_promotion_evidence_test.py
 ```
 
 The operator commands and filesystem layout are documented in
@@ -102,6 +103,32 @@ The probe requires the exact V1 health body/headers and completes a fresh
 nonce-bound RFC 6455 upgrade at `/ws`. Use `--websocket-path` only when it exactly
 matches the reviewed path compiled into the Web release. This is route evidence,
 not login, database, file, load, or continuous-availability evidence.
+
+After observing a candidate and its routes, bind them to the exact immutable
+candidate and a different retained rollback release before any provider adapter
+changes traffic:
+
+```bash
+python3 tools/web_promotion_evidence.py record \
+  --release-root /srv/chat-room-web/releases/<candidate-id> \
+  --release-observation /path/to/evidence/candidate-static.json \
+  --route-observation /path/to/evidence/candidate-routes.json \
+  --rollback-release-root /srv/chat-room-web/releases/<previous-id> \
+  --rollback-observation /path/to/evidence/previous-static.json \
+  --output /path/to/evidence/web-technical-promotion.json
+
+python3 tools/web_promotion_evidence.py verify \
+  --release-root /srv/chat-room-web/releases/<candidate-id> \
+  --release-observation /path/to/evidence/candidate-static.json \
+  --route-observation /path/to/evidence/candidate-routes.json \
+  --rollback-release-root /srv/chat-room-web/releases/<previous-id> \
+  --rollback-observation /path/to/evidence/previous-static.json \
+  --output /path/to/evidence/web-technical-promotion.json
+```
+
+The default candidate observation freshness is 15 minutes and both current
+observations must be within five minutes of one another. The record is labeled
+not-published and performs no provider mutation.
 
 Production Web builds resolve V1 WebSocket traffic to `wss://<page-authority>/ws`
 and file traffic below same-origin `/api/`; the HTTPS reverse proxy must own both

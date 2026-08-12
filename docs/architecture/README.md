@@ -817,6 +817,16 @@ or headers, cookies, wildcard CORS, duplicate critical headers, and malformed or
 oversized upgrade responses fail. This proves routing and upgrade reachability,
 not authenticated chat, storage health, file access, load, or availability.
 
+ADR-0145 adds the fail-closed join between those independent gates. A technical
+promotion record binds a fresh candidate static observation, a fresh same-origin
+route observation, the exact immutable candidate, and a different retained
+rollback artifact plus its prior observation. Candidate observations share a
+bounded promotion window; all input JSON hashes and artifact-manifest identities
+are retained and independently reconstructable. Its status is explicitly
+`technical-gates-observed-not-published`: provider mutation, staged traffic,
+branded browsers, monitoring, business authorization, and bootstrap of the first
+release remain outside the record.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

@@ -37,3 +37,7 @@ evidence.
 HTTPS origin serves the exact credential-free V1 `/api/health` contract and a
 nonce-bound RFC 6455 `/ws` upgrade. Keeping route and static evidence separate
 makes a failed reverse proxy distinguishable from stale release bytes.
+`tools/web_promotion_evidence.py` then binds fresh candidate static/route
+observations, exact immutable candidate bytes, and a distinct retained rollback
+release into a closed technical record. Its explicit not-published status is an
+input for a future provider adapter, never proof that traffic changed.

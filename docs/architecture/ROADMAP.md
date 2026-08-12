@@ -652,6 +652,9 @@ Progress:
 - [x] Observe `/api/health` and an RFC 6455 nonce-bound `/ws` upgrade on one
   trusted HTTPS origin, with closed write-once route evidence and fail-closed
   redirect, TLS, path, response, and mutation tests.
+- [x] Bind a fresh candidate static observation, fresh route observation, exact
+  immutable artifact, and a distinct retained rollback artifact/observation into
+  one independently verifiable, explicitly not-published technical promotion record.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
