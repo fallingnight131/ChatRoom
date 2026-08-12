@@ -94,6 +94,11 @@ sequence-plus-digest replay watermarks through locked atomic owner-only writes.
 Malformed state fails closed. No Windows AppData path or updater service creates
 this state in the product.
 
+An inactive application service now enforces signature verification, durable
+state, semantic decision, and atomic replay acceptance in that order. Its
+trusted key ring and product state path remain unconfigured, with no manifest
+transport, scheduler, UI, or installer launch.
+
 M4 must provide:
 
 - a signed and timestamped direct installer;

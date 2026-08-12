@@ -24,6 +24,8 @@ leaf-certificate SHA-256 thumbprint matching. No downloader invokes it.
 ADR-0121 adds inactive, owner-only atomic storage for the UUIDv4 rollout
 identity and stable/beta sequence-plus-digest replay watermarks. Corrupt state
 blocks rather than resets; no product path creates it.
+ADR-0122 composes signature, state, policy, and atomic acceptance behind one
+inactive entry point so future transport cannot bypass trust ordering.
 
 ## Canonical format
 

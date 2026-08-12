@@ -226,6 +226,7 @@ def run_qt_client_unit_tests(jobs: int, build_root: Path) -> None:
         "UpdateManifestDecisionPolicyTest",
         "UpdateInstallerTrustVerifierTest",
         "UpdateStateRepositoryTest",
+        "UpdateManifestApplicationServiceTest",
     ):
         run([str(build_qt_unit_test(jobs, build_root, name))], ROOT)
 

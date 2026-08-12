@@ -34,6 +34,7 @@ SOURCES += \
     UpdateManifestDecisionPolicy.cpp \
     UpdateInstallerTrustVerifier.cpp \
     UpdateStateRepository.cpp \
+    UpdateManifestApplicationService.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -62,6 +63,7 @@ HEADERS += \
     UpdateManifestDecisionPolicy.h \
     UpdateInstallerTrustVerifier.h \
     UpdateStateRepository.h \
+    UpdateManifestApplicationService.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \

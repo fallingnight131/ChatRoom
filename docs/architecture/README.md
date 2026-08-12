@@ -625,6 +625,12 @@ locked stable/beta sequence-plus-digest watermarks reject rollback and
 equivocation across signing-key rotations. Malformed state fails closed; no
 application path creates it yet.
 
+ADR-0122 makes the trust order non-bypassable behind one inactive application
+service: canonical signature verification precedes state load and semantic
+decision, which precede atomic replay acceptance. Invalid trust creates no
+state. The service still has no configured product key/path, network, UI, or
+installer action.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

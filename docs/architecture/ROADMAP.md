@@ -572,6 +572,8 @@ Progress:
 - [x] Add default-off, owner-only atomic device/manifest replay state with one
   stable UUIDv4 and sequence/digest high-watermark per channel across key
   rotations.
+- [x] Enforce signature verification, semantic policy, and atomic replay
+  acceptance ordering behind one default-off update application service.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

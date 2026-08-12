@@ -166,6 +166,11 @@ atomic per-channel sequence/digest persistence, idempotence, replay/conflict
 rejection, and corrupt-state failure. The repository is compiled but no product
 path chooses an AppData location or creates update state yet.
 
+`UpdateManifestApplicationServiceTest` proves the mandatory signature-to-state-
+to-policy-to-atomic-acceptance order with an ephemeral key. Tampered or empty
+trust creates no state, retries are idempotent, and a signed replay is rejected.
+No product key/path or network/update action invokes this service.
+
 ## Java V2 Backend
 
 The additive M3 workspace requires JDK 21. It carries its own checksum-pinned
