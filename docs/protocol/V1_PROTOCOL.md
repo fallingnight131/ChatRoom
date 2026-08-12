@@ -235,7 +235,9 @@ Authenticated state owns the creator; the bounded envelope ID is future
 idempotency identity. The title is trimmed and bounded to 100 Unicode code
 points. An optional valid UTF-8 password retains the V1 4–1024 character policy,
 is copied into owned secret memory, hashed before persistence, and zeroed on
-every exit. A future atomic result returns positive `roomId`, normalized
+every exit. Protected-room retry comparison uses a dedicated server-keyed,
+domain-separated stable tag beside the salted slow hash, never an unkeyed fast
+password digest. A future atomic result returns positive `roomId`, normalized
 `roomName`, `isAdmin: true`, and duplicate state without exposing UUIDs. No
 schema, adapter, handler, or product route exists yet.
 

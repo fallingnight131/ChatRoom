@@ -30,15 +30,12 @@ public final class LegacyV1RoomCreationService implements LegacyV1RoomCreationUs
                     || !validRequestId(command.clientRequestId())) {
                 return LegacyV1RoomCreationResult.Rejected.INVALID_INPUT;
             }
-            Optional<String> encoded = Optional.empty();
+            Optional<LegacyV1RoomPasswordEncoding> encoded = Optional.empty();
             if (command.hasPassword()) {
                 if (!command.withPasswordCopy(LegacyV1RoomCreationService::validPassword)) {
                     return LegacyV1RoomCreationResult.Rejected.INVALID_INPUT;
                 }
                 encoded = Optional.of(command.withPasswordCopy(passwords::hash));
-                if (encoded.orElseThrow().isBlank()) {
-                    throw new IllegalStateException("room password hash is blank");
-                }
             }
             LegacyV1RoomCreationResult result = Objects.requireNonNull(rooms.create(
                     new LegacyV1RoomCreationIntent(command.actorAccountId(),

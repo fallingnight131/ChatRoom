@@ -13,7 +13,9 @@ valid UTF-8 code points. The command owns copied password bytes and destroys
 them on every success, rejection, and exception path.
 
 Hash an accepted password through an application output port before persistence;
-the persistence intent contains only the encoded result and never plaintext.
+the persistence intent contains only the slow encoded result plus the
+server-keyed stable idempotency tag defined by ADR-0281, never plaintext or an
+unkeyed fast password digest.
 The future PostgreSQL adapter must atomically create one GROUP conversation,
 one active OWNER membership for the actor, and one positive V1 ROOM mapping.
 Treat `(actor_account_id, client_request_id)` as the idempotency scope: exact

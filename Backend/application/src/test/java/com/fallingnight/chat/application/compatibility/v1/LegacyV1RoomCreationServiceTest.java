@@ -14,7 +14,7 @@ final class LegacyV1RoomCreationServiceTest {
         AtomicReference<LegacyV1RoomCreationIntent> captured = new AtomicReference<>();
         LegacyV1RoomCreationService service = new LegacyV1RoomCreationService(password -> {
             assertArrayEquals("secret".getBytes(StandardCharsets.UTF_8), password);
-            return "$argon2id$encoded";
+            return encoding();
         }, intent -> {
             captured.set(intent);
             return new LegacyV1RoomCreationResult.Created(
@@ -27,14 +27,14 @@ final class LegacyV1RoomCreationServiceTest {
         assertEquals(actor, created.creatorAccountId()); assertEquals(7, created.legacyRoomId());
         assertEquals("Project Room", captured.get().roomName());
         assertEquals(" request-1 ", captured.get().clientRequestId());
-        assertEquals(Optional.of("$argon2id$encoded"), captured.get().encodedPassword());
+        assertEquals(Optional.of(encoding()), captured.get().encodedPassword());
         assertTrue(command.isClosed());
     }
 
     @Test void rejectsInvalidInputBeforeHashOrPersistenceAndClosesSecret() {
         AtomicBoolean hashed = new AtomicBoolean(), persisted = new AtomicBoolean();
         LegacyV1RoomCreationService service = new LegacyV1RoomCreationService(password -> {
-            hashed.set(true); return "hash";
+            hashed.set(true); return encoding();
         }, intent -> {
             persisted.set(true); return LegacyV1RoomCreationResult.Rejected.CREATION_DENIED;
         });
@@ -52,7 +52,7 @@ final class LegacyV1RoomCreationServiceTest {
     @Test void failsClosedOnPersistenceIdentitySubstitutionAndClosesOnFailure() {
         UUID actor = UUID.randomUUID();
         LegacyV1RoomCreationService substituted = new LegacyV1RoomCreationService(
-                password -> "hash", intent -> new LegacyV1RoomCreationResult.Created(
+                password -> encoding(), intent -> new LegacyV1RoomCreationResult.Created(
                         UUID.randomUUID(), 7, intent.roomName(), UUID.randomUUID(), false));
         var command = command(actor, "request", "Room", null);
         assertThrows(IllegalStateException.class, () -> substituted.create(command));
@@ -70,5 +70,8 @@ final class LegacyV1RoomCreationServiceTest {
             UUID actor, String requestId, String name, String password) {
         return new LegacyV1RoomCreationCommand(actor, requestId, name,
                 password == null ? null : password.getBytes(StandardCharsets.UTF_8));
+    }
+    private static LegacyV1RoomPasswordEncoding encoding() {
+        return new LegacyV1RoomPasswordEncoding("$argon2id$encoded", "opaque-hmac-tag");
     }
 }

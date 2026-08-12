@@ -307,7 +307,9 @@ remains unchanged.
 The room-creation boundary now binds the creator from authentication, uses the
 bounded outer request ID for future idempotency, normalizes the room title, and
 owns and zeroes the optional password bytes. Passwords must be hashed through an
-application port before persistence. A future transaction must create the GROUP,
+application port before persistence. Because salted Argon2id output cannot
+classify retries, that port also returns a dedicated server-keyed stable HMAC
+tag; an unkeyed fast password digest is forbidden. A future transaction must create the GROUP,
 active OWNER, and positive ROOM mapping atomically. No schema, adapter, or
 handler exists yet.
 
