@@ -218,6 +218,10 @@ the single-account connection registry, suppresses stale completions, and closes
 without a pruning response on malformed input, saturation, or projection error.
 The product listener still does not install this module.
 
+The next detached contacts boundary now defines a recipient-scoped, bounded V1
+pending-request list with exact numeric action IDs and requester identity. It
+rejects duplicate/oversized results; PostgreSQL and Netty adapters remain next.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then
