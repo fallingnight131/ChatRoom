@@ -84,6 +84,10 @@ suite generates a one-day localhost certificate/key in a temporary directory,
 observes exact HTTPS headers and bytes, and deletes the key after the test. It is
 still intentionally separate from production-provider and browser verification.
 
+The V1 smoke gate also starts the real Qt HTTP listener and verifies the exact,
+query-free, credential-free `GET /api/health` routing contract. It is a process
+and `/api/` reachability signal only, not database or attachment readiness.
+
 Production Web builds resolve V1 WebSocket traffic to `wss://<page-authority>/ws`
 and file traffic below same-origin `/api/`; the HTTPS reverse proxy must own both
 routes. A different same-origin WebSocket path can be selected at build time,

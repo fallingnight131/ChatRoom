@@ -802,6 +802,13 @@ verified A. This proves the release mechanism in isolation; public provider
 promotion, `/ws` and `/api/` health, branded browsers, and real incident rollback
 remain M4 gates.
 
+ADR-0143 adds the credential-free application-routing half of the Web release
+gate. Exact query-free `GET /api/health` returns only canonical V1 process/route
+identity with no-store and nosniff headers; it performs no database work and
+exposes no readiness, user, file, build, or dependency detail. Path variants,
+queries, and non-GET methods fail closed. The public HTTPS probe still needs to
+consume this contract and verify the `/ws` upgrade before promotion.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

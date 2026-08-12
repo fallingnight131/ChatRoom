@@ -258,6 +258,7 @@ def verify_v1_smoke(jobs: int, build_root: Path) -> None:
         "v1_recall_replay_test.py",
         "v1_administrative_deletion_reliability_test.py",
         "v1_http_upload_test.py",
+        "v1_http_health_test.py",
         "v1_file_forward_test.py",
     ):
         run(

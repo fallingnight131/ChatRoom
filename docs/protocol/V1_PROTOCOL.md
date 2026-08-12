@@ -52,6 +52,16 @@ The browser uses one JSON object per text frame. The default port is 9528.
 The server configures Qt's incoming frame and message limits to the same 16 MiB
 V1 JSON maximum used by TCP.
 
+### Same-origin HTTP health
+
+`GET /api/health` is the query-free, unauthenticated routing check used by the
+Web release gate. It returns exactly `{"protocol":"v1","status":"ok"}` plus a
+newline as `application/json; charset=utf-8`, with `Cache-Control: no-store` and
+`X-Content-Type-Options: nosniff`. It exposes no database, user, file, build, or
+dependency state and therefore proves only that the V1 HTTP process and route
+are reachable. Path variants, query strings, and non-GET requests are not
+healthy responses. Older servers do not implement this additive endpoint.
+
 ### Outbound backpressure
 
 TCP and WebSocket sessions allow at most 24 MiB of pending socket writes. If a
@@ -428,8 +438,8 @@ resource identifiers do not grant room, message, upload, or attachment access.
 types, message floods, the legacy 8 MiB inline-file boundary, and a real slow
 consumer. `Tests/v1_input_validation_test.py` covers authentication work and
 field/file/upload invariants. `python3 tools/verify_m0.py --v1-smoke` runs all
-configured suites against the same built server binary in separate isolated
-databases.
+configured suites, including the exact unauthenticated `/api/health` contract,
+against the same built server binary in separate isolated databases.
 
 `Tests/v1_room_message_reliability_test.py` proves first acceptance, exact retry,
 conflicting key reuse, old-envelope compatibility, non-member rejection,

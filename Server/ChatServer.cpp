@@ -988,6 +988,21 @@ void ChatServer::handleHttpRequest(QTcpSocket *socket) {
         return;
     }
 
+    if (path == QStringLiteral("/api/health") && !url.hasQuery()) {
+        static const QByteArray body = QByteArrayLiteral("{\"protocol\":\"v1\",\"status\":\"ok\"}\n");
+        QByteArray resp;
+        resp += "HTTP/1.1 200 OK\r\n";
+        resp += "Content-Type: application/json; charset=utf-8\r\n";
+        resp += "Cache-Control: no-store\r\n";
+        resp += "X-Content-Type-Options: nosniff\r\n";
+        resp += "Content-Length: " + QByteArray::number(body.size()) + "\r\n";
+        resp += "Connection: close\r\n\r\n";
+        resp += body;
+        socket->write(resp);
+        socket->disconnectFromHost();
+        return;
+    }
+
     static const QRegularExpression re(QStringLiteral("^/api/download/(-?\\d+)$"));
     const QRegularExpressionMatch match = re.match(path);
     if (!match.hasMatch()) {

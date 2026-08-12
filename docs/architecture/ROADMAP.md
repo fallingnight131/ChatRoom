@@ -646,6 +646,9 @@ Progress:
 - [x] Persist closed, write-once Web HTTPS observations, independently reverify
   them against the immutable release, and bind prior-A/current-B/restored-A
   observations into tamper-evident no-rebuild rollback evidence.
+- [x] Add an exact, query-free, credential-free V1 `/api/health` contract so the
+  Web release gate can distinguish working same-origin application routing from
+  a proxy/CDN 404 without exposing application or dependency state.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
