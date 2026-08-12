@@ -22,6 +22,7 @@ Unicode true
 
 !define PRODUCT_NAME "Chat Room"
 !define PRODUCT_EXE "ChatClient.exe"
+!define PRODUCT_UPDATE_LAUNCHER "ChatRoomUpdateLauncher.exe"
 !define PRODUCT_UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\ChatRoom"
 !define PRODUCT_INSTALL_ID "chat-room-windows-client-v1"
 !define PRODUCT_INSTALL_MARKER ".chat-room-install.ini"
@@ -118,6 +119,7 @@ Section "$(MainSectionName)" MainSection
   WriteINIStr "$StageDir\${PRODUCT_INSTALL_MARKER}" "Installation" "SourceRevision" "${SOURCE_REVISION}"
   WriteUninstaller "$StageDir\Uninstall.exe"
   IfFileExists "$StageDir\${PRODUCT_EXE}" 0 stage_invalid
+  IfFileExists "$StageDir\${PRODUCT_UPDATE_LAUNCHER}" 0 stage_invalid
   IfFileExists "$StageDir\sqldrivers\qsqlite.dll" 0 stage_invalid
 
   StrCmp $ExistingInstall "1" upgrade_swap fresh_swap

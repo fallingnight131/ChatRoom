@@ -668,7 +668,15 @@ The Windows verifier can re-open Setup read-only without write/delete sharing,
 repeat integrity and Authenticode/timestamp/publisher checks on that locked file,
 and retain the handle through `CreateProcessW`. It launches only NSIS silent
 mode, waits with a fixed caller bound, and returns the real exit code. No client
-or helper invokes this primitive yet.
+product path invokes the helper that owns this primitive yet.
+
+ADR-0129 adds that independently built helper to the Windows payload. A strict
+UUID-bound command names the live parent, exact signed installer metadata,
+restart executable, new result path, and one-shot ready event. The helper opens
+the parent before signaling readiness, waits up to two minutes for normal exit,
+uses ADR-0128, atomically records the result, deletes Setup only when no process
+can still use it, and restarts only after exit code zero. The client does not yet
+copy or invoke the helper, so updates remain inactive.
 
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,

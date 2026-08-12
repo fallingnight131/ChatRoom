@@ -123,7 +123,13 @@ trusted key, AppData/staging configuration, scheduler, consent UI, or launcher.
 The Windows verifier also has an inactive final-boundary operation that repeats
 all installer trust checks while holding the file against replacement through
 silent `CreateProcessW`, then observes its bounded exit. It has no external
-helper or product call path and has not accepted a real signed Setup in CI.
+product call path and has not accepted a real signed Setup in CI.
+
+The payload now contains an external update helper that waits for a specifically
+handshaken parent, invokes the locked boundary, records one-shot atomic evidence,
+and restarts only after installer exit zero. Native CI is configured for its
+unsigned rejection path. The client does not invoke it, and a successful real
+signed upgrade remains an M4 release gate.
 
 The Windows client now owns a session-local liveness mutex and refuses a second
 instance. NSIS checks the same mutex before mutation and returns 4 for a silent

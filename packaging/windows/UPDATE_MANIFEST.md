@@ -44,7 +44,11 @@ behind one inactive check entry point. Invalid signatures and deferred rollout
 cannot reach the installer request; no launcher consumes its verified result.
 ADR-0128 adds the final Windows primitive that repeats trust while holding Setup
 against replacement through silent process creation, waits, and returns its
-exit code. It is not yet invoked by a client or external helper.
+exit code. The external helper owns this call, but no client path invokes it.
+ADR-0129 packages the external helper and gives it a strict UUID-bound parent,
+installer-metadata, result-file, restart-path, and ready-event contract. It
+waits for normal parent exit, records results atomically, cleans only when safe,
+and restarts only on installer exit zero. Client handoff remains inactive.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin

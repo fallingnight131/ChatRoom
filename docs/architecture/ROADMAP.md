@@ -592,6 +592,9 @@ Progress:
 - [x] Add a Windows-only locked re-verification-and-launch primitive that holds
   Setup against replacement through `CreateProcess`, permits only silent NSIS,
   waits with a bound, and reports the actual installer exit code.
+- [x] Add and package a fail-closed external Windows update helper with strict
+  one-shot arguments, parent-exit handshake/wait, atomic result evidence,
+  unsigned rejection, cleanup, and success-only client restart.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

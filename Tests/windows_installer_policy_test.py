@@ -39,6 +39,9 @@ class WindowsInstallerPolicyTest(unittest.TestCase):
             "Rejected running-client upgrade changed the process, installation, or account data",
             'Get-ChildItem "$env:SODIUM_ROOT/bin" -Filter "*sodium*.dll"',
             "Installed client is missing the update-verifier libsodium runtime",
+            "Installed update launcher is missing",
+            "Update launcher did not complete its parent-process handshake",
+            "Update launcher did not atomically reject and clean the unsigned fixture",
         ]:
             self.assertIn(evidence, workflow)
 
@@ -67,6 +70,7 @@ class WindowsInstallerPolicyTest(unittest.TestCase):
             'Rename "$StageDir" "$INSTDIR"',
             'Rename "$BackupDir" "$INSTDIR"',
             'IfFileExists "$StageDir\\sqldrivers\\qsqlite.dll" 0 stage_invalid',
+            'IfFileExists "$StageDir\\${PRODUCT_UPDATE_LAUNCHER}" 0 stage_invalid',
             '${VersionCompare} "${VERSION}" "$1" $2',
             'StrCmp $2 "2" downgrade_install',
         ]:

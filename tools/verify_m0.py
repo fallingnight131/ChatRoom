@@ -231,6 +231,7 @@ def run_qt_client_unit_tests(jobs: int, build_root: Path) -> None:
         "UpdatePreparationApplicationServiceTest",
         "UpdateManifestFetchTransportTest",
         "UpdateCheckApplicationServiceTest",
+        "UpdateLauncherCommandTest",
         "WindowsClientInstanceGuardTest",
     ):
         run([str(build_qt_unit_test(jobs, build_root, name))], ROOT)
@@ -345,6 +346,7 @@ def verify_qt(jobs: int, build_root: Path) -> None:
     for target, project in (
         ("server", ROOT / "Server" / "Server.pro"),
         ("client", ROOT / "Client" / "Client.pro"),
+        ("update-launcher", ROOT / "UpdaterLauncher" / "UpdaterLauncher.pro"),
     ):
         target_dir = build_root / target
         target_dir.mkdir(parents=True, exist_ok=True)

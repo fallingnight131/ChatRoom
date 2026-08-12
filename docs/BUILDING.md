@@ -163,6 +163,13 @@ signed and RFC 3161-timestamped Setup remains a separate release test.
 The same test requires the locked silent-launch entry point to reject that
 unsigned fixture before process creation (or report unsupported off Windows).
 
+`UpdateLauncherCommandTest` checks the external helper's exact one-shot command
+contract, UUID-bound result/event names, absolute regular executables, 2 GiB
+size bound, lowercase hashes, duplicates, and unknown options. The Qt gate also
+builds `ChatRoomUpdateLauncher`; native Windows packaging includes it and is
+configured to prove parent handshake/wait, unsigned Setup rejection, atomic
+result evidence, and rejected-file cleanup without invoking an installer.
+
 `UpdateStateRepositoryTest` checks creation/reload of an owner-only UUIDv4,
 atomic per-channel sequence/digest persistence, idempotence, replay/conflict
 rejection, and corrupt-state failure. The repository is compiled but no product

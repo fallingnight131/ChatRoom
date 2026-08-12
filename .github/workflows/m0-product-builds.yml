@@ -124,12 +124,14 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $client = Get-ChildItem build/m0/windows/client -Recurse -Filter ChatClient.exe | Select-Object -First 1
+          $launcher = Get-ChildItem build/m0/windows/update-launcher -Recurse -Filter ChatRoomUpdateLauncher.exe | Select-Object -First 1
           $server = Get-ChildItem build/m0/windows/server -Recurse -Filter ChatServer.exe | Select-Object -First 1
-          if (-not $client -or -not $server) { throw "Qt Release executables were not found" }
+          if (-not $client -or -not $launcher -or -not $server) { throw "Qt Release executables were not found" }
 
           $artifact = "build/m0/artifacts/windows"
           New-Item -ItemType Directory -Force "$artifact/client" | Out-Null
           Copy-Item $client.FullName "$artifact/client/ChatClient.exe"
+          Copy-Item $launcher.FullName "$artifact/client/ChatRoomUpdateLauncher.exe"
           windeployqt --release --no-translations "$artifact/client/ChatClient.exe"
           $sodiumDll = Get-ChildItem "$env:SODIUM_ROOT/bin" -Filter "*sodium*.dll" | Select-Object -First 1
           if (-not $sodiumDll) { throw "Windows client artifact is missing the libsodium runtime source" }
@@ -199,7 +201,9 @@ jobs:
           }
           if (-not (Test-Path $sentinel -PathType Leaf)) { throw "Upgrade deleted account-local client data" }
           $installedClient = "$installRoot/ChatClient.exe"
+          $installedLauncher = "$installRoot/ChatRoomUpdateLauncher.exe"
           if (-not (Test-Path $installedClient -PathType Leaf)) { throw "Installed client executable is missing" }
+          if (-not (Test-Path $installedLauncher -PathType Leaf)) { throw "Installed update launcher is missing" }
           if (-not (Test-Path "$installRoot/sqldrivers/qsqlite.dll" -PathType Leaf)) {
             throw "Installed client is missing the Qt SQLite driver"
           }
@@ -208,6 +212,54 @@ jobs:
           }
           if (-not (Get-Item $installedClient).VersionInfo.ProductVersion.StartsWith($version)) {
             throw "Installed client version does not match canonical VERSION"
+          }
+
+          $launcherFixture = "$env:RUNNER_TEMP/ChatRoomUnsignedLauncherFixture.exe"
+          Copy-Item $installer $launcherFixture
+          $launcherFixtureSize = (Get-Item $launcherFixture).Length
+          $launcherFixtureSha = (Get-FileHash $launcherFixture -Algorithm SHA256).Hash.ToLowerInvariant()
+          $launcherRequestId = [guid]::NewGuid().ToString("D").ToLowerInvariant()
+          $launcherResult = "$env:RUNNER_TEMP/result-$launcherRequestId.json"
+          $launcherEventName = "Local\ChatRoom.UpdateLauncher.Ready.$launcherRequestId"
+          $launcherReady = [System.Threading.EventWaitHandle]::new(
+            $false, [System.Threading.EventResetMode]::AutoReset, $launcherEventName)
+          $launcherParent = Start-Process powershell -ArgumentList @(
+            "-NoProfile", "-Command", "Start-Sleep -Seconds 120") -PassThru
+          try {
+            $launcherProcess = Start-Process -FilePath $installedLauncher -ArgumentList @(
+              "--parent-pid", "$($launcherParent.Id)",
+              "--installer", $launcherFixture,
+              "--installer-size", "$launcherFixtureSize",
+              "--installer-sha256", $launcherFixtureSha,
+              "--signer-thumbprint-sha256", ("0" * 64),
+              "--restart-executable", $installedClient,
+              "--result-file", $launcherResult,
+              "--request-id", $launcherRequestId,
+              "--ready-event", $launcherEventName) -PassThru
+            if (-not $launcherReady.WaitOne([TimeSpan]::FromSeconds(15))) {
+              throw "Update launcher did not complete its parent-process handshake"
+            }
+            Stop-Process -Id $launcherParent.Id
+            $launcherParent.WaitForExit()
+            if (-not $launcherProcess.WaitForExit(30000)) {
+              throw "Update launcher did not finish unsigned rejection"
+            }
+            if ($launcherProcess.ExitCode -ne 4) {
+              throw "Unsigned launcher fixture returned $($launcherProcess.ExitCode) instead of 4"
+            }
+            $launcherEvidence = Get-Content $launcherResult -Raw | ConvertFrom-Json
+            if ($launcherEvidence.requestId -ne $launcherRequestId `
+                -or $launcherEvidence.outcome -ne "trust-rejected" `
+                -or (Test-Path $launcherFixture)) {
+              throw "Update launcher did not atomically reject and clean the unsigned fixture"
+            }
+          } finally {
+            $launcherReady.Dispose()
+            if (-not $launcherParent.HasExited) { Stop-Process -Id $launcherParent.Id -Force }
+            if ($launcherProcess -and -not $launcherProcess.HasExited) {
+              Stop-Process -Id $launcherProcess.Id -Force
+            }
+            Remove-Item $launcherFixture,$launcherResult -Force -ErrorAction SilentlyContinue
           }
           $uninstallKey = Get-ItemProperty "HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/ChatRoom"
           if ($uninstallKey.DisplayVersion -ne $version -or $uninstallKey.SourceRevision -ne "${{ github.sha }}" `
