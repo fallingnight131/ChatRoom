@@ -277,7 +277,11 @@ The detached V1 compatibility application boundary now pages that same
 authorized directory, retains only group conversations, batch-translates their
 imported numeric room IDs, derives unread counts from canonical sequences, and
 fails the complete bounded request on any mapping inconsistency. It remains
-transport-independent and is not installed in the inactive V1 Netty pipeline.
+transport-independent. A detached strict JSON/Netty adapter now executes it
+off-loop for server-bound identities, permits one in-flight request, emits only
+complete bounded V1 room lists, and closes generically without an empty list on
+malformed input, saturation, or dependency failure. It is not installed in the
+inactive V1 runtime pipeline.
 This remains a pre-cutover path: live fan-out is process-local and active-
 conversation-only, while delivery/read state, multi-gateway routing, membership
 invalidation, broader conversation discovery, and supported-client cutover are
