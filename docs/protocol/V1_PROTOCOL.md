@@ -230,6 +230,15 @@ returns compatible `ROOM_SEARCH_RSP`, and emits only fixed result telemetry.
 Malformed or infrastructure-failed work closes; policy-rejected input returns
 an unsuccessful response without closing. The product listener remains inactive.
 
+The detached Java application boundary now also reserves `CREATE_ROOM_REQ`.
+Authenticated state owns the creator; the bounded envelope ID is future
+idempotency identity. The title is trimmed and bounded to 100 Unicode code
+points. An optional valid UTF-8 password retains the V1 4–1024 character policy,
+is copied into owned secret memory, hashed before persistence, and zeroed on
+every exit. A future atomic result returns positive `roomId`, normalized
+`roomName`, `isAdmin: true`, and duplicate state without exposing UUIDs. No
+schema, adapter, handler, or product route exists yet.
+
 ### Room chat
 
 Request data normally includes `roomId`, `content`, and `contentType`. Clients may

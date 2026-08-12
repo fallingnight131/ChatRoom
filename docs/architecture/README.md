@@ -304,6 +304,13 @@ identity, executes off-loop, and returns bounded compatible UUID-free results.
 Real PostgreSQL verifies login-to-search projection. The product listener
 remains unchanged.
 
+The room-creation boundary now binds the creator from authentication, uses the
+bounded outer request ID for future idempotency, normalizes the room title, and
+owns and zeroes the optional password bytes. Passwords must be hashed through an
+application port before persistence. A future transaction must create the GROUP,
+active OWNER, and positive ROOM mapping atomically. No schema, adapter, or
+handler exists yet.
+
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target
 username; clients cannot supply canonical IDs. Missing/self/already-friend/

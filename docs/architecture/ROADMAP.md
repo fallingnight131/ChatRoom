@@ -552,6 +552,9 @@ Progress:
   - [x] Compose detached strict V1 room search with authenticated identity,
     bounded off-loop execution, compatible UUID-free output, fixed telemetry,
     and real PostgreSQL login-to-search proof.
+  - [x] Define idempotent V1 room creation with server-bound ownership, bounded
+    request/title/password intent, secret zeroing, pre-persistence hashing, and
+    atomic GROUP/OWNER/ROOM-mapping requirements.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application
