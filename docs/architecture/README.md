@@ -324,6 +324,17 @@ returns compatible UUID-free creation responses. Real PostgreSQL verifies
 first/duplicate/conflict behavior, protected credential storage, and replacement-
 login room-directory recovery. The product listener remains unchanged.
 
+The next room-membership boundary now defines authenticated V1 join semantics.
+Existing active membership is idempotent and does not ask for the password
+again. A first join resolves an exact GROUP/ROOM mapping and optional stored
+credential, verifies owned bounded UTF-8 password bytes through the shared
+credential port, then sends an exact access snapshot to an atomic membership
+mutation. The persistence boundary must recheck account, target, credential,
+and capacity under the write transaction so a password or policy race cannot
+authorize a different room state. Canonical identities and stored hashes never
+cross V1 responses. PostgreSQL persistence and gateway composition remain later
+slices; the product listener is unchanged.
+
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target
 username; clients cannot supply canonical IDs. Missing/self/already-friend/

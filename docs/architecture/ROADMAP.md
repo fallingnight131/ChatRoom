@@ -568,6 +568,15 @@ Progress:
   - [x] Compose detached strict V1 room creation with envelope idempotency,
     server-bound creator, zeroed password copies, compatible responses, fixed
     telemetry, and real protected-room PostgreSQL/relogin proof.
+  - [x] Define authenticated V1 room joining with idempotent existing
+    membership, owned password bytes, credential verification, and an exact
+    access snapshot that persistence must compare during atomic admission.
+  - [ ] Implement atomic PostgreSQL V1 room joining with enabled-account,
+    GROUP/ROOM mapping, credential-snapshot, active-membership, and bounded
+    capacity enforcement.
+  - [ ] Compose detached strict V1 room joining with password-attempt admission,
+    compatible responses and first-join notification intent, fixed telemetry,
+    and real PostgreSQL/relogin proof.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

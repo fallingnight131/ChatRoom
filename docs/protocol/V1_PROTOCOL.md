@@ -252,6 +252,17 @@ all password copies, and returns UUID-free `CREATE_ROOM_RSP`. Success includes
 `errorCode`. Exact retry recovers the same room ID and replacement login
 recovers the room through `ROOM_LIST_RSP`. The product listener remains inactive.
 
+The detached Java application boundary now also reserves `JOIN_ROOM_REQ`.
+Authenticated state owns the joining account and only a positive mapped
+`roomId` plus optional owned UTF-8 password bytes form the command. Existing
+active membership succeeds idempotently without another password challenge. A
+first join distinguishes missing and invalid credentials, verifies the exact
+stored credential through the shared crypto port, and passes that access
+snapshot into the future atomic persistence mutation. The mutation must recheck
+the snapshot and capacity; a changed credential or target fails closed. Success
+will preserve `roomId`, `roomName`, `isAdmin`, and `newJoin`; UUIDs and password
+hashes remain internal. No PostgreSQL adapter or handler exists yet.
+
 ### Room chat
 
 Request data normally includes `roomId`, `content`, and `contentType`. Clients may
