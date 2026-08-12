@@ -613,7 +613,11 @@ be live, rejects a candidate older than 24 hours, derives the current sequence
 and SHA-256 from the snapshot, and requires a strictly advancing target
 sequence. It emits a 60–900-second write-once
 `update-channel-promotion-approved-not-executed` record for the fixed
-`windows-update-production` environment. It has no network or mutation logic:
+`windows-update-production` environment. Schema 2 binds both current and target
+rollout percentages. For the same version/source, a percentage change is
+rejected and must use the future health-bound expansion authorization; a new
+forward-fix version/source remains eligible for this general path. It has no
+network or mutation logic:
 
 ```bash
 python3 Tests/windows_update_release_authorization_test.py
@@ -622,7 +626,7 @@ python3 Tests/windows_update_release_authorization_test.py
 The current snapshot is a compare-and-swap expectation, not evidence of a live
 fetch. A later executor must observe exact endpoint equality immediately before
 mutation. Initial channel bootstrap is intentionally not authorized by this
-path. See ADR-0178.
+path. See ADR-0178 and ADR-0192.
 
 `tools/windows_update_channel_store.py stage` prepositions a complete verified
 candidate under `releases/<update-manifest-sha256>/` through copy/reverify/atomic

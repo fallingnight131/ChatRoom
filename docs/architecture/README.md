@@ -1207,6 +1207,12 @@ result is advisory: incomplete evidence holds, breaches recommend the existing
 halt/forward-fix path, and expansion still needs a future protected
 authorization that validates metrics provenance and the full promotion chain.
 
+ADR-0192 closes the immediate bypass while that dedicated authorization is
+built. General promotion authorization schema 2 binds current and target
+rollout percentages and rejects changing them for the same version/source.
+New releases and higher-sequence forward fixes remain possible, but expanding
+an existing binary now fails closed instead of treating health as optional.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

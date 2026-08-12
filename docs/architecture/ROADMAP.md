@@ -607,6 +607,9 @@ Progress:
 - [x] Define privacy-preserving stable/beta rollout steps and a fail-closed
   advisory health decision that holds incomplete data and recommends halt only
   after minimum event counts plus rate breaches.
+- [x] Advance general promotion authorization to schema 2 and reject same-
+  version/source rollout-percentage changes so health-bound expansion cannot be
+  bypassed through the ordinary release path.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

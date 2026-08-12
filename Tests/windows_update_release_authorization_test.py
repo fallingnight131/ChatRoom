@@ -60,6 +60,9 @@ class WindowsUpdateReleaseAuthorizationTest(WindowsUpdateChannelCandidateTest):
         self.assertEqual(verified["environment"], "windows-update-production")
         self.assertEqual(verified["manifestSequence"], 42)
         self.assertEqual(verified["expectedCurrentManifestSequence"], 41)
+        self.assertEqual(verified["schemaVersion"], 2)
+        self.assertEqual(verified["targetRolloutPercentage"], 10)
+        self.assertEqual(verified["expectedCurrentRolloutPercentage"], 10)
         self.assertNotIn("credential", json.dumps(verified).lower())
         with self.assertRaisesRegex(ManifestError, "already exists"):
             write_once(self.authorization, value)
@@ -78,6 +81,14 @@ class WindowsUpdateReleaseAuthorizationTest(WindowsUpdateChannelCandidateTest):
             self.verify_authorization(self.now + timedelta(minutes=15))
         with self.assertRaisesRegex(ManifestError, "candidate is stale"):
             self.create(now=self.now + timedelta(hours=25))
+
+    def test_rejects_rollout_change_through_general_promotion_authorization(self) -> None:
+        self.prepare_current_manifest()
+        current = json.loads(self.current_manifest.read_text(encoding="utf-8"))
+        current["rollout"]["percentage"] = 5
+        atomic_write(self.current_manifest, canonical_bytes(current).decode("utf-8"))
+        with self.assertRaisesRegex(ManifestError, "health-bound authorization"):
+            self.create()
 
     def test_rejects_authorization_or_candidate_mutation(self) -> None:
         value = self.create()

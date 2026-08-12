@@ -21,7 +21,8 @@ MAX_CANDIDATE_AGE = timedelta(hours=24)
 KEYS = {
     "schemaVersion", "authorizationType", "status", "environment", "channel",
     "version", "sourceRevision", "manifestSequence", "signingKeyId",
-    "installerUrl", "candidateManifestSha256", "updateManifestSha256",
+    "installerUrl", "targetRolloutPercentage", "expectedCurrentRolloutPercentage",
+    "candidateManifestSha256", "updateManifestSha256",
     "updateSignatureSha256", "publicKeyFileSha256",
     "expectedAuthenticodeSignerSha256", "expectedCurrentManifestSequence",
     "expectedCurrentManifestSha256", "approvedAt", "expiresAt",
@@ -91,6 +92,7 @@ def _candidate_identity(
         **identity,
         "signingKeyId": update["signingKeyId"],
         "installerUrl": update["installer"]["url"],
+        "rolloutPercentage": update["rollout"]["percentage"],
         "candidateManifestSha256": candidate_digest,
         "updateManifestSha256": update_digest,
         "updateSignatureSha256": signature_digest,
@@ -123,8 +125,13 @@ def create_authorization(
         raise ManifestError("Windows update current manifest channel is invalid")
     if current["manifestSequence"] >= candidate["manifestSequence"]:
         raise ManifestError("Windows update manifest sequence does not advance the channel")
+    if (current["version"] == candidate["version"]
+            and current["sourceRevision"] == candidate["sourceRevision"]
+            and current["rollout"]["percentage"] != candidate["rolloutPercentage"]):
+        raise ManifestError(
+            "Windows rollout expansion requires dedicated health-bound authorization")
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "authorizationType": "windows-update-channel-promotion",
         "status": STATUS,
         "environment": ENVIRONMENT,
@@ -134,6 +141,8 @@ def create_authorization(
         "manifestSequence": candidate["manifestSequence"],
         "signingKeyId": candidate["signingKeyId"],
         "installerUrl": candidate["installerUrl"],
+        "targetRolloutPercentage": candidate["rolloutPercentage"],
+        "expectedCurrentRolloutPercentage": current["rollout"]["percentage"],
         "candidateManifestSha256": candidate["candidateManifestSha256"],
         "updateManifestSha256": candidate["updateManifestSha256"],
         "updateSignatureSha256": candidate["updateSignatureSha256"],

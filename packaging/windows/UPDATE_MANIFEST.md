@@ -207,9 +207,12 @@ Existing-channel promotion requires a separate short-lived authorization from
 candidate and derives the exact expected current sequence/SHA-256 from a
 canonical current-manifest snapshot. The target sequence must advance, the
 candidate may be at most 24 hours old, and approval lasts 60–900 seconds. The
-record contains no credentials and performs no network operation; a future
+schema-2 record binds current/target rollout percentages and rejects changing
+that percentage for the same version/source; this prevents bypass of the
+health-bound expansion path. It contains no credentials or network operation; a future
 executor must compare the live channel bytes with that approved digest before
-switching. This path deliberately does not bootstrap an empty channel.
+switching. A new version/source, including a forward fix, remains eligible.
+This path deliberately does not bootstrap an empty channel. See ADR-0192.
 
 Before authorization execution, `windows_update_channel_store.py stage` can
 copy the complete candidate into an immutable release directory addressed by
