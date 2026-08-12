@@ -76,6 +76,8 @@ def verify_protocol_bindings(skip_install: bool) -> None:
         "cpp/chat/v2/control.pb.h",
         "cpp/chat/v2/authentication.pb.cc",
         "cpp/chat/v2/authentication.pb.h",
+        "cpp/chat/v2/attachment.pb.cc",
+        "cpp/chat/v2/attachment.pb.h",
         "cpp/chat/v2/conversation.pb.cc",
         "cpp/chat/v2/conversation.pb.h",
         "cpp/chat/v2/messaging.pb.cc",
@@ -83,6 +85,7 @@ def verify_protocol_bindings(skip_install: bool) -> None:
         "typescript/chat/v2/envelope_pb.ts",
         "typescript/chat/v2/control_pb.ts",
         "typescript/chat/v2/authentication_pb.ts",
+        "typescript/chat/v2/attachment_pb.ts",
         "typescript/chat/v2/conversation_pb.ts",
         "typescript/chat/v2/messaging_pb.ts",
     ):

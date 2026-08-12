@@ -3,6 +3,7 @@
 #include "chat/v2/authentication.pb.h"
 #include "chat/v2/messaging.pb.h"
 #include "chat/v2/conversation.pb.h"
+#include "chat/v2/attachment.pb.h"
 
 #include <cstdint>
 #include <iostream>
@@ -23,6 +24,10 @@ constexpr char kSubmitMessageGoldenHex[] =
 constexpr char kListConversationsGoldenHex[] =
     "0880d095ffbc31122430303030303030302d303030302d303030302d303030302d"
     "3030303030303030303030321819";
+constexpr char kRegisterAttachmentGoldenHex[] =
+    "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+    "12086174746163682d311a05612e747874220a746578742f706c61696e28023220"
+    "0101010101010101010101010101010101010101010101010101010101010101";
 
 int hexDigit(char value) {
     if (value >= '0' && value <= '9') return value - '0';
@@ -106,6 +111,20 @@ int main() {
             || list.limit() != 25
             || list.SerializeAsString() != listGolden) {
         std::cerr << "generated C++ binding changed the ListConversations golden payload\n";
+        return 1;
+    }
+    const std::string attachmentGolden = fromHex(kRegisterAttachmentGoldenHex);
+    chat::v2::RegisterAttachment attachment;
+    if (!attachment.ParseFromString(attachmentGolden)
+            || attachment.conversation_id()
+                    != "00000000-0000-0000-0000-000000000001"
+            || attachment.client_attachment_id() != "attach-1"
+            || attachment.file_name() != "a.txt"
+            || attachment.media_type() != "text/plain"
+            || attachment.byte_size() != 2
+            || attachment.content_sha256().size() != 32
+            || attachment.SerializeAsString() != attachmentGolden) {
+        std::cerr << "generated C++ binding changed the RegisterAttachment golden payload\n";
         return 1;
     }
     return 0;

@@ -31,6 +31,12 @@ public final class MessageTypeRegistry {
             case MESSAGE_TYPE_MESSAGE_PUBLISHED -> MessageKind.MESSAGE_KIND_EVENT;
             case MESSAGE_TYPE_LIST_CONVERSATIONS -> MessageKind.MESSAGE_KIND_COMMAND;
             case MESSAGE_TYPE_CONVERSATION_DIRECTORY_PAGE -> MessageKind.MESSAGE_KIND_RESPONSE;
+            case MESSAGE_TYPE_REGISTER_ATTACHMENT,
+                    MESSAGE_TYPE_AUTHORIZE_ATTACHMENT_UPLOAD,
+                    MESSAGE_TYPE_COMPLETE_ATTACHMENT_UPLOAD -> MessageKind.MESSAGE_KIND_COMMAND;
+            case MESSAGE_TYPE_ATTACHMENT_REGISTERED,
+                    MESSAGE_TYPE_ATTACHMENT_UPLOAD_AUTHORIZED,
+                    MESSAGE_TYPE_ATTACHMENT_READY -> MessageKind.MESSAGE_KIND_RESPONSE;
             case MESSAGE_TYPE_UNSPECIFIED, UNRECOGNIZED ->
                     throw new IllegalArgumentException("unregistered message type");
         };

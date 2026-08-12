@@ -452,6 +452,8 @@ Progress:
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
     object completion orchestration with bounded expiry and fail-closed checks.
+  - [x] Allocate the inactive V2 attachment register/authorize/complete protocol
+    with bounded payload policy and Java/C++/TypeScript golden compatibility.
   - [x] Add the authorization-rechecked PostgreSQL attachment lifecycle adapter
     with concurrent idempotent READY transition.
   - [x] Add the inactive S3-compatible simple-PUT adapter with signed create-

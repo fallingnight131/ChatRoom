@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package chat.v2;
+
+option java_multiple_files = true;
+option java_package = "com.fallingnight.chat.protocol.v2";
+option java_outer_classname = "AttachmentSchema";
+
+message RegisterAttachment {
+  string conversation_id = 1;
+  string client_attachment_id = 2;
+  string file_name = 3;
+  string media_type = 4;
+  uint64 byte_size = 5;
+  bytes content_sha256 = 6;
+}
+
+message AttachmentRegistered {
+  string attachment_id = 1;
+  string conversation_id = 2;
+  string client_attachment_id = 3;
+  bool duplicate = 4;
+}
+
+message AuthorizeAttachmentUpload {
+  string attachment_id = 1;
+}
+
+message RequiredUploadHeader {
+  string name = 1;
+  string value = 2;
+}
+
+message AttachmentUploadAuthorized {
+  string attachment_id = 1;
+  string upload_uri = 2;
+  repeated RequiredUploadHeader required_headers = 3;
+  int64 expires_at_epoch_ms = 4;
+}
+
+message CompleteAttachmentUpload {
+  string attachment_id = 1;
+}
+
+message AttachmentReady {
+  string attachment_id = 1;
+  string conversation_id = 2;
+  bool duplicate = 3;
+  int64 ready_at_epoch_ms = 4;
+}

@@ -431,6 +431,13 @@ not part of startup or ordinary verification. A PASS does not cover signed-URL
 expiry, policy review, lifecycle safety, or capacity and therefore does not by
 itself authorize runtime composition.
 
+ADR-0105 permanently allocates inactive V2 attachment register, upload-
+authorization, and completion messages. Account/device authority remains bound
+to the authenticated connection, file bytes remain outside Protobuf, and signed
+URLs are transient response data that clients must not persist or log. The
+gateway still rejects these types until provider acceptance and a later handler
+slice explicitly activate them.
+
 ## 11. Client Architecture
 
 ### Windows desktop

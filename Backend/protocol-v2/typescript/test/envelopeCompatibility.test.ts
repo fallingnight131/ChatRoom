@@ -13,6 +13,7 @@ import {
 import { AuthenticateSchema } from '../generated/typescript/chat/v2/authentication_pb.js'
 import { SubmitMessageSchema } from '../generated/typescript/chat/v2/messaging_pb.js'
 import { ListConversationsSchema } from '../generated/typescript/chat/v2/conversation_pb.js'
+import { RegisterAttachmentSchema } from '../generated/typescript/chat/v2/attachment_pb.js'
 
 const GOLDEN_HEX = '08021001186422057265712d312a0973657373696f6e2d31' +
   '3208636c69656e742d313880d095ffbc314203616263'
@@ -22,6 +23,10 @@ const SUBMIT_MESSAGE_GOLDEN_HEX = '0a2430303030303030302d303030302d303030302d' +
   '303030302d30303030303030303030303110011a026869'
 const LIST_CONVERSATIONS_GOLDEN_HEX = '0880d095ffbc31122430303030303030302d303030302d' +
   '303030302d303030302d3030303030303030303030321819'
+const REGISTER_ATTACHMENT_GOLDEN_HEX =
+  '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
+  '12086174746163682d311a05612e747874220a746578742f706c61696e28023220' +
+  '0101010101010101010101010101010101010101010101010101010101010101'
 
 function bytesFromHex(hex: string): Uint8Array {
   return Uint8Array.from(hex.match(/.{2}/g) ?? [], byte => Number.parseInt(byte, 16))
@@ -123,5 +128,31 @@ test('keeps the composite conversation cursor compatible across bindings', () =>
   assert.equal(
     Buffer.from(toBinary(ListConversationsSchema, encoded)).toString('hex'),
     LIST_CONVERSATIONS_GOLDEN_HEX
+  )
+})
+
+test('keeps bounded attachment registration compatible across bindings', () => {
+  const decoded = fromBinary(
+    RegisterAttachmentSchema,
+    bytesFromHex(REGISTER_ATTACHMENT_GOLDEN_HEX)
+  )
+  assert.equal(decoded.conversationId, '00000000-0000-0000-0000-000000000001')
+  assert.equal(decoded.clientAttachmentId, 'attach-1')
+  assert.equal(decoded.fileName, 'a.txt')
+  assert.equal(decoded.mediaType, 'text/plain')
+  assert.equal(decoded.byteSize, 2n)
+  assert.equal(decoded.contentSha256.byteLength, 32)
+
+  const encoded = create(RegisterAttachmentSchema, {
+    conversationId: '00000000-0000-0000-0000-000000000001',
+    clientAttachmentId: 'attach-1',
+    fileName: 'a.txt',
+    mediaType: 'text/plain',
+    byteSize: 2n,
+    contentSha256: Uint8Array.from({ length: 32 }, () => 1)
+  })
+  assert.equal(
+    Buffer.from(toBinary(RegisterAttachmentSchema, encoded)).toString('hex'),
+    REGISTER_ATTACHMENT_GOLDEN_HEX
   )
 })
