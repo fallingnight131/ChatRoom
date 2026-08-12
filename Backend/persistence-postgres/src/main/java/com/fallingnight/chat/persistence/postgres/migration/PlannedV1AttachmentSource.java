@@ -23,6 +23,7 @@ public record PlannedV1AttachmentSource(
         String legacyContentType,
         boolean cleared,
         String clearReason,
+        Instant clearedAt,
         Instant fileCreatedAt,
         Instant messageAcceptedAt) {
     public PlannedV1AttachmentSource {
@@ -36,6 +37,9 @@ public record PlannedV1AttachmentSource(
         Objects.requireNonNull(fileName, "fileName");
         Objects.requireNonNull(legacyContentType, "legacyContentType");
         Objects.requireNonNull(clearReason, "clearReason");
+        if (cleared != (clearedAt != null)) {
+            throw new IllegalArgumentException("clearedAt must match cleared state");
+        }
         Objects.requireNonNull(fileCreatedAt, "fileCreatedAt");
         Objects.requireNonNull(messageAcceptedAt, "messageAcceptedAt");
     }

@@ -639,6 +639,8 @@ Progress:
     integrity/schema gates and locator-sensitive drift fingerprints.
   - [x] Represent cleared historical files as non-downloadable `UNAVAILABLE`
     metadata without fabricated object key, MIME, or SHA-256 evidence.
+  - [x] Bind every active V1 file to a source-fingerprinted manifest of canonical
+    object key, exact size/SHA-256, validated MIME, and sealed time.
   - [ ] Add verified V1 file-object evidence and atomically import historical
     attachments, mappings, and attachment messages without local-path leakage.
   - [x] Add the inactive attachment registration application port and exact

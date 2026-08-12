@@ -169,6 +169,11 @@ V029 distinguishes retained attachment history from stored objects. State
 `object_deleted_at` must be null. All other states retain non-null object key,
 MIME, and exact 32-byte SHA-256 evidence. This state is terminal and is excluded
 from upload completion and object cleanup.
+For active V1 files, the pre-write plan requires a manifest bound to the exact
+source fingerprint. One evidence row supplies the canonical target key, MIME,
+exact size, 32-byte SHA-256, and seal time. Cleared rows reject object evidence
+and derive `unavailable_at` from V1 `cleared_at`. Both the source and normalized
+evidence have deterministic fingerprints for final apply-time reverification.
 Before that evidence is accepted, the pure V1 source planner reconciles every
 typed `files`/`friend_files` row to exactly one retained attachment message and
 derives deterministic target identities. Its fingerprint includes local/object

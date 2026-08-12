@@ -91,7 +91,9 @@ public final class V1AttachmentSourcePlanner {
                     "V1 file size is outside the canonical attachment bound"));
         }
         if (file.createdAt() == null || (file.cleared() && file.clearedAt() == null)
-                || (!file.cleared() && file.clearedAt() != null)) {
+                || (!file.cleared() && file.clearedAt() != null)
+                || (file.clearedAt() != null && file.createdAt() != null
+                        && file.clearedAt().isBefore(file.createdAt()))) {
             issues.add(issue(file, 0, "INVALID_FILE_LIFECYCLE",
                     "V1 file lifecycle timestamps are inconsistent"));
         }
@@ -134,7 +136,7 @@ public final class V1AttachmentSourcePlanner {
                 "v1-import-" + file.legacyKind().name().toLowerCase(Locale.ROOT)
                         + "-file-" + file.legacyFileId(), file.fileName(), file.byteSize(),
                 link.contentType(), file.cleared(), normalize(file.clearReason()),
-                file.createdAt(), link.acceptedAt());
+                file.clearedAt(), file.createdAt(), link.acceptedAt());
     }
 
     public static UUID deterministicAttachmentId(
