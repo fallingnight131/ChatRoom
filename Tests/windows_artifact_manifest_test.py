@@ -47,6 +47,7 @@ class WindowsArtifactManifestTest(unittest.TestCase):
         self.assertEqual(checksums, repeated_checksums)
         self.assertEqual(first["version"], "1.2.3")
         self.assertEqual(first["buildSystem"], "cmake")
+        self.assertIsNone(first["productUpdateTrust"])
         self.assertEqual(first["signatureStatus"], "unsigned-verification-only")
         self.assertEqual(
             [entry["path"] for entry in first["files"]],
@@ -71,7 +72,7 @@ class WindowsArtifactManifestTest(unittest.TestCase):
         manifest, checksums = build_manifest(
             self.payload, self.version_file, "a" * 40, "6.11.1", installer,
         )
-        self.assertEqual(manifest["schemaVersion"], 3)
+        self.assertEqual(manifest["schemaVersion"], 4)
         self.assertEqual(manifest["installer"]["format"], "nsis")
         self.assertEqual(manifest["installer"]["signatureStatus"], "unsigned-verification-only")
         self.assertTrue(checksums[-1].endswith("installer/ChatRoom-1.2.3-unsigned-verification-Setup.exe"))

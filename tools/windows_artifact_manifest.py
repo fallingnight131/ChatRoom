@@ -17,10 +17,66 @@ from artifact_manifest_common import (
     sha256_file,
     validate_revision,
 )
+from windows_update_product_trust_evidence import verify_evidence
 
 QT_VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 PARITY_EXECUTABLES = {"ChatClient.exe", "ChatRoomUpdateLauncher.exe"}
+
+
+def product_trust_bundle(
+    client: Path,
+    version_file: Path,
+    source_revision: str,
+    intent: Path,
+    diagnostic: Path,
+    evidence: Path,
+    primary_public_key: Path,
+    secondary_public_key: Path | None,
+) -> tuple[dict[str, object], list[Path]]:
+    try:
+        intent_value = json.loads(intent.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ManifestError("Windows product update trust intent is unreadable") from error
+    if not isinstance(intent_value, dict) or not isinstance(intent_value.get("primaryKey"), dict):
+        raise ManifestError("Windows product update trust intent is malformed")
+    primary_id = intent_value["primaryKey"].get("keyId")
+    secondary = intent_value.get("secondaryKey")
+    secondary_id = secondary.get("keyId") if isinstance(secondary, dict) else None
+    if not isinstance(primary_id, str):
+        raise ManifestError("Windows product update trust primary key is malformed")
+    verified = verify_evidence(
+        evidence, client, diagnostic, intent, version_file, source_revision,
+        str(intent_value.get("channel")), str(intent_value.get("manifestUrl")),
+        primary_id, primary_public_key, secondary_id, secondary_public_key,
+    )
+    fixed = (
+        ("intent", "product-update-trust-intent.json", intent),
+        ("diagnostic", "product-update-trust-diagnostic.json", diagnostic),
+        ("evidence", "product-update-trust-evidence.json", evidence),
+        ("primaryPublicKey", "product-update-primary-public.pem", primary_public_key),
+    )
+    metadata: dict[str, object] = {
+        "status": verified["status"],
+        "channel": verified["channel"],
+        "manifestUrl": verified["manifestUrl"],
+        "keyIds": verified["keyIds"],
+    }
+    paths: list[Path] = []
+    for field, artifact_path, source in fixed:
+        if source.is_symlink() or not source.is_file():
+            raise ManifestError("Windows product update trust input is unsafe")
+        digest, size = sha256_file(source)
+        metadata[field] = {"path": artifact_path, "sha256": digest, "size": size}
+        paths.append(source)
+    if secondary_public_key is not None:
+        digest, size = sha256_file(secondary_public_key)
+        metadata["secondaryPublicKey"] = {
+            "path": "product-update-secondary-public.pem", "sha256": digest, "size": size}
+        paths.append(secondary_public_key)
+    else:
+        metadata["secondaryPublicKey"] = None
+    return metadata, paths
 
 
 def valid_parity_inventory(value: object) -> bool:
@@ -53,6 +109,11 @@ def build_manifest(
     installer: Path | None = None,
     cmake_payload_parity: Path | None = None,
     build_system: str = "cmake",
+    product_trust_intent: Path | None = None,
+    product_trust_diagnostic: Path | None = None,
+    product_trust_evidence: Path | None = None,
+    product_trust_primary_public_key: Path | None = None,
+    product_trust_secondary_public_key: Path | None = None,
 ) -> tuple[dict[str, object], list[str]]:
     validate_revision(source_revision)
     if not QT_VERSION.fullmatch(qt_version):
@@ -71,7 +132,7 @@ def build_manifest(
         checksum_lines.append(f"{digest}  {artifact_path}")
 
     manifest: dict[str, object] = {
-        "schemaVersion": 3,
+        "schemaVersion": 4,
         "product": "chat-room-windows-client",
         "version": version,
         "channel": "verification",
@@ -82,6 +143,7 @@ def build_manifest(
         "sourceRevision": source_revision,
         "buildSystem": build_system,
         "signatureStatus": "unsigned-verification-only",
+        "productUpdateTrust": None,
         "files": entries,
     }
     if installer is not None:
@@ -145,6 +207,25 @@ def build_manifest(
             "runtimeBytesEquivalent": True,
         }
         checksum_lines.append(f"{digest}  {artifact_path}")
+    trust_required = (
+        product_trust_intent, product_trust_diagnostic, product_trust_evidence,
+        product_trust_primary_public_key,
+    )
+    if any(value is not None for value in trust_required) or product_trust_secondary_public_key is not None:
+        if any(value is None for value in trust_required):
+            raise ManifestError("Windows product update trust bundle is incomplete")
+        client = payload_root / "ChatClient.exe"
+        metadata, sources = product_trust_bundle(
+            client, version_file, source_revision, product_trust_intent,
+            product_trust_diagnostic, product_trust_evidence,
+            product_trust_primary_public_key, product_trust_secondary_public_key,
+        )
+        manifest["productUpdateTrust"] = metadata
+        for source, field in zip(sources, (
+                "intent", "diagnostic", "evidence", "primaryPublicKey",
+                "secondaryPublicKey")):
+            entry = metadata[field]
+            checksum_lines.append(f"{entry['sha256']}  {entry['path']}")
     return manifest, checksum_lines
 
 
@@ -165,6 +246,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--installer", type=Path)
     parser.add_argument("--cmake-payload-parity", type=Path)
     parser.add_argument("--build-system", choices=("cmake", "qmake"), required=True)
+    parser.add_argument("--product-trust-intent", type=Path)
+    parser.add_argument("--product-trust-diagnostic", type=Path)
+    parser.add_argument("--product-trust-evidence", type=Path)
+    parser.add_argument("--product-trust-primary-public-key", type=Path)
+    parser.add_argument("--product-trust-secondary-public-key", type=Path)
     parser.add_argument("--output-dir", type=Path, required=True)
     return parser.parse_args()
 
@@ -180,6 +266,11 @@ def main() -> int:
             args.installer,
             args.cmake_payload_parity,
             args.build_system,
+            args.product_trust_intent,
+            args.product_trust_diagnostic,
+            args.product_trust_evidence,
+            args.product_trust_primary_public_key,
+            args.product_trust_secondary_public_key,
         )
         write_manifest(args.output_dir, manifest, checksums)
     except (ManifestError, OSError) as error:

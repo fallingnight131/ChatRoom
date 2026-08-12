@@ -268,3 +268,9 @@ exactly before Authenticode signing.
 channel/URLs/key ring equality and a live intent at capture time. The resulting
 public evidence must be retained by a trust-enabled artifact before any PE is
 signed.
+
+Windows artifact schema 4 makes that retention explicit. Ordinary CI records
+`productUpdateTrust: null`; a release-intended artifact hashes the intent,
+diagnostic, PE evidence, and reviewed public PEM files into its closed inventory.
+Protected signing intake must use `--require-product-update-trust` and will not
+accept historical schema 3 or a schema-4 null trust bundle.

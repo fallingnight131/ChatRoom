@@ -945,7 +945,7 @@ not proof that a real historical binary/database can upgrade.
 ADR-0159 performs the reversible packaging switch. qmake still compiles and
 deploys into a fallback directory for byte/inventory comparison, but the
 canonical artifact and NSIS input are copied from the already parity-checked and
-fully exercised CMake directory. Artifact-manifest schema 3 records
+fully exercised CMake directory. Artifact-manifest schema 4 records
 `buildSystem: cmake`, hashes the parity evidence, and independently requires its
 CMake candidate inventory to equal the final canonical payload. Signing,
 timestamping, and protected release publication remain separate gates.
@@ -960,7 +960,7 @@ enabled fixtures now run as the 28th and 29th CTests. No private key or producti
 endpoint enters the repository.
 
 ADR-0161 separates ordinary build infrastructure from future protected signing.
-`verify_windows_unsigned_artifact.py` independently reopens the uploaded schema-3
+`verify_windows_unsigned_artifact.py` independently reopens the uploaded schema-4
 artifact and requires exact version/revision/Qt/CMake identity, sorted closed
 payload declarations, client/helper/Qt/SQLite/libsodium runtimes, unsigned Setup
 identity, parity-evidence metadata, matching `SHA256SUMS`, exact bytes, no links,
@@ -1177,6 +1177,12 @@ diagnostic with the live trust intent and binds client/intent/diagnostic SHA-256
 source identity, keys, URL, and capture time. Later audit uses the immutable
 capture instant; no arbitrary CMake argument or loose stdout can stand in for
 the final PE. Authenticode remains a subsequent independent trust boundary.
+
+ADR-0188 advances the unsigned artifact contract to schema 4. Ordinary CI is
+explicitly `productUpdateTrust: null`; a release-intended artifact instead
+closes the intent, final diagnostic/evidence, and public PEM files against the
+exact PE. Signing intake can now fail closed with
+`--require-product-update-trust`; schema 3 remains historical evidence only.
 
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,

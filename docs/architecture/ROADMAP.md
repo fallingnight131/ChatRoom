@@ -595,6 +595,8 @@ Progress:
   public update trust and require ordinary native CI to prove disabled/empty.
 - [x] Bind an exact unsigned `ChatClient.exe`, its strict trust diagnostic, and
   the live reviewed intent into immutable compiled-public-trust evidence.
+- [x] Advance unsigned Windows artifacts to schema 4 with explicit null or
+  fully closed product update trust and a fail-closed required-trust intake.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.
@@ -745,12 +747,12 @@ Progress:
   mutation refusal, downgrade refusal, and final uninstall/data preservation.
 - [x] Promote the verified CMake deployment as canonical Windows artifact/NSIS
   input, retain qmake as a parity fallback, and bind `buildSystem: cmake` plus
-  exact parity-candidate hashes into artifact-manifest schema 3.
+  exact parity-candidate hashes into artifact-manifest schema 4.
 - [x] Add fail-closed CMake stable/beta update configuration injection with
   disabled-residue, HTTPS literal, one/two-public-key validation and execute
   default-off/enabled runtime configuration suites through CTest.
 - [x] Add an independent protected-signing intake verifier for the complete
-  schema-3 unsigned CMake artifact, closed identity/inventory/checksums, exact
+  schema-4 unsigned CMake artifact, closed identity/inventory/checksums, exact
   final bytes, parity evidence, required runtimes, and zero extra files.
 - [x] Define a fresh closed protected-signing intent binding version/revision,
   unsigned artifact run/name, channel, certificate SHA-1/SHA-256 identities,

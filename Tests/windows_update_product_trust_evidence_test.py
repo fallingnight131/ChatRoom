@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import shutil
 import sys
 from pathlib import Path
 
@@ -18,6 +20,8 @@ from windows_update_product_trust_intent import write_once as write_intent  # no
 from windows_update_product_trust_intent_test import (  # noqa: E402
     WindowsUpdateProductTrustIntentTest,
 )
+from windows_artifact_manifest import build_manifest, write_manifest  # noqa: E402
+from verify_windows_unsigned_artifact import verify as verify_artifact  # noqa: E402
 
 
 class WindowsUpdateProductTrustEvidenceTest(WindowsUpdateProductTrustIntentTest):
@@ -109,6 +113,78 @@ class WindowsUpdateProductTrustEvidenceTest(WindowsUpdateProductTrustIntentTest)
             '{"schemaVersion":1,"schemaVersion":1}', encoding="utf-8")
         with self.assertRaisesRegex(ManifestError, "duplicate keys"):
             self.verify_evidence()
+
+    def artifact(self) -> Path:
+        self.prepare_inputs()
+        write_once(self.evidence, self.build())
+        artifact = self.root / "trust-artifact"
+        payload = artifact / "client"
+        files = {
+            "ChatClient.exe": self.client.read_bytes(),
+            "ChatRoomUpdateLauncher.exe": b"launcher",
+            "Qt6Core.dll": b"qt-core",
+            "libsodium.dll": b"sodium",
+            "platforms/qwindows.dll": b"platform",
+            "sqldrivers/qsqlite.dll": b"sqlite",
+        }
+        for relative, content in files.items():
+            path = payload / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+        candidate = {
+            relative: {"size": len(content), "sha256": hashlib.sha256(content).hexdigest()}
+            for relative, content in files.items()
+        }
+        baseline = {name: dict(value) for name, value in candidate.items()}
+        baseline["ChatClient.exe"] = {"size": 8, "sha256": "b" * 64}
+        baseline["ChatRoomUpdateLauncher.exe"] = {"size": 8, "sha256": "c" * 64}
+        parity = artifact / "cmake-payload-parity.json"
+        parity.parent.mkdir(parents=True, exist_ok=True)
+        parity.write_text(json.dumps({
+            "schemaVersion": 1, "version": "1.2.3", "sourceRevision": self.revision,
+            "baselineBuildSystem": "qmake", "candidateBuildSystem": "cmake",
+            "runtimeBytesEquivalent": True,
+            "executableByteDifferencesAllowed": [
+                "ChatClient.exe", "ChatRoomUpdateLauncher.exe"],
+            "baseline": baseline, "candidate": candidate,
+        }), encoding="utf-8")
+        installer = artifact / "installer/ChatRoom-1.2.3-unsigned-verification-Setup.exe"
+        installer.parent.mkdir()
+        installer.write_bytes(b"unsigned-setup")
+        manifest, checksums = build_manifest(
+            payload, self.version, self.revision, "6.11.1", installer, parity,
+            "cmake", self.intent, self.diagnostic, self.evidence, self.primary,
+            self.secondary,
+        )
+        copies = {
+            self.intent: "product-update-trust-intent.json",
+            self.diagnostic: "product-update-trust-diagnostic.json",
+            self.evidence: "product-update-trust-evidence.json",
+            self.primary: "product-update-primary-public.pem",
+            self.secondary: "product-update-secondary-public.pem",
+        }
+        for source, name in copies.items():
+            shutil.copyfile(source, artifact / name)
+        write_manifest(artifact, manifest, checksums)
+        return artifact
+
+    def test_schema_four_artifact_closes_and_requires_product_trust(self) -> None:
+        artifact = self.artifact()
+        result = verify_artifact(
+            artifact, self.version, self.revision, "6.11.1", True)
+        self.assertTrue(result["productUpdateTrust"])
+        manifest = json.loads((artifact / "artifact-manifest.json").read_text(
+            encoding="utf-8"))
+        self.assertEqual(manifest["schemaVersion"], 4)
+        self.assertEqual(manifest["productUpdateTrust"]["keyIds"], [
+            "windows-update-2026-01", "windows-update-2027-01"])
+
+    def test_trusted_artifact_rejects_removed_or_changed_trust_bundle(self) -> None:
+        artifact = self.artifact()
+        (artifact / "product-update-trust-diagnostic.json").write_text(
+            "{}", encoding="utf-8")
+        with self.assertRaises(ManifestError):
+            verify_artifact(artifact, self.version, self.revision, "6.11.1", True)
 
 
 if __name__ == "__main__":

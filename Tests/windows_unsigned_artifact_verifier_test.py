@@ -89,6 +89,9 @@ class WindowsUnsignedArtifactVerifierTest(unittest.TestCase):
         self.assertEqual(result["buildSystem"], "cmake")
         self.assertEqual(result["verificationStatus"],
                          "unsigned-artifact-verified-for-protected-signing")
+        self.assertFalse(result["productUpdateTrust"])
+        with self.assertRaisesRegex(ManifestError, "lacks required"):
+            verify(self.artifact, self.version_file, self.revision, "6.11.1", True)
 
     def test_rejects_byte_missing_and_extra_file_mutations(self) -> None:
         changed = self.copy("changed")

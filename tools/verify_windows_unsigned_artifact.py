@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 
 from artifact_manifest_common import ManifestError, read_version, sha256_file, validate_revision
+from windows_artifact_manifest import product_trust_bundle
 
 
 MANIFEST = "artifact-manifest.json"
@@ -17,10 +18,15 @@ EXPECTED_KEYS = {
     "schemaVersion", "product", "version", "channel", "platform",
     "architecture", "toolchain", "qtVersion", "sourceRevision", "buildSystem",
     "signatureStatus", "files", "installer", "cmakePayloadParity",
+    "productUpdateTrust",
 }
 FILE_KEYS = {"path", "sha256", "size"}
 INSTALLER_KEYS = FILE_KEYS | {"format", "signatureStatus"}
 PARITY_KEYS = FILE_KEYS | {"runtimeBytesEquivalent"}
+TRUST_KEYS = {
+    "status", "channel", "manifestUrl", "keyIds", "intent", "diagnostic",
+    "evidence", "primaryPublicKey", "secondaryPublicKey",
+}
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 QT_VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 
@@ -81,7 +87,7 @@ def checksums(path: Path) -> dict[str, str]:
 
 
 def verify(root: Path, version_file: Path, source_revision: str,
-           qt_version: str) -> dict[str, object]:
+           qt_version: str, require_product_update_trust: bool = False) -> dict[str, object]:
     validate_revision(source_revision)
     if not QT_VERSION.fullmatch(qt_version):
         raise ManifestError("Qt version must use major.minor.patch")
@@ -89,7 +95,7 @@ def verify(root: Path, version_file: Path, source_revision: str,
     if root.is_symlink() or not root.is_dir():
         raise ManifestError("Windows unsigned artifact root must be a real directory")
     manifest = strict_json(root / MANIFEST)
-    if (set(manifest) != EXPECTED_KEYS or manifest.get("schemaVersion") != 3
+    if (set(manifest) != EXPECTED_KEYS or manifest.get("schemaVersion") != 4
             or manifest.get("product") != "chat-room-windows-client"
             or manifest.get("version") != version
             or manifest.get("channel") != "verification"
@@ -146,6 +152,42 @@ def verify(root: Path, version_file: Path, source_revision: str,
         raise ManifestError("Windows CMake parity evidence identity is invalid")
     declared[parity_path] = (parity_digest, parity_size)
 
+    trust = manifest.get("productUpdateTrust")
+    trust_enabled = trust is not None
+    if require_product_update_trust and not trust_enabled:
+        raise ManifestError("Windows unsigned artifact lacks required product update trust")
+    if trust_enabled:
+        if not isinstance(trust, dict) or set(trust) != TRUST_KEYS:
+            raise ManifestError("Windows product update trust metadata is malformed")
+        entries = {}
+        for field in ("intent", "diagnostic", "evidence", "primaryPublicKey"):
+            entries[field] = safe_entry(trust.get(field), FILE_KEYS, "product-update-")
+        secondary_entry = trust.get("secondaryPublicKey")
+        if secondary_entry is not None:
+            entries["secondaryPublicKey"] = safe_entry(
+                secondary_entry, FILE_KEYS, "product-update-")
+        expected_paths = {
+            "intent": "product-update-trust-intent.json",
+            "diagnostic": "product-update-trust-diagnostic.json",
+            "evidence": "product-update-trust-evidence.json",
+            "primaryPublicKey": "product-update-primary-public.pem",
+            "secondaryPublicKey": "product-update-secondary-public.pem",
+        }
+        for field, (path, digest, size) in entries.items():
+            if path != expected_paths[field] or path in declared:
+                raise ManifestError("Windows product update trust file identity is invalid")
+            declared[path] = (digest, size)
+        expected_metadata, _ = product_trust_bundle(
+            root / "client/ChatClient.exe", version_file, source_revision,
+            root / expected_paths["intent"], root / expected_paths["diagnostic"],
+            root / expected_paths["evidence"],
+            root / expected_paths["primaryPublicKey"],
+            (root / expected_paths["secondaryPublicKey"]
+             if secondary_entry is not None else None),
+        )
+        if trust != expected_metadata:
+            raise ManifestError("Windows product update trust metadata changed")
+
     actual = set()
     for path in root.rglob("*"):
         if path.is_symlink():
@@ -172,6 +214,7 @@ def verify(root: Path, version_file: Path, source_revision: str,
         "sourceRevision": source_revision,
         "buildSystem": "cmake",
         "files": len(declared),
+        "productUpdateTrust": trust_enabled,
         "verificationStatus": "unsigned-artifact-verified-for-protected-signing",
     }
 
@@ -182,11 +225,12 @@ def main() -> int:
     parser.add_argument("--version-file", type=Path, required=True)
     parser.add_argument("--source-revision", required=True)
     parser.add_argument("--qt-version", required=True)
+    parser.add_argument("--require-product-update-trust", action="store_true")
     args = parser.parse_args()
     try:
         result = verify(
             args.artifact_root, args.version_file, args.source_revision,
-            args.qt_version)
+            args.qt_version, args.require_product_update_trust)
     except (ManifestError, OSError) as error:
         raise SystemExit(f"Windows unsigned artifact verification failed: {error}") from None
     print(json.dumps(result, ensure_ascii=True, sort_keys=True))

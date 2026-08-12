@@ -406,7 +406,7 @@ ADR-0159 promotes `build/m4/windows-cmake-payload` into
 The qmake deployment remains isolated at `build/m4/windows-qmake-payload`.
 Before NSIS compilation, the promotion copy is hashed again against its CMake
 source with `--require-executable-byte-equality`, including both PE files.
-`windows_artifact_manifest.py` schema 3 records `buildSystem: cmake`,
+`windows_artifact_manifest.py` schema 4 records `buildSystem: cmake`,
 binds `cmake-payload-parity.json`, and requires the evidence's CMake candidate
 inventory to equal every final canonical payload size/SHA-256. A failure creates
 no upload; rollback changes the one promotion source back to qmake.
@@ -421,7 +421,7 @@ python3 tools/verify_windows_unsigned_artifact.py \
   --qt-version 6.11.1
 ```
 
-The verifier independently requires schema 3, `buildSystem: cmake`, exact
+The verifier independently requires schema 4, `buildSystem: cmake`, exact
 version/revision/toolchain identity, sorted closed payload declarations, required
 client/helper/Qt Core/platform/SQLite/libsodium files, the exact unsigned Setup
 name, parity-evidence metadata, checksum closure, exact bytes, no links, and no
@@ -748,6 +748,12 @@ python3 Tests/windows_update_product_trust_evidence_test.py
 
 This is compiled-public-trust evidence, not Authenticode or release evidence.
 See ADR-0187.
+
+Unsigned artifact schema 4 always records `productUpdateTrust`. Ordinary CI
+sets it to `null`; release-intended artifacts close the intent, diagnostic,
+binary evidence, and reviewed public PEM files and rebind them to the exact
+client PE. Signing intake uses `--require-product-update-trust` to reject null,
+old-schema, missing, or changed trust. See ADR-0188.
 
 The provider-neutral post-signing acceptance policy is checked with:
 
@@ -1419,7 +1425,7 @@ development/portability verification, not a supported desktop release gate.
   verification payload. Root `VERSION` supplies both the Qt application version
   and artifact version.
 - CI writes deterministic `artifact-manifest.json` and `SHA256SUMS` metadata
-  containing schema-3 `buildSystem: cmake`, the exact Git revision, toolchain
+  containing schema-4 `buildSystem: cmake`, the exact Git revision, toolchain
   identity, parity-evidence hash, file sizes, and hashes.
   Run its cross-platform policy test with
   `python3 Tests/windows_artifact_manifest_test.py`.
