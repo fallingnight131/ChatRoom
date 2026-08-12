@@ -1055,6 +1055,14 @@ approval may itself be no more than 15 minutes old. The record contains no
 provider credential or command and is explicitly `approved-not-executed`;
 provider execution and post-switch observation remain the next M4 boundary.
 
+ADR-0171 provides the first authorization consumer for pointer-based Web
+hosting. It requires the active pointer to be the authorized rollback target,
+persists a non-replay marker before mutation, switches atomically to the already
+staged candidate, verifies local status, and restores the old pointer if status
+or evidence persistence fails. Its write-once result is explicitly
+`pointer-switched-awaiting-external-observation`; CDN/public HTTPS and
+application-route probes must still bind what users actually received.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

@@ -113,6 +113,15 @@ credential, and says `production-promotion-approved-not-executed`. The adapter
 must consume it once and record separate provider evidence; the authorization
 itself is not deployment evidence.
 
+For deployments whose hosting layer reads `active-release.json`, consume the
+authorization with `web_release_execution.py execute`. The adapter refuses to
+switch unless the current pointer is the authorized rollback release, writes a
+non-replay marker before mutation, and restores that pointer if local health or
+evidence persistence fails. A successful record still says
+`pointer-switched-awaiting-external-observation`: immediately rerun the external
+static and application-route probes. Filesystem activation is not evidence that
+CDN caches or public traffic observed the new release.
+
 ## Roll back without rebuilding
 
 Keep the previous release directory throughout the rollback window. To roll

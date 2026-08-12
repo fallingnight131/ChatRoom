@@ -161,6 +161,32 @@ minutes old. It contains no cloud token, DNS/CDN credential, provider command,
 or broad deployment permission and remains labeled `approved-not-executed`.
 Run `python3 Tests/web_release_authorization_test.py` for the mutation suite.
 
+The provider-neutral filesystem adapter may then consume that authorization
+exactly once:
+
+```bash
+python3 tools/web_release_execution.py execute \
+  --authorization /path/to/evidence/web-production-authorization.json \
+  --technical-promotion /path/to/evidence/web-technical-promotion.json \
+  --release-root /srv/chat-room-web/releases/<candidate-id> \
+  --release-observation /path/to/evidence/candidate-static.json \
+  --route-observation /path/to/evidence/candidate-routes.json \
+  --rollback-release-root /srv/chat-room-web/releases/<previous-id> \
+  --rollback-observation /path/to/evidence/previous-static.json \
+  --store-root /srv/chat-room-web \
+  --output /path/to/evidence/web-pointer-execution.json
+```
+
+It requires the current pointer to equal the authorized rollback release,
+writes an exclusive consumption marker before mutation, atomically activates
+the already staged candidate, and restores the rollback pointer if status or
+evidence commit fails. Its result is deliberately
+`pointer-switched-awaiting-external-observation`; run the HTTPS/static and
+application-route probes again before calling the public release healthy. The
+pure evidence verifier omits `--store-root` and uses `verify` with the same
+remaining inputs. Run `python3 Tests/web_release_execution_test.py` for replay,
+wrong-current-state, rollback-on-failure, and mutation coverage.
+
 Production Web builds resolve V1 WebSocket traffic to `wss://<page-authority>/ws`
 and file traffic below same-origin `/api/`; the HTTPS reverse proxy must own both
 routes. A different same-origin WebSocket path can be selected at build time,

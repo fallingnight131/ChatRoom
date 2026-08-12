@@ -658,6 +658,9 @@ Progress:
 - [x] Add a separate write-once, short-lived `web-production` authorization that
   revalidates and binds the exact technical promotion without containing provider
   credentials or executing traffic mutation.
+- [x] Add a one-time authorization consumer for atomic Web release pointers with
+  expected-current rollback identity, replay prevention, failure restoration,
+  and explicit pending-external-observation evidence.
 - [x] Establish a root CMake Release path for the exact V1 HeadlessServer
   production sources, Qt/libsodium dependency discovery, AUTOMOC, CI build, and
   real process-health test while leaving Windows product packaging on qmake.
