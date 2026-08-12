@@ -353,6 +353,17 @@ committed join into a client failure and is recorded separately. Real
 PostgreSQL proves protected first/duplicate behavior and replacement-login
 directory recovery. The product listener is unchanged.
 
+The next room-membership boundary defines authenticated V1 leave semantics.
+The client supplies only a positive legacy room ID; the server-bound actor and
+persistence transaction own authorization. Exact retry after a committed leave
+is idempotent, while a never-member is rejected. If an owner leaves a non-empty
+room, one remaining administrator/member is promoted deterministically by role,
+join time, and account ID. The last member dissolves the room instead of
+physically deleting messages, attachments, mappings, and audit evidence.
+Dissolved-room exclusion requires an explicit schema marker across every room
+authorization/projection adapter before any handler is composed. No adapter or
+handler exists yet.
+
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target
 username; clients cannot supply canonical IDs. Missing/self/already-friend/

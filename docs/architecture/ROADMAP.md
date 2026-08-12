@@ -580,6 +580,12 @@ Progress:
   - [x] Compose detached strict V1 room joining with password-attempt admission,
     compatible responses and first-join notification intent, fixed telemetry,
     and real PostgreSQL/relogin proof.
+  - [x] Define authenticated idempotent V1 room leaving with atomic deterministic
+    ownership succession and durable last-member dissolution semantics.
+  - [ ] Add explicit GROUP lifecycle state and atomic PostgreSQL V1 room leaving,
+    then exclude dissolved rooms from every room authorization/projection path.
+  - [ ] Compose detached strict V1 room leaving with first-only presence and
+    ownership notifications plus real PostgreSQL/relogin proof.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

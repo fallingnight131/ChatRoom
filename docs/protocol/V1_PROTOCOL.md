@@ -164,6 +164,14 @@ the disposable PostgreSQL gate verifies authorized imported room output and
 unrelated-room exclusion, but `GatewayRuntime` still installs no V1 product
 listener.
 
+The inactive Java application boundary for `LEAVE_ROOM` binds the actor from
+authenticated state and accepts only a positive 32-bit `roomId`. A committed
+leave is retry-idempotent; only the first apply may emit `USER_LEFT` or ownership
+notifications. Owner succession is deterministic and atomic. Last-member leave
+will durably dissolve rather than physically delete the canonical conversation,
+but no PostgreSQL adapter or handler exists yet and the product listener remains
+unchanged.
+
 ### Administration and recall
 
 `SET_ADMIN_REQ`, `SET_ADMIN_RSP`, `ADMIN_STATUS`, `KICK_USER_REQ`,
