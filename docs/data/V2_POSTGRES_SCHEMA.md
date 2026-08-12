@@ -146,6 +146,13 @@ protected backup, and writes `message_import_run` before the same commit. The
 offline command requires both state and payload fingerprints. These tools remain
 inactive migration boundaries and do not make PostgreSQL traffic-authoritative.
 
+An additive application port now reads the durable `conversation_entry` stream
+without skipping recall or deletion sequences. PostgreSQL resolves each entry
+through its typed detail table and translates V1 deletion message IDs through
+`legacy_v1_message_map`. This port is not yet connected to the V2 wire contract;
+the existing message-only history behavior remains unchanged until a coordinated
+additive protocol and Web preview slice is complete.
+
 ## V1 identity import boundary
 
 The identity importer first offers a repeatable-read, no-write preview. Any

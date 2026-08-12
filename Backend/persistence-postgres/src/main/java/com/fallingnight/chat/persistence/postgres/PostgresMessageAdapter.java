@@ -1,6 +1,9 @@
 package com.fallingnight.chat.persistence.postgres;
 
 import com.fallingnight.chat.application.messaging.MessageHistoryPort;
+import com.fallingnight.chat.application.messaging.ConversationEntryHistoryPort;
+import com.fallingnight.chat.application.messaging.ConversationEntryHistoryResult;
+import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
@@ -25,7 +28,8 @@ import java.util.function.Supplier;
 import javax.sql.DataSource;
 
 /** Atomic message append/idempotency and active-member sequence history adapter. */
-public final class PostgresMessageAdapter implements MessageSubmissionPort, MessageHistoryPort {
+public final class PostgresMessageAdapter implements MessageSubmissionPort, MessageHistoryPort,
+        ConversationEntryHistoryPort {
     private final DataSource dataSource;
     private final Supplier<UUID> uuidSupplier;
 
@@ -119,6 +123,124 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
             return new MessageHistoryResult.Page(messages, next, latest.orElseThrow(), hasMore);
         } catch (SQLException exception) {
             throw new MessagePersistenceException("message history read failed", exception);
+        }
+    }
+
+    @Override
+    public ConversationEntryHistoryResult readEntriesAfter(MessageHistoryQuery query) {
+        Objects.requireNonNull(query, "query");
+        try (Connection connection = dataSource.getConnection()) {
+            Optional<Long> latest = authorizedLatestSequence(connection, query);
+            if (latest.isEmpty()) {
+                return ConversationEntryHistoryResult.Rejected.NOT_AUTHORIZED;
+            }
+            List<ConversationHistoryEntry> entries = readEntries(connection, query);
+            boolean hasMore = entries.size() > query.limit();
+            if (hasMore) entries.removeLast();
+            long next = entries.isEmpty()
+                    ? query.afterSequence()
+                    : entries.getLast().conversationSequence();
+            return new ConversationEntryHistoryResult.Page(
+                    entries, next, latest.orElseThrow(), hasMore);
+        } catch (SQLException exception) {
+            throw new MessagePersistenceException(
+                    "conversation entry history read failed", exception);
+        }
+    }
+
+    private static List<ConversationHistoryEntry> readEntries(
+            Connection connection, MessageHistoryQuery query) throws SQLException {
+        String sql = """
+                SELECT ce.conversation_sequence, ce.entry_kind, ce.occurred_at,
+                       m.id, m.sender_account_id, m.sender_device_id,
+                       m.client_message_id, m.message_type, m.payload, m.accepted_at,
+                       r.message_id, r.actor_account_id, r.source,
+                       d.actor_account_id, d.source, d.mode, d.client_operation_id,
+                       CASE WHEN d.source = 'V1_IMPORT' THEN ARRAY(
+                           SELECT lm.message_id
+                           FROM jsonb_array_elements_text(d.message_ids)
+                                WITH ORDINALITY AS source_id(value, position)
+                           JOIN chat.legacy_v1_message_map lm
+                             ON lm.legacy_kind = 'ROOM'
+                            AND lm.legacy_conversation_id = ldm.legacy_room_id
+                            AND lm.legacy_message_id = source_id.value::bigint
+                           ORDER BY source_id.position)
+                       WHEN d.source = 'V2' THEN ARRAY(
+                           SELECT source_id.value::uuid
+                           FROM jsonb_array_elements_text(d.message_ids)
+                                WITH ORDINALITY AS source_id(value, position)
+                           ORDER BY source_id.position)
+                       ELSE ARRAY[]::uuid[] END AS deletion_message_ids,
+                       d.cutoff_epoch_ms, d.deleted_count,
+                       d.operator_name_snapshot
+                FROM chat.conversation_entry ce
+                LEFT JOIN chat.message m
+                  ON ce.entry_kind = 'MESSAGE'
+                 AND m.conversation_id = ce.conversation_id
+                 AND m.conversation_sequence = ce.conversation_sequence
+                LEFT JOIN chat.message_recall_event r
+                  ON ce.entry_kind = 'MESSAGE_RECALLED'
+                 AND r.conversation_id = ce.conversation_id
+                 AND r.conversation_sequence = ce.conversation_sequence
+                LEFT JOIN chat.messages_deleted_event d
+                  ON ce.entry_kind = 'MESSAGES_DELETED'
+                 AND d.conversation_id = ce.conversation_id
+                 AND d.conversation_sequence = ce.conversation_sequence
+                LEFT JOIN chat.legacy_v1_deletion_event_map ldm
+                  ON d.source = 'V1_IMPORT'
+                 AND ldm.conversation_id = ce.conversation_id
+                 AND ldm.conversation_sequence = ce.conversation_sequence
+                WHERE ce.conversation_id = ? AND ce.conversation_sequence > ?
+                ORDER BY ce.conversation_sequence ASC LIMIT ?
+                """;
+        List<ConversationHistoryEntry> entries = new ArrayList<>(query.limit() + 1);
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, query.conversationId());
+            statement.setLong(2, query.afterSequence());
+            statement.setInt(3, query.limit() + 1);
+            statement.setFetchSize(query.limit() + 1);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    entries.add(readEntry(result, query.conversationId()));
+                }
+            }
+        }
+        return entries;
+    }
+
+    private static ConversationHistoryEntry readEntry(
+            ResultSet result, UUID conversationId) throws SQLException {
+        long sequence = result.getLong(1);
+        return switch (result.getString(2)) {
+            case "MESSAGE" -> new ConversationHistoryEntry.Message(new StoredMessage(
+                    result.getObject(4, UUID.class), conversationId, sequence,
+                    result.getObject(5, UUID.class), result.getObject(6, UUID.class),
+                    result.getString(7), result.getInt(8), result.getBytes(9),
+                    result.getObject(10, OffsetDateTime.class).toInstant()));
+            case "MESSAGE_RECALLED" -> new ConversationHistoryEntry.Recall(
+                    conversationId, sequence, result.getObject(11, UUID.class),
+                    result.getObject(12, UUID.class), result.getString(13),
+                    Optional.ofNullable(result.getObject(3, OffsetDateTime.class))
+                            .map(OffsetDateTime::toInstant));
+            case "MESSAGES_DELETED" -> new ConversationHistoryEntry.Deletion(
+                    conversationId, sequence, result.getObject(14, UUID.class),
+                    result.getString(15), result.getString(16), result.getString(17),
+                    uuidList(result.getArray(18)), result.getLong(19), result.getInt(20),
+                    result.getString(21),
+                    result.getObject(3, OffsetDateTime.class).toInstant());
+            default -> throw new SQLException("unsupported conversation entry kind");
+        };
+    }
+
+    private static List<UUID> uuidList(java.sql.Array array) throws SQLException {
+        if (array == null) return List.of();
+        try {
+            Object[] values = (Object[]) array.getArray();
+            List<UUID> result = new ArrayList<>(values.length);
+            for (Object value : values) result.add((UUID) value);
+            return List.copyOf(result);
+        } finally {
+            array.free();
         }
     }
 

@@ -21,6 +21,8 @@ import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery
 import com.fallingnight.chat.application.conversation.ConversationKind;
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
+import com.fallingnight.chat.application.messaging.ConversationEntryHistoryResult;
+import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.application.security.SecretBytes;
@@ -35,6 +37,7 @@ import com.fallingnight.chat.persistence.postgres.migration.V1MessageImportRepor
 import com.fallingnight.chat.persistence.postgres.migration.V1MessageImportException;
 import com.fallingnight.chat.persistence.postgres.migration.V1MessageImportBundleVerifier;
 import com.fallingnight.chat.persistence.postgres.migration.V1MessagePayloadImportInputVerifier;
+import com.fallingnight.chat.persistence.postgres.migration.V1MessagePayloadImportPlanner;
 import com.fallingnight.chat.persistence.postgres.migration.V1MessagePayloadSourceException;
 import com.fallingnight.chat.persistence.postgres.migration.V1MessageStateImportInputVerifier;
 import com.fallingnight.chat.persistence.postgres.migration.V1MessageTargetImportPlan;
@@ -526,6 +529,26 @@ class PostgresMigratorTest {
         assertEquals(1, count("SELECT count(*) FROM chat.message_import_run"));
         assertEquals(5, count("SELECT next_sequence FROM chat.conversation WHERE id = '"
                 + conversation + "'"));
+
+        ConversationEntryHistoryResult.Page mixed =
+                (ConversationEntryHistoryResult.Page) new PostgresMessageAdapter(dataSource())
+                        .readEntriesAfter(new MessageHistoryQuery(
+                                conversation, account, 0, 10));
+        assertEquals(List.of(1L, 2L, 3L, 4L), mixed.entries().stream()
+                .map(ConversationHistoryEntry::conversationSequence).toList());
+        assertTrue(mixed.entries().get(0) instanceof ConversationHistoryEntry.Message);
+        assertTrue(mixed.entries().get(1) instanceof ConversationHistoryEntry.Message);
+        ConversationHistoryEntry.Recall recall =
+                (ConversationHistoryEntry.Recall) mixed.entries().get(2);
+        assertTrue(recall.occurredAt().isEmpty());
+        ConversationHistoryEntry.Deletion deletion =
+                (ConversationHistoryEntry.Deletion) mixed.entries().get(3);
+        assertEquals(List.of(V1MessagePayloadImportPlanner.deterministicMessageId(
+                LegacyV1ConversationKind.ROOM, 100)), deletion.messageIds());
+        assertEquals("Apply User", deletion.operatorNameSnapshot());
+        assertEquals(4, mixed.nextSequence());
+        assertEquals(4, mixed.latestSequence());
+        assertFalse(mixed.hasMore());
 
         V1MessageImportReport rerun = importer.apply(bundle);
         assertEquals(0, rerun.insertableMessages());
