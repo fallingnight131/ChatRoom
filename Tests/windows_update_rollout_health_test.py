@@ -15,7 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from artifact_manifest_common import ManifestError, atomic_write  # noqa: E402
 from windows_update_manifest import build_manifest, canonical_bytes  # noqa: E402
-from windows_update_rollout_health import evaluate, verify, write_once  # noqa: E402
+from windows_update_rollout_health import (  # noqa: E402
+    canonical_metrics_bytes, evaluate, verify, write_once,
+)
 
 
 class WindowsUpdateRolloutHealthTest(unittest.TestCase):
@@ -93,7 +95,7 @@ class WindowsUpdateRolloutHealthTest(unittest.TestCase):
         return value
 
     def write_metrics(self, **changes) -> None:
-        self.metrics.write_text(json.dumps(self.metrics_value(**changes)), encoding="utf-8")
+        self.metrics.write_bytes(canonical_metrics_bytes(self.metrics_value(**changes)))
 
     def test_marks_only_complete_low_error_window_expand_eligible(self) -> None:
         self.write_metrics()
@@ -159,6 +161,11 @@ class WindowsUpdateRolloutHealthTest(unittest.TestCase):
             evaluate(
                 self.completion, self.candidate, self.metrics,
                 changed_policy, self.now)
+        self.metrics.write_text(json.dumps(self.metrics_value()), encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "not canonical"):
+            evaluate(
+                self.completion, self.candidate, self.metrics,
+                self.policy, self.now)
 
 
 if __name__ == "__main__":

@@ -258,8 +258,15 @@ Staged expansion uses the versioned aggregate policy in
 release identity, fresh post-completion windows, monotonic aggregate counters,
 minimum volume/duration, and ceiling-basis-point failure/crash thresholds. It
 emits advisory `expand-eligible`, `hold`, `complete`, or `halt-recommended`
-evidence and has no publication authority. Metrics-source attestation and
-protected expansion authorization remain separate gates; see ADR-0191.
+evidence and has no publication authority; see ADR-0191. Metrics-source
+attestation and protected expansion authorization are the next separate gate.
+
+`windows_update_rollout_expansion_authorization.py` supplies the next boundary.
+It reconstructs promotion and health, verifies canonical metrics with a
+reviewed Ed25519 exporter public key, then permits only the next policy step
+while holding Windows candidate, installer, update key, minimum version, and
+rollout seed constant. Its short-lived record is not channel execution or
+publication; see ADR-0193.
 
 Client trust provisioning begins with a write-once
 `windows_update_product_trust_intent.py` record. It extracts canonical raw

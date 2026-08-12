@@ -63,6 +63,7 @@ jobs:
           python3 Tests/windows_update_product_trust_evidence_test.py
           python3 Tests/windows_product_trust_build_workflow_test.py
           python3 Tests/windows_update_rollout_health_test.py
+          python3 Tests/windows_update_rollout_expansion_authorization_test.py
           python3 Tests/windows_release_signature_policy_test.py
           python3 Tests/windows_release_evidence_test.py
           python3 Tests/windows_release_candidate_test.py

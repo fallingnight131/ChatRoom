@@ -610,6 +610,10 @@ Progress:
 - [x] Advance general promotion authorization to schema 2 and reject same-
   version/source rollout-percentage changes so health-bound expansion cannot be
   bypassed through the ordinary release path.
+- [x] Add a dedicated short-lived rollout-expansion authorization that
+  reconstructs promotion/health, verifies canonical aggregate metrics through
+  a reviewed Ed25519 exporter key, preserves binary/installer/seed identity,
+  and permits only the next signed percentage step without executing it.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

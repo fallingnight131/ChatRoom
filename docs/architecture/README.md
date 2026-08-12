@@ -1213,6 +1213,13 @@ rollout percentages and rejects changing them for the same version/source.
 New releases and higher-sequence forward fixes remain possible, but expanding
 an existing binary now fails closed instead of treating health as optional.
 
+ADR-0193 establishes the dedicated authorization. It reconstructs the prior
+promotion and health decision, verifies canonical aggregate metrics through a
+reviewed Ed25519 exporter key, and compares complete current/target candidates.
+Only the next policy percentage and a higher manifest sequence may change; the
+binary, installer, update key, minimum version, and rollout seed stay exact.
+The record is short-lived and still has no endpoint mutation authority.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

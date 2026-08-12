@@ -72,6 +72,12 @@ def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def canonical_metrics_bytes(value: dict[str, object]) -> bytes:
+    return (json.dumps(
+        value, ensure_ascii=True, separators=(",", ":"), sort_keys=True,
+    ) + "\n").encode("utf-8")
+
+
 def _policy(path: Path, channel: str) -> dict[str, object]:
     root = _read(path, "policy")
     if set(root) != POLICY_KEYS or root.get("schemaVersion") != 1:
@@ -116,6 +122,8 @@ def evaluate(
     if (set(metrics) != METRICS_KEYS or metrics.get("schemaVersion") != 1
             or metrics.get("evidenceType") != "windows-update-aggregate-health"):
         raise ManifestError("Windows rollout health metrics shape is invalid")
+    if metrics_path.read_bytes() != canonical_metrics_bytes(metrics):
+        raise ManifestError("Windows rollout health metrics are not canonical JSON")
     channel = completion.get("channel")
     if channel not in {"stable", "beta"}:
         raise ManifestError("Windows rollout health channel is invalid")

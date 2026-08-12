@@ -730,11 +730,21 @@ python3 tools/windows_update_rollout_health.py record \
 
 Stable advances through `1/5/25/50/100` after at least two hours and 100 install
 outcomes; beta uses `10/25/50/100`, 30 minutes, and 25 outcomes. The exact input
-schema contains aggregate counters only. Output cannot authorize or mutate a
+schema contains aggregate counters only and must use canonical JSON. Output cannot authorize or mutate a
 channel: incomplete evidence is `hold`; `halt-recommended` uses the existing
 halt procedure and still needs a higher-sequence forward fix for updated
-clients. Metrics provenance and protected expansion authorization remain later
-gates. See ADR-0191.
+clients. See ADR-0191.
+
+`windows_update_rollout_expansion_authorization.py create` turns only an
+`expand-eligible` result into a short-lived, still-unexecuted authorization. It
+reconstructs the full prior promotion, verifies a detached Ed25519 signature on
+the canonical metrics export against a reviewed public PEM digest/key ID, and
+revalidates current and target candidates. The target must retain the exact
+signed Windows candidate, installer, signing key, minimum version, and rollout
+seed while advancing sequence to exactly the policy's next percentage. Use
+`--help` for the explicit completion-chain paths; the tool accepts no private
+key or provider credential. Protected workflow orchestration and execution are
+still separate gates. See ADR-0193.
 
 Before compiling a product-update-enabled Windows client, create and verify a
 short-lived public trust intent with
