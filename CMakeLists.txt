@@ -165,6 +165,30 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             PUBLIC Qt6::Core Qt6::Sql chatroom_v1_common
         )
 
+        add_library(
+            chatroom_client_transport
+            STATIC
+            Client/HttpUploadTransport.cpp
+            Client/HttpDownloadTransport.cpp
+            Client/NetworkManager.cpp
+            Client/HttpUploadTransport.h
+            Client/HttpDownloadTransport.h
+            Client/NetworkManager.h
+        )
+        set_target_properties(
+            chatroom_client_transport
+            PROPERTIES
+                AUTOMOC ON
+                CXX_STANDARD 17
+                CXX_STANDARD_REQUIRED ON
+                CXX_EXTENSIONS OFF
+        )
+        target_include_directories(chatroom_client_transport PUBLIC Client)
+        target_link_libraries(
+            chatroom_client_transport
+            PUBLIC Qt6::Core Qt6::Network chatroom_v1_common
+        )
+
         function(chatroom_add_local_data_test target test_name)
             add_executable(${target} Tests/${target}.cpp)
             set_target_properties(
@@ -176,6 +200,20 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             )
             target_link_libraries(${target} PRIVATE chatroom_client_local_data)
             add_test(NAME ${test_name} COMMAND ${target})
+        endfunction()
+
+        function(chatroom_add_transport_test target test_name)
+            add_executable(${target} Tests/${target}.cpp)
+            set_target_properties(
+                ${target}
+                PROPERTIES
+                    CXX_STANDARD 17
+                    CXX_STANDARD_REQUIRED ON
+                    CXX_EXTENSIONS OFF
+            )
+            target_link_libraries(${target} PRIVATE chatroom_client_transport)
+            add_test(NAME ${test_name} COMMAND ${target})
+            set_tests_properties(${test_name} PROPERTIES TIMEOUT 30)
         endfunction()
 
         add_executable(DatabaseSchemaTest Tests/DatabaseSchemaTest.cpp)
@@ -206,5 +244,9 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
         chatroom_add_local_data_test(ConversationSyncServiceTest v1_client_conversation_sync)
         chatroom_add_local_data_test(AttachmentOutboxServiceTest v1_client_attachment_outbox)
         chatroom_add_local_data_test(V1HistoryPageAdapterTest v1_client_history_adapter)
+
+        chatroom_add_transport_test(HttpUploadTransportTest v1_client_http_upload)
+        chatroom_add_transport_test(HttpDownloadTransportTest v1_client_http_download)
+        chatroom_add_transport_test(NetworkReconnectTest v1_client_network_reconnect)
     endif()
 endif()

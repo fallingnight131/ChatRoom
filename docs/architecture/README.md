@@ -853,6 +853,15 @@ conversation synchronization, attachment outbox, and history normalization form
 password coverage under the executed `v1_*` CTest gate. This changes neither the
 client database format nor supported platforms.
 
+ADR-0149 establishes the next Windows client layer as
+`chatroom_client_transport`: V1 TCP/session lifecycle plus raw HTTP upload and
+download, depending only on Qt Core/Network and shared V1 types. Existing tests
+now execute exact upload bytes/token paths, streamed download and denial
+cleanup, and three-connection memory-only session restoration with rejected-
+restore clearing. The optional TLS path's legacy `VerifyNone` remains an explicit
+critical security defect to correct separately; CMake equivalence is not a TLS
+readiness claim.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,
