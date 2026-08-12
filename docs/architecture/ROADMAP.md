@@ -549,6 +549,9 @@ Progress:
   - [x] Implement repeatable-read PostgreSQL V1 room search with exact numeric ID
     lookup, escaped literal titles, active-member counts, and complete creator
     mapping enforcement.
+  - [x] Compose detached strict V1 room search with authenticated identity,
+    bounded off-loop execution, compatible UUID-free output, fixed telemetry,
+    and real PostgreSQL login-to-search proof.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

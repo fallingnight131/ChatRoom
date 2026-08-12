@@ -298,8 +298,11 @@ Positive decimal keywords may retain exact V1 room-ID lookup semantics; other
 keywords use literal title matching. Its repeatable-read PostgreSQL adapter now
 requires an enabled mapped actor,
 orders and bounds results in SQL, counts only active members, and fails the
-whole query when the active OWNER cannot be projected to a V1 creator. No
-handler exists yet.
+whole query when the active OWNER cannot be projected to a V1 creator. The
+detached strict handler now binds authenticated
+identity, executes off-loop, and returns bounded compatible UUID-free results.
+Real PostgreSQL verifies login-to-search projection. The product listener
+remains unchanged.
 
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target

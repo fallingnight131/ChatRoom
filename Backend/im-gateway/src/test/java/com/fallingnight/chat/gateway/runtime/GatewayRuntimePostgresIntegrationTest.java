@@ -10,6 +10,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1DirectHistoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomHistoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomRecallEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomReadEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomSearchEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectRecallEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectReadEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectMessageEventSink;
@@ -159,6 +160,7 @@ class GatewayRuntimePostgresIntegrationTest {
                         storedDeviceAlias(jdbcUrl, username, password));
 
                 assertUserSearch(imported, false);
+                assertRoomSearch(imported);
 
                 imported.writeInbound(new TextWebSocketFrame(
                         "{\"type\":\"ROOM_LIST_REQ\",\"id\":\"rooms-1\",\"data\":{}}"));
@@ -377,6 +379,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomHistoryEventSink.noop(),
                 V1RoomRecallEventSink.noop(),
                 V1RoomReadEventSink.noop(),
+                V1RoomSearchEventSink.noop(),
                 V1FriendDirectoryEventSink.noop(),
                 V1PendingFriendRequestEventSink.noop(),
                 V1FriendRequestCreationEventSink.noop(),
@@ -783,6 +786,23 @@ class GatewayRuntimePostgresIntegrationTest {
         } finally { response.release(); }
     }
 
+    private static void assertRoomSearch(EmbeddedChannel channel) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"ROOM_SEARCH_REQ\",\"data\":{\"keyword\":\"Imported\"}}"));
+        channel.runPendingTasks();
+        TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"ROOM_SEARCH_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"roomId\":7"));
+            assertTrue(response.text().contains("\"roomName\":\"Imported Room\""));
+            assertTrue(response.text().contains("\"creatorId\":42"));
+            assertTrue(response.text().contains("\"memberCount\":2"));
+            assertFalse(response.text().contains("30000000-0000"));
+            assertFalse(response.text().contains("Unrelated Room"));
+        } finally { response.release(); }
+    }
+
     private static void assertFriendRequestSuccess(
             EmbeddedChannel channel, String targetUsername) {
         channel.writeInbound(new TextWebSocketFrame(
@@ -859,7 +879,7 @@ class GatewayRuntimePostgresIntegrationTest {
                             + "VALUES (?, ?, ?, ?)")) {
                 member.setObject(1, importedRoom);
                 member.setObject(2, imported);
-                member.setString(3, "ADMIN");
+                member.setString(3, "OWNER");
                 member.setLong(4, 3);
                 member.addBatch();
                 member.setObject(1, importedRoom);

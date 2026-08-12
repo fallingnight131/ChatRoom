@@ -224,7 +224,11 @@ adapter will preserve positive decimal exact-ID lookup and otherwise apply
 literal case-insensitive title matching. The repeatable-read PostgreSQL adapter
 now enforces those lookup modes, requires
 an enabled mapped actor, counts active members, and rejects incomplete active-
-OWNER mappings instead of returning a partial list. No handler exists yet.
+OWNER mappings instead of returning a partial list. The detached strict handler
+binds authenticated identity, executes off-loop,
+returns compatible `ROOM_SEARCH_RSP`, and emits only fixed result telemetry.
+Malformed or infrastructure-failed work closes; policy-rejected input returns
+an unsuccessful response without closing. The product listener remains inactive.
 
 ### Room chat
 
