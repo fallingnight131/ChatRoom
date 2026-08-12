@@ -931,6 +931,15 @@ installer must uninstall program files while preserving account-local data.
 Upgrade/downgrade equivalence and the canonical packaging switch remain later
 gates.
 
+ADR-0158 completes installer-mechanics parity before the packaging switch. The
+CMake gate now first installs a synthetic `0.9.0` predecessor, upgrades it to
+canonical `VERSION`, proves stale program and transaction files are removed,
+and validates source/version/install registration while preserving account
+data. With the CMake client running, the same installer must return the locked-
+client refusal code without mutation; the predecessor must then fail to
+downgrade the current installation. This remains synthetic installer evidence,
+not proof that a real historical binary/database can upgrade.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

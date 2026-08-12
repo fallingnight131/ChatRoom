@@ -693,6 +693,9 @@ Progress:
 - [x] Compile a separate temporary NSIS from the CMake payload and exercise
   clean install, PE/runtime checks, client launch, helper two-phase unsigned
   rejection/cleanup, uninstall, and account-data preservation in native CI.
+- [x] Extend the temporary CMake NSIS gate through a synthetic predecessor
+  upgrade, stale-program replacement, traceable registration, running-client
+  mutation refusal, downgrade refusal, and final uninstall/data preservation.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

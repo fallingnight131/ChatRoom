@@ -38,6 +38,8 @@ if (Test-Path $WorkRoot) { Remove-Item $WorkRoot -Recurse -Force }
 New-Item -ItemType Directory -Force $WorkRoot | Out-Null
 $output = Join-Path $WorkRoot "installer"
 New-Item -ItemType Directory -Force $output | Out-Null
+$priorOutput = Join-Path $WorkRoot "prior-installer"
+New-Item -ItemType Directory -Force $priorOutput | Out-Null
 $installRoot = Join-Path $WorkRoot "install"
 $sentinelDirectory = Join-Path $env:APPDATA "QtChatRoom/ChatClient"
 New-Item -ItemType Directory -Force $sentinelDirectory | Out-Null
@@ -52,6 +54,15 @@ $launcherCommit = $null
 $launcherFixture = $null
 $launcherResult = $null
 try {
+  $priorVersion = "0.9.0"
+  & $makensis /WX /NOCONFIG /V2 "/DVERSION=$priorVersion" `
+    "/DSOURCE_REVISION=$("0" * 40)" "/DPAYLOAD_DIR=$payload" `
+    "/DOUTPUT_DIR=$priorOutput" "/DICON_FILE=$icon" $nsi
+  if ($LASTEXITCODE -ne 0) { throw "CMake prior NSIS compilation failed" }
+  $priorSetup = Require-File `
+    (Join-Path $priorOutput "ChatRoom-$priorVersion-unsigned-verification-Setup.exe") `
+    "CMake synthetic predecessor installer"
+
   & $makensis /WX /NOCONFIG /V2 "/DVERSION=$Version" `
     "/DSOURCE_REVISION=$SourceRevision" "/DPAYLOAD_DIR=$payload" `
     "/DOUTPUT_DIR=$output" "/DICON_FILE=$icon" $nsi
@@ -63,10 +74,38 @@ try {
     throw "CMake payload verification installer must remain unsigned"
   }
 
-  $install = Start-Process -FilePath $setup `
+  $install = Start-Process -FilePath $priorSetup `
     -ArgumentList @("/S", "/D=$installRoot") -Wait -PassThru
   if ($install.ExitCode -ne 0) {
-    throw "CMake payload silent install failed with exit code $($install.ExitCode)"
+    throw "CMake predecessor silent install failed with exit code $($install.ExitCode)"
+  }
+  $priorRegistration = Get-ItemProperty `
+    "HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/ChatRoom"
+  if ($priorRegistration.DisplayVersion -ne $priorVersion) {
+    throw "CMake predecessor version was not registered"
+  }
+  $oldProgramSentinel = Join-Path $installRoot ".m4-cmake-old-program-sentinel"
+  Set-Content -Path $oldProgramSentinel -Value "must-be-replaced"
+
+  $upgrade = Start-Process -FilePath $setup `
+    -ArgumentList @("/S", "/D=$installRoot") -Wait -PassThru
+  if ($upgrade.ExitCode -ne 0) {
+    throw "CMake payload upgrade failed with exit code $($upgrade.ExitCode)"
+  }
+  if ((Test-Path $oldProgramSentinel) `
+      -or (Test-Path "$installRoot.__chatroom_stage") `
+      -or (Test-Path "$installRoot.__chatroom_backup")) {
+    throw "CMake payload upgrade retained stale or transaction files"
+  }
+  if (-not (Test-Path $sentinel -PathType Leaf)) {
+    throw "CMake payload upgrade deleted account-local data"
+  }
+  $registration = Get-ItemProperty `
+    "HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/ChatRoom"
+  if ($registration.DisplayVersion -ne $Version `
+      -or $registration.SourceRevision -ne $SourceRevision `
+      -or $registration.InstallId -ne "chat-room-windows-client-v1") {
+    throw "CMake upgraded registration is not traceable"
   }
   $client = Require-File (Join-Path $installRoot "ChatClient.exe") "Installed CMake client"
   $launcher = Require-File `
@@ -86,8 +125,28 @@ try {
   $clientProcess = Start-Process -FilePath $client -PassThru
   Start-Sleep -Seconds 2
   if ($clientProcess.HasExited) { throw "Installed CMake client did not remain running" }
+  $blockedUpgrade = Start-Process -FilePath $setup `
+    -ArgumentList @("/S", "/D=$installRoot") -Wait -PassThru
+  if ($blockedUpgrade.ExitCode -ne 4) {
+    throw "Running-client CMake upgrade returned $($blockedUpgrade.ExitCode) instead of 4"
+  }
+  if ($clientProcess.HasExited -or -not (Test-Path $client -PathType Leaf) `
+      -or -not (Test-Path $sentinel -PathType Leaf)) {
+    throw "Rejected running-client CMake upgrade mutated installation or account data"
+  }
   Stop-Process -Id $clientProcess.Id -Force
   $clientProcess.WaitForExit()
+
+  $downgrade = Start-Process -FilePath $priorSetup `
+    -ArgumentList @("/S", "/D=$installRoot") -Wait -PassThru
+  if ($downgrade.ExitCode -eq 0) { throw "CMake predecessor was allowed to downgrade" }
+  $afterDowngrade = Get-ItemProperty `
+    "HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/ChatRoom"
+  if ($afterDowngrade.DisplayVersion -ne $Version `
+      -or -not (Test-Path $client -PathType Leaf) `
+      -or -not (Test-Path $sentinel -PathType Leaf)) {
+    throw "Rejected CMake downgrade changed installation or account data"
+  }
 
   $launcherFixture = Join-Path $WorkRoot "unsigned-launcher-fixture.exe"
   Copy-Item $setup $launcherFixture

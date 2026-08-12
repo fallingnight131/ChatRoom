@@ -278,8 +278,19 @@ attempts cleanup on failure. Its cross-host source policy is:
 python3 Tests/windows_cmake_installer_gate_test.py
 ```
 
-This focused gate is not yet upgrade/downgrade parity and does not replace the
-uploaded qmake installer. No signing success is inferred from unsigned rejection.
+The initial ADR-0157 slice deliberately stopped before upgrade/downgrade parity
+and did not replace the uploaded qmake installer. No signing success is inferred
+from unsigned rejection.
+
+ADR-0158 extends the same temporary CMake gate before any packaging switch. It
+compiles and installs a synthetic `0.9.0` predecessor, adds a stale program
+sentinel, upgrades to canonical `VERSION`, and requires atomic program-directory
+replacement, no stage/backup residue, traceable HKCU registration, and preserved
+account data. It then requires exit code 4 and no mutation while the CMake client
+is running, rejects the predecessor downgrade without changing the current
+registration/files/data, and finally completes the helper and uninstall checks.
+The predecessor reuses current payload bytes and validates installer mechanics;
+real historical binary/schema compatibility is still a separate release gate.
 
 The unsigned Windows NSIS gate now compiles a synthetic predecessor outside the
 uploaded artifact, installs it, and upgrades to canonical `VERSION`. It checks
