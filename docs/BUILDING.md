@@ -39,11 +39,14 @@ reuse already installed dependencies during local iteration:
 python3 tools/verify_m0.py --web --skip-npm-ci
 ```
 
-CI then copies the real Vite tree into a short-lived, explicitly undeployed Web
-verification artifact. `tools/web_artifact_manifest.py` requires matching
-package/lock versions, local content-hashed entrypoints, no source-map files or
-trailing map directives, stable file hashes, and records `index.html` as
-`no-store` plus hashed assets as one-year immutable. Run its policy tests with:
+CI then copies the real Vite tree and `packaging/web/response-policy.json` into a
+short-lived, explicitly undeployed Web verification artifact.
+`tools/web_artifact_manifest.py` requires matching package/lock versions, local
+content-hashed entrypoints, no source-map files or trailing map directives,
+stable file hashes, and records `index.html` as `no-store` plus hashed assets as
+one-year immutable. Schema 2 also binds the exact CSP/HSTS/cache/source-map and
+release-identity policy while labeling it `required-not-observed`. Run its
+policy tests with:
 
 ```bash
 python3 Tests/web_artifact_manifest_test.py

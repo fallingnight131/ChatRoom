@@ -560,6 +560,8 @@ Progress:
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,
   remove legacy browser server overrides, and retain loopback-only local
   development behavior.
+- [x] Bind a provider-neutral CSP/HSTS/cache/release-identity response policy to
+  the versioned Web verification artifact with fail-closed mutation tests.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
   supported Windows installer and update channel.
 - [ ] Publish and verify versioned, policy-hardened, rollback-ready Web releases.

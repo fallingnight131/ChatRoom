@@ -1,0 +1,24 @@
+{
+  "cacheControl": {
+    "hashedAssets": "public,max-age=31536000,immutable",
+    "other": "no-cache",
+    "versionEntrypoint": "no-store"
+  },
+  "releaseIdentityHeaders": {
+    "X-ChatRoom-Source-Revision": "{sourceRevision}",
+    "X-ChatRoom-Web-Version": "{version}"
+  },
+  "requiredScheme": "https",
+  "schemaVersion": 1,
+  "securityHeaders": {
+    "Content-Security-Policy": "default-src 'none'; base-uri 'none'; connect-src 'self'; font-src 'self' data:; form-action 'self'; frame-ancestors 'none'; frame-src 'self' blob:; img-src 'self' data: blob:; manifest-src 'self'; media-src 'self' blob:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; upgrade-insecure-requests",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
+    "Referrer-Policy": "no-referrer",
+    "Strict-Transport-Security": "max-age=31536000",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY"
+  },
+  "sourceMaps": "forbidden"
+}

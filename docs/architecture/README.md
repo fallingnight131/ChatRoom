@@ -602,6 +602,13 @@ direct port 9528 only for loopback development. A deployment must provide those
 same-origin reverse-proxy routes before activation. This permits a narrow
 `connect-src 'self'` policy but does not claim the headers are deployed yet.
 
+ADR-0112 binds the exact provider-neutral CSP/HSTS/cache/source-map and release-
+identity response contract into schema-2 Web artifact metadata. The policy
+keeps scripts and connections self-only, exposes active version/source headers,
+and documents the current inline-style exception. Artifact verification labels
+the policy `required-not-observed`; isolated deployment and live header
+observation are still required before a release claim.
+
 The Windows updater must use a signed manifest containing architecture, channel,
 version, minimum compatible version, hash, signature, and URL. Support stable
 and beta channels and preserve rollback capability. Web rollback uses immutable

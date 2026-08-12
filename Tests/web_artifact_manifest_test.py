@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 
 from artifact_manifest_common import ManifestError  # noqa: E402
-from web_artifact_manifest import build_manifest, write_manifest  # noqa: E402
+from web_artifact_manifest import build_manifest, read_response_policy, write_manifest  # noqa: E402
 
 
 class WebArtifactManifestTest(unittest.TestCase):
@@ -40,12 +40,17 @@ class WebArtifactManifestTest(unittest.TestCase):
             "version": "1.0.0",
             "packages": {"": {"name": "chatroom-web", "version": "1.0.0"}},
         }), encoding="utf-8")
+        self.policy = self.root / "response-policy.json"
+        self.policy.write_text(
+            (ROOT / "packaging" / "web" / "response-policy.json").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
 
     def tearDown(self) -> None:
         self.temporary.cleanup()
 
     def build(self):
-        return build_manifest(self.site, self.package, "b" * 40)
+        return build_manifest(self.site, self.package, "b" * 40, self.policy)
 
     def test_builds_deterministic_cache_classified_manifest(self) -> None:
         first, checksums = self.build()
@@ -53,11 +58,17 @@ class WebArtifactManifestTest(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(checksums, repeated_checksums)
         self.assertEqual(first["releaseStatus"], "unsigned-not-deployed-verification-only")
+        self.assertEqual(first["schemaVersion"], 2)
+        self.assertEqual(first["responsePolicy"]["applicationStatus"], "required-not-observed")
+        self.assertEqual(first["responsePolicy"]["requiredScheme"], "https")
+        self.assertTrue(any(line.endswith("  response-policy.json") for line in checksums))
         policies = {entry["path"]: entry["cacheControl"] for entry in first["files"]}
         self.assertEqual(policies["site/index.html"], "no-store")
         self.assertEqual(policies["site/assets/index-AbCd1234.js"], "public,max-age=31536000,immutable")
 
         output = self.root / "artifact"
+        output.mkdir()
+        (output / "response-policy.json").write_bytes(self.policy.read_bytes())
         write_manifest(output, first, checksums)
         self.assertEqual(
             json.loads((output / "web-artifact-manifest.json").read_text(encoding="utf-8")),
@@ -109,6 +120,24 @@ class WebArtifactManifestTest(unittest.TestCase):
         unhashed.write_text("console.log('debug')", encoding="utf-8")
         with self.assertRaisesRegex(ManifestError, "content-hashed"):
             self.build()
+
+    def test_rejects_weakened_or_incomplete_response_policy(self) -> None:
+        original = json.loads(self.policy.read_text(encoding="utf-8"))
+        mutations = [
+            lambda policy: policy.update(requiredScheme="http"),
+            lambda policy: policy.update(sourceMaps="published"),
+            lambda policy: policy["securityHeaders"].update({"Content-Security-Policy": "default-src *"}),
+            lambda policy: policy["securityHeaders"].pop("Strict-Transport-Security"),
+            lambda policy: policy["cacheControl"].update({"hashedAssets": "no-cache"}),
+            lambda policy: policy["releaseIdentityHeaders"].pop("X-ChatRoom-Source-Revision"),
+        ]
+        for mutate in mutations:
+            with self.subTest(mutation=mutate):
+                policy = json.loads(json.dumps(original))
+                mutate(policy)
+                self.policy.write_text(json.dumps(policy), encoding="utf-8")
+                with self.assertRaises(ManifestError):
+                    read_response_policy(self.policy)
 
 
 if __name__ == "__main__":

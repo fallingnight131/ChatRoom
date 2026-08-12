@@ -22,7 +22,7 @@ evidence, but it does not make that operating system a supported client.
 | Product | Committed target | Toolchain policy | Current evidence | M4 release gate |
 | --- | --- | --- | --- | --- |
 | Windows desktop | Windows 10/11, x86_64 | Qt 6.11.1, MSVC 2022, native Windows CI | unsigned, DLL-complete verification artifact | signed and timestamped `Setup.exe`, install/upgrade/uninstall checks, signed updater |
-| Web | Browser support policy to be pinned before public release | Node.js 22, lockfile, `npm ci`, production Vite build | production `dist` build gate | versioned deployment, CSP/cache/source-map policy, health checks, rollback evidence |
+| Web | Browser support policy to be pinned before public release | Node.js 22, lockfile, `npm ci`, production Vite build | versioned verification artifact with bound response-policy contract | observed HTTPS/CSP/cache behavior, browser matrix, health checks, rollback evidence |
 
 The current Web build gate proves that production assets compile; it does not
 yet prove compatibility with a named browser/version matrix. That matrix and
@@ -75,11 +75,14 @@ M4 must provide:
 Web verification runs from the committed lockfile with `npm ci`, tests, and a
 production Vite build. CI retains a short-lived, explicitly not-deployed
 artifact with exact Git/package version, file hashes, local hashed entrypoints,
-map-file/trailing-directive rejection, and intended cache classes. Public delivery must
-additionally define and prove:
+map-file/trailing-directive rejection, intended cache classes, and an exact
+schema-2 CSP/HSTS/release-identity response contract. The artifact still labels
+that policy `required-not-observed`. Public delivery must additionally observe
+and prove:
 
 - the supported browser/version matrix and automated coverage;
-- HTTPS/WSS, CSP, cache headers, and source-map exposure policy;
+- valid HTTPS/WSS and response headers matching the bound CSP/cache/source-map
+  policy;
 - immutable versioned assets and a traceable deployment identifier;
 - health checks, staged rollout, monitoring, and rollback without rebuilding;
 - compatibility with at least one previous supported client/server protocol

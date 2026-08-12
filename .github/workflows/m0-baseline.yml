@@ -37,10 +37,12 @@ jobs:
           artifact="build/m0/artifacts/web"
           mkdir -p "$artifact"
           cp -R WebClient/dist "$artifact/site"
+          cp packaging/web/response-policy.json "$artifact/response-policy.json"
           python3 tools/web_artifact_manifest.py \
             --site-root "$artifact/site" \
             --package-json WebClient/package.json \
             --source-revision "${{ github.sha }}" \
+            --response-policy "$artifact/response-policy.json" \
             --output-dir "$artifact"
           version=$(node -p 'require("./WebClient/package.json").version')
           echo "version=$version" >> "$GITHUB_OUTPUT"

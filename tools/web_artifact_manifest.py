@@ -29,6 +29,27 @@ SOURCE_MAP_DIRECTIVE = re.compile(r"(?://[#@]\s*sourceMappingURL=|/\*[#@]\s*sour
 IMMUTABLE_CACHE = "public,max-age=31536000,immutable"
 REVALIDATE_CACHE = "no-cache"
 ENTRYPOINT_CACHE = "no-store"
+EXPECTED_RELEASE_HEADERS = {
+    "X-ChatRoom-Source-Revision": "{sourceRevision}",
+    "X-ChatRoom-Web-Version": "{version}",
+}
+EXPECTED_SECURITY_HEADERS = {
+    "Content-Security-Policy": (
+        "default-src 'none'; base-uri 'none'; connect-src 'self'; "
+        "font-src 'self' data:; form-action 'self'; frame-ancestors 'none'; "
+        "frame-src 'self' blob:; img-src 'self' data: blob:; manifest-src 'self'; "
+        "media-src 'self' blob:; object-src 'none'; script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; "
+        "upgrade-insecure-requests"
+    ),
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
+    "Referrer-Policy": "no-referrer",
+    "Strict-Transport-Security": "max-age=31536000",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+}
 
 
 class EntrypointParser(HTMLParser):
@@ -126,14 +147,45 @@ def cache_control(relative: str) -> str:
     return REVALIDATE_CACHE
 
 
+def read_response_policy(policy_path: Path) -> dict[str, object]:
+    if not policy_path.is_file() or policy_path.is_symlink():
+        raise ManifestError("Web response policy must be a regular artifact file")
+    try:
+        policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as error:
+        raise ManifestError("Web response policy is unreadable") from error
+    expected_keys = {
+        "schemaVersion", "requiredScheme", "sourceMaps", "cacheControl",
+        "securityHeaders", "releaseIdentityHeaders",
+    }
+    if not isinstance(policy, dict) or set(policy) != expected_keys:
+        raise ManifestError("Web response policy has an unsupported shape")
+    if (policy.get("schemaVersion") != 1 or policy.get("requiredScheme") != "https"
+            or policy.get("sourceMaps") != "forbidden"):
+        raise ManifestError("Web response policy weakens the HTTPS or source-map baseline")
+    if policy.get("cacheControl") != {
+        "versionEntrypoint": ENTRYPOINT_CACHE,
+        "hashedAssets": IMMUTABLE_CACHE,
+        "other": REVALIDATE_CACHE,
+    }:
+        raise ManifestError("Web response policy cache classes do not match the artifact")
+    if policy.get("securityHeaders") != EXPECTED_SECURITY_HEADERS:
+        raise ManifestError("Web response policy security headers do not match the release baseline")
+    if policy.get("releaseIdentityHeaders") != EXPECTED_RELEASE_HEADERS:
+        raise ManifestError("Web response policy must expose version and source revision")
+    return policy
+
+
 def build_manifest(
     site_root: Path,
     package_json: Path,
     source_revision: str,
+    response_policy: Path,
 ) -> tuple[dict[str, object], list[str]]:
     validate_revision(source_revision)
     version = read_package_version(package_json)
     files, entrypoints = validate_site(site_root)
+    policy = read_response_policy(response_policy)
 
     entries: list[dict[str, object]] = []
     checksums: list[str] = []
@@ -149,14 +201,24 @@ def build_manifest(
         })
         checksums.append(f"{digest}  {artifact_path}")
 
+    policy_digest, policy_size = sha256_file(response_policy)
+    checksums.append(f"{policy_digest}  response-policy.json")
+
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "product": "chat-room-web-client",
         "version": version,
         "sourceRevision": source_revision,
         "releaseStatus": "unsigned-not-deployed-verification-only",
         "entrypoint": "site/index.html",
         "referencedAssets": [f"site/{path}" for path in entrypoints],
+        "responsePolicy": {
+            "path": "response-policy.json",
+            "sha256": policy_digest,
+            "size": policy_size,
+            "applicationStatus": "required-not-observed",
+            "requiredScheme": policy["requiredScheme"],
+        },
         "files": entries,
     }, checksums
 
@@ -174,6 +236,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--site-root", type=Path, required=True)
     parser.add_argument("--package-json", type=Path, required=True)
     parser.add_argument("--source-revision", required=True)
+    parser.add_argument("--response-policy", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     return parser.parse_args()
 
@@ -181,10 +244,13 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     try:
+        if args.response_policy.resolve() != (args.output_dir / "response-policy.json").resolve():
+            raise ManifestError("Web response policy must be stored at artifact response-policy.json")
         manifest, checksums = build_manifest(
             args.site_root,
             args.package_json,
             args.source_revision,
+            args.response_policy,
         )
         write_manifest(args.output_dir, manifest, checksums)
     except (ManifestError, OSError) as error:
