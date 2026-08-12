@@ -126,12 +126,17 @@ normal.
 V024 adds one GROUP-only admission-policy row with a checked member limit from
 1 through 100000. Existing groups are backfilled, runtime room creation writes
 the default policy atomically, and verified V1 conversation import writes the
-same row. The join adapter locks this row to serialize capacity decisions,
+same row. V025 expands the checked limit to the supported V1 client maximum
+1000000. The join adapter locks this row to serialize capacity decisions,
 compares the credential snapshot verified by the application layer, and inserts
-or reactivates membership in the same transaction. The current importer uses
-the V1 default of 50 because custom `room_settings.max_members` is not yet part
-of its physically verified input; Java join activation must wait for that
-setting to be imported and reconciled.
+or reactivates membership in the same transaction. The importer now requires
+`room_settings.max_members` in its physically verified SQLite schema, folds
+each effective value into the source fingerprint, and rejects values outside
+1..1000000. Fresh groups receive the exact planned value. For a database
+upgraded through V024, only an untouched 50 may be updated by counted
+compare-and-set; a different target is a conflict. Preview and CLI report the
+pending policy-update count, and post-write comparison requires exact policy
+reconciliation.
 The read-only application compatibility port keeps the namespace type alongside
 the numeric ID and supports both V1-to-V2 request translation and V2-to-V1 event
 projection. Its PostgreSQL adapter does not create mappings, infer identities,
@@ -421,7 +426,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V024, reruns migration as a simulated
+cluster, migrates a clean database through current V025, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable

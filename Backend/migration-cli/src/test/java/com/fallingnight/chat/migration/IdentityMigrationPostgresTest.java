@@ -200,6 +200,8 @@ class IdentityMigrationPostgresTest {
                     + "creator_id INTEGER, created_at TEXT)");
             statement.execute("CREATE TABLE room_members(room_id INTEGER, user_id INTEGER, "
                     + "joined_at TEXT, last_read_msg_id INTEGER)");
+            statement.execute("CREATE TABLE room_settings(room_id INTEGER PRIMARY KEY, "
+                    + "max_members INTEGER)");
             statement.execute("CREATE TABLE room_admins(room_id INTEGER, user_id INTEGER)");
             statement.execute("CREATE TABLE friendships(id INTEGER PRIMARY KEY, user_id1 INTEGER, "
                     + "user_id2 INTEGER, created_at TEXT, user1_last_read_msg_id INTEGER, "
@@ -227,6 +229,7 @@ class IdentityMigrationPostgresTest {
                     + "friendship_id INTEGER PRIMARY KEY, last_sequence INTEGER)");
             statement.execute("INSERT INTO rooms VALUES "
                     + "(77, 'Private Room', 1, '2026-01-02 03:04:05')");
+            statement.execute("INSERT INTO room_settings VALUES (77, 73)");
             statement.execute("INSERT INTO room_members VALUES "
                     + "(77, 1, '2026-01-02 03:04:05', 100)");
             statement.execute("INSERT INTO messages VALUES "

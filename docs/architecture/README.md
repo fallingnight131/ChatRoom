@@ -337,9 +337,13 @@ serializable adapter locks that policy, rechecks the exact credential snapshot,
 and atomically inserts or reactivates membership. Concurrent contenders for the
 last place converge to one admission and one `ROOM_FULL`; existing membership
 is password-free and idempotent. Canonical identities and stored hashes never
-cross V1 responses. Imported custom V1 room limits are not yet part of the
-verified source bundle, so handler activation remains blocked on that migration
-proof. The product listener is unchanged.
+cross V1 responses. Custom V1 `room_settings.max_members` is now a required
+physically verified source column, is included in the deterministic import
+fingerprint, and is validated in the supported 1..1000000 range. Fresh imports
+write the exact value; databases backfilled by V024 may replace only the
+untouched default 50 through a counted compare-and-set update. Any other target
+value is a blocking conflict and post-write comparison must exactly reconcile.
+The product listener is unchanged.
 
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target

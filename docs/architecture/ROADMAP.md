@@ -574,7 +574,7 @@ Progress:
   - [x] Implement atomic PostgreSQL V1 room joining with enabled-account,
     GROUP/ROOM mapping, credential-snapshot, active-membership, and bounded
     capacity enforcement.
-  - [ ] Import and reconcile custom V1 `room_settings.max_members` into the
+  - [x] Import and reconcile custom V1 `room_settings.max_members` into the
     GROUP admission policy before activating Java room joining; default 50 is
     valid only when the verified source has no explicit override.
   - [ ] Compose detached strict V1 room joining with password-attempt admission,

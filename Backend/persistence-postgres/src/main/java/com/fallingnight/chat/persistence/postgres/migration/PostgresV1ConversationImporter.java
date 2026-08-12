@@ -60,6 +60,7 @@ public final class PostgresV1ConversationImporter {
                             "V1 conversation target contains blocking conflicts");
                 }
                 insertConversations(connection, before.conversationsToInsert());
+                updateAdmissionPolicies(connection, before.policiesToUpdate());
                 insertDirectPairs(connection, before.conversationsToInsert());
                 insertMappings(connection, before.mappingsToInsert());
                 insertMemberships(connection, before.membershipsToInsert());
@@ -80,6 +81,7 @@ public final class PostgresV1ConversationImporter {
                         before.alreadyConversations(),
                         before.membershipsToInsert().size(),
                         before.alreadyMemberships(),
+                        before.policiesToUpdate().size(),
                         List.of(),
                         true,
                         true,
@@ -103,12 +105,15 @@ public final class PostgresV1ConversationImporter {
         Map<UUID, TargetConversation> targets = readConversations(connection, plannedById.keySet());
         Map<UUID, TargetMapping> mappings = readMappings(connection, plannedById.keySet(), plan);
         Map<UUID, TargetDirect> directs = readDirects(connection, plannedById.keySet(), plan);
+        Map<UUID, TargetGroupPolicy> policies = readGroupPolicies(
+                connection, plannedById.keySet());
         Map<MemberKey, TargetMember> members = readMembers(connection, plannedById.keySet());
         Set<UUID> existingAccounts = readAccounts(connection, plan.memberships());
 
         List<PlannedV1Conversation> conversationsToInsert = new ArrayList<>();
         List<PlannedV1Conversation> mappingsToInsert = new ArrayList<>();
         List<PlannedV1ConversationMember> membershipsToInsert = new ArrayList<>();
+        List<PlannedV1Conversation> policiesToUpdate = new ArrayList<>();
         List<V1ConversationImportIssue> issues = new ArrayList<>();
         int alreadyConversations = 0;
         int alreadyMemberships = 0;
@@ -117,13 +122,20 @@ public final class PostgresV1ConversationImporter {
             TargetConversation target = targets.get(planned.conversationId());
             TargetMapping mapping = mappings.get(planned.conversationId());
             TargetDirect direct = directs.get(planned.conversationId());
+            TargetGroupPolicy policy = policies.get(planned.conversationId());
             boolean mappingMatches = mapping != null && mapping.matches(planned);
             boolean directMatches = planned.legacyKind() == LegacyV1ConversationKind.ROOM
                     ? direct == null : direct != null && direct.matches(planned);
-            if (target == null && mapping == null && direct == null) {
+            boolean policyMatches = planned.legacyKind() == LegacyV1ConversationKind.ROOM
+                    ? policy != null && policy.matches(planned) : policy == null;
+            boolean policyCanMigrate = planned.legacyKind() == LegacyV1ConversationKind.ROOM
+                    && policy != null && policy.maxMembers() == 50;
+            if (target == null && mapping == null && direct == null && policy == null) {
                 conversationsToInsert.add(planned);
                 mappingsToInsert.add(planned);
-            } else if (target != null && target.matches(planned) && directMatches) {
+            } else if (target != null && target.matches(planned)
+                    && directMatches && (policyMatches || policyCanMigrate)) {
+                if (!policyMatches) policiesToUpdate.add(planned);
                 if (mapping == null) {
                     mappingsToInsert.add(planned);
                     alreadyConversations++;
@@ -133,6 +145,10 @@ public final class PostgresV1ConversationImporter {
                     issues.add(issue(planned, "TARGET_CONVERSATION_MAPPING_CONFLICT",
                             "target V1 conversation mapping differs from plan"));
                 }
+            } else if (target != null && target.matches(planned)
+                    && directMatches && !policyMatches) {
+                issues.add(issue(planned, "TARGET_GROUP_POLICY_CONFLICT",
+                        "target group admission policy differs from plan"));
             } else {
                 issues.add(issue(planned, "TARGET_CONVERSATION_CONFLICT",
                         "target conversation differs from planned V1 conversation"));
@@ -170,6 +186,7 @@ public final class PostgresV1ConversationImporter {
                 List.copyOf(conversationsToInsert),
                 List.copyOf(mappingsToInsert),
                 List.copyOf(membershipsToInsert),
+                List.copyOf(policiesToUpdate),
                 alreadyConversations,
                 alreadyMemberships,
                 List.copyOf(issues));
@@ -274,6 +291,26 @@ public final class PostgresV1ConversationImporter {
         return result;
     }
 
+    private static Map<UUID, TargetGroupPolicy> readGroupPolicies(
+            Connection connection, Set<UUID> ids) throws SQLException {
+        Map<UUID, TargetGroupPolicy> result = new HashMap<>();
+        if (ids.isEmpty()) return result;
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT conversation_id, max_members
+                FROM chat.group_admission_policy WHERE conversation_id = ANY (?)
+                """)) {
+            statement.setArray(1, connection.createArrayOf("uuid", ids.toArray()));
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    UUID conversationId = rows.getObject("conversation_id", UUID.class);
+                    result.put(conversationId, new TargetGroupPolicy(
+                            conversationId, rows.getInt("max_members")));
+                }
+            }
+        }
+        return result;
+    }
+
     private static Map<MemberKey, TargetMember> readMembers(
             Connection connection, Set<UUID> ids) throws SQLException {
         Map<MemberKey, TargetMember> result = new HashMap<>();
@@ -337,13 +374,14 @@ public final class PostgresV1ConversationImporter {
             requireBatch(statement.executeBatch(), "conversation");
         }
         try (PreparedStatement statement = connection.prepareStatement("""
-                INSERT INTO chat.group_admission_policy(conversation_id)
-                VALUES (?)
+                INSERT INTO chat.group_admission_policy(conversation_id, max_members)
+                VALUES (?, ?)
                 """)) {
             int expected = 0;
             for (PlannedV1Conversation value : planned) {
                 if (value.legacyKind() != LegacyV1ConversationKind.ROOM) continue;
                 statement.setObject(1, value.conversationId());
+                statement.setInt(2, value.maxMembers());
                 statement.addBatch();
                 expected++;
             }
@@ -368,6 +406,23 @@ public final class PostgresV1ConversationImporter {
                 expected++;
             }
             requireBatch(statement.executeBatch(), "direct conversation", expected);
+        }
+    }
+
+    private static void updateAdmissionPolicies(Connection connection,
+            List<PlannedV1Conversation> planned) throws SQLException {
+        if (planned.isEmpty()) return;
+        try (PreparedStatement statement = connection.prepareStatement("""
+                UPDATE chat.group_admission_policy
+                SET max_members = ?, updated_at = transaction_timestamp()
+                WHERE conversation_id = ? AND max_members = 50
+                """)) {
+            for (PlannedV1Conversation value : planned) {
+                statement.setInt(1, value.maxMembers());
+                statement.setObject(2, value.conversationId());
+                statement.addBatch();
+            }
+            requireBatch(statement.executeBatch(), "group admission policy update");
         }
     }
 
@@ -440,7 +495,8 @@ public final class PostgresV1ConversationImporter {
         try (PreparedStatement statement = connection.prepareStatement(
                 "LOCK TABLE chat.account, chat.conversation, chat.direct_conversation, "
                         + "chat.conversation_member, chat.legacy_v1_conversation_map, "
-                        + "chat.conversation_import_run IN SHARE ROW EXCLUSIVE MODE")) {
+                        + "chat.group_admission_policy, chat.conversation_import_run "
+                        + "IN SHARE ROW EXCLUSIVE MODE")) {
             statement.execute();
         }
     }
@@ -480,6 +536,7 @@ public final class PostgresV1ConversationImporter {
             List<PlannedV1Conversation> conversationsToInsert,
             List<PlannedV1Conversation> mappingsToInsert,
             List<PlannedV1ConversationMember> membershipsToInsert,
+            List<PlannedV1Conversation> policiesToUpdate,
             int alreadyConversations,
             int alreadyMemberships,
             List<V1ConversationImportIssue> issues) {
@@ -487,6 +544,7 @@ public final class PostgresV1ConversationImporter {
         boolean fullyReconciled(V1ConversationImportPlan plan) {
             return ready() && conversationsToInsert.isEmpty()
                     && mappingsToInsert.isEmpty() && membershipsToInsert.isEmpty()
+                    && policiesToUpdate.isEmpty()
                     && alreadyConversations == plan.conversations().size()
                     && alreadyMemberships == plan.memberships().size();
         }
@@ -496,6 +554,7 @@ public final class PostgresV1ConversationImporter {
                     plan.sourceFingerprintSha256(), plan.conversations().size(),
                     plan.memberships().size(), conversationsToInsert.size(),
                     alreadyConversations, membershipsToInsert.size(), alreadyMemberships,
+                    policiesToUpdate.size(),
                     issues, applied, applied, runId);
         }
     }
@@ -521,6 +580,12 @@ public final class PostgresV1ConversationImporter {
         boolean matches(PlannedV1Conversation value) {
             return conversationId.equals(value.conversationId())
                     && first.equals(value.firstAccountId()) && second.equals(value.secondAccountId());
+        }
+    }
+    private record TargetGroupPolicy(UUID conversationId, int maxMembers) {
+        boolean matches(PlannedV1Conversation value) {
+            return conversationId.equals(value.conversationId())
+                    && value.maxMembers() != null && maxMembers == value.maxMembers();
         }
     }
     private record MemberKey(UUID conversationId, UUID accountId) {}

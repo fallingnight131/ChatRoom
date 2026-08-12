@@ -57,6 +57,7 @@ public final class V1ConversationImportPlanner {
                     room.legacyRoomId(),
                     conversationId,
                     room.name(),
+                    room.maxMembers(),
                     null,
                     null,
                     room.createdAt()));
@@ -108,6 +109,7 @@ public final class V1ConversationImportPlanner {
                     LegacyV1ConversationKind.FRIENDSHIP,
                     friendship.legacyFriendshipId(),
                     conversationId,
+                    null,
                     null,
                     canonicalFirst,
                     canonicalSecond,
@@ -176,6 +178,11 @@ public final class V1ConversationImportPlanner {
         if (room.createdAt() == null) {
             issues.add(issue(LegacyV1ConversationKind.ROOM, id,
                     "INVALID_ROOM_CREATED_AT", "room creation timestamp is required"));
+        }
+        if (room.maxMembers() < 1 || room.maxMembers() > 1_000_000) {
+            issues.add(issue(LegacyV1ConversationKind.ROOM, id,
+                    "INVALID_ROOM_MEMBER_LIMIT",
+                    "room member limit must be between 1 and 1000000"));
         }
         Set<Long> memberIds = new HashSet<>();
         for (V1RoomMembershipRow member : members) {
@@ -294,6 +301,7 @@ public final class V1ConversationImportPlanner {
                 data.writeLong(row.legacyRoomId());
                 writeNullable(data, row.name());
                 data.writeLong(row.creatorUserId());
+                data.writeInt(row.maxMembers());
                 writeNullable(data, row.createdAt() == null ? null : row.createdAt().toString());
             }
             data.writeInt(memberships.size());

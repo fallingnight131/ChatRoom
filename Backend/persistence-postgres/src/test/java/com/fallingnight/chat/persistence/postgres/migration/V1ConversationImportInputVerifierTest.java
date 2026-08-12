@@ -70,6 +70,8 @@ class V1ConversationImportInputVerifierTest {
                     + "creator_id INTEGER, created_at TEXT)");
             statement.execute("CREATE TABLE room_members(room_id INTEGER, user_id INTEGER, "
                     + "joined_at TEXT, last_read_msg_id INTEGER, PRIMARY KEY(room_id, user_id))");
+            statement.execute("CREATE TABLE room_settings(room_id INTEGER PRIMARY KEY, "
+                    + "max_members INTEGER)");
             statement.execute("CREATE TABLE room_admins(room_id INTEGER, user_id INTEGER, "
                     + "PRIMARY KEY(room_id, user_id))");
             statement.execute("CREATE TABLE friendships(id INTEGER PRIMARY KEY, user_id1 INTEGER, "
@@ -82,6 +84,7 @@ class V1ConversationImportInputVerifierTest {
                     + "', 'salt-b', '2026-01-02 03:04:06')");
             statement.execute("INSERT INTO rooms VALUES "
                     + "(10, 'Room', 1, '2026-01-02 03:04:05')");
+            statement.execute("INSERT INTO room_settings VALUES (10, 91)");
             statement.execute("INSERT INTO room_members VALUES "
                     + "(10, 1, '2026-01-02 03:04:05', 0)");
             statement.execute("INSERT INTO friendships VALUES "

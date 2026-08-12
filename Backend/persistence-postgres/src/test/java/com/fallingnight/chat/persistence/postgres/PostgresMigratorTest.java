@@ -141,7 +141,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(24, first.migrate());
+        assertEquals(25, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -439,15 +439,46 @@ class PostgresMigratorTest {
                 + "JOIN chat.legacy_v1_conversation_map mapping "
                 + "ON mapping.conversation_id = policy.conversation_id "
                 + "WHERE mapping.legacy_kind = 'ROOM' "
-                + "AND mapping.legacy_conversation_id = 10 AND policy.max_members = 50"));
+                + "AND mapping.legacy_conversation_id = 10 AND policy.max_members = 137"));
         assertEquals(1, count("SELECT count(*) FROM chat.conversation_import_run"));
+
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.group_admission_policy SET max_members = 50 "
+                    + "WHERE conversation_id = ?",
+                    V1ConversationImportPlanner.deterministicRoomId(10));
+        }
+        V1ConversationImportReport policyPreview = importer.preview(input.plan());
+        assertTrue(policyPreview.readyToApply());
+        assertEquals(1, policyPreview.admissionPoliciesToUpdate());
+        V1ConversationImportReport policyMigration = importer.apply(input);
+        assertEquals(1, policyMigration.admissionPoliciesToUpdate());
+        assertEquals(1, count("SELECT count(*) FROM chat.group_admission_policy policy "
+                + "WHERE policy.conversation_id = '"
+                + V1ConversationImportPlanner.deterministicRoomId(10)
+                + "' AND policy.max_members = 137"));
 
         V1ConversationImportReport rerun = importer.apply(input);
         assertEquals(0, rerun.insertableConversations());
         assertEquals(2, rerun.alreadyImportedConversations());
         assertEquals(0, rerun.insertableMemberships());
         assertEquals(4, rerun.alreadyImportedMemberships());
-        assertEquals(2, count("SELECT count(*) FROM chat.conversation_import_run"));
+        assertEquals(0, rerun.admissionPoliciesToUpdate());
+        assertEquals(3, count("SELECT count(*) FROM chat.conversation_import_run"));
+
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.group_admission_policy SET max_members = 138 "
+                    + "WHERE conversation_id = ?",
+                    V1ConversationImportPlanner.deterministicRoomId(10));
+        }
+        V1ConversationImportReport policyConflict = importer.preview(input.plan());
+        assertTrue(policyConflict.issues().stream().anyMatch(
+                issue -> "TARGET_GROUP_POLICY_CONFLICT".equals(issue.code())));
+        assertThrows(V1ConversationImportException.class, () -> importer.apply(input));
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.group_admission_policy SET max_members = 137 "
+                    + "WHERE conversation_id = ?",
+                    V1ConversationImportPlanner.deterministicRoomId(10));
+        }
 
         try (Connection connection = connect()) {
             execute(connection,
@@ -461,7 +492,7 @@ class PostgresMigratorTest {
         assertTrue(conflict.issues().stream().anyMatch(
                 issue -> "TARGET_MEMBERSHIP_CONFLICT".equals(issue.code())));
         assertThrows(V1ConversationImportException.class, () -> importer.apply(input));
-        assertEquals(2, count("SELECT count(*) FROM chat.conversation_import_run"));
+        assertEquals(3, count("SELECT count(*) FROM chat.conversation_import_run"));
 
         try (Connection connection = connect()) {
             execute(connection,
@@ -478,7 +509,7 @@ class PostgresMigratorTest {
         assertTrue(mappingConflict.issues().stream().anyMatch(
                 issue -> "TARGET_CONVERSATION_MAPPING_CONFLICT".equals(issue.code())));
         assertThrows(V1ConversationImportException.class, () -> importer.apply(input));
-        assertEquals(2, count("SELECT count(*) FROM chat.conversation_import_run"));
+        assertEquals(3, count("SELECT count(*) FROM chat.conversation_import_run"));
     }
 
     @Test
@@ -1012,6 +1043,10 @@ class PostgresMigratorTest {
                     "UPDATE chat.group_admission_policy SET max_members = 0 "
                             + "WHERE conversation_id = ?", created.conversationId()));
             assertEquals("23514", invalidLimit.getSQLState());
+            SQLException excessiveLimit = assertThrows(SQLException.class, () -> execute(connection,
+                    "UPDATE chat.group_admission_policy SET max_members = 1000001 "
+                            + "WHERE conversation_id = ?", created.conversationId()));
+            assertEquals("23514", excessiveLimit.getSQLState());
         }
         assertEquals(LegacyV1RoomJoinResult.Rejected.ACCESS_CHANGED,
                 adapter.join(new LegacyV1RoomJoinIntent(rejectedActor, created.conversationId(),
@@ -3037,6 +3072,8 @@ class PostgresMigratorTest {
                     + "creator_id INTEGER, created_at TEXT)");
             statement.execute("CREATE TABLE room_members(room_id INTEGER, user_id INTEGER, "
                     + "joined_at TEXT, last_read_msg_id INTEGER, PRIMARY KEY(room_id, user_id))");
+            statement.execute("CREATE TABLE room_settings(room_id INTEGER PRIMARY KEY, "
+                    + "max_members INTEGER)");
             statement.execute("CREATE TABLE room_admins(room_id INTEGER, user_id INTEGER, "
                     + "PRIMARY KEY(room_id, user_id))");
             statement.execute("CREATE TABLE friendships(id INTEGER PRIMARY KEY, user_id1 INTEGER, "
@@ -3049,6 +3086,7 @@ class PostgresMigratorTest {
                     + "', 'salt-b', '2026-01-02 03:04:06')");
             statement.execute("INSERT INTO rooms VALUES "
                     + "(10, 'Imported Room', 1, '2026-01-02 03:04:05')");
+            statement.execute("INSERT INTO room_settings VALUES (10, 137)");
             statement.execute("INSERT INTO room_members VALUES "
                     + "(10, 1, '2026-01-02 03:04:05', 0), "
                     + "(10, 2, '2026-01-02 03:04:06', 7)");
@@ -3090,6 +3128,8 @@ class PostgresMigratorTest {
                     + "creator_id INTEGER, created_at TEXT)");
             statement.execute("CREATE TABLE room_members(room_id INTEGER, user_id INTEGER, "
                     + "joined_at TEXT, last_read_msg_id INTEGER)");
+            statement.execute("CREATE TABLE room_settings(room_id INTEGER PRIMARY KEY, "
+                    + "max_members INTEGER)");
             statement.execute("CREATE TABLE room_admins(room_id INTEGER, user_id INTEGER)");
             statement.execute("CREATE TABLE friendships(id INTEGER PRIMARY KEY, user_id1 INTEGER, "
                     + "user_id2 INTEGER, created_at TEXT, user1_last_read_msg_id INTEGER, "
@@ -3116,6 +3156,7 @@ class PostgresMigratorTest {
             statement.execute("INSERT INTO users VALUES (1)");
             statement.execute("INSERT INTO rooms VALUES "
                     + "(77, 'Room', 1, '2026-01-02 03:04:05')");
+            statement.execute("INSERT INTO room_settings VALUES (77, 50)");
             statement.execute("INSERT INTO room_members VALUES "
                     + "(77, 1, '2026-01-02 03:04:05', 101)");
             statement.execute("INSERT INTO messages VALUES "

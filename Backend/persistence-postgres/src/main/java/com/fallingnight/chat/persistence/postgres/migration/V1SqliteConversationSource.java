@@ -25,6 +25,7 @@ public final class V1SqliteConversationSource {
     private static final Map<String, Set<String>> REQUIRED_COLUMNS = Map.of(
             "users", Set.of("id"),
             "rooms", Set.of("id", "name", "creator_id", "created_at"),
+            "room_settings", Set.of("room_id", "max_members"),
             "room_members", Set.of(
                     "room_id", "user_id", "joined_at", "last_read_msg_id"),
             "room_admins", Set.of("room_id", "user_id"),
@@ -115,12 +116,16 @@ public final class V1SqliteConversationSource {
         List<V1RoomRow> rooms = new ArrayList<>();
         try (Statement statement = connection.createStatement();
                 ResultSet result = statement.executeQuery(
-                        "SELECT id, name, creator_id, created_at FROM rooms ORDER BY id")) {
+                        "SELECT rooms.id, rooms.name, rooms.creator_id, rooms.created_at, "
+                                + "COALESCE(settings.max_members, 50) AS max_members "
+                                + "FROM rooms LEFT JOIN room_settings settings "
+                                + "ON settings.room_id = rooms.id ORDER BY rooms.id")) {
             while (result.next()) {
                 rooms.add(new V1RoomRow(
                         result.getLong("id"),
                         result.getString("name"),
                         result.getLong("creator_id"),
+                        result.getInt("max_members"),
                         parseTimestamp(result.getString("created_at"))));
             }
         }

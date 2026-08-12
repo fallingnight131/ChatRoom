@@ -422,6 +422,7 @@ public final class IdentityMigrationMain {
         output.println("source_memberships=" + report.sourceMemberships());
         output.println("insertable_conversations=" + report.insertableConversations());
         output.println("already_imported_conversations=" + report.alreadyImportedConversations());
+        output.println("admission_policies_to_update=" + report.admissionPoliciesToUpdate());
         output.println("insertable_memberships=" + report.insertableMemberships());
         output.println("already_imported_memberships=" + report.alreadyImportedMemberships());
         output.println("issues=" + report.issues().size());

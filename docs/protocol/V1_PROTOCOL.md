@@ -263,8 +263,12 @@ member limit. The adapter locks that policy and rechecks enabled mapped account,
 GROUP/ROOM target, credential snapshot, active membership, and capacity before
 inserting or reactivating one member. Concurrent last-place attempts admit only
 one account. Success will preserve `roomId`, `roomName`, `isAdmin`, and
-`newJoin`; UUIDs and password hashes remain internal. Custom imported V1 room
-limits still need verified-source migration, so no handler exists yet.
+`newJoin`; UUIDs and password hashes remain internal. Custom V1
+`room_settings.max_members` is now required in the physically verified SQLite
+schema, bound into the import fingerprint, validated from 1 through 1000000,
+and exactly reconciled into the GROUP policy. A V024 default may change only by
+counted compare-and-set from 50; any other mismatch blocks import. No handler
+exists yet.
 
 ### Room chat
 

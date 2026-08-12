@@ -11,6 +11,7 @@ public record PlannedV1Conversation(
         long legacyId,
         UUID conversationId,
         String groupTitle,
+        Integer maxMembers,
         UUID firstAccountId,
         UUID secondAccountId,
         Instant createdAt) {
@@ -20,11 +21,15 @@ public record PlannedV1Conversation(
         Objects.requireNonNull(createdAt, "createdAt");
         if (legacyKind == LegacyV1ConversationKind.ROOM) {
             Objects.requireNonNull(groupTitle, "groupTitle");
+            Objects.requireNonNull(maxMembers, "maxMembers");
+            if (maxMembers < 1 || maxMembers > 1_000_000) {
+                throw new IllegalArgumentException("room member limit is unsupported");
+            }
             if (firstAccountId != null || secondAccountId != null) {
                 throw new IllegalArgumentException("room cannot carry direct pair");
             }
         } else {
-            if (groupTitle != null) {
+            if (groupTitle != null || maxMembers != null) {
                 throw new IllegalArgumentException("friendship cannot carry group title");
             }
             Objects.requireNonNull(firstAccountId, "firstAccountId");

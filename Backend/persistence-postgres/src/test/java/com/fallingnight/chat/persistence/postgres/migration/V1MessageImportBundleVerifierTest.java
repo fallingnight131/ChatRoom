@@ -47,7 +47,7 @@ class V1MessageImportBundleVerifierTest {
         V1ConversationImportPlan conversations = new V1ConversationImportPlanner().plan(
                 new V1ConversationSourceSnapshot(
                         Set.of(1L),
-                        List.of(new V1RoomRow(9, "Room", 1, CREATED)),
+                        List.of(new V1RoomRow(9, "Room", 1, 50, CREATED)),
                         List.of(new V1RoomMembershipRow(9, 1, CREATED, 100)),
                         Set.of(),
                         List.of()));

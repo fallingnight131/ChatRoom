@@ -18,7 +18,7 @@ class V1ConversationImportPlannerTest {
     void plansCanonicalRoomsRolesAndDirectPairsDeterministically() {
         V1ConversationSourceSnapshot source = new V1ConversationSourceSnapshot(
                 Set.of(1L, 2L, 3L),
-                List.of(new V1RoomRow(9, "Project Room", 2, CREATED)),
+                List.of(new V1RoomRow(9, "Project Room", 2, 73, CREATED)),
                 List.of(
                         new V1RoomMembershipRow(9, 3, CREATED.plusSeconds(2), 11),
                         new V1RoomMembershipRow(9, 1, CREATED.plusSeconds(1), 0),
@@ -40,6 +40,16 @@ class V1ConversationImportPlannerTest {
         assertEquals(2, first.conversations().size());
         assertEquals(5, first.memberships().size());
         assertEquals(64, first.sourceFingerprintSha256().length());
+        assertEquals(73, first.conversations().stream()
+                .filter(value -> value.legacyKind() == LegacyV1ConversationKind.ROOM)
+                .findFirst().orElseThrow().maxMembers());
+        V1ConversationImportPlan changedLimit = new V1ConversationImportPlanner().plan(
+                new V1ConversationSourceSnapshot(source.legacyUserIds(),
+                        List.of(new V1RoomRow(9, "Project Room", 2, 74, CREATED)),
+                        source.roomMemberships(), source.roomAdministrators(),
+                        source.friendships()));
+        assertNotEquals(first.sourceFingerprintSha256(),
+                changedLimit.sourceFingerprintSha256());
 
         PlannedV1Conversation friendship = first.conversations().stream()
                 .filter(value -> value.legacyKind() == LegacyV1ConversationKind.FRIENDSHIP)
@@ -66,7 +76,7 @@ class V1ConversationImportPlannerTest {
     void preservesSelfFriendshipWhileBlockingInvalidRoomGraphWithoutLeakingNames() {
         V1ConversationSourceSnapshot source = new V1ConversationSourceSnapshot(
                 Set.of(1L, 2L),
-                List.of(new V1RoomRow(3, "private-room-name", 1, CREATED)),
+                List.of(new V1RoomRow(3, "private-room-name", 1, 0, CREATED)),
                 List.of(
                         new V1RoomMembershipRow(3, 2, CREATED, -1),
                         new V1RoomMembershipRow(99, 1, CREATED, 0)),
@@ -83,6 +93,7 @@ class V1ConversationImportPlannerTest {
         assertTrue(codes.contains("INVALID_ROOM_READ_POINTER"));
         assertTrue(codes.contains("DANGLING_ROOM_MEMBERSHIP"));
         assertTrue(codes.contains("DANGLING_ROOM_ADMIN"));
+        assertTrue(codes.contains("INVALID_ROOM_MEMBER_LIMIT"));
         assertFalse(codes.contains("SELF_FRIENDSHIP_UNSUPPORTED"));
         assertFalse(plan.issues().toString().contains("private-room-name"));
         assertEquals(1, plan.conversations().size());

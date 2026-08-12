@@ -152,7 +152,7 @@ class V1MessageStateImportPlannerTest {
     private static V1ConversationImportPlan conversationPlan() {
         return new V1ConversationImportPlanner().plan(new V1ConversationSourceSnapshot(
                 Set.of(1L, 2L, 3L),
-                List.of(new V1RoomRow(9, "Room", 1, CREATED)),
+                List.of(new V1RoomRow(9, "Room", 1, 50, CREATED)),
                 List.of(
                         new V1RoomMembershipRow(9, 1, CREATED, 100),
                         new V1RoomMembershipRow(9, 2, CREATED, 999),
