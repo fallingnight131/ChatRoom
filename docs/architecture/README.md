@@ -335,6 +335,10 @@ for this boundary yet.
 V019 reserves runtime V1 friend-message IDs downward from signed 32-bit maximum.
 Imports keep their historical positive IDs; future writes must skip occupied
 `FRIENDSHIP` values and commit the mapping atomically with the canonical message.
+The PostgreSQL direct-message adapter now performs that complete transaction
+after validating the authenticated device and both active memberships. Exact
+retry recovers the original mapped result; conflicting reuse, missing mapping,
+and relationship removal fail closed. No V1 message handler exists yet.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,

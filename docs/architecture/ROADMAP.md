@@ -483,6 +483,8 @@ Progress:
     canonical/V1 identity, retry semantics, and first-accept-only fan-out intent.
   - [x] Add a descending signed-32-bit runtime V1 friend-message ID allocator
     while retaining imported IDs and requiring transactional collision checks.
+  - [x] Implement atomic PostgreSQL V1 direct text/emoji submission with active
+    relationship authorization, canonical/V1 mapping, and exact retry recovery.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

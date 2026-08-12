@@ -259,7 +259,9 @@ username is resolved server-side. PostgreSQL must atomically create the
 canonical message plus its positive 32-bit V1 message mapping before the
 compatible ACK can succeed. Exact retry must return the same friendship/message
 IDs, sequence, and timestamp with `duplicate=true`; only first acceptance may
-later emit `FRIEND_CHAT_MSG`. No adapter or handler exists yet.
+later emit `FRIEND_CHAT_MSG`. The PostgreSQL adapter now performs the canonical
+message and V1 mapping write atomically after active relationship/device checks;
+no handler exists yet.
 
 ### History
 

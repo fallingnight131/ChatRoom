@@ -27,6 +27,8 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestR
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestAcceptanceResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestCreationResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRemovalResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectMessageCommand;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectMessageResult;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -858,6 +860,92 @@ class PostgresMigratorTest {
                 () -> adapter.remove(actor, "remove-peer"));
         assertEquals(1, count("SELECT count(*) FROM chat.conversation_member "
                 + "WHERE conversation_id = '" + conversation + "' AND left_at IS NULL"));
+    }
+
+    @Test
+    @Order(95)
+    void submitsMappedV1DirectMessagesIdempotently() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID sender = UUID.randomUUID();
+        UUID target = UUID.randomUUID();
+        UUID outsider = UUID.randomUUID();
+        UUID device = UUID.randomUUID();
+        UUID outsiderDevice = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        UUID first = sender.toString().compareTo(target.toString()) < 0 ? sender : target;
+        UUID second = first.equals(sender) ? target : sender;
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'message-sender', 'Sender', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'message-target', 'Target', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'message-outsider', 'Outsider', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    sender, target, outsider);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                            + "VALUES (1, ?), (2, ?), (3, ?)", sender, target, outsider);
+            execute(connection,
+                    "INSERT INTO chat.device(id, account_id, client_device_id, platform) "
+                            + "VALUES (?, ?, 'message-device', 'LEGACY'), "
+                            + "(?, ?, 'outsider-device', 'LEGACY')",
+                    device, sender, outsiderDevice, outsider);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')", conversation);
+            execute(connection,
+                    "INSERT INTO chat.direct_conversation VALUES (?, ?, ?)",
+                    conversation, first, second);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id) "
+                            + "VALUES (?, ?), (?, ?)",
+                    conversation, sender, conversation, target);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map(legacy_kind, "
+                            + "legacy_conversation_id, conversation_id) "
+                            + "VALUES ('FRIENDSHIP', 99, ?)", conversation);
+        }
+
+        PostgresLegacyV1DirectMessageAdapter adapter =
+                new PostgresLegacyV1DirectMessageAdapter(dataSource());
+        LegacyV1DirectMessageCommand command = new LegacyV1DirectMessageCommand(
+                sender, device, "message-target", "client-v1-1", "hello", "text");
+        LegacyV1DirectMessageResult.Accepted firstResult =
+                (LegacyV1DirectMessageResult.Accepted) adapter.submit(command);
+        LegacyV1DirectMessageResult.Accepted duplicate =
+                (LegacyV1DirectMessageResult.Accepted) adapter.submit(command);
+        assertFalse(firstResult.duplicate());
+        assertTrue(duplicate.duplicate());
+        assertEquals(firstResult.legacyFriendshipId(), duplicate.legacyFriendshipId());
+        assertEquals(firstResult.legacyMessageId(), duplicate.legacyMessageId());
+        assertEquals(firstResult.sequence(), duplicate.sequence());
+        assertEquals(firstResult.acceptedAt(), duplicate.acceptedAt());
+        assertEquals(target, firstResult.targetAccountId());
+        assertEquals(99, firstResult.legacyFriendshipId());
+        assertEquals(LegacyV1DirectMessageResult.Rejected.CLIENT_MESSAGE_ID_CONFLICT,
+                adapter.submit(new LegacyV1DirectMessageCommand(sender, device,
+                        "message-target", "client-v1-1", "changed", "text")));
+        assertEquals(LegacyV1DirectMessageResult.Rejected.FRIENDSHIP_ACCESS_DENIED,
+                adapter.submit(new LegacyV1DirectMessageCommand(outsider, outsiderDevice,
+                        "message-target", "client-v1-2", "hello", "text")));
+        assertEquals(1, count("SELECT count(*) FROM chat.message WHERE conversation_id = '"
+                + conversation + "' AND client_message_id = 'client-v1-1'"));
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_message_map "
+                + "WHERE legacy_kind = 'FRIENDSHIP' AND legacy_conversation_id = 99 "
+                + "AND legacy_message_id = " + firstResult.legacyMessageId()));
+        assertEquals(2, count("SELECT next_sequence FROM chat.conversation WHERE id = '"
+                + conversation + "'"));
+
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.conversation_member "
+                    + "SET left_at = transaction_timestamp() WHERE conversation_id = ?",
+                    conversation);
+        }
+        assertEquals(LegacyV1DirectMessageResult.Rejected.FRIENDSHIP_ACCESS_DENIED,
+                adapter.submit(new LegacyV1DirectMessageCommand(sender, device,
+                        "message-target", "client-v1-3", "after removal", "text")));
     }
 
     @Test
