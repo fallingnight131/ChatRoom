@@ -696,6 +696,19 @@ This is a rollout halt, not an automatic client downgrade. Devices that already
 accepted B's higher manifest sequence reject old A and remain on B until a newly
 signed, higher-sequence forward corrective release. See ADR-0183.
 
+After A is restored, run the HTTPS probe against A and bind its new observation
+with `tools/windows_update_rollback_completion.py record`. A manifest SHA,
+sequence, version, and revision must match rollback evidence, and observation
+must complete within ten minutes by default. The result is
+`production-update-rollout-halt-observed`:
+
+```bash
+python3 Tests/windows_update_rollback_completion_test.py
+```
+
+This proves the restored channel bytes at one instant, not downgrade of clients
+already on B or global continuous availability. See ADR-0184.
+
 The provider-neutral post-signing acceptance policy is checked with:
 
 ```bash

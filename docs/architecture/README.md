@@ -1154,6 +1154,12 @@ reactivates failed B. This stops new exposure but intentionally does not bypass
 client replay watermarks or installer downgrade protection; devices already on
 B need a forward corrective release with a higher signed sequence/version.
 
+ADR-0184 closes the incident's point-in-time delivery evidence. A second strict
+HTTPS observation must identify restored A and occur within a bounded window
+after rollback; completion binds both records by SHA-256 and exact release
+identity. It proves that further rollout was halted at the observed endpoint,
+not that B devices downgraded or every CDN region converged continuously.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

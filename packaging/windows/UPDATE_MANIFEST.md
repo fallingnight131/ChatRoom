@@ -244,3 +244,8 @@ consumption precedes the B→A switch. This stops further rollout; anti-replay
 means clients that already accepted B will not accept A's lower sequence or
 downgrade. Those clients require a forward corrective build with a newly signed
 higher manifest sequence.
+
+The rollout halt completes only after a new strict HTTPS observation identifies
+restored A and `windows_update_rollback_completion.py` binds it to the rollback
+execution within ten minutes. The record proves client-visible A bytes at that
+instant while preserving the requirement for a forward fix for B devices.

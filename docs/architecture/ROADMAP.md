@@ -586,6 +586,8 @@ Progress:
 - [x] Derive a one-time B-to-A rollout halt from completion evidence, require a
   still-valid retained A manifest, and never reactivate failed B after an
   evidence-write failure; affected B clients use a forward corrective release.
+- [x] Bind a matching post-rollback HTTPS observation of restored A into
+  bounded immutable rollout-halt completion evidence.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.
