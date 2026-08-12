@@ -51,15 +51,19 @@ public final class V1SqliteConversationSource {
             configureReadOnly(connection);
             requireHealthyDatabase(connection);
             requireCurrentSchema(connection);
-            return planner.plan(new V1ConversationSourceSnapshot(
-                    readUserIds(connection),
-                    readRooms(connection),
-                    readMemberships(connection),
-                    readAdministrators(connection),
-                    readFriendships(connection)));
+            return readPlan(connection);
         } catch (SQLException exception) {
             throw new V1ConversationSourceException("V1 conversation source read failed", exception);
         }
+    }
+
+    V1ConversationImportPlan readPlan(Connection connection) throws SQLException {
+        return planner.plan(new V1ConversationSourceSnapshot(
+                readUserIds(connection),
+                readRooms(connection),
+                readMemberships(connection),
+                readAdministrators(connection),
+                readFriendships(connection)));
     }
 
     private static void configureReadOnly(Connection connection) throws SQLException {

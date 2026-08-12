@@ -60,5 +60,10 @@ message IDs, sequence gaps, recalls, physical deletion events, missing
 watermarks, and cursor collisions. The plan must be independent of SQLite row
 iteration order.
 
+The implemented source reader requires the complete migrated cursor schema,
+runs SQLite `quick_check`, enables `query_only`, and reads conversation and
+message state inside one transaction snapshot. It reads no message body, file
+payload, credential, or deletion-command JSON in this planning phase.
+
 This slice is read-only planning code. Rollback removes the planner and leaves
 both V1 and V2 durable state unchanged.
