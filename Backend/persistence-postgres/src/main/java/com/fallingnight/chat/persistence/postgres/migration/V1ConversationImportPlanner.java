@@ -118,12 +118,14 @@ public final class V1ConversationImportPlanner {
                     "MEMBER",
                     friendship.createdAt(),
                     friendship.firstLastReadMessageId()));
-            plannedMembers.add(new PlannedV1ConversationMember(
-                    conversationId,
-                    second,
-                    "MEMBER",
-                    friendship.createdAt(),
-                    friendship.secondLastReadMessageId()));
+            if (!first.equals(second)) {
+                plannedMembers.add(new PlannedV1ConversationMember(
+                        conversationId,
+                        second,
+                        "MEMBER",
+                        friendship.createdAt(),
+                        friendship.secondLastReadMessageId()));
+            }
         }
 
         planned.sort(Comparator.comparing(PlannedV1Conversation::legacyKind)
@@ -218,11 +220,6 @@ public final class V1ConversationImportPlanner {
         } else if (!ids.add(id)) {
             issues.add(issue(LegacyV1ConversationKind.FRIENDSHIP, id,
                     "DUPLICATE_FRIENDSHIP_ID", "legacy friendship id is duplicated"));
-        }
-        if (friendship.firstUserId() == friendship.secondUserId()) {
-            issues.add(issue(LegacyV1ConversationKind.FRIENDSHIP, id,
-                    "SELF_FRIENDSHIP_UNSUPPORTED",
-                    "self friendship requires an explicit target representation"));
         }
         if (!users.contains(friendship.firstUserId())
                 || !users.contains(friendship.secondUserId())) {

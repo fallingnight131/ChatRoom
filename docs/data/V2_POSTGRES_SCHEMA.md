@@ -84,9 +84,10 @@ friendship number. A generated target kind plus composite foreign key requires
 `ROOM -> GROUP` and `FRIENDSHIP -> DIRECT`, while a unique target prevents two
 V1 identities from pointing to one V2 conversation. This migration creates only
 the constrained projection; verified room, membership, friendship, message, and
-read-cursor import remains a later step. V1 self-friendship rows are an explicit
-unresolved import case because the current V2 direct pair requires two distinct
-accounts.
+read-cursor import remains a later step. V016 permits an equal ordered account
+pair so the V1 server's durable self-chat friendship becomes a one-member DIRECT
+conversation. Pair uniqueness still permits only one self chat per account;
+ordinary two-account DIRECT conversations keep canonical ordering.
 The read-only application compatibility port keeps the namespace type alongside
 the numeric ID and supports both V1-to-V2 request translation and V2-to-V1 event
 projection. Its PostgreSQL adapter does not create mappings, infer identities,

@@ -199,6 +199,11 @@ runtime. The offline migration command now exposes explicit contact preview,
 final fingerprint verification, and apply for maintenance-window rehearsal; no
 runtime owner or product route exists.
 
+The verified conversation path also preserves V1 self chat. Because a legacy
+friend-list read creates a durable self friendship, V016 represents it as a
+one-member DIRECT conversation with an equal canonical account pair; ordinary
+direct pairs remain ordered and unique.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then

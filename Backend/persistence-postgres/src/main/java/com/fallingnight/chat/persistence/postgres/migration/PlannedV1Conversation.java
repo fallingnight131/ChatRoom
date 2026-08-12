@@ -29,8 +29,8 @@ public record PlannedV1Conversation(
             }
             Objects.requireNonNull(firstAccountId, "firstAccountId");
             Objects.requireNonNull(secondAccountId, "secondAccountId");
-            if (firstAccountId.toString().compareTo(secondAccountId.toString()) >= 0) {
-                throw new IllegalArgumentException("direct pair must be canonical and distinct");
+            if (firstAccountId.toString().compareTo(secondAccountId.toString()) > 0) {
+                throw new IllegalArgumentException("direct pair must be canonical");
             }
         }
     }

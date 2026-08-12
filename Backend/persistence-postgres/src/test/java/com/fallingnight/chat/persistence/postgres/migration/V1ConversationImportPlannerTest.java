@@ -63,7 +63,7 @@ class V1ConversationImportPlannerTest {
     }
 
     @Test
-    void blocksSelfFriendshipDanglingGraphAndInvalidReadStateWithoutLeakingNames() {
+    void preservesSelfFriendshipWhileBlockingInvalidRoomGraphWithoutLeakingNames() {
         V1ConversationSourceSnapshot source = new V1ConversationSourceSnapshot(
                 Set.of(1L, 2L),
                 List.of(new V1RoomRow(3, "private-room-name", 1, CREATED)),
@@ -83,9 +83,12 @@ class V1ConversationImportPlannerTest {
         assertTrue(codes.contains("INVALID_ROOM_READ_POINTER"));
         assertTrue(codes.contains("DANGLING_ROOM_MEMBERSHIP"));
         assertTrue(codes.contains("DANGLING_ROOM_ADMIN"));
-        assertTrue(codes.contains("SELF_FRIENDSHIP_UNSUPPORTED"));
+        assertFalse(codes.contains("SELF_FRIENDSHIP_UNSUPPORTED"));
         assertFalse(plan.issues().toString().contains("private-room-name"));
-        assertTrue(plan.conversations().isEmpty());
+        assertEquals(1, plan.conversations().size());
+        PlannedV1Conversation self = plan.conversations().getFirst();
+        assertEquals(self.firstAccountId(), self.secondAccountId());
+        assertEquals(1, plan.memberships().size());
     }
 
     @Test

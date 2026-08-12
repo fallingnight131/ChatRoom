@@ -432,6 +432,8 @@ Progress:
     preview/apply, exact reconciliation, conflict rollback, and idempotent rerun.
   - [x] Add offline contact preview/final-verify/apply commands with explicit
     fingerprint confirmation, safe output, and maintenance-window guidance.
+  - [x] Preserve V1 self-chat friendships as one-member DIRECT conversations
+    instead of blocking sources after the legacy friend-list side effect.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

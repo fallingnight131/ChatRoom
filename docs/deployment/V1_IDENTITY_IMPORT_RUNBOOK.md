@@ -218,9 +218,10 @@ conflict, unexpected target account, Flyway validation failure, partial
 operational evidence, or missed maintenance-window deadline. Do not edit the
 proof, delete target conflicts, or rerun with a different source merely to make
 the command pass. Preserve artifacts and investigate under a new reviewed plan.
-For conversation commands, also stop on self friendship, dangling/duplicate
-room graph, missing imported account, unexpected target membership, direct-pair
-collision, or any mapping/role/title/timestamp difference.
+For conversation commands, also stop on a dangling/duplicate room graph,
+missing imported account, unexpected target membership, direct-pair collision,
+or any mapping/role/title/timestamp difference. A V1 self friendship is expected
+and must reconcile as one self DIRECT conversation with one membership.
 For contact commands, also stop on a dangling/self request, invalid status/time,
 pending request for accepted friends, reverse duplicate pending pair, missing or
 disabled imported account, target request/pair collision, or mapping difference.

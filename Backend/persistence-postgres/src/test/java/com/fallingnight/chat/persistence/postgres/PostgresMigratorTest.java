@@ -113,7 +113,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(15, first.migrate());
+        assertEquals(16, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -134,6 +134,7 @@ class PostgresMigratorTest {
                             "contact_request_import_run"),
                     applicationTables(connection));
             proveSequenceAndIdempotencyConstraints(connection);
+            proveDirectSelfConversationConstraint(connection);
             proveMessageImportAuditConstraints(connection);
             proveAttachmentRegistryConstraints(connection);
             proveContactRequestConstraints(connection);
@@ -1231,6 +1232,32 @@ class PostgresMigratorTest {
                         + "legacy_request_id, contact_request_id) VALUES (0, ?)",
                 request));
         assertEquals("23514", invalidLegacyId.getSQLState());
+    }
+
+    private static void proveDirectSelfConversationConstraint(Connection connection)
+            throws SQLException {
+        UUID account = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        execute(connection,
+                "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                        + "VALUES (?, 'self-chat-user', 'Self Chat', "
+                        + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                account);
+        execute(connection,
+                "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')",
+                conversation);
+        execute(connection,
+                "INSERT INTO chat.direct_conversation("
+                        + "conversation_id, first_account_id, second_account_id) "
+                        + "VALUES (?, ?, ?)",
+                conversation, account, account);
+        SQLException duplicate = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "INSERT INTO chat.direct_conversation("
+                        + "conversation_id, first_account_id, second_account_id) "
+                        + "VALUES (?, ?, ?)",
+                conversation, account, account));
+        assertEquals("23505", duplicate.getSQLState());
     }
 
     private static void proveContactRequestImportAuditConstraints(Connection connection) {
