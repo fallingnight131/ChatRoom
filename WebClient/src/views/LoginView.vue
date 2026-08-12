@@ -9,7 +9,7 @@
 
       <div class="input-group">
         <label>用户ID (唯一标识)</label>
-        <input class="input" v-model="username" placeholder="输入唯一用户ID"
+        <input class="input" v-model="username" placeholder="输入唯一用户ID" autocomplete="username"
                @keyup.enter="isRegister ? null : doLogin()" />
       </div>
 
@@ -21,12 +21,14 @@
       <div class="input-group">
         <label>密码</label>
         <input class="input" v-model="password" type="password" placeholder="输入密码"
+               :autocomplete="isRegister ? 'new-password' : 'current-password'"
                @keyup.enter="isRegister ? doRegister() : doLogin()" />
       </div>
 
       <div class="input-group" v-if="isRegister">
         <label>确认密码</label>
         <input class="input" v-model="confirmPassword" type="password" placeholder="再次输入密码"
+               autocomplete="new-password"
                @keyup.enter="doRegister()" />
       </div>
 

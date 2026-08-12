@@ -8,6 +8,7 @@
     "build": "vite build",
     "test": "node --test tests/*.test.mjs && npm run test:v2",
     "test:v2": "tsc -p tsconfig.v2.json --noEmit && node --import tsx --test tests/*.test.ts",
+    "test:browser": "playwright test",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -18,6 +19,7 @@
     "vue-router": "^4.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.0",
     "@types/node": "22.20.1",
     "@vitejs/plugin-vue": "^5.0.0",
     "tsx": "4.23.12",

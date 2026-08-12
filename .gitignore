@@ -54,6 +54,8 @@ WebClient/node_modules/
 WebClient/dist/
 WebClient/.vite/
 WebClient/*.local
+WebClient/playwright-report/
+WebClient/test-results/
 Backend/protocol-v2/typescript/node_modules/
 Backend/protocol-v2/typescript/generated/
 

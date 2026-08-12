@@ -22,12 +22,14 @@ evidence, but it does not make that operating system a supported client.
 | Product | Committed target | Toolchain policy | Current evidence | M4 release gate |
 | --- | --- | --- | --- | --- |
 | Windows desktop | Windows 10/11, x86_64 | Qt 6.11.1, MSVC 2022, native Windows CI | unsigned, DLL-complete verification artifact | signed and timestamped `Setup.exe`, install/upgrade/uninstall checks, signed updater |
-| Web | Browser support policy to be pinned before public release | Node.js 22, lockfile, `npm ci`, production Vite build | versioned verification artifact with bound response-policy contract | observed HTTPS/CSP/cache behavior, browser matrix, health checks, rollback evidence |
+| Web | current + previous stable desktop Chrome, Edge, and Firefox (public claim still gated) | Node.js 22; locked Playwright 1.62.0 with Chromium 151 and Firefox 153 engine gates | production build, versioned response-policy artifact, local two-engine browser smoke | branded browser matrix, production HTTPS/WSS/API observation, staged health and rollback evidence |
 
-The current Web build gate proves that production assets compile; it does not
-yet prove compatibility with a named browser/version matrix. That matrix and
-browser automation must be established before claiming public Web compatibility.
-Likewise, the current Windows Server CI artifact proves native compilation and
+The Web engine gate proves startup, required capabilities, endpoint isolation,
+and narrow login layout in the Playwright builds named above. It does not yet
+prove the branded current/previous Chrome, Edge, and Firefox release matrix,
+authenticated/offline/media behavior, or a production deployment. Safari,
+WebKit, and mobile browsers are not currently claimed. Likewise, the current
+Windows Server CI artifact proves native compilation and
 dependency assembly, not Windows 10/11 clean-host compatibility. Formal public
 support begins only after the M4 install, launch, upgrade, and uninstall matrix
 passes on the named target versions.
@@ -84,7 +86,8 @@ use the provider-neutral HTTPS probe to observe selected bytes and the exact
 bound headers. CI already runs that probe against an ephemeral trusted localhost
 TLS server. Public delivery must additionally observe and prove:
 
-- the supported browser/version matrix and automated coverage;
+- current and previous stable branded Chrome/Edge/Firefox coverage on the
+  release candidate, plus deeper authenticated/offline/accessibility paths;
 - production DNS/certificate validity, WSS/API reachability, and response
   headers/bytes matching the bound policy and release;
 - immutable versioned assets and a traceable deployment identifier;

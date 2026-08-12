@@ -10,7 +10,7 @@ permissions:
 jobs:
   inventory-and-web:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Check out source
@@ -25,6 +25,25 @@ jobs:
 
       - name: Verify source inventory and web build
         run: python3 tools/verify_m0.py --web
+
+      - name: Install pinned browser engines
+        working-directory: WebClient
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Verify Chromium and Firefox Web compatibility
+        working-directory: WebClient
+        run: npm run test:browser
+
+      - name: Upload browser failure evidence
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: web-browser-failure-${{ github.sha }}
+          path: |
+            WebClient/playwright-report
+            WebClient/test-results
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Test Web artifact manifest policy
         run: |

@@ -621,6 +621,13 @@ bytes, and observes exact security/cache/release-identity headers. CI runs it
 against an ephemeral trusted localhost server; production DNS/certificates,
 provider routing, backend path health, staged traffic, and browsers remain open.
 
+ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
+runs the production build in Chromium 151 and Firefox 153, checks login startup,
+required browser storage/network primitives, hostile endpoint override removal,
+and narrow layout. These patched engines are engineering evidence, not proof of
+branded Chrome/Edge/Firefox or Safari support; the release-time branded matrix
+remains an M4 gate.
+
 The Windows updater must use a signed manifest containing architecture, channel,
 version, minimum compatible version, hash, signature, and URL. Support stable
 and beta channels and preserve rollback capability. Web rollback uses immutable

@@ -39,6 +39,21 @@ reuse already installed dependencies during local iteration:
 python3 tools/verify_m0.py --web --skip-npm-ci
 ```
 
+Install the exact Chromium/Firefox engines bound to locked Playwright 1.62.0 and
+run the browser gate against the production build:
+
+```bash
+cd WebClient
+npx playwright install chromium firefox
+npm run test:browser
+```
+
+Linux CI uses `npx playwright install --with-deps chromium firefox` and one test
+worker. The current bound engines are Chromium 151.0.7922.34 and Playwright
+Firefox 153.0. They are engine-level evidence; branded current/previous Chrome,
+Edge, and Firefox checks remain a public-release gate. Playwright reports and
+test results are local/short-lived CI output and are ignored by Git.
+
 CI then copies the real Vite tree and `packaging/web/response-policy.json` into a
 short-lived, explicitly undeployed Web verification artifact.
 `tools/web_artifact_manifest.py` requires matching package/lock versions, local
