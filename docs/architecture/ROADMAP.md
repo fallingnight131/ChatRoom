@@ -415,6 +415,8 @@ Progress:
   - [x] Add a detached bounded V1 WebSocket upgrade adapter that installs the
     complete compatibility application pipeline only after the guard-approved
     exact path and negotiated subprotocol are independently confirmed.
+  - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
+    projection with database-enforced source namespaces and target kinds.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

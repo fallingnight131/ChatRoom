@@ -72,7 +72,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(5, first.migrate());
+        assertEquals(6, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -83,11 +83,13 @@ class PostgresMigratorTest {
             assertEquals(
                     Set.of("account", "device", "device_session", "conversation",
                             "conversation_member", "direct_conversation", "message",
-                            "identity_import_run", "legacy_v1_account_map"),
+                            "identity_import_run", "legacy_v1_account_map",
+                            "legacy_v1_conversation_map"),
                     applicationTables(connection));
             proveSequenceAndIdempotencyConstraints(connection);
         }
         proveLegacyV1MappingConstraints();
+        proveLegacyV1ConversationMappingConstraints();
     }
 
     @Test
@@ -918,6 +920,56 @@ class PostgresMigratorTest {
                 assertTrue(result.next());
                 return result.getInt(1);
             }
+        }
+    }
+
+    private static void proveLegacyV1ConversationMappingConstraints() throws SQLException {
+        UUID room = UUID.randomUUID();
+        UUID friendship = UUID.randomUUID();
+        UUID secondRoom = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind, title) VALUES "
+                            + "(?, 'GROUP', 'Mapped Room'), "
+                            + "(?, 'DIRECT', NULL), "
+                            + "(?, 'GROUP', 'Second Room')",
+                    room, friendship, secondRoom);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map"
+                            + "(legacy_kind, legacy_conversation_id, conversation_id) "
+                            + "VALUES ('ROOM', 7, ?), ('FRIENDSHIP', 7, ?)",
+                    room, friendship);
+        }
+        assertEquals(2, count("SELECT count(*) FROM chat.legacy_v1_conversation_map "
+                + "WHERE legacy_conversation_id = 7"));
+
+        assertConversationMappingRejected("ROOM", 0, secondRoom, "23514");
+        assertConversationMappingRejected("UNKNOWN", 8, secondRoom, "23514");
+        assertConversationMappingRejected("FRIENDSHIP", 8, secondRoom, "23503");
+        assertConversationMappingRejected("ROOM", 8, room, "23505");
+
+        try (Connection connection = connect()) {
+            execute(connection, "DELETE FROM chat.conversation WHERE id = ?", room);
+        }
+        assertEquals(0, count("SELECT count(*) FROM chat.legacy_v1_conversation_map "
+                + "WHERE legacy_kind = 'ROOM' AND legacy_conversation_id = 7"));
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_conversation_map "
+                + "WHERE legacy_kind = 'FRIENDSHIP' AND legacy_conversation_id = 7"));
+    }
+
+    private static void assertConversationMappingRejected(
+            String kind, long legacyId, UUID conversationId, String sqlState)
+            throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "INSERT INTO chat.legacy_v1_conversation_map"
+                                + "(legacy_kind, legacy_conversation_id, conversation_id) "
+                                + "VALUES (?, ?, ?)")) {
+            statement.setString(1, kind);
+            statement.setLong(2, legacyId);
+            statement.setObject(3, conversationId);
+            SQLException exception = assertThrows(SQLException.class, statement::executeUpdate);
+            assertEquals(sqlState, exception.getSQLState());
         }
     }
 
