@@ -270,6 +270,12 @@ browsing; message recovery continues to use conversation sequences. The
 authenticated V2 gateway now composes this adapter, but supported clients remain
 on V1 during the additive migration stage.
 
+The detached V1 friend-directory adapter separately reads active DIRECT peers,
+message-row unread counts, imported peer V1 read watermarks, and pending incoming
+contact count in one bounded repeatable-read snapshot. Compatibility account and
+conversation mappings remain separate fail-closed projections; presence is not
+stored in PostgreSQL. No route invokes this adapter yet.
+
 ## Bounds and indexes
 
 - identifiers are limited to 128 characters at this storage boundary and are

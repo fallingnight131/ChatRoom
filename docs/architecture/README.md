@@ -208,7 +208,9 @@ The detached V1 application boundary now defines a complete bounded friend-list
 projection. Durable friend/unread/read/pending state, compatibility identifiers,
 and rebuildable presence remain separate ports; missing mappings or partial
 state fail the request rather than emitting an authoritative empty/pruning list.
-No transport handler or runtime route consumes it yet.
+The PostgreSQL adapter now supplies durable friend/unread/read/pending state from
+one bounded repeatable-read snapshot, and account compatibility lookup is
+batched. No transport handler or runtime route consumes it yet.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,

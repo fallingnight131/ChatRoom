@@ -8,6 +8,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
 
@@ -45,6 +48,35 @@ public final class PostgresLegacyV1AccountProjection
     public Optional<LegacyV1AccountIdentity> findByAccountId(UUID accountId) {
         Objects.requireNonNull(accountId, "accountId");
         return find(BY_ACCOUNT_ID, statement -> statement.setObject(1, accountId));
+    }
+
+    @Override
+    public Map<UUID, LegacyV1AccountIdentity> findByAccountIds(Set<UUID> accountIds) {
+        Set<UUID> requested = Set.copyOf(accountIds);
+        if (requested.isEmpty()) return Map.of();
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement("""
+                        SELECT mapping.legacy_user_id, mapping.account_id
+                        FROM chat.legacy_v1_account_map mapping
+                        JOIN chat.account account ON account.id = mapping.account_id
+                        WHERE mapping.account_id = ANY (?) AND account.disabled_at IS NULL
+                        """)) {
+            statement.setArray(1, connection.createArrayOf("uuid", requested.toArray()));
+            Map<UUID, LegacyV1AccountIdentity> result = new LinkedHashMap<>();
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    UUID accountId = rows.getObject("account_id", UUID.class);
+                    LegacyV1AccountIdentity identity = new LegacyV1AccountIdentity(
+                            rows.getLong("legacy_user_id"), accountId);
+                    if (result.put(accountId, identity) != null) {
+                        throw new SQLException("V1 account batch projection returned duplicates");
+                    }
+                }
+            }
+            return Map.copyOf(result);
+        } catch (SQLException exception) {
+            throw new IllegalStateException("V1 account projection failed", exception);
+        }
     }
 
     private Optional<LegacyV1AccountIdentity> find(

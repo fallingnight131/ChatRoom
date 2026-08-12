@@ -22,6 +22,7 @@ import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.application.identity.ClientPlatform;
 import com.fallingnight.chat.application.identity.IssuedSession;
 import com.fallingnight.chat.application.identity.StoredCredential;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendDirectoryState;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -505,6 +506,82 @@ class PostgresMigratorTest {
         }
         assertThrows(V1ContactRequestSourceException.class, () -> importer.apply(input));
         assertEquals(2, count("SELECT count(*) FROM chat.contact_request_import_run"));
+    }
+
+    @Test
+    @Order(91)
+    void readsCompleteV1FriendStateAndBatchAccountMappings() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID owner = UUID.randomUUID();
+        UUID peer = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        UUID device = UUID.randomUUID();
+        UUID firstMessage = UUID.randomUUID();
+        UUID secondMessage = UUID.randomUUID();
+        UUID requester = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'friend-owner', 'Owner', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'friend-peer', 'Peer', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'friend-requester', 'Requester', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    owner, peer, requester);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                            + "VALUES (1, ?), (2, ?)", owner, peer);
+            execute(connection,
+                    "INSERT INTO chat.device(id, account_id, client_device_id, platform) "
+                            + "VALUES (?, ?, 'friend-device', 'LEGACY')", device, peer);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind, next_sequence) "
+                            + "VALUES (?, 'DIRECT', 3)", conversation);
+            UUID first = owner.toString().compareTo(peer.toString()) < 0 ? owner : peer;
+            UUID second = first.equals(owner) ? peer : owner;
+            execute(connection,
+                    "INSERT INTO chat.direct_conversation("
+                            + "conversation_id, first_account_id, second_account_id) "
+                            + "VALUES (?, ?, ?)", conversation, first, second);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member("
+                            + "conversation_id, account_id, last_read_sequence) "
+                            + "VALUES (?, ?, 0), (?, ?, 1)",
+                    conversation, owner, conversation, peer);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map("
+                            + "legacy_kind, legacy_conversation_id, conversation_id) "
+                            + "VALUES ('FRIENDSHIP', 50, ?)", conversation);
+            insertMessage(connection, firstMessage, conversation, 1, peer, device, "friend-1");
+            insertMessage(connection, secondMessage, conversation, 2, peer, device, "friend-2");
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_message_map(legacy_kind, legacy_message_id, "
+                            + "legacy_conversation_id, conversation_id, message_id) "
+                            + "VALUES ('FRIENDSHIP', 101, 50, ?, ?), "
+                            + "('FRIENDSHIP', 102, 50, ?, ?)",
+                    conversation, firstMessage, conversation, secondMessage);
+            execute(connection,
+                    "INSERT INTO chat.contact_request("
+                            + "id, requester_account_id, recipient_account_id) VALUES (?, ?, ?)",
+                    UUID.randomUUID(), requester, owner);
+        }
+
+        LegacyV1FriendDirectoryState state =
+                new PostgresLegacyV1FriendDirectoryAdapter(dataSource()).read(owner, 10);
+
+        assertEquals(1, state.friends().size());
+        assertEquals(peer, state.friends().getFirst().peerAccountId());
+        assertEquals("friend-peer", state.friends().getFirst().username());
+        assertEquals("Peer", state.friends().getFirst().displayName());
+        assertEquals(2, state.friends().getFirst().unread());
+        assertEquals(101, state.friends().getFirst().peerLastReadMessageId());
+        assertEquals(1, state.pendingFriendRequests());
+        assertEquals(Set.of(peer), new PostgresLegacyV1AccountProjection(dataSource())
+                .findByAccountIds(Set.of(peer, requester)).keySet());
+        assertThrows(IllegalArgumentException.class,
+                () -> new PostgresLegacyV1FriendDirectoryAdapter(dataSource()).read(owner, 0));
     }
 
     @Test
