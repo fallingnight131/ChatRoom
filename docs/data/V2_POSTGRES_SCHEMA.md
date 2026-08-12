@@ -149,9 +149,10 @@ inactive migration boundaries and do not make PostgreSQL traffic-authoritative.
 An additive application port now reads the durable `conversation_entry` stream
 without skipping recall or deletion sequences. PostgreSQL resolves each entry
 through its typed detail table and translates V1 deletion message IDs through
-`legacy_v1_message_map`. This port is not yet connected to the V2 wire contract;
-the existing message-only history behavior remains unchanged until a coordinated
-additive protocol and Web preview slice is complete.
+`legacy_v1_message_map`. V2 `MessageHistoryPage.entries` now carries this stream;
+the original `messages` field remains a creation-message mirror for additive
+decode compatibility. The build-gated Web preview applies entries in order and
+falls back to the original field when an older compatible server omits them.
 
 ## V1 identity import boundary
 

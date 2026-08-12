@@ -80,9 +80,14 @@ PostgreSQL-authoritative acceptance time, and duplicate flag. Durable acceptance
 does not mean destination delivery or read acknowledgement.
 
 `ReadMessageHistory` accepts a nonnegative signed-server-range `after_sequence`
-and limit 1..100. `MessageHistoryPage` returns at most 100 ascending records, an
-explicit next cursor, current conversation high watermark, and `has_more`.
-Deleted rows may leave sequence gaps. Authorization failures use the opaque
+and limit 1..100. `MessageHistoryPage.entries` field 6 returns at most 100
+ascending message, recall, or administrative-deletion entries. The existing
+`messages` field 2 remains a creation-message mirror and is not reinterpreted.
+The explicit next cursor identifies the last returned entry, including a
+mutation-only page; `latest_sequence` is the current conversation high watermark.
+V1 recall time may be zero when the source never recorded it. V1 numeric
+deletion targets are translated to stable V2 message UUIDs; attachment IDs are
+not exposed before attachment migration. Authorization failures use the opaque
 `NOT_AUTHORIZED` protocol code; conflicting reuse of a client message ID uses
 `IDEMPOTENCY_CONFLICT`.
 
@@ -164,6 +169,10 @@ presentation and server identity but deliberately does not advance the
 conversation synchronization cursor; only a validated history page can advance
 the last contiguous sequence. This prevents a locally accepted high sequence
 from skipping unseen messages after reconnect.
+The Web preview prefers the mixed entries field, applies recall/deletion details
+in sequence order, persists the resulting message view and exact entry cursor,
+and falls back to the message mirror only when a compatible older server omits
+field 6.
 
 Cached Web commands in `sending` state are considered for recovery only after
 history synchronization. A matching server ID or client message ID removes an

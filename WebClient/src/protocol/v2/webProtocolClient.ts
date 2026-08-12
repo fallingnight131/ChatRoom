@@ -42,6 +42,7 @@ const MAX_WIRE_BYTES = MAX_PAYLOAD_BYTES + 1024;
 const MAX_PASSWORD_BYTES = 1024;
 const MAX_TEXT_BYTES = 65_536;
 const MAX_PAGE_SIZE = 100;
+const MAX_DELETION_TARGETS = 1_000;
 const MAX_PENDING_REQUESTS = 16;
 const MAX_SIGNED_SEQUENCE = (1n << 63n) - 1n;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -425,6 +426,7 @@ export class V2WebProtocolClient {
 function validateHistoryPage(page: MessageHistoryPage): void {
   requireUuid("conversationId", page.conversationId);
   if (page.messages.length > MAX_PAGE_SIZE
+      || page.entries.length > MAX_PAGE_SIZE
       || page.nextSequence > MAX_SIGNED_SEQUENCE
       || page.latestSequence > MAX_SIGNED_SEQUENCE) {
     throw new Error("history page exceeds the limit");
@@ -438,8 +440,56 @@ function validateHistoryPage(page: MessageHistoryPage): void {
     }
     previous = message.conversationSequence;
   }
-  if (page.messages.length > 0 && page.nextSequence !== previous) {
-    throw new Error("history cursor does not identify the last message");
+  let previousEntry = 0n;
+  for (const entry of page.entries) {
+    requireUuid("entry.conversationId", entry.conversationId);
+    if (entry.conversationId !== page.conversationId
+        || entry.conversationSequence <= previousEntry
+        || entry.conversationSequence > MAX_SIGNED_SEQUENCE) {
+      throw new Error("invalid history entry identity");
+    }
+    if (entry.detail.case === "message") {
+      validateMessageRecord(entry.detail.value);
+      if (entry.detail.value.conversationId !== entry.conversationId
+          || entry.detail.value.conversationSequence !== entry.conversationSequence) {
+        throw new Error("invalid message entry detail");
+      }
+    } else if (entry.detail.case === "recall") {
+      const recall = entry.detail.value;
+      requireUuid("recall.conversationId", recall.conversationId);
+      requireUuid("recall.messageId", recall.messageId);
+      requireUuid("recall.actorAccountId", recall.actorAccountId);
+      requireIdentifier("recall.source", recall.source);
+      if (recall.conversationId !== entry.conversationId
+          || recall.conversationSequence !== entry.conversationSequence
+          || (recall.source !== "V2" && recall.source !== "V1_IMPORT")
+          || recall.occurredAtEpochMs < 0n) throw new Error("invalid recall entry detail");
+    } else if (entry.detail.case === "deletion") {
+      const deletion = entry.detail.value;
+      requireUuid("deletion.conversationId", deletion.conversationId);
+      requireUuid("deletion.actorAccountId", deletion.actorAccountId);
+      requireIdentifier("deletion.source", deletion.source);
+      requireIdentifier("deletion.mode", deletion.mode);
+      requireIdentifier("deletion.clientOperationId", deletion.clientOperationId);
+      deletion.messageIds.forEach((id) => requireUuid("deletion.messageId", id));
+      if (deletion.conversationId !== entry.conversationId
+          || deletion.conversationSequence !== entry.conversationSequence
+          || deletion.cutoffEpochMs < 0n
+          || deletion.occurredAtEpochMs <= 0n
+          || (deletion.source !== "V2" && deletion.source !== "V1_IMPORT")
+          || !["selected", "all", "before", "after"].includes(deletion.mode)
+          || deletion.messageIds.length > MAX_DELETION_TARGETS
+          || [...deletion.operatorNameSnapshot].length > 100) {
+        throw new Error("invalid deletion entry detail");
+      }
+    } else {
+      throw new Error("history entry detail is required");
+    }
+    previousEntry = entry.conversationSequence;
+  }
+  const lastSequence = page.entries.length > 0 ? previousEntry : previous;
+  if (lastSequence !== 0n && page.nextSequence !== lastSequence) {
+    throw new Error("history cursor does not identify the last entry");
   }
 }
 

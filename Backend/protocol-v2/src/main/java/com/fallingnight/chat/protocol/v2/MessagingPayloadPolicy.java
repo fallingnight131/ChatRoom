@@ -10,6 +10,7 @@ public final class MessagingPayloadPolicy {
     public static final int MAX_CONTENT_BYTES = 1_000_000;
     public static final int MAX_TEXT_UTF8_BYTES = 65_536;
     public static final int MAX_HISTORY_LIMIT = 100;
+    public static final int MAX_DELETION_TARGETS = 1_000;
 
     private MessagingPayloadPolicy() {}
 
@@ -67,6 +68,7 @@ public final class MessagingPayloadPolicy {
         List<String> violations = new ArrayList<>();
         requireUuid("conversationId", page.getConversationId(), violations);
         if (page.getMessagesCount() > MAX_HISTORY_LIMIT
+                || page.getEntriesCount() > MAX_HISTORY_LIMIT
                 || page.getNextSequence() < 0
                 || page.getLatestSequence() < 0) {
             violations.add("history page bounds are invalid");
@@ -80,11 +82,82 @@ public final class MessagingPayloadPolicy {
             }
             previous = message.getConversationSequence();
         }
-        if (!page.getMessagesList().isEmpty()
-                && page.getNextSequence() != previous) {
-            violations.add("nextSequence must equal the last message sequence");
+        long previousEntry = 0;
+        for (ConversationEntryRecord entry : page.getEntriesList()) {
+            validateConversationEntry(entry, page.getConversationId(), violations);
+            if (entry.getConversationSequence() <= previousEntry) {
+                violations.add("history entry is out of order");
+            }
+            previousEntry = entry.getConversationSequence();
+        }
+        long last = page.getEntriesCount() == 0 ? previous : previousEntry;
+        if (last != 0 && page.getNextSequence() != last) {
+            violations.add("nextSequence must equal the last history sequence");
         }
         requireNone(violations);
+    }
+
+    private static void validateConversationEntry(
+            ConversationEntryRecord entry,
+            String pageConversationId,
+            List<String> violations) {
+        requireUuid("entry.conversationId", entry.getConversationId(), violations);
+        if (!pageConversationId.equals(entry.getConversationId())
+                || entry.getConversationSequence() <= 0) {
+            violations.add("history entry identity is invalid");
+        }
+        switch (entry.getDetailCase()) {
+            case MESSAGE -> {
+                validateMessageRecord(entry.getMessage(), violations);
+                if (!entry.getConversationId().equals(entry.getMessage().getConversationId())
+                        || entry.getConversationSequence()
+                                != entry.getMessage().getConversationSequence()) {
+                    violations.add("message entry detail identity differs");
+                }
+            }
+            case RECALL -> {
+                MessageRecalledRecord recall = entry.getRecall();
+                requireUuid("recall.conversationId", recall.getConversationId(), violations);
+                requireUuid("recall.messageId", recall.getMessageId(), violations);
+                requireUuid("recall.actorAccountId", recall.getActorAccountId(), violations);
+                requireIdentifier("recall.source", recall.getSource(), true, violations);
+                if (!entry.getConversationId().equals(recall.getConversationId())
+                        || entry.getConversationSequence() != recall.getConversationSequence()
+                        || !supportedSource(recall.getSource())
+                        || recall.getOccurredAtEpochMs() < 0) {
+                    violations.add("recall entry detail is invalid");
+                }
+            }
+            case DELETION -> {
+                MessagesDeletedRecord deletion = entry.getDeletion();
+                requireUuid("deletion.conversationId", deletion.getConversationId(), violations);
+                requireUuid("deletion.actorAccountId", deletion.getActorAccountId(), violations);
+                requireIdentifier("deletion.source", deletion.getSource(), true, violations);
+                requireIdentifier("deletion.mode", deletion.getMode(), true, violations);
+                requireIdentifier("deletion.clientOperationId",
+                        deletion.getClientOperationId(), true, violations);
+                deletion.getMessageIdsList().forEach(value ->
+                        requireUuid("deletion.messageId", value, violations));
+                if (!entry.getConversationId().equals(deletion.getConversationId())
+                        || entry.getConversationSequence()
+                                != deletion.getConversationSequence()
+                        || deletion.getCutoffEpochMs() < 0
+                        || deletion.getOccurredAtEpochMs() <= 0
+                        || !supportedSource(deletion.getSource())
+                        || !java.util.Set.of("selected", "all", "before", "after")
+                                .contains(deletion.getMode())
+                        || deletion.getMessageIdsCount() > MAX_DELETION_TARGETS
+                        || deletion.getOperatorNameSnapshot().codePointCount(
+                                0, deletion.getOperatorNameSnapshot().length()) > 100) {
+                    violations.add("deletion entry detail is invalid");
+                }
+            }
+            case DETAIL_NOT_SET -> violations.add("history entry detail is required");
+        }
+    }
+
+    private static boolean supportedSource(String value) {
+        return "V2".equals(value) || "V1_IMPORT".equals(value);
     }
 
     private static void validateMessageRecord(MessageRecord message, List<String> violations) {

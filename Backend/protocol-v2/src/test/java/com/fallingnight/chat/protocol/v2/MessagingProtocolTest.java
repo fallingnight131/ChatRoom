@@ -79,11 +79,35 @@ class MessagingProtocolTest {
         MessageHistoryPage page = MessageHistoryPage.newBuilder()
                 .setConversationId(CONVERSATION_ID)
                 .addMessages(record(1, "00000000-0000-0000-0000-000000000002"))
-                .setNextSequence(1)
-                .setLatestSequence(1)
+                .addEntries(ConversationEntryRecord.newBuilder()
+                        .setConversationId(CONVERSATION_ID)
+                        .setConversationSequence(1)
+                        .setMessage(record(1, "00000000-0000-0000-0000-000000000002")))
+                .addEntries(ConversationEntryRecord.newBuilder()
+                        .setConversationId(CONVERSATION_ID)
+                        .setConversationSequence(2)
+                        .setRecall(MessageRecalledRecord.newBuilder()
+                                .setConversationId(CONVERSATION_ID)
+                                .setConversationSequence(2)
+                                .setMessageId("00000000-0000-0000-0000-000000000002")
+                                .setActorAccountId("00000000-0000-0000-0000-000000000004")
+                                .setSource("V1_IMPORT")))
+                .setNextSequence(2)
+                .setLatestSequence(2)
                 .build();
         MessagingPayloadPolicy.requireValid(page);
         MessagingPayloadPolicy.requireValid(page.getMessages(0));
+
+        MessageHistoryPage missingDetail = MessageHistoryPage.newBuilder()
+                .setConversationId(CONVERSATION_ID)
+                .addEntries(ConversationEntryRecord.newBuilder()
+                        .setConversationId(CONVERSATION_ID)
+                        .setConversationSequence(1))
+                .setNextSequence(1)
+                .setLatestSequence(1)
+                .build();
+        assertThrows(IllegalArgumentException.class,
+                () -> MessagingPayloadPolicy.requireValid(missingDetail));
     }
 
     private static MessageRecord record(long sequence, String messageId) {

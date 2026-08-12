@@ -12,10 +12,13 @@ import {
 } from "../src/protocol/v2/generated/conversation_pb";
 import { ProtocolErrorCode, ProtocolErrorSchema } from "../src/protocol/v2/generated/control_pb";
 import {
+  ConversationEntryRecordSchema,
   MessageAcceptedSchema,
   MessageContentType,
   MessageHistoryPageSchema,
   MessageRecordSchema,
+  MessageRecalledRecordSchema,
+  MessagesDeletedRecordSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
 import type { V2WebProtocolEvent } from "../src/protocol/v2/webProtocolClient";
 import type {
@@ -354,6 +357,87 @@ test("merges contiguous live events and repairs sequence gaps through history", 
     "history", CONVERSATION_ID, BigInt(CURSOR) + 1n, 100,
   ]);
   assert.equal(cache.saves.at(-1)?.cursor, (BigInt(CURSOR) + 1n).toString());
+  application.dispose();
+});
+
+test("applies ordered recall and deletion entries while advancing the mixed cursor", async () => {
+  const transport = new FakeTransport();
+  const cache = new FakeCache();
+  const application = new V2WebChatApplication({ transport, cache });
+  establish(transport);
+  directory(transport);
+  await application.openConversation(CONVERSATION_ID);
+  const first = create(MessageRecordSchema, {
+    conversationId: CONVERSATION_ID,
+    messageId: MESSAGE_ID,
+    conversationSequence: 1n,
+    senderAccountId: ACCOUNT_ID,
+    senderDeviceId: DEVICE_ID,
+    clientMessageId: "mixed-1",
+    contentType: MessageContentType.TEXT_UTF8,
+    content: new TextEncoder().encode("first"),
+    acceptedAtEpochMs: BigInt(NOW),
+  });
+  const second = create(MessageRecordSchema, {
+    ...first,
+    messageId: SECOND_MESSAGE_ID,
+    conversationSequence: 2n,
+    clientMessageId: "mixed-2",
+    content: new TextEncoder().encode("second"),
+  });
+
+  transport.emit(correlated({
+    type: "message-history-page",
+    value: create(MessageHistoryPageSchema, {
+      conversationId: CONVERSATION_ID,
+      messages: [first, second],
+      entries: [
+        create(ConversationEntryRecordSchema, {
+          conversationId: CONVERSATION_ID,
+          conversationSequence: 1n,
+          detail: { case: "message", value: first },
+        }),
+        create(ConversationEntryRecordSchema, {
+          conversationId: CONVERSATION_ID,
+          conversationSequence: 2n,
+          detail: { case: "message", value: second },
+        }),
+        create(ConversationEntryRecordSchema, {
+          conversationId: CONVERSATION_ID,
+          conversationSequence: 3n,
+          detail: { case: "recall", value: create(MessageRecalledRecordSchema, {
+            conversationId: CONVERSATION_ID,
+            conversationSequence: 3n,
+            messageId: SECOND_MESSAGE_ID,
+            actorAccountId: ACCOUNT_ID,
+            source: "V1_IMPORT",
+          }) },
+        }),
+        create(ConversationEntryRecordSchema, {
+          conversationId: CONVERSATION_ID,
+          conversationSequence: 4n,
+          detail: { case: "deletion", value: create(MessagesDeletedRecordSchema, {
+            conversationId: CONVERSATION_ID,
+            conversationSequence: 4n,
+            actorAccountId: ACCOUNT_ID,
+            source: "V1_IMPORT",
+            mode: "selected",
+            clientOperationId: "delete-1",
+            messageIds: [MESSAGE_ID],
+            operatorNameSnapshot: "Operator",
+            occurredAtEpochMs: BigInt(NOW + 1),
+          }) },
+        }),
+      ],
+      nextSequence: 4n,
+      latestSequence: 4n,
+    }),
+  }));
+
+  assert.equal(application.snapshot.messages.length, 1);
+  assert.equal(application.snapshot.messages[0]?.id, SECOND_MESSAGE_ID);
+  assert.equal(application.snapshot.messages[0]?.content, "此消息已被撤回");
+  assert.equal(cache.saves.at(-1)?.cursor, "4");
   application.dispose();
 });
 

@@ -444,7 +444,7 @@ Progress:
     dual fingerprint confirmation, safe output, runbook, and real-PostgreSQL gate.
   - [x] Add an inactive, transport-independent mixed conversation-entry history
     port with PostgreSQL message/recall/deletion ordering and V1 ID translation.
-  - [ ] Expose mixed conversation entries through an additive V2 protocol field
+  - [x] Expose mixed conversation entries through an additive V2 protocol field
     and update the isolated Web preview before activating the new history path.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.

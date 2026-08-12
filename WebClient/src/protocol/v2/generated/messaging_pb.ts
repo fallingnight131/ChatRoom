@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file chat/v2/messaging.proto.
  */
 export const file_chat_v2_messaging: GenFile = /*@__PURE__*/
-  fileDesc("ChdjaGF0L3YyL21lc3NhZ2luZy5wcm90bxIHY2hhdC52MiJPCg1TdWJtaXRNZXNzYWdlEhcKD2NvbnZlcnNhdGlvbl9pZBgBIAEoCRIUCgxjb250ZW50X3R5cGUYAiABKA0SDwoHY29udGVudBgDIAEoDCKOAQoPTWVzc2FnZUFjY2VwdGVkEhcKD2NvbnZlcnNhdGlvbl9pZBgBIAEoCRISCgptZXNzYWdlX2lkGAIgASgJEh0KFWNvbnZlcnNhdGlvbl9zZXF1ZW5jZRgDIAEoBBIcChRhY2NlcHRlZF9hdF9lcG9jaF9tcxgEIAEoAxIRCglkdXBsaWNhdGUYBSABKAgiVAoSUmVhZE1lc3NhZ2VIaXN0b3J5EhcKD2NvbnZlcnNhdGlvbl9pZBgBIAEoCRIWCg5hZnRlcl9zZXF1ZW5jZRgCIAEoBBINCgVsaW1pdBgDIAEoDSLwAQoNTWVzc2FnZVJlY29yZBIXCg9jb252ZXJzYXRpb25faWQYASABKAkSEgoKbWVzc2FnZV9pZBgCIAEoCRIdChVjb252ZXJzYXRpb25fc2VxdWVuY2UYAyABKAQSGQoRc2VuZGVyX2FjY291bnRfaWQYBCABKAkSGAoQc2VuZGVyX2RldmljZV9pZBgFIAEoCRIZChFjbGllbnRfbWVzc2FnZV9pZBgGIAEoCRIUCgxjb250ZW50X3R5cGUYByABKA0SDwoHY29udGVudBgIIAEoDBIcChRhY2NlcHRlZF9hdF9lcG9jaF9tcxgJIAEoAyKZAQoSTWVzc2FnZUhpc3RvcnlQYWdlEhcKD2NvbnZlcnNhdGlvbl9pZBgBIAEoCRIoCghtZXNzYWdlcxgCIAMoCzIWLmNoYXQudjIuTWVzc2FnZVJlY29yZBIVCg1uZXh0X3NlcXVlbmNlGAMgASgEEhcKD2xhdGVzdF9zZXF1ZW5jZRgEIAEoBBIQCghoYXNfbW9yZRgFIAEoCCpeChJNZXNzYWdlQ29udGVudFR5cGUSJAogTUVTU0FHRV9DT05URU5UX1RZUEVfVU5TUEVDSUZJRUQQABIiCh5NRVNTQUdFX0NPTlRFTlRfVFlQRV9URVhUX1VURjgQAUI2CiFjb20uZmFsbGluZ25pZ2h0LmNoYXQucHJvdG9jb2wudjJCD01lc3NhZ2luZ1NjaGVtYVABYgZwcm90bzM");
+  fileDesc("ChdjaGF0L3YyL21lc3NhZ2luZy5wcm90bxIHY2hhdC52MiJPCg1TdWJtaXRNZXNzYWdlEhcKD2NvbnZlcnNhdGlvbl9pZBgBIAEoCRIUCgxjb250ZW50X3R5cGUYAiABKA0SDwoHY29udGVudBgDIAEoDCKOAQoPTWVzc2FnZUFjY2VwdGVkEhcKD2NvbnZlcnNhdGlvbl9pZBgBIAEoCRISCgptZXNzYWdlX2lkGAIgASgJEh0KFWNvbnZlcnNhdGlvbl9zZXF1ZW5jZRgDIAEoBBIcChRhY2NlcHRlZF9hdF9lcG9jaF9tcxgEIAEoAxIRCglkdXBsaWNhdGUYBSABKAgiVAoSUmVhZE1lc3NhZ2VIaXN0b3J5EhcKD2NvbnZlcnNhdGlvbl9pZBgBIAEoCRIWCg5hZnRlcl9zZXF1ZW5jZRgCIAEoBBINCgVsaW1pdBgDIAEoDSLwAQoNTWVzc2FnZVJlY29yZBIXCg9jb252ZXJzYXRpb25faWQYASABKAkSEgoKbWVzc2FnZV9pZBgCIAEoCRIdChVjb252ZXJzYXRpb25fc2VxdWVuY2UYAyABKAQSGQoRc2VuZGVyX2FjY291bnRfaWQYBCABKAkSGAoQc2VuZGVyX2RldmljZV9pZBgFIAEoCRIZChFjbGllbnRfbWVzc2FnZV9pZBgGIAEoCRIUCgxjb250ZW50X3R5cGUYByABKA0SDwoHY29udGVudBgIIAEoDBIcChRhY2NlcHRlZF9hdF9lcG9jaF9tcxgJIAEoAyKrAQoVTWVzc2FnZVJlY2FsbGVkUmVjb3JkEhcKD2NvbnZlcnNhdGlvbl9pZBgBIAEoCRIdChVjb252ZXJzYXRpb25fc2VxdWVuY2UYAiABKAQSEgoKbWVzc2FnZV9pZBgDIAEoCRIYChBhY3Rvcl9hY2NvdW50X2lkGAQgASgJEg4KBnNvdXJjZRgFIAEoCRIcChRvY2N1cnJlZF9hdF9lcG9jaF9tcxgGIAEoAyKnAgoVTWVzc2FnZXNEZWxldGVkUmVjb3JkEhcKD2NvbnZlcnNhdGlvbl9pZBgBIAEoCRIdChVjb252ZXJzYXRpb25fc2VxdWVuY2UYAiABKAQSGAoQYWN0b3JfYWNjb3VudF9pZBgDIAEoCRIOCgZzb3VyY2UYBCABKAkSDAoEbW9kZRgFIAEoCRIbChNjbGllbnRfb3BlcmF0aW9uX2lkGAYgASgJEhMKC21lc3NhZ2VfaWRzGAcgAygJEhcKD2N1dG9mZl9lcG9jaF9tcxgIIAEoAxIVCg1kZWxldGVkX2NvdW50GAkgASgNEh4KFm9wZXJhdG9yX25hbWVfc25hcHNob3QYCiABKAkSHAoUb2NjdXJyZWRfYXRfZXBvY2hfbXMYCyABKAMi7AEKF0NvbnZlcnNhdGlvbkVudHJ5UmVjb3JkEhcKD2NvbnZlcnNhdGlvbl9pZBgBIAEoCRIdChVjb252ZXJzYXRpb25fc2VxdWVuY2UYAiABKAQSKQoHbWVzc2FnZRgDIAEoCzIWLmNoYXQudjIuTWVzc2FnZVJlY29yZEgAEjAKBnJlY2FsbBgEIAEoCzIeLmNoYXQudjIuTWVzc2FnZVJlY2FsbGVkUmVjb3JkSAASMgoIZGVsZXRpb24YBSABKAsyHi5jaGF0LnYyLk1lc3NhZ2VzRGVsZXRlZFJlY29yZEgAQggKBmRldGFpbCLMAQoSTWVzc2FnZUhpc3RvcnlQYWdlEhcKD2NvbnZlcnNhdGlvbl9pZBgBIAEoCRIoCghtZXNzYWdlcxgCIAMoCzIWLmNoYXQudjIuTWVzc2FnZVJlY29yZBIVCg1uZXh0X3NlcXVlbmNlGAMgASgEEhcKD2xhdGVzdF9zZXF1ZW5jZRgEIAEoBBIQCghoYXNfbW9yZRgFIAEoCBIxCgdlbnRyaWVzGAYgAygLMiAuY2hhdC52Mi5Db252ZXJzYXRpb25FbnRyeVJlY29yZCpeChJNZXNzYWdlQ29udGVudFR5cGUSJAogTUVTU0FHRV9DT05URU5UX1RZUEVfVU5TUEVDSUZJRUQQABIiCh5NRVNTQUdFX0NPTlRFTlRfVFlQRV9URVhUX1VURjgQAUI2CiFjb20uZmFsbGluZ25pZ2h0LmNoYXQucHJvdG9jb2wudjJCD01lc3NhZ2luZ1NjaGVtYVABYgZwcm90bzM");
 
 /**
  * @generated from message chat.v2.SubmitMessage
@@ -161,6 +161,160 @@ export const MessageRecordSchema: GenMessage<MessageRecord> = /*@__PURE__*/
   messageDesc(file_chat_v2_messaging, 3);
 
 /**
+ * @generated from message chat.v2.MessageRecalledRecord
+ */
+export type MessageRecalledRecord = Message<"chat.v2.MessageRecalledRecord"> & {
+  /**
+   * @generated from field: string conversation_id = 1;
+   */
+  conversationId: string;
+
+  /**
+   * @generated from field: uint64 conversation_sequence = 2;
+   */
+  conversationSequence: bigint;
+
+  /**
+   * @generated from field: string message_id = 3;
+   */
+  messageId: string;
+
+  /**
+   * @generated from field: string actor_account_id = 4;
+   */
+  actorAccountId: string;
+
+  /**
+   * @generated from field: string source = 5;
+   */
+  source: string;
+
+  /**
+   * @generated from field: int64 occurred_at_epoch_ms = 6;
+   */
+  occurredAtEpochMs: bigint;
+};
+
+/**
+ * Describes the message chat.v2.MessageRecalledRecord.
+ * Use `create(MessageRecalledRecordSchema)` to create a new message.
+ */
+export const MessageRecalledRecordSchema: GenMessage<MessageRecalledRecord> = /*@__PURE__*/
+  messageDesc(file_chat_v2_messaging, 4);
+
+/**
+ * @generated from message chat.v2.MessagesDeletedRecord
+ */
+export type MessagesDeletedRecord = Message<"chat.v2.MessagesDeletedRecord"> & {
+  /**
+   * @generated from field: string conversation_id = 1;
+   */
+  conversationId: string;
+
+  /**
+   * @generated from field: uint64 conversation_sequence = 2;
+   */
+  conversationSequence: bigint;
+
+  /**
+   * @generated from field: string actor_account_id = 3;
+   */
+  actorAccountId: string;
+
+  /**
+   * @generated from field: string source = 4;
+   */
+  source: string;
+
+  /**
+   * @generated from field: string mode = 5;
+   */
+  mode: string;
+
+  /**
+   * @generated from field: string client_operation_id = 6;
+   */
+  clientOperationId: string;
+
+  /**
+   * @generated from field: repeated string message_ids = 7;
+   */
+  messageIds: string[];
+
+  /**
+   * @generated from field: int64 cutoff_epoch_ms = 8;
+   */
+  cutoffEpochMs: bigint;
+
+  /**
+   * @generated from field: uint32 deleted_count = 9;
+   */
+  deletedCount: number;
+
+  /**
+   * @generated from field: string operator_name_snapshot = 10;
+   */
+  operatorNameSnapshot: string;
+
+  /**
+   * @generated from field: int64 occurred_at_epoch_ms = 11;
+   */
+  occurredAtEpochMs: bigint;
+};
+
+/**
+ * Describes the message chat.v2.MessagesDeletedRecord.
+ * Use `create(MessagesDeletedRecordSchema)` to create a new message.
+ */
+export const MessagesDeletedRecordSchema: GenMessage<MessagesDeletedRecord> = /*@__PURE__*/
+  messageDesc(file_chat_v2_messaging, 5);
+
+/**
+ * @generated from message chat.v2.ConversationEntryRecord
+ */
+export type ConversationEntryRecord = Message<"chat.v2.ConversationEntryRecord"> & {
+  /**
+   * @generated from field: string conversation_id = 1;
+   */
+  conversationId: string;
+
+  /**
+   * @generated from field: uint64 conversation_sequence = 2;
+   */
+  conversationSequence: bigint;
+
+  /**
+   * @generated from oneof chat.v2.ConversationEntryRecord.detail
+   */
+  detail: {
+    /**
+     * @generated from field: chat.v2.MessageRecord message = 3;
+     */
+    value: MessageRecord;
+    case: "message";
+  } | {
+    /**
+     * @generated from field: chat.v2.MessageRecalledRecord recall = 4;
+     */
+    value: MessageRecalledRecord;
+    case: "recall";
+  } | {
+    /**
+     * @generated from field: chat.v2.MessagesDeletedRecord deletion = 5;
+     */
+    value: MessagesDeletedRecord;
+    case: "deletion";
+  } | { case: undefined; value?: undefined };
+};
+
+/**
+ * Describes the message chat.v2.ConversationEntryRecord.
+ * Use `create(ConversationEntryRecordSchema)` to create a new message.
+ */
+export const ConversationEntryRecordSchema: GenMessage<ConversationEntryRecord> = /*@__PURE__*/
+  messageDesc(file_chat_v2_messaging, 6);
+
+/**
  * @generated from message chat.v2.MessageHistoryPage
  */
 export type MessageHistoryPage = Message<"chat.v2.MessageHistoryPage"> & {
@@ -188,6 +342,11 @@ export type MessageHistoryPage = Message<"chat.v2.MessageHistoryPage"> & {
    * @generated from field: bool has_more = 5;
    */
   hasMore: boolean;
+
+  /**
+   * @generated from field: repeated chat.v2.ConversationEntryRecord entries = 6;
+   */
+  entries: ConversationEntryRecord[];
 };
 
 /**
@@ -195,7 +354,7 @@ export type MessageHistoryPage = Message<"chat.v2.MessageHistoryPage"> & {
  * Use `create(MessageHistoryPageSchema)` to create a new message.
  */
 export const MessageHistoryPageSchema: GenMessage<MessageHistoryPage> = /*@__PURE__*/
-  messageDesc(file_chat_v2_messaging, 4);
+  messageDesc(file_chat_v2_messaging, 7);
 
 /**
  * @generated from enum chat.v2.MessageContentType

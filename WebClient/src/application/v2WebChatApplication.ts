@@ -1,5 +1,5 @@
 import { ConversationKind, ConversationRole, type ConversationDirectoryRecord } from "../protocol/v2/generated/conversation_pb";
-import { MessageContentType, type MessageRecord } from "../protocol/v2/generated/messaging_pb";
+import { MessageContentType, type ConversationEntryRecord, type MessageRecord } from "../protocol/v2/generated/messaging_pb";
 import type { V2WebProtocolEvent } from "../protocol/v2/webProtocolClient";
 import type {
   V2WebSocketTransportObserver,
@@ -351,6 +351,7 @@ export class V2WebChatApplication {
         break;
       case "message-history-page":
         this.applyHistoryPage(event.value.conversationId, event.value.messages,
+          event.value.entries,
           event.value.nextSequence, event.value.hasMore);
         break;
       case "message-published":
@@ -397,12 +398,28 @@ export class V2WebChatApplication {
   private applyHistoryPage(
     conversationId: string,
     records: MessageRecord[],
+    entries: ConversationEntryRecord[],
     nextSequence: bigint,
     hasMore: boolean,
   ): void {
     const state = this.conversations.get(conversationId);
     if (!state || !this.sessionValue) return;
-    state.messages = mergeMessages(state.messages, records.map(mapMessageRecord));
+    if (entries.length === 0) {
+      state.messages = mergeMessages(state.messages, records.map(mapMessageRecord));
+    } else {
+      for (const entry of entries) {
+        if (entry.detail.case === "message") {
+          state.messages = mergeMessages(state.messages, [mapMessageRecord(entry.detail.value)]);
+        } else if (entry.detail.case === "recall") {
+          const recall = entry.detail.value;
+          const recalled = state.messages.find((message) => message.id === recall.messageId);
+          if (recalled) recalled.content = "此消息已被撤回";
+        } else if (entry.detail.case === "deletion") {
+          const deleted = new Set(entry.detail.value.messageIds);
+          state.messages = state.messages.filter((message) => !deleted.has(message.id));
+        }
+      }
+    }
     state.cursorSequence = maxSequence(state.cursorSequence, nextSequence.toString());
     state.loading = hasMore;
     this.persist(conversationId);

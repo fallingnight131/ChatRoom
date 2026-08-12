@@ -15,6 +15,7 @@ import com.fallingnight.chat.application.conversation.ConversationKind;
 import com.fallingnight.chat.application.conversation.ConversationRole;
 import com.fallingnight.chat.application.conversation.ConversationSummary;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
+import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
@@ -38,6 +39,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayDeque;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
@@ -158,10 +160,42 @@ class V2MessagingHandlerTest {
             MessageHistoryPage page = MessageHistoryPage.parseFrom(response.getPayload());
             assertEquals(CONVERSATION_ID.toString(), page.getConversationId());
             assertEquals(1, page.getMessagesCount());
+            assertEquals(1, page.getEntriesCount());
+            assertEquals(MessageRecord.getDescriptor().getFullName(),
+                    page.getEntries(0).getMessage().getDescriptorForType().getFullName());
             assertEquals(9, page.getMessages(0).getConversationSequence());
             assertEquals("history", page.getMessages(0).getContent().toStringUtf8());
             assertEquals(12, page.getLatestSequence());
             assertEquals(true, page.getHasMore());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void encodesRecallAndDeletionHistoryWithoutFabricatingRecallTime() throws Exception {
+        ConversationHistoryEntry.Recall recall = new ConversationHistoryEntry.Recall(
+                CONVERSATION_ID, 10, MESSAGE_ID, ACCOUNT_ID, "V1_IMPORT", Optional.empty());
+        ConversationHistoryEntry.Deletion deletion = new ConversationHistoryEntry.Deletion(
+                CONVERSATION_ID, 11, ACCOUNT_ID, "V1_IMPORT", "selected", "delete-1",
+                List.of(MESSAGE_ID), 0, 1, "Operator", ACCEPTED_AT);
+        EmbeddedChannel channel = channel(
+                submission -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                query -> new MessageHistoryResult.Page(
+                        List.of(), List.of(recall, deletion), 11, 11, false),
+                Runnable::run);
+        try {
+            channel.writeInbound(historyEnvelope(9, 25));
+            channel.runPendingTasks();
+
+            MessageHistoryPage page = MessageHistoryPage.parseFrom(
+                    ((Envelope) channel.readOutbound()).getPayload());
+            assertEquals(0, page.getMessagesCount());
+            assertEquals(2, page.getEntriesCount());
+            assertEquals(0, page.getEntries(0).getRecall().getOccurredAtEpochMs());
+            assertEquals(MESSAGE_ID.toString(),
+                    page.getEntries(1).getDeletion().getMessageIds(0));
+            assertEquals(11, page.getNextSequence());
         } finally {
             channel.finishAndReleaseAll();
         }

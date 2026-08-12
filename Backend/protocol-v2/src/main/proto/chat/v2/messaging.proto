@@ -43,10 +43,44 @@ message MessageRecord {
   int64 accepted_at_epoch_ms = 9;
 }
 
+message MessageRecalledRecord {
+  string conversation_id = 1;
+  uint64 conversation_sequence = 2;
+  string message_id = 3;
+  string actor_account_id = 4;
+  string source = 5;
+  int64 occurred_at_epoch_ms = 6;
+}
+
+message MessagesDeletedRecord {
+  string conversation_id = 1;
+  uint64 conversation_sequence = 2;
+  string actor_account_id = 3;
+  string source = 4;
+  string mode = 5;
+  string client_operation_id = 6;
+  repeated string message_ids = 7;
+  int64 cutoff_epoch_ms = 8;
+  uint32 deleted_count = 9;
+  string operator_name_snapshot = 10;
+  int64 occurred_at_epoch_ms = 11;
+}
+
+message ConversationEntryRecord {
+  string conversation_id = 1;
+  uint64 conversation_sequence = 2;
+  oneof detail {
+    MessageRecord message = 3;
+    MessageRecalledRecord recall = 4;
+    MessagesDeletedRecord deletion = 5;
+  }
+}
+
 message MessageHistoryPage {
   string conversation_id = 1;
   repeated MessageRecord messages = 2;
   uint64 next_sequence = 3;
   uint64 latest_sequence = 4;
   bool has_more = 5;
+  repeated ConversationEntryRecord entries = 6;
 }

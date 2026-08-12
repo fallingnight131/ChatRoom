@@ -22,10 +22,12 @@ import {
 } from "../src/protocol/v2/generated/control_pb";
 import { EnvelopeSchema, MessageKind, type Envelope } from "../src/protocol/v2/generated/envelope_pb";
 import {
+  ConversationEntryRecordSchema,
   MessageAcceptedSchema,
   MessageContentType,
   MessageHistoryPageSchema,
   MessageRecordSchema,
+  MessageRecalledRecordSchema,
   ReadMessageHistorySchema,
   SubmitMessageSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
@@ -271,8 +273,36 @@ test("validates correlated directory, history, and accepted responses", () => {
         content: new TextEncoder().encode("hello"),
         acceptedAtEpochMs: BigInt(NOW),
       }],
-      nextSequence: 1n,
-      latestSequence: 1n,
+      entries: [
+        create(ConversationEntryRecordSchema, {
+          conversationId: CONVERSATION_ID,
+          conversationSequence: 1n,
+          detail: { case: "message", value: create(MessageRecordSchema, {
+            conversationId: CONVERSATION_ID,
+            messageId: MESSAGE_ID,
+            conversationSequence: 1n,
+            senderAccountId: ACCOUNT_ID,
+            senderDeviceId: DEVICE_ID,
+            clientMessageId: CLIENT_MESSAGE_ID,
+            contentType: MessageContentType.TEXT_UTF8,
+            content: new TextEncoder().encode("hello"),
+            acceptedAtEpochMs: BigInt(NOW),
+          }) },
+        }),
+        create(ConversationEntryRecordSchema, {
+          conversationId: CONVERSATION_ID,
+          conversationSequence: 2n,
+          detail: { case: "recall", value: create(MessageRecalledRecordSchema, {
+            conversationId: CONVERSATION_ID,
+            conversationSequence: 2n,
+            messageId: MESSAGE_ID,
+            actorAccountId: ACCOUNT_ID,
+            source: "V1_IMPORT",
+          }) },
+        }),
+      ],
+      nextSequence: 2n,
+      latestSequence: 2n,
       hasMore: false,
     })),
     { sessionId: SESSION_ID },

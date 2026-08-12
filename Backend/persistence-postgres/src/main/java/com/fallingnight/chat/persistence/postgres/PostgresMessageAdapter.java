@@ -89,41 +89,19 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
 
     @Override
     public MessageHistoryResult readAfter(MessageHistoryQuery query) {
-        Objects.requireNonNull(query, "query");
-        String sql = "SELECT id, conversation_sequence, sender_account_id, sender_device_id, "
-                + "client_message_id, message_type, payload, accepted_at "
-                + "FROM chat.message WHERE conversation_id = ? "
-                + "AND conversation_sequence > ? AND deleted_at IS NULL "
-                + "ORDER BY conversation_sequence ASC LIMIT ?";
-        try (Connection connection = dataSource.getConnection()) {
-            Optional<Long> latest = authorizedLatestSequence(connection, query);
-            if (latest.isEmpty()) {
-                return MessageHistoryResult.Rejected.NOT_AUTHORIZED;
-            }
-            List<StoredMessage> messages = new ArrayList<>(query.limit());
-            boolean hasMore;
-            try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                statement.setObject(1, query.conversationId());
-                statement.setLong(2, query.afterSequence());
-                statement.setInt(3, query.limit() + 1);
-                statement.setFetchSize(query.limit() + 1);
-                try (ResultSet result = statement.executeQuery()) {
-                    while (messages.size() <= query.limit() && result.next()) {
-                        messages.add(readMessage(result, query.conversationId()));
-                    }
-                }
-            }
-            hasMore = messages.size() > query.limit();
-            if (hasMore) {
-                messages.removeLast();
-            }
-            long next = messages.isEmpty()
-                    ? query.afterSequence()
-                    : messages.getLast().conversationSequence();
-            return new MessageHistoryResult.Page(messages, next, latest.orElseThrow(), hasMore);
-        } catch (SQLException exception) {
-            throw new MessagePersistenceException("message history read failed", exception);
+        ConversationEntryHistoryResult result = readEntriesAfter(query);
+        if (result == ConversationEntryHistoryResult.Rejected.NOT_AUTHORIZED) {
+            return MessageHistoryResult.Rejected.NOT_AUTHORIZED;
         }
+        ConversationEntryHistoryResult.Page page = (ConversationEntryHistoryResult.Page) result;
+        List<StoredMessage> messages = page.entries().stream()
+                .filter(ConversationHistoryEntry.Message.class::isInstance)
+                .map(ConversationHistoryEntry.Message.class::cast)
+                .map(ConversationHistoryEntry.Message::value)
+                .toList();
+        return new MessageHistoryResult.Page(
+                messages, page.entries(), page.nextSequence(), page.latestSequence(),
+                page.hasMore());
     }
 
     @Override
@@ -388,20 +366,6 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                 result.getObject(4, UUID.class),
                 result.getInt(5),
                 result.getBytes(6),
-                result.getBytes(7),
-                result.getObject(8, OffsetDateTime.class).toInstant());
-    }
-
-    private static StoredMessage readMessage(ResultSet result, UUID conversationId)
-            throws SQLException {
-        return new StoredMessage(
-                result.getObject(1, UUID.class),
-                conversationId,
-                result.getLong(2),
-                result.getObject(3, UUID.class),
-                result.getObject(4, UUID.class),
-                result.getString(5),
-                result.getInt(6),
                 result.getBytes(7),
                 result.getObject(8, OffsetDateTime.class).toInstant());
     }

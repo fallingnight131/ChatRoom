@@ -8,6 +8,7 @@ import com.fallingnight.chat.application.conversation.ConversationSummary;
 import com.fallingnight.chat.application.messaging.MessageHistoryPort;
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
+import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
@@ -19,6 +20,9 @@ import com.fallingnight.chat.protocol.v2.ListConversations;
 import com.fallingnight.chat.protocol.v2.EnvelopePolicy;
 import com.fallingnight.chat.protocol.v2.MessageAccepted;
 import com.fallingnight.chat.protocol.v2.MessageHistoryPage;
+import com.fallingnight.chat.protocol.v2.ConversationEntryRecord;
+import com.fallingnight.chat.protocol.v2.MessageRecalledRecord;
+import com.fallingnight.chat.protocol.v2.MessagesDeletedRecord;
 import com.fallingnight.chat.protocol.v2.MessageKind;
 import com.fallingnight.chat.protocol.v2.MessageRecord;
 import com.fallingnight.chat.protocol.v2.MessageType;
@@ -407,22 +411,59 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 .setLatestSequence(page.latestSequence())
                 .setHasMore(page.hasMore());
         for (StoredMessage message : page.messages()) {
-            payload.addMessages(MessageRecord.newBuilder()
-                    .setConversationId(message.conversationId().toString())
-                    .setMessageId(message.messageId().toString())
-                    .setConversationSequence(message.conversationSequence())
-                    .setSenderAccountId(message.senderAccountId().toString())
-                    .setSenderDeviceId(message.senderDeviceId().toString())
-                    .setClientMessageId(message.clientMessageId())
-                    .setContentType(message.messageType())
-                    .setContent(ByteString.copyFrom(message.payload()))
-                    .setAcceptedAtEpochMs(message.acceptedAt().toEpochMilli()));
+            payload.addMessages(messageRecord(message));
+        }
+        for (ConversationHistoryEntry entry : page.entries()) {
+            ConversationEntryRecord.Builder encoded = ConversationEntryRecord.newBuilder()
+                    .setConversationId(entry.conversationId().toString())
+                    .setConversationSequence(entry.conversationSequence());
+            if (entry instanceof ConversationHistoryEntry.Message message) {
+                encoded.setMessage(messageRecord(message.value()));
+            } else if (entry instanceof ConversationHistoryEntry.Recall recall) {
+                encoded.setRecall(MessageRecalledRecord.newBuilder()
+                        .setConversationId(recall.conversationId().toString())
+                        .setConversationSequence(recall.conversationSequence())
+                        .setMessageId(recall.messageId().toString())
+                        .setActorAccountId(recall.actorAccountId().toString())
+                        .setSource(recall.source())
+                        .setOccurredAtEpochMs(recall.occurredAt()
+                                .map(java.time.Instant::toEpochMilli).orElse(0L)));
+            } else if (entry instanceof ConversationHistoryEntry.Deletion deletion) {
+                MessagesDeletedRecord.Builder detail = MessagesDeletedRecord.newBuilder()
+                        .setConversationId(deletion.conversationId().toString())
+                        .setConversationSequence(deletion.conversationSequence())
+                        .setActorAccountId(deletion.actorAccountId().toString())
+                        .setSource(deletion.source())
+                        .setMode(deletion.mode())
+                        .setClientOperationId(deletion.clientOperationId())
+                        .setCutoffEpochMs(deletion.cutoffEpochMs())
+                        .setDeletedCount(deletion.deletedCount())
+                        .setOperatorNameSnapshot(deletion.operatorNameSnapshot())
+                        .setOccurredAtEpochMs(deletion.occurredAt().toEpochMilli());
+                deletion.messageIds().forEach(value -> detail.addMessageIds(value.toString()));
+                encoded.setDeletion(detail);
+            }
+            payload.addEntries(encoded);
         }
         MessageHistoryPage built = payload.build();
         MessagingPayloadPolicy.requireValid(built);
         events.historyPage();
         return responseEnvelope(
                 request, MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE, built.toByteString());
+    }
+
+    private static MessageRecord messageRecord(StoredMessage message) {
+        return MessageRecord.newBuilder()
+                .setConversationId(message.conversationId().toString())
+                .setMessageId(message.messageId().toString())
+                .setConversationSequence(message.conversationSequence())
+                .setSenderAccountId(message.senderAccountId().toString())
+                .setSenderDeviceId(message.senderDeviceId().toString())
+                .setClientMessageId(message.clientMessageId())
+                .setContentType(message.messageType())
+                .setContent(ByteString.copyFrom(message.payload()))
+                .setAcceptedAtEpochMs(message.acceptedAt().toEpochMilli())
+                .build();
     }
 
     private Envelope directoryResponse(Envelope request, ConversationDirectoryPage page) {
