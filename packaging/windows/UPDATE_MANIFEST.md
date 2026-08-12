@@ -12,7 +12,9 @@ The future Windows updater uses two independent trust checks:
 OpenSSL Ed25519 signing/verification. It deliberately refuses the current
 `unsigned-verification-Setup.exe` name. No production update private/public key
 is committed, and the product updater remains disabled until the client has a
-fixed-public-key verifier and the release owner provisions protected keys.
+reviewed fixed-public-key ring and the release owner provisions protected keys.
+ADR-0118 adds the default-deny verifier primitive, but deliberately injects an
+empty trusted-key ring and adds no network/update activation.
 
 ## Canonical format
 

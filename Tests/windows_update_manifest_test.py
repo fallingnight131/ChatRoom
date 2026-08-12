@@ -71,6 +71,7 @@ class WindowsUpdateManifestTest(unittest.TestCase):
         original = self.build()
         mutations = [
             lambda value: value.update(channel="nightly"),
+            lambda value: value.update(manifestSequence=2**53),
             lambda value: value.update(minimumUpdatableVersion="2.0.0"),
             lambda value: value.update(expiresAt="2026-10-19T00:00:00Z"),
             lambda value: value["rollout"].update(percentage=101),

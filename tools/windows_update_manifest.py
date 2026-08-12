@@ -67,7 +67,7 @@ def validate_manifest(
     if manifest.get("channel") not in CHANNELS:
         raise ManifestError("Windows update channel is invalid")
     sequence = manifest.get("manifestSequence")
-    if not isinstance(sequence, int) or isinstance(sequence, bool) or not 1 <= sequence <= 2**63 - 1:
+    if not isinstance(sequence, int) or isinstance(sequence, bool) or not 1 <= sequence <= 2**53 - 1:
         raise ManifestError("Windows update manifest sequence is invalid")
     key_id = manifest.get("signingKeyId")
     if not isinstance(key_id, str) or not KEY_ID.fullmatch(key_id):

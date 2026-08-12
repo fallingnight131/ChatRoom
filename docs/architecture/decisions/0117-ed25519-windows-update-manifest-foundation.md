@@ -48,7 +48,8 @@ pretending a production key exists. Stable/beta staging and key rotation have
 explicit signed fields. Compromise of the Web origin alone cannot authorize a
 different installer once the client verifier is active.
 
-This step does not link libsodium into the client, embed a public key, fetch a
+ADR-0118 subsequently links the default-deny client verification primitive and
+runtime without embedding a key. This step does not embed a public key, fetch a
 manifest, persist sequence/rollout state, inspect Authenticode, download Setup,
 or activate an update. It also does not establish key custody, certificate
 purchase, timestamp authority, revocation response, or release approval. Those

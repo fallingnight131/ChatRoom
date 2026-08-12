@@ -131,6 +131,9 @@ jobs:
           New-Item -ItemType Directory -Force "$artifact/client" | Out-Null
           Copy-Item $client.FullName "$artifact/client/ChatClient.exe"
           windeployqt --release --no-translations "$artifact/client/ChatClient.exe"
+          $sodiumDll = Get-ChildItem "$env:SODIUM_ROOT/bin" -Filter "*sodium*.dll" | Select-Object -First 1
+          if (-not $sodiumDll) { throw "Windows client artifact is missing the libsodium runtime source" }
+          Copy-Item $sodiumDll.FullName "$artifact/client/$($sodiumDll.Name)"
           $sqlitePlugin = Get-ChildItem "$artifact/client/sqldrivers" -Filter "qsqlite.dll" -ErrorAction SilentlyContinue
           if (-not $sqlitePlugin) { throw "Windows client artifact is missing the Qt SQLite driver" }
 
@@ -199,6 +202,9 @@ jobs:
           if (-not (Test-Path $installedClient -PathType Leaf)) { throw "Installed client executable is missing" }
           if (-not (Test-Path "$installRoot/sqldrivers/qsqlite.dll" -PathType Leaf)) {
             throw "Installed client is missing the Qt SQLite driver"
+          }
+          if (-not (Get-ChildItem $installRoot -Filter "*sodium*.dll" -ErrorAction SilentlyContinue)) {
+            throw "Installed client is missing the update-verifier libsodium runtime"
           }
           if (-not (Get-Item $installedClient).VersionInfo.ProductVersion.StartsWith($version)) {
             throw "Installed client version does not match canonical VERSION"

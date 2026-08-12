@@ -601,6 +601,12 @@ rollout, source, exact production Setup bytes, and expected Authenticode signer.
 Ephemeral keys prove signing, verification, and tamper rejection, but no product
 public/private key is committed and no client update path is active.
 
+ADR-0118 compiles the corresponding default-deny verifier into the Qt client.
+It requires exact canonical bytes and an injected key-ID ring, rejects empty or
+unknown trust, and packages the pinned libsodium runtime on Windows. No key is
+embedded and no network/update action calls the verifier, so activation remains
+an explicit future release decision.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

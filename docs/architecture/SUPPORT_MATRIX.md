@@ -73,6 +73,11 @@ update manifest, including sequence, expiry, rollout, installer integrity, and
 expected Authenticode signer. It has no product key or client verifier and is a
 default-off protocol foundation, not an update channel.
 
+The Windows client now compiles a default-deny canonical Ed25519 verifier and
+the installer payload includes its pinned libsodium DLL. Because the trusted key
+ring is empty and no fetch/decision/install path calls it, this remains a local
+primitive rather than an enabled updater.
+
 M4 must provide:
 
 - a signed and timestamped direct installer;

@@ -35,6 +35,8 @@ class WindowsInstallerPolicyTest(unittest.TestCase):
             "Upgrade deleted account-local client data",
             "Older installer was allowed to downgrade",
             "Rejected downgrade changed the current installation",
+            'Get-ChildItem "$env:SODIUM_ROOT/bin" -Filter "*sodium*.dll"',
+            "Installed client is missing the update-verifier libsodium runtime",
         ]:
             self.assertIn(evidence, workflow)
 

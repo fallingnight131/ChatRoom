@@ -143,6 +143,12 @@ and rejects tampering/expiry/unsafe URLs. It does not create or trust a product
 key and refuses the unsigned verification Setup name. See
 [`UPDATE_MANIFEST.md`](../packaging/windows/UPDATE_MANIFEST.md) and ADR-0117.
 
+The Qt gate also compiles `UpdateManifestSignatureVerifierTest`. It generates an
+ephemeral Ed25519 keypair and proves canonical verification plus empty-key,
+unknown-key, tamper, and non-canonical rejection. The client now links libsodium;
+Windows CI copies the vcpkg runtime DLL into the payload and checks it after
+install. No trusted update key or network update path exists.
+
 ## Java V2 Backend
 
 The additive M3 workspace requires JDK 21. It carries its own checksum-pinned

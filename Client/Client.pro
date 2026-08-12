@@ -10,6 +10,7 @@ VERSION = $$CHAT_APP_VERSION
 DEFINES += CHAT_APP_VERSION=\\\"$$CHAT_APP_VERSION\\\"
 
 include(../Common/Common.pri)
+include(../Common/Libsodium.pri)
 
 SOURCES += \
     main.cpp \
@@ -29,6 +30,7 @@ SOURCES += \
     OutgoingMessageService.cpp \
     ConversationSyncService.cpp \
     V1HistoryPageAdapter.cpp \
+    UpdateManifestSignatureVerifier.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -53,6 +55,7 @@ HEADERS += \
     OutgoingMessageService.h \
     ConversationSyncService.h \
     V1HistoryPageAdapter.h \
+    UpdateManifestSignatureVerifier.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \
