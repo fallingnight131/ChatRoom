@@ -26,4 +26,6 @@ Codec tests cover exact username parsing and localized reverse-pending response.
 Embedded-channel tests prove first-only notification to the authoritative
 recipient and duplicate suppression. The complete Java gate remains required;
 real PostgreSQL request creation concurrency is independently covered by
-ADR-0246. A combined real dual-login transport scenario remains the next gate.
+ADR-0246. Disposable PostgreSQL additionally proves the composed flow across
+real imported requester/recipient logins, including one notification, retry
+suppression, mapped pending-list visibility, and no UUID exposure.

@@ -249,6 +249,35 @@ class GatewayRuntimePostgresIntegrationTest {
                     peer.runPendingTasks();
                     assertNull(peer.readOutbound());
                     assertEquals(1, acceptedRequestCount(jdbcUrl, username, password));
+                    EmbeddedChannel newcomer = upgradedChannel(module, Runnable::run,
+                            AuthenticationAdmissionControl.allowAll(),
+                            AuthenticationEventSink.noop());
+                    try {
+                        newcomer.writeInbound(loginFrame(
+                                "imported-newcomer", "java-v2-test-password"));
+                        newcomer.runPendingTasks();
+                        ((TextWebSocketFrame) newcomer.readOutbound()).release();
+                        assertFriendRequestSuccess(peer, "imported-newcomer");
+                        newcomer.runPendingTasks();
+                        TextWebSocketFrame requestNotification = newcomer.readOutbound();
+                        try {
+                            assertTrue(requestNotification.text().contains(
+                                    "\"type\":\"FRIEND_REQUEST_NOTIFY\""));
+                            assertTrue(requestNotification.text().contains(
+                                    "\"fromUsername\":\"imported-peer\""));
+                        } finally { requestNotification.release(); }
+                        assertFriendRequestSuccess(peer, "imported-newcomer");
+                        newcomer.runPendingTasks();
+                        assertNull(newcomer.readOutbound());
+                        newcomer.writeInbound(new TextWebSocketFrame(
+                                "{\"type\":\"FRIEND_PENDING_REQ\",\"data\":{}}"));
+                        newcomer.runPendingTasks();
+                        TextWebSocketFrame newPending = newcomer.readOutbound();
+                        try {
+                            assertTrue(newPending.text().contains("\"fromUserId\":44"));
+                            assertFalse(newPending.text().contains("15000000-0000"));
+                        } finally { newPending.release(); }
+                    } finally { newcomer.finishAndReleaseAll(); }
                 } finally {
                     peer.finishAndReleaseAll();
                 }
@@ -270,7 +299,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     response.release();
                 }
                 assertFalse(nativeV2.isActive());
-                assertEquals(2, sessionCount(jdbcUrl, username, password));
+                assertEquals(3, sessionCount(jdbcUrl, username, password));
             } finally {
                 nativeV2.finishAndReleaseAll();
             }
@@ -354,10 +383,24 @@ class GatewayRuntimePostgresIntegrationTest {
         } finally { response.release(); }
     }
 
+    private static void assertFriendRequestSuccess(
+            EmbeddedChannel channel, String targetUsername) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"FRIEND_REQUEST_REQ\",\"data\":{\"username\":\""
+                        + targetUsername + "\"}}"));
+        channel.runPendingTasks();
+        TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"FRIEND_REQUEST_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+        } finally { response.release(); }
+    }
+
     private static void seedV1CompatibilityAccounts(
             String url, String user, String password) throws Exception {
         UUID imported = UUID.fromString("10000000-0000-0000-0000-000000000042");
         UUID peer = UUID.fromString("15000000-0000-0000-0000-000000000044");
+        UUID newcomer = UUID.fromString("16000000-0000-0000-0000-000000000045");
         UUID nativeV2 = UUID.fromString("20000000-0000-0000-0000-000000000043");
         try (Connection connection = DriverManager.getConnection(url, user, password);
                 Statement truncate = connection.createStatement()) {
@@ -380,14 +423,20 @@ class GatewayRuntimePostgresIntegrationTest {
                 account.setString(3, "Imported Peer");
                 account.setString(4, HASH);
                 account.addBatch();
+                account.setObject(1, newcomer);
+                account.setString(2, "imported-newcomer");
+                account.setString(3, "Imported Newcomer");
+                account.setString(4, HASH);
+                account.addBatch();
                 account.executeBatch();
             }
             try (PreparedStatement mapping = connection.prepareStatement(
                     "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
-                            + "VALUES (42, ?), (44, ?)")) {
+                            + "VALUES (42, ?), (44, ?), (45, ?)")) {
                 mapping.setObject(1, imported);
                 mapping.setObject(2, peer);
-                assertEquals(2, mapping.executeUpdate());
+                mapping.setObject(3, newcomer);
+                assertEquals(3, mapping.executeUpdate());
             }
             UUID importedRoom = UUID.fromString("30000000-0000-0000-0000-000000000007");
             UUID unrelatedRoom = UUID.fromString("30000000-0000-0000-0000-000000000008");

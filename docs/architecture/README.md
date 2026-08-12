@@ -309,8 +309,9 @@ channel owns requester identity, first apply schedules one notification to the
 recipient's current local authoritative connection, and exact retry suppresses
 notification. Typed legacy errors remain compatible; malformed, saturated, or
 dependency-failed paths close safely. Fixed telemetry contains no usernames or
-account IDs. A combined real PostgreSQL dual-login transport proof remains open,
-and the product listener remains unchanged.
+account IDs. Disposable PostgreSQL verification now proves first creation,
+first-only notification, retry suppression, and mapped pending-list visibility
+across real imported logins. The product listener remains unchanged.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,

@@ -471,7 +471,7 @@ Progress:
     convergence, active-friend/reverse checks, and descending runtime V1 IDs.
   - [x] Compose detached strict V1 friend-request creation with compatible typed
     errors, fixed telemetry, authoritative first notification, and retry suppression.
-  - [ ] Prove the composed friend-request creation/notification path with two
+  - [x] Prove the composed friend-request creation/notification path with two
     real imported logins on disposable PostgreSQL.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.

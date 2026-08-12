@@ -319,9 +319,9 @@ pending is distinct; a new canonical request and numeric map commit together.
 Bounded retry resolves serialization/unique races to durable typed outcomes.
 
 The detached V1 module now invokes this adapter behind strict authenticated
-request creation. Persistence concurrency and handler notification behavior are
-verified independently; a combined disposable-PostgreSQL dual-login transport
-test remains open. This is not a product-traffic cutover.
+request creation. Disposable PostgreSQL verifies first creation, exactly one
+online notification, duplicate retry suppression, and the recipient's mapped
+pending-list read across real imported logins. This is not a product-traffic cutover.
 
 The detached V1 module now composes this adapter behind strict authenticated
 `FRIEND_REJECT_REQ` handling. Disposable-database verification covers first
