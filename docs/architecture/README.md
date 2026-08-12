@@ -381,6 +381,15 @@ sender/time/sequence fields are not authority; attachments, delivery claims,
 and multi-gateway routing remain outside this path. The product listener remains
 unchanged.
 
+The room-history application boundary defines a UUID-free, server-authorized
+projection for latest timestamp pages and forward sequence synchronization.
+Sequence pages merge text/emoji messages, folded recalls, and administrative
+deletion events under one cursor while retaining separate compatible
+`messages` and `events` arrays. Pages contain at most 100 combined items;
+deletion identity arrays are bounded, positive, and duplicate-free. Missing or
+inconsistent compatibility state must fail the future adapter's whole read.
+No PostgreSQL adapter or handler exists yet.
+
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.
 Verified import can backfill a pre-cutover null mapping from the reverified

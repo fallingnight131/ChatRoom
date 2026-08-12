@@ -324,6 +324,14 @@ in IndexedDB. Both request bounded follow-up pages after reconnect login. Room
 pages apply mixed message/event pages in cursor order; direct pages merge
 authoritative message/recall state using `syncSequence`.
 
+The detached Java room-history boundary reserves this mixed reconnect model.
+It binds the reader to authenticated account state, accepts a positive mapped
+room ID, and limits each page to 100 combined message/event items. Text/emoji
+messages fold recall state through `mutationSequence`; deletion events retain
+their shared sequence and bounded positive V1 message/file identity lists.
+Latest timestamp pages contain messages only, preserving the existing response
+shape. No PostgreSQL adapter or transport handler exists yet.
+
 The detached Java direct-history boundary preserves both direct modes. Its
 PostgreSQL adapter now reads one repeatable snapshot and resolves the exact peer
 and active friendship from authenticated state, emits

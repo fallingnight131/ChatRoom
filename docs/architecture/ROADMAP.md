@@ -510,6 +510,9 @@ Progress:
   - [x] Compose detached strict V1 room messaging with durable ACK-first sender
     echo, authoritative batch membership filtering, first-only process-local
     fan-out, duplicate suppression, fixed telemetry, and real PostgreSQL proof.
+  - [x] Define a bounded UUID-free V1 room-history projection that merges
+    message creation, recall mutation, and administrative deletion under one
+    reconnect cursor without changing latest-page compatibility.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application
