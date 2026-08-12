@@ -432,6 +432,14 @@ Progress:
     membership/mapping conflict rollback.
   - [x] Add offline conversation preview/final-verify/apply commands with an
     independent explicit graph fingerprint and a maintenance-window runbook.
+  - [x] Add deterministic V1 shared-sequence/read-cursor planning, query-only
+    same-snapshot SQLite extraction, and exact protected-backup reconciliation.
+  - [x] Add the V2 conversation-entry foundation for message creation, recall,
+    and deletion sequences, including non-authenticating legacy provenance.
+  - [x] Add database-enforced typed V1 retained-message and deletion-event
+    compatibility maps plus exact read-only message identity projection.
+  - [ ] Import verified V1 message payloads, recall/deletion entries, translated
+    read cursors, and preserved high watermarks atomically before message cutover.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

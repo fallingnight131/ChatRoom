@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1AccountIdentity;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1ConversationIdentity;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1ConversationKind;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1MessageIdentity;
 import com.fallingnight.chat.application.identity.AccountCredential;
 import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.application.identity.ClientPlatform;
@@ -81,7 +82,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(8, first.migrate());
+        assertEquals(9, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -95,7 +96,8 @@ class PostgresMigratorTest {
                             "identity_import_run", "legacy_v1_account_map",
                             "legacy_v1_conversation_map", "conversation_import_run",
                             "conversation_entry", "message_recall_event",
-                            "messages_deleted_event"),
+                            "messages_deleted_event", "legacy_v1_message_map",
+                            "legacy_v1_deletion_event_map"),
                     applicationTables(connection));
             proveSequenceAndIdempotencyConstraints(connection);
         }
@@ -148,6 +150,22 @@ class PostgresMigratorTest {
                         conversation, account, device, "client-2", 101, new byte[] {4}));
         assertEquals(2, second.conversationSequence());
         assertEquals(2, conversationEntryCount(conversation));
+        executeLegacyMessageMappings(
+                conversation, raced.getFirst().messageId(), second.messageId());
+        PostgresLegacyV1MessageProjection legacyMessages =
+                new PostgresLegacyV1MessageProjection(dataSource());
+        LegacyV1MessageIdentity firstLegacy = new LegacyV1MessageIdentity(
+                LegacyV1ConversationKind.FRIENDSHIP,
+                909,
+                1001,
+                conversation,
+                raced.getFirst().messageId());
+        assertEquals(Optional.of(firstLegacy), legacyMessages.findByLegacyId(
+                LegacyV1ConversationKind.FRIENDSHIP, 1001));
+        assertEquals(Optional.of(firstLegacy),
+                legacyMessages.findByMessageId(raced.getFirst().messageId()));
+        assertTrue(legacyMessages.findByLegacyId(
+                LegacyV1ConversationKind.ROOM, 1001).isEmpty());
 
         MessageHistoryResult.Page firstPage = (MessageHistoryResult.Page) adapter.readAfter(
                 new MessageHistoryQuery(conversation, account, 0, 1));
@@ -749,6 +767,34 @@ class PostgresMigratorTest {
                 assertTrue(result.next());
                 return result.getInt(1);
             }
+        }
+    }
+
+    private static void executeLegacyMessageMappings(
+            UUID conversationId, UUID firstMessageId, UUID secondMessageId) throws SQLException {
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map("
+                            + "legacy_kind, legacy_conversation_id, conversation_id) "
+                            + "VALUES ('FRIENDSHIP', 909, ?)",
+                    conversationId);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_message_map(legacy_kind, legacy_message_id, "
+                            + "legacy_conversation_id, conversation_id, message_id) "
+                            + "VALUES ('FRIENDSHIP', 1001, 909, ?, ?)",
+                    conversationId, firstMessageId);
+            SQLException wrongConversation = assertThrows(SQLException.class, () -> execute(
+                    connection,
+                    "INSERT INTO chat.legacy_v1_message_map(legacy_kind, legacy_message_id, "
+                            + "legacy_conversation_id, conversation_id, message_id) "
+                            + "VALUES ('FRIENDSHIP', 1003, 910, ?, ?)",
+                    conversationId, secondMessageId));
+            assertEquals("23503", wrongConversation.getSQLState());
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_message_map(legacy_kind, legacy_message_id, "
+                            + "legacy_conversation_id, conversation_id, message_id) "
+                            + "VALUES ('FRIENDSHIP', 1002, 909, ?, ?)",
+                    conversationId, secondMessageId);
         }
     }
 
