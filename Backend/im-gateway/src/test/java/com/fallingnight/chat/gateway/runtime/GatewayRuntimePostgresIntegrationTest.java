@@ -19,6 +19,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomCreationEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomJoinEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomLeaveEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMemberListEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestAcceptanceEventSink;
@@ -264,6 +265,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     peer.runPendingTasks();
                     ((TextWebSocketFrame) peer.readOutbound()).release();
                     assertUserSearch(imported, true);
+                    assertRoomMembersOnline(imported);
                     long roomMessageId = assertRoomMessageFirst(imported, peer);
                     assertRoomMessageDuplicate(imported, peer);
 
@@ -407,6 +409,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomCreationEventSink.noop(),
                 V1RoomJoinEventSink.noop(),
                 V1RoomLeaveEventSink.noop(),
+                V1RoomMemberListEventSink.noop(),
                 V1RoomDirectoryEventSink.noop(),
                 V1RoomMessageEventSink.noop(),
                 V1RoomHistoryEventSink.noop(),
@@ -978,6 +981,29 @@ class GatewayRuntimePostgresIntegrationTest {
                 assertFalse(rooms.text().contains("Java Protected Room"));
             } finally { rooms.release(); }
         } finally { afterLeave.finishAndReleaseAll(); }
+    }
+
+    private static void assertRoomMembersOnline(EmbeddedChannel channel) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"USER_LIST_REQ\",\"data\":{\"roomId\":7}}"));
+        channel.runPendingTasks(); TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"USER_LIST_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"username\":\"imported-v1\""));
+            assertTrue(response.text().contains("\"username\":\"imported-peer\""));
+            assertEquals(2, occurrences(response.text(), "\"isOnline\":true"));
+            assertTrue(response.text().contains("\"isAdmin\":true"));
+            assertFalse(response.text().contains("10000000-0000"));
+        } finally { response.release(); }
+    }
+
+    private static int occurrences(String value, String needle) {
+        int count = 0, offset = 0;
+        while ((offset = value.indexOf(needle, offset)) >= 0) {
+            count++; offset += needle.length();
+        }
+        return count;
     }
 
     private static TextWebSocketFrame joinFrame(long roomId, String password) {

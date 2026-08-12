@@ -145,7 +145,11 @@ and returns no more than 1,000 complete mapped active members. Canonical role
 becomes `isAdmin`; process-local presence becomes `isOnline`; UUIDs never cross
 the response. Overflow rejects instead of truncating. The repeatable-read
 PostgreSQL adapter requires complete enabled V1 mappings, orders deterministically,
-and denies outsiders or dissolved rooms. No handler exists yet.
+and denies outsiders or dissolved rooms. The detached strict handler preserves
+`USER_LIST_RSP.data.roomId/users` and user `username`, `displayName`, `isAdmin`,
+and `isOnline`; additive `success`/`errorCode` fields are ignorable by old
+clients. Real PostgreSQL proves two authenticated members project online. The
+product listener remains unchanged.
 
 ### Room lifecycle and settings
 

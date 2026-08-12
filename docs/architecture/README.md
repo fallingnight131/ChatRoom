@@ -384,8 +384,12 @@ and exposes only username, display name, administrator, and online flags. The
 repeatable-read PostgreSQL adapter now requires enabled mapped actor membership,
 active GROUP lifecycle, and complete enabled mappings for every active member;
 it orders deterministically and reads one overflow sentinel. Real PostgreSQL
-proves member/admin projection plus outsider and dissolved-room denial. No
-handler exists yet.
+proves member/admin projection plus outsider and dissolved-room denial. The
+detached strict handler now binds actor from the
+authenticated channel, runs the query off-loop, bounds output to 1 MiB, and
+preserves `username`/`displayName`/`isAdmin`/`isOnline` without UUID exposure.
+Real PostgreSQL gateway integration proves two logged-in mapped members are
+projected online. The product listener remains unchanged.
 
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target
