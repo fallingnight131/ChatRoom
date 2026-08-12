@@ -1,6 +1,7 @@
 // 用户状态管理
 import { defineStore } from 'pinia'
 import { chatWs, MsgType, setHttpConfig } from '../services/websocket'
+import { purgeLegacyServerOverrides, resolveWebEndpointPolicy } from '../security/webEndpointPolicy'
 import {
   clearSessionCredentials as clearInMemoryCredentials,
   completeSessionPasswordChange,
@@ -11,12 +12,12 @@ import {
 } from '../security/sessionCredentials'
 
 purgeLegacyPersistedSession()
+purgeLegacyServerOverrides(typeof localStorage === 'undefined' ? null : localStorage)
 
-const isLocalDevelopment = typeof location !== 'undefined' &&
-  (location.hostname === '127.0.0.1' || location.hostname === 'localhost')
-const defaultServer = isLocalDevelopment
-  ? { host: location.hostname, port: 9528, path: '' }
-  : { host: 'fallingnight.cn', port: 443, path: '/ws' }
+const endpointPolicy = resolveWebEndpointPolicy(
+  typeof location === 'undefined' ? null : location,
+  import.meta.env
+)
 
 export const useUserStore = defineStore('user', {
   state: () => ({
@@ -26,24 +27,14 @@ export const useUserStore = defineStore('user', {
     displayName: '',   // 昵称
     avatarData: '',    // base64
     darkMode: localStorage.getItem('darkMode') !== 'false',
-    serverHost: localStorage.getItem('serverHost') || defaultServer.host,
-    serverPort: parseInt(localStorage.getItem('serverPort') || String(defaultServer.port)),
-    wsPath: localStorage.getItem('wsPath') ?? defaultServer.path,
+    websocketUrl: endpointPolicy.usable ? endpointPolicy.websocketUrl : '',
+    endpointPolicyError: endpointPolicy.usable ? '' : endpointPolicy.reason,
     // 缓存其他用户头像
     avatarCache: {},   // username -> base64
     forceOfflineReason: '',  // 被顶号时的提示信息
   }),
 
   actions: {
-    setServer(host, port, path = '') {
-      this.serverHost = host
-      this.serverPort = port
-      this.wsPath = path
-      localStorage.setItem('serverHost', host)
-      localStorage.setItem('serverPort', String(port))
-      localStorage.setItem('wsPath', path)
-    },
-
     toggleDarkMode() {
       this.darkMode = !this.darkMode
       localStorage.setItem('darkMode', String(this.darkMode))
@@ -55,7 +46,8 @@ export const useUserStore = defineStore('user', {
       this.username = data.username
       this.displayName = data.displayName || data.username
       if (data.httpPort && data.fileToken) {
-        setHttpConfig(this.serverHost, data.httpPort, data.fileToken)
+        const endpoint = new URL(this.websocketUrl)
+        setHttpConfig(endpoint.hostname, data.httpPort, data.fileToken)
       }
     },
 

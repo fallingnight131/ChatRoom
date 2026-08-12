@@ -117,6 +117,16 @@ class ChatWebSocket {
       // 直连 WebSocket 端口
       this.url = `${protocol}://${host}:${port}`
     }
+    this.connectUrl(this.url)
+  }
+
+  connectUrl(candidateUrl) {
+    const parsed = new URL(candidateUrl)
+    if ((parsed.protocol !== 'ws:' && parsed.protocol !== 'wss:') ||
+        parsed.username || parsed.password || parsed.hash) {
+      throw new Error('Invalid WebSocket endpoint')
+    }
+    this.url = parsed.toString()
     this.autoReconnect = true
     this.reconnectCount = 0
     this._doConnect()
@@ -499,18 +509,41 @@ function getSameOriginBaseUrl() {
   return location.origin
 }
 
+function buildAuthorizedSameOriginApiUrl(baseUrl, path, token, query = {}) {
+  if (!baseUrl || !path || !token) return ''
+  try {
+    const base = new URL(baseUrl)
+    if ((base.protocol !== 'http:' && base.protocol !== 'https:') ||
+        base.username || base.password || base.pathname !== '/' || base.search || base.hash) return ''
+    if (!path.startsWith('/') || path.startsWith('//')) return ''
+
+    const url = new URL(path, base)
+    if (url.origin !== base.origin || !url.pathname.startsWith('/api/') || url.hash) return ''
+    url.searchParams.set('token', token)
+    for (const [key, value] of Object.entries(query)) url.searchParams.set(key, value)
+    return url.toString()
+  } catch {
+    return ''
+  }
+}
+
 function getHttpDownloadUrl(fileId, isFriendFile = false, disposition = 'attachment') {
   if (!_fileToken || fileId == null) return ''
   const baseUrl = getSameOriginBaseUrl() || _httpBaseUrl
   if (!baseUrl) return ''
   const friend = isFriendFile || Number(fileId) < 0 ? '1' : '0'
   const disp = disposition === 'inline' ? 'inline' : 'attachment'
-  return `${baseUrl}/api/download/${fileId}?token=${encodeURIComponent(_fileToken)}&friend=${friend}&disposition=${disp}`
+  return buildAuthorizedSameOriginApiUrl(
+    baseUrl,
+    `/api/download/${encodeURIComponent(String(fileId))}`,
+    _fileToken,
+    { friend, disposition: disp }
+  )
 }
 
 function getHttpUploadUrl(path) {
-  if (!_fileToken || !path || !_httpBaseUrl.value) return ''
-  return `${_httpBaseUrl.value}${path}?token=${encodeURIComponent(_fileToken)}`
+  const baseUrl = getSameOriginBaseUrl() || _httpBaseUrl
+  return buildAuthorizedSameOriginApiUrl(baseUrl, path, _fileToken)
 }
 
 function getHttpBaseUrl() {

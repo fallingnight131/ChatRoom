@@ -595,6 +595,13 @@ are captured in an explicitly `not-deployed` verification artifact. Hosting,
 CSP/HSTS, browser compatibility, rollout health, and rollback are still
 separate acceptance gates.
 
+ADR-0111 establishes the production network boundary needed by those gates.
+The V1 Web client now resolves WebSocket `/ws` and HTTP `/api/` on the exact
+HTTPS page origin, removes legacy persisted server overrides, and reserves
+direct port 9528 only for loopback development. A deployment must provide those
+same-origin reverse-proxy routes before activation. This permits a narrow
+`connect-src 'self'` policy but does not claim the headers are deployed yet.
+
 The Windows updater must use a signed manifest containing architecture, channel,
 version, minimum compatible version, hash, signature, and URL. Support stable
 and beta channels and preserve rollback capability. Web rollback uses immutable

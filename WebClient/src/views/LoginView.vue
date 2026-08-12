@@ -80,9 +80,13 @@ function doLogin() {
     errorMsg.value = '请输入用户ID和密码'
     return
   }
+  if (userStore.endpointPolicyError) {
+    errorMsg.value = userStore.endpointPolicyError
+    return
+  }
   errorMsg.value = ''
   loading.value = true
-  chatWs.connect(userStore.serverHost, userStore.serverPort, userStore.wsPath)
+  chatWs.connectUrl(userStore.websocketUrl)
 }
 
 function doRegister() {
@@ -94,9 +98,13 @@ function doRegister() {
     errorMsg.value = '两次密码不一致'
     return
   }
+  if (userStore.endpointPolicyError) {
+    errorMsg.value = userStore.endpointPolicyError
+    return
+  }
   errorMsg.value = ''
   loading.value = true
-  chatWs.connect(userStore.serverHost, userStore.serverPort, userStore.wsPath)
+  chatWs.connectUrl(userStore.websocketUrl)
 }
 
 // WebSocket 事件处理

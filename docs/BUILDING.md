@@ -52,6 +52,21 @@ python3 Tests/web_artifact_manifest_test.py
 The generated manifest is not evidence that a hosting service applied cache or
 security headers, passed browser compatibility, or can roll back.
 
+Production Web builds resolve V1 WebSocket traffic to `wss://<page-authority>/ws`
+and file traffic below same-origin `/api/`; the HTTPS reverse proxy must own both
+routes. A different same-origin WebSocket path can be selected at build time,
+but paths that contain another authority, query, fragment, backslash, or dot
+segment fail closed:
+
+```bash
+cd WebClient
+VITE_CHAT_V1_WS_PATH=/chat/ws npm run build
+```
+
+Pages served from loopback retain direct port 9528 for local Qt server
+development and use the Vite `/api/` proxy. Non-loopback HTTP pages are blocked,
+and browser storage cannot override a production server. See ADR-0111.
+
 The supported Web build remains on V1 by default. The M3 V2 engineering preview
 is a separate, default-off build configuration:
 

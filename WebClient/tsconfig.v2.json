@@ -8,5 +8,5 @@
     "skipLibCheck": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["src/protocol/v2/**/*.ts", "tests/*.test.ts"]
+  "include": ["src/protocol/v2/**/*.ts", "src/security/**/*.ts", "tests/*.test.ts"]
 }

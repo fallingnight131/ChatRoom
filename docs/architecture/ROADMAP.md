@@ -557,6 +557,9 @@ Progress:
   uninstall, registry traceability, and account-local data preservation checks.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
+- [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,
+  remove legacy browser server overrides, and retain loopback-only local
+  development behavior.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
   supported Windows installer and update channel.
 - [ ] Publish and verify versioned, policy-hardened, rollback-ready Web releases.
