@@ -41,6 +41,10 @@ version and digest and bind its smoke results to one immutable candidate. This
 is now paired with an exact six-slot completion boundary (ADR-0210), but no
 six-browser run or public support claim has been completed yet.
 
+ADR-0211 also defines a repeated static/API/WebSocket health-window contract.
+It is not production evidence until the release workflow collects and closes
+real preview and production windows.
+
 The authoritative initial Windows target list is
 [`packaging/windows/support-matrix-policy.json`](../../packaging/windows/support-matrix-policy.json).
 Each gate must report ProductType 1; Windows Server build agents cannot satisfy

@@ -195,6 +195,14 @@ credential and does not support first-release bootstrap. See ADR-0207.
 The provider-neutral filesystem adapter may then consume that authorization
 exactly once:
 
+Before approving preview health or closing production health, collect at least
+three fresh static/route observation pairs over at least 60 seconds and bind
+them with `tools/web_release_health_window.py`. The tool rejects reused,
+out-of-order, split-origin, mixed-release, overly sparse, and stale samples and
+writes one immutable `preview` or `production` result. This is sustained
+technical health, not percentage rollout or user-experience telemetry. See
+ADR-0211.
+
 ```bash
 python3 tools/web_release_execution.py execute \
   --authorization /path/to/evidence/web-production-authorization.json \
