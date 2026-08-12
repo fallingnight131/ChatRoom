@@ -8,7 +8,7 @@ import shutil
 import sys
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -159,9 +159,26 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
         )
         manifest = json.loads((self.candidate / "windows-release-candidate.json").read_text(
             encoding="utf-8"))
-        self.assertEqual(manifest["schemaVersion"], 4)
+        self.assertEqual(manifest["schemaVersion"], 5)
+        self.assertEqual(manifest["assembledAt"], "2026-08-12T12:00:00Z")
         self.assertFalse(any(path.name.startswith(".windows-candidate-")
                              for path in self.root.iterdir()))
+
+    def test_revalidates_archived_candidate_against_assembly_time(self) -> None:
+        self.assemble()
+        verified = validate_candidate(
+            self.candidate, self.version_file, self.revision, "stable",
+            "6.11.1", self.signer, self.now + timedelta(days=90),
+        )
+        self.assertEqual(verified["releaseId"],
+                         f"windows-stable-{self.version}-{self.revision}")
+
+        manifest_path = self.candidate / "windows-release-candidate.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["assembledAt"] = "2027-01-01T00:00:00Z"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "from the future"):
+            self.validate()
 
     def test_rejects_missing_runtime_forbidden_files_and_existing_destination(self) -> None:
         for relative in ("Qt6Core.dll", "platforms/qwindows.dll",

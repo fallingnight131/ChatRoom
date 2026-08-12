@@ -9,7 +9,7 @@ import os
 import re
 import shutil
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 
 from artifact_manifest_common import (
@@ -48,9 +48,21 @@ ROOT_KEYS = {
     "sourceRevision", "platform", "architecture", "toolchain", "qtVersion",
     "expectedSignerCertificateSha256", "signatureEvidencePath", "installerPath",
     "uninstallerPath", "protectedSigningIntentPath", "installAcceptanceEvidencePath",
-    "files",
+    "assembledAt", "files",
 }
 FILE_KEYS = {"path", "sha256", "size"}
+
+
+def _exact_utc(value: object) -> datetime:
+    if not isinstance(value, str) or not value.endswith("Z"):
+        raise ManifestError("Windows release candidate assembly time is invalid")
+    try:
+        parsed = datetime.fromisoformat(value[:-1] + "+00:00")
+    except ValueError as error:
+        raise ManifestError("Windows release candidate assembly time is invalid") from error
+    if parsed.microsecond or parsed.tzinfo != timezone.utc:
+        raise ManifestError("Windows release candidate assembly time is invalid")
+    return parsed
 
 
 def _strict_json(path: Path, label: str) -> dict[str, object]:
@@ -164,8 +176,14 @@ def validate_candidate(
         raise ManifestError("Windows release candidate manifest has an unsupported shape")
     expected_installer_path = f"installer/{installer_name}"
     expected_uninstaller_path = f"installer/{uninstaller_name}"
+    assembled_at = _exact_utc(manifest.get("assembledAt"))
+    if now_utc.tzinfo is None or now_utc.utcoffset() != timedelta(0):
+        raise ManifestError("Windows release candidate verifier requires a UTC clock")
+    verification_now = now_utc.replace(microsecond=0)
+    if assembled_at > verification_now:
+        raise ManifestError("Windows release candidate assembly time is from the future")
     if (type(manifest["schemaVersion"]) is not int
-            or manifest["schemaVersion"] != 4
+            or manifest["schemaVersion"] != 5
             or manifest["product"] != "chat-room-windows-client"
             or manifest["releaseStatus"] != RELEASE_STATUS
             or manifest["channel"] != channel
@@ -232,18 +250,18 @@ def validate_candidate(
         version_file,
         source_revision,
         expected_signer_sha256,
-        now_utc,
+        assembled_at,
     )
     verify_signing_intent(
         candidate_root / INTENT_PATH, version_file, source_revision,
-        channel, expected_signer_sha256, now_utc)
+        channel, expected_signer_sha256, assembled_at)
     verify_install_evidence(
         candidate_root / INSTALL_EVIDENCE_PATH,
         candidate_root / "client/ChatClient.exe",
         candidate_root / "client/ChatRoomUpdateLauncher.exe",
         candidate_root / expected_uninstaller_path,
         candidate_root / expected_installer_path,
-        version_file, source_revision, expected_signer_sha256, now_utc)
+        version_file, source_revision, expected_signer_sha256, assembled_at)
     return {
         "releaseId": f"windows-{channel}-{version}-{source_revision}",
         "version": version,
@@ -356,7 +374,7 @@ def assemble_candidate(
             entries.append({"path": relative, "sha256": digest, "size": size})
             checksums.append(f"{digest}  {relative}")
         manifest = {
-            "schemaVersion": 4,
+            "schemaVersion": 5,
             "product": "chat-room-windows-client",
             "releaseStatus": RELEASE_STATUS,
             "channel": channel,
@@ -370,6 +388,8 @@ def assemble_candidate(
             "signatureEvidencePath": EVIDENCE_PATH,
             "protectedSigningIntentPath": INTENT_PATH,
             "installAcceptanceEvidencePath": INSTALL_EVIDENCE_PATH,
+            "assembledAt": now_utc.astimezone(timezone.utc).replace(
+                microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "installerPath": f"installer/{installer_name}",
             "uninstallerPath": f"installer/{uninstaller_name}",
             "files": entries,
@@ -426,13 +446,13 @@ def main() -> int:
                 args.install_acceptance_evidence,
                 args.output_root, args.version_file, args.source_revision,
                 args.channel, args.qt_version, args.expected_signer_sha256,
-                datetime.now(timezone.utc),
+                datetime.now(timezone.utc).replace(microsecond=0),
             )
         else:
             result = validate_candidate(
                 args.candidate_root, args.version_file, args.source_revision,
                 args.channel, args.qt_version, args.expected_signer_sha256,
-                datetime.now(timezone.utc),
+                datetime.now(timezone.utc).replace(microsecond=0),
             )
     except (ManifestError, OSError) as error:
         raise SystemExit(f"Windows release candidate failed: {error}") from None

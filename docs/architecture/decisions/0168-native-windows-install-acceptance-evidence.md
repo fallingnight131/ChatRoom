@@ -1,6 +1,6 @@
 # ADR-0168: Native Windows Install Acceptance Evidence
 
-- Status: Accepted
+- Status: Accepted; durable candidate verification amended by ADR-0169
 - Date: 2026-08-12
 - Owners: Release engineering and security
 - Extends: ADR-0141, ADR-0165, ADR-0167

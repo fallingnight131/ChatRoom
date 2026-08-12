@@ -728,6 +728,9 @@ Progress:
   installed client/helper/uninstaller bytes and signatures, validates product
   registration and cleanup, and binds independently verified evidence into
   candidate schema 4.
+- [x] Advance the candidate to schema 5 with an immutable assembly timestamp so
+  live inputs must be fresh during assembly while archived candidates remain
+  durably auditable against that trusted instant.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

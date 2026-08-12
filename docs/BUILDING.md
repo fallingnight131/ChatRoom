@@ -341,7 +341,7 @@ assembly must hash and retain it, and publication requires a later independent
 authorization boundary.
 
 `windows_release_candidate.py assemble` now requires
-`--protected-signing-intent`. Candidate schema 4 stores the exact intent bytes at
+`--protected-signing-intent`. Candidate schema 5 stores the exact intent bytes at
 `evidence/protected-signing-intent.json`, declares its path explicitly, hashes it
 in the candidate file list and `SHA256SUMS`, then reruns semantic intent
 verification during both assembly and independent candidate verification. The
@@ -403,7 +403,7 @@ workflow inputs into shell blocks is forbidden. The workflow then:
 8. installs Setup into a clean dedicated path, requires the installed
    client/helper/uninstaller bytes and signatures to match, verifies registration,
    uninstalls, and independently verifies the closed acceptance evidence;
-9. assembles and independently verifies a schema-4 candidate; and
+9. assembles and independently verifies a schema-5 candidate; and
 10. uploads one seven-day `signed-not-published` evidence artifact.
 
 It cannot create a GitHub Release, sign or publish an update manifest, contact a
@@ -508,6 +508,14 @@ The native acceptance producer is additionally guarded by
 final-byte verifier is covered by `Tests/windows_install_evidence_test.py`.
 These local tests are not substitutes for executing the signed installer on the
 protected Windows runner.
+
+Candidate verification uses immutable `assembledAt` as the freshness reference
+for the retained two-hour intent and 24-hour native observations. Assembly still
+requires those inputs to be fresh at the real current time, but an unchanged
+archived candidate remains independently verifiable after those operational
+windows expire. A candidate whose assembly time is in the verifier's future is
+rejected. This prevents freshness policy from becoming accidental artifact
+expiry and is covered by `Tests/windows_release_candidate_test.py`.
 
 The Qt gate also compiles `UpdateManifestSignatureVerifierTest`. It generates an
 ephemeral Ed25519 keypair and proves canonical verification plus empty-key,
