@@ -12,6 +12,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestAcceptanceEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestRejectionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1PendingFriendRequestEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1UserSearchEventSink;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
@@ -146,6 +147,8 @@ class GatewayRuntimePostgresIntegrationTest {
                 assertEquals(V1WebLoginHandler.COMPATIBILITY_DEVICE_ID,
                         storedDeviceAlias(jdbcUrl, username, password));
 
+                assertUserSearch(imported, false);
+
                 imported.writeInbound(new TextWebSocketFrame(
                         "{\"type\":\"ROOM_LIST_REQ\",\"id\":\"rooms-1\",\"data\":{}}"));
                 imported.runPendingTasks();
@@ -218,6 +221,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     peer.writeInbound(loginFrame("imported-peer", "java-v2-test-password"));
                     peer.runPendingTasks();
                     ((TextWebSocketFrame) peer.readOutbound()).release();
+                    assertUserSearch(imported, true);
 
                     imported.writeInbound(new TextWebSocketFrame(
                             "{\"type\":\"FRIEND_ACCEPT_REQ\",\"data\":{"
@@ -287,6 +291,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1PendingFriendRequestEventSink.noop(),
                 V1FriendRequestAcceptanceEventSink.noop(),
                 V1FriendRequestRejectionEventSink.noop(),
+                V1UserSearchEventSink.noop(),
                 java.time.Duration.ofSeconds(10),
                 java.time.Duration.ofSeconds(15),
                 java.time.Duration.ofSeconds(90)));
@@ -328,6 +333,22 @@ class GatewayRuntimePostgresIntegrationTest {
             assertTrue(response.text().contains("\"type\":\"FRIEND_ACCEPT_RSP\""));
             assertTrue(response.text().contains("\"success\":true"));
             assertFalse(response.text().contains("10000000-0000"));
+        } finally { response.release(); }
+    }
+
+    private static void assertUserSearch(EmbeddedChannel channel, boolean online) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"USER_SEARCH_REQ\",\"data\":{\"keyword\":\"IMPORTED-PEER\"}}"));
+        channel.runPendingTasks();
+        TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"USER_SEARCH_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"userId\":44"));
+            assertTrue(response.text().contains("\"username\":\"imported-peer\""));
+            assertTrue(response.text().contains("\"online\":" + online));
+            assertFalse(response.text().contains("10000000-0000"));
+            assertFalse(response.text().contains("native-v2"));
         } finally { response.release(); }
     }
 

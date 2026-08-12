@@ -281,7 +281,15 @@ The PostgreSQL search adapter now joins enabled accounts directly to their V1
 numeric mapping, excludes the authenticated account, escapes SQL wildcard text,
 uses deterministic case-insensitive ordering, and enforces the result bound in
 the query. V2-native and disabled identities are never projected. Presence is
-still joined outside persistence. No handler invokes the adapter yet.
+still joined outside persistence.
+
+The detached module now composes strict user-search handling on the bounded
+directory executor. Server channel identity controls self exclusion, malformed
+or dependency-failed paths cannot emit an authoritative empty list, and late
+results are suppressed. Valid policy rejection keeps the connection usable.
+Fixed telemetry contains no search text or identity. Real PostgreSQL verification
+proves offline-to-online presence projection without UUID exposure. The product
+listener remains unchanged.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,

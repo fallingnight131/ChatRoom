@@ -333,7 +333,14 @@ The detached user-search boundary reserves the existing `USER_SEARCH_REQ` shape:
 256 UTF-8 bytes. It will return at most 20 compatible `users` with only
 `userId`, `username`, `displayName`, and rebuildable `online`; the authenticated
 caller is excluded and no UUID is exposed. `%` and `_` are literal search text,
-not client-controlled SQL wildcards. No database adapter or handler is composed yet.
+not client-controlled SQL wildcards.
+
+The detached module now composes that search. A valid policy-rejected keyword
+returns the existing `USER_SEARCH_RSP.data.success=false` empty-keyword error;
+successful `users` contain exactly the four fields above. Malformed requests,
+saturation, and dependency failure close instead of fabricating an empty success
+list. Presence is process-local and may change across requests. The product
+listener remains inactive.
 
 The next detached compatibility boundary defines `FRIEND_ACCEPT_REQ` with the
 same positive `data.requestId` and authenticated-recipient rule. First apply and

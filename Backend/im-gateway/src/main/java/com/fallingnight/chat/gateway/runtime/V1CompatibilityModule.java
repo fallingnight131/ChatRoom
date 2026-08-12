@@ -7,6 +7,7 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestA
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestRejectionService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1PendingFriendRequestService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomDirectoryService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1UserSearchService;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AccountConnectionRegistry;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AuthenticationTimeoutHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1HeartbeatHandler;
@@ -27,6 +28,9 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLoginCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomDirectoryCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryHandler;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonUserSearchCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1UserSearchEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1UserSearchHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebSocketUpgradeHandler;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
@@ -41,6 +45,7 @@ import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1FriendDirector
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1FriendRequestAcceptanceAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1FriendRequestDecisionAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1PendingFriendRequestAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1UserSearchAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.timeout.IdleStateHandler;
 import java.time.Clock;
@@ -58,6 +63,7 @@ public final class V1CompatibilityModule {
     private final LegacyV1PendingFriendRequestService pendingRequests;
     private final LegacyV1FriendRequestAcceptanceService friendRequestAcceptance;
     private final LegacyV1FriendRequestRejectionService friendRequestRejection;
+    private final LegacyV1UserSearchService userSearch;
     private final Clock clock;
     private final V1AccountConnectionRegistry connections;
 
@@ -68,6 +74,7 @@ public final class V1CompatibilityModule {
             LegacyV1PendingFriendRequestService pendingRequests,
             LegacyV1FriendRequestAcceptanceService friendRequestAcceptance,
             LegacyV1FriendRequestRejectionService friendRequestRejection,
+            LegacyV1UserSearchService userSearch,
             Clock clock,
             V1AccountConnectionRegistry connections) {
         this.login = Objects.requireNonNull(login, "login");
@@ -78,6 +85,7 @@ public final class V1CompatibilityModule {
                 friendRequestAcceptance, "friendRequestAcceptance");
         this.friendRequestRejection = Objects.requireNonNull(
                 friendRequestRejection, "friendRequestRejection");
+        this.userSearch = Objects.requireNonNull(userSearch, "userSearch");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.connections = Objects.requireNonNull(connections, "connections");
     }
@@ -115,6 +123,9 @@ public final class V1CompatibilityModule {
                         new PostgresLegacyV1FriendRequestAcceptanceAdapter(dataSource)),
                 new LegacyV1FriendRequestRejectionService(
                         new PostgresLegacyV1FriendRequestDecisionAdapter(dataSource)),
+                new LegacyV1UserSearchService(
+                        new PostgresLegacyV1UserSearchAdapter(dataSource),
+                        connections::onlineAccounts),
                 clock,
                 connections);
     }
@@ -129,6 +140,7 @@ public final class V1CompatibilityModule {
             V1PendingFriendRequestEventSink pendingEvents,
             V1FriendRequestAcceptanceEventSink acceptanceEvents,
             V1FriendRequestRejectionEventSink rejectionEvents,
+            V1UserSearchEventSink searchEvents,
             Duration upgradeTimeout,
             Duration authenticationTimeout,
             Duration authenticatedIdleTimeout) {
@@ -144,6 +156,7 @@ public final class V1CompatibilityModule {
                         pendingEvents,
                         acceptanceEvents,
                         rejectionEvents,
+                        searchEvents,
                         authenticationTimeout,
                         authenticatedIdleTimeout),
                 upgradeTimeout);
@@ -160,6 +173,7 @@ public final class V1CompatibilityModule {
             V1PendingFriendRequestEventSink pendingEvents,
             V1FriendRequestAcceptanceEventSink acceptanceEvents,
             V1FriendRequestRejectionEventSink rejectionEvents,
+            V1UserSearchEventSink searchEvents,
             Duration authenticationTimeout,
             Duration authenticatedIdleTimeout) {
         Objects.requireNonNull(pipeline, "pipeline");
@@ -207,5 +221,10 @@ public final class V1CompatibilityModule {
                 new V1JsonFriendRequestRejectionCodec(clock),
                 directoryExecutor,
                 rejectionEvents));
+        pipeline.addLast("v1-user-search", new V1UserSearchHandler(
+                userSearch,
+                new V1JsonUserSearchCodec(clock),
+                directoryExecutor,
+                searchEvents));
     }
 }

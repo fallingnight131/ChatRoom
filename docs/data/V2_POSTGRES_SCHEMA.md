@@ -286,7 +286,13 @@ The detached V1 user-search adapter reads only enabled `account` rows joined to
 case-insensitive literal substring matching with escaped wildcard characters,
 and orders by C-collated username plus numeric ID. Unmapped V2-native accounts
 cannot appear. Canonical UUIDs remain internal input to the separate presence
-join; no route invokes this adapter yet.
+join; no product route invokes this adapter.
+
+The detached V1 module now invokes this search adapter behind strict authenticated
+handling and joins presence from the process-local authoritative connection
+registry. Disposable-database verification observes the same mapped result
+offline and online after login, while V2-native identities and UUIDs remain
+absent. This is not a product-traffic cutover.
 
 The detached pending-request adapter counts all canonical incoming PENDING rows
 and requires an equal set joined to `legacy_v1_contact_request_map` and
