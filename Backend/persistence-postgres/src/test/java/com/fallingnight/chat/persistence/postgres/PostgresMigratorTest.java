@@ -532,7 +532,7 @@ class PostgresMigratorTest {
                     owner, peer, requester);
             execute(connection,
                     "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
-                            + "VALUES (1, ?), (2, ?)", owner, peer);
+                            + "VALUES (1, ?), (2, ?), (3, ?)", owner, peer, requester);
             execute(connection,
                     "INSERT INTO chat.device(id, account_id, client_device_id, platform) "
                             + "VALUES (?, ?, 'friend-device', 'LEGACY')", device, peer);
@@ -565,7 +565,11 @@ class PostgresMigratorTest {
             execute(connection,
                     "INSERT INTO chat.contact_request("
                             + "id, requester_account_id, recipient_account_id) VALUES (?, ?, ?)",
-                    UUID.randomUUID(), requester, owner);
+                    UUID.fromString("70000000-0000-0000-0000-000000000070"), requester, owner);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_contact_request_map("
+                            + "legacy_request_id, contact_request_id) VALUES (70, ?)",
+                    UUID.fromString("70000000-0000-0000-0000-000000000070"));
         }
 
         LegacyV1FriendDirectoryState state =
@@ -578,10 +582,25 @@ class PostgresMigratorTest {
         assertEquals(2, state.friends().getFirst().unread());
         assertEquals(101, state.friends().getFirst().peerLastReadMessageId());
         assertEquals(1, state.pendingFriendRequests());
-        assertEquals(Set.of(peer), new PostgresLegacyV1AccountProjection(dataSource())
+        assertEquals(Set.of(peer, requester), new PostgresLegacyV1AccountProjection(dataSource())
                 .findByAccountIds(Set.of(peer, requester)).keySet());
+        var pending = new PostgresLegacyV1PendingFriendRequestAdapter(dataSource())
+                .listIncoming(owner, 10);
+        assertEquals(1, pending.size());
+        assertEquals(70, pending.getFirst().requestId());
+        assertEquals(3, pending.getFirst().fromUserId());
+        assertEquals("friend-requester", pending.getFirst().fromUsername());
+        assertEquals("Requester", pending.getFirst().fromDisplayName());
         assertThrows(IllegalArgumentException.class,
                 () -> new PostgresLegacyV1FriendDirectoryAdapter(dataSource()).read(owner, 0));
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "DELETE FROM chat.legacy_v1_contact_request_map WHERE legacy_request_id = 70");
+        }
+        assertThrows(IllegalStateException.class,
+                () -> new PostgresLegacyV1PendingFriendRequestAdapter(dataSource())
+                        .listIncoming(owner, 10));
     }
 
     @Test

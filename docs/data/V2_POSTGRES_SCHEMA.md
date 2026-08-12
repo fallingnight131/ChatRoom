@@ -276,6 +276,12 @@ contact count in one bounded repeatable-read snapshot. Compatibility account and
 conversation mappings remain separate fail-closed projections; presence is not
 stored in PostgreSQL. No route invokes this adapter yet.
 
+The detached pending-request adapter counts all canonical incoming PENDING rows
+and requires an equal set joined to `legacy_v1_contact_request_map` and
+`legacy_v1_account_map` in the same repeatable-read transaction. Missing mappings,
+disabled participants, or excess rows fail the complete request. No route invokes
+this adapter yet.
+
 ## Bounds and indexes
 
 - identifiers are limited to 128 characters at this storage boundary and are
