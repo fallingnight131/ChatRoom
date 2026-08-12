@@ -588,8 +588,10 @@ Progress:
     ownership notifications plus real PostgreSQL/relogin proof.
   - [x] Define bounded authorized V1 room-member listing with complete mapped
     identities, canonical roles, and process-local presence projection.
-  - [ ] Implement active-lifecycle PostgreSQL member listing and compose strict
-    `USER_LIST_REQ` handling with real PostgreSQL authorization proof.
+  - [x] Implement active-lifecycle PostgreSQL member listing with complete mapped
+    projection and real PostgreSQL authorization proof.
+  - [ ] Compose strict `USER_LIST_REQ` handling with bounded compatible output,
+    fixed telemetry, and real PostgreSQL login-to-presence proof.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

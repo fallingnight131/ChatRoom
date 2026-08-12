@@ -380,8 +380,12 @@ PostgreSQL must authorize the actor in one active mapped GROUP and return a
 complete deterministic active-member projection; process-local presence is
 joined only afterward. The application caps the legacy all-at-once response at
 1,000 members using an overflow sentinel, rejects partial/duplicate projections,
-and exposes only username, display name, administrator, and online flags. No
-adapter or handler exists yet.
+and exposes only username, display name, administrator, and online flags. The
+repeatable-read PostgreSQL adapter now requires enabled mapped actor membership,
+active GROUP lifecycle, and complete enabled mappings for every active member;
+it orders deterministically and reads one overflow sentinel. Real PostgreSQL
+proves member/admin projection plus outsider and dissolved-room denial. No
+handler exists yet.
 
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target

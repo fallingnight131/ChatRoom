@@ -143,8 +143,9 @@ The inactive Java `USER_LIST_REQ` application boundary binds authenticated actor
 and positive `roomId`, requires active membership in an active mapped GROUP,
 and returns no more than 1,000 complete mapped active members. Canonical role
 becomes `isAdmin`; process-local presence becomes `isOnline`; UUIDs never cross
-the response. Overflow rejects instead of truncating. No adapter or handler
-exists yet.
+the response. Overflow rejects instead of truncating. The repeatable-read
+PostgreSQL adapter requires complete enabled V1 mappings, orders deterministically,
+and denies outsiders or dissolved rooms. No handler exists yet.
 
 ### Room lifecycle and settings
 

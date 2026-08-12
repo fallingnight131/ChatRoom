@@ -52,6 +52,7 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomJoinIntent
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomJoinResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomLeaveIntent;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomLeaveResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMemberListPort;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -1167,6 +1168,52 @@ class PostgresMigratorTest {
         assertEquals(LegacyV1RoomReadResult.Rejected.ROOM_ACCESS_DENIED,
                 new PostgresLegacyV1RoomReadAdapter(dataSource()).markRead(
                         new LegacyV1RoomReadCommand(admin, created.legacyRoomId())));
+    }
+
+    @Test
+    @Order(93)
+    void listsOnlyCompleteAuthorizedActiveV1RoomMembers() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID owner = UUID.randomUUID(), member = UUID.randomUUID(), outsider = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'list-owner', 'Owner', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'list-member', 'Member', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'list-outsider', 'Outsider', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    owner, member, outsider);
+            execute(connection, "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, "
+                    + "account_id) VALUES (81, ?), (82, ?), (83, ?)", owner, member, outsider);
+        }
+        var created = (LegacyV1RoomCreationResult.Created)
+                new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
+                        new LegacyV1RoomCreationIntent(owner, "member-list-create",
+                                "Member List", Optional.empty()));
+        var candidate = (LegacyV1RoomJoinAccess.Candidate)
+                new PostgresLegacyV1RoomJoinAdapter(dataSource())
+                        .inspect(member, created.legacyRoomId());
+        new PostgresLegacyV1RoomJoinAdapter(dataSource()).join(
+                new LegacyV1RoomJoinIntent(member, candidate.conversationId(),
+                        candidate.legacyRoomId(), candidate.joinCredential()));
+        PostgresLegacyV1RoomMemberListAdapter adapter =
+                new PostgresLegacyV1RoomMemberListAdapter(dataSource());
+        var listed = (LegacyV1RoomMemberListPort.QueryResult.Authorized)
+                adapter.list(owner, created.legacyRoomId(), 1001);
+        assertEquals(List.of("list-member", "list-owner"), listed.members().stream()
+                .map(entry -> entry.username()).toList());
+        assertEquals(List.of("MEMBER", "OWNER"), listed.members().stream()
+                .map(entry -> entry.role().name()).toList());
+        assertEquals(LegacyV1RoomMemberListPort.QueryResult.Rejected.ROOM_ACCESS_DENIED,
+                adapter.list(outsider, created.legacyRoomId(), 1001));
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.group_lifecycle SET closed_at = "
+                    + "transaction_timestamp() WHERE conversation_id = ?",
+                    created.conversationId());
+        }
+        assertEquals(LegacyV1RoomMemberListPort.QueryResult.Rejected.ROOM_ACCESS_DENIED,
+                adapter.list(owner, created.legacyRoomId(), 1001));
     }
 
     @Test
