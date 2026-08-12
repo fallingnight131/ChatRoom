@@ -25,6 +25,9 @@ class WebProductionReleaseWorkflowTest(unittest.TestCase):
             "technical-promotion-reviewed.json",
         ):
             self.assertIn(value, self.source)
+        self.assertLess(
+            self.source.index("Require sustained candidate health on production"),
+            self.source.index("Complete observed production promotion"))
         self.assertLess(self.source.index("technical-readiness:"),
                         self.source.index("production-promotion:"))
 
@@ -35,6 +38,10 @@ class WebProductionReleaseWorkflowTest(unittest.TestCase):
             "web_release_execution.py execute", "web_release_completion.py record",
             "web_release_rollback_execution.py execute",
             "web_release_rollback_completion.py record",
+            "web_release_health_window.py record",
+            "web_release_health_window.py verify",
+            "candidate-preview-health-reviewed.json",
+            "production-health.json", "sleep 30",
             "steps.execute.outcome == 'success'", "steps.complete.outcome != 'success'",
             "retention-days: 90",
         ):

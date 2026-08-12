@@ -203,6 +203,12 @@ writes one immutable `preview` or `production` result. This is sustained
 technical health, not percentage rollout or user-experience telemetry. See
 ADR-0211.
 
+The production workflow now applies that rule before approval, repeats it on
+preview after approval, and applies it again after the production pointer
+switch. A failed production window enters the existing pre-authorized rollback
+path. These are staged technical gates, not a percentage traffic rollout, and
+no real run is claimed. See ADR-0212.
+
 ```bash
 python3 tools/web_release_execution.py execute \
   --authorization /path/to/evidence/web-production-authorization.json \

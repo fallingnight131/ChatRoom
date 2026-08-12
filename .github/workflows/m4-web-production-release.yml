@@ -89,6 +89,34 @@ jobs:
             --base-url "$WEB_PREVIEW_ORIGIN" --websocket-path "$WEB_SOCKET_PATH" \
             --output "$evidence/candidate-routes.json"
 
+      - name: Require sustained candidate health on preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/web-technical-evidence"
+          candidate="$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.candidate_id }}"
+          for index in 1 2; do
+            sleep 30
+            python3 tools/web_release_probe.py \
+              --base-url "$WEB_PREVIEW_ORIGIN" --release-root "$candidate" \
+              --output "$evidence/candidate-static-$index.json"
+            python3 tools/web_application_route_probe.py \
+              --base-url "$WEB_PREVIEW_ORIGIN" --websocket-path "$WEB_SOCKET_PATH" \
+              --output "$evidence/candidate-routes-$index.json"
+          done
+          common=(
+            --release-observation "$evidence/candidate-static.json"
+            --release-observation "$evidence/candidate-static-1.json"
+            --release-observation "$evidence/candidate-static-2.json"
+            --route-observation "$evidence/candidate-routes.json"
+            --route-observation "$evidence/candidate-routes-1.json"
+            --route-observation "$evidence/candidate-routes-2.json"
+            --release-root "$candidate" --phase preview
+            --output "$evidence/candidate-preview-health.json"
+          )
+          python3 tools/web_release_health_window.py record "${common[@]}"
+          python3 tools/web_release_health_window.py verify "${common[@]}"
+
       - name: Observe retained rollback on production and close technical promotion
         shell: bash
         run: |
@@ -165,6 +193,17 @@ jobs:
             --output "$evidence/technical-promotion.json"
           )
           python3 tools/web_promotion_evidence.py verify "${common[@]}"
+          health=(
+            --release-observation "$evidence/candidate-static.json"
+            --release-observation "$evidence/candidate-static-1.json"
+            --release-observation "$evidence/candidate-static-2.json"
+            --route-observation "$evidence/candidate-routes.json"
+            --route-observation "$evidence/candidate-routes-1.json"
+            --route-observation "$evidence/candidate-routes-2.json"
+            --release-root "$candidate" --phase preview
+            --output "$evidence/candidate-preview-health.json"
+          )
+          python3 tools/web_release_health_window.py verify "${health[@]}"
           printf 'candidate_id=%s\n' "$candidate_id" >> "$GITHUB_OUTPUT"
           printf 'rollback_id=%s\n' "$rollback_id" >> "$GITHUB_OUTPUT"
 
@@ -187,6 +226,27 @@ jobs:
           python3 tools/web_application_route_probe.py \
             --base-url "$WEB_PREVIEW_ORIGIN" --websocket-path "$WEB_SOCKET_PATH" \
             --output "$evidence/candidate-routes-reviewed.json"
+          for index in 1 2; do
+            sleep 30
+            python3 tools/web_release_probe.py \
+              --base-url "$WEB_PREVIEW_ORIGIN" --release-root "$candidate" \
+              --output "$evidence/candidate-static-reviewed-$index.json"
+            python3 tools/web_application_route_probe.py \
+              --base-url "$WEB_PREVIEW_ORIGIN" --websocket-path "$WEB_SOCKET_PATH" \
+              --output "$evidence/candidate-routes-reviewed-$index.json"
+          done
+          health=(
+            --release-observation "$evidence/candidate-static-reviewed.json"
+            --release-observation "$evidence/candidate-static-reviewed-1.json"
+            --release-observation "$evidence/candidate-static-reviewed-2.json"
+            --route-observation "$evidence/candidate-routes-reviewed.json"
+            --route-observation "$evidence/candidate-routes-reviewed-1.json"
+            --route-observation "$evidence/candidate-routes-reviewed-2.json"
+            --release-root "$candidate" --phase preview
+            --output "$evidence/candidate-preview-health-reviewed.json"
+          )
+          python3 tools/web_release_health_window.py record "${health[@]}"
+          python3 tools/web_release_health_window.py verify "${health[@]}"
           python3 tools/web_release_probe.py \
             --base-url "$WEB_PRODUCTION_ORIGIN" --release-root "$rollback" \
             --output "$evidence/rollback-static-reviewed.json"
@@ -251,6 +311,35 @@ jobs:
           python3 tools/web_application_route_probe.py \
             --base-url "$WEB_PRODUCTION_ORIGIN" --websocket-path "$WEB_SOCKET_PATH" \
             --output "$RUNNER_TEMP/web-release-evidence/post-routes.json"
+
+      - name: Require sustained candidate health on production
+        id: production_health
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/web-release-evidence"
+          candidate="$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.candidate_id }}"
+          for index in 1 2; do
+            sleep 30
+            python3 tools/web_release_probe.py \
+              --base-url "$WEB_PRODUCTION_ORIGIN" --release-root "$candidate" \
+              --output "$evidence/post-static-$index.json"
+            python3 tools/web_application_route_probe.py \
+              --base-url "$WEB_PRODUCTION_ORIGIN" --websocket-path "$WEB_SOCKET_PATH" \
+              --output "$evidence/post-routes-$index.json"
+          done
+          common=(
+            --release-observation "$evidence/post-static.json"
+            --release-observation "$evidence/post-static-1.json"
+            --release-observation "$evidence/post-static-2.json"
+            --route-observation "$evidence/post-routes.json"
+            --route-observation "$evidence/post-routes-1.json"
+            --route-observation "$evidence/post-routes-2.json"
+            --release-root "$candidate" --phase production
+            --output "$evidence/production-health.json"
+          )
+          python3 tools/web_release_health_window.py record "${common[@]}"
+          python3 tools/web_release_health_window.py verify "${common[@]}"
 
       - name: Complete observed production promotion
         id: complete
