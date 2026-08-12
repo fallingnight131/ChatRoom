@@ -26,6 +26,12 @@ and fixed-code issues exclude both locators. Canonical conversation, account,
 legacy-device, message, and attachment UUIDs are deterministic and separated by
 typed source namespaces.
 
+Read that graph from the current SQLite schema through a dedicated read-only
+source adapter. The adapter enables `query_only`, runs `quick_check`, requires
+all file/message migration columns, reads both room and friendship namespaces,
+and passes local paths and legacy object URLs only to the planner fingerprint.
+It never embeds source locations or row content in its fixed public failures.
+
 Passing this planner means only that the SQLite graph is internally complete.
 It does not claim the bytes exist, identify MIME, prove SHA-256, authorize an
 object key, or prove a target object was sealed. A separate evidence capability
@@ -37,5 +43,7 @@ must establish those facts before PostgreSQL writes.
   authority/metadata drift block migration instead of being guessed.
 - Source paths and legacy URLs remain re-verifiable input but cannot leak into
   canonical candidates, issue reports, or audit rows.
+- An old or incomplete SQLite schema fails before extraction; the adapter never
+  upgrades or otherwise writes the source database.
 - Cleared files still need an explicit unavailable-history lifecycle design;
   active files need independently verified target-object evidence.

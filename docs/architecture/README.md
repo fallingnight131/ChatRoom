@@ -808,6 +808,10 @@ safe basename, bounded size, and consistent lifecycle timestamps. Its logical
 fingerprint includes legacy locators for drift detection, but candidates and
 fixed-code issues omit paths and URLs. Passing this stage does not prove bytes,
 hash, MIME, target object existence, or sealed state.
+The SQLite adapter reads both room and friendship file/message namespaces under
+`query_only`, `quick_check`, and an exact migrated-column gate. It does not
+repair an old source schema, and fixed failures contain neither database paths
+nor attachment content.
 
 ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
 create-only, length, type, and SHA-256 constraints and reads checksum-enabled

@@ -168,6 +168,10 @@ typed `files`/`friend_files` row to exactly one retained attachment message and
 derives deterministic target identities. Its fingerprint includes local/object
 locators so a final read can detect drift, while planned rows, fixed-code issues,
 and future audit records exclude those locator values.
+The corresponding SQLite adapter is source-only: it requires the current V1
+file/message columns, reads under `query_only` after `quick_check`, and performs
+no source migration. Room and friendship IDs remain typed until deterministic
+V2 identifiers have been derived.
 The read-only application compatibility port keeps the namespace type alongside
 the numeric ID and supports both V1-to-V2 request translation and V2-to-V1 event
 projection. Its PostgreSQL adapter does not create mappings, infer identities,

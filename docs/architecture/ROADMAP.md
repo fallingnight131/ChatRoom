@@ -635,6 +635,8 @@ Progress:
     same-conversation foreign keys before importing any historical file.
   - [x] Define deterministic V1 file/message graph reconciliation with typed
     identities, locator-redacted output, and blocking inconsistency checks.
+  - [x] Read both V1 attachment namespaces through query-only SQLite with
+    integrity/schema gates and locator-sensitive drift fingerprints.
   - [ ] Add verified V1 file-object evidence and atomically import historical
     attachments, mappings, and attachment messages without local-path leakage.
   - [x] Add the inactive attachment registration application port and exact
