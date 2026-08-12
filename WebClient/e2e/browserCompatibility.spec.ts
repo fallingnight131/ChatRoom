@@ -1,7 +1,91 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { writeFileSync } from "node:fs";
 
 const brandedTarget = process.env.CHATROOM_BRANDED_BROWSER_TARGET;
+
+async function installV1ClientFixture(page: Page) {
+  await page.addInitScript(() => {
+    const sent: Array<{ type: string; data?: Record<string, unknown> }> = [];
+    class FixtureWebSocket {
+      static readonly CONNECTING = 0;
+      static readonly OPEN = 1;
+      static readonly CLOSING = 2;
+      static readonly CLOSED = 3;
+      readonly url: string;
+      readyState = FixtureWebSocket.CONNECTING;
+      onopen: (() => void) | null = null;
+      onmessage: ((event: { data: string }) => void) | null = null;
+      onclose: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+
+      constructor(url: string) {
+        this.url = url;
+        queueMicrotask(() => {
+          this.readyState = FixtureWebSocket.OPEN;
+          this.onopen?.();
+        });
+      }
+
+      send(raw: string) {
+        const message = JSON.parse(raw);
+        sent.push(message);
+        let response: Record<string, unknown> | null = null;
+        if (message.type === "LOGIN_REQ") {
+          response = {
+            type: "LOGIN_RSP", id: `fixture-${sent.length}`, timestamp: Date.now(),
+            data: { success: true, userId: 7, username: message.data.username,
+              displayName: "Browser Gate User" },
+          };
+        } else if (message.type === "ROOM_LIST_REQ") {
+          response = { type: "ROOM_LIST_RSP", id: `fixture-${sent.length}`,
+            timestamp: Date.now(), data: { rooms: [{ roomId: 42,
+              roomName: "Browser Gate Room", unread: 0, isAdmin: false }] } };
+        } else if (message.type === "FRIEND_LIST_REQ") {
+          response = { type: "FRIEND_LIST_RSP", id: `fixture-${sent.length}`,
+            timestamp: Date.now(), data: { friends: [{ username: "browser_friend",
+              displayName: "Browser Gate Friend", isOnline: true, unread: 0 }],
+              pendingFriendRequests: 0 } };
+        } else if (message.type === "AVATAR_GET_REQ") {
+          response = { type: "AVATAR_GET_RSP", id: `fixture-${sent.length}`,
+            timestamp: Date.now(), data: { success: false,
+              username: message.data.username } };
+        }
+        if (response) queueMicrotask(() => this.onmessage?.({ data: JSON.stringify(response) }));
+      }
+
+      close() {
+        this.readyState = FixtureWebSocket.CLOSED;
+        this.onclose?.();
+      }
+    }
+    Object.defineProperty(window, "WebSocket", { value: FixtureWebSocket, configurable: true });
+    Object.defineProperty(window, "__chatFixtureMessages", { value: sent });
+  });
+}
+
+async function exerciseAuthenticatedClientShell(page: Page, context: BrowserContext) {
+  await installV1ClientFixture(page);
+  await page.goto("/");
+  await page.getByLabel("用户ID (唯一标识)").fill("browser_gate_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await expect(page).toHaveURL(/#\/chat$/);
+  await expect(page.getByText("Browser Gate User", { exact: true })).toBeVisible();
+  await expect(page.getByText("Browser Gate Friend", { exact: true })).toBeVisible();
+  const storage = await page.evaluate(() => ({ ...localStorage, ...sessionStorage }));
+  expect(JSON.stringify(storage)).not.toContain("non-secret-test-value");
+
+  await context.setOffline(true);
+  await expect(page.getByText("网络已断开，可继续查看已缓存消息，恢复后将自动连接")).toBeVisible();
+  await expect(page.getByText("Browser Gate Friend", { exact: true })).toBeVisible();
+  await context.setOffline(false);
+  await expect(page.getByText("网络已断开，可继续查看已缓存消息，恢复后将自动连接")).toBeHidden();
+  await expect.poll(() => page.evaluate(() =>
+    (window as unknown as { __chatFixtureMessages: Array<{ type: string }> })
+      .__chatFixtureMessages.filter(message => message.type === "LOGIN_REQ").length
+  )).toBe(2);
+  return storage;
+}
 
 test("loads the production login surface with required browser capabilities", async ({ page }) => {
   const pageErrors: Error[] = [];
@@ -105,6 +189,10 @@ test("pauses an offline login attempt and requires explicit retry after recovery
   expect(socketUrls).toEqual([]);
 });
 
+test("keeps the authenticated client shell visible and reauthenticates once after recovery", async ({ context, page }) => {
+  await exerciseAuthenticatedClientShell(page, context);
+});
+
 test("records one exact branded-browser candidate smoke", async ({ browser }) => {
   test.skip(!brandedTarget, "Only the protected branded-browser matrix emits support evidence");
   const required = (name: string): string => {
@@ -205,6 +293,13 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
   expect(offlineSocketUrls).toEqual([]);
   expect(pageErrors).toEqual([]);
 
+  const authenticatedContext = await browser.newContext();
+  const authenticatedPage = await authenticatedContext.newPage();
+  authenticatedPage.on("pageerror", error => pageErrors.push(error));
+  await exerciseAuthenticatedClientShell(authenticatedPage, authenticatedContext);
+  await authenticatedContext.close();
+  expect(pageErrors).toEqual([]);
+
   const architecture = process.arch === "x64" ? "x86_64" : process.arch;
   const evidence = {
     schemaVersion: 3,
@@ -234,6 +329,9 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
       announcedValidationError: true,
       offlineLoginPaused: true,
       recoveryStateAnnounced: true,
+      authenticatedClientShell: true,
+      credentialsRemainMemoryOnly: true,
+      authenticatedOfflineRecovery: true,
       noPageErrors: true,
     },
     observedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),

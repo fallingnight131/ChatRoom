@@ -851,6 +851,10 @@ Progress:
   state without treating `online` as gateway health.
 - [x] Advance branded-browser evidence to verify that offline login creates no
   WebSocket, announces the state, and requires an explicit retry after recovery.
+- [x] Advance branded-browser evidence with a deterministic V1 client fixture
+  that verifies the post-login shell, memory-only credentials, retained offline
+  UI, and exactly one recovery reauthentication request without claiming server
+  authentication.
 - [x] Pin exact Windows 10 22H2 and Windows 11 23H2/24H2 x86_64 client targets
   and independently verify a per-host, two-real-signed-candidate install/launch/
   upgrade/data-preservation/downgrade/uninstall evidence contract.

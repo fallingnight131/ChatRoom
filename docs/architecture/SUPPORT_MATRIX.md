@@ -36,10 +36,11 @@ passes on the named target versions.
 
 The authoritative Web browser slots are listed in
 [`packaging/web/browser-support-policy.json`](../../packaging/web/browser-support-policy.json).
-ADR-0216 requires every schema-3 branded-browser record to identify the exact binary
+ADR-0217 requires every schema-4 branded-browser record to identify the exact binary
 version and digest and bind its smoke results to one immutable candidate. The
-checks include keyboard traversal, announced validation errors, offline login
-pause, and explicit recovery state. ADR-0210 pairs these records with an exact
+checks include keyboard traversal, announced validation errors, offline login,
+and an authenticated client-shell/offline-recovery fixture that keeps passwords
+out of browser storage. ADR-0210 pairs these records with an exact
 six-slot completion boundary, but no
 six-browser run or public support claim has been completed yet.
 

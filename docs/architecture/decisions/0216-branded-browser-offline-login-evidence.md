@@ -1,6 +1,6 @@
 # ADR-0216: Require Offline Login Behavior in Branded Browser Evidence
 
-- Status: Accepted
+- Status: Superseded by ADR-0217
 - Date: 2026-08-13
 - Owners: Web client and quality
 - Related milestone: M4
