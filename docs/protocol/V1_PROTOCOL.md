@@ -328,6 +328,13 @@ added. Malformed, saturated, or dependency-failed handling closes rather than
 inventing a mutation result. This composed route remains detached from the
 product listener.
 
+The next detached compatibility boundary defines `FRIEND_ACCEPT_REQ` with the
+same positive `data.requestId` and authenticated-recipient rule. First apply and
+an exact retry will both preserve `FRIEND_ACCEPT_RSP.data.success=true`, but only
+the first apply may produce `FRIEND_ACCEPT_NOTIFY`; a retry must not duplicate
+the notification. Failure remains the existing generic response and no UUID or
+new duplicate marker is added. No acceptance adapter or handler is composed yet.
+
 ### Recall
 
 Recall is limited to 120 seconds for normal user recall. Administration has

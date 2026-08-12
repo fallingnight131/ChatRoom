@@ -453,6 +453,8 @@ Progress:
     recipient authorization, database time, and exact-retry idempotency.
   - [x] Add and compose the detached strict V1 friend-request rejection handler
     with bounded execution, fixed telemetry, and end-to-end PostgreSQL refresh.
+  - [x] Define recipient-bound V1 friend-request acceptance with atomic DIRECT
+    establishment, exact-retry success, and first-apply-only notification intent.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

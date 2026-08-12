@@ -245,6 +245,14 @@ while malformed, saturated, or failed infrastructure paths close safely. Fixed
 telemetry contains no user or request identifiers. The product listener remains
 unchanged.
 
+Friend-request acceptance now has a separate transport-independent contract.
+It binds the recipient to authenticated state and requires one future atomic
+persistence decision to terminate the request, establish or reactivate the
+canonical DIRECT relationship, and own one V1 FRIENDSHIP mapping. Exact retries
+remain successful without repeating the requester notification; requester UUID
+is internal routing context and never a wire field. No adapter or route exists
+for this boundary yet.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then
