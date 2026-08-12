@@ -289,7 +289,12 @@ directory recovery. The serializable PostgreSQL adapter now locks the exact
 active participant and DIRECT conversation, advances only that account to the
 observed durable high watermark, and selects the mapped message by canonical
 creation sequence. `FRIEND_LIST_RSP.peerLastReadMessageId` uses the same
-sequence ordering, including when runtime IDs descend. No handler exists yet.
+sequence ordering, including when runtime IDs descend. The detached strict
+handler preserves the response-free request shape, binds the reader from
+authenticated state, and publishes `FRIEND_READ_NOTIFY` only to
+the server-mapped current local peer after persistence succeeds. Exact repeats
+may republish the same monotonic watermark. A replacement login recovers that
+watermark from `FRIEND_LIST_RSP`; the product listener remains inactive.
 
 The detached Java application boundary now also reserves owner-only direct
 recall. It accepts only the positive V1 `messageId` from the request and binds

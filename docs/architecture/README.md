@@ -433,7 +433,12 @@ V1 message IDs allocate downward. Its serializable PostgreSQL adapter now locks
 the exact active participant and DIRECT conversation, advances only that
 account to the observed high watermark, and returns the sequence-ordered mapped
 message ID; the friend directory uses the same ordering for restart recovery.
-No handler exists yet.
+The detached strict response-free handler now binds authenticated identity,
+executes off-loop, and schedules `FRIEND_READ_NOTIFY` only to the mapped current
+local peer. Exact repeats re-publish the stable watermark for convergence, while
+self-chat and offline peers create no route. Real PostgreSQL verifies live
+notification and replacement-login directory recovery. The product listener
+remains unchanged.
 
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.

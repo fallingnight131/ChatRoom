@@ -11,6 +11,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomHistoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomRecallEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomReadEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectRecallEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1DirectReadEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
@@ -263,6 +264,7 @@ class GatewayRuntimePostgresIntegrationTest {
 
                     long directMessageId = assertDirectMessageFirst(imported, peer);
                     assertDirectMessageDuplicate(imported, peer);
+                    assertDirectReadNotifiesPeer(peer, imported, directMessageId);
 
                     EmbeddedChannel reconnected = upgradedChannel(module, Runnable::run,
                             AuthenticationAdmissionControl.allowAll(),
@@ -272,6 +274,7 @@ class GatewayRuntimePostgresIntegrationTest {
                                 "imported-v1", "java-v2-test-password"));
                         reconnected.runPendingTasks();
                         ((TextWebSocketFrame) reconnected.readOutbound()).release();
+                        assertDirectReadRecovered(reconnected, directMessageId);
                         assertRoomHistoryAfterReconnect(reconnected);
                         assertRoomRecallFirst(reconnected, peer, roomMessageId);
                         assertRoomRecallDuplicate(reconnected, peer, roomMessageId);
@@ -382,6 +385,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1FriendRemovalEventSink.noop(),
                 V1DirectHistoryEventSink.noop(),
                 V1DirectRecallEventSink.noop(),
+                V1DirectReadEventSink.noop(),
                 V1DirectMessageEventSink.noop(),
                 V1UserSearchEventSink.noop(),
                 java.time.Duration.ofSeconds(10),
@@ -625,6 +629,36 @@ class GatewayRuntimePostgresIntegrationTest {
                         + "\"friendUsername\":\"imported-peer\","
                         + "\"clientMessageId\":\"direct-client-1\","
                         + "\"content\":\"hello Java V1\",\"contentType\":\"text\"}}"));
+    }
+
+    private static void assertDirectReadNotifiesPeer(
+            EmbeddedChannel reader, EmbeddedChannel recipient, long messageId) {
+        reader.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"MARK_FRIEND_READ\",\"data\":{\"friendshipId\":9}}"));
+        reader.runPendingTasks();
+        assertNull(reader.readOutbound());
+        recipient.runPendingTasks();
+        TextWebSocketFrame notification = recipient.readOutbound();
+        try {
+            assertTrue(notification.text().contains("\"type\":\"FRIEND_READ_NOTIFY\""));
+            assertTrue(notification.text().contains("\"friendshipId\":9"));
+            assertTrue(notification.text().contains(
+                    "\"readerUsername\":\"imported-peer\""));
+            assertTrue(notification.text().contains("\"lastReadMessageId\":" + messageId));
+        } finally { notification.release(); }
+    }
+
+    private static void assertDirectReadRecovered(EmbeddedChannel channel, long messageId) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"FRIEND_LIST_REQ\",\"data\":{}}"));
+        channel.runPendingTasks();
+        TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"FRIEND_LIST_RSP\""));
+            assertTrue(response.text().contains("\"friendshipId\":9"));
+            assertTrue(response.text().contains(
+                    "\"peerLastReadMessageId\":" + messageId));
+        } finally { response.release(); }
     }
 
     private static void assertDirectHistoryAfterReconnect(EmbeddedChannel channel) {
