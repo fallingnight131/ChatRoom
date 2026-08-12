@@ -19,18 +19,43 @@ public final class V1MessageTargetImportPlanner {
             UUID.fromString("eab1378c-1118-58cf-afad-ecc935a4d004");
 
     public V1MessageTargetImportPlan plan(VerifiedV1MessageImportBundle bundle) {
+        return plan(bundle.statePlan(), bundle.payloadPlan(), List.of(),
+                "0".repeat(64), "0".repeat(64));
+    }
+
+    public V1MessageTargetImportPlan plan(VerifiedV1UnifiedMessageImportBundle bundle) {
+        return plan(bundle.statePlan(), bundle.payloadPlan(),
+                bundle.attachmentPlan().attachments(),
+                bundle.attachmentPlan().sourceFingerprintSha256(),
+                bundle.attachmentPlan().evidenceFingerprintSha256());
+    }
+
+    private static V1MessageTargetImportPlan plan(
+            V1MessageStateImportPlan statePlan,
+            V1MessagePayloadImportPlan payloadPlan,
+            List<PlannedV1AttachmentImport> attachmentImports,
+            String attachmentSourceFingerprint,
+            String attachmentEvidenceFingerprint) {
         Map<MessageKey, PlannedV1MessagePayload> payloads = new HashMap<>();
-        for (PlannedV1MessagePayload payload : bundle.payloadPlan().messages()) {
+        for (PlannedV1MessagePayload payload : payloadPlan.messages()) {
             payloads.put(new MessageKey(payload.legacyKind(), payload.legacyMessageId()), payload);
+        }
+        Map<MessageKey, PlannedV1AttachmentImport> attachments = new HashMap<>();
+        for (PlannedV1AttachmentImport attachment : attachmentImports) {
+            PlannedV1AttachmentSource source = attachment.source();
+            attachments.put(new MessageKey(source.legacyKind(), source.legacyMessageId()),
+                    attachment);
         }
         Map<UUID, PlannedV1LegacyDevice> devices = new LinkedHashMap<>();
         List<PlannedV1HistoricalMessage> messages = new ArrayList<>();
-        for (V1MessageCursorRow state : bundle.statePlan().sourceMessageRows()) {
+        for (V1MessageCursorRow state : statePlan.sourceMessageRows()) {
+            MessageKey key = new MessageKey(state.legacyKind(), state.legacyMessageId());
             PlannedV1MessagePayload payload = payloads.get(
-                    new MessageKey(state.legacyKind(), state.legacyMessageId()));
-            if (payload == null) {
+                    key);
+            PlannedV1AttachmentImport attachment = attachments.get(key);
+            if ((payload == null) == (attachment == null)) {
                 throw new V1MessageImportBundleException(
-                        "verified V1 message payload disappeared during target planning");
+                        "verified V1 message content disappeared during target planning");
             }
             UUID accountId = V1IdentityImportPlanner.deterministicUserId(
                     state.legacySenderUserId());
@@ -43,18 +68,22 @@ public final class V1MessageTargetImportPlanner {
                     state.legacyKind(),
                     state.legacyConversationId(),
                     state.legacyMessageId(),
-                    payload.messageId(),
+                    payload != null ? payload.messageId() : attachment.source().messageId(),
                     conversationId(state.legacyKind(), state.legacyConversationId()),
                     state.creationSequence(),
                     state.mutationSequence(),
                     accountId,
                     device.deviceId(),
-                    payload.targetClientMessageId(),
-                    payload.targetContentType(),
-                    payload.legacyContentType(),
-                    payload.targetText(),
+                    payload != null ? payload.targetClientMessageId()
+                            : "v1-import-" + state.legacyKind().name().toLowerCase(
+                                    java.util.Locale.ROOT) + "-" + state.legacyMessageId(),
+                    payload != null ? payload.targetContentType() : 2,
+                    payload != null ? payload.legacyContentType()
+                            : attachment.source().legacyContentType(),
+                    payload != null ? payload.targetText() : "",
+                    attachment == null ? null : attachment.source().attachmentId(),
                     state.recalled(),
-                    payload.historicalContentAvailable(),
+                    payload == null || payload.historicalContentAvailable(),
                     state.createdAt()));
         }
         messages.sort(Comparator
@@ -63,7 +92,7 @@ public final class V1MessageTargetImportPlanner {
                 .thenComparingLong(PlannedV1HistoricalMessage::creationSequence));
         List<PlannedV1LegacyDevice> sortedDevices = new ArrayList<>(devices.values());
         sortedDevices.sort(Comparator.comparing(value -> value.accountId().toString()));
-        List<PlannedV1DeletionEvent> deletions = bundle.statePlan().sourceDeletionEventRows()
+        List<PlannedV1DeletionEvent> deletions = statePlan.sourceDeletionEventRows()
                 .stream()
                 .map(row -> new PlannedV1DeletionEvent(
                         row.legacyEventId(),
@@ -86,13 +115,16 @@ public final class V1MessageTargetImportPlanner {
                         .thenComparingLong(PlannedV1DeletionEvent::conversationSequence))
                 .toList();
         return new V1MessageTargetImportPlan(
-                bundle.statePlan().sourceFingerprintSha256(),
-                bundle.payloadPlan().sourceFingerprintSha256(),
+                statePlan.sourceFingerprintSha256(),
+                payloadPlan.sourceFingerprintSha256(),
+                attachmentSourceFingerprint,
+                attachmentEvidenceFingerprint,
                 sortedDevices,
+                attachmentImports,
                 messages,
                 deletions,
-                bundle.statePlan().conversationCursors(),
-                bundle.statePlan().memberReadCursors());
+                statePlan.conversationCursors(),
+                statePlan.memberReadCursors());
     }
 
     public static UUID deterministicLegacyDeviceId(UUID accountId) {

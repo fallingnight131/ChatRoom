@@ -22,10 +22,16 @@ plan only when every deferred record exactly matches:
 - the deterministic canonical message identity; and
 - the same physically verified whole-file backup proof used by all three inputs.
 
-The future target writer will consume this unified capability and write text and
-attachment messages in one serializable transaction using their shared creation
-and mutation sequences. It must reverify all three inputs before commit. The
-existing text importer continues to require zero deferred attachments.
+The target writer consumes this unified capability and writes text and attachment
+messages in one serializable transaction using their shared creation and mutation
+sequences. It reverifies all three inputs before commit. The existing text
+importer continues to require zero deferred attachments.
+
+V030 expands the legacy message-content mapping to `file`, `image`, and `video`
+and adds an append-only attachment import audit linked one-to-one with the message
+import run. Target comparison covers canonical attachment metadata, lifecycle,
+message binding, both typed V1 mappings, shared entries, read cursors, and high
+watermarks. Any mismatch blocks the whole transaction.
 
 ## Consequences
 
@@ -35,3 +41,5 @@ existing text importer continues to require zero deferred attachments.
   payload model; the verified attachment plan remains its sole metadata source.
 - Old text-only operational commands fail closed on mixed datasets until a
   dedicated unified preview/apply command is introduced.
+- Retry after a committed import is exactly reconciled and audited again; target
+  drift fails before writes and produces no audit row.

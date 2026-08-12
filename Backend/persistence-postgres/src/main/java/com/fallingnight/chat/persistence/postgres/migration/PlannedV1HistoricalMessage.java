@@ -19,6 +19,7 @@ public record PlannedV1HistoricalMessage(
         int contentType,
         String legacyContentType,
         String text,
+        UUID attachmentId,
         boolean recalled,
         boolean historicalContentAvailable,
         Instant acceptedAt) {}

@@ -29,6 +29,13 @@ class V1UnifiedMessageImportBundleVerifierTest {
         assertEquals(1, bundle.statePlan().sourceMessages());
         assertEquals(1, bundle.payloadPlan().deferredAttachments().size());
         assertEquals(1, bundle.attachmentPlan().attachments().size());
+        V1MessageTargetImportPlan target = new V1MessageTargetImportPlanner().plan(bundle);
+        assertEquals(1, target.attachments().size());
+        assertEquals(1, target.messages().size());
+        assertEquals(2, target.messages().getFirst().contentType());
+        assertEquals(target.attachments().getFirst().source().attachmentId(),
+                target.messages().getFirst().attachmentId());
+        assertEquals("", target.messages().getFirst().text());
     }
 
     @Test

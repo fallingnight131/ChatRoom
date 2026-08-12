@@ -97,6 +97,8 @@ import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportPlan
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportReport;
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentitySourceException;
 import com.fallingnight.chat.persistence.postgres.migration.V1SqliteIdentityBackup;
+import com.fallingnight.chat.persistence.postgres.migration.V1UnifiedAttachmentImportFixture;
+import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1UnifiedMessageImportBundle;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityBackup;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityImportInput;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1ConversationImportInput;
@@ -146,7 +148,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(29, first.migrate());
+        assertEquals(30, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -162,6 +164,7 @@ class PostgresMigratorTest {
                             "conversation_entry", "message_recall_event",
                             "messages_deleted_event", "legacy_v1_message_map",
                             "legacy_v1_deletion_event_map", "message_import_run",
+                            "attachment_import_run",
                             "attachment", "contact_request",
                             "legacy_v1_contact_request_map",
                             "contact_request_import_run", "group_join_credential",
@@ -204,6 +207,62 @@ class PostgresMigratorTest {
         proveLegacyV1MappingConstraints();
         proveLegacyV1ConversationMappingConstraints();
         proveConversationImportAuditConstraints();
+    }
+
+    @Test
+    @Order(99)
+    void atomicallyImportsAttachmentMessageMappingsCursorAndProofsIdempotently()
+            throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        VerifiedV1UnifiedMessageImportBundle bundle =
+                V1UnifiedAttachmentImportFixture.create(temporary);
+        UUID account = V1IdentityImportPlanner.deterministicUserId(1);
+        UUID conversation = V1ConversationImportPlanner.deterministicRoomId(9);
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'v1-attachment-user', 'Attachment User', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    account);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind, title) "
+                            + "VALUES (?, 'GROUP', 'Room')",
+                    conversation);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id) "
+                            + "VALUES (?, ?)", conversation, account);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map("
+                            + "legacy_kind, legacy_conversation_id, conversation_id) "
+                            + "VALUES ('ROOM', 9, ?)", conversation);
+        }
+        PostgresV1MessageImporter importer = new PostgresV1MessageImporter(dataSource());
+
+        V1MessageImportReport first = importer.apply(bundle);
+        V1MessageImportReport second = importer.apply(bundle);
+
+        assertTrue(first.applied() && first.reconciled());
+        assertEquals(1, first.insertableMessages());
+        assertEquals(0, second.insertableMessages());
+        assertEquals(1, second.alreadyImportedMessages());
+        assertEquals(1, count("SELECT count(*) FROM chat.attachment"));
+        assertEquals(1, count("SELECT count(*) FROM chat.message WHERE message_type = 2 "
+                + "AND octet_length(payload) = 0 AND attachment_id IS NOT NULL"));
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_attachment_map"));
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_message_map"));
+        assertEquals(2, count("SELECT count(*) FROM chat.message_import_run"));
+        assertEquals(2, count("SELECT count(*) FROM chat.attachment_import_run"));
+        assertEquals(1, count("SELECT count(*) FROM chat.conversation "
+                + "WHERE next_sequence = 2"));
+
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.attachment SET file_name = 'drift.pdf'");
+        }
+        int proofsBefore = count("SELECT count(*) FROM chat.attachment_import_run");
+        assertThrows(V1MessageImportException.class, () -> importer.apply(bundle));
+        assertEquals(proofsBefore, count("SELECT count(*) FROM chat.attachment_import_run"));
+        assertEquals(1, count("SELECT count(*) FROM chat.message"));
     }
 
     @Test
@@ -2015,11 +2074,14 @@ class PostgresMigratorTest {
         V1MessageTargetImportPlan plan = new V1MessageTargetImportPlan(
                 "a".repeat(64),
                 "b".repeat(64),
+                "0".repeat(64),
+                "0".repeat(64),
                 List.of(new PlannedV1LegacyDevice(account, device, "v1-history-import")),
+                List.of(),
                 List.of(new PlannedV1HistoricalMessage(
                         LegacyV1ConversationKind.ROOM, 77, 501, message, conversation, 1,
                         null, account, device, "v1-import-room-501", 1, "text", "hello",
-                        false, true, Instant.parse("2026-01-02T03:04:05Z"))),
+                        null, false, true, Instant.parse("2026-01-02T03:04:05Z"))),
                 List.of(),
                 List.of(new PlannedV1ConversationCursor(
                         LegacyV1ConversationKind.ROOM, 77, conversation, 1, 2)),
@@ -2168,7 +2230,7 @@ class PostgresMigratorTest {
 
         try (Connection connection = connect()) {
             SQLException invalidType = assertThrows(SQLException.class, () -> execute(connection,
-                    "UPDATE chat.legacy_v1_message_map SET legacy_content_type = 'file' "
+                    "UPDATE chat.legacy_v1_message_map SET legacy_content_type = 'archive' "
                             + "WHERE legacy_message_id = 100"));
             assertEquals("23514", invalidType.getSQLState());
             execute(connection,

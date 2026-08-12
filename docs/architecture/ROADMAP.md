@@ -645,7 +645,7 @@ Progress:
     and expose a final-apply re-verifiable evidence capability.
   - [x] Compose text, deferred attachment, and shared sequence inputs under one
     physical backup proof so mixed history retains its original ordering.
-  - [ ] Add verified V1 file-object evidence and atomically import historical
+  - [x] Add verified V1 file-object evidence and atomically import historical
     attachments, mappings, and attachment messages without local-path leakage.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.

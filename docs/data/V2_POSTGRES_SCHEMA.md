@@ -182,6 +182,14 @@ identities without copying legacy attachment bodies or display metadata. A
 unified capability requires those identities, the attachment plan, and every
 message sequence/sender/timestamp/recall field to reconcile under the same
 physical backup proof before target comparison.
+V030 permits reviewed V1 `file`/`image`/`video` values in the retained message
+mapping and adds `attachment_import_run`, keyed by its owning
+`message_import_run`. It records source/evidence/backup fingerprints, source and
+evidence counts, inserted/existing attachment counts, and backup proof metadata
+under database reconciliation constraints. The serializable importer creates
+attachments before their messages, then both V1 mappings, shared mutation
+entries, cursors, and linked audit rows before final source reverification and
+commit.
 Before that evidence is accepted, the pure V1 source planner reconciles every
 typed `files`/`friend_files` row to exactly one retained attachment message and
 derives deterministic target identities. Its fingerprint includes local/object

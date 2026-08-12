@@ -830,6 +830,11 @@ keeps attachment payloads as explicit deferred identities and composes them with
 the verified message-state and attachment plans under one physical backup proof.
 The legacy text-only importer remains strict; only the unified path may preserve
 mixed text/file history in one serializable target transaction.
+V030 completes that target boundary: canonical attachments, ordered messages,
+message/file compatibility mappings, recall/deletion entries, read cursors,
+conversation high watermarks, and linked message/attachment audits commit
+together. Exact reruns reconcile without duplicate durable rows; any target drift
+rolls back before a new audit. No source path or legacy object URL is persisted.
 
 ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
 create-only, length, type, and SHA-256 constraints and reads checksum-enabled

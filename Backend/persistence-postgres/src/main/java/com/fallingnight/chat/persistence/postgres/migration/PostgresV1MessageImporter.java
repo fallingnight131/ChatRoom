@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import javax.sql.DataSource;
@@ -50,6 +51,20 @@ public final class PostgresV1MessageImporter {
     public V1MessageImportReport apply(VerifiedV1MessageImportBundle bundle) {
         Objects.requireNonNull(bundle, "bundle");
         V1MessageTargetImportPlan plan = new V1MessageTargetImportPlanner().plan(bundle);
+        return apply(plan, bundle::reverify, bundle.backupProof(), false);
+    }
+
+    public V1MessageImportReport apply(VerifiedV1UnifiedMessageImportBundle bundle) {
+        Objects.requireNonNull(bundle, "bundle");
+        V1MessageTargetImportPlan plan = new V1MessageTargetImportPlanner().plan(bundle);
+        return apply(plan, bundle::reverify, bundle.backupProof(), true);
+    }
+
+    private V1MessageImportReport apply(
+            V1MessageTargetImportPlan plan,
+            Runnable reverify,
+            VerifiedV1IdentityBackup backupProof,
+            boolean unified) {
         try (Connection connection = dataSource.getConnection()) {
             connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
             connection.setAutoCommit(false);
@@ -61,9 +76,11 @@ public final class PostgresV1MessageImporter {
                             "V1 message target contains blocking conflicts");
                 }
                 insertDevices(connection, plan.legacyDevices());
+                insertAttachments(connection, plan.attachments());
                 insertCreationEntries(connection, plan.messages());
                 insertMessages(connection, plan.messages());
                 insertMessageMappings(connection, plan.messages());
+                insertAttachmentMappings(connection, plan.attachments());
                 insertRecallEntriesAndEvents(connection, plan.messages());
                 insertDeletionEntriesAndEvents(connection, plan.deletionEvents());
                 updateReadCursors(connection, plan.memberReadCursors());
@@ -73,9 +90,12 @@ public final class PostgresV1MessageImporter {
                     throw new V1MessageImportException(
                             "V1 message post-write reconciliation failed");
                 }
-                bundle.reverify();
+                reverify.run();
                 UUID runId = UUID.randomUUID();
-                persistProof(connection, runId, bundle, plan, before);
+                persistProof(connection, runId, backupProof, plan, before);
+                if (unified) {
+                    persistAttachmentProof(connection, runId, backupProof, plan, before);
+                }
                 connection.commit();
                 return before.appliedReport(plan, runId);
             } catch (RuntimeException | SQLException exception) {
@@ -105,11 +125,20 @@ public final class PostgresV1MessageImporter {
 
         int insertMessages = 0;
         int existingMessages = 0;
+        int insertAttachments = 0;
+        int existingAttachments = 0;
         int insertEntries = 0;
         int existingEntries = 0;
         int missingAuxiliaryRows = 0;
         Map<UUID, Set<Long>> expectedEntries = new HashMap<>();
         Map<UUID, Set<UUID>> expectedMessages = new HashMap<>();
+        for (PlannedV1AttachmentImport attachment : plan.attachments()) {
+            TargetDisposition stored = compareAttachment(connection, attachment, issues);
+            if (stored == TargetDisposition.ABSENT) insertAttachments++;
+            if (stored == TargetDisposition.EXACT) existingAttachments++;
+            if (compareAttachmentMapping(connection, attachment, issues)
+                    == TargetDisposition.ABSENT) missingAuxiliaryRows++;
+        }
         for (PlannedV1HistoricalMessage message : plan.messages()) {
             expectedEntries.computeIfAbsent(message.conversationId(), ignored -> new HashSet<>())
                     .add(message.creationSequence());
@@ -157,7 +186,8 @@ public final class PostgresV1MessageImporter {
             if (read == TargetDisposition.EXACT) existingReads++;
         }
         return new Comparison(
-                insertMessages, existingMessages, insertEntries, existingEntries,
+                insertMessages, existingMessages, insertAttachments, existingAttachments,
+                insertEntries, existingEntries,
                 insertDevices, existingDevices, updateReads, existingReads,
                 missingAuxiliaryRows, List.copyOf(issues));
     }
@@ -273,7 +303,7 @@ public final class PostgresV1MessageImporter {
         try (PreparedStatement statement = connection.prepareStatement("""
                 SELECT id, conversation_id, conversation_sequence, sender_account_id,
                        sender_device_id, client_message_id, message_type, payload,
-                       payload_sha256, accepted_at, deleted_at
+                       payload_sha256, attachment_id, accepted_at, deleted_at
                 FROM chat.message
                 WHERE id = ? OR (conversation_id = ? AND conversation_sequence = ?)
                    OR (sender_account_id = ? AND client_message_id = ?)
@@ -298,6 +328,8 @@ public final class PostgresV1MessageImporter {
                         && result.getInt("message_type") == planned.contentType()
                         && Arrays.equals(result.getBytes("payload"), payload)
                         && MessageDigest.isEqual(result.getBytes("payload_sha256"), sha256(payload))
+                        && Objects.equals(result.getObject("attachment_id", UUID.class),
+                                planned.attachmentId())
                         && result.getObject("accepted_at", OffsetDateTime.class).toInstant()
                                 .equals(planned.acceptedAt())
                         && result.getObject("deleted_at") == null
@@ -308,6 +340,110 @@ public final class PostgresV1MessageImporter {
                 return TargetDisposition.CONFLICT;
             }
         }
+    }
+
+    private static TargetDisposition compareAttachment(
+            Connection connection,
+            PlannedV1AttachmentImport planned,
+            List<V1MessageTargetIssue> issues) throws SQLException {
+        PlannedV1AttachmentSource source = planned.source();
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT id, conversation_id, owner_account_id, owner_device_id,
+                       client_attachment_id, object_key, file_name, media_type,
+                       byte_size, content_sha256, state, created_at, ready_at,
+                       unavailable_at, unavailable_reason
+                FROM chat.attachment
+                WHERE id = ? OR (owner_account_id = ? AND client_attachment_id = ?)
+                   OR (object_key IS NOT NULL AND object_key = ?)
+                """)) {
+            statement.setObject(1, source.attachmentId());
+            statement.setObject(2, source.ownerAccountId());
+            statement.setString(3, source.clientAttachmentId());
+            statement.setString(4, planned.objectKey().orElse(""));
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) return TargetDisposition.ABSENT;
+                OffsetDateTime ready = result.getObject("ready_at", OffsetDateTime.class);
+                OffsetDateTime unavailable = result.getObject(
+                        "unavailable_at", OffsetDateTime.class);
+                boolean exact = result.getObject("id", UUID.class).equals(source.attachmentId())
+                        && result.getObject("conversation_id", UUID.class)
+                                .equals(source.conversationId())
+                        && result.getObject("owner_account_id", UUID.class)
+                                .equals(source.ownerAccountId())
+                        && result.getObject("owner_device_id", UUID.class)
+                                .equals(source.ownerDeviceId())
+                        && result.getString("client_attachment_id")
+                                .equals(source.clientAttachmentId())
+                        && Objects.equals(result.getString("object_key"),
+                                planned.objectKey().orElse(null))
+                        && result.getString("file_name").equals(source.fileName())
+                        && Objects.equals(result.getString("media_type"),
+                                planned.mediaType().orElse(null))
+                        && result.getLong("byte_size") == source.byteSize()
+                        && optionalHashEquals(result.getBytes("content_sha256"),
+                                planned.contentSha256())
+                        && result.getString("state").equals(
+                                planned.unavailable() ? "UNAVAILABLE" : "READY")
+                        && result.getObject("created_at", OffsetDateTime.class).toInstant()
+                                .equals(source.fileCreatedAt())
+                        && optionalInstantEquals(ready, planned.readyAt())
+                        && optionalInstantEquals(unavailable, planned.unavailableAt())
+                        && Objects.equals(result.getString("unavailable_reason"),
+                                planned.unavailableReason().orElse(null))
+                        && !result.next();
+                if (exact) return TargetDisposition.EXACT;
+                issues.add(issue(source.legacyKind(), source.legacyConversationId(),
+                        source.legacyMessageId(), "TARGET_ATTACHMENT_CONFLICT",
+                        "target attachment identity or durable fields differ from plan"));
+                return TargetDisposition.CONFLICT;
+            }
+        }
+    }
+
+    private static TargetDisposition compareAttachmentMapping(
+            Connection connection,
+            PlannedV1AttachmentImport planned,
+            List<V1MessageTargetIssue> issues) throws SQLException {
+        PlannedV1AttachmentSource source = planned.source();
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT legacy_kind, legacy_file_id, legacy_conversation_id,
+                       conversation_id, attachment_id
+                FROM chat.legacy_v1_attachment_map
+                WHERE (legacy_kind = ? AND legacy_file_id = ?) OR attachment_id = ?
+                """)) {
+            statement.setString(1, source.legacyKind().name());
+            statement.setLong(2, source.legacyFileId());
+            statement.setObject(3, source.attachmentId());
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) return TargetDisposition.ABSENT;
+                boolean exact = result.getString("legacy_kind")
+                                .equals(source.legacyKind().name())
+                        && result.getLong("legacy_file_id") == source.legacyFileId()
+                        && result.getLong("legacy_conversation_id")
+                                == source.legacyConversationId()
+                        && result.getObject("conversation_id", UUID.class)
+                                .equals(source.conversationId())
+                        && result.getObject("attachment_id", UUID.class)
+                                .equals(source.attachmentId())
+                        && !result.next();
+                if (exact) return TargetDisposition.EXACT;
+                issues.add(issue(source.legacyKind(), source.legacyConversationId(),
+                        source.legacyMessageId(), "TARGET_ATTACHMENT_MAPPING_CONFLICT",
+                        "target V1 attachment mapping differs from plan"));
+                return TargetDisposition.CONFLICT;
+            }
+        }
+    }
+
+    private static boolean optionalHashEquals(byte[] actual, Optional<byte[]> expected) {
+        return expected.isEmpty() ? actual == null
+                : actual != null && MessageDigest.isEqual(actual, expected.orElseThrow());
+    }
+
+    private static boolean optionalInstantEquals(
+            OffsetDateTime actual, Optional<java.time.Instant> expected) {
+        return expected.isEmpty() ? actual == null
+                : actual != null && actual.toInstant().equals(expected.orElseThrow());
     }
 
     private static TargetDisposition compareMessageMapping(
@@ -559,14 +695,52 @@ public final class PostgresV1MessageImporter {
         }
     }
 
+    private static void insertAttachments(
+            Connection connection, List<PlannedV1AttachmentImport> attachments)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO chat.attachment(
+                    id, conversation_id, owner_account_id, owner_device_id,
+                    client_attachment_id, object_key, file_name, media_type,
+                    byte_size, content_sha256, state, created_at, ready_at,
+                    unavailable_at, unavailable_reason)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT DO NOTHING
+                """)) {
+            for (PlannedV1AttachmentImport value : attachments) {
+                PlannedV1AttachmentSource source = value.source();
+                statement.setObject(1, source.attachmentId());
+                statement.setObject(2, source.conversationId());
+                statement.setObject(3, source.ownerAccountId());
+                statement.setObject(4, source.ownerDeviceId());
+                statement.setString(5, source.clientAttachmentId());
+                statement.setString(6, value.objectKey().orElse(null));
+                statement.setString(7, source.fileName());
+                statement.setString(8, value.mediaType().orElse(null));
+                statement.setLong(9, source.byteSize());
+                statement.setBytes(10, value.contentSha256().orElse(null));
+                statement.setString(11, value.unavailable() ? "UNAVAILABLE" : "READY");
+                statement.setObject(12, OffsetDateTime.ofInstant(
+                        source.fileCreatedAt(), ZoneOffset.UTC));
+                statement.setObject(13, value.readyAt().map(
+                        instant -> OffsetDateTime.ofInstant(instant, ZoneOffset.UTC)).orElse(null));
+                statement.setObject(14, value.unavailableAt().map(
+                        instant -> OffsetDateTime.ofInstant(instant, ZoneOffset.UTC)).orElse(null));
+                statement.setString(15, value.unavailableReason().orElse(null));
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        }
+    }
+
     private static void insertMessages(
             Connection connection, List<PlannedV1HistoricalMessage> messages) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 INSERT INTO chat.message(
                     id, conversation_id, conversation_sequence, sender_account_id,
                     sender_device_id, client_message_id, message_type, payload,
-                    payload_sha256, accepted_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
+                    payload_sha256, attachment_id, accepted_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
                 """)) {
             for (PlannedV1HistoricalMessage value : messages) {
                 byte[] payload = value.text().getBytes(StandardCharsets.UTF_8);
@@ -579,8 +753,31 @@ public final class PostgresV1MessageImporter {
                 statement.setInt(7, value.contentType());
                 statement.setBytes(8, payload);
                 statement.setBytes(9, sha256(payload));
-                statement.setObject(10, OffsetDateTime.ofInstant(
+                statement.setObject(10, value.attachmentId());
+                statement.setObject(11, OffsetDateTime.ofInstant(
                         value.acceptedAt(), ZoneOffset.UTC));
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        }
+    }
+
+    private static void insertAttachmentMappings(
+            Connection connection, List<PlannedV1AttachmentImport> attachments)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO chat.legacy_v1_attachment_map(
+                    legacy_kind, legacy_file_id, legacy_conversation_id,
+                    conversation_id, attachment_id)
+                VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
+                """)) {
+            for (PlannedV1AttachmentImport value : attachments) {
+                PlannedV1AttachmentSource source = value.source();
+                statement.setString(1, source.legacyKind().name());
+                statement.setLong(2, source.legacyFileId());
+                statement.setLong(3, source.legacyConversationId());
+                statement.setObject(4, source.conversationId());
+                statement.setObject(5, source.attachmentId());
                 statement.addBatch();
             }
             statement.executeBatch();
@@ -730,7 +927,7 @@ public final class PostgresV1MessageImporter {
     private static void persistProof(
             Connection connection,
             UUID runId,
-            VerifiedV1MessageImportBundle bundle,
+            VerifiedV1IdentityBackup backupProof,
             V1MessageTargetImportPlan plan,
             Comparison before) throws SQLException {
         int recalled = (int) plan.messages().stream()
@@ -750,7 +947,7 @@ public final class PostgresV1MessageImporter {
             statement.setObject(1, runId);
             statement.setString(2, plan.stateFingerprintSha256());
             statement.setString(3, plan.payloadFingerprintSha256());
-            statement.setString(4, bundle.backupProof().backupFileSha256());
+            statement.setString(4, backupProof.backupFileSha256());
             statement.setInt(5, plan.messages().size());
             statement.setInt(6, recalled);
             statement.setInt(7, plan.deletionEvents().size());
@@ -764,11 +961,43 @@ public final class PostgresV1MessageImporter {
             statement.setInt(15, before.existingDevices());
             statement.setInt(16, before.updateReads());
             statement.setInt(17, before.existingReads());
-            statement.setLong(18, bundle.backupProof().backupBytes());
+            statement.setLong(18, backupProof.backupBytes());
             statement.setObject(19, OffsetDateTime.ofInstant(
-                    bundle.backupProof().createdAt(), ZoneOffset.UTC));
+                    backupProof.createdAt(), ZoneOffset.UTC));
             if (statement.executeUpdate() != 1) {
                 throw new SQLException("message import proof was not persisted");
+            }
+        }
+    }
+
+    private static void persistAttachmentProof(
+            Connection connection,
+            UUID runId,
+            VerifiedV1IdentityBackup backupProof,
+            V1MessageTargetImportPlan plan,
+            Comparison before) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO chat.attachment_import_run(
+                    id, source_fingerprint_sha256, evidence_fingerprint_sha256,
+                    backup_file_sha256, source_attachments, supplied_object_evidence,
+                    inserted_attachments, already_imported_attachments,
+                    backup_bytes, backup_created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """)) {
+            statement.setObject(1, runId);
+            statement.setString(2, plan.attachmentSourceFingerprintSha256());
+            statement.setString(3, plan.attachmentEvidenceFingerprintSha256());
+            statement.setString(4, backupProof.backupFileSha256());
+            statement.setInt(5, plan.attachments().size());
+            statement.setInt(6, (int) plan.attachments().stream()
+                    .filter(value -> !value.unavailable()).count());
+            statement.setInt(7, before.insertAttachments());
+            statement.setInt(8, before.existingAttachments());
+            statement.setLong(9, backupProof.backupBytes());
+            statement.setObject(10, OffsetDateTime.ofInstant(
+                    backupProof.createdAt(), ZoneOffset.UTC));
+            if (statement.executeUpdate() != 1) {
+                throw new SQLException("attachment import proof was not persisted");
             }
         }
     }
@@ -777,9 +1006,11 @@ public final class PostgresV1MessageImporter {
         try (PreparedStatement statement = connection.prepareStatement("""
                 LOCK TABLE chat.account, chat.device, chat.conversation,
                     chat.conversation_member, chat.message, chat.conversation_entry,
+                    chat.attachment, chat.legacy_v1_attachment_map,
                     chat.message_recall_event, chat.messages_deleted_event,
                     chat.legacy_v1_conversation_map, chat.legacy_v1_message_map,
-                    chat.legacy_v1_deletion_event_map, chat.message_import_run
+                    chat.legacy_v1_deletion_event_map, chat.message_import_run,
+                    chat.attachment_import_run
                 IN SHARE ROW EXCLUSIVE MODE
                 """)) {
             statement.execute();
@@ -830,6 +1061,8 @@ public final class PostgresV1MessageImporter {
     private record Comparison(
             int insertMessages,
             int existingMessages,
+            int insertAttachments,
+            int existingAttachments,
             int insertEntries,
             int existingEntries,
             int insertDevices,
@@ -850,6 +1083,8 @@ public final class PostgresV1MessageImporter {
             return ready()
                     && insertMessages == 0
                     && existingMessages == plan.messages().size()
+                    && insertAttachments == 0
+                    && existingAttachments == plan.attachments().size()
                     && insertEntries == 0
                     && existingEntries == expectedEntries
                     && insertDevices == 0
