@@ -627,6 +627,9 @@ Progress:
 - [x] Persist an exclusive open rollout-incident marker during B-to-A rollback
   and make ordinary promotion/expansion execution fail closed until the
   dedicated forward-fix path resolves it.
+- [x] Consume the incident-bound forward-fix authorization once, require A as
+  the exact current pointer and pre-staged C as target, atomically switch to C,
+  restore A on finalization failure, and keep the incident open for observation.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

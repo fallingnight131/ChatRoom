@@ -1253,6 +1253,13 @@ before restoring A. Ordinary promotion and percentage expansion both reject
 mutation while it exists. Only the future dedicated forward-fix executor may
 resolve it, and malformed or detached marker/retention state fails closed.
 
+ADR-0199 adds that dedicated local consumer. It joins the complete forward-fix
+authorization to the immutable incident, requires restored A to be active and C
+to occupy its exact content-addressed store path, consumes once, and atomically
+switches A-to-C. Failure restores A without restoring authorization usability.
+Success deliberately leaves the incident open and awaits strict public HTTPS
+observation before recovery can be completed.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

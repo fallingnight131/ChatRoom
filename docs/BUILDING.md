@@ -744,6 +744,22 @@ Execution still requires one-time incident-bound consumption and strict public
 HTTPS observation. An authorization record alone is not recovery evidence. See
 ADR-0197.
 
+After pre-staging C by manifest SHA-256, run
+`tools/windows_update_forward_fix_execution.py execute`. It reconstructs the
+authorization and open incident, requires their B/A identities and original B
+promotion completion to match, requires A to be active, and consumes the
+authorization before atomically switching to exact C. Evidence-write failure
+restores A while leaving both the consumption and open incident in place. A
+successful local result is
+`forward-fix-pointer-switched-awaiting-external-observation`; the incident also
+remains open until a later strict HTTPS completion step:
+
+```bash
+python3 Tests/windows_update_forward_fix_execution_test.py
+```
+
+See ADR-0199.
+
 Before broadening a staged rollout, evaluate a reviewed aggregate observability
 export against `packaging/windows/rollout-health-policy.json`:
 

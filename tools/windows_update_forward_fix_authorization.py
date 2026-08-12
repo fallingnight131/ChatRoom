@@ -221,9 +221,7 @@ def verify_authorization(
     return value
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("create", "verify"))
+def add_authorization_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--rollback-completion", type=Path, required=True)
     add_completion_arguments(parser)
     parser.add_argument("--target-candidate-root", type=Path, required=True)
@@ -232,23 +230,33 @@ def main() -> int:
     parser.add_argument("--target-qt-version", required=True)
     parser.add_argument("--target-authenticode-signer-sha256", required=True)
     parser.add_argument("--target-update-public-key-sha256", required=True)
-    parser.add_argument("--lifetime-seconds", type=int, default=900)
-    parser.add_argument("--output", type=Path, required=True)
-    args = parser.parse_args()
-    values = (
+
+
+def authorization_values(args: argparse.Namespace) -> tuple[object, ...]:
+    return (
         args.rollback_completion, completion_values(args),
         args.target_candidate_root, args.target_version_file,
         args.target_source_revision, args.target_qt_version,
         args.target_authenticode_signer_sha256,
         args.target_update_public_key_sha256,
     )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", choices=("create", "verify"))
+    add_authorization_arguments(parser)
+    parser.add_argument("--lifetime-seconds", type=int, default=900)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    values = authorization_values(args)
     now = datetime.now(timezone.utc).replace(microsecond=0)
     try:
         if args.command == "create":
             result = create_authorization(*values, now, args.lifetime_seconds)
             write_once(args.output.resolve(strict=False), result)
         else:
-            result = verify_authorization(*((args.output,) + values + (now,)))
+            result = verify_authorization(args.output, *values, now)
     except (ManifestError, OSError) as error:
         raise SystemExit(f"Windows forward-fix authorization failed: {error}") from None
     print(json.dumps(result, ensure_ascii=True, sort_keys=True))
