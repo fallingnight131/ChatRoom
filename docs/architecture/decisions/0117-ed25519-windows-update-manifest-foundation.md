@@ -1,6 +1,6 @@
 # ADR-0117: Ed25519 Windows Update Manifest Foundation
 
-- Status: Accepted
+- Status: Accepted; authoring I/O hardened by ADR-0174
 - Date: 2026-08-12
 - Owners: project maintainers
 - Related milestone: M4

@@ -560,6 +560,8 @@ Progress:
   and configure a synthetic version-upgrade/data-preservation CI gate.
 - [x] Define and cryptographically exercise a canonical, detached-Ed25519
   stable/beta Windows update manifest without enabling a product update key.
+- [x] Make offline Windows update-manifest parsing duplicate-key strict and
+  detached signature output write-once before introducing production key custody.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

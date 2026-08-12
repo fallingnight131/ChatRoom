@@ -188,8 +188,16 @@ def read_canonical_manifest(path: Path, observed_at: datetime | None = None) -> 
     if not path.is_file() or path.is_symlink():
         raise ManifestError("Windows update manifest must be a regular file")
     try:
+        def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
+            result: dict[str, object] = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ManifestError("Windows update manifest has duplicate keys")
+                result[key] = value
+            return result
+
         raw = path.read_bytes()
-        manifest = json.loads(raw.decode("utf-8"))
+        manifest = json.loads(raw.decode("utf-8"), object_pairs_hook=unique)
     except (UnicodeDecodeError, json.JSONDecodeError, OSError) as error:
         raise ManifestError("Windows update manifest is unreadable") from error
     if not isinstance(manifest, dict):
@@ -224,9 +232,12 @@ def sign_manifest(manifest_path: Path, private_key: Path, signature_path: Path) 
         pass
     else:
         raise ManifestError("Windows update private key must remain outside the repository")
-    if signature_path.resolve() in {manifest_path.resolve(), private_key.resolve()}:
-        raise ManifestError("Windows update signature output path is unsafe")
+    if (signature_path.exists() or signature_path.is_symlink()
+            or signature_path.resolve() in {manifest_path.resolve(), private_key.resolve()}):
+        raise ManifestError("Windows update signature output path is unsafe or already exists")
     signature_path.parent.mkdir(parents=True, exist_ok=True)
+    if signature_path.parent.is_symlink() or not signature_path.parent.is_dir():
+        raise ManifestError("Windows update signature output directory is unsafe")
     with tempfile.NamedTemporaryFile(
         dir=signature_path.parent,
         prefix=signature_path.name + ".",

@@ -1078,6 +1078,12 @@ restores A. It never switches back to B when rollback evidence persistence
 fails. The result remains pending until external probes observe restored A and
 the existing A-before/B/A-restored rollback record is completed.
 
+ADR-0174 hardens the still-offline Windows update-manifest authoring boundary.
+Strict JSON parsing now rejects duplicate keys before canonical comparison, and
+detached Ed25519 signature output is write-once with link/unsafe-directory
+rejection. The existing fixture PEM flow remains test-only/offline; production
+update-key custody and protected execution are still separate M4 work.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

@@ -67,6 +67,15 @@ class WindowsUpdateManifestTest(unittest.TestCase):
         path.write_text(json.dumps(first, indent=2), encoding="utf-8")
         with self.assertRaisesRegex(ManifestError, "canonical"):
             read_canonical_manifest(path)
+        path.write_text(
+            '{"schemaVersion":1,"schemaVersion":1}', encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "duplicate keys"):
+            read_canonical_manifest(path)
+        nested = canonical_bytes(first).replace(
+            b'"percentage":25', b'"percentage":25,"percentage":25')
+        path.write_bytes(nested)
+        with self.assertRaisesRegex(ManifestError, "duplicate keys"):
+            read_canonical_manifest(path)
 
     def test_rejects_unsafe_release_and_rollout_metadata(self) -> None:
         original = self.build()
@@ -119,6 +128,8 @@ class WindowsUpdateManifestTest(unittest.TestCase):
 
         sign_manifest(manifest_path, private_key, signature)
         self.assertEqual(signature.stat().st_size, 64)
+        with self.assertRaisesRegex(ManifestError, "already exists"):
+            sign_manifest(manifest_path, private_key, signature)
         verified = verify_manifest_signature(
             manifest_path,
             signature,

@@ -141,6 +141,11 @@ timestamp, create the canonical manifest with `create`, sign it offline with
 `python3 tools/windows_update_manifest.py --help` for exact parameters.
 Create/sign/verify CLI operations require the manifest to be currently valid;
 tests may call pure validation helpers with an explicit observation time.
+Manifest parsing rejects duplicate keys at every JSON object level before
+canonical comparison. Detached signature output is write-once: an existing
+file, link, or unsafe parent is rejected rather than replaced. This preserves a
+stable audit input and prevents a second signing operation from silently
+changing previously reviewed evidence.
 
 Never echo, archive, or upload the private key. The public key can be committed
 only in a future key-enablement ADR after fingerprint review and two-person key
