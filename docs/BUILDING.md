@@ -565,6 +565,22 @@ immediately verifies through the public PEM, and publishes only the exact
 64-byte detached signature. Protected workflow orchestration and positive HSM
 execution evidence remain later M4 steps.
 
+The self-contained update-channel candidate policy is tested with:
+
+```bash
+python3 Tests/windows_update_channel_candidate_test.py
+```
+
+`tools/windows_update_channel_candidate.py assemble` accepts only an already
+verified schema-5 Windows candidate, canonical manifest, detached signature,
+reviewed public PEM, and public release identity. It closes those exact bytes
+in one atomic, immutable `signed-update-channel-not-published-candidate` and
+requires manifest Setup hash/size/publisher/version/revision/channel equality.
+Its recorded UTC assembly instant permits durable later verification without
+weakening live freshness at assembly. It contains no private key and performs
+no upload or channel mutation. Fixture tests are not positive PKCS#11,
+Authenticode, Windows clean-host, or publication evidence. See ADR-0176.
+
 The provider-neutral post-signing acceptance policy is checked with:
 
 ```bash

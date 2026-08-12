@@ -161,3 +161,34 @@ The adapter requires preinstalled OpenSSL 3, a reviewed regular public-key PEM
 whose file SHA-256 and manifest key ID are explicit public inputs, then verifies
 the 64-byte signature with that public key before atomically creating a
 previously absent output. This is a signing primitive, not channel publication.
+
+## Closed update-channel candidate
+
+After protected Authenticode acceptance and protected update-manifest signing,
+assemble their exact outputs into one immutable unpublished candidate:
+
+```bash
+python3 tools/windows_update_channel_candidate.py assemble \
+  --windows-candidate-root /release/windows-candidate \
+  --update-manifest /release/manifest.json \
+  --signature /release/manifest.json.sig \
+  --public-key /reviewed/windows-update-public.pem \
+  --output-root /release/windows-update-channel-candidate \
+  --version-file packaging/windows/VERSION \
+  --source-revision <full-git-revision> \
+  --channel stable \
+  --qt-version <exact-version> \
+  --authenticode-signer-sha256 <publisher-certificate-sha256> \
+  --public-key-file-sha256 <reviewed-public-pem-sha256>
+```
+
+The assembler independently verifies the complete schema-5 Windows candidate
+and the detached Ed25519 signature, then requires the update manifest to name
+the exact Setup size, SHA-256, publisher, version, revision, and channel. It
+copies the reviewed public PEM but never private key material, closes every
+file in a sorted manifest and `SHA256SUMS`, records the assembly instant, and
+renames atomically into a previously absent destination. `verify` can later
+audit the retained candidate against that immutable instant after the live
+manifest expires. The status remains
+`signed-update-channel-not-published-candidate`; upload, client trust
+provisioning, stable/beta mutation, rollout, and rollback are separate gates.

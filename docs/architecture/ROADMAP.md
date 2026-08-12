@@ -565,6 +565,9 @@ Progress:
 - [x] Add a protected PKCS#11/OpenSSL 3 update-manifest signing primitive that
   accepts no exportable private key or credential input and verifies every
   write-once signature against a reviewed public-key identity.
+- [x] Bind an exact schema-5 signed Windows candidate, canonical Ed25519 update
+  manifest/signature, and reviewed public PEM into one closed, immutable,
+  durably verifiable, explicitly unpublished update-channel candidate.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

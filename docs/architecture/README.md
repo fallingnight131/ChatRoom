@@ -1093,6 +1093,15 @@ is owned out of band by the runner service. The detached signature is verified
 immediately and created once. Workflow orchestration, product public trust, and
 channel publication remain separate gates.
 
+ADR-0176 closes the handoff between the two independent Windows trust domains.
+One immutable unpublished candidate now contains the complete schema-5
+Authenticode-accepted Windows candidate, canonical Ed25519 update manifest,
+detached signature, and reviewed public PEM. Independent verification requires
+the manifest to authorize the exact inner Setup bytes, publisher, version,
+revision, and channel, and rejects any undeclared material. Its assembly instant
+supports durable audit after manifest expiry; it contains no private key and
+does not provision client trust, upload bytes, or mutate stable/beta state.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,
