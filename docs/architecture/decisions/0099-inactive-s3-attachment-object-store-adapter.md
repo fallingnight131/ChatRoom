@@ -36,6 +36,9 @@ required here works for a particular bucket.
 - Inspect completion with checksum mode enabled. Treat only provider 404 as
   missing. A missing, malformed, or non-SHA-256 checksum and every other
   provider error fail closed rather than producing trusted object metadata.
+- Implement cleanup deletion only for the server-owned `attachments/` key
+  namespace. S3 success and 404 are idempotent completion; authorization,
+  throttling, timeout, and other provider failures remain retryable failures.
 - Keep the module inactive. Do not read ambient credentials or add it to the
   gateway composition until strict environment configuration, startup
   capability checks, CORS verification, telemetry, and cleanup exist.
@@ -62,7 +65,9 @@ prove the signed HTTPS request contains exact content type, SHA-256, and
 create-only conditions; excludes Host/Content-Length from client-set headers;
 enforces lifetime and single-PUT bounds; requests checksum-enabled HEAD; maps
 valid metadata; treats 404 as missing; and fails closed on denial or absent
-checksum. Dependency locks prove the excluded HTTP clients are absent.
+checksum. Delete tests prove exact bucket/key projection, missing-object
+idempotency, key-prefix enforcement, and failure on provider denial. Dependency
+locks prove the excluded HTTP clients are absent.
 
 Rollback removes the inactive module, catalog entries, dependency lock, and
 settings inclusion. It changes no runtime composition, wire protocol, database,

@@ -12,6 +12,7 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1ConversationId
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1ConversationKind;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1MessageIdentity;
 import com.fallingnight.chat.application.attachment.AttachmentActor;
+import com.fallingnight.chat.application.attachment.AttachmentCleanupCandidate;
 import com.fallingnight.chat.application.attachment.AttachmentRegistration;
 import com.fallingnight.chat.application.attachment.AttachmentRegistrationResult;
 import com.fallingnight.chat.application.attachment.AttachmentReadyTransition;
@@ -668,6 +669,55 @@ class PostgresMigratorTest {
     }
 
     @Test
+    @Order(12)
+    void revokesExpiredAttachmentsAndConfirmsObjectDeletionIdempotently()
+            throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID account = UUID.randomUUID();
+        UUID device = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        seedMessageOwner(account, device, conversation);
+        Instant now = Instant.parse("2026-08-12T12:00:00Z");
+        Instant cutoff = now.minusSeconds(3_600);
+        UUID first = insertCleanupAttachment(
+                account, device, conversation, "cleanup-1", cutoff.minusSeconds(2), false);
+        UUID second = insertCleanupAttachment(
+                account, device, conversation, "cleanup-2", cutoff.minusSeconds(1), false);
+        UUID boundary = insertCleanupAttachment(
+                account, device, conversation, "cleanup-3", cutoff, false);
+        insertCleanupAttachment(
+                account, device, conversation, "recent", cutoff.plusSeconds(1), false);
+        insertCleanupAttachment(
+                account, device, conversation, "ready", cutoff.minusSeconds(10), true);
+        PostgresAttachmentAdapter adapter = new PostgresAttachmentAdapter(dataSource());
+
+        List<Integer> revoked = raceExpiredAttachmentRevocation(
+                adapter, cutoff, now, 10);
+
+        assertEquals(3, revoked.stream().mapToInt(Integer::intValue).sum());
+        assertEquals(3, count("SELECT count(*) FROM chat.attachment "
+                + "WHERE state = 'REVOKED' AND object_deleted_at IS NULL"));
+        List<AttachmentCleanupCandidate> firstPage =
+                adapter.findObjectCleanupRequired(2);
+        assertEquals(2, firstPage.size());
+        assertTrue(firstPage.stream().allMatch(candidate ->
+                Set.of(first, second, boundary).contains(candidate.attachmentId())));
+
+        assertFalse(adapter.confirmObjectDeleted(first, now.minusSeconds(1)));
+        assertTrue(adapter.confirmObjectDeleted(first, now.plusSeconds(1)));
+        assertTrue(adapter.confirmObjectDeleted(first, now.plusSeconds(2)));
+        assertEquals(2, adapter.findObjectCleanupRequired(10).size());
+        assertTrue(adapter.findObjectCleanupRequired(10).stream()
+                .anyMatch(candidate -> candidate.attachmentId().equals(boundary)));
+        assertFalse(adapter.confirmObjectDeleted(UUID.randomUUID(), now.plusSeconds(1)));
+        assertThrows(IllegalArgumentException.class,
+                () -> adapter.findObjectCleanupRequired(0));
+        assertThrows(IllegalArgumentException.class,
+                () -> adapter.revokeExpiredPending(now, cutoff, 1));
+    }
+
+    @Test
     @Order(3)
     void previewsAppliesReconcilesAndAuditsV1IdentityImport() throws Exception {
         requireDatabase();
@@ -1137,6 +1187,58 @@ class PostgresMigratorTest {
             executor.shutdownNow();
             assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
         }
+    }
+
+    private static List<Integer> raceExpiredAttachmentRevocation(
+            PostgresAttachmentAdapter adapter,
+            Instant cutoff,
+            Instant revokedAt,
+            int limit) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<Future<Integer>> futures = java.util.stream.IntStream.range(0, 2)
+                    .mapToObj(index -> executor.submit(() -> {
+                        ready.countDown();
+                        assertTrue(start.await(2, TimeUnit.SECONDS));
+                        return adapter.revokeExpiredPending(cutoff, revokedAt, limit);
+                    }))
+                    .toList();
+            assertTrue(ready.await(2, TimeUnit.SECONDS));
+            start.countDown();
+            return List.of(futures.get(0).get(), futures.get(1).get());
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
+        }
+    }
+
+    private static UUID insertCleanupAttachment(
+            UUID account,
+            UUID device,
+            UUID conversation,
+            String clientId,
+            Instant createdAt,
+            boolean ready) throws SQLException {
+        UUID attachment = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.attachment(id, conversation_id, owner_account_id, "
+                            + "owner_device_id, client_attachment_id, object_key, file_name, "
+                            + "media_type, byte_size, content_sha256, state, created_at, ready_at) "
+                            + "VALUES (?, ?, ?, ?, ?, ?, 'cleanup.bin', "
+                            + "'application/octet-stream', 1, ?, ?, ?, ?)",
+                    attachment, conversation, account, device, clientId,
+                    "attachments/" + attachment, new byte[32],
+                    ready ? "READY" : "UPLOAD_PENDING",
+                    OffsetDateTime.ofInstant(createdAt, ZoneOffset.UTC),
+                    ready
+                            ? OffsetDateTime.ofInstant(createdAt.plusSeconds(1), ZoneOffset.UTC)
+                            : null);
+        }
+        return attachment;
     }
 
     private static void insertMessage(

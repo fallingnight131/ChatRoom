@@ -1,5 +1,6 @@
 package com.fallingnight.chat.storage.s3;
 
+import com.fallingnight.chat.application.attachment.AttachmentObjectDeletionPort;
 import com.fallingnight.chat.application.attachment.AttachmentObjectStorePort;
 import com.fallingnight.chat.application.attachment.AttachmentUploadGrant;
 import com.fallingnight.chat.application.attachment.AttachmentUploadTarget;
@@ -17,6 +18,8 @@ import java.util.Objects;
 import java.util.Optional;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ChecksumMode;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
@@ -27,25 +30,40 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 
 /** S3-compatible create-only PUT signer and checksum-backed object inspector. */
-public final class S3AttachmentObjectStore implements AttachmentObjectStorePort {
+public final class S3AttachmentObjectStore
+        implements AttachmentObjectStorePort, AttachmentObjectDeletionPort {
     public static final long SINGLE_PUT_MAX_BYTE_SIZE = 5L * 1024 * 1024 * 1024;
 
     private final HeadReader heads;
     private final PutSigner signer;
+    private final DeleteWriter deletes;
     private final String bucket;
     private final Clock clock;
 
     public S3AttachmentObjectStore(
             S3Client client, S3Presigner presigner, String bucket, Clock clock) {
-        this(client::headObject, request -> presigner.presignPutObject(request), bucket, clock);
+        this(client::headObject, request -> presigner.presignPutObject(request),
+                client::deleteObject, bucket, clock);
         Objects.requireNonNull(client, "client");
         Objects.requireNonNull(presigner, "presigner");
     }
 
     S3AttachmentObjectStore(
             HeadReader heads, PutSigner signer, String bucket, Clock clock) {
+        this(heads, signer, request -> {
+            throw new IllegalStateException("delete writer was not configured");
+        }, bucket, clock);
+    }
+
+    S3AttachmentObjectStore(
+            HeadReader heads,
+            PutSigner signer,
+            DeleteWriter deletes,
+            String bucket,
+            Clock clock) {
         this.heads = Objects.requireNonNull(heads, "heads");
         this.signer = Objects.requireNonNull(signer, "signer");
+        this.deletes = Objects.requireNonNull(deletes, "deletes");
         this.bucket = requireBucket(bucket);
         this.clock = Objects.requireNonNull(clock, "clock");
     }
@@ -120,6 +138,24 @@ public final class S3AttachmentObjectStore implements AttachmentObjectStorePort 
                 target.objectKey(), length, checksum));
     }
 
+    @Override
+    public void deleteIfPresent(String objectKey) {
+        requireObjectKey(objectKey);
+        try {
+            deletes.delete(DeleteObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(objectKey)
+                    .build());
+        } catch (S3Exception exception) {
+            if (exception.statusCode() == 404) {
+                return;
+            }
+            throw new AttachmentObjectStoreException("S3 DELETE failed", exception);
+        } catch (RuntimeException exception) {
+            throw new AttachmentObjectStoreException("S3 DELETE failed", exception);
+        }
+    }
+
     private static Map<String, String> clientHeaders(Map<String, List<String>> signed) {
         LinkedHashMap<String, String> result = new LinkedHashMap<>();
         signed.forEach((rawName, values) -> {
@@ -169,6 +205,16 @@ public final class S3AttachmentObjectStore implements AttachmentObjectStorePort 
         return value;
     }
 
+    private static void requireObjectKey(String value) {
+        Objects.requireNonNull(value, "objectKey");
+        if (!value.startsWith("attachments/")
+                || value.length() == "attachments/".length()
+                || value.length() > 1024
+                || value.codePoints().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException("objectKey is invalid");
+        }
+    }
+
     @FunctionalInterface
     interface HeadReader {
         HeadObjectResponse head(HeadObjectRequest request);
@@ -177,5 +223,10 @@ public final class S3AttachmentObjectStore implements AttachmentObjectStorePort 
     @FunctionalInterface
     interface PutSigner {
         PresignedPutObjectRequest sign(PutObjectPresignRequest request);
+    }
+
+    @FunctionalInterface
+    interface DeleteWriter {
+        DeleteObjectResponse delete(DeleteObjectRequest request);
     }
 }

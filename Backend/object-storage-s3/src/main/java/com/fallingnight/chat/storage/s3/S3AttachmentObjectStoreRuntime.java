@@ -1,5 +1,6 @@
 package com.fallingnight.chat.storage.s3;
 
+import com.fallingnight.chat.application.attachment.AttachmentObjectDeletionPort;
 import com.fallingnight.chat.application.attachment.AttachmentObjectStorePort;
 import com.fallingnight.chat.application.attachment.AttachmentUploadGrant;
 import com.fallingnight.chat.application.attachment.AttachmentUploadTarget;
@@ -16,7 +17,7 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 /** Owns the SDK resources behind one configured but externally activated adapter. */
 public final class S3AttachmentObjectStoreRuntime
-        implements AttachmentObjectStorePort, AutoCloseable {
+        implements AttachmentObjectStorePort, AttachmentObjectDeletionPort, AutoCloseable {
     private final S3Client client;
     private final S3Presigner presigner;
     private final S3AttachmentObjectStore delegate;
@@ -74,6 +75,11 @@ public final class S3AttachmentObjectStoreRuntime
     public Optional<StoredAttachmentObject> inspectSealedObject(
             AttachmentUploadTarget target) {
         return delegate.inspectSealedObject(target);
+    }
+
+    @Override
+    public void deleteIfPresent(String objectKey) {
+        delegate.deleteIfPresent(objectKey);
     }
 
     @Override

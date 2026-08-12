@@ -411,6 +411,12 @@ objects above 5 GiB until a restartable multipart design exists. COS/S3-compatib
 deployment still requires real-bucket capability and Web CORS acceptance; SDK
 compatibility or a mocked unit test is not release evidence.
 
+The inactive cleanup path now persists revocation before external deletion,
+uses an indexed retry set, deletes only server-owned `attachments/` keys, and
+confirms deletion afterward. PostgreSQL uses bounded `SKIP LOCKED` selection so
+multiple future workers do not revoke the same pending row; repeated deletion of
+an already-revoked object remains safe after process or database failure.
+
 ## 11. Client Architecture
 
 ### Windows desktop

@@ -462,8 +462,10 @@ Progress:
     object cleanup using revoke-delete-confirm ordering.
   - [x] Add inactive bounded cleanup orchestration with failure isolation and
     fixed revoke/attempt/delete/provider/confirmation outcome counters.
-  - [ ] Add PostgreSQL/S3 cleanup adapters, scheduler/backoff, real-provider
-    capability acceptance, and metrics export before activating upload commands.
+  - [x] Add PostgreSQL/S3 cleanup adapters with concurrent `SKIP LOCKED`
+    revocation, retry paging, idempotent confirmation, and scoped object delete.
+  - [ ] Add scheduler/backoff, real-provider capability acceptance, and metrics
+    export before activating upload commands.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

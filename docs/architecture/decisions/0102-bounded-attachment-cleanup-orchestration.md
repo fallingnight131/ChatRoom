@@ -27,8 +27,11 @@ mark objects deleted or stop all later candidates in the same pass.
 - Return only fixed counters: revoked, attempted, deleted, provider failures,
   and confirmation failures. Do not label reports with attachment, account,
   conversation, device, object key, filename, or endpoint.
-- Keep orchestration inactive until PostgreSQL and S3 deletion adapters,
-  scheduling/backoff, metrics export, and provider acceptance exist.
+- Implement PostgreSQL cleanup with ordered bounded selection, atomic
+  `SKIP LOCKED` revocation, indexed retry paging, and idempotent deletion
+  confirmation. Implement S3 deletion as an idempotent object-key operation.
+- Keep orchestration inactive until scheduling/backoff, metrics export, and
+  provider acceptance exist.
 
 ## Consequences
 
@@ -41,8 +44,13 @@ signed URLs or object keys.
 ## Verification and Rollback
 
 Application tests prove cutoff/batch forwarding, revoke-delete-confirm order,
-successful counters, provider and confirmation failure isolation, policy bounds,
-and rejection of an overproducing persistence adapter.
+successful counters, provider and confirmation exception isolation, policy
+bounds, and rejection of an overproducing persistence adapter. Disposable
+PostgreSQL tests race two cleanup passes, prove each expired row is revoked once,
+include the exact cutoff, exclude recent and READY rows, page the retry set, and
+verify timestamp-bounded idempotent confirmation. S3 tests prove exact scoped
+delete, missing-object success, and provider-denial failure.
 
-Rollback removes the inactive ports, service, report, and tests. It does not
-alter V013, runtime composition, provider objects, protocol, or user traffic.
+Rollback removes the inactive ports, service, adapter methods, report, and
+tests. It does not alter V013, runtime composition, provider objects, protocol,
+or user traffic.

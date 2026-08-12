@@ -56,9 +56,13 @@ public final class AttachmentCleanupService {
                 providerFailures++;
                 continue;
             }
-            if (attachments.confirmObjectDeleted(candidate.attachmentId(), now)) {
-                deleted++;
-            } else {
+            try {
+                if (attachments.confirmObjectDeleted(candidate.attachmentId(), now)) {
+                    deleted++;
+                } else {
+                    confirmationFailures++;
+                }
+            } catch (RuntimeException exception) {
                 confirmationFailures++;
             }
         }

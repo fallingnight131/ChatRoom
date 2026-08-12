@@ -22,6 +22,8 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.ChecksumMode;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -116,12 +118,51 @@ class S3AttachmentObjectStoreTest {
         }
     }
 
+    @Test
+    void deletesExactObjectIdempotentlyAndFailsClosedOnProviderDenial() {
+        AtomicReference<DeleteObjectRequest> deleted = new AtomicReference<>();
+        S3AttachmentObjectStore store = deleteStore(request -> {
+            deleted.set(request);
+            return DeleteObjectResponse.builder().build();
+        });
+
+        store.deleteIfPresent(TARGET.objectKey());
+
+        assertEquals("chat-private", deleted.get().bucket());
+        assertEquals(TARGET.objectKey(), deleted.get().key());
+
+        deleteStore(request -> {
+            throw S3Exception.builder().statusCode(404).message("missing").build();
+        }).deleteIfPresent(TARGET.objectKey());
+        S3AttachmentObjectStore denied = deleteStore(request -> {
+            throw S3Exception.builder().statusCode(403).message("denied").build();
+        });
+        assertThrows(AttachmentObjectStoreException.class,
+                () -> denied.deleteIfPresent(TARGET.objectKey()));
+        assertThrows(IllegalArgumentException.class,
+                () -> store.deleteIfPresent("\n"));
+    }
+
     private static S3AttachmentObjectStore store(S3AttachmentObjectStore.HeadReader reader) {
         return new S3AttachmentObjectStore(
                 reader,
                 request -> {
                     throw new AssertionError("signer should not run");
                 },
+                "chat-private",
+                clock());
+    }
+
+    private static S3AttachmentObjectStore deleteStore(
+            S3AttachmentObjectStore.DeleteWriter writer) {
+        return new S3AttachmentObjectStore(
+                request -> {
+                    throw new AssertionError("HEAD should not run");
+                },
+                request -> {
+                    throw new AssertionError("signer should not run");
+                },
+                writer,
                 "chat-private",
                 clock());
     }

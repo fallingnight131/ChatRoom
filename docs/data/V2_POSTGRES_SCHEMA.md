@@ -159,6 +159,12 @@ confirmation only after revocation. The future cleanup order is durable revoke,
 provider delete outside the transaction, then durable confirmation; a timeout
 therefore remains retryable rather than being mistaken for success.
 
+The inactive PostgreSQL cleanup adapter revokes an ordered bounded batch with
+`FOR UPDATE SKIP LOCKED`, pages the V013 partial-index retry set, and confirms
+deletion idempotently only when the confirmation time is not before revocation.
+Concurrent workers may attempt the same already-revoked object, so the provider
+delete contract is deliberately idempotent and restricted to `attachments/`.
+
 The message importer provides a repeatable-read, no-write target preview.
 It compares the exact typed conversation mapping and allowed pre/post high
 watermark, synthetic legacy device, message UUID/sequence/idempotency identity,

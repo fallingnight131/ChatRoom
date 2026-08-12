@@ -1,6 +1,8 @@
 package com.fallingnight.chat.persistence.postgres;
 
 import com.fallingnight.chat.application.attachment.AttachmentActor;
+import com.fallingnight.chat.application.attachment.AttachmentCleanupCandidate;
+import com.fallingnight.chat.application.attachment.AttachmentCleanupPort;
 import com.fallingnight.chat.application.attachment.AttachmentLifecyclePort;
 import com.fallingnight.chat.application.attachment.AttachmentRegistration;
 import com.fallingnight.chat.application.attachment.AttachmentRegistrationPort;
@@ -15,6 +17,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,7 +28,7 @@ import javax.sql.DataSource;
 
 /** Active-member/device PostgreSQL reservation and lifecycle of attachment metadata. */
 public final class PostgresAttachmentAdapter
-        implements AttachmentRegistrationPort, AttachmentLifecyclePort {
+        implements AttachmentRegistrationPort, AttachmentLifecyclePort, AttachmentCleanupPort {
     private final DataSource dataSource;
     private final Supplier<UUID> uuidSupplier;
 
@@ -122,6 +127,92 @@ public final class PostgresAttachmentAdapter
         } catch (SQLException exception) {
             throw new AttachmentPersistenceException(
                     "attachment READY transition failed", exception);
+        }
+    }
+
+    @Override
+    public int revokeExpiredPending(
+            Instant createdAtOrBefore, Instant revokedAt, int limit) {
+        Objects.requireNonNull(createdAtOrBefore, "createdAtOrBefore");
+        Objects.requireNonNull(revokedAt, "revokedAt");
+        requireCleanupLimit(limit);
+        if (revokedAt.isBefore(createdAtOrBefore)) {
+            throw new IllegalArgumentException("revokedAt must not precede cleanup cutoff");
+        }
+        String sql = """
+                WITH expired AS (
+                    SELECT id
+                    FROM chat.attachment
+                    WHERE state = 'UPLOAD_PENDING' AND created_at <= ?
+                    ORDER BY created_at, id
+                    LIMIT ?
+                    FOR UPDATE SKIP LOCKED
+                )
+                UPDATE chat.attachment att
+                SET state = 'REVOKED', revoked_at = ?
+                FROM expired
+                WHERE att.id = expired.id
+                """;
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, utc(createdAtOrBefore));
+            statement.setInt(2, limit);
+            statement.setObject(3, utc(revokedAt));
+            return statement.executeUpdate();
+        } catch (SQLException exception) {
+            throw new AttachmentPersistenceException(
+                    "expired attachment revocation failed", exception);
+        }
+    }
+
+    @Override
+    public List<AttachmentCleanupCandidate> findObjectCleanupRequired(int limit) {
+        requireCleanupLimit(limit);
+        String sql = """
+                SELECT id, object_key
+                FROM chat.attachment
+                WHERE state = 'REVOKED' AND object_deleted_at IS NULL
+                ORDER BY revoked_at, id
+                LIMIT ?
+                """;
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, limit);
+            List<AttachmentCleanupCandidate> candidates = new ArrayList<>(limit);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    candidates.add(new AttachmentCleanupCandidate(
+                            result.getObject(1, UUID.class), result.getString(2)));
+                }
+            }
+            return List.copyOf(candidates);
+        } catch (SQLException exception) {
+            throw new AttachmentPersistenceException(
+                    "attachment cleanup lookup failed", exception);
+        }
+    }
+
+    @Override
+    public boolean confirmObjectDeleted(UUID attachmentId, Instant deletedAt) {
+        Objects.requireNonNull(attachmentId, "attachmentId");
+        Objects.requireNonNull(deletedAt, "deletedAt");
+        String sql = """
+                UPDATE chat.attachment
+                SET object_deleted_at = COALESCE(object_deleted_at, ?)
+                WHERE id = ? AND state = 'REVOKED' AND revoked_at <= ?
+                RETURNING object_deleted_at
+                """;
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, utc(deletedAt));
+            statement.setObject(2, attachmentId);
+            statement.setObject(3, utc(deletedAt));
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next();
+            }
+        } catch (SQLException exception) {
+            throw new AttachmentPersistenceException(
+                    "attachment object deletion confirmation failed", exception);
         }
     }
 
@@ -282,5 +373,15 @@ public final class PostgresAttachmentAdapter
         } catch (SQLException failure) {
             original.addSuppressed(failure);
         }
+    }
+
+    private static void requireCleanupLimit(int limit) {
+        if (limit < 1 || limit > 1_000) {
+            throw new IllegalArgumentException("cleanup limit must be in 1..1000");
+        }
+    }
+
+    private static OffsetDateTime utc(Instant value) {
+        return OffsetDateTime.ofInstant(value, ZoneOffset.UTC);
     }
 }

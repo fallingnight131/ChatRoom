@@ -56,6 +56,18 @@ class AttachmentCleanupServiceTest {
     }
 
     @Test
+    void isolatesPersistenceConfirmationExceptionForRetry() {
+        RecordingCleanup persistence = new RecordingCleanup(List.of(FIRST, SECOND));
+        persistence.throwConfirmation = FIRST.attachmentId();
+
+        AttachmentCleanupReport report = service(
+                persistence, objectKey -> {}, 2).runOnce();
+
+        assertEquals(new AttachmentCleanupReport(2, 2, 1, 0, 1), report);
+        assertEquals(List.of(SECOND.attachmentId()), persistence.confirmed);
+    }
+
+    @Test
     void rejectsUnsafePolicyAndUnboundedPersistenceResult() {
         assertThrows(IllegalArgumentException.class, () -> new AttachmentCleanupService(
                 new RecordingCleanup(List.of()), objectKey -> {}, Duration.ofMinutes(9),
@@ -87,6 +99,7 @@ class AttachmentCleanupServiceTest {
         private Instant revokedAt;
         private int requestedLimit;
         private UUID rejectConfirmation;
+        private UUID throwConfirmation;
 
         private RecordingCleanup(List<AttachmentCleanupCandidate> candidates) {
             this.candidates = candidates;
@@ -108,6 +121,9 @@ class AttachmentCleanupServiceTest {
 
         @Override
         public boolean confirmObjectDeleted(UUID attachmentId, Instant deletedAt) {
+            if (attachmentId.equals(throwConfirmation)) {
+                throw new IllegalStateException("database unavailable");
+            }
             if (attachmentId.equals(rejectConfirmation)) {
                 return false;
             }
