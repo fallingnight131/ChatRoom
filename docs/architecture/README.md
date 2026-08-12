@@ -619,6 +619,12 @@ replacement, asks WinTrust for the Authenticode chain with revocation policy,
 requires a validated counter-signature, and matches the leaf certificate's
 SHA-256 thumbprint to signed metadata. No downloader or launcher calls it.
 
+ADR-0121 adds inactive durable update state outside chat/account data. One
+owner-only UUIDv4 keeps staged rollout stable across launches, while atomic,
+locked stable/beta sequence-plus-digest watermarks reject rollback and
+equivocation across signing-key rotations. Malformed state fails closed; no
+application path creates it yet.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

@@ -161,6 +161,11 @@ native Windows CI it also compiles WinTrust/crypt32 integration and requires the
 deliberately unsigned fixture to be rejected. Acceptance of the future real,
 signed and RFC 3161-timestamped Setup remains a separate release test.
 
+`UpdateStateRepositoryTest` checks creation/reload of an owner-only UUIDv4,
+atomic per-channel sequence/digest persistence, idempotence, replay/conflict
+rejection, and corrupt-state failure. The repository is compiled but no product
+path chooses an AppData location or creates update state yet.
+
 ## Java V2 Backend
 
 The additive M3 workspace requires JDK 21. It carries its own checksum-pinned

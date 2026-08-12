@@ -89,6 +89,11 @@ certificate thumbprint. Native CI is configured to require unsigned rejection,
 not acceptance of a real signed/timestamped Setup. No product downloader or
 launcher invokes it.
 
+An inactive state repository now preserves a device UUIDv4 and stable/beta
+sequence-plus-digest replay watermarks through locked atomic owner-only writes.
+Malformed state fails closed. No Windows AppData path or updater service creates
+this state in the product.
+
 M4 must provide:
 
 - a signed and timestamped direct installer;

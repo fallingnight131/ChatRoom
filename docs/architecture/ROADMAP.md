@@ -569,6 +569,9 @@ Progress:
 - [x] Add a default-off installer trust verifier for exact size/SHA-256,
   Windows Authenticode chain/revocation, RFC 3161 counter-signature presence,
   and signed leaf-certificate thumbprint matching.
+- [x] Add default-off, owner-only atomic device/manifest replay state with one
+  stable UUIDv4 and sequence/digest high-watermark per channel across key
+  rotations.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

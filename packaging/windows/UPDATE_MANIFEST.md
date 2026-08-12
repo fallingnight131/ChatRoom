@@ -21,6 +21,9 @@ download, Authenticode verification, launch, scheduler, or UI path.
 ADR-0120 adds inactive local payload verification: exact size/SHA-256 followed
 on Windows by WinTrust chain/revocation, a validated counter-signature, and
 leaf-certificate SHA-256 thumbprint matching. No downloader invokes it.
+ADR-0121 adds inactive, owner-only atomic storage for the UUIDv4 rollout
+identity and stable/beta sequence-plus-digest replay watermarks. Corrupt state
+blocks rather than resets; no product path creates it.
 
 ## Canonical format
 
