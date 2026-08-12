@@ -56,6 +56,7 @@ public final class V1MessageStateImportPlanner {
             Long watermark = watermarks.get(entry.getKey());
             if (watermark != null && watermark < Long.MAX_VALUE) {
                 cursors.add(new PlannedV1ConversationCursor(
+                        entry.getKey().kind(), entry.getKey().id(),
                         entry.getValue().conversationId(), watermark, watermark + 1));
             } else if (watermark != null) {
                 issues.add(issue(entry.getKey(), "WATERMARK_EXHAUSTED",

@@ -26,6 +26,13 @@ import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.application.security.SecretBytes;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ConversationImporter;
+import com.fallingnight.chat.persistence.postgres.migration.PostgresV1MessageImporter;
+import com.fallingnight.chat.persistence.postgres.migration.PlannedV1ConversationCursor;
+import com.fallingnight.chat.persistence.postgres.migration.PlannedV1HistoricalMessage;
+import com.fallingnight.chat.persistence.postgres.migration.PlannedV1LegacyDevice;
+import com.fallingnight.chat.persistence.postgres.migration.PlannedV1MemberReadCursor;
+import com.fallingnight.chat.persistence.postgres.migration.V1MessageImportReport;
+import com.fallingnight.chat.persistence.postgres.migration.V1MessageTargetImportPlan;
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportInputVerifier;
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportException;
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportPlanner;
@@ -382,6 +389,71 @@ class PostgresMigratorTest {
                 issue -> "TARGET_CONVERSATION_MAPPING_CONFLICT".equals(issue.code())));
         assertThrows(V1ConversationImportException.class, () -> importer.apply(input));
         assertEquals(2, count("SELECT count(*) FROM chat.conversation_import_run"));
+    }
+
+    @Test
+    @Order(9)
+    void previewsV1MessageTargetsWithoutWritesAndRejectsLegacyDeviceConflict()
+            throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID account = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        UUID device = UUID.randomUUID();
+        UUID message = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'message-import-user', 'Import User', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    account);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind, title) VALUES (?, 'GROUP', 'Room')",
+                    conversation);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id) "
+                            + "VALUES (?, ?)",
+                    conversation, account);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map("
+                            + "legacy_kind, legacy_conversation_id, conversation_id) "
+                            + "VALUES ('ROOM', 77, ?)",
+                    conversation);
+        }
+        V1MessageTargetImportPlan plan = new V1MessageTargetImportPlan(
+                "a".repeat(64),
+                "b".repeat(64),
+                List.of(new PlannedV1LegacyDevice(account, device, "v1-history-import")),
+                List.of(new PlannedV1HistoricalMessage(
+                        LegacyV1ConversationKind.ROOM, 77, 501, message, conversation, 1,
+                        null, account, device, "v1-import-room-501", 1, "hello",
+                        false, true, Instant.parse("2026-01-02T03:04:05Z"))),
+                List.of(),
+                List.of(new PlannedV1ConversationCursor(
+                        LegacyV1ConversationKind.ROOM, 77, conversation, 1, 2)),
+                List.of(new PlannedV1MemberReadCursor(conversation, account, 501, 1)));
+        PostgresV1MessageImporter importer = new PostgresV1MessageImporter(dataSource());
+
+        V1MessageImportReport preview = importer.preview(plan);
+
+        assertTrue(preview.readyToApply(), preview.issues().toString());
+        assertEquals(1, preview.insertableMessages());
+        assertEquals(1, preview.insertableEntries());
+        assertEquals(1, preview.insertableLegacyDevices());
+        assertEquals(1, preview.readCursorsToUpdate());
+        assertEquals(0, count("SELECT count(*) FROM chat.message"));
+        assertEquals(0, conversationEntryCount(conversation));
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.device(id, account_id, client_device_id, platform) "
+                            + "VALUES (?, ?, 'v1-history-import', 'WEB')",
+                    device, account);
+        }
+        V1MessageImportReport conflict = importer.preview(plan);
+        assertFalse(conflict.readyToApply());
+        assertTrue(conflict.issues().stream().anyMatch(
+                issue -> "TARGET_LEGACY_DEVICE_CONFLICT".equals(issue.code())));
     }
 
     @Test

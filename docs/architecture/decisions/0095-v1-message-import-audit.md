@@ -35,3 +35,10 @@ negative, malformed-hash, and mismatched reconciliation rows. Before message
 apply exists this table is empty and additive. After applies exist, rollback
 requires the documented pre-import database restore rather than deleting audit
 evidence independently.
+
+The implemented repeatable-read preview performs no writes and fail-closes on
+conversation/mapping/high-watermark drift, legacy-device conflicts, any of the
+three message uniqueness identities, creation/recall/deletion entry differences,
+mapping conflicts, unexpected target rows, missing memberships, or read-cursor
+drift. It reports only typed numeric source identities and fixed issue codes;
+message bodies and operator/profile metadata are never included.

@@ -40,6 +40,9 @@ public final class V1MessageTargetImportPlanner {
                             deterministicLegacyDeviceId(accountId),
                             "v1-history-import"));
             messages.add(new PlannedV1HistoricalMessage(
+                    state.legacyKind(),
+                    state.legacyConversationId(),
+                    state.legacyMessageId(),
                     payload.messageId(),
                     conversationId(state.legacyKind(), state.legacyConversationId()),
                     state.creationSequence(),
@@ -82,6 +85,8 @@ public final class V1MessageTargetImportPlanner {
                         .thenComparingLong(PlannedV1DeletionEvent::conversationSequence))
                 .toList();
         return new V1MessageTargetImportPlan(
+                bundle.statePlan().sourceFingerprintSha256(),
+                bundle.payloadPlan().sourceFingerprintSha256(),
                 sortedDevices,
                 messages,
                 deletions,
