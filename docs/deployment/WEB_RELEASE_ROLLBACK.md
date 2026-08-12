@@ -104,6 +104,15 @@ provider adapter changes traffic. The complete command is in `docs/BUILDING.md`.
 The result says `technical-gates-observed-not-published`; it is not proof that
 traffic changed or that an incident rollback met its recovery objective.
 
+Before a provider adapter changes traffic, a reviewer protected by the
+`web-production` environment must create and immediately reverify a short-lived
+`web_release_authorization.py` record using that exact technical promotion and
+all five bound inputs. The authorization is valid for at most 15 minutes,
+refuses a technical approval older than 15 minutes, contains no provider
+credential, and says `production-promotion-approved-not-executed`. The adapter
+must consume it once and record separate provider evidence; the authorization
+itself is not deployment evidence.
+
 ## Roll back without rebuilding
 
 Keep the previous release directory throughout the rollback window. To roll

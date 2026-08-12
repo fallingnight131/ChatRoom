@@ -655,6 +655,9 @@ Progress:
 - [x] Bind a fresh candidate static observation, fresh route observation, exact
   immutable artifact, and a distinct retained rollback artifact/observation into
   one independently verifiable, explicitly not-published technical promotion record.
+- [x] Add a separate write-once, short-lived `web-production` authorization that
+  revalidates and binds the exact technical promotion without containing provider
+  credentials or executing traffic mutation.
 - [x] Establish a root CMake Release path for the exact V1 HeadlessServer
   production sources, Qt/libsodium dependency discovery, AUTOMOC, CI build, and
   real process-health test while leaving Windows product packaging on qmake.

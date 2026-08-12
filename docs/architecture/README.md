@@ -1034,7 +1034,7 @@ timestamped Authenticode from the reviewed publisher, and register the exact
 version/revision/location. The signed uninstaller must then return success and
 remove both program directory and registration. Closed schema-1 evidence is
 independently rebound to all four source files and retained by candidate schema
-4. Static tests exist, but no repository evidence claims this native run has
+5. Static tests exist, but no repository evidence claims this native run has
 already succeeded.
 
 ADR-0169 separates operational freshness from durable audit verification.
@@ -1045,6 +1045,15 @@ rejecting a candidate assembled in the verifier's future. Consequently an
 unchanged retained candidate remains verifiable after two or 24 hours without
 weakening the live signing boundary. The CLI also normalizes its current clock
 to whole UTC seconds, matching the intent contract used in real workflow runs.
+
+ADR-0170 separates technical readiness from production mutation for Web. A
+write-once authorization is created only after independently reconstructing the
+candidate/route/rollback technical promotion. It binds the exact production
+origin, candidate and rollback release IDs, source identity, and promotion-file
+SHA-256 to the fixed `web-production` environment for 60–900 seconds. Technical
+approval may itself be no more than 15 minutes old. The record contains no
+provider credential or command and is explicitly `approved-not-executed`;
+provider execution and post-switch observation remain the next M4 boundary.
 
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,

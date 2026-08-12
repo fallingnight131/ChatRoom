@@ -130,6 +130,37 @@ The default candidate observation freshness is 15 minutes and both current
 observations must be within five minutes of one another. The record is labeled
 not-published and performs no provider mutation.
 
+After a protected `web-production` environment reviewer accepts that exact
+technical record, create a separate short-lived authorization before any
+hosting adapter mutates traffic:
+
+```bash
+python3 tools/web_release_authorization.py create \
+  --technical-promotion /path/to/evidence/web-technical-promotion.json \
+  --release-root /srv/chat-room-web/releases/<candidate-id> \
+  --release-observation /path/to/evidence/candidate-static.json \
+  --route-observation /path/to/evidence/candidate-routes.json \
+  --rollback-release-root /srv/chat-room-web/releases/<previous-id> \
+  --rollback-observation /path/to/evidence/previous-static.json \
+  --output /path/to/evidence/web-production-authorization.json
+
+python3 tools/web_release_authorization.py verify \
+  --technical-promotion /path/to/evidence/web-technical-promotion.json \
+  --release-root /srv/chat-room-web/releases/<candidate-id> \
+  --release-observation /path/to/evidence/candidate-static.json \
+  --route-observation /path/to/evidence/candidate-routes.json \
+  --rollback-release-root /srv/chat-room-web/releases/<previous-id> \
+  --rollback-observation /path/to/evidence/previous-static.json \
+  --output /path/to/evidence/web-production-authorization.json
+```
+
+The write-once authorization binds the production origin, candidate and
+rollback IDs, source identity, and exact technical-record SHA-256. Its lifetime
+is 60–900 seconds, and the technical promotion itself must be no more than 15
+minutes old. It contains no cloud token, DNS/CDN credential, provider command,
+or broad deployment permission and remains labeled `approved-not-executed`.
+Run `python3 Tests/web_release_authorization_test.py` for the mutation suite.
+
 Production Web builds resolve V1 WebSocket traffic to `wss://<page-authority>/ws`
 and file traffic below same-origin `/api/`; the HTTPS reverse proxy must own both
 routes. A different same-origin WebSocket path can be selected at build time,
