@@ -282,6 +282,14 @@ and requires an equal set joined to `legacy_v1_contact_request_map` and
 disabled participants, or excess rows fail the complete request. No route invokes
 this adapter yet.
 
+The detached rejection adapter resolves a positive V1 request ID through
+`legacy_v1_contact_request_map`, locks the canonical row under a serializable
+transaction, and authorizes only the enabled recipient account supplied by the
+authenticated server connection. It moves only `PENDING` to `REJECTED` and sets
+`resolved_at` from `transaction_timestamp()`. An already rejected row for that
+same recipient is an exact idempotent retry; missing mappings, wrong recipients,
+and other terminal states fail generically. No route invokes this adapter yet.
+
 ## Bounds and indexes
 
 - identifiers are limited to 128 characters at this storage boundary and are

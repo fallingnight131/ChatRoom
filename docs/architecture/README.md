@@ -229,6 +229,13 @@ Work runs off-loop, stale completions are suppressed, and malformed/saturated/
 incomplete paths close without returning a partial action list. The product
 listener remains unchanged.
 
+Friend-request rejection is now a separate recipient-authorized application
+boundary with a PostgreSQL adapter. The adapter resolves only a positive V1
+request ID, locks the canonical row in a serializable transaction, and permits
+only its enabled authenticated recipient to move `PENDING` to `REJECTED` using
+database time. The same recipient's exact retry is idempotent; every other
+identity or terminal-state case is a generic rejection. No route invokes it yet.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then

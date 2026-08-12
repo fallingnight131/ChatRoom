@@ -23,6 +23,7 @@ import com.fallingnight.chat.application.identity.ClientPlatform;
 import com.fallingnight.chat.application.identity.IssuedSession;
 import com.fallingnight.chat.application.identity.StoredCredential;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendDirectoryState;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestRejectionResult;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -594,10 +595,29 @@ class PostgresMigratorTest {
         assertThrows(IllegalArgumentException.class,
                 () -> new PostgresLegacyV1FriendDirectoryAdapter(dataSource()).read(owner, 0));
 
+        PostgresLegacyV1FriendRequestDecisionAdapter decisions =
+                new PostgresLegacyV1FriendRequestDecisionAdapter(dataSource());
+        assertEquals(LegacyV1FriendRequestRejectionResult.Rejected.INSTANCE,
+                decisions.reject(70, peer));
+        assertEquals(new LegacyV1FriendRequestRejectionResult.Accepted(false),
+                decisions.reject(70, owner));
+        assertEquals(new LegacyV1FriendRequestRejectionResult.Accepted(true),
+                decisions.reject(70, owner));
+        assertEquals(1, count("SELECT count(*) FROM chat.contact_request "
+                + "WHERE id = '70000000-0000-0000-0000-000000000070' "
+                + "AND state = 'REJECTED' AND resolved_at IS NOT NULL"));
+        assertEquals(0, new PostgresLegacyV1PendingFriendRequestAdapter(dataSource())
+                .listIncoming(owner, 10).size());
+
         try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.contact_request SET state = 'PENDING', resolved_at = NULL "
+                            + "WHERE id = '70000000-0000-0000-0000-000000000070'");
             execute(connection,
                     "DELETE FROM chat.legacy_v1_contact_request_map WHERE legacy_request_id = 70");
         }
+        assertEquals(LegacyV1FriendRequestRejectionResult.Rejected.INSTANCE,
+                decisions.reject(70, owner));
         assertThrows(IllegalStateException.class,
                 () -> new PostgresLegacyV1PendingFriendRequestAdapter(dataSource())
                         .listIncoming(owner, 10));
