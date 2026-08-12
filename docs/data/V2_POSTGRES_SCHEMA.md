@@ -174,6 +174,17 @@ recipient pending view. The separate positive numeric V1 mapping preserves
 accept/reject compatibility without polluting the canonical UUID model. No
 importer or runtime path uses these tables yet.
 
+The contact-request pre-write planner reads the minimal V1 user, friendship, and
+request graph and deterministically maps valid pending request IDs and account
+participants. Missing users, self requests, invalid timestamps/statuses,
+existing-friend contradictions, duplicate request IDs, and reverse duplicate
+pending pairs block target comparison. Accepted and rejected rows participate
+in the source fingerprint and terminal-row count but are not target writes: V1
+does not record a trustworthy resolution timestamp, and accepted relationship
+truth is already imported as a DIRECT conversation. The WAL-aware query-only
+reader and protected-backup verifier issue a re-verifiable capability for a
+future importer; no PostgreSQL row is written by this slice.
+
 The message importer provides a repeatable-read, no-write target preview.
 It compares the exact typed conversation mapping and allowed pre/post high
 watermark, synthetic legacy device, message UUID/sequence/idempotency identity,

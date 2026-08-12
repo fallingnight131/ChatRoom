@@ -40,6 +40,16 @@ requires exact equality between current-source and backup conversation plans.
 The existing identity-only CLI remains unchanged until a later unified
 conversation apply command can require both capabilities in one transaction.
 
+Contact-request import input reuses the same artifact and proof. Its query-only
+reader projects only user IDs, friendship pairs, and friend-request ID,
+direction, status, and creation time. The deterministic plan rejects dangling
+participants, self requests, invalid IDs/times/statuses, a pending request for
+an existing friendship, and multiple pending directions for one unordered pair.
+Only `pending` rows are eligible for a future target write. `accepted` and
+`rejected` rows remain in the fingerprint and terminal count but are not
+imported because V1 supplies no resolution timestamp; accepted relationship
+truth is preserved by the separate friendship-to-DIRECT-conversation import.
+
 ## Tables
 
 ### Identity

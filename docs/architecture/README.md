@@ -186,8 +186,13 @@ migration path now imports identity, conversation metadata, retained messages,
 recalls/deletion audit entries, and translated cursors in that explicit order;
 it still grants no authority to the Java runtime.
 The contacts foundation now includes constrained canonical contact requests and
-an isolated V1 numeric-request mapping. It has no importer or runtime owner yet;
-accepted relationships remain canonical DIRECT conversations.
+an isolated V1 numeric-request mapping. A deterministic query-only reader now
+validates the V1 user/friend/request graph and issues a re-verifiable import
+capability only when the current source and protected whole-file backup match.
+Only pending rows are planned: accepted relationships remain canonical DIRECT
+conversations, while rejected/accepted history is counted but not fabricated as
+terminal state without a trustworthy V1 resolution time. It has no PostgreSQL
+importer or runtime owner yet.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
