@@ -855,6 +855,8 @@ Progress:
   that verifies the post-login shell, memory-only credentials, retained offline
   UI, and exactly one recovery reauthentication request without claiming server
   authentication.
+- [x] Require real metadata decoding of tiny synthetic VP9 WebM and Opus/Ogg
+  fixtures on every branded browser slot instead of trusting codec declarations.
 - [x] Pin exact Windows 10 22H2 and Windows 11 23H2/24H2 x86_64 client targets
   and independently verify a per-host, two-real-signed-candidate install/launch/
   upgrade/data-preservation/downgrade/uninstall evidence contract.

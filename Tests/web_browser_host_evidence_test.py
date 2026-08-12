@@ -33,7 +33,7 @@ class WebBrowserHostEvidenceTest(unittest.TestCase):
             (self.release / "web-artifact-manifest.json").read_bytes()
         ).hexdigest()
         self.value = {
-            "schemaVersion": 4,
+            "schemaVersion": 5,
             "evidenceType": "web-browser-host-acceptance",
             "status": "candidate-smoke-observed",
             "product": "chat-room-web-client",
@@ -63,6 +63,7 @@ class WebBrowserHostEvidenceTest(unittest.TestCase):
                 "authenticatedClientShell": True,
                 "credentialsRemainMemoryOnly": True,
                 "authenticatedOfflineRecovery": True,
+                "baselineMediaDecoded": True,
                 "noPageErrors": True,
             },
             "observedAt": "2026-08-13T12:00:00Z",

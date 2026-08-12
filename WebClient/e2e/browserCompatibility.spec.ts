@@ -1,7 +1,53 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 
 const brandedTarget = process.env.CHATROOM_BRANDED_BROWSER_TARGET;
+const tinyVideoBase64 = readFileSync(
+  new URL("./fixtures/tiny.webm.base64", import.meta.url), "utf8").trim();
+const tinyAudioBase64 = readFileSync(
+  new URL("./fixtures/tiny.ogg.base64", import.meta.url), "utf8").trim();
+
+async function exerciseMediaDecode(page: Page) {
+  const result = await page.evaluate(async ({ videoBase64, audioBase64 }) => {
+    const decode = (value: string) => {
+      const binary = atob(value);
+      return Uint8Array.from(binary, character => character.charCodeAt(0));
+    };
+    const load = <T extends HTMLMediaElement>(element: T, bytes: Uint8Array, type: string) =>
+      new Promise<T>((resolve, reject) => {
+        const url = URL.createObjectURL(new Blob([bytes], { type }));
+        const timeout = window.setTimeout(() => {
+          URL.revokeObjectURL(url);
+          reject(new Error(`${type} metadata timeout`));
+        }, 5000);
+        element.onloadedmetadata = () => {
+          window.clearTimeout(timeout);
+          URL.revokeObjectURL(url);
+          resolve(element);
+        };
+        element.onerror = () => {
+          window.clearTimeout(timeout);
+          URL.revokeObjectURL(url);
+          reject(new Error(`${type} decode failed`));
+        };
+        element.preload = "metadata";
+        element.src = url;
+        element.load();
+      });
+    const video = await load(document.createElement("video"), decode(videoBase64), "video/webm");
+    const audio = await load(document.createElement("audio"), decode(audioBase64), "audio/ogg; codecs=opus");
+    return {
+      videoDuration: video.duration,
+      videoWidth: video.videoWidth,
+      videoHeight: video.videoHeight,
+      audioDuration: audio.duration,
+    };
+  }, { videoBase64: tinyVideoBase64, audioBase64: tinyAudioBase64 });
+  expect(result.videoDuration).toBeGreaterThan(0);
+  expect(result.videoWidth).toBe(16);
+  expect(result.videoHeight).toBe(16);
+  expect(result.audioDuration).toBeGreaterThan(0);
+}
 
 async function installV1ClientFixture(page: Page) {
   await page.addInitScript(() => {
@@ -193,6 +239,11 @@ test("keeps the authenticated client shell visible and reauthenticates once afte
   await exerciseAuthenticatedClientShell(page, context);
 });
 
+test("decodes the baseline WebM video and Opus audio fixtures", async ({ page }) => {
+  await page.goto("/");
+  await exerciseMediaDecode(page);
+});
+
 test("records one exact branded-browser candidate smoke", async ({ browser }) => {
   test.skip(!brandedTarget, "Only the protected branded-browser matrix emits support evidence");
   const required = (name: string): string => {
@@ -297,6 +348,7 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
   const authenticatedPage = await authenticatedContext.newPage();
   authenticatedPage.on("pageerror", error => pageErrors.push(error));
   await exerciseAuthenticatedClientShell(authenticatedPage, authenticatedContext);
+  await exerciseMediaDecode(authenticatedPage);
   await authenticatedContext.close();
   expect(pageErrors).toEqual([]);
 
@@ -332,6 +384,7 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
       authenticatedClientShell: true,
       credentialsRemainMemoryOnly: true,
       authenticatedOfflineRecovery: true,
+      baselineMediaDecoded: true,
       noPageErrors: true,
     },
     observedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
