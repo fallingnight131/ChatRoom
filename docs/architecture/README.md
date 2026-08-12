@@ -416,7 +416,9 @@ one active member's canonical `last_read_sequence` for a positive mapped V1
 room. The future persistence adapter must advance to a transactionally observed
 durable room high watermark, never decrease the cursor, and return the previous
 and resulting values for fixed telemetry. V1 publishes no room read receipt.
-No PostgreSQL adapter or handler exists yet.
+Its serializable PostgreSQL adapter now locks the exact active member and GROUP
+conversation, advances only that account to the observed high watermark, and
+returns unchanged on exact repeat. No handler exists yet.
 
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.

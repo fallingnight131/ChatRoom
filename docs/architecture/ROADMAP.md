@@ -530,6 +530,9 @@ Progress:
     telemetry, and replacement-login history recovery.
   - [x] Define server-authorized V1 room-read cursor advancement using monotonic
     canonical conversation sequences rather than legacy database message IDs.
+  - [x] Implement serializable PostgreSQL V1 room-read advancement with exact
+    active-member locking, high-watermark observation, one-account update, and
+    repeat-idempotent monotonic results.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

@@ -40,6 +40,8 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomHistoryQue
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomHistoryResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRecallCommand;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRecallResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomReadCommand;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomReadResult;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -1377,6 +1379,22 @@ class PostgresMigratorTest {
                 + "WHERE conversation_id = '" + room + "'"));
         assertEquals(4, count("SELECT next_sequence FROM chat.conversation WHERE id = '"
                 + room + "'"));
+        PostgresLegacyV1RoomReadAdapter roomReads =
+                new PostgresLegacyV1RoomReadAdapter(dataSource());
+        LegacyV1RoomReadResult.Marked marked = (LegacyV1RoomReadResult.Marked)
+                roomReads.markRead(new LegacyV1RoomReadCommand(sender, 77));
+        assertEquals(0, marked.previousSequence());
+        assertEquals(3, marked.lastReadSequence());
+        assertTrue(marked.changed());
+        LegacyV1RoomReadResult.Marked repeated = (LegacyV1RoomReadResult.Marked)
+                roomReads.markRead(new LegacyV1RoomReadCommand(sender, 77));
+        assertEquals(3, repeated.previousSequence());
+        assertEquals(3, repeated.lastReadSequence());
+        assertFalse(repeated.changed());
+        assertEquals(LegacyV1RoomReadResult.Rejected.ROOM_ACCESS_DENIED,
+                roomReads.markRead(new LegacyV1RoomReadCommand(sender, 78)));
+        assertEquals(3, count("SELECT last_read_sequence FROM chat.conversation_member "
+                + "WHERE conversation_id = '" + room + "' AND account_id = '" + sender + "'"));
         try (Connection connection = connect()) {
             execute(connection, "UPDATE chat.conversation_member SET left_at = "
                     + "transaction_timestamp() WHERE conversation_id = ?", room);
