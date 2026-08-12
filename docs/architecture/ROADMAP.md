@@ -669,6 +669,9 @@ Progress:
 - [x] Extract the Windows client V1 TCP/raw-HTTP transport CMake library and run
   exact upload, streamed download/denial cleanup, and memory-only reconnect/
   rejected-restore tests with bounded CTest timeouts.
+- [x] Remove the Windows V1 optional TLS `VerifyNone` path, bind the expected
+  peer name, delay application readiness until `encrypted`, and prove runtime
+  rejection/acceptance with ephemeral untrusted/trusted certificate tests.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

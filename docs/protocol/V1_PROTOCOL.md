@@ -46,6 +46,13 @@ disconnects after three malformed JSON/envelope messages or more than 60
 complete messages in one one-second connection window. The default TCP port is
 9527.
 
+The Windows client has an optional TLS socket mode for a future trusted
+deployment endpoint. That mode requires the system peer chain and exact host
+name and does not expose application connectivity until the encrypted handshake
+finishes. It has no certificate-ignore option. The current Qt V1 server listener
+is plaintext; direct plaintext use is a loopback development path, not public
+transport security evidence.
+
 ### WebSocket
 
 The browser uses one JSON object per text frame. The default port is 9528.

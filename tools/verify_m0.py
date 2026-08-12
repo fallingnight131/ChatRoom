@@ -220,6 +220,7 @@ def verify_cmake_headless(jobs: int, build_root: Path) -> None:
         "MessageModelTest", "LocalConversationRepositoryTest", "OutgoingMessageServiceTest",
         "ConversationSyncServiceTest", "AttachmentOutboxServiceTest", "V1HistoryPageAdapterTest",
         "HttpUploadTransportTest", "HttpDownloadTransportTest", "NetworkReconnectTest",
+        "NetworkTlsPolicyTest",
         "--parallel", str(jobs),
     ], ROOT)
     ctest = command_path("ctest")

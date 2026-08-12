@@ -65,13 +65,19 @@ void NetworkManager::openSocket() {
 
     if (m_useSsl) {
         auto *ssl = new QSslSocket(this);
-        ssl->setPeerVerifyMode(QSslSocket::VerifyNone); // 开发阶段
+        ssl->setPeerVerifyMode(QSslSocket::VerifyPeer);
+        ssl->setPeerVerifyName(m_host);
+        connect(ssl, &QSslSocket::sslErrors, this,
+                [this](const QList<QSslError> &) {
+            emit connectionError(QStringLiteral("TLS certificate validation failed"));
+        });
+        connect(ssl, &QSslSocket::encrypted, this, &NetworkManager::onConnected);
         m_socket = ssl;
     } else {
         m_socket = new QTcpSocket(this);
+        connect(m_socket, &QTcpSocket::connected, this, &NetworkManager::onConnected);
     }
 
-    connect(m_socket, &QTcpSocket::connected,    this, &NetworkManager::onConnected);
     connect(m_socket, &QTcpSocket::disconnected,  this, &NetworkManager::onDisconnected);
     connect(m_socket, &QTcpSocket::readyRead,     this, &NetworkManager::onReadyRead);
     connect(m_socket, QOverload<QAbstractSocket::SocketError>::of(&QAbstractSocket::errorOccurred),

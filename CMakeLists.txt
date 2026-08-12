@@ -135,6 +135,7 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
     target_link_libraries(ChatServerHeadless PRIVATE chatroom_v1_server_core)
 
     if(BUILD_TESTING)
+        find_package(Python3 REQUIRED COMPONENTS Interpreter)
         add_library(
             chatroom_client_local_data
             STATIC
@@ -248,5 +249,23 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
         chatroom_add_transport_test(HttpUploadTransportTest v1_client_http_upload)
         chatroom_add_transport_test(HttpDownloadTransportTest v1_client_http_download)
         chatroom_add_transport_test(NetworkReconnectTest v1_client_network_reconnect)
+
+        add_executable(NetworkTlsPolicyTest Tests/NetworkTlsPolicyTest.cpp)
+        set_target_properties(
+            NetworkTlsPolicyTest
+            PROPERTIES
+                CXX_STANDARD 17
+                CXX_STANDARD_REQUIRED ON
+                CXX_EXTENSIONS OFF
+        )
+        target_link_libraries(NetworkTlsPolicyTest PRIVATE chatroom_client_transport)
+        add_test(
+            NAME v1_client_tls_trust_policy
+            COMMAND
+                "${Python3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/Tests/network_tls_policy_test.py"
+                --client "$<TARGET_FILE:NetworkTlsPolicyTest>"
+        )
+        set_tests_properties(v1_client_tls_trust_policy PROPERTIES TIMEOUT 30)
     endif()
 endif()

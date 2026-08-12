@@ -858,9 +858,15 @@ ADR-0149 establishes the next Windows client layer as
 download, depending only on Qt Core/Network and shared V1 types. Existing tests
 now execute exact upload bytes/token paths, streamed download and denial
 cleanup, and three-connection memory-only session restoration with rejected-
-restore clearing. The optional TLS path's legacy `VerifyNone` remains an explicit
-critical security defect to correct separately; CMake equivalence is not a TLS
-readiness claim.
+restore clearing.
+
+ADR-0150 closes the optional TLS path's legacy trust defect. TLS now requires
+peer-chain and exact-host verification, and the application sees `connected`
+only after `QSslSocket::encrypted`, never after the underlying TCP handshake.
+Runtime negative/positive fixtures prove an untrusted certificate is rejected
+while the same hostname-valid certificate succeeds when explicitly installed
+only into the test process's CA set. The current Qt V1 server still does not
+provide public TLS; endpoint/proxy deployment remains a release gate.
 
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
