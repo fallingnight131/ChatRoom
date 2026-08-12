@@ -49,6 +49,16 @@ permissions:
   contents: read
   actions: read
 
+env:
+  CURRENT_RUN_ID: ${{ inputs.current_run_id }}
+  CURRENT_VERSION: ${{ inputs.current_version }}
+  CURRENT_REVISION: ${{ inputs.current_source_revision }}
+  PREVIOUS_RUN_ID: ${{ inputs.previous_run_id }}
+  PREVIOUS_VERSION: ${{ inputs.previous_version }}
+  PREVIOUS_REVISION: ${{ inputs.previous_source_revision }}
+  RELEASE_CHANNEL: ${{ inputs.channel }}
+  EXPECTED_SIGNER_SHA256: ${{ inputs.expected_signer_sha256 }}
+
 jobs:
   support-host:
     name: ${{ matrix.target }} signed upgrade acceptance
@@ -65,16 +75,6 @@ jobs:
             runner: chatroom-windows-11-24h2-clean
     runs-on: [self-hosted, Windows, X64, "${{ matrix.runner }}"]
     timeout-minutes: 30
-    env:
-      CURRENT_RUN_ID: ${{ inputs.current_run_id }}
-      CURRENT_VERSION: ${{ inputs.current_version }}
-      CURRENT_REVISION: ${{ inputs.current_source_revision }}
-      PREVIOUS_RUN_ID: ${{ inputs.previous_run_id }}
-      PREVIOUS_VERSION: ${{ inputs.previous_version }}
-      PREVIOUS_REVISION: ${{ inputs.previous_source_revision }}
-      RELEASE_CHANNEL: ${{ inputs.channel }}
-      EXPECTED_SIGNER_SHA256: ${{ inputs.expected_signer_sha256 }}
-
     steps:
       - name: Check out verifier source
         uses: actions/checkout@v6
@@ -166,3 +166,68 @@ jobs:
           path: ${{ runner.temp }}/windows-support-${{ matrix.target }}.json
           if-no-files-found: error
           retention-days: 30
+
+  close-matrix:
+    name: Close exact Windows client support matrix
+    needs: support-host
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out independent verifier source
+        uses: actions/checkout@v6
+
+      - name: Download current signed candidate
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.current_artifact_name }}
+          path: build/m4/support/current
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.current_run_id }}
+
+      - name: Download previous signed candidate
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.previous_artifact_name }}
+          path: build/m4/support/previous
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.previous_run_id }}
+
+      - name: Download all support-host evidence
+        uses: actions/download-artifact@v8
+        with:
+          pattern: windows-support-*-${{ inputs.current_version }}-${{ inputs.current_source_revision }}
+          path: build/m4/support/evidence
+          merge-multiple: true
+
+      - name: Close and independently reverify matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$CURRENT_VERSION" > build/m4/support/CURRENT_VERSION
+          printf '%s\n' "$PREVIOUS_VERSION" > build/m4/support/PREVIOUS_VERSION
+          common=(
+            --windows-10-22h2-evidence "build/m4/support/evidence/windows-support-windows-10-22h2.json"
+            --windows-11-23h2-evidence "build/m4/support/evidence/windows-support-windows-11-23h2.json"
+            --windows-11-24h2-evidence "build/m4/support/evidence/windows-support-windows-11-24h2.json"
+            --policy packaging/windows/support-matrix-policy.json
+            --current-candidate-root build/m4/support/current
+            --current-version-file build/m4/support/CURRENT_VERSION
+            --current-source-revision "$CURRENT_REVISION"
+            --previous-candidate-root build/m4/support/previous
+            --previous-version-file build/m4/support/PREVIOUS_VERSION
+            --previous-source-revision "$PREVIOUS_REVISION"
+            --channel "$RELEASE_CHANNEL" --qt-version 6.11.1
+            --expected-signer-sha256 "$EXPECTED_SIGNER_SHA256"
+            --output "$RUNNER_TEMP/windows-support-matrix-completion.json"
+          )
+          python3 tools/windows_support_matrix_completion.py record "${common[@]}"
+          python3 tools/windows_support_matrix_completion.py verify "${common[@]}"
+
+      - name: Retain closed support matrix
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-support-matrix-${{ inputs.current_version }}-${{ inputs.current_source_revision }}
+          path: ${{ runner.temp }}/windows-support-matrix-completion.json
+          if-no-files-found: error
+          retention-days: 90

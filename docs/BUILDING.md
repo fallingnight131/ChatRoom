@@ -1587,6 +1587,11 @@ development/portability verification, not a supported desktop release gate.
   no signing or publication authority. A checked-in workflow is not a passing
   matrix; provision/reset the named hosts and retain a successful reviewed run
   before making a Windows support claim. See ADR-0202.
+- The workflow's Ubuntu `close-matrix` job redownloads both candidates and all
+  three host records, reconstructs every check with
+  `windows_support_matrix_completion.py`, and retains one 90-day immutable
+  completion. Results from different versions/runs cannot be combined. This
+  still needs a real successful workflow run; see ADR-0203.
 
 ## macOS Development-host Notes
 

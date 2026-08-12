@@ -1281,6 +1281,12 @@ transition, and retains per-target evidence. It has read-only artifact access
 and no signing/publication authority. The workflow definition is architecture;
 only a successful reviewed native run is product-support evidence.
 
+ADR-0203 prevents evidence mixing across those hosts. A separate verifier
+redownloads the same two candidates and all three per-target records, rebuilds
+their full closures, and emits one immutable matrix result. Every release
+support decision is therefore tied to one exact prior-to-current transition,
+not a collection of individually plausible historical checks.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

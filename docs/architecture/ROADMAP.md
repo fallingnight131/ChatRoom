@@ -824,6 +824,8 @@ Progress:
 - [x] Add a reviewed, read-only native support-matrix workflow that consumes
   exact prior/current signed candidates on dedicated clean Windows client hosts
   and retains independently verified evidence without signing/publication power.
+- [x] Close all three per-host results against one exact prior/current signed
+  candidate transition in a separate immutable support-matrix completion record.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
   supported Windows installer and update channel.
 - [ ] Publish and verify versioned, policy-hardened, rollback-ready Web releases.

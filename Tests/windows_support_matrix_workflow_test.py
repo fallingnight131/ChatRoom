@@ -37,7 +37,10 @@ class WindowsSupportMatrixWorkflowTest(unittest.TestCase):
             "verify_windows_support_host.ps1",
             "windows_support_host_evidence.py",
             "previous_source_revision", "expected_signer_sha256",
-            "retention-days: 30",
+            "retention-days: 30", "close-matrix:",
+            "windows_support_matrix_completion.py record",
+            "windows_support_matrix_completion.py verify",
+            "retention-days: 90", "merge-multiple: true",
         ):
             self.assertIn(value, self.workflow)
         for value in (
