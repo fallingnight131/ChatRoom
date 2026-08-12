@@ -60,6 +60,7 @@ jobs:
           python3 Tests/windows_update_rollback_completion_test.py
           python3 Tests/windows_update_product_trust_intent_test.py
           python3 Tests/windows_update_trust_diagnostic_policy_test.py
+          python3 Tests/windows_update_product_trust_evidence_test.py
           python3 Tests/windows_release_signature_policy_test.py
           python3 Tests/windows_release_evidence_test.py
           python3 Tests/windows_release_candidate_test.py

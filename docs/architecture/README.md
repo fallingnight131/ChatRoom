@@ -1172,6 +1172,12 @@ configuration returned by the production code path. Ordinary CI proves
 disabled/empty output; a future protected build must prove exact ADR-0185
 equality before packaging and Authenticode signing.
 
+ADR-0187 closes that final unsigned-binary claim. It strictly compares the
+diagnostic with the live trust intent and binds client/intent/diagnostic SHA-256,
+source identity, keys, URL, and capture time. Later audit uses the immutable
+capture instant; no arbitrary CMake argument or loose stdout can stand in for
+the final PE. Authenticode remains a subsequent independent trust boundary.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

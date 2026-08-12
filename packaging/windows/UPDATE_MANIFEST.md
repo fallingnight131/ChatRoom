@@ -262,3 +262,9 @@ attestation of that compiled public trust. It runs before UI, state, or network
 startup and emits only enabled/channel/URLs/key IDs/raw public keys. Ordinary CI
 requires disabled/empty output; protected builds must match the reviewed intent
 exactly before Authenticode signing.
+
+`windows_update_product_trust_evidence.py` closes the diagnostic, exact unsigned
+`ChatClient.exe`, and reviewed intent by SHA-256. It requires exact enabled
+channel/URLs/key ring equality and a live intent at capture time. The resulting
+public evidence must be retained by a trust-enabled artifact before any PE is
+signed.

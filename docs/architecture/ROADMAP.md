@@ -593,6 +593,8 @@ Progress:
   while ordinary builds remain disabled.
 - [x] Add a pre-UI, side-effect-free final-binary diagnostic for exact compiled
   public update trust and require ordinary native CI to prove disabled/empty.
+- [x] Bind an exact unsigned `ChatClient.exe`, its strict trust diagnostic, and
+  the live reviewed intent into immutable compiled-public-trust evidence.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

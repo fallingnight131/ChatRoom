@@ -736,6 +736,19 @@ match every field to ADR-0185 before packaging/signing. Check the source/build
 boundary with `python3 Tests/windows_update_trust_diagnostic_policy_test.py`.
 See ADR-0186.
 
+Capture the diagnostic stdout and bind it to the exact unsigned PE and reviewed
+intent with `tools/windows_update_product_trust_evidence.py create`. Every
+public trust field must match; the record retains SHA-256 of the PE, intent, and
+diagnostic plus source/version and capture time. Creation requires a live intent,
+while later audit replays that capture instant:
+
+```bash
+python3 Tests/windows_update_product_trust_evidence_test.py
+```
+
+This is compiled-public-trust evidence, not Authenticode or release evidence.
+See ADR-0187.
+
 The provider-neutral post-signing acceptance policy is checked with:
 
 ```bash
