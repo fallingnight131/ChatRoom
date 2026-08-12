@@ -157,9 +157,21 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
   expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(390);
   expect(pageErrors).toEqual([]);
 
+  const keyboard = await context.newPage();
+  keyboard.on("pageerror", error => pageErrors.push(error));
+  await keyboard.goto("/");
+  await keyboard.getByLabel("用户ID (唯一标识)").focus();
+  await keyboard.keyboard.press("Tab");
+  await expect(keyboard.getByLabel("密码")).toBeFocused();
+  await keyboard.keyboard.press("Tab");
+  await expect(keyboard.getByRole("button", { name: "登录" })).toBeFocused();
+  await keyboard.keyboard.press("Enter");
+  await expect(keyboard.getByRole("alert")).toHaveText("请输入用户ID和密码");
+  expect(pageErrors).toEqual([]);
+
   const architecture = process.arch === "x64" ? "x86_64" : process.arch;
   const evidence = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     evidenceType: "web-browser-host-acceptance",
     status: "candidate-smoke-observed",
     product: "chat-room-web-client",
@@ -182,6 +194,8 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
       indexedDb: true,
       serverEndpointIsolation: true,
       responsiveLogin: true,
+      keyboardAccessibleLogin: true,
+      announcedValidationError: true,
       noPageErrors: true,
     },
     observedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),

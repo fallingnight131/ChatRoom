@@ -844,6 +844,8 @@ Progress:
 - [x] Close exactly six fresh branded-browser records against one immutable Web
   candidate and strictly ordered current/previous versions in a separately
   reverified, 90-day completion artifact; no real run claimed.
+- [x] Advance branded-browser evidence to require runtime keyboard traversal,
+  Enter submission, and announced login validation errors on every slot.
 - [x] Pin exact Windows 10 22H2 and Windows 11 23H2/24H2 x86_64 client targets
   and independently verify a per-host, two-real-signed-candidate install/launch/
   upgrade/data-preservation/downgrade/uninstall evidence contract.

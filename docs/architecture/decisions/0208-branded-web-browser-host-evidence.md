@@ -1,6 +1,6 @@
 # ADR-0208: Bind Branded Web Browser Evidence to an Immutable Candidate
 
-- Status: Accepted
+- Status: Superseded by ADR-0214
 - Date: 2026-08-13
 - Owners: Web release engineering and quality
 - Related milestone: M4

@@ -25,7 +25,8 @@ ROOT_KEYS = {
 }
 CHECK_KEYS = {
     "productionLoginSurface", "requiredWebCapabilities", "indexedDb",
-    "serverEndpointIsolation", "responsiveLogin", "noPageErrors",
+    "serverEndpointIsolation", "responsiveLogin", "keyboardAccessibleLogin",
+    "announcedValidationError", "noPageErrors",
 }
 POLICY_KEYS = {"schemaVersion", "product", "targets"}
 TARGET_KEYS = {
@@ -106,7 +107,7 @@ def verify_host_evidence(
     manifest_sha256 = hashlib.sha256(
         (release_root / "web-artifact-manifest.json").read_bytes()
     ).hexdigest()
-    if (set(evidence) != ROOT_KEYS or evidence.get("schemaVersion") != 1
+    if (set(evidence) != ROOT_KEYS or evidence.get("schemaVersion") != 2
             or evidence.get("evidenceType") != "web-browser-host-acceptance"
             or evidence.get("status") != "candidate-smoke-observed"
             or evidence.get("product") != "chat-room-web-client"

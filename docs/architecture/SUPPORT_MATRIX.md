@@ -36,9 +36,10 @@ passes on the named target versions.
 
 The authoritative Web browser slots are listed in
 [`packaging/web/browser-support-policy.json`](../../packaging/web/browser-support-policy.json).
-ADR-0208 requires every branded-browser record to identify the exact binary
+ADR-0214 requires every schema-2 branded-browser record to identify the exact binary
 version and digest and bind its smoke results to one immutable candidate. This
-is now paired with an exact six-slot completion boundary (ADR-0210), but no
+includes keyboard traversal and announced validation error checks and is paired
+with an exact six-slot completion boundary (ADR-0210), but no
 six-browser run or public support claim has been completed yet.
 
 ADR-0211 also defines a repeated static/API/WebSocket health-window contract.
