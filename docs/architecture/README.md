@@ -304,7 +304,13 @@ one serializable transaction. V018 allocates runtime V1 request IDs downward
 from the signed 32-bit maximum and skips imported values. Serialization/unique
 races retry in fresh bounded transactions so concurrent same-direction requests
 become first plus duplicate, while the opposite direction sees reverse-pending.
-No handler invokes it yet.
+The detached module now composes strict friend-request creation. The authenticated
+channel owns requester identity, first apply schedules one notification to the
+recipient's current local authoritative connection, and exact retry suppresses
+notification. Typed legacy errors remain compatible; malformed, saturated, or
+dependency-failed paths close safely. Fixed telemetry contains no usernames or
+account IDs. A combined real PostgreSQL dual-login transport proof remains open,
+and the product listener remains unchanged.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,

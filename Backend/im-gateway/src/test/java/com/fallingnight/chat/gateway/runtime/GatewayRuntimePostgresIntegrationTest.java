@@ -10,6 +10,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestAcceptanceEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestCreationEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestRejectionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1PendingFriendRequestEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1UserSearchEventSink;
@@ -289,6 +290,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomDirectoryEventSink.noop(),
                 V1FriendDirectoryEventSink.noop(),
                 V1PendingFriendRequestEventSink.noop(),
+                V1FriendRequestCreationEventSink.noop(),
                 V1FriendRequestAcceptanceEventSink.noop(),
                 V1FriendRequestRejectionEventSink.noop(),
                 V1UserSearchEventSink.noop(),

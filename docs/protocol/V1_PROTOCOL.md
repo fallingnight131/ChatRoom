@@ -348,7 +348,13 @@ connection owns the requester and persistence resolves the recipient. A first
 same-direction request and its exact pending retry both return `success=true`,
 but only first apply may emit `FRIEND_REQUEST_NOTIFY`. Missing user, self,
 already-friend, reverse-pending, and invalid target retain distinct failure
-semantics. No request-creation adapter or handler is composed yet.
+semantics.
+
+That detached handler is now composed. First creation sends the compatible
+success response and schedules one `FRIEND_REQUEST_NOTIFY` containing the
+authenticated requester's username/display name when the durable recipient has
+a current local V1 connection. Exact retry succeeds without another notification.
+Malformed or infrastructure-failed handling closes. Product routing remains inactive.
 
 The next detached compatibility boundary defines `FRIEND_ACCEPT_REQ` with the
 same positive `data.requestId` and authenticated-recipient rule. First apply and

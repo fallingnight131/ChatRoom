@@ -4,6 +4,7 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1Authentication
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1LoginService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendDirectoryService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestAcceptanceService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestCreationService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestRejectionService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1PendingFriendRequestService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomDirectoryService;
@@ -15,10 +16,13 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestAcceptanceEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestAcceptanceHandler;
+import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestCreationEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestCreationHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestRejectionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestRejectionHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonFriendDirectoryCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonFriendRequestAcceptanceCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonFriendRequestCreationCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonFriendRequestRejectionCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonPendingFriendRequestCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1PendingFriendRequestEventSink;
@@ -43,6 +47,7 @@ import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1AccountProject
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1ConversationProjection;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1FriendDirectoryAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1FriendRequestAcceptanceAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1FriendRequestCreationAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1FriendRequestDecisionAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1PendingFriendRequestAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1UserSearchAdapter;
@@ -62,6 +67,7 @@ public final class V1CompatibilityModule {
     private final LegacyV1FriendDirectoryService friendDirectory;
     private final LegacyV1PendingFriendRequestService pendingRequests;
     private final LegacyV1FriendRequestAcceptanceService friendRequestAcceptance;
+    private final LegacyV1FriendRequestCreationService friendRequestCreation;
     private final LegacyV1FriendRequestRejectionService friendRequestRejection;
     private final LegacyV1UserSearchService userSearch;
     private final Clock clock;
@@ -72,6 +78,7 @@ public final class V1CompatibilityModule {
             LegacyV1RoomDirectoryService roomDirectory,
             LegacyV1FriendDirectoryService friendDirectory,
             LegacyV1PendingFriendRequestService pendingRequests,
+            LegacyV1FriendRequestCreationService friendRequestCreation,
             LegacyV1FriendRequestAcceptanceService friendRequestAcceptance,
             LegacyV1FriendRequestRejectionService friendRequestRejection,
             LegacyV1UserSearchService userSearch,
@@ -81,6 +88,8 @@ public final class V1CompatibilityModule {
         this.roomDirectory = Objects.requireNonNull(roomDirectory, "roomDirectory");
         this.friendDirectory = Objects.requireNonNull(friendDirectory, "friendDirectory");
         this.pendingRequests = Objects.requireNonNull(pendingRequests, "pendingRequests");
+        this.friendRequestCreation = Objects.requireNonNull(
+                friendRequestCreation, "friendRequestCreation");
         this.friendRequestAcceptance = Objects.requireNonNull(
                 friendRequestAcceptance, "friendRequestAcceptance");
         this.friendRequestRejection = Objects.requireNonNull(
@@ -119,6 +128,8 @@ public final class V1CompatibilityModule {
                         connections::onlineAccounts),
                 new LegacyV1PendingFriendRequestService(
                         new PostgresLegacyV1PendingFriendRequestAdapter(dataSource)),
+                new LegacyV1FriendRequestCreationService(
+                        new PostgresLegacyV1FriendRequestCreationAdapter(dataSource)),
                 new LegacyV1FriendRequestAcceptanceService(
                         new PostgresLegacyV1FriendRequestAcceptanceAdapter(dataSource)),
                 new LegacyV1FriendRequestRejectionService(
@@ -138,6 +149,7 @@ public final class V1CompatibilityModule {
             V1RoomDirectoryEventSink directoryEvents,
             V1FriendDirectoryEventSink friendEvents,
             V1PendingFriendRequestEventSink pendingEvents,
+            V1FriendRequestCreationEventSink creationEvents,
             V1FriendRequestAcceptanceEventSink acceptanceEvents,
             V1FriendRequestRejectionEventSink rejectionEvents,
             V1UserSearchEventSink searchEvents,
@@ -154,6 +166,7 @@ public final class V1CompatibilityModule {
                         directoryEvents,
                         friendEvents,
                         pendingEvents,
+                        creationEvents,
                         acceptanceEvents,
                         rejectionEvents,
                         searchEvents,
@@ -171,6 +184,7 @@ public final class V1CompatibilityModule {
             V1RoomDirectoryEventSink directoryEvents,
             V1FriendDirectoryEventSink friendEvents,
             V1PendingFriendRequestEventSink pendingEvents,
+            V1FriendRequestCreationEventSink creationEvents,
             V1FriendRequestAcceptanceEventSink acceptanceEvents,
             V1FriendRequestRejectionEventSink rejectionEvents,
             V1UserSearchEventSink searchEvents,
@@ -210,6 +224,12 @@ public final class V1CompatibilityModule {
                 new V1JsonPendingFriendRequestCodec(clock),
                 directoryExecutor,
                 pendingEvents));
+        pipeline.addLast("v1-friend-request-creation", new V1FriendRequestCreationHandler(
+                friendRequestCreation,
+                new V1JsonFriendRequestCreationCodec(clock),
+                connections,
+                directoryExecutor,
+                creationEvents));
         pipeline.addLast("v1-friend-request-acceptance", new V1FriendRequestAcceptanceHandler(
                 friendRequestAcceptance,
                 new V1JsonFriendRequestAcceptanceCodec(clock),
