@@ -592,6 +592,10 @@ Progress:
     projection and real PostgreSQL authorization proof.
   - [x] Compose strict `USER_LIST_REQ` handling with bounded compatible output,
     fixed telemetry, and real PostgreSQL login-to-presence proof.
+  - [x] Define a server-authorized read-only V1 room-settings contract with
+    complete durable limits, strict value invariants, and no synthesized data.
+  - [ ] Persist and import complete V1 room settings, then compose strict
+    read-only `ROOM_SETTINGS_REQ` handling with real PostgreSQL proof.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application
