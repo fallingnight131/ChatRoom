@@ -112,6 +112,12 @@ int main(int argc, char *argv[]) {
     if (!check(Policy::evaluate(bytes(hostile), hostile, context()).outcome == Policy::Outcome::Rejected,
                QStringLiteral("unknown manifest field was accepted"))) return 1;
     hostile = value;
+    installer = hostile.value(QStringLiteral("installer")).toObject();
+    installer.insert(QStringLiteral("size"), 2147483649.0);
+    hostile.insert(QStringLiteral("installer"), installer);
+    if (!check(Policy::evaluate(bytes(hostile), hostile, context()).outcome == Policy::Outcome::Rejected,
+               QStringLiteral("installer above 2 GiB was accepted"))) return 1;
+    hostile = value;
     hostile.insert(QStringLiteral("version"), QStringLiteral("1.2.4"));
     if (!check(Policy::evaluate(bytes(value), hostile, context()).outcome == Policy::Outcome::Rejected,
                QStringLiteral("object mismatched with signed bytes was accepted"))) return 1;

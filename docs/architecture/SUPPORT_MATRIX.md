@@ -99,6 +99,11 @@ state, semantic decision, and atomic replay acceptance in that order. Its
 trusted key ring and product state path remain unconfigured, with no manifest
 transport, scheduler, UI, or installer launch.
 
+An inactive dedicated installer transport now enforces credential-free HTTPS,
+no redirects, an aligned 2 GiB signed/streamed limit, timeout/cancel, private
+partial staging, and failure cleanup. It is not connected to a product endpoint,
+trust orchestrator, scheduler, or launcher.
+
 M4 must provide:
 
 - a signed and timestamped direct installer;

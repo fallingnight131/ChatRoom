@@ -171,6 +171,12 @@ to-policy-to-atomic-acceptance order with an ephemeral key. Tampered or empty
 trust creates no state, retries are idempotent, and a signed replay is rejected.
 No product key/path or network/update action invokes this service.
 
+`UpdateInstallerDownloadTransportTest` injects deterministic responses while
+retaining the production HTTPS-only request policy. It checks exact success,
+manual redirect refusal, 2 GiB/schema alignment, Content-Length and streaming
+bounds, cancellation, and partial-file cleanup. It does not claim a public TLS
+origin or end-to-end Windows update.
+
 ## Java V2 Backend
 
 The additive M3 workspace requires JDK 21. It carries its own checksum-pinned

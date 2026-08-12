@@ -134,6 +134,7 @@ def validate_manifest(
     size, digest = installer.get("size"), installer.get("sha256")
     thumbprint = installer.get("authenticodeSha256Thumbprint")
     if (not isinstance(size, int) or isinstance(size, bool) or size <= 0
+            or size > 2 * 1024 * 1024 * 1024
             or not isinstance(digest, str) or not HEX_32.fullmatch(digest)
             or not isinstance(thumbprint, str) or not HEX_32.fullmatch(thumbprint)):
         raise ManifestError("Windows update installer integrity metadata is invalid")

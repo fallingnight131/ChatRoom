@@ -26,6 +26,9 @@ identity and stable/beta sequence-plus-digest replay watermarks. Corrupt state
 blocks rather than resets; no product path creates it.
 ADR-0122 composes signature, state, policy, and atomic acceptance behind one
 inactive entry point so future transport cannot bypass trust ordering.
+ADR-0123 adds an inactive credential-free HTTPS-only installer transport with
+no redirects, a schema-aligned 2 GiB limit, bounded streaming, cancellation,
+and partial-file cleanup. Returned bytes still require ADR-0120 verification.
 
 ## Canonical format
 
@@ -43,7 +46,7 @@ The manifest binds:
 - exact Git source revision;
 - signed rollout percentage plus 32-byte rollout seed;
 - one credential-free HTTPS production Setup URL, size, SHA-256, and lowercase
-  SHA-256 Authenticode signer-certificate thumbprint.
+  SHA-256 Authenticode signer-certificate thumbprint; size is at most 2 GiB.
 
 Clients must persist the highest accepted sequence and canonical-manifest digest
 per channel across signing-key rotations. A lower sequence or a different

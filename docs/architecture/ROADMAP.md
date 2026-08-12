@@ -574,6 +574,9 @@ Progress:
   rotations.
 - [x] Enforce signature verification, semantic policy, and atomic replay
   acceptance ordering behind one default-off update application service.
+- [x] Add a dedicated default-off HTTPS installer transport with a shared 2 GiB
+  signed bound, no redirects/credentials, timeout/cancel, private partial
+  staging, and failure cleanup.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

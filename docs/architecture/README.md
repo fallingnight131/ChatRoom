@@ -631,6 +631,12 @@ decision, which precede atomic replay acceptance. Invalid trust creates no
 state. The service still has no configured product key/path, network, UI, or
 installer action.
 
+ADR-0123 adds a separate inactive installer transport rather than reusing chat
+attachment downloads. It accepts credential-free HTTPS only, never follows a
+redirect, shares a 2 GiB signed bound with authoring/decision code, uses bounded
+streaming plus timeout/cancel, and removes every failed partial. Successful
+bytes still require ADR-0120 trust verification before any use.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

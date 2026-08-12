@@ -168,7 +168,8 @@ UpdateManifestDecisionPolicy::Decision UpdateManifestDecisionPolicy::evaluate(
     const QString digestText = installer.value(QStringLiteral("sha256")).toString();
     const QString thumbprintText = installer.value(QStringLiteral("authenticodeSha256Thumbprint")).toString();
     if (!exactKeys(installer, InstallerKeys)
-            || !safeInteger(installer.value(QStringLiteral("size")), 1, 9007199254740991LL, &installerSize)
+            || !safeInteger(installer.value(QStringLiteral("size")), 1,
+                            2LL * 1024 * 1024 * 1024, &installerSize)
             || !Hex64.match(digestText).hasMatch() || !Hex64.match(thumbprintText).hasMatch()
             || !url.isValid() || url.scheme() != QStringLiteral("https") || url.host().isEmpty()
             || !url.userInfo().isEmpty() || url.hasQuery() || url.hasFragment()

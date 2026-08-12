@@ -35,6 +35,7 @@ SOURCES += \
     UpdateInstallerTrustVerifier.cpp \
     UpdateStateRepository.cpp \
     UpdateManifestApplicationService.cpp \
+    UpdateInstallerDownloadTransport.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -64,6 +65,7 @@ HEADERS += \
     UpdateInstallerTrustVerifier.h \
     UpdateStateRepository.h \
     UpdateManifestApplicationService.h \
+    UpdateInstallerDownloadTransport.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \
