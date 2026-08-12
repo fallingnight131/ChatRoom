@@ -332,6 +332,10 @@ not expose a UUID or leave either identity missing. Exact retry preserves the
 same result and only first acceptance may fan out. No adapter or handler exists
 for this boundary yet.
 
+V019 reserves runtime V1 friend-message IDs downward from signed 32-bit maximum.
+Imports keep their historical positive IDs; future writes must skip occupied
+`FRIENDSHIP` values and commit the mapping atomically with the canonical message.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then

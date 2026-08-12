@@ -97,6 +97,10 @@ V018 adds the equivalent descending allocator for runtime V1 contact-request
 IDs. New request and mapping rows commit atomically; sequence values themselves
 remain non-transactional allocation tokens, so failed/rolled-back attempts may
 leave gaps. Occupied imported IDs are skipped and exhaustion fails closed.
+V019 adds a separate descending allocator for runtime V1 friend-message IDs.
+Imported friend-message IDs remain unchanged; runtime writers must skip occupied
+`FRIENDSHIP` mappings and commit an allocation only with the canonical message
+and compatibility mapping.
 The read-only application compatibility port keeps the namespace type alongside
 the numeric ID and supports both V1-to-V2 request translation and V2-to-V1 event
 projection. Its PostgreSQL adapter does not create mappings, infer identities,
@@ -386,7 +390,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V018, reruns migration as a simulated
+cluster, migrates a clean database through current V019, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable

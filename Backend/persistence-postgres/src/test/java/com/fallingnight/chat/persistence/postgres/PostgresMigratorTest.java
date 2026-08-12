@@ -118,7 +118,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(18, first.migrate());
+        assertEquals(19, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -146,6 +146,11 @@ class PostgresMigratorTest {
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
                     + "AND sequencename = 'legacy_v1_contact_request_id_seq' "
+                    + "AND increment_by = -1 AND min_value = 1 "
+                    + "AND max_value = 2147483647"));
+            assertEquals(1, count("SELECT count(*) FROM pg_sequences "
+                    + "WHERE schemaname = 'chat' "
+                    + "AND sequencename = 'legacy_v1_friend_message_id_seq' "
                     + "AND increment_by = -1 AND min_value = 1 "
                     + "AND max_value = 2147483647"));
             proveSequenceAndIdempotencyConstraints(connection);

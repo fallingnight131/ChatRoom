@@ -1,0 +1,7 @@
+CREATE SEQUENCE legacy_v1_friend_message_id_seq
+    AS BIGINT
+    START WITH 2147483647
+    INCREMENT BY -1
+    MINVALUE 1
+    MAXVALUE 2147483647
+    NO CYCLE;
