@@ -216,6 +216,13 @@ row. `GET_ROOM_PASSWORD_RSP` is an administrator-only status response containing
 `success`, `roomId`, and `hasPassword`. It never contains the password value.
 Empty `SET_ROOM_PASSWORD_REQ.password` clears protection.
 
+The detached Java application boundary now reserves `ROOM_SEARCH_REQ` as an
+authenticated bounded read. It accepts a trimmed non-empty control-free keyword
+of at most 256 UTF-8 bytes and returns at most 20 UUID-free mapped rooms with
+`roomId`, `roomName`, `creatorId`, and active `memberCount`. A future PostgreSQL
+adapter will preserve positive decimal exact-ID lookup and otherwise apply
+literal case-insensitive title matching. No adapter or handler exists yet.
+
 ### Room chat
 
 Request data normally includes `roomId`, `content`, and `contentType`. Clients may

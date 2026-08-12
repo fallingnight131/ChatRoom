@@ -291,6 +291,12 @@ Fixed telemetry contains no search text or identity. Real PostgreSQL verificatio
 proves offline-to-online presence projection without UUID exposure. The product
 listener remains unchanged.
 
+The next group-lifecycle boundary defines authenticated V1 room search. It
+accepts one bounded literal keyword, returns at most 20 completely mapped GROUP
+results with active-member counts, and keeps canonical identities internal.
+Positive decimal keywords may retain exact V1 room-ID lookup semantics; other
+keywords use literal title matching. No PostgreSQL adapter or handler exists yet.
+
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target
 username; clients cannot supply canonical IDs. Missing/self/already-friend/
