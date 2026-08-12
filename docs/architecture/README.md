@@ -607,6 +607,12 @@ unknown trust, and packages the pinned libsodium runtime on Windows. No key is
 embedded and no network/update action calls the verifier, so activation remains
 an explicit future release decision.
 
+ADR-0119 adds the inactive application decision boundary after verification. It
+requires the exact `x86_64` schema and UTC window, monotonic per-channel replay
+state across key rotations, numeric Windows versions, deterministic cross-client
+rollout, and bounded HTTPS installer metadata. It performs no persistence,
+network I/O, Authenticode validation, launch, or UI action.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

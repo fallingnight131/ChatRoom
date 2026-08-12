@@ -38,7 +38,10 @@ def canonical_bytes(manifest: dict[str, object]) -> bytes:
 def _parse_version(value: object, label: str) -> tuple[int, int, int]:
     if not isinstance(value, str) or not SEMVER.fullmatch(value):
         raise ManifestError(f"{label} must be canonical numeric SemVer")
-    return tuple(int(part) for part in value.split("."))  # type: ignore[return-value]
+    parts = tuple(int(part) for part in value.split("."))
+    if any(part > 65535 for part in parts):
+        raise ManifestError(f"{label} exceeds Windows version component bounds")
+    return parts  # type: ignore[return-value]
 
 
 def _parse_timestamp(value: object, label: str) -> datetime:
@@ -56,7 +59,7 @@ def validate_manifest(
     observed_at: datetime | None = None,
 ) -> dict[str, object]:
     expected_keys = {
-        "schemaVersion", "product", "channel", "manifestSequence", "signingKeyId",
+        "schemaVersion", "product", "architecture", "channel", "manifestSequence", "signingKeyId",
         "publishedAt", "expiresAt", "version", "minimumUpdatableVersion",
         "sourceRevision", "rollout", "installer",
     }
@@ -64,6 +67,8 @@ def validate_manifest(
         raise ManifestError("Windows update manifest has an unsupported shape")
     if manifest.get("product") != "chat-room-windows-client":
         raise ManifestError("Windows update manifest product is invalid")
+    if manifest.get("architecture") != "x86_64":
+        raise ManifestError("Windows update manifest architecture is invalid")
     if manifest.get("channel") not in CHANNELS:
         raise ManifestError("Windows update channel is invalid")
     sequence = manifest.get("manifestSequence")
@@ -158,6 +163,7 @@ def build_manifest(
     manifest: dict[str, object] = {
         "schemaVersion": 1,
         "product": "chat-room-windows-client",
+        "architecture": "x86_64",
         "channel": channel,
         "manifestSequence": manifest_sequence,
         "signingKeyId": signing_key_id,

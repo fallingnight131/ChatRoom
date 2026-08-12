@@ -57,6 +57,7 @@ class WindowsUpdateManifestTest(unittest.TestCase):
         second = self.build()
         self.assertEqual(first, second)
         self.assertEqual(first["manifestSequence"], 42)
+        self.assertEqual(first["architecture"], "x86_64")
         self.assertEqual(first["rollout"], {"percentage": 25, "seed": "b" * 64})
         self.assertEqual(first["installer"]["size"], len(b"signed setup fixture"))
 
@@ -71,8 +72,10 @@ class WindowsUpdateManifestTest(unittest.TestCase):
         original = self.build()
         mutations = [
             lambda value: value.update(channel="nightly"),
+            lambda value: value.update(architecture="arm64"),
             lambda value: value.update(manifestSequence=2**53),
             lambda value: value.update(minimumUpdatableVersion="2.0.0"),
+            lambda value: value.update(version="65536.0.0"),
             lambda value: value.update(expiresAt="2026-10-19T00:00:00Z"),
             lambda value: value["rollout"].update(percentage=101),
             lambda value: value["installer"].update(url="http://updates.example.test/ChatRoom-1.2.3-Setup.exe"),

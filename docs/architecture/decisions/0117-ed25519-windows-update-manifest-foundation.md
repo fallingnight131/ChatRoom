@@ -23,13 +23,15 @@ signing keys or release owner currently exist.
 - Sign only exact canonical JSON: sorted compact ASCII-escaped UTF-8 plus one LF.
   Reject alternative encodings/whitespace and unknown fields before signature
   verification.
-- Bind product, stable/beta channel, positive monotonic sequence, signing-key ID,
-  publication/expiry, target/minimum-updatable numeric SemVer, source revision,
-  rollout percentage/seed, and production installer HTTPS URL/size/SHA-256 plus
+- Bind product, fixed `x86_64` architecture, stable/beta channel, positive
+  monotonic sequence, signing-key ID, publication/expiry,
+  target/minimum-updatable numeric SemVer, source revision, rollout
+  percentage/seed, and production installer HTTPS URL/size/SHA-256 plus
   Authenticode SHA-256 certificate thumbprint.
 - Limit validity to 31 days and require whole-second UTC. The future client must
-  persist the highest accepted sequence per channel/key so a still-valid older
-  signed manifest cannot replace newer policy.
+  persist the highest accepted sequence and manifest digest per channel across
+  key rotations so an older manifest cannot replace newer policy or equivocate
+  at one sequence.
 - Require a production `ChatRoom-<version>-Setup.exe` name. The explicitly
   unsigned verification installer is structurally ineligible for this channel.
 - Use OpenSSL only in the offline authoring/independent verification tool. Never
@@ -49,11 +51,12 @@ explicit signed fields. Compromise of the Web origin alone cannot authorize a
 different installer once the client verifier is active.
 
 ADR-0118 subsequently links the default-deny client verification primitive and
-runtime without embedding a key. This step does not embed a public key, fetch a
-manifest, persist sequence/rollout state, inspect Authenticode, download Setup,
-or activate an update. It also does not establish key custody, certificate
-purchase, timestamp authority, revocation response, or release approval. Those
-remain M4 gates.
+runtime without embedding a key. ADR-0119 adds the inactive schema, replay,
+version, validity, rollout, and installer-metadata decision boundary. These
+steps do not embed a public key, fetch a manifest, persist sequence/rollout
+state, inspect Authenticode, download Setup, or activate an update. They also do
+not establish key custody, certificate purchase, timestamp authority,
+revocation response, or release approval. Those remain M4 gates.
 
 ## Migration and Rollback
 

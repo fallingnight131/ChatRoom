@@ -70,13 +70,18 @@ signed automatic-update manifest and is not a supported release.
 
 The repository now defines and tests a canonical detached-Ed25519 stable/beta
 update manifest, including sequence, expiry, rollout, installer integrity, and
-expected Authenticode signer. It has no product key or client verifier and is a
-default-off protocol foundation, not an update channel.
+expected Authenticode signer. It has no product key and is a default-off
+protocol foundation, not an update channel.
 
 The Windows client now compiles a default-deny canonical Ed25519 verifier and
 the installer payload includes its pinned libsodium DLL. Because the trusted key
 ring is empty and no fetch/decision/install path calls it, this remains a local
 primitive rather than an enabled updater.
+
+An inactive decision policy now validates the signed object/schema,
+architecture, UTC window, per-channel replay state, versions, deterministic
+rollout, and installer metadata. There is still no durable replay/device state,
+trusted product key, downloader, Authenticode check, scheduler, launch, or UI.
 
 M4 must provide:
 

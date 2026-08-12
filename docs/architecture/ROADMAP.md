@@ -563,6 +563,9 @@ Progress:
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.
+- [x] Add a default-off Windows update decision policy for exact schema and
+  architecture, UTC validity, per-channel replay state, numeric versions,
+  deterministic staged rollout, and bounded installer metadata.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

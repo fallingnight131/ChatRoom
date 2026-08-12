@@ -31,6 +31,7 @@ SOURCES += \
     ConversationSyncService.cpp \
     V1HistoryPageAdapter.cpp \
     UpdateManifestSignatureVerifier.cpp \
+    UpdateManifestDecisionPolicy.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -56,6 +57,7 @@ HEADERS += \
     ConversationSyncService.h \
     V1HistoryPageAdapter.h \
     UpdateManifestSignatureVerifier.h \
+    UpdateManifestDecisionPolicy.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \

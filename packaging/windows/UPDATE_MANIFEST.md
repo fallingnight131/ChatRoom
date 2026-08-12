@@ -15,6 +15,9 @@ is committed, and the product updater remains disabled until the client has a
 reviewed fixed-public-key ring and the release owner provisions protected keys.
 ADR-0118 adds the default-deny verifier primitive, but deliberately injects an
 empty trusted-key ring and adds no network/update activation.
+ADR-0119 adds an inactive semantic decision policy for schema, replay, version,
+validity, rollout, and installer metadata. It still has no persistent state,
+download, Authenticode verification, launch, scheduler, or UI path.
 
 ## Canonical format
 
@@ -24,7 +27,8 @@ non-canonical SemVer, non-UTC timestamps, or a changed byte are rejected.
 
 The manifest binds:
 
-- stable/beta channel and monotonic `manifestSequence`;
+- fixed `x86_64` architecture, stable/beta channel, and monotonic
+  `manifestSequence`;
 - `signingKeyId` for explicit embedded-public-key rotation;
 - whole-second UTC publication/expiry with at most 31 days validity;
 - target and minimum directly updatable numeric SemVer;
@@ -33,10 +37,13 @@ The manifest binds:
 - one credential-free HTTPS production Setup URL, size, SHA-256, and lowercase
   SHA-256 Authenticode signer-certificate thumbprint.
 
-Clients must persist the highest accepted sequence per channel/key and reject a
-lower/equal conflicting sequence to contain replay. They must use a stable,
-non-secret device identifier with the rollout seed, never account identity.
-Those client rules are not active yet.
+Clients must persist the highest accepted sequence and canonical-manifest digest
+per channel across signing-key rotations. A lower sequence or a different
+manifest at the same sequence is rejected; an identical retry is idempotent.
+They must use a stable, non-secret device identifier, never account identity.
+The rollout bucket is SHA-256 of device-ID UTF-8, one NUL byte, and the raw
+32-byte seed; the first eight digest bytes are unsigned big-endian modulo 100.
+ADR-0119 implements these rules locally, but no product path invokes them yet.
 
 ## Offline flow
 

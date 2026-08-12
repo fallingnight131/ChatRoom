@@ -149,6 +149,12 @@ unknown-key, tamper, and non-canonical rejection. The client now links libsodium
 Windows CI copies the vcpkg runtime DLL into the payload and checks it after
 install. No trusted update key or network update path exists.
 
+`UpdateManifestDecisionPolicyTest`, also included by `--qt`, checks the inactive
+post-verification policy: exact signed object/schema/architecture, UTC validity,
+per-channel replay state, version routing, deterministic staged rollout, and
+bounded installer metadata. It does not persist state, download, authenticate,
+or launch an installer.
+
 ## Java V2 Backend
 
 The additive M3 workspace requires JDK 21. It carries its own checksum-pinned
