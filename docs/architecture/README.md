@@ -1220,6 +1220,13 @@ Only the next policy percentage and a higher manifest sequence may change; the
 binary, installer, update key, minimum version, and rollout seed stay exact.
 The record is short-lived and still has no endpoint mutation authority.
 
+ADR-0194 consumes that authorization through the same immutable-store safety
+model as release promotion. Current and target paths, active digest/sequence,
+rollout percentages, and seed must match before a write-once consumption marker
+precedes atomic pointer replacement. Finalization failure restores the old
+pointer but does not restore authorization usability; public observation is
+still required before expansion is complete.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

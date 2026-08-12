@@ -278,7 +278,7 @@ def verify_authorization(path: Path, *args, now_utc: datetime) -> dict[str, obje
     return recorded
 
 
-def _arguments(parser: argparse.ArgumentParser) -> None:
+def add_authorization_arguments(parser: argparse.ArgumentParser) -> None:
     paths = (
         "completion", "execution", "promotion-authorization", "current-candidate-root",
         "rollback-release-root", "pre-promotion-manifest", "promotion-observation",
@@ -296,14 +296,8 @@ def _arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--update-public-key-sha256", required=True)
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("create", "verify"))
-    _arguments(parser)
-    parser.add_argument("--lifetime-seconds", type=int, default=900)
-    parser.add_argument("--output", type=Path, required=True)
-    args = parser.parse_args()
-    values = (
+def authorization_values(args: argparse.Namespace) -> tuple[object, ...]:
+    return (
         args.completion, args.execution, args.promotion_authorization,
         args.current_candidate_root, args.rollback_release_root,
         args.pre_promotion_manifest, args.promotion_observation,
@@ -314,6 +308,16 @@ def main() -> int:
         args.channel, args.qt_version, args.authenticode_signer_sha256,
         args.update_public_key_sha256,
     )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("command", choices=("create", "verify"))
+    add_authorization_arguments(parser)
+    parser.add_argument("--lifetime-seconds", type=int, default=900)
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args()
+    values = authorization_values(args)
     try:
         if args.command == "create":
             value = create_authorization(

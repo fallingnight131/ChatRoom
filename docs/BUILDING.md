@@ -743,8 +743,16 @@ revalidates current and target candidates. The target must retain the exact
 signed Windows candidate, installer, signing key, minimum version, and rollout
 seed while advancing sequence to exactly the policy's next percentage. Use
 `--help` for the explicit completion-chain paths; the tool accepts no private
-key or provider credential. Protected workflow orchestration and execution are
-still separate gates. See ADR-0193.
+key or provider credential. Protected workflow orchestration and real provider
+execution are still separate gates. See ADR-0193.
+
+After immutable staging, `windows_update_rollout_expansion_execution.py execute`
+reconstructs that authorization, requires current and target paths to match
+their content-addressed store IDs, compares the active digest/sequence and
+rollout seed/percentages, then records consumption before atomically switching
+the pointer. Evidence failure restores the previous pointer without making the
+authorization reusable. Its result still awaits strict public HTTPS
+observation; local success is not rollout completion. See ADR-0194.
 
 Before compiling a product-update-enabled Windows client, create and verify a
 short-lived public trust intent with

@@ -266,7 +266,11 @@ It reconstructs promotion and health, verifies canonical metrics with a
 reviewed Ed25519 exporter public key, then permits only the next policy step
 while holding Windows candidate, installer, update key, minimum version, and
 rollout seed constant. Its short-lived record is not channel execution or
-publication; see ADR-0193.
+publication; see ADR-0193. The separate
+`windows_update_rollout_expansion_execution.py` consumer requires exact staged
+store paths, consumes before atomic pointer mutation, restores the old pointer
+on finalization failure, and remains pending public HTTPS observation; see
+ADR-0194.
 
 Client trust provisioning begins with a write-once
 `windows_update_product_trust_intent.py` record. It extracts canonical raw
