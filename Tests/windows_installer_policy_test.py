@@ -35,6 +35,8 @@ class WindowsInstallerPolicyTest(unittest.TestCase):
             "Upgrade deleted account-local client data",
             "Older installer was allowed to downgrade",
             "Rejected downgrade changed the current installation",
+            "Running-client upgrade returned",
+            "Rejected running-client upgrade changed the process, installation, or account data",
             'Get-ChildItem "$env:SODIUM_ROOT/bin" -Filter "*sodium*.dll"',
             "Installed client is missing the update-verifier libsodium runtime",
         ]:
@@ -73,6 +75,15 @@ class WindowsInstallerPolicyTest(unittest.TestCase):
         self.assertIn('StrCmp $0 "${PRODUCT_INSTALL_ID}" 0 unsafe_install', self.source)
         self.assertIn('StrCmp $0 "${PRODUCT_INSTALL_ID}" 0 unsafe_uninstall', self.source)
         self.assertLess(self.source.index('File /r "${PAYLOAD_DIR}\\*"'), self.source.index('Rename "$StageDir" "$INSTDIR"'))
+
+    def test_rejects_a_running_client_before_mutation(self) -> None:
+        self.assertIn('!define PRODUCT_RUNNING_MUTEX "Local\\ChatRoom.WindowsClient.Running.v1"', self.source)
+        self.assertIn("OpenMutexW", self.source)
+        self.assertIn("IfSilent running_client_abort", self.source)
+        self.assertIn("SetErrorLevel 4", self.source)
+        self.assertLess(self.source.index("Function .onInit"), self.source.index('CreateDirectory "$StageDir"'))
+        client_source = (ROOT / "Client" / "WindowsClientInstanceGuard.cpp").read_text(encoding="utf-8")
+        self.assertIn("Local\\\\ChatRoom.WindowsClient.Running.v1", client_source)
 
     def test_emits_required_integrity_and_windows_metadata(self) -> None:
         for directive in [

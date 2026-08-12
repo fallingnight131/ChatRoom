@@ -5,6 +5,7 @@
 #include "ChatWindow.h"
 #include "NetworkManager.h"
 #include "ThemeManager.h"
+#include "WindowsClientInstanceGuard.h"
 
 #ifndef CHAT_APP_VERSION
 #error "CHAT_APP_VERSION must come from the repository VERSION file"
@@ -23,6 +24,21 @@ int main(int argc, char *argv[]) {
     app.setOrganizationName("QtChatRoom");
     app.setQuitOnLastWindowClosed(false);
     app.setWindowIcon(QIcon(":/icons/app.png"));
+
+#ifdef Q_OS_WIN
+    WindowsClientInstanceGuard instanceGuard;
+    QString instanceError;
+    const auto instanceResult = instanceGuard.acquire(&instanceError);
+    if (instanceResult == WindowsClientInstanceGuard::Result::AlreadyRunning) {
+        QMessageBox::information(nullptr, QStringLiteral("聊天软件"),
+                                 QStringLiteral("聊天软件已经在运行。"));
+        return 0;
+    }
+    if (instanceResult != WindowsClientInstanceGuard::Result::Acquired) {
+        QMessageBox::critical(nullptr, QStringLiteral("启动失败"), instanceError);
+        return 1;
+    }
+#endif
 
     // 应用默认主题
     ThemeManager::instance()->applyTheme(&app);

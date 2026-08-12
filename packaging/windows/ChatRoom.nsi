@@ -25,6 +25,7 @@ Unicode true
 !define PRODUCT_UNINSTALL_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\ChatRoom"
 !define PRODUCT_INSTALL_ID "chat-room-windows-client-v1"
 !define PRODUCT_INSTALL_MARKER ".chat-room-install.ini"
+!define PRODUCT_RUNNING_MUTEX "Local\ChatRoom.WindowsClient.Running.v1"
 
 Var StageDir
 Var BackupDir
@@ -61,6 +62,18 @@ VIAddVersionKey /LANG=1033 "LegalCopyright" "Chat Room project contributors"
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "SimpChinese"
 !insertmacro MUI_LANGUAGE "English"
+
+Function .onInit
+  System::Call 'kernel32::OpenMutexW(i 0x00100000, i 0, w "${PRODUCT_RUNNING_MUTEX}") p.r0'
+  IntCmp $0 0 client_not_running
+  System::Call 'kernel32::CloseHandle(p r0)'
+  IfSilent running_client_abort 0
+  MessageBox MB_ICONEXCLAMATION|MB_OK "Chat Room is running. Close it before installing or upgrading."
+  running_client_abort:
+  SetErrorLevel 4
+  Abort
+  client_not_running:
+FunctionEnd
 
 LangString MainSectionName ${LANG_SIMPCHINESE} "聊天软件客户端（必需）"
 LangString MainSectionName ${LANG_ENGLISH} "Chat client (required)"

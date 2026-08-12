@@ -220,6 +220,23 @@ jobs:
             throw "Installed ownership marker is invalid"
           }
 
+          $runningClient = Start-Process -FilePath $installedClient -PassThru
+          Start-Sleep -Seconds 2
+          if ($runningClient.HasExited) { throw "Installed client did not remain running for the upgrade-lock gate" }
+          try {
+            $blockedUpgrade = Start-Process -FilePath $installer -ArgumentList @("/S", "/D=$installRoot") -Wait -PassThru
+            if ($blockedUpgrade.ExitCode -ne 4) {
+              throw "Running-client upgrade returned $($blockedUpgrade.ExitCode) instead of 4"
+            }
+            if ($runningClient.HasExited -or -not (Test-Path $installedClient -PathType Leaf) `
+                -or -not (Test-Path $sentinel -PathType Leaf)) {
+              throw "Rejected running-client upgrade changed the process, installation, or account data"
+            }
+          } finally {
+            if (-not $runningClient.HasExited) { Stop-Process -Id $runningClient.Id -Force }
+            $runningClient.WaitForExit()
+          }
+
           $downgrade = Start-Process -FilePath $priorInstaller -ArgumentList @("/S", "/D=$installRoot") -Wait -PassThru
           if ($downgrade.ExitCode -eq 0) { throw "Older installer was allowed to downgrade the current version" }
           $afterDowngrade = Get-ItemProperty "HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/ChatRoom"

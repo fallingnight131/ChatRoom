@@ -51,11 +51,13 @@ The direct installer now replaces one coherent program tree instead of merging
 files. Upgrade failure before activation leaves the old release untouched;
 failure during activation attempts an immediate directory rollback.
 
-This does not handle a running/locked client, power loss during the two renames,
-real older executable/schema compatibility, signed-channel rollback policy,
-Authenticode, timestamping, updater orchestration, or Windows 10/11 clean-host
-behavior. Those remain M4 gates. Hosted Windows Server CI is configured for the
-synthetic path, but the workflow result is not claimed until it runs remotely.
+ADR-0125 subsequently makes a running supported client fail before mutation by
+sharing a session-local liveness mutex with NSIS. Arbitrary locked files, power
+loss during the two renames, real older executable/schema compatibility,
+signed-channel rollback policy, Authenticode, timestamping, graceful update
+launch, or Windows 10/11 clean-host behavior remain M4 gates. Hosted Windows
+Server CI is configured for the synthetic path, but the workflow result is not
+claimed until it runs remotely.
 
 ## Migration and Rollback
 

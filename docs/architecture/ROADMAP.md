@@ -580,6 +580,9 @@ Progress:
 - [x] Compose signed eligibility, bounded download, and background installer
   trust behind one default-off preparation service that exposes only verified
   bytes and deletes every rejected/cancelled file.
+- [x] Add Windows single-instance liveness and make NSIS reject an open client
+  before mutation, with native CI configured to prove exit code and unchanged
+  program/account state.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

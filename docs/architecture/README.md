@@ -643,6 +643,12 @@ WinTrust runs off the UI thread; and rejected, cancelled, exceptional, or
 destroyed work deletes its file. Only verified bytes can become `Ready`, but no
 product key/configuration, discovery, UI, or installer launch exists.
 
+ADR-0125 closes the known running-client directory-lock path. The Windows client
+holds a session-local liveness mutex and becomes single-instance; NSIS probes the
+same name in `.onInit` and rejects interactive or silent install before mutation.
+It never kills the app. Graceful consent, shutdown/wait, verified Setup launch,
+and post-install restart remain separate boundaries.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

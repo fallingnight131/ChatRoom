@@ -32,6 +32,9 @@ and partial-file cleanup. Returned bytes still require ADR-0120 verification.
 ADR-0124 composes signed eligibility, download, and background trust into one
 inactive preparation path; only verified bytes are returned and all rejected
 bytes are deleted. It does not launch an installer.
+ADR-0125 makes the Windows client single-instance and makes NSIS reject its
+shared liveness mutex before any install mutation. A future launcher must request
+normal shutdown and wait; it must never terminate the client silently.
 
 ## Canonical format
 

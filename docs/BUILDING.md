@@ -183,6 +183,12 @@ transport. It proves deferred rollout makes no request, concurrent work is
 rejected, trust runs off the application thread, and trust failure removes the
 file. Native real-Setup acceptance and launch are still not claimed.
 
+`WindowsClientInstanceGuardTest` checks the shared liveness-mutex contract. On
+Windows it requires first acquisition, duplicate refusal, and release/reacquire;
+non-Windows development hosts report the platform boundary. Installer policy
+tests and pinned local NSIS compilation require `.onInit` to reject that mutex
+before staging, while native CI is configured for the installed-process gate.
+
 ## Java V2 Backend
 
 The additive M3 workspace requires JDK 21. It carries its own checksum-pinned

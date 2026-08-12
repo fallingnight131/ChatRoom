@@ -109,6 +109,12 @@ download and exposes a file only after background installer trust succeeds.
 Failure/cancellation removes bytes. Product keys, paths, manifest discovery,
 consent UI, process launch, and install/rollback observation remain absent.
 
+The Windows client now owns a session-local liveness mutex and refuses a second
+instance. NSIS checks the same mutex before mutation and returns 4 for a silent
+running-client attempt; native CI is configured to prove the current install and
+AppData remain unchanged. Cross-session/arbitrary locks and graceful update
+shutdown/launch remain release work.
+
 M4 must provide:
 
 - a signed and timestamped direct installer;
