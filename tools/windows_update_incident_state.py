@@ -15,6 +15,7 @@ from artifact_manifest_common import ManifestError
 
 OPEN_NAME = ".open-rollout-incident.json"
 INCIDENT_DIRECTORY = ".rollout-incidents"
+RESOLVED_DIRECTORY = ".resolved-rollout-incidents"
 KEYS = {
     "schemaVersion", "incidentType", "status", "channel", "incidentId",
     "failedReleaseId", "restoredReleaseId", "promotionCompletionSha256",
@@ -149,3 +150,79 @@ def require_no_open_incident(
             raise ManifestError("Open Windows rollout incident channel is inconsistent")
         raise ManifestError(
             "Open Windows rollout incident requires dedicated forward-fix execution")
+
+
+def resolve_incident(
+    store_root: Path,
+    incident_id: str,
+    forward_fix_release_id: str,
+    execution_sha256: str,
+    completion_sha256: str,
+    now_utc: datetime,
+) -> dict[str, object]:
+    incident = inspect_open_incident(store_root, now_utc)
+    if incident is None or incident["incidentId"] != incident_id:
+        raise ManifestError("Open Windows rollout incident cannot be resolved")
+    active_release = inspect_active_release_id(store_root)
+    if active_release != forward_fix_release_id:
+        raise ManifestError("Windows rollout incident target is not active")
+    for value in (forward_fix_release_id, execution_sha256, completion_sha256):
+        if (len(value) != 64
+                or any(character not in "0123456789abcdef" for character in value)):
+            raise ManifestError("Windows rollout incident resolution digest is invalid")
+    value = {
+        **incident,
+        "status": "resolved-by-observed-forward-fix",
+        "forwardFixReleaseId": forward_fix_release_id,
+        "forwardFixExecutionSha256": execution_sha256,
+        "recoveryCompletionSha256": completion_sha256,
+        "resolvedAt": now_utc.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    directory = store_root / RESOLVED_DIRECTORY
+    if directory.is_symlink():
+        raise ManifestError("Resolved Windows rollout incident directory is unsafe")
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"{incident_id}.json"
+    rendered = json.dumps(value, ensure_ascii=True, indent=2, sort_keys=True) + "\n"
+    if path.exists() or path.is_symlink():
+        if path.is_symlink() or not path.is_file() or path.read_text(
+                encoding="utf-8") != rendered:
+            raise ManifestError("Resolved Windows rollout incident record differs")
+    else:
+        temporary: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                "w", encoding="utf-8", newline="\n", dir=directory, delete=False,
+            ) as stream:
+                stream.write(rendered)
+                stream.flush()
+                os.fsync(stream.fileno())
+                temporary = Path(stream.name)
+            os.link(temporary, path)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
+    (store_root / OPEN_NAME).unlink()
+    return value
+
+
+def inspect_active_release_id(store_root: Path) -> str:
+    """Read only the release ID; full pointer validation stays with its owner."""
+    value = _read_pointer(store_root / "active-channel.json")
+    release_id = value.get("releaseId")
+    if (not isinstance(release_id, str) or len(release_id) != 64
+            or any(character not in "0123456789abcdef" for character in release_id)):
+        raise ManifestError("Active Windows update pointer release ID is invalid")
+    return release_id
+
+
+def _read_pointer(path: Path) -> dict[str, object]:
+    if path.is_symlink() or not path.is_file():
+        raise ManifestError("Active Windows update pointer must be a regular file")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ManifestError("Active Windows update pointer is unreadable") from error
+    if not isinstance(value, dict):
+        raise ManifestError("Active Windows update pointer must be an object")
+    return value

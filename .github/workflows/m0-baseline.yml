@@ -61,6 +61,7 @@ jobs:
           python3 Tests/windows_update_incident_state_test.py
           python3 Tests/windows_update_forward_fix_authorization_test.py
           python3 Tests/windows_update_forward_fix_execution_test.py
+          python3 Tests/windows_update_forward_fix_completion_test.py
           python3 Tests/windows_update_product_trust_intent_test.py
           python3 Tests/windows_update_trust_diagnostic_policy_test.py
           python3 Tests/windows_update_product_trust_evidence_test.py

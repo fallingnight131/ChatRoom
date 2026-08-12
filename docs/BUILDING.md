@@ -760,6 +760,21 @@ python3 Tests/windows_update_forward_fix_execution_test.py
 
 See ADR-0199.
 
+Probe C from an independent network location with the existing strict update
+probe, then run `tools/windows_update_forward_fix_completion.py complete`.
+The observation must match C's canonical manifest, detached signature, Setup,
+version, source, sequence, and channel after execution and within ten minutes by
+default. The tool writes `production-forward-fix-observed`, retains a resolved
+incident record bound to execution/completion SHA-256, and only then removes the
+exclusive open marker:
+
+```bash
+python3 Tests/windows_update_forward_fix_completion_test.py
+```
+
+This is point-in-time endpoint evidence, not global convergence, installation
+success on every affected B device, or post-fix rollout health. See ADR-0200.
+
 Before broadening a staged rollout, evaluate a reviewed aggregate observability
 export against `packaging/windows/rollout-health-policy.json`:
 

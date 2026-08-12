@@ -630,6 +630,9 @@ Progress:
 - [x] Consume the incident-bound forward-fix authorization once, require A as
   the exact current pointer and pre-staged C as target, atomically switch to C,
   restore A on finalization failure, and keep the incident open for observation.
+- [x] Bind a bounded strict HTTPS observation of exact C to forward-fix
+  execution, retain immutable recovery completion/resolution evidence, and only
+  then close the rollout incident gate.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

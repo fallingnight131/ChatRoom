@@ -1260,6 +1260,13 @@ switches A-to-C. Failure restores A without restoring authorization usability.
 Success deliberately leaves the incident open and awaits strict public HTTPS
 observation before recovery can be completed.
 
+ADR-0200 closes that recovery boundary. A strict post-execution HTTPS
+observation must reproduce C's exact manifest, signature, and Setup within the
+bounded window while C is still active. Immutable completion and resolved-
+incident evidence are retained before the open marker is removed. This proves
+one externally observed recovery instant, not fleet-wide installation or
+continuous health.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,
