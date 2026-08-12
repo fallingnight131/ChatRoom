@@ -447,6 +447,8 @@ Progress:
     reconciliation and fail-closed missing request/account mappings.
   - [x] Add and compose the detached strict V1 pending-request JSON/Netty adapter
     with fixed telemetry and login-to-pending PostgreSQL verification.
+  - [x] Define recipient-bound, retry-idempotent V1 friend-request rejection as
+    a transport-independent application boundary.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application
