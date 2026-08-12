@@ -1,6 +1,7 @@
 package com.fallingnight.chat.gateway.runtime;
 
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1AuthenticationService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectMessageService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1LoginService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendDirectoryService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestAcceptanceService;
@@ -11,6 +12,8 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1PendingFriendR
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomDirectoryService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1UserSearchService;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AccountConnectionRegistry;
+import com.fallingnight.chat.gateway.compatibility.v1.V1DirectMessageEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1DirectMessageHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AuthenticationTimeoutHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1HeartbeatHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
@@ -32,6 +35,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1JsonPendingFriendRequest
 import com.fallingnight.chat.gateway.compatibility.v1.V1PendingFriendRequestEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1PendingFriendRequestHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLifecycleCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonDirectMessageCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLoginCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomDirectoryCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
@@ -46,6 +50,7 @@ import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
 import com.fallingnight.chat.identity.crypto.Argon2idCredentialHasher;
 import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
 import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1DirectMessageAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresConversationDirectoryAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1AccountProjection;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1ConversationProjection;
@@ -68,6 +73,7 @@ import javax.sql.DataSource;
 /** Real V1 login composition kept detached from the product listener. */
 public final class V1CompatibilityModule {
     private final LegacyV1LoginService login;
+    private final LegacyV1DirectMessageService directMessages;
     private final LegacyV1RoomDirectoryService roomDirectory;
     private final LegacyV1FriendDirectoryService friendDirectory;
     private final LegacyV1PendingFriendRequestService pendingRequests;
@@ -81,6 +87,7 @@ public final class V1CompatibilityModule {
 
     private V1CompatibilityModule(
             LegacyV1LoginService login,
+            LegacyV1DirectMessageService directMessages,
             LegacyV1RoomDirectoryService roomDirectory,
             LegacyV1FriendDirectoryService friendDirectory,
             LegacyV1PendingFriendRequestService pendingRequests,
@@ -92,6 +99,7 @@ public final class V1CompatibilityModule {
             Clock clock,
             V1AccountConnectionRegistry connections) {
         this.login = Objects.requireNonNull(login, "login");
+        this.directMessages = Objects.requireNonNull(directMessages, "directMessages");
         this.roomDirectory = Objects.requireNonNull(roomDirectory, "roomDirectory");
         this.friendDirectory = Objects.requireNonNull(friendDirectory, "friendDirectory");
         this.pendingRequests = Objects.requireNonNull(pendingRequests, "pendingRequests");
@@ -127,6 +135,8 @@ public final class V1CompatibilityModule {
         V1AccountConnectionRegistry connections = new V1AccountConnectionRegistry();
         return new V1CompatibilityModule(
                 new LegacyV1LoginService(authentication, legacy),
+                new LegacyV1DirectMessageService(
+                        new PostgresLegacyV1DirectMessageAdapter(dataSource)),
                 new LegacyV1RoomDirectoryService(
                         new PostgresConversationDirectoryAdapter(dataSource), legacyConversations),
                 new LegacyV1FriendDirectoryService(
@@ -163,6 +173,7 @@ public final class V1CompatibilityModule {
             V1FriendRequestAcceptanceEventSink acceptanceEvents,
             V1FriendRequestRejectionEventSink rejectionEvents,
             V1FriendRemovalEventSink removalEvents,
+            V1DirectMessageEventSink directMessageEvents,
             V1UserSearchEventSink searchEvents,
             Duration upgradeTimeout,
             Duration authenticationTimeout,
@@ -181,6 +192,7 @@ public final class V1CompatibilityModule {
                         acceptanceEvents,
                         rejectionEvents,
                         removalEvents,
+                        directMessageEvents,
                         searchEvents,
                         authenticationTimeout,
                         authenticatedIdleTimeout),
@@ -200,6 +212,7 @@ public final class V1CompatibilityModule {
             V1FriendRequestAcceptanceEventSink acceptanceEvents,
             V1FriendRequestRejectionEventSink rejectionEvents,
             V1FriendRemovalEventSink removalEvents,
+            V1DirectMessageEventSink directMessageEvents,
             V1UserSearchEventSink searchEvents,
             Duration authenticationTimeout,
             Duration authenticatedIdleTimeout) {
@@ -260,6 +273,12 @@ public final class V1CompatibilityModule {
                 connections,
                 directoryExecutor,
                 removalEvents));
+        pipeline.addLast("v1-direct-messages", new V1DirectMessageHandler(
+                directMessages,
+                new V1JsonDirectMessageCodec(clock),
+                connections,
+                directoryExecutor,
+                directMessageEvents));
         pipeline.addLast("v1-user-search", new V1UserSearchHandler(
                 userSearch,
                 new V1JsonUserSearchCodec(clock),

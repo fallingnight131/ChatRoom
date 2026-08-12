@@ -261,7 +261,10 @@ compatible ACK can succeed. Exact retry must return the same friendship/message
 IDs, sequence, and timestamp with `duplicate=true`; only first acceptance may
 later emit `FRIEND_CHAT_MSG`. The PostgreSQL adapter now performs the canonical
 message and V1 mapping write atomically after active relationship/device checks;
-no handler exists yet.
+the detached handler now returns that mapped ACK and emits `FRIEND_CHAT_MSG` to
+the sender and current local target only on first acceptance. Exact retry emits
+no live message. Malformed or infrastructure-failed handling closes and the
+product listener remains inactive.
 
 ### History
 

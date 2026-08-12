@@ -338,7 +338,11 @@ Imports keep their historical positive IDs; future writes must skip occupied
 The PostgreSQL direct-message adapter now performs that complete transaction
 after validating the authenticated device and both active memberships. Exact
 retry recovers the original mapped result; conflicting reuse, missing mapping,
-and relationship removal fail closed. No V1 message handler exists yet.
+and relationship removal fail closed. The detached strict handler now returns
+the compatible numeric ACK, echoes a first acceptance to the sender, and routes
+one authoritative live message to the target's current local connection. Exact
+retry emits no live message. Real PostgreSQL verifies both imported logins and
+retained history; product routing remains inactive.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,

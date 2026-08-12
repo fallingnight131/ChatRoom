@@ -485,6 +485,8 @@ Progress:
     while retaining imported IDs and requiring transactional collision checks.
   - [x] Implement atomic PostgreSQL V1 direct text/emoji submission with active
     relationship authorization, canonical/V1 mapping, and exact retry recovery.
+  - [x] Compose detached V1 direct messaging with authoritative ACK/live fields,
+    first-only local fan-out, fixed telemetry, and real PostgreSQL dual-login proof.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

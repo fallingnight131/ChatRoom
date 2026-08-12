@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fallingnight.chat.gateway.compatibility.v1.V1ConnectionAttributes;
+import com.fallingnight.chat.gateway.compatibility.v1.V1DirectMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
@@ -251,6 +252,9 @@ class GatewayRuntimePostgresIntegrationTest {
                     assertNull(peer.readOutbound());
                     assertEquals(1, acceptedRequestCount(jdbcUrl, username, password));
 
+                    assertDirectMessageFirst(imported, peer);
+                    assertDirectMessageDuplicate(imported, peer);
+
                     assertFriendRemovalSuccess(imported, "imported-peer");
                     peer.runPendingTasks();
                     TextWebSocketFrame removalNotification = peer.readOutbound();
@@ -266,7 +270,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     peer.runPendingTasks();
                     assertNull(peer.readOutbound());
                     assertEquals(2, inactiveFriendMembers(jdbcUrl, username, password));
-                    assertEquals(2, retainedFriendEntries(jdbcUrl, username, password));
+                    assertEquals(3, retainedFriendEntries(jdbcUrl, username, password));
                     assertEmptyFriendList(imported);
                     assertEmptyFriendList(peer);
 
@@ -344,6 +348,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1FriendRequestAcceptanceEventSink.noop(),
                 V1FriendRequestRejectionEventSink.noop(),
                 V1FriendRemovalEventSink.noop(),
+                V1DirectMessageEventSink.noop(),
                 V1UserSearchEventSink.noop(),
                 java.time.Duration.ofSeconds(10),
                 java.time.Duration.ofSeconds(15),
@@ -403,6 +408,53 @@ class GatewayRuntimePostgresIntegrationTest {
                     + targetUsername + "\""));
             assertFalse(response.text().contains("10000000-0000"));
         } finally { response.release(); }
+    }
+
+    private static void assertDirectMessageFirst(
+            EmbeddedChannel sender, EmbeddedChannel recipient) {
+        sendDirectMessage(sender);
+        sender.runPendingTasks();
+        TextWebSocketFrame response = sender.readOutbound();
+        TextWebSocketFrame senderLive = sender.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"FRIEND_CHAT_SEND_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"duplicate\":false"));
+            assertTrue(response.text().contains("\"friendshipId\":9"));
+            assertFalse(response.text().contains("40000000-0000"));
+            assertTrue(senderLive.text().contains("\"type\":\"FRIEND_CHAT_MSG\""));
+            assertTrue(senderLive.text().contains("\"sender\":\"imported-v1\""));
+            assertTrue(senderLive.text().contains("\"content\":\"hello Java V1\""));
+        } finally { response.release(); senderLive.release(); }
+        recipient.runPendingTasks();
+        TextWebSocketFrame recipientLive = recipient.readOutbound();
+        try {
+            assertTrue(recipientLive.text().contains("\"type\":\"FRIEND_CHAT_MSG\""));
+            assertTrue(recipientLive.text().contains("\"senderName\":\"Imported V1\""));
+            assertFalse(recipientLive.text().contains("10000000-0000"));
+        } finally { recipientLive.release(); }
+    }
+
+    private static void assertDirectMessageDuplicate(
+            EmbeddedChannel sender, EmbeddedChannel recipient) {
+        sendDirectMessage(sender);
+        sender.runPendingTasks();
+        TextWebSocketFrame response = sender.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"duplicate\":true"));
+        } finally { response.release(); }
+        assertNull(sender.readOutbound());
+        recipient.runPendingTasks();
+        assertNull(recipient.readOutbound());
+    }
+
+    private static void sendDirectMessage(EmbeddedChannel sender) {
+        sender.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"FRIEND_CHAT_MSG\",\"id\":\"direct-envelope\",\"data\":{"
+                        + "\"friendUsername\":\"imported-peer\","
+                        + "\"clientMessageId\":\"direct-client-1\","
+                        + "\"content\":\"hello Java V1\",\"contentType\":\"text\"}}"));
     }
 
     private static void assertEmptyFriendList(EmbeddedChannel channel) {
