@@ -8,6 +8,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1ConnectionAttributes;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1PendingFriendRequestEventSink;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
@@ -174,6 +175,20 @@ class GatewayRuntimePostgresIntegrationTest {
                 } finally {
                     friends.release();
                 }
+
+                imported.writeInbound(new TextWebSocketFrame(
+                        "{\"type\":\"FRIEND_PENDING_REQ\",\"id\":\"pending-1\",\"data\":{}}"));
+                imported.runPendingTasks();
+                TextWebSocketFrame pending = imported.readOutbound();
+                try {
+                    assertTrue(pending.text().contains("\"type\":\"FRIEND_PENDING_RSP\""));
+                    assertTrue(pending.text().contains("\"requestId\":70"));
+                    assertTrue(pending.text().contains("\"fromUserId\":44"));
+                    assertTrue(pending.text().contains("\"fromUsername\":\"imported-peer\""));
+                    assertFalse(pending.text().contains("10000000-0000"));
+                } finally {
+                    pending.release();
+                }
             } finally {
                 imported.finishAndReleaseAll();
             }
@@ -211,6 +226,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 events,
                 V1RoomDirectoryEventSink.noop(),
                 V1FriendDirectoryEventSink.noop(),
+                V1PendingFriendRequestEventSink.noop(),
                 java.time.Duration.ofSeconds(10),
                 java.time.Duration.ofSeconds(15),
                 java.time.Duration.ofSeconds(90)));
@@ -352,6 +368,9 @@ class GatewayRuntimePostgresIntegrationTest {
                     + "id, requester_account_id, recipient_account_id) VALUES ('"
                     + UUID.fromString("70000000-0000-0000-0000-000000000001") + "', '"
                     + peer + "', '" + imported + "')");
+            statement.execute("INSERT INTO chat.legacy_v1_contact_request_map("
+                    + "legacy_request_id, contact_request_id) VALUES (70, '"
+                    + UUID.fromString("70000000-0000-0000-0000-000000000001") + "')");
         }
     }
 

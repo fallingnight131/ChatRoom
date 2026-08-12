@@ -224,6 +224,11 @@ rejects duplicate/oversized results. Its PostgreSQL adapter reconciles the full
 canonical pending count against rows with both V1 request and requester mappings,
 so missing compatibility state cannot silently hide a request. Netty remains next.
 
+The detached module now also serves strict pending-request lists after login.
+Work runs off-loop, stale completions are suppressed, and malformed/saturated/
+incomplete paths close without returning a partial action list. The product
+listener remains unchanged.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then

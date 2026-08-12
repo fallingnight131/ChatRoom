@@ -3,6 +3,7 @@ package com.fallingnight.chat.gateway.runtime;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1AuthenticationService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1LoginService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendDirectoryService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1PendingFriendRequestService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomDirectoryService;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AccountConnectionRegistry;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AuthenticationTimeoutHandler;
@@ -10,6 +11,9 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1HeartbeatHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonFriendDirectoryCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonPendingFriendRequestCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1PendingFriendRequestEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1PendingFriendRequestHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLifecycleCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLoginCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomDirectoryCodec;
@@ -26,6 +30,7 @@ import com.fallingnight.chat.persistence.postgres.PostgresConversationDirectoryA
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1AccountProjection;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1ConversationProjection;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1FriendDirectoryAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1PendingFriendRequestAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.timeout.IdleStateHandler;
 import java.time.Clock;
@@ -40,6 +45,7 @@ public final class V1CompatibilityModule {
     private final LegacyV1LoginService login;
     private final LegacyV1RoomDirectoryService roomDirectory;
     private final LegacyV1FriendDirectoryService friendDirectory;
+    private final LegacyV1PendingFriendRequestService pendingRequests;
     private final Clock clock;
     private final V1AccountConnectionRegistry connections;
 
@@ -47,11 +53,13 @@ public final class V1CompatibilityModule {
             LegacyV1LoginService login,
             LegacyV1RoomDirectoryService roomDirectory,
             LegacyV1FriendDirectoryService friendDirectory,
+            LegacyV1PendingFriendRequestService pendingRequests,
             Clock clock,
             V1AccountConnectionRegistry connections) {
         this.login = Objects.requireNonNull(login, "login");
         this.roomDirectory = Objects.requireNonNull(roomDirectory, "roomDirectory");
         this.friendDirectory = Objects.requireNonNull(friendDirectory, "friendDirectory");
+        this.pendingRequests = Objects.requireNonNull(pendingRequests, "pendingRequests");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.connections = Objects.requireNonNull(connections, "connections");
     }
@@ -83,6 +91,8 @@ public final class V1CompatibilityModule {
                         legacyConversations,
                         legacy,
                         connections::onlineAccounts),
+                new LegacyV1PendingFriendRequestService(
+                        new PostgresLegacyV1PendingFriendRequestAdapter(dataSource)),
                 clock,
                 connections);
     }
@@ -94,6 +104,7 @@ public final class V1CompatibilityModule {
             AuthenticationEventSink events,
             V1RoomDirectoryEventSink directoryEvents,
             V1FriendDirectoryEventSink friendEvents,
+            V1PendingFriendRequestEventSink pendingEvents,
             Duration upgradeTimeout,
             Duration authenticationTimeout,
             Duration authenticatedIdleTimeout) {
@@ -106,6 +117,7 @@ public final class V1CompatibilityModule {
                         events,
                         directoryEvents,
                         friendEvents,
+                        pendingEvents,
                         authenticationTimeout,
                         authenticatedIdleTimeout),
                 upgradeTimeout);
@@ -119,6 +131,7 @@ public final class V1CompatibilityModule {
             AuthenticationEventSink events,
             V1RoomDirectoryEventSink directoryEvents,
             V1FriendDirectoryEventSink friendEvents,
+            V1PendingFriendRequestEventSink pendingEvents,
             Duration authenticationTimeout,
             Duration authenticatedIdleTimeout) {
         Objects.requireNonNull(pipeline, "pipeline");
@@ -150,5 +163,10 @@ public final class V1CompatibilityModule {
                 new V1JsonFriendDirectoryCodec(clock),
                 directoryExecutor,
                 friendEvents));
+        pipeline.addLast("v1-pending-friend-requests", new V1PendingFriendRequestHandler(
+                pendingRequests,
+                new V1JsonPendingFriendRequestCodec(clock),
+                directoryExecutor,
+                pendingEvents));
     }
 }

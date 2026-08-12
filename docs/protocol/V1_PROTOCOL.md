@@ -313,6 +313,11 @@ message-row unread count, `peerLastReadMessageId`, and pending request count.
 Any incomplete compatibility projection closes the detached connection rather
 than sending an empty authoritative list. This route remains inactive.
 
+The same detached module reproduces `FRIEND_PENDING_RSP` with mapped numeric
+request/requester IDs, requester names, and canonical creation epoch
+milliseconds. Incomplete mapping or dependency failure closes without a partial
+action list; this route also remains inactive.
+
 ### Recall
 
 Recall is limited to 120 seconds for normal user recall. Administration has
