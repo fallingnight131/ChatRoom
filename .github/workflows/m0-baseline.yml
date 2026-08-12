@@ -103,6 +103,7 @@ jobs:
           python3 Tests/web_browser_support_matrix_workflow_test.py
           python3 Tests/web_browser_matrix_completion_test.py
           python3 Tests/web_release_health_window_test.py
+          python3 Tests/web_staged_release_completion_test.py
 
       - name: Assemble undeployed Web verification artifact
         id: web-version

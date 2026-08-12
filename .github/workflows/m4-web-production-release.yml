@@ -359,6 +359,14 @@ jobs:
             --post-release-observation "$evidence/post-static.json" \
             --post-route-observation "$evidence/post-routes.json" \
             --output "$evidence/production-completion.json"
+          common=(
+            --evidence-root "$evidence"
+            --release-root "$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.candidate_id }}"
+            --rollback-release-root "$WEB_STORE_ROOT/releases/${{ steps.identity.outputs.rollback_id }}"
+            --output "$evidence/staged-release-completion.json"
+          )
+          python3 tools/web_staged_release_completion.py record "${common[@]}"
+          python3 tools/web_staged_release_completion.py verify "${common[@]}"
 
       - name: Restore pre-authorized release after observation failure
         id: rollback

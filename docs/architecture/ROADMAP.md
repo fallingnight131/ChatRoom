@@ -757,6 +757,9 @@ Progress:
 - [x] Gate the Web production workflow on pre-approval preview, post-approval
   preview, and post-switch production health windows, with production failure
   entering the pre-authorized rollback path; no real run claimed.
+- [x] Independently close the reviewed preview window, pointer execution,
+  production window, and production completion as one write-once staged Web
+  release result; no real run claimed.
 - [x] Establish a root CMake Release path for the exact V1 HeadlessServer
   production sources, Qt/libsodium dependency discovery, AUTOMOC, CI build, and
   real process-health test while leaving Windows product packaging on qmake.

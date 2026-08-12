@@ -209,6 +209,12 @@ switch. A failed production window enters the existing pre-authorized rollback
 path. These are staged technical gates, not a percentage traffic rollout, and
 no real run is claimed. See ADR-0212.
 
+Before the workflow reports success, `tools/web_staged_release_completion.py`
+independently reverifies and hashes the reviewed preview window, atomic pointer
+execution, production window, and promotion completion into one write-once
+record. This prevents evidence from separate attempts being combined during a
+later audit. See ADR-0213.
+
 ```bash
 python3 tools/web_release_execution.py execute \
   --authorization /path/to/evidence/web-production-authorization.json \

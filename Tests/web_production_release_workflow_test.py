@@ -42,6 +42,9 @@ class WebProductionReleaseWorkflowTest(unittest.TestCase):
             "web_release_health_window.py verify",
             "candidate-preview-health-reviewed.json",
             "production-health.json", "sleep 30",
+            "web_staged_release_completion.py record",
+            "web_staged_release_completion.py verify",
+            "staged-release-completion.json",
             "steps.execute.outcome == 'success'", "steps.complete.outcome != 'success'",
             "retention-days: 90",
         ):
