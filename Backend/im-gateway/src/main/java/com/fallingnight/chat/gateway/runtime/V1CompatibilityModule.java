@@ -3,6 +3,7 @@ package com.fallingnight.chat.gateway.runtime;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1AuthenticationService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1LoginService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendDirectoryService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestRejectionService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1PendingFriendRequestService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomDirectoryService;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AccountConnectionRegistry;
@@ -10,7 +11,10 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1AuthenticationTimeoutHan
 import com.fallingnight.chat.gateway.compatibility.v1.V1HeartbeatHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryHandler;
+import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestRejectionEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestRejectionHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonFriendDirectoryCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonFriendRequestRejectionCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonPendingFriendRequestCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1PendingFriendRequestEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1PendingFriendRequestHandler;
@@ -30,6 +34,7 @@ import com.fallingnight.chat.persistence.postgres.PostgresConversationDirectoryA
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1AccountProjection;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1ConversationProjection;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1FriendDirectoryAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1FriendRequestDecisionAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1PendingFriendRequestAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.timeout.IdleStateHandler;
@@ -46,6 +51,7 @@ public final class V1CompatibilityModule {
     private final LegacyV1RoomDirectoryService roomDirectory;
     private final LegacyV1FriendDirectoryService friendDirectory;
     private final LegacyV1PendingFriendRequestService pendingRequests;
+    private final LegacyV1FriendRequestRejectionService friendRequestRejection;
     private final Clock clock;
     private final V1AccountConnectionRegistry connections;
 
@@ -54,12 +60,15 @@ public final class V1CompatibilityModule {
             LegacyV1RoomDirectoryService roomDirectory,
             LegacyV1FriendDirectoryService friendDirectory,
             LegacyV1PendingFriendRequestService pendingRequests,
+            LegacyV1FriendRequestRejectionService friendRequestRejection,
             Clock clock,
             V1AccountConnectionRegistry connections) {
         this.login = Objects.requireNonNull(login, "login");
         this.roomDirectory = Objects.requireNonNull(roomDirectory, "roomDirectory");
         this.friendDirectory = Objects.requireNonNull(friendDirectory, "friendDirectory");
         this.pendingRequests = Objects.requireNonNull(pendingRequests, "pendingRequests");
+        this.friendRequestRejection = Objects.requireNonNull(
+                friendRequestRejection, "friendRequestRejection");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.connections = Objects.requireNonNull(connections, "connections");
     }
@@ -93,6 +102,8 @@ public final class V1CompatibilityModule {
                         connections::onlineAccounts),
                 new LegacyV1PendingFriendRequestService(
                         new PostgresLegacyV1PendingFriendRequestAdapter(dataSource)),
+                new LegacyV1FriendRequestRejectionService(
+                        new PostgresLegacyV1FriendRequestDecisionAdapter(dataSource)),
                 clock,
                 connections);
     }
@@ -105,6 +116,7 @@ public final class V1CompatibilityModule {
             V1RoomDirectoryEventSink directoryEvents,
             V1FriendDirectoryEventSink friendEvents,
             V1PendingFriendRequestEventSink pendingEvents,
+            V1FriendRequestRejectionEventSink rejectionEvents,
             Duration upgradeTimeout,
             Duration authenticationTimeout,
             Duration authenticatedIdleTimeout) {
@@ -118,6 +130,7 @@ public final class V1CompatibilityModule {
                         directoryEvents,
                         friendEvents,
                         pendingEvents,
+                        rejectionEvents,
                         authenticationTimeout,
                         authenticatedIdleTimeout),
                 upgradeTimeout);
@@ -132,6 +145,7 @@ public final class V1CompatibilityModule {
             V1RoomDirectoryEventSink directoryEvents,
             V1FriendDirectoryEventSink friendEvents,
             V1PendingFriendRequestEventSink pendingEvents,
+            V1FriendRequestRejectionEventSink rejectionEvents,
             Duration authenticationTimeout,
             Duration authenticatedIdleTimeout) {
         Objects.requireNonNull(pipeline, "pipeline");
@@ -168,5 +182,10 @@ public final class V1CompatibilityModule {
                 new V1JsonPendingFriendRequestCodec(clock),
                 directoryExecutor,
                 pendingEvents));
+        pipeline.addLast("v1-friend-request-rejection", new V1FriendRequestRejectionHandler(
+                friendRequestRejection,
+                new V1JsonFriendRequestRejectionCodec(clock),
+                directoryExecutor,
+                rejectionEvents));
     }
 }

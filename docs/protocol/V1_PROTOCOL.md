@@ -318,6 +318,16 @@ request/requester IDs, requester names, and canonical creation epoch
 milliseconds. Incomplete mapping or dependency failure closes without a partial
 action list; this route also remains inactive.
 
+The detached module also parses `FRIEND_REJECT_REQ.data.requestId` as one
+positive 32-bit-compatible integer and takes the recipient only from the
+authenticated connection. First rejection and an exact same-recipient retry
+both return `FRIEND_REJECT_RSP.data.success=true`; ordinary authorization or
+state denial returns `success=false` with the existing generic
+`error="\u5904\u7406\u597d\u53cb\u8bf7\u6c42\u5931\u8d25"`. No new duplicate field or canonical UUID is
+added. Malformed, saturated, or dependency-failed handling closes rather than
+inventing a mutation result. This composed route remains detached from the
+product listener.
+
 ### Recall
 
 Recall is limited to 120 seconds for normal user recall. Administration has

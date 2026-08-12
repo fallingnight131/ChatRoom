@@ -290,6 +290,12 @@ authenticated server connection. It moves only `PENDING` to `REJECTED` and sets
 same recipient is an exact idempotent retry; missing mappings, wrong recipients,
 and other terminal states fail generically. No route invokes this adapter yet.
 
+The detached V1 module now composes this adapter behind strict authenticated
+`FRIEND_REJECT_REQ` handling. Disposable-database verification covers first
+apply, exact retry, durable resolution, and subsequent empty pending projection.
+The product listener still does not install the compatibility module, so this is
+not a PostgreSQL traffic-authority cutover.
+
 ## Bounds and indexes
 
 - identifiers are limited to 128 characters at this storage boundary and are

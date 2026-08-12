@@ -236,6 +236,15 @@ only its enabled authenticated recipient to move `PENDING` to `REJECTED` using
 database time. The same recipient's exact retry is idempotent; every other
 identity or terminal-state case is a generic rejection. No route invokes it yet.
 
+The detached module now composes that rejection boundary after pending-request
+reads. Its strict bounded JSON/Netty handler binds authorization to channel
+identity, runs one mutation at a time off the event loop, and suppresses late
+results. Exact first and duplicate decisions both retain V1 `success=true`;
+ordinary denial returns the existing generic failure without disconnecting,
+while malformed, saturated, or failed infrastructure paths close safely. Fixed
+telemetry contains no user or request identifiers. The product listener remains
+unchanged.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then

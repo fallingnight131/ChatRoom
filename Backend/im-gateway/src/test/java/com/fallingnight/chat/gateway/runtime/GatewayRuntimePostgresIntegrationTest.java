@@ -8,6 +8,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1ConnectionAttributes;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestRejectionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1PendingFriendRequestEventSink;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
@@ -189,6 +190,22 @@ class GatewayRuntimePostgresIntegrationTest {
                 } finally {
                     pending.release();
                 }
+
+                assertFriendRejectionSuccess(imported);
+                assertFriendRejectionSuccess(imported);
+                assertEquals(1, rejectedRequestCount(jdbcUrl, username, password));
+
+                imported.writeInbound(new TextWebSocketFrame(
+                        "{\"type\":\"FRIEND_PENDING_REQ\",\"id\":\"pending-2\",\"data\":{}}"));
+                imported.runPendingTasks();
+                TextWebSocketFrame refreshed = imported.readOutbound();
+                try {
+                    assertTrue(refreshed.text().contains("\"type\":\"FRIEND_PENDING_RSP\""));
+                    assertTrue(refreshed.text().contains("\"requests\":[]"));
+                    assertFalse(refreshed.text().contains("10000000-0000"));
+                } finally {
+                    refreshed.release();
+                }
             } finally {
                 imported.finishAndReleaseAll();
             }
@@ -227,6 +244,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomDirectoryEventSink.noop(),
                 V1FriendDirectoryEventSink.noop(),
                 V1PendingFriendRequestEventSink.noop(),
+                V1FriendRequestRejectionEventSink.noop(),
                 java.time.Duration.ofSeconds(10),
                 java.time.Duration.ofSeconds(15),
                 java.time.Duration.ofSeconds(90)));
@@ -243,6 +261,20 @@ class GatewayRuntimePostgresIntegrationTest {
         return new TextWebSocketFrame(
                 "{\"type\":\"LOGIN_REQ\",\"data\":{\"username\":\""
                         + username + "\",\"password\":\"" + password + "\"}}");
+    }
+
+    private static void assertFriendRejectionSuccess(EmbeddedChannel channel) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"FRIEND_REJECT_REQ\",\"data\":{\"requestId\":70}}"));
+        channel.runPendingTasks();
+        TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"FRIEND_REJECT_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertFalse(response.text().contains("10000000-0000"));
+        } finally {
+            response.release();
+        }
     }
 
     private static void seedV1CompatibilityAccounts(
@@ -393,6 +425,18 @@ class GatewayRuntimePostgresIntegrationTest {
                                 + "WHERE client_device_id = 'legacy-v1-web'")) {
             assertTrue(result.next());
             return result.getString(1);
+        }
+    }
+
+    private static int rejectedRequestCount(
+            String url, String user, String password) throws Exception {
+        try (Connection connection = DriverManager.getConnection(url, user, password);
+                Statement statement = connection.createStatement();
+                ResultSet result = statement.executeQuery(
+                        "SELECT count(*) FROM chat.contact_request "
+                                + "WHERE state = 'REJECTED' AND resolved_at IS NOT NULL")) {
+            assertTrue(result.next());
+            return result.getInt(1);
         }
     }
 
