@@ -315,7 +315,9 @@ GROUP, OWNER, optional Argon2id credential, ROOM mapping, and keyed idempotency
 record atomically, skip occupied imported room IDs, and converge concurrent
 exact retries. The identity-crypto adapter now produces compatible salted
 Argon2id plus fixed-domain HMAC-SHA-256 tags from an owned 32-byte runtime key
-and zeros that key on close. Runtime key parsing and the handler do not exist yet.
+and zeros that key on close. The detached runtime key boundary now requires canonical padded Base64 for
+exactly 32 bytes, has no default, and owns deterministic cleanup. It is not yet
+wired into the module or product listener.
 
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target

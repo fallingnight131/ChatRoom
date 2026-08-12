@@ -244,7 +244,9 @@ mapping, and keyed idempotency record atomically; exact retries recover the same
 numeric room ID while conflicting title or password-tag reuse is rejected. No
 handler or product route exists yet. The crypto adapter now emits compatible
 salted Argon2id plus `hmac-sha256:v1` tags under an owned, close-zeroed 32-byte
-runtime key. No environment parser, handler, or product route exists yet.
+runtime key. The detached runtime parser now requires explicit canonical padded Base64 for
+exactly 32 bytes and provides no default; it is not yet composed into a handler
+or product route.
 
 ### Room chat
 

@@ -563,6 +563,8 @@ Progress:
   - [x] Implement the room-password crypto port with salted compatible Argon2id,
     fixed-domain HMAC-SHA-256 retry tags, strict 32-byte key ownership, and
     deterministic secret cleanup.
+  - [x] Add mandatory canonical 32-byte secret-manager input for detached V1
+    protected-room retry tags, with no default and close-zeroed lifecycle.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

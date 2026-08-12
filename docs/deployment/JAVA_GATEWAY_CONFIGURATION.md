@@ -14,6 +14,7 @@ keys, production endpoints, or certificate material.
 | --- | --- |
 | `CHATROOM_GATEWAY_TLS_CERTIFICATE` | readable PEM certificate-chain file |
 | `CHATROOM_GATEWAY_TLS_PRIVATE_KEY` | different readable PEM private-key file |
+| `CHATROOM_V1_ROOM_PASSWORD_HMAC_KEY_BASE64` | canonical padded Base64 for exactly 32 random bytes; currently consumed only when composing the detached V1 room-creation module |
 | `CHATROOM_GATEWAY_ALLOWED_HOSTS` | comma-separated exact TLS authorities |
 | `CHATROOM_GATEWAY_WEB_ORIGINS` | comma-separated exact HTTPS browser origins |
 | `CHATROOM_POSTGRES_URL` | `jdbc:postgresql://...?...sslmode=verify-full` URL |
@@ -23,6 +24,13 @@ keys, production endpoints, or certificate material.
 `CHATROOM_GATEWAY_TLS_PRIVATE_KEY_PASSWORD` is optional. Its absence means the
 PEM key must be usable without an application password and protected by host
 filesystem permissions and secret delivery controls.
+
+The V1 room-password key has no default and must come from secret-manager
+injection rather than a command-line argument or committed environment file.
+Keep it stable while V023 room-creation idempotency records exist. Rotation
+requires a future versioned multi-key migration; changing it directly makes
+same-password retries conflict. The product listener does not consume this key
+yet because the V1 compatibility route remains detached.
 
 ## Inactive attachment object-storage values
 
