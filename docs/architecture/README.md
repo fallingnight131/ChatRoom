@@ -391,6 +391,16 @@ preserves `username`/`displayName`/`isAdmin`/`isOnline` without UUID exposure.
 Real PostgreSQL gateway integration proves two logged-in mapped members are
 projected online. The product listener remains unchanged.
 
+Room entry also needs an authoritative settings projection. The application
+boundary accepts only a server-bound actor and positive legacy room ID and never
+synthesizes missing policy. V027 adds a trigger-backed GROUP resource policy for
+per-file size, total space, and file-count limits; member capacity remains in
+the admission policy. The verified SQLite conversation import now requires,
+fingerprints, validates, and exactly reconciles all four `room_settings` values.
+Only enabled active members of active mapped GROUPs can read the joined policy
+snapshot. Mutation-shaped `ROOM_SETTINGS_REQ` remains outside this read slice
+until its administrator, cleanup, audit, and key-management behavior is defined.
+
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target
 username; clients cannot supply canonical IDs. Missing/self/already-friend/

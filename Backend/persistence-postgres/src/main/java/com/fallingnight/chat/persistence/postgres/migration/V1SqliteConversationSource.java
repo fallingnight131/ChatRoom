@@ -25,7 +25,8 @@ public final class V1SqliteConversationSource {
     private static final Map<String, Set<String>> REQUIRED_COLUMNS = Map.of(
             "users", Set.of("id"),
             "rooms", Set.of("id", "name", "creator_id", "created_at"),
-            "room_settings", Set.of("room_id", "max_members"),
+            "room_settings", Set.of("room_id", "max_file_size", "total_file_space",
+                    "max_file_count", "max_members"),
             "room_members", Set.of(
                     "room_id", "user_id", "joined_at", "last_read_msg_id"),
             "room_admins", Set.of("room_id", "user_id"),
@@ -117,6 +118,9 @@ public final class V1SqliteConversationSource {
         try (Statement statement = connection.createStatement();
                 ResultSet result = statement.executeQuery(
                         "SELECT rooms.id, rooms.name, rooms.creator_id, rooms.created_at, "
+                                + "COALESCE(settings.max_file_size, 10737418240) AS max_file_size, "
+                                + "COALESCE(settings.total_file_space, 10737418240) AS total_file_space, "
+                                + "COALESCE(settings.max_file_count, 1500) AS max_file_count, "
                                 + "COALESCE(settings.max_members, 50) AS max_members "
                                 + "FROM rooms LEFT JOIN room_settings settings "
                                 + "ON settings.room_id = rooms.id ORDER BY rooms.id")) {
@@ -125,6 +129,9 @@ public final class V1SqliteConversationSource {
                         result.getLong("id"),
                         result.getString("name"),
                         result.getLong("creator_id"),
+                        result.getLong("max_file_size"),
+                        result.getLong("total_file_space"),
+                        result.getInt("max_file_count"),
                         result.getInt("max_members"),
                         parseTimestamp(result.getString("created_at"))));
             }

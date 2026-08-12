@@ -144,6 +144,16 @@ timestamp is durable dissolution. Last-member V1 leave closes the lifecycle
 without deleting messages, entries, attachments, mappings, or audit evidence.
 Generic directory/message/attachment authorization and all current V1 room
 adapters require an active lifecycle row and fail closed when it is missing.
+V027 adds one GROUP-only resource-policy row with JSON-safe positive per-file
+and total-space limits plus a positive file-count limit. Existing GROUPs are
+backfilled with V1-compatible defaults and an insert trigger covers every future
+GROUP. Verified V1 conversation input now requires all four `room_settings`
+columns, folds their effective values into the source fingerprint, validates
+their cross-field invariants, and exactly reconciles both the resource and
+admission policy rows. Only an untouched V027 resource default may be replaced
+by counted compare-and-set; a customized mismatch blocks the import. The V1
+settings projection joins both policy rows and active lifecycle/membership in a
+repeatable-read transaction.
 The read-only application compatibility port keeps the namespace type alongside
 the numeric ID and supports both V1-to-V2 request translation and V2-to-V1 event
 projection. Its PostgreSQL adapter does not create mappings, infer identities,
@@ -433,7 +443,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V026, reruns migration as a simulated
+cluster, migrates a clean database through current V027, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable

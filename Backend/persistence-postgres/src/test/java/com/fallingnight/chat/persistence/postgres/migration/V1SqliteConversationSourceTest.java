@@ -26,7 +26,9 @@ class V1SqliteConversationSourceTest {
             statement.execute("INSERT INTO users(id) VALUES (1), (2)");
             statement.execute("INSERT INTO rooms VALUES "
                     + "(10, 'Project Room', 1, '2026-01-02 03:04:05')");
-            statement.execute("INSERT INTO room_settings VALUES (10, 321)");
+            statement.execute("INSERT INTO room_settings(room_id, max_file_size, "
+                    + "total_file_space, max_file_count, max_members) "
+                    + "VALUES (10, 2048, 8192, 42, 321)");
             statement.execute("INSERT INTO room_members VALUES "
                     + "(10, 1, '2026-01-02 03:04:05', 7), "
                     + "(10, 2, '2026-01-02T03:04:06Z', 9)");
@@ -41,9 +43,13 @@ class V1SqliteConversationSourceTest {
             assertTrue(plan.readyToCompareWithTarget());
             assertEquals(2, plan.conversations().size());
             assertEquals(4, plan.memberships().size());
-            assertEquals(321, plan.conversations().stream()
+            PlannedV1Conversation room = plan.conversations().stream()
                     .filter(conversation -> conversation.maxMembers() != null)
-                    .findFirst().orElseThrow().maxMembers());
+                    .findFirst().orElseThrow();
+            assertEquals(321, room.maxMembers());
+            assertEquals(2048, room.maxFileSize());
+            assertEquals(8192, room.totalFileSpace());
+            assertEquals(42, room.maxFileCount());
             assertTrue(plan.memberships().stream().anyMatch(
                     member -> "ADMIN".equals(member.role())
                             && member.legacyLastReadMessageId() == 9));
@@ -108,7 +114,9 @@ class V1SqliteConversationSourceTest {
         statement.execute("CREATE TABLE room_members(room_id INTEGER, user_id INTEGER, "
                 + "joined_at TEXT, last_read_msg_id INTEGER, PRIMARY KEY(room_id, user_id))");
         statement.execute("CREATE TABLE room_settings(room_id INTEGER PRIMARY KEY, "
-                + "max_members INTEGER)");
+                + "max_file_size INTEGER DEFAULT 10737418240, "
+                + "total_file_space INTEGER DEFAULT 10737418240, "
+                + "max_file_count INTEGER DEFAULT 1500, max_members INTEGER)");
         statement.execute("CREATE TABLE room_admins(room_id INTEGER, user_id INTEGER, "
                 + "PRIMARY KEY(room_id, user_id))");
         statement.execute("CREATE TABLE friendships(id INTEGER PRIMARY KEY, "

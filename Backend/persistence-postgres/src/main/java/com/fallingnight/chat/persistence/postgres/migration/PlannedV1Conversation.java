@@ -11,6 +11,9 @@ public record PlannedV1Conversation(
         long legacyId,
         UUID conversationId,
         String groupTitle,
+        Long maxFileSize,
+        Long totalFileSpace,
+        Integer maxFileCount,
         Integer maxMembers,
         UUID firstAccountId,
         UUID secondAccountId,
@@ -21,7 +24,16 @@ public record PlannedV1Conversation(
         Objects.requireNonNull(createdAt, "createdAt");
         if (legacyKind == LegacyV1ConversationKind.ROOM) {
             Objects.requireNonNull(groupTitle, "groupTitle");
+            Objects.requireNonNull(maxFileSize, "maxFileSize");
+            Objects.requireNonNull(totalFileSpace, "totalFileSpace");
+            Objects.requireNonNull(maxFileCount, "maxFileCount");
             Objects.requireNonNull(maxMembers, "maxMembers");
+            if (maxFileSize < 1 || maxFileSize > 9_007_199_254_740_991L
+                    || totalFileSpace < maxFileSize
+                    || totalFileSpace > 9_007_199_254_740_991L
+                    || maxFileCount < 1) {
+                throw new IllegalArgumentException("room resource limits are unsupported");
+            }
             if (maxMembers < 1 || maxMembers > 1_000_000) {
                 throw new IllegalArgumentException("room member limit is unsupported");
             }
@@ -29,7 +41,8 @@ public record PlannedV1Conversation(
                 throw new IllegalArgumentException("room cannot carry direct pair");
             }
         } else {
-            if (groupTitle != null || maxMembers != null) {
+            if (groupTitle != null || maxFileSize != null || totalFileSpace != null
+                    || maxFileCount != null || maxMembers != null) {
                 throw new IllegalArgumentException("friendship cannot carry group title");
             }
             Objects.requireNonNull(firstAccountId, "firstAccountId");

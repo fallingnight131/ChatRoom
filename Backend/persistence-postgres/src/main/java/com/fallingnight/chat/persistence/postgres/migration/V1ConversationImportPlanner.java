@@ -57,6 +57,9 @@ public final class V1ConversationImportPlanner {
                     room.legacyRoomId(),
                     conversationId,
                     room.name(),
+                    room.maxFileSize(),
+                    room.totalFileSpace(),
+                    room.maxFileCount(),
                     room.maxMembers(),
                     null,
                     null,
@@ -109,6 +112,9 @@ public final class V1ConversationImportPlanner {
                     LegacyV1ConversationKind.FRIENDSHIP,
                     friendship.legacyFriendshipId(),
                     conversationId,
+                    null,
+                    null,
+                    null,
                     null,
                     null,
                     canonicalFirst,
@@ -183,6 +189,23 @@ public final class V1ConversationImportPlanner {
             issues.add(issue(LegacyV1ConversationKind.ROOM, id,
                     "INVALID_ROOM_MEMBER_LIMIT",
                     "room member limit must be between 1 and 1000000"));
+        }
+        if (room.maxFileSize() < 1
+                || room.maxFileSize() > 9_007_199_254_740_991L) {
+            issues.add(issue(LegacyV1ConversationKind.ROOM, id,
+                    "INVALID_ROOM_MAX_FILE_SIZE",
+                    "room max file size must be a positive JSON-safe integer"));
+        }
+        if (room.totalFileSpace() < room.maxFileSize()
+                || room.totalFileSpace() > 9_007_199_254_740_991L) {
+            issues.add(issue(LegacyV1ConversationKind.ROOM, id,
+                    "INVALID_ROOM_TOTAL_FILE_SPACE",
+                    "room total file space must cover one file and be JSON-safe"));
+        }
+        if (room.maxFileCount() < 1) {
+            issues.add(issue(LegacyV1ConversationKind.ROOM, id,
+                    "INVALID_ROOM_MAX_FILE_COUNT",
+                    "room max file count must be positive"));
         }
         Set<Long> memberIds = new HashSet<>();
         for (V1RoomMembershipRow member : members) {
@@ -301,6 +324,9 @@ public final class V1ConversationImportPlanner {
                 data.writeLong(row.legacyRoomId());
                 writeNullable(data, row.name());
                 data.writeLong(row.creatorUserId());
+                data.writeLong(row.maxFileSize());
+                data.writeLong(row.totalFileSpace());
+                data.writeInt(row.maxFileCount());
                 data.writeInt(row.maxMembers());
                 writeNullable(data, row.createdAt() == null ? null : row.createdAt().toString());
             }

@@ -55,7 +55,9 @@ class V1SqliteMessageStateSourceTest {
             statement.execute("CREATE TABLE room_members (room_id INTEGER, user_id INTEGER, "
                     + "joined_at TEXT, last_read_msg_id INTEGER)");
             statement.execute("CREATE TABLE room_settings (room_id INTEGER PRIMARY KEY, "
-                    + "max_members INTEGER)");
+                    + "max_file_size INTEGER DEFAULT 10737418240, "
+                    + "total_file_space INTEGER DEFAULT 10737418240, "
+                    + "max_file_count INTEGER DEFAULT 1500, max_members INTEGER)");
             statement.execute("CREATE TABLE room_admins (room_id INTEGER, user_id INTEGER)");
             statement.execute("CREATE TABLE friendships (id INTEGER PRIMARY KEY, "
                     + "user_id1 INTEGER, user_id2 INTEGER, created_at TEXT, "
@@ -82,7 +84,7 @@ class V1SqliteMessageStateSourceTest {
             statement.execute("INSERT INTO users(id) VALUES (1), (2), (3)");
             statement.execute("INSERT INTO rooms VALUES "
                     + "(9, 'Room', 1, '2026-01-02 03:04:05')");
-            statement.execute("INSERT INTO room_settings VALUES (9, 83)");
+            statement.execute("INSERT INTO room_settings(room_id, max_members) VALUES (9, 83)");
             statement.execute("INSERT INTO room_members VALUES "
                     + "(9, 1, '2026-01-02 03:04:05', 100), "
                     + "(9, 2, '2026-01-02 03:04:05', 105)");

@@ -14,6 +14,7 @@ public record V1ConversationImportReport(
         int insertableMemberships,
         int alreadyImportedMemberships,
         int admissionPoliciesToUpdate,
+        int resourcePoliciesToUpdate,
         List<V1ConversationImportIssue> issues,
         boolean applied,
         boolean reconciled,
@@ -21,8 +22,8 @@ public record V1ConversationImportReport(
     public V1ConversationImportReport {
         Objects.requireNonNull(sourceFingerprintSha256, "sourceFingerprintSha256");
         issues = List.copyOf(issues);
-        if (admissionPoliciesToUpdate < 0) {
-            throw new IllegalArgumentException("negative admission policy update count");
+        if (admissionPoliciesToUpdate < 0 || resourcePoliciesToUpdate < 0) {
+            throw new IllegalArgumentException("negative policy update count");
         }
         if (!applied && importRunId != null) {
             throw new IllegalArgumentException("a preview cannot contain an import run");
