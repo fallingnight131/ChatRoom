@@ -235,8 +235,14 @@ execution evidence already pre-authorized the exact B→A pair. It requires B to
 be current, writes a one-time marker, and restores A atomically. If rollback
 evidence persistence fails, A remains active instead of switching back to the
 failed B. Its status remains `awaiting-external-observation`; probe restored A
-and complete `web_rollback_evidence.py` before closing the incident. Run
+and its application routes, then complete
+`web_release_rollback_completion.py`. The completion binds exact A static
+bytes/headers, `/api/health`, `/ws`, the rollback execution, origin, and a
+ten-minute default recovery window. Generic `web_rollback_evidence.py` remains
+an A/B/A no-rebuild rehearsal but cannot close a production incident alone. Run
 `python3 Tests/web_release_rollback_execution_test.py` for this failure policy.
+Run `python3 Tests/web_release_rollback_completion_test.py` for the observed
+recovery boundary. See ADR-0204.
 
 Production Web builds resolve V1 WebSocket traffic to `wss://<page-authority>/ws`
 and file traffic below same-origin `/api/`; the HTTPS reverse proxy must own both

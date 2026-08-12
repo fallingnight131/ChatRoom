@@ -740,6 +740,9 @@ Progress:
 - [x] Add a one-time incident rollback consumer derived from durable execution
   evidence, requiring B as current and restoring only pre-authorized A without
   switching back to failed B on evidence-write failure.
+- [x] Bind post-rollback strict HTTPS observation of exact A and same-origin
+  `/api/health` plus `/ws` routing to rollback execution in a bounded immutable
+  production rollback-completion record.
 - [x] Establish a root CMake Release path for the exact V1 HeadlessServer
   production sources, Qt/libsodium dependency discovery, AUTOMOC, CI build, and
   real process-health test while leaving Windows product packaging on qmake.

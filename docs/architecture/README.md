@@ -1287,6 +1287,12 @@ their full closures, and emits one immutable matrix result. Every release
 support decision is therefore tied to one exact prior-to-current transition,
 not a collection of individually plausible historical checks.
 
+ADR-0204 strengthens Web incident recovery. Restoring the A pointer is pending
+until fresh production HTTPS evidence reproduces exact A assets/policy and the
+same origin answers both `/api/health` and a nonce-bound `/ws` upgrade inside a
+bounded window. Static-only A/B/A evidence remains useful rehearsal but cannot
+close a production rollback by itself.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,
