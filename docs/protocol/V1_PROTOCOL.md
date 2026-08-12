@@ -342,6 +342,14 @@ saturation, and dependency failure close instead of fabricating an empty success
 list. Presence is process-local and may change across requests. The product
 listener remains inactive.
 
+The next detached contact boundary defines `FRIEND_REQUEST_REQ.data.username`
+as one exact non-control V1 username of at most 128 UTF-8 bytes. The authenticated
+connection owns the requester and persistence resolves the recipient. A first
+same-direction request and its exact pending retry both return `success=true`,
+but only first apply may emit `FRIEND_REQUEST_NOTIFY`. Missing user, self,
+already-friend, reverse-pending, and invalid target retain distinct failure
+semantics. No request-creation adapter or handler is composed yet.
+
 The next detached compatibility boundary defines `FRIEND_ACCEPT_REQ` with the
 same positive `data.requestId` and authenticated-recipient rule. First apply and
 an exact retry will both preserve `FRIEND_ACCEPT_RSP.data.success=true`, but only

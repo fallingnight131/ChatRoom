@@ -291,6 +291,13 @@ Fixed telemetry contains no search text or identity. Real PostgreSQL verificatio
 proves offline-to-online presence projection without UUID exposure. The product
 listener remains unchanged.
 
+Friend-request creation now has a transport-independent boundary. The requester
+comes only from authenticated state and PostgreSQL will resolve the exact target
+username; clients cannot supply canonical IDs. Missing/self/already-friend/
+reverse-pending/invalid outcomes remain distinct. A same-direction pending row
+is an idempotent success for response-loss recovery but never repeats online
+notification. No persistence adapter or handler exists yet.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then
