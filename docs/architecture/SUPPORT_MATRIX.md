@@ -180,6 +180,12 @@ that recomputes final client/helper/Setup hashes and enforces exact identity,
 schema, signer, timestamp, and freshness. Fixture success validates the parser,
 not Windows signatures or product support.
 
+After independent evidence verification, the complete `windeployqt` payload is
+assembled with Setup and evidence into one immutable candidate. Required Qt
+Core/platform, SQLite, and libsodium runtimes are closed by a sorted file
+manifest; server/debug/key/environment files are rejected. Candidate assembly
+still does not satisfy clean-host or public support gates.
+
 The Windows client now owns a session-local liveness mutex and refuses a second
 instance. NSIS checks the same mutex before mutation and returns 4 for a silent
 running-client attempt; native CI is configured to prove the current install and

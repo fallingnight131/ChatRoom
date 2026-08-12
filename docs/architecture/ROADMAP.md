@@ -629,6 +629,9 @@ Progress:
 - [x] Independently revalidate Windows signature evidence against the exact
   final client/helper/Setup bytes, closed schema, release identity, and freshness
   before any future publication step.
+- [x] Atomically assemble and independently verify one immutable full Windows
+  release candidate containing the signed subjects, complete Qt/SQLite/libsodium
+  payload, strict file inventory, and no server/debug/key material.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

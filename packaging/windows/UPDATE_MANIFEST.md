@@ -88,6 +88,9 @@ written. Current CI proves only unsigned rejection and supplies no private key.
 ADR-0140 independently validates that evidence and recomputes the final
 client/helper/Setup hashes before any future upload or manifest signing. Test
 fixtures exercise rejection semantics and are not positive signature evidence.
+ADR-0141 then assembles the evidence, Setup, and complete Qt/SQLite/libsodium
+client directory into one immutable candidate with a strict full-file manifest.
+Only the candidate's Setup bytes may feed later update-manifest authoring.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin

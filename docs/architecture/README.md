@@ -750,6 +750,14 @@ Setup paths. The protected release order is therefore Windows trust observation,
 independent final-byte verification, then publication; fixture JSON is never
 treated as positive signature evidence.
 
+ADR-0141 makes the full deployed runtime the release unit. Only fresh evidence
+and a complete Qt/SQLite/libsodium payload can be copied into an immutable
+stable/beta candidate; server binaries, debug/build outputs, environment files,
+keys, links, undeclared files, and later byte changes fail validation. The
+candidate is assembled in a temporary sibling, reverified after copy, and
+atomically renamed. Its Setup is the only byte source allowed for later update-
+manifest signing, but clean-host and publication gates remain outstanding.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

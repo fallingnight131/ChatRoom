@@ -175,6 +175,35 @@ python3 tools/windows_release_evidence.py \
 freshness, identity, symlink, final-byte, publisher, timestamp, and role-order
 rejection. Test fixtures do not represent actual Authenticode evidence.
 
+Assemble the verified complete payload into a previously absent candidate
+directory, then verify that directory independently before transfer:
+
+```bash
+python3 tools/windows_release_candidate.py assemble \
+  --payload-root /release/signed-client \
+  --installer /release/ChatRoom-1.2.3-Setup.exe \
+  --signature-evidence /release/windows-release-signatures.json \
+  --output-root /release/candidates/windows-stable-1.2.3 \
+  --version-file VERSION \
+  --source-revision <40-lowercase-git-sha> \
+  --channel stable \
+  --qt-version 6.11.1 \
+  --expected-signer-sha256 <64-lowercase-certificate-sha256>
+
+python3 tools/windows_release_candidate.py verify \
+  --candidate-root /release/candidates/windows-stable-1.2.3 \
+  --version-file VERSION \
+  --source-revision <40-lowercase-git-sha> \
+  --channel stable \
+  --qt-version 6.11.1 \
+  --expected-signer-sha256 <64-lowercase-certificate-sha256>
+```
+
+The assembler requires Qt Core/platform, SQLite, and libsodium runtimes; rejects
+server/debug/key/environment files and links; rechecks evidence after copying;
+and atomically exposes the destination only after full validation.
+`python3 Tests/windows_release_candidate_test.py` covers its negative paths.
+
 The Qt gate also compiles `UpdateManifestSignatureVerifierTest`. It generates an
 ephemeral Ed25519 keypair and proves canonical verification plus empty-key,
 unknown-key, tamper, and non-canonical rejection. The client now links libsodium;
@@ -767,9 +796,10 @@ development/portability verification, not a supported desktop release gate.
   unsigned payloads and a renamed Setup, and requires fail-closed rejection with
   no evidence. Positive client/helper/Setup signature evidence is reserved for
   a protected release job with external key custody.
-- A protected release job must independently run
-  `tools/windows_release_evidence.py` against those same final paths before any
-  upload, promotion, or update-manifest signing.
+- A protected release job must independently run release-evidence validation,
+  assemble the complete immutable candidate, and run candidate verification
+  before any upload or promotion. Later update-manifest signing must hash the
+  Setup inside that candidate.
 - A signed installer, upgrade/uninstall behavior, and automatic updates are
   still separate M4 release concerns. This CI Setup exercises install/uninstall
   mechanics but is not a publisher-signed or publicly supported installer.
