@@ -166,7 +166,7 @@ alignment, verification, and rollback.
 The root `CMakeLists.txt` currently represents the V1 persistence/server-core
 libraries, shared V1 Common, non-UI Windows client local-data and transport
 libraries, portable Windows update trust/transport boundaries, thin
-`ChatServerHeadless`, and nineteen CTest entries. Together they compile
+`ChatServerHeadless`, and twenty-one CTest entries. Together they compile
 the same Common/Server/client-core sources as the qmake projects and do not
 replace the Windows product build or installer.
 On a macOS Homebrew development host:
@@ -203,6 +203,14 @@ private Setup staging and cleanup, portable size/SHA-256, and platform trust
 classification. A macOS or Ubuntu `UnsupportedPlatform` result is expected for
 Authenticode/launch and is not positive Windows evidence; native signed Windows
 verification remains mandatory.
+
+The orchestration CTests then compose these layers in their required trust
+order. They require manifest verification, policy, and replay acceptance before
+any Setup request; require installer trust before exposing a typed prepared
+handoff; and cover zero rollout, invalid signature, trust rejection, parallel
+refusal, cancellation, destruction, and temporary-file cleanup. Test-only trust
+injection on non-Windows exercises sequencing and must not be cited as positive
+Authenticode evidence.
 
 CI runs inventory and web verification on every push and pull request through
 `.github/workflows/m0-baseline.yml`.

@@ -225,6 +225,7 @@ def verify_cmake_headless(jobs: int, build_root: Path) -> None:
         "UpdateStateRepositoryTest", "UpdateManifestApplicationServiceTest",
         "UpdateManifestFetchTransportTest", "UpdateInstallerDownloadTransportTest",
         "UpdateInstallerTrustVerifierTest",
+        "UpdatePreparationApplicationServiceTest", "UpdateCheckApplicationServiceTest",
         "--parallel", str(jobs),
     ], ROOT)
     ctest = command_path("ctest")

@@ -882,6 +882,16 @@ publisher verification and locked launch. Off Windows, tests require explicit
 `UnsupportedPlatform` rather than manufacturing positive trust. Native Windows
 signing and clean-host results remain the only product evidence for those paths.
 
+ADR-0153 composes those boundaries without collapsing them. The CMake
+`chatroom_windows_update_orchestration` target owns preparation and complete
+check sequencing: untrusted discovery must pass manifest signature, semantic
+decision, and atomic replay acceptance before installer download; downloaded
+bytes must pass background installer trust before a typed `PreparedInstaller`
+is exposed. Focused tests also prove zero-rollout and invalid-signature paths do
+not download, parallel preparation is refused, and cancellation/destruction
+cleans staging. The target contains no UI, product key, process launch, or
+positive non-Windows Authenticode shortcut.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

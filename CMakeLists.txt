@@ -10,7 +10,7 @@ option(CHATROOM_BUILD_HEADLESS_SERVER "Build the Qt V1 headless server" ON)
 include(CTest)
 
 if(CHATROOM_BUILD_HEADLESS_SERVER)
-    find_package(Qt6 6.5 REQUIRED COMPONENTS Core Network Sql WebSockets)
+    find_package(Qt6 6.5 REQUIRED COMPONENTS Core Concurrent Network Sql WebSockets)
 
     set(SODIUM_ROOT "" CACHE PATH "libsodium installation prefix")
     find_path(
@@ -261,6 +261,31 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 chatroom_windows_installer_trust PUBLIC wintrust crypt32)
         endif()
 
+        add_library(
+            chatroom_windows_update_orchestration
+            STATIC
+            Client/UpdatePreparationApplicationService.cpp
+            Client/UpdateCheckApplicationService.cpp
+            Client/UpdatePreparationApplicationService.h
+            Client/UpdateCheckApplicationService.h
+        )
+        set_target_properties(
+            chatroom_windows_update_orchestration
+            PROPERTIES AUTOMOC ON
+        )
+        target_include_directories(
+            chatroom_windows_update_orchestration PUBLIC Client)
+        target_link_libraries(
+            chatroom_windows_update_orchestration
+            PUBLIC
+                Qt6::Core
+                Qt6::Network
+                Qt6::Concurrent
+                chatroom_windows_update_trust_core
+                chatroom_windows_update_transport
+                chatroom_windows_installer_trust
+        )
+
         function(chatroom_add_local_data_test target test_name)
             add_executable(${target} Tests/${target}.cpp)
             set_target_properties(
@@ -392,6 +417,30 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             m4_update_manifest_fetch_transport
             m4_update_installer_download_transport
             m4_update_installer_trust_verifier
+            PROPERTIES TIMEOUT 30)
+
+        add_executable(
+            UpdatePreparationApplicationServiceTest
+            Tests/UpdatePreparationApplicationServiceTest.cpp)
+        target_link_libraries(
+            UpdatePreparationApplicationServiceTest
+            PRIVATE chatroom_windows_update_orchestration)
+        add_test(
+            NAME m4_update_preparation_application
+            COMMAND UpdatePreparationApplicationServiceTest)
+
+        add_executable(
+            UpdateCheckApplicationServiceTest
+            Tests/UpdateCheckApplicationServiceTest.cpp)
+        target_link_libraries(
+            UpdateCheckApplicationServiceTest
+            PRIVATE chatroom_windows_update_orchestration)
+        add_test(
+            NAME m4_update_complete_check_application
+            COMMAND UpdateCheckApplicationServiceTest)
+        set_tests_properties(
+            m4_update_preparation_application
+            m4_update_complete_check_application
             PROPERTIES TIMEOUT 30)
     endif()
 endif()

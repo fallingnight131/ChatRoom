@@ -678,6 +678,9 @@ Progress:
 - [x] Separate Windows update manifest/Setup transport from installer trust in
   CMake and run fail-closed URL, redirect, bound, cancellation, cleanup,
   integrity, unsupported-platform, and unsigned-launch tests.
+- [x] Compose those CMake boundaries through the existing preparation and
+  complete-check application services, preserving verify/decide/accept before
+  download and installer trust before a typed prepared handoff.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
