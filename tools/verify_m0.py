@@ -229,6 +229,8 @@ def verify_cmake_headless(jobs: int, build_root: Path) -> None:
         "UpdateLauncherResultTest", "UpdateLifecycleRepositoryTest",
         "WindowsUpdateStartupServiceTest", "UpdateLauncherCommandTest",
         "WindowsUpdateHandoffApplicationServiceTest", "WindowsUpdateInstallCoordinatorTest",
+        "WindowsUpdateProductConfigurationTest",
+        "WindowsUpdateProductConfigurationEnabledTest",
         "--parallel", str(jobs),
     ], ROOT)
     ctest = command_path("ctest")

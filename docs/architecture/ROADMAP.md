@@ -699,6 +699,9 @@ Progress:
 - [x] Promote the verified CMake deployment as canonical Windows artifact/NSIS
   input, retain qmake as a parity fallback, and bind `buildSystem: cmake` plus
   exact parity-candidate hashes into artifact-manifest schema 3.
+- [x] Add fail-closed CMake stable/beta update configuration injection with
+  disabled-residue, HTTPS literal, one/two-public-key validation and execute
+  default-off/enabled runtime configuration suites through CTest.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

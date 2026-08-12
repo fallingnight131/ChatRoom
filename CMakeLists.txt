@@ -8,6 +8,16 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(CHATROOM_BUILD_HEADLESS_SERVER "Build the Qt V1 headless server" ON)
 option(CHATROOM_BUILD_WINDOWS_CLIENT "Build the supported Windows Qt client" OFF)
+option(CHATROOM_ENABLE_WINDOWS_UPDATES
+       "Compile reviewed public Windows update trust configuration" OFF)
+set(CHATROOM_UPDATE_CHANNEL "" CACHE STRING "Windows update channel")
+set(CHATROOM_UPDATE_MANIFEST_URL "" CACHE STRING "Windows update manifest HTTPS URL")
+set(CHATROOM_UPDATE_PRIMARY_KEY_ID "" CACHE STRING "Primary Windows update public-key ID")
+set(CHATROOM_UPDATE_PRIMARY_PUBLIC_KEY_HEX "" CACHE STRING "Primary Ed25519 public key")
+set(CHATROOM_UPDATE_SECONDARY_KEY_ID "" CACHE STRING "Secondary Windows update public-key ID")
+set(CHATROOM_UPDATE_SECONDARY_PUBLIC_KEY_HEX "" CACHE STRING "Secondary Ed25519 public key")
+include(cmake/WindowsUpdateConfiguration.cmake)
+chatroom_validate_windows_update_configuration()
 include(CTest)
 
 if(CHATROOM_BUILD_WINDOWS_CLIENT AND NOT WIN32)
@@ -16,6 +26,10 @@ endif()
 if(CHATROOM_BUILD_WINDOWS_CLIENT AND NOT CHATROOM_BUILD_HEADLESS_SERVER)
     message(FATAL_ERROR
         "CHATROOM_BUILD_WINDOWS_CLIENT currently requires the shared Qt V1 graph")
+endif()
+if(CHATROOM_ENABLE_WINDOWS_UPDATES AND NOT CHATROOM_BUILD_WINDOWS_CLIENT)
+    message(FATAL_ERROR
+        "CHATROOM_ENABLE_WINDOWS_UPDATES requires CHATROOM_BUILD_WINDOWS_CLIENT=ON")
 endif()
 
 if(CHATROOM_BUILD_HEADLESS_SERVER)
@@ -353,6 +367,18 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 chatroom_windows_update_lifecycle
         )
 
+        add_library(
+            chatroom_windows_update_product_configuration
+            STATIC
+            Client/WindowsUpdateProductConfiguration.cpp
+            Client/WindowsUpdateProductConfiguration.h
+        )
+        target_include_directories(
+            chatroom_windows_update_product_configuration PUBLIC Client)
+        target_link_libraries(
+            chatroom_windows_update_product_configuration
+            PUBLIC Qt6::Core chatroom_windows_update_trust_core)
+
         if(CHATROOM_BUILD_WINDOWS_CLIENT)
             enable_language(RC)
             file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION"
@@ -407,6 +433,25 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             )
             target_compile_definitions(
                 ChatClient PRIVATE CHAT_APP_VERSION="${CHATROOM_PRODUCT_VERSION}")
+            if(CHATROOM_ENABLE_WINDOWS_UPDATES)
+                target_compile_definitions(
+                    ChatClient
+                    PRIVATE
+                        CHAT_UPDATE_CONFIGURATION_ENABLED=1
+                        CHAT_UPDATE_CHANNEL="${CHATROOM_UPDATE_CHANNEL}"
+                        CHAT_UPDATE_MANIFEST_URL="${CHATROOM_UPDATE_MANIFEST_URL}"
+                        CHAT_UPDATE_PRIMARY_KEY_ID="${CHATROOM_UPDATE_PRIMARY_KEY_ID}"
+                        CHAT_UPDATE_PRIMARY_PUBLIC_KEY_HEX="${CHATROOM_UPDATE_PRIMARY_PUBLIC_KEY_HEX}"
+                )
+                if(NOT CHATROOM_UPDATE_SECONDARY_KEY_ID STREQUAL "")
+                    target_compile_definitions(
+                        ChatClient
+                        PRIVATE
+                            CHAT_UPDATE_SECONDARY_KEY_ID="${CHATROOM_UPDATE_SECONDARY_KEY_ID}"
+                            CHAT_UPDATE_SECONDARY_PUBLIC_KEY_HEX="${CHATROOM_UPDATE_SECONDARY_PUBLIC_KEY_HEX}"
+                    )
+                endif()
+            endif()
             target_include_directories(ChatClient PRIVATE Client Common)
             target_link_libraries(
                 ChatClient
@@ -645,9 +690,37 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             WindowsUpdateInstallCoordinatorTest
             m4_update_install_coordinator
             chatroom_windows_update_handoff)
+
+        chatroom_add_update_test(
+            WindowsUpdateProductConfigurationTest
+            m4_update_product_configuration_disabled
+            chatroom_windows_update_product_configuration)
+        add_executable(
+            WindowsUpdateProductConfigurationEnabledTest
+            Tests/WindowsUpdateProductConfigurationEnabledTest.cpp
+            Client/WindowsUpdateProductConfiguration.cpp)
+        target_include_directories(
+            WindowsUpdateProductConfigurationEnabledTest PRIVATE Client)
+        target_compile_definitions(
+            WindowsUpdateProductConfigurationEnabledTest
+            PRIVATE
+                CHAT_UPDATE_CONFIGURATION_ENABLED=1
+                CHAT_UPDATE_CHANNEL="stable"
+                CHAT_UPDATE_MANIFEST_URL="https://updates.example.test/windows/stable/manifest.json"
+                CHAT_UPDATE_PRIMARY_KEY_ID="windows-update-2026-01"
+                CHAT_UPDATE_PRIMARY_PUBLIC_KEY_HEX="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        )
+        target_link_libraries(
+            WindowsUpdateProductConfigurationEnabledTest
+            PRIVATE Qt6::Core chatroom_windows_update_trust_core)
+        add_test(
+            NAME m4_update_product_configuration_enabled
+            COMMAND WindowsUpdateProductConfigurationEnabledTest)
         set_tests_properties(
             m4_update_handoff_application
             m4_update_install_coordinator
+            m4_update_product_configuration_disabled
+            m4_update_product_configuration_enabled
             PROPERTIES TIMEOUT 30)
         endif()
     endif()

@@ -41,6 +41,9 @@ def main() -> int:
         "add_executable(\n                ChatRoomUpdateLauncher WIN32",
         "Client/resources/windows_product.rc.in",
         'CHAT_APP_VERSION="${CHATROOM_PRODUCT_VERSION}"',
+        "CHATROOM_ENABLE_WINDOWS_UPDATES",
+        'CHAT_UPDATE_CONFIGURATION_ENABLED=1',
+        'CHAT_UPDATE_MANIFEST_URL="${CHATROOM_UPDATE_MANIFEST_URL}"',
     )
     for marker in required_cmake:
         if marker not in cmake:

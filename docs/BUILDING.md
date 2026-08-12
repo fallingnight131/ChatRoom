@@ -166,7 +166,7 @@ alignment, verification, and rollback.
 The root `CMakeLists.txt` currently represents the V1 persistence/server-core
 libraries, shared V1 Common, non-UI Windows client local-data and transport
 libraries, portable Windows update trust/transport boundaries, thin
-`ChatServerHeadless`, and twenty-seven CTest entries. Together they compile
+`ChatServerHeadless`, and twenty-nine CTest entries. Together they compile
 the same Common/Server/client-core sources as the qmake projects and do not
 replace the Windows product build or installer.
 On a macOS Homebrew development host:
@@ -445,23 +445,32 @@ turns raw helper diagnostics into user-facing text.
 
 `WindowsUpdateProductConfigurationTest` proves ordinary builds stay default-off
 and validates channel/URL/key policy. Its enabled companion compiles a non-
-production fixture through the same preprocessor boundary. A release build can
-provide reviewed public configuration to qmake as follows (values shown are
-placeholders, and no private key is accepted):
+production fixture through the same preprocessor boundary. The canonical CMake
+release build can provide reviewed public configuration as follows (values shown
+are placeholders, and no private key is accepted):
 
 ```powershell
-qmake Client/Client.pro CONFIG+=release `
-  CHAT_UPDATE_ENABLED=1 `
-  CHAT_UPDATE_CHANNEL=stable `
-  CHAT_UPDATE_MANIFEST_URL=https://updates.example.invalid/windows/stable/manifest.json `
-  CHAT_UPDATE_PRIMARY_KEY_ID=windows-update-YYYY-NN `
-  CHAT_UPDATE_PRIMARY_PUBLIC_KEY_HEX=<64-lowercase-hex-characters>
+cmake -S . -B build/release/windows -A x64 `
+  -DCHATROOM_BUILD_HEADLESS_SERVER=ON `
+  -DCHATROOM_BUILD_WINDOWS_CLIENT=ON `
+  -DCHATROOM_ENABLE_WINDOWS_UPDATES=ON `
+  -DCHATROOM_UPDATE_CHANNEL=stable `
+  -DCHATROOM_UPDATE_MANIFEST_URL=https://updates.example.invalid/windows/stable/manifest.json `
+  -DCHATROOM_UPDATE_PRIMARY_KEY_ID=windows-update-YYYY-NN `
+  -DCHATROOM_UPDATE_PRIMARY_PUBLIC_KEY_HEX=<64-lowercase-hex-characters> `
+  -DSODIUM_ROOT=<absolute-vcpkg-x64-windows-prefix>
+cmake --build build/release/windows --config Release `
+  --target ChatClient ChatRoomUpdateLauncher
 ```
 
 For rotation, provide both `CHAT_UPDATE_SECONDARY_KEY_ID` and
-`CHAT_UPDATE_SECONDARY_PUBLIC_KEY_HEX`. qmake rejects partial enabled or
-secondary configuration. Public keys and URLs are reviewable release inputs;
-private Ed25519 and Authenticode keys must never be command-line values.
+`CHAT_UPDATE_SECONDARY_PUBLIC_KEY_HEX`. CMake rejects residual configuration
+while disabled, partial enabled/secondary configuration, unsafe URL literals,
+and malformed public identifiers/keys before compilation. Run the portable
+configuration cases with
+`python3 Tests/windows_cmake_update_configuration_test.py`. Public keys and URLs
+are reviewable release inputs; private Ed25519 and Authenticode keys must never
+be command-line values.
 
 ADR-0138 connects this compiled configuration to `WindowsUpdateController`.
 Enabled builds perform one automatic check after the first login and expose a

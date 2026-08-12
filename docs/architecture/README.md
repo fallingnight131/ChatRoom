@@ -949,6 +949,15 @@ fully exercised CMake directory. Artifact-manifest schema 3 records
 CMake candidate inventory to equal the final canonical payload. Signing,
 timestamping, and protected release publication remain separate gates.
 
+ADR-0160 restores the reviewed public update-configuration seam on the canonical
+CMake client. Configuration remains default-off and rejects any channel/URL/key
+residue unless explicitly enabled. Enabled builds accept only stable/beta, a
+restricted HTTPS manifest literal, one required lowercase-ID/32-byte Ed25519
+public key, and an optional complete secondary pair. CMake emits the same runtime
+macros already validated by `WindowsUpdateProductConfiguration`; disabled and
+enabled fixtures now run as the 28th and 29th CTests. No private key or production
+endpoint enters the repository.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

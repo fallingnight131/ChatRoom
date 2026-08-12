@@ -105,6 +105,7 @@ jobs:
           python Tests/windows_client_payload_parity_test.py
           python Tests/windows_cmake_installer_gate_test.py
           python Tests/windows_cmake_packaging_promotion_test.py
+          python Tests/windows_cmake_update_configuration_test.py
 
       - name: Install pinned Qt SDK
         uses: jurplel/install-qt-action@v4.3.1
