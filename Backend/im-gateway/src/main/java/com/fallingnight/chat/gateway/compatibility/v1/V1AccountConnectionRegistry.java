@@ -46,6 +46,11 @@ public final class V1AccountConnectionRegistry {
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
+    /** Bounded-service candidate snapshot; durable authorization is still required. */
+    public Set<UUID> activeAccountIds() {
+        return onlineAccounts(Set.copyOf(connections.keySet()));
+    }
+
     /** Schedules work only for the still-active authoritative account channel. */
     public boolean executeIfActive(UUID accountId, Consumer<Channel> action) {
         Objects.requireNonNull(accountId, "accountId");

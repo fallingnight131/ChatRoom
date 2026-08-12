@@ -507,6 +507,9 @@ Progress:
     canonical/V1 identity, retry semantics, and first-accept broadcast intent.
   - [x] Implement retry-convergent PostgreSQL V1 room submission with active
     membership/device checks and atomic canonical/V1 mapped message identity.
+  - [x] Compose detached strict V1 room messaging with durable ACK-first sender
+    echo, authoritative batch membership filtering, first-only process-local
+    fan-out, duplicate suppression, fixed telemetry, and real PostgreSQL proof.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

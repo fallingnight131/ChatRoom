@@ -230,7 +230,13 @@ contract. Authenticated state owns sender account/device identity; only the V1
 room ID, stable client ID, content, and presentation type are accepted as
 intent. The PostgreSQL adapter now creates canonical and V1 ROOM message
 identity atomically after active membership/device checks. Exact retry preserves
-the durable result and will suppress a second broadcast. No handler exists yet.
+the durable result and suppresses a second broadcast. The detached strict
+handler returns the mapped ACK, echoes the authoritative first acceptance to
+the sender, then fans it out only to currently connected accounts that a batch
+PostgreSQL query confirms are active mapped members. Exact retry emits only the
+duplicate ACK. This is process-local best-effort notification rather than a
+delivery guarantee; reconnect recovery remains history based and the product
+listener remains inactive.
 
 `CHAT_SEND_RSP` is the durable submission acknowledgement:
 

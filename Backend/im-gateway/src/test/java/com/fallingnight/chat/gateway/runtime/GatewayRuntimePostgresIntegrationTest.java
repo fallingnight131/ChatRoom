@@ -11,6 +11,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1DirectRecallEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestAcceptanceEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestCreationEventSink;
@@ -228,6 +229,8 @@ class GatewayRuntimePostgresIntegrationTest {
                     peer.runPendingTasks();
                     ((TextWebSocketFrame) peer.readOutbound()).release();
                     assertUserSearch(imported, true);
+                    assertRoomMessageFirst(imported, peer);
+                    assertRoomMessageDuplicate(imported, peer);
 
                     imported.writeInbound(new TextWebSocketFrame(
                             "{\"type\":\"FRIEND_ACCEPT_REQ\",\"data\":{"
@@ -359,6 +362,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 admission,
                 events,
                 V1RoomDirectoryEventSink.noop(),
+                V1RoomMessageEventSink.noop(),
                 V1FriendDirectoryEventSink.noop(),
                 V1PendingFriendRequestEventSink.noop(),
                 V1FriendRequestCreationEventSink.noop(),
@@ -455,6 +459,49 @@ class GatewayRuntimePostgresIntegrationTest {
             assertFalse(recipientLive.text().contains("10000000-0000"));
         } finally { recipientLive.release(); }
         return messageId;
+    }
+
+    private static void assertRoomMessageFirst(
+            EmbeddedChannel sender, EmbeddedChannel recipient) {
+        sendRoomMessage(sender); sender.runPendingTasks();
+        Object outbound = sender.readOutbound();
+        if (outbound instanceof io.netty.handler.codec.http.websocketx.CloseWebSocketFrame close) {
+            String reason = close.reasonText(); close.release();
+            throw new AssertionError("room message closed: " + reason);
+        }
+        TextWebSocketFrame response = (TextWebSocketFrame) outbound;
+        TextWebSocketFrame senderLive = sender.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"CHAT_SEND_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"duplicate\":false"));
+            assertTrue(response.text().contains("\"roomId\":7"));
+            assertTrue(senderLive.text().contains("\"type\":\"CHAT_MSG\""));
+            assertTrue(senderLive.text().contains("\"sender\":\"imported-v1\""));
+            assertTrue(senderLive.text().contains("\"sequence\":8"));
+        } finally { response.release(); senderLive.release(); }
+        recipient.runPendingTasks(); TextWebSocketFrame live = recipient.readOutbound();
+        try {
+            assertTrue(live.text().contains("\"content\":\"hello Java room\""));
+            assertFalse(live.text().contains("30000000-0000"));
+        } finally { live.release(); }
+    }
+
+    private static void assertRoomMessageDuplicate(
+            EmbeddedChannel sender, EmbeddedChannel recipient) {
+        sendRoomMessage(sender); sender.runPendingTasks();
+        TextWebSocketFrame response = sender.readOutbound();
+        try { assertTrue(response.text().contains("\"duplicate\":true")); }
+        finally { response.release(); }
+        assertNull(sender.readOutbound()); recipient.runPendingTasks(); assertNull(recipient.readOutbound());
+    }
+
+    private static void sendRoomMessage(EmbeddedChannel sender) {
+        sender.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"CHAT_MSG\",\"id\":\"room-envelope\",\"data\":{"
+                        + "\"roomId\":7,\"sender\":\"spoofed\","
+                        + "\"clientMessageId\":\"room-client-1\","
+                        + "\"content\":\"hello Java room\",\"contentType\":\"text\"}}"));
     }
 
     private static void assertDirectMessageDuplicate(
@@ -679,6 +726,11 @@ class GatewayRuntimePostgresIntegrationTest {
                 member.setObject(2, imported);
                 member.setString(3, "ADMIN");
                 member.setLong(4, 3);
+                member.addBatch();
+                member.setObject(1, importedRoom);
+                member.setObject(2, peer);
+                member.setString(3, "MEMBER");
+                member.setLong(4, 0);
                 member.addBatch();
                 member.setObject(1, unrelatedRoom);
                 member.setObject(2, nativeV2);

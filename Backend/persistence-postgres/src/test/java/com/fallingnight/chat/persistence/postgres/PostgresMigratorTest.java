@@ -1319,6 +1319,8 @@ class PostgresMigratorTest {
                 + "AND legacy_content_type = 'text'"));
         assertEquals(2, count("SELECT next_sequence FROM chat.conversation WHERE id = '"
                 + room + "'"));
+        assertEquals(Set.of(sender), new PostgresLegacyV1RoomAudienceAdapter(dataSource())
+                .activeMappedMembers(room, Set.of(sender, outsider)));
         try (Connection connection = connect()) {
             execute(connection, "UPDATE chat.conversation_member SET left_at = "
                     + "transaction_timestamp() WHERE conversation_id = ?", room);

@@ -373,8 +373,13 @@ authenticated account/device and positive mapped room ID. Its serializable
 PostgreSQL adapter verifies active GROUP membership/device and creates canonical
 type-1 plus V1 ROOM message identity together. V022 allocates collision-checked
 runtime room-message IDs downward. Exact retry preserves the same result and
-only first acceptance may later broadcast. Client sender/time/sequence fields
-are not authority; attachments remain outside this path. No handler exists yet.
+only first acceptance broadcasts. The detached strict handler now ACKs durable
+acceptance, echoes the authoritative message to the sender, and batch-filters
+the gateway's connected-account snapshot through current PostgreSQL membership
+before process-local fan-out. Exact retry emits only the duplicate ACK. Client
+sender/time/sequence fields are not authority; attachments, delivery claims,
+and multi-gateway routing remain outside this path. The product listener remains
+unchanged.
 
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.
