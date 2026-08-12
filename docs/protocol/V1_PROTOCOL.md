@@ -305,18 +305,23 @@ PostgreSQL proves missing/wrong/correct password behavior, one membership, one
 notification, duplicate suppression, and replacement-login room recovery. The
 product listener remains inactive.
 
-The next detached compatibility boundary reserves only the read shape of
+The detached compatibility boundary now reserves only the read shape of
 `ROOM_SETTINGS_REQ`: an authenticated connection supplies exactly one positive
 integral `roomId` and no mutation fields. V027 stores the three resource limits,
 while the admission policy remains authoritative for `maxMembers`. Verified
 SQLite import requires and fingerprints all four source columns; customized
 values are reconciled exactly rather than replaced with defaults. PostgreSQL
 returns settings only to an enabled active member of an active mapped GROUP.
-Successful `ROOM_SETTINGS_RSP` will preserve `roomId`, `success`,
+Successful `ROOM_SETTINGS_RSP` preserves `roomId`, `success`,
 `maxFileSize`, `totalFileSpace`, `maxFileCount`, and `maxMembers`, without UUIDs.
 Any request carrying a settings mutation field is not a read and remains
 inactive until administrator authorization, cleanup, audit, and developer-key
-replacement are designed together.
+replacement are designed together. The strict handler runs off-loop, emits
+fixed outcome/latency telemetry, closes generically on malformed, mutation,
+concurrent, saturated, dependency-failed, or encoding-failed handling, and
+keeps stable access rejection on the connection. Real PostgreSQL integration
+proves login-to-custom-settings output without UUID exposure. The product
+listener remains inactive.
 
 ### Room chat
 

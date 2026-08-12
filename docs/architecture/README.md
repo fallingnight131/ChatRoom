@@ -400,6 +400,12 @@ fingerprints, validates, and exactly reconciles all four `room_settings` values.
 Only enabled active members of active mapped GROUPs can read the joined policy
 snapshot. Mutation-shaped `ROOM_SETTINGS_REQ` remains outside this read slice
 until its administrator, cleanup, audit, and key-management behavior is defined.
+The detached strict handler accepts only an integral `roomId`, binds the actor
+from authenticated channel state, executes off-loop, and returns the six
+compatible response fields without UUIDs. Mutation-shaped, malformed,
+concurrent, saturated, or infrastructure-failed handling closes generically;
+stable access rejection remains usable. Real PostgreSQL integration proves
+login-to-custom-settings output. The product listener remains unchanged.
 
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target

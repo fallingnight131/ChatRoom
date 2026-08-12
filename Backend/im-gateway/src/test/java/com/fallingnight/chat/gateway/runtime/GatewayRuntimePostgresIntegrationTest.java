@@ -20,6 +20,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomCreationEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomJoinEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomLeaveEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMemberListEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomSettingsEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestAcceptanceEventSink;
@@ -266,6 +267,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     ((TextWebSocketFrame) peer.readOutbound()).release();
                     assertUserSearch(imported, true);
                     assertRoomMembersOnline(imported);
+                    assertRoomSettings(imported);
                     long roomMessageId = assertRoomMessageFirst(imported, peer);
                     assertRoomMessageDuplicate(imported, peer);
 
@@ -410,6 +412,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomJoinEventSink.noop(),
                 V1RoomLeaveEventSink.noop(),
                 V1RoomMemberListEventSink.noop(),
+                V1RoomSettingsEventSink.noop(),
                 V1RoomDirectoryEventSink.noop(),
                 V1RoomMessageEventSink.noop(),
                 V1RoomHistoryEventSink.noop(),
@@ -998,6 +1001,22 @@ class GatewayRuntimePostgresIntegrationTest {
         } finally { response.release(); }
     }
 
+    private static void assertRoomSettings(EmbeddedChannel channel) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"ROOM_SETTINGS_REQ\",\"data\":{\"roomId\":7}}"));
+        channel.runPendingTasks(); TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"ROOM_SETTINGS_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"roomId\":7"));
+            assertTrue(response.text().contains("\"maxFileSize\":2048"));
+            assertTrue(response.text().contains("\"totalFileSpace\":8192"));
+            assertTrue(response.text().contains("\"maxFileCount\":42"));
+            assertTrue(response.text().contains("\"maxMembers\":73"));
+            assertFalse(response.text().contains("10000000-0000"));
+        } finally { response.release(); }
+    }
+
     private static int occurrences(String value, String needle) {
         int count = 0, offset = 0;
         while ((offset = value.indexOf(needle, offset)) >= 0) {
@@ -1103,6 +1122,19 @@ class GatewayRuntimePostgresIntegrationTest {
                 member.setLong(4, 0);
                 member.addBatch();
                 member.executeBatch();
+            }
+            try (PreparedStatement policy = connection.prepareStatement(
+                    "UPDATE chat.group_resource_policy SET max_file_size = 2048, "
+                            + "total_file_space = 8192, max_file_count = 42 "
+                            + "WHERE conversation_id = ?")) {
+                policy.setObject(1, importedRoom); assertEquals(1, policy.executeUpdate());
+            }
+            try (PreparedStatement policy = connection.prepareStatement(
+                    "INSERT INTO chat.group_admission_policy(conversation_id, max_members) "
+                            + "VALUES (?, ?)")) {
+                policy.setObject(1, importedRoom); policy.setInt(2, 73); policy.addBatch();
+                policy.setObject(1, unrelatedRoom); policy.setInt(2, 50); policy.addBatch();
+                assertEquals(2, policy.executeBatch().length);
             }
             try (PreparedStatement mapping = connection.prepareStatement(
                     "INSERT INTO chat.legacy_v1_conversation_map("
