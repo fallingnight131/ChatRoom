@@ -82,7 +82,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(9, first.migrate());
+        assertEquals(10, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -97,9 +97,10 @@ class PostgresMigratorTest {
                             "legacy_v1_conversation_map", "conversation_import_run",
                             "conversation_entry", "message_recall_event",
                             "messages_deleted_event", "legacy_v1_message_map",
-                            "legacy_v1_deletion_event_map"),
+                            "legacy_v1_deletion_event_map", "message_import_run"),
                     applicationTables(connection));
             proveSequenceAndIdempotencyConstraints(connection);
+            proveMessageImportAuditConstraints(connection);
         }
         proveLegacyV1MappingConstraints();
         proveLegacyV1ConversationMappingConstraints();
@@ -768,6 +769,24 @@ class PostgresMigratorTest {
                 return result.getInt(1);
             }
         }
+    }
+
+    private static void proveMessageImportAuditConstraints(Connection connection) {
+        SQLException mismatch = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "INSERT INTO chat.message_import_run("
+                        + "id, state_fingerprint_sha256, payload_fingerprint_sha256, "
+                        + "backup_file_sha256, source_messages, source_recalled_messages, "
+                        + "source_deletion_events, source_legacy_devices, "
+                        + "source_member_read_cursors, inserted_messages, "
+                        + "already_imported_messages, inserted_entries, "
+                        + "already_imported_entries, inserted_legacy_devices, "
+                        + "already_imported_legacy_devices, updated_read_cursors, "
+                        + "already_translated_read_cursors, backup_bytes, backup_created_at) "
+                        + "VALUES (?, ?, ?, ?, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, "
+                        + "1024, transaction_timestamp())",
+                UUID.randomUUID(), "a".repeat(64), "b".repeat(64), "c".repeat(64)));
+        assertEquals("23514", mismatch.getSQLState());
     }
 
     private static void executeLegacyMessageMappings(
