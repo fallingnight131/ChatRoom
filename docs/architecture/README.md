@@ -678,6 +678,12 @@ uses ADR-0128, atomically records the result, deletes Setup only when no process
 can still use it, and restarts only after exit code zero. The client does not yet
 copy or invoke the helper, so updates remain inactive.
 
+ADR-0130 replaces the path-only `Ready` payload with a typed prepared-installer
+handoff carrying the exact signed size, SHA-256, and publisher thumbprint that
+passed background trust. The complete check service preserves those bytes with
+the target version, allowing the future helper adapter to repeat ADR-0128
+without reconstructing or weakening manifest evidence.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

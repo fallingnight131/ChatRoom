@@ -49,6 +49,9 @@ ADR-0129 packages the external helper and gives it a strict UUID-bound parent,
 installer-metadata, result-file, restart-path, and ready-event contract. It
 waits for normal parent exit, records results atomically, cleans only when safe,
 and restarts only on installer exit zero. Client handoff remains inactive.
+ADR-0130 ensures a `Ready` update retains the signed size, digest, and publisher
+thumbprint with its path through the full check service, so client handoff does
+not need to reconstruct security metadata.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin

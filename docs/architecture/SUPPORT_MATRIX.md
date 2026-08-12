@@ -131,6 +131,11 @@ and restarts only after installer exit zero. Native CI is configured for its
 unsigned rejection path. The client does not invoke it, and a successful real
 signed upgrade remains an M4 release gate.
 
+The inactive preparation/check APIs now hand off one typed installer value with
+the verified path and exact signed size, digest, and publisher thumbprint. This
+is sufficient for final locked re-verification but is still not connected to
+the packaged helper or product lifecycle.
+
 The Windows client now owns a session-local liveness mutex and refuses a second
 instance. NSIS checks the same mutex before mutation and returns 4 for a silent
 running-client attempt; native CI is configured to prove the current install and

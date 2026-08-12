@@ -191,6 +191,8 @@ manifest-to-download-to-trust composition with an ephemeral key and deterministi
 transport. It proves deferred rollout makes no request, concurrent work is
 rejected, trust runs off the application thread, and trust failure removes the
 file. Native real-Setup acceptance and launch are still not claimed.
+Its `Ready` assertion also requires a complete path/size/SHA-256/publisher
+thumbprint value; rejected results expose an empty value.
 
 `UpdateManifestFetchTransportTest` exercises the separate default-off discovery
 transport with deterministic HTTPS responses. It checks exact sequential
@@ -205,6 +207,8 @@ request order, successful verified-file handoff, signature rejection before an
 installer request, staged-rollout deferral without an installer request, and
 parallel-check refusal. It does not prove product keys, public TLS, Authenticode,
 launch, or update UX.
+It also verifies that the complete signed installer evidence survives the
+discovery-to-ready composition unchanged.
 
 `WindowsClientInstanceGuardTest` checks the shared liveness-mutex contract. On
 Windows it requires first acquisition, duplicate refusal, and release/reacquire;

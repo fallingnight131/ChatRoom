@@ -595,6 +595,9 @@ Progress:
 - [x] Add and package a fail-closed external Windows update helper with strict
   one-shot arguments, parent-exit handshake/wait, atomic result evidence,
   unsigned rejection, cleanup, and success-only client restart.
+- [x] Preserve the signed installer size, SHA-256, and publisher thumbprint in a
+  typed `PreparedInstaller` handoff from background trust through the complete
+  update-check boundary instead of reducing readiness to a mutable path.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

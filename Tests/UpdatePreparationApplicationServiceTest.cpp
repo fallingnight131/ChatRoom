@@ -165,7 +165,7 @@ UpdateManifestApplicationService::Request signedRequest(
 
 struct Completion {
     Service::Outcome outcome = Service::Outcome::Rejected;
-    QString path;
+    Service::PreparedInstaller installer;
     QString error;
 };
 
@@ -173,9 +173,10 @@ Completion waitFor(Service &service) {
     Completion completion;
     QEventLoop loop;
     QObject::connect(&service, &Service::finished, &loop,
-                     [&](Service::Outcome outcome, const QString &path,
+                     [&](Service::Outcome outcome,
+                         const Service::PreparedInstaller &installer,
                          const QString &error) {
-        completion = {outcome, path, error};
+        completion = {outcome, installer, error};
         loop.quit();
     });
     QTimer::singleShot(3000, &loop, &QEventLoop::quit);
@@ -215,9 +216,13 @@ int main(int argc, char *argv[]) {
     const auto ready = waitFor(service);
     if (!check(ready.outcome == Service::Outcome::Ready, ready.error)
             || !check(background.load(), QStringLiteral("trust verification blocked application thread"))
-            || !check(QFileInfo::exists(ready.path),
-                      QStringLiteral("verified installer path is missing"))) return 1;
-    QFile::remove(ready.path);
+            || !check(ready.installer.isComplete()
+                          && ready.installer.size == payload.size()
+                          && ready.installer.sha256 == QCryptographicHash::hash(
+                              payload, QCryptographicHash::Sha256)
+                          && QFileInfo::exists(ready.installer.path),
+                      QStringLiteral("verified installer evidence is missing"))) return 1;
+    QFile::remove(ready.installer.path);
 
     QTemporaryDir deferredRoot;
     PayloadManager deferredManager(payload);
@@ -246,7 +251,8 @@ int main(int argc, char *argv[]) {
     if (!rejected.prepare(signedRequest(payload, secretKey)).downloadStarted) return 1;
     const auto failed = waitFor(rejected);
     if (!check(failed.outcome == Service::Outcome::Rejected
-                   && failed.path.isEmpty() && failed.error == QStringLiteral("publisher rejected")
+                   && failed.installer.path.isEmpty()
+                   && failed.error == QStringLiteral("publisher rejected")
                    && QDir(rejectedRoot.filePath(QStringLiteral("stage"))).entryList(
                           QDir::Files | QDir::NoDotAndDotDot).isEmpty(),
                QStringLiteral("trust rejection retained installer bytes"))) return 1;

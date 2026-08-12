@@ -47,7 +47,7 @@ public:
 signals:
     void progress(qint64 received, qint64 expected);
     void finished(UpdateCheckApplicationService::Outcome outcome,
-                  const QString &verifiedInstallerPath,
+                  const UpdatePreparationApplicationService::PreparedInstaller &installer,
                   const QString &targetVersion,
                   const QString &error);
 
@@ -57,8 +57,10 @@ private:
                              const QByteArray &signature,
                              const QString &error);
     void handlePreparation(UpdatePreparationApplicationService::Outcome outcome,
-                           const QString &path, const QString &error);
-    void finish(Outcome outcome, QString path = {},
+                           const UpdatePreparationApplicationService::PreparedInstaller &installer,
+                           const QString &error);
+    void finish(Outcome outcome,
+                UpdatePreparationApplicationService::PreparedInstaller installer = {},
                 QString targetVersion = {}, QString error = {});
 
     UpdateManifestFetchTransport *m_fetch = nullptr;

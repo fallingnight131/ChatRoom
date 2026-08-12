@@ -116,9 +116,10 @@ void UpdateCheckApplicationService::handleManifestFetch(
 
 void UpdateCheckApplicationService::handlePreparation(
         UpdatePreparationApplicationService::Outcome outcome,
-        const QString &path, const QString &error) {
+        const UpdatePreparationApplicationService::PreparedInstaller &installer,
+        const QString &error) {
     if (outcome == UpdatePreparationApplicationService::Outcome::Ready)
-        finish(Outcome::Ready, path, m_targetVersion);
+        finish(Outcome::Ready, installer, m_targetVersion);
     else if (outcome == UpdatePreparationApplicationService::Outcome::Cancelled)
         finish(Outcome::Cancelled, {}, m_targetVersion, error);
     else
@@ -126,8 +127,10 @@ void UpdateCheckApplicationService::handlePreparation(
 }
 
 void UpdateCheckApplicationService::finish(
-        Outcome outcome, QString path, QString targetVersion, QString error) {
+        Outcome outcome,
+        UpdatePreparationApplicationService::PreparedInstaller installer,
+        QString targetVersion, QString error) {
     m_request = {};
     m_targetVersion.clear();
-    emit finished(outcome, path, targetVersion, error);
+    emit finished(outcome, installer, targetVersion, error);
 }

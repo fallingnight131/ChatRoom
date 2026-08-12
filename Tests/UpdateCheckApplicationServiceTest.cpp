@@ -174,7 +174,7 @@ Service::Request request() {
 
 struct Completion {
     Service::Outcome outcome = Service::Outcome::Rejected;
-    QString path;
+    UpdatePreparationApplicationService::PreparedInstaller installer;
     QString version;
     QString error;
 };
@@ -183,9 +183,10 @@ Completion waitFor(Service &service) {
     Completion result;
     QEventLoop loop;
     QObject::connect(&service, &Service::finished, &loop,
-                     [&](Service::Outcome outcome, const QString &path,
+                     [&](Service::Outcome outcome,
+                         const UpdatePreparationApplicationService::PreparedInstaller &installer,
                          const QString &version, const QString &error) {
-        result = {outcome, path, version, error};
+        result = {outcome, installer, version, error};
         loop.quit();
     });
     QTimer::singleShot(3000, &loop, &QEventLoop::quit);
@@ -223,14 +224,16 @@ int main(int argc, char *argv[]) {
     const Completion ready = waitFor(service);
     if (!check(ready.outcome == Service::Outcome::Ready, ready.error)
             || !check(ready.version == QStringLiteral("1.2.3")
-                          && QFile::exists(ready.path),
+                          && ready.installer.isComplete()
+                          && ready.installer.size == installer.size()
+                          && QFile::exists(ready.installer.path),
                       QStringLiteral("verified update metadata was lost"))
             || !check(manager.urls.size() == 3
                           && manager.urls.at(0).fileName() == QStringLiteral("manifest.json")
                           && manager.urls.at(1).fileName() == QStringLiteral("manifest.json.sig")
                           && manager.urls.at(2).fileName().endsWith(QStringLiteral("Setup.exe")),
                       QStringLiteral("trust pipeline network order changed"))) return 1;
-    QFile::remove(ready.path);
+    QFile::remove(ready.installer.path);
 
     QTemporaryDir rejectedRoot;
     QByteArray invalidSignature = signedManifest.signature;
@@ -245,7 +248,7 @@ int main(int argc, char *argv[]) {
     if (!rejected.start(request())) return 1;
     const Completion denied = waitFor(rejected);
     if (!check(denied.outcome == Service::Outcome::Rejected
-                   && denied.path.isEmpty() && !denied.error.isEmpty()
+                   && denied.installer.path.isEmpty() && !denied.error.isEmpty()
                    && rejectedManager.urls.size() == 2
                    && QDir(rejectedRoot.filePath(QStringLiteral("stage"))).entryList(
                           QDir::Files | QDir::NoDotAndDotDot).isEmpty(),
@@ -263,7 +266,8 @@ int main(int argc, char *argv[]) {
     if (!deferred.start(request())) return 1;
     const Completion withheld = waitFor(deferred);
     if (!check(withheld.outcome == Service::Outcome::DeferredByRollout
-                   && withheld.path.isEmpty() && deferredManager.urls.size() == 2,
+                   && withheld.installer.path.isEmpty()
+                   && deferredManager.urls.size() == 2,
                QStringLiteral("deferred rollout downloaded installer bytes"))) return 1;
 
     qInfo() << "[UpdateCheckApplicationServiceTest] PASS";

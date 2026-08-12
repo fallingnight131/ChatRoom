@@ -27,6 +27,15 @@ public:
         UpdateManifestDecisionPolicy::Decision decision;
     };
 
+    struct PreparedInstaller {
+        QString path;
+        qint64 size = 0;
+        QByteArray sha256;
+        QByteArray signerThumbprintSha256;
+
+        bool isComplete() const;
+    };
+
     UpdatePreparationApplicationService(
         UpdateManifestSignatureVerifier::TrustedKeys trustedKeys,
         QString stateDirectory,
@@ -49,7 +58,7 @@ public:
 signals:
     void progress(qint64 received, qint64 expected);
     void finished(UpdatePreparationApplicationService::Outcome outcome,
-                  const QString &verifiedInstallerPath,
+                  const UpdatePreparationApplicationService::PreparedInstaller &installer,
                   const QString &error);
 
 private:
@@ -63,6 +72,8 @@ private:
     QFutureWatcher<UpdateInstallerTrustVerifier::Result> *m_trustWatcher = nullptr;
     TrustFunction m_trustFunction;
     UpdateManifestDecisionPolicy::Decision m_activeDecision;
-    QString m_verifyingPath;
+    PreparedInstaller m_verifyingInstaller;
     bool m_cancelRequested = false;
 };
+
+Q_DECLARE_METATYPE(UpdatePreparationApplicationService::PreparedInstaller)

@@ -9,6 +9,11 @@
 
 #include <utility>
 
+bool UpdatePreparationApplicationService::PreparedInstaller::isComplete() const {
+    return !path.isEmpty() && size > 0 && sha256.size() == 32
+        && signerThumbprintSha256.size() == 32;
+}
+
 UpdatePreparationApplicationService::UpdatePreparationApplicationService(
         UpdateManifestSignatureVerifier::TrustedKeys trustedKeys,
         QString stateDirectory,
@@ -60,7 +65,8 @@ UpdatePreparationApplicationService::~UpdatePreparationApplicationService() {
     m_download->cancel();
     disconnect(m_trustWatcher, nullptr, this, nullptr);
     if (m_trustWatcher->isRunning()) m_trustWatcher->waitForFinished();
-    if (!m_verifyingPath.isEmpty()) QFile::remove(m_verifyingPath);
+    if (!m_verifyingInstaller.path.isEmpty())
+        QFile::remove(m_verifyingInstaller.path);
 }
 
 UpdatePreparationApplicationService::StartResult
@@ -100,14 +106,14 @@ UpdatePreparationApplicationService::prepare(
 
 void UpdatePreparationApplicationService::cancel() {
     if (m_download->isActive()) m_download->cancel();
-    else if (m_trustWatcher->isRunning() || !m_verifyingPath.isEmpty())
+    else if (m_trustWatcher->isRunning() || !m_verifyingInstaller.path.isEmpty())
         m_cancelRequested = true;
 }
 
 bool UpdatePreparationApplicationService::isActive() const {
     return (m_download && m_download->isActive())
         || (m_trustWatcher && m_trustWatcher->isRunning())
-        || !m_verifyingPath.isEmpty();
+        || !m_verifyingInstaller.path.isEmpty();
 }
 
 void UpdatePreparationApplicationService::handleDownload(
@@ -124,7 +130,12 @@ void UpdatePreparationApplicationService::handleDownload(
         return;
     }
 
-    m_verifyingPath = path;
+    m_verifyingInstaller = {
+        path,
+        m_activeDecision.installerSize,
+        m_activeDecision.installerSha256,
+        m_activeDecision.authenticodeSha256Thumbprint
+    };
     const qint64 size = m_activeDecision.installerSize;
     const QByteArray digest = m_activeDecision.installerSha256;
     const QByteArray thumbprint = m_activeDecision.authenticodeSha256Thumbprint;
@@ -144,20 +155,26 @@ void UpdatePreparationApplicationService::handleDownload(
 
 void UpdatePreparationApplicationService::handleTrustFinished() {
     const auto trust = m_trustWatcher->result();
-    const QString path = m_verifyingPath;
-    m_verifyingPath.clear();
+    const PreparedInstaller installer = m_verifyingInstaller;
+    m_verifyingInstaller = {};
     if (m_cancelRequested) {
-        QFile::remove(path);
+        QFile::remove(installer.path);
         m_cancelRequested = false;
         emit finished(Outcome::Cancelled, {}, QStringLiteral("update verification cancelled"));
         return;
     }
     if (trust.outcome != UpdateInstallerTrustVerifier::Outcome::Verified) {
-        QFile::remove(path);
+        QFile::remove(installer.path);
         emit finished(Outcome::Rejected, {}, trust.error.isEmpty()
             ? QStringLiteral("update installer trust verification rejected the file")
             : trust.error);
         return;
     }
-    emit finished(Outcome::Ready, path, {});
+    if (!installer.isComplete()) {
+        QFile::remove(installer.path);
+        emit finished(Outcome::Rejected, {},
+                      QStringLiteral("verified installer metadata is incomplete"));
+        return;
+    }
+    emit finished(Outcome::Ready, installer, {});
 }
