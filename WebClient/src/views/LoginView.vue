@@ -1,59 +1,63 @@
 <template>
-  <div class="login-page">
-    <div class="login-card">
+  <main class="login-page">
+    <form class="login-card" aria-labelledby="login-title"
+          @submit.prevent="isRegister ? doRegister() : doLogin()">
       <div class="login-header">
-        <div class="login-logo">💬</div>
-        <h1>ChatRoom</h1>
+        <div class="login-logo" aria-hidden="true">💬</div>
+        <h1 id="login-title">ChatRoom</h1>
         <p>{{ isRegister ? '注册新账号' : '登录到聊天室' }}</p>
       </div>
 
       <div class="input-group">
-        <label>用户ID (唯一标识)</label>
-        <input class="input" v-model="username" placeholder="输入唯一用户ID" autocomplete="username"
-               @keyup.enter="isRegister ? null : doLogin()" />
+        <label for="login-username">用户ID (唯一标识)</label>
+        <input id="login-username" class="input" v-model="username" placeholder="输入唯一用户ID"
+               autocomplete="username" :aria-describedby="errorMsg ? 'login-error' : undefined" />
       </div>
 
       <div class="input-group" v-if="isRegister">
-        <label>昵称</label>
-        <input class="input" v-model="displayName" placeholder="输入显示昵称" />
+        <label for="register-display-name">昵称</label>
+        <input id="register-display-name" class="input" v-model="displayName"
+               placeholder="输入显示昵称" autocomplete="nickname" />
       </div>
 
       <div class="input-group">
-        <label>密码</label>
-        <input class="input" v-model="password" type="password" placeholder="输入密码"
+        <label for="login-password">密码</label>
+        <input id="login-password" class="input" v-model="password" type="password" placeholder="输入密码"
                :autocomplete="isRegister ? 'new-password' : 'current-password'"
-               @keyup.enter="isRegister ? doRegister() : doLogin()" />
+               :aria-describedby="errorMsg ? 'login-error' : undefined" />
       </div>
 
       <div class="input-group" v-if="isRegister">
-        <label>确认密码</label>
-        <input class="input" v-model="confirmPassword" type="password" placeholder="再次输入密码"
-               autocomplete="new-password"
-               @keyup.enter="doRegister()" />
+        <label for="register-password-confirmation">确认密码</label>
+        <input id="register-password-confirmation" class="input" v-model="confirmPassword"
+               type="password" placeholder="再次输入密码" autocomplete="new-password" />
       </div>
 
-      <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
+      <div v-if="errorMsg" id="login-error" class="error-msg" role="alert" aria-live="assertive">
+        {{ errorMsg }}
+      </div>
 
-      <button class="btn btn-primary login-btn" @click="isRegister ? doRegister() : doLogin()"
-              :disabled="loading">
+      <button type="submit" class="btn btn-primary login-btn" :disabled="loading">
         {{ loading ? '连接中...' : (isRegister ? '注册' : '登录') }}
       </button>
 
       <div class="login-footer">
-        <span @click="isRegister = !isRegister" class="switch-link">
+        <button type="button" @click="isRegister = !isRegister" class="switch-link">
           {{ isRegister ? '已有账号？去登录' : '没有账号？注册' }}
-        </span>
+        </button>
         <router-link v-if="v2PreviewEnabled" to="/preview/v2" class="switch-link">
           V2 工程预览
         </router-link>
       </div>
 
       <!-- 主题切换 -->
-      <button class="btn-icon theme-toggle" @click="userStore.toggleDarkMode()">
+      <button type="button" class="btn-icon theme-toggle"
+              :aria-label="userStore.darkMode ? '切换到浅色主题' : '切换到深色主题'"
+              @click="userStore.toggleDarkMode()">
         {{ userStore.darkMode ? '☀️' : '🌙' }}
       </button>
-    </div>
-  </div>
+    </form>
+  </main>
 </template>
 
 <script setup>
@@ -220,6 +224,11 @@ onUnmounted(() => {
   margin-top: 16px;
 }
 .switch-link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
   color: var(--text-link);
   cursor: pointer;
   font-size: 13px;

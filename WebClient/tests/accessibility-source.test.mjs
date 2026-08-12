@@ -8,6 +8,8 @@ const input = await readFile(
   new URL('../src/components/InputArea.vue', import.meta.url), 'utf8')
 const styles = await readFile(
   new URL('../src/assets/style.css', import.meta.url), 'utf8')
+const login = await readFile(
+  new URL('../src/views/LoginView.vue', import.meta.url), 'utf8')
 
 test('exposes the message timeline as an announced busy-aware log', () => {
   assert.match(messages, /role="log"/)
@@ -34,4 +36,15 @@ test('labels composer controls and honors focus and reduced-motion preferences',
   assert.match(input, /aria-label="消息内容"/)
   assert.match(styles, /:focus-visible/)
   assert.match(styles, /prefers-reduced-motion: reduce/)
+})
+
+test('exposes login as a labeled keyboard-operable form with announced errors', () => {
+  assert.match(login, /<form class="login-card" aria-labelledby="login-title"/)
+  assert.match(login, /<label for="login-username">/)
+  assert.match(login, /id="login-username"/)
+  assert.match(login, /<label for="login-password">/)
+  assert.match(login, /type="submit" class="btn btn-primary login-btn"/)
+  assert.match(login, /id="login-error" class="error-msg" role="alert" aria-live="assertive"/)
+  assert.match(login, /<button type="button" @click="isRegister = !isRegister"/)
+  assert.match(login, /:aria-label="userStore\.darkMode/)
 })
