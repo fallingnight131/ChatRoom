@@ -266,6 +266,14 @@ the sender and current local target only on first acceptance. Exact retry emits
 no live message. Malformed or infrastructure-failed handling closes and the
 product listener remains inactive.
 
+The detached Java application boundary now also reserves owner-only direct
+recall. It accepts only the positive V1 `messageId` from the request and binds
+the actor from authentication; client peer/sequence/time fields are not
+authority. First apply retains the existing 120-second policy and a future
+atomic canonical mutation sequence. Exact owner retry will return the same
+event with `duplicate: true` and no second notification. No adapter or handler
+exists yet.
+
 ### History
 
 Legacy room and direct history accept a count and an optional `before`

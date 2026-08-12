@@ -495,6 +495,8 @@ Progress:
     mapping checks, recall folding, bounded paging, and gap-safe cursor advance.
   - [x] Compose detached strict V1 direct history with bounded off-loop reads,
     compatible response fields, fixed telemetry, and real reconnect recovery.
+  - [x] Define owner-only V1 direct recall with a database-time 120-second
+    first-apply window, atomic mutation sequence, and notification-safe retry.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application
