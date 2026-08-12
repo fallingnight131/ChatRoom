@@ -103,6 +103,7 @@ jobs:
           python Tests/windows_release_signature_policy_test.py
           python Tests/windows_cmake_product_target_test.py
           python Tests/windows_client_payload_parity_test.py
+          python Tests/windows_cmake_installer_gate_test.py
 
       - name: Install pinned Qt SDK
         uses: jurplel/install-qt-action@v4.3.1
@@ -193,6 +194,20 @@ jobs:
       - name: Install pinned NSIS compiler
         shell: pwsh
         run: choco install nsis --version="$env:NSIS_VERSION" --yes --no-progress
+
+      - name: Exercise the CMake Windows verification installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $makensis = Join-Path ${env:ProgramFiles(x86)} "NSIS/makensis.exe"
+          tools/verify_windows_cmake_installer.ps1 `
+            -PayloadDirectory build/m4/windows-cmake-payload `
+            -Version "${{ steps.product-version.outputs.version }}" `
+            -SourceRevision "${{ github.sha }}" `
+            -MakensisPath $makensis `
+            -InstallerScript packaging/windows/ChatRoom.nsi `
+            -IconFile Client/resources/app_icon.ico `
+            -WorkRoot "$env:RUNNER_TEMP/ChatRoomCMakeInstallerGate"
 
       - name: Compile and exercise unsigned Windows installer
         shell: pwsh

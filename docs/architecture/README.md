@@ -921,6 +921,16 @@ itself hashed into the uploaded unsigned artifact manifest. The NSIS input still
 remains qmake until native installer and helper-negative paths exercise the
 CMake payload directly.
 
+ADR-0157 adds that first executable-behavior gate without changing the uploaded
+installer. A separate temporary NSIS is compiled from the CMake payload on the
+native Windows runner, installed into an isolated root, and checked for
+canonical PE versions, SQLite/libsodium presence, and a client process that
+remains alive. Its CMake helper must complete the ready/commit parent handshake,
+reject and delete an unsigned Setup with closed UUID-bound evidence, and the
+installer must uninstall program files while preserving account-local data.
+Upgrade/downgrade equivalence and the canonical packaging switch remain later
+gates.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

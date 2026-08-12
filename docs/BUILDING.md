@@ -265,6 +265,22 @@ libsodium, and any runtime drift without writing evidence. Its closed evidence
 is validated and hashed by `windows_artifact_manifest.py`. Run the portable
 negative policy with `python3 Tests/windows_client_payload_parity_test.py`.
 
+After payload parity and before the existing qmake installer gate, native CI
+uses `tools/verify_windows_cmake_installer.ps1` to compile an isolated temporary
+NSIS from the CMake directory. It requires an explicitly unsigned Setup, clean
+silent install, canonical client/helper PE versions, SQLite/libsodium presence,
+a live client process, the helper ready/commit handshake and UUID-bound
+`trust-rejected` evidence for an unsigned Setup, deletion of that rejected
+fixture, clean uninstall, and preserved account-local data. The script always
+attempts cleanup on failure. Its cross-host source policy is:
+
+```bash
+python3 Tests/windows_cmake_installer_gate_test.py
+```
+
+This focused gate is not yet upgrade/downgrade parity and does not replace the
+uploaded qmake installer. No signing success is inferred from unsigned rejection.
+
 The unsigned Windows NSIS gate now compiles a synthetic predecessor outside the
 uploaded artifact, installs it, and upgrades to canonical `VERSION`. It checks
 whole-program-directory replacement, marker ownership, rollback scaffolding,
