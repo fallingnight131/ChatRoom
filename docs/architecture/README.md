@@ -204,6 +204,12 @@ friend-list read creates a durable self friendship, V016 represents it as a
 one-member DIRECT conversation with an equal canonical account pair; ordinary
 direct pairs remain ordered and unique.
 
+The detached V1 application boundary now defines a complete bounded friend-list
+projection. Durable friend/unread/read/pending state, compatibility identifiers,
+and rebuildable presence remain separate ports; missing mappings or partial
+state fail the request rather than emitting an authoritative empty/pruning list.
+No transport handler or runtime route consumes it yet.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then
