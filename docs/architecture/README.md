@@ -423,6 +423,14 @@ metrics. The admin endpoint exports this metric family, but `GatewayRuntime`
 does not construct or start the loop, so no cloud credential, provider request,
 or cleanup side effect is introduced before real-bucket acceptance.
 
+ADR-0104 adds an explicitly confirmed, operator-only real-provider probe for
+create-only replay rejection, checksum HEAD, Web CORS, and delete-after-failure.
+It creates only a random object in the dedicated capability-probe prefix, never
+creates durable attachment metadata, and always verifies cleanup. The command is
+not part of startup or ordinary verification. A PASS does not cover signed-URL
+expiry, policy review, lifecycle safety, or capacity and therefore does not by
+itself authorize runtime composition.
+
 ## 11. Client Architecture
 
 ### Windows desktop

@@ -42,6 +42,10 @@ composition root must inject a reviewed AWS credential provider supplied by the
 deployment platform. Do not enable ambient developer-profile fallback in
 production. Before composition, the real bucket must pass the create-only,
 SHA-256 HEAD, expiry, Web CORS, and cleanup acceptance described by ADR-0099.
+The guarded operator probe and its additional explicit confirmation values are
+documented in `ATTACHMENT_OBJECT_STORAGE_ACCEPTANCE.md`. It may deliberately use
+the standard credential chain for a temporary non-production test identity;
+that exception does not change the production composition rule.
 
 ## Bounded defaults
 

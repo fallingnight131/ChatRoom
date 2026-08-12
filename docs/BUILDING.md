@@ -91,6 +91,13 @@ Gateway tests also drive the inactive cleanup loop through a deterministic
 manual scheduler and verify healthy cadence, capped failure backoff, recovery,
 close behavior, and fixed-cardinality `/metrics` output without starting a
 thread or contacting object storage.
+An operator-only real-provider probe now covers create-only PUT replay, checksum
+HEAD, Web CORS, and deletion. It is excluded from `check` and gateway startup,
+requires exact side-effect confirmation, generates only a random test-prefix
+object, and verifies cleanup on success or failure. Follow
+`docs/deployment/ATTACHMENT_OBJECT_STORAGE_ACCEPTANCE.md`; do not run it against
+a production bucket or treat its PASS as the remaining expiry/policy/capacity
+evidence.
 The Java gate includes embedded-channel tests for the bounded V2 binary
 WebSocket frame decoder, single-use ClientHello negotiation, and fresh-login
 connection state machine. They verify server-bound identity, secret cleanup,

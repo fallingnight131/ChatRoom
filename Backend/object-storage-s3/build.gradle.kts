@@ -19,3 +19,10 @@ dependencies {
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
+
+tasks.register<JavaExec>("probeAttachmentStorage") {
+    group = "verification"
+    description = "Runs the explicitly confirmed, auto-cleaning real-provider capability probe"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass = "com.fallingnight.chat.storage.s3.S3AttachmentCapabilityProbeMain"
+}

@@ -468,6 +468,10 @@ Progress:
     exponential backoff, fixed telemetry, and loopback Prometheus export.
   - [ ] Pass real-provider create-only/checksum/CORS/delete capability acceptance
     before composing or activating upload and cleanup commands.
+    - [x] Add an explicitly confirmed, auto-cleaning probe with fixed safe output
+      and a dedicated non-production-bucket runbook.
+    - [ ] Retain dated real-provider PASS, expiry, policy, lifecycle, and
+      no-object-remains evidence; no cloud probe has run in repository CI.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,
