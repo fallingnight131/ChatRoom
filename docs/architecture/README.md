@@ -253,6 +253,15 @@ remain successful without repeating the requester notification; requester UUID
 is internal routing context and never a wire field. No adapter or route exists
 for this boundary yet.
 
+The acceptance persistence adapter now implements that unit under a serializable
+transaction. It creates or reuses the ordered DIRECT pair, requires exactly two
+active memberships, attaches one FRIENDSHIP compatibility mapping, and commits
+the request's database-timed `ACCEPTED` state last. V017 allocates runtime-only
+positive V1 friendship IDs downward from the 32-bit maximum while imports retain
+their historical upward IDs; occupied values are always skipped and rollback
+gaps are harmless. Exact retries revalidate the complete relationship. The
+adapter remains detached from transport.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then

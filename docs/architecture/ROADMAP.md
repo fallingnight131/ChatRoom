@@ -455,6 +455,8 @@ Progress:
     with bounded execution, fixed telemetry, and end-to-end PostgreSQL refresh.
   - [x] Define recipient-bound V1 friend-request acceptance with atomic DIRECT
     establishment, exact-retry success, and first-apply-only notification intent.
+  - [x] Implement atomic PostgreSQL acceptance with canonical DIRECT reuse,
+    active memberships, descending runtime V1 IDs, and full retry validation.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

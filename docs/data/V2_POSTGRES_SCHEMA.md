@@ -88,6 +88,11 @@ read-cursor import remains a later step. V016 permits an equal ordered account
 pair so the V1 server's durable self-chat friendship becomes a one-member DIRECT
 conversation. Pair uniqueness still permits only one self chat per account;
 ordinary two-account DIRECT conversations keep canonical ordering.
+V017 adds the temporary runtime V1 FRIENDSHIP ID sequence. It is bounded to the
+positive signed 32-bit range and descends from `2147483647`, opposite historical
+SQLite auto-increment growth. Runtime allocation still checks and skips occupied
+compatibility IDs, so explicit imported mappings remain authoritative. Sequence
+values are allocation tokens rather than domain order; rollback gaps are normal.
 The read-only application compatibility port keeps the namespace type alongside
 the numeric ID and supports both V1-to-V2 request translation and V2-to-V1 event
 projection. Its PostgreSQL adapter does not create mappings, infer identities,
@@ -296,6 +301,13 @@ apply, exact retry, durable resolution, and subsequent empty pending projection.
 The product listener still does not install the compatibility module, so this is
 not a PostgreSQL traffic-authority cutover.
 
+The detached acceptance adapter locks the mapped request in a serializable
+transaction, requires both enabled participants and recipient ownership, and
+creates or reactivates the unique ordered DIRECT relationship with exactly two
+active memberships. It installs one V1 FRIENDSHIP mapping before changing the
+request to database-timed `ACCEPTED`. Exact retries revalidate all of those
+invariants; partial accepted state fails closed. No handler invokes it yet.
+
 ## Bounds and indexes
 
 - identifiers are limited to 128 characters at this storage boundary and are
@@ -340,7 +352,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through V011, reruns migration as a simulated
+cluster, migrates a clean database through current V017, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable

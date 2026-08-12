@@ -24,6 +24,7 @@ import com.fallingnight.chat.application.identity.IssuedSession;
 import com.fallingnight.chat.application.identity.StoredCredential;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendDirectoryState;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestRejectionResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestAcceptanceResult;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -115,7 +116,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(16, first.migrate());
+        assertEquals(17, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -135,6 +136,11 @@ class PostgresMigratorTest {
                             "legacy_v1_contact_request_map",
                             "contact_request_import_run"),
                     applicationTables(connection));
+            assertEquals(1, count("SELECT count(*) FROM pg_sequences "
+                    + "WHERE schemaname = 'chat' "
+                    + "AND sequencename = 'legacy_v1_friendship_id_seq' "
+                    + "AND increment_by = -1 AND min_value = 1 "
+                    + "AND max_value = 2147483647"));
             proveSequenceAndIdempotencyConstraints(connection);
             proveDirectSelfConversationConstraint(connection);
             proveMessageImportAuditConstraints(connection);
@@ -621,6 +627,38 @@ class PostgresMigratorTest {
         assertThrows(IllegalStateException.class,
                 () -> new PostgresLegacyV1PendingFriendRequestAdapter(dataSource())
                         .listIncoming(owner, 10));
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_contact_request_map("
+                            + "legacy_request_id, contact_request_id) VALUES (70, "
+                            + "'70000000-0000-0000-0000-000000000070')");
+        }
+        PostgresLegacyV1FriendRequestAcceptanceAdapter acceptance =
+                new PostgresLegacyV1FriendRequestAcceptanceAdapter(dataSource());
+        assertEquals(LegacyV1FriendRequestAcceptanceResult.Rejected.INSTANCE,
+                acceptance.accept(70, peer));
+        assertEquals(new LegacyV1FriendRequestAcceptanceResult.Accepted(false, requester),
+                acceptance.accept(70, owner));
+        assertEquals(new LegacyV1FriendRequestAcceptanceResult.Accepted(true, requester),
+                acceptance.accept(70, owner));
+        assertEquals(1, count("SELECT count(*) FROM chat.contact_request "
+                + "WHERE id = '70000000-0000-0000-0000-000000000070' "
+                + "AND state = 'ACCEPTED' AND resolved_at IS NOT NULL"));
+        assertEquals(1, count("SELECT count(*) FROM chat.direct_conversation direct "
+                + "WHERE direct.first_account_id IN ('" + owner + "', '" + requester + "') "
+                + "AND direct.second_account_id IN ('" + owner + "', '" + requester + "') "
+                + "AND (SELECT count(*) FROM chat.conversation_member member "
+                + "WHERE member.conversation_id = direct.conversation_id "
+                + "AND member.account_id IN ('" + owner + "', '" + requester + "') "
+                + "AND member.left_at IS NULL) = 2"));
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_conversation_map mapping "
+                + "JOIN chat.direct_conversation direct "
+                + "ON direct.conversation_id = mapping.conversation_id "
+                + "WHERE mapping.legacy_kind = 'FRIENDSHIP' "
+                + "AND mapping.legacy_conversation_id = 2147483647 "
+                + "AND direct.first_account_id IN ('" + owner + "', '" + requester + "') "
+                + "AND direct.second_account_id IN ('" + owner + "', '" + requester + "')"));
     }
 
     @Test
