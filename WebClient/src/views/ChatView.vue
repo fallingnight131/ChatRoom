@@ -1,5 +1,8 @@
 <template>
   <div class="chat-page">
+    <div v-if="networkOffline" class="connection-banner" role="status" aria-live="polite">
+      网络已断开，可继续查看已缓存消息，恢复后将自动连接
+    </div>
     <!-- 移动端遮罩层 -->
     <div class="panel-overlay" v-if="mobilePanel" @click="mobilePanel = ''"></div>
 
@@ -66,9 +69,10 @@
 
     <div class="center-panel empty-state" v-else>
       <button class="btn-icon mobile-menu-btn empty-menu-btn" @click="mobilePanel = 'left'" title="房间列表">☰</button>
-      <div v-if="reconnecting" class="empty-icon">⏳</div>
+      <div v-if="networkOffline" class="empty-icon" aria-hidden="true">📴</div>
+      <div v-else-if="reconnecting" class="empty-icon" aria-hidden="true">⏳</div>
       <div v-else class="empty-icon">💬</div>
-      <p>{{ reconnecting ? '正在重新连接...' : (activeTab === 'friends' ? '选择一个窗口开始聊天' : '选择一个房间开始聊天') }}</p>
+      <p role="status" aria-live="polite">{{ networkOffline ? '网络已断开，将在恢复后自动连接' : (reconnecting ? '正在重新连接...' : (activeTab === 'friends' ? '选择一个窗口开始聊天' : '选择一个房间开始聊天')) }}</p>
     </div>
 
     <!-- 右侧面板：成员列表（仅房间模式） -->
@@ -132,6 +136,7 @@ const showPasswordPrompt = ref(false)
 const passwordRoomData = ref(null)
 const mobilePanel = ref('')
 const reconnecting = ref(false)
+const networkOffline = ref(typeof navigator !== 'undefined' && navigator.onLine === false)
 const activeTab = ref('friends')
 
 function isMobile() {
@@ -236,6 +241,8 @@ function onReconnected() {
 onMounted(() => {
   // 断开连接时的处理
   chatWs.on('disconnected', onDisconnected)
+  chatWs.on('offline', onNetworkOffline)
+  chatWs.on('online', onNetworkOnline)
   chatStore.onEvent('needPassword', onNeedPassword)
 
   // 页面刷新后内存凭证已丢失，必须重新登录。
@@ -246,6 +253,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   chatWs.off('disconnected', onDisconnected)
+  chatWs.off('offline', onNetworkOffline)
+  chatWs.off('online', onNetworkOnline)
   chatWs.off('connected', onReconnected)
   chatWs.off(MsgType.LOGIN_RSP, onReconnectLogin)
   chatStore.offEvent('needPassword', onNeedPassword)
@@ -256,6 +265,16 @@ function onDisconnected() {
   reconnecting.value = true
   chatWs.off('connected', onReconnected)
   chatWs.on('connected', onReconnected)
+}
+
+function onNetworkOffline() {
+  networkOffline.value = true
+  reconnecting.value = false
+}
+
+function onNetworkOnline() {
+  networkOffline.value = false
+  if (userStore.loggedIn) reconnecting.value = true
 }
 
 function onForceOfflineConfirm() {
@@ -273,6 +292,23 @@ function onForceOfflineConfirm() {
   background: var(--bg-primary);
   position: relative;
   overflow: hidden;
+}
+
+.connection-banner {
+  position: fixed;
+  z-index: 1200;
+  top: max(8px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  padding: 8px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md);
+  font-size: 13px;
+  text-align: center;
 }
 
 /* 遮罩层（移动端面板展开时） */

@@ -129,6 +129,20 @@ function onDisconnected() {
   }
 }
 
+function onOffline() {
+  // No authenticated session exists on this screen; recovery remains an
+  // explicit user action and must not retain an automatic login attempt.
+  chatWs.disconnect()
+  loading.value = false
+  errorMsg.value = '网络已断开，请在恢复连接后重试'
+}
+
+function onOnline() {
+  if (errorMsg.value === '网络已断开，请在恢复连接后重试') {
+    errorMsg.value = '网络已恢复，可以重新登录'
+  }
+}
+
 function onLoginRsp(msg) {
   loading.value = false
   if (msg.data.success) {
@@ -167,6 +181,8 @@ function onRegisterRsp(msg) {
 onMounted(() => {
   chatWs.on('connected', onConnected)
   chatWs.on('disconnected', onDisconnected)
+  chatWs.on('offline', onOffline)
+  chatWs.on('online', onOnline)
   chatWs.on(MsgType.LOGIN_RSP, onLoginRsp)
   chatWs.on(MsgType.REGISTER_RSP, onRegisterRsp)
 })
@@ -174,6 +190,8 @@ onMounted(() => {
 onUnmounted(() => {
   chatWs.off('connected', onConnected)
   chatWs.off('disconnected', onDisconnected)
+  chatWs.off('offline', onOffline)
+  chatWs.off('online', onOnline)
   chatWs.off(MsgType.LOGIN_RSP, onLoginRsp)
   chatWs.off(MsgType.REGISTER_RSP, onRegisterRsp)
 })

@@ -10,12 +10,22 @@ const styles = await readFile(
   new URL('../src/assets/style.css', import.meta.url), 'utf8')
 const login = await readFile(
   new URL('../src/views/LoginView.vue', import.meta.url), 'utf8')
+const chatView = await readFile(
+  new URL('../src/views/ChatView.vue', import.meta.url), 'utf8')
 
 test('exposes the message timeline as an announced busy-aware log', () => {
   assert.match(messages, /role="log"/)
   assert.match(messages, /aria-live="polite"/)
   assert.match(messages, /:aria-busy="loadingMore"/)
   assert.match(messages, /:aria-label="messageAriaLabel\(msg\)"/)
+})
+
+test('announces offline and reconnecting state without relying on icons', () => {
+  assert.match(chatView, /role="status" aria-live="polite"/)
+  assert.match(chatView, /可继续查看已缓存消息/)
+  assert.match(chatView, /网络已断开，将在恢复后自动连接/)
+  assert.match(chatView, /chatWs\.on\('offline', onNetworkOffline\)/)
+  assert.match(chatView, /chatWs\.on\('online', onNetworkOnline\)/)
 })
 
 test('supports keyboard access to files, profiles, retry, and message actions', () => {

@@ -512,6 +512,13 @@ proof in page memory, redacts it from application observers, automatically
 resumes after transient reconnect, and clears it on rejection or explicit stop.
 No proof is persisted across a reload.
 
+The supported V1 WebSocket transport now also consumes browser offline/online
+signals. It creates no socket and burns no reconnect budget while explicitly
+offline, closes active transport timers on loss, and starts one immediate
+replacement connection on recovery unless logout or forced-offline disabled
+reconnect. The UI announces offline state while leaving cached content visible;
+an online signal is not treated as server reachability proof. See ADR-0215.
+
 The additive V2 cache uses a separate `chat-room-client-v2` IndexedDB database
 instead of upgrading the live V1 database. It partitions snapshots by V2 account
 and conversation UUID, stores bounded text metadata only, and encodes exact

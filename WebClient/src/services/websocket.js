@@ -92,8 +92,9 @@ export function makeMessage(type, data = {}) {
   return { type, id: uuid(), timestamp: Date.now(), data }
 }
 
-class ChatWebSocket {
-  constructor() {
+export class ChatWebSocket {
+  constructor(environment = globalThis) {
+    this.environment = environment
     this.ws = null
     this.handlers = new Map()
     this.heartbeatTimer = null
@@ -103,6 +104,13 @@ class ChatWebSocket {
     this.url = ''
     this.connected = ref(false)
     this.autoReconnect = true
+    this.networkOffline = this._isOffline()
+    this._handleOffline = () => this._onOffline()
+    this._handleOnline = () => this._onOnline()
+    if (typeof this.environment.addEventListener === 'function') {
+      this.environment.addEventListener('offline', this._handleOffline)
+      this.environment.addEventListener('online', this._handleOnline)
+    }
   }
 
   // 连接服务器
@@ -129,22 +137,38 @@ class ChatWebSocket {
     this.url = parsed.toString()
     this.autoReconnect = true
     this.reconnectCount = 0
+    if (this._isOffline()) {
+      this.networkOffline = true
+      this._emit('offline')
+      return
+    }
     this._doConnect()
   }
 
   _doConnect() {
+    clearTimeout(this.reconnectTimer)
+    this.reconnectTimer = null
+    if (!this.autoReconnect || this._isOffline()) {
+      this.networkOffline = this._isOffline()
+      if (this.networkOffline) this._emit('offline')
+      return
+    }
     if (this.ws) {
       this.ws.onclose = null
       this.ws.close()
     }
-    this.ws = new WebSocket(this.url)
-    this.ws.onopen = () => {
+    const socket = new this.environment.WebSocket(this.url)
+    this.ws = socket
+    socket.onopen = () => {
+      if (this.ws !== socket) return
       this.connected.value = true
+      this.networkOffline = false
       this.reconnectCount = 0
       this._startHeartbeat()
       this._emit('connected')
     }
-    this.ws.onmessage = (ev) => {
+    socket.onmessage = (ev) => {
+      if (this.ws !== socket) return
       this._resetHeartbeatTimeout()
       try {
         const msg = JSON.parse(ev.data)
@@ -153,16 +177,21 @@ class ChatWebSocket {
         console.error('[WS] 消息解析失败:', e)
       }
     }
-    this.ws.onclose = () => {
+    socket.onclose = () => {
+      if (this.ws !== socket) return
+      this.ws = null
       this.connected.value = false
       this._stopHeartbeat()
       this._emit('disconnected')
-      if (this.autoReconnect && this.reconnectCount < MAX_RECONNECT) {
+      if (this._isOffline()) {
+        this.networkOffline = true
+        this._emit('offline')
+      } else if (this.autoReconnect && this.reconnectCount < MAX_RECONNECT) {
         this.reconnectCount++
         this.reconnectTimer = setTimeout(() => this._doConnect(), RECONNECT_INTERVAL)
       }
     }
-    this.ws.onerror = (e) => {
+    socket.onerror = (e) => {
       console.error('[WS] 错误:', e)
     }
   }
@@ -179,9 +208,40 @@ class ChatWebSocket {
     this.connected.value = false
   }
 
+  _isOffline() {
+    return this.environment.navigator?.onLine === false
+  }
+
+  _onOffline() {
+    if (this.networkOffline) return
+    this.networkOffline = true
+    clearTimeout(this.reconnectTimer)
+    this.reconnectTimer = null
+    this._stopHeartbeat()
+    const socket = this.ws
+    this.ws = null
+    this.connected.value = false
+    if (socket) {
+      socket.onclose = null
+      socket.close()
+      this._emit('disconnected')
+    }
+    this._emit('offline')
+  }
+
+  _onOnline() {
+    if (!this.networkOffline) return
+    this.networkOffline = false
+    this._emit('online')
+    if (this.autoReconnect && this.url && !this.ws) {
+      this.reconnectCount = 0
+      this._doConnect()
+    }
+  }
+
   // 发送消息
   send(msg) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+    if (this.ws && this.ws.readyState === this.environment.WebSocket.OPEN) {
       this.ws.send(JSON.stringify(msg))
     }
   }
