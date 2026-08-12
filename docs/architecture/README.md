@@ -835,6 +835,11 @@ message/file compatibility mappings, recall/deletion entries, read cursors,
 conversation high watermarks, and linked message/attachment audits commit
 together. Exact reruns reconcile without duplicate durable rows; any target drift
 rolls back before a new audit. No source path or legacy object URL is persisted.
+ADR-0304 adds the read side needed by the V1 administrator file manager. Only an
+enabled mapped OWNER/ADMIN of an active mapped group can list complete READY
+attachment-message mappings. The bounded projection returns legacy numeric IDs,
+safe metadata, exact active-byte usage and canonical quota; unavailable, pending,
+revoked, unmapped, or partial rows are never synthesized into a response.
 
 ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
 create-only, length, type, and SHA-256 constraints and reads checksum-enabled

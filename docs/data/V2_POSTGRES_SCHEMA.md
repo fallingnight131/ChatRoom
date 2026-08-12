@@ -190,6 +190,11 @@ under database reconciliation constraints. The serializable importer creates
 attachments before their messages, then both V1 mappings, shared mutation
 entries, cursors, and linked audit rows before final source reverification and
 commit.
+The V1 room-file projection joins `legacy_v1_attachment_map`, `attachment`, the
+bound type-2 `message`, and `legacy_v1_message_map` under active administrator
+authorization. It lists only `READY` rows and sums exactly those bytes against
+`group_resource_policy.total_file_space`; historical `UNAVAILABLE` rows remain
+message history only.
 Before that evidence is accepted, the pure V1 source planner reconciles every
 typed `files`/`friend_files` row to exactly one retained attachment message and
 derives deterministic target identities. Its fingerprint includes local/object

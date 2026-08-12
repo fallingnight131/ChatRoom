@@ -55,6 +55,7 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomLeaveResul
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMemberListPort;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettings;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettingsPort;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomFilesPort;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -219,24 +220,7 @@ class PostgresMigratorTest {
                 V1UnifiedAttachmentImportFixture.create(temporary);
         UUID account = V1IdentityImportPlanner.deterministicUserId(1);
         UUID conversation = V1ConversationImportPlanner.deterministicRoomId(9);
-        try (Connection connection = connect()) {
-            execute(connection,
-                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
-                            + "VALUES (?, 'v1-attachment-user', 'Attachment User', "
-                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
-                    account);
-            execute(connection,
-                    "INSERT INTO chat.conversation(id, kind, title) "
-                            + "VALUES (?, 'GROUP', 'Room')",
-                    conversation);
-            execute(connection,
-                    "INSERT INTO chat.conversation_member(conversation_id, account_id) "
-                            + "VALUES (?, ?)", conversation, account);
-            execute(connection,
-                    "INSERT INTO chat.legacy_v1_conversation_map("
-                            + "legacy_kind, legacy_conversation_id, conversation_id) "
-                            + "VALUES ('ROOM', 9, ?)", conversation);
-        }
+        seedV1AttachmentTarget(account, conversation);
         PostgresV1MessageImporter importer = new PostgresV1MessageImporter(dataSource());
 
         V1MessageImportReport first = importer.apply(bundle);
@@ -263,6 +247,73 @@ class PostgresMigratorTest {
         assertThrows(V1MessageImportException.class, () -> importer.apply(bundle));
         assertEquals(proofsBefore, count("SELECT count(*) FROM chat.attachment_import_run"));
         assertEquals(1, count("SELECT count(*) FROM chat.message"));
+    }
+
+    @Test
+    @Order(100)
+    void listsOnlyCompleteReadyV1RoomFilesForActiveAdministrators() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        VerifiedV1UnifiedMessageImportBundle bundle =
+                V1UnifiedAttachmentImportFixture.create(temporary);
+        UUID account = V1IdentityImportPlanner.deterministicUserId(1);
+        UUID conversation = V1ConversationImportPlanner.deterministicRoomId(9);
+        seedV1AttachmentTarget(account, conversation);
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.conversation_member SET role = 'ADMIN' "
+                            + "WHERE conversation_id = ? AND account_id = ?",
+                    conversation, account);
+            execute(connection,
+                    "INSERT INTO chat.group_lifecycle(conversation_id) VALUES (?) "
+                            + "ON CONFLICT DO NOTHING",
+                    conversation);
+            execute(connection,
+                    "INSERT INTO chat.group_resource_policy(conversation_id, max_file_size, "
+                            + "total_file_space, max_file_count) VALUES (?, 1024, 4096, 42) "
+                            + "ON CONFLICT (conversation_id) DO UPDATE SET "
+                            + "max_file_size = EXCLUDED.max_file_size, "
+                            + "total_file_space = EXCLUDED.total_file_space, "
+                            + "max_file_count = EXCLUDED.max_file_count",
+                    conversation);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                            + "VALUES (1, ?)", account);
+        }
+        new PostgresV1MessageImporter(dataSource()).apply(bundle);
+        PostgresLegacyV1RoomFilesAdapter adapter =
+                new PostgresLegacyV1RoomFilesAdapter(dataSource());
+
+        var authorized = (LegacyV1RoomFilesPort.QueryResult.Authorized)
+                adapter.read(account, 9);
+
+        assertEquals(1, authorized.files().files().size());
+        assertEquals(7, authorized.files().files().getFirst().legacyFileId());
+        assertEquals("report.pdf", authorized.files().files().getFirst().fileName());
+        assertEquals(123, authorized.files().usedFileSpace());
+        assertEquals(4096, authorized.files().maxFileSpace());
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.conversation_member SET role = 'MEMBER' "
+                            + "WHERE conversation_id = ? AND account_id = ?",
+                    conversation, account);
+        }
+        assertEquals(LegacyV1RoomFilesPort.QueryResult.Rejected.ROOM_ADMIN_REQUIRED,
+                adapter.read(account, 9));
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.conversation_member SET role = 'ADMIN' "
+                            + "WHERE conversation_id = ? AND account_id = ?",
+                    conversation, account);
+            execute(connection,
+                    "UPDATE chat.attachment SET state = 'REVOKED', "
+                            + "revoked_at = transaction_timestamp() "
+                            + "WHERE conversation_id = ?", conversation);
+        }
+        var empty = (LegacyV1RoomFilesPort.QueryResult.Authorized) adapter.read(account, 9);
+        assertTrue(empty.files().files().isEmpty());
+        assertEquals(0, empty.files().usedFileSpace());
     }
 
     @Test
@@ -3404,6 +3455,28 @@ class PostgresMigratorTest {
                                 + "chat.message_import_run, chat.contact_request_import_run "
                                 + "CASCADE")) {
             statement.execute();
+        }
+    }
+
+    private static void seedV1AttachmentTarget(UUID account, UUID conversation)
+            throws SQLException {
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'v1-attachment-user', 'Attachment User', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    account);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind, title) "
+                            + "VALUES (?, 'GROUP', 'Room')",
+                    conversation);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id) "
+                            + "VALUES (?, ?)", conversation, account);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map("
+                            + "legacy_kind, legacy_conversation_id, conversation_id) "
+                            + "VALUES ('ROOM', 9, ?)", conversation);
         }
     }
 

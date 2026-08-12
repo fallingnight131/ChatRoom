@@ -647,6 +647,10 @@ Progress:
     physical backup proof so mixed history retains its original ordering.
   - [x] Add verified V1 file-object evidence and atomically import historical
     attachments, mappings, and attachment messages without local-path leakage.
+  - [x] Define and implement the administrator-only canonical PostgreSQL room
+    file-list projection with complete V1 mappings and exact quota usage.
+  - [ ] Compose strict `ROOM_FILES_REQ` transport handling and prove login-to-list
+    compatibility through real PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
