@@ -501,6 +501,8 @@ Progress:
     active-relationship checks plus database-enforced one-event integrity.
   - [x] Compose detached strict V1 direct recall with authenticated ownership,
     first-only local notification, duplicate suppression, and fixed telemetry.
+  - [x] Prove V1 direct send, replacement login, recall, duplicate suppression,
+    and mutation-sequence history recovery against disposable PostgreSQL.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

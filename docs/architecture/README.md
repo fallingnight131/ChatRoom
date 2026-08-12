@@ -364,7 +364,9 @@ at most one event per message. Concurrent or later exact owner retries recover
 that event without another notification. Peer names and sequence values from
 the wire are never authority. The detached strict handler returns authoritative
 legacy fields and emits a process-local peer notification only on first apply.
-The product listener remains unchanged.
+Disposable PostgreSQL verification covers replacement login, first/duplicate
+recall, peer notification, and mutation-sequence history recovery. The product
+listener remains unchanged.
 
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.

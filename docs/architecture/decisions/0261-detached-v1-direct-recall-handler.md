@@ -25,4 +25,6 @@ unchanged and multi-gateway routing remains M5.
 Embedded-channel tests prove authenticated actor binding, spoofed peer
 irrelevance, compatible response/notification fields, duplicate notification
 suppression, and malformed closure. PostgreSQL tests independently prove the
-atomic durable decision.
+atomic durable decision. Disposable PostgreSQL composition additionally proves
+send, replacement login, cursor recovery, first recall, peer notification,
+duplicate suppression, and recall compensation through the next history page.

@@ -45,6 +45,7 @@ import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
@@ -254,7 +255,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     assertNull(peer.readOutbound());
                     assertEquals(1, acceptedRequestCount(jdbcUrl, username, password));
 
-                    assertDirectMessageFirst(imported, peer);
+                    long directMessageId = assertDirectMessageFirst(imported, peer);
                     assertDirectMessageDuplicate(imported, peer);
 
                     EmbeddedChannel reconnected = upgradedChannel(module, Runnable::run,
@@ -266,6 +267,9 @@ class GatewayRuntimePostgresIntegrationTest {
                         reconnected.runPendingTasks();
                         ((TextWebSocketFrame) reconnected.readOutbound()).release();
                         assertDirectHistoryAfterReconnect(reconnected);
+                        assertDirectRecallFirst(reconnected, peer, directMessageId);
+                        assertDirectRecallDuplicate(reconnected, peer, directMessageId);
+                        assertRecalledHistoryAfterSequence(reconnected, directMessageId);
 
                         assertFriendRemovalSuccess(reconnected, "imported-peer");
                         peer.runPendingTasks();
@@ -282,7 +286,7 @@ class GatewayRuntimePostgresIntegrationTest {
                         peer.runPendingTasks();
                         assertNull(peer.readOutbound());
                         assertEquals(2, inactiveFriendMembers(jdbcUrl, username, password));
-                        assertEquals(3, retainedFriendEntries(jdbcUrl, username, password));
+                        assertEquals(4, retainedFriendEntries(jdbcUrl, username, password));
                         assertEmptyFriendList(reconnected);
                         assertEmptyFriendList(peer);
 
@@ -425,17 +429,19 @@ class GatewayRuntimePostgresIntegrationTest {
         } finally { response.release(); }
     }
 
-    private static void assertDirectMessageFirst(
+    private static long assertDirectMessageFirst(
             EmbeddedChannel sender, EmbeddedChannel recipient) {
         sendDirectMessage(sender);
         sender.runPendingTasks();
         TextWebSocketFrame response = sender.readOutbound();
         TextWebSocketFrame senderLive = sender.readOutbound();
+        long messageId;
         try {
             assertTrue(response.text().contains("\"type\":\"FRIEND_CHAT_SEND_RSP\""));
             assertTrue(response.text().contains("\"success\":true"));
             assertTrue(response.text().contains("\"duplicate\":false"));
             assertTrue(response.text().contains("\"friendshipId\":9"));
+            messageId = numericDataField(response.text(), "id");
             assertFalse(response.text().contains("40000000-0000"));
             assertTrue(senderLive.text().contains("\"type\":\"FRIEND_CHAT_MSG\""));
             assertTrue(senderLive.text().contains("\"sender\":\"imported-v1\""));
@@ -448,6 +454,7 @@ class GatewayRuntimePostgresIntegrationTest {
             assertTrue(recipientLive.text().contains("\"senderName\":\"Imported V1\""));
             assertFalse(recipientLive.text().contains("10000000-0000"));
         } finally { recipientLive.release(); }
+        return messageId;
     }
 
     private static void assertDirectMessageDuplicate(
@@ -493,6 +500,77 @@ class GatewayRuntimePostgresIntegrationTest {
             assertTrue(response.text().contains("\"hasMore\":false"));
             assertFalse(response.text().contains("40000000-0000"));
         } finally { response.release(); }
+    }
+
+    private static void assertDirectRecallFirst(
+            EmbeddedChannel sender, EmbeddedChannel recipient, long messageId) {
+        sendDirectRecall(sender, messageId);
+        sender.runPendingTasks();
+        TextWebSocketFrame response = sender.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"FRIEND_RECALL_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"duplicate\":false"));
+            assertTrue(response.text().contains("\"messageId\":" + messageId));
+            assertTrue(response.text().contains("\"mutationSequence\":4"));
+            assertFalse(response.text().contains("spoofed-peer"));
+        } finally { response.release(); }
+        recipient.runPendingTasks();
+        TextWebSocketFrame notification = recipient.readOutbound();
+        try {
+            assertTrue(notification.text().contains("\"type\":\"FRIEND_RECALL_NOTIFY\""));
+            assertTrue(notification.text().contains("\"messageId\":" + messageId));
+            assertTrue(notification.text().contains("\"friendUsername\":\"imported-v1\""));
+            assertTrue(notification.text().contains("\"mutationSequence\":4"));
+        } finally { notification.release(); }
+    }
+
+    private static void assertDirectRecallDuplicate(
+            EmbeddedChannel sender, EmbeddedChannel recipient, long messageId) {
+        sendDirectRecall(sender, messageId);
+        sender.runPendingTasks();
+        TextWebSocketFrame response = sender.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"duplicate\":true"));
+            assertTrue(response.text().contains("\"mutationSequence\":4"));
+        } finally { response.release(); }
+        recipient.runPendingTasks();
+        assertNull(recipient.readOutbound());
+    }
+
+    private static void sendDirectRecall(EmbeddedChannel sender, long messageId) {
+        sender.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"FRIEND_RECALL_REQ\",\"data\":{\"messageId\":"
+                        + messageId + ",\"friendUsername\":\"spoofed-peer\"}}"));
+    }
+
+    private static void assertRecalledHistoryAfterSequence(
+            EmbeddedChannel channel, long messageId) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"FRIEND_HISTORY_REQ\",\"data\":{"
+                        + "\"friendUsername\":\"imported-peer\",\"count\":10,"
+                        + "\"afterSequence\":3}}"));
+        channel.runPendingTasks();
+        TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"messageId\":" + messageId)
+                    || response.text().contains("\"id\":" + messageId));
+            assertTrue(response.text().contains("\"recalled\":true"));
+            assertTrue(response.text().contains("\"sequence\":3"));
+            assertTrue(response.text().contains("\"mutationSequence\":4"));
+            assertTrue(response.text().contains("\"syncSequence\":4"));
+            assertTrue(response.text().contains("\"nextSequence\":4"));
+            assertTrue(response.text().contains("\"lastSequence\":4"));
+            assertTrue(response.text().contains("\"hasMore\":false"));
+        } finally { response.release(); }
+    }
+
+    private static long numericDataField(String json, String field) {
+        var matcher = Pattern.compile("\\\"data\\\":\\{[^}]*\\\""
+                + Pattern.quote(field) + "\\\":(\\d+)").matcher(json);
+        assertTrue(matcher.find());
+        return Long.parseLong(matcher.group(1));
     }
 
     private static void assertEmptyFriendList(EmbeddedChannel channel) {

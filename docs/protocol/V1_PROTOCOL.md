@@ -274,7 +274,9 @@ atomic canonical mutation sequence. The PostgreSQL adapter enforces these
 rules with database time and retry-convergent serialization. Exact owner retry
 returns the same event with `duplicate: true` and no second notification. The
 detached handler returns mapped peer/mutation fields and schedules a local peer
-notification only on first apply; the product listener remains unchanged.
+notification only on first apply. Real replacement-login verification proves
+the next history page reconciles that recall by `mutationSequence`; the product
+listener remains unchanged.
 
 ### History
 
