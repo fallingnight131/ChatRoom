@@ -1,0 +1,236 @@
+name: Windows Protected Update Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_revision:
+        description: Exact 40-character commit of the signed Windows candidate
+        required: true
+        type: string
+      signed_candidate_run_id:
+        description: Protected Windows signing run containing the exact candidate
+        required: true
+        type: string
+      channel:
+        description: Candidate channel; this workflow does not publish it
+        required: true
+        type: choice
+        options:
+          - stable
+          - beta
+      expected_authenticode_signer_sha256:
+        description: Reviewed lowercase SHA-256 Authenticode publisher identity
+        required: true
+        type: string
+      manifest_sequence:
+        description: Monotonic positive sequence for the selected channel
+        required: true
+        type: string
+      signing_key_id:
+        description: Reviewed Ed25519 public-key identifier compiled into clients
+        required: true
+        type: string
+      update_public_key_file_sha256:
+        description: Reviewed lowercase SHA-256 of the runner-provisioned public PEM
+        required: true
+        type: string
+      minimum_updatable_version:
+        description: Lowest canonical SemVer accepted for direct update
+        required: true
+        type: string
+      rollout_percentage:
+        description: Initial deterministic rollout percentage from 0 through 100
+        required: true
+        type: string
+      rollout_seed:
+        description: Reviewed lowercase 32-byte rollout seed encoded as hex
+        required: true
+        type: string
+      installer_url:
+        description: Credential-free HTTPS URL for the exact canonical Setup
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: windows-protected-update-signing-${{ inputs.channel }}
+  cancel-in-progress: false
+
+jobs:
+  sign-update-candidate:
+    name: Sign and assemble an unpublished Windows update candidate
+    environment: windows-update-production-signing
+    runs-on: [self-hosted, windows, x64, self-hosted-windows-update-signing]
+    timeout-minutes: 15
+    env:
+      RELEASE_REVISION: ${{ inputs.source_revision }}
+      SIGNED_CANDIDATE_RUN_ID: ${{ inputs.signed_candidate_run_id }}
+      RELEASE_CHANNEL: ${{ inputs.channel }}
+      AUTHENTICODE_SIGNER_SHA256: ${{ inputs.expected_authenticode_signer_sha256 }}
+      UPDATE_MANIFEST_SEQUENCE: ${{ inputs.manifest_sequence }}
+      UPDATE_SIGNING_KEY_ID: ${{ inputs.signing_key_id }}
+      UPDATE_PUBLIC_KEY_FILE_SHA256: ${{ inputs.update_public_key_file_sha256 }}
+      MINIMUM_UPDATABLE_VERSION: ${{ inputs.minimum_updatable_version }}
+      UPDATE_ROLLOUT_PERCENTAGE: ${{ inputs.rollout_percentage }}
+      UPDATE_ROLLOUT_SEED: ${{ inputs.rollout_seed }}
+      UPDATE_INSTALLER_URL: ${{ inputs.installer_url }}
+
+    steps:
+      - name: Check out the exact approved revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_revision }}
+          persist-credentials: false
+
+      - name: Validate immutable update-signing inputs
+        id: identity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ($env:RELEASE_REVISION -cnotmatch '^[0-9a-f]{40}$') {
+            throw "source revision is invalid"
+          }
+          if ((git rev-parse HEAD).Trim() -cne $env:RELEASE_REVISION) {
+            throw "checkout does not match source revision"
+          }
+          if ($env:SIGNED_CANDIDATE_RUN_ID -cnotmatch '^[1-9][0-9]{0,19}$') {
+            throw "signed candidate run ID is invalid"
+          }
+          if ($env:AUTHENTICODE_SIGNER_SHA256 -cnotmatch '^[0-9a-f]{64}$' `
+              -or $env:UPDATE_PUBLIC_KEY_FILE_SHA256 -cnotmatch '^[0-9a-f]{64}$' `
+              -or $env:UPDATE_ROLLOUT_SEED -cnotmatch '^[0-9a-f]{64}$') {
+            throw "reviewed digest input is invalid"
+          }
+          if ($env:UPDATE_SIGNING_KEY_ID -cnotmatch '^[a-z0-9][a-z0-9.-]{0,63}$') {
+            throw "update signing key ID is invalid"
+          }
+          [long]$sequence = 0
+          if (-not [long]::TryParse($env:UPDATE_MANIFEST_SEQUENCE, [ref]$sequence) `
+              -or $sequence -lt 1 -or $sequence -gt 9007199254740991) {
+            throw "manifest sequence is invalid"
+          }
+          [int]$percentage = -1
+          if (-not [int]::TryParse($env:UPDATE_ROLLOUT_PERCENTAGE, [ref]$percentage) `
+              -or $percentage -lt 0 -or $percentage -gt 100) {
+            throw "rollout percentage is invalid"
+          }
+          if ($env:MINIMUM_UPDATABLE_VERSION -cnotmatch `
+              '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+            throw "minimum updatable version is invalid"
+          }
+          $version = (Get-Content VERSION -Raw).Trim()
+          if ($version -cnotmatch `
+              '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+            throw "VERSION is invalid"
+          }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "run-id=$env:SIGNED_CANDIDATE_RUN_ID" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "artifact=windows-$env:RELEASE_CHANNEL-$version-signed-not-published-$env:RELEASE_REVISION" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Prepare an empty protected update workspace
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (Test-Path build/m4/protected-update-signing) {
+            Remove-Item build/m4/protected-update-signing -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force build/m4/protected-update-signing | Out-Null
+
+      - name: Download the exact signed Windows candidate
+        uses: actions/download-artifact@v8
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.identity.outputs.run-id }}
+          name: ${{ steps.identity.outputs.artifact }}
+          path: build/m4/protected-update-signing/windows-candidate
+
+      - name: Independently verify signed Windows candidate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          python tools/windows_release_candidate.py verify `
+            --candidate-root build/m4/protected-update-signing/windows-candidate `
+            --version-file VERSION `
+            --source-revision $env:RELEASE_REVISION `
+            --channel $env:RELEASE_CHANNEL `
+            --qt-version "6.11.1" `
+            --expected-signer-sha256 $env:AUTHENTICODE_SIGNER_SHA256
+
+      - name: Author the short-lived canonical update manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $now = (Get-Date).ToUniversalTime()
+          $published = $now.ToString("yyyy-MM-ddTHH:mm:ssZ")
+          $expires = $now.AddDays(7).ToString("yyyy-MM-ddTHH:mm:ssZ")
+          python tools/windows_update_manifest.py create `
+            --installer "build/m4/protected-update-signing/windows-candidate/installer/ChatRoom-${{ steps.identity.outputs.version }}-Setup.exe" `
+            --version "${{ steps.identity.outputs.version }}" `
+            --channel $env:RELEASE_CHANNEL `
+            --manifest-sequence $env:UPDATE_MANIFEST_SEQUENCE `
+            --signing-key-id $env:UPDATE_SIGNING_KEY_ID `
+            --published-at $published `
+            --expires-at $expires `
+            --minimum-updatable-version $env:MINIMUM_UPDATABLE_VERSION `
+            --source-revision $env:RELEASE_REVISION `
+            --rollout-percentage $env:UPDATE_ROLLOUT_PERCENTAGE `
+            --rollout-seed $env:UPDATE_ROLLOUT_SEED `
+            --installer-url $env:UPDATE_INSTALLER_URL `
+            --authenticode-sha256-thumbprint $env:AUTHENTICODE_SIGNER_SHA256 `
+            --output build/m4/protected-update-signing/manifest.json
+
+      - name: Sign through the protected non-exportable Ed25519 key
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (-not $env:CHATROOM_UPDATE_PUBLIC_KEY_PATH) {
+            throw "runner-provisioned update public key path is absent"
+          }
+          tools/sign_windows_update_manifest_protected.ps1 `
+            -ManifestPath build/m4/protected-update-signing/manifest.json `
+            -SignaturePath build/m4/protected-update-signing/manifest.json.sig `
+            -PublicKeyPath $env:CHATROOM_UPDATE_PUBLIC_KEY_PATH `
+            -ExpectedKeyId $env:UPDATE_SIGNING_KEY_ID `
+            -ExpectedPublicKeyFileSha256 $env:UPDATE_PUBLIC_KEY_FILE_SHA256
+          python tools/windows_update_manifest.py verify `
+            --manifest build/m4/protected-update-signing/manifest.json `
+            --signature build/m4/protected-update-signing/manifest.json.sig `
+            --public-key $env:CHATROOM_UPDATE_PUBLIC_KEY_PATH
+
+      - name: Assemble and independently verify unpublished update candidate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "build/m4/protected-update-signing"
+          python tools/windows_update_channel_candidate.py assemble `
+            --windows-candidate-root "$root/windows-candidate" `
+            --update-manifest "$root/manifest.json" `
+            --signature "$root/manifest.json.sig" `
+            --public-key $env:CHATROOM_UPDATE_PUBLIC_KEY_PATH `
+            --output-root "$root/update-candidate" `
+            --version-file VERSION `
+            --source-revision $env:RELEASE_REVISION `
+            --channel $env:RELEASE_CHANNEL `
+            --qt-version "6.11.1" `
+            --authenticode-signer-sha256 $env:AUTHENTICODE_SIGNER_SHA256 `
+            --public-key-file-sha256 $env:UPDATE_PUBLIC_KEY_FILE_SHA256
+          python tools/windows_update_channel_candidate.py verify `
+            --candidate-root "$root/update-candidate" `
+            --version-file VERSION `
+            --source-revision $env:RELEASE_REVISION `
+            --channel $env:RELEASE_CHANNEL `
+            --qt-version "6.11.1" `
+            --authenticode-signer-sha256 $env:AUTHENTICODE_SIGNER_SHA256 `
+            --public-key-file-sha256 $env:UPDATE_PUBLIC_KEY_FILE_SHA256
+
+      - name: Upload unpublished signed update candidate evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-${{ inputs.channel }}-${{ steps.identity.outputs.version }}-signed-update-not-published-${{ inputs.source_revision }}
+          path: build/m4/protected-update-signing/update-candidate
+          if-no-files-found: error
+          retention-days: 7

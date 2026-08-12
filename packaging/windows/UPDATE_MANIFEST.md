@@ -192,3 +192,12 @@ audit the retained candidate against that immutable instant after the live
 manifest expires. The status remains
 `signed-update-channel-not-published-candidate`; upload, client trust
 provisioning, stable/beta mutation, rollout, and rollback are separate gates.
+
+The manual `m4-windows-protected-update-signing.yml` workflow orchestrates this
+boundary on a dedicated protected Windows update-signing runner. It downloads
+one exact prior signed Windows candidate, creates a seven-day canonical
+manifest, invokes only the PKCS#11 signer, verifies and closes the result, then
+uploads one seven-day evidence artifact. Its inputs contain public release
+policy only; the key URI and public PEM path are runner configuration. The
+workflow intentionally has read-only repository permissions and no release,
+endpoint upload, client-trust provisioning, or channel pointer operation.

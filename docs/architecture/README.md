@@ -1102,6 +1102,15 @@ revision, and channel, and rejects any undeclared material. Its assembly instant
 supports durable audit after manifest expiry; it contains no private key and
 does not provision client trust, upload bytes, or mutate stable/beta state.
 
+ADR-0177 orchestrates that boundary in a second protected trust domain. A
+manual, read-only workflow downloads exactly one candidate from the prior
+Authenticode workflow, revalidates it, authors a seven-day manifest, invokes
+only the runner-configured non-exportable PKCS#11 key, and emits one closed
+unpublished candidate. The update-signing environment and runner class are
+distinct from Authenticode signing. Public endpoint/rollout inputs remain
+reviewable, while key URI and public PEM location never become dispatch inputs.
+There is still no product trust provisioning or stable/beta publication.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

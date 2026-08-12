@@ -581,6 +581,27 @@ weakening live freshness at assembly. It contains no private key and performs
 no upload or channel mutation. Fixture tests are not positive PKCS#11,
 Authenticode, Windows clean-host, or publication evidence. See ADR-0176.
 
+The manual `.github/workflows/m4-windows-protected-update-signing.yml` consumes
+the exact candidate artifact from an approved prior Windows protected-signing
+run. It executes in the distinct `windows-update-production-signing`
+environment on a dedicated `self-hosted-windows-update-signing` runner. The
+credential-free PKCS#11 object URI and reviewed public PEM path are runner
+configuration, not workflow inputs or repository secrets. Public dispatch
+inputs bind revision/run, stable or beta channel, monotonic sequence, key/public
+digest, minimum version, deterministic rollout, installer URL, and Authenticode
+publisher. The workflow creates a seven-day manifest for the candidate's exact
+Setup, signs/verifies it, assembles/verifies ADR-0176, and uploads exactly one
+seven-day `signed-update-not-published` artifact. It has no publication or
+channel-mutation step. Check the orchestration boundary with:
+
+```bash
+python3 Tests/windows_protected_update_workflow_test.py
+```
+
+A real approved run is still required before claiming the HSM/provider,
+signature, Windows candidate, or update channel works in production. See
+ADR-0177.
+
 The provider-neutral post-signing acceptance policy is checked with:
 
 ```bash
