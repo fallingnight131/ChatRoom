@@ -69,6 +69,12 @@ class AttachmentUploadServiceTest {
         AttachmentUploadService foreign = service(new MutableLifecycle(null), objects);
         assertSame(AttachmentUploadAuthorizationResult.Rejected.NOT_AVAILABLE,
                 foreign.authorizeUpload(ATTACHMENT_ID, ACTOR));
+        AttachmentUploadService unavailable = service(
+                new MutableLifecycle(attachment(AttachmentState.UNAVAILABLE)), objects);
+        assertSame(AttachmentUploadAuthorizationResult.Rejected.NOT_AVAILABLE,
+                unavailable.authorizeUpload(ATTACHMENT_ID, ACTOR));
+        assertSame(AttachmentCompletionResult.Rejected.NOT_AVAILABLE,
+                unavailable.completeUpload(ATTACHMENT_ID, ACTOR));
         assertTrue(!issued.get());
 
         assertThrows(IllegalArgumentException.class, () -> new AttachmentUploadService(
@@ -174,14 +180,25 @@ class AttachmentUploadServiceTest {
     }
 
     private static RegisteredAttachment attachment(AttachmentState state) {
+        if (state == AttachmentState.UNAVAILABLE) {
+            return new RegisteredAttachment(
+                    ATTACHMENT_ID,
+                    UUID.fromString("00000000-0000-0000-0000-000000000004"),
+                    ACTOR.accountId(), ACTOR.deviceId(), "client-1", Optional.empty(),
+                    "report.pdf", Optional.empty(), 1024, Optional.empty(), state,
+                    NOW.minusSeconds(60), Optional.empty(), Optional.empty(),
+                    Optional.of(NOW), Optional.of("legacy file expired"));
+        }
         return new RegisteredAttachment(
                 ATTACHMENT_ID,
                 UUID.fromString("00000000-0000-0000-0000-000000000004"),
                 ACTOR.accountId(), ACTOR.deviceId(), "client-1",
-                "attachments/" + ATTACHMENT_ID, "report.pdf", "application/pdf",
-                1024, new byte[32], state, NOW.minusSeconds(60),
+                Optional.of("attachments/" + ATTACHMENT_ID), "report.pdf",
+                Optional.of("application/pdf"), 1024, Optional.of(new byte[32]),
+                state, NOW.minusSeconds(60),
                 state == AttachmentState.READY ? Optional.of(NOW) : Optional.empty(),
-                state == AttachmentState.REVOKED ? Optional.of(NOW) : Optional.empty());
+                state == AttachmentState.REVOKED ? Optional.of(NOW) : Optional.empty(),
+                Optional.empty(), Optional.empty());
     }
 
     private static class StubObjectStore implements AttachmentObjectStorePort {
@@ -228,7 +245,7 @@ class AttachmentUploadServiceTest {
                     value.ownerDeviceId(), value.clientAttachmentId(), value.objectKey(),
                     value.fileName(), value.mediaType(), value.byteSize(),
                     value.contentSha256(), AttachmentState.READY, value.createdAt(),
-                    Optional.of(readyAt), Optional.empty());
+                    Optional.of(readyAt), Optional.empty(), Optional.empty(), Optional.empty());
             return new AttachmentReadyTransition.Ready(value, true);
         }
     }

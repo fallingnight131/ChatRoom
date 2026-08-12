@@ -4,5 +4,6 @@ package com.fallingnight.chat.application.attachment;
 public enum AttachmentState {
     UPLOAD_PENDING,
     READY,
-    REVOKED
+    REVOKED,
+    UNAVAILABLE
 }

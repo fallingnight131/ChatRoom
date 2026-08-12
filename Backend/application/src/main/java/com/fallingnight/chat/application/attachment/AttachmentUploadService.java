@@ -56,7 +56,8 @@ public final class AttachmentUploadService {
         Objects.requireNonNull(attachmentId, "attachmentId");
         Objects.requireNonNull(actor, "actor");
         Optional<RegisteredAttachment> found = attachments.findAuthorized(attachmentId, actor);
-        if (found.isEmpty() || found.orElseThrow().state() == AttachmentState.REVOKED) {
+        if (found.isEmpty() || (found.orElseThrow().state() != AttachmentState.UPLOAD_PENDING
+                && found.orElseThrow().state() != AttachmentState.READY)) {
             return AttachmentCompletionResult.Rejected.NOT_AVAILABLE;
         }
         RegisteredAttachment attachment = found.orElseThrow();

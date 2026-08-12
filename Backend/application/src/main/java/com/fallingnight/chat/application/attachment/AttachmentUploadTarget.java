@@ -24,8 +24,8 @@ public record AttachmentUploadTarget(
     public static AttachmentUploadTarget from(RegisteredAttachment attachment) {
         Objects.requireNonNull(attachment, "attachment");
         return new AttachmentUploadTarget(
-                attachment.objectKey(), attachment.mediaType(), attachment.byteSize(),
-                attachment.contentSha256());
+                attachment.objectKey().orElseThrow(), attachment.mediaType().orElseThrow(),
+                attachment.byteSize(), attachment.contentSha256().orElseThrow());
     }
 
     @Override

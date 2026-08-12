@@ -328,8 +328,9 @@ class V2AttachmentHandlerTest {
             AttachmentState state, Optional<Instant> readyAt) {
         return new RegisteredAttachment(
                 ATTACHMENT, CONVERSATION, ACCOUNT, DEVICE, "client-attachment-1",
-                "attachments/" + ATTACHMENT, "a.txt", "text/plain", 7, HASH,
-                state, NOW.minusSeconds(60), readyAt, Optional.empty());
+                Optional.of("attachments/" + ATTACHMENT), "a.txt", Optional.of("text/plain"),
+                7, Optional.of(HASH), state, NOW.minusSeconds(60), readyAt,
+                Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     private static Envelope registerEnvelope() {

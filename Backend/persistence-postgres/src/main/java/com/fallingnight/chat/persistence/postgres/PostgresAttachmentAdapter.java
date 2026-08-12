@@ -106,7 +106,8 @@ public final class PostgresAttachmentAdapter
                 Optional<RegisteredAttachment> found = findAuthorized(
                         connection, attachmentId, actor, true);
                 if (found.isEmpty()
-                        || found.orElseThrow().state() == AttachmentState.REVOKED) {
+                        || (found.orElseThrow().state() != AttachmentState.UPLOAD_PENDING
+                        && found.orElseThrow().state() != AttachmentState.READY)) {
                     connection.rollback();
                     return AttachmentReadyTransition.Rejected.NOT_AVAILABLE;
                 }
@@ -248,7 +249,8 @@ public final class PostgresAttachmentAdapter
         String sql = """
                 SELECT id, conversation_id, owner_account_id, owner_device_id,
                        client_attachment_id, object_key, file_name, media_type,
-                       byte_size, content_sha256, state, created_at, ready_at, revoked_at
+                       byte_size, content_sha256, state, created_at, ready_at, revoked_at,
+                       unavailable_at, unavailable_reason
                 FROM chat.attachment
                 WHERE owner_account_id = ? AND client_attachment_id = ?
                 """;
@@ -270,7 +272,8 @@ public final class PostgresAttachmentAdapter
                 SELECT att.id, att.conversation_id, att.owner_account_id,
                        att.owner_device_id, att.client_attachment_id, att.object_key,
                        att.file_name, att.media_type, att.byte_size, att.content_sha256,
-                       att.state, att.created_at, att.ready_at, att.revoked_at
+                       att.state, att.created_at, att.ready_at, att.revoked_at,
+                       att.unavailable_at, att.unavailable_reason
                 FROM chat.attachment att
                 JOIN chat.conversation_member cm
                   ON cm.conversation_id = att.conversation_id
@@ -306,7 +309,8 @@ public final class PostgresAttachmentAdapter
                 WHERE id = ? AND state = 'UPLOAD_PENDING'
                 RETURNING id, conversation_id, owner_account_id, owner_device_id,
                           client_attachment_id, object_key, file_name, media_type,
-                          byte_size, content_sha256, state, created_at, ready_at, revoked_at
+                          byte_size, content_sha256, state, created_at, ready_at, revoked_at,
+                          unavailable_at, unavailable_reason
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setObject(1, OffsetDateTime.ofInstant(readyAt, java.time.ZoneOffset.UTC));
@@ -330,7 +334,8 @@ public final class PostgresAttachmentAdapter
                 ON CONFLICT (owner_account_id, client_attachment_id) DO NOTHING
                 RETURNING id, conversation_id, owner_account_id, owner_device_id,
                           client_attachment_id, object_key, file_name, media_type,
-                          byte_size, content_sha256, state, created_at, ready_at, revoked_at
+                          byte_size, content_sha256, state, created_at, ready_at, revoked_at,
+                          unavailable_at, unavailable_reason
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setObject(1, attachmentId);
@@ -354,10 +359,10 @@ public final class PostgresAttachmentAdapter
         boolean exact = existing.conversationId().equals(requested.conversationId())
                 && existing.ownerDeviceId().equals(requested.ownerDeviceId())
                 && existing.fileName().equals(requested.fileName())
-                && existing.mediaType().equals(requested.mediaType())
+                && existing.mediaType().filter(requested.mediaType()::equals).isPresent()
                 && existing.byteSize() == requested.byteSize()
-                && MessageDigest.isEqual(
-                        existing.contentSha256(), requested.contentSha256());
+                && existing.contentSha256().filter(hash -> MessageDigest.isEqual(
+                        hash, requested.contentSha256())).isPresent();
         return exact
                 ? new AttachmentRegistrationResult.Accepted(existing, true)
                 : AttachmentRegistrationResult.Rejected.IDEMPOTENCY_CONFLICT;
@@ -366,15 +371,19 @@ public final class PostgresAttachmentAdapter
     private static RegisteredAttachment read(ResultSet result) throws SQLException {
         OffsetDateTime ready = result.getObject(13, OffsetDateTime.class);
         OffsetDateTime revoked = result.getObject(14, OffsetDateTime.class);
+        OffsetDateTime unavailable = result.getObject(15, OffsetDateTime.class);
         return new RegisteredAttachment(
                 result.getObject(1, UUID.class), result.getObject(2, UUID.class),
                 result.getObject(3, UUID.class), result.getObject(4, UUID.class),
-                result.getString(5), result.getString(6), result.getString(7),
-                result.getString(8), result.getLong(9), result.getBytes(10),
+                result.getString(5), Optional.ofNullable(result.getString(6)),
+                result.getString(7), Optional.ofNullable(result.getString(8)),
+                result.getLong(9), Optional.ofNullable(result.getBytes(10)),
                 AttachmentState.valueOf(result.getString(11)),
                 result.getObject(12, OffsetDateTime.class).toInstant(),
                 Optional.ofNullable(ready).map(OffsetDateTime::toInstant),
-                Optional.ofNullable(revoked).map(OffsetDateTime::toInstant));
+                Optional.ofNullable(revoked).map(OffsetDateTime::toInstant),
+                Optional.ofNullable(unavailable).map(OffsetDateTime::toInstant),
+                Optional.ofNullable(result.getString(16)));
     }
 
     private static void rollback(Connection connection, Exception original) {

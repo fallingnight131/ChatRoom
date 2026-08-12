@@ -163,6 +163,12 @@ same-conversation canonical attachment. It stores no V1 path, URL, hash, name,
 or object credential. Historical file rows remain blocked until an independently
 verified object-evidence input can create the attachment, mapping, and message
 atomically.
+V029 distinguishes retained attachment history from stored objects. State
+`UNAVAILABLE` requires `unavailable_at` and a bounded `unavailable_reason`, while
+`object_key`, `media_type`, `content_sha256`, `ready_at`, `revoked_at`, and
+`object_deleted_at` must be null. All other states retain non-null object key,
+MIME, and exact 32-byte SHA-256 evidence. This state is terminal and is excluded
+from upload completion and object cleanup.
 Before that evidence is accepted, the pure V1 source planner reconciles every
 typed `files`/`friend_files` row to exactly one retained attachment message and
 derives deterministic target identities. Its fingerprint includes local/object

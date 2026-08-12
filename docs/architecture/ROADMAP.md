@@ -637,6 +637,8 @@ Progress:
     identities, locator-redacted output, and blocking inconsistency checks.
   - [x] Read both V1 attachment namespaces through query-only SQLite with
     integrity/schema gates and locator-sensitive drift fingerprints.
+  - [x] Represent cleared historical files as non-downloadable `UNAVAILABLE`
+    metadata without fabricated object key, MIME, or SHA-256 evidence.
   - [ ] Add verified V1 file-object evidence and atomically import historical
     attachments, mappings, and attachment messages without local-path leakage.
   - [x] Add the inactive attachment registration application port and exact

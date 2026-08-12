@@ -812,6 +812,11 @@ The SQLite adapter reads both room and friendship file/message namespaces under
 `query_only`, `quick_check`, and an exact migrated-column gate. It does not
 repair an old source schema, and fixed failures contain neither database paths
 nor attachment content.
+V029 adds a terminal `UNAVAILABLE` state for cleared historical V1 files. Such a
+row keeps safe message metadata and an unavailable reason but must have no object
+key, asserted MIME, SHA-256, ready/revoked timestamp, or deletion confirmation.
+Pending, ready, and revoked objects retain the existing exact-evidence rules;
+upload and cleanup paths cannot mistake unavailable history for a stored object.
 
 ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
 create-only, length, type, and SHA-256 constraints and reads checksum-enabled

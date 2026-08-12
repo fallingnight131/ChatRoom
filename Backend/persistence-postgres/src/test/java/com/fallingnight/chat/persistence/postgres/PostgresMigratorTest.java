@@ -146,7 +146,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(28, first.migrate());
+        assertEquals(29, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -2234,8 +2234,10 @@ class PostgresMigratorTest {
                 raced.getLast().attachment().attachmentId());
         assertEquals(AttachmentState.UPLOAD_PENDING,
                 raced.getFirst().attachment().state());
-        assertTrue(raced.getFirst().attachment().objectKey().startsWith("attachments/"));
-        assertFalse(raced.getFirst().attachment().objectKey().contains("报告.pdf"));
+        assertTrue(raced.getFirst().attachment().objectKey().orElseThrow()
+                .startsWith("attachments/"));
+        assertFalse(raced.getFirst().attachment().objectKey().orElseThrow()
+                .contains("报告.pdf"));
         assertEquals(1, count("SELECT count(*) FROM chat.attachment"));
 
         AttachmentRegistration conflict = new AttachmentRegistration(
@@ -2682,6 +2684,36 @@ class PostgresMigratorTest {
                 "UPDATE chat.attachment SET state = 'READY' WHERE id = ?",
                 attachment));
         assertEquals("23514", invalidReadyState.getSQLState());
+        SQLException unavailableWithFabricatedObject = assertThrows(SQLException.class,
+                () -> execute(connection,
+                        "INSERT INTO chat.attachment(id, conversation_id, owner_account_id, "
+                                + "owner_device_id, client_attachment_id, object_key, "
+                                + "file_name, media_type, byte_size, content_sha256, state, "
+                                + "unavailable_at, unavailable_reason) VALUES "
+                                + "(?, ?, ?, ?, 'legacy-bad', ?, 'expired.pdf', "
+                                + "'application/pdf', 10, ?, 'UNAVAILABLE', "
+                                + "transaction_timestamp(), 'expired')",
+                        UUID.randomUUID(), conversation, account, device,
+                        "attachments/" + UUID.randomUUID(), new byte[32]));
+        assertEquals("23514", unavailableWithFabricatedObject.getSQLState());
+        UUID unavailable = UUID.randomUUID();
+        execute(connection,
+                "INSERT INTO chat.attachment(id, conversation_id, owner_account_id, "
+                        + "owner_device_id, client_attachment_id, file_name, byte_size, state, "
+                        + "unavailable_at, unavailable_reason) VALUES "
+                        + "(?, ?, ?, ?, 'legacy-unavailable', 'expired.pdf', 10, "
+                        + "'UNAVAILABLE', transaction_timestamp(), 'legacy file expired')",
+                unavailable, conversation, account, device);
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT count(*) FROM chat.attachment WHERE id = ? "
+                        + "AND (object_key IS NOT NULL OR media_type IS NOT NULL "
+                        + "OR content_sha256 IS NOT NULL)")) {
+            statement.setObject(1, unavailable);
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                assertEquals(0, result.getInt(1));
+            }
+        }
         execute(connection,
                 "UPDATE chat.attachment SET state = 'READY', "
                         + "ready_at = transaction_timestamp() WHERE id = ?",
