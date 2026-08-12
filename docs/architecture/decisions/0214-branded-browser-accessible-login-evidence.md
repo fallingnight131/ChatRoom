@@ -1,6 +1,6 @@
 # ADR-0214: Require Accessible Login in Branded Browser Evidence
 
-- Status: Accepted
+- Status: Superseded by ADR-0216
 - Date: 2026-08-13
 - Owners: Web client and quality
 - Related milestone: M4

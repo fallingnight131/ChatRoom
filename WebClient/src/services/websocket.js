@@ -138,6 +138,9 @@ export class ChatWebSocket {
     this.autoReconnect = true
     this.reconnectCount = 0
     if (this._isOffline()) {
+      // A new unauthenticated intent created while offline must be retried by
+      // the user; only a connection that existed before loss may auto-resume.
+      this.autoReconnect = false
       this.networkOffline = true
       this._emit('offline')
       return

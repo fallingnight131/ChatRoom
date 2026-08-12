@@ -21,7 +21,9 @@ network signals, but the production V1 path did not.
 - While offline, create no new V1 socket, cancel reconnect and heartbeat timers,
   close the current socket, and emit explicit offline state.
 - On one offline-to-online transition, emit online state and immediately create
-  at most one replacement socket when automatic reconnect remains authorized.
+  at most one replacement socket when a pre-loss connection makes automatic
+  reconnect authorized. A new login intent created while already offline is
+  never authorized for automatic recovery and requires explicit retry.
 - Explicit disconnect, logout, and forced-offline paths continue to disable
   automatic reconnect and cannot be revived by a later online event.
 - Announce actionable offline/recovery text on login and show a global polite

@@ -88,6 +88,23 @@ test("keeps the login path usable at a narrow responsive viewport", async ({ pag
   await expect(page.getByRole("button", { name: "登录" })).toBeVisible();
 });
 
+test("pauses an offline login attempt and requires explicit retry after recovery", async ({ context, page }) => {
+  const socketUrls: string[] = [];
+  page.on("websocket", socket => socketUrls.push(socket.url()));
+  await page.goto("/");
+  await context.setOffline(true);
+  await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+  await page.getByLabel("用户ID (唯一标识)").fill("offline_gate_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await expect(page.getByRole("alert")).toHaveText("网络已断开，请在恢复连接后重试");
+  expect(socketUrls).toEqual([]);
+  await context.setOffline(false);
+  await expect(page.getByRole("alert")).toHaveText("网络已恢复，可以重新登录");
+  await page.waitForTimeout(100);
+  expect(socketUrls).toEqual([]);
+});
+
 test("records one exact branded-browser candidate smoke", async ({ browser }) => {
   test.skip(!brandedTarget, "Only the protected branded-browser matrix emits support evidence");
   const required = (name: string): string => {
@@ -169,9 +186,28 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
   await expect(keyboard.getByRole("alert")).toHaveText("请输入用户ID和密码");
   expect(pageErrors).toEqual([]);
 
+  const offline = await context.newPage();
+  offline.on("pageerror", error => pageErrors.push(error));
+  await offline.goto("/");
+  const offlineSocketUrls: string[] = [];
+  offline.on("websocket", socket => offlineSocketUrls.push(socket.url()));
+  await context.setOffline(true);
+  await expect.poll(() => offline.evaluate(() => navigator.onLine)).toBe(false);
+  await offline.getByLabel("用户ID (唯一标识)").fill("offline_gate_user");
+  await offline.getByLabel("密码").fill("non-secret-test-value");
+  await offline.getByRole("button", { name: "登录" }).click();
+  await expect(offline.getByRole("alert")).toHaveText("网络已断开，请在恢复连接后重试");
+  expect(offlineSocketUrls).toEqual([]);
+  await context.setOffline(false);
+  await expect.poll(() => offline.evaluate(() => navigator.onLine)).toBe(true);
+  await expect(offline.getByRole("alert")).toHaveText("网络已恢复，可以重新登录");
+  await offline.waitForTimeout(100);
+  expect(offlineSocketUrls).toEqual([]);
+  expect(pageErrors).toEqual([]);
+
   const architecture = process.arch === "x64" ? "x86_64" : process.arch;
   const evidence = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     evidenceType: "web-browser-host-acceptance",
     status: "candidate-smoke-observed",
     product: "chat-room-web-client",
@@ -196,6 +232,8 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
       responsiveLogin: true,
       keyboardAccessibleLogin: true,
       announcedValidationError: true,
+      offlineLoginPaused: true,
+      recoveryStateAnnounced: true,
       noPageErrors: true,
     },
     observedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),

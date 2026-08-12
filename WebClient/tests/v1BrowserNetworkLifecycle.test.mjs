@@ -44,7 +44,7 @@ function environment(initialOnline) {
   }
 }
 
-test('does not create a V1 socket while offline and reconnects once on recovery', () => {
+test('does not create or automatically recover a new V1 intent made while offline', () => {
   const host = environment(false)
   const client = new ChatWebSocket(host)
   const events = []
@@ -57,10 +57,9 @@ test('does not create a V1 socket while offline and reconnects once on recovery'
 
   host.navigator.onLine = true
   host.dispatch('online')
-  assert.equal(host.sockets.length, 1)
-  assert.equal(host.sockets[0].url, 'wss://chat.example.test/ws')
+  assert.equal(host.sockets.length, 0)
   host.dispatch('online')
-  assert.equal(host.sockets.length, 1)
+  assert.equal(host.sockets.length, 0)
   assert.deepEqual(events, ['offline', 'online'])
 })
 
