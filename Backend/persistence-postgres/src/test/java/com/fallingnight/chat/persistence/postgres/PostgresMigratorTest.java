@@ -34,6 +34,8 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectHistoryQ
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectHistoryResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectRecallCommand;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectRecallResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageCommand;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageResult;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -125,7 +127,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(21, first.migrate());
+        assertEquals(22, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -158,6 +160,11 @@ class PostgresMigratorTest {
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
                     + "AND sequencename = 'legacy_v1_friend_message_id_seq' "
+                    + "AND increment_by = -1 AND min_value = 1 "
+                    + "AND max_value = 2147483647"));
+            assertEquals(1, count("SELECT count(*) FROM pg_sequences "
+                    + "WHERE schemaname = 'chat' "
+                    + "AND sequencename = 'legacy_v1_room_message_id_seq' "
                     + "AND increment_by = -1 AND min_value = 1 "
                     + "AND max_value = 2147483647"));
             proveSequenceAndIdempotencyConstraints(connection);
@@ -1237,6 +1244,88 @@ class PostgresMigratorTest {
         assertTrue(retryAfterRemoval.duplicate());
         assertEquals(recalled.mutationSequence(), retryAfterRemoval.mutationSequence());
         assertEquals(recalled.occurredAt(), retryAfterRemoval.occurredAt());
+    }
+
+    @Test
+    @Order(98)
+    void submitsMappedV1RoomMessagesWithConcurrentRetry() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID sender = UUID.randomUUID(), outsider = UUID.randomUUID();
+        UUID senderDevice = UUID.randomUUID(), outsiderDevice = UUID.randomUUID();
+        UUID room = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'room-sender', 'Room Sender', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'room-outsider', 'Room Outsider', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    sender, outsider);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                            + "VALUES (31, ?), (32, ?)", sender, outsider);
+            execute(connection,
+                    "INSERT INTO chat.device(id, account_id, client_device_id, platform) "
+                            + "VALUES (?, ?, 'room-sender-device', 'LEGACY'), "
+                            + "(?, ?, 'room-outsider-device', 'LEGACY')",
+                    senderDevice, sender, outsiderDevice, outsider);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind, title) "
+                            + "VALUES (?, 'GROUP', 'Mapped Room')", room);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id) "
+                            + "VALUES (?, ?)", room, sender);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map(legacy_kind, "
+                            + "legacy_conversation_id, conversation_id) "
+                            + "VALUES ('ROOM', 77, ?)", room);
+        }
+        PostgresLegacyV1RoomMessageAdapter adapter =
+                new PostgresLegacyV1RoomMessageAdapter(dataSource());
+        LegacyV1RoomMessageCommand command = new LegacyV1RoomMessageCommand(
+                sender, senderDevice, 77, "room-client-1", "hello room", "text");
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2), start = new CountDownLatch(1);
+        List<LegacyV1RoomMessageResult> results;
+        try {
+            var task = (java.util.concurrent.Callable<LegacyV1RoomMessageResult>) () -> {
+                ready.countDown(); assertTrue(start.await(5, TimeUnit.SECONDS));
+                return adapter.submit(command);
+            };
+            Future<LegacyV1RoomMessageResult> left = executor.submit(task);
+            Future<LegacyV1RoomMessageResult> right = executor.submit(task);
+            assertTrue(ready.await(5, TimeUnit.SECONDS)); start.countDown();
+            results = List.of(left.get(10, TimeUnit.SECONDS), right.get(10, TimeUnit.SECONDS));
+        } finally { executor.shutdownNow(); }
+        List<LegacyV1RoomMessageResult.Accepted> accepted = results.stream()
+                .map(LegacyV1RoomMessageResult.Accepted.class::cast).toList();
+        assertEquals(1, accepted.stream().filter(result -> !result.duplicate()).count());
+        assertEquals(1, accepted.stream().filter(LegacyV1RoomMessageResult.Accepted::duplicate)
+                .count());
+        assertEquals(accepted.getFirst().legacyMessageId(), accepted.getLast().legacyMessageId());
+        assertEquals(1, accepted.getFirst().sequence());
+        assertEquals(room, accepted.getFirst().conversationId());
+        assertEquals(LegacyV1RoomMessageResult.Rejected.CLIENT_MESSAGE_ID_CONFLICT,
+                adapter.submit(new LegacyV1RoomMessageCommand(sender, senderDevice, 77,
+                        "room-client-1", "changed", "text")));
+        assertEquals(LegacyV1RoomMessageResult.Rejected.ROOM_ACCESS_DENIED,
+                adapter.submit(new LegacyV1RoomMessageCommand(outsider, outsiderDevice, 77,
+                        "room-client-2", "outsider", "text")));
+        assertEquals(1, count("SELECT count(*) FROM chat.message WHERE conversation_id = '"
+                + room + "' AND message_type = 1 AND convert_from(payload, 'UTF8') = 'hello room'"));
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_message_map "
+                + "WHERE legacy_kind = 'ROOM' AND legacy_conversation_id = 77 "
+                + "AND legacy_content_type = 'text'"));
+        assertEquals(2, count("SELECT next_sequence FROM chat.conversation WHERE id = '"
+                + room + "'"));
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.conversation_member SET left_at = "
+                    + "transaction_timestamp() WHERE conversation_id = ?", room);
+        }
+        assertEquals(LegacyV1RoomMessageResult.Rejected.ROOM_ACCESS_DENIED,
+                adapter.submit(new LegacyV1RoomMessageCommand(sender, senderDevice, 77,
+                        "room-client-3", "after leave", "emoji")));
     }
 
     @Test

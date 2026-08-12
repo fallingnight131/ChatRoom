@@ -368,13 +368,13 @@ Disposable PostgreSQL verification covers replacement login, first/duplicate
 recall, peer notification, and mutation-sequence history recovery. The product
 listener remains unchanged.
 
-The next group-messaging boundary defines V1 room text/emoji submission from an
-authenticated account/device and positive mapped room ID. A future atomic
-PostgreSQL decision will verify active GROUP membership and create canonical
-type-1 plus V1 ROOM message identity together. Exact retry preserves the same
-result and only first acceptance may broadcast. Client sender/time/sequence
-fields are not authority; attachments remain outside this path. No adapter or
-handler exists yet.
+The group-messaging boundary defines V1 room text/emoji submission from an
+authenticated account/device and positive mapped room ID. Its serializable
+PostgreSQL adapter verifies active GROUP membership/device and creates canonical
+type-1 plus V1 ROOM message identity together. V022 allocates collision-checked
+runtime room-message IDs downward. Exact retry preserves the same result and
+only first acceptance may later broadcast. Client sender/time/sequence fields
+are not authority; attachments remain outside this path. No handler exists yet.
 
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.

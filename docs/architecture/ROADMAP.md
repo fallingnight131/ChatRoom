@@ -505,6 +505,8 @@ Progress:
     and mutation-sequence history recovery against disposable PostgreSQL.
   - [x] Define authenticated V1 room text/emoji submission with atomic future
     canonical/V1 identity, retry semantics, and first-accept broadcast intent.
+  - [x] Implement retry-convergent PostgreSQL V1 room submission with active
+    membership/device checks and atomic canonical/V1 mapped message identity.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

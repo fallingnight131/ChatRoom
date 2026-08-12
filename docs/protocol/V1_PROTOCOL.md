@@ -228,10 +228,9 @@ durable room membership before persistence.
 The detached Java application boundary reserves the same room text/emoji
 contract. Authenticated state owns sender account/device identity; only the V1
 room ID, stable client ID, content, and presentation type are accepted as
-intent. A future PostgreSQL transaction must create canonical and V1 message
-identity atomically after active membership checks. Exact retry will preserve
-the durable result and suppress a second broadcast. No adapter or handler
-exists yet.
+intent. The PostgreSQL adapter now creates canonical and V1 ROOM message
+identity atomically after active membership/device checks. Exact retry preserves
+the durable result and will suppress a second broadcast. No handler exists yet.
 
 `CHAT_SEND_RSP` is the durable submission acknowledgement:
 
