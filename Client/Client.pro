@@ -41,6 +41,7 @@ SOURCES += \
     UpdateManifestFetchTransport.cpp \
     UpdateCheckApplicationService.cpp \
     WindowsUpdateHandoffApplicationService.cpp \
+    UpdateLauncherResult.cpp \
     AvatarCropDialog.cpp \
     ForwardSelectDialog.cpp \
     RoomSettingsDialog.cpp \
@@ -76,6 +77,7 @@ HEADERS += \
     UpdateManifestFetchTransport.h \
     UpdateCheckApplicationService.h \
     WindowsUpdateHandoffApplicationService.h \
+    UpdateLauncherResult.h \
     AvatarCropDialog.h \
     ForwardSelectDialog.h \
     RoomSettingsDialog.h \

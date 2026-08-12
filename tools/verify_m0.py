@@ -233,6 +233,7 @@ def run_qt_client_unit_tests(jobs: int, build_root: Path) -> None:
         "UpdateCheckApplicationServiceTest",
         "UpdateLauncherCommandTest",
         "WindowsUpdateHandoffApplicationServiceTest",
+        "UpdateLauncherResultTest",
         "WindowsClientInstanceGuardTest",
     ):
         run([str(build_qt_unit_test(jobs, build_root, name))], ROOT)

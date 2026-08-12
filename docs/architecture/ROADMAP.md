@@ -602,6 +602,9 @@ Progress:
   helper plus matching Qt Core outside the program directory, generates the
   one-shot command/event/result contract, and authorizes normal quit only after
   the helper has opened the exact parent process and signaled readiness.
+- [x] Define a strict client-side schema-1 launcher-result parser that binds the
+  expected request UUID and rejects unknown fields/outcomes, contradictory exit
+  codes, unsafe text, and implausible timestamps.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

@@ -176,6 +176,11 @@ parent/UUID/hash arguments through the helper parser, helper plus Qt Core copies
 parallel refusal, `readyToQuit` only after handshake, and rejection before
 launch when the installed runtime is incomplete.
 
+`UpdateLauncherResultTest` fixes the client interpretation of the helper's
+schema-1 result. It accepts coherent install success/failure and rejects UUID
+mismatch, unknown fields/outcomes, contradictory exit codes, unsafe error text,
+and timestamps outside the pending-request window.
+
 `UpdateStateRepositoryTest` checks creation/reload of an owner-only UUIDv4,
 atomic per-channel sequence/digest persistence, idempotence, replay/conflict
 rejection, and corrupt-state failure. The repository is compiled but no product

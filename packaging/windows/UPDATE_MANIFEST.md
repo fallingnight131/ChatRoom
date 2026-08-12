@@ -55,6 +55,9 @@ not need to reconstruct security metadata.
 ADR-0131 stages the helper and matching Qt Core outside the program tree, binds
 the complete prepared evidence into its one-shot command, and permits client
 quit only after the helper signals that it owns the parent-process wait.
+ADR-0132 makes result interpretation fail closed on schema, request UUID,
+outcome/exit-code, timestamp, size, and error-text policy before a future startup
+repository can expose the result to product UI.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin
