@@ -27,12 +27,14 @@ public final class GatewayAdminServer implements AutoCloseable {
             int workers,
             AuthenticationTelemetry telemetry,
             MessagingTelemetry messagingTelemetry,
+            AttachmentCleanupTelemetry attachmentCleanupTelemetry,
             IntSupplier messagingActiveWorkers,
             IntSupplier messagingQueuedWork,
             BooleanSupplier readiness) {
         Objects.requireNonNull(address, "address");
         Objects.requireNonNull(telemetry, "telemetry");
         Objects.requireNonNull(messagingTelemetry, "messagingTelemetry");
+        Objects.requireNonNull(attachmentCleanupTelemetry, "attachmentCleanupTelemetry");
         Objects.requireNonNull(messagingActiveWorkers, "messagingActiveWorkers");
         Objects.requireNonNull(messagingQueuedWork, "messagingQueuedWork");
         Objects.requireNonNull(readiness, "readiness");
@@ -70,7 +72,9 @@ public final class GatewayAdminServer implements AutoCloseable {
                         + PrometheusMessagingMetrics.render(
                                 messagingTelemetry.snapshot(),
                                 messagingActiveWorkers.getAsInt(),
-                                messagingQueuedWork.getAsInt())));
+                                messagingQueuedWork.getAsInt())
+                        + PrometheusAttachmentCleanupMetrics.render(
+                                attachmentCleanupTelemetry.snapshot())));
     }
 
     public void start() {

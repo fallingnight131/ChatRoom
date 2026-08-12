@@ -464,8 +464,10 @@ Progress:
     fixed revoke/attempt/delete/provider/confirmation outcome counters.
   - [x] Add PostgreSQL/S3 cleanup adapters with concurrent `SKIP LOCKED`
     revocation, retry paging, idempotent confirmation, and scoped object delete.
-  - [ ] Add scheduler/backoff, real-provider capability acceptance, and metrics
-    export before activating upload commands.
+  - [x] Add a manually activated non-overlapping cleanup loop, bounded
+    exponential backoff, fixed telemetry, and loopback Prometheus export.
+  - [ ] Pass real-provider create-only/checksum/CORS/delete capability acceptance
+    before composing or activating upload and cleanup commands.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fallingnight.chat.application.attachment.AttachmentCleanupReport;
 import com.fallingnight.chat.gateway.transport.AuthenticationTelemetry;
 import com.fallingnight.chat.gateway.transport.MessagingTelemetry;
 import java.net.InetAddress;
@@ -12,6 +13,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
 class GatewayAdminServerTest {
@@ -20,15 +22,21 @@ class GatewayAdminServerTest {
         GatewayReadiness readiness = new GatewayReadiness();
         AuthenticationTelemetry telemetry = new AuthenticationTelemetry();
         MessagingTelemetry messaging = new MessagingTelemetry();
+        AttachmentCleanupTelemetry cleanup = new AttachmentCleanupTelemetry();
         telemetry.accepted(false);
         messaging.accepted(true);
         messaging.livePublished(2);
         messaging.liveSlowConsumerClosed(1);
+        cleanup.completed(
+                new AttachmentCleanupReport(1, 1, 1, 0, 0),
+                0,
+                Duration.ofSeconds(60));
         try (GatewayAdminServer server = new GatewayAdminServer(
                 new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
                 1,
                 telemetry,
                 messaging,
+                cleanup,
                 () -> 2,
                 () -> 3,
                 readiness)) {
@@ -49,6 +57,10 @@ class GatewayAdminServerTest {
                     "chat_gateway_messaging_total{outcome=\"live_slow_consumer_closed\"} 1"));
             assertTrue(metrics.body().contains("chat_gateway_messaging_workers_active 2"));
             assertTrue(metrics.body().contains("chat_gateway_messaging_queue_size 3"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_attachment_cleanup_total{outcome=\"deleted\"} 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_attachment_cleanup_next_delay_seconds 60"));
             assertEquals("no-store", metrics.headers()
                     .firstValue("Cache-Control").orElseThrow());
             assertEquals("nosniff", metrics.headers()
@@ -72,6 +84,7 @@ class GatewayAdminServerTest {
                 1,
                 telemetry,
                 new MessagingTelemetry(),
+                new AttachmentCleanupTelemetry(),
                 () -> 0,
                 () -> 0,
                 readiness));
@@ -80,6 +93,7 @@ class GatewayAdminServerTest {
                 5,
                 telemetry,
                 new MessagingTelemetry(),
+                new AttachmentCleanupTelemetry(),
                 () -> 0,
                 () -> 0,
                 readiness));

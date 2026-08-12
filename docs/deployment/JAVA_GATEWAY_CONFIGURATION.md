@@ -108,6 +108,9 @@ the bounded PostgreSQL pool, so their sizes must be tuned together.
 The loopback-only `/metrics` response includes fixed-cardinality messaging
 outcome counters and current message-worker active/queue gauges. It deliberately
 contains no account, device, peer, session, conversation, or message labels.
+It also exposes fixed attachment-cleanup counters plus consecutive-failure and
+next-delay gauges. Those values remain zero because the M3 composition root does
+not start the cleanup loop before real-provider capability acceptance.
 
 The process accepts no command-line configuration. On startup it validates the
 existing Flyway migration state and database pool before serving, starts the

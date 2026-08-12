@@ -2,6 +2,7 @@ package com.fallingnight.chat.gateway.runtime;
 
 import com.fallingnight.chat.application.identity.AuthenticationService;
 import com.fallingnight.chat.application.identity.SessionResumeService;
+import com.fallingnight.chat.gateway.operations.AttachmentCleanupTelemetry;
 import com.fallingnight.chat.gateway.operations.GatewayAdminServer;
 import com.fallingnight.chat.gateway.transport.AuthenticationTelemetry;
 import com.fallingnight.chat.gateway.transport.AuthenticationWorkerPool;
@@ -79,6 +80,8 @@ public final class GatewayRuntime implements AutoCloseable {
             SessionResumeService sessionResume = new SessionResumeService(identity, clock);
             AuthenticationTelemetry telemetry = new AuthenticationTelemetry();
             MessagingTelemetry messagingTelemetry = new MessagingTelemetry();
+            AttachmentCleanupTelemetry attachmentCleanupTelemetry =
+                    new AttachmentCleanupTelemetry();
             InMemoryAuthenticationAdmissionControl admission =
                     new InMemoryAuthenticationAdmissionControl(config.admissionLimits(), clock);
             workers = new AuthenticationWorkerPool(
@@ -107,6 +110,7 @@ public final class GatewayRuntime implements AutoCloseable {
                     config.adminWorkers(),
                     telemetry,
                     messagingTelemetry,
+                    attachmentCleanupTelemetry,
                     messagingWorkers::activeCount,
                     messagingWorkers::queuedCount,
                     readiness::get);

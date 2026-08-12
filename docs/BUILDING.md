@@ -87,6 +87,10 @@ The gate includes the inactive `object-storage-s3` module. Its tests use fixture
 credentials and the real AWS presigner but perform no network request. Passing
 them proves request construction and fail-closed mapping, not compatibility
 with an Amazon S3, Tencent COS, MinIO, or other real bucket.
+Gateway tests also drive the inactive cleanup loop through a deterministic
+manual scheduler and verify healthy cadence, capped failure backoff, recovery,
+close behavior, and fixed-cardinality `/metrics` output without starting a
+thread or contacting object storage.
 The Java gate includes embedded-channel tests for the bounded V2 binary
 WebSocket frame decoder, single-use ClientHello negotiation, and fresh-login
 connection state machine. They verify server-bound identity, secret cleanup,

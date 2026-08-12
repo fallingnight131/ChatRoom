@@ -417,6 +417,12 @@ confirms deletion afterward. PostgreSQL uses bounded `SKIP LOCKED` selection so
 multiple future workers do not revoke the same pending row; repeated deletion of
 an already-revoked object remains safe after process or database failure.
 
+ADR-0103 adds a manually activated, single-process non-overlapping cleanup loop
+with bounded exponential dependency backoff and fixed-cardinality Prometheus
+metrics. The admin endpoint exports this metric family, but `GatewayRuntime`
+does not construct or start the loop, so no cloud credential, provider request,
+or cleanup side effect is introduced before real-bucket acceptance.
+
 ## 11. Client Architecture
 
 ### Windows desktop
