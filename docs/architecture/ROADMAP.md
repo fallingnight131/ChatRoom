@@ -664,6 +664,9 @@ Progress:
 - [x] Bind fresh post-switch HTTPS/static and application-route observations to
   pointer execution in a write-once, independently verifiable production
   completion record that rejects preview-observation reuse.
+- [x] Add a one-time incident rollback consumer derived from durable execution
+  evidence, requiring B as current and restoring only pre-authorized A without
+  switching back to failed B on evidence-write failure.
 - [x] Establish a root CMake Release path for the exact V1 HeadlessServer
   production sources, Qt/libsodium dependency discovery, AUTOMOC, CI build, and
   real process-health test while leaving Windows product packaging on qmake.

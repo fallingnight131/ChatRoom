@@ -213,6 +213,31 @@ both post-switch observations. Reverify it later with `verify` and the same
 inputs. `Tests/web_release_completion_test.py` rejects pre-switch reuse, late or
 split observations, identity mutation, duplicate fields, and changed evidence.
 
+If the candidate is unhealthy after pointer execution, restore only the
+rollback target already bound by that execution:
+
+```bash
+python3 tools/web_release_rollback_execution.py execute \
+  --execution /path/to/evidence/web-pointer-execution.json \
+  --authorization /path/to/evidence/web-production-authorization.json \
+  --technical-promotion /path/to/evidence/web-technical-promotion.json \
+  --release-root /srv/chat-room-web/releases/<candidate-id> \
+  --pre-release-observation /path/to/evidence/candidate-static-before.json \
+  --pre-route-observation /path/to/evidence/candidate-routes-before.json \
+  --rollback-release-root /srv/chat-room-web/releases/<previous-id> \
+  --rollback-observation /path/to/evidence/previous-static.json \
+  --store-root /srv/chat-room-web \
+  --output /path/to/evidence/web-rollback-pointer-execution.json
+```
+
+Rollback does not wait for the expired promotion authorization: durable
+execution evidence already pre-authorized the exact B→A pair. It requires B to
+be current, writes a one-time marker, and restores A atomically. If rollback
+evidence persistence fails, A remains active instead of switching back to the
+failed B. Its status remains `awaiting-external-observation`; probe restored A
+and complete `web_rollback_evidence.py` before closing the incident. Run
+`python3 Tests/web_release_rollback_execution_test.py` for this failure policy.
+
 Production Web builds resolve V1 WebSocket traffic to `wss://<page-authority>/ws`
 and file traffic below same-origin `/api/`; the HTTPS reverse proxy must own both
 routes. A different same-origin WebSocket path can be selected at build time,

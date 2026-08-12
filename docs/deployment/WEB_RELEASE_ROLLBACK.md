@@ -152,6 +152,14 @@ Retain separate observations for the previously healthy A, active B, and
 restored A. Bind them into one write-once rollback record, then independently
 verify the record against all three source files:
 
+Use `web_release_rollback_execution.py execute` for the pointer mutation. It
+derives the exact B→A pair from durable promotion-execution evidence, requires B
+to be current, and consumes that rollback once. It intentionally needs no fresh
+promotion approval: the original authorization already selected A, and delaying
+an incident rollback for a new version choice would increase recovery time. If
+evidence persistence fails after A is restored, leave A active and investigate;
+never automatically return to failed B.
+
 ```bash
 python3 tools/web_rollback_evidence.py record \
   --prior /path/to/evidence/web-release-A-before.json \

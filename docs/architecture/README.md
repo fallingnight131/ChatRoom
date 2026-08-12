@@ -1071,6 +1071,13 @@ and both observations by SHA-256 and is durably reconstructed at its recorded
 completion instant. It is point-in-time production delivery evidence, not a
 claim of continuous availability or branded-browser compatibility.
 
+ADR-0173 defines the incident rollback consumer. Durable execution evidence,
+not a new arbitrary version input, pre-authorizes the exact B→A transition. The
+adapter requires B to be active, persists a non-replay marker, and atomically
+restores A. It never switches back to B when rollback evidence persistence
+fails. The result remains pending until external probes observe restored A and
+the existing A-before/B/A-restored rollback record is completed.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,
