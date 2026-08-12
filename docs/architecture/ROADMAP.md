@@ -588,6 +588,9 @@ Progress:
   evidence-write failure; affected B clients use a forward corrective release.
 - [x] Bind a matching post-rollback HTTPS observation of restored A into
   bounded immutable rollout-halt completion evidence.
+- [x] Define a short-lived reviewed Windows product-update trust intent binding
+  exact source/version/channel/URL and one/two canonical Ed25519 public keys,
+  while ordinary builds remain disabled.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

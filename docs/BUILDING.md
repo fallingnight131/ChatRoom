@@ -709,6 +709,20 @@ python3 Tests/windows_update_rollback_completion_test.py
 This proves the restored channel bytes at one instant, not downgrade of clients
 already on B or global continuous availability. See ADR-0184.
 
+Before compiling a product-update-enabled Windows client, create and verify a
+short-lived public trust intent with
+`tools/windows_update_product_trust_intent.py`. It binds exact source/version,
+stable or beta manifest URL, primary key ID/canonical Ed25519 raw public key/PEM
+SHA-256, and an optional complete distinct secondary key for rotation. It
+contains no private key or provider credential:
+
+```bash
+python3 Tests/windows_update_product_trust_intent_test.py
+```
+
+Ordinary builds remain disabled. A later protected build workflow must consume
+and retain this exact intent before the client can be signed. See ADR-0185.
+
 The provider-neutral post-signing acceptance policy is checked with:
 
 ```bash

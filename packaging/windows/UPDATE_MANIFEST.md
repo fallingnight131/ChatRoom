@@ -249,3 +249,10 @@ The rollout halt completes only after a new strict HTTPS observation identifies
 restored A and `windows_update_rollback_completion.py` binds it to the rollback
 execution within ten minutes. The record proves client-visible A bytes at that
 instant while preserving the requirement for a forward fix for B devices.
+
+Client trust provisioning begins with a write-once
+`windows_update_product_trust_intent.py` record. It extracts canonical raw
+Ed25519 public bytes from reviewed PEM files and binds their IDs/digests to one
+exact source/version/channel/manifest URL for at most two hours. One optional
+secondary key supports overlap rotation. This public intent contains no private
+key and does not itself enable, build, sign, or publish a client.

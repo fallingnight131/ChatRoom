@@ -1160,6 +1160,12 @@ after rollback; completion binds both records by SHA-256 and exact release
 identity. It proves that further rollout was halted at the observed endpoint,
 not that B devices downgraded or every CDN region converged continuously.
 
+ADR-0185 begins actual client trust provisioning without weakening default-off
+builds. A short-lived reviewed intent binds exact source/version/channel/URL and
+extracts one or two canonical Ed25519 raw public keys from PEM, retaining key
+IDs and PEM digests for audit. It has no private material or build authority;
+the next protected native build must consume and preserve it before signing.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,
