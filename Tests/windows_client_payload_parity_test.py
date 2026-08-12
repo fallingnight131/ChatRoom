@@ -26,11 +26,12 @@ def fixture(root: Path, client: bytes = b"client") -> None:
         path.write_bytes(content)
 
 
-def invoke(left: Path, right: Path, output: Path) -> subprocess.CompletedProcess[str]:
+def invoke(left: Path, right: Path, output: Path,
+           extra=None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(TOOL), "--baseline", str(left), "--candidate", str(right),
          "--version", "1.2.3", "--source-revision", REVISION,
-         "--output", str(output)],
+         "--output", str(output), *(extra or [])],
         text=True, capture_output=True,
     )
 
@@ -48,6 +49,11 @@ def main() -> int:
         assert document["runtimeBytesEquivalent"] is True
         assert document["baseline"]["Qt6Core.dll"] == document["candidate"]["Qt6Core.dll"]
         assert document["baseline"]["ChatClient.exe"] != document["candidate"]["ChatClient.exe"]
+
+        rejected = root / "evidence/executable-drift.json"
+        result = invoke(
+            left, right, rejected, ["--require-executable-byte-equality"])
+        assert result.returncode != 0 and not rejected.exists()
 
         (right / "Qt6Core.dll").write_bytes(b"drift")
         rejected = root / "evidence/runtime-drift.json"

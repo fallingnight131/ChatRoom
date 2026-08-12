@@ -696,6 +696,9 @@ Progress:
 - [x] Extend the temporary CMake NSIS gate through a synthetic predecessor
   upgrade, stale-program replacement, traceable registration, running-client
   mutation refusal, downgrade refusal, and final uninstall/data preservation.
+- [x] Promote the verified CMake deployment as canonical Windows artifact/NSIS
+  input, retain qmake as a parity fallback, and bind `buildSystem: cmake` plus
+  exact parity-candidate hashes into artifact-manifest schema 3.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
@@ -704,9 +707,7 @@ Progress:
 
 Work:
 
-- promote the native CMake Windows client/helper outputs into packaging only
-  after their deployed payload and installer gates match the qmake fallback;
-- create Windows `windeployqt` packaging and a signed installer;
+- sign and timestamp the canonical CMake/`windeployqt` Windows installer;
 - add an optional MSIX/Store channel after the direct installer is stable;
 - implement a signed Windows update manifest, stable/beta channels, staged
   rollout, trusted endpoint/key provisioning, and rollback;

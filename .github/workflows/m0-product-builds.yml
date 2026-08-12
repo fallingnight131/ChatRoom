@@ -104,6 +104,7 @@ jobs:
           python Tests/windows_cmake_product_target_test.py
           python Tests/windows_client_payload_parity_test.py
           python Tests/windows_cmake_installer_gate_test.py
+          python Tests/windows_cmake_packaging_promotion_test.py
 
       - name: Install pinned Qt SDK
         uses: jurplel/install-qt-action@v4.3.1
@@ -147,7 +148,7 @@ jobs:
             throw "CMake update launcher version does not match canonical VERSION"
           }
 
-      - name: Assemble unsigned Windows client payload
+      - name: Assemble qmake Windows fallback payload
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -156,22 +157,23 @@ jobs:
           $server = Get-ChildItem build/m0/windows/server -Recurse -Filter ChatServer.exe | Select-Object -First 1
           if (-not $client -or -not $launcher -or -not $server) { throw "Qt Release executables were not found" }
 
-          $artifact = "build/m0/artifacts/windows"
-          New-Item -ItemType Directory -Force "$artifact/client" | Out-Null
-          Copy-Item $client.FullName "$artifact/client/ChatClient.exe"
-          Copy-Item $launcher.FullName "$artifact/client/ChatRoomUpdateLauncher.exe"
-          windeployqt --release --no-translations "$artifact/client/ChatClient.exe"
+          $baseline = "build/m4/windows-qmake-payload"
+          if (Test-Path $baseline) { Remove-Item $baseline -Recurse -Force }
+          New-Item -ItemType Directory -Force $baseline | Out-Null
+          Copy-Item $client.FullName "$baseline/ChatClient.exe"
+          Copy-Item $launcher.FullName "$baseline/ChatRoomUpdateLauncher.exe"
+          windeployqt --release --no-translations "$baseline/ChatClient.exe"
           $sodiumDll = Get-ChildItem "$env:SODIUM_ROOT/bin" -Filter "*sodium*.dll" | Select-Object -First 1
           if (-not $sodiumDll) { throw "Windows client artifact is missing the libsodium runtime source" }
-          Copy-Item $sodiumDll.FullName "$artifact/client/$($sodiumDll.Name)"
-          $sqlitePlugin = Get-ChildItem "$artifact/client/sqldrivers" -Filter "qsqlite.dll" -ErrorAction SilentlyContinue
+          Copy-Item $sodiumDll.FullName "$baseline/$($sodiumDll.Name)"
+          $sqlitePlugin = Get-ChildItem "$baseline/sqldrivers" -Filter "qsqlite.dll" -ErrorAction SilentlyContinue
           if (-not $sqlitePlugin) { throw "Windows client artifact is missing the Qt SQLite driver" }
 
       - name: Compare deployed CMake and qmake Windows payloads
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $baseline = (Resolve-Path "build/m0/artifacts/windows/client").Path
+          $baseline = (Resolve-Path "build/m4/windows-qmake-payload").Path
           $candidate = "$env:GITHUB_WORKSPACE/build/m4/windows-cmake-payload"
           if (Test-Path $candidate) { Remove-Item $candidate -Recurse -Force }
           New-Item -ItemType Directory -Force $candidate | Out-Null
@@ -208,6 +210,26 @@ jobs:
             -InstallerScript packaging/windows/ChatRoom.nsi `
             -IconFile Client/resources/app_icon.ico `
             -WorkRoot "$env:RUNNER_TEMP/ChatRoomCMakeInstallerGate"
+
+      - name: Promote verified CMake payload as canonical input
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $candidate = (Resolve-Path "build/m4/windows-cmake-payload").Path
+          $canonical = "$env:GITHUB_WORKSPACE/build/m0/artifacts/windows/client"
+          if (Test-Path $canonical) { Remove-Item $canonical -Recurse -Force }
+          New-Item -ItemType Directory -Force $canonical | Out-Null
+          Get-ChildItem $candidate -Force | Copy-Item -Destination $canonical -Recurse
+          python tools/compare_windows_client_payloads.py `
+            --baseline $candidate `
+            --candidate $canonical `
+            --baseline-build-system cmake `
+            --candidate-build-system cmake `
+            --require-executable-byte-equality `
+            --version "${{ steps.product-version.outputs.version }}" `
+            --source-revision "${{ github.sha }}" `
+            --output "$env:RUNNER_TEMP/cmake-canonical-copy-evidence.json"
+          if ($LASTEXITCODE -ne 0) { throw "Canonical CMake payload copy changed bytes" }
 
       - name: Compile and exercise unsigned Windows installer
         shell: pwsh
@@ -421,6 +443,7 @@ jobs:
             --qt-version "${{ env.QT_VERSION }}" `
             --installer "$artifact/installer/ChatRoom-$version-unsigned-verification-Setup.exe" `
             --cmake-payload-parity "$artifact/cmake-payload-parity.json" `
+            --build-system cmake `
             --output-dir "$artifact"
 
       - name: Upload unsigned Windows verification artifact

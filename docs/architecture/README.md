@@ -830,9 +830,10 @@ release remain outside the record.
 ADR-0146 starts the Qt build migration at a deliberately narrow boundary. The
 root CMake project compiles the exact V1 HeadlessServer production sources with
 Qt 6, libsodium, C++17, and AUTOMOC, and the unified verifier starts that binary
-for a real HTTP health test. qmake remains authoritative for the Windows client,
-updater, installer payload, Qt unit tests, and current Windows product build;
-future targets move only after native equivalence and packaging evidence.
+for a real HTTP health test. At that migration slice qmake remained authoritative
+for the Windows client, updater, installer payload, and Qt unit tests; ADR-0159
+later promotes the native-equivalent CMake payload while retaining qmake as a
+temporary fallback.
 
 ADR-0147 makes that CMake seam reusable without changing runtime ownership.
 `chatroom_v1_persistence` contains the existing `DatabaseManager` and
@@ -939,6 +940,14 @@ data. With the CMake client running, the same installer must return the locked-
 client refusal code without mutation; the predecessor must then fail to
 downgrade the current installation. This remains synthetic installer evidence,
 not proof that a real historical binary/database can upgrade.
+
+ADR-0159 performs the reversible packaging switch. qmake still compiles and
+deploys into a fallback directory for byte/inventory comparison, but the
+canonical artifact and NSIS input are copied from the already parity-checked and
+fully exercised CMake directory. Artifact-manifest schema 3 records
+`buildSystem: cmake`, hashes the parity evidence, and independently requires its
+CMake candidate inventory to equal the final canonical payload. Signing,
+timestamping, and protected release publication remain separate gates.
 
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,

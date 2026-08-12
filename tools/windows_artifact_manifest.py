@@ -52,10 +52,13 @@ def build_manifest(
     qt_version: str,
     installer: Path | None = None,
     cmake_payload_parity: Path | None = None,
+    build_system: str = "cmake",
 ) -> tuple[dict[str, object], list[str]]:
     validate_revision(source_revision)
     if not QT_VERSION.fullmatch(qt_version):
         raise ManifestError("Qt version must use major.minor.patch")
+    if build_system not in {"cmake", "qmake"}:
+        raise ManifestError("Windows artifact build system is invalid")
     version = read_version(version_file)
 
     entries: list[dict[str, object]] = []
@@ -68,7 +71,7 @@ def build_manifest(
         checksum_lines.append(f"{digest}  {artifact_path}")
 
     manifest: dict[str, object] = {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "product": "chat-room-windows-client",
         "version": version,
         "channel": "verification",
@@ -77,6 +80,7 @@ def build_manifest(
         "toolchain": "msvc2022",
         "qtVersion": qt_version,
         "sourceRevision": source_revision,
+        "buildSystem": build_system,
         "signatureStatus": "unsigned-verification-only",
         "files": entries,
     }
@@ -125,6 +129,13 @@ def build_manifest(
         for name in set(evidence["baseline"]) - PARITY_EXECUTABLES:
             if evidence["baseline"][name] != evidence["candidate"][name]:
                 raise ManifestError("CMake payload parity runtime evidence differs")
+        canonical_inventory = {
+            entry["path"].removeprefix("client/"): {
+                "size": entry["size"], "sha256": entry["sha256"]}
+            for entry in entries
+        }
+        if evidence["candidate"] != canonical_inventory:
+            raise ManifestError("canonical payload does not match CMake parity evidence")
         digest, size = sha256_file(cmake_payload_parity)
         artifact_path = "cmake-payload-parity.json"
         manifest["cmakePayloadParity"] = {
@@ -153,6 +164,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--qt-version", required=True)
     parser.add_argument("--installer", type=Path)
     parser.add_argument("--cmake-payload-parity", type=Path)
+    parser.add_argument("--build-system", choices=("cmake", "qmake"), required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     return parser.parse_args()
 
@@ -167,6 +179,7 @@ def main() -> int:
             args.qt_version,
             args.installer,
             args.cmake_payload_parity,
+            args.build_system,
         )
         write_manifest(args.output_dir, manifest, checksums)
     except (ManifestError, OSError) as error:

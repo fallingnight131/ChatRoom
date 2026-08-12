@@ -183,8 +183,8 @@ repository, optimistic send, synchronization, attachment outbox, and history
 adapter plus raw HTTP upload/download and reconnect CTests; it then starts the resulting process and verifies the exact V1
 HTTP health contract. CMake never installs or downloads a
 dependency; use `SODIUM_ROOT` or normal CMake search paths. Continue using qmake
-for Windows product artifacts until a later ADR records native target and
-packaging equivalence.
+as a Windows parity/fallback build during the current migration window; ADR-0159
+promotes the native-equivalent CMake payload as canonical packaging input.
 
 The same CTest gate generates a one-day localhost certificate/key in a temporary
 directory and runs a TLS trust-policy negative/positive pair. The untrusted
@@ -239,10 +239,11 @@ python3 Tests/windows_cmake_product_target_test.py
 ```
 
 `CHATROOM_BUILD_WINDOWS_CLIENT=ON` fails configuration on non-Windows hosts.
-The CMake executables are currently verification outputs only: the unsigned
-payload/NSIS gates still consume qmake outputs as the rollback path. Do not
-switch packaging until CMake `windeployqt`, runtime inventory, install/upgrade,
-uninstall, and unsigned-rejection behavior have matching native evidence.
+ADR-0155 initially made the CMake executables verification-only and kept qmake
+as packaging input. ADRs 0156-0158 supplied deployed-runtime, helper, install,
+upgrade, downgrade, and uninstall equivalence; ADR-0159 now uses CMake as the
+canonical unsigned payload/NSIS input while retaining qmake deployment as the
+comparison and rollback path.
 
 As the first parity stage, Windows CI runs `windeployqt` on the CMake client in
 an isolated directory and invokes:
@@ -265,7 +266,7 @@ libsodium, and any runtime drift without writing evidence. Its closed evidence
 is validated and hashed by `windows_artifact_manifest.py`. Run the portable
 negative policy with `python3 Tests/windows_client_payload_parity_test.py`.
 
-After payload parity and before the existing qmake installer gate, native CI
+After payload parity and before the canonical installer gate, native CI
 uses `tools/verify_windows_cmake_installer.ps1` to compile an isolated temporary
 NSIS from the CMake directory. It requires an explicitly unsigned Setup, clean
 silent install, canonical client/helper PE versions, SQLite/libsodium presence,
@@ -282,7 +283,7 @@ The initial ADR-0157 slice deliberately stopped before upgrade/downgrade parity
 and did not replace the uploaded qmake installer. No signing success is inferred
 from unsigned rejection.
 
-ADR-0158 extends the same temporary CMake gate before any packaging switch. It
+ADR-0158 extends the same temporary CMake gate before the packaging switch. It
 compiles and installs a synthetic `0.9.0` predecessor, adds a stale program
 sentinel, upgrades to canonical `VERSION`, and requires atomic program-directory
 replacement, no stage/backup residue, traceable HKCU registration, and preserved
@@ -291,6 +292,16 @@ is running, rejects the predecessor downgrade without changing the current
 registration/files/data, and finally completes the helper and uninstall checks.
 The predecessor reuses current payload bytes and validates installer mechanics;
 real historical binary/schema compatibility is still a separate release gate.
+
+ADR-0159 promotes `build/m4/windows-cmake-payload` into
+`build/m0/artifacts/windows/client` only after all preceding native gates pass.
+The qmake deployment remains isolated at `build/m4/windows-qmake-payload`.
+Before NSIS compilation, the promotion copy is hashed again against its CMake
+source with `--require-executable-byte-equality`, including both PE files.
+`windows_artifact_manifest.py` schema 3 records `buildSystem: cmake`,
+binds `cmake-payload-parity.json`, and requires the evidence's CMake candidate
+inventory to equal every final canonical payload size/SHA-256. A failure creates
+no upload; rollback changes the one promotion source back to qmake.
 
 The unsigned Windows NSIS gate now compiles a synthetic predecessor outside the
 uploaded artifact, installs it, and upgrades to canonical `VERSION`. It checks
@@ -950,11 +961,14 @@ development/portability verification, not a supported desktop release gate.
 - Run from a Qt/Visual Studio or Qt/MinGW developer environment.
 - The verifier selects `nmake` for an MSVC qmake spec and
   `mingw32-make`/`make` otherwise.
-- Native CI uses MSVC 2022 and pinned Qt 6.11.1, then runs `windeployqt` to
-  assemble a short-lived client-only unsigned verification payload. Root
-  `VERSION` supplies both the Qt application version and artifact version.
+- Native CI uses MSVC 2022 and pinned Qt 6.11.1, builds both qmake fallback and
+  canonical CMake targets, proves their deployed runtime parity, then promotes
+  the CMake `windeployqt` directory as the short-lived client-only unsigned
+  verification payload. Root `VERSION` supplies both the Qt application version
+  and artifact version.
 - CI writes deterministic `artifact-manifest.json` and `SHA256SUMS` metadata
-  containing the exact Git revision, toolchain identity, file sizes, and hashes.
+  containing schema-3 `buildSystem: cmake`, the exact Git revision, toolchain
+  identity, parity-evidence hash, file sizes, and hashes.
   Run its cross-platform policy test with
   `python3 Tests/windows_artifact_manifest_test.py`.
 - The native job also pins NSIS 3.12, compiles an explicitly unsigned per-user

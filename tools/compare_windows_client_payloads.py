@@ -64,14 +64,16 @@ def inventory(root: Path) -> dict[str, dict[str, object]]:
     return result
 
 
-def compare(baseline: Path, candidate: Path) -> tuple[dict, dict]:
+def compare(baseline: Path, candidate: Path,
+            require_executable_equality: bool = False) -> tuple[dict, dict]:
     left = inventory(baseline)
     right = inventory(candidate)
     if set(left) != set(right):
         missing = sorted(set(left) - set(right))
         extra = sorted(set(right) - set(left))
         raise ValueError(f"payload inventories differ: missing={missing}, extra={extra}")
-    for name in sorted(set(left) - EXECUTABLES):
+    comparable = set(left) if require_executable_equality else set(left) - EXECUTABLES
+    for name in sorted(comparable):
         if left[name] != right[name]:
             raise ValueError(f"deployed runtime bytes differ: {name}")
     return left, right
@@ -101,6 +103,11 @@ def main() -> int:
     parser.add_argument("--candidate", type=Path, required=True)
     parser.add_argument("--version", required=True)
     parser.add_argument("--source-revision", required=True)
+    parser.add_argument("--baseline-build-system", choices=("qmake", "cmake"),
+                        default="qmake")
+    parser.add_argument("--candidate-build-system", choices=("qmake", "cmake"),
+                        default="cmake")
+    parser.add_argument("--require-executable-byte-equality", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if not VERSION.fullmatch(args.version) or not REVISION.fullmatch(args.source_revision):
@@ -111,15 +118,17 @@ def main() -> int:
     if baseline == candidate or baseline in output.parents or candidate in output.parents:
         raise SystemExit("payload roots and evidence path must be separate")
     try:
-        left, right = compare(baseline, candidate)
+        left, right = compare(
+            baseline, candidate, args.require_executable_byte_equality)
         write_evidence(output, {
             "schemaVersion": 1,
             "version": args.version,
             "sourceRevision": args.source_revision,
-            "baselineBuildSystem": "qmake",
-            "candidateBuildSystem": "cmake",
+            "baselineBuildSystem": args.baseline_build_system,
+            "candidateBuildSystem": args.candidate_build_system,
             "runtimeBytesEquivalent": True,
-            "executableByteDifferencesAllowed": sorted(EXECUTABLES),
+            "executableByteDifferencesAllowed": (
+                [] if args.require_executable_byte_equality else sorted(EXECUTABLES)),
             "baseline": left,
             "candidate": right,
         })
