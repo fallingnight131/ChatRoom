@@ -372,6 +372,16 @@ current local V1 connection, one `FRIEND_ACCEPT_NOTIFY` containing authoritative
 second notification. Ordinary denial returns the legacy generic error; malformed
 or infrastructure-failed handling closes. The product listener remains inactive.
 
+The next detached contact boundary defines `FRIEND_REMOVE_REQ.data.username` as
+one exact non-control V1 username of at most 128 UTF-8 bytes. The authenticated
+connection owns the actor and persistence resolves the target. First removal
+and an exact response-loss retry will both preserve
+`FRIEND_REMOVE_RSP.data.success=true` plus the exact target `username`, but only
+the first may emit `FRIEND_REMOVE_NOTIFY`. Removal ends both active canonical
+DIRECT memberships and retains the conversation, V1 mapping, messages, entries,
+and read cursors. Self removal retains its specific legacy error; other denials
+retain the generic failure. No adapter or handler exists yet.
+
 ### Recall
 
 Recall is limited to 120 seconds for normal user recall. Administration has

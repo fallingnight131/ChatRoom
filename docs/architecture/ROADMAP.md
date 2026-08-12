@@ -473,6 +473,8 @@ Progress:
     errors, fixed telemetry, authoritative first notification, and retry suppression.
   - [x] Prove the composed friend-request creation/notification path with two
     real imported logins on disposable PostgreSQL.
+  - [x] Define V1 friend removal as an idempotent, server-authorized termination
+    of active DIRECT memberships that preserves durable history and mapping.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application
