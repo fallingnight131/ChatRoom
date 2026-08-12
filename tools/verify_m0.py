@@ -221,12 +221,14 @@ def verify_cmake_headless(jobs: int, build_root: Path) -> None:
         "ConversationSyncServiceTest", "AttachmentOutboxServiceTest", "V1HistoryPageAdapterTest",
         "HttpUploadTransportTest", "HttpDownloadTransportTest", "NetworkReconnectTest",
         "NetworkTlsPolicyTest",
+        "UpdateManifestSignatureVerifierTest", "UpdateManifestDecisionPolicyTest",
+        "UpdateStateRepositoryTest", "UpdateManifestApplicationServiceTest",
         "--parallel", str(jobs),
     ], ROOT)
     ctest = command_path("ctest")
     run([
         ctest, "--test-dir", str(target_dir), "--build-config", "Release",
-        "--output-on-failure", "-R", "^v1_",
+        "--output-on-failure", "-R", "^(v1_|m4_)",
     ], ROOT)
     executable = locate_executable(target_dir, "ChatServerHeadless")
     run([

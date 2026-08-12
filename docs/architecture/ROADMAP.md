@@ -672,6 +672,9 @@ Progress:
 - [x] Remove the Windows V1 optional TLS `VerifyNone` path, bind the expected
   peer name, delay application readiness until `encrypted`, and prove runtime
   rejection/acceptance with ephemeral untrusted/trusted certificate tests.
+- [x] Extract the portable Windows update signature/decision/replay-state/
+  application trust core into CMake and execute four existing tamper, policy,
+  atomic-state, and non-bypassable-order suites through the M4 CTest gate.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

@@ -190,6 +190,31 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             PUBLIC Qt6::Core Qt6::Network chatroom_v1_common
         )
 
+        add_library(
+            chatroom_windows_update_trust_core
+            STATIC
+            Client/UpdateManifestSignatureVerifier.cpp
+            Client/UpdateManifestDecisionPolicy.cpp
+            Client/UpdateStateRepository.cpp
+            Client/UpdateManifestApplicationService.cpp
+            Client/UpdateManifestSignatureVerifier.h
+            Client/UpdateManifestDecisionPolicy.h
+            Client/UpdateStateRepository.h
+            Client/UpdateManifestApplicationService.h
+        )
+        set_target_properties(
+            chatroom_windows_update_trust_core
+            PROPERTIES
+                CXX_STANDARD 17
+                CXX_STANDARD_REQUIRED ON
+                CXX_EXTENSIONS OFF
+        )
+        target_include_directories(chatroom_windows_update_trust_core PUBLIC Client)
+        target_link_libraries(
+            chatroom_windows_update_trust_core
+            PUBLIC Qt6::Core Sodium::Sodium
+        )
+
         function(chatroom_add_local_data_test target test_name)
             add_executable(${target} Tests/${target}.cpp)
             set_target_properties(
@@ -213,6 +238,20 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                     CXX_EXTENSIONS OFF
             )
             target_link_libraries(${target} PRIVATE chatroom_client_transport)
+            add_test(NAME ${test_name} COMMAND ${target})
+            set_tests_properties(${test_name} PROPERTIES TIMEOUT 30)
+        endfunction()
+
+        function(chatroom_add_update_trust_test target test_name)
+            add_executable(${target} Tests/${target}.cpp)
+            set_target_properties(
+                ${target}
+                PROPERTIES
+                    CXX_STANDARD 17
+                    CXX_STANDARD_REQUIRED ON
+                    CXX_EXTENSIONS OFF
+            )
+            target_link_libraries(${target} PRIVATE chatroom_windows_update_trust_core)
             add_test(NAME ${test_name} COMMAND ${target})
             set_tests_properties(${test_name} PROPERTIES TIMEOUT 30)
         endfunction()
@@ -267,5 +306,14 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 --client "$<TARGET_FILE:NetworkTlsPolicyTest>"
         )
         set_tests_properties(v1_client_tls_trust_policy PROPERTIES TIMEOUT 30)
+
+        chatroom_add_update_trust_test(
+            UpdateManifestSignatureVerifierTest m4_update_signature_verifier)
+        chatroom_add_update_trust_test(
+            UpdateManifestDecisionPolicyTest m4_update_decision_policy)
+        chatroom_add_update_trust_test(
+            UpdateStateRepositoryTest m4_update_state_repository)
+        chatroom_add_update_trust_test(
+            UpdateManifestApplicationServiceTest m4_update_manifest_application)
     endif()
 endif()

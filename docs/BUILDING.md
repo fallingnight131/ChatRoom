@@ -165,7 +165,8 @@ alignment, verification, and rollback.
 
 The root `CMakeLists.txt` currently represents the V1 persistence/server-core
 libraries, shared V1 Common, non-UI Windows client local-data and transport
-libraries, thin `ChatServerHeadless`, and twelve CTest entries. Together they compile
+libraries, portable Windows update trust-core, thin `ChatServerHeadless`, and
+sixteen CTest entries. Together they compile
 the same Common/Server/client-core sources as the qmake projects and do not
 replace the Windows product build or installer.
 On a macOS Homebrew development host:
@@ -191,6 +192,11 @@ certificate must fail before the application `connected` signal; after the test
 process explicitly adds the same hostname-valid certificate as a CA, the signal
 must occur only after `QSslSocket::encrypted`. The key is deleted with the
 temporary directory and is never a product or committed credential.
+
+The `m4_update_*` portion of the same gate runs canonical Ed25519 verification,
+semantic decision policy, atomic replay-state repository, and complete manifest
+application-order tests. These targets perform no download, Authenticode check,
+installer launch, UI action, or product-key configuration.
 
 CI runs inventory and web verification on every push and pull request through
 `.github/workflows/m0-baseline.yml`.

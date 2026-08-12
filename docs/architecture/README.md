@@ -868,6 +868,13 @@ while the same hostname-valid certificate succeeds when explicitly installed
 only into the test process's CA set. The current Qt V1 server still does not
 provide public TLS; endpoint/proxy deployment remains a release gate.
 
+ADR-0151 establishes the updater's portable CMake root of trust without pulling
+in network or platform mutation. `chatroom_windows_update_trust_core` owns
+canonical Ed25519 verification, semantic update decisions, atomic device/channel
+high-watermarks, and their enforced application order. Four unchanged focused
+suites run as `m4_update_*` beside the V1 gates. No product key, channel,
+download, WinTrust call, process launch, or UI is introduced by this boundary.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,
