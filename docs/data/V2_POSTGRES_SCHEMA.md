@@ -93,6 +93,10 @@ positive signed 32-bit range and descends from `2147483647`, opposite historical
 SQLite auto-increment growth. Runtime allocation still checks and skips occupied
 compatibility IDs, so explicit imported mappings remain authoritative. Sequence
 values are allocation tokens rather than domain order; rollback gaps are normal.
+V018 adds the equivalent descending allocator for runtime V1 contact-request
+IDs. New request and mapping rows commit atomically; sequence values themselves
+remain non-transactional allocation tokens, so failed/rolled-back attempts may
+leave gaps. Occupied imported IDs are skipped and exhaustion fails closed.
 The read-only application compatibility port keeps the namespace type alongside
 the numeric ID and supports both V1-to-V2 request translation and V2-to-V1 event
 projection. Its PostgreSQL adapter does not create mappings, infer identities,
@@ -308,6 +312,13 @@ authenticated server connection. It moves only `PENDING` to `REJECTED` and sets
 same recipient is an exact idempotent retry; missing mappings, wrong recipients,
 and other terminal states fail generically. No route invokes this adapter yet.
 
+The detached request-creation adapter resolves exact enabled mapped usernames,
+checks active DIRECT friendship, and locks the unordered pending pair under a
+serializable transaction. Same-direction requests are idempotent; reverse
+pending is distinct; a new canonical request and numeric map commit together.
+Bounded retry resolves serialization/unique races to durable typed outcomes. No
+handler invokes this adapter yet.
+
 The detached V1 module now composes this adapter behind strict authenticated
 `FRIEND_REJECT_REQ` handling. Disposable-database verification covers first
 apply, exact retry, durable resolution, and subsequent empty pending projection.
@@ -371,7 +382,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V017, reruns migration as a simulated
+cluster, migrates a clean database through current V018, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable

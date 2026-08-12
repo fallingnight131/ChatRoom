@@ -25,6 +25,7 @@ import com.fallingnight.chat.application.identity.StoredCredential;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendDirectoryState;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestRejectionResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestAcceptanceResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestCreationResult;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -116,7 +117,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(17, first.migrate());
+        assertEquals(18, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -139,6 +140,11 @@ class PostgresMigratorTest {
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
                     + "AND sequencename = 'legacy_v1_friendship_id_seq' "
+                    + "AND increment_by = -1 AND min_value = 1 "
+                    + "AND max_value = 2147483647"));
+            assertEquals(1, count("SELECT count(*) FROM pg_sequences "
+                    + "WHERE schemaname = 'chat' "
+                    + "AND sequencename = 'legacy_v1_contact_request_id_seq' "
                     + "AND increment_by = -1 AND min_value = 1 "
                     + "AND max_value = 2147483647"));
             proveSequenceAndIdempotencyConstraints(connection);
@@ -705,6 +711,64 @@ class PostgresMigratorTest {
                 .map(entry -> entry.username()).toList());
         assertEquals(List.of(), search.search(owner, "native", 20));
         assertThrows(IllegalArgumentException.class, () -> search.search(owner, "peer", 0));
+    }
+
+    @Test
+    @Order(93)
+    void createsV1FriendRequestsWithConcurrentRetryAndReverseDetection() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID requester = UUID.randomUUID();
+        UUID recipient = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'request-owner', 'Owner', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'request-peer', 'Peer', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    requester, recipient);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                            + "VALUES (1, ?), (2, ?)", requester, recipient);
+        }
+        PostgresLegacyV1FriendRequestCreationAdapter adapter =
+                new PostgresLegacyV1FriendRequestCreationAdapter(dataSource());
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            var task = (java.util.concurrent.Callable<LegacyV1FriendRequestCreationResult>) () -> {
+                ready.countDown();
+                assertTrue(start.await(5, TimeUnit.SECONDS));
+                return adapter.create(requester, "request-peer");
+            };
+            Future<LegacyV1FriendRequestCreationResult> first = executor.submit(task);
+            Future<LegacyV1FriendRequestCreationResult> second = executor.submit(task);
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+            var results = List.of(first.get(10, TimeUnit.SECONDS),
+                    second.get(10, TimeUnit.SECONDS));
+            assertEquals(1, results.stream().filter(result -> result.equals(
+                    new LegacyV1FriendRequestCreationResult.Accepted(false, recipient))).count());
+            assertEquals(1, results.stream().filter(result -> result.equals(
+                    new LegacyV1FriendRequestCreationResult.Accepted(true, recipient))).count());
+        } finally {
+            executor.shutdownNow();
+        }
+        assertEquals(LegacyV1FriendRequestCreationResult.Rejected.REVERSE_PENDING,
+                adapter.create(recipient, "request-owner"));
+        assertEquals(LegacyV1FriendRequestCreationResult.Rejected.SELF_REQUEST,
+                adapter.create(requester, "request-owner"));
+        assertEquals(LegacyV1FriendRequestCreationResult.Rejected.USER_NOT_FOUND,
+                adapter.create(requester, "Request-Peer"));
+        assertEquals(1, count("SELECT count(*) FROM chat.contact_request "
+                + "WHERE requester_account_id = '" + requester + "' "
+                + "AND recipient_account_id = '" + recipient + "' AND state = 'PENDING'"));
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_contact_request_map mapping "
+                + "JOIN chat.contact_request request ON request.id = mapping.contact_request_id "
+                + "WHERE request.requester_account_id = '" + requester + "' "
+                + "AND mapping.legacy_request_id BETWEEN 1 AND 2147483647"));
     }
 
     @Test

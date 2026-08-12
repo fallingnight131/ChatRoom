@@ -467,6 +467,8 @@ Progress:
     real PostgreSQL offline-to-online presence verification.
   - [x] Define server-resolved V1 friend-request creation with typed denial,
     same-direction retry success, and first-apply-only notification intent.
+  - [x] Implement serialized PostgreSQL request creation with concurrent outcome
+    convergence, active-friend/reverse checks, and descending runtime V1 IDs.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

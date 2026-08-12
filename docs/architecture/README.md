@@ -296,7 +296,15 @@ comes only from authenticated state and PostgreSQL will resolve the exact target
 username; clients cannot supply canonical IDs. Missing/self/already-friend/
 reverse-pending/invalid outcomes remain distinct. A same-direction pending row
 is an idempotent success for response-loss recovery but never repeats online
-notification. No persistence adapter or handler exists yet.
+notification. No handler exists yet.
+
+The PostgreSQL creation adapter now resolves enabled mapped participants and
+performs active-DIRECT, unordered pending-pair, request, and mapping decisions in
+one serializable transaction. V018 allocates runtime V1 request IDs downward
+from the signed 32-bit maximum and skips imported values. Serialization/unique
+races retry in fresh bounded transactions so concurrent same-direction requests
+become first plus duplicate, while the opposite direction sees reverse-pending.
+No handler invokes it yet.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
