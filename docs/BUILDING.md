@@ -75,6 +75,7 @@ Exercise immutable staging, activation health, and no-rebuild rollback policy:
 ```bash
 python3 Tests/web_release_store_test.py
 python3 Tests/web_release_probe_test.py
+python3 Tests/web_rollback_evidence_test.py
 ```
 
 The operator commands and filesystem layout are documented in

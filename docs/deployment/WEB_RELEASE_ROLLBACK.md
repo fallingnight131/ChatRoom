@@ -74,6 +74,15 @@ compression when identity encoding was requested. It reads every static file
 declared by the immutable manifest.
 Keep the JSON evidence with the rollout record; it contains identities and
 paths, not response bodies or credentials.
+The output is atomically created once and refuses replacement. Reverify the
+retained record against the same immutable release and origin with:
+
+```bash
+python3 tools/web_release_probe.py \
+  --base-url https://chat.example.com \
+  --release-root /srv/chat-room-web/releases/<release-id> \
+  --verify-evidence /path/to/evidence/web-release-A.json
+```
 
 ## Roll back without rebuilding
 
@@ -91,6 +100,29 @@ python3 tools/web_release_store.py status \
 
 Probe the restored HTTPS release again. Filesystem status alone is insufficient
 when routing or response-header configuration caused the incident.
+
+Retain separate observations for the previously healthy A, active B, and
+restored A. Bind them into one write-once rollback record, then independently
+verify the record against all three source files:
+
+```bash
+python3 tools/web_rollback_evidence.py record \
+  --prior /path/to/evidence/web-release-A-before.json \
+  --current /path/to/evidence/web-release-B.json \
+  --restored /path/to/evidence/web-release-A-restored.json \
+  --output /path/to/evidence/web-rollback-B-to-A.json
+
+python3 tools/web_rollback_evidence.py verify \
+  --prior /path/to/evidence/web-release-A-before.json \
+  --current /path/to/evidence/web-release-B.json \
+  --restored /path/to/evidence/web-release-A-restored.json \
+  --output /path/to/evidence/web-rollback-B-to-A.json
+```
+
+The three observation times must be strictly ordered, B must differ from A, and
+the restored A must match the prior A artifact manifest, response policy,
+identity, and complete observed path set. This evidence is only as authoritative
+as the environment named by its HTTPS origin.
 
 Do not copy old bytes over the new directory, rebuild from an old branch, or
 reuse the new release's response policy. Stop the rollout if status fails. Any

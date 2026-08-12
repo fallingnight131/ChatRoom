@@ -18,7 +18,9 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 from artifact_manifest_common import ManifestError  # noqa: E402
 from web_artifact_manifest import build_manifest, read_response_policy, write_manifest  # noqa: E402
-from web_release_probe import probe_release  # noqa: E402
+from web_release_probe import (  # noqa: E402
+    probe_release, read_observation, reverify_observation, write_observation,
+)
 
 
 class IsolatedReleaseServer:
@@ -124,6 +126,29 @@ class WebReleaseProbeTest(unittest.TestCase):
         self.assertEqual(evidence["version"], "1.2.3")
         self.assertEqual(evidence["observedFileCount"], 2)
         self.assertEqual(evidence["observedPaths"], ["/assets/index-AbCd1234.js", "/index.html"])
+
+    def test_persists_once_and_independently_reverifies_live_release(self) -> None:
+        output = self.root / "evidence" / "observation.json"
+        with IsolatedReleaseServer(self.artifact, self.certificate, self.private_key) as server:
+            evidence = probe_release(server.base_url, self.artifact, self.certificate)
+            write_observation(output, evidence)
+            self.assertEqual(read_observation(output, self.artifact), evidence)
+            verified = reverify_observation(output, self.artifact, self.certificate)
+        self.assertEqual(verified["status"], "reverified")
+        with self.assertRaisesRegex(ManifestError, "already exists"):
+            write_observation(output, evidence)
+
+    def test_rejects_mutated_or_unknown_observation_evidence(self) -> None:
+        with IsolatedReleaseServer(self.artifact, self.certificate, self.private_key) as server:
+            evidence = probe_release(server.base_url, self.artifact, self.certificate)
+        output = self.root / "observation.json"
+        output.write_text(json.dumps({**evidence, "unknown": True}), encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "unsupported shape"):
+            read_observation(output, self.artifact)
+        evidence["artifactManifestSha256"] = "0" * 64
+        output.write_text(json.dumps(evidence), encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "does not match"):
+            read_observation(output, self.artifact)
 
     def test_rejects_missing_security_header_and_wrong_cache_class(self) -> None:
         with IsolatedReleaseServer(self.artifact, self.certificate, self.private_key) as server:

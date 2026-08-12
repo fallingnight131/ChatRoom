@@ -27,4 +27,9 @@ intent, not that a hosting provider served the headers. Deployment observation,
 health checks, browser coverage, and rollback rehearsal remain separate gates.
 `tools/web_release_probe.py` closes the observation part only after an HTTPS
 adapter exists: it requests identity encoding, verifies every declared byte and
-exact header, and emits bounded release evidence.
+exact header, and emits closed, write-once release evidence bound to the artifact
+manifest bytes. The same tool can independently re-probe a retained observation.
+`tools/web_rollback_evidence.py` binds prior-A, current-B, and restored-A
+observations by digest, origin, exact release identity, and strict time order.
+Neither tool publishes a release or turns isolated fixture output into production
+evidence.

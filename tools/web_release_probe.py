@@ -6,16 +6,25 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import ssl
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit, urlunsplit
 from urllib.request import HTTPRedirectHandler, HTTPSHandler, Request, build_opener
 
-from artifact_manifest_common import ManifestError, atomic_write
+from artifact_manifest_common import ManifestError
 from web_artifact_manifest import read_response_policy
-from web_release_store import validate_release
+from web_release_store import SOURCE_REVISION, WEB_VERSION, validate_release
+
+
+OBSERVATION_KEYS = {
+    "schemaVersion", "evidenceType", "status", "baseUrl", "releaseId",
+    "version", "sourceRevision", "artifactManifestSha256",
+    "responsePolicySha256", "observedFileCount", "observedPaths", "observedAt",
+}
 
 
 class RejectRedirects(HTTPRedirectHandler):
@@ -86,8 +95,10 @@ def probe_release(
     origin = _origin_url(base_url)
     identity = validate_release(release_root)
     policy = read_response_policy(release_root / "response-policy.json")
+    manifest_path = release_root / "web-artifact-manifest.json"
     try:
-        manifest = json.loads((release_root / "web-artifact-manifest.json").read_text(encoding="utf-8"))
+        manifest_bytes = manifest_path.read_bytes()
+        manifest = json.loads(manifest_bytes)
     except (json.JSONDecodeError, OSError) as error:
         raise ManifestError("Web artifact manifest is unreadable") from error
     entries = manifest.get("files")
@@ -128,15 +139,113 @@ def probe_release(
 
     return {
         "schemaVersion": 1,
+        "evidenceType": "web-release-https-observation",
         "status": "healthy",
         "baseUrl": origin,
         "releaseId": identity["releaseId"],
         "version": identity["version"],
         "sourceRevision": identity["sourceRevision"],
+        "artifactManifestSha256": hashlib.sha256(manifest_bytes).hexdigest(),
         "responsePolicySha256": identity["responsePolicySha256"],
         "observedFileCount": len(observed_paths),
         "observedPaths": sorted(observed_paths),
         "observedAt": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def read_observation(path: Path, release_root: Path | None = None) -> dict[str, object]:
+    try:
+        evidence = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as error:
+        raise ManifestError("Web release observation evidence is unreadable") from error
+    if not isinstance(evidence, dict) or set(evidence) != OBSERVATION_KEYS:
+        raise ManifestError("Web release observation evidence has an unsupported shape")
+    if (evidence.get("schemaVersion") != 1
+            or evidence.get("evidenceType") != "web-release-https-observation"
+            or evidence.get("status") != "healthy"):
+        raise ManifestError("Web release observation evidence status is unsupported")
+    _origin_url(str(evidence.get("baseUrl", "")))
+    version = evidence.get("version")
+    revision = evidence.get("sourceRevision")
+    if (not isinstance(version, str) or not WEB_VERSION.fullmatch(version)
+            or not isinstance(revision, str) or not SOURCE_REVISION.fullmatch(revision)
+            or evidence.get("releaseId") != f"{version}-{revision}"):
+        raise ManifestError("Web release observation identity is malformed")
+    observed_paths = evidence.get("observedPaths")
+    if (not isinstance(observed_paths, list) or not observed_paths
+            or observed_paths != sorted(set(observed_paths))
+            or not all(isinstance(value, str) and value.startswith("/") for value in observed_paths)
+            or evidence.get("observedFileCount") != len(observed_paths)):
+        raise ManifestError("Web release observation paths are malformed")
+    for field in ("artifactManifestSha256", "responsePolicySha256"):
+        value = evidence.get(field)
+        if (not isinstance(value, str) or len(value) != 64
+                or any(character not in "0123456789abcdef" for character in value)):
+            raise ManifestError("Web release observation digest is malformed")
+    try:
+        observed_at = datetime.fromisoformat(str(evidence.get("observedAt")))
+    except ValueError as error:
+        raise ManifestError("Web release observation time is malformed") from error
+    if observed_at.tzinfo is None:
+        raise ManifestError("Web release observation time must include a timezone")
+
+    if release_root is not None:
+        identity = validate_release(release_root)
+        manifest_digest = hashlib.sha256(
+            (release_root / "web-artifact-manifest.json").read_bytes()
+        ).hexdigest()
+        expected = {
+            "releaseId": identity["releaseId"],
+            "version": identity["version"],
+            "sourceRevision": identity["sourceRevision"],
+            "responsePolicySha256": identity["responsePolicySha256"],
+            "observedFileCount": identity["fileCount"],
+            "artifactManifestSha256": manifest_digest,
+        }
+        if any(evidence.get(key) != value for key, value in expected.items()):
+            raise ManifestError("Web release observation does not match the immutable release")
+    return evidence
+
+
+def write_observation(path: Path, evidence: dict[str, object]) -> None:
+    """Atomically publish evidence once; release records must never be overwritten."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rendered = json.dumps(evidence, ensure_ascii=True, indent=2, sort_keys=True) + "\n"
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", newline="\n", dir=path.parent, delete=False
+        ) as stream:
+            stream.write(rendered)
+            stream.flush()
+            os.fsync(stream.fileno())
+            temporary = Path(stream.name)
+        try:
+            os.link(temporary, path)
+        except FileExistsError as error:
+            raise ManifestError("Web release observation evidence already exists") from error
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def reverify_observation(
+    evidence_path: Path,
+    release_root: Path,
+    ca_certificate: Path | None = None,
+) -> dict[str, object]:
+    recorded = read_observation(evidence_path, release_root)
+    observed = probe_release(str(recorded["baseUrl"]), release_root, ca_certificate)
+    comparable = OBSERVATION_KEYS - {"observedAt"}
+    if any(recorded[key] != observed[key] for key in comparable):
+        raise ManifestError("Live Web release no longer matches the recorded observation")
+    return {
+        "schemaVersion": 1,
+        "status": "reverified",
+        "releaseId": recorded["releaseId"],
+        "baseUrl": recorded["baseUrl"],
+        "recordedAt": recorded["observedAt"],
+        "reverifiedAt": observed["observedAt"],
     }
 
 
@@ -146,16 +255,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--release-root", type=Path, required=True)
     parser.add_argument("--ca-certificate", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--verify-evidence", type=Path)
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     try:
-        evidence = probe_release(args.base_url, args.release_root, args.ca_certificate)
+        if args.verify_evidence:
+            recorded = read_observation(args.verify_evidence, args.release_root)
+            if _origin_url(args.base_url) != recorded["baseUrl"]:
+                raise ManifestError("Verification origin does not match recorded observation")
+            evidence = reverify_observation(
+                args.verify_evidence, args.release_root, args.ca_certificate,
+            )
+        else:
+            evidence = probe_release(args.base_url, args.release_root, args.ca_certificate)
         rendered = json.dumps(evidence, ensure_ascii=True, indent=2, sort_keys=True) + "\n"
         if args.output:
-            atomic_write(args.output, rendered)
+            write_observation(args.output, evidence)
     except (ManifestError, OSError) as error:
         raise SystemExit(f"Web release probe failed: {error}") from None
     print(rendered, end="")

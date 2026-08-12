@@ -793,6 +793,15 @@ bytes, and observes exact security/cache/release-identity headers. CI runs it
 against an ephemeral trusted localhost server; production DNS/certificates,
 provider routing, backend path health, staged traffic, and browsers remain open.
 
+ADR-0142 turns those observations into closed, write-once release records bound
+to the exact artifact-manifest bytes. A record can be independently reread and
+reprobed against the same HTTPS origin. Rollback evidence binds the hashes and
+strict time order of prior A, current B, and restored A observations, requiring
+the restored bytes, response policy, paths, and identity to match the originally
+verified A. This proves the release mechanism in isolation; public provider
+promotion, `/ws` and `/api/` health, branded browsers, and real incident rollback
+remain M4 gates.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

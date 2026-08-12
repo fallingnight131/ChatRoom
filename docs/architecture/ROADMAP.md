@@ -643,6 +643,9 @@ Progress:
   health output, and isolated A-to-B-to-A rollback rehearsal without rebuilding.
 - [x] Add a provider-neutral HTTPS release probe that observes exact security,
   cache, identity, TLS, no-redirect, and immutable-byte behavior in isolation.
+- [x] Persist closed, write-once Web HTTPS observations, independently reverify
+  them against the immutable release, and bind prior-A/current-B/restored-A
+  observations into tamper-evident no-rebuild rollback evidence.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
