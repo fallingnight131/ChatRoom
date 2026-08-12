@@ -303,6 +303,25 @@ binds `cmake-payload-parity.json`, and requires the evidence's CMake candidate
 inventory to equal every final canonical payload size/SHA-256. A failure creates
 no upload; rollback changes the one promotion source back to qmake.
 
+Before any protected signing workflow accepts that uploaded artifact, run:
+
+```bash
+python3 tools/verify_windows_unsigned_artifact.py \
+  --artifact-root /absolute/downloaded/windows-artifact \
+  --version-file VERSION \
+  --source-revision 0123456789abcdef0123456789abcdef01234567 \
+  --qt-version 6.11.1
+```
+
+The verifier independently requires schema 3, `buildSystem: cmake`, exact
+version/revision/toolchain identity, sorted closed payload declarations, required
+client/helper/Qt Core/platform/SQLite/libsodium files, the exact unsigned Setup
+name, parity-evidence metadata, checksum closure, exact bytes, no links, and no
+extra files. It does not interpret Authenticode on non-Windows; the protected
+Windows runner must additionally require all three signing subjects to be
+unsigned before applying its machine-store certificate. Run its mutation suite
+with `python3 Tests/windows_unsigned_artifact_verifier_test.py`.
+
 The unsigned Windows NSIS gate now compiles a synthetic predecessor outside the
 uploaded artifact, installs it, and upgrades to canonical `VERSION`. It checks
 whole-program-directory replacement, marker ownership, rollback scaffolding,

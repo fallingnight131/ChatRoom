@@ -51,6 +51,7 @@ jobs:
           python3 Tests/windows_release_signature_policy_test.py
           python3 Tests/windows_release_evidence_test.py
           python3 Tests/windows_release_candidate_test.py
+          python3 Tests/windows_unsigned_artifact_verifier_test.py
 
       - name: Test Web artifact manifest policy
         run: |

@@ -958,6 +958,14 @@ macros already validated by `WindowsUpdateProductConfiguration`; disabled and
 enabled fixtures now run as the 28th and 29th CTests. No private key or production
 endpoint enters the repository.
 
+ADR-0161 separates ordinary build infrastructure from future protected signing.
+`verify_windows_unsigned_artifact.py` independently reopens the uploaded schema-3
+artifact and requires exact version/revision/Qt/CMake identity, sorted closed
+payload declarations, client/helper/Qt/SQLite/libsodium runtimes, unsigned Setup
+identity, parity-evidence metadata, matching `SHA256SUMS`, exact bytes, no links,
+and no undeclared files. A signing runner may consume only an artifact that
+passes this gate; native Authenticode absence is checked separately on Windows.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

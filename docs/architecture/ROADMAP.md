@@ -702,6 +702,9 @@ Progress:
 - [x] Add fail-closed CMake stable/beta update configuration injection with
   disabled-residue, HTTPS literal, one/two-public-key validation and execute
   default-off/enabled runtime configuration suites through CTest.
+- [x] Add an independent protected-signing intake verifier for the complete
+  schema-3 unsigned CMake artifact, closed identity/inventory/checksums, exact
+  final bytes, parity evidence, required runtimes, and zero extra files.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
