@@ -427,6 +427,9 @@ Progress:
     whole-file backup with a separate re-verifiable import capability.
   - [x] Add an append-only V1 conversation-import audit with database-enforced
     source/result reconciliation and whole-file backup proof fields.
+  - [x] Add strict PostgreSQL conversation preview/apply with serializable
+    insertion, exact post-write/source reconciliation, idempotent rerun, and
+    membership/mapping conflict rollback.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

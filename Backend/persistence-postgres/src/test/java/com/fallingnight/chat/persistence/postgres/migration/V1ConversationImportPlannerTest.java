@@ -44,7 +44,8 @@ class V1ConversationImportPlannerTest {
         PlannedV1Conversation friendship = first.conversations().stream()
                 .filter(value -> value.legacyKind() == LegacyV1ConversationKind.FRIENDSHIP)
                 .findFirst().orElseThrow();
-        assertTrue(friendship.firstAccountId().compareTo(friendship.secondAccountId()) < 0);
+        assertTrue(friendship.firstAccountId().toString()
+                .compareTo(friendship.secondAccountId().toString()) < 0);
         assertEquals(5, friendship.conversationId().version());
         assertNotEquals(
                 V1ConversationImportPlanner.deterministicRoomId(4),

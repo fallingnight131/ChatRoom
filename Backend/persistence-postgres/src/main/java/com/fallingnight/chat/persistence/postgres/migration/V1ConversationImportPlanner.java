@@ -100,8 +100,9 @@ public final class V1ConversationImportPlanner {
             }
             UUID first = V1IdentityImportPlanner.deterministicUserId(friendship.firstUserId());
             UUID second = V1IdentityImportPlanner.deterministicUserId(friendship.secondUserId());
-            UUID canonicalFirst = first.compareTo(second) < 0 ? first : second;
-            UUID canonicalSecond = first.compareTo(second) < 0 ? second : first;
+            UUID canonicalFirst = first.toString().compareTo(second.toString()) < 0
+                    ? first : second;
+            UUID canonicalSecond = canonicalFirst.equals(first) ? second : first;
             UUID conversationId = deterministicFriendshipId(friendship.legacyFriendshipId());
             planned.add(new PlannedV1Conversation(
                     LegacyV1ConversationKind.FRIENDSHIP,

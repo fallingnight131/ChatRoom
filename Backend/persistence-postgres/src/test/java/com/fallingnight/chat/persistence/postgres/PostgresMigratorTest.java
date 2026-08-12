@@ -24,13 +24,20 @@ import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.application.security.SecretBytes;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
+import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ConversationImporter;
+import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportInputVerifier;
+import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportException;
+import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportPlanner;
+import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportReport;
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportException;
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportInputVerifier;
+import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportPlanner;
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportReport;
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentitySourceException;
 import com.fallingnight.chat.persistence.postgres.migration.V1SqliteIdentityBackup;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityBackup;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityImportInput;
+import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1ConversationImportInput;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -269,6 +276,90 @@ class PostgresMigratorTest {
         assertEquals(Optional.empty(),
                 projection.findByLegacyId(LegacyV1ConversationKind.ROOM, 0));
         assertEquals(Optional.empty(), projection.findByConversationId(UUID.randomUUID()));
+    }
+
+    @Test
+    @Order(8)
+    void previewsAppliesReconcilesAndAuditsV1ConversationImport() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        Path source = temporary.resolve("conversation-source.db");
+        Path backup = temporary.resolve("conversation-backup.db");
+        createConversationSource(source);
+        var proof = new V1SqliteIdentityBackup(
+                Clock.fixed(Instant.parse("2026-08-12T12:00:00Z"), ZoneOffset.UTC))
+                .createVerified(source, backup);
+        VerifiedV1ConversationImportInput input =
+                new V1ConversationImportInputVerifier().verify(source, backup, proof);
+        seedConversationImportAccounts();
+        PostgresV1ConversationImporter importer =
+                new PostgresV1ConversationImporter(dataSource());
+
+        V1ConversationImportReport preview = importer.preview(input.plan());
+        assertTrue(preview.readyToApply());
+        assertEquals(2, preview.insertableConversations());
+        assertEquals(4, preview.insertableMemberships());
+
+        V1ConversationImportReport applied = importer.apply(input);
+        assertTrue(applied.applied());
+        assertTrue(applied.reconciled());
+        assertEquals(2, applied.insertableConversations());
+        assertEquals(4, applied.insertableMemberships());
+        assertEquals(2, count("SELECT count(*) FROM chat.legacy_v1_conversation_map "
+                + "WHERE (legacy_kind = 'ROOM' AND legacy_conversation_id = 10) "
+                + "OR (legacy_kind = 'FRIENDSHIP' AND legacy_conversation_id = 20)"));
+        assertEquals(2, count("SELECT count(*) FROM chat.conversation c "
+                + "JOIN chat.legacy_v1_conversation_map m ON m.conversation_id = c.id "
+                + "WHERE (m.legacy_kind = 'ROOM' AND m.legacy_conversation_id = 10) "
+                + "OR (m.legacy_kind = 'FRIENDSHIP' AND m.legacy_conversation_id = 20)"));
+        assertEquals(4, count("SELECT count(*) FROM chat.conversation_member cm "
+                + "JOIN chat.legacy_v1_conversation_map m "
+                + "ON m.conversation_id = cm.conversation_id "
+                + "WHERE (m.legacy_kind = 'ROOM' AND m.legacy_conversation_id = 10) "
+                + "OR (m.legacy_kind = 'FRIENDSHIP' AND m.legacy_conversation_id = 20)"));
+        assertEquals(1, count("SELECT count(*) FROM chat.direct_conversation d "
+                + "JOIN chat.legacy_v1_conversation_map m "
+                + "ON m.conversation_id = d.conversation_id "
+                + "WHERE m.legacy_kind = 'FRIENDSHIP' AND m.legacy_conversation_id = 20"));
+        assertEquals(1, count("SELECT count(*) FROM chat.conversation_import_run"));
+
+        V1ConversationImportReport rerun = importer.apply(input);
+        assertEquals(0, rerun.insertableConversations());
+        assertEquals(2, rerun.alreadyImportedConversations());
+        assertEquals(0, rerun.insertableMemberships());
+        assertEquals(4, rerun.alreadyImportedMemberships());
+        assertEquals(2, count("SELECT count(*) FROM chat.conversation_import_run"));
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.conversation_member SET role = 'ADMIN' "
+                            + "WHERE conversation_id = ? AND account_id = ?",
+                    V1ConversationImportPlanner.deterministicRoomId(10),
+                    V1IdentityImportPlanner.deterministicUserId(1));
+        }
+        V1ConversationImportReport conflict = importer.preview(input.plan());
+        assertFalse(conflict.readyToApply());
+        assertTrue(conflict.issues().stream().anyMatch(
+                issue -> "TARGET_MEMBERSHIP_CONFLICT".equals(issue.code())));
+        assertThrows(V1ConversationImportException.class, () -> importer.apply(input));
+        assertEquals(2, count("SELECT count(*) FROM chat.conversation_import_run"));
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.conversation_member SET role = 'OWNER' "
+                            + "WHERE conversation_id = ? AND account_id = ?",
+                    V1ConversationImportPlanner.deterministicRoomId(10),
+                    V1IdentityImportPlanner.deterministicUserId(1));
+            execute(connection,
+                    "UPDATE chat.legacy_v1_conversation_map "
+                            + "SET legacy_conversation_id = 999 "
+                            + "WHERE legacy_kind = 'ROOM' AND legacy_conversation_id = 10");
+        }
+        V1ConversationImportReport mappingConflict = importer.preview(input.plan());
+        assertTrue(mappingConflict.issues().stream().anyMatch(
+                issue -> "TARGET_CONVERSATION_MAPPING_CONFLICT".equals(issue.code())));
+        assertThrows(V1ConversationImportException.class, () -> importer.apply(input));
+        assertEquals(2, count("SELECT count(*) FROM chat.conversation_import_run"));
     }
 
     @Test
@@ -863,6 +954,51 @@ class PostgresMigratorTest {
                     + "'2026-01-02 03:04:05')");
             statement.execute("INSERT INTO users VALUES (2, 'legacy-v1', 'Legacy V1', '"
                     + "a".repeat(64) + "', 'legacy-salt', '2026-01-02 03:04:06')");
+        }
+    }
+
+    private static void createConversationSource(Path source) throws SQLException {
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:sqlite:" + source.toAbsolutePath());
+                java.sql.Statement statement = connection.createStatement()) {
+            statement.execute("PRAGMA journal_mode = WAL");
+            statement.execute("CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE, "
+                    + "display_name TEXT, password_hash TEXT, salt TEXT, created_at TEXT)");
+            statement.execute("CREATE TABLE rooms(id INTEGER PRIMARY KEY, name TEXT, "
+                    + "creator_id INTEGER, created_at TEXT)");
+            statement.execute("CREATE TABLE room_members(room_id INTEGER, user_id INTEGER, "
+                    + "joined_at TEXT, last_read_msg_id INTEGER, PRIMARY KEY(room_id, user_id))");
+            statement.execute("CREATE TABLE room_admins(room_id INTEGER, user_id INTEGER, "
+                    + "PRIMARY KEY(room_id, user_id))");
+            statement.execute("CREATE TABLE friendships(id INTEGER PRIMARY KEY, user_id1 INTEGER, "
+                    + "user_id2 INTEGER, created_at TEXT, user1_last_read_msg_id INTEGER, "
+                    + "user2_last_read_msg_id INTEGER)");
+            statement.execute("INSERT INTO users VALUES "
+                    + "(1, 'conversation-a', 'Conversation A', '" + "a".repeat(64)
+                    + "', 'salt-a', '2026-01-02 03:04:05'), "
+                    + "(2, 'conversation-b', 'Conversation B', '" + "b".repeat(64)
+                    + "', 'salt-b', '2026-01-02 03:04:06')");
+            statement.execute("INSERT INTO rooms VALUES "
+                    + "(10, 'Imported Room', 1, '2026-01-02 03:04:05')");
+            statement.execute("INSERT INTO room_members VALUES "
+                    + "(10, 1, '2026-01-02 03:04:05', 0), "
+                    + "(10, 2, '2026-01-02 03:04:06', 7)");
+            statement.execute("INSERT INTO room_admins VALUES (10, 2)");
+            statement.execute("INSERT INTO friendships VALUES "
+                    + "(20, 1, 2, '2026-01-02 03:04:07', 0, 3)");
+        }
+    }
+
+    private static void seedConversationImportAccounts() throws SQLException {
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'conversation-a', 'Conversation A', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'conversation-b', 'Conversation B', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    V1IdentityImportPlanner.deterministicUserId(1),
+                    V1IdentityImportPlanner.deterministicUserId(2));
         }
     }
 

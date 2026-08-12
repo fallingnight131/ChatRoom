@@ -95,6 +95,14 @@ row to reconcile inserted plus already-present conversations and memberships to
 the recorded source graph. A later importer must persist this row atomically with
 conversation, membership, direct-pair, and compatibility-map writes.
 
+The implemented conversation importer now performs that write under a
+`SERIALIZABLE` transaction after a read-only preview. It allows unrelated native
+V2 conversations but strictly reconciles each planned UUID, V1 mapping, direct
+pair, and complete member set. Imported group creator/admin/member roles remain
+server-owned. All initial read sequences are zero until message import translates
+the retained V1 read-message IDs; treating a V1 row ID as a V2 sequence is
+forbidden. Source re-verification and audit insertion occur before commit.
+
 ## V1 identity import boundary
 
 The identity importer first offers a repeatable-read, no-write preview. Any

@@ -74,6 +74,17 @@ room/friendship/membership counts, and exactly reconciled inserted/already-prese
 counts in the same transaction as target writes. Database checks reject malformed
 hashes, negative counts, non-positive backup sizes, and incomplete reconciliation.
 
+The PostgreSQL importer offers repeatable-read preview and serializable apply.
+It locks the account/conversation/member/direct/map/audit target set, permits
+unrelated V2-native conversations, and compares every planned deterministic ID,
+typed V1 mapping, direct account pair, and membership exactly. Missing planned
+objects are inserted; conflicting objects, inactive/missing accounts, extra
+memberships, or changed mappings block the entire transaction. Initial imported
+`last_read_sequence` is zero because retained V1 read-message IDs cannot be
+translated until message import. Apply re-verifies the SQLite capability before
+persisting the audit and commit; a repeat is reconciled and writes no duplicate
+domain rows.
+
 ## Verification
 
 The disposable PostgreSQL gate migrates clean and restarted databases through
@@ -92,6 +103,10 @@ Final-input tests prove the same physical backup protects conversation metadata,
 and reject both post-backup room drift and a mismatched artifact hash.
 The disposable PostgreSQL gate also rejects an audit row whose conversation
 result counts do not reconcile with its source counts.
+Importer integration tests prove coexistence with unrelated V2 conversations,
+preview, atomic first apply, role/direct/member projection, exact idempotent
+rerun, durable audit counts, and rollback without a new audit on membership or
+mapping conflicts.
 
 ## Rollback
 
