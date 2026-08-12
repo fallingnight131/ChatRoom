@@ -138,6 +138,35 @@ test('degrades to an empty cache when IndexedDB is unavailable', async () => {
   assert.equal(await cache.save('alice', 'room', 7, [], 0), false)
 })
 
+test('fails a blocked upgrade promptly, closes a late connection, and permits retry', async () => {
+  const requests = []
+  let closeCount = 0
+  const database = {
+    objectStoreNames: { contains: () => true },
+    close: () => { closeCount += 1 }
+  }
+  const indexedDb = {
+    open: () => {
+      const request = { result: database }
+      requests.push(request)
+      queueMicrotask(() => {
+        if (requests.length === 1) request.onblocked?.()
+        else request.onsuccess?.()
+      })
+      return request
+    }
+  }
+  const cache = new IndexedDbConversationCache(indexedDb)
+  await assert.rejects(cache.open(), /blocked by another browser tab/)
+
+  requests[0].onsuccess?.()
+  assert.equal(closeCount, 1)
+  assert.equal(await cache.open(), database)
+
+  database.onversionchange()
+  assert.equal(closeCount, 2)
+})
+
 test('prunes inaccessible conversations without crossing account or kind boundaries', async () => {
   const cache = new IndexedDbConversationCache(fakeIndexedDb())
   await cache.save('alice', 'room', 1, [{ id: 1 }], 1)

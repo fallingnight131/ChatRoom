@@ -33,7 +33,7 @@ class WebBrowserHostEvidenceTest(unittest.TestCase):
             (self.release / "web-artifact-manifest.json").read_bytes()
         ).hexdigest()
         self.value = {
-            "schemaVersion": 7,
+            "schemaVersion": 8,
             "evidenceType": "web-browser-host-acceptance",
             "status": "candidate-smoke-observed",
             "product": "chat-room-web-client",
@@ -66,6 +66,7 @@ class WebBrowserHostEvidenceTest(unittest.TestCase):
                 "baselineMediaDecoded": True,
                 "delayedClientBoot": True,
                 "nativeIndexedDbMigration": True,
+                "blockedIndexedDbUpgradeRecovered": True,
                 "noPageErrors": True,
             },
             "observedAt": "2026-08-13T12:00:00Z",

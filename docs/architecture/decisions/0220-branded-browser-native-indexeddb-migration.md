@@ -1,6 +1,6 @@
 # ADR-0220: Run the V1 Cache Migration in Every Branded Browser Slot
 
-- Status: Accepted
+- Status: Superseded by ADR-0221
 - Date: 2026-08-13
 - Owners: Web client and quality
 - Related milestone: M4

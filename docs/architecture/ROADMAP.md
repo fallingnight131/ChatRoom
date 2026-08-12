@@ -862,6 +862,8 @@ Progress:
   without presenting it as a bandwidth or capacity benchmark.
 - [x] Run the native V1 schema-1-to-3 IndexedDB migration in every branded
   browser slot and prove bounded retention plus legacy media/secret removal.
+- [x] Fail fast when a legacy tab blocks IndexedDB upgrade, keep the authenticated
+  shell usable, and retry successfully on the next cache operation after release.
 - [x] Pin exact Windows 10 22H2 and Windows 11 23H2/24H2 x86_64 client targets
   and independently verify a per-host, two-real-signed-candidate install/launch/
   upgrade/data-preservation/downgrade/uninstall evidence contract.

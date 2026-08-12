@@ -233,6 +233,52 @@ async function exerciseNativeIndexedDbMigration(page: Page) {
   }
 }
 
+async function exerciseBlockedIndexedDbUpgrade(page: Page) {
+  await installV1ClientFixture(page);
+  await page.goto("/");
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve, reject) => {
+      const deletion = indexedDB.deleteDatabase("chat-room-client");
+      deletion.onerror = () => reject(deletion.error);
+      deletion.onblocked = () => reject(new Error("legacy database deletion blocked"));
+      deletion.onsuccess = () => resolve();
+    });
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open("chat-room-client", 1);
+      request.onerror = () => reject(request.error);
+      request.onupgradeneeded = () => request.result.createObjectStore(
+        "conversations", { keyPath: "key" });
+      request.onsuccess = () => {
+        Object.defineProperty(window, "__legacyBlockedDatabase", {
+          value: request.result, configurable: true,
+        });
+        resolve();
+      };
+    });
+  });
+
+  await page.getByLabel("用户ID (唯一标识)").fill("browser_gate_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await expect(page).toHaveURL(/#\/chat$/);
+  await expect(page.getByText("Browser Gate Friend", { exact: true })).toBeVisible();
+
+  await page.evaluate(() => {
+    (window as unknown as { __legacyBlockedDatabase: IDBDatabase })
+      .__legacyBlockedDatabase.close();
+  });
+  await page.getByText("Browser Gate Friend", { exact: true }).click();
+  await expect.poll(() => page.evaluate(async () => await new Promise<number>((resolve, reject) => {
+    const request = indexedDB.open("chat-room-client");
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const version = request.result.version;
+      request.result.close();
+      resolve(version);
+    };
+  }))).toBe(3);
+}
+
 test("loads the production login surface with required browser capabilities", async ({ page }) => {
   const pageErrors: Error[] = [];
   page.on("pageerror", error => pageErrors.push(error));
@@ -352,6 +398,10 @@ test("migrates a native schema-1 conversation cache without retained media or se
   await exerciseNativeIndexedDbMigration(page);
 });
 
+test("keeps the authenticated shell usable while a legacy tab blocks cache upgrade", async ({ page }) => {
+  await exerciseBlockedIndexedDbUpgrade(page);
+});
+
 test("records one exact branded-browser candidate smoke", async ({ browser }) => {
   test.skip(!brandedTarget, "Only the protected branded-browser matrix emits support evidence");
   const required = (name: string): string => {
@@ -465,10 +515,15 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
   migrationPage.on("pageerror", error => pageErrors.push(error));
   await exerciseNativeIndexedDbMigration(migrationPage);
   await migrationContext.close();
+  const blockedContext = await browser.newContext();
+  const blockedPage = await blockedContext.newPage();
+  blockedPage.on("pageerror", error => pageErrors.push(error));
+  await exerciseBlockedIndexedDbUpgrade(blockedPage);
+  await blockedContext.close();
 
   const architecture = process.arch === "x64" ? "x86_64" : process.arch;
   const evidence = {
-    schemaVersion: 3,
+    schemaVersion: 8,
     evidenceType: "web-browser-host-acceptance",
     status: "candidate-smoke-observed",
     product: "chat-room-web-client",
@@ -501,6 +556,7 @@ test("records one exact branded-browser candidate smoke", async ({ browser }) =>
       baselineMediaDecoded: true,
       delayedClientBoot: true,
       nativeIndexedDbMigration: true,
+      blockedIndexedDbUpgradeRecovered: true,
       noPageErrors: true,
     },
     observedAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),

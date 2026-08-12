@@ -150,6 +150,32 @@ function transactionDone(transaction) {
   })
 }
 
+function openDatabase(indexedDb, name, version, upgrade) {
+  return new Promise((resolve, reject) => {
+    const request = indexedDb.open(name, version)
+    let settled = false
+    const fail = error => {
+      if (settled) return
+      settled = true
+      reject(error)
+    }
+    request.onupgradeneeded = event => upgrade(request, event)
+    request.onblocked = () => fail(new Error(
+      'IndexedDB upgrade blocked by another browser tab'))
+    request.onerror = () => fail(request.error || new Error('Unable to open IndexedDB'))
+    request.onsuccess = () => {
+      const database = request.result
+      if (settled) {
+        database.close()
+        return
+      }
+      settled = true
+      database.onversionchange = () => database.close()
+      resolve(database)
+    }
+  })
+}
+
 export class IndexedDbConversationCache {
   constructor(indexedDb = globalThis.indexedDB) {
     this.indexedDb = indexedDb
@@ -161,9 +187,8 @@ export class IndexedDbConversationCache {
   async open() {
     if (!this.indexedDb) return null
     if (!this.databasePromise) {
-      this.databasePromise = new Promise((resolve, reject) => {
-        const request = this.indexedDb.open(DATABASE_NAME, DATABASE_VERSION)
-        request.onupgradeneeded = event => {
+      this.databasePromise = openDatabase(
+        this.indexedDb, DATABASE_NAME, DATABASE_VERSION, (request, event) => {
           const database = request.result
           if (!database.objectStoreNames.contains(STORE_NAME)) {
             database.createObjectStore(STORE_NAME, { keyPath: 'key' })
@@ -181,13 +206,10 @@ export class IndexedDbConversationCache {
             database.createObjectStore(
               ATTACHMENT_OUTBOX_STORE_NAME, { keyPath: 'key' })
           }
-        }
-        request.onsuccess = () => resolve(request.result)
-        request.onerror = () => reject(request.error || new Error('Unable to open IndexedDB'))
-      }).catch(error => {
-        this.databasePromise = null
-        throw error
-      })
+        }).catch(error => {
+          this.databasePromise = null
+          throw error
+        })
     }
     return this.databasePromise
   }
@@ -195,20 +217,16 @@ export class IndexedDbConversationCache {
   async openV2() {
     if (!this.indexedDb) return null
     if (!this.v2DatabasePromise) {
-      this.v2DatabasePromise = new Promise((resolve, reject) => {
-        const request = this.indexedDb.open(V2_DATABASE_NAME, V2_DATABASE_VERSION)
-        request.onupgradeneeded = () => {
+      this.v2DatabasePromise = openDatabase(
+        this.indexedDb, V2_DATABASE_NAME, V2_DATABASE_VERSION, request => {
           const database = request.result
           if (!database.objectStoreNames.contains(V2_CONVERSATION_STORE_NAME)) {
             database.createObjectStore(V2_CONVERSATION_STORE_NAME, { keyPath: 'key' })
           }
-        }
-        request.onsuccess = () => resolve(request.result)
-        request.onerror = () => reject(request.error || new Error('Unable to open V2 IndexedDB'))
-      }).catch(error => {
-        this.v2DatabasePromise = null
-        throw error
-      })
+        }).catch(error => {
+          this.v2DatabasePromise = null
+          throw error
+        })
     }
     return this.v2DatabasePromise
   }

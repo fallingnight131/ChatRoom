@@ -44,7 +44,8 @@ class WebBrowserSupportMatrixWorkflowTest(unittest.TestCase):
         self.assertIn("launchOptions: { executablePath: brandedExecutable }", self.config)
         for value in (
             "browser.version()", "navigator.userAgent", "indexedDB.open",
-            "artifactManifestSha256", "flag: \"wx\"",
+            "artifactManifestSha256", "schemaVersion: 8",
+            "blockedIndexedDbUpgradeRecovered: true", "flag: \"wx\"",
         ):
             self.assertIn(value, self.spec)
 
