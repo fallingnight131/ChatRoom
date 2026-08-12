@@ -313,7 +313,9 @@ tag; an unkeyed fast password digest is forbidden. V023 and the serializable
 PostgreSQL adapter now create the
 GROUP, OWNER, optional Argon2id credential, ROOM mapping, and keyed idempotency
 record atomically, skip occupied imported room IDs, and converge concurrent
-exact retries. No handler exists yet.
+exact retries. The identity-crypto adapter now produces compatible salted
+Argon2id plus fixed-domain HMAC-SHA-256 tags from an owned 32-byte runtime key
+and zeros that key on close. Runtime key parsing and the handler do not exist yet.
 
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target

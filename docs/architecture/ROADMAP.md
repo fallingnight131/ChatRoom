@@ -560,6 +560,9 @@ Progress:
   - [x] Add V023 and serializable PostgreSQL V1 room creation with atomic GROUP,
     OWNER, optional Argon2id credential, ROOM mapping, idempotency record, and
     collision-safe descending runtime room ID.
+  - [x] Implement the room-password crypto port with salted compatible Argon2id,
+    fixed-domain HMAC-SHA-256 retry tags, strict 32-byte key ownership, and
+    deterministic secret cleanup.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

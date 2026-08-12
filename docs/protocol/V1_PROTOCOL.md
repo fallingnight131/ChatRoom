@@ -242,7 +242,9 @@ password digest. The atomic result returns positive `roomId`, normalized
 PostgreSQL adapter now persist GROUP, OWNER, optional Argon2id credential, ROOM
 mapping, and keyed idempotency record atomically; exact retries recover the same
 numeric room ID while conflicting title or password-tag reuse is rejected. No
-handler or product route exists yet.
+handler or product route exists yet. The crypto adapter now emits compatible
+salted Argon2id plus `hmac-sha256:v1` tags under an owned, close-zeroed 32-byte
+runtime key. No environment parser, handler, or product route exists yet.
 
 ### Room chat
 
