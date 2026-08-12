@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fallingnight.chat.gateway.compatibility.v1.V1ConnectionAttributes;
+import com.fallingnight.chat.gateway.compatibility.v1.V1DirectHistoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1DirectMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
@@ -255,54 +256,65 @@ class GatewayRuntimePostgresIntegrationTest {
                     assertDirectMessageFirst(imported, peer);
                     assertDirectMessageDuplicate(imported, peer);
 
-                    assertFriendRemovalSuccess(imported, "imported-peer");
-                    peer.runPendingTasks();
-                    TextWebSocketFrame removalNotification = peer.readOutbound();
-                    try {
-                        assertTrue(removalNotification.text().contains(
-                                "\"type\":\"FRIEND_REMOVE_NOTIFY\""));
-                        assertTrue(removalNotification.text().contains(
-                                "\"username\":\"imported-v1\""));
-                        assertTrue(removalNotification.text().contains(
-                                "\"displayName\":\"Imported V1\""));
-                    } finally { removalNotification.release(); }
-                    assertFriendRemovalSuccess(imported, "imported-peer");
-                    peer.runPendingTasks();
-                    assertNull(peer.readOutbound());
-                    assertEquals(2, inactiveFriendMembers(jdbcUrl, username, password));
-                    assertEquals(3, retainedFriendEntries(jdbcUrl, username, password));
-                    assertEmptyFriendList(imported);
-                    assertEmptyFriendList(peer);
-
-                    EmbeddedChannel newcomer = upgradedChannel(module, Runnable::run,
+                    EmbeddedChannel reconnected = upgradedChannel(module, Runnable::run,
                             AuthenticationAdmissionControl.allowAll(),
                             AuthenticationEventSink.noop());
                     try {
-                        newcomer.writeInbound(loginFrame(
-                                "imported-newcomer", "java-v2-test-password"));
-                        newcomer.runPendingTasks();
-                        ((TextWebSocketFrame) newcomer.readOutbound()).release();
-                        assertFriendRequestSuccess(peer, "imported-newcomer");
-                        newcomer.runPendingTasks();
-                        TextWebSocketFrame requestNotification = newcomer.readOutbound();
+                        reconnected.writeInbound(loginFrame(
+                                "imported-v1", "java-v2-test-password"));
+                        reconnected.runPendingTasks();
+                        ((TextWebSocketFrame) reconnected.readOutbound()).release();
+                        assertDirectHistoryAfterReconnect(reconnected);
+
+                        assertFriendRemovalSuccess(reconnected, "imported-peer");
+                        peer.runPendingTasks();
+                        TextWebSocketFrame removalNotification = peer.readOutbound();
                         try {
-                            assertTrue(requestNotification.text().contains(
-                                    "\"type\":\"FRIEND_REQUEST_NOTIFY\""));
-                            assertTrue(requestNotification.text().contains(
-                                    "\"fromUsername\":\"imported-peer\""));
-                        } finally { requestNotification.release(); }
-                        assertFriendRequestSuccess(peer, "imported-newcomer");
-                        newcomer.runPendingTasks();
-                        assertNull(newcomer.readOutbound());
-                        newcomer.writeInbound(new TextWebSocketFrame(
-                                "{\"type\":\"FRIEND_PENDING_REQ\",\"data\":{}}"));
-                        newcomer.runPendingTasks();
-                        TextWebSocketFrame newPending = newcomer.readOutbound();
+                            assertTrue(removalNotification.text().contains(
+                                    "\"type\":\"FRIEND_REMOVE_NOTIFY\""));
+                            assertTrue(removalNotification.text().contains(
+                                    "\"username\":\"imported-v1\""));
+                            assertTrue(removalNotification.text().contains(
+                                    "\"displayName\":\"Imported V1\""));
+                        } finally { removalNotification.release(); }
+                        assertFriendRemovalSuccess(reconnected, "imported-peer");
+                        peer.runPendingTasks();
+                        assertNull(peer.readOutbound());
+                        assertEquals(2, inactiveFriendMembers(jdbcUrl, username, password));
+                        assertEquals(3, retainedFriendEntries(jdbcUrl, username, password));
+                        assertEmptyFriendList(reconnected);
+                        assertEmptyFriendList(peer);
+
+                        EmbeddedChannel newcomer = upgradedChannel(module, Runnable::run,
+                                AuthenticationAdmissionControl.allowAll(),
+                                AuthenticationEventSink.noop());
                         try {
-                            assertTrue(newPending.text().contains("\"fromUserId\":44"));
-                            assertFalse(newPending.text().contains("15000000-0000"));
-                        } finally { newPending.release(); }
-                    } finally { newcomer.finishAndReleaseAll(); }
+                            newcomer.writeInbound(loginFrame(
+                                    "imported-newcomer", "java-v2-test-password"));
+                            newcomer.runPendingTasks();
+                            ((TextWebSocketFrame) newcomer.readOutbound()).release();
+                            assertFriendRequestSuccess(peer, "imported-newcomer");
+                            newcomer.runPendingTasks();
+                            TextWebSocketFrame requestNotification = newcomer.readOutbound();
+                            try {
+                                assertTrue(requestNotification.text().contains(
+                                        "\"type\":\"FRIEND_REQUEST_NOTIFY\""));
+                                assertTrue(requestNotification.text().contains(
+                                        "\"fromUsername\":\"imported-peer\""));
+                            } finally { requestNotification.release(); }
+                            assertFriendRequestSuccess(peer, "imported-newcomer");
+                            newcomer.runPendingTasks();
+                            assertNull(newcomer.readOutbound());
+                            newcomer.writeInbound(new TextWebSocketFrame(
+                                    "{\"type\":\"FRIEND_PENDING_REQ\",\"data\":{}}"));
+                            newcomer.runPendingTasks();
+                            TextWebSocketFrame newPending = newcomer.readOutbound();
+                            try {
+                                assertTrue(newPending.text().contains("\"fromUserId\":44"));
+                                assertFalse(newPending.text().contains("15000000-0000"));
+                            } finally { newPending.release(); }
+                        } finally { newcomer.finishAndReleaseAll(); }
+                    } finally { reconnected.finishAndReleaseAll(); }
                 } finally {
                     peer.finishAndReleaseAll();
                 }
@@ -324,7 +336,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     response.release();
                 }
                 assertFalse(nativeV2.isActive());
-                assertEquals(3, sessionCount(jdbcUrl, username, password));
+                assertEquals(4, sessionCount(jdbcUrl, username, password));
             } finally {
                 nativeV2.finishAndReleaseAll();
             }
@@ -348,6 +360,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1FriendRequestAcceptanceEventSink.noop(),
                 V1FriendRequestRejectionEventSink.noop(),
                 V1FriendRemovalEventSink.noop(),
+                V1DirectHistoryEventSink.noop(),
                 V1DirectMessageEventSink.noop(),
                 V1UserSearchEventSink.noop(),
                 java.time.Duration.ofSeconds(10),
@@ -455,6 +468,29 @@ class GatewayRuntimePostgresIntegrationTest {
                         + "\"friendUsername\":\"imported-peer\","
                         + "\"clientMessageId\":\"direct-client-1\","
                         + "\"content\":\"hello Java V1\",\"contentType\":\"text\"}}"));
+    }
+
+    private static void assertDirectHistoryAfterReconnect(EmbeddedChannel channel) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"FRIEND_HISTORY_REQ\",\"data\":{"
+                        + "\"friendUsername\":\"imported-peer\",\"count\":1,"
+                        + "\"afterSequence\":2}}"));
+        channel.runPendingTasks();
+        TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"FRIEND_HISTORY_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"friendshipId\":9"));
+            assertTrue(response.text().contains("\"clientMessageId\":\"direct-client-1\""));
+            assertTrue(response.text().contains("\"content\":\"hello Java V1\""));
+            assertTrue(response.text().contains("\"contentType\":\"text\""));
+            assertTrue(response.text().contains("\"sequence\":3"));
+            assertTrue(response.text().contains("\"syncSequence\":3"));
+            assertTrue(response.text().contains("\"nextSequence\":3"));
+            assertTrue(response.text().contains("\"lastSequence\":3"));
+            assertTrue(response.text().contains("\"hasMore\":false"));
+            assertFalse(response.text().contains("40000000-0000"));
+        } finally { response.release(); }
     }
 
     private static void assertEmptyFriendList(EmbeddedChannel channel) {
@@ -617,12 +653,13 @@ class GatewayRuntimePostgresIntegrationTest {
                         + "client_message_id, message_type, payload, payload_sha256) VALUES ('"
                         + message + "', '" + direct + "', " + sequence + ", '" + peer
                         + "', '" + device + "', 'peer-" + sequence
-                        + "', 100, decode('01','hex'), decode('"
+                        + "', 1, decode('01','hex'), decode('"
                         + "00".repeat(32) + "','hex'))");
                 statement.execute("INSERT INTO chat.legacy_v1_message_map(legacy_kind, "
-                        + "legacy_message_id, legacy_conversation_id, conversation_id, message_id) "
+                        + "legacy_message_id, legacy_conversation_id, conversation_id, "
+                        + "message_id, legacy_content_type) "
                         + "VALUES ('FRIENDSHIP', " + (100 + sequence) + ", 9, '"
-                        + direct + "', '" + message + "')");
+                        + direct + "', '" + message + "', 'text')");
             }
             statement.execute("INSERT INTO chat.contact_request("
                     + "id, requester_account_id, recipient_account_id) VALUES ('"

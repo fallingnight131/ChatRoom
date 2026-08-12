@@ -351,8 +351,10 @@ strict `syncSequence`. A recall entry is folded into its original mapped message
 with a separate mutation sequence. Missing compatibility mappings or unsupported
 entry state fail the whole page. Its PostgreSQL adapter now reads one
 repeatable snapshot, verifies the complete conversation is representable, and
-advances final pages to the durable high watermark. No network handler is
-composed yet.
+advances final pages to the durable high watermark. The detached strict handler
+now binds authenticated identity, executes off-loop, emits only legacy message
+identity and compatible sequence metadata, and has real reconnect proof. The
+product listener remains unchanged.
 
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.

@@ -305,7 +305,10 @@ and active friendship from authenticated state, emits
 only mapped text/emoji messages, and folds a recall entry into the original row
 with `mutationSequence` and `recalled=true`. Sequence pages are strictly ordered
 by `syncSequence`, bounded to 100, and fail closed on missing V1 IDs or partial
-state. No Java gateway handler is composed yet.
+state. The detached Java handler normalizes the existing count policy, rejects
+malformed inputs safely, and emits legacy-only message identity plus compatible
+cursor metadata. A real second login recovers a message after its stored cursor;
+the product listener remains unchanged.
 
 Canonical PostgreSQL stores both V1 text and emoji as registered UTF-8 message
 type 1. V020 preserves the original `contentType` only in the V1 message mapping
