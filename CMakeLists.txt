@@ -286,6 +286,57 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 chatroom_windows_installer_trust
         )
 
+        add_library(
+            chatroom_windows_update_lifecycle
+            STATIC
+            Client/UpdateLauncherResult.cpp
+            Client/UpdateLifecycleRepository.cpp
+            Client/WindowsUpdateRuntimePaths.cpp
+            Client/WindowsUpdateStartupService.cpp
+            Client/UpdateLauncherResult.h
+            Client/UpdateLifecycleRepository.h
+            Client/WindowsUpdateRuntimePaths.h
+            Client/WindowsUpdateStartupService.h
+        )
+        target_include_directories(
+            chatroom_windows_update_lifecycle PUBLIC Client)
+        target_link_libraries(
+            chatroom_windows_update_lifecycle PUBLIC Qt6::Core)
+
+        add_library(
+            chatroom_update_launcher_protocol
+            STATIC
+            UpdaterLauncher/UpdateLauncherCommand.cpp
+            UpdaterLauncher/UpdateLauncherCommand.h
+        )
+        target_include_directories(
+            chatroom_update_launcher_protocol PUBLIC UpdaterLauncher)
+        target_link_libraries(
+            chatroom_update_launcher_protocol PUBLIC Qt6::Core)
+
+        add_library(
+            chatroom_windows_update_handoff
+            STATIC
+            Client/WindowsUpdateHandoffApplicationService.cpp
+            Client/WindowsUpdateInstallCoordinator.cpp
+            Client/WindowsUpdateHandoffApplicationService.h
+            Client/WindowsUpdateInstallCoordinator.h
+        )
+        set_target_properties(
+            chatroom_windows_update_handoff
+            PROPERTIES AUTOMOC ON
+        )
+        target_include_directories(
+            chatroom_windows_update_handoff PUBLIC Client)
+        target_link_libraries(
+            chatroom_windows_update_handoff
+            PUBLIC
+                Qt6::Core
+                Qt6::Concurrent
+                chatroom_windows_update_orchestration
+                chatroom_windows_update_lifecycle
+        )
+
         function(chatroom_add_local_data_test target test_name)
             add_executable(${target} Tests/${target}.cpp)
             set_target_properties(
@@ -441,6 +492,51 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
         set_tests_properties(
             m4_update_preparation_application
             m4_update_complete_check_application
+            PROPERTIES TIMEOUT 30)
+
+        function(chatroom_add_update_test target test_name library)
+            add_executable(${target} Tests/${target}.cpp)
+            target_link_libraries(${target} PRIVATE ${library})
+            add_test(NAME ${test_name} COMMAND ${target})
+            set_tests_properties(${test_name} PROPERTIES TIMEOUT 30)
+        endfunction()
+
+        chatroom_add_update_test(
+            UpdateLauncherResultTest
+            m4_update_launcher_result
+            chatroom_windows_update_lifecycle)
+        chatroom_add_update_test(
+            UpdateLifecycleRepositoryTest
+            m4_update_lifecycle_repository
+            chatroom_windows_update_lifecycle)
+        chatroom_add_update_test(
+            WindowsUpdateStartupServiceTest
+            m4_update_startup_reconciliation
+            chatroom_windows_update_lifecycle)
+        chatroom_add_update_test(
+            UpdateLauncherCommandTest
+            m4_update_launcher_command
+            chatroom_update_launcher_protocol)
+
+        add_executable(
+            WindowsUpdateHandoffApplicationServiceTest
+            Tests/WindowsUpdateHandoffApplicationServiceTest.cpp)
+        target_link_libraries(
+            WindowsUpdateHandoffApplicationServiceTest
+            PRIVATE
+                chatroom_windows_update_handoff
+                chatroom_update_launcher_protocol)
+        add_test(
+            NAME m4_update_handoff_application
+            COMMAND WindowsUpdateHandoffApplicationServiceTest)
+
+        chatroom_add_update_test(
+            WindowsUpdateInstallCoordinatorTest
+            m4_update_install_coordinator
+            chatroom_windows_update_handoff)
+        set_tests_properties(
+            m4_update_handoff_application
+            m4_update_install_coordinator
             PROPERTIES TIMEOUT 30)
     endif()
 endif()

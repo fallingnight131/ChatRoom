@@ -892,6 +892,17 @@ not download, parallel preparation is refused, and cancellation/destruction
 cleans staging. The target contains no UI, product key, process launch, or
 positive non-Windows Authenticode shortcut.
 
+ADR-0154 adds the post-preparation boundaries without merging process mutation
+into durable state. `chatroom_windows_update_lifecycle` owns the closed launcher
+result parser, atomic pending state, one-time evidence consumption, runtime
+paths, and startup reconciliation. `chatroom_update_launcher_protocol` owns the
+strict one-shot helper command. `chatroom_windows_update_handoff` stages the
+helper runtime and coordinates ready, durable pending-state authorization, then
+commit. Tests require persistence before normal quit and retain invalid evidence
+for diagnosis instead of treating it as success. Injected handshakes exercise
+the portable two-phase protocol; actual Windows event/process behavior remains
+a native product gate.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

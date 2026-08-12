@@ -166,7 +166,7 @@ alignment, verification, and rollback.
 The root `CMakeLists.txt` currently represents the V1 persistence/server-core
 libraries, shared V1 Common, non-UI Windows client local-data and transport
 libraries, portable Windows update trust/transport boundaries, thin
-`ChatServerHeadless`, and twenty-one CTest entries. Together they compile
+`ChatServerHeadless`, and twenty-seven CTest entries. Together they compile
 the same Common/Server/client-core sources as the qmake projects and do not
 replace the Windows product build or installer.
 On a macOS Homebrew development host:
@@ -211,6 +211,15 @@ handoff; and cover zero rollout, invalid signature, trust rejection, parallel
 refusal, cancellation, destruction, and temporary-file cleanup. Test-only trust
 injection on non-Windows exercises sequencing and must not be cited as positive
 Authenticode evidence.
+
+The next six M4 CTests cover the post-preparation lifecycle: closed helper
+arguments and launcher results, owner-only atomic pending state, UUID-bound
+one-time result consumption, running-version startup reconciliation, helper
+runtime staging, and the ready/persist/commit barrier. The coordinator may
+authorize normal quit only after pending state is durable. macOS/Ubuntu use an
+injected handshake to verify the protocol and failure cleanup; native Windows
+events, helper processes, signatures, and Setup execution still require the
+Windows product gate.
 
 CI runs inventory and web verification on every push and pull request through
 `.github/workflows/m0-baseline.yml`.
