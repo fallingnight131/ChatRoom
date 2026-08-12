@@ -553,6 +553,8 @@ Progress:
 
 - [x] Establish one canonical Windows desktop version source and a deterministic,
   client-only, explicitly unsigned verification-payload manifest tied to source.
+- [x] Establish an independently versioned Web verification artifact with
+  hashed local assets, source-map rejection, and explicit cache classes.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
   supported Windows installer and update channel.
 - [ ] Publish and verify versioned, policy-hardened, rollback-ready Web releases.

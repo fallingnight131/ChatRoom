@@ -71,7 +71,10 @@ M4 must provide:
 ## Web Build and Release Policy
 
 Web verification runs from the committed lockfile with `npm ci`, tests, and a
-production Vite build. Public delivery must additionally define:
+production Vite build. CI retains a short-lived, explicitly not-deployed
+artifact with exact Git/package version, file hashes, local hashed entrypoints,
+map-file/trailing-directive rejection, and intended cache classes. Public delivery must
+additionally define and prove:
 
 - the supported browser/version matrix and automated coverage;
 - HTTPS/WSS, CSP, cache headers, and source-map exposure policy;

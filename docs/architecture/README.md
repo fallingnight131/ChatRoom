@@ -578,6 +578,15 @@ revision and toolchain. The metadata is deliberately labeled
 `unsigned-verification-only`; it is integrity and traceability evidence, not
 publisher authentication or installation evidence.
 
+ADR-0109 establishes the corresponding pre-deployment Web boundary without
+coupling Web and Windows release cadence. Matching Web package/lock versions,
+the exact Git revision, every built file's SHA-256/size, local hashed entrypoint
+references, absence of map files/trailing map directives, and intended
+no-store/immutable cache class
+are captured in an explicitly `not-deployed` verification artifact. Hosting,
+CSP/HSTS, browser compatibility, rollout health, and rollback are still
+separate acceptance gates.
+
 The Windows updater must use a signed manifest containing architecture, channel,
 version, minimum compatible version, hash, signature, and URL. Support stable
 and beta channels and preserve rollback capability. Web rollback uses immutable

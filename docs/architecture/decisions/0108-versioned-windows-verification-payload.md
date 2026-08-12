@@ -51,9 +51,9 @@ change but does not authenticate the publisher. Windows 10/11 clean-host
 install, launch, upgrade, local-data preservation, uninstall, Authenticode, and
 automatic-update evidence remain M4 gates.
 
-The root version currently governs the Windows desktop product. Web deployment
-identifiers remain separate until the immutable Web release slice defines their
-relationship.
+The root version governs only the Windows desktop product. ADR-0109 subsequently
+keeps the Web package/lock version independent so the supported clients can ship
+on different cadences.
 
 ## Migration and Rollback
 

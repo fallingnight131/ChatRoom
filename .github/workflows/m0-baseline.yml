@@ -26,6 +26,33 @@ jobs:
       - name: Verify source inventory and web build
         run: python3 tools/verify_m0.py --web
 
+      - name: Test Web artifact manifest policy
+        run: python3 Tests/web_artifact_manifest_test.py
+
+      - name: Assemble undeployed Web verification artifact
+        id: web-version
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact="build/m0/artifacts/web"
+          mkdir -p "$artifact"
+          cp -R WebClient/dist "$artifact/site"
+          python3 tools/web_artifact_manifest.py \
+            --site-root "$artifact/site" \
+            --package-json WebClient/package.json \
+            --source-revision "${{ github.sha }}" \
+            --output-dir "$artifact"
+          version=$(node -p 'require("./WebClient/package.json").version')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Upload undeployed Web verification artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: chat-room-web-${{ steps.web-version.outputs.version }}-not-deployed-verification-${{ github.sha }}
+          path: build/m0/artifacts/web
+          if-no-files-found: error
+          retention-days: 14
+
   database-and-v1-smoke:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
