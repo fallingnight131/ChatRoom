@@ -621,6 +621,19 @@ fetch. A later executor must observe exact endpoint equality immediately before
 mutation. Initial channel bootstrap is intentionally not authorized by this
 path. See ADR-0178.
 
+`tools/windows_update_channel_store.py stage` prepositions a complete verified
+candidate under `releases/<update-manifest-sha256>/` through copy/reverify/atomic
+rename. Repeating identical staging is idempotent; changed bytes, symlinks, or
+unsafe store boundaries fail. This component deliberately has no active pointer
+or network adapter, so staging cannot publish:
+
+```bash
+python3 Tests/windows_update_channel_store_test.py
+```
+
+Provider storage must preserve the same immutable, content-addressed,
+pre-stage-before-activate behavior. See ADR-0179.
+
 The provider-neutral post-signing acceptance policy is checked with:
 
 ```bash

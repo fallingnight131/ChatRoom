@@ -574,6 +574,8 @@ Progress:
 - [x] Add a short-lived write-once Windows update promotion authorization that
   reconstructs the signed candidate, binds a canonical expected-current
   manifest for compare-and-swap, and requires a strictly advancing sequence.
+- [x] Add immutable content-addressed Windows update release staging with full
+  candidate revalidation and no activation or network authority.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

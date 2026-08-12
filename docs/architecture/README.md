@@ -1120,6 +1120,12 @@ authorization has no provider or network capability; a live endpoint check and
 atomic mutation remain the next boundary, and empty-channel bootstrap remains
 explicitly unsupported here.
 
+ADR-0179 adds the immutable prepublication store. A complete update candidate
+is copied, revalidated, and atomically renamed under its manifest SHA-256;
+identical staging is idempotent and changed content fails. The store has no
+active pointer or network client, keeping prepositioning separate from the
+short-lived authorization consumer and externally observed channel switch.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

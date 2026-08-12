@@ -210,3 +210,9 @@ candidate may be at most 24 hours old, and approval lasts 60–900 seconds. The
 record contains no credentials and performs no network operation; a future
 executor must compare the live channel bytes with that approved digest before
 switching. This path deliberately does not bootstrap an empty channel.
+
+Before authorization execution, `windows_update_channel_store.py stage` can
+copy the complete candidate into an immutable release directory addressed by
+the canonical manifest SHA-256. It revalidates after copying and atomically
+renames, but contains no active pointer or network operation. Thus a provider
+can preposition every byte before a later compare-and-swap activation.
