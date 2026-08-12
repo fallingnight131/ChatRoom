@@ -132,6 +132,17 @@ handling, signing, and Windows 10/11 clean-host behavior remain M4 work. CI also
 re-runs the older Setup after upgrade and requires a nonzero downgrade result
 without changing the current program registration, executable, or AppData.
 
+The default-off Windows update-manifest authoring boundary is tested separately:
+
+```bash
+python3 Tests/windows_update_manifest_test.py
+```
+
+It generates a temporary Ed25519 key, signs/verifies canonical release metadata,
+and rejects tampering/expiry/unsafe URLs. It does not create or trust a product
+key and refuses the unsigned verification Setup name. See
+[`UPDATE_MANIFEST.md`](../packaging/windows/UPDATE_MANIFEST.md) and ADR-0117.
+
 ## Java V2 Backend
 
 The additive M3 workspace requires JDK 21. It carries its own checksum-pinned

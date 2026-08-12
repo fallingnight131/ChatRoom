@@ -595,6 +595,12 @@ AppData, then rejects a direct older-Setup downgrade without mutation. This does
 not replace real old-binary, locked-process, signing, or Windows 10/11 release
 evidence.
 
+ADR-0117 defines the default-off signed update protocol: canonical JSON plus a
+dedicated detached Ed25519 signature binds channel, monotonic sequence, expiry,
+rollout, source, exact production Setup bytes, and expected Authenticode signer.
+Ephemeral keys prove signing, verification, and tamper rejection, but no product
+public/private key is committed and no client update path is active.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

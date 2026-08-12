@@ -558,6 +558,8 @@ Progress:
 - [x] Stage and atomically swap installer-owned Windows program directories,
   restore the old directory on activation failure, reject direct downgrades,
   and configure a synthetic version-upgrade/data-preservation CI gate.
+- [x] Define and cryptographically exercise a canonical, detached-Ed25519
+  stable/beta Windows update manifest without enabling a product update key.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

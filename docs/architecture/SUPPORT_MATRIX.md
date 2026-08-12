@@ -68,6 +68,11 @@ does not prove a real cross-version schema/client transition. The Setup still
 has no Authenticode signature, clean Windows 10/11 launch/upgrade matrix, or
 signed automatic-update manifest and is not a supported release.
 
+The repository now defines and tests a canonical detached-Ed25519 stable/beta
+update manifest, including sequence, expiry, rollout, installer integrity, and
+expected Authenticode signer. It has no product key or client verifier and is a
+default-off protocol foundation, not an update channel.
+
 M4 must provide:
 
 - a signed and timestamped direct installer;
