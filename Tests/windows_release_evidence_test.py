@@ -31,6 +31,7 @@ class WindowsReleaseEvidenceTest(unittest.TestCase):
         self.paths = {
             "client": self.root / "ChatClient.exe",
             "update-launcher": self.root / "ChatRoomUpdateLauncher.exe",
+            "uninstaller": self.root / f"ChatRoom-{self.version}-Uninstall.exe",
             "installer": self.root / f"ChatRoom-{self.version}-Setup.exe",
         }
         for role, path in self.paths.items():
@@ -44,7 +45,7 @@ class WindowsReleaseEvidenceTest(unittest.TestCase):
 
     def build_evidence(self) -> dict[str, object]:
         artifacts = []
-        for role in ("client", "update-launcher", "installer"):
+        for role in ("client", "update-launcher", "uninstaller", "installer"):
             digest, size = sha256_file(self.paths[role])
             artifacts.append({
                 "role": role,
@@ -56,7 +57,7 @@ class WindowsReleaseEvidenceTest(unittest.TestCase):
                 "signatureStatus": "valid-timestamped-authenticode",
             })
         return {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "product": "chat-room-windows-client",
             "version": self.version,
             "sourceRevision": self.revision,
@@ -74,6 +75,7 @@ class WindowsReleaseEvidenceTest(unittest.TestCase):
             self.evidence_path,
             self.paths["client"],
             self.paths["update-launcher"],
+            self.paths["uninstaller"],
             self.paths["installer"],
             self.version_file,
             self.revision,
@@ -98,7 +100,7 @@ class WindowsReleaseEvidenceTest(unittest.TestCase):
                 self.verify()
 
         self.evidence_path.write_text(
-            '{"schemaVersion":1,"schemaVersion":1}', encoding="utf-8")
+            '{"schemaVersion":2,"schemaVersion":2}', encoding="utf-8")
         with self.assertRaisesRegex(ManifestError, "duplicate keys"):
             self.verify()
 

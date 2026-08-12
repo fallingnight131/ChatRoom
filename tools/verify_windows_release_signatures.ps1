@@ -2,6 +2,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$ClientPath,
     [Parameter(Mandatory = $true)][string]$LauncherPath,
+    [Parameter(Mandatory = $true)][string]$UninstallerPath,
     [Parameter(Mandatory = $true)][string]$InstallerPath,
     [Parameter(Mandatory = $true)][ValidatePattern('^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$')][string]$Version,
     [Parameter(Mandatory = $true)][ValidatePattern('^[0-9a-f]{40}$')][string]$SourceRevision,
@@ -57,6 +58,7 @@ function Inspect-ReleaseSignature {
 
 $client = Resolve-ReleaseFile $ClientPath "ChatClient.exe"
 $launcher = Resolve-ReleaseFile $LauncherPath "ChatRoomUpdateLauncher.exe"
+$uninstaller = Resolve-ReleaseFile $UninstallerPath "ChatRoom-$Version-Uninstall.exe"
 $installer = Resolve-ReleaseFile $InstallerPath "ChatRoom-$Version-Setup.exe"
 
 $evidenceFile = [System.IO.FileInfo]::new($EvidencePath)
@@ -73,10 +75,11 @@ if (-not $evidenceDirectory.PSIsContainer `
 $artifacts = @(
     Inspect-ReleaseSignature $client "client"
     Inspect-ReleaseSignature $launcher "update-launcher"
+    Inspect-ReleaseSignature $uninstaller "uninstaller"
     Inspect-ReleaseSignature $installer "installer"
 )
 $evidence = [ordered]@{
-    schemaVersion = 1
+    schemaVersion = 2
     product = "chat-room-windows-client"
     version = $Version
     sourceRevision = $SourceRevision

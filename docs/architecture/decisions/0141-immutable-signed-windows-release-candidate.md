@@ -1,6 +1,6 @@
 # ADR-0141: Immutable Signed Windows Release Candidate
 
-- Status: Accepted
+- Status: Accepted; uninstaller retention amended by ADR-0167
 - Date: 2026-08-12
 - Owners: project maintainers
 - Related milestone: M4

@@ -1,6 +1,6 @@
 # ADR-0163: Bind Signing Intent into Windows Candidate
 
-- Status: Accepted
+- Status: Accepted; candidate schema advanced by ADR-0167
 - Date: 2026-08-12
 - Owners: project maintainers
 - Related milestone: M4

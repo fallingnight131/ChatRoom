@@ -45,7 +45,7 @@ ROOT_KEYS = {
     "schemaVersion", "product", "releaseStatus", "channel", "version",
     "sourceRevision", "platform", "architecture", "toolchain", "qtVersion",
     "expectedSignerCertificateSha256", "signatureEvidencePath", "installerPath",
-    "protectedSigningIntentPath", "files",
+    "uninstallerPath", "protectedSigningIntentPath", "files",
 }
 FILE_KEYS = {"path", "sha256", "size"}
 
@@ -125,7 +125,7 @@ def _identity(
     channel: str,
     qt_version: str,
     expected_signer_sha256: str,
-) -> tuple[str, str]:
+) -> tuple[str, str, str]:
     version = read_version(version_file)
     validate_revision(source_revision)
     if channel not in CHANNELS:
@@ -134,7 +134,11 @@ def _identity(
         raise ManifestError("Windows release Qt version must use major.minor.patch")
     if not HEX64.fullmatch(expected_signer_sha256):
         raise ManifestError("Windows release publisher SHA-256 is invalid")
-    return version, f"ChatRoom-{version}-Setup.exe"
+    return (
+        version,
+        f"ChatRoom-{version}-Setup.exe",
+        f"ChatRoom-{version}-Uninstall.exe",
+    )
 
 
 def validate_candidate(
@@ -146,7 +150,7 @@ def validate_candidate(
     expected_signer_sha256: str,
     now_utc: datetime,
 ) -> dict[str, object]:
-    version, installer_name = _identity(
+    version, installer_name, uninstaller_name = _identity(
         version_file, source_revision, channel, qt_version,
         expected_signer_sha256)
     if candidate_root.is_symlink() or not candidate_root.is_dir():
@@ -156,8 +160,9 @@ def validate_candidate(
     if set(manifest) != ROOT_KEYS:
         raise ManifestError("Windows release candidate manifest has an unsupported shape")
     expected_installer_path = f"installer/{installer_name}"
+    expected_uninstaller_path = f"installer/{uninstaller_name}"
     if (type(manifest["schemaVersion"]) is not int
-            or manifest["schemaVersion"] != 2
+            or manifest["schemaVersion"] != 3
             or manifest["product"] != "chat-room-windows-client"
             or manifest["releaseStatus"] != RELEASE_STATUS
             or manifest["channel"] != channel
@@ -170,7 +175,8 @@ def validate_candidate(
             or manifest["expectedSignerCertificateSha256"] != expected_signer_sha256
             or manifest["signatureEvidencePath"] != EVIDENCE_PATH
             or manifest["protectedSigningIntentPath"] != INTENT_PATH
-            or manifest["installerPath"] != expected_installer_path):
+            or manifest["installerPath"] != expected_installer_path
+            or manifest["uninstallerPath"] != expected_uninstaller_path):
         raise ManifestError("Windows release candidate identity is invalid")
 
     entries = manifest["files"]
@@ -195,7 +201,8 @@ def validate_candidate(
     client_paths = {path for path in declared if path.startswith("client/")}
     _validate_payload_policy(client_paths)
     if set(declared) != client_paths | {
-            expected_installer_path, EVIDENCE_PATH, INTENT_PATH}:
+            expected_installer_path, expected_uninstaller_path,
+            EVIDENCE_PATH, INTENT_PATH}:
         raise ManifestError("Windows release candidate contains an unsupported file class")
     actual = {
         path.relative_to(candidate_root).as_posix()
@@ -216,6 +223,7 @@ def validate_candidate(
         candidate_root / EVIDENCE_PATH,
         candidate_root / "client/ChatClient.exe",
         candidate_root / "client/ChatRoomUpdateLauncher.exe",
+        candidate_root / expected_uninstaller_path,
         candidate_root / expected_installer_path,
         version_file,
         source_revision,
@@ -237,6 +245,7 @@ def validate_candidate(
 
 def assemble_candidate(
     payload_root: Path,
+    uninstaller_path: Path,
     installer_path: Path,
     evidence_path: Path,
     intent_path: Path,
@@ -248,7 +257,7 @@ def assemble_candidate(
     expected_signer_sha256: str,
     now_utc: datetime,
 ) -> dict[str, object]:
-    version, installer_name = _identity(
+    version, installer_name, uninstaller_name = _identity(
         version_file, source_revision, channel, qt_version,
         expected_signer_sha256)
     source_files = payload_files(payload_root)
@@ -260,6 +269,7 @@ def assemble_candidate(
         evidence_path,
         payload_root / "ChatClient.exe",
         payload_root / "ChatRoomUpdateLauncher.exe",
+        uninstaller_path,
         installer_path,
         version_file,
         source_revision,
@@ -271,6 +281,8 @@ def assemble_candidate(
         expected_signer_sha256, now_utc)
     if installer_path.name != installer_name:
         raise ManifestError("Windows release installer name is invalid")
+    if uninstaller_path.name != uninstaller_name:
+        raise ManifestError("Windows release uninstaller name is invalid")
     resolved_payload = payload_root.resolve()
     resolved_output = output_root.resolve()
     if resolved_output == resolved_payload or resolved_payload in resolved_output.parents:
@@ -292,6 +304,9 @@ def assemble_candidate(
         target_installer.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(installer_path, target_installer)
         copied.append(target_installer)
+        target_uninstaller = temporary / "installer" / uninstaller_name
+        shutil.copyfile(uninstaller_path, target_uninstaller)
+        copied.append(target_uninstaller)
         target_evidence = temporary / EVIDENCE_PATH
         target_evidence.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(evidence_path, target_evidence)
@@ -305,6 +320,7 @@ def assemble_candidate(
             target_evidence,
             temporary / "client/ChatClient.exe",
             temporary / "client/ChatRoomUpdateLauncher.exe",
+            target_uninstaller,
             target_installer,
             version_file,
             source_revision,
@@ -319,7 +335,7 @@ def assemble_candidate(
             entries.append({"path": relative, "sha256": digest, "size": size})
             checksums.append(f"{digest}  {relative}")
         manifest = {
-            "schemaVersion": 2,
+            "schemaVersion": 3,
             "product": "chat-room-windows-client",
             "releaseStatus": RELEASE_STATUS,
             "channel": channel,
@@ -333,6 +349,7 @@ def assemble_candidate(
             "signatureEvidencePath": EVIDENCE_PATH,
             "protectedSigningIntentPath": INTENT_PATH,
             "installerPath": f"installer/{installer_name}",
+            "uninstallerPath": f"installer/{uninstaller_name}",
             "files": entries,
         }
         atomic_write(
@@ -363,6 +380,7 @@ def parse_args() -> argparse.Namespace:
     commands = parser.add_subparsers(dest="command", required=True)
     assemble = commands.add_parser("assemble")
     assemble.add_argument("--payload-root", type=Path, required=True)
+    assemble.add_argument("--uninstaller", type=Path, required=True)
     assemble.add_argument("--installer", type=Path, required=True)
     assemble.add_argument("--signature-evidence", type=Path, required=True)
     assemble.add_argument("--protected-signing-intent", type=Path, required=True)
@@ -379,7 +397,8 @@ def main() -> int:
     try:
         if args.command == "assemble":
             result = assemble_candidate(
-                args.payload_root, args.installer, args.signature_evidence,
+                args.payload_root, args.uninstaller, args.installer,
+                args.signature_evidence,
                 args.protected_signing_intent,
                 args.output_root, args.version_file, args.source_revision,
                 args.channel, args.qt_version, args.expected_signer_sha256,

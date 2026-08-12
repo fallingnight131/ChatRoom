@@ -170,14 +170,15 @@ This is reachable product composition, not native Windows release evidence;
 production keys, signed Setup acceptance, and restart remain unverified.
 
 A provider-neutral native signature probe now defines the positive release
-contract for the client, update helper, and final Setup: exact names, valid
-timestamped Authenticode, one reviewed publisher-certificate SHA-256, and atomic
+contract for the client, update helper, standalone uninstaller, and final Setup:
+exact names, valid timestamped Authenticode, one reviewed publisher-certificate
+SHA-256, and atomic
 final-byte evidence. Current CI exercises only its unsigned rejection path and
 does not satisfy the Windows support gate.
 
 The Windows-produced JSON must then pass an independent cross-platform verifier
-that recomputes final client/helper/Setup hashes and enforces exact identity,
-schema, signer, timestamp, and freshness. Fixture success validates the parser,
+that recomputes final client/helper/uninstaller/Setup hashes and enforces exact
+identity, schema, signer, timestamp, and freshness. Fixture success validates the parser,
 not Windows signatures or product support.
 
 After independent evidence verification, the complete `windeployqt` payload is

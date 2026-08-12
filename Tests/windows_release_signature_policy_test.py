@@ -19,13 +19,15 @@ class WindowsReleaseSignaturePolicyTest(unittest.TestCase):
 
     def test_requires_exact_release_identity_without_private_key_inputs(self) -> None:
         for parameter in [
-            "ClientPath", "LauncherPath", "InstallerPath", "Version",
+            "ClientPath", "LauncherPath", "UninstallerPath", "InstallerPath", "Version",
             "SourceRevision", "ExpectedSignerSha256", "EvidencePath",
         ]:
             self.assertRegex(self.source, rf"\${parameter}\b")
         self.assertIn('"ChatClient.exe"', self.source)
         self.assertIn('"ChatRoomUpdateLauncher.exe"', self.source)
+        self.assertIn('"ChatRoom-$Version-Uninstall.exe"', self.source)
         self.assertIn('"ChatRoom-$Version-Setup.exe"', self.source)
+        self.assertIn("schemaVersion = 2", self.source)
         self.assertNotRegex(self.source, r"(?i)(private.?key|pfx.?password|certificate.?password)")
 
     def test_requires_valid_sha256_bound_timestamped_authenticode(self) -> None:
@@ -49,6 +51,7 @@ class WindowsReleaseSignaturePolicyTest(unittest.TestCase):
         for call in [
             'Inspect-ReleaseSignature $client "client"',
             'Inspect-ReleaseSignature $launcher "update-launcher"',
+            'Inspect-ReleaseSignature $uninstaller "uninstaller"',
             'Inspect-ReleaseSignature $installer "installer"',
         ]:
             self.assertLess(self.source.index(call), evidence_index)

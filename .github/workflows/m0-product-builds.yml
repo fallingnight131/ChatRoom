@@ -269,14 +269,17 @@ jobs:
           }
 
           $unsignedReleaseName = "$env:RUNNER_TEMP/ChatRoom-$version-Setup.exe"
+          $unsignedUninstallerName = "$env:RUNNER_TEMP/ChatRoom-$version-Uninstall.exe"
           $unsignedSignatureEvidence = "$env:RUNNER_TEMP/windows-release-signatures.json"
           Copy-Item $installer $unsignedReleaseName
+          Copy-Item $installer $unsignedUninstallerName
           try {
             $signatureRejected = $false
             try {
               & tools/verify_windows_release_signatures.ps1 `
                 -ClientPath "$payload/ChatClient.exe" `
                 -LauncherPath "$payload/ChatRoomUpdateLauncher.exe" `
+                -UninstallerPath $unsignedUninstallerName `
                 -InstallerPath $unsignedReleaseName `
                 -Version $version `
                 -SourceRevision "${{ github.sha }}" `
@@ -292,7 +295,7 @@ jobs:
               throw "Unsigned release-signature rejection created evidence"
             }
           } finally {
-            Remove-Item $unsignedReleaseName,$unsignedSignatureEvidence -Force -ErrorAction SilentlyContinue
+            Remove-Item $unsignedReleaseName,$unsignedUninstallerName,$unsignedSignatureEvidence -Force -ErrorAction SilentlyContinue
           }
 
           $installRoot = "$env:RUNNER_TEMP/ChatRoomInstall"

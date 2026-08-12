@@ -735,18 +735,19 @@ two-phase handoff requests the chat window's existing draft-flush, disconnect,
 and normal quit path. Production trust values and native signed install/restart
 evidence remain M4 release gates.
 
-ADR-0139 adds the provider-neutral post-signing release boundary. A protected
-release job must present the exact client, update helper, and canonical Setup;
-all three need valid Authenticode, the reviewed publisher-certificate SHA-256,
-and a timestamp certificate before atomic schema-1 evidence is written. The
+ADR-0139, as amended by ADR-0167, defines the provider-neutral post-signing
+release boundary. A protected release job must present the exact client, update
+helper, standalone uninstaller, and canonical Setup; all four need valid
+Authenticode, the reviewed publisher-certificate SHA-256, and a timestamp
+certificate before atomic schema-2 evidence is written. The
 verifier accepts no private material. Current native CI proves only that renamed
 unsigned verification artifacts are rejected without evidence; positive
 signing, timestamping, and Windows 10/11 installation remain M4 gates.
 
 ADR-0140 independently consumes that Windows evidence in Python before future
 publication. It enforces the closed schema, release identity and freshness,
-rejects links, and recomputes the size/SHA-256 of the exact client, helper, and
-Setup paths. The protected release order is therefore Windows trust observation,
+rejects links, and recomputes the size/SHA-256 of the exact client, helper,
+uninstaller, and Setup paths. The protected release order is therefore Windows trust observation,
 independent final-byte verification, then publication; fixture JSON is never
 treated as positive signature evidence.
 
@@ -974,7 +975,8 @@ and runner class, and a two-hour-bounded UTC record. It contains no certificate,
 private key, password, token, or publication authorization. A future signing
 workflow must verify it again and bind it into candidate evidence.
 
-ADR-0163 completes that binding. Windows release candidate schema 2 requires
+ADR-0163 completes that binding; ADR-0167 advances the candidate to schema 3 so
+the externally signed uninstaller is also a closed candidate file. It requires
 `evidence/protected-signing-intent.json`; assembly verifies it before copying,
 hashes it into the sorted candidate file list and `SHA256SUMS`, and candidate
 verification revalidates both final bytes and intent semantics. Rewriting the
@@ -1006,15 +1008,24 @@ signing, requires the `windows-production-signing` environment and a dedicated
 `self-hosted-windows-signing` Windows/x64 runner, and never installs build
 dependencies. It validates dispatch strings through environment variables,
 downloads the exact ordinary-CI artifact, reruns unsigned intake verification,
-and requires all three signing subjects to be `NotSigned`. A unique valid
+and requires all three ordinary-CI intake subjects to be `NotSigned`. A unique valid
 code-signing certificate with private key is selected only from
 `LocalMachine\My`, bound by SHA-1 selector and SHA-256 identity; `signtool` uses
 SHA-256 and a reviewed HTTPS RFC 3161 timestamp endpoint. The client/helper are
-signed before release-mode NSIS, then Setup is signed; provider-neutral evidence
-and the schema-2 candidate are independently verified. Only a seven-day
+signed before NSIS exports the uninstaller; that PE is signed and imported into
+release-mode Setup before Setup is signed. Provider-neutral evidence
+and the schema-3 candidate are independently verified. Only a seven-day
 `signed-not-published` workflow artifact is uploaded. The repository contains no
 positive execution evidence yet, so signed Windows support and publication
 remain M4 gates.
+
+ADR-0167 connects the two-pass uninstaller boundary to protected signing. The
+workflow exports the generated PE, signs it explicitly, imports those final
+bytes into Setup, signs Setup, then records client/helper/uninstaller/Setup in
+closed schema-2 signature evidence. Candidate schema 3 retains the standalone
+signed uninstaller beside Setup and independently revalidates all four hashes,
+signer identities, timestamps, intent, and final bytes. A native install must
+still prove the embedded installed `Uninstall.exe` matches that retained file.
 
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,

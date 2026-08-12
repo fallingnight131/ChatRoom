@@ -1,6 +1,6 @@
 # ADR-0139: Provider-Neutral Windows Release Signature Evidence
 
-- Status: Accepted
+- Status: Accepted; four-subject schema amended by ADR-0167
 - Date: 2026-08-12
 - Owners: project maintainers
 - Related milestone: M4

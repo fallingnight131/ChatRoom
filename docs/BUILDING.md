@@ -341,7 +341,7 @@ assembly must hash and retain it, and publication requires a later independent
 authorization boundary.
 
 `windows_release_candidate.py assemble` now requires
-`--protected-signing-intent`. Candidate schema 2 stores the exact bytes at
+`--protected-signing-intent`. Candidate schema 3 stores the exact bytes at
 `evidence/protected-signing-intent.json`, declares its path explicitly, hashes it
 in the candidate file list and `SHA256SUMS`, then reruns semantic intent
 verification during both assembly and independent candidate verification. The
@@ -397,9 +397,10 @@ workflow inputs into shell blocks is forbidden. The workflow then:
 3. downloads the exact unsigned CMake artifact from the named CI run;
 4. reopens the closed artifact and confirms all three subjects are unsigned;
 5. signs the client and update helper from the machine certificate store;
-6. compiles release-mode Setup with the preinstalled pinned NSIS and signs it;
-7. generates and independently verifies provider-neutral signature evidence;
-8. assembles and independently verifies a schema-2 candidate; and
+6. exports and signs the generated uninstaller, imports it into release-mode
+   Setup, then signs Setup;
+7. generates and independently verifies four-subject signature evidence;
+8. assembles and independently verifies a schema-3 candidate; and
 9. uploads one seven-day `signed-not-published` evidence artifact.
 
 It cannot create a GitHub Release, sign or publish an update manifest, contact a
@@ -441,7 +442,8 @@ python3 Tests/windows_release_signature_policy_test.py
 ```
 
 On Windows, `tools/verify_windows_release_signatures.ps1` accepts only the final
-canonical client, update helper, and `ChatRoom-<version>-Setup.exe`. Each must
+canonical client, update helper, standalone `ChatRoom-<version>-Uninstall.exe`,
+and `ChatRoom-<version>-Setup.exe`. Each must
 have valid Authenticode, the reviewed SHA-256 publisher certificate, and a
 timestamp certificate before immutable evidence is created. The script accepts
 no private key or password input. Native unsigned CI renames its Setup only for
@@ -456,6 +458,7 @@ python3 tools/windows_release_evidence.py \
   --evidence /release/windows-release-signatures.json \
   --client /release/ChatClient.exe \
   --launcher /release/ChatRoomUpdateLauncher.exe \
+  --uninstaller /release/ChatRoom-1.2.3-Uninstall.exe \
   --installer /release/ChatRoom-1.2.3-Setup.exe \
   --version-file VERSION \
   --source-revision <40-lowercase-git-sha> \
@@ -472,8 +475,10 @@ directory, then verify that directory independently before transfer:
 ```bash
 python3 tools/windows_release_candidate.py assemble \
   --payload-root /release/signed-client \
+  --uninstaller /release/ChatRoom-1.2.3-Uninstall.exe \
   --installer /release/ChatRoom-1.2.3-Setup.exe \
   --signature-evidence /release/windows-release-signatures.json \
+  --protected-signing-intent /release/protected-signing-intent.json \
   --output-root /release/candidates/windows-stable-1.2.3 \
   --version-file VERSION \
   --source-revision <40-lowercase-git-sha> \
@@ -1097,7 +1102,7 @@ development/portability verification, not a supported desktop release gate.
   `python3 Tests/windows_installer_policy_test.py`.
 - The same job invokes the provider-neutral release-signature verifier against
   unsigned payloads and a renamed Setup, and requires fail-closed rejection with
-  no evidence. Positive client/helper/Setup signature evidence is reserved for
+  no evidence. Positive client/helper/uninstaller/Setup signature evidence is reserved for
   a protected release job with external key custody.
 - A protected release job must independently run release-evidence validation,
   assemble the complete immutable candidate, and run candidate verification

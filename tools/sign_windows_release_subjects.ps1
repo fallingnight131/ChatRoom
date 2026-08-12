@@ -1,8 +1,9 @@
 [CmdletBinding()]
 param(
-  [Parameter(Mandatory = $true)][ValidateSet("Payload", "Installer")][string]$Mode,
+  [Parameter(Mandatory = $true)][ValidateSet("Payload", "Uninstaller", "Installer")][string]$Mode,
   [Parameter()][string]$ClientPath,
   [Parameter()][string]$LauncherPath,
+  [Parameter()][string]$UninstallerPath,
   [Parameter()][string]$InstallerPath,
   [Parameter(Mandatory = $true)][ValidatePattern('^[0-9a-f]{40}$')]
   [string]$CertificateSha1,
@@ -36,15 +37,25 @@ function Certificate-Sha256(
 
 $subjects = @()
 if ($Mode -eq "Payload") {
-  if (-not $ClientPath -or -not $LauncherPath -or $InstallerPath) {
+  if (-not $ClientPath -or -not $LauncherPath -or $UninstallerPath -or $InstallerPath) {
     throw "Payload signing requires only client and launcher paths"
   }
   $subjects = @(
     Resolve-SigningSubject $ClientPath "ChatClient.exe"
     Resolve-SigningSubject $LauncherPath "ChatRoomUpdateLauncher.exe"
   )
+} elseif ($Mode -eq "Uninstaller") {
+  if (-not $UninstallerPath -or $ClientPath -or $LauncherPath -or $InstallerPath) {
+    throw "Uninstaller signing requires only the uninstaller path"
+  }
+  $uninstallerName = [IO.Path]::GetFileName($UninstallerPath)
+  $uninstaller = Resolve-SigningSubject $UninstallerPath $uninstallerName
+  if ($uninstaller.Name -notmatch '^ChatRoom-(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-Uninstall\.exe$') {
+    throw "Windows uninstaller signing subject name is invalid"
+  }
+  $subjects = @($uninstaller)
 } else {
-  if (-not $InstallerPath -or $ClientPath -or $LauncherPath) {
+  if (-not $InstallerPath -or $ClientPath -or $LauncherPath -or $UninstallerPath) {
     throw "Installer signing requires only the installer path"
   }
   $installerName = [IO.Path]::GetFileName($InstallerPath)

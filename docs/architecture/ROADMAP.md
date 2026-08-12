@@ -624,10 +624,10 @@ Progress:
   builds, with first-login/manual checks, cancellable preparation, default-No
   consent, prepared-file cleanup, and the normal draft/disconnect quit path.
 - [x] Add a provider-neutral post-signing Windows release evidence boundary for
-  the client, update helper, and final Setup, and prove unsigned artifacts fail
+  the client, update helper, uninstaller, and final Setup, and prove unsigned artifacts fail
   without producing evidence in native CI.
 - [x] Independently revalidate Windows signature evidence against the exact
-  final client/helper/Setup bytes, closed schema, release identity, and freshness
+  final client/helper/uninstaller/Setup bytes, closed schema, release identity, and freshness
   before any future publication step.
 - [x] Atomically assemble and independently verify one immutable full Windows
   release candidate containing the signed subjects, complete Qt/SQLite/libsodium
@@ -721,6 +721,9 @@ Progress:
 - [x] Add a two-pass NSIS release boundary that exports the generated uninstaller
   without signing inside NSIS and imports the externally signed exact bytes,
   while leaving ordinary unsigned installer behavior unchanged.
+- [x] Sign the exported uninstaller as a fourth protected subject, advance
+  signature evidence to schema 2 and the immutable candidate to schema 3, and
+  retain its exact bytes for independent verification and installed-byte proof.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

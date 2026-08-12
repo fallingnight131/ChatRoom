@@ -27,7 +27,7 @@ ARTIFACT_KEYS = {
     "role", "name", "size", "sha256", "signerCertificateSha256",
     "timestampCertificateSha256", "signatureStatus",
 }
-ROLES = ("client", "update-launcher", "installer")
+ROLES = ("client", "update-launcher", "uninstaller", "installer")
 
 
 def _read_json(path: Path) -> dict[str, object]:
@@ -66,6 +66,7 @@ def verify_evidence(
     evidence_path: Path,
     client_path: Path,
     launcher_path: Path,
+    uninstaller_path: Path,
     installer_path: Path,
     version_file: Path,
     source_revision: str,
@@ -78,7 +79,7 @@ def verify_evidence(
         raise ManifestError("expected Windows publisher SHA-256 is invalid")
     evidence = _read_json(evidence_path)
     if (type(evidence["schemaVersion"]) is not int
-            or evidence["schemaVersion"] != 1
+            or evidence["schemaVersion"] != 2
             or evidence["product"] != "chat-room-windows-client"
             or evidence["version"] != version
             or evidence["sourceRevision"] != source_revision
@@ -90,6 +91,7 @@ def verify_evidence(
     paths = {
         "client": (client_path, "ChatClient.exe"),
         "update-launcher": (launcher_path, "ChatRoomUpdateLauncher.exe"),
+        "uninstaller": (uninstaller_path, f"ChatRoom-{version}-Uninstall.exe"),
         "installer": (installer_path, f"ChatRoom-{version}-Setup.exe"),
     }
     artifacts = evidence["artifacts"]
@@ -120,6 +122,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--evidence", type=Path, required=True)
     parser.add_argument("--client", type=Path, required=True)
     parser.add_argument("--launcher", type=Path, required=True)
+    parser.add_argument("--uninstaller", type=Path, required=True)
     parser.add_argument("--installer", type=Path, required=True)
     parser.add_argument("--version-file", type=Path, required=True)
     parser.add_argument("--source-revision", required=True)
@@ -131,7 +134,7 @@ def main() -> int:
     args = parse_args()
     try:
         evidence = verify_evidence(
-            args.evidence, args.client, args.launcher, args.installer,
+            args.evidence, args.client, args.launcher, args.uninstaller, args.installer,
             args.version_file, args.source_revision, args.expected_signer_sha256,
             datetime.now(timezone.utc),
         )

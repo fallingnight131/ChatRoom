@@ -1,6 +1,6 @@
 # ADR-0165: Protected Windows Signing Candidate Workflow
 
-- Status: Accepted
+- Status: Accepted; four-subject flow amended by ADR-0167
 - Date: 2026-08-12
 - Owners: Release engineering and security
 

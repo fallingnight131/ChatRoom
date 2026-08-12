@@ -1,6 +1,6 @@
 # ADR-0140: Independent Windows Release Evidence Verification
 
-- Status: Accepted
+- Status: Accepted; four-subject verification amended by ADR-0167
 - Date: 2026-08-12
 - Owners: project maintainers
 - Related milestone: M4

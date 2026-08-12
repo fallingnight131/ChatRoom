@@ -1,6 +1,6 @@
 # ADR-0166: Externally Signed NSIS Uninstaller
 
-- Status: Accepted
+- Status: Accepted; workflow integration completed by ADR-0167
 - Date: 2026-08-12
 - Owners: Release engineering and security
 - Amends: ADR-0164

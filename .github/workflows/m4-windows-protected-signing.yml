@@ -149,7 +149,7 @@ jobs:
             -ExpectedCertificateSha256 $env:SIGNER_SHA256 `
             -TimestampUrl $env:RFC3161_URL
 
-      - name: Compile and sign canonical release Setup
+      - name: Export, sign, import, and sign canonical release installer
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -164,14 +164,34 @@ jobs:
           if ($nsisVersion -cne "v3.12") {
             throw "Protected signing runner NSIS version is not pinned to 3.12"
           }
-          & $makensis /WX /NOCONFIG /V2 /DRELEASE_BUILD=1 `
+          & $makensis /WX /NOCONFIG /V2 /DRELEASE_BUILD=1 /DEXPORT_UNINSTALLER=1 `
             "/DVERSION=${{ steps.identity.outputs.version }}" `
             "/DSOURCE_REVISION=$env:RELEASE_REVISION" `
             "/DPAYLOAD_DIR=$root/signed-client" `
             "/DOUTPUT_DIR=$output" `
             "/DICON_FILE=$env:GITHUB_WORKSPACE/Client/resources/app_icon.ico" `
             packaging/windows/ChatRoom.nsi
-          if ($LASTEXITCODE -ne 0) { throw "Protected release NSIS compilation failed" }
+          if ($LASTEXITCODE -ne 0) { throw "Protected uninstaller export compilation failed" }
+          $uninstaller = "$output/ChatRoom-${{ steps.identity.outputs.version }}-Uninstall.exe"
+          $exportHelper = "$output/ChatRoom-${{ steps.identity.outputs.version }}-uninstaller-export-helper.exe"
+          if (-not (Test-Path $exportHelper -PathType Leaf)) {
+            throw "Protected uninstaller export helper was not created"
+          }
+          tools/sign_windows_release_subjects.ps1 `
+            -Mode Uninstaller `
+            -UninstallerPath $uninstaller `
+            -CertificateSha1 $env:SIGNER_SHA1 `
+            -ExpectedCertificateSha256 $env:SIGNER_SHA256 `
+            -TimestampUrl $env:RFC3161_URL
+          & $makensis /WX /NOCONFIG /V2 /DRELEASE_BUILD=1 /DIMPORT_SIGNED_UNINSTALLER=1 `
+            "/DVERSION=${{ steps.identity.outputs.version }}" `
+            "/DSOURCE_REVISION=$env:RELEASE_REVISION" `
+            "/DPAYLOAD_DIR=$root/signed-client" `
+            "/DOUTPUT_DIR=$output" `
+            "/DICON_FILE=$env:GITHUB_WORKSPACE/Client/resources/app_icon.ico" `
+            packaging/windows/ChatRoom.nsi
+          if ($LASTEXITCODE -ne 0) { throw "Protected signed-uninstaller import compilation failed" }
+          Remove-Item -LiteralPath $exportHelper -Force
           $setup = "$output/ChatRoom-${{ steps.identity.outputs.version }}-Setup.exe"
           if ((Get-AuthenticodeSignature -LiteralPath $setup).Status -ne "NotSigned") {
             throw "Release-mode Setup was unexpectedly signed before the explicit signing step"
@@ -189,9 +209,11 @@ jobs:
           $ErrorActionPreference = "Stop"
           $root = "$env:GITHUB_WORKSPACE/build/m4/protected-signing"
           $setup = "$root/release-installer/ChatRoom-${{ steps.identity.outputs.version }}-Setup.exe"
+          $uninstaller = "$root/release-installer/ChatRoom-${{ steps.identity.outputs.version }}-Uninstall.exe"
           tools/verify_windows_release_signatures.ps1 `
             -ClientPath "$root/signed-client/ChatClient.exe" `
             -LauncherPath "$root/signed-client/ChatRoomUpdateLauncher.exe" `
+            -UninstallerPath $uninstaller `
             -InstallerPath $setup `
             -Version "${{ steps.identity.outputs.version }}" `
             -SourceRevision $env:RELEASE_REVISION `
@@ -201,6 +223,7 @@ jobs:
             --evidence "$root/windows-release-signatures.json" `
             --client "$root/signed-client/ChatClient.exe" `
             --launcher "$root/signed-client/ChatRoomUpdateLauncher.exe" `
+            --uninstaller $uninstaller `
             --installer $setup `
             --version-file VERSION `
             --source-revision $env:RELEASE_REVISION `
@@ -213,6 +236,7 @@ jobs:
           $root = "$env:GITHUB_WORKSPACE/build/m4/protected-signing"
           python tools/windows_release_candidate.py assemble `
             --payload-root "$root/signed-client" `
+            --uninstaller "$root/release-installer/ChatRoom-${{ steps.identity.outputs.version }}-Uninstall.exe" `
             --installer "$root/release-installer/ChatRoom-${{ steps.identity.outputs.version }}-Setup.exe" `
             --signature-evidence "$root/windows-release-signatures.json" `
             --protected-signing-intent "$root/protected-signing-intent.json" `

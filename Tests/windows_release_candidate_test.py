@@ -45,6 +45,8 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
         self.now = datetime(2026, 8, 12, 12, 0, 0, tzinfo=timezone.utc)
         self.installer = self.root / f"ChatRoom-{self.version}-Setup.exe"
         self.installer.write_bytes(b"signed-setup")
+        self.uninstaller = self.root / f"ChatRoom-{self.version}-Uninstall.exe"
+        self.uninstaller.write_bytes(b"signed-uninstaller")
         self.evidence = self.root / "windows-release-signatures.json"
         self.write_evidence()
         self.intent = self.root / "protected-signing-intent.json"
@@ -61,6 +63,7 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
         roles = (
             ("client", self.payload / "ChatClient.exe"),
             ("update-launcher", self.payload / "ChatRoomUpdateLauncher.exe"),
+            ("uninstaller", self.uninstaller),
             ("installer", self.installer),
         )
         artifacts = []
@@ -76,7 +79,7 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
                 "signatureStatus": "valid-timestamped-authenticode",
             })
         self.evidence.write_text(json.dumps({
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "product": "chat-room-windows-client",
             "version": self.version,
             "sourceRevision": self.revision,
@@ -88,7 +91,8 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
 
     def assemble(self):
         return assemble_candidate(
-            self.payload, self.installer, self.evidence, self.intent, self.candidate,
+            self.payload, self.uninstaller, self.installer, self.evidence,
+            self.intent, self.candidate,
             self.version_file, self.revision, "stable", "6.11.1",
             self.signer, self.now,
         )
@@ -110,9 +114,13 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
         self.assertTrue((self.candidate / "client/Qt6Core.dll").is_file())
         self.assertTrue((self.candidate / "evidence/windows-release-signatures.json").is_file())
         self.assertTrue((self.candidate / "evidence/protected-signing-intent.json").is_file())
+        self.assertEqual(
+            (self.candidate / f"installer/ChatRoom-{self.version}-Uninstall.exe").read_bytes(),
+            b"signed-uninstaller",
+        )
         manifest = json.loads((self.candidate / "windows-release-candidate.json").read_text(
             encoding="utf-8"))
-        self.assertEqual(manifest["schemaVersion"], 2)
+        self.assertEqual(manifest["schemaVersion"], 3)
         self.assertFalse(any(path.name.startswith(".windows-candidate-")
                              for path in self.root.iterdir()))
 
@@ -143,12 +151,21 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
         self.candidate.rmdir()
         with self.assertRaisesRegex(ManifestError, "overlaps"):
             assemble_candidate(
-                self.payload, self.installer, self.evidence, self.intent,
+                self.payload, self.uninstaller, self.installer,
+                self.evidence, self.intent,
                 self.payload / "nested-candidate", self.version_file,
                 self.revision, "stable", "6.11.1", self.signer, self.now)
 
     def test_rejects_tampering(self) -> None:
         self.assemble()
+        changed = self.root / "changed-uninstaller"
+        shutil.copytree(self.candidate, changed)
+        (changed / f"installer/ChatRoom-{self.version}-Uninstall.exe").write_bytes(
+            b"different-uninstaller"
+        )
+        with self.assertRaisesRegex(ManifestError, "final bytes changed"):
+            self.validate_root(changed)
+
         (self.candidate / "client/Qt6Core.dll").write_bytes(b"changed")
         with self.assertRaisesRegex(ManifestError, "final bytes changed"):
             self.validate()
