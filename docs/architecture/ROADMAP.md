@@ -583,6 +583,9 @@ Progress:
   through strict trusted HTTPS with deliberate security and cache policy.
 - [x] Bind atomic execution and a matching post-switch HTTPS observation into
   immutable, bounded production update-promotion completion evidence.
+- [x] Derive a one-time B-to-A rollout halt from completion evidence, require a
+  still-valid retained A manifest, and never reactivate failed B after an
+  evidence-write failure; affected B clients use a forward corrective release.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

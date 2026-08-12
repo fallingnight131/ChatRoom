@@ -1147,6 +1147,13 @@ an immutable `production-update-promotion-observed` record. Client install
 success, rollout health, continuous availability, and global convergence remain
 separate operational gates.
 
+ADR-0183 adds the incident rollout halt. Completion evidence uniquely derives
+B→A, B must still be active, A must retain a currently valid signed manifest,
+and consumption precedes atomic restoration. Evidence-write failure never
+reactivates failed B. This stops new exposure but intentionally does not bypass
+client replay watermarks or installer downgrade protection; devices already on
+B need a forward corrective release with a higher signed sequence/version.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

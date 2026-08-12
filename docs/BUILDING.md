@@ -681,6 +681,21 @@ This is point-in-time public delivery evidence, not continuous availability,
 global CDN convergence, successful client installation, or rollout health. See
 ADR-0182.
 
+For an incident after observed B promotion,
+`tools/windows_update_release_rollback.py execute` derives the exact B→A pointer
+transition from completion evidence. B must still be active, A must be a
+complete retained candidate with a currently valid signed manifest, and
+completion consumption is persisted before atomic restoration. If evidence
+writing then fails, A stays active; the tool never reactivates failed B:
+
+```bash
+python3 Tests/windows_update_release_rollback_test.py
+```
+
+This is a rollout halt, not an automatic client downgrade. Devices that already
+accepted B's higher manifest sequence reject old A and remain on B until a newly
+signed, higher-sequence forward corrective release. See ADR-0183.
+
 The provider-neutral post-signing acceptance policy is checked with:
 
 ```bash

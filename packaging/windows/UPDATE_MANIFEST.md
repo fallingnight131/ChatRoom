@@ -237,3 +237,10 @@ matching post-switch HTTPS observation within ten minutes. The completion
 record retains both input SHA-256 values, exact target and rollback IDs, channel
 sequence, release identity, URL, and timestamps. It remains point-in-time
 evidence and does not replace staged-rollout health monitoring.
+
+Incident pointer restoration is derived only from completed promotion evidence.
+The prior manifest must still be valid, failed B must remain active, and
+consumption precedes the B→A switch. This stops further rollout; anti-replay
+means clients that already accepted B will not accept A's lower sequence or
+downgrade. Those clients require a forward corrective build with a newly signed
+higher manifest sequence.
