@@ -128,5 +128,16 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
         )
         target_link_libraries(DatabaseSchemaTest PRIVATE chatroom_v1_persistence)
         add_test(NAME v1_database_schema COMMAND DatabaseSchemaTest)
+
+        add_executable(PasswordMigrationTest Tests/PasswordMigrationTest.cpp)
+        set_target_properties(
+            PasswordMigrationTest
+            PROPERTIES
+                CXX_STANDARD 17
+                CXX_STANDARD_REQUIRED ON
+                CXX_EXTENSIONS OFF
+        )
+        target_link_libraries(PasswordMigrationTest PRIVATE chatroom_v1_persistence)
+        add_test(NAME v1_password_migration COMMAND PasswordMigrationTest)
     endif()
 endif()

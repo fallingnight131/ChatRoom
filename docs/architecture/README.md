@@ -841,6 +841,9 @@ thin `main.cpp`. The unchanged SQLite schema test now links only persistence and
 runs through CTest, covering clean/restart identity, required columns, integrity,
 and indexed query plans. SQL remains inside the V1 manager; these build targets
 do not pretend the legacy class is already the target Java repository model.
+The same persistence target now runs the unchanged password migration suite,
+covering modern hashes, legacy SHA upgrade after successful authentication,
+wrong-password denial, password change, room-password migration, and restart.
 
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,

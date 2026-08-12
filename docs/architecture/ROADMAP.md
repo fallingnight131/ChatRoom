@@ -661,6 +661,8 @@ Progress:
 - [x] Extract reusable CMake V1 persistence/server-core static targets, keep the
   executable entry point thin, and migrate the unchanged clean/restart/query-plan
   SQLite schema suite to CTest.
+- [x] Reuse the CMake persistence boundary for the unchanged Argon2id/legacy
+  password migration, wrong-password, change-password, and restart CTest suite.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
