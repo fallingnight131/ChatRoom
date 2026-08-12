@@ -149,6 +149,15 @@ heartbeat handlers. Upgrade mismatch is a fixed policy close.
 `SET_ROOM_PASSWORD_REQ`, `SET_ROOM_PASSWORD_RSP`, `GET_ROOM_PASSWORD_REQ`,
 `GET_ROOM_PASSWORD_RSP`.
 
+The detached Java compatibility application can now derive the existing
+`ROOM_LIST_RSP.data.rooms` projection from PostgreSQL: imported numeric
+`roomId`, canonical `roomName`, sequence-derived `unread`, and `isAdmin` for
+canonical owner/admin roles. It scans at most 1,000 authorized directory rows,
+uses bounded batch mapping, preserves ascending numeric room order, and fails
+instead of emitting a partial list when imported mappings disagree. No Netty
+codec/handler currently exposes this operation, so it does not yet extend the
+inactive Java V1 route.
+
 ### Administration and recall
 
 `SET_ADMIN_REQ`, `SET_ADMIN_RSP`, `ADMIN_STATUS`, `KICK_USER_REQ`,

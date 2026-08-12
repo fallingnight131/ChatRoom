@@ -415,6 +415,9 @@ Progress:
   - [x] Add a detached bounded V1 WebSocket upgrade adapter that installs the
     complete compatibility application pipeline only after the guard-approved
     exact path and negotiated subprotocol are independently confirmed.
+  - [x] Add a transport-independent V1 room-directory projection over the
+    canonical authorized directory with bounded batch legacy-ID translation,
+    authoritative unread counts, and fail-closed partial-list prevention.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

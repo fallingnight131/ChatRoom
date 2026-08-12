@@ -273,6 +273,11 @@ role, sequence high watermark, and read cursor.
 The authenticated gateway now dispatches that directory through the same
 connection-local serial queue and isolated worker pool as message append/history,
 using only server-bound account identity and a fixed outcome counter.
+The detached V1 compatibility application boundary now pages that same
+authorized directory, retains only group conversations, batch-translates their
+imported numeric room IDs, derives unread counts from canonical sequences, and
+fails the complete bounded request on any mapping inconsistency. It remains
+transport-independent and is not installed in the inactive V1 Netty pipeline.
 This remains a pre-cutover path: live fan-out is process-local and active-
 conversation-only, while delivery/read state, multi-gateway routing, membership
 invalidation, broader conversation discovery, and supported-client cutover are
