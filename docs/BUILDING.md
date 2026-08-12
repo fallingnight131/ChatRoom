@@ -55,6 +55,17 @@ python3 Tests/web_artifact_manifest_test.py
 The generated manifest is not evidence that a hosting service applied cache or
 security headers, passed browser compatibility, or can roll back.
 
+Exercise immutable staging, activation health, and no-rebuild rollback policy:
+
+```bash
+python3 Tests/web_release_store_test.py
+```
+
+The operator commands and filesystem layout are documented in
+[`WEB_RELEASE_ROLLBACK.md`](deployment/WEB_RELEASE_ROLLBACK.md). This isolated
+release-store evidence is intentionally separate from live HTTPS/header and
+browser verification.
+
 Production Web builds resolve V1 WebSocket traffic to `wss://<page-authority>/ws`
 and file traffic below same-origin `/api/`; the HTTPS reverse proxy must own both
 routes. A different same-origin WebSocket path can be selected at build time,

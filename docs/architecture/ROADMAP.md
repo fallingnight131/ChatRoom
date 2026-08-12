@@ -562,6 +562,8 @@ Progress:
   development behavior.
 - [x] Bind a provider-neutral CSP/HSTS/cache/release-identity response policy to
   the versioned Web verification artifact with fail-closed mutation tests.
+- [x] Add an immutable Web release store, atomic activation pointer, integrity
+  health output, and isolated A-to-B-to-A rollback rehearsal without rebuilding.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
   supported Windows installer and update channel.
 - [ ] Publish and verify versioned, policy-hardened, rollback-ready Web releases.

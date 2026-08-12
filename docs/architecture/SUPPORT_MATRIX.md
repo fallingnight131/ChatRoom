@@ -77,8 +77,10 @@ production Vite build. CI retains a short-lived, explicitly not-deployed
 artifact with exact Git/package version, file hashes, local hashed entrypoints,
 map-file/trailing-directive rejection, intended cache classes, and an exact
 schema-2 CSP/HSTS/release-identity response contract. The artifact still labels
-that policy `required-not-observed`. Public delivery must additionally observe
-and prove:
+that policy `required-not-observed`. Isolated tests retain immutable versions,
+atomically select one release, verify its identity and bytes, and rehearse
+A-to-B-to-A rollback without rebuilding. Public delivery must additionally
+observe and prove:
 
 - the supported browser/version matrix and automated coverage;
 - valid HTTPS/WSS and response headers matching the bound CSP/cache/source-map

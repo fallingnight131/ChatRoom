@@ -27,7 +27,9 @@ jobs:
         run: python3 tools/verify_m0.py --web
 
       - name: Test Web artifact manifest policy
-        run: python3 Tests/web_artifact_manifest_test.py
+        run: |
+          python3 Tests/web_artifact_manifest_test.py
+          python3 Tests/web_release_store_test.py
 
       - name: Assemble undeployed Web verification artifact
         id: web-version

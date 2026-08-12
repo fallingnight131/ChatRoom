@@ -609,6 +609,12 @@ and documents the current inline-style exception. Artifact verification labels
 the policy `required-not-observed`; isolated deployment and live header
 observation are still required before a release claim.
 
+ADR-0113 adds immutable `version-sourceRevision` release directories and an
+atomically replaced active-release pointer. The integrity-aware status command
+and isolated tests rehearse A-to-B activation and rollback to the unchanged A
+bytes without rebuilding. A provider adapter must still apply and observe the
+bound headers and probe HTTPS, `/ws`, and `/api/` before public promotion.
+
 The Windows updater must use a signed manifest containing architecture, channel,
 version, minimum compatible version, hash, signature, and URL. Support stable
 and beta channels and preserve rollback capability. Web rollback uses immutable
