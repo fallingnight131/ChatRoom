@@ -990,6 +990,22 @@ command, certificate, credential, or provider logic. A protected workflow must
 sign the client/helper first, compile release-mode Setup from those final payload
 bytes, and then sign/timestamp Setup explicitly.
 
+ADR-0165 adds that protected execution boundary without declaring a release.
+The manual workflow has read-only repository/artifact permissions, serializes
+signing, requires the `windows-production-signing` environment and a dedicated
+`self-hosted-windows-signing` Windows/x64 runner, and never installs build
+dependencies. It validates dispatch strings through environment variables,
+downloads the exact ordinary-CI artifact, reruns unsigned intake verification,
+and requires all three signing subjects to be `NotSigned`. A unique valid
+code-signing certificate with private key is selected only from
+`LocalMachine\My`, bound by SHA-1 selector and SHA-256 identity; `signtool` uses
+SHA-256 and a reviewed HTTPS RFC 3161 timestamp endpoint. The client/helper are
+signed before release-mode NSIS, then Setup is signed; provider-neutral evidence
+and the schema-2 candidate are independently verified. Only a seven-day
+`signed-not-published` workflow artifact is uploaded. The repository contains no
+positive execution evidence yet, so signed Windows support and publication
+remain M4 gates.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

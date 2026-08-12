@@ -1,0 +1,239 @@
+name: Windows Protected Signing Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_revision:
+        description: Exact 40-character commit from the unsigned Windows build
+        required: true
+        type: string
+      unsigned_artifact_run_id:
+        description: Completed Windows Product build run containing the unsigned artifact
+        required: true
+        type: string
+      channel:
+        description: Candidate channel; this workflow does not publish it
+        required: true
+        type: choice
+        options:
+          - stable
+          - beta
+      signer_certificate_sha1:
+        description: Lowercase SHA-1 selector for LocalMachine/My certificate
+        required: true
+        type: string
+      expected_signer_certificate_sha256:
+        description: Reviewed lowercase SHA-256 signing certificate identity
+        required: true
+        type: string
+      timestamp_url:
+        description: Credential-free HTTPS RFC 3161 timestamp endpoint
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: windows-protected-signing
+  cancel-in-progress: false
+
+jobs:
+  sign-candidate:
+    name: Sign and assemble an unpublished Windows candidate
+    environment: windows-production-signing
+    runs-on: [self-hosted, windows, x64, self-hosted-windows-signing]
+    timeout-minutes: 30
+    env:
+      RELEASE_REVISION: ${{ inputs.source_revision }}
+      UNSIGNED_RUN_ID: ${{ inputs.unsigned_artifact_run_id }}
+      RELEASE_CHANNEL: ${{ inputs.channel }}
+      SIGNER_SHA1: ${{ inputs.signer_certificate_sha1 }}
+      SIGNER_SHA256: ${{ inputs.expected_signer_certificate_sha256 }}
+      RFC3161_URL: ${{ inputs.timestamp_url }}
+
+    steps:
+      - name: Check out the exact approved revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_revision }}
+          persist-credentials: false
+
+      - name: Validate immutable signing inputs
+        id: identity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $revision = $env:RELEASE_REVISION
+          if ($revision -cnotmatch '^[0-9a-f]{40}$') { throw "source_revision is invalid" }
+          $head = (git rev-parse HEAD).Trim()
+          if ($head -cne $revision) { throw "checkout does not match source_revision" }
+          $runId = $env:UNSIGNED_RUN_ID
+          if ($runId -cnotmatch '^[1-9][0-9]{0,19}$') { throw "unsigned artifact run ID is invalid" }
+          $sha1 = $env:SIGNER_SHA1
+          $sha256 = $env:SIGNER_SHA256
+          if ($sha1 -cnotmatch '^[0-9a-f]{40}$' -or $sha256 -cnotmatch '^[0-9a-f]{64}$') {
+            throw "signer identity is invalid"
+          }
+          $version = (Get-Content VERSION -Raw).Trim()
+          if ($version -cnotmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+            throw "VERSION is invalid"
+          }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "run-id=$runId" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "artifact=chat-room-windows-client-$version-unsigned-verification-$revision" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Create the approved protected-signing intent
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (Test-Path build/m4/protected-signing) {
+            Remove-Item build/m4/protected-signing -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force build/m4/protected-signing | Out-Null
+          python tools/windows_protected_release_intent.py create `
+            --version-file VERSION `
+            --source-revision $env:RELEASE_REVISION `
+            --channel $env:RELEASE_CHANNEL `
+            --unsigned-artifact-run-id $env:UNSIGNED_RUN_ID `
+            --signer-sha1 $env:SIGNER_SHA1 `
+            --signer-sha256 $env:SIGNER_SHA256 `
+            --timestamp-url $env:RFC3161_URL `
+            --output "$env:GITHUB_WORKSPACE/build/m4/protected-signing/protected-signing-intent.json"
+          python tools/windows_protected_release_intent.py verify `
+            --intent "$env:GITHUB_WORKSPACE/build/m4/protected-signing/protected-signing-intent.json" `
+            --version-file VERSION `
+            --source-revision $env:RELEASE_REVISION `
+            --channel $env:RELEASE_CHANNEL `
+            --signer-sha256 $env:SIGNER_SHA256
+
+      - name: Download the exact unsigned Windows artifact
+        uses: actions/download-artifact@v8
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.identity.outputs.run-id }}
+          name: ${{ steps.identity.outputs.artifact }}
+          path: build/m4/protected-signing/unsigned
+
+      - name: Independently verify unsigned signing intake
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $artifact = "$env:GITHUB_WORKSPACE/build/m4/protected-signing/unsigned"
+          python tools/verify_windows_unsigned_artifact.py `
+            --artifact-root $artifact `
+            --version-file VERSION `
+            --source-revision $env:RELEASE_REVISION `
+            --qt-version "6.11.1"
+          foreach ($subject in @(
+              "$artifact/client/ChatClient.exe",
+              "$artifact/client/ChatRoomUpdateLauncher.exe",
+              "$artifact/installer/ChatRoom-${{ steps.identity.outputs.version }}-unsigned-verification-Setup.exe")) {
+            if ((Get-AuthenticodeSignature -LiteralPath $subject).Status -ne "NotSigned") {
+              throw "Protected signing intake contains a pre-signed subject"
+            }
+          }
+
+      - name: Sign payload subjects from the machine certificate store
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "$env:GITHUB_WORKSPACE/build/m4/protected-signing"
+          Copy-Item "$root/unsigned/client" "$root/signed-client" -Recurse
+          tools/sign_windows_release_subjects.ps1 `
+            -Mode Payload `
+            -ClientPath "$root/signed-client/ChatClient.exe" `
+            -LauncherPath "$root/signed-client/ChatRoomUpdateLauncher.exe" `
+            -CertificateSha1 $env:SIGNER_SHA1 `
+            -ExpectedCertificateSha256 $env:SIGNER_SHA256 `
+            -TimestampUrl $env:RFC3161_URL
+
+      - name: Compile and sign canonical release Setup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "$env:GITHUB_WORKSPACE/build/m4/protected-signing"
+          $output = "$root/release-installer"
+          New-Item -ItemType Directory -Force $output | Out-Null
+          $makensis = Join-Path ${env:ProgramFiles(x86)} "NSIS/makensis.exe"
+          if (-not (Test-Path $makensis -PathType Leaf)) {
+            throw "Protected signing runner is missing the pinned NSIS compiler"
+          }
+          $nsisVersion = (& $makensis /VERSION).Trim()
+          if ($nsisVersion -cne "v3.12") {
+            throw "Protected signing runner NSIS version is not pinned to 3.12"
+          }
+          & $makensis /WX /NOCONFIG /V2 /DRELEASE_BUILD=1 `
+            "/DVERSION=${{ steps.identity.outputs.version }}" `
+            "/DSOURCE_REVISION=$env:RELEASE_REVISION" `
+            "/DPAYLOAD_DIR=$root/signed-client" `
+            "/DOUTPUT_DIR=$output" `
+            "/DICON_FILE=$env:GITHUB_WORKSPACE/Client/resources/app_icon.ico" `
+            packaging/windows/ChatRoom.nsi
+          if ($LASTEXITCODE -ne 0) { throw "Protected release NSIS compilation failed" }
+          $setup = "$output/ChatRoom-${{ steps.identity.outputs.version }}-Setup.exe"
+          if ((Get-AuthenticodeSignature -LiteralPath $setup).Status -ne "NotSigned") {
+            throw "Release-mode Setup was unexpectedly signed before the explicit signing step"
+          }
+          tools/sign_windows_release_subjects.ps1 `
+            -Mode Installer `
+            -InstallerPath $setup `
+            -CertificateSha1 $env:SIGNER_SHA1 `
+            -ExpectedCertificateSha256 $env:SIGNER_SHA256 `
+            -TimestampUrl $env:RFC3161_URL
+
+      - name: Generate and independently verify signature evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "$env:GITHUB_WORKSPACE/build/m4/protected-signing"
+          $setup = "$root/release-installer/ChatRoom-${{ steps.identity.outputs.version }}-Setup.exe"
+          tools/verify_windows_release_signatures.ps1 `
+            -ClientPath "$root/signed-client/ChatClient.exe" `
+            -LauncherPath "$root/signed-client/ChatRoomUpdateLauncher.exe" `
+            -InstallerPath $setup `
+            -Version "${{ steps.identity.outputs.version }}" `
+            -SourceRevision $env:RELEASE_REVISION `
+            -ExpectedSignerSha256 $env:SIGNER_SHA256 `
+            -EvidencePath "$root/windows-release-signatures.json"
+          python tools/windows_release_evidence.py `
+            --evidence "$root/windows-release-signatures.json" `
+            --client "$root/signed-client/ChatClient.exe" `
+            --launcher "$root/signed-client/ChatRoomUpdateLauncher.exe" `
+            --installer $setup `
+            --version-file VERSION `
+            --source-revision $env:RELEASE_REVISION `
+            --expected-signer-sha256 $env:SIGNER_SHA256
+
+      - name: Assemble and independently verify unpublished candidate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "$env:GITHUB_WORKSPACE/build/m4/protected-signing"
+          python tools/windows_release_candidate.py assemble `
+            --payload-root "$root/signed-client" `
+            --installer "$root/release-installer/ChatRoom-${{ steps.identity.outputs.version }}-Setup.exe" `
+            --signature-evidence "$root/windows-release-signatures.json" `
+            --protected-signing-intent "$root/protected-signing-intent.json" `
+            --output-root "$root/candidate" `
+            --version-file VERSION `
+            --source-revision $env:RELEASE_REVISION `
+            --channel $env:RELEASE_CHANNEL `
+            --qt-version "6.11.1" `
+            --expected-signer-sha256 $env:SIGNER_SHA256
+          python tools/windows_release_candidate.py verify `
+            --candidate-root "$root/candidate" `
+            --version-file VERSION `
+            --source-revision $env:RELEASE_REVISION `
+            --channel $env:RELEASE_CHANNEL `
+            --qt-version "6.11.1" `
+            --expected-signer-sha256 $env:SIGNER_SHA256
+
+      - name: Upload unpublished signed candidate evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-${{ inputs.channel }}-${{ steps.identity.outputs.version }}-signed-not-published-${{ inputs.source_revision }}
+          path: build/m4/protected-signing/candidate
+          if-no-files-found: error
+          retention-days: 7

@@ -358,6 +358,48 @@ client and helper, compile Setup around those signed bytes, then sign and
 timestamp Setup as three visible operations. Validate the mode policy with
 `python3 Tests/windows_release_installer_mode_test.py`.
 
+## Protected Windows Signing Candidate
+
+`.github/workflows/m4-windows-protected-signing.yml` is a manual,
+candidate-only workflow. Configure the `windows-production-signing` environment
+with required reviewers and no administrator bypass. Its runner must carry the
+labels `self-hosted`, `windows`, `x64`, and `self-hosted-windows-signing`, and
+should be ephemeral or reset to a known-clean state after every job.
+
+Provision the runner outside this repository with Python, Git, PowerShell, NSIS
+3.12 at its standard Program Files location, Windows SDK `signtool.exe` on
+`PATH`, and exactly one approved, currently valid code-signing certificate in
+`Cert:\LocalMachine\My`. Its private key should be non-exportable and accessible
+only to the runner service identity. The workflow accepts no PFX, certificate
+password, private key, cloud signing credential, or dependency installer.
+
+The reviewer supplies the exact protected commit, ordinary-CI run ID,
+stable/beta channel, public SHA-1 certificate selector, expected public SHA-256
+certificate identity, and credential-free HTTPS RFC 3161 URL. Dispatch strings
+enter PowerShell only through environment variables; direct interpolation of
+workflow inputs into shell blocks is forbidden. The workflow then:
+
+1. checks out and validates the exact reviewed revision;
+2. creates and verifies the two-hour-bounded protected-signing intent;
+3. downloads the exact unsigned CMake artifact from the named CI run;
+4. reopens the closed artifact and confirms all three subjects are unsigned;
+5. signs the client and update helper from the machine certificate store;
+6. compiles release-mode Setup with the preinstalled pinned NSIS and signs it;
+7. generates and independently verifies provider-neutral signature evidence;
+8. assembles and independently verifies a schema-2 candidate; and
+9. uploads one seven-day `signed-not-published` evidence artifact.
+
+It cannot create a GitHub Release, sign or publish an update manifest, contact a
+release endpoint, or promote a channel. Check this static boundary with:
+
+```bash
+python3 Tests/windows_protected_signing_workflow_test.py
+```
+
+That policy test and YAML parsing do not prove a valid native signature. Positive
+signing remains unverified until the protected environment and runner execute a
+real approved candidate successfully.
+
 The unsigned Windows NSIS gate now compiles a synthetic predecessor outside the
 uploaded artifact, installs it, and upgrades to canonical `VERSION`. It checks
 whole-program-directory replacement, marker ownership, rollback scaffolding,

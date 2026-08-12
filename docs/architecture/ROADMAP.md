@@ -714,6 +714,10 @@ Progress:
 - [x] Add an explicit NSIS `RELEASE_BUILD` output mode for the canonical
   `ChatRoom-<version>-Setup.exe` identity while keeping ordinary CI explicitly
   unsigned and prohibiting implicit NSIS signing commands.
+- [x] Add a manual protected-environment/self-hosted Windows signing workflow
+  that verifies exact unsigned intake and intent, uses only a machine-store
+  certificate, signs/timestamps three subjects, and emits a verified unpublished
+  schema-2 candidate without release or update-channel mutation.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
