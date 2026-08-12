@@ -375,6 +375,14 @@ observable but cannot reinterpret durable success. Real PostgreSQL proves exact
 retry suppression and replacement-login directory exclusion. The product
 listener remains unchanged.
 
+The next room projection boundary defines authenticated `USER_LIST_REQ`.
+PostgreSQL must authorize the actor in one active mapped GROUP and return a
+complete deterministic active-member projection; process-local presence is
+joined only afterward. The application caps the legacy all-at-once response at
+1,000 members using an overflow sentinel, rejects partial/duplicate projections,
+and exposes only username, display name, administrator, and online flags. No
+adapter or handler exists yet.
+
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target
 username; clients cannot supply canonical IDs. Missing/self/already-friend/

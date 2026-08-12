@@ -139,6 +139,13 @@ heartbeat handlers. Upgrade mismatch is a fixed policy close.
 `USER_LIST_RSP`, `USER_JOINED`, `USER_LEFT`, `USER_ONLINE`, `USER_OFFLINE`,
 `MARK_ROOM_READ`.
 
+The inactive Java `USER_LIST_REQ` application boundary binds authenticated actor
+and positive `roomId`, requires active membership in an active mapped GROUP,
+and returns no more than 1,000 complete mapped active members. Canonical role
+becomes `isAdmin`; process-local presence becomes `isOnline`; UUIDs never cross
+the response. Overflow rejects instead of truncating. No adapter or handler
+exists yet.
+
 ### Room lifecycle and settings
 
 `CREATE_ROOM_REQ`, `CREATE_ROOM_RSP`, `JOIN_ROOM_REQ`, `JOIN_ROOM_RSP`,
