@@ -212,6 +212,12 @@ The PostgreSQL adapter now supplies durable friend/unread/read/pending state fro
 one bounded repeatable-read snapshot, and account compatibility lookup is
 batched. No transport handler or runtime route consumes it yet.
 
+The detached V1 module now composes a strict friend-list JSON/Netty handler after
+login, heartbeat, and room listing. It executes off-loop, derives presence from
+the single-account connection registry, suppresses stale completions, and closes
+without a pruning response on malformed input, saturation, or projection error.
+The product listener still does not install this module.
+
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,
 timestamps, Argon2id/legacy credential shape, duplicates, and empty input, then

@@ -439,6 +439,8 @@ Progress:
     partial-list prevention.
   - [x] Implement its repeatable-read PostgreSQL snapshot and batch account
     projection with exact message unread and V1 peer-read translation.
+  - [x] Add and compose the detached strict V1 friend-list JSON/Netty adapter,
+    process-local presence, fixed telemetry, and login-to-list PostgreSQL test.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

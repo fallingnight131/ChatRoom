@@ -3,6 +3,7 @@ package com.fallingnight.chat.gateway.compatibility.v1;
 import io.netty.channel.Channel;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -31,5 +32,15 @@ public final class V1AccountConnectionRegistry {
 
     int activeAccountCount() {
         return connections.size();
+    }
+
+    public Set<UUID> onlineAccounts(Set<UUID> accountIds) {
+        Objects.requireNonNull(accountIds, "accountIds");
+        return accountIds.stream()
+                .filter(accountId -> {
+                    Channel channel = connections.get(accountId);
+                    return channel != null && channel.isActive();
+                })
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 }

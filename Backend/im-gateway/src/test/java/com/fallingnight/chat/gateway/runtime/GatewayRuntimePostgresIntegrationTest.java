@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fallingnight.chat.gateway.compatibility.v1.V1ConnectionAttributes;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
@@ -156,6 +157,23 @@ class GatewayRuntimePostgresIntegrationTest {
                 } finally {
                     rooms.release();
                 }
+
+                imported.writeInbound(new TextWebSocketFrame(
+                        "{\"type\":\"FRIEND_LIST_REQ\",\"id\":\"friends-1\",\"data\":{}}"));
+                imported.runPendingTasks();
+                TextWebSocketFrame friends = imported.readOutbound();
+                try {
+                    assertTrue(friends.text().contains("\"type\":\"FRIEND_LIST_RSP\""));
+                    assertTrue(friends.text().contains("\"friendshipId\":9"));
+                    assertTrue(friends.text().contains("\"friendId\":44"));
+                    assertTrue(friends.text().contains("\"username\":\"imported-peer\""));
+                    assertTrue(friends.text().contains("\"unread\":2"));
+                    assertTrue(friends.text().contains("\"peerLastReadMessageId\":101"));
+                    assertTrue(friends.text().contains("\"pendingFriendRequests\":1"));
+                    assertFalse(friends.text().contains("10000000-0000"));
+                } finally {
+                    friends.release();
+                }
             } finally {
                 imported.finishAndReleaseAll();
             }
@@ -192,6 +210,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 admission,
                 events,
                 V1RoomDirectoryEventSink.noop(),
+                V1FriendDirectoryEventSink.noop(),
                 java.time.Duration.ofSeconds(10),
                 java.time.Duration.ofSeconds(15),
                 java.time.Duration.ofSeconds(90)));
@@ -213,6 +232,7 @@ class GatewayRuntimePostgresIntegrationTest {
     private static void seedV1CompatibilityAccounts(
             String url, String user, String password) throws Exception {
         UUID imported = UUID.fromString("10000000-0000-0000-0000-000000000042");
+        UUID peer = UUID.fromString("15000000-0000-0000-0000-000000000044");
         UUID nativeV2 = UUID.fromString("20000000-0000-0000-0000-000000000043");
         try (Connection connection = DriverManager.getConnection(url, user, password);
                 Statement truncate = connection.createStatement()) {
@@ -230,13 +250,19 @@ class GatewayRuntimePostgresIntegrationTest {
                 account.setString(3, "Native V2");
                 account.setString(4, HASH);
                 account.addBatch();
+                account.setObject(1, peer);
+                account.setString(2, "imported-peer");
+                account.setString(3, "Imported Peer");
+                account.setString(4, HASH);
+                account.addBatch();
                 account.executeBatch();
             }
             try (PreparedStatement mapping = connection.prepareStatement(
                     "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
-                            + "VALUES (42, ?)")) {
+                            + "VALUES (42, ?), (44, ?)")) {
                 mapping.setObject(1, imported);
-                assertEquals(1, mapping.executeUpdate());
+                mapping.setObject(2, peer);
+                assertEquals(2, mapping.executeUpdate());
             }
             UUID importedRoom = UUID.fromString("30000000-0000-0000-0000-000000000007");
             UUID unrelatedRoom = UUID.fromString("30000000-0000-0000-0000-000000000008");
@@ -281,6 +307,51 @@ class GatewayRuntimePostgresIntegrationTest {
                 mapping.addBatch();
                 mapping.executeBatch();
             }
+            seedFriendDirectory(connection, imported, peer);
+        }
+    }
+
+    private static void seedFriendDirectory(
+            Connection connection, UUID imported, UUID peer) throws Exception {
+        UUID direct = UUID.fromString("40000000-0000-0000-0000-000000000009");
+        UUID device = UUID.fromString("50000000-0000-0000-0000-000000000044");
+        UUID firstMessage = UUID.fromString("60000000-0000-0000-0000-000000000101");
+        UUID secondMessage = UUID.fromString("60000000-0000-0000-0000-000000000102");
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("INSERT INTO chat.device(id, account_id, client_device_id, platform) "
+                    + "VALUES ('" + device + "', '" + peer + "', 'peer-device', 'LEGACY')");
+            statement.execute("INSERT INTO chat.conversation(id, kind, next_sequence) "
+                    + "VALUES ('" + direct + "', 'DIRECT', 3)");
+            statement.execute("INSERT INTO chat.direct_conversation VALUES ('" + direct
+                    + "', '" + imported + "', '" + peer + "')");
+            statement.execute("INSERT INTO chat.conversation_member("
+                    + "conversation_id, account_id, last_read_sequence) VALUES "
+                    + "('" + direct + "', '" + imported + "', 0), "
+                    + "('" + direct + "', '" + peer + "', 1)");
+            statement.execute("INSERT INTO chat.legacy_v1_conversation_map("
+                    + "legacy_kind, legacy_conversation_id, conversation_id) "
+                    + "VALUES ('FRIENDSHIP', 9, '" + direct + "')");
+            for (int sequence = 1; sequence <= 2; sequence++) {
+                UUID message = sequence == 1 ? firstMessage : secondMessage;
+                statement.execute("INSERT INTO chat.conversation_entry("
+                        + "conversation_id, conversation_sequence, entry_kind) VALUES ('"
+                        + direct + "', " + sequence + ", 'MESSAGE')");
+                statement.execute("INSERT INTO chat.message(id, conversation_id, "
+                        + "conversation_sequence, sender_account_id, sender_device_id, "
+                        + "client_message_id, message_type, payload, payload_sha256) VALUES ('"
+                        + message + "', '" + direct + "', " + sequence + ", '" + peer
+                        + "', '" + device + "', 'peer-" + sequence
+                        + "', 100, decode('01','hex'), decode('"
+                        + "00".repeat(32) + "','hex'))");
+                statement.execute("INSERT INTO chat.legacy_v1_message_map(legacy_kind, "
+                        + "legacy_message_id, legacy_conversation_id, conversation_id, message_id) "
+                        + "VALUES ('FRIENDSHIP', " + (100 + sequence) + ", 9, '"
+                        + direct + "', '" + message + "')");
+            }
+            statement.execute("INSERT INTO chat.contact_request("
+                    + "id, requester_account_id, recipient_account_id) VALUES ('"
+                    + UUID.fromString("70000000-0000-0000-0000-000000000001") + "', '"
+                    + peer + "', '" + imported + "')");
         }
     }
 
@@ -299,7 +370,8 @@ class GatewayRuntimePostgresIntegrationTest {
         try (Connection connection = DriverManager.getConnection(url, user, password);
                 Statement statement = connection.createStatement();
                 ResultSet result = statement.executeQuery(
-                        "SELECT client_device_id FROM chat.device")) {
+                        "SELECT client_device_id FROM chat.device "
+                                + "WHERE client_device_id = 'legacy-v1-web'")) {
             assertTrue(result.next());
             return result.getString(1);
         }

@@ -307,6 +307,12 @@ also includes `peerLastReadMessageId` for restart recovery. This is a private-
 conversation read watermark, not a per-device delivered receipt or a general
 room receipt.
 
+The detached Java compatibility module now reproduces `FRIEND_LIST_RSP` from
+imported PostgreSQL state, including numeric friendship/friend IDs, online,
+message-row unread count, `peerLastReadMessageId`, and pending request count.
+Any incomplete compatibility projection closes the detached connection rather
+than sending an empty authoritative list. This route remains inactive.
+
 ### Recall
 
 Recall is limited to 120 seconds for normal user recall. Administration has
