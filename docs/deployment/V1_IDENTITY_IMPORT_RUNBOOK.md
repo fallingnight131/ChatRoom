@@ -1,12 +1,14 @@
-# V1 Identity Import Runbook
+# V1 Identity, Conversation, and Message Import Runbook
 
 Status: M3 rehearsal runbook. Do not use it to switch production authority yet.
 
 The existing `preview`/`verify-final`/`apply` commands cover V1 `users` identity
 material. The additive `conversation-*` commands cover rooms, room memberships,
-administrators, and accepted friendships only after identities exist. Messages,
-friend requests, files, avatars, read-sequence translation, and active sessions
-remain outside this runbook.
+administrators, and accepted friendships only after identities exist. The
+additive `message-*` commands then cover retained message text, recalls,
+administrative deletion audit events, translated read sequences, compatibility
+maps, and preserved high watermarks. Attachment bytes, friend requests, avatars,
+and active sessions remain outside this runbook.
 Completing an apply does not authorize routing user traffic to Java V2.
 
 ## Preconditions
@@ -139,6 +141,41 @@ same source, backup, proof, and PostgreSQL target. Keep every V1 writer stopped.
    Imported `last_read_sequence` remains zero until message import translates
    retained V1 read-message IDs.
 
+## Message history apply rehearsal
+
+Run this only after identity and conversation applies succeeded against the same
+quiesced source, final backup/proof, and PostgreSQL target.
+
+1. Preview the verified state/payload bundle against PostgreSQL:
+
+   ```bash
+   ./gradlew --no-daemon :migration-cli:run --args='message-preview <v1.db> <final-backup.db> <final-proof.properties>'
+   ```
+
+   Require `status=READY`, zero issues, and archive both
+   `message_state_fingerprint_sha256` and
+   `message_payload_fingerprint_sha256`. The command does not print message
+   content or file/profile metadata.
+
+2. Reconcile the current source and protected backup again with both explicit
+   fingerprints, without touching PostgreSQL:
+
+   ```bash
+   ./gradlew --no-daemon :migration-cli:run --args='message-verify-final <v1.db> <final-backup.db> <final-proof.properties> <state-fingerprint> <payload-fingerprint>'
+   ```
+
+3. Apply with the exact same confirmation pair:
+
+   ```bash
+   ./gradlew --no-daemon :migration-cli:run --args='message-apply <v1.db> <final-backup.db> <final-proof.properties> <state-fingerprint> <payload-fingerprint>'
+   ```
+
+4. Require `status=APPLIED`; inserted plus already-imported counts must equal
+   the reported source message/entry counts; issues must be zero; and
+   `import_run_id` must be non-empty. Verify `chat.message_import_run` through an
+   approved read-only database channel. An identical rerun is permitted and
+   must report zero insertable messages and entries.
+
 ## Stop conditions
 
 Stop immediately on a changed fingerprint, backup/proof mismatch, target
@@ -149,3 +186,8 @@ the command pass. Preserve artifacts and investigate under a new reviewed plan.
 For conversation commands, also stop on self friendship, dangling/duplicate
 room graph, missing imported account, unexpected target membership, direct-pair
 collision, or any mapping/role/title/timestamp difference.
+For message commands, also stop on either fingerprint changing, source/backup
+bundle disagreement, missing or disabled actors, message/sequence/idempotency
+collision, unexpected target entries/messages, mapping/event differences, or
+read/high-watermark drift. Restore the pre-import PostgreSQL backup after a
+failed cutover rehearsal; never delete audit or compatibility rows piecemeal.

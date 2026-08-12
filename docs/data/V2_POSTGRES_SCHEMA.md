@@ -135,13 +135,16 @@ write this row in the same transaction as all message target state.
 V011 adds the bounded deletion-operator display-name snapshot required to
 preserve V1 moderation history independently of later account profile changes.
 
-The message importer now provides a repeatable-read, no-write target preview.
+The message importer provides a repeatable-read, no-write target preview.
 It compares the exact typed conversation mapping and allowed pre/post high
 watermark, synthetic legacy device, message UUID/sequence/idempotency identity,
 payload hash, creation/recall/deletion entry, compatibility mapping, active
-member read cursor, and absence of unexpected target rows. Serializable apply
-and audit persistence remain the next step; preview alone never makes
-PostgreSQL authoritative.
+member read cursor, and absence of unexpected target rows. Its serializable
+apply locks the import target, inserts only missing exact rows, reconciles every
+message/entry/event/map/device/cursor, re-verifies the source against the
+protected backup, and writes `message_import_run` before the same commit. The
+offline command requires both state and payload fingerprints. These tools remain
+inactive migration boundaries and do not make PostgreSQL traffic-authoritative.
 
 ## V1 identity import boundary
 

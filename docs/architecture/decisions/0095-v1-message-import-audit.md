@@ -58,6 +58,7 @@ Disposable PostgreSQL integration verification exercises a mixed import with
 retained messages, a recalled message, a deletion audit event and legacy ID
 maps. It proves an identical apply is idempotent, a target payload conflict
 blocks before writes, and source SQLite drift detected before commit rolls back
-the whole transaction without adding an audit row. This completes the internal
-atomic writer; exposing it through the offline operator CLI remains a separate
-delivery slice.
+the whole transaction without adding an audit row. The offline operator CLI now
+exposes separate preview/final-verify/apply actions and requires both logical
+fingerprints; its real-PostgreSQL gate exercises the ordered identity,
+conversation, and message command path without exposing message content.

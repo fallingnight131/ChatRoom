@@ -3,6 +3,7 @@ package com.fallingnight.chat.migration;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ConversationImporter;
+import com.fallingnight.chat.persistence.postgres.migration.PostgresV1MessageImporter;
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportInputVerifier;
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportPlan;
 import com.fallingnight.chat.persistence.postgres.migration.V1ConversationImportReport;
@@ -11,11 +12,17 @@ import com.fallingnight.chat.persistence.postgres.migration.V1IdentityBackupProo
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportInputVerifier;
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportPlan;
 import com.fallingnight.chat.persistence.postgres.migration.V1IdentityImportReport;
+import com.fallingnight.chat.persistence.postgres.migration.V1MessageImportBundleVerifier;
+import com.fallingnight.chat.persistence.postgres.migration.V1MessageImportReport;
+import com.fallingnight.chat.persistence.postgres.migration.V1MessagePayloadImportInputVerifier;
+import com.fallingnight.chat.persistence.postgres.migration.V1MessageStateImportInputVerifier;
+import com.fallingnight.chat.persistence.postgres.migration.V1MessageTargetImportPlanner;
 import com.fallingnight.chat.persistence.postgres.migration.V1SqliteIdentityBackup;
 import com.fallingnight.chat.persistence.postgres.migration.V1SqliteIdentitySource;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityBackup;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1IdentityImportInput;
 import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1ConversationImportInput;
+import com.fallingnight.chat.persistence.postgres.migration.VerifiedV1MessageImportBundle;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -23,7 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 import org.postgresql.ds.PGSimpleDataSource;
 
-/** Offline operator entry point for the inactive M3 V1 identity migration slice. */
+/** Offline operator entry point for the inactive M3 V1-to-V2 migration slices. */
 public final class IdentityMigrationMain {
     private static final String URL = "CHATROOM_MIGRATION_POSTGRES_URL";
     private static final String USER = "CHATROOM_MIGRATION_POSTGRES_USER";
@@ -69,6 +76,15 @@ public final class IdentityMigrationMain {
             }
             if (args.length == 5 && "conversation-apply".equals(args[0])) {
                 return conversationApply(args, environment, output);
+            }
+            if (args.length == 4 && "message-preview".equals(args[0])) {
+                return messagePreview(args, environment, output);
+            }
+            if (args.length == 6 && "message-verify-final".equals(args[0])) {
+                return messageVerifyFinal(args, output);
+            }
+            if (args.length == 6 && "message-apply".equals(args[0])) {
+                return messageApply(args, environment, output);
             }
             usage(error);
             return 64;
@@ -217,6 +233,66 @@ public final class IdentityMigrationMain {
         return input;
     }
 
+    private static int messagePreview(
+            String[] args, Map<String, String> environment, PrintStream output) {
+        VerifiedV1MessageImportBundle bundle = verifiedMessageBundle(
+                args[1], args[2], args[3]);
+        V1MessageImportReport report = messageImporter(environment).preview(
+                new V1MessageTargetImportPlanner().plan(bundle));
+        printMessageReport(output, report, report.readyToApply() ? "READY" : "BLOCKED");
+        return report.readyToApply() ? 0 : 2;
+    }
+
+    private static int messageVerifyFinal(String[] args, PrintStream output) {
+        VerifiedV1MessageImportBundle bundle = confirmedMessageBundle(args);
+        output.println("status=MESSAGE_FINAL_INPUT_VERIFIED");
+        output.println("message_state_fingerprint_sha256="
+                + bundle.statePlan().sourceFingerprintSha256());
+        output.println("message_payload_fingerprint_sha256="
+                + bundle.payloadPlan().sourceFingerprintSha256());
+        output.println("source_messages=" + bundle.statePlan().sourceMessageRows().size());
+        output.println("source_deletion_events="
+                + bundle.statePlan().sourceDeletionEventRows().size());
+        return 0;
+    }
+
+    private static int messageApply(
+            String[] args, Map<String, String> environment, PrintStream output) {
+        V1MessageImportReport report = messageImporter(environment).apply(
+                confirmedMessageBundle(args));
+        printMessageReport(output, report, "APPLIED");
+        return 0;
+    }
+
+    private static VerifiedV1MessageImportBundle confirmedMessageBundle(String[] args) {
+        requireFingerprint(args[4], "invalid message-state confirmation fingerprint");
+        requireFingerprint(args[5], "invalid message-payload confirmation fingerprint");
+        VerifiedV1MessageImportBundle bundle = verifiedMessageBundle(
+                args[1], args[2], args[3]);
+        if (!args[4].equals(bundle.statePlan().sourceFingerprintSha256())
+                || !args[5].equals(bundle.payloadPlan().sourceFingerprintSha256())) {
+            throw new IllegalArgumentException("message confirmation fingerprint mismatch");
+        }
+        return bundle;
+    }
+
+    private static VerifiedV1MessageImportBundle verifiedMessageBundle(
+            String source, String backup, String proofPath) {
+        VerifiedV1IdentityBackup proof = new V1IdentityBackupProofFile()
+                .read(Path.of(proofPath));
+        var state = new V1MessageStateImportInputVerifier()
+                .verify(Path.of(source), Path.of(backup), proof);
+        var payload = new V1MessagePayloadImportInputVerifier()
+                .verify(Path.of(source), Path.of(backup), proof);
+        return new V1MessageImportBundleVerifier().combine(state, payload);
+    }
+
+    private static void requireFingerprint(String value, String message) {
+        if (!value.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
     private static PostgresV1IdentityImporter importer(Map<String, String> environment) {
         return new PostgresV1IdentityImporter(dataSource(environment));
     }
@@ -224,6 +300,11 @@ public final class IdentityMigrationMain {
     private static PostgresV1ConversationImporter conversationImporter(
             Map<String, String> environment) {
         return new PostgresV1ConversationImporter(dataSource(environment));
+    }
+
+    private static PostgresV1MessageImporter messageImporter(
+            Map<String, String> environment) {
+        return new PostgresV1MessageImporter(dataSource(environment));
     }
 
     private static PGSimpleDataSource dataSource(Map<String, String> environment) {
@@ -283,6 +364,30 @@ public final class IdentityMigrationMain {
         }
     }
 
+    private static void printMessageReport(
+            PrintStream output, V1MessageImportReport report, String status) {
+        output.println("status=" + status);
+        output.println("message_state_fingerprint_sha256="
+                + report.stateFingerprintSha256());
+        output.println("message_payload_fingerprint_sha256="
+                + report.payloadFingerprintSha256());
+        output.println("source_messages=" + report.sourceMessages());
+        output.println("source_entries=" + report.sourceEntries());
+        output.println("source_legacy_devices=" + report.sourceLegacyDevices());
+        output.println("source_read_cursors=" + report.sourceReadCursors());
+        output.println("insertable_messages=" + report.insertableMessages());
+        output.println("already_imported_messages=" + report.alreadyImportedMessages());
+        output.println("insertable_entries=" + report.insertableEntries());
+        output.println("already_imported_entries=" + report.alreadyImportedEntries());
+        output.println("issues=" + report.issues().size());
+        report.issues().forEach(issue -> output.println(
+                "issue=" + issue.legacyKind() + ":" + issue.legacyConversationId()
+                        + ":" + issue.legacyMessageId() + ":" + issue.code()));
+        if (report.importRunId() != null) {
+            output.println("import_run_id=" + report.importRunId());
+        }
+    }
+
     private static void usage(PrintStream error) {
         error.println("usage:");
         error.println("  backup <v1-source.db> <new-backup.db> <new-proof.properties>");
@@ -295,5 +400,10 @@ public final class IdentityMigrationMain {
                 + "<proof.properties> <conversation-fingerprint>");
         error.println("  conversation-apply <v1-source.db> <backup.db> "
                 + "<proof.properties> <conversation-fingerprint>");
+        error.println("  message-preview <v1-source.db> <backup.db> <proof.properties>");
+        error.println("  message-verify-final <v1-source.db> <backup.db> "
+                + "<proof.properties> <state-fingerprint> <payload-fingerprint>");
+        error.println("  message-apply <v1-source.db> <backup.db> "
+                + "<proof.properties> <state-fingerprint> <payload-fingerprint>");
     }
 }

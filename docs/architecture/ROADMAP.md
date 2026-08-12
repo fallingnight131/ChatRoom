@@ -440,6 +440,8 @@ Progress:
     compatibility maps plus exact read-only message identity projection.
   - [x] Import verified V1 message payloads, recall/deletion entries, translated
     read cursors, and preserved high watermarks atomically before message cutover.
+  - [x] Add explicit offline message preview/final-verify/apply commands with
+    dual fingerprint confirmation, safe output, runbook, and real-PostgreSQL gate.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,

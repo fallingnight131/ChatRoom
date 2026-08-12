@@ -177,11 +177,14 @@ only through an ADR that validates the same sequencing, indexing, migration, and
 operations needs. SQLite remains appropriate for local clients and development,
 not as the long-term multi-instance server database.
 
-The additive M3 foundation now implements the `persistence-postgres` adapter,
+The additive M3 foundation implements the `persistence-postgres` adapter,
 forward-only Flyway history, and the constrained core identity/device,
 conversation, membership, and message tables described in
 `docs/data/V2_POSTGRES_SCHEMA.md`. It has no repository, imported V1 data, or
-traffic route yet, so V1 SQLite remains authoritative.
+production traffic cutover, so V1 SQLite remains authoritative. The offline
+migration path now imports identity, conversation metadata, retained messages,
+recalls/deletion audit entries, and translated cursors in that explicit order;
+it still grants no authority to the Java runtime.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,

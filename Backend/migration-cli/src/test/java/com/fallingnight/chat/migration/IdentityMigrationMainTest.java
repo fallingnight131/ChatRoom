@@ -175,6 +175,51 @@ class IdentityMigrationMainTest {
                 Clock.systemUTC()));
     }
 
+    @Test
+    void verifiesComposedMessageInputWithoutDatabaseOrSensitiveOutput() throws Exception {
+        Path source = temporary.resolve("message-private-source.db");
+        Path backup = temporary.resolve("message-protected-backup.db");
+        Path proof = temporary.resolve("message-proof.properties");
+        createMessageSource(source);
+        assertEquals(0, IdentityMigrationMain.run(
+                new String[] {"backup", source.toString(), backup.toString(), proof.toString()},
+                Map.of(),
+                new PrintStream(new ByteArrayOutputStream()),
+                new PrintStream(new ByteArrayOutputStream()),
+                Clock.fixed(Instant.parse("2026-08-12T12:00:00Z"), ZoneOffset.UTC)));
+
+        var backupProof = new com.fallingnight.chat.persistence.postgres.migration
+                .V1IdentityBackupProofFile().read(proof);
+        var state = new com.fallingnight.chat.persistence.postgres.migration
+                .V1MessageStateImportInputVerifier().verify(source, backup, backupProof);
+        var payload = new com.fallingnight.chat.persistence.postgres.migration
+                .V1MessagePayloadImportInputVerifier().verify(source, backup, backupProof);
+        ByteArrayOutputStream verifiedOutput = new ByteArrayOutputStream();
+
+        assertEquals(0, IdentityMigrationMain.run(
+                new String[] {"message-verify-final", source.toString(), backup.toString(),
+                    proof.toString(), state.plan().sourceFingerprintSha256(),
+                    payload.plan().sourceFingerprintSha256()},
+                Map.of(),
+                new PrintStream(verifiedOutput, true, StandardCharsets.UTF_8),
+                new PrintStream(new ByteArrayOutputStream()),
+                Clock.systemUTC()));
+
+        String output = verifiedOutput.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("status=MESSAGE_FINAL_INPUT_VERIFIED"));
+        assertTrue(output.contains("source_messages=1"));
+        assertFalse(output.contains(source.toString()));
+        assertFalse(output.contains("private message"));
+        assertEquals(70, IdentityMigrationMain.run(
+                new String[] {"message-verify-final", source.toString(), backup.toString(),
+                    proof.toString(), "0".repeat(64),
+                    payload.plan().sourceFingerprintSha256()},
+                Map.of(),
+                new PrintStream(new ByteArrayOutputStream()),
+                new PrintStream(new ByteArrayOutputStream()),
+                Clock.systemUTC()));
+    }
+
     private static void createSource(Path source) throws Exception {
         try (Connection connection = DriverManager.getConnection(
                 "jdbc:sqlite:" + source.toAbsolutePath());
@@ -217,6 +262,52 @@ class IdentityMigrationMainTest {
                     + "(10, 2, '2026-01-02 03:04:06', 0)");
             statement.execute("INSERT INTO friendships VALUES "
                     + "(20, 1, 2, '2026-01-02 03:04:07', 0, 0)");
+        }
+    }
+
+    private static void createMessageSource(Path source) throws Exception {
+        try (Connection connection = DriverManager.getConnection(
+                "jdbc:sqlite:" + source.toAbsolutePath());
+                Statement statement = connection.createStatement()) {
+            statement.execute("CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT UNIQUE, "
+                    + "display_name TEXT, password_hash TEXT, salt TEXT, created_at TEXT)");
+            statement.execute("CREATE TABLE rooms(id INTEGER PRIMARY KEY, name TEXT, "
+                    + "creator_id INTEGER, created_at TEXT)");
+            statement.execute("CREATE TABLE room_members(room_id INTEGER, user_id INTEGER, "
+                    + "joined_at TEXT, last_read_msg_id INTEGER)");
+            statement.execute("CREATE TABLE room_admins(room_id INTEGER, user_id INTEGER)");
+            statement.execute("CREATE TABLE friendships(id INTEGER PRIMARY KEY, user_id1 INTEGER, "
+                    + "user_id2 INTEGER, created_at TEXT, user1_last_read_msg_id INTEGER, "
+                    + "user2_last_read_msg_id INTEGER)");
+            statement.execute("CREATE TABLE messages(id INTEGER PRIMARY KEY, room_id INTEGER, "
+                    + "user_id INTEGER, content TEXT, content_type TEXT, file_name TEXT, "
+                    + "file_size INTEGER, file_id INTEGER, file_cleared INTEGER, "
+                    + "clear_reason TEXT, thumbnail TEXT, recalled INTEGER, sequence INTEGER, "
+                    + "mutation_sequence INTEGER, created_at TEXT)");
+            statement.execute("CREATE TABLE room_message_sequences(room_id INTEGER PRIMARY KEY, "
+                    + "last_sequence INTEGER)");
+            statement.execute("CREATE TABLE room_message_deletion_events(id INTEGER PRIMARY KEY, "
+                    + "room_id INTEGER, operator_user_id INTEGER, operator_name TEXT, "
+                    + "client_operation_id TEXT, command_fingerprint TEXT, mode TEXT, "
+                    + "message_ids_json TEXT, file_ids_json TEXT, cutoff_ms INTEGER, "
+                    + "deleted_count INTEGER, sequence INTEGER, created_at TEXT)");
+            statement.execute("CREATE TABLE friend_messages(id INTEGER PRIMARY KEY, "
+                    + "friendship_id INTEGER, sender_id INTEGER, content TEXT, content_type TEXT, "
+                    + "file_name TEXT, file_size INTEGER, file_id INTEGER, file_cleared INTEGER, "
+                    + "clear_reason TEXT, thumbnail TEXT, recalled INTEGER, sequence INTEGER, "
+                    + "mutation_sequence INTEGER, created_at TEXT)");
+            statement.execute("CREATE TABLE friendship_message_sequences("
+                    + "friendship_id INTEGER PRIMARY KEY, last_sequence INTEGER)");
+            statement.execute("INSERT INTO users VALUES (1, 'message-user', 'Message User', '"
+                    + "a".repeat(64) + "', 'salt', '2026-01-02 03:04:05')");
+            statement.execute("INSERT INTO rooms VALUES "
+                    + "(77, 'Private Room', 1, '2026-01-02 03:04:05')");
+            statement.execute("INSERT INTO room_members VALUES "
+                    + "(77, 1, '2026-01-02 03:04:05', 100)");
+            statement.execute("INSERT INTO messages VALUES "
+                    + "(100, 77, 1, 'private message', 'text', '', 0, 0, 0, '', '', "
+                    + "0, 1, NULL, '2026-01-02 03:04:06')");
+            statement.execute("INSERT INTO room_message_sequences VALUES (77, 1)");
         }
     }
 }

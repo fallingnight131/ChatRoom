@@ -205,11 +205,12 @@ reverified source/backup proof, atomically imports both credential generations,
 reconciles every target field, persists safe proof counts, repeats without
 duplicate accounts, and proves target conflicts leave account/audit state
 unchanged. This is an inactive adapter test, not an operator cutover command.
-The separate `migration-cli` module exposes offline `backup`, `verify-backup`,
-`preview`, and explicitly confirmed `apply` actions. Its unit tests verify the
-versioned proof artifact and safe output; the PostgreSQL verifier then exercises
-the real command boundary serially after repository tests. Operator procedure
-and stop conditions are documented in
+The separate `migration-cli` module exposes offline identity,
+`conversation-*`, and `message-*` preview/final-verify/apply actions. Message
+apply requires separate state and payload fingerprint confirmations. Unit tests
+verify the versioned proof artifact and safe output; the PostgreSQL verifier
+then exercises the ordered identity/conversation/message command boundary
+serially after repository tests. Operator procedure and stop conditions are documented in
 `docs/deployment/V1_IDENTITY_IMPORT_RUNBOOK.md`.
 
 Run the V2 PostgreSQL migration gate with local PostgreSQL server tools
