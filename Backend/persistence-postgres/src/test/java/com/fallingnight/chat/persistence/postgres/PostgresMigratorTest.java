@@ -29,6 +29,9 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRequestC
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendRemovalResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectMessageCommand;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectMessageResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectHistoryMessage;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectHistoryQuery;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1DirectHistoryResult;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
@@ -946,6 +949,157 @@ class PostgresMigratorTest {
         assertEquals(LegacyV1DirectMessageResult.Rejected.FRIENDSHIP_ACCESS_DENIED,
                 adapter.submit(new LegacyV1DirectMessageCommand(sender, device,
                         "message-target", "client-v1-3", "after removal", "text")));
+    }
+
+    @Test
+    @Order(96)
+    void readsCompleteMappedV1DirectHistoryWithSequencePaging() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID sender = UUID.randomUUID();
+        UUID target = UUID.randomUUID();
+        UUID outsider = UUID.randomUUID();
+        UUID senderDevice = UUID.randomUUID();
+        UUID targetDevice = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        UUID firstAccount = sender.toString().compareTo(target.toString()) < 0 ? sender : target;
+        UUID secondAccount = firstAccount.equals(sender) ? target : sender;
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'history-sender', 'History Sender', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'history-target', 'History Target', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'history-outsider', 'History Outsider', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    sender, target, outsider);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                            + "VALUES (11, ?), (12, ?), (13, ?)", sender, target, outsider);
+            execute(connection,
+                    "INSERT INTO chat.device(id, account_id, client_device_id, platform) "
+                            + "VALUES (?, ?, 'history-sender-device', 'LEGACY'), "
+                            + "(?, ?, 'history-target-device', 'LEGACY')",
+                    senderDevice, sender, targetDevice, target);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')", conversation);
+            execute(connection,
+                    "INSERT INTO chat.direct_conversation VALUES (?, ?, ?)",
+                    conversation, firstAccount, secondAccount);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id) "
+                            + "VALUES (?, ?), (?, ?)",
+                    conversation, sender, conversation, target);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map(legacy_kind, "
+                            + "legacy_conversation_id, conversation_id) "
+                            + "VALUES ('FRIENDSHIP', 199, ?)", conversation);
+        }
+
+        PostgresLegacyV1DirectMessageAdapter writer =
+                new PostgresLegacyV1DirectMessageAdapter(dataSource());
+        LegacyV1DirectMessageResult.Accepted first =
+                (LegacyV1DirectMessageResult.Accepted) writer.submit(
+                        new LegacyV1DirectMessageCommand(sender, senderDevice,
+                                "history-target", "history-client-1", "first", "text"));
+        LegacyV1DirectMessageResult.Accepted second =
+                (LegacyV1DirectMessageResult.Accepted) writer.submit(
+                        new LegacyV1DirectMessageCommand(target, targetDevice,
+                                "history-sender", "history-client-2", "smile", "emoji"));
+        try (Connection connection = connect()) {
+            UUID firstMessage;
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "SELECT id FROM chat.message WHERE conversation_id = ? "
+                            + "AND client_message_id = 'history-client-1'")) {
+                statement.setObject(1, conversation);
+                try (ResultSet row = statement.executeQuery()) {
+                    assertTrue(row.next());
+                    firstMessage = row.getObject(1, UUID.class);
+                }
+            }
+            execute(connection,
+                    "UPDATE chat.conversation SET next_sequence = 4 WHERE id = ?",
+                    conversation);
+            execute(connection,
+                    "INSERT INTO chat.conversation_entry(conversation_id, "
+                            + "conversation_sequence, entry_kind, occurred_at) "
+                            + "VALUES (?, 3, 'MESSAGE_RECALLED', transaction_timestamp())",
+                    conversation);
+            execute(connection,
+                    "INSERT INTO chat.message_recall_event(conversation_id, "
+                            + "conversation_sequence, message_id, actor_account_id, source) "
+                            + "VALUES (?, 3, ?, ?, 'V2')",
+                    conversation, firstMessage, sender);
+        }
+
+        PostgresLegacyV1DirectHistoryAdapter reader =
+                new PostgresLegacyV1DirectHistoryAdapter(dataSource());
+        LegacyV1DirectHistoryResult.Page latest =
+                (LegacyV1DirectHistoryResult.Page) reader.read(
+                        new LegacyV1DirectHistoryQuery(sender, "history-target", 1, 0, null));
+        assertFalse(latest.sequenceMode());
+        assertFalse(latest.hasMore());
+        assertEquals(3, latest.nextSequence());
+        assertEquals(List.of(second.legacyMessageId()), latest.messages().stream()
+                .map(LegacyV1DirectHistoryMessage::legacyMessageId).toList());
+        assertEquals("emoji", latest.messages().getFirst().contentType());
+        assertEquals("History Target", latest.messages().getFirst().senderDisplayName());
+
+        LegacyV1DirectHistoryResult.Page pageOne =
+                (LegacyV1DirectHistoryResult.Page) reader.read(
+                        new LegacyV1DirectHistoryQuery(sender, "history-target", 1, 0, 0L));
+        assertTrue(pageOne.sequenceMode());
+        assertTrue(pageOne.hasMore());
+        assertEquals(2, pageOne.nextSequence());
+        assertEquals(3, pageOne.lastSequence());
+        assertEquals(second.legacyMessageId(), pageOne.messages().getFirst().legacyMessageId());
+        assertFalse(pageOne.messages().getFirst().recalled());
+
+        LegacyV1DirectHistoryResult.Page pageTwo =
+                (LegacyV1DirectHistoryResult.Page) reader.read(
+                        new LegacyV1DirectHistoryQuery(sender, "history-target", 1, 0,
+                                pageOne.nextSequence()));
+        assertFalse(pageTwo.hasMore());
+        assertEquals(3, pageTwo.nextSequence());
+        LegacyV1DirectHistoryMessage recalled = pageTwo.messages().getFirst();
+        assertEquals(first.legacyMessageId(), recalled.legacyMessageId());
+        assertEquals(1, recalled.sequence());
+        assertEquals(3L, recalled.mutationSequence());
+        assertEquals(3, recalled.syncSequence());
+        assertTrue(recalled.recalled());
+        assertEquals("text", recalled.contentType());
+        assertEquals("first", recalled.content());
+        assertEquals(LegacyV1DirectHistoryResult.Rejected.INVALID_SEQUENCE_CURSOR,
+                reader.read(new LegacyV1DirectHistoryQuery(
+                        sender, "history-target", 10, 0, 4L)));
+        assertEquals(LegacyV1DirectHistoryResult.Rejected.FRIENDSHIP_ACCESS_DENIED,
+                reader.read(new LegacyV1DirectHistoryQuery(
+                        outsider, "history-target", 10, 0, null)));
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.legacy_v1_message_map SET legacy_content_type = NULL "
+                            + "WHERE legacy_message_id = ?", second.legacyMessageId());
+        }
+        assertThrows(MessagePersistenceException.class,
+                () -> reader.read(new LegacyV1DirectHistoryQuery(
+                        sender, "history-target", 10, 0, null)));
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.legacy_v1_message_map SET legacy_content_type = 'emoji' "
+                            + "WHERE legacy_message_id = ?", second.legacyMessageId());
+            execute(connection,
+                    "UPDATE chat.conversation SET next_sequence = 5 WHERE id = ?",
+                    conversation);
+            execute(connection,
+                    "INSERT INTO chat.conversation_entry(conversation_id, "
+                            + "conversation_sequence, entry_kind) "
+                            + "VALUES (?, 4, 'MESSAGE_RECALLED')", conversation);
+        }
+        assertThrows(MessagePersistenceException.class,
+                () -> reader.read(new LegacyV1DirectHistoryQuery(
+                        sender, "history-target", 10, 0, 3L)));
     }
 
     @Test

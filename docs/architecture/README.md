@@ -344,12 +344,15 @@ one authoritative live message to the target's current local connection. Exact
 retry emits no live message. Real PostgreSQL verifies both imported logins and
 retained history; product routing remains inactive.
 
-The next compatibility boundary defines V1 direct history as a bounded,
+The V1 direct-history boundary is a bounded,
 server-authorized projection rather than exposing canonical mixed entries.
 Latest pages preserve the existing timestamp path; reconnect pages advance by
 strict `syncSequence`. A recall entry is folded into its original mapped message
 with a separate mutation sequence. Missing compatibility mappings or unsupported
-entry state fail the whole page. No PostgreSQL adapter or handler exists yet.
+entry state fail the whole page. Its PostgreSQL adapter now reads one
+repeatable snapshot, verifies the complete conversation is representable, and
+advances final pages to the durable high watermark. No network handler is
+composed yet.
 
 V020 keeps canonical text and emoji as UTF-8 message type 1 while retaining the
 original `text`/`emoji` presentation value only in the V1 compatibility mapping.

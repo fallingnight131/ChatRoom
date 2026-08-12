@@ -491,6 +491,8 @@ Progress:
     entries into strict creation/mutation sequence pages for reconnect recovery.
   - [x] Preserve V1 text/emoji presentation in the isolated message mapping and
     backfill pre-cutover nulls only through verified source import.
+  - [x] Implement repeatable-read PostgreSQL V1 direct history with complete
+    mapping checks, recall folding, bounded paging, and gap-safe cursor advance.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

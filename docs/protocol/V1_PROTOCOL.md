@@ -299,12 +299,13 @@ in IndexedDB. Both request bounded follow-up pages after reconnect login. Room
 pages apply mixed message/event pages in cursor order; direct pages merge
 authoritative message/recall state using `syncSequence`.
 
-The detached Java direct-history boundary preserves both direct modes. It
-resolves the exact peer and active friendship from authenticated state, emits
+The detached Java direct-history boundary preserves both direct modes. Its
+PostgreSQL adapter now reads one repeatable snapshot and resolves the exact peer
+and active friendship from authenticated state, emits
 only mapped text/emoji messages, and folds a recall entry into the original row
 with `mutationSequence` and `recalled=true`. Sequence pages are strictly ordered
 by `syncSequence`, bounded to 100, and fail closed on missing V1 IDs or partial
-state. No PostgreSQL adapter or handler exists yet.
+state. No Java gateway handler is composed yet.
 
 Canonical PostgreSQL stores both V1 text and emoji as registered UTF-8 message
 type 1. V020 preserves the original `contentType` only in the V1 message mapping
