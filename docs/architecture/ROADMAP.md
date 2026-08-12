@@ -604,6 +604,9 @@ Progress:
 - [x] Require that artifact at protected Authenticode intake, re-attest public
   update trust from the signed client PE, and close it in signed candidate
   schema 6 beside signature and native install evidence.
+- [x] Define privacy-preserving stable/beta rollout steps and a fail-closed
+  advisory health decision that holds incomplete data and recommends halt only
+  after minimum event counts plus rate breaches.
 - [x] Compile a default-deny canonical Ed25519 verifier into the Windows client,
   align sequence precision, and package its pinned libsodium runtime without a
   trusted product key or network activation.

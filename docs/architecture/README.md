@@ -1200,6 +1200,13 @@ evidence, and public PEMs alongside publisher and native-install evidence.
 Downstream update signing therefore rejects historical schema 5 and any signed
 client whose compiled stable/beta trust cannot be reconstructed.
 
+ADR-0191 adds the first post-promotion rollout health policy. Stable and beta
+have separate approved percentage steps, minimum windows/sample counts, and
+failure/crash thresholds over identity-free aggregate counters. The write-once
+result is advisory: incomplete evidence holds, breaches recommend the existing
+halt/forward-fix path, and expansion still needs a future protected
+authorization that validates metrics provenance and the full promotion chain.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

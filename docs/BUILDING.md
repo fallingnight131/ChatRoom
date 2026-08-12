@@ -712,6 +712,26 @@ python3 Tests/windows_update_rollback_completion_test.py
 This proves the restored channel bytes at one instant, not downgrade of clients
 already on B or global continuous availability. See ADR-0184.
 
+Before broadening a staged rollout, evaluate a reviewed aggregate observability
+export against `packaging/windows/rollout-health-policy.json`:
+
+```bash
+python3 tools/windows_update_rollout_health.py record \
+  --completion /release/promotion-completion.json \
+  --candidate-root /release/windows-update-channel-candidate \
+  --metrics /release/aggregate-rollout-metrics.json \
+  --policy packaging/windows/rollout-health-policy.json \
+  --output /release/rollout-health-decision.json
+```
+
+Stable advances through `1/5/25/50/100` after at least two hours and 100 install
+outcomes; beta uses `10/25/50/100`, 30 minutes, and 25 outcomes. The exact input
+schema contains aggregate counters only. Output cannot authorize or mutate a
+channel: incomplete evidence is `hold`; `halt-recommended` uses the existing
+halt procedure and still needs a higher-sequence forward fix for updated
+clients. Metrics provenance and protected expansion authorization remain later
+gates. See ADR-0191.
+
 Before compiling a product-update-enabled Windows client, create and verify a
 short-lived public trust intent with
 `tools/windows_update_product_trust_intent.py`. It binds exact source/version,

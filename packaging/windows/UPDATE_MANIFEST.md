@@ -250,6 +250,14 @@ restored A and `windows_update_rollback_completion.py` binds it to the rollback
 execution within ten minutes. The record proves client-visible A bytes at that
 instant while preserving the requirement for a forward fix for B devices.
 
+Staged expansion uses the versioned aggregate policy in
+`rollout-health-policy.json`. `windows_update_rollout_health.py` requires exact
+release identity, fresh post-completion windows, monotonic aggregate counters,
+minimum volume/duration, and ceiling-basis-point failure/crash thresholds. It
+emits advisory `expand-eligible`, `hold`, `complete`, or `halt-recommended`
+evidence and has no publication authority. Metrics-source attestation and
+protected expansion authorization remain separate gates; see ADR-0191.
+
 Client trust provisioning begins with a write-once
 `windows_update_product_trust_intent.py` record. It extracts canonical raw
 Ed25519 public bytes from reviewed PEM files and binds their IDs/digests to one

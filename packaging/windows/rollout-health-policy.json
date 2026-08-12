@@ -1,0 +1,23 @@
+{
+  "channels": {
+    "beta": {
+      "emergencyCrashCount": 2,
+      "emergencyInstallFailureCount": 3,
+      "maxCrashBasisPoints": 200,
+      "maxInstallFailureBasisPoints": 500,
+      "minInstallOutcomes": 25,
+      "minObservationSeconds": 1800,
+      "rolloutSteps": [10, 25, 50, 100]
+    },
+    "stable": {
+      "emergencyCrashCount": 2,
+      "emergencyInstallFailureCount": 3,
+      "maxCrashBasisPoints": 50,
+      "maxInstallFailureBasisPoints": 100,
+      "minInstallOutcomes": 100,
+      "minObservationSeconds": 7200,
+      "rolloutSteps": [1, 5, 25, 50, 100]
+    }
+  },
+  "schemaVersion": 1
+}
