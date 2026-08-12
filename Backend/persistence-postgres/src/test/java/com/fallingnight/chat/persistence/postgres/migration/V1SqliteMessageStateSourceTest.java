@@ -45,7 +45,7 @@ class V1SqliteMessageStateSourceTest {
         assertTrue(failure.getMessage().contains("missing required migrated columns"));
     }
 
-    private static void createSource(Path database, boolean includeMutationColumn)
+    static void createSource(Path database, boolean includeMutationColumn)
             throws Exception {
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database);
                 Statement statement = connection.createStatement()) {

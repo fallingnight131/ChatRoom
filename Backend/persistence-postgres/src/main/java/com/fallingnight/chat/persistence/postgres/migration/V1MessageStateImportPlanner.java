@@ -1,10 +1,17 @@
 package com.fallingnight.chat.persistence.postgres.migration;
 
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1ConversationKind;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.security.DigestOutputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -13,11 +20,19 @@ import java.util.UUID;
 /** Pure validation and conservative cursor translation for V1 message state. */
 public final class V1MessageStateImportPlanner {
     public V1MessageStateImportPlan plan(V1MessageStateSourceSnapshot source) {
+        List<V1ConversationWatermarkRow> sourceWatermarks = sortedWatermarks(source.watermarks());
+        List<V1MessageCursorRow> sourceMessages = sortedMessages(source.messages());
+        List<V1RoomDeletionCursorRow> sourceDeletionEvents =
+                sortedDeletionEvents(source.roomDeletionEvents());
+        String fingerprint = fingerprint(
+                source.conversationPlan(), sourceWatermarks, sourceMessages, sourceDeletionEvents);
         List<V1MessageStateImportIssue> issues = new ArrayList<>();
         if (!source.conversationPlan().readyToCompareWithTarget()) {
             issues.add(issue(null, 0, "CONVERSATION_PLAN_NOT_READY",
                     "conversation metadata must be valid before message state"));
-            return new V1MessageStateImportPlan(List.of(), List.of(), issues);
+            return new V1MessageStateImportPlan(
+                    fingerprint, sourceMessages.size(), sourceDeletionEvents.size(),
+                    List.of(), List.of(), issues);
         }
 
         Map<LegacyKey, PlannedV1Conversation> conversations = new HashMap<>();
@@ -29,10 +44,10 @@ public final class V1MessageStateImportPlanner {
         }
 
         Map<LegacyKey, Long> watermarks = validateWatermarks(
-                source.watermarks(), conversations.keySet(), issues);
+                sourceWatermarks, conversations.keySet(), issues);
         Map<LegacyKey, List<V1MessageCursorRow>> messages = validateMessages(
-                source.messages(), conversations.keySet(), watermarks, issues);
-        validateDeletionEvents(source.roomDeletionEvents(), conversations.keySet(),
+                sourceMessages, conversations.keySet(), watermarks, issues);
+        validateDeletionEvents(sourceDeletionEvents, conversations.keySet(),
                 watermarks, messages, issues);
 
         List<PlannedV1ConversationCursor> cursors = new ArrayList<>();
@@ -64,7 +79,84 @@ public final class V1MessageStateImportPlanner {
                 .comparing((PlannedV1MemberReadCursor value) ->
                         value.conversationId().toString())
                 .thenComparing(value -> value.accountId().toString()));
-        return new V1MessageStateImportPlan(cursors, readCursors, issues);
+        return new V1MessageStateImportPlan(
+                fingerprint, sourceMessages.size(), sourceDeletionEvents.size(),
+                cursors, readCursors, issues);
+    }
+
+    private static List<V1ConversationWatermarkRow> sortedWatermarks(
+            List<V1ConversationWatermarkRow> source) {
+        List<V1ConversationWatermarkRow> result = new ArrayList<>(source);
+        result.sort(Comparator.comparing(V1ConversationWatermarkRow::legacyKind)
+                .thenComparingLong(V1ConversationWatermarkRow::legacyConversationId));
+        return result;
+    }
+
+    private static List<V1MessageCursorRow> sortedMessages(List<V1MessageCursorRow> source) {
+        List<V1MessageCursorRow> result = new ArrayList<>(source);
+        result.sort(Comparator.comparing(V1MessageCursorRow::legacyKind)
+                .thenComparingLong(V1MessageCursorRow::legacyMessageId)
+                .thenComparingLong(V1MessageCursorRow::legacyConversationId));
+        return result;
+    }
+
+    private static List<V1RoomDeletionCursorRow> sortedDeletionEvents(
+            List<V1RoomDeletionCursorRow> source) {
+        List<V1RoomDeletionCursorRow> result = new ArrayList<>(source);
+        result.sort(Comparator.comparingLong(V1RoomDeletionCursorRow::legacyEventId)
+                .thenComparingLong(V1RoomDeletionCursorRow::legacyRoomId));
+        return result;
+    }
+
+    private static String fingerprint(
+            V1ConversationImportPlan conversations,
+            List<V1ConversationWatermarkRow> watermarks,
+            List<V1MessageCursorRow> messages,
+            List<V1RoomDeletionCursorRow> deletionEvents) {
+        MessageDigest digest = digest();
+        try (DataOutputStream data = new DataOutputStream(
+                new DigestOutputStream(OutputStream.nullOutputStream(), digest))) {
+            data.writeUTF(conversations.sourceFingerprintSha256());
+            data.writeInt(watermarks.size());
+            for (V1ConversationWatermarkRow row : watermarks) {
+                data.writeUTF(row.legacyKind().name());
+                data.writeLong(row.legacyConversationId());
+                data.writeLong(row.lastSequence());
+            }
+            data.writeInt(messages.size());
+            for (V1MessageCursorRow row : messages) {
+                data.writeUTF(row.legacyKind().name());
+                data.writeLong(row.legacyConversationId());
+                data.writeLong(row.legacyMessageId());
+                data.writeLong(row.legacySenderUserId());
+                data.writeLong(row.creationSequence());
+                data.writeBoolean(row.mutationSequence() != null);
+                if (row.mutationSequence() != null) {
+                    data.writeLong(row.mutationSequence());
+                }
+                data.writeBoolean(row.recalled());
+                data.writeUTF(row.createdAt() == null ? "" : row.createdAt().toString());
+            }
+            data.writeInt(deletionEvents.size());
+            for (V1RoomDeletionCursorRow row : deletionEvents) {
+                data.writeLong(row.legacyEventId());
+                data.writeLong(row.legacyRoomId());
+                data.writeLong(row.legacyOperatorUserId());
+                data.writeLong(row.sequence());
+                data.writeUTF(row.createdAt() == null ? "" : row.createdAt().toString());
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (IOException exception) {
+            throw new IllegalStateException("in-memory message state fingerprint failed", exception);
+        }
+    }
+
+    private static MessageDigest digest() {
+        try {
+            return MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("SHA-256 is unavailable", exception);
+        }
     }
 
     private static Map<LegacyKey, Long> validateWatermarks(

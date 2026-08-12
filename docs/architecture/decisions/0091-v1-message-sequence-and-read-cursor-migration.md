@@ -65,5 +65,11 @@ runs SQLite `quick_check`, enables `query_only`, and reads conversation and
 message state inside one transaction snapshot. It reads no message body, file
 payload, credential, or deletion-command JSON in this planning phase.
 
+The plan fingerprint covers the validated conversation fingerprint, every
+watermark, retained message ID/sender/creation/mutation/recall/timestamp field,
+and deletion event ID/room/operator/sequence/timestamp field. Apply code must
+receive an in-memory capability produced by exact current-source, protected
+backup, and whole-file SHA-256 reconciliation, then reverify it before commit.
+
 This slice is read-only planning code. Rollback removes the planner and leaves
 both V1 and V2 durable state unchanged.

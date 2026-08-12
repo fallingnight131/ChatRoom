@@ -4,16 +4,22 @@ import java.util.List;
 
 /** Deterministic pre-write plan for V1 sequence high watermarks and read cursors. */
 public record V1MessageStateImportPlan(
+        String sourceFingerprintSha256,
+        int sourceMessages,
+        int sourceRoomDeletionEvents,
         List<PlannedV1ConversationCursor> conversationCursors,
         List<PlannedV1MemberReadCursor> memberReadCursors,
         List<V1MessageStateImportIssue> issues) {
     public V1MessageStateImportPlan {
+        java.util.Objects.requireNonNull(sourceFingerprintSha256, "sourceFingerprintSha256");
         conversationCursors = List.copyOf(conversationCursors);
         memberReadCursors = List.copyOf(memberReadCursors);
         issues = List.copyOf(issues);
     }
 
     public boolean readyToCompareWithTarget() {
-        return issues.isEmpty();
+        return issues.isEmpty()
+                && sourceMessages >= 0
+                && sourceRoomDeletionEvents >= 0;
     }
 }
