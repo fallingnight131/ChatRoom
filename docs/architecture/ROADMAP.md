@@ -546,6 +546,9 @@ Progress:
     real replacement-login recovery from PostgreSQL.
   - [x] Define bounded authenticated V1 room search with exact legacy identities,
     active-member counts, deterministic projection intent, and no UUID exposure.
+  - [x] Implement repeatable-read PostgreSQL V1 room search with exact numeric ID
+    lookup, escaped literal titles, active-member counts, and complete creator
+    mapping enforcement.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

@@ -750,6 +750,70 @@ class PostgresMigratorTest {
     }
 
     @Test
+    @Order(92)
+    void searchesMappedV1RoomsByExactIdOrLiteralTitle() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID actor = UUID.randomUUID(), creator = UUID.randomUUID(), nativeOwner = UUID.randomUUID();
+        UUID project = UUID.randomUUID(), numericTitle = UUID.randomUUID(), broken = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'room-searcher', 'Searcher', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'room-creator', 'Creator', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'room-native', 'Native', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    actor, creator, nativeOwner);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                            + "VALUES (41, ?), (42, ?)", actor, creator);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind, title) VALUES "
+                            + "(?, 'GROUP', 'Project %_ Alpha'), "
+                            + "(?, 'GROUP', '7'), (?, 'GROUP', 'Broken Room')",
+                    project, numericTitle, broken);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id, role) "
+                            + "VALUES (?, ?, 'OWNER'), (?, ?, 'MEMBER'), "
+                            + "(?, ?, 'OWNER'), (?, ?, 'OWNER')",
+                    project, creator, project, actor,
+                    numericTitle, creator, broken, nativeOwner);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id, role, "
+                            + "left_at) VALUES (?, ?, 'MEMBER', transaction_timestamp())",
+                    project, nativeOwner);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map(legacy_kind, "
+                            + "legacy_conversation_id, conversation_id) VALUES "
+                            + "('ROOM', 7, ?), ('ROOM', 8, ?), ('ROOM', 9, ?)",
+                    project, numericTitle, broken);
+        }
+
+        PostgresLegacyV1RoomSearchAdapter search =
+                new PostgresLegacyV1RoomSearchAdapter(dataSource());
+        var byId = search.search(actor, "7", 20);
+        assertEquals(1, byId.size()); assertEquals(7, byId.getFirst().legacyRoomId());
+        assertEquals("Project %_ Alpha", byId.getFirst().roomName());
+        assertEquals(42, byId.getFirst().legacyCreatorId());
+        assertEquals(2, byId.getFirst().memberCount());
+        assertEquals(List.of(7L), search.search(actor, "%_", 20).stream()
+                .map(entry -> entry.legacyRoomId()).toList());
+        assertEquals(List.of(7L), search.search(actor, "project", 20).stream()
+                .map(entry -> entry.legacyRoomId()).toList());
+        assertThrows(ConversationPersistenceException.class,
+                () -> search.search(actor, "broken", 20));
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.account SET disabled_at = transaction_timestamp() "
+                    + "WHERE id = ?", actor);
+        }
+        assertThrows(ConversationPersistenceException.class,
+                () -> search.search(actor, "project", 20));
+        assertThrows(IllegalArgumentException.class, () -> search.search(actor, "room", 0));
+    }
+
+    @Test
     @Order(93)
     void createsV1FriendRequestsWithConcurrentRetryAndReverseDetection() throws Exception {
         requireDatabase();

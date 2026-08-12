@@ -295,7 +295,11 @@ The next group-lifecycle boundary defines authenticated V1 room search. It
 accepts one bounded literal keyword, returns at most 20 completely mapped GROUP
 results with active-member counts, and keeps canonical identities internal.
 Positive decimal keywords may retain exact V1 room-ID lookup semantics; other
-keywords use literal title matching. No PostgreSQL adapter or handler exists yet.
+keywords use literal title matching. Its repeatable-read PostgreSQL adapter now
+requires an enabled mapped actor,
+orders and bounds results in SQL, counts only active members, and fails the
+whole query when the active OWNER cannot be projected to a V1 creator. No
+handler exists yet.
 
 Friend-request creation now has a transport-independent boundary. The requester
 comes only from authenticated state and PostgreSQL will resolve the exact target

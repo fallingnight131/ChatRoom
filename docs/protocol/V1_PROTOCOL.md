@@ -221,7 +221,10 @@ authenticated bounded read. It accepts a trimmed non-empty control-free keyword
 of at most 256 UTF-8 bytes and returns at most 20 UUID-free mapped rooms with
 `roomId`, `roomName`, `creatorId`, and active `memberCount`. A future PostgreSQL
 adapter will preserve positive decimal exact-ID lookup and otherwise apply
-literal case-insensitive title matching. No adapter or handler exists yet.
+literal case-insensitive title matching. The repeatable-read PostgreSQL adapter
+now enforces those lookup modes, requires
+an enabled mapped actor, counts active members, and rejects incomplete active-
+OWNER mappings instead of returning a partial list. No handler exists yet.
 
 ### Room chat
 
