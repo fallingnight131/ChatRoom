@@ -136,6 +136,11 @@ the verified path and exact signed size, digest, and publisher thumbprint. This
 is sufficient for final locked re-verification but is still not connected to
 the packaged helper or product lifecycle.
 
+An inactive asynchronous Windows handoff now stages the helper and matching Qt
+Core outside the installed directory and returns quit authorization only after
+the helper has opened the current parent and signaled the UUID event. It is not
+instantiated by product UI; successful signed install and restart are unproven.
+
 The Windows client now owns a session-local liveness mutex and refuses a second
 instance. NSIS checks the same mutex before mutation and returns 4 for a silent
 running-client attempt; native CI is configured to prove the current install and

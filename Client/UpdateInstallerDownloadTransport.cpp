@@ -70,7 +70,8 @@ bool UpdateInstallerDownloadTransport::start(
     }
 
     auto *file = new QTemporaryFile(
-        QDir(request.stagingDirectory).filePath(QStringLiteral("installer-XXXXXX.part")), this);
+        QDir(request.stagingDirectory).filePath(
+            QStringLiteral("installer-XXXXXX.exe.part")), this);
     file->setAutoRemove(false);
     if (!file->open() || !file->setPermissions(
             QFileDevice::ReadOwner | QFileDevice::WriteOwner)) {

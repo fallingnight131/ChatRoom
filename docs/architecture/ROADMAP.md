@@ -598,6 +598,10 @@ Progress:
 - [x] Preserve the signed installer size, SHA-256, and publisher thumbprint in a
   typed `PreparedInstaller` handoff from background trust through the complete
   update-check boundary instead of reducing readiness to a mutable path.
+- [x] Add an inactive asynchronous Windows handoff service that stages the
+  helper plus matching Qt Core outside the program directory, generates the
+  one-shot command/event/result contract, and authorizes normal quit only after
+  the helper has opened the exact parent process and signaled readiness.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,

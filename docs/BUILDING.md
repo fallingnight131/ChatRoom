@@ -170,6 +170,12 @@ builds `ChatRoomUpdateLauncher`; native Windows packaging includes it and is
 configured to prove parent handshake/wait, unsigned Setup rejection, atomic
 result evidence, and rejected-file cleanup without invoking an installer.
 
+`WindowsUpdateHandoffApplicationServiceTest` injects the platform handshake but
+uses real private-directory staging. It checks background execution, exact
+parent/UUID/hash arguments through the helper parser, helper plus Qt Core copies,
+parallel refusal, `readyToQuit` only after handshake, and rejection before
+launch when the installed runtime is incomplete.
+
 `UpdateStateRepositoryTest` checks creation/reload of an owner-only UUIDv4,
 atomic per-channel sequence/digest persistence, idempotence, replay/conflict
 rejection, and corrupt-state failure. The repository is compiled but no product
@@ -192,7 +198,8 @@ transport. It proves deferred rollout makes no request, concurrent work is
 rejected, trust runs off the application thread, and trust failure removes the
 file. Native real-Setup acceptance and launch are still not claimed.
 Its `Ready` assertion also requires a complete path/size/SHA-256/publisher
-thumbprint value; rejected results expose an empty value.
+thumbprint value and an atomically activated random `.exe`; rejected results
+expose an empty value.
 
 `UpdateManifestFetchTransportTest` exercises the separate default-off discovery
 transport with deterministic HTTPS responses. It checks exact sequential

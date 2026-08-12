@@ -684,6 +684,13 @@ passed background trust. The complete check service preserves those bytes with
 the target version, allowing the future helper adapter to repeat ADR-0128
 without reconstructing or weakening manifest evidence.
 
+ADR-0131 adds the inactive client-side handoff. After background trust, the
+`.exe.part` file is atomically activated to a random `.exe`; a worker copies the
+installed helper and matching `Qt6Core.dll` to an owner-only run directory
+outside the program tree, builds the UUID command from `PreparedInstaller`, and
+waits up to 15 seconds for the helper's parent-handle handshake. Only that
+success returns `readyToQuit`; no product UI calls the service yet.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

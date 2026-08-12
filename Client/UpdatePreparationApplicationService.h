@@ -33,7 +33,10 @@ public:
         QByteArray sha256;
         QByteArray signerThumbprintSha256;
 
-        bool isComplete() const;
+        bool isComplete() const {
+            return !path.isEmpty() && size > 0 && sha256.size() == 32
+                && signerThumbprintSha256.size() == 32;
+        }
     };
 
     UpdatePreparationApplicationService(

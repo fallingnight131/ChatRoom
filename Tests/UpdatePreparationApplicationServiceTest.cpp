@@ -217,6 +217,7 @@ int main(int argc, char *argv[]) {
     if (!check(ready.outcome == Service::Outcome::Ready, ready.error)
             || !check(background.load(), QStringLiteral("trust verification blocked application thread"))
             || !check(ready.installer.isComplete()
+                          && ready.installer.path.endsWith(QStringLiteral(".exe"))
                           && ready.installer.size == payload.size()
                           && ready.installer.sha256 == QCryptographicHash::hash(
                               payload, QCryptographicHash::Sha256)

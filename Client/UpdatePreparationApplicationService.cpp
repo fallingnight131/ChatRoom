@@ -3,16 +3,12 @@
 #include "UpdateInstallerDownloadTransport.h"
 
 #include <QFile>
+#include <QFileInfo>
 #include <QFutureWatcher>
 #include <QNetworkAccessManager>
 #include <QtConcurrent/QtConcurrentRun>
 
 #include <utility>
-
-bool UpdatePreparationApplicationService::PreparedInstaller::isComplete() const {
-    return !path.isEmpty() && size > 0 && sha256.size() == 32
-        && signerThumbprintSha256.size() == 32;
-}
 
 UpdatePreparationApplicationService::UpdatePreparationApplicationService(
         UpdateManifestSignatureVerifier::TrustedKeys trustedKeys,
@@ -155,7 +151,7 @@ void UpdatePreparationApplicationService::handleDownload(
 
 void UpdatePreparationApplicationService::handleTrustFinished() {
     const auto trust = m_trustWatcher->result();
-    const PreparedInstaller installer = m_verifyingInstaller;
+    PreparedInstaller installer = m_verifyingInstaller;
     m_verifyingInstaller = {};
     if (m_cancelRequested) {
         QFile::remove(installer.path);
@@ -176,5 +172,21 @@ void UpdatePreparationApplicationService::handleTrustFinished() {
                       QStringLiteral("verified installer metadata is incomplete"));
         return;
     }
+    if (!installer.path.endsWith(QStringLiteral(".exe.part"), Qt::CaseInsensitive)) {
+        QFile::remove(installer.path);
+        emit finished(Outcome::Rejected, {},
+                      QStringLiteral("verified installer staging name is invalid"));
+        return;
+    }
+    QString executablePath = installer.path;
+    executablePath.chop(QStringLiteral(".part").size());
+    if (QFileInfo::exists(executablePath)
+            || !QFile::rename(installer.path, executablePath)) {
+        QFile::remove(installer.path);
+        emit finished(Outcome::Rejected, {},
+                      QStringLiteral("verified installer could not be activated"));
+        return;
+    }
+    installer.path = executablePath;
     emit finished(Outcome::Ready, installer, {});
 }

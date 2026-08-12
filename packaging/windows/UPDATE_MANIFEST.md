@@ -52,6 +52,9 @@ and restarts only on installer exit zero. Client handoff remains inactive.
 ADR-0130 ensures a `Ready` update retains the signed size, digest, and publisher
 thumbprint with its path through the full check service, so client handoff does
 not need to reconstruct security metadata.
+ADR-0131 stages the helper and matching Qt Core outside the program tree, binds
+the complete prepared evidence into its one-shot command, and permits client
+quit only after the helper signals that it owns the parent-process wait.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin
