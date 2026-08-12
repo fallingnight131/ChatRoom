@@ -33,6 +33,38 @@ def validate_release(
     return {**identity, "releaseId": release_id}
 
 
+def validate_release_from_candidate(
+    release_root: Path,
+    now_utc: datetime,
+) -> dict[str, object]:
+    """Reconstruct public validation inputs from a closed retained candidate."""
+    try:
+        outer = json.loads(
+            (release_root / "windows-update-channel-candidate.json").read_text(
+                encoding="utf-8"))
+        inner = json.loads(
+            (release_root / "windows/windows-release-candidate.json").read_text(
+                encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ManifestError("Windows update retained release identity is unreadable") from error
+    if not isinstance(outer, dict) or not isinstance(inner, dict):
+        raise ManifestError("Windows update retained release identity is invalid")
+    required = (
+        outer.get("version"), outer.get("sourceRevision"), outer.get("channel"),
+        inner.get("qtVersion"), outer.get("expectedAuthenticodeSignerSha256"),
+        outer.get("updatePublicKeyFileSha256"),
+    )
+    if not all(isinstance(value, str) and value for value in required):
+        raise ManifestError("Windows update retained release identity is invalid")
+    with tempfile.TemporaryDirectory(prefix="windows-update-version-") as directory:
+        version_file = Path(directory) / "VERSION"
+        version_file.write_text(str(required[0]) + "\n", encoding="utf-8")
+        return validate_release(
+            release_root, version_file, str(required[1]), str(required[2]),
+            str(required[3]), str(required[4]), str(required[5]), now_utc,
+        )
+
+
 def stage_release(
     candidate_root: Path,
     store_root: Path,

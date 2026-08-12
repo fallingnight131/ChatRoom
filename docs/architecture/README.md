@@ -1126,6 +1126,13 @@ identical staging is idempotent and changed content fails. The store has no
 active pointer or network client, keeping prepositioning separate from the
 short-lived authorization consumer and externally observed channel switch.
 
+ADR-0180 consumes the authorization exactly once. It reconstructs both complete
+immutable releases, requires the active manifest digest/sequence to equal the
+approved current snapshot, persists consumption before mutation, and atomically
+switches one pointer. Failure after switching restores the old pointer while
+keeping the authorization spent. Result evidence remains pending until public
+HTTPS proves the manifest, detached signature, and Setup bytes users receive.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

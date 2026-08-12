@@ -216,3 +216,10 @@ copy the complete candidate into an immutable release directory addressed by
 the canonical manifest SHA-256. It revalidates after copying and atomically
 renames, but contains no active pointer or network operation. Thus a provider
 can preposition every byte before a later compare-and-swap activation.
+
+The local reference executor consumes one ADR-0178 authorization, verifies the
+active immutable release against the approved current manifest, records
+consumption before mutation, and atomically switches one `active-channel.json`
+pointer. Its evidence remains `awaiting-external-observation`; failed evidence
+persistence restores the old pointer without making the authorization reusable.
+Provider implementations must preserve those compare-and-swap semantics.

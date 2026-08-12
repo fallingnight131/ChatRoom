@@ -14,7 +14,9 @@ from artifact_manifest_common import ManifestError  # noqa: E402
 from windows_update_channel_candidate_test import (  # noqa: E402
     WindowsUpdateChannelCandidateTest,
 )
-from windows_update_channel_store import stage_release, validate_release  # noqa: E402
+from windows_update_channel_store import (  # noqa: E402
+    stage_release, validate_release, validate_release_from_candidate,
+)
 
 
 class WindowsUpdateChannelStoreTest(WindowsUpdateChannelCandidateTest):
@@ -41,6 +43,10 @@ class WindowsUpdateChannelStoreTest(WindowsUpdateChannelCandidateTest):
             self.signer, self.public_digest(), self.now,
         )
         self.assertEqual(verified["releaseId"], first["releaseId"])
+        self.assertEqual(
+            validate_release_from_candidate(release, self.now)["releaseId"],
+            first["releaseId"],
+        )
         self.assertTrue((release / "windows/client/ChatClient.exe").is_file())
 
     def test_rejects_changed_staged_bytes_and_unsafe_release_boundary(self) -> None:

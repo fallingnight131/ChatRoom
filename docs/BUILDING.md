@@ -634,6 +634,23 @@ python3 Tests/windows_update_channel_store_test.py
 Provider storage must preserve the same immutable, content-addressed,
 pre-stage-before-activate behavior. See ADR-0179.
 
+`tools/windows_update_release_execution.py execute` is the authorization
+consumer for a pointer-based provider adapter. It revalidates the target and
+currently active complete releases, requires exact expected-current manifest
+SHA/sequence, writes a non-replay marker before mutation, atomically switches
+`active-channel.json`, and writes
+`channel-pointer-switched-awaiting-external-observation` evidence. If final
+validation or evidence persistence fails, it restores the previous pointer but
+retains consumption, so retry requires a new authorization:
+
+```bash
+python3 Tests/windows_update_release_execution_test.py
+```
+
+This proves local adapter semantics only. A provider must supply equivalent
+conditional pointer mutation, and public HTTPS observations remain required.
+See ADR-0180.
+
 The provider-neutral post-signing acceptance policy is checked with:
 
 ```bash
