@@ -28,6 +28,9 @@ provenance.
 - Add typed recall and bulk-deletion event tables keyed by their
   `conversation_entry`. Do not use an untyped event payload as the only durable
   truth.
+- Retain the bounded operator display-name snapshot on a deletion event in
+  addition to the actor account UUID. Later profile renames must not rewrite
+  historical moderation presentation inherited from V1.
 - Extend the durable device platform constraint with `LEGACY`. A later import
   creates one deterministic, non-authenticating synthetic legacy device per V1
   sender account. `LEGACY` is migration provenance, not a supported client

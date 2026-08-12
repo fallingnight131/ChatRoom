@@ -132,6 +132,9 @@ devices, and translated read cursors independently while binding them to both
 logical fingerprints and the physical backup proof. The future importer must
 write this row in the same transaction as all message target state.
 
+V011 adds the bounded deletion-operator display-name snapshot required to
+preserve V1 moderation history independently of later account profile changes.
+
 ## V1 identity import boundary
 
 The identity importer first offers a repeatable-read, no-write preview. Any
@@ -232,7 +235,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through V010, reruns migration as a simulated
+cluster, migrates a clean database through V011, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable
