@@ -146,6 +146,13 @@ pending rows with active membership/account/device locking and exact owner-
 scoped idempotency. They return no storage credential or endpoint; object
 verification and the READY transition remain a separate boundary.
 
+The inactive upload application service defined by ADR-0098 derives an exact
+create-only object target from this row and accepts trusted completion metadata
+only when object key, byte size, and SHA-256 all match. The PostgreSQL lifecycle
+adapter rechecks active membership/account/device authorization while locking
+the attachment row at the READY compare-and-set. The application never keeps a
+SQL transaction open while the object store is contacted.
+
 The message importer provides a repeatable-read, no-write target preview.
 It compares the exact typed conversation mapping and allowed pre/post high
 watermark, synthetic legacy device, message UUID/sequence/idempotency identity,

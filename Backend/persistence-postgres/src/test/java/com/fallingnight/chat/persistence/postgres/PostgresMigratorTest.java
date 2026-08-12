@@ -11,8 +11,10 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1AccountIdentit
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1ConversationIdentity;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1ConversationKind;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1MessageIdentity;
+import com.fallingnight.chat.application.attachment.AttachmentActor;
 import com.fallingnight.chat.application.attachment.AttachmentRegistration;
 import com.fallingnight.chat.application.attachment.AttachmentRegistrationResult;
+import com.fallingnight.chat.application.attachment.AttachmentReadyTransition;
 import com.fallingnight.chat.application.attachment.AttachmentState;
 import com.fallingnight.chat.application.identity.AccountCredential;
 import com.fallingnight.chat.application.identity.ClientDescriptor;
@@ -626,11 +628,22 @@ class PostgresMigratorTest {
         assertEquals(AttachmentRegistrationResult.Rejected.NOT_AUTHORIZED,
                 adapter.register(wrongAccount));
 
-        try (Connection connection = connect()) {
-            execute(connection, "UPDATE chat.attachment SET state = 'READY', "
-                    + "ready_at = transaction_timestamp() WHERE owner_account_id = ?",
-                    account);
-        }
+        AttachmentActor actor = new AttachmentActor(account, device);
+        assertEquals(raced.getFirst().attachment().attachmentId(),
+                adapter.findAuthorized(raced.getFirst().attachment().attachmentId(), actor)
+                        .orElseThrow().attachmentId());
+        assertTrue(adapter.findAuthorized(
+                raced.getFirst().attachment().attachmentId(),
+                new AttachmentActor(account, UUID.randomUUID())).isEmpty());
+        Instant readyAt = raced.getFirst().attachment().createdAt().plusSeconds(1);
+        List<AttachmentReadyTransition.Ready> readyRace = raceAttachmentReady(
+                adapter, raced.getFirst().attachment().attachmentId(), actor, readyAt);
+        assertEquals(1, readyRace.stream().filter(
+                AttachmentReadyTransition.Ready::changed).count());
+        assertEquals(1, readyRace.stream().filter(value -> !value.changed()).count());
+        assertEquals(readyRace.getFirst().attachment().attachmentId(),
+                readyRace.getLast().attachment().attachmentId());
+        assertEquals(readyAt, readyRace.getFirst().attachment().readyAt().orElseThrow());
         AttachmentRegistrationResult.Accepted completedRetry =
                 (AttachmentRegistrationResult.Accepted) adapter.register(registration);
         assertTrue(completedRetry.duplicate());
@@ -645,6 +658,12 @@ class PostgresMigratorTest {
                 "text/plain", 1, new byte[32]);
         assertEquals(AttachmentRegistrationResult.Rejected.NOT_AUTHORIZED,
                 adapter.register(afterRevocation));
+        assertTrue(adapter.findAuthorized(
+                raced.getFirst().attachment().attachmentId(), actor).isEmpty());
+        assertEquals(AttachmentReadyTransition.Rejected.NOT_AVAILABLE,
+                adapter.markReadyIfAuthorized(
+                        raced.getFirst().attachment().attachmentId(), actor,
+                        readyAt.plusSeconds(1)));
         assertEquals(1, count("SELECT count(*) FROM chat.attachment"));
     }
 
@@ -1072,6 +1091,36 @@ class PostgresMigratorTest {
             return List.of(
                     (AttachmentRegistrationResult.Accepted) futures.get(0).get(),
                     (AttachmentRegistrationResult.Accepted) futures.get(1).get());
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
+        }
+    }
+
+    private static List<AttachmentReadyTransition.Ready> raceAttachmentReady(
+            PostgresAttachmentAdapter adapter,
+            UUID attachmentId,
+            AttachmentActor actor,
+            Instant readyAt) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<Future<AttachmentReadyTransition>> futures =
+                    java.util.stream.IntStream.range(0, 2)
+                            .mapToObj(index -> executor.submit(() -> {
+                                ready.countDown();
+                                assertTrue(start.await(2, TimeUnit.SECONDS));
+                                return adapter.markReadyIfAuthorized(
+                                        attachmentId, actor, readyAt);
+                            }))
+                            .toList();
+            assertTrue(ready.await(2, TimeUnit.SECONDS));
+            start.countDown();
+            return List.of(
+                    (AttachmentReadyTransition.Ready) futures.get(0).get(),
+                    (AttachmentReadyTransition.Ready) futures.get(1).get());
         } finally {
             start.countDown();
             executor.shutdownNow();

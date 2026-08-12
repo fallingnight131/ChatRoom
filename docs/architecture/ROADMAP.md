@@ -450,8 +450,13 @@ Progress:
     ownership, idempotency, hash/size bounds, and explicit lifecycle constraints.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
-  - [ ] Add object-store abstraction, object-scoped short-lived upload grants,
-    completion verification, lifecycle metrics, and failure-safe cleanup.
+  - [x] Add the inactive provider-neutral create-only upload grant and sealed-
+    object completion orchestration with bounded expiry and fail-closed checks.
+  - [x] Add the authorization-rechecked PostgreSQL attachment lifecycle adapter
+    with concurrent idempotent READY transition.
+  - [ ] Add a concrete object-store implementation, runtime configuration,
+    lifecycle metrics, and failure-safe cleanup before activating upload
+    commands.
   - [x] Add WAL-aware query-only SQLite extraction, quick-check, current-schema
     enforcement, bounded wait, and safe UTC timestamp projection.
   - [x] Add WAL-consistent SQLite online backup, no-overwrite artifact creation,
