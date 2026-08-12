@@ -14,6 +14,14 @@ and the current migrated `users` columns, and passes only the minimal identity
 projection to the pre-write planner. This reader neither creates a backup nor
 changes database authority.
 
+The additive conversation-import reader applies the same query-only, WAL-aware,
+bounded-wait and `quick_check` policy to the minimal `users`, `rooms`,
+`room_members`, `room_admins`, and `friendships` projection. It requires both
+migrated read-pointer columns, parses documented UTC/offset timestamps, and
+passes the immutable graph to the deterministic pre-write planner. It does not
+read message content, password fields, room passwords, avatars, or file paths;
+it neither checkpoints nor writes the source database.
+
 The separate identity backup gate uses SQLite's online backup API so committed
 WAL state is included. It reopens and reconciles the artifact, hashes the full
 file, and refuses overwrite. Keep the returned proof with the protected backup;

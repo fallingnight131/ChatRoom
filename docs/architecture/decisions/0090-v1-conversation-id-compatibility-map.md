@@ -55,6 +55,12 @@ sequences; message import must translate them later. Invalid timestamps, names,
 IDs, users, members, administrators, duplicate pairs, negative read pointers,
 and self friendships produce safe blocking codes before target comparison.
 
+The source adapter reads only the required current V1 room/friendship graph over
+a URI read-only SQLite connection with `query_only`, foreign keys, bounded busy
+wait, and `quick_check`. It includes committed WAL rows, requires migrated read
+cursor columns, and turns unparseable timestamps into planner issues. Paths and
+source names never enter fixed infrastructure errors.
+
 ## Verification
 
 The disposable PostgreSQL gate migrates clean and restarted databases through
@@ -67,6 +73,8 @@ absence, and missing-target absence.
 Pure planner tests prove input-order-independent fingerprints and plans,
 namespace-separated UUIDv5 identities, canonical direct pairs, role precedence,
 retained read pointers, and safe rejection of inconsistent source graphs.
+SQLite tests prove WAL visibility without source writes, all three supported
+timestamp forms, safe invalid-time blocking, and refusal of an older schema.
 
 ## Rollback
 
