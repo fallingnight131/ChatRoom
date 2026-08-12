@@ -275,7 +275,13 @@ authenticated account server-side, treats a trimmed keyword as a literal
 case-insensitive substring, and returns at most 20 enabled identities that own a
 V1 numeric mapping. Durable identity and process-local presence remain separate;
 canonical UUIDs never cross the response. Invalid input and inconsistent partial
-projections fail closed. No PostgreSQL adapter or handler exists yet.
+projections fail closed. No handler exists yet.
+
+The PostgreSQL search adapter now joins enabled accounts directly to their V1
+numeric mapping, excludes the authenticated account, escapes SQL wildcard text,
+uses deterministic case-insensitive ordering, and enforces the result bound in
+the query. V2-native and disabled identities are never projected. Presence is
+still joined outside persistence. No handler invokes the adapter yet.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,

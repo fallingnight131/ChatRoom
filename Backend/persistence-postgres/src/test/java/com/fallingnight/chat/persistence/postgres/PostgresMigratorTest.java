@@ -662,6 +662,52 @@ class PostgresMigratorTest {
     }
 
     @Test
+    @Order(92)
+    void searchesOnlyEnabledMappedV1AccountsWithLiteralWildcards() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID owner = UUID.randomUUID();
+        UUID peer = UUID.randomUUID();
+        UUID wildcard = UUID.randomUUID();
+        UUID disabled = UUID.randomUUID();
+        UUID nativeV2 = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'search-owner', 'Owner', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'friend-peer', 'Peer User', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'literal%peer', 'Wildcard', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'disabled-peer', 'Disabled', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'native-peer', 'Native', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    owner, peer, wildcard, disabled, nativeV2);
+            execute(connection,
+                    "UPDATE chat.account SET disabled_at = transaction_timestamp() WHERE id = ?",
+                    disabled);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                            + "VALUES (1, ?), (2, ?), (3, ?), (4, ?)",
+                    owner, peer, wildcard, disabled);
+        }
+
+        PostgresLegacyV1UserSearchAdapter search =
+                new PostgresLegacyV1UserSearchAdapter(dataSource());
+        var peers = search.search(owner, "PEER", 20);
+        assertEquals(List.of("friend-peer", "literal%peer"),
+                peers.stream().map(entry -> entry.username()).toList());
+        assertEquals(List.of(2L, 3L),
+                peers.stream().map(entry -> entry.legacyUserId()).toList());
+        assertEquals(List.of("literal%peer"), search.search(owner, "%", 20).stream()
+                .map(entry -> entry.username()).toList());
+        assertEquals(List.of(), search.search(owner, "native", 20));
+        assertThrows(IllegalArgumentException.class, () -> search.search(owner, "peer", 0));
+    }
+
+    @Test
     @Order(9)
     void previewsV1MessageTargetsWithoutWritesAndRejectsLegacyDeviceConflict()
             throws Exception {
