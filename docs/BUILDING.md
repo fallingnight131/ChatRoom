@@ -1580,6 +1580,13 @@ development/portability verification, not a supported desktop release gate.
   launch, running-upgrade/downgrade rejection, uninstall, and cleanup results to
   both complete signed candidates. Fixture verification is not native host
   evidence; see ADR-0201.
+- `.github/workflows/m4-windows-support-matrix.yml` consumes exact previous and
+  current protected-signing artifacts on dedicated ProductType-1 clean client
+  runners. It revalidates both candidates, executes the complete transition,
+  independently verifies the output, and retains one record per target. It has
+  no signing or publication authority. A checked-in workflow is not a passing
+  matrix; provision/reset the named hosts and retain a successful reviewed run
+  before making a Windows support claim. See ADR-0202.
 
 ## macOS Development-host Notes
 

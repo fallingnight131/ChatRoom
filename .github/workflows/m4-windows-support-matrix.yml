@@ -1,0 +1,168 @@
+name: M4 Windows Client Support Matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      current_run_id:
+        description: Protected signing workflow run containing the current candidate
+        required: true
+        type: string
+      current_artifact_name:
+        description: Exact current signed candidate artifact name
+        required: true
+        type: string
+      current_version:
+        description: Current semantic version
+        required: true
+        type: string
+      current_source_revision:
+        description: Current 40-character source revision
+        required: true
+        type: string
+      previous_run_id:
+        description: Protected signing workflow run containing the previous candidate
+        required: true
+        type: string
+      previous_artifact_name:
+        description: Exact previous signed candidate artifact name
+        required: true
+        type: string
+      previous_version:
+        description: Previous semantic version
+        required: true
+        type: string
+      previous_source_revision:
+        description: Previous 40-character source revision
+        required: true
+        type: string
+      channel:
+        description: Candidate channel
+        required: true
+        type: choice
+        options: [stable, beta]
+      expected_signer_sha256:
+        description: Reviewed Authenticode leaf certificate SHA-256
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  support-host:
+    name: ${{ matrix.target }} signed upgrade acceptance
+    environment: windows-client-support-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: windows-10-22h2
+            runner: chatroom-windows-10-22h2-clean
+          - target: windows-11-23h2
+            runner: chatroom-windows-11-23h2-clean
+          - target: windows-11-24h2
+            runner: chatroom-windows-11-24h2-clean
+    runs-on: [self-hosted, Windows, X64, "${{ matrix.runner }}"]
+    timeout-minutes: 30
+    env:
+      CURRENT_RUN_ID: ${{ inputs.current_run_id }}
+      CURRENT_VERSION: ${{ inputs.current_version }}
+      CURRENT_REVISION: ${{ inputs.current_source_revision }}
+      PREVIOUS_RUN_ID: ${{ inputs.previous_run_id }}
+      PREVIOUS_VERSION: ${{ inputs.previous_version }}
+      PREVIOUS_REVISION: ${{ inputs.previous_source_revision }}
+      RELEASE_CHANNEL: ${{ inputs.channel }}
+      EXPECTED_SIGNER_SHA256: ${{ inputs.expected_signer_sha256 }}
+
+    steps:
+      - name: Check out verifier source
+        uses: actions/checkout@v6
+
+      - name: Validate reviewed dispatch identity
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ($env:CURRENT_RUN_ID -notmatch '^[1-9][0-9]*$' `
+              -or $env:PREVIOUS_RUN_ID -notmatch '^[1-9][0-9]*$' `
+              -or $env:CURRENT_VERSION -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' `
+              -or $env:PREVIOUS_VERSION -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' `
+              -or $env:CURRENT_REVISION -notmatch '^[0-9a-f]{40}$' `
+              -or $env:PREVIOUS_REVISION -notmatch '^[0-9a-f]{40}$' `
+              -or $env:EXPECTED_SIGNER_SHA256 -notmatch '^[0-9a-f]{64}$') {
+            throw "Windows support-matrix dispatch identity is invalid"
+          }
+          if ([version]$env:CURRENT_VERSION -le [version]$env:PREVIOUS_VERSION) {
+            throw "Current support candidate must be newer than previous"
+          }
+
+      - name: Download current signed candidate
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.current_artifact_name }}
+          path: build/m4/support/current
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.current_run_id }}
+
+      - name: Download previous signed candidate
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.previous_artifact_name }}
+          path: build/m4/support/previous
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.previous_run_id }}
+
+      - name: Independently close both candidate inputs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          [IO.File]::WriteAllText("build/m4/support/CURRENT_VERSION", "$env:CURRENT_VERSION`n")
+          [IO.File]::WriteAllText("build/m4/support/PREVIOUS_VERSION", "$env:PREVIOUS_VERSION`n")
+          python tools/windows_release_candidate.py verify `
+            --candidate-root build/m4/support/current `
+            --version-file build/m4/support/CURRENT_VERSION `
+            --source-revision $env:CURRENT_REVISION `
+            --channel $env:RELEASE_CHANNEL --qt-version 6.11.1 `
+            --expected-signer-sha256 $env:EXPECTED_SIGNER_SHA256
+          python tools/windows_release_candidate.py verify `
+            --candidate-root build/m4/support/previous `
+            --version-file build/m4/support/PREVIOUS_VERSION `
+            --source-revision $env:PREVIOUS_REVISION `
+            --channel $env:RELEASE_CHANNEL --qt-version 6.11.1 `
+            --expected-signer-sha256 $env:EXPECTED_SIGNER_SHA256
+
+      - name: Exercise signed install launch upgrade downgrade and uninstall
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          tools/verify_windows_support_host.ps1 `
+            -CurrentCandidateRoot build/m4/support/current `
+            -PreviousCandidateRoot build/m4/support/previous `
+            -TargetId "${{ matrix.target }}" `
+            -ExpectedSignerSha256 $env:EXPECTED_SIGNER_SHA256 `
+            -InstallRoot "$env:RUNNER_TEMP/ChatRoomSupportHost" `
+            -EvidencePath "$env:RUNNER_TEMP/windows-support-${{ matrix.target }}.json"
+
+      - name: Independently verify host evidence
+        shell: pwsh
+        run: |
+          python tools/windows_support_host_evidence.py `
+            --evidence "$env:RUNNER_TEMP/windows-support-${{ matrix.target }}.json" `
+            --policy packaging/windows/support-matrix-policy.json `
+            --target-id "${{ matrix.target }}" `
+            --current-candidate-root build/m4/support/current `
+            --current-version-file build/m4/support/CURRENT_VERSION `
+            --current-source-revision $env:CURRENT_REVISION `
+            --previous-candidate-root build/m4/support/previous `
+            --previous-version-file build/m4/support/PREVIOUS_VERSION `
+            --previous-source-revision $env:PREVIOUS_REVISION `
+            --channel $env:RELEASE_CHANNEL --qt-version 6.11.1 `
+            --expected-signer-sha256 $env:EXPECTED_SIGNER_SHA256
+
+      - name: Retain per-target support evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-support-${{ matrix.target }}-${{ inputs.current_version }}-${{ inputs.current_source_revision }}
+          path: ${{ runner.temp }}/windows-support-${{ matrix.target }}.json
+          if-no-files-found: error
+          retention-days: 30

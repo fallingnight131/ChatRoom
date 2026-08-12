@@ -1274,6 +1274,13 @@ signed candidate and prove install, both launches, upgrade/data preservation,
 running-client and downgrade rejection, uninstall, and cleanup. Windows Server
 CI and synthetic candidate fixtures cannot satisfy this gate.
 
+ADR-0202 supplies the native executor without conflating responsibilities. A
+manual approval environment downloads two exact protected-signing artifacts on
+dedicated clean Windows client hosts, revalidates them, exercises the complete
+transition, and retains per-target evidence. It has read-only artifact access
+and no signing/publication authority. The workflow definition is architecture;
+only a successful reviewed native run is product-support evidence.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

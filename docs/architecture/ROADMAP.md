@@ -821,6 +821,9 @@ Progress:
 - [x] Pin exact Windows 10 22H2 and Windows 11 23H2/24H2 x86_64 client targets
   and independently verify a per-host, two-real-signed-candidate install/launch/
   upgrade/data-preservation/downgrade/uninstall evidence contract.
+- [x] Add a reviewed, read-only native support-matrix workflow that consumes
+  exact prior/current signed candidates on dedicated clean Windows client hosts
+  and retains independently verified evidence without signing/publication power.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the
   supported Windows installer and update channel.
 - [ ] Publish and verify versioned, policy-hardened, rollback-ready Web releases.
