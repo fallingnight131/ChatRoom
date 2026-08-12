@@ -85,6 +85,9 @@ ADR-0139 defines provider-neutral post-signing evidence for the exact client,
 update helper, and final Setup. All three must have valid timestamped
 Authenticode from the reviewed SHA-256 publisher certificate before evidence is
 written. Current CI proves only unsigned rejection and supplies no private key.
+ADR-0140 independently validates that evidence and recomputes the final
+client/helper/Setup hashes before any future upload or manifest signing. Test
+fixtures exercise rejection semantics and are not positive signature evidence.
 
 The detached signature is served next to the canonical manifest at
 `manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin

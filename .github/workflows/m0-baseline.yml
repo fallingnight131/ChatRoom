@@ -49,6 +49,7 @@ jobs:
         run: |
           python3 Tests/windows_update_manifest_test.py
           python3 Tests/windows_release_signature_policy_test.py
+          python3 Tests/windows_release_evidence_test.py
 
       - name: Test Web artifact manifest policy
         run: |

@@ -743,6 +743,13 @@ verifier accepts no private material. Current native CI proves only that renamed
 unsigned verification artifacts are rejected without evidence; positive
 signing, timestamping, and Windows 10/11 installation remain M4 gates.
 
+ADR-0140 independently consumes that Windows evidence in Python before future
+publication. It enforces the closed schema, release identity and freshness,
+rejects links, and recomputes the size/SHA-256 of the exact client, helper, and
+Setup paths. The protected release order is therefore Windows trust observation,
+independent final-byte verification, then publication; fixture JSON is never
+treated as positive signature evidence.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

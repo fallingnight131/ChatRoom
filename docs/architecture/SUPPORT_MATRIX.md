@@ -175,6 +175,11 @@ timestamped Authenticode, one reviewed publisher-certificate SHA-256, and atomic
 final-byte evidence. Current CI exercises only its unsigned rejection path and
 does not satisfy the Windows support gate.
 
+The Windows-produced JSON must then pass an independent cross-platform verifier
+that recomputes final client/helper/Setup hashes and enforces exact identity,
+schema, signer, timestamp, and freshness. Fixture success validates the parser,
+not Windows signatures or product support.
+
 The Windows client now owns a session-local liveness mutex and refuses a second
 instance. NSIS checks the same mutex before mutation and returns 4 for a silent
 running-client attempt; native CI is configured to prove the current install and

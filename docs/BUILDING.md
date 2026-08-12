@@ -157,6 +157,24 @@ no private key or password input. Native unsigned CI renames its Setup only for
 a negative check and requires rejection with no evidence; it does not exercise
 the positive signed path.
 
+After a positive Windows probe, independently bind that evidence to the final
+candidate bytes before any upload or update-manifest signing:
+
+```bash
+python3 tools/windows_release_evidence.py \
+  --evidence /release/windows-release-signatures.json \
+  --client /release/ChatClient.exe \
+  --launcher /release/ChatRoomUpdateLauncher.exe \
+  --installer /release/ChatRoom-1.2.3-Setup.exe \
+  --version-file VERSION \
+  --source-revision <40-lowercase-git-sha> \
+  --expected-signer-sha256 <64-lowercase-certificate-sha256>
+```
+
+`python3 Tests/windows_release_evidence_test.py` verifies closed-schema,
+freshness, identity, symlink, final-byte, publisher, timestamp, and role-order
+rejection. Test fixtures do not represent actual Authenticode evidence.
+
 The Qt gate also compiles `UpdateManifestSignatureVerifierTest`. It generates an
 ephemeral Ed25519 keypair and proves canonical verification plus empty-key,
 unknown-key, tamper, and non-canonical rejection. The client now links libsodium;
@@ -749,6 +767,9 @@ development/portability verification, not a supported desktop release gate.
   unsigned payloads and a renamed Setup, and requires fail-closed rejection with
   no evidence. Positive client/helper/Setup signature evidence is reserved for
   a protected release job with external key custody.
+- A protected release job must independently run
+  `tools/windows_release_evidence.py` against those same final paths before any
+  upload, promotion, or update-manifest signing.
 - A signed installer, upgrade/uninstall behavior, and automatic updates are
   still separate M4 release concerns. This CI Setup exercises install/uninstall
   mechanics but is not a publisher-signed or publicly supported installer.

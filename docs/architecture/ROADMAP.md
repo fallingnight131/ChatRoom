@@ -626,6 +626,9 @@ Progress:
 - [x] Add a provider-neutral post-signing Windows release evidence boundary for
   the client, update helper, and final Setup, and prove unsigned artifacts fail
   without producing evidence in native CI.
+- [x] Independently revalidate Windows signature evidence against the exact
+  final client/helper/Setup bytes, closed schema, release identity, and freshness
+  before any future publication step.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,
