@@ -217,12 +217,14 @@ def verify_cmake_headless(jobs: int, build_root: Path) -> None:
     run([
         cmake, "--build", str(target_dir), "--config", "Release",
         "--target", "ChatServerHeadless", "DatabaseSchemaTest", "PasswordMigrationTest",
+        "MessageModelTest", "LocalConversationRepositoryTest", "OutgoingMessageServiceTest",
+        "ConversationSyncServiceTest", "AttachmentOutboxServiceTest", "V1HistoryPageAdapterTest",
         "--parallel", str(jobs),
     ], ROOT)
     ctest = command_path("ctest")
     run([
         ctest, "--test-dir", str(target_dir), "--build-config", "Release",
-        "--output-on-failure", "-R", "^v1_(database_schema|password_migration)$",
+        "--output-on-failure", "-R", "^v1_",
     ], ROOT)
     executable = locate_executable(target_dir, "ChatServerHeadless")
     run([

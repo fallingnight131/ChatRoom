@@ -663,6 +663,9 @@ Progress:
   SQLite schema suite to CTest.
 - [x] Reuse the CMake persistence boundary for the unchanged Argon2id/legacy
   password migration, wrong-password, change-password, and restart CTest suite.
+- [x] Extract CMake Common and non-UI Windows client local-data libraries and
+  execute the existing message model, SQLite repository, optimistic send, sync,
+  attachment outbox, and V1 history adapter suites through CTest.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

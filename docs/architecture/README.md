@@ -845,6 +845,14 @@ The same persistence target now runs the unchanged password migration suite,
 covering modern hashes, legacy SHA upgrade after successful authentication,
 wrong-password denial, password change, room-password migration, and restart.
 
+ADR-0148 establishes the matching non-UI Windows client CMake boundary without
+touching Widgets or packaging. Shared V1 message types compile once in
+`chatroom_v1_common`; message projection, local SQLite, outgoing commands,
+conversation synchronization, attachment outbox, and history normalization form
+`chatroom_client_local_data`. Six unchanged focused suites now join schema and
+password coverage under the executed `v1_*` CTest gate. This changes neither the
+client database format nor supported platforms.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

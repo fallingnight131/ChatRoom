@@ -164,9 +164,10 @@ alignment, verification, and rollback.
 ## Incremental CMake server path
 
 The root `CMakeLists.txt` currently represents the V1 persistence/server-core
-libraries, thin `ChatServerHeadless`, and unchanged `DatabaseSchemaTest` plus
-`PasswordMigrationTest` CTest entries. Together they compile the same Common/Server sources as the qmake
-headless/schema projects and do not replace the Windows product build or installer.
+libraries, shared V1 Common, non-UI Windows client local-data library, thin
+`ChatServerHeadless`, and eight unchanged CTest entries. Together they compile
+the same Common/Server/client-core sources as the qmake projects and do not
+replace the Windows product build or installer.
 On a macOS Homebrew development host:
 
 ```bash
@@ -176,8 +177,10 @@ python3 tools/verify_m0.py --cmake-headless
 
 On Ubuntu, the installed `libsodium-dev` search paths need no override. The
 command performs inventory validation, Release configuration/build, runs the
-clean/restart/query-plan SQLite and password-migration CTests, starts the
-resulting process, and verifies the exact V1 HTTP health contract. CMake never installs or downloads a
+clean/restart/query-plan SQLite, password migration, message model, client local
+repository, optimistic send, synchronization, attachment outbox, and history
+adapter CTests; it then starts the resulting process and verifies the exact V1
+HTTP health contract. CMake never installs or downloads a
 dependency; use `SODIUM_ROOT` or normal CMake search paths. Continue using qmake
 for Windows product artifacts until a later ADR records native target and
 packaging equivalence.
