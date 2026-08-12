@@ -105,7 +105,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(12, first.migrate());
+        assertEquals(13, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -1013,6 +1013,17 @@ class PostgresMigratorTest {
         execute(connection,
                 "UPDATE chat.attachment SET state = 'READY', "
                         + "ready_at = transaction_timestamp() WHERE id = ?",
+                attachment);
+        SQLException deletedWhileReady = assertThrows(SQLException.class, () -> execute(
+                connection,
+                "UPDATE chat.attachment SET object_deleted_at = transaction_timestamp() "
+                        + "WHERE id = ?",
+                attachment));
+        assertEquals("23514", deletedWhileReady.getSQLState());
+        execute(connection,
+                "UPDATE chat.attachment SET state = 'REVOKED', "
+                        + "revoked_at = transaction_timestamp(), "
+                        + "object_deleted_at = transaction_timestamp() WHERE id = ?",
                 attachment);
     }
 

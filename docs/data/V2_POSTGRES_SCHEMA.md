@@ -153,6 +153,12 @@ adapter rechecks active membership/account/device authorization while locking
 the attachment row at the READY compare-and-set. The application never keeps a
 SQL transaction open while the object store is contacted.
 
+V013 expands the registry with nullable `object_deleted_at` and a partial index
+over REVOKED rows still requiring object deletion. PostgreSQL permits deletion
+confirmation only after revocation. The future cleanup order is durable revoke,
+provider delete outside the transaction, then durable confirmation; a timeout
+therefore remains retryable rather than being mistaken for success.
+
 The message importer provides a repeatable-read, no-write target preview.
 It compares the exact typed conversation mapping and allowed pre/post high
 watermark, synthetic legacy device, message UUID/sequence/idempotency identity,
