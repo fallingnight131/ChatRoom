@@ -53,9 +53,12 @@ public final class V1SqliteAttachmentSource {
     public V1AttachmentSourcePlan readPlan() {
         try (Connection connection = DriverManager.getConnection(readOnlyUrl(database))) {
             configureReadOnly(connection);
+            connection.setAutoCommit(false);
             requireHealthyDatabase(connection);
             requireCurrentSchema(connection);
-            return readPlan(connection);
+            V1AttachmentSourcePlan plan = readPlan(connection);
+            connection.rollback();
+            return plan;
         } catch (SQLException exception) {
             throw new V1AttachmentSourceException("V1 attachment source read failed", exception);
         }

@@ -809,9 +809,9 @@ fingerprint includes legacy locators for drift detection, but candidates and
 fixed-code issues omit paths and URLs. Passing this stage does not prove bytes,
 hash, MIME, target object existence, or sealed state.
 The SQLite adapter reads both room and friendship file/message namespaces under
-`query_only`, `quick_check`, and an exact migrated-column gate. It does not
-repair an old source schema, and fixed failures contain neither database paths
-nor attachment content.
+one read transaction with `query_only`, `quick_check`, and an exact
+migrated-column gate. It does not repair an old source schema, and fixed failures
+contain neither database paths nor attachment content.
 V029 adds a terminal `UNAVAILABLE` state for cleared historical V1 files. Such a
 row keeps safe message metadata and an unavailable reason but must have no object
 key, asserted MIME, SHA-256, ready/revoked timestamp, or deletion confirmation.

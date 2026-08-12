@@ -29,8 +29,9 @@ typed source namespaces.
 Read that graph from the current SQLite schema through a dedicated read-only
 source adapter. The adapter enables `query_only`, runs `quick_check`, requires
 all file/message migration columns, reads both room and friendship namespaces,
-and passes local paths and legacy object URLs only to the planner fingerprint.
-It never embeds source locations or row content in its fixed public failures.
+holds all source queries in one read transaction, and passes local paths and
+legacy object URLs only to the planner fingerprint. It never embeds source
+locations or row content in its fixed public failures.
 
 Passing this planner means only that the SQLite graph is internally complete.
 It does not claim the bytes exist, identify MIME, prove SHA-256, authorize an
