@@ -28,6 +28,10 @@ to a direct conversation or a friendship from pointing to a group.
   namespaces are independent.
 - Keep this mapping outside the V2 conversation model and protocol. Only the V1
   import and gateway compatibility adapters may access it.
+- Expose it through a transport-independent read-only application port with
+  typed source identity and PostgreSQL lookups in both directions. Invalid
+  non-positive incoming numeric IDs resolve as absent; infrastructure failures
+  remain normalized server errors rather than protocol fields.
 - Delete mapping rows automatically if an unused pre-cutover V2 conversation is
   deleted. Once PostgreSQL owns traffic, conversation deletion and restore must
   follow the later authoritative-data retention policy instead.
@@ -50,7 +54,9 @@ The disposable PostgreSQL gate migrates clean and restarted databases through
 V006, validates Flyway checksums, accepts overlapping room/friendship numbers,
 and rejects non-positive IDs, unsupported kinds, kind/target mismatch, duplicate
 source association, and duplicate V2 targets. It also proves target deletion
-removes only its compatibility mapping.
+removes only its compatibility mapping. Application and PostgreSQL tests prove
+typed same-number room/friendship lookup, reverse UUID projection, invalid-ID
+absence, and missing-target absence.
 
 ## Rollback
 

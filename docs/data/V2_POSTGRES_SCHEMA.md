@@ -75,6 +75,11 @@ the constrained projection; verified room, membership, friendship, message, and
 read-cursor import remains a later step. V1 self-friendship rows are an explicit
 unresolved import case because the current V2 direct pair requires two distinct
 accounts.
+The read-only application compatibility port keeps the namespace type alongside
+the numeric ID and supports both V1-to-V2 request translation and V2-to-V1 event
+projection. Its PostgreSQL adapter does not create mappings, infer identities,
+or authorize conversation access; the consuming use case must still enforce
+server-bound account membership.
 
 ## V1 identity import boundary
 

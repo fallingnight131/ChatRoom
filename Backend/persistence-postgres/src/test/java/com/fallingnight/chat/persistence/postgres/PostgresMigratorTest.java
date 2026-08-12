@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1AccountIdentity;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1ConversationIdentity;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1ConversationKind;
 import com.fallingnight.chat.application.identity.AccountCredential;
 import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.application.identity.ClientPlatform;
@@ -228,6 +230,44 @@ class PostgresMigratorTest {
         disableAccount(account);
         assertTrue(adapter.list(new ConversationDirectoryQuery(
                 account, Optional.empty(), 100)).conversations().isEmpty());
+    }
+
+    @Test
+    @Order(7)
+    void translatesTypedV1ConversationIdsInBothDirections() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID room = UUID.randomUUID();
+        UUID friendship = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind, title) "
+                            + "VALUES (?, 'GROUP', 'Projection Room'), (?, 'DIRECT', NULL)",
+                    room, friendship);
+            execute(connection,
+                    "INSERT INTO chat.legacy_v1_conversation_map"
+                            + "(legacy_kind, legacy_conversation_id, conversation_id) "
+                            + "VALUES ('ROOM', 17, ?), ('FRIENDSHIP', 17, ?)",
+                    room, friendship);
+        }
+
+        PostgresLegacyV1ConversationProjection projection =
+                new PostgresLegacyV1ConversationProjection(dataSource());
+        assertEquals(
+                Optional.of(new LegacyV1ConversationIdentity(
+                        LegacyV1ConversationKind.ROOM, 17, room)),
+                projection.findByLegacyId(LegacyV1ConversationKind.ROOM, 17));
+        assertEquals(
+                Optional.of(new LegacyV1ConversationIdentity(
+                        LegacyV1ConversationKind.FRIENDSHIP, 17, friendship)),
+                projection.findByLegacyId(LegacyV1ConversationKind.FRIENDSHIP, 17));
+        assertEquals(
+                Optional.of(new LegacyV1ConversationIdentity(
+                        LegacyV1ConversationKind.ROOM, 17, room)),
+                projection.findByConversationId(room));
+        assertEquals(Optional.empty(),
+                projection.findByLegacyId(LegacyV1ConversationKind.ROOM, 0));
+        assertEquals(Optional.empty(), projection.findByConversationId(UUID.randomUUID()));
     }
 
     @Test
