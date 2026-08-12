@@ -421,6 +421,9 @@ Progress:
   - [x] Add a detached strict V1 room-list JSON/Netty adapter with server-bound
     identity, off-loop bounded execution, no partial failure response, and fixed
     completion/failure/saturation telemetry before runtime composition.
+  - [x] Compose login, heartbeat, and room listing in the detached Java V1 module
+    and verify imported membership, unread/admin projection, isolation, and no
+    canonical-ID exposure against disposable PostgreSQL without activating a route.
   - [x] Add a typed, one-to-one V1 room/friendship to V2 conversation mapping
     projection with database-enforced source namespaces and target kinds.
   - [x] Expose V1 conversation mappings through a typed read-only application

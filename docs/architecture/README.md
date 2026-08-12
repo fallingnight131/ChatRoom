@@ -281,7 +281,11 @@ transport-independent. A detached strict JSON/Netty adapter now executes it
 off-loop for server-bound identities, permits one in-flight request, emits only
 complete bounded V1 room lists, and closes generically without an empty list on
 malformed input, saturation, or dependency failure. It is not installed in the
-inactive V1 runtime pipeline.
+product runtime. The detached `V1CompatibilityModule` now composes it after
+login/heartbeat with a separately injected directory executor, and the
+disposable PostgreSQL gate proves imported membership/admin/unread projection
+while excluding an unrelated room and canonical identifiers. No product
+listener installs that module.
 This remains a pre-cutover path: live fan-out is process-local and active-
 conversation-only, while delivery/read state, multi-gateway routing, membership
 invalidation, broader conversation discovery, and supported-client cutover are

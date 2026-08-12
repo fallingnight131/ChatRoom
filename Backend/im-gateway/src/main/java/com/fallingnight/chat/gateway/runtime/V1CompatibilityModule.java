@@ -2,11 +2,15 @@ package com.fallingnight.chat.gateway.runtime;
 
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1AuthenticationService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1LoginService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomDirectoryService;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AccountConnectionRegistry;
 import com.fallingnight.chat.gateway.compatibility.v1.V1AuthenticationTimeoutHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1HeartbeatHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLifecycleCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonLoginCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomDirectoryCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebSocketUpgradeHandler;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
@@ -14,7 +18,9 @@ import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
 import com.fallingnight.chat.identity.crypto.Argon2idCredentialHasher;
 import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
 import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresConversationDirectoryAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1AccountProjection;
+import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1ConversationProjection;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.timeout.IdleStateHandler;
 import java.time.Clock;
@@ -27,14 +33,17 @@ import javax.sql.DataSource;
 /** Real V1 login composition kept detached from the product listener. */
 public final class V1CompatibilityModule {
     private final LegacyV1LoginService login;
+    private final LegacyV1RoomDirectoryService roomDirectory;
     private final Clock clock;
     private final V1AccountConnectionRegistry connections;
 
     private V1CompatibilityModule(
             LegacyV1LoginService login,
+            LegacyV1RoomDirectoryService roomDirectory,
             Clock clock,
             V1AccountConnectionRegistry connections) {
         this.login = Objects.requireNonNull(login, "login");
+        this.roomDirectory = Objects.requireNonNull(roomDirectory, "roomDirectory");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.connections = Objects.requireNonNull(connections, "connections");
     }
@@ -54,16 +63,22 @@ public final class V1CompatibilityModule {
                         identity,
                         legacy,
                         clock);
+        PostgresLegacyV1ConversationProjection legacyConversations =
+                new PostgresLegacyV1ConversationProjection(dataSource);
         return new V1CompatibilityModule(
                 new LegacyV1LoginService(authentication, legacy),
+                new LegacyV1RoomDirectoryService(
+                        new PostgresConversationDirectoryAdapter(dataSource), legacyConversations),
                 clock,
                 new V1AccountConnectionRegistry());
     }
 
     public V1WebSocketUpgradeHandler newWebSocketUpgradeHandler(
             Executor authenticationExecutor,
+            Executor directoryExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
+            V1RoomDirectoryEventSink directoryEvents,
             Duration upgradeTimeout,
             Duration authenticationTimeout,
             Duration authenticatedIdleTimeout) {
@@ -71,8 +86,10 @@ public final class V1CompatibilityModule {
                 pipeline -> installWebApplicationPipeline(
                         pipeline,
                         authenticationExecutor,
+                        directoryExecutor,
                         admission,
                         events,
+                        directoryEvents,
                         authenticationTimeout,
                         authenticatedIdleTimeout),
                 upgradeTimeout);
@@ -81,8 +98,10 @@ public final class V1CompatibilityModule {
     private void installWebApplicationPipeline(
             ChannelPipeline pipeline,
             Executor authenticationExecutor,
+            Executor directoryExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
+            V1RoomDirectoryEventSink directoryEvents,
             Duration authenticationTimeout,
             Duration authenticatedIdleTimeout) {
         Objects.requireNonNull(pipeline, "pipeline");
@@ -104,5 +123,10 @@ public final class V1CompatibilityModule {
                 admission,
                 events));
         pipeline.addLast("v1-heartbeat", new V1HeartbeatHandler(lifecycleCodec));
+        pipeline.addLast("v1-room-directory", new V1RoomDirectoryHandler(
+                roomDirectory,
+                new V1JsonRoomDirectoryCodec(clock),
+                directoryExecutor,
+                directoryEvents));
     }
 }

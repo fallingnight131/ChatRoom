@@ -154,13 +154,15 @@ The detached Java compatibility application can now derive the existing
 `roomId`, canonical `roomName`, sequence-derived `unread`, and `isAdmin` for
 canonical owner/admin roles. It scans at most 1,000 authorized directory rows,
 uses bounded batch mapping, preserves ascending numeric room order, and fails
-instead of emitting a partial list when imported mappings disagree. No Netty
-runtime currently exposes this operation. A detached strict codec and handler
+instead of emitting a partial list when imported mappings disagree. A detached
+strict codec and handler
 now accept one authenticated request at a time, execute it off the event loop,
 cap the encoded response at 1 MiB, and close with a generic reason without a
 response on malformed owned input, saturation, or dependency/mapping failure.
-This still does not extend the inactive Java V1 route until a later composition
-slice passes real-PostgreSQL and supported-client compatibility gates.
+The detached compatibility module composes login, heartbeat, and this handler;
+the disposable PostgreSQL gate verifies authorized imported room output and
+unrelated-room exclusion, but `GatewayRuntime` still installs no V1 product
+listener.
 
 ### Administration and recall
 

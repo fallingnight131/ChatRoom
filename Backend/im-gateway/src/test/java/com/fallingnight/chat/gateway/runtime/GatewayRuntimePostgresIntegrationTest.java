@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fallingnight.chat.gateway.compatibility.v1.V1ConnectionAttributes;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
@@ -139,6 +140,22 @@ class GatewayRuntimePostgresIntegrationTest {
                 assertEquals(1, sessionCount(jdbcUrl, username, password));
                 assertEquals(V1WebLoginHandler.COMPATIBILITY_DEVICE_ID,
                         storedDeviceAlias(jdbcUrl, username, password));
+
+                imported.writeInbound(new TextWebSocketFrame(
+                        "{\"type\":\"ROOM_LIST_REQ\",\"id\":\"rooms-1\",\"data\":{}}"));
+                imported.runPendingTasks();
+                TextWebSocketFrame rooms = imported.readOutbound();
+                try {
+                    assertTrue(rooms.text().contains("\"type\":\"ROOM_LIST_RSP\""));
+                    assertTrue(rooms.text().contains("\"roomId\":7"));
+                    assertTrue(rooms.text().contains("\"roomName\":\"Imported Room\""));
+                    assertTrue(rooms.text().contains("\"unread\":4"));
+                    assertTrue(rooms.text().contains("\"isAdmin\":true"));
+                    assertFalse(rooms.text().contains("Unrelated Room"));
+                    assertFalse(rooms.text().contains("10000000-0000"));
+                } finally {
+                    rooms.release();
+                }
             } finally {
                 imported.finishAndReleaseAll();
             }
@@ -171,8 +188,10 @@ class GatewayRuntimePostgresIntegrationTest {
             AuthenticationEventSink events) {
         EmbeddedChannel channel = new EmbeddedChannel(module.newWebSocketUpgradeHandler(
                 executor,
+                executor,
                 admission,
                 events,
+                V1RoomDirectoryEventSink.noop(),
                 java.time.Duration.ofSeconds(10),
                 java.time.Duration.ofSeconds(15),
                 java.time.Duration.ofSeconds(90)));
@@ -218,6 +237,49 @@ class GatewayRuntimePostgresIntegrationTest {
                             + "VALUES (42, ?)")) {
                 mapping.setObject(1, imported);
                 assertEquals(1, mapping.executeUpdate());
+            }
+            UUID importedRoom = UUID.fromString("30000000-0000-0000-0000-000000000007");
+            UUID unrelatedRoom = UUID.fromString("30000000-0000-0000-0000-000000000008");
+            try (PreparedStatement conversation = connection.prepareStatement(
+                    "INSERT INTO chat.conversation(id, kind, title, next_sequence) "
+                            + "VALUES (?, 'GROUP', ?, ?)")) {
+                conversation.setObject(1, importedRoom);
+                conversation.setString(2, "Imported Room");
+                conversation.setLong(3, 8);
+                conversation.addBatch();
+                conversation.setObject(1, unrelatedRoom);
+                conversation.setString(2, "Unrelated Room");
+                conversation.setLong(3, 2);
+                conversation.addBatch();
+                conversation.executeBatch();
+            }
+            try (PreparedStatement member = connection.prepareStatement(
+                    "INSERT INTO chat.conversation_member("
+                            + "conversation_id, account_id, role, last_read_sequence) "
+                            + "VALUES (?, ?, ?, ?)")) {
+                member.setObject(1, importedRoom);
+                member.setObject(2, imported);
+                member.setString(3, "ADMIN");
+                member.setLong(4, 3);
+                member.addBatch();
+                member.setObject(1, unrelatedRoom);
+                member.setObject(2, nativeV2);
+                member.setString(3, "MEMBER");
+                member.setLong(4, 0);
+                member.addBatch();
+                member.executeBatch();
+            }
+            try (PreparedStatement mapping = connection.prepareStatement(
+                    "INSERT INTO chat.legacy_v1_conversation_map("
+                            + "legacy_kind, legacy_conversation_id, conversation_id) "
+                            + "VALUES ('ROOM', ?, ?)")) {
+                mapping.setLong(1, 7);
+                mapping.setObject(2, importedRoom);
+                mapping.addBatch();
+                mapping.setLong(1, 8);
+                mapping.setObject(2, unrelatedRoom);
+                mapping.addBatch();
+                mapping.executeBatch();
             }
         }
     }
