@@ -106,8 +106,14 @@ scheduler, UI, or launcher.
 
 An inactive preparation service now permits only signed `Eligible` policy to
 download and exposes a file only after background installer trust succeeds.
-Failure/cancellation removes bytes. Product keys, paths, manifest discovery,
-consent UI, process launch, and install/rollback observation remain absent.
+Failure/cancellation removes bytes. Product keys and paths, a configured
+discovery origin, consent UI, process launch, and install/rollback observation
+remain absent.
+
+An inactive manifest transport now fetches only the exact credential-free HTTPS
+`manifest.json` plus same-origin `manifest.json.sig` pair, refuses redirects,
+and bounds/discards unverified responses. No product origin, trusted key,
+scheduler, UI, or call into the preparation service is configured.
 
 The Windows client now owns a session-local liveness mutex and refuses a second
 instance. NSIS checks the same mutex before mutation and returns 4 for a silent

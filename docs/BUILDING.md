@@ -183,6 +183,13 @@ transport. It proves deferred rollout makes no request, concurrent work is
 rejected, trust runs off the application thread, and trust failure removes the
 file. Native real-Setup acceptance and launch are still not claimed.
 
+`UpdateManifestFetchTransportTest` exercises the separate default-off discovery
+transport with deterministic HTTPS responses. It checks exact sequential
+`manifest.json`/`manifest.json.sig` requests, same-origin path binding, manual
+redirect refusal, 64 KiB/64-byte response bounds, timeout headers, cancellation,
+and failure-byte suppression. It does not configure a product origin or weaken
+normal Qt TLS validation.
+
 `WindowsClientInstanceGuardTest` checks the shared liveness-mutex contract. On
 Windows it requires first acquisition, duplicate refusal, and release/reacquire;
 non-Windows development hosts report the platform boundary. Installer policy

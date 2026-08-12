@@ -649,6 +649,13 @@ same name in `.onInit` and rejects interactive or silent install before mutation
 It never kills the app. Graceful consent, shutdown/wait, verified Setup launch,
 and post-install restart remain separate boundaries.
 
+ADR-0126 adds the inactive update-discovery transport. It fetches only an exact
+credential-free HTTPS `manifest.json` and same-origin `manifest.json.sig` pair,
+never follows redirects, bounds the responses at 64 KiB and exactly 64 bytes,
+and discards both after any failure or cancellation. The returned bytes remain
+untrusted until ADR-0122 verifies and accepts them; no product origin, key,
+scheduler, UI, or preparation invocation is configured.
+
 ADR-0109 establishes the corresponding pre-deployment Web boundary without
 coupling Web and Windows release cadence. Matching Web package/lock versions,
 the exact Git revision, every built file's SHA-256/size, local hashed entrypoint

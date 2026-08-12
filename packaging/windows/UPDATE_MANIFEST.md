@@ -35,6 +35,16 @@ bytes are deleted. It does not launch an installer.
 ADR-0125 makes the Windows client single-instance and makes NSIS reject its
 shared liveness mutex before any install mutation. A future launcher must request
 normal shutdown and wait; it must never terminate the client silently.
+ADR-0126 adds an inactive, bounded HTTPS fetcher for the exact
+`manifest.json`/`manifest.json.sig` pair. It provides untrusted bytes only to the
+future orchestrator; ADR-0122 verification must run before ADR-0124 preparation.
+No production update origin or key is configured.
+
+The detached signature is served next to the canonical manifest at
+`manifest.json.sig`. Both URLs must be credential-free HTTPS on the same origin
+and exact directory path. The client refuses query strings, fragments,
+redirects, encoded paths, manifests over 64 KiB, and signatures other than
+exactly 64 bytes.
 
 ## Canonical format
 

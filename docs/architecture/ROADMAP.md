@@ -583,6 +583,9 @@ Progress:
 - [x] Add Windows single-instance liveness and make NSIS reject an open client
   before mutation, with native CI configured to prove exit code and unchanged
   program/account state.
+- [x] Add a default-off, bounded HTTPS transport for the exact manifest and
+  detached-signature pair, with same-origin path binding, no redirects,
+  timeout/cancel, and no unverified-byte exposure after failure.
 - [x] Establish an independently versioned Web verification artifact with
   hashed local assets, source-map rejection, and explicit cache classes.
 - [x] Pin V1 production WebSocket and file traffic to the HTTPS page origin,
@@ -606,7 +609,7 @@ Work:
 - create Windows `windeployqt` packaging and a signed installer;
 - add an optional MSIX/Store channel after the direct installer is stable;
 - implement a signed Windows update manifest, stable/beta channels, staged
-  rollout, and rollback;
+  rollout, trusted endpoint/key provisioning, and rollback;
 - publish versioned Web assets with CSP, deliberate cache/source-map policy,
   health checks, staged rollout, and fast rollback;
 - test Windows clean install, upgrade, protocol compatibility, and uninstall on
