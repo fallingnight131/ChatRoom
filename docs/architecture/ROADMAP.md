@@ -708,6 +708,9 @@ Progress:
 - [x] Define a fresh closed protected-signing intent binding version/revision,
   unsigned artifact run/name, channel, certificate SHA-1/SHA-256 identities,
   RFC 3161 URL, protected environment, and signing runner class without secrets.
+- [x] Advance the immutable Windows candidate to schema 2, require the protected
+  signing intent during assemble/verify, and bind its bytes into the candidate
+  file inventory and checksums with independent semantic revalidation.
 - [x] Pin a Chromium/Firefox Playwright engine matrix and exercise login startup,
   browser capabilities, endpoint isolation, and narrow responsive layout.
 - [ ] Build, sign, timestamp, install, upgrade, uninstall, and roll back the

@@ -340,6 +340,14 @@ An intent means “approved for protected signing, not published”; candidate
 assembly must hash and retain it, and publication requires a later independent
 authorization boundary.
 
+`windows_release_candidate.py assemble` now requires
+`--protected-signing-intent`. Candidate schema 2 stores the exact bytes at
+`evidence/protected-signing-intent.json`, declares its path explicitly, hashes it
+in the candidate file list and `SHA256SUMS`, then reruns semantic intent
+verification during both assembly and independent candidate verification. The
+candidate mutation suite proves that rewriting intent content and recomputing
+the surrounding manifest/checksum still fails semantic validation.
+
 The unsigned Windows NSIS gate now compiles a synthetic predecessor outside the
 uploaded artifact, installs it, and upgrades to canonical `VERSION`. It checks
 whole-program-directory replacement, marker ownership, rollback scaffolding,

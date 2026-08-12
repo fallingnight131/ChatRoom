@@ -974,6 +974,14 @@ and runner class, and a two-hour-bounded UTC record. It contains no certificate,
 private key, password, token, or publication authorization. A future signing
 workflow must verify it again and bind it into candidate evidence.
 
+ADR-0163 completes that binding. Windows release candidate schema 2 requires
+`evidence/protected-signing-intent.json`; assembly verifies it before copying,
+hashes it into the sorted candidate file list and `SHA256SUMS`, and candidate
+verification revalidates both final bytes and intent semantics. Rewriting the
+intent plus candidate hashes cannot turn an unprotected environment, different
+artifact, stale approval, channel, revision, or signer into an acceptable
+candidate.
+
 ADR-0115 establishes the first real browser-engine gate: pinned Playwright 1.62.0
 runs the production build in Chromium 151 and Firefox 153, checks login startup,
 required browser storage/network primitives, hostile endpoint override removal,

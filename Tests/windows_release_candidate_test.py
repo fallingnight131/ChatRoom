@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 
 from artifact_manifest_common import ManifestError, sha256_file  # noqa: E402
 from windows_release_candidate import assemble_candidate, validate_candidate  # noqa: E402
+from windows_protected_release_intent import create as create_signing_intent  # noqa: E402
 
 
 class WindowsReleaseCandidateTest(unittest.TestCase):
@@ -46,6 +47,11 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
         self.installer.write_bytes(b"signed-setup")
         self.evidence = self.root / "windows-release-signatures.json"
         self.write_evidence()
+        self.intent = self.root / "protected-signing-intent.json"
+        self.intent.write_text(json.dumps(create_signing_intent(
+            self.version_file, self.revision, "stable", "123456789",
+            "d" * 40, self.signer,
+            "https://timestamp.example.test/rfc3161", self.now)), encoding="utf-8")
         self.candidate = self.root / "candidate"
 
     def tearDown(self) -> None:
@@ -82,7 +88,7 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
 
     def assemble(self):
         return assemble_candidate(
-            self.payload, self.installer, self.evidence, self.candidate,
+            self.payload, self.installer, self.evidence, self.intent, self.candidate,
             self.version_file, self.revision, "stable", "6.11.1",
             self.signer, self.now,
         )
@@ -103,6 +109,10 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
         self.assertEqual(assembled["assemblyStatus"], "assembled")
         self.assertTrue((self.candidate / "client/Qt6Core.dll").is_file())
         self.assertTrue((self.candidate / "evidence/windows-release-signatures.json").is_file())
+        self.assertTrue((self.candidate / "evidence/protected-signing-intent.json").is_file())
+        manifest = json.loads((self.candidate / "windows-release-candidate.json").read_text(
+            encoding="utf-8"))
+        self.assertEqual(manifest["schemaVersion"], 2)
         self.assertFalse(any(path.name.startswith(".windows-candidate-")
                              for path in self.root.iterdir()))
 
@@ -133,7 +143,7 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
         self.candidate.rmdir()
         with self.assertRaisesRegex(ManifestError, "overlaps"):
             assemble_candidate(
-                self.payload, self.installer, self.evidence,
+                self.payload, self.installer, self.evidence, self.intent,
                 self.payload / "nested-candidate", self.version_file,
                 self.revision, "stable", "6.11.1", self.signer, self.now)
 
@@ -153,6 +163,29 @@ class WindowsReleaseCandidateTest(unittest.TestCase):
             validate_candidate(
                 self.candidate, self.version_file, self.revision, "beta",
                 "6.11.1", self.signer, self.now)
+
+    def test_rejects_protected_signing_intent_mutation(self) -> None:
+        self.assemble()
+        path = self.candidate / "evidence/protected-signing-intent.json"
+        intent = json.loads(path.read_text(encoding="utf-8"))
+        intent["environment"] = "unprotected"
+        path.write_text(json.dumps(intent), encoding="utf-8")
+        manifest_path = self.candidate / "windows-release-candidate.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        for entry in manifest["files"]:
+            if entry["path"] == "evidence/protected-signing-intent.json":
+                entry["sha256"], entry["size"] = sha256_file(path)
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        checksum_path = self.candidate / "SHA256SUMS"
+        lines = []
+        for line in checksum_path.read_text(encoding="utf-8").splitlines():
+            if line.endswith("  evidence/protected-signing-intent.json"):
+                digest, _ = sha256_file(path)
+                line = f"{digest}  evidence/protected-signing-intent.json"
+            lines.append(line)
+        checksum_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "intent identity"):
+            self.validate()
 
     def test_rejects_manifest_checksum_and_missing_file_mutations(self) -> None:
         self.assemble()

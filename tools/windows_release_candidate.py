@@ -21,6 +21,7 @@ from artifact_manifest_common import (
     validate_revision,
 )
 from windows_release_evidence import HEX64, verify_evidence
+from windows_protected_release_intent import verify as verify_signing_intent
 
 
 QT_VERSION = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
@@ -29,6 +30,7 @@ RELEASE_STATUS = "signed-timestamped-not-published-candidate"
 MANIFEST_NAME = "windows-release-candidate.json"
 CHECKSUMS_NAME = "SHA256SUMS"
 EVIDENCE_PATH = "evidence/windows-release-signatures.json"
+INTENT_PATH = "evidence/protected-signing-intent.json"
 FORBIDDEN_SUFFIXES = {
     ".env", ".exp", ".ilk", ".key", ".lib", ".obj", ".pdb", ".pem", ".pfx",
 }
@@ -43,7 +45,7 @@ ROOT_KEYS = {
     "schemaVersion", "product", "releaseStatus", "channel", "version",
     "sourceRevision", "platform", "architecture", "toolchain", "qtVersion",
     "expectedSignerCertificateSha256", "signatureEvidencePath", "installerPath",
-    "files",
+    "protectedSigningIntentPath", "files",
 }
 FILE_KEYS = {"path", "sha256", "size"}
 
@@ -155,7 +157,7 @@ def validate_candidate(
         raise ManifestError("Windows release candidate manifest has an unsupported shape")
     expected_installer_path = f"installer/{installer_name}"
     if (type(manifest["schemaVersion"]) is not int
-            or manifest["schemaVersion"] != 1
+            or manifest["schemaVersion"] != 2
             or manifest["product"] != "chat-room-windows-client"
             or manifest["releaseStatus"] != RELEASE_STATUS
             or manifest["channel"] != channel
@@ -167,6 +169,7 @@ def validate_candidate(
             or manifest["qtVersion"] != qt_version
             or manifest["expectedSignerCertificateSha256"] != expected_signer_sha256
             or manifest["signatureEvidencePath"] != EVIDENCE_PATH
+            or manifest["protectedSigningIntentPath"] != INTENT_PATH
             or manifest["installerPath"] != expected_installer_path):
         raise ManifestError("Windows release candidate identity is invalid")
 
@@ -191,7 +194,8 @@ def validate_candidate(
 
     client_paths = {path for path in declared if path.startswith("client/")}
     _validate_payload_policy(client_paths)
-    if set(declared) != client_paths | {expected_installer_path, EVIDENCE_PATH}:
+    if set(declared) != client_paths | {
+            expected_installer_path, EVIDENCE_PATH, INTENT_PATH}:
         raise ManifestError("Windows release candidate contains an unsupported file class")
     actual = {
         path.relative_to(candidate_root).as_posix()
@@ -218,6 +222,9 @@ def validate_candidate(
         expected_signer_sha256,
         now_utc,
     )
+    verify_signing_intent(
+        candidate_root / INTENT_PATH, version_file, source_revision,
+        channel, expected_signer_sha256, now_utc)
     return {
         "releaseId": f"windows-{channel}-{version}-{source_revision}",
         "version": version,
@@ -232,6 +239,7 @@ def assemble_candidate(
     payload_root: Path,
     installer_path: Path,
     evidence_path: Path,
+    intent_path: Path,
     output_root: Path,
     version_file: Path,
     source_revision: str,
@@ -258,6 +266,9 @@ def assemble_candidate(
         expected_signer_sha256,
         now_utc,
     )
+    verify_signing_intent(
+        intent_path, version_file, source_revision, channel,
+        expected_signer_sha256, now_utc)
     if installer_path.name != installer_name:
         raise ManifestError("Windows release installer name is invalid")
     resolved_payload = payload_root.resolve()
@@ -285,6 +296,10 @@ def assemble_candidate(
         target_evidence.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(evidence_path, target_evidence)
         copied.append(target_evidence)
+        target_intent = temporary / INTENT_PATH
+        target_intent.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(intent_path, target_intent)
+        copied.append(target_intent)
 
         verify_evidence(
             target_evidence,
@@ -304,7 +319,7 @@ def assemble_candidate(
             entries.append({"path": relative, "sha256": digest, "size": size})
             checksums.append(f"{digest}  {relative}")
         manifest = {
-            "schemaVersion": 1,
+            "schemaVersion": 2,
             "product": "chat-room-windows-client",
             "releaseStatus": RELEASE_STATUS,
             "channel": channel,
@@ -316,6 +331,7 @@ def assemble_candidate(
             "qtVersion": qt_version,
             "expectedSignerCertificateSha256": expected_signer_sha256,
             "signatureEvidencePath": EVIDENCE_PATH,
+            "protectedSigningIntentPath": INTENT_PATH,
             "installerPath": f"installer/{installer_name}",
             "files": entries,
         }
@@ -349,6 +365,7 @@ def parse_args() -> argparse.Namespace:
     assemble.add_argument("--payload-root", type=Path, required=True)
     assemble.add_argument("--installer", type=Path, required=True)
     assemble.add_argument("--signature-evidence", type=Path, required=True)
+    assemble.add_argument("--protected-signing-intent", type=Path, required=True)
     assemble.add_argument("--output-root", type=Path, required=True)
     _common(assemble)
     verify = commands.add_parser("verify")
@@ -363,6 +380,7 @@ def main() -> int:
         if args.command == "assemble":
             result = assemble_candidate(
                 args.payload_root, args.installer, args.signature_evidence,
+                args.protected_signing_intent,
                 args.output_root, args.version_file, args.source_revision,
                 args.channel, args.qt_version, args.expected_signer_sha256,
                 datetime.now(timezone.utc),
