@@ -306,7 +306,13 @@ transaction, requires both enabled participants and recipient ownership, and
 creates or reactivates the unique ordered DIRECT relationship with exactly two
 active memberships. It installs one V1 FRIENDSHIP mapping before changing the
 request to database-timed `ACCEPTED`. Exact retries revalidate all of those
-invariants; partial accepted state fails closed. No handler invokes it yet.
+invariants; partial accepted state fails closed.
+
+The detached V1 module now invokes this acceptance adapter behind strict
+authenticated handling. Real-database verification covers two imported login
+sessions, existing DIRECT reuse, durable acceptance, first-only online notify,
+and exact retry. This remains a detached compatibility proof rather than a
+PostgreSQL product-traffic cutover.
 
 ## Bounds and indexes
 

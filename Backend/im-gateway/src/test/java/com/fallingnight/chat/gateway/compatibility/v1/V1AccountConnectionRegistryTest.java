@@ -1,6 +1,8 @@
 package com.fallingnight.chat.gateway.compatibility.v1;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.util.Set;
@@ -28,6 +30,37 @@ final class V1AccountConnectionRegistryTest {
         } finally {
             active.finishAndReleaseAll();
             closed.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void executesOnlyOnTheCurrentActiveConnection() {
+        V1AccountConnectionRegistry registry = new V1AccountConnectionRegistry();
+        UUID accountId = UUID.randomUUID();
+        EmbeddedChannel first = new EmbeddedChannel();
+        EmbeddedChannel replacement = new EmbeddedChannel();
+        try {
+            registry.replace(accountId, first);
+            var invoked = new java.util.concurrent.atomic.AtomicInteger();
+            assertTrue(registry.executeIfActive(accountId, ignored -> invoked.incrementAndGet()));
+            first.runPendingTasks();
+            assertEquals(1, invoked.get());
+
+            registry.replace(accountId, replacement);
+            assertTrue(registry.executeIfActive(accountId, ignored -> invoked.incrementAndGet()));
+            replacement.runPendingTasks();
+            assertEquals(2, invoked.get());
+            first.close();
+            first.runPendingTasks();
+            assertEquals(Set.of(accountId), registry.onlineAccounts(Set.of(accountId)));
+
+            replacement.close();
+            replacement.runPendingTasks();
+            assertFalse(registry.executeIfActive(accountId, ignored -> invoked.incrementAndGet()));
+            assertEquals(2, invoked.get());
+        } finally {
+            first.finishAndReleaseAll();
+            replacement.finishAndReleaseAll();
         }
     }
 }

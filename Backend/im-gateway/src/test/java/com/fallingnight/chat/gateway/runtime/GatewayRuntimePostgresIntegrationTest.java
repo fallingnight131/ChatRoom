@@ -2,12 +2,14 @@ package com.fallingnight.chat.gateway.runtime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fallingnight.chat.gateway.compatibility.v1.V1ConnectionAttributes;
 import com.fallingnight.chat.gateway.compatibility.v1.V1WebLoginHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestAcceptanceEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestRejectionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1PendingFriendRequestEventSink;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
@@ -206,6 +208,45 @@ class GatewayRuntimePostgresIntegrationTest {
                 } finally {
                     refreshed.release();
                 }
+
+                insertPendingRequest(jdbcUrl, username, password, 71);
+                EmbeddedChannel peer = upgradedChannel(module,
+                        Runnable::run,
+                        AuthenticationAdmissionControl.allowAll(),
+                        AuthenticationEventSink.noop());
+                try {
+                    peer.writeInbound(loginFrame("imported-peer", "java-v2-test-password"));
+                    peer.runPendingTasks();
+                    ((TextWebSocketFrame) peer.readOutbound()).release();
+
+                    imported.writeInbound(new TextWebSocketFrame(
+                            "{\"type\":\"FRIEND_ACCEPT_REQ\",\"data\":{"
+                                    + "\"requestId\":71,\"fromUsername\":\"spoofed\"}}"));
+                    imported.runPendingTasks();
+                    TextWebSocketFrame accepted = imported.readOutbound();
+                    try {
+                        assertTrue(accepted.text().contains("\"type\":\"FRIEND_ACCEPT_RSP\""));
+                        assertTrue(accepted.text().contains("\"success\":true"));
+                    } finally { accepted.release(); }
+                    peer.runPendingTasks();
+                    TextWebSocketFrame notification = peer.readOutbound();
+                    try {
+                        assertTrue(notification.text().contains(
+                                "\"type\":\"FRIEND_ACCEPT_NOTIFY\""));
+                        assertTrue(notification.text().contains(
+                                "\"acceptedBy\":\"imported-v1\""));
+                        assertTrue(notification.text().contains(
+                                "\"acceptedByDisplay\":\"Imported V1\""));
+                        assertFalse(notification.text().contains("spoofed"));
+                    } finally { notification.release(); }
+
+                    assertFriendAcceptanceSuccess(imported);
+                    peer.runPendingTasks();
+                    assertNull(peer.readOutbound());
+                    assertEquals(1, acceptedRequestCount(jdbcUrl, username, password));
+                } finally {
+                    peer.finishAndReleaseAll();
+                }
             } finally {
                 imported.finishAndReleaseAll();
             }
@@ -224,7 +265,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     response.release();
                 }
                 assertFalse(nativeV2.isActive());
-                assertEquals(1, sessionCount(jdbcUrl, username, password));
+                assertEquals(2, sessionCount(jdbcUrl, username, password));
             } finally {
                 nativeV2.finishAndReleaseAll();
             }
@@ -244,6 +285,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomDirectoryEventSink.noop(),
                 V1FriendDirectoryEventSink.noop(),
                 V1PendingFriendRequestEventSink.noop(),
+                V1FriendRequestAcceptanceEventSink.noop(),
                 V1FriendRequestRejectionEventSink.noop(),
                 java.time.Duration.ofSeconds(10),
                 java.time.Duration.ofSeconds(15),
@@ -275,6 +317,18 @@ class GatewayRuntimePostgresIntegrationTest {
         } finally {
             response.release();
         }
+    }
+
+    private static void assertFriendAcceptanceSuccess(EmbeddedChannel channel) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"FRIEND_ACCEPT_REQ\",\"data\":{\"requestId\":71}}"));
+        channel.runPendingTasks();
+        TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"FRIEND_ACCEPT_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertFalse(response.text().contains("10000000-0000"));
+        } finally { response.release(); }
     }
 
     private static void seedV1CompatibilityAccounts(
@@ -435,6 +489,43 @@ class GatewayRuntimePostgresIntegrationTest {
                 ResultSet result = statement.executeQuery(
                         "SELECT count(*) FROM chat.contact_request "
                                 + "WHERE state = 'REJECTED' AND resolved_at IS NOT NULL")) {
+            assertTrue(result.next());
+            return result.getInt(1);
+        }
+    }
+
+    private static void insertPendingRequest(
+            String url, String user, String password, long legacyRequestId) throws Exception {
+        UUID requestId = UUID.fromString("70000000-0000-0000-0000-000000000071");
+        UUID requester = UUID.fromString("15000000-0000-0000-0000-000000000044");
+        UUID recipient = UUID.fromString("10000000-0000-0000-0000-000000000042");
+        try (Connection connection = DriverManager.getConnection(url, user, password)) {
+            try (PreparedStatement request = connection.prepareStatement(
+                    "INSERT INTO chat.contact_request("
+                            + "id, requester_account_id, recipient_account_id) VALUES (?, ?, ?)")) {
+                request.setObject(1, requestId);
+                request.setObject(2, requester);
+                request.setObject(3, recipient);
+                assertEquals(1, request.executeUpdate());
+            }
+            try (PreparedStatement mapping = connection.prepareStatement(
+                    "INSERT INTO chat.legacy_v1_contact_request_map("
+                            + "legacy_request_id, contact_request_id) VALUES (?, ?)")) {
+                mapping.setLong(1, legacyRequestId);
+                mapping.setObject(2, requestId);
+                assertEquals(1, mapping.executeUpdate());
+            }
+        }
+    }
+
+    private static int acceptedRequestCount(
+            String url, String user, String password) throws Exception {
+        try (Connection connection = DriverManager.getConnection(url, user, password);
+                Statement statement = connection.createStatement();
+                ResultSet result = statement.executeQuery(
+                        "SELECT count(*) FROM chat.contact_request "
+                                + "WHERE id = '70000000-0000-0000-0000-000000000071' "
+                                + "AND state = 'ACCEPTED' AND resolved_at IS NOT NULL")) {
             assertTrue(result.next());
             return result.getInt(1);
         }

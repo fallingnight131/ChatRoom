@@ -259,8 +259,16 @@ active memberships, attaches one FRIENDSHIP compatibility mapping, and commits
 the request's database-timed `ACCEPTED` state last. V017 allocates runtime-only
 positive V1 friendship IDs downward from the 32-bit maximum while imports retain
 their historical upward IDs; occupied values are always skipped and rollback
-gaps are harmless. Exact retries revalidate the complete relationship. The
-adapter remains detached from transport.
+gaps are harmless. Exact retries revalidate the complete relationship.
+
+The detached module now composes strict acceptance handling. Existing clients
+may still send the optional `fromUsername` hint, but it is ignored for identity;
+the authenticated recipient and durable request row determine both authority and
+requester. First apply sends the compatible response and schedules one notify to
+the requester's current authoritative process-local V1 connection. Exact retry
+succeeds without another notification. Fixed telemetry distinguishes scheduled
+local routing, no local route, duplicate, denial, failure, and saturation without identifiers. This
+does not provide multi-gateway routing and the product listener remains unchanged.
 
 The identity import foundation deterministically maps each positive V1 numeric
 user ID to a stable V2 UUID, validates exact usernames, display bounds,

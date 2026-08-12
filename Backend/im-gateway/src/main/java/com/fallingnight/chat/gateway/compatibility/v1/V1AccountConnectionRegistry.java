@@ -5,7 +5,9 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 /** Process-local V1 single-account connection ownership. */
 public final class V1AccountConnectionRegistry {
@@ -42,5 +44,23 @@ public final class V1AccountConnectionRegistry {
                     return channel != null && channel.isActive();
                 })
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    /** Schedules work only for the still-active authoritative account channel. */
+    public boolean executeIfActive(UUID accountId, Consumer<Channel> action) {
+        Objects.requireNonNull(accountId, "accountId");
+        Objects.requireNonNull(action, "action");
+        Channel expected = connections.get(accountId);
+        if (expected == null || !expected.isActive()) return false;
+        try {
+            expected.eventLoop().execute(() -> {
+                if (connections.get(accountId) == expected && expected.isActive()) {
+                    action.accept(expected);
+                }
+            });
+            return true;
+        } catch (RejectedExecutionException exception) {
+            return false;
+        }
     }
 }

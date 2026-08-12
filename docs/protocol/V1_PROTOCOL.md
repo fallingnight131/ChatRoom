@@ -333,7 +333,16 @@ same positive `data.requestId` and authenticated-recipient rule. First apply and
 an exact retry will both preserve `FRIEND_ACCEPT_RSP.data.success=true`, but only
 the first apply may produce `FRIEND_ACCEPT_NOTIFY`; a retry must not duplicate
 the notification. Failure remains the existing generic response and no UUID or
-new duplicate marker is added. No acceptance adapter or handler is composed yet.
+new duplicate marker is added.
+
+That detached handler is now composed. `data.fromUsername` remains an optional
+bounded string because existing Windows and Web clients send it, but the server
+ignores it for authorization and notification routing. First acceptance sends
+`FRIEND_ACCEPT_RSP.data.success=true` and, only when the durable requester has a
+current local V1 connection, one `FRIEND_ACCEPT_NOTIFY` containing authoritative
+`acceptedBy` and `acceptedByDisplay`. An exact retry returns success without a
+second notification. Ordinary denial returns the legacy generic error; malformed
+or infrastructure-failed handling closes. The product listener remains inactive.
 
 ### Recall
 
