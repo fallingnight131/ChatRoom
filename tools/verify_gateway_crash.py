@@ -21,7 +21,15 @@ def main() -> int:
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     environment = {}
+    revision = None
+    clean_at_start = None
     if args.output:
+        revision = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True,
+            capture_output=True, text=True).stdout.strip()
+        clean_at_start = not bool(subprocess.run(
+            ["git", "status", "--porcelain"], cwd=ROOT, check=True,
+            capture_output=True, text=True).stdout.strip())
         output = args.output.resolve()
         output.parent.mkdir(parents=True, exist_ok=True)
         output.unlink(missing_ok=True)
@@ -31,14 +39,9 @@ def main() -> int:
     result = verify(method, environment)
     if args.output:
         evidence = json.loads(args.output.read_text(encoding="utf-8"))
-        revision = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True,
-            capture_output=True, text=True).stdout.strip()
-        dirty = bool(subprocess.run(
-            ["git", "status", "--porcelain"], cwd=ROOT, check=True,
-            capture_output=True, text=True).stdout.strip())
+        assert revision is not None and clean_at_start is not None
         evidence["sourceRevision"] = revision
-        evidence["worktreeDirty"] = dirty
+        evidence["worktreeDirty"] = not clean_at_start
         evidence["host"] = {
             "platform": platform.platform(),
             "pythonVersion": platform.python_version(),
