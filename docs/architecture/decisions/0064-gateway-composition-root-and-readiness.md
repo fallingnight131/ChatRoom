@@ -1,6 +1,7 @@
 # ADR-0064: Gateway Composition Root and Readiness
 
 - Status: Accepted
+- Extended by: [`ADR-0346`](0346-bounded-gateway-connection-drain.md)
 - Date: 2026-08-12
 - Related milestone: M3
 

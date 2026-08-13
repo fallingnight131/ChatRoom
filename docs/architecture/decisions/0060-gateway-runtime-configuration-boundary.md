@@ -1,6 +1,7 @@
 # ADR-0060: Gateway Runtime Configuration Boundary
 
 - Status: Accepted
+- Extended by: [`ADR-0346`](0346-bounded-gateway-connection-drain.md)
 - Date: 2026-08-11
 - Related milestone: M3
 

@@ -35,6 +35,7 @@ import java.util.function.BooleanSupplier;
 /** Owns the validated database, workers, admin endpoint, and product listener lifecycle. */
 public final class GatewayRuntime implements AutoCloseable {
     private static final Duration WORKER_CLOSE_TIMEOUT = Duration.ofSeconds(5);
+    private static final System.Logger LOGGER = System.getLogger(GatewayRuntime.class.getName());
 
     private final AtomicBoolean readiness;
     private final BooleanSupplier dependencyReadiness;
@@ -43,7 +44,9 @@ public final class GatewayRuntime implements AutoCloseable {
     private final AutoCloseable authenticationWorkers;
     private final AutoCloseable messagingWorkers;
     private final AutoCloseable dataSource;
+    private final Duration drainTimeout;
     private boolean started;
+    private boolean productStarted;
     private boolean closed;
 
     private GatewayRuntime(
@@ -53,7 +56,8 @@ public final class GatewayRuntime implements AutoCloseable {
             AutoCloseable authenticationWorkers,
             AutoCloseable messagingWorkers,
             AutoCloseable dataSource,
-            BooleanSupplier dependencyReadiness) {
+            BooleanSupplier dependencyReadiness,
+            Duration drainTimeout) {
         this.readiness = Objects.requireNonNull(readiness, "readiness");
         this.admin = Objects.requireNonNull(admin, "admin");
         this.product = Objects.requireNonNull(product, "product");
@@ -63,6 +67,7 @@ public final class GatewayRuntime implements AutoCloseable {
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
         this.dependencyReadiness = Objects.requireNonNull(
                 dependencyReadiness, "dependencyReadiness");
+        this.drainTimeout = Objects.requireNonNull(drainTimeout, "drainTimeout");
     }
 
     public static GatewayRuntime create(GatewayRuntimeConfig config) {
@@ -163,7 +168,8 @@ public final class GatewayRuntime implements AutoCloseable {
                     workers,
                     messagingWorkers,
                     dataSource,
-                    dependencyReadiness);
+                    dependencyReadiness,
+                    config.drainTimeout());
         } catch (RuntimeException exception) {
             closeQuietly(adminServer);
             closeQuietly(productServer);
@@ -183,7 +189,7 @@ public final class GatewayRuntime implements AutoCloseable {
             AutoCloseable dataSource) {
         return new GatewayRuntime(
                 readiness, admin, product, authenticationWorkers, messagingWorkers, dataSource,
-                () -> true);
+                () -> true, Duration.ZERO);
     }
 
     public synchronized void start() {
@@ -194,6 +200,7 @@ public final class GatewayRuntime implements AutoCloseable {
         try {
             admin.start();
             product.start();
+            productStarted = true;
             readiness.set(true);
         } catch (RuntimeException exception) {
             close();
@@ -221,11 +228,26 @@ public final class GatewayRuntime implements AutoCloseable {
         }
         closed = true;
         readiness.set(false);
+        if (productStarted) drainProduct();
         closeQuietly(product);
         closeQuietly(admin);
         closeQuietly(messagingWorkers);
         closeQuietly(authenticationWorkers);
         closeQuietly(dataSource);
+    }
+
+    private void drainProduct() {
+        try {
+            product.stopAccepting();
+            boolean drained = product.awaitDrained(drainTimeout);
+            LOGGER.log(
+                    drained ? System.Logger.Level.INFO : System.Logger.Level.WARNING,
+                    drained ? "event=gateway_drain_complete" : "event=gateway_drain_timeout");
+        } catch (RuntimeException exception) {
+            LOGGER.log(System.Logger.Level.WARNING,
+                    "event=gateway_drain_failed type="
+                            + exception.getClass().getSimpleName());
+        }
     }
 
     private static ManagedServer managed(GatewayAdminServer server) {
@@ -255,6 +277,16 @@ public final class GatewayRuntime implements AutoCloseable {
             }
 
             @Override
+            public void stopAccepting() {
+                server.stopAccepting();
+            }
+
+            @Override
+            public boolean awaitDrained(Duration timeout) {
+                return server.awaitDrained(timeout);
+            }
+
+            @Override
             public void close() {
                 server.close();
             }
@@ -280,5 +312,9 @@ public final class GatewayRuntime implements AutoCloseable {
 
     interface BlockingServer extends ManagedServer {
         void awaitClose();
+
+        void stopAccepting();
+
+        boolean awaitDrained(Duration timeout);
     }
 }

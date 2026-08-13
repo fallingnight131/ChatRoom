@@ -1366,6 +1366,11 @@ Progress:
   production fleet rate. Define the future rolling-drain order as readiness
   removal, bounded connection drain, then randomized client reconnect, pending
   a multi-gateway implementation and failure validation.
+- [x] Implement the first bounded Java gateway drain boundary: readiness goes
+  false before listener admission stops, established children receive a
+  configurable 0..300 second monotonic window, timeout forces cleanup, the
+  loopback admin endpoint remains observable, and fixed lifecycle outcomes
+  distinguish completion from timeout (ADR-0346).
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.
@@ -1378,7 +1383,8 @@ Work:
   and background consumers;
 - define partition keys that preserve per-conversation order;
 - isolate push, thumbnail, scanning, retention, audit, and analytics workers;
-- implement graceful drain, rolling deployment, and reconnect-storm controls;
+- validate load-balancer deregistration, rolling multi-gateway deployment, and
+  reconnect-storm behavior on top of the bounded local drain contract;
 - add database partitioning/read strategies only after query evidence.
 
 Exit criteria:

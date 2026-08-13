@@ -601,7 +601,10 @@ Ping, and reader-idle closure, and both endpoints require the fixed `chat.v2` We
 subprotocol. The WSS component composes mandatory TLS,
 bounded HTTP/WebSocket parsing, Host/proxy/endpoint policies, connection and
 write-buffer limits, the post-upgrade application pipeline, and deterministic
-shutdown. `GatewayMain` now validates and owns PostgreSQL, identity cryptography,
+shutdown. Its bounded drain now clears readiness, stops listener admission,
+keeps the loopback admin endpoint observable while established children close,
+then force-closes at timeout before reverse dependency shutdown (ADR-0346).
+`GatewayMain` now validates and owns PostgreSQL, identity cryptography,
 bounded workers, admin readiness/metrics, WSS, and reverse shutdown. Operator
 restore rehearsal, conversation discovery, and supported-client V2 adoption
 remain explicit cutover blockers. Process-local account/direct-peer/gateway
@@ -2063,8 +2066,12 @@ before an M5 topology ADR.
 Controlled reconnect mode schedules real session resumes in explicit batches
 from a monotonic clock and records both resume latency and launch jitter while
 preserving the production authentication admission window. It provides inputs
-for future client backoff and gateway drain policy; it is not itself a safe
-fleet reconnect rate.
+for client backoff and gateway drain policy; it is not itself a safe fleet
+reconnect rate. The Java gateway now implements the first bounded drain slice:
+readiness withdrawal, listener admission stop, a configurable monotonic wait,
+fixed completion/timeout diagnostics, and forced cleanup. It does not yet prove
+load-balancer propagation, multi-gateway session recovery, or rolling-deployment
+availability.
 
 ## 15. Explicit Non-goals
 

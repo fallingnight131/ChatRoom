@@ -102,6 +102,7 @@ and never store populated values or credentials in the repository.
 | `CHATROOM_GATEWAY_AUTH_TIMEOUT_SECONDS` | `30` | `1..300` |
 | `CHATROOM_GATEWAY_IDLE_TIMEOUT_SECONDS` | `120` | `30..3600` |
 | `CHATROOM_GATEWAY_HEARTBEAT_INTERVAL_SECONDS` | `30` | `5..300`; must be shorter than idle timeout |
+| `CHATROOM_GATEWAY_DRAIN_TIMEOUT_SECONDS` | `15` | `0..300` |
 | `CHATROOM_POSTGRES_POOL_MAXIMUM` | `8` | `1..64` |
 | `CHATROOM_POSTGRES_POOL_MINIMUM_IDLE` | `1` | `0..64`, not above maximum |
 | `CHATROOM_POSTGRES_CONNECTION_TIMEOUT_SECONDS` | `5` | `1..30` |
@@ -165,7 +166,12 @@ not start the cleanup loop before real-provider capability acceptance.
 The process accepts no command-line configuration. On startup it validates the
 existing Flyway migration state and database pool before serving, starts the
 loopback admin endpoint as not ready, binds WSS, then returns HTTP 200 from
-`/health/ready`. Shutdown clears readiness and releases listener, admin,
+`/health/ready`. Shutdown first returns 503 readiness, stops new product
+connections, and keeps established channels for up to the configured drain
+timeout. It then force-closes remaining channels and releases the admin server,
 messaging workers, authentication workers, and pool in reverse ownership order.
+The load balancer must stop routing on readiness failure and its
+deregistration/termination grace must exceed the application timeout. A value
+of zero restores immediate shutdown; neither default is a fleet capacity claim.
 Do not route users to this M3 runtime yet: conversation discovery, supported-
 client adoption, and cutover/rollback rehearsal remain unfinished.

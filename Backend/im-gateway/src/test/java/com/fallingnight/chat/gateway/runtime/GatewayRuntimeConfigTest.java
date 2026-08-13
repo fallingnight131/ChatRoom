@@ -52,10 +52,15 @@ class GatewayRuntimeConfigTest {
         assertEquals(Duration.ofSeconds(30), config.authenticationTimeout());
         assertEquals(Duration.ofSeconds(120), config.authenticatedIdleTimeout());
         assertEquals(Duration.ofSeconds(30), config.authenticatedHeartbeatInterval());
+        assertEquals(Duration.ofSeconds(15), config.drainTimeout());
         assertEquals(Duration.ofSeconds(60), config.forwardAdmissionLimits().window());
         assertEquals(120, config.forwardAdmissionLimits().attemptsPerAccount());
         assertEquals(10_000, config.forwardAdmissionLimits().maximumTrackedAccounts());
         assertFalse(config.messageForwardingEnabled());
+        Map<String, String> immediateDrain = requiredEnvironment();
+        immediateDrain.put("CHATROOM_GATEWAY_DRAIN_TIMEOUT_SECONDS", "0");
+        assertEquals(Duration.ZERO, GatewayRuntimeConfig.fromEnvironment(immediateDrain)
+                .drainTimeout());
         Map<String, String> enabledForwarding = requiredEnvironment();
         enabledForwarding.put("CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED", "true");
         assertTrue(GatewayRuntimeConfig.fromEnvironment(enabledForwarding)
@@ -132,6 +137,11 @@ class GatewayRuntimeConfigTest {
         pool.put("CHATROOM_POSTGRES_POOL_MINIMUM_IDLE", "3");
         assertThrows(IllegalArgumentException.class,
                 () -> GatewayRuntimeConfig.fromEnvironment(pool));
+
+        Map<String, String> drain = requiredEnvironment();
+        drain.put("CHATROOM_GATEWAY_DRAIN_TIMEOUT_SECONDS", "301");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(drain));
     }
 
     @Test

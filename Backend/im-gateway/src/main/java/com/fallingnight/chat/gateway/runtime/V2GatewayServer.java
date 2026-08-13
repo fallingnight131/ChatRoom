@@ -55,6 +55,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 import javax.net.ssl.SSLException;
 
 /** Owned Netty WSS listener lifecycle; construction validates TLS before bind. */
@@ -94,6 +95,8 @@ public final class V2GatewayServer implements AutoCloseable {
     private NioEventLoopGroup workerGroup;
     private Channel listener;
     private ChannelFuture termination;
+    private boolean started;
+    private boolean closed;
 
     public V2GatewayServer(
             GatewayRuntimeConfig config,
@@ -305,9 +308,10 @@ public final class V2GatewayServer implements AutoCloseable {
     }
 
     public synchronized void start() {
-        if (listener != null) {
+        if (started || closed) {
             throw new IllegalStateException("gateway listener already started");
         }
+        started = true;
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup(config.eventLoopWorkers());
         try {
@@ -363,12 +367,36 @@ public final class V2GatewayServer implements AutoCloseable {
         return connectionLimiter.activeConnections();
     }
 
-    @Override
-    public synchronized void close() {
+    /** Stops new TCP admission while preserving established children for bounded drain. */
+    public synchronized void stopAccepting() {
         if (listener != null) {
             listener.close().syncUninterruptibly();
             listener = null;
         }
+    }
+
+    /** Waits only for voluntary child closure; {@link #close()} owns forced termination. */
+    public boolean awaitDrained(Duration timeout) {
+        Objects.requireNonNull(timeout, "timeout");
+        if (timeout.isNegative()) {
+            throw new IllegalArgumentException("drain timeout must not be negative");
+        }
+        long remaining = timeout.toNanos();
+        long last = System.nanoTime();
+        while (activeConnections() != 0 && remaining > 0) {
+            LockSupport.parkNanos(Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(10)));
+            long now = System.nanoTime();
+            remaining -= Math.max(0, now - last);
+            last = now;
+        }
+        return activeConnections() == 0;
+    }
+
+    @Override
+    public synchronized void close() {
+        if (closed) return;
+        closed = true;
+        stopAccepting();
         children.close().awaitUninterruptibly(SHUTDOWN_TIMEOUT.toMillis());
         shutdown(workerGroup);
         shutdown(bossGroup);

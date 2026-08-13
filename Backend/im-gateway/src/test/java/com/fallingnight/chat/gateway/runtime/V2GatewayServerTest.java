@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import javax.net.ssl.SSLContext;
@@ -102,6 +103,38 @@ class V2GatewayServerTest {
                 MessagingEventSink.noop(),
                 DeviceManagementEventSink.noop(),
                 new DeviceConnectionRegistry()));
+    }
+
+    @Test
+    void stopsAdmissionBeforeBoundedChildDrainAndForcedClose() throws Exception {
+        int port = availablePort();
+        GatewayRuntimeConfig config = config(port);
+        SelfSignedCertificate certificate = new SelfSignedCertificate("localhost");
+        SslContext serverTls = SslContextBuilder.forServer(
+                        certificate.certificate(), certificate.privateKey())
+                .build();
+        V2GatewayServer server = server(config, serverTls);
+        SSLSocket socket = null;
+        server.start();
+        try {
+            socket = (SSLSocket) trustAllTls().getSocketFactory()
+                    .createSocket("127.0.0.1", port);
+            socket.setSoTimeout(2_000);
+            socket.startHandshake();
+            assertEquals(1, server.activeConnections());
+
+            server.stopAccepting();
+
+            assertFalse(server.isRunning());
+            assertThrows(IllegalStateException.class, server::start);
+            assertFalse(server.awaitDrained(Duration.ofMillis(20)));
+            socket.close();
+            assertTrue(server.awaitDrained(Duration.ofSeconds(1)));
+        } finally {
+            if (socket != null) socket.close();
+            server.close();
+            certificate.delete();
+        }
     }
 
     private V2GatewayServer server(GatewayRuntimeConfig config, SslContext tls) {

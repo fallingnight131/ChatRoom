@@ -36,6 +36,8 @@ class GatewayRuntimeTest {
                 "admin:start:false",
                 "product:start:false",
                 "product:await",
+                "product:stop-accepting:false",
+                "product:await-drained:PT0S:false",
                 "product:close",
                 "admin:close",
                 "messaging-workers:close",
@@ -102,6 +104,17 @@ class GatewayRuntimeTest {
             @Override
             public void awaitClose() {
                 events.add(name + ":await");
+            }
+
+            @Override
+            public void stopAccepting() {
+                events.add(name + ":stop-accepting:" + readiness.get());
+            }
+
+            @Override
+            public boolean awaitDrained(java.time.Duration timeout) {
+                events.add(name + ":await-drained:" + timeout + ":" + readiness.get());
+                return true;
             }
 
             @Override

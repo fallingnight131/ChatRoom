@@ -53,6 +53,7 @@ public final class GatewayRuntimeConfig {
     private final Duration authenticationTimeout;
     private final Duration authenticatedIdleTimeout;
     private final Duration authenticatedHeartbeatInterval;
+    private final Duration drainTimeout;
     private final AuthenticationAdmissionLimits admissionLimits;
     private final MessageForwardAdmissionLimits forwardAdmissionLimits;
     private final boolean messageForwardingEnabled;
@@ -86,6 +87,7 @@ public final class GatewayRuntimeConfig {
             Duration authenticationTimeout,
             Duration authenticatedIdleTimeout,
             Duration authenticatedHeartbeatInterval,
+            Duration drainTimeout,
             AuthenticationAdmissionLimits admissionLimits,
             MessageForwardAdmissionLimits forwardAdmissionLimits,
             boolean messageForwardingEnabled) {
@@ -117,6 +119,7 @@ public final class GatewayRuntimeConfig {
         this.authenticationTimeout = authenticationTimeout;
         this.authenticatedIdleTimeout = authenticatedIdleTimeout;
         this.authenticatedHeartbeatInterval = authenticatedHeartbeatInterval;
+        this.drainTimeout = drainTimeout;
         this.admissionLimits = admissionLimits;
         this.forwardAdmissionLimits = forwardAdmissionLimits;
         this.messageForwardingEnabled = messageForwardingEnabled;
@@ -203,6 +206,8 @@ public final class GatewayRuntimeConfig {
         if (heartbeatInterval.compareTo(idleTimeout) >= 0) {
             throw invalid("gateway heartbeat interval must be shorter than idle timeout");
         }
+        Duration drainTimeout = seconds(
+                environment, "CHATROOM_GATEWAY_DRAIN_TIMEOUT_SECONDS", 15, 0, 300);
         Duration admissionWindow = seconds(
                 environment, "CHATROOM_GATEWAY_ADMISSION_WINDOW_SECONDS", 60, 1, 3600);
         AuthenticationAdmissionLimits limits = new AuthenticationAdmissionLimits(
@@ -249,6 +254,7 @@ public final class GatewayRuntimeConfig {
                 authenticationTimeout,
                 idleTimeout,
                 heartbeatInterval,
+                drainTimeout,
                 limits,
                 forwardLimits,
                 messageForwardingEnabled);
@@ -364,6 +370,10 @@ public final class GatewayRuntimeConfig {
 
     public Duration authenticatedHeartbeatInterval() {
         return authenticatedHeartbeatInterval;
+    }
+
+    public Duration drainTimeout() {
+        return drainTimeout;
     }
 
     public AuthenticationAdmissionLimits admissionLimits() {
