@@ -17,4 +17,11 @@ public record V1ProfileImageImportPreview(String manifestSha256, int entries,
             throw new IllegalArgumentException("invalid avatar import preview");
     }
     public boolean readyForProviderWrites() { return issues.isEmpty(); }
+    public boolean exactRetryCandidate() {
+        return issues.stream().filter(issue ->
+                        issue.code().equals("MANIFEST_ALREADY_IMPORTED")).count() == 1
+                && issues.stream().allMatch(issue ->
+                        issue.code().equals("MANIFEST_ALREADY_IMPORTED")
+                        || issue.code().equals("TARGET_POINTER_EXISTS"));
+    }
 }

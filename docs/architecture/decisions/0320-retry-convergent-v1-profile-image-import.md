@@ -58,8 +58,12 @@ never substitutes for Provider evidence. The serializable PostgreSQL importer
 now registers/revives exact objects, writes version-1 pointers and explicit
 present/absent audit entries atomically, returns the retained run on exact
 retry, and re-reconciles mappings, pointers, objects, and audit after restart.
-It remains detached from an operator Provider/apply command. The current
-C++/SQLite runtime remains the rollback path.
+The guarded offline command is composed with three explicit operator
+confirmations and repeats bundle
+verification after Provider writes before entering the database transaction.
+Its implementation is not real-provider acceptance evidence and does not
+activate runtime handlers. The current C++/SQLite runtime remains the rollback
+path.
 
 ## Verification
 

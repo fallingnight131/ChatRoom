@@ -262,13 +262,34 @@ pointer, conflicting object metadata, active delete claim, or previously
 imported manifest. This command validates PostgreSQL only and never contacts the
 object provider.
 
+After the dated Provider PASS, independent no-object-remains check, lifecycle/
+policy review, and successful preview have all been archived, set the three
+operator confirmations documented in `JAVA_GATEWAY_CONFIGURATION.md`. Keep all
+V1 writers stopped and run the guarded combined command with temporary
+least-privilege default-chain credentials:
+
+```bash
+./gradlew --no-daemon :migration-cli:run --args='profile-image-apply <export-directory> <final-proof.properties> <manifest-sha256>'
+```
+
+The command verifies the bundle, repeats the read-only PostgreSQL gate, performs
+checksum-bound create-only convergence for every unique object, verifies the
+bundle again, and only then commits all object metadata, present pointers, and
+present/absent audit entries in one serializable transaction. Require
+`status=PROFILE_IMAGES_APPLIED`, reconcile every count, and retain the non-empty
+`import_run_id`. A retry after an unknown outcome must return
+`status=PROFILE_IMAGE_IMPORT_RECONCILED`, the same run ID, zero inserted pointers,
+and exact Provider retry evidence.
+
+If Provider upload succeeds but PostgreSQL apply fails, do not delete individual
+objects. Preserve the same export/proof/hash and rerun after fixing the target;
+content-addressed create-only writes converge safely. Abandonment requires a
+reviewed inventory-based cleanup procedure.
+
 Exit status 2 or `status=PROFILE_IMAGES_BLOCKED` is a stop condition. Remediate
 invalid source data under a reviewed plan; never silently drop it or edit the
-manifest. This milestone has not yet implemented the object-storage/PostgreSQL
-Provider/apply operator command, so even a verified export is evidence only and
-must not be uploaded or used to activate avatar handlers. The underlying
-PostgreSQL adapter is implemented and tested, but invoking infrastructure pieces
-manually is not an approved migration procedure.
+manifest. A successful historical apply still does not activate avatar handlers
+or the cleanup loop; runtime composition requires the separate acceptance gate.
 
 ## Stop conditions
 

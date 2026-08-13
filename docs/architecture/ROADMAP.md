@@ -819,6 +819,9 @@ Progress:
       registration/revival, version-1 account/group pointers, explicit absence
       audit, no fabricated user-change events, whole-transaction rollback, and
       retained-run exact retry/restart reconciliation.
+    - [x] Compose the guarded offline apply command in strict verify-preview-
+      provider-reverify-transaction order, with explicit destructive/import/
+      reviewed-evidence confirmations, safe output, and exact-retry recovery.
     - [ ] Retain dated profile-image provider PASS, policy, lifecycle,
       no-object-remains, lease/timeout, rollback, and restart evidence; this
       destructive probe has not run in repository CI or this development host.

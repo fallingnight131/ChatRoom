@@ -67,6 +67,20 @@ values and is documented in `PROFILE_IMAGE_OBJECT_STORAGE_ACCEPTANCE.md`. Its
 explicit destructive confirmation is independent from the attachment/CORS
 probe, and neither command is run by ordinary builds or CI.
 
+The offline historical profile-image apply command may use the same values only
+after the dated probe and independent no-object-remains review. It additionally
+requires all three exact operator-only values below; none is read by the gateway:
+
+| Variable | Required exact value |
+| --- | --- |
+| `CHATROOM_PROFILE_IMAGE_IMPORT_CONFIRM` | `UPLOAD_AND_APPLY_VERIFIED_EXPORT` |
+| `CHATROOM_PROFILE_IMAGE_IMPORT_CREDENTIAL_PROVIDER` | `default-chain` |
+| `CHATROOM_PROFILE_IMAGE_IMPORT_PROVIDER_EVIDENCE` | `REVIEWED_DATED_PASS_AND_NO_OBJECT_REMAINS` |
+
+These confirmations are operator assertions, not substitutes for the retained
+evidence. Use temporary least-privilege credentials, keep the V1 writers stopped,
+and never store populated values or credentials in the repository.
+
 ## Bounded defaults
 
 | Variable | Default | Accepted range |

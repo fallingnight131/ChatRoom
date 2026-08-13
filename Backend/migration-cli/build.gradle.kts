@@ -12,6 +12,7 @@ dependencies {
     implementation(project(":application"))
     implementation(project(":persistence-postgres"))
     implementation(project(":profile-image-codec"))
+    implementation(project(":object-storage-s3"))
     implementation(libs.postgresql)
     implementation(libs.sqlite.jdbc)
     testImplementation(platform(libs.junit.bom))

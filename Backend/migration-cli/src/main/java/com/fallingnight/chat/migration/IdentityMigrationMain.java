@@ -2,6 +2,9 @@ package com.fallingnight.chat.migration;
 
 import com.fallingnight.chat.migration.profile.V1ProfileImageExporter;
 import com.fallingnight.chat.migration.profile.V1ProfileImageExportVerifier;
+import com.fallingnight.chat.migration.profile.V1ProfileImageImportCoordinator;
+import com.fallingnight.chat.storage.s3.S3AttachmentStorageConfig;
+import com.fallingnight.chat.storage.s3.S3ProfileImageWriterRuntime;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ConversationImporter;
@@ -112,6 +115,9 @@ public final class IdentityMigrationMain {
             }
             if (args.length == 4 && "profile-image-preview".equals(args[0])) {
                 return profileImagePreview(args, environment, output);
+            }
+            if (args.length == 4 && "profile-image-apply".equals(args[0])) {
+                return profileImageApply(args, environment, output, clock);
             }
             usage(error);
             return 64;
@@ -516,6 +522,8 @@ public final class IdentityMigrationMain {
                 + "<manifest-sha256>");
         error.println("  profile-image-preview <export-directory> <proof.properties> "
                 + "<manifest-sha256>");
+        error.println("  profile-image-apply <export-directory> <proof.properties> "
+                + "<manifest-sha256>");
     }
 
     private static int profileImageExport(String[] args, PrintStream output) {
@@ -573,5 +581,49 @@ public final class IdentityMigrationMain {
                 .read(Path.of(args[2]));
         return new V1ProfileImageExportVerifier().verify(
                 Path.of(args[1]), proof, args[3]);
+    }
+
+    private static int profileImageApply(String[] args, Map<String, String> environment,
+            PrintStream output, Clock clock) {
+        requireProfileImageImportConfirmation(environment);
+        VerifiedV1IdentityBackup proof = new V1IdentityBackupProofFile()
+                .read(Path.of(args[2]));
+        PGSimpleDataSource target = dataSource(environment);
+        S3AttachmentStorageConfig config =
+                S3AttachmentStorageConfig.fromEnvironment(environment);
+        try (S3ProfileImageWriterRuntime storage =
+                S3ProfileImageWriterRuntime.open(config, clock)) {
+            var report = new V1ProfileImageImportCoordinator(
+                    target, storage.writer()).apply(
+                            Path.of(args[1]), proof, args[3]);
+            output.println("status=" + (report.apply().alreadyApplied()
+                    ? "PROFILE_IMAGE_IMPORT_RECONCILED" : "PROFILE_IMAGES_APPLIED"));
+            output.println("manifest_sha256=" + report.apply().manifestSha256());
+            output.println("entries=" + report.apply().entries());
+            output.println("present=" + report.apply().present());
+            output.println("absent=" + report.apply().absent());
+            output.println("unique_objects=" + report.apply().uniqueObjects());
+            output.println("provider_created=" + report.upload().created());
+            output.println("provider_already_present=" + report.upload().alreadyPresent());
+            output.println("inserted_pointers=" + report.apply().insertedPointers());
+            output.println("import_run_id=" + report.apply().importRunId());
+            return 0;
+        }
+    }
+
+    private static void requireProfileImageImportConfirmation(
+            Map<String, String> environment) {
+        if (!"UPLOAD_AND_APPLY_VERIFIED_EXPORT".equals(environment.get(
+                "CHATROOM_PROFILE_IMAGE_IMPORT_CONFIRM")))
+            throw new IllegalArgumentException(
+                    "explicit profile image import confirmation is required");
+        if (!"default-chain".equals(environment.get(
+                "CHATROOM_PROFILE_IMAGE_IMPORT_CREDENTIAL_PROVIDER")))
+            throw new IllegalArgumentException(
+                    "explicit profile image import credential selection is required");
+        if (!"REVIEWED_DATED_PASS_AND_NO_OBJECT_REMAINS".equals(environment.get(
+                "CHATROOM_PROFILE_IMAGE_IMPORT_PROVIDER_EVIDENCE")))
+            throw new IllegalArgumentException(
+                    "reviewed profile image provider evidence is required");
     }
 }

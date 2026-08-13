@@ -132,6 +132,17 @@ class IdentityMigrationMainTest {
                 new PrintStream(new ByteArrayOutputStream()),
                 new PrintStream(new ByteArrayOutputStream()),
                 Clock.systemUTC()));
+
+        ByteArrayOutputStream importError = new ByteArrayOutputStream();
+        assertEquals(70, IdentityMigrationMain.run(
+                new String[] {"profile-image-apply", "private-export", "private-proof",
+                    "a".repeat(64)}, Map.of(),
+                new PrintStream(new ByteArrayOutputStream()),
+                new PrintStream(importError, true, StandardCharsets.UTF_8),
+                Clock.systemUTC()));
+        assertEquals("status=FAILED\nreason=migration_operation_failed\n",
+                importError.toString(StandardCharsets.UTF_8));
+        assertFalse(importError.toString(StandardCharsets.UTF_8).contains("private-export"));
     }
 
     @Test void exportsProofBoundProfileImageManifestWithoutPrintingPrivatePaths()
