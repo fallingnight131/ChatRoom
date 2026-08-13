@@ -5,11 +5,40 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class MessageModelTest {
+    @Test
+    void structuredMentionsOwnStableTargetsAndExactUtf8Spans() {
+        byte[] content = "@李 and @Bob".getBytes(StandardCharsets.UTF_8);
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        List<MessageMention> mentions = MessageMentionPolicy.validateAndCopy(content, List.of(
+                new MessageMention(first, 0, 4),
+                new MessageMention(second, 9, 4)));
+        org.junit.jupiter.api.Assertions.assertEquals(2, mentions.size());
+        MessageMentionPolicy.requireNoSelfMention(UUID.randomUUID(), mentions);
+
+        assertThrows(IllegalArgumentException.class, () ->
+                MessageMentionPolicy.validateAndCopy(content,
+                        List.of(new MessageMention(first, 2, 2))));
+        assertThrows(IllegalArgumentException.class, () ->
+                MessageMentionPolicy.validateAndCopy(content, List.of(
+                        new MessageMention(first, 0, 4),
+                        new MessageMention(second, 3, 4))));
+        assertThrows(IllegalArgumentException.class, () ->
+                MessageMentionPolicy.requireNoSelfMention(first, mentions));
+        assertThrows(NullPointerException.class, () ->
+                MessageMentionPolicy.validateAndCopy(content,
+                        java.util.Arrays.asList((MessageMention) null)));
+        assertThrows(IllegalArgumentException.class, () ->
+                MessageMentionPolicy.validateAndCopy(
+                        new byte[] {(byte) 0xc3, (byte) 0x28}, List.of()));
+    }
+
     @Test
     void submissionAndStoredProjectionOwnPayloadCopiesAndEnforceBounds() {
         byte[] source = {1, 2};
