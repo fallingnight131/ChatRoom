@@ -26,6 +26,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFileDeletionEventSin
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageDeletionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomRenameEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomPasswordEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDissolutionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomAdminEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomKickEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
@@ -405,6 +406,8 @@ class GatewayRuntimePostgresIntegrationTest {
                             assertRoomPasswordRecoveredAndCancelled(
                                     peerReplacement, reconnected,
                                     jdbcUrl, username, password);
+                            assertRoomDissolution(module, peerReplacement, reconnected,
+                                    jdbcUrl, username, password);
                         } finally { peerReplacement.finishAndReleaseAll(); }
                     } finally { reconnected.finishAndReleaseAll(); }
                 } finally {
@@ -428,7 +431,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     response.release();
                 }
                 assertFalse(nativeV2.isActive());
-                assertEquals(9, sessionCount(jdbcUrl, username, password));
+                assertEquals(10, sessionCount(jdbcUrl, username, password));
             } finally {
                 nativeV2.finishAndReleaseAll();
             }
@@ -455,6 +458,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomMessageDeletionEventSink.noop(),
                 V1RoomRenameEventSink.noop(),
                 V1RoomPasswordEventSink.noop(),
+                V1RoomDissolutionEventSink.noop(),
                 V1RoomAdminEventSink.noop(),
                 V1RoomKickEventSink.noop(),
                 V1RoomDirectoryEventSink.noop(),
@@ -1192,6 +1196,66 @@ class GatewayRuntimePostgresIntegrationTest {
                         + "ON mapping.conversation_id = credential.conversation_id "
                         + "WHERE mapping.legacy_kind = 'ROOM' "
                         + "AND mapping.legacy_conversation_id = 7"));
+    }
+
+    private static void assertRoomDissolution(V1CompatibilityModule module,
+            EmbeddedChannel admin, EmbeddedChannel owner,
+            String url, String user, String password) throws Exception {
+        String request = "{\"type\":\"DELETE_ROOM_REQ\",\"data\":{\"roomId\":7,"
+                + "\"roomName\":\"Spoofed Room\"}}";
+        admin.writeInbound(new TextWebSocketFrame(request)); admin.runPendingTasks();
+        TextWebSocketFrame response = admin.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"DELETE_ROOM_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"changed\":true"));
+            assertTrue(response.text().contains("\"roomName\":\"Renamed Imported Room\""));
+            assertFalse(response.text().contains("Spoofed Room"));
+        } finally { response.release(); }
+        admin.runPendingTasks(); owner.runPendingTasks();
+        TextWebSocketFrame ownNotify = admin.readOutbound(), ownerNotify = owner.readOutbound();
+        try {
+            assertTrue(ownNotify.text().contains("\"type\":\"DELETE_ROOM_NOTIFY\""));
+            assertTrue(ownerNotify.text().contains("\"operator\":\"Imported Peer\""));
+            assertFalse(ownNotify.text().contains("Spoofed Room"));
+        } finally { ownNotify.release(); ownerNotify.release(); }
+
+        admin.writeInbound(new TextWebSocketFrame(request)); admin.runPendingTasks();
+        response = admin.readOutbound();
+        try { assertTrue(response.text().contains("\"changed\":false")); }
+        finally { response.release(); }
+        admin.runPendingTasks(); owner.runPendingTasks();
+        assertNull(admin.readOutbound()); assertNull(owner.readOutbound());
+        assertEquals(1, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.legacy_v1_room_dissolution dissolution "
+                        + "JOIN chat.legacy_v1_conversation_map mapping "
+                        + "ON mapping.conversation_id = dissolution.conversation_id "
+                        + "WHERE mapping.legacy_kind = 'ROOM' "
+                        + "AND mapping.legacy_conversation_id = 7 "
+                        + "AND dissolution.room_name = 'Renamed Imported Room'"));
+        assertEquals(0, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.conversation_member member "
+                        + "JOIN chat.legacy_v1_conversation_map mapping "
+                        + "ON mapping.conversation_id = member.conversation_id "
+                        + "WHERE mapping.legacy_kind = 'ROOM' "
+                        + "AND mapping.legacy_conversation_id = 7 AND member.left_at IS NULL"));
+
+        EmbeddedChannel replacementOwner = upgradedChannel(module, Runnable::run,
+                AuthenticationAdmissionControl.allowAll(), AuthenticationEventSink.noop());
+        try {
+            replacementOwner.writeInbound(loginFrame(
+                    "imported-v1", "java-v2-test-password"));
+            replacementOwner.runPendingTasks();
+            ((TextWebSocketFrame) replacementOwner.readOutbound()).release();
+            replacementOwner.writeInbound(new TextWebSocketFrame(
+                    "{\"type\":\"ROOM_LIST_REQ\",\"data\":{}}"));
+            replacementOwner.runPendingTasks(); TextWebSocketFrame rooms = replacementOwner.readOutbound();
+            try {
+                assertTrue(rooms.text().contains("\"type\":\"ROOM_LIST_RSP\""));
+                assertFalse(rooms.text().contains("\"roomId\":7"));
+                assertFalse(rooms.text().contains("Renamed Imported Room"));
+            } finally { rooms.release(); }
+        } finally { replacementOwner.finishAndReleaseAll(); }
     }
 
     private static void assertRoomAdminPromotion(EmbeddedChannel owner,
