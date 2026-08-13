@@ -1347,8 +1347,10 @@ Progress:
   WSS connections, 400 retained routes, 200 independently reconciled messages,
   activation P95 87.599 ms, all-peer publication P95 1.060 ms, and zero errors;
   the single-gateway measurements do not yet justify Redis or a broker.
-- [ ] Record a larger current-revision group fan-out curve independently of
-  conversation-count growth.
+- [x] Record a clean current-revision 40-receiver GROUP fan-out point with 41
+  WSS connections, 4,000 exact publications, all-peer P95 2.405 ms, continuous
+  durability, and zero errors; no current single-gateway fan-out evidence
+  justifies a broker.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.
