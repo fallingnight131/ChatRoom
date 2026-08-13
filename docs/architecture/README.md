@@ -718,11 +718,12 @@ retry transport paths. The build-gated Web V2 preview provides a keyboard-native
 participant picker, Unicode-safe span maintenance, accessible loading/error
 controls, identity-preserving rendering, and capability-4 negotiation.
 The default-off Windows boundary can now issue and validate the same participant
-pages with stable cursor and Unicode policy, but it remains detached from the
-Windows controller, SQLite state, Widgets UI, and capability negotiation.
-Its detached Qt view model now supplies bounded conversation-scoped rows,
-loading, pagination, and fixed failure state without treating display names as
-identity; the controller and product UI still do not own it.
+pages with stable cursor and Unicode policy. The authenticated Windows
+controller composes its bounded conversation-scoped view model and routes the
+type-117/type-118 command/response pair over the existing WSS transport only
+after an explicit caller activates a conversation. It remains detached from
+SQLite message state and the Widgets UI, and capability 4 remains off, so this
+integration does not expose unfinished mention behavior to the product.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

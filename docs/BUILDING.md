@@ -1342,14 +1342,19 @@ The default-off Windows participant protocol boundary now emits type 117 and
 strictly validates correlated type-118 pages, including conversation identity,
 ascending account IDs, cursor advancement, roles, Unicode display-name bounds,
 Unicode-only whitespace, and disconnect cleanup. It is compiled into the
-Windows V2 messaging product library but is not composed or negotiated yet.
+Windows V2 messaging product library and composed behind an explicit controller
+call, but is not exposed through Widgets or negotiated yet.
 The cross-language protocol gate runs this test with Clang warnings-as-errors on
 the macOS development host (ADR-0343).
 The detached Windows participant view model keeps at most 500 current rows for
 one active conversation, exposes explicit refresh/load-more state, sorts by
 stable account ID, ignores pages and failures for another conversation, and
 enters a fixed unavailable state on disconnect. Its Qt Core test runs with
-warnings-as-errors; controller and Widgets composition remain off (ADR-0343).
+warnings-as-errors. The messaging-controller test additionally proves that a
+caller-triggered type-117 request shares the authenticated WSS, that only its
+correlated type-118 response reaches the active conversation state, and that
+disconnect abandons the projection. Widgets composition and capability 4 remain
+off (ADR-0343).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

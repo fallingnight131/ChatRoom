@@ -3,6 +3,7 @@
 #include "V2LocalMessageRepository.h"
 #include "V2WindowsMessagingViewModel.h"
 #include "V2WindowsConversationDirectoryViewModel.h"
+#include "V2WindowsConversationParticipantViewModel.h"
 #include "chat/v2/authentication.pb.h"
 #include "chat/v2/control.pb.h"
 #include "chat/v2/conversation.pb.h"
@@ -172,6 +173,30 @@ int main(int argc, char **argv) {
     const auto rows = controller.viewModel()->rows();
     check(rows.size() == 1 && rows.first().text == QStringLiteral("hello"),
           QStringLiteral("routed server history must commit before refreshing the view model"));
+
+    check(controller.participantViewModel()->activate(conversationId) && sent.size() == 1,
+          QStringLiteral("participant state must explicitly trigger one bounded page"));
+    command = parseEnvelope(sent.takeFirst());
+    chat::v2::ListConversationParticipants participantRequest;
+    check(participantRequest.ParseFromString(command.payload())
+              && participantRequest.conversation_id() == conversationId.toStdString()
+              && participantRequest.limit() == 100,
+          QStringLiteral("controller must route the active conversation participant query"));
+    chat::v2::ConversationParticipantPage participantPage;
+    participantPage.set_conversation_id(conversationId.toStdString());
+    auto *participant = participantPage.add_participants();
+    participant->set_account_id(accountId);
+    participant->set_display_name("Test User");
+    participant->set_role(chat::v2::CONVERSATION_ROLE_MEMBER);
+    participantPage.set_next_account_id(accountId);
+    socket.binaryMessageReceived(response(
+        chat::v2::MESSAGE_TYPE_CONVERSATION_PARTICIPANT_PAGE,
+        chat::v2::MESSAGE_KIND_RESPONSE, command.request_id(), sessionId,
+        participantPage));
+    check(controller.participantViewModel()->rows().size() == 1
+              && controller.participantViewModel()->rows().front().accountId
+                    == QString::fromStdString(accountId),
+          QStringLiteral("participant response must reach conversation-scoped state"));
 
     transport.stop();
     check(unavailable,

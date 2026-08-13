@@ -1539,6 +1539,9 @@ Progress:
       - [x] Add a conversation-scoped Windows participant view model with a
         500-row bound, stable account ordering, explicit refresh/load-more,
         stale-response isolation, fixed failure, and disconnect state.
+      - [x] Compose the participant protocol and view model into the shared
+        authenticated Windows controller and WSS routing boundary, requiring an
+        explicit caller while Widgets exposure and capability 4 remain off.
 
 Candidate slices:
 

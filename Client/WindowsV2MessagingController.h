@@ -2,8 +2,10 @@
 
 #include "V2WindowsDeviceManagementTransport.h"
 #include "V2WindowsConversationDirectoryProtocolClient.h"
+#include "V2WindowsConversationParticipantProtocolClient.h"
 
 #include <QObject>
+#include <QHash>
 #include <QSet>
 #include <QString>
 #include <functional>
@@ -11,6 +13,7 @@
 
 class V2LocalMessageRepository;
 class V2WindowsConversationDirectoryViewModel;
+class V2WindowsConversationParticipantViewModel;
 class V2WindowsMessagingApplicationService;
 class V2WindowsMessagingViewModel;
 
@@ -28,6 +31,7 @@ public:
 
     V2WindowsMessagingViewModel *viewModel() const;
     V2WindowsConversationDirectoryViewModel *directoryViewModel() const;
+    V2WindowsConversationParticipantViewModel *participantViewModel() const;
     bool openConversation(const QString &conversationId);
 
 signals:
@@ -42,6 +46,7 @@ private:
     void receiveFrame(const QByteArray &frame);
     void abandonSession();
     bool requestDirectory(bool continuation);
+    bool requestParticipants(const QString &conversationId, bool continuation);
 
     V2WindowsDeviceManagementTransport *m_transport;
     RepositoryFactory m_repositoryFactory;
@@ -52,7 +57,11 @@ private:
     std::unique_ptr<V2WindowsMessagingViewModel> m_viewModel;
     std::unique_ptr<V2WindowsConversationDirectoryProtocolClient> m_directoryProtocol;
     std::unique_ptr<V2WindowsConversationDirectoryViewModel> m_directoryViewModel;
+    std::unique_ptr<V2WindowsConversationParticipantProtocolClient> m_participantProtocol;
+    std::unique_ptr<V2WindowsConversationParticipantViewModel> m_participantViewModel;
     V2WindowsConversationDirectoryProtocolClient::Cursor m_directoryCursor;
     QSet<QString> m_directoryRequestIds;
     bool m_directoryContinuationPending = false;
+    std::string m_participantCursor;
+    QHash<QString, bool> m_participantRequests;
 };

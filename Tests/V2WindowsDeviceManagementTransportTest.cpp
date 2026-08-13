@@ -179,6 +179,31 @@ int main(int argc, char **argv) {
               && !aborted,
           QStringLiteral("correlated messaging response must bypass device decoding"));
 
+    auto participantCommand = messagingCommand;
+    participantCommand.set_message_type(
+        chat::v2::MESSAGE_TYPE_LIST_CONVERSATION_PARTICIPANTS);
+    participantCommand.set_request_id("50000000-0000-4000-8000-000000000002");
+    participantCommand.set_payload("participant-request");
+    const auto participantBytes = serialize(participantCommand);
+    check(transport.sendMessagingFrame(QByteArray(
+              participantBytes.data(), static_cast<qsizetype>(participantBytes.size())))
+              && sent.size() == 1,
+          QStringLiteral("participant directory command must share the product socket"));
+    sent.clear();
+    auto participantResponse = messagingResponse;
+    participantResponse.set_message_type(
+        chat::v2::MESSAGE_TYPE_CONVERSATION_PARTICIPANT_PAGE);
+    participantResponse.set_request_id(participantCommand.request_id());
+    participantResponse.set_payload("participant-page");
+    const auto participantResponseBytes = serialize(participantResponse);
+    routedMessagingFrame.clear();
+    socket.binaryMessageReceived(QByteArray(participantResponseBytes.data(),
+        static_cast<qsizetype>(participantResponseBytes.size())));
+    check(routedMessagingFrame.size()
+              == static_cast<qsizetype>(participantResponseBytes.size())
+              && !aborted,
+          QStringLiteral("correlated participant response must bypass device decoding"));
+
     const QString listRequest = transport.listDevices();
     sent.clear();
     chat::v2::DeviceDirectory directory;

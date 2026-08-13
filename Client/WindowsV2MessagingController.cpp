@@ -5,6 +5,8 @@
 #include "V2WindowsMessagingViewModel.h"
 #include "V2WindowsConversationDirectoryProtocolClient.h"
 #include "V2WindowsConversationDirectoryViewModel.h"
+#include "V2WindowsConversationParticipantProtocolClient.h"
+#include "V2WindowsConversationParticipantViewModel.h"
 #include "chat/v2/control.pb.h"
 #include "chat/v2/envelope.pb.h"
 
@@ -45,6 +47,13 @@ WindowsV2MessagingController::WindowsV2MessagingController(
             [this](const QString &conversationId) {
                 return openConversation(conversationId);
             });
+    m_participantProtocol =
+        std::make_unique<V2WindowsConversationParticipantProtocolClient>();
+    m_participantViewModel =
+        std::make_unique<V2WindowsConversationParticipantViewModel>(
+            [this](const QString &conversationId, bool continuation) {
+                return requestParticipants(conversationId, continuation);
+            });
 }
 
 WindowsV2MessagingController::~WindowsV2MessagingController() {
@@ -58,6 +67,11 @@ V2WindowsMessagingViewModel *WindowsV2MessagingController::viewModel() const {
 V2WindowsConversationDirectoryViewModel *
 WindowsV2MessagingController::directoryViewModel() const {
     return m_directoryViewModel.get();
+}
+
+V2WindowsConversationParticipantViewModel *
+WindowsV2MessagingController::participantViewModel() const {
+    return m_participantViewModel.get();
 }
 
 bool WindowsV2MessagingController::openConversation(const QString &conversationId) {
@@ -146,6 +160,7 @@ void WindowsV2MessagingController::bindAuthenticatedSession(
     }
     try {
         m_directoryProtocol->bindSession(sessionId.toStdString());
+        m_participantProtocol->bindSession(sessionId.toStdString());
     } catch (...) {
         m_transport->rejectMessagingProtocol();
         return;
@@ -165,6 +180,43 @@ void WindowsV2MessagingController::receiveFrame(const QByteArray &frame) {
         return;
     }
     const QString requestId = QString::fromStdString(envelope.request_id());
+    if (envelope.message_type()
+            == chat::v2::MESSAGE_TYPE_CONVERSATION_PARTICIPANT_PAGE
+            || (envelope.message_type() == chat::v2::MESSAGE_TYPE_PROTOCOL_ERROR
+                && m_participantRequests.contains(requestId))) {
+        try {
+            const auto event = m_participantProtocol->receive(
+                std::string(frame.constData(), static_cast<std::size_t>(frame.size())));
+            const bool append = m_participantRequests.take(requestId);
+            const QString conversationId = QString::fromStdString(event.conversationId);
+            if (event.type
+                    == V2WindowsConversationParticipantProtocolClient::EventType::ProtocolError) {
+                m_participantViewModel->applyFailure(
+                    conversationId, QStringLiteral("无法读取成员列表"));
+                return;
+            }
+            QVector<V2WindowsConversationParticipantViewModel::Row> rows;
+            rows.reserve(static_cast<qsizetype>(event.participants.size()));
+            for (const auto &participant : event.participants) {
+                rows.append({QString::fromStdString(participant.accountId),
+                    QString::fromStdString(participant.displayName),
+                    participant.role
+                            == V2WindowsConversationParticipantProtocolClient::Role::Owner
+                        ? QStringLiteral("群主")
+                        : participant.role
+                                == V2WindowsConversationParticipantProtocolClient::Role::Admin
+                            ? QStringLiteral("管理员") : QStringLiteral("成员")});
+            }
+            m_participantViewModel->applyPage(
+                conversationId, std::move(rows), append, event.hasMore);
+            if (conversationId == m_participantViewModel->conversationId())
+                m_participantCursor = event.nextAccountId;
+            return;
+        } catch (...) {
+            m_transport->rejectMessagingProtocol();
+            return;
+        }
+    }
     if (envelope.message_type()
             == chat::v2::MESSAGE_TYPE_CONVERSATION_DIRECTORY_PAGE
             || (envelope.message_type() == chat::v2::MESSAGE_TYPE_PROTOCOL_ERROR
@@ -224,10 +276,31 @@ void WindowsV2MessagingController::abandonSession() {
         emit unavailable();
     }
     m_directoryProtocol->clearSession();
+    m_participantProtocol->clearSession();
     m_directoryRequestIds.clear();
     m_directoryContinuationPending = false;
     m_directoryCursor = {};
     m_directoryViewModel->setUnavailable();
+    m_participantCursor.clear();
+    m_participantRequests.clear();
+    m_participantViewModel->setUnavailable();
+}
+
+bool WindowsV2MessagingController::requestParticipants(
+        const QString &conversationId, bool continuation) {
+    try {
+        if (!continuation) m_participantCursor.clear();
+        const auto command = m_participantProtocol->list(
+            conversationId.toStdString(), 100,
+            continuation ? m_participantCursor : std::string{});
+        if (m_transport->sendMessagingFrame(QByteArray(
+                command.bytes.data(), static_cast<qsizetype>(command.bytes.size())))) {
+            m_participantRequests.insert(
+                QString::fromStdString(command.requestId), continuation);
+            return true;
+        }
+    } catch (...) {}
+    return false;
 }
 
 bool WindowsV2MessagingController::requestDirectory(bool continuation) {
