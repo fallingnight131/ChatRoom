@@ -207,6 +207,16 @@ target role emits no notification. The handler is composed in the detached Java
 compatibility module and covered through real PostgreSQL login, promotion,
 retry, and reconnect tests. The product listener remains unchanged.
 
+The detached Java `KICK_USER_REQ` handler accepts only exact integral `roomId`
+and bounded `username` data and binds the operator from the authenticated
+session. An active OWNER/ADMIN may remove only an active mapped MEMBER; OWNER
+and ADMIN targets are protected. A first commit returns `changed=true`, sends
+`KICK_USER_NOTIFY` to the local target, and sends `USER_LEFT` plus the legacy
+system message to remaining active local members. An exact same-actor retry is
+reconstructed from durable membership-generation audit, returns
+`changed=false`, and emits no live effect. The handler is not yet composed into
+the compatibility module or product listener.
+
 ### Room files
 
 `FILE_SEND`, `FILE_NOTIFY`, `FILE_DOWNLOAD_REQ`, `FILE_DOWNLOAD_RSP`,

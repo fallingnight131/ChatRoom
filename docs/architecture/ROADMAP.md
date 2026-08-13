@@ -676,6 +676,9 @@ Progress:
   - [x] Add V032 and a serializable PostgreSQL V1 room-kick adapter with atomic
     membership removal, protected-role checks, append-only audit, exact retry,
     and rejoin-generation separation.
+  - [x] Add the detached strict V1 room-kick handler with authenticated actor
+    binding, bounded off-loop work, compatible response/target/member effects,
+    and exact-retry notification suppression.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-

@@ -33,8 +33,12 @@ without deleting audit history.
 
 Only `changed=true` may later emit `KICK_USER_NOTIFY` to the target and
 `USER_LEFT` to remaining active local members. Database commit remains
-authoritative if routing fails. The product listener remains unchanged until a
-later composition and cutover gate.
+authoritative if routing fails. The detached strict handler now emits those
+effects plus the compatible room system message, with bounded off-event-loop
+work and fixed outcomes. Exact retry and business rejection never notify;
+malformed, concurrent, saturated, and dependency-failed commands close
+generically. The handler is not yet composed into the compatibility module or
+product listener.
 
 ## Consequences
 
@@ -46,5 +50,7 @@ later composition and cutover gate.
 - Disposable PostgreSQL verifies clean/restart migration, unauthorized actor,
   protected role, non-member target, first kick, exact retry, different-actor
   denial, rejoin, and a distinct second-generation audit event.
-- The detached handler and product listener remain subsequent independently
-  verified slices.
+- Handler tests cover strict parsing, actor binding, first-only target/member
+  effects, UUID-free responses, rejection, dependency failure, and saturation.
+- Compatibility-module composition and the product listener remain subsequent
+  independently verified slices.
