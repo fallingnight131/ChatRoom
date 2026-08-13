@@ -1,6 +1,6 @@
 # ADR-0380: Two-Artifact Gateway Rollout Gate
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-14
 - Owners: project maintainers
 - Related milestone: M5
@@ -13,7 +13,7 @@ revisions can share PostgreSQL, Redis routing, HAProxy, and the V2 wire contract
 A trustworthy rolling gate must run actual independently built artifacts rather
 than assign two labels to one classpath.
 
-## Proposed decision
+## Decision
 
 - Pin the previous compatible baseline to full revision
   `1487e1f08992a1b4d10a3d5ece59b4fa8c935ac5`, the first release-identity
@@ -31,7 +31,7 @@ than assign two labels to one classpath.
   the candidate, repair both messages, and deliver the next sequence.
 - Keep the expensive local-service/Docker gate explicit and outside `--all`.
 
-## Expected consequences
+## Consequences
 
 Passing the gate will provide bounded evidence for one exact previous/candidate
 pair and V2 messaging slice. It will not prove arbitrary release pairs, schema
@@ -41,14 +41,17 @@ blocks rollout compatibility for that pair.
 
 ## Verification
 
-After this implementation is committed, run from a clean worktree:
+Run from a clean worktree:
 
 ```bash
 python3 tools/verify_m0.py --gateway-mixed-version
 ```
 
-Promote this ADR to Accepted and record roadmap progress only after that command
-passes against the committed candidate revision.
+The gate passed with previous revision
+`1487e1f08992a1b4d10a3d5ece59b4fa8c935ac5` and candidate revision
+`79ed828cdcfa5fd8af63922e16b92bae88d3d9b3`. Both running identities matched,
+bidirectional sequences 1 and 2 crossed revisions, HAProxy removed the stopped
+previous JVM, and the candidate repaired both messages before sequence 3.
 
 ## Rollback
 

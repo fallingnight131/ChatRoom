@@ -1589,6 +1589,12 @@ Progress:
   version to the running V2 module, carry an ADR-governed compatibility epoch,
   and expose deterministic JSON only on loopback `GET /identity`. A two-artifact
   mixed-version runtime gate remains pending (ADR-0379).
+- [x] Pass a two-artifact rolling-compatibility gate: independently export and
+  build pinned previous revision `1487e1f...` and candidate `79ed828...`, verify
+  each running loopback identity and their real metrics-surface difference,
+  deliver sequences 1 and 2 bidirectionally across versions, remove the previous
+  JVM through HAProxy health, repair history on the candidate, and deliver
+  sequence 3. Every future release pair must rerun the gate (ADR-0380).
 
 Work:
 

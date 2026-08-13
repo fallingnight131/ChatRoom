@@ -1177,6 +1177,12 @@ non-overridable V2 protocol version, and a reviewed compatibility epoch through
 exact loopback `GET /identity`. Development reports itself honestly as
 `development`/`unknown`; this identity enables, but does not itself prove, safe
 cross-revision rollout.
+ADR-0380 then supplies that exact-pair proof with two independently built Git
+revisions and JVM classpaths. Their runtime identities match their commits, a
+real additive metrics difference distinguishes the artifacts, messages flow in
+both directions, and after the previous JVM leaves HAProxy the candidate repairs
+history and continues the conversation sequence. This is not a claim for an
+arbitrary future version pair.
 
 ## 10. Attachment Flow
 
