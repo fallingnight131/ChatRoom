@@ -1318,7 +1318,12 @@ Progress:
   - [x] Extend the default-off Web V2 protocol client with correlated bounded
     device listing/revocation commands, defensive response validation, and
     current-device refusal. Application coordinator and UI remain pending.
-  - [ ] Add supported Web and Windows device-management UI and recovery behavior.
+  - [x] Add the default-off Web device-management user path with automatic
+    post-auth/reconnect refresh, no durable security-state cache, ambiguous
+    disconnect recovery, current-device protection, accessible confirmation,
+    opaque failure/retry behavior, and offline mutation disablement.
+  - [ ] Add the supported Windows device-management application/UI path; Web is
+    implemented behind the existing V2 preview/cutover gate.
 
 Candidate slices:
 

@@ -22,3 +22,14 @@ test('owns explicit V2 start, transient authentication, and basic chat actions',
   assert.match(previewSource, /startedApplication\.stop\(\)/)
   assert.match(previewSource, /aria-live="polite"/)
 })
+
+test('exposes keyboard-operable server-authoritative device management', () => {
+  assert.match(previewSource, /role="dialog" aria-modal="true"/)
+  assert.match(previewSource, /aria-labelledby="device-dialog-title"/)
+  assert.match(previewSource, /@keydown\.esc="closeDevices"/)
+  assert.match(previewSource, /deviceCloseButton\.value\?\.focus\(\)/)
+  assert.match(previewSource, /application\.refreshDevices\(\)/)
+  assert.match(previewSource, /application\.revokeDevice\(deviceId\)/)
+  assert.match(previewSource, /device\.current/)
+  assert.doesNotMatch(previewSource, /localStorage.*device|indexedDB.*device/i)
+})

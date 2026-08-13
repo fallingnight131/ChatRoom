@@ -45,6 +45,10 @@
         <div class="account-block">
           <strong>{{ snapshot.session.displayName }}</strong>
           <span>{{ snapshot.session.accountId }}</span>
+          <button class="device-entry" type="button" @click="openDevices">
+            登录设备
+            <span v-if="snapshot.devices.length">{{ snapshot.devices.length }}</span>
+          </button>
         </div>
         <button v-for="conversation in snapshot.directory" :key="conversation.conversationId"
                 :class="['conversation-button', { active: conversation.conversationId === snapshot.activeConversationId }]"
@@ -92,11 +96,60 @@
         <p v-if="actionError" class="action-error" role="alert">{{ actionError }}</p>
       </section>
     </section>
+
+    <div v-if="devicesOpen" class="dialog-backdrop" @click.self="closeDevices" @keydown.esc="closeDevices">
+      <section class="device-dialog" role="dialog" aria-modal="true"
+               aria-labelledby="device-dialog-title" aria-describedby="device-dialog-description">
+        <header class="device-dialog-header">
+          <div>
+            <h2 id="device-dialog-title">登录设备</h2>
+            <p id="device-dialog-description">发现陌生设备时，可撤销它的全部登录会话。</p>
+          </div>
+          <button ref="deviceCloseButton" class="icon-button" type="button"
+                  aria-label="关闭登录设备" @click="closeDevices">×</button>
+        </header>
+        <p v-if="snapshot.deviceFailure" class="error-msg" role="alert">
+          {{ snapshot.deviceFailure }}
+          <button class="retry-link" type="button" :disabled="!canManageDevices" @click="refreshDevices">重试</button>
+        </p>
+        <p v-if="!canManageDevices" class="device-notice" role="status">连接恢复后才能管理设备。</p>
+        <ul class="device-list" :aria-busy="snapshot.devicesLoading">
+          <li v-for="device in snapshot.devices" :key="device.deviceId" class="device-row">
+            <div class="device-icon" aria-hidden="true">{{ device.platform === 'windows' ? '▣' : '◎' }}</div>
+            <div class="device-copy">
+              <strong>{{ device.platform === 'windows' ? 'Windows 客户端' : 'Web 浏览器' }}</strong>
+              <span>{{ device.current ? '当前设备' : `最近活动：${formatDeviceTime(device.lastSeenAtEpochMs)}` }}</span>
+              <small>{{ shortDeviceId(device.deviceId) }}</small>
+            </div>
+            <span v-if="device.current" class="current-device">当前</span>
+            <button v-else-if="confirmingDeviceId !== device.deviceId" class="btn btn-danger-outline"
+                    type="button" :disabled="!canManageDevices || Boolean(snapshot.revokingDeviceId)"
+                    @click="confirmingDeviceId = device.deviceId">撤销</button>
+            <div v-else class="revoke-confirm" role="group" aria-label="确认撤销设备">
+              <span>撤销全部会话？</span>
+              <button class="btn btn-danger" type="button"
+                      :disabled="snapshot.revokingDeviceId === device.deviceId"
+                      @click="revokeDevice(device.deviceId)">
+                {{ snapshot.revokingDeviceId === device.deviceId ? '撤销中…' : '确认' }}
+              </button>
+              <button class="btn btn-text" type="button" :disabled="Boolean(snapshot.revokingDeviceId)"
+                      @click="confirmingDeviceId = null">取消</button>
+            </div>
+          </li>
+        </ul>
+        <p v-if="snapshot.devicesLoading && snapshot.devices.length === 0" class="empty-copy" role="status">正在加载设备…</p>
+        <footer class="device-dialog-footer">
+          <button class="btn btn-secondary" type="button" :disabled="!canManageDevices || snapshot.devicesLoading"
+                  @click="refreshDevices">刷新</button>
+          <button class="btn btn-primary" type="button" @click="closeDevices">完成</button>
+        </footer>
+      </section>
+    </div>
   </main>
 </template>
 
 <script setup>
-import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, inject, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { V2_RUNTIME_KEY } from '../application/v2RuntimeKey'
 
 const runtimeRef = inject(V2_RUNTIME_KEY)
@@ -105,9 +158,13 @@ const password = ref('')
 const draft = ref('')
 const actionError = ref('')
 const authenticationPending = ref(false)
+const devicesOpen = ref(false)
+const confirmingDeviceId = ref(null)
+const deviceCloseButton = ref(null)
 const snapshot = ref({
   connectionState: 'idle', session: null, directory: [], directoryHasMore: false,
-  activeConversationId: null, messages: [], historyLoading: false, lastFailure: ''
+  activeConversationId: null, messages: [], historyLoading: false, devices: [],
+  devicesLoading: false, revokingDeviceId: null, deviceFailure: '', lastFailure: ''
 })
 let unsubscribe = null
 let startedApplication = null
@@ -129,6 +186,7 @@ const connectionLabel = computed(() => ({
 }[snapshot.value.connectionState] || '未知状态'))
 const connectionTone = computed(() => snapshot.value.connectionState === 'authenticated'
   ? 'ok' : ['offline', 'reconnect-wait'].includes(snapshot.value.connectionState) ? 'warn' : '')
+const canManageDevices = computed(() => snapshot.value.connectionState === 'authenticated')
 
 function attachRuntime(runtime) {
   unsubscribe?.()
@@ -190,6 +248,41 @@ function retryMessage(clientMessageId) {
   }
 }
 
+function openDevices() {
+  devicesOpen.value = true
+  confirmingDeviceId.value = null
+  if (snapshot.value.devices.length === 0 && canManageDevices.value) refreshDevices()
+  nextTick(() => deviceCloseButton.value?.focus())
+}
+
+function closeDevices() {
+  devicesOpen.value = false
+  confirmingDeviceId.value = null
+}
+
+function refreshDevices() {
+  actionError.value = ''
+  try { runtimeRef.value.application.refreshDevices() }
+  catch (error) { actionError.value = error instanceof Error ? error.message : '无法刷新设备' }
+}
+
+function revokeDevice(deviceId) {
+  actionError.value = ''
+  try {
+    if (!runtimeRef.value.application.revokeDevice(deviceId)) actionError.value = '当前无法撤销该设备'
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : '无法撤销该设备'
+  }
+}
+
+function shortDeviceId(deviceId) {
+  return `${deviceId.slice(0, 8)}…${deviceId.slice(-4)}`
+}
+
+function formatDeviceTime(epochMs) {
+  return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(epochMs)
+}
+
 function deliveryLabel(state) {
   return state === 'accepted' ? '已接收' : state === 'sending' ? '发送中' : '发送失败'
 }
@@ -221,6 +314,8 @@ onUnmounted(() => {
 .conversation-panel { overflow-y: auto; border-right: 1px solid var(--border-color); background: var(--bg-secondary); }
 .account-block { display: grid; gap: 4px; padding: 18px; border-bottom: 1px solid var(--border-color); }
 .account-block span { overflow: hidden; color: var(--text-secondary); font-size: 11px; text-overflow: ellipsis; }
+.device-entry { margin-top: 8px; padding: 7px 9px; display: flex; justify-content: space-between; border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); background: var(--bg-primary); cursor: pointer; }
+.device-entry:hover { background: var(--bg-hover); }.device-entry span { font-size: 12px; }
 .conversation-button { width: 100%; display: grid; gap: 4px; padding: 14px 18px; border: 0; border-bottom: 1px solid var(--border-light); text-align: left; color: var(--text-primary); background: transparent; cursor: pointer; }
 .conversation-button:hover { background: var(--bg-hover); }.conversation-button.active { background: var(--bg-active); }
 .conversation-button span { color: var(--text-secondary); font-size: 12px; }.empty-copy { padding: 20px; }
@@ -234,5 +329,14 @@ onUnmounted(() => {
 .composer { display: flex; gap: 12px; align-items: end; padding: 14px 20px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); }
 .composer textarea { resize: none; }.empty-state { flex: 1; display: grid; place-content: center; text-align: center; color: var(--text-secondary); }
 .action-error { position: absolute; right: 20px; bottom: 86px; padding: 8px 12px; border-radius: 8px; background: var(--bg-secondary); box-shadow: var(--shadow); }
+.dialog-backdrop { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 48%); }
+.device-dialog { width: min(620px, 100%); max-height: min(720px, calc(100vh - 40px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border-color); border-radius: 16px; background: var(--bg-secondary); box-shadow: var(--shadow-lg); }
+.device-dialog-header { display: flex; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 1px solid var(--border-color); }.device-dialog-header h2 { font-size: 20px; }.device-dialog-header p { margin-top: 4px; color: var(--text-secondary); font-size: 13px; }
+.icon-button { width: 36px; height: 36px; border: 0; border-radius: 8px; color: var(--text-primary); background: transparent; font-size: 24px; cursor: pointer; }.icon-button:hover { background: var(--bg-hover); }
+.device-dialog > .error-msg, .device-notice { margin: 14px 20px 0; padding: 10px 12px; border-radius: 8px; background: var(--bg-primary); }.device-notice { color: var(--text-secondary); }
+.device-list { overflow-y: auto; padding: 12px 20px; list-style: none; }.device-row { min-height: 76px; display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border-light); }.device-row:last-child { border-bottom: 0; }
+.device-icon { width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 10px; color: var(--accent); background: var(--bg-active); font-size: 20px; }.device-copy { min-width: 0; flex: 1; display: grid; gap: 3px; }.device-copy span, .device-copy small { color: var(--text-secondary); font-size: 12px; }.current-device { padding: 4px 8px; border-radius: 999px; color: var(--success); background: var(--bg-primary); font-size: 12px; }
+.revoke-confirm { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; font-size: 12px; }.btn-danger, .btn-danger-outline { padding: 7px 10px; }.btn-danger { color: white; background: var(--danger); }.btn-danger-outline { border: 1px solid var(--danger); color: var(--danger); background: transparent; }
+.device-dialog-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border-color); }
 @media (max-width: 720px) { .preview-header { padding: 10px 14px; }.chat-shell { grid-template-columns: 112px 1fr; }.account-block { padding: 12px; }.account-block span { display: none; }.conversation-button { padding: 12px 10px; }.conversation-button span { display: none; }.bubble { max-width: 88%; }.composer { padding: 10px; } }
 </style>

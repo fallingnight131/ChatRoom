@@ -11,6 +11,8 @@ import {
   ConversationRole,
 } from "../src/protocol/v2/generated/conversation_pb";
 import { ProtocolErrorCode, ProtocolErrorSchema } from "../src/protocol/v2/generated/control_pb";
+import { ClientPlatform } from "../src/protocol/v2/generated/control_pb";
+import { DeviceDirectorySchema, DeviceRevokedSchema } from "../src/protocol/v2/generated/device_management_pb";
 import {
   ConversationEntryRecordSchema,
   MessageAcceptedSchema,
@@ -56,6 +58,16 @@ class FakeTransport {
   }
   submitText(conversationId: string, clientMessageId: string, text: string): void {
     this.calls.push(["submit", conversationId, clientMessageId, text]);
+  }
+  listDevices(): string {
+    const requestId = `device-list-${this.calls.length}`;
+    this.calls.push(["devices", requestId]);
+    return requestId;
+  }
+  revokeDevice(deviceId: string): string {
+    const requestId = `device-revoke-${this.calls.length}`;
+    this.calls.push(["revoke-device", deviceId, requestId]);
+    return requestId;
   }
 
   emit(event: V2WebProtocolEvent): void { this.observer?.onProtocolEvent?.(event); }
@@ -204,6 +216,74 @@ test("publishes immutable snapshots to detachable view observers", () => {
   transport.transition("connected");
   assert.deepEqual(states, ["idle", "connecting"]);
   assert.equal(application.snapshot.directory.length, 0);
+  application.dispose();
+});
+
+test("refreshes server-authoritative devices and reconciles revocation", () => {
+  const transport = new FakeTransport();
+  const application = new V2WebChatApplication({ transport, cache: new FakeCache() });
+  transport.transition("authenticated");
+  establish(transport);
+  const listCall = transport.calls.at(-1)!;
+  assert.equal(listCall[0], "devices");
+  const target = "30000000-0000-4000-8000-000000000002";
+  transport.emit({
+    requestId: listCall[1] as string, clientMessageId: "", type: "device-directory",
+    value: create(DeviceDirectorySchema, { devices: [
+      { deviceId: DEVICE_ID, platform: ClientPlatform.WEB, createdAtEpochMs: 1n,
+        lastSeenAtEpochMs: 2n, current: true },
+      { deviceId: target, platform: ClientPlatform.WINDOWS, createdAtEpochMs: 1n,
+        lastSeenAtEpochMs: 3n, current: false },
+    ] }),
+  });
+  assert.equal(application.snapshot.devices.length, 2);
+  assert.equal(application.snapshot.devices[1]?.platform, "windows");
+  assert.equal(application.revokeDevice(DEVICE_ID), false);
+  assert.equal(application.revokeDevice(target), true);
+  const revokeCall = transport.calls.at(-1)!;
+  assert.deepEqual(revokeCall.slice(0, 2), ["revoke-device", target]);
+  transport.emit({
+    requestId: revokeCall[2] as string, clientMessageId: "", type: "device-revoked",
+    value: create(DeviceRevokedSchema, { targetDeviceId: target,
+      revokedAtEpochMs: BigInt(NOW), revokedSessions: 1, changed: true }),
+  });
+  assert.equal(application.snapshot.devices.some((device) => device.deviceId === target), false);
+  assert.equal(transport.calls.at(-1)?.[0], "devices", "success rechecks authoritative state");
+  application.dispose();
+});
+
+test("contains device denial and permits explicit retry without clearing conversations", () => {
+  const transport = new FakeTransport();
+  const application = new V2WebChatApplication({ transport, cache: new FakeCache() });
+  transport.transition("authenticated");
+  establish(transport);
+  const firstRequest = transport.calls.at(-1)?.[1] as string;
+  transport.emit({
+    requestId: firstRequest, clientMessageId: "", type: "protocol-error",
+    value: create(ProtocolErrorSchema, {
+      code: ProtocolErrorCode.NOT_AUTHORIZED, safeMessage: "opaque", retryable: false,
+    }),
+  });
+  assert.equal(application.snapshot.deviceFailure, "无法加载登录设备");
+  assert.equal(application.snapshot.lastFailure, "");
+  assert.equal(application.refreshDevices(), true);
+  assert.notEqual(transport.calls.at(-1)?.[1], firstRequest);
+  application.dispose();
+});
+
+test("abandons ambiguous device requests on disconnect and refreshes after resume", () => {
+  const transport = new FakeTransport();
+  const application = new V2WebChatApplication({ transport, cache: new FakeCache() });
+  transport.transition("authenticated");
+  establish(transport);
+  assert.equal(application.snapshot.devicesLoading, true);
+  transport.transition("reconnect-wait");
+  assert.equal(application.snapshot.devicesLoading, false);
+  assert.equal(application.snapshot.revokingDeviceId, null);
+  transport.transition("authenticated");
+  establish(transport);
+  assert.equal(transport.calls.at(-1)?.[0], "devices");
+  assert.equal(application.snapshot.devicesLoading, true);
   application.dispose();
 });
 

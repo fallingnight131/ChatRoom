@@ -1,6 +1,7 @@
 import { ConversationKind, ConversationRole, type ConversationDirectoryRecord } from "../protocol/v2/generated/conversation_pb";
 import { MessageContentType, type ConversationEntryRecord, type MessageRecord } from "../protocol/v2/generated/messaging_pb";
 import type { V2WebProtocolEvent } from "../protocol/v2/webProtocolClient";
+import { ClientPlatform } from "../protocol/v2/generated/control_pb";
 import type {
   V2WebSocketTransportObserver,
   V2WebSocketTransportState,
@@ -51,6 +52,8 @@ export interface V2ChatTransport {
   listConversations(limit: number, after?: { updatedAtEpochMs: bigint; conversationId: string }): void;
   readMessageHistory(conversationId: string, afterSequence: bigint, limit: number): void;
   submitText(conversationId: string, clientMessageId: string, text: string): void;
+  listDevices(): string;
+  revokeDevice(targetDeviceId: string): string;
 }
 
 export interface V2DirectoryItem {
@@ -61,6 +64,14 @@ export interface V2DirectoryItem {
   latestSequence: string;
   lastReadSequence: string;
   updatedAtEpochMs: number;
+}
+
+export interface V2ManagedDevice {
+  deviceId: string;
+  platform: "web" | "windows";
+  createdAtEpochMs: number;
+  lastSeenAtEpochMs: number;
+  current: boolean;
 }
 
 export interface V2WebChatSnapshot {
@@ -77,6 +88,10 @@ export interface V2WebChatSnapshot {
   activeConversationId: string | null;
   messages: V2ConversationCacheMessage[];
   historyLoading: boolean;
+  devices: V2ManagedDevice[];
+  devicesLoading: boolean;
+  revokingDeviceId: string | null;
+  deviceFailure: string;
   lastFailure: string;
 }
 
@@ -110,6 +125,12 @@ export class V2WebChatApplication {
   private activeConversationIdValue: string | null = null;
   private connectionStateValue: V2WebSocketTransportState;
   private lastFailureValue = "";
+  private devicesValue: V2ManagedDevice[] = [];
+  private devicesLoadingValue = false;
+  private revokingDeviceIdValue: string | null = null;
+  private deviceFailureValue = "";
+  private deviceListRequestId: string | null = null;
+  private deviceRevokeRequestId: string | null = null;
   private selectionGeneration = 0;
   private sessionGeneration = 0;
   private readonly replayedAtGeneration = new Map<string, number>();
@@ -143,6 +164,10 @@ export class V2WebChatApplication {
       activeConversationId: this.activeConversationIdValue,
       messages: active?.messages.map((message) => ({ ...message })) ?? [],
       historyLoading: active?.loading ?? false,
+      devices: this.devicesValue.map((device) => ({ ...device })),
+      devicesLoading: this.devicesLoadingValue,
+      revokingDeviceId: this.revokingDeviceIdValue,
+      deviceFailure: this.deviceFailureValue,
       lastFailure: this.lastFailureValue,
     };
   }
@@ -175,6 +200,46 @@ export class V2WebChatApplication {
     this.requireActive();
     if (!this.sessionValue || !this.directoryHasMoreValue || !this.directoryCursor) return false;
     this.transport.listConversations(DIRECTORY_PAGE_SIZE, this.directoryCursor);
+    return true;
+  }
+
+  refreshDevices(): boolean {
+    this.requireActive();
+    if (!this.sessionValue || this.connectionStateValue !== "authenticated"
+        || this.devicesLoadingValue || this.revokingDeviceIdValue) return false;
+    this.deviceFailureValue = "";
+    this.devicesLoadingValue = true;
+    try {
+      this.deviceListRequestId = this.transport.listDevices();
+    } catch {
+      this.devicesLoadingValue = false;
+      this.deviceFailureValue = "无法加载登录设备";
+      this.emit();
+      return false;
+    }
+    this.emit();
+    return true;
+  }
+
+  revokeDevice(deviceId: string): boolean {
+    this.requireActive();
+    if (!this.sessionValue || this.connectionStateValue !== "authenticated"
+        || this.devicesLoadingValue || this.revokingDeviceIdValue
+        || deviceId === this.sessionValue.deviceId
+        || !this.devicesValue.some((device) => device.deviceId === deviceId && !device.current)) {
+      return false;
+    }
+    this.deviceFailureValue = "";
+    this.revokingDeviceIdValue = deviceId;
+    try {
+      this.deviceRevokeRequestId = this.transport.revokeDevice(deviceId);
+    } catch {
+      this.revokingDeviceIdValue = null;
+      this.deviceFailureValue = "无法撤销该设备";
+      this.emit();
+      return false;
+    }
+    this.emit();
     return true;
   }
 
@@ -272,6 +337,7 @@ export class V2WebChatApplication {
     this.directoryHasMoreValue = false;
     this.activeConversationIdValue = null;
     this.conversations.clear();
+    this.clearDeviceState();
     this.replayedAtGeneration.clear();
     this.replayQueues.clear();
     this.replayInFlight.clear();
@@ -288,6 +354,7 @@ export class V2WebChatApplication {
     this.transport.stop();
     this.sessionValue = null;
     this.conversations.clear();
+    this.clearDeviceState();
   }
 
   private handleTransportState(state: V2WebSocketTransportState): void {
@@ -297,6 +364,7 @@ export class V2WebChatApplication {
       this.replayQueues.clear();
       this.replayInFlight.clear();
     }
+    if (state !== "authenticated") this.resetDeviceRequests();
     this.emit();
   }
 
@@ -331,6 +399,7 @@ export class V2WebChatApplication {
           this.activeConversationIdValue = null;
           this.conversations.clear();
           this.replayedAtGeneration.clear();
+          this.clearDeviceState();
         } else if (this.activeConversationIdValue) {
           const active = this.conversations.get(this.activeConversationIdValue);
           if (active) {
@@ -342,7 +411,9 @@ export class V2WebChatApplication {
             );
           }
         }
+        this.resetDeviceRequests();
         this.transport.listConversations(DIRECTORY_PAGE_SIZE);
+        this.refreshDevices();
         break;
         }
       case "conversation-directory-page":
@@ -360,6 +431,28 @@ export class V2WebChatApplication {
       case "message-accepted":
         this.applyMessageAccepted(event);
         break;
+      case "device-directory":
+        if (event.requestId !== this.deviceListRequestId) break;
+        this.deviceListRequestId = null;
+        this.devicesLoadingValue = false;
+        this.devicesValue = event.value.devices.map((device) => ({
+          deviceId: device.deviceId,
+          platform: device.platform === ClientPlatform.WINDOWS ? "windows" : "web",
+          createdAtEpochMs: Number(device.createdAtEpochMs),
+          lastSeenAtEpochMs: Number(device.lastSeenAtEpochMs),
+          current: device.current,
+        }));
+        this.deviceFailureValue = "";
+        break;
+      case "device-revoked":
+        if (event.requestId !== this.deviceRevokeRequestId
+            || event.value.targetDeviceId !== this.revokingDeviceIdValue) break;
+        this.deviceRevokeRequestId = null;
+        this.revokingDeviceIdValue = null;
+        this.devicesValue = this.devicesValue.filter(
+          (device) => device.deviceId !== event.value.targetDeviceId);
+        this.refreshDevices();
+        break;
       case "protocol-error":
         this.applyProtocolError(event);
         break;
@@ -371,6 +464,7 @@ export class V2WebChatApplication {
         this.directoryHasMoreValue = false;
         this.activeConversationIdValue = null;
         this.conversations.clear();
+        this.clearDeviceState();
         break;
       default:
         break;
@@ -472,6 +566,18 @@ export class V2WebChatApplication {
   }
 
   private applyProtocolError(event: Extract<V2WebProtocolEvent, { type: "protocol-error" }>): void {
+    if (event.requestId === this.deviceListRequestId) {
+      this.deviceListRequestId = null;
+      this.devicesLoadingValue = false;
+      this.deviceFailureValue = "无法加载登录设备";
+      return;
+    }
+    if (event.requestId === this.deviceRevokeRequestId) {
+      this.deviceRevokeRequestId = null;
+      this.revokingDeviceIdValue = null;
+      this.deviceFailureValue = "无法撤销该设备";
+      return;
+    }
     if (event.clientMessageId) {
       for (const [conversationId, state] of this.conversations) {
         const message = state.messages.find((candidate) => candidate.clientMessageId === event.clientMessageId);
@@ -558,6 +664,19 @@ export class V2WebChatApplication {
     const state = this.conversations.get(conversationId);
     if (!state) throw new Error("conversation has not been opened");
     return state;
+  }
+
+  private clearDeviceState(): void {
+    this.devicesValue = [];
+    this.deviceFailureValue = "";
+    this.resetDeviceRequests();
+  }
+
+  private resetDeviceRequests(): void {
+    this.devicesLoadingValue = false;
+    this.revokingDeviceIdValue = null;
+    this.deviceListRequestId = null;
+    this.deviceRevokeRequestId = null;
   }
 
   private emit(): void {

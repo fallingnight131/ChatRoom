@@ -66,7 +66,12 @@ The default-off Web V2 protocol client now encodes correlated list/revoke
 commands and rejects ambiguous directories, unsupported platforms, invalid
 timestamps, duplicate IDs, malformed targets, and current-device revocation.
 It retains no additional durable device state; application/UI composition is
-still detached.
+now implemented behind the existing default-off Web V2 preview gate. Web
+refreshes after authentication, resume, and successful revocation, abandons
+ambiguous in-flight UI state on disconnect, disables mutation offline, protects
+the current device, and requires an accessible in-context confirmation. No
+security device directory is written to IndexedDB or browser storage. Windows
+UI composition remains pending.
 
 ## Verification
 

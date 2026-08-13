@@ -162,6 +162,18 @@ export class V2WebSocketTransport {
     this.send(this.requireAuthenticated().submitText(conversationId, clientMessageId, text));
   }
 
+  listDevices(): string {
+    const command = this.requireAuthenticated().listDevices();
+    this.send(command.bytes);
+    return command.requestId;
+  }
+
+  revokeDevice(targetDeviceId: string): string {
+    const command = this.requireAuthenticated().revokeDevice(targetDeviceId);
+    this.send(command.bytes);
+    return command.requestId;
+  }
+
   registerAttachment(
     conversationId: string,
     clientAttachmentId: string,
