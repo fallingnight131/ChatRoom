@@ -1122,6 +1122,15 @@ in, restores sequence 1 through authoritative history, and sends sequence 2 back
 across Redis to B exactly once. This proves same-build topology replacement and
 client recovery, not load-balancer readiness propagation, mixed-version
 compatibility, crash loss, or forced drain-timeout behavior.
+ADR-0371 establishes the remote load-balancer health boundary without widening
+the loopback admin/metrics listener. The TLS product port now answers only
+`GET`/`HEAD /health/ready` with the same PostgreSQL-and-Redis-dependent value,
+after Host and proxy policy, and otherwise continues into the WSS endpoint
+policy. The Redis outage gate proves 200→503→200 on that exact port. A strict
+renderer produces HAProxy 3.2 least-connections configuration with frontend and
+backend TLS, CA plus hostname verification, sanitized forwarding headers, and
+active product-port checks; a pinned official container accepts the generated
+syntax. Runtime proxy traffic and backend removal timing remain unproven.
 
 ## 10. Attachment Flow
 

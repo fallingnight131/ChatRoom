@@ -62,6 +62,10 @@ def verify_redis_outage() -> None:
     run([sys.executable, str(ROOT / "tools" / "verify_redis_outage.py")], ROOT)
 
 
+def verify_gateway_load_balancer_config() -> None:
+    run([sys.executable, str(ROOT / "tools" / "verify_haproxy_gateway.py")], ROOT)
+
+
 def verify_java_performance(args: argparse.Namespace, output: Path) -> None:
     run([
         sys.executable,
@@ -524,6 +528,11 @@ def parse_args() -> argparse.Namespace:
         help="verify product readiness and durable delivery across Redis restart",
     )
     parser.add_argument(
+        "--gateway-load-balancer-config",
+        action="store_true",
+        help="render and syntax-check the pinned HAProxy gateway edge policy",
+    )
+    parser.add_argument(
         "--protocol-bindings",
         action="store_true",
         help="generate and verify V2 C++ and TypeScript client bindings",
@@ -638,6 +647,8 @@ def main() -> int:
         verify_redis_tls()
     if args.redis_outage:
         verify_redis_outage()
+    if args.gateway_load_balancer_config:
+        verify_gateway_load_balancer_config()
     if args.protocol_bindings or args.all:
         verify_protocol_bindings(args.skip_npm_ci)
     if args.db_schema or args.all:
@@ -683,6 +694,7 @@ def main() -> int:
         or args.postgres
         or args.redis_tls
         or args.redis_outage
+        or args.gateway_load_balancer_config
         or args.db_schema
         or args.cmake_headless
         or args.password_hash
@@ -697,6 +709,7 @@ def main() -> int:
         print(
             "[M0] inventory-only verification complete; "
             "use --web, --java, --postgres, --redis-tls, --redis-outage, "
+            "--gateway-load-balancer-config, "
             "--protocol-bindings, "
             "--db-schema, --password-hash, "
             "--cmake-headless, --v1-smoke, --v1-identity-restore, --performance, "

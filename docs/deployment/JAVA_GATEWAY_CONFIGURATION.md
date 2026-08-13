@@ -175,8 +175,18 @@ loopback admin endpoint as not ready, binds WSS, then returns HTTP 200 from
 connections, and keeps established channels for up to the configured drain
 timeout. It then force-closes remaining channels and releases the admin server,
 messaging workers, authentication workers, and pool in reverse ownership order.
+The same dynamic readiness value is also available as unauthenticated
+`GET`/`HEAD /health/ready` on the TLS product listener so a remote load balancer
+does not need access to the loopback admin interface. That request still passes
+the configured Host and trusted-proxy policies, returns only `ready` or
+`not_ready`, sets `Cache-Control: no-store`, rejects other methods, and fails
+closed if dependency inspection throws. Restrict direct backend network access
+to the load balancer; keep admin liveness and metrics loopback-only.
 The load balancer must stop routing on readiness failure and its
 deregistration/termination grace must exceed the application timeout. A value
 of zero restores immediate shutdown; neither default is a fleet capacity claim.
+Use the reviewed HAProxy generation contract in
+[`HA_PROXY_GATEWAY.md`](HA_PROXY_GATEWAY.md); do not point an external proxy at
+the loopback admin port.
 Do not route users to this M3 runtime yet: conversation discovery, supported-
 client adoption, and cutover/rollback rehearsal remain unfinished.

@@ -1528,6 +1528,13 @@ Progress:
   sequence 2 from C to B exactly once with two published outbox rows. Real load-
   balancer propagation, version skew, crash loss, and forced-drain timeout remain
   pending (ADR-0370).
+- [x] Add the load-balancer readiness foundation without exposing the loopback
+  admin plane: serve a minimal dynamic `GET`/`HEAD /health/ready` on the existing
+  TLS product listener after Host/proxy policy, prove 200→503→200 through a real
+  Redis outage, and generate a bounded HAProxy 3.2 least-connections policy with
+  verified backend TLS, overwritten forwarding headers, and active product-port
+  checks. Unit/injection tests and pinned-container syntax pass; real proxy
+  traffic and deregistration remain pending (ADR-0371).
 
 Work:
 

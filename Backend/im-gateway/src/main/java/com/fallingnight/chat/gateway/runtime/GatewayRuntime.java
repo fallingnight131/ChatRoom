@@ -141,6 +141,14 @@ public final class GatewayRuntime implements AutoCloseable {
             InMemoryMessageForwardAdmissionPort forwards =
                     new InMemoryMessageForwardAdmissionPort(
                             durableForwards, config.forwardAdmissionLimits(), clock);
+            AtomicBoolean readiness = new AtomicBoolean();
+            HikariDataSource readinessDataSource = dataSource;
+            ManagedDependency routingReadiness = distributedRouting;
+            BooleanSupplier dependencyReadiness =
+                    () -> GatewayPostgresDataSource.isReady(readinessDataSource)
+                            && routingReadiness.ready();
+            BooleanSupplier publicReadiness =
+                    () -> readiness.get() && dependencyReadiness.getAsBoolean();
             workers = new AuthenticationWorkerPool(
                     config.authenticationWorkers(),
                     config.authenticationQueueCapacity(),
@@ -169,13 +177,8 @@ public final class GatewayRuntime implements AutoCloseable {
                     messagingTelemetry,
                     deviceTelemetry,
                     deviceConnections,
-                    productLiveRouter);
-            AtomicBoolean readiness = new AtomicBoolean();
-            HikariDataSource readinessDataSource = dataSource;
-            ManagedDependency routingReadiness = distributedRouting;
-            BooleanSupplier dependencyReadiness =
-                    () -> GatewayPostgresDataSource.isReady(readinessDataSource)
-                            && routingReadiness.ready();
+                    productLiveRouter,
+                    publicReadiness);
             adminServer = new GatewayAdminServer(
                     config.adminAddress(),
                     config.adminWorkers(),
@@ -185,7 +188,7 @@ public final class GatewayRuntime implements AutoCloseable {
                     attachmentCleanupTelemetry,
                     messagingWorkers::activeCount,
                     messagingWorkers::queuedCount,
-                    () -> readiness.get() && dependencyReadiness.getAsBoolean(),
+                    publicReadiness,
                     distributedMetrics);
             return new GatewayRuntime(
                     readiness,

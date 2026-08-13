@@ -1457,6 +1457,22 @@ All owned processes and data are removed on success or failure. This gate is
 separate from `--all` because it controls local services. It is single-gateway
 dependency evidence, not load-balancer deregistration, cross-gateway failover,
 or rolling-deployment evidence (ADR-0368).
+
+Render and syntax-check the reviewed HAProxy gateway edge policy separately:
+
+```bash
+python3 tools/verify_m0.py --gateway-load-balancer-config
+```
+
+This gate requires Docker and `openssl`. It runs the renderer's injection,
+bounds, TLS, Host/header, active-readiness, and least-connections policy tests,
+then validates a disposable two-gateway file with the official HAProxy 3.2
+Alpine image pinned by manifest digest. It does not join the default `--all`
+gate because it requires the Docker daemon. The Java product-port readiness
+path is exercised separately by the real Redis outage scenario. Syntax success
+is not WSS proxy, deregistration, reload, or certificate-rotation evidence; see
+[`deployment/HA_PROXY_GATEWAY.md`](deployment/HA_PROXY_GATEWAY.md) and ADR-0371.
+
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
 consume ports while PostgreSQL supplies outbox and message repair. They also

@@ -22,6 +22,7 @@ import com.fallingnight.chat.gateway.transport.GatewayConnectionLimiter;
 import com.fallingnight.chat.gateway.transport.GatewayChannelExceptionHandler;
 import com.fallingnight.chat.gateway.transport.HttpHostPolicyHandler;
 import com.fallingnight.chat.gateway.transport.MessagingEventSink;
+import com.fallingnight.chat.gateway.transport.ProductReadinessHttpHandler;
 import com.fallingnight.chat.gateway.transport.DeviceConnectionRegistry;
 import com.fallingnight.chat.gateway.transport.DeviceManagementEventSink;
 import com.fallingnight.chat.gateway.transport.SingleGatewayConversationLiveRouter;
@@ -57,6 +58,7 @@ import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.BooleanSupplier;
 import javax.net.ssl.SSLException;
 
 /** Owned Netty WSS listener lifecycle; construction validates TLS before bind. */
@@ -89,6 +91,7 @@ public final class V2GatewayServer implements AutoCloseable {
     private final DeviceManagementEventSink deviceEvents;
     private final DeviceConnectionRegistry deviceConnections;
     private final ConversationLiveRouter liveRouter;
+    private final BooleanSupplier productReadiness;
     private final SslContext sslContext;
     private final GatewayConnectionLimiter connectionLimiter;
     private final ChannelGroup children = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
@@ -209,7 +212,36 @@ public final class V2GatewayServer implements AutoCloseable {
         this(config, authentication, sessionResume, submissions, history, directory,
                 participants, reactions, pins, edits, forwards, deviceManagement,
                 authenticationExecutor, messagingExecutor, admission, events, messagingEvents,
-                deviceEvents, deviceConnections, createSslContext(config), liveRouter);
+                deviceEvents, deviceConnections, liveRouter, () -> false);
+    }
+
+    V2GatewayServer(
+            GatewayRuntimeConfig config,
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            ConversationLiveRouter liveRouter,
+            BooleanSupplier productReadiness) {
+        this(config, authentication, sessionResume, submissions, history, directory,
+                participants, reactions, pins, edits, forwards, deviceManagement,
+                authenticationExecutor, messagingExecutor, admission, events, messagingEvents,
+                deviceEvents, deviceConnections, createSslContext(config), liveRouter,
+                productReadiness);
     }
 
     V2GatewayServer(
@@ -313,6 +345,35 @@ public final class V2GatewayServer implements AutoCloseable {
             DeviceConnectionRegistry deviceConnections,
             SslContext sslContext,
             ConversationLiveRouter liveRouter) {
+        this(config, authentication, sessionResume, submissions, history, directory,
+                participants, reactions, pins, edits, forwards, deviceManagement,
+                authenticationExecutor, messagingExecutor, admission, events, messagingEvents,
+                deviceEvents, deviceConnections, sslContext, liveRouter, () -> false);
+    }
+
+    V2GatewayServer(
+            GatewayRuntimeConfig config,
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            SslContext sslContext,
+            ConversationLiveRouter liveRouter,
+            BooleanSupplier productReadiness) {
         this.config = Objects.requireNonNull(config, "config");
         this.authentication = Objects.requireNonNull(authentication, "authentication");
         this.sessionResume = Objects.requireNonNull(sessionResume, "sessionResume");
@@ -334,6 +395,7 @@ public final class V2GatewayServer implements AutoCloseable {
         this.deviceEvents = Objects.requireNonNull(deviceEvents, "deviceEvents");
         this.deviceConnections = Objects.requireNonNull(deviceConnections, "deviceConnections");
         this.liveRouter = Objects.requireNonNull(liveRouter, "liveRouter");
+        this.productReadiness = Objects.requireNonNull(productReadiness, "productReadiness");
         this.sslContext = Objects.requireNonNull(sslContext, "sslContext");
         connectionLimiter = new GatewayConnectionLimiter(config.maximumConnections());
     }
@@ -478,6 +540,8 @@ public final class V2GatewayServer implements AutoCloseable {
         pipeline.addLast("http-aggregate", new HttpObjectAggregator(MAX_HTTP_CONTENT_BYTES));
         pipeline.addLast("host-policy", new HttpHostPolicyHandler(config.hostPolicy()));
         pipeline.addLast("proxy-policy", new TrustedProxyHttpHandler(config.proxyPolicy()));
+        pipeline.addLast("product-readiness",
+                new ProductReadinessHttpHandler(productReadiness));
         pipeline.addLast(
                 "endpoint-policy", new WebSocketEndpointPolicyHandler(config.endpointPolicy()));
         pipeline.addLast("websocket", new WebSocketServerProtocolHandler(webSocketConfig()));

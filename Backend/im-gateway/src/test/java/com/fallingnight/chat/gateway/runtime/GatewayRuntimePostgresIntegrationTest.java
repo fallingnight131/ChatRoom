@@ -327,6 +327,7 @@ class GatewayRuntimePostgresIntegrationTest {
             runtime.start();
             awaitReady(runtime);
             assertReadiness(adminPort, 200, "ready\n");
+            assertProductReadiness(gatewayPort, 200, "ready\n");
 
             BinaryEnvelopeListener listener = new BinaryEnvelopeListener();
             socket = connectWebSocket(gatewayPort, listener);
@@ -345,6 +346,7 @@ class GatewayRuntimePostgresIntegrationTest {
             awaitFile(control.resolve("redis-stopped"), Duration.ofSeconds(5));
             awaitNotReady(runtime, Duration.ofSeconds(8));
             assertReadiness(adminPort, 503, "not_ready\n");
+            assertProductReadiness(gatewayPort, 503, "not_ready\n");
             assertAdminEndpoint(adminPort, "/health/live", 200, "live\n");
 
             socket.sendBinary(ByteBuffer.wrap(submit(
@@ -371,6 +373,7 @@ class GatewayRuntimePostgresIntegrationTest {
             awaitFile(control.resolve("redis-started"), Duration.ofSeconds(5));
             awaitReady(runtime, Duration.ofSeconds(12));
             assertReadiness(adminPort, 200, "ready\n");
+            assertProductReadiness(gatewayPort, 200, "ready\n");
             awaitCount(jdbcUrl, username, password,
                     "SELECT count(*) FROM chat.conversation_event_outbox "
                             + "WHERE conversation_id = '" + conversationId
@@ -3016,6 +3019,19 @@ class GatewayRuntimePostgresIntegrationTest {
                         HttpResponse.BodyHandlers.ofString());
         assertEquals(status, response.statusCode());
         assertEquals(body, response.body());
+    }
+
+    private static void assertProductReadiness(
+            int gatewayPort, int status, String body) throws Exception {
+        HttpResponse<String> response = HttpClient.newBuilder()
+                .sslContext(trustAllTls()).connectTimeout(Duration.ofSeconds(2)).build().send(
+                        HttpRequest.newBuilder(URI.create(
+                                "https://localhost:" + gatewayPort + "/health/ready"))
+                                .timeout(Duration.ofSeconds(2)).GET().build(),
+                        HttpResponse.BodyHandlers.ofString());
+        assertEquals(status, response.statusCode());
+        assertEquals(body, response.body());
+        assertEquals("no-store", response.headers().firstValue("cache-control").orElse(""));
     }
 
     private static Map<String, String> distributedNetworkEnvironment(
