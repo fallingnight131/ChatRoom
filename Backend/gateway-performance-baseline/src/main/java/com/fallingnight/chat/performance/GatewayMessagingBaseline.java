@@ -700,7 +700,7 @@ public final class GatewayMessagingBaseline {
             if (gatewayPort == adminPort) throw new IllegalArgumentException("ports must differ");
             bounded("warmup", warmupOperations, 0, 10_000);
             bounded("messages", messageOperations, 1, 100_000);
-            bounded("payload bytes", payloadBytes, 1, 1_048_576);
+            bounded("payload bytes", payloadBytes, 1, 65_536);
             // The default gateway allows 60 authentication attempts per direct peer;
             // the sender consumes one and the benchmark must not weaken that policy.
             bounded("receivers", receivers, 1, 59);

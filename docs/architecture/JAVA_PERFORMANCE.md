@@ -76,6 +76,9 @@ Gateway defaults are 20 warm-up messages, 200 measured messages, two
 connections, one caught-up receiver per message, and a 256-byte text payload.
 The scenario is deliberately sequential so its latency distributions describe
 one submit/confirm/fan-out chain; it does not represent concurrent-user load.
+The payload parameter is bounded to `1..65536` bytes because this harness sends
+`TEXT_UTF8`; larger binary/file content belongs outside the messaging path and
+must not be used to force artificial socket pressure.
 
 Set `--java-gateway-performance-receivers N` on the unified verifier to create a
 real GROUP conversation with one sender and `N` authenticated, caught-up WSS

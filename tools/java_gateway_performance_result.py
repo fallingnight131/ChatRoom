@@ -104,7 +104,9 @@ def validate(
         raise EvidenceError("multi-receiver reconnect evidence requires GROUP identity")
     warmup = integer(scenario.get("warmupOperations"), "warmupOperations")
     messages = integer(scenario.get("messageOperations"), "messageOperations", 1)
-    integer(scenario.get("payloadBytes"), "payloadBytes", 1)
+    payload_bytes = integer(scenario.get("payloadBytes"), "payloadBytes", 1)
+    if payload_bytes > 65_536:
+        raise EvidenceError("payloadBytes exceeds the UTF-8 text messaging limit")
     if scenario.get("durableMessages") != warmup + messages:
         raise EvidenceError("durable message reconciliation is invalid")
 

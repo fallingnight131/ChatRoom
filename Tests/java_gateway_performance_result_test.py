@@ -114,6 +114,9 @@ class GatewayPerformanceEvidenceTest(unittest.TestCase):
         oversized_group["scenario"]["receiversPerMessage"] = 60
         oversized_group["scenario"]["connections"] = 61
         mutations.append(oversized_group)
+        oversized_text = valid_result()
+        oversized_text["scenario"]["payloadBytes"] = 65_537
+        mutations.append(oversized_text)
         wrong_reconnect = valid_reconnect_result()
         wrong_reconnect["scenario"]["reconnectOperations"] = 9
         mutations.append(wrong_reconnect)
