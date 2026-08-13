@@ -1310,7 +1310,10 @@ Progress:
     invalidation, exact retry, mutual-revocation convergence, and restart proof.
   - [x] Allocate permanent V2 message types 130--133 with bounded payload policy
     and Java/C++/TypeScript golden-wire compatibility.
-  - [ ] Compose the authenticated V2 gateway handler and local disconnect path.
+  - [x] Add the authenticated bounded V2 gateway handler and process-local
+    post-commit target disconnect index; runtime composition remains detached.
+  - [ ] Compose the handler, PostgreSQL adapter, telemetry, and worker ownership
+    in the product gateway runtime.
   - [ ] Add supported Web and Windows device-management UI and recovery behavior.
 
 Candidate slices:

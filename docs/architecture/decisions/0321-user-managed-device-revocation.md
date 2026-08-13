@@ -55,8 +55,11 @@ database time, all-session invalidation, immutable audit, and retained-audit
 exact retry. V2 permanently allocates message types 130--133 for the empty list
 command, bounded directory, canonical target revocation command, and revocation
 result. Account, actor device, actor session, audit ID, tokens, and network
-metadata are deliberately absent from payloads. Gateway and client entry points
-remain detached.
+metadata are deliberately absent from payloads. The gateway transport adapter
+uses per-channel serialization, an eight-command pending bound, off-event-loop
+persistence, opaque denials, and fixed-cardinality outcomes. A process-local
+device index can close every registered target channel after durable commit;
+it is not authorization state. Runtime composition and clients remain detached.
 
 ## Verification
 
@@ -68,3 +71,5 @@ remain detached.
 - race two devices attempting to revoke each other and require at most one
   successful authority path after retry;
 - prove target resume/new operations are denied after process restart.
+- reject malformed/wrong-state commands, bound saturation, preserve command
+  order, and close all process-local channels for the committed target only.
