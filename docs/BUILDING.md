@@ -1367,6 +1367,10 @@ Gateway operation tests additionally cover the default-off boot-lease loop:
 immediate renewal, half-life-safe healthy scheduling, bounded failure retry at
 the exact expiry boundary, invalid status after expiry, counters, repeated-start
 rejection, and pending-task cancellation.
+Application hint-consumer tests prove current-boot target validation, ordered
+terminal outcomes, the 1,000-entry bound, and that the first local repair
+failure retains the preceding Redis cursor rather than skipping work
+(ADR-0355).
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound

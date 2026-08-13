@@ -1020,6 +1020,9 @@ or backwards second repair removes the route before surfacing failure.
 A default-off renewal loop now maintains the boot lease before half-life, retries
 failures before expiry, and exposes an identity-free validity snapshot suitable
 for later readiness composition. It never keeps an expired lease locally valid.
+ADR-0355 adds fail-closed hint-consumer cursor semantics. Only completed local
+repair classifications advance the ephemeral Redis position; a repair failure
+stops at that hint and returns the preceding cursor for retry.
 
 ## 10. Attachment Flow
 

@@ -1442,6 +1442,11 @@ Progress:
   healthy interval no longer than half the 5–60 second lease, bounded fast retry
   before expiry, explicit `leaseValid=false` at expiry, fixed counters, repeated
   start rejection, and pending-task cancellation on close.
+- [x] Add the scheduler-neutral Redis hint consumer pass: strict current-boot
+  target validation, bounded ordered applied/duplicate/not-subscribed outcomes,
+  and stop-at-first-repair-failure cursor retention so retries never skip a
+  failed hint. The local authorized repair port remains the next slice
+  (ADR-0355).
 
 Work:
 
