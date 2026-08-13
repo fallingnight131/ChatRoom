@@ -1328,7 +1328,10 @@ Progress:
   retryable outage response, liveness 200/readiness 503 separation, automatic
   readiness recovery, same-ID retry on the original connection, one durable
   sequence, and one publication per peer.
-- [ ] Record a clean, commit-exact PostgreSQL stop/start recovery baseline.
+- [x] Record a clean, commit-exact five-connection PostgreSQL stop/start
+  recovery baseline with a 5.917 ms retryable outage response, liveness
+  200/readiness 503 separation, readiness recovery in 307.830 ms, original-WSS
+  same-ID retry, one durable sequence, and four exact peer publications.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.

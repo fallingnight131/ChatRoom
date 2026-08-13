@@ -1,0 +1,97 @@
+{
+  "benchmark": "java-v2-gateway-messaging",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 4294967296,
+    "os": "Mac OS X",
+    "osVersion": "26.5.2",
+    "peakObservedHeapBytes": 210240472,
+    "processCpuSeconds": 2.804,
+    "scenarioWallSeconds": 2.593,
+    "vm": "OpenJDK 64-Bit Server VM"
+  },
+  "host": {
+    "javaPeakRssBytes": 458522624,
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "postgresPostmasterPeakRssBytes": 24444928,
+    "pythonVersion": "3.9.6"
+  },
+  "recordedAt": "2026-08-13T18:55:57.633252Z",
+  "results": {
+    "completedMessageThroughputPerSecond": 721.106,
+    "connectionSetupLatencyMicros": {
+      "max": 262892,
+      "mean": 125293.4,
+      "min": 83395,
+      "p50": 91631,
+      "p95": 262892,
+      "p99": 262892,
+      "samples": 5
+    },
+    "errors": 0,
+    "peerPublications": 80,
+    "postgresOutageAvailableLivenessStatus": 200,
+    "postgresOutageConvergedRetries": 1,
+    "postgresOutageErrors": 0,
+    "postgresOutageFailureLatencyMicros": {
+      "max": 5917,
+      "mean": 5917.0,
+      "min": 5917,
+      "p50": 5917,
+      "p95": 5917,
+      "p99": 5917,
+      "samples": 1
+    },
+    "postgresOutagePeerPublications": 4,
+    "postgresOutageRecoveredReadinessStatus": 200,
+    "postgresOutageRecoveryLatencyMicros": {
+      "max": 307830,
+      "mean": 307830.0,
+      "min": 307830,
+      "p50": 307830,
+      "p95": 307830,
+      "p99": 307830,
+      "samples": 1
+    },
+    "postgresOutageRetryableFailures": 1,
+    "postgresOutageUnavailableReadinessStatus": 503,
+    "submitToAcceptLatencyMicros": {
+      "max": 1463,
+      "mean": 1011.3,
+      "min": 784,
+      "p50": 948,
+      "p95": 1328,
+      "p99": 1463,
+      "samples": 20
+    },
+    "submitToAllPeersPublishedLatencyMicros": {
+      "max": 1769,
+      "mean": 1369.55,
+      "min": 1056,
+      "p50": 1285,
+      "p95": 1726,
+      "p99": 1769,
+      "samples": 20
+    }
+  },
+  "scenario": {
+    "connections": 5,
+    "conversationKind": "GROUP",
+    "durableMessages": 26,
+    "messageOperations": 20,
+    "payloadBytes": 256,
+    "postgresConnectionTimeoutMillis": 1000,
+    "postgresOutage": true,
+    "postgresOutageRetryOnOriginalConnection": true,
+    "postgresPoolMaximum": 2,
+    "receiversPerMessage": 4,
+    "warmupOperations": 5
+  },
+  "schemaVersion": 6,
+  "sourceRevision": "d089bde6e4a910e02a5f26c1bcc30a0e994e962e",
+  "startedAt": "2026-08-13T18:55:53.534042Z",
+  "warning": "loopback development evidence; not a capacity claim",
+  "worktreeDirty": false
+}
