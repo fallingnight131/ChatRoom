@@ -139,9 +139,11 @@ def main() -> int:
                 ":im-gateway:test", "--tests",
                 "*GatewayRuntimePostgresIntegrationTest."
                 "withdrawsReadinessAndConvergesDurableMessageAcrossRedisRestart",
+                "--tests", "*GatewayRuntimePostgresIntegrationTest."
+                "relaysOneProductMessageAcrossTwoRealGatewayRuntimes",
                 "--rerun-tasks",
             ]
-            print("[Redis outage] running product runtime failure gate")
+            print("[Redis outage] running distributed product runtime gates")
             process = subprocess.Popen(command, cwd=BACKEND, env=environment)
             stop_request = root / "redis-stop-request"
             stopped_marker = root / "redis-stopped"

@@ -392,6 +392,99 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     @Test
+    void relaysOneProductMessageAcrossTwoRealGatewayRuntimes() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String password = System.getenv().getOrDefault("CHATROOM_TEST_POSTGRES_PASSWORD", "");
+        String redisUri = System.getenv("CHATROOM_TEST_REDIS_URI");
+        Assumptions.assumeTrue(jdbcUrl != null && !jdbcUrl.isBlank()
+                && username != null && !username.isBlank()
+                && redisUri != null && !redisUri.isBlank(),
+                "set disposable PostgreSQL and Redis endpoints");
+        new PostgresMigrator(jdbcUrl, username, password).migrate();
+
+        UUID accountId = UUID.randomUUID();
+        UUID peerAccountId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        String login = "cross-gateway-" + accountId;
+        String peerLogin = "cross-gateway-" + peerAccountId;
+        seedV2NetworkAccounts(jdbcUrl, username, password, accountId, peerAccountId,
+                conversationId, login, peerLogin);
+
+        int firstGatewayPort = availablePort();
+        int firstAdminPort = availablePort();
+        int secondGatewayPort = availablePort();
+        int secondAdminPort = availablePort();
+        SelfSignedCertificate certificate = new SelfSignedCertificate("localhost");
+        GatewayRuntime first = null;
+        GatewayRuntime second = null;
+        WebSocket sender = null;
+        WebSocket peer = null;
+        try {
+            first = GatewayRuntime.create(GatewayRuntimeConfig.fromEnvironment(
+                    distributedNetworkEnvironment(firstGatewayPort, firstAdminPort,
+                            certificate, jdbcUrl, username, redisUri)));
+            second = GatewayRuntime.create(GatewayRuntimeConfig.fromEnvironment(
+                    distributedNetworkEnvironment(secondGatewayPort, secondAdminPort,
+                            certificate, jdbcUrl, username, redisUri)));
+            first.start();
+            second.start();
+            awaitReady(first);
+            awaitReady(second);
+
+            BinaryEnvelopeListener senderListener = new BinaryEnvelopeListener();
+            sender = connectWebSocket(firstGatewayPort, senderListener);
+            SessionEstablished senderSession = establish(
+                    sender, senderListener, login, "cross-gateway-device-1");
+            BinaryEnvelopeListener peerListener = new BinaryEnvelopeListener();
+            peer = connectWebSocket(secondGatewayPort, peerListener);
+            SessionEstablished peerSession = establish(
+                    peer, peerListener, peerLogin, "cross-gateway-device-2");
+            peer.sendBinary(ByteBuffer.wrap(history(
+                    peerSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    peerListener.next().getMessageType());
+
+            sender.sendBinary(ByteBuffer.wrap(submit(
+                    senderSession.getSessionId(), conversationId).toByteArray()), true).join();
+            Envelope acceptedEnvelope = senderListener.next();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED_VALUE,
+                    acceptedEnvelope.getMessageType());
+            MessageAccepted accepted = MessageAccepted.parseFrom(acceptedEnvelope.getPayload());
+            assertEquals(1, accepted.getConversationSequence());
+            Envelope publishedEnvelope = peerListener.next();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_PUBLISHED_VALUE,
+                    publishedEnvelope.getMessageType());
+            MessageRecord published = MessageRecord.parseFrom(publishedEnvelope.getPayload());
+            assertEquals(accepted.getMessageId(), published.getMessageId());
+            assertEquals(1, published.getConversationSequence());
+            assertEquals("network integration message", published.getContent().toStringUtf8());
+            peerListener.assertNoEnvelope(Duration.ofSeconds(1));
+
+            assertEquals(1, countQuery(jdbcUrl, username, password,
+                    "SELECT count(*) FROM chat.message WHERE conversation_id = '"
+                            + conversationId + "'"));
+            assertEquals(1, countQuery(jdbcUrl, username, password,
+                    "SELECT count(*) FROM chat.conversation_event_outbox "
+                            + "WHERE conversation_id = '" + conversationId
+                            + "' AND published_at IS NOT NULL"));
+            String secondMetrics = HttpClient.newHttpClient().send(
+                    HttpRequest.newBuilder(URI.create(
+                            "http://127.0.0.1:" + secondAdminPort + "/metrics")).GET().build(),
+                    HttpResponse.BodyHandlers.ofString()).body();
+            assertTrue(Pattern.compile(
+                    "chat_gateway_routing_hint_applied_total [1-9][0-9]*")
+                    .matcher(secondMetrics).find());
+        } finally {
+            if (peer != null) peer.abort();
+            if (sender != null) sender.abort();
+            if (second != null) second.close();
+            if (first != null) first.close();
+            certificate.delete();
+        }
+    }
+
+    @Test
     void composesRealV1LoginOnlyForMappedImportedAccounts() throws Exception {
         String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
         String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
@@ -2784,6 +2877,31 @@ class GatewayRuntimePostgresIntegrationTest {
                         HttpResponse.BodyHandlers.ofString());
         assertEquals(status, response.statusCode());
         assertEquals(body, response.body());
+    }
+
+    private static Map<String, String> distributedNetworkEnvironment(
+            int gatewayPort, int adminPort, SelfSignedCertificate certificate,
+            String jdbcUrl, String username, String redisUri) {
+        Map<String, String> environment = new HashMap<>();
+        environment.put("CHATROOM_GATEWAY_PORT", Integer.toString(gatewayPort));
+        environment.put("CHATROOM_GATEWAY_ADMIN_PORT", Integer.toString(adminPort));
+        environment.put("CHATROOM_GATEWAY_TLS_CERTIFICATE",
+                certificate.certificate().getAbsolutePath());
+        environment.put("CHATROOM_GATEWAY_TLS_PRIVATE_KEY",
+                certificate.privateKey().getAbsolutePath());
+        environment.put("CHATROOM_GATEWAY_ALLOWED_HOSTS", "localhost:" + gatewayPort);
+        environment.put("CHATROOM_GATEWAY_WEB_ORIGINS", "https://chat.example.com");
+        environment.put("CHATROOM_POSTGRES_URL", jdbcUrl);
+        environment.put("CHATROOM_POSTGRES_USER", username);
+        environment.put("CHATROOM_POSTGRES_PASSWORD", "test-trust-password");
+        environment.put("CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", "true");
+        environment.put("CHATROOM_POSTGRES_POOL_MAXIMUM", "4");
+        environment.put("CHATROOM_POSTGRES_POOL_MINIMUM_IDLE", "1");
+        environment.put(DistributedGatewayRoutingConfig.ENABLED, "true");
+        environment.put(DistributedGatewayRoutingConfig.REDIS_URI, redisUri);
+        environment.put(DistributedGatewayRoutingConfig.ALLOW_INSECURE_LOOPBACK, "true");
+        environment.put(DistributedGatewayRoutingConfig.ROUTE_LEASE_SECONDS, "5");
+        return environment;
     }
 
     private static void seedV2NetworkAccounts(

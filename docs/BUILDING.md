@@ -1428,12 +1428,17 @@ python3 tools/verify_m0.py --redis-outage
 
 The command requires local PostgreSQL client/server tools, `redis-server`, and
 JDK 21. It owns disposable PostgreSQL and Redis processes on random loopback
-ports and runs only the dedicated product integration test. The test uses the
-real TLS/WSS listener and two authenticated sessions, stops Redis exactly once,
+ports and runs the dedicated distributed product integration tests. The outage
+test uses the real TLS/WSS listener and two authenticated sessions, stops Redis exactly once,
 waits for the five-second route lease to make readiness 503 while liveness stays
 200, commits and locally delivers a durable message, then restarts an empty
 Redis exactly once. It requires Lettuce reconnection, route/readiness recovery,
 outbox publication, a recorded lease failure, and no duplicate socket event.
+The adjacent two-gateway test starts two complete product runtimes: the sender is
+connected only to gateway A and the caught-up receiver only to gateway B. It
+requires A's PostgreSQL/outbox commit to traverse Redis as a payload-free hint,
+B to reauthorize and load the exact message from PostgreSQL, one WSS publication,
+one published outbox row, and non-zero hint-applied telemetry on B (ADR-0369).
 All owned processes and data are removed on success or failure. This gate is
 separate from `--all` because it controls local services. It is single-gateway
 dependency evidence, not load-balancer deregistration, cross-gateway failover,

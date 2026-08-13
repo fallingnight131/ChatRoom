@@ -1106,6 +1106,14 @@ restarts empty at the same endpoint, Lettuce reconnects, routes rebuild,
 readiness returns, the outbox becomes published, and Redis repair emits no
 duplicate client message. This single-gateway proof does not yet establish
 load-balancer withdrawal or availability while one of several gateways dies.
+ADR-0369 moves the same topology through two complete product runtimes. A sender
+authenticated only on gateway A commits the message/outbox row; a receiver that
+caught up and activated its route only on gateway B receives the resulting
+payload-free Redis hint. Gateway B binds that hint to its local authorized
+subscription, re-reads the exact body from PostgreSQL, and emits one WSS event.
+The published outbox row and B's non-zero hint-applied counter prove the message
+did not arrive through the process-local router. Gateway removal and client
+placement during rolling deployment remain the next gate.
 
 ## 10. Attachment Flow
 

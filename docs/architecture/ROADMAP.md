@@ -1515,6 +1515,12 @@ Progress:
   same endpoint, rebuild routing, restore readiness, publish the durable outbox,
   and emit no duplicate client event. Multi-gateway loss/load-balancer and
   rolling-deployment gates remain pending (ADR-0368).
+- [x] Pass the first real two-product-gateway delivery gate: connect the sender
+  only to gateway A and the caught-up receiver only to gateway B, commit one
+  message/outbox row through A, route a payload-free Redis hint to B, reauthorize
+  and load the exact body from PostgreSQL, and emit one WSS event with B's hint-
+  applied telemetry proving the cross-process path. Gateway removal/reconnect
+  and load-balancer behavior remain pending (ADR-0369).
 
 Work:
 
