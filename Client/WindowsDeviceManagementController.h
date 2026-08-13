@@ -12,6 +12,7 @@ class V2WindowsConversationDirectoryViewModel;
 class V2WindowsMessagingViewModel;
 
 class WindowsDeviceManagementController final : public QObject {
+    Q_OBJECT
 public:
     WindowsDeviceManagementController(
         QUrl endpoint,
@@ -30,6 +31,11 @@ public:
     V2WindowsMessagingViewModel *messagingViewModel() const;
     bool start();
     void stop();
+
+signals:
+    void messagingReady();
+    void messagingUnavailable();
+    void messagingFailure(const QString &safeReason);
 
 private:
     std::unique_ptr<V2WindowsDeviceManagementTransport> m_transport;

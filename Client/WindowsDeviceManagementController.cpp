@@ -30,6 +30,12 @@ WindowsDeviceManagementController::WindowsDeviceManagementController(
         });
     m_messagingController = std::make_unique<WindowsV2MessagingController>(
         m_transport.get(), std::move(messagingRepositoryFactory));
+    connect(m_messagingController.get(), &WindowsV2MessagingController::ready,
+            this, &WindowsDeviceManagementController::messagingReady);
+    connect(m_messagingController.get(), &WindowsV2MessagingController::unavailable,
+            this, &WindowsDeviceManagementController::messagingUnavailable);
+    connect(m_messagingController.get(), &WindowsV2MessagingController::failure,
+            this, &WindowsDeviceManagementController::messagingFailure);
 
     connect(m_transport.get(), &V2WindowsDeviceManagementTransport::stateChanged,
             this, [this](V2WindowsDeviceManagementTransport::State state) {

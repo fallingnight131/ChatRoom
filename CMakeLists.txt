@@ -576,6 +576,10 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/UserInfoDialog.cpp
                 Client/DeviceManagementDialog.cpp
                 Client/DeviceManagementDialog.h
+                Client/V2WindowsMessagingPanel.cpp
+                Client/V2WindowsMessagingPanel.h
+                Client/V2WindowsConversationDialog.cpp
+                Client/V2WindowsConversationDialog.h
                 Client/resources/resources.qrc
                 "${CMAKE_CURRENT_BINARY_DIR}/generated/ChatClient.rc"
             )

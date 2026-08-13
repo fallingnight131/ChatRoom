@@ -71,6 +71,14 @@ int main(int argc, char **argv) {
             return std::make_unique<V2LocalMessageRepository>(
                 temporaryDirectory.filePath(QStringLiteral("messages.sqlite")));
         });
+    bool messagingReady = false;
+    bool messagingUnavailable = false;
+    QObject::connect(&controller,
+        &WindowsDeviceManagementController::messagingReady,
+        [&] { messagingReady = true; });
+    QObject::connect(&controller,
+        &WindowsDeviceManagementController::messagingUnavailable,
+        [&] { messagingUnavailable = true; });
     if (!check(controller.start(), QStringLiteral("controller did not start"))) return 1;
     socket.connected();
     const auto clientHello = parse(sent.takeFirst());
@@ -96,7 +104,8 @@ int main(int argc, char **argv) {
     socket.binaryMessageReceived(response(
         chat::v2::MESSAGE_TYPE_SESSION_ESTABLISHED,
         authentication.request_id(), sessionId, established));
-    if (!check(sent.size() == 2 && controller.viewModel()->authenticated(),
+    if (!check(sent.size() == 2 && controller.viewModel()->authenticated()
+                   && messagingReady && controller.messagingViewModel(),
                QStringLiteral("session establishment did not request devices and conversations"))) return 1;
     chat::v2::Envelope list;
     for (const auto &frame : std::as_const(sent)) {
@@ -122,7 +131,7 @@ int main(int argc, char **argv) {
                    && controller.viewModel()->devices().first().current,
                QStringLiteral("controller did not project the device directory"))) return 1;
     controller.stop();
-    if (!check(!controller.viewModel()->authenticated(),
+    if (!check(!controller.viewModel()->authenticated() && messagingUnavailable,
                QStringLiteral("controller stop retained authenticated UI state"))) return 1;
     qInfo() << "[WindowsDeviceManagementControllerTest] PASS";
     return 0;

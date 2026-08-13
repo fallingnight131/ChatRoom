@@ -158,14 +158,16 @@ void WindowsV2MessagingController::receiveFrame(const QByteArray &frame) {
             rows.reserve(static_cast<qsizetype>(event.conversations.size()));
             for (const auto &item : event.conversations) {
                 const auto unread = item.latestSequence - item.lastReadSequence;
+                const bool direct = item.kind
+                    == V2WindowsConversationDirectoryProtocolClient::Kind::Direct;
                 rows.append({QString::fromStdString(item.conversationId),
                     QString::fromStdString(item.displayName),
-                    item.kind == V2WindowsConversationDirectoryProtocolClient::Kind::Direct
-                        ? QStringLiteral("私聊") : QStringLiteral("群聊"),
-                    item.role == V2WindowsConversationDirectoryProtocolClient::Role::Owner
-                        ? QStringLiteral("群主")
-                        : item.role == V2WindowsConversationDirectoryProtocolClient::Role::Admin
-                            ? QStringLiteral("管理员") : QStringLiteral("成员"),
+                    direct ? QStringLiteral("私聊") : QStringLiteral("群聊"),
+                    direct ? QString()
+                           : item.role == V2WindowsConversationDirectoryProtocolClient::Role::Owner
+                               ? QStringLiteral("群主")
+                               : item.role == V2WindowsConversationDirectoryProtocolClient::Role::Admin
+                                   ? QStringLiteral("管理员") : QStringLiteral("成员"),
                     static_cast<qint64>(unread)});
             }
             m_directoryViewModel->applyPage(

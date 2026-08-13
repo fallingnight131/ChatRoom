@@ -1355,7 +1355,7 @@ Progress:
     product gate: V1-login one-use handoff, controller-owned V2 session, automatic
     live refresh, hidden-by-default settings entry, and logout teardown
     (ADR-0327). Web remains behind its existing V2 preview/cutover gate.
-- [ ] Deliver reply and quote behavior on V2 Web and Windows clients.
+- [x] Deliver reply and quote behavior on V2 Web and Windows clients.
   - [x] Allocate the distinct `SubmitReplyMessage` command and an additive,
     server-authoritative reply reference on message records, with bounded
     Java/C++/TypeScript golden-wire compatibility (ADR-0328).
@@ -1405,8 +1405,11 @@ Progress:
     and device state together, expose unread/name/kind/role rows, open cached
     message history by authorized UUID, and preserve offline intent on reconnect
     (ADR-0337).
-  - [ ] Add the equivalent reply composition, local-cache behavior, and rendering
-    to the supported Windows client.
+  - [x] Compile an accessible conversation-directory and reply surface into the
+    canonical Windows product, reveal it only after default-off V2
+    authentication, select server-authorized hidden identities, render cached
+    history and unread state, and retain offline access across disconnect
+    (ADR-0338).
 
 Candidate slices:
 

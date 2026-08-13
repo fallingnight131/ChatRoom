@@ -22,6 +22,7 @@
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
 #include "DeviceManagementDialog.h"
 #include "DeviceManagementViewModel.h"
+#include "V2WindowsConversationDialog.h"
 #include "WindowsDeviceManagementController.h"
 #endif
 
@@ -182,6 +183,29 @@ bool ChatWindow::configureDeviceManagement(
             std::make_unique<WindowsDeviceManagementController>(
                 endpoint, qApp->applicationVersion(), deviceId, m_username,
                 std::move(passwordUtf8));
+        connect(m_deviceManagementController.get(),
+                &WindowsDeviceManagementController::messagingReady,
+                this, [this] {
+                    m_v2MessagingWasReady = true;
+                    if (m_v2ConversationAction) {
+                        m_v2ConversationAction->setVisible(true);
+                        m_v2ConversationAction->setEnabled(true);
+                    }
+                });
+        connect(m_deviceManagementController.get(),
+                &WindowsDeviceManagementController::messagingUnavailable,
+                this, [this] {
+                    if (m_v2ConversationAction)
+                        m_v2ConversationAction->setEnabled(m_v2MessagingWasReady);
+                });
+        connect(m_deviceManagementController.get(),
+                &WindowsDeviceManagementController::messagingFailure,
+                this, [this](const QString &) {
+                    if (m_v2ConversationAction) {
+                        m_v2ConversationAction->setVisible(m_v2MessagingWasReady);
+                        m_v2ConversationAction->setEnabled(m_v2MessagingWasReady);
+                    }
+                });
     } catch (...) {
         passwordUtf8.fill('\0');
         return false;
@@ -589,6 +613,10 @@ void ChatWindow::setupMenuBar() {
         QStringLiteral("登录设备(&D)..."), this,
         &ChatWindow::showDeviceManagement);
     m_deviceManagementAction->setVisible(false);
+    m_v2ConversationAction = settingsMenu->addAction(
+        QStringLiteral("新版会话与回复（预览）(&V)..."), this,
+        &ChatWindow::showV2Conversations);
+    m_v2ConversationAction->setVisible(false);
 #endif
     settingsMenu->addSeparator();
     settingsMenu->addAction("缓存路径(&C)...", this, &ChatWindow::onChangeCacheDir);
@@ -4480,6 +4508,8 @@ void ChatWindow::onLogout() {
         != QMessageBox::Yes) return;
 
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+    if (m_v2ConversationDialog) m_v2ConversationDialog->close();
+    if (m_deviceManagementDialog) m_deviceManagementDialog->close();
     if (m_deviceManagementController) m_deviceManagementController->stop();
 #endif
 
@@ -4747,6 +4777,25 @@ void ChatWindow::showDeviceManagement() {
     });
     m_deviceManagementController->viewModel()->refresh();
     m_deviceManagementDialog->show();
+}
+
+void ChatWindow::showV2Conversations() {
+    if (!m_deviceManagementController || !m_v2ConversationAction
+            || !m_v2ConversationAction->isEnabled()
+            || !m_deviceManagementController->messagingViewModel()) return;
+    if (m_v2ConversationDialog) {
+        m_v2ConversationDialog->raise();
+        m_v2ConversationDialog->activateWindow();
+        return;
+    }
+    m_v2ConversationDialog = new V2WindowsConversationDialog(
+        m_deviceManagementController->conversationDirectoryViewModel(),
+        m_deviceManagementController->messagingViewModel(), this);
+    m_v2ConversationDialog->setAttribute(Qt::WA_DeleteOnClose);
+    connect(m_v2ConversationDialog, &QObject::destroyed, this, [this] {
+        m_v2ConversationDialog = nullptr;
+    });
+    m_v2ConversationDialog->show();
 }
 #endif
 

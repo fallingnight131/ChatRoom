@@ -37,6 +37,7 @@ class LocalConversationRepository;
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
 class WindowsDeviceManagementController;
 class DeviceManagementDialog;
+class V2WindowsConversationDialog;
 #endif
 
 /// 主聊天窗口 —— MVC 架构的 View/Controller 层
@@ -124,6 +125,7 @@ private slots:
     void showPendingAttachments();
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
     void showDeviceManagement();
+    void showV2Conversations();
 #endif
 
     // 连接状态
@@ -330,6 +332,9 @@ private:
     std::unique_ptr<WindowsDeviceManagementController> m_deviceManagementController;
     DeviceManagementDialog *m_deviceManagementDialog = nullptr;
     QAction *m_deviceManagementAction = nullptr;
+    V2WindowsConversationDialog *m_v2ConversationDialog = nullptr;
+    QAction *m_v2ConversationAction = nullptr;
+    bool m_v2MessagingWasReady = false;
 #endif
     RoomFileManagerDialog *m_roomFileManagerDialog = nullptr;
     QLabel       *m_avatarPreview  = nullptr;

@@ -1254,13 +1254,14 @@ V2 IndexedDB, replay the same target and client ID after sync, merge the
 authoritative server reference, and render recalled or absent targets without a
 copied quote body. The preview UI exposes keyboard buttons for reply and cancel
 while remaining behind the existing default-off gate (ADR-0330).
-The isolated `v2_windows_messaging_protocol_test` compiles the detached Windows
-C++ messaging client against that same reviewed binding tree. It verifies exact
+The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
+boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live
 reply projections, mutation-only cursor advancement, defensive UTF-8/reply
-validation, and disconnect abandonment. Passing it is protocol-boundary
-evidence only: the Windows V2 messaging client is not yet wired to Qt WSS,
-SQLite, Widgets, or the product gate (ADR-0331).
+validation, and disconnect abandonment. The canonical default-off Windows CMake
+product now composes this boundary with the shared authenticated Qt WSS,
+account-isolated SQLite, a strict conversation directory, and Widgets surface;
+the codec test alone remains protocol-boundary evidence (ADR-0331/ADR-0334–0338).
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic
@@ -1276,18 +1277,21 @@ only their reference identity and can render the target as unavailable.
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable
 deferral, permanent failure plus explicit retry, ACK reconciliation, and
-cursor-based atomic history merge. Recall/deletion projection, Widgets, Qt WSS,
-and product-gate composition remain pending (ADR-0333).
+cursor-based atomic history merge. Higher product tests cover Qt WSS routing,
+directory selection, and Widgets composition (ADR-0333–0338).
 `V2WindowsMessagingViewModelTest` verifies the presentation boundary independently
 through qmake and CMake: cached-first projection, newline-safe quote previews,
 reply selection and cancellation focus intent, failed-send retry eligibility,
 and explicit recalled/unavailable target labels. The ViewModel has no socket or
-SQL queries and remains detached until the Widgets/product composition slice.
-`V2WindowsMessagingPanelTest` runs the detached Widgets panel with the Qt
+SQL queries; the Windows product now composes it behind the runtime boundary.
+`V2WindowsMessagingPanelTest` runs the reusable Widgets panel with the Qt
 offscreen platform. It checks accessible names, keyboard-native reply/cancel/send
 controls, composer enablement and focus flow, while the ViewModel tests retain
-the recalled/unavailable rendering semantics. This panel is not yet compiled
-into `Client.pro`; that happens only with the reviewed WSS/product composition.
+the recalled/unavailable rendering semantics. The canonical Windows CMake
+product compiles it behind the default-off V2 gate; the qmake rollback remains
+V1-only. `V2WindowsConversationDialogTest` verifies accessible directory and
+paging controls, user-facing unread rows, hidden authorized identity selection,
+and cached-message rendering (ADR-0338).
 Gateway tests separately verify authenticated server-bound identity,
 off-event-loop submit/history dispatch, per-connection ordering, safe denial,
 bounded saturation behavior, and isolation from the authentication worker pool.
@@ -1477,7 +1481,10 @@ field and transfers the UTF-8 bytes once to the V2 controller; invalid/disabled
 configuration erases them without starting V2. The “登录设备” settings entry is
 hidden by default, appears only after controller startup, refreshes authoritative
 live state when opened, and stops before V1 logout. V2 failure does not break V1
-chat. The qmake rollback remains V1-only (ADR-0327).
+chat. After V2 authentication, “新版会话与回复（预览）” exposes authorized
+conversation names and unread state, cached-first history, optimistic replies,
+and exact-cursor paging; cached conversations remain reachable while reconnecting.
+The qmake rollback remains V1-only (ADR-0327/ADR-0338).
 
 ## Server Password Hashing Dependency
 
