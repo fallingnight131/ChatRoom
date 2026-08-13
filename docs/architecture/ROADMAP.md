@@ -1565,6 +1565,13 @@ Progress:
   observe forced client termination, then resume the exact durable session
   through HAProxy on the still-connected surviving gateway. The production
   default remains 15 seconds (ADR-0375).
+- [x] Pass a real HAProxy master-worker reload: atomically replace the two-
+  gateway configuration with the one gateway not holding the sender, start a
+  new worker, stop old-worker admission while its WSS tunnel remains active,
+  deliver sequence 1 through that old tunnel, place a new session only on the
+  retained gateway, repair history, and deliver sequence 2 without duplication.
+  Certificate rotation and mixed-version rollout remain separate gates
+  (ADR-0376).
 
 Work:
 

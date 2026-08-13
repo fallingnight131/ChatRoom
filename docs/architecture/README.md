@@ -1154,6 +1154,12 @@ the gateway first withdraws admission, then forcibly terminates the connection
 and completes within the bounded timing envelope. After health propagation, the
 same durable session resumes on the survivor. Production keeps the 15-second
 default and must add load-balancer propagation to its termination grace.
+ADR-0376 verifies edge configuration evolution without restarting the public
+listener. HAProxy atomically reloads from two backends to one: the former worker
+stops accepting but preserves its established WSS tunnel for ordered sequence 1,
+while a new connection and sequence 2 use only the retained gateway. This proves
+same-certificate master-worker reload, not certificate rotation or mixed-version
+application compatibility.
 
 ## 10. Attachment Flow
 

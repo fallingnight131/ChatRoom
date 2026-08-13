@@ -1524,6 +1524,18 @@ session through HAProxy on the survivor. The production default remains 15
 seconds; this explicit Docker/local-service gate is excluded from `--all`
 (ADR-0375).
 
+Exercise HAProxy master-worker configuration reload with:
+
+```bash
+python3 tools/verify_m0.py --gateway-load-balancer-reload
+```
+
+The scenario atomically changes two configured gateways to one, triggers
+`SIGUSR2`, keeps an established WSS tunnel on the former worker long enough to
+deliver an ordered message, and requires new sessions and follow-up delivery to
+use the retained gateway. It does not rotate certificates; run it separately
+from the syntax gate and outside `--all` (ADR-0376).
+
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
 consume ports while PostgreSQL supplies outbox and message repair. They also

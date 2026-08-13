@@ -132,6 +132,7 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
     postgres_port = available_port()
     redis_port = available_port()
     docker_host = docker_reachable_host_address()
+    proxy_name = f"chat-haproxy-runtime-{os.getpid()}-{proxy_port}"
 
     with tempfile.TemporaryDirectory(prefix="chat-haproxy-runtime-", dir="/tmp") as value:
         root = Path(value)
@@ -188,6 +189,9 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
             request = root / "haproxy-start-request"
             ports_file = root / "gateway-ports"
             started_marker = root / "haproxy-started"
+            reload_request = root / "haproxy-reload-request"
+            reload_marker = root / "haproxy-reloaded"
+            ports: list[str] | None = None
             while gradle.poll() is None:
                 if request.is_file() and ports_file.is_file() and proxy is None:
                     ports = ports_file.read_text(encoding="utf-8").splitlines()
@@ -203,19 +207,41 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
                          "--gateway", f"gateway-b,{docker_host},{ports[1]},gateway.internal",
                          "--output", str(config)], ROOT)
                     proxy = subprocess.Popen([
-                        docker, "run", "--rm", "--read-only",
+                        docker, "run", "--rm", "--name", proxy_name, "--read-only",
                         "-p", f"127.0.0.1:{proxy_port}:8443",
                         "--mount", f"type=bind,src={proxy_root},dst=/work,readonly",
                         IMAGE, "haproxy", "-W", "-db", "-f", "/work/haproxy.cfg",
                     ], cwd=ROOT)
                     await_port(proxy_port, proxy)
                     started_marker.write_text("started\n", encoding="utf-8")
+                if (proxy is not None and ports is not None
+                        and reload_request.is_file() and not reload_marker.exists()):
+                    retained = reload_request.read_text(encoding="utf-8").strip()
+                    if retained not in ("gateway-a", "gateway-b"):
+                        raise RuntimeError("HAProxy reload backend is invalid")
+                    index = 0 if retained == "gateway-a" else 1
+                    config = proxy_root / "haproxy.cfg"
+                    run([python, str(ROOT / "tools" / "render_haproxy_gateway.py"),
+                         "--bind-address", "0.0.0.0", "--bind-port", "8443",
+                         "--frontend-certificate", "/work/frontend.pem",
+                         "--backend-ca", "/work/ca.crt",
+                         "--health-host", "chat.example.com",
+                         "--gateway",
+                         f"{retained},{docker_host},{ports[index]},gateway.internal",
+                         "--output", str(config)], ROOT)
+                    run([docker, "kill", "--signal", "USR2", proxy_name], ROOT)
+                    time.sleep(2)
+                    if proxy.poll() is not None:
+                        raise subprocess.CalledProcessError(proxy.returncode, proxy.args)
+                    reload_marker.write_text("reloaded\n", encoding="utf-8")
                 time.sleep(0.02)
             if gradle.returncode != 0:
                 raise subprocess.CalledProcessError(gradle.returncode, command)
         finally:
             stop_process(gradle)
             stop_process(proxy)
+            subprocess.run([docker, "rm", "-f", proxy_name], cwd=ROOT,
+                           check=False, capture_output=True)
             if redis_started:
                 stop_redis(redis_pidfile)
             if postgres_started:

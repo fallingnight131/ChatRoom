@@ -94,6 +94,18 @@ session through HAProxy on the survivor. Production termination grace must still
 exceed the configured application drain plus health-check propagation
 (ADR-0375).
 
+Verify master-worker reload separately:
+
+```bash
+python3 tools/verify_m0.py --gateway-load-balancer-reload
+```
+
+The gate atomically reduces the backend set, signals `SIGUSR2`, proves the former
+worker stops admission but completes an established WSS message, and routes a
+new session plus its next ordered message through the retained gateway. In
+production, validate syntax first, serialize reloads, retain the last known-good
+file, and monitor former-worker drain time (ADR-0376).
+
 Before reload, validate the fully rendered deployment file with the exact
 production HAProxy binary. Roll one bounded subset of gateways at a time:
 

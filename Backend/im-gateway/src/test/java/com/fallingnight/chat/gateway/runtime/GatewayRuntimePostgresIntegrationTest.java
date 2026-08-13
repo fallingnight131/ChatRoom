@@ -1160,6 +1160,124 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     @Test
+    void haproxyReloadKeepsOldTunnelAndMovesNewSessions() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String redisUri = System.getenv("CHATROOM_TEST_REDIS_URI");
+        String controlValue = System.getenv("CHATROOM_TEST_HAPROXY_CONTROL_DIR");
+        String proxyUrl = System.getenv("CHATROOM_TEST_HAPROXY_WSS_URL");
+        String certificatePath = System.getenv("CHATROOM_TEST_GATEWAY_CERTIFICATE");
+        String keyPath = System.getenv("CHATROOM_TEST_GATEWAY_PRIVATE_KEY");
+        Assumptions.assumeTrue(allNonBlank(jdbcUrl, username, redisUri, controlValue,
+                proxyUrl, certificatePath, keyPath),
+                "set disposable services, HAProxy, and gateway TLS material");
+        Path control = Path.of(controlValue);
+        new PostgresMigrator(jdbcUrl, username, "").migrate();
+        UUID accountId = UUID.randomUUID();
+        UUID peerId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        String login = "reload-" + accountId;
+        String peerLogin = "reload-" + peerId;
+        seedV2NetworkAccounts(jdbcUrl, username, "", accountId, peerId,
+                conversationId, login, peerLogin);
+
+        int firstPort = availablePort();
+        int firstAdmin = availablePort();
+        int secondPort = availablePort();
+        int secondAdmin = availablePort();
+        GatewayRuntime first = null;
+        GatewayRuntime second = null;
+        WebSocket sender = null;
+        WebSocket peer = null;
+        WebSocket replacement = null;
+        try {
+            Map<String, String> firstEnvironment = distributedNetworkEnvironment(
+                    firstPort, firstAdmin, certificatePath, keyPath, jdbcUrl, username,
+                    redisUri, proxyAuthority(proxyUrl));
+            Map<String, String> secondEnvironment = distributedNetworkEnvironment(
+                    secondPort, secondAdmin, certificatePath, keyPath, jdbcUrl, username,
+                    redisUri, proxyAuthority(proxyUrl));
+            firstEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+            secondEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+            first = GatewayRuntime.create(
+                    GatewayRuntimeConfig.fromEnvironment(firstEnvironment));
+            second = GatewayRuntime.create(
+                    GatewayRuntimeConfig.fromEnvironment(secondEnvironment));
+            first.start();
+            second.start();
+            awaitReady(first);
+            awaitReady(second);
+            Files.writeString(control.resolve("gateway-ports"),
+                    firstPort + "\n" + secondPort + "\n");
+            Files.writeString(control.resolve("haproxy-start-request"), "start\n");
+            awaitFile(control.resolve("haproxy-started"), Duration.ofSeconds(10));
+
+            BinaryEnvelopeListener senderListener = new BinaryEnvelopeListener();
+            sender = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), senderListener);
+            SessionEstablished senderSession = establish(
+                    sender, senderListener, login, "reload-device");
+            boolean senderOnFirst = authenticationAccepted(firstAdmin) == 1;
+            sender.sendBinary(ByteBuffer.wrap(history(
+                    senderSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    senderListener.next().getMessageType());
+
+            BinaryEnvelopeListener peerListener = new BinaryEnvelopeListener();
+            peer = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), peerListener);
+            SessionEstablished peerSession = establish(
+                    peer, peerListener, peerLogin, "reload-peer");
+            assertEquals(1, authenticationAccepted(firstAdmin));
+            assertEquals(1, authenticationAccepted(secondAdmin));
+            peer.sendBinary(ByteBuffer.wrap(history(
+                    peerSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    peerListener.next().getMessageType());
+
+            String retained = senderOnFirst ? "gateway-b" : "gateway-a";
+            int stableAdmin = senderOnFirst ? secondAdmin : firstAdmin;
+            Files.writeString(control.resolve("haproxy-reload-request"), retained + "\n");
+            awaitFile(control.resolve("haproxy-reloaded"), Duration.ofSeconds(10));
+
+            BinaryEnvelopeListener replacementListener = new BinaryEnvelopeListener();
+            replacement = connectWebSocket(
+                    URI.create(proxyUrl + "/v2/windows"), replacementListener);
+            SessionEstablished replacementSession = establish(
+                    replacement, replacementListener, login, "reload-replacement");
+            assertEquals(2, authenticationAccepted(stableAdmin));
+
+            sender.sendBinary(ByteBuffer.wrap(submit(
+                    senderSession.getSessionId(), conversationId,
+                    "reload-submit-1", "reload-message-1", "through old worker")
+                    .toByteArray()), true).join();
+            MessageAccepted firstMessage = accepted(senderListener.next());
+            assertEquals(1, firstMessage.getConversationSequence());
+            assertEquals(1, published(peerListener.next(Duration.ofSeconds(10)))
+                    .getConversationSequence());
+
+            replacement.sendBinary(ByteBuffer.wrap(history(
+                    replacementSession.getSessionId(), conversationId).toByteArray()), true).join();
+            MessageHistoryPage repaired = MessageHistoryPage.parseFrom(
+                    replacementListener.next().getPayload());
+            assertEquals(firstMessage.getMessageId(), repaired.getMessages(0).getMessageId());
+            replacement.sendBinary(ByteBuffer.wrap(submit(
+                    replacementSession.getSessionId(), conversationId,
+                    "reload-submit-2", "reload-message-2", "through new worker")
+                    .toByteArray()), true).join();
+            assertEquals(2, accepted(replacementListener.next()).getConversationSequence());
+            assertEquals(2, published(replacementListener.next()).getConversationSequence());
+            assertEquals(2, published(peerListener.next(Duration.ofSeconds(10)))
+                    .getConversationSequence());
+            peerListener.assertNoEnvelope(Duration.ofSeconds(1));
+        } finally {
+            if (replacement != null) replacement.abort();
+            if (peer != null) peer.abort();
+            if (sender != null) sender.abort();
+            if (second != null) second.close();
+            if (first != null) first.close();
+        }
+    }
+
+    @Test
     void composesRealV1LoginOnlyForMappedImportedAccounts() throws Exception {
         String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
         String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
