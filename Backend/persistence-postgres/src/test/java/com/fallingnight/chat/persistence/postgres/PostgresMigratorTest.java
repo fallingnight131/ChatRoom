@@ -60,6 +60,9 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomKickResult
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageDeletionCommand;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageDeletionResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageDeletionService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRenameCommand;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRenameResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRenameService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMemberListPort;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettings;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettingsPort;
@@ -1663,6 +1666,52 @@ class PostgresMigratorTest {
         assertEquals(List.of("selected", "before", "after", "all"),
                 history.events().stream().map(event -> event.mode()).toList());
         assertTrue(history.messages().isEmpty());
+    }
+
+    @Test
+    @Order(93)
+    void renamesV1RoomConvergentlyWithDurableDirectoryProjection() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID owner = UUID.randomUUID(), member = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'rename-owner', 'Rename Owner', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'rename-member', 'Rename Member', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')", owner, member);
+            execute(connection, "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, "
+                    + "account_id) VALUES (211, ?), (212, ?)", owner, member);
+        }
+        LegacyV1RoomCreationResult.Created room = (LegacyV1RoomCreationResult.Created)
+                new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
+                        new LegacyV1RoomCreationIntent(owner, "rename-room-create",
+                                "Original Room", Optional.empty()));
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
+                    + "account_id, role) VALUES (?, ?, 'MEMBER')",
+                    room.conversationId(), member);
+        }
+        var rename = new LegacyV1RoomRenameService(
+                new PostgresLegacyV1RoomRenameAdapter(dataSource()));
+        assertEquals(LegacyV1RoomRenameResult.Rejected.ROOM_ADMIN_REQUIRED,
+                rename.rename(new LegacyV1RoomRenameCommand(
+                        member, room.legacyRoomId(), "Forbidden Room")));
+        LegacyV1RoomRenameResult.Renamed first = assertInstanceOf(
+                LegacyV1RoomRenameResult.Renamed.class,
+                rename.rename(new LegacyV1RoomRenameCommand(
+                        owner, room.legacyRoomId(), "  Renamed Room  ")));
+        assertTrue(first.changed()); assertEquals("Original Room", first.oldName());
+        assertEquals("Renamed Room", first.newName());
+        LegacyV1RoomRenameResult.Renamed retry = assertInstanceOf(
+                LegacyV1RoomRenameResult.Renamed.class,
+                rename.rename(new LegacyV1RoomRenameCommand(
+                        owner, room.legacyRoomId(), "Renamed Room")));
+        assertFalse(retry.changed()); assertEquals(first.updatedAt(), retry.updatedAt());
+        var search = new PostgresLegacyV1RoomSearchAdapter(dataSource())
+                .search(owner, "Renamed Room", 10);
+        assertEquals(1, search.size()); assertEquals(room.legacyRoomId(),
+                search.getFirst().legacyRoomId());
+        assertEquals("Renamed Room", search.getFirst().roomName());
     }
 
     private static LegacyV1RoomMessageDeletionResult.Deleted deleted(
