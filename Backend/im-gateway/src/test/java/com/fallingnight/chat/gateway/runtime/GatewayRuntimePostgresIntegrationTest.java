@@ -1943,6 +1943,12 @@ class GatewayRuntimePostgresIntegrationTest {
             int totalConnections = fixedGauge(
                     poolMetrics, "chat_gateway_postgres_connections_total");
             assertTrue(totalConnections >= 1 && totalConnections <= 4);
+            assertEquals(1, fixedGauge(
+                    poolMetrics, "chat_gateway_event_loop_metrics_available"));
+            assertEquals(4, fixedGauge(
+                    poolMetrics, "chat_gateway_event_loop_workers"));
+            assertTrue(fixedGauge(
+                    poolMetrics, "chat_gateway_event_loop_probe_samples_total") >= 4);
 
             Files.writeString(control.resolve("haproxy-primary-stop-request"), "stop\n");
             awaitFile(control.resolve("haproxy-primary-stopped"), Duration.ofSeconds(10));

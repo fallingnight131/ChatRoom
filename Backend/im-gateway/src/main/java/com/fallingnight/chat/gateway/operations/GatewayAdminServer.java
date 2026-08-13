@@ -37,11 +37,12 @@ public final class GatewayAdminServer implements AutoCloseable {
             IntSupplier messagingActiveWorkers,
             IntSupplier messagingQueuedWork,
             Supplier<PostgresPoolSnapshot> postgresPoolSnapshot,
+            Supplier<EventLoopSnapshot> eventLoopSnapshot,
             BooleanSupplier readiness) {
         this(address, workers, telemetry, messagingTelemetry, deviceManagementTelemetry,
                 attachmentCleanupTelemetry, authenticationActiveWorkers,
                 authenticationQueuedWork, messagingActiveWorkers, messagingQueuedWork,
-                postgresPoolSnapshot, readiness, () -> "",
+                postgresPoolSnapshot, eventLoopSnapshot, readiness, () -> "",
                 GatewayReleaseIdentity.fromEnvironment(Map.of()));
     }
 
@@ -53,11 +54,12 @@ public final class GatewayAdminServer implements AutoCloseable {
             IntSupplier authenticationActiveWorkers, IntSupplier authenticationQueuedWork,
             IntSupplier messagingActiveWorkers, IntSupplier messagingQueuedWork,
             Supplier<PostgresPoolSnapshot> postgresPoolSnapshot,
+            Supplier<EventLoopSnapshot> eventLoopSnapshot,
             BooleanSupplier readiness, Supplier<String> distributedMetrics) {
         this(address, workers, telemetry, messagingTelemetry, deviceManagementTelemetry,
                 attachmentCleanupTelemetry, authenticationActiveWorkers,
                 authenticationQueuedWork, messagingActiveWorkers, messagingQueuedWork,
-                postgresPoolSnapshot, readiness, distributedMetrics,
+                postgresPoolSnapshot, eventLoopSnapshot, readiness, distributedMetrics,
                 GatewayReleaseIdentity.fromEnvironment(Map.of()));
     }
 
@@ -69,6 +71,7 @@ public final class GatewayAdminServer implements AutoCloseable {
             IntSupplier authenticationActiveWorkers, IntSupplier authenticationQueuedWork,
             IntSupplier messagingActiveWorkers, IntSupplier messagingQueuedWork,
             Supplier<PostgresPoolSnapshot> postgresPoolSnapshot,
+            Supplier<EventLoopSnapshot> eventLoopSnapshot,
             BooleanSupplier readiness, Supplier<String> distributedMetrics,
             GatewayReleaseIdentity releaseIdentity) {
         Objects.requireNonNull(address, "address");
@@ -81,6 +84,7 @@ public final class GatewayAdminServer implements AutoCloseable {
         Objects.requireNonNull(messagingActiveWorkers, "messagingActiveWorkers");
         Objects.requireNonNull(messagingQueuedWork, "messagingQueuedWork");
         Objects.requireNonNull(postgresPoolSnapshot, "postgresPoolSnapshot");
+        Objects.requireNonNull(eventLoopSnapshot, "eventLoopSnapshot");
         Objects.requireNonNull(readiness, "readiness");
         Objects.requireNonNull(distributedMetrics, "distributedMetrics");
         Objects.requireNonNull(releaseIdentity, "releaseIdentity");
@@ -130,6 +134,7 @@ public final class GatewayAdminServer implements AutoCloseable {
                         + PrometheusAttachmentCleanupMetrics.render(
                                 attachmentCleanupTelemetry.snapshot())
                         + PrometheusPostgresPoolMetrics.render(postgresPoolSnapshot.get())
+                        + PrometheusEventLoopMetrics.render(eventLoopSnapshot.get())
                         + distributedMetrics.get()));
     }
 

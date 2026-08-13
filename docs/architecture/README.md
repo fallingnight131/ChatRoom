@@ -1238,6 +1238,10 @@ The first clean schema version 3 result at `b46768e5...` observed 68 shared
 samples, authentication active/queue peaks 3/0, and PostgreSQL
 active/total/waiting peaks 1/3/1 while all 12 sessions resumed. The observed
 waiter is diagnostic, not a production pool-sizing conclusion.
+ADR-0389 makes the next gateway resource boundary visible: each owned Netty
+worker runs a lifecycle-bound 50 ms fixed-rate lag probe, while loopback metrics
+export latest/since-start maximum lag, aggregate samples, worker count, and
+pending tasks without per-thread labels or readiness side effects.
 
 ## 10. Attachment Flow
 

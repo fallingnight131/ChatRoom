@@ -1653,6 +1653,10 @@ Progress:
   resumes with 68 shared samples, authentication active/queue peaks 3/0, and
   PostgreSQL active/total/waiting peaks 1/3/1 against a four-connection maximum.
   Wider resource signals and a saturation knee remain pending (ADR-0388).
+- [x] Add lifecycle-bound 50 ms probes to every owned Netty worker event loop
+  and export fixed-name latest/since-start maximum lag, sample count, worker
+  count, pending tasks, and explicit availability. Reconnect-window event-loop
+  evidence and CPU/memory signals remain pending (ADR-0389).
 
 Work:
 

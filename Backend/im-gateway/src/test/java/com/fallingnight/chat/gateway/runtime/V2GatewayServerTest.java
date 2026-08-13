@@ -54,6 +54,14 @@ class V2GatewayServerTest {
             server.start();
             assertTrue(server.isRunning());
             assertThrows(IllegalStateException.class, server::start);
+            long probeDeadline = System.nanoTime() + Duration.ofSeconds(2).toNanos();
+            while (server.eventLoopSnapshot().samples() < config.eventLoopWorkers()
+                    && System.nanoTime() < probeDeadline) {
+                Thread.sleep(10);
+            }
+            assertTrue(server.eventLoopSnapshot().available());
+            assertEquals(config.eventLoopWorkers(), server.eventLoopSnapshot().workers());
+            assertTrue(server.eventLoopSnapshot().samples() >= config.eventLoopWorkers());
 
             try (SSLSocket socket = (SSLSocket) trustAllTls()
                     .getSocketFactory()
@@ -78,6 +86,7 @@ class V2GatewayServerTest {
             certificate.delete();
         }
         assertFalse(server.isRunning());
+        assertFalse(server.eventLoopSnapshot().available());
         server.awaitClose();
     }
 

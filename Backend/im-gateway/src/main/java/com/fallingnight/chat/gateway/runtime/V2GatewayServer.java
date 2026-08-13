@@ -32,6 +32,7 @@ import com.fallingnight.chat.gateway.transport.V2EnvelopeDecoder;
 import com.fallingnight.chat.gateway.transport.V2WebSocketUpgradeHandler;
 import com.fallingnight.chat.gateway.transport.WebSocketEndpointPolicy;
 import com.fallingnight.chat.gateway.transport.WebSocketEndpointPolicyHandler;
+import com.fallingnight.chat.gateway.operations.EventLoopSnapshot;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -95,6 +96,8 @@ public final class V2GatewayServer implements AutoCloseable {
     private final SslContext sslContext;
     private final GatewayConnectionLimiter connectionLimiter;
     private final ChannelGroup children = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
+    private final EventLoopMonitor eventLoopMonitor =
+            new EventLoopMonitor(Duration.ofMillis(50));
     private NioEventLoopGroup bossGroup;
     private NioEventLoopGroup workerGroup;
     private Channel listener;
@@ -434,6 +437,7 @@ public final class V2GatewayServer implements AutoCloseable {
         bossGroup = new NioEventLoopGroup(1);
         workerGroup = new NioEventLoopGroup(config.eventLoopWorkers());
         try {
+            eventLoopMonitor.start(workerGroup);
             ServerBootstrap bootstrap = new ServerBootstrap()
                     .group(bossGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
@@ -486,6 +490,10 @@ public final class V2GatewayServer implements AutoCloseable {
         return connectionLimiter.activeConnections();
     }
 
+    public EventLoopSnapshot eventLoopSnapshot() {
+        return eventLoopMonitor.snapshot();
+    }
+
     /** Stops new TCP admission while preserving established children for bounded drain. */
     public synchronized void stopAccepting() {
         if (listener != null) {
@@ -517,6 +525,7 @@ public final class V2GatewayServer implements AutoCloseable {
         closed = true;
         stopAccepting();
         children.close().awaitUninterruptibly(SHUTDOWN_TIMEOUT.toMillis());
+        eventLoopMonitor.close();
         shutdown(workerGroup);
         shutdown(bossGroup);
         workerGroup = null;

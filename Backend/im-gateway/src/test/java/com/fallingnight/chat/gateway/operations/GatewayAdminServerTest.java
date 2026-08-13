@@ -51,6 +51,7 @@ class GatewayAdminServerTest {
                 () -> 2,
                 () -> 3,
                 () -> new PostgresPoolSnapshot(true, 2, 1, 3, 4, 8),
+                () -> new EventLoopSnapshot(true, 4, 12, 2_000_000, 7_000_000, 3),
                 readiness,
                 () -> "# TYPE chat_gateway_distributed_metrics_available gauge\n"
                         + "chat_gateway_distributed_metrics_available 1\n",
@@ -114,6 +115,17 @@ class GatewayAdminServerTest {
             assertTrue(metrics.body().contains(
                     "chat_gateway_postgres_connections_maximum 8"));
             assertTrue(metrics.body().contains(
+                    "chat_gateway_event_loop_metrics_available 1"));
+            assertTrue(metrics.body().contains("chat_gateway_event_loop_workers 4"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_event_loop_probe_samples_total 12"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_event_loop_latest_max_lag_seconds 0.002000000"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_event_loop_max_lag_seconds 0.007000000"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_event_loop_pending_tasks 3"));
+            assertTrue(metrics.body().contains(
                     "chat_gateway_device_management_total{outcome=\"revoked\"} 1"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_device_management_total{outcome=\"disconnected\"} 2"));
@@ -159,6 +171,7 @@ class GatewayAdminServerTest {
                 () -> 0,
                 () -> 0,
                 () -> PostgresPoolSnapshot.unavailable(8),
+                EventLoopSnapshot::unavailable,
                 readiness));
         assertThrows(IllegalArgumentException.class, () -> new GatewayAdminServer(
                 new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
@@ -172,6 +185,7 @@ class GatewayAdminServerTest {
                 () -> 0,
                 () -> 0,
                 () -> PostgresPoolSnapshot.unavailable(8),
+                EventLoopSnapshot::unavailable,
                 readiness));
     }
 

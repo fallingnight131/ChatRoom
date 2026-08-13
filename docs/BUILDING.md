@@ -1632,6 +1632,10 @@ five-millisecond target cadence; overruns are not followed by an extra delay,
 and the recorded sample count remains part of the result (ADR-0388).
 The first clean schema version 3 result and interpretation are retained as
 `docs/baselines/M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_RESOURCE_SATURATION_2026-08-14.*`.
+The loopback endpoint now also exports Netty worker probe availability/count,
+latest maximum lag, since-start maximum lag, and pending tasks. Probes run on
+each product worker at a fixed 50 ms period and are cancelled before worker-group
+shutdown; these observations do not alter readiness (ADR-0389).
 
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and

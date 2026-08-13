@@ -179,6 +179,7 @@ public final class GatewayRuntime implements AutoCloseable {
                     deviceConnections,
                     productLiveRouter,
                     publicReadiness);
+            V2GatewayServer eventLoopMetricsServer = productServer;
             adminServer = new GatewayAdminServer(
                     config.adminAddress(),
                     config.adminWorkers(),
@@ -192,6 +193,7 @@ public final class GatewayRuntime implements AutoCloseable {
                     messagingWorkers::queuedCount,
                     () -> GatewayPostgresDataSource.snapshot(
                             readinessDataSource, config.postgresPoolMaximum()),
+                    eventLoopMetricsServer::eventLoopSnapshot,
                     publicReadiness,
                     distributedMetrics,
                     config.releaseIdentity());
