@@ -40,4 +40,12 @@ tasks.test {
             providers.environmentVariable("CHATROOM_TEST_REDIS_URI").orNull ?: "")
     environment("CHATROOM_TEST_REDIS_CONTROL_DIR",
             providers.environmentVariable("CHATROOM_TEST_REDIS_CONTROL_DIR").orNull ?: "")
+    listOf(
+        "CHATROOM_TEST_HAPROXY_CONTROL_DIR",
+        "CHATROOM_TEST_HAPROXY_WSS_URL",
+        "CHATROOM_TEST_GATEWAY_CERTIFICATE",
+        "CHATROOM_TEST_GATEWAY_PRIVATE_KEY",
+    ).forEach { name ->
+        environment(name, providers.environmentVariable(name).orNull ?: "")
+    }
 }

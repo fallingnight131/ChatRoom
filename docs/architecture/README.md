@@ -1130,7 +1130,12 @@ policy. The Redis outage gate proves 200→503→200 on that exact port. A stric
 renderer produces HAProxy 3.2 least-connections configuration with frontend and
 backend TLS, CA plus hostname verification, sanitized forwarding headers, and
 active product-port checks; a pinned official container accepts the generated
-syntax. Runtime proxy traffic and backend removal timing remain unproven.
+syntax. ADR-0372 then drives two complete gateways through that real proxy. It
+proves least-connections placement, health-driven removal from new-session
+routing while an established WSS session drains, delivery during that drain,
+reconnect history repair, and continued ordered delivery on the surviving
+gateway. Abrupt crash, mixed-version rollout, reload/certificate rotation, and
+reconnect-storm capacity remain unproven.
 
 ## 10. Attachment Flow
 

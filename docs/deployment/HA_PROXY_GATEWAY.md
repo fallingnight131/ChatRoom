@@ -36,10 +36,10 @@ python3 tools/render_haproxy_gateway.py \
   --output /etc/haproxy/haproxy.cfg
 ```
 
-The generated backend uses least-connections, verifies the backend CA and
-hostname, and performs `GET /health/ready` over the same TLS product port with
-the approved Host. Two consecutive failed checks remove a gateway; two
-successful checks restore it. WSS connections remain bound to their selected
+The generated backend uses least-connections, sends the verified backend name as
+SNI, verifies the backend CA and hostname, and performs `GET /health/ready` over
+the same TLS product port with the approved Host. Two consecutive failed checks
+remove a gateway; two successful checks restore it. WSS connections remain bound to their selected
 gateway, so cookie stickiness is unnecessary. Five-minute tunnel inactivity is
 longer than the gateway heartbeat interval but remains bounded.
 
@@ -52,6 +52,23 @@ python3 tools/verify_m0.py --gateway-load-balancer-config
 The local gate runs injection/bounds tests, generates disposable certificates,
 renders two servers, and syntax-checks the result with the official HAProxy 3.2
 Alpine image pinned by manifest digest. It does not contact a real gateway.
+
+Run the separate local-service runtime gate before changing gateway removal or
+drain policy:
+
+```bash
+python3 tools/verify_m0.py --gateway-load-balancer-runtime
+```
+
+It starts disposable PostgreSQL and Redis, two complete TLS Java gateways, and
+the same pinned HAProxy image. It proves real WSS least-connections placement,
+active readiness withdrawal, routing new sessions away from a draining gateway,
+delivery through the old session during its drain window, reconnect history
+repair, ordered follow-up delivery, and durable outbox convergence. On Docker
+Desktop the container reaches only the two disposable all-interface gateway
+ports through the host's routed address; the HAProxy frontend and every admin or
+data dependency remain host-loopback. Local firewall policy must permit that
+test path (ADR-0372).
 
 Before reload, validate the fully rendered deployment file with the exact
 production HAProxy binary. Roll one bounded subset of gateways at a time:
@@ -66,5 +83,5 @@ production HAProxy binary. Roll one bounded subset of gateways at a time:
 
 The termination grace must exceed `CHATROOM_GATEWAY_DRAIN_TIMEOUT_SECONDS` plus
 observed health-check propagation. A syntax-valid file is not evidence of
-readiness removal, WSS forwarding, certificate rotation, reload safety, or
-mixed-version compatibility; those require separate runtime gates.
+certificate rotation, reload safety, mixed-version compatibility, abrupt crash
+recovery, or reconnect-storm capacity; those require separate runtime gates.

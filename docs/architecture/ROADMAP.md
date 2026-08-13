@@ -1535,6 +1535,14 @@ Progress:
   verified backend TLS, overwritten forwarding headers, and active product-port
   checks. Unit/injection tests and pinned-container syntax pass; real proxy
   traffic and deregistration remain pending (ADR-0371).
+- [x] Pass a real HAProxy withdrawal gate: place two authenticated WSS sessions
+  on different complete gateways through least-connections, withdraw one
+  gateway from active TLS health checks while its existing session drains,
+  route a replacement session to the stable gateway, deliver sequence 1 during
+  drain, repair it from PostgreSQL after reconnect, then deliver sequence 2
+  exactly once with two durable messages and published outbox rows. Abrupt
+  crash, mixed-version, reload, and reconnect-storm evidence remain pending
+  (ADR-0372).
 
 Work:
 

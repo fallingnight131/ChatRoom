@@ -627,6 +627,159 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     @Test
+    void haproxyWithdrawsOneGatewayWhileItsExistingWssSessionDrains() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String password = System.getenv().getOrDefault("CHATROOM_TEST_POSTGRES_PASSWORD", "");
+        String redisUri = System.getenv("CHATROOM_TEST_REDIS_URI");
+        String controlValue = System.getenv("CHATROOM_TEST_HAPROXY_CONTROL_DIR");
+        String proxyUrl = System.getenv("CHATROOM_TEST_HAPROXY_WSS_URL");
+        String certificatePath = System.getenv("CHATROOM_TEST_GATEWAY_CERTIFICATE");
+        String keyPath = System.getenv("CHATROOM_TEST_GATEWAY_PRIVATE_KEY");
+        Assumptions.assumeTrue(jdbcUrl != null && !jdbcUrl.isBlank()
+                && username != null && !username.isBlank()
+                && redisUri != null && !redisUri.isBlank()
+                && controlValue != null && !controlValue.isBlank()
+                && proxyUrl != null && !proxyUrl.isBlank()
+                && certificatePath != null && !certificatePath.isBlank()
+                && keyPath != null && !keyPath.isBlank(),
+                "set disposable PostgreSQL, Redis, HAProxy, and gateway TLS material");
+        Path control = Path.of(controlValue);
+        new PostgresMigrator(jdbcUrl, username, password).migrate();
+
+        UUID accountId = UUID.randomUUID();
+        UUID peerAccountId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        String login = "haproxy-gateway-" + accountId;
+        String peerLogin = "haproxy-gateway-" + peerAccountId;
+        seedV2NetworkAccounts(jdbcUrl, username, password, accountId, peerAccountId,
+                conversationId, login, peerLogin);
+
+        int firstGatewayPort = availablePort();
+        int firstAdminPort = availablePort();
+        int secondGatewayPort = availablePort();
+        int secondAdminPort = availablePort();
+        GatewayRuntime first = null;
+        GatewayRuntime second = null;
+        WebSocket sender = null;
+        WebSocket peer = null;
+        WebSocket replacement = null;
+        Thread drain = null;
+        AtomicReference<Throwable> drainFailure = new AtomicReference<>();
+        try {
+            Map<String, String> firstEnvironment = distributedNetworkEnvironment(
+                    firstGatewayPort, firstAdminPort, certificatePath, keyPath,
+                    jdbcUrl, username, redisUri, proxyAuthority(proxyUrl));
+            Map<String, String> secondEnvironment = distributedNetworkEnvironment(
+                    secondGatewayPort, secondAdminPort, certificatePath, keyPath,
+                    jdbcUrl, username, redisUri, proxyAuthority(proxyUrl));
+            firstEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+            secondEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+            first = GatewayRuntime.create(
+                    GatewayRuntimeConfig.fromEnvironment(firstEnvironment));
+            second = GatewayRuntime.create(
+                    GatewayRuntimeConfig.fromEnvironment(secondEnvironment));
+            first.start();
+            second.start();
+            awaitReady(first);
+            awaitReady(second);
+            Files.writeString(control.resolve("gateway-ports"),
+                    firstGatewayPort + "\n" + secondGatewayPort + "\n");
+            Files.writeString(control.resolve("haproxy-start-request"), "start\n");
+            awaitFile(control.resolve("haproxy-started"), Duration.ofSeconds(10));
+
+            BinaryEnvelopeListener senderListener = new BinaryEnvelopeListener();
+            sender = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), senderListener);
+            SessionEstablished senderSession = establish(
+                    sender, senderListener, login, "haproxy-device-1");
+            long firstAccepted = authenticationAccepted(firstAdminPort);
+            long secondAccepted = authenticationAccepted(secondAdminPort);
+            assertEquals(1, firstAccepted + secondAccepted);
+            boolean drainFirst = firstAccepted == 1;
+
+            BinaryEnvelopeListener peerListener = new BinaryEnvelopeListener();
+            peer = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), peerListener);
+            SessionEstablished peerSession = establish(
+                    peer, peerListener, peerLogin, "haproxy-device-2");
+            assertEquals(1, authenticationAccepted(firstAdminPort));
+            assertEquals(1, authenticationAccepted(secondAdminPort));
+            peer.sendBinary(ByteBuffer.wrap(history(
+                    peerSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    peerListener.next().getMessageType());
+
+            GatewayRuntime draining = drainFirst ? first : second;
+            GatewayRuntime stable = drainFirst ? second : first;
+            int drainingPort = drainFirst ? firstGatewayPort : secondGatewayPort;
+            int stableAdmin = drainFirst ? secondAdminPort : firstAdminPort;
+            drain = new Thread(() -> {
+                try { draining.close(); }
+                catch (Throwable failure) { drainFailure.set(failure); }
+            }, "haproxy-gateway-drain");
+            drain.start();
+            awaitProductNotReady(drainingPort, Duration.ofSeconds(3));
+            Thread.sleep(2_500);
+
+            BinaryEnvelopeListener replacementListener = new BinaryEnvelopeListener();
+            replacement = connectWebSocket(
+                    URI.create(proxyUrl + "/v2/windows"), replacementListener);
+            SessionEstablished replacementSession = establish(
+                    replacement, replacementListener, login, "haproxy-device-3");
+            assertEquals(2, authenticationAccepted(stableAdmin));
+            assertTrue(stable.isReady());
+
+            sender.sendBinary(ByteBuffer.wrap(submit(
+                    senderSession.getSessionId(), conversationId,
+                    "haproxy-submit-1", "haproxy-message-1", "during drain")
+                    .toByteArray()), true).join();
+            MessageAccepted accepted = accepted(senderListener.next());
+            assertEquals(1, accepted.getConversationSequence());
+            MessageRecord peerPublished = published(peerListener.next(Duration.ofSeconds(10)));
+            assertEquals(accepted.getMessageId(), peerPublished.getMessageId());
+
+            sender.sendClose(WebSocket.NORMAL_CLOSURE, "drain complete")
+                    .get(3, TimeUnit.SECONDS);
+            sender = null;
+            drain.join(Duration.ofSeconds(5).toMillis());
+            assertFalse(drain.isAlive(), "draining gateway did not stop");
+            assertNull(drainFailure.get(), "draining gateway failed");
+            if (drainFirst) first = null; else second = null;
+
+            replacement.sendBinary(ByteBuffer.wrap(history(
+                    replacementSession.getSessionId(), conversationId).toByteArray()), true).join();
+            MessageHistoryPage repaired = MessageHistoryPage.parseFrom(
+                    replacementListener.next().getPayload());
+            assertEquals(1, repaired.getMessagesCount());
+            assertEquals(1, repaired.getMessages(0).getConversationSequence());
+            replacement.sendBinary(ByteBuffer.wrap(submit(
+                    replacementSession.getSessionId(), conversationId,
+                    "haproxy-submit-2", "haproxy-message-2", "after removal")
+                    .toByteArray()), true).join();
+            MessageAccepted secondMessage = accepted(replacementListener.next());
+            assertEquals(2, secondMessage.getConversationSequence());
+            assertEquals(2, published(replacementListener.next()).getConversationSequence());
+            assertEquals(2, published(peerListener.next(Duration.ofSeconds(10)))
+                    .getConversationSequence());
+            peerListener.assertNoEnvelope(Duration.ofSeconds(1));
+            assertEquals(2, countQuery(jdbcUrl, username, password,
+                    "SELECT count(*) FROM chat.message WHERE conversation_id = '"
+                            + conversationId + "'"));
+            awaitCount(jdbcUrl, username, password,
+                    "SELECT count(*) FROM chat.conversation_event_outbox "
+                            + "WHERE conversation_id = '" + conversationId
+                            + "' AND published_at IS NOT NULL",
+                    2, Duration.ofSeconds(10));
+        } finally {
+            if (replacement != null) replacement.abort();
+            if (peer != null) peer.abort();
+            if (sender != null) sender.abort();
+            if (drain != null && drain.isAlive()) drain.interrupt();
+            if (second != null) second.close();
+            if (first != null) first.close();
+        }
+    }
+
+    @Test
     void composesRealV1LoginOnlyForMappedImportedAccounts() throws Exception {
         String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
         String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
@@ -3037,14 +3190,22 @@ class GatewayRuntimePostgresIntegrationTest {
     private static Map<String, String> distributedNetworkEnvironment(
             int gatewayPort, int adminPort, SelfSignedCertificate certificate,
             String jdbcUrl, String username, String redisUri) {
+        return distributedNetworkEnvironment(gatewayPort, adminPort,
+                certificate.certificate().getAbsolutePath(),
+                certificate.privateKey().getAbsolutePath(), jdbcUrl, username, redisUri,
+                "localhost:" + gatewayPort);
+    }
+
+    private static Map<String, String> distributedNetworkEnvironment(
+            int gatewayPort, int adminPort, String certificatePath, String keyPath,
+            String jdbcUrl, String username, String redisUri, String allowedAuthority) {
         Map<String, String> environment = new HashMap<>();
         environment.put("CHATROOM_GATEWAY_PORT", Integer.toString(gatewayPort));
         environment.put("CHATROOM_GATEWAY_ADMIN_PORT", Integer.toString(adminPort));
-        environment.put("CHATROOM_GATEWAY_TLS_CERTIFICATE",
-                certificate.certificate().getAbsolutePath());
-        environment.put("CHATROOM_GATEWAY_TLS_PRIVATE_KEY",
-                certificate.privateKey().getAbsolutePath());
-        environment.put("CHATROOM_GATEWAY_ALLOWED_HOSTS", "localhost:" + gatewayPort);
+        environment.put("CHATROOM_GATEWAY_TLS_CERTIFICATE", certificatePath);
+        environment.put("CHATROOM_GATEWAY_TLS_PRIVATE_KEY", keyPath);
+        environment.put("CHATROOM_GATEWAY_ALLOWED_HOSTS",
+                allowedAuthority + ",chat.example.com");
         environment.put("CHATROOM_GATEWAY_WEB_ORIGINS", "https://chat.example.com");
         environment.put("CHATROOM_POSTGRES_URL", jdbcUrl);
         environment.put("CHATROOM_POSTGRES_USER", username);
@@ -3057,6 +3218,41 @@ class GatewayRuntimePostgresIntegrationTest {
         environment.put(DistributedGatewayRoutingConfig.ALLOW_INSECURE_LOOPBACK, "true");
         environment.put(DistributedGatewayRoutingConfig.ROUTE_LEASE_SECONDS, "5");
         return environment;
+    }
+
+    private static String proxyAuthority(String proxyUrl) {
+        URI uri = URI.create(proxyUrl);
+        return uri.getHost() + ":" + uri.getPort();
+    }
+
+    private static long authenticationAccepted(int adminPort) throws Exception {
+        String metrics = adminMetrics(adminPort);
+        var matcher = Pattern.compile(
+                "chat_gateway_authentication_total\\{outcome=\"accepted\"} ([0-9]+)")
+                .matcher(metrics);
+        assertTrue(matcher.find(), "missing accepted authentication metric");
+        return Long.parseLong(matcher.group(1));
+    }
+
+    private static void awaitProductNotReady(int gatewayPort, Duration timeout)
+            throws Exception {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        while (System.nanoTime() < deadline) {
+            try {
+                HttpResponse<String> response = HttpClient.newBuilder()
+                        .sslContext(trustAllTls()).connectTimeout(Duration.ofMillis(500))
+                        .build().send(HttpRequest.newBuilder(URI.create(
+                                "https://localhost:" + gatewayPort + "/health/ready"))
+                                .timeout(Duration.ofMillis(500)).GET().build(),
+                                HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() == 503) return;
+            } catch (java.io.IOException ignored) {
+                // Listener closure after readiness withdrawal is also no longer routable.
+                return;
+            }
+            Thread.sleep(10);
+        }
+        throw new AssertionError("gateway product readiness did not withdraw");
     }
 
     private static int activeRouteCount(String redisUri, UUID conversationId) {
@@ -3133,6 +3329,12 @@ class GatewayRuntimePostgresIntegrationTest {
 
     private static WebSocket connectWebSocket(
             int gatewayPort, BinaryEnvelopeListener listener) throws Exception {
+        return connectWebSocket(URI.create(
+                "wss://localhost:" + gatewayPort + "/v2/windows"), listener);
+    }
+
+    private static WebSocket connectWebSocket(
+            URI endpoint, BinaryEnvelopeListener listener) throws Exception {
         return HttpClient.newBuilder()
                 .sslContext(trustAllTls())
                 .connectTimeout(Duration.ofSeconds(2))
@@ -3140,8 +3342,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 .newWebSocketBuilder()
                 .subprotocols("chat.v2")
                 .connectTimeout(Duration.ofSeconds(2))
-                .buildAsync(URI.create(
-                        "wss://localhost:" + gatewayPort + "/v2/windows"), listener)
+                .buildAsync(endpoint, listener)
                 .get(3, TimeUnit.SECONDS);
     }
 

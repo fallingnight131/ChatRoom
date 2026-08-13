@@ -21,6 +21,7 @@ class HaproxyGatewayConfigTest(unittest.TestCase):
         self.assertIn("http-check send meth GET uri /health/ready", content)
         self.assertIn("http-check expect status 200", content)
         self.assertEqual(2, content.count(" verify required ca-file "))
+        self.assertEqual(2, content.count(" sni str(gateway.internal) "))
         self.assertNotIn("no-check-ssl", content)
         self.assertIn("hdr Host chat.example.com", content)
         self.assertIn("balance leastconn", content)

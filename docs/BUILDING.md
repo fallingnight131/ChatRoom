@@ -1473,6 +1473,19 @@ path is exercised separately by the real Redis outage scenario. Syntax success
 is not WSS proxy, deregistration, reload, or certificate-rotation evidence; see
 [`deployment/HA_PROXY_GATEWAY.md`](deployment/HA_PROXY_GATEWAY.md) and ADR-0371.
 
+Exercise real HAProxy forwarding and health-driven removal separately:
+
+```bash
+python3 tools/verify_m0.py --gateway-load-balancer-runtime
+```
+
+This explicit gate owns disposable PostgreSQL and Redis processes, temporary
+TLS material, two complete Java gateways, and the same digest-pinned HAProxy
+container. It verifies least-connections placement, removal of a draining
+gateway from new-session routing, continued delivery on its existing WSS
+session, reconnect history repair, ordered follow-up delivery, and outbox
+convergence. It is intentionally excluded from `--all`; see ADR-0372.
+
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
 consume ports while PostgreSQL supplies outbox and message repair. They also

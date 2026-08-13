@@ -111,6 +111,7 @@ def render(bind_address: str, bind_port: int, frontend_certificate: str,
         lines.append(
             f"    server {value.name} {value.host}:{value.product_port} ssl "
             f"verify required ca-file {backend_ca} verifyhost {value.verify_host} "
+            f"sni str({value.verify_host}) "
             "check inter 1s fastinter 250ms "
             "downinter 1s fall 2 rise 2")
     return "\n".join(lines) + "\n"
