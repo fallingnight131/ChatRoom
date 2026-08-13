@@ -49,3 +49,8 @@ event rather than treating application logs as source of truth.
   first change, convergent retry, and durable directory projection;
 - gateway tests must cover strict parsing, first-only room effects, malformed
   and saturated execution, and replacement-login recovery.
+
+The detached slice is now composed. Real PostgreSQL gateway acceptance proves
+member denial, administrator response and room-wide effects, convergent retry
+suppression, canonical title persistence, and a fresh member login recovering
+the renamed title from the durable room directory.

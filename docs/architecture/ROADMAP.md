@@ -703,7 +703,7 @@ Progress:
   - [x] Add the strict detached `RENAME_ROOM_REQ` handler with authenticated
     actor binding, bounded off-loop work, changed-only compatible room effects,
     malformed-frame closure, and explicit saturation handling.
-  - [ ] Compose V1 room rename and prove changed-only notification suppression
+  - [x] Compose V1 room rename and prove changed-only notification suppression
     plus replacement-login directory recovery through real PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.

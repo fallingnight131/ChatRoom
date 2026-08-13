@@ -24,6 +24,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomSettingsEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFilesEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFileDeletionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageDeletionEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomRenameEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomAdminEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomKickEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
@@ -329,6 +330,8 @@ class GatewayRuntimePostgresIntegrationTest {
                         seedRuntimeRoomAttachment(jdbcUrl, username, password);
                         assertRoomMessageDeletion(reconnected, peer,
                                 jdbcUrl, username, password);
+                        assertRoomRename(module, reconnected, peer,
+                                jdbcUrl, username, password);
                         assertRoomAdminPromotion(reconnected, peer,
                                 jdbcUrl, username, password);
                         assertDirectHistoryAfterReconnect(reconnected);
@@ -419,7 +422,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     response.release();
                 }
                 assertFalse(nativeV2.isActive());
-                assertEquals(8, sessionCount(jdbcUrl, username, password));
+                assertEquals(9, sessionCount(jdbcUrl, username, password));
             } finally {
                 nativeV2.finishAndReleaseAll();
             }
@@ -444,6 +447,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomFilesEventSink.noop(),
                 V1RoomFileDeletionEventSink.noop(),
                 V1RoomMessageDeletionEventSink.noop(),
+                V1RoomRenameEventSink.noop(),
                 V1RoomAdminEventSink.noop(),
                 V1RoomKickEventSink.noop(),
                 V1RoomDirectoryEventSink.noop(),
@@ -1024,6 +1028,73 @@ class GatewayRuntimePostgresIntegrationTest {
         } finally { response.release(); }
     }
 
+    private static void assertRoomRename(V1CompatibilityModule module,
+            EmbeddedChannel owner, EmbeddedChannel member,
+            String url, String user, String password) throws Exception {
+        String request = "{\"type\":\"RENAME_ROOM_REQ\",\"data\":{\"roomId\":7,"
+                + "\"newName\":\"Renamed Imported Room\"}}";
+        member.writeInbound(new TextWebSocketFrame(request)); member.runPendingTasks();
+        TextWebSocketFrame denied = member.readOutbound();
+        try {
+            assertTrue(denied.text().contains("\"type\":\"RENAME_ROOM_RSP\""));
+            assertTrue(denied.text().contains("\"success\":false"));
+            assertTrue(denied.text().contains("ROOM_ADMIN_REQUIRED"));
+        } finally { denied.release(); }
+
+        owner.writeInbound(new TextWebSocketFrame(request)); owner.runPendingTasks();
+        TextWebSocketFrame response = owner.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"RENAME_ROOM_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"changed\":true"));
+            assertTrue(response.text().contains("\"newName\":\"Renamed Imported Room\""));
+            assertFalse(response.text().contains("30000000-0000"));
+        } finally { response.release(); }
+        owner.runPendingTasks();
+        TextWebSocketFrame ownRename = owner.readOutbound(), ownSystem = owner.readOutbound();
+        member.runPendingTasks();
+        TextWebSocketFrame memberRename = member.readOutbound(), memberSystem = member.readOutbound();
+        try {
+            assertTrue(ownRename.text().contains("\"type\":\"RENAME_ROOM_NOTIFY\""));
+            assertTrue(memberRename.text().contains("\"newName\":\"Renamed Imported Room\""));
+            assertTrue(ownSystem.text().contains("\"type\":\"SYSTEM_MSG\""));
+            assertTrue(memberSystem.text().contains("管理员 Imported V1"));
+        } finally {
+            ownRename.release(); ownSystem.release(); memberRename.release(); memberSystem.release();
+        }
+
+        owner.writeInbound(new TextWebSocketFrame(request)); owner.runPendingTasks();
+        response = owner.readOutbound();
+        try { assertTrue(response.text().contains("\"changed\":false")); }
+        finally { response.release(); }
+        owner.runPendingTasks(); assertNull(owner.readOutbound());
+        member.runPendingTasks(); assertNull(member.readOutbound());
+        assertEquals(1, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.conversation conversation "
+                        + "JOIN chat.legacy_v1_conversation_map mapping "
+                        + "ON mapping.conversation_id = conversation.id "
+                        + "WHERE mapping.legacy_kind = 'ROOM' "
+                        + "AND mapping.legacy_conversation_id = 7 "
+                        + "AND conversation.title = 'Renamed Imported Room'"));
+
+        EmbeddedChannel freshMember = upgradedChannel(module, Runnable::run,
+                AuthenticationAdmissionControl.allowAll(), AuthenticationEventSink.noop());
+        try {
+            freshMember.writeInbound(loginFrame(
+                    "imported-newcomer", "java-v2-test-password"));
+            freshMember.runPendingTasks(); ((TextWebSocketFrame) freshMember.readOutbound()).release();
+            freshMember.writeInbound(new TextWebSocketFrame(
+                    "{\"type\":\"ROOM_LIST_REQ\",\"data\":{}}"));
+            freshMember.runPendingTasks(); TextWebSocketFrame rooms = freshMember.readOutbound();
+            try {
+                assertTrue(rooms.text().contains("\"roomId\":7"));
+                assertTrue(rooms.text().contains(
+                        "\"roomName\":\"Renamed Imported Room\""));
+                assertFalse(rooms.text().contains("30000000-0000"));
+            } finally { rooms.release(); }
+        } finally { freshMember.finishAndReleaseAll(); }
+    }
+
     private static void assertRoomAdminPromotion(EmbeddedChannel owner,
             EmbeddedChannel target, String url, String user, String password) throws Exception {
         String request = "{\"type\":\"SET_ADMIN_REQ\",\"data\":{\"roomId\":7,"
@@ -1099,7 +1170,8 @@ class GatewayRuntimePostgresIntegrationTest {
         try {
             assertTrue(kicked.text().contains("\"type\":\"KICK_USER_NOTIFY\""));
             assertTrue(kicked.text().contains("\"roomId\":7"));
-            assertTrue(kicked.text().contains("\"roomName\":\"Imported Room\""));
+            assertTrue(kicked.text().contains(
+                    "\"roomName\":\"Renamed Imported Room\""));
             assertTrue(kicked.text().contains("\"operator\":\"Imported V1\""));
         } finally { kicked.release(); }
         remaining.runPendingTasks();

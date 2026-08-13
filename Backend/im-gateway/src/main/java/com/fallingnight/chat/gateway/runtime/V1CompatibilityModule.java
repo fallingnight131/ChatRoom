@@ -21,6 +21,7 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettingsSe
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomFilesService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomFileDeletionService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageDeletionService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRenameService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomAdminService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomKickService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomAudienceService;
@@ -74,6 +75,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomSettingsCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomFilesCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomFileDeletionCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomMessageDeletionCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomRenameCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomAdminCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomKickCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
@@ -94,6 +96,8 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFileDeletionEventSin
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFileDeletionHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageDeletionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageDeletionHandler;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomRenameEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomRenameHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomAdminEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomAdminHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomKickEventSink;
@@ -137,6 +141,7 @@ import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomSettingsAd
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomFilesAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomFileDeletionAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomMessageDeletionAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomRenameAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomAdminAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomKickAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1AccountProjection;
@@ -178,6 +183,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
     private final LegacyV1RoomFilesService roomFiles;
     private final LegacyV1RoomFileDeletionService roomFileDeletion;
     private final LegacyV1RoomMessageDeletionService roomMessageDeletion;
+    private final LegacyV1RoomRenameService roomRename;
     private final LegacyV1RoomAdminService roomAdmin;
     private final LegacyV1RoomKickService roomKick;
     private final LegacyV1RoomDirectoryService roomDirectory;
@@ -212,6 +218,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
             LegacyV1RoomFilesService roomFiles,
             LegacyV1RoomFileDeletionService roomFileDeletion,
             LegacyV1RoomMessageDeletionService roomMessageDeletion,
+            LegacyV1RoomRenameService roomRename,
             LegacyV1RoomAdminService roomAdmin,
             LegacyV1RoomKickService roomKick,
             LegacyV1RoomDirectoryService roomDirectory,
@@ -245,6 +252,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
         this.roomFileDeletion = Objects.requireNonNull(roomFileDeletion, "roomFileDeletion");
         this.roomMessageDeletion = Objects.requireNonNull(
                 roomMessageDeletion, "roomMessageDeletion");
+        this.roomRename = Objects.requireNonNull(roomRename, "roomRename");
         this.roomAdmin = Objects.requireNonNull(roomAdmin, "roomAdmin");
         this.roomKick = Objects.requireNonNull(roomKick, "roomKick");
         this.roomDirectory = Objects.requireNonNull(roomDirectory, "roomDirectory");
@@ -320,6 +328,8 @@ public final class V1CompatibilityModule implements AutoCloseable {
                         new PostgresLegacyV1RoomFileDeletionAdapter(dataSource)),
                 new LegacyV1RoomMessageDeletionService(
                         new PostgresLegacyV1RoomMessageDeletionAdapter(dataSource)),
+                new LegacyV1RoomRenameService(
+                        new PostgresLegacyV1RoomRenameAdapter(dataSource)),
                 new LegacyV1RoomAdminService(
                         new PostgresLegacyV1RoomAdminAdapter(dataSource)),
                 new LegacyV1RoomKickService(
@@ -378,6 +388,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
             V1RoomFilesEventSink roomFilesEvents,
             V1RoomFileDeletionEventSink roomFileDeletionEvents,
             V1RoomMessageDeletionEventSink roomMessageDeletionEvents,
+            V1RoomRenameEventSink roomRenameEvents,
             V1RoomAdminEventSink roomAdminEvents,
             V1RoomKickEventSink roomKickEvents,
             V1RoomDirectoryEventSink directoryEvents,
@@ -415,6 +426,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
                         roomFilesEvents,
                         roomFileDeletionEvents,
                         roomMessageDeletionEvents,
+                        roomRenameEvents,
                         roomAdminEvents,
                         roomKickEvents,
                         directoryEvents,
@@ -453,6 +465,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
             V1RoomFilesEventSink roomFilesEvents,
             V1RoomFileDeletionEventSink roomFileDeletionEvents,
             V1RoomMessageDeletionEventSink roomMessageDeletionEvents,
+            V1RoomRenameEventSink roomRenameEvents,
             V1RoomAdminEventSink roomAdminEvents,
             V1RoomKickEventSink roomKickEvents,
             V1RoomDirectoryEventSink directoryEvents,
@@ -542,6 +555,13 @@ public final class V1CompatibilityModule implements AutoCloseable {
                 connections,
                 directoryExecutor,
                 roomMessageDeletionEvents));
+        pipeline.addLast("v1-room-rename", new V1RoomRenameHandler(
+                roomRename,
+                roomAudience,
+                new V1JsonRoomRenameCodec(clock),
+                connections,
+                directoryExecutor,
+                roomRenameEvents));
         pipeline.addLast("v1-room-admin", new V1RoomAdminHandler(
                 roomAdmin,
                 new V1JsonRoomAdminCodec(clock),
