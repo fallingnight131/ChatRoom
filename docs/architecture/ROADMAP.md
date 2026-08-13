@@ -1616,6 +1616,9 @@ Progress:
     - [x] Project the privacy-safe Windows forwarded marker through the detached
       ViewModel and accessible Widgets message row without exposing source
       identity or enabling forwarding authoring.
+    - [x] Add a default-off accessible Windows single-target dialog populated
+      only from the authorized conversation-directory snapshot, excluding the
+      source conversation and failing closed without source context.
 
 Candidate slices:
 

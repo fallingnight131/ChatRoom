@@ -584,6 +584,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/DeviceManagementDialog.h
                 Client/V2WindowsMessagingPanel.cpp
                 Client/V2WindowsMessagingPanel.h
+                Client/V2WindowsForwardTargetDialog.cpp
+                Client/V2WindowsForwardTargetDialog.h
                 Client/V2WindowsConversationDialog.cpp
                 Client/V2WindowsConversationDialog.h
                 Client/resources/resources.qrc
@@ -739,6 +741,21 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             V2WindowsMessagingViewModelTest PRIVATE chatroom_v2_messaging_ui_core)
         add_test(NAME m6_windows_v2_messaging_view_model COMMAND V2WindowsMessagingViewModelTest)
         set_tests_properties(m6_windows_v2_messaging_view_model PROPERTIES TIMEOUT 30)
+        if(CHATROOM_BUILD_WINDOWS_CLIENT)
+            add_executable(
+                V2WindowsForwardTargetDialogTest
+                Tests/V2WindowsForwardTargetDialogTest.cpp
+                Client/V2WindowsForwardTargetDialog.cpp
+                Client/V2WindowsForwardTargetDialog.h)
+            target_link_libraries(
+                V2WindowsForwardTargetDialogTest
+                PRIVATE Qt6::Widgets chatroom_windows_v2_messaging_product)
+            add_test(
+                NAME m6_windows_v2_forward_target_dialog
+                COMMAND V2WindowsForwardTargetDialogTest)
+            set_tests_properties(
+                m6_windows_v2_forward_target_dialog PROPERTIES TIMEOUT 30)
+        endif()
         add_executable(V2WindowsMentionComposerTest Tests/V2WindowsMentionComposerTest.cpp)
         target_link_libraries(
             V2WindowsMentionComposerTest PRIVATE chatroom_v2_messaging_ui_core)

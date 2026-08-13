@@ -1471,6 +1471,14 @@ does not reveal the source conversation, source message, original sender, or
 timestamp, and it adds no forwarding action while capability 5 remains disabled.
 `V2WindowsMessagingViewModelTest` and `V2WindowsMessagingPanelTest` lock this
 privacy-safe presentation boundary; the macOS run is portability evidence only.
+`V2WindowsForwardTargetDialogTest` verifies the next detached/default-off UI
+boundary. It filters empty and duplicate directory records, excludes the source
+conversation, permits one destination, exposes native selection and accessible
+labels, and fails closed when activation or source context is absent. The input
+is the already-authorized conversation-directory snapshot; PostgreSQL remains
+authoritative and rechecks both conversations when the command is eventually
+submitted. The dialog is compiled into the Windows CMake product but has no
+product action or capability activation yet.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic
