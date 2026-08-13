@@ -155,6 +155,17 @@ export class V2WebSocketTransport {
     this.send(this.requireAuthenticated().listConversations(limit, after));
   }
 
+  listConversationParticipants(
+    conversationId: string,
+    limit: number,
+    afterAccountId = "",
+  ): string {
+    const command = this.requireAuthenticated().listConversationParticipants(
+      conversationId, limit, afterAccountId);
+    this.send(command.bytes);
+    return command.requestId;
+  }
+
   readMessageHistory(conversationId: string, afterSequence: bigint, limit: number): void {
     this.send(this.requireAuthenticated().readMessageHistory(conversationId, afterSequence, limit));
   }

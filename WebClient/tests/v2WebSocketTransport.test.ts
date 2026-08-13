@@ -204,6 +204,8 @@ test("owns exact Web V2 upgrade, negotiation, authentication, and command sendin
 
   transport.listConversations(20);
   assert.equal(sentEnvelope(socket, 2).messageType, MessageType.LIST_CONVERSATIONS);
+  assert.throws(() => transport.listConversationParticipants(
+    "50000000-0000-4000-8000-000000000001", 20), /not enabled/);
   transport.registerAttachment(
     "50000000-0000-4000-8000-000000000001",
     "client-attachment-1",

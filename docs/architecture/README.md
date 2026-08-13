@@ -709,7 +709,10 @@ membership is authorized, so clients do not build incomplete UUID-only pickers
 from message history. The Java runtime now composes its PostgreSQL adapter into
 the authenticated WebSocket pipeline, with bounded worker ownership and fixed
 denial behavior; Web and Windows negotiation remain off pending their complete
-composition and rendering gates.
+composition and rendering gates. The default-off Web protocol and transport
+boundary now provides correlated participant paging with strict account-order,
+role, display-name, bound, and cursor validation; it is not yet wired into the
+Web application state or UI.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

@@ -1516,6 +1516,9 @@ Progress:
           authorization denial, bounded queue, and fixed-cardinality signals.
         - [x] Compose the handler and PostgreSQL port into the product pipeline
           and prove the real runtime path without activating either client.
+    - [x] Add a default-off Web participant-directory command/response boundary
+      with capability gating, request correlation, stable-cursor validation,
+      bounded records, and transport forwarding.
     - [ ] Persist Web mention metadata with authoritative messages and pending
       submission/edit workflows, then add composition, rendering,
       accessibility, reconnect convergence, and Web capability activation.

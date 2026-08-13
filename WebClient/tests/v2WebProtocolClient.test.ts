@@ -10,8 +10,10 @@ import {
 } from "../src/protocol/v2/generated/authentication_pb";
 import {
   ConversationDirectoryPageSchema,
+  ConversationParticipantPageSchema,
   ConversationKind,
   ConversationRole,
+  ListConversationParticipantsSchema,
   ListConversationsSchema,
 } from "../src/protocol/v2/generated/conversation_pb";
 import {
@@ -323,6 +325,58 @@ test("gates and validates structured mentions on outbound and inbound messages",
   if (published.type === "message-published") {
     assert.equal(published.value.mentions[0]?.targetAccountId, SECOND_ACCOUNT_ID);
   }
+});
+
+test("encodes and strictly validates the capability-gated participant directory", () => {
+  const disabled = newClient();
+  authenticate(disabled);
+  assert.throws(() => disabled.listConversationParticipants(
+    CONVERSATION_ID, 25), /not enabled/);
+
+  const client = newClient(false, true);
+  authenticate(client, [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS,
+    ClientCapability.MESSAGE_MENTIONS]);
+  const command = client.listConversationParticipants(
+    CONVERSATION_ID, 25, ACCOUNT_ID);
+  const request = decodeEnvelope(command.bytes);
+  assert.equal(request.messageType, MessageType.LIST_CONVERSATION_PARTICIPANTS);
+  const payload = fromBinary(ListConversationParticipantsSchema, request.payload);
+  assert.deepEqual({
+    conversationId: payload.conversationId,
+    afterAccountId: payload.afterAccountId,
+    limit: payload.limit,
+  }, { conversationId: CONVERSATION_ID, afterAccountId: ACCOUNT_ID, limit: 25 });
+
+  const event = client.receive(response(
+    request,
+    MessageType.CONVERSATION_PARTICIPANT_PAGE,
+    toBinary(ConversationParticipantPageSchema, create(ConversationParticipantPageSchema, {
+      conversationId: CONVERSATION_ID,
+      participants: [
+        { accountId: ACCOUNT_ID, displayName: "Alice", role: ConversationRole.OWNER },
+        { accountId: SECOND_ACCOUNT_ID, displayName: "李", role: ConversationRole.MEMBER },
+      ],
+      nextAccountId: SECOND_ACCOUNT_ID,
+      hasMore: false,
+    })),
+    { sessionId: SESSION_ID },
+  ));
+  assert.equal(event.type, "conversation-participant-page");
+
+  const malformed = client.listConversationParticipants(CONVERSATION_ID, 25);
+  assert.throws(() => client.receive(response(
+    decodeEnvelope(malformed.bytes),
+    MessageType.CONVERSATION_PARTICIPANT_PAGE,
+    toBinary(ConversationParticipantPageSchema, create(ConversationParticipantPageSchema, {
+      conversationId: CONVERSATION_ID,
+      participants: [
+        { accountId: SECOND_ACCOUNT_ID, displayName: "李", role: ConversationRole.MEMBER },
+        { accountId: ACCOUNT_ID, displayName: "Alice", role: ConversationRole.OWNER },
+      ],
+      nextAccountId: ACCOUNT_ID,
+    })),
+    { sessionId: SESSION_ID },
+  )), /invalid participant record/);
 });
 
 test("encodes correlated reactions and validates capable live changes", () => {

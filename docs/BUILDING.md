@@ -1311,6 +1311,11 @@ injects the PostgreSQL port through the WebSocket upgrade and application
 pipeline. Its pipeline integration gate negotiates capability 4, authenticates,
 and proves a type-117 request reaches the injected participant port before
 either client advertises the capability (ADR-0343).
+The default-off Web protocol boundary can now issue a correlated type-117 page
+request and rejects unnegotiated, oversized, unordered, duplicate, malformed,
+or cursor-inconsistent type-118 data. The WebSocket transport forwards this
+command only through an authenticated capability-4 protocol client; the Web
+runtime still does not advertise capability 4 (ADR-0343).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

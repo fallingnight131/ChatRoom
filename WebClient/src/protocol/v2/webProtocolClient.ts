@@ -10,8 +10,12 @@ import {
 } from "./generated/authentication_pb";
 import {
   ConversationDirectoryPageSchema,
+  ConversationParticipantPageSchema,
+  ConversationRole,
+  ListConversationParticipantsSchema,
   ListConversationsSchema,
   type ConversationDirectoryPage,
+  type ConversationParticipantPage,
 } from "./generated/conversation_pb";
 import {
   ClientHelloSchema,
@@ -117,6 +121,7 @@ export type V2WebProtocolEvent = ResponseCorrelation & (
   | { type: "message-edit-applied"; value: MessageEditApplied }
   | { type: "message-edited"; value: MessageEditedRecord }
   | { type: "conversation-directory-page"; value: ConversationDirectoryPage }
+  | { type: "conversation-participant-page"; value: ConversationParticipantPage }
   | { type: "attachment-registered"; value: AttachmentRegistered }
   | { type: "attachment-upload-authorized"; value: AttachmentUploadAuthorized }
   | { type: "attachment-ready"; value: AttachmentReady }
@@ -264,6 +269,27 @@ export class V2WebProtocolClient {
       payload,
       new Set([MessageType.CONVERSATION_DIRECTORY_PAGE]),
     );
+  }
+
+  listConversationParticipants(
+    conversationId: string,
+    limit: number,
+    afterAccountId = "",
+  ): V2CorrelatedCommand {
+    this.requireState("authenticated");
+    if (!this.mentionsEnabled()) {
+      throw new Error("message mentions were not enabled for this client");
+    }
+    requireUuid("conversationId", conversationId);
+    requirePageSize(limit);
+    if (afterAccountId) requireUuid("afterAccountId", afterAccountId);
+    return correlated(this.command(
+      MessageType.LIST_CONVERSATION_PARTICIPANTS,
+      toBinary(ListConversationParticipantsSchema, create(ListConversationParticipantsSchema, {
+        conversationId, afterAccountId, limit,
+      })),
+      new Set([MessageType.CONVERSATION_PARTICIPANT_PAGE]),
+    ));
   }
 
   readMessageHistory(conversationId: string, afterSequence: bigint, limit: number): Uint8Array {
@@ -669,6 +695,8 @@ export class V2WebProtocolClient {
           return { ...correlation, type: "message-edited", value: fromBinary(MessageEditedRecordSchema, envelope.payload) };
         case MessageType.CONVERSATION_DIRECTORY_PAGE:
           return { ...correlation, type: "conversation-directory-page", value: fromBinary(ConversationDirectoryPageSchema, envelope.payload) };
+        case MessageType.CONVERSATION_PARTICIPANT_PAGE:
+          return { ...correlation, type: "conversation-participant-page", value: fromBinary(ConversationParticipantPageSchema, envelope.payload) };
         case MessageType.ATTACHMENT_REGISTERED:
           return { ...correlation, type: "attachment-registered", value: fromBinary(AttachmentRegisteredSchema, envelope.payload) };
         case MessageType.ATTACHMENT_UPLOAD_AUTHORIZED:
@@ -764,6 +792,12 @@ export class V2WebProtocolClient {
         break;
       case "conversation-directory-page":
         validateDirectoryPage(event.value);
+        break;
+      case "conversation-participant-page":
+        if (!this.mentionsEnabled()) {
+          throw new Error("conversation participants require negotiated message mentions");
+        }
+        validateParticipantPage(event.value);
         break;
       case "attachment-registered":
         requireUuid("attachmentId", event.value.attachmentId);
@@ -1133,6 +1167,32 @@ function validateDirectoryPage(page: ConversationDirectoryPage): void {
   } else if (page.nextUpdatedAtEpochMs !== previous.updatedAtEpochMs
     || page.nextConversationId !== previous.conversationId) {
     throw new Error("directory cursor does not identify the last record");
+  }
+}
+
+function validateParticipantPage(page: ConversationParticipantPage): void {
+  requireUuid("conversationId", page.conversationId);
+  if (page.participants.length > MAX_PAGE_SIZE
+      || (page.hasMore && page.participants.length === 0)) {
+    throw new Error("invalid participant page bounds");
+  }
+  let previousAccountId = "";
+  for (const participant of page.participants) {
+    requireUuid("accountId", participant.accountId);
+    requireUtf8("displayName", participant.displayName, 1, 400);
+    if ([...participant.displayName].length > 100
+        || (participant.role !== ConversationRole.OWNER
+          && participant.role !== ConversationRole.ADMIN
+          && participant.role !== ConversationRole.MEMBER)
+        || (previousAccountId && previousAccountId >= participant.accountId)) {
+      throw new Error("invalid participant record");
+    }
+    previousAccountId = participant.accountId;
+  }
+  if (!previousAccountId) {
+    if (page.nextAccountId) throw new Error("empty participant page has a cursor");
+  } else if (page.nextAccountId !== previousAccountId) {
+    throw new Error("participant cursor does not identify the last record");
   }
 }
 
