@@ -186,7 +186,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(41, first.migrate());
+        assertEquals(42, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -214,8 +214,24 @@ class PostgresMigratorTest {
                             "account_display_name_change_audit",
                             "account_username_change_audit", "profile_image_object",
                             "account_profile_image", "group_profile_image",
-                            "profile_image_change_audit"),
+                            "profile_image_change_audit", "profile_image_import_run",
+                            "profile_image_import_entry"),
                     applicationTables(connection));
+            assertEquals(9, count("SELECT count(*) FROM pg_constraint "
+                    + "WHERE connamespace = 'chat'::regnamespace AND conname IN ("
+                    + "'profile_image_import_manifest_hex', "
+                    + "'profile_image_import_backup_hex', "
+                    + "'profile_image_import_identity_hex', "
+                    + "'profile_image_import_counts_nonnegative', "
+                    + "'profile_image_import_counts_reconcile', "
+                    + "'profile_image_import_entry_legacy_id', "
+                    + "'profile_image_import_entry_target', "
+                    + "'profile_image_import_entry_state', "
+                    + "'profile_image_import_entry_conversation')"));
+            assertEquals(2, count("SELECT count(*) FROM pg_indexes "
+                    + "WHERE schemaname = 'chat' AND indexname IN ("
+                    + "'profile_image_import_entry_account_target_idx', "
+                    + "'profile_image_import_entry_room_target_idx')"));
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
                     + "AND sequencename = 'legacy_v1_friendship_id_seq' "
