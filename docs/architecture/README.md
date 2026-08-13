@@ -856,6 +856,16 @@ ports retain a positive typed FRIENDSHIP file ID, and only JSON serialization
 emits the negative `fileId` expected by existing Web and Windows clients. READY
 and UNAVAILABLE metadata preserve reconnect order without granting object access
 or exposing canonical storage identity.
+ADR-0307 completes the corresponding V1 room-file deletion write boundary. A
+server-bound OWNER/ADMIN command is fingerprinted and committed in one
+serializable transaction: READY attachments become REVOKED, their messages and
+obsolete recall entries are removed, quota is recalculated, and one mapped
+deletion event receives the next shared conversation sequence. Exact retry
+returns the durable result without another notification; operation-ID conflict
+is rejected. Room history accepts complete mapped runtime V2 deletion events so
+reconnect replays the same sequence. Object removal remains in the existing
+revoke-delete-confirm retry path, outside the command transaction and inactive
+until the external-provider gate passes.
 
 ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
 create-only, length, type, and SHA-256 constraints and reads checksum-enabled

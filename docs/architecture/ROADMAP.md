@@ -655,6 +655,9 @@ Progress:
     V1 room history without exposing canonical storage identities.
   - [x] Preserve complete READY and UNAVAILABLE imported attachment messages in
     V1 direct history with the legacy negative friendship file identity.
+  - [x] Make V1 room-file deletion administrator-only, serializable,
+    retry-idempotent, quota-consistent, and replayable through the shared room
+    sequence with first-commit-only local notifications.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-

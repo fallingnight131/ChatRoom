@@ -206,6 +206,19 @@ remains unchanged.
 `ROOM_FILES_REQ`, `ROOM_FILES_RSP`, `ROOM_FILES_DELETE_REQ`,
 `ROOM_FILES_DELETE_RSP`, `ROOM_FILES_NOTIFY`.
 
+The detached Java compatibility path now accepts strict authenticated
+`ROOM_FILES_DELETE_REQ` commands with a positive `roomId`, one to 100 distinct
+positive `fileIds`, and a bounded `clientOperationId`. The server-bound actor
+must be an active mapped room OWNER/ADMIN. Exact retries return the original
+`ROOM_FILES_DELETE_RSP` with `duplicate=true`; reusing the operation ID for a
+different room/selection returns `CLIENT_OPERATION_ID_CONFLICT`. Only the first
+committed deletion with resolved files emits `DELETE_MSGS_NOTIFY` and
+`ROOM_FILES_NOTIFY` to other active mapped local members. The response carries
+the deleted legacy message/file IDs, shared `sequence`, and current/max room
+file-space values. Sequence-based `HISTORY_REQ` replays the durable deletion
+event. Canonical UUIDs, object keys, hashes, provider URLs, and local paths are
+never serialized. The product listener remains unchanged pending cutover.
+
 ### Profile and room avatars
 
 `AVATAR_UPLOAD_REQ`, `AVATAR_UPLOAD_RSP`, `AVATAR_GET_REQ`, `AVATAR_GET_RSP`,

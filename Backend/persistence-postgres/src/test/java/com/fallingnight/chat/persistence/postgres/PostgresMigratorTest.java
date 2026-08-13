@@ -149,7 +149,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(30, first.migrate());
+        assertEquals(31, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -198,6 +198,14 @@ class PostgresMigratorTest {
                     + "AND sequencename = 'legacy_v1_room_id_seq' "
                     + "AND increment_by = -1 AND min_value = 1 "
                     + "AND max_value = 2147483647"));
+            assertEquals(1, count("SELECT count(*) FROM pg_sequences "
+                    + "WHERE schemaname = 'chat' "
+                    + "AND sequencename = 'legacy_v1_deletion_event_id_seq' "
+                    + "AND increment_by = -1 AND min_value = 1 "
+                    + "AND max_value = 2147483647"));
+            assertEquals(1, count("SELECT count(*) FROM pg_indexes "
+                    + "WHERE schemaname = 'chat' "
+                    + "AND indexname = 'messages_deleted_event_runtime_operation_unique'"));
             proveSequenceAndIdempotencyConstraints(connection);
             proveDirectSelfConversationConstraint(connection);
             proveMessageImportAuditConstraints(connection);

@@ -22,6 +22,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomLeaveEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMemberListEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomSettingsEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFilesEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFileDeletionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestAcceptanceEventSink;
@@ -320,6 +321,8 @@ class GatewayRuntimePostgresIntegrationTest {
                         assertRoomRecallDuplicate(reconnected, peer, roomMessageId);
                         assertRecalledRoomHistoryAfterSequence(reconnected, roomMessageId);
                         assertRoomReadClearsUnread(reconnected);
+                        assertRoomFileDeletion(reconnected, peer,
+                                jdbcUrl, username, password);
                         assertDirectHistoryAfterReconnect(reconnected);
                         assertDirectRecallFirst(reconnected, peer, directMessageId);
                         assertDirectRecallDuplicate(reconnected, peer, directMessageId);
@@ -418,6 +421,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomMemberListEventSink.noop(),
                 V1RoomSettingsEventSink.noop(),
                 V1RoomFilesEventSink.noop(),
+                V1RoomFileDeletionEventSink.noop(),
                 V1RoomDirectoryEventSink.noop(),
                 V1RoomMessageEventSink.noop(),
                 V1RoomHistoryEventSink.noop(),
@@ -766,6 +770,108 @@ class GatewayRuntimePostgresIntegrationTest {
         } finally { response.release(); }
     }
 
+    private static void assertRoomFileDeletion(EmbeddedChannel sender,
+            EmbeddedChannel recipient, String url, String user, String password) throws Exception {
+        recipient.runPendingTasks();
+        assertNull(recipient.readOutbound());
+        recipient.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"ROOM_FILES_DELETE_REQ\",\"data\":{\"roomId\":7,"
+                        + "\"fileIds\":[501],\"clientOperationId\":\"member-delete-501\"}}"));
+        recipient.runPendingTasks();
+        TextWebSocketFrame denied = recipient.readOutbound();
+        try {
+            assertTrue(denied.text().contains("\"type\":\"ROOM_FILES_DELETE_RSP\""));
+            assertTrue(denied.text().contains("\"success\":false"));
+            assertTrue(denied.text().contains("ADMIN_DELETE_ACCESS_DENIED"));
+            assertTrue(recipient.isActive());
+        } finally { denied.release(); }
+        assertEquals(0, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.messages_deleted_event "
+                        + "WHERE client_operation_id = 'member-delete-501'"));
+
+        TextWebSocketFrame request = new TextWebSocketFrame(
+                "{\"type\":\"ROOM_FILES_DELETE_REQ\",\"data\":{\"roomId\":7,"
+                        + "\"fileIds\":[501],\"clientOperationId\":\"delete-file-501\"}}");
+        sender.writeInbound(request); sender.runPendingTasks();
+        TextWebSocketFrame response = sender.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"ROOM_FILES_DELETE_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"duplicate\":false"));
+            assertTrue(response.text().contains("\"deletedCount\":1"));
+            assertTrue(response.text().contains("\"messageIds\":[701]"));
+            assertTrue(response.text().contains("\"deletedFileIds\":[501]"));
+            assertTrue(response.text().contains("\"sequence\":10"));
+            assertTrue(response.text().contains("\"usedFileSpace\":0"));
+            assertTrue(response.text().contains("\"maxFileSpace\":8192"));
+            assertFalse(response.text().contains("71000000-0000"));
+        } finally { response.release(); }
+
+        recipient.runPendingTasks();
+        TextWebSocketFrame deletion = recipient.readOutbound(), files = recipient.readOutbound();
+        try {
+            assertTrue(deletion.text().contains("\"type\":\"DELETE_MSGS_NOTIFY\""));
+            assertTrue(deletion.text().contains("\"messageIds\":[701]"));
+            assertTrue(deletion.text().contains("\"syncSequence\":10"));
+            assertTrue(files.text().contains("\"type\":\"ROOM_FILES_NOTIFY\""));
+            assertTrue(files.text().contains("\"deletedFileIds\":[501]"));
+        } finally { deletion.release(); files.release(); }
+
+        sender.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"ROOM_FILES_DELETE_REQ\",\"data\":{\"roomId\":7,"
+                        + "\"fileIds\":[501],\"clientOperationId\":\"delete-file-501\"}}"));
+        sender.runPendingTasks(); response = sender.readOutbound();
+        try { assertTrue(response.text().contains("\"duplicate\":true")); }
+        finally { response.release(); }
+        recipient.runPendingTasks(); assertNull(recipient.readOutbound());
+
+        sender.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"ROOM_FILES_DELETE_REQ\",\"data\":{\"roomId\":7,"
+                        + "\"fileIds\":[500],\"clientOperationId\":\"delete-file-501\"}}"));
+        sender.runPendingTasks(); response = sender.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"success\":false"));
+            assertTrue(response.text().contains("CLIENT_OPERATION_ID_CONFLICT"));
+        } finally { response.release(); }
+
+        assertEquals(1, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.attachment WHERE id = "
+                        + "'71000000-0000-0000-0000-000000000501' "
+                        + "AND state = 'REVOKED' AND revoked_at IS NOT NULL "
+                        + "AND object_deleted_at IS NULL"));
+        assertEquals(0, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.legacy_v1_message_map "
+                        + "WHERE legacy_kind = 'ROOM' AND legacy_message_id = 701"));
+        assertEquals(1, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.messages_deleted_event deletion "
+                        + "JOIN chat.legacy_v1_deletion_event_map mapping "
+                        + "ON mapping.conversation_id = deletion.conversation_id "
+                        + "AND mapping.conversation_sequence = deletion.conversation_sequence "
+                        + "WHERE deletion.client_operation_id = 'delete-file-501' "
+                        + "AND deletion.file_ids = '[501]'::jsonb"));
+
+        sender.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"HISTORY_REQ\",\"data\":{\"roomId\":7,"
+                        + "\"count\":10,\"afterSequence\":9}}"));
+        sender.runPendingTasks(); response = sender.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"eventType\":\"messagesDeleted\""));
+            assertTrue(response.text().contains("\"deletedFileIds\":[501]"));
+            assertTrue(response.text().contains("\"sequence\":10"));
+            assertTrue(response.text().contains("\"nextSequence\":10"));
+            assertTrue(response.text().contains("\"lastSequence\":10"));
+            assertFalse(response.text().contains("design.pdf"));
+        } finally { response.release(); }
+
+        sender.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"ROOM_FILES_REQ\",\"data\":{\"roomId\":7}}"));
+        sender.runPendingTasks(); response = sender.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"usedFileSpace\":0"));
+            assertFalse(response.text().contains("\"fileId\":501"));
+        } finally { response.release(); }
+    }
+
     private static void assertDirectRecallFirst(
             EmbeddedChannel sender, EmbeddedChannel recipient, long messageId) {
         sendDirectRecall(sender, messageId);
@@ -1077,7 +1183,7 @@ class GatewayRuntimePostgresIntegrationTest {
             assertFalse(response.text().contains("\"fileId\":500"));
             assertFalse(response.text().contains("cleared.zip"));
             assertFalse(response.text().contains("71000000-0000"));
-            assertFalse(response.text().contains("legacy/room-7/file-501"));
+            assertFalse(response.text().contains("attachments/71000000"));
         } finally { response.release(); }
     }
 
@@ -1356,7 +1462,8 @@ class GatewayRuntimePostgresIntegrationTest {
                         + "owner_device_id, client_attachment_id, object_key, file_name, "
                         + "media_type, byte_size, content_sha256, state, created_at, ready_at) "
                         + "VALUES (?, ?, ?, ?, 'legacy-room-file-501', "
-                        + "'legacy/room-7/file-501', 'design.pdf', 'application/pdf', 321, "
+                        + "'attachments/71000000-0000-0000-0000-000000000501', "
+                        + "'design.pdf', 'application/pdf', 321, "
                         + "decode(?, 'hex'), 'READY', "
                         + "TIMESTAMPTZ '2026-08-11 01:02:03+00', "
                         + "TIMESTAMPTZ '2026-08-11 01:02:04+00')")) {

@@ -130,7 +130,8 @@ public final class PostgresLegacyV1RoomHistoryAdapter implements LegacyV1RoomHis
                       ON mapping.conversation_id = entry.conversation_id
                      AND mapping.conversation_sequence = entry.conversation_sequence
                     WHERE entry.conversation_id = ? AND entry.entry_kind = 'MESSAGES_DELETED'
-                      AND (deletion.conversation_id IS NULL OR deletion.source <> 'V1_IMPORT'
+                      AND (deletion.conversation_id IS NULL
+                        OR deletion.source NOT IN ('V1_IMPORT', 'V2')
                         OR mapping.legacy_event_id IS NULL
                         OR mapping.legacy_event_id NOT BETWEEN 1 AND 2147483647
                         OR jsonb_array_length(deletion.message_ids) > 1000
