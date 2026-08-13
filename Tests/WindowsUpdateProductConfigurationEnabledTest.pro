@@ -14,8 +14,10 @@ DEFINES += CHAT_UPDATE_PRIMARY_PUBLIC_KEY_HEX=\\\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 
 SOURCES += \
     WindowsUpdateProductConfigurationEnabledTest.cpp \
-    ../Client/WindowsUpdateProductConfiguration.cpp
+    ../Client/WindowsUpdateProductConfiguration.cpp \
+    ../Client/WindowsUpdateTrustDiagnostic.cpp
 
 HEADERS += \
     ../Client/WindowsUpdateProductConfiguration.h \
+    ../Client/WindowsUpdateTrustDiagnostic.h \
     ../Client/UpdateManifestSignatureVerifier.h

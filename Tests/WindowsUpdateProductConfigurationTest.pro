@@ -9,8 +9,10 @@ INCLUDEPATH += ../Client
 
 SOURCES += \
     WindowsUpdateProductConfigurationTest.cpp \
-    ../Client/WindowsUpdateProductConfiguration.cpp
+    ../Client/WindowsUpdateProductConfiguration.cpp \
+    ../Client/WindowsUpdateTrustDiagnostic.cpp
 
 HEADERS += \
     ../Client/WindowsUpdateProductConfiguration.h \
+    ../Client/WindowsUpdateTrustDiagnostic.h \
     ../Client/UpdateManifestSignatureVerifier.h
