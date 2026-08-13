@@ -1420,6 +1420,24 @@ than half the lease, and caps failure retry at half the selected lease. Leave th
 setting unset unless deployment health checks and failure drills justify a
 different expiry; the 5-second value is intended for disposable outage gates,
 not as an unreviewed production default (ADR-0367).
+Run the product-runtime Redis dependency-loss gate explicitly:
+
+```bash
+python3 tools/verify_m0.py --redis-outage
+```
+
+The command requires local PostgreSQL client/server tools, `redis-server`, and
+JDK 21. It owns disposable PostgreSQL and Redis processes on random loopback
+ports and runs only the dedicated product integration test. The test uses the
+real TLS/WSS listener and two authenticated sessions, stops Redis exactly once,
+waits for the five-second route lease to make readiness 503 while liveness stays
+200, commits and locally delivers a durable message, then restarts an empty
+Redis exactly once. It requires Lettuce reconnection, route/readiness recovery,
+outbox publication, a recorded lease failure, and no duplicate socket event.
+All owned processes and data are removed on success or failure. This gate is
+separate from `--all` because it controls local services. It is single-gateway
+dependency evidence, not load-balancer deregistration, cross-gateway failover,
+or rolling-deployment evidence (ADR-0368).
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
 consume ports while PostgreSQL supplies outbox and message repair. They also

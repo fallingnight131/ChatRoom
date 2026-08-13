@@ -76,6 +76,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.sql.Connection;
@@ -261,6 +263,126 @@ class GatewayRuntimePostgresIntegrationTest {
             assertEquals(1, countQuery(jdbcUrl, username, password,
                     "SELECT count(*) FROM chat.message WHERE conversation_id = '"
                             + conversationId + "' AND client_message_id = 'network-message-1'"));
+        } finally {
+            if (peerSocket != null) peerSocket.abort();
+            if (socket != null) socket.abort();
+            if (runtime != null) runtime.close();
+            certificate.delete();
+        }
+    }
+
+    @Test
+    void withdrawsReadinessAndConvergesDurableMessageAcrossRedisRestart() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String password = System.getenv().getOrDefault("CHATROOM_TEST_POSTGRES_PASSWORD", "");
+        String redisUri = System.getenv("CHATROOM_TEST_REDIS_URI");
+        String controlValue = System.getenv("CHATROOM_TEST_REDIS_CONTROL_DIR");
+        Assumptions.assumeTrue(jdbcUrl != null && !jdbcUrl.isBlank()
+                && username != null && !username.isBlank()
+                && redisUri != null && !redisUri.isBlank()
+                && controlValue != null && !controlValue.isBlank(),
+                "set disposable PostgreSQL, Redis, and outage control directory");
+        Path control = Path.of(controlValue);
+        new PostgresMigrator(jdbcUrl, username, password).migrate();
+
+        UUID accountId = UUID.randomUUID();
+        UUID peerAccountId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        String login = "redis-outage-" + accountId;
+        String peerLogin = "redis-outage-" + peerAccountId;
+        seedV2NetworkAccounts(jdbcUrl, username, password, accountId, peerAccountId,
+                conversationId, login, peerLogin);
+
+        int gatewayPort = availablePort();
+        int adminPort = availablePort();
+        SelfSignedCertificate certificate = new SelfSignedCertificate("localhost");
+        GatewayRuntime runtime = null;
+        WebSocket socket = null;
+        WebSocket peerSocket = null;
+        try {
+            Map<String, String> environment = new HashMap<>();
+            environment.put("CHATROOM_GATEWAY_PORT", Integer.toString(gatewayPort));
+            environment.put("CHATROOM_GATEWAY_ADMIN_PORT", Integer.toString(adminPort));
+            environment.put("CHATROOM_GATEWAY_TLS_CERTIFICATE",
+                    certificate.certificate().getAbsolutePath());
+            environment.put("CHATROOM_GATEWAY_TLS_PRIVATE_KEY",
+                    certificate.privateKey().getAbsolutePath());
+            environment.put("CHATROOM_GATEWAY_ALLOWED_HOSTS", "localhost:" + gatewayPort);
+            environment.put("CHATROOM_GATEWAY_WEB_ORIGINS", "https://chat.example.com");
+            environment.put("CHATROOM_POSTGRES_URL", jdbcUrl);
+            environment.put("CHATROOM_POSTGRES_USER", username);
+            environment.put("CHATROOM_POSTGRES_PASSWORD", "test-trust-password");
+            environment.put("CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", "true");
+            environment.put("CHATROOM_POSTGRES_POOL_MAXIMUM", "4");
+            environment.put("CHATROOM_POSTGRES_POOL_MINIMUM_IDLE", "1");
+            environment.put(DistributedGatewayRoutingConfig.ENABLED, "true");
+            environment.put(DistributedGatewayRoutingConfig.REDIS_URI, redisUri);
+            environment.put(DistributedGatewayRoutingConfig.ALLOW_INSECURE_LOOPBACK, "true");
+            environment.put(DistributedGatewayRoutingConfig.ROUTE_LEASE_SECONDS, "5");
+
+            runtime = GatewayRuntime.create(GatewayRuntimeConfig.fromEnvironment(environment));
+            runtime.start();
+            awaitReady(runtime);
+            assertReadiness(adminPort, 200, "ready\n");
+
+            BinaryEnvelopeListener listener = new BinaryEnvelopeListener();
+            socket = connectWebSocket(gatewayPort, listener);
+            SessionEstablished session = establish(
+                    socket, listener, login, "redis-outage-device-1");
+            BinaryEnvelopeListener peerListener = new BinaryEnvelopeListener();
+            peerSocket = connectWebSocket(gatewayPort, peerListener);
+            SessionEstablished peerSession = establish(
+                    peerSocket, peerListener, peerLogin, "redis-outage-device-2");
+            peerSocket.sendBinary(ByteBuffer.wrap(history(
+                    peerSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    peerListener.next().getMessageType());
+
+            Files.writeString(control.resolve("redis-stop-request"), "stop\n");
+            awaitFile(control.resolve("redis-stopped"), Duration.ofSeconds(5));
+            awaitNotReady(runtime, Duration.ofSeconds(8));
+            assertReadiness(adminPort, 503, "not_ready\n");
+            assertAdminEndpoint(adminPort, "/health/live", 200, "live\n");
+
+            socket.sendBinary(ByteBuffer.wrap(submit(
+                    session.getSessionId(), conversationId).toByteArray()), true).join();
+            Envelope acceptedEnvelope = listener.next();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED_VALUE,
+                    acceptedEnvelope.getMessageType());
+            MessageAccepted accepted = MessageAccepted.parseFrom(acceptedEnvelope.getPayload());
+            assertEquals(1, accepted.getConversationSequence());
+            Envelope publishedEnvelope = peerListener.next();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_PUBLISHED_VALUE,
+                    publishedEnvelope.getMessageType());
+            MessageRecord published = MessageRecord.parseFrom(publishedEnvelope.getPayload());
+            assertEquals("network integration message", published.getContent().toStringUtf8());
+            assertEquals(1, countQuery(jdbcUrl, username, password,
+                    "SELECT count(*) FROM chat.message WHERE conversation_id = '"
+                            + conversationId + "'"));
+            assertEquals(1, countQuery(jdbcUrl, username, password,
+                    "SELECT count(*) FROM chat.conversation_event_outbox "
+                            + "WHERE conversation_id = '" + conversationId
+                            + "' AND published_at IS NULL"));
+
+            Files.writeString(control.resolve("redis-start-request"), "start\n");
+            awaitFile(control.resolve("redis-started"), Duration.ofSeconds(5));
+            awaitReady(runtime, Duration.ofSeconds(12));
+            assertReadiness(adminPort, 200, "ready\n");
+            awaitCount(jdbcUrl, username, password,
+                    "SELECT count(*) FROM chat.conversation_event_outbox "
+                            + "WHERE conversation_id = '" + conversationId
+                            + "' AND published_at IS NOT NULL",
+                    1, Duration.ofSeconds(15));
+            peerListener.assertNoEnvelope(Duration.ofSeconds(1));
+            String metrics = HttpClient.newHttpClient().send(
+                    HttpRequest.newBuilder(URI.create(
+                            "http://127.0.0.1:" + adminPort + "/metrics")).GET().build(),
+                    HttpResponse.BodyHandlers.ofString()).body();
+            assertTrue(metrics.contains("chat_gateway_routing_lease_valid 1"));
+            assertTrue(Pattern.compile(
+                    "chat_gateway_routing_lease_failed_total [1-9][0-9]*")
+                    .matcher(metrics).find());
         } finally {
             if (peerSocket != null) peerSocket.abort();
             if (socket != null) socket.abort();
@@ -2618,6 +2740,52 @@ class GatewayRuntimePostgresIntegrationTest {
         }
     }
 
+    private static void awaitCount(String url, String user, String password,
+            String sql, int expected, Duration timeout) throws Exception {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        int actual;
+        do {
+            actual = countQuery(url, user, password, sql);
+            if (actual == expected) return;
+            Thread.sleep(25);
+        } while (System.nanoTime() < deadline);
+        assertEquals(expected, actual, "database count did not converge");
+    }
+
+    private static void awaitFile(Path path, Duration timeout) throws Exception {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        while (!Files.isRegularFile(path) && System.nanoTime() < deadline) {
+            Thread.sleep(10);
+        }
+        assertTrue(Files.isRegularFile(path), "timed out waiting for " + path.getFileName());
+    }
+
+    private static void awaitNotReady(GatewayRuntime runtime, Duration timeout)
+            throws Exception {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        while (runtime.isReady() && System.nanoTime() < deadline) {
+            Thread.sleep(10);
+        }
+        assertFalse(runtime.isReady(), "gateway remained ready after Redis lease expiry");
+    }
+
+    private static void assertReadiness(int adminPort, int status, String body)
+            throws Exception {
+        assertAdminEndpoint(adminPort, "/health/ready", status, body);
+    }
+
+    private static void assertAdminEndpoint(
+            int adminPort, String path, int status, String body) throws Exception {
+        HttpResponse<String> response = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(2)).build().send(
+                        HttpRequest.newBuilder(URI.create(
+                                "http://127.0.0.1:" + adminPort + path))
+                                .timeout(Duration.ofSeconds(2)).GET().build(),
+                        HttpResponse.BodyHandlers.ofString());
+        assertEquals(status, response.statusCode());
+        assertEquals(body, response.body());
+    }
+
     private static void seedV2NetworkAccounts(
             String url, String user, String password, UUID accountId, UUID peerAccountId,
             UUID conversationId, String login, String peerLogin) throws Exception {
@@ -2802,7 +2970,11 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     private static void awaitReady(GatewayRuntime runtime) throws Exception {
-        long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+        awaitReady(runtime, Duration.ofSeconds(5));
+    }
+
+    private static void awaitReady(GatewayRuntime runtime, Duration timeout) throws Exception {
+        long deadline = System.nanoTime() + timeout.toNanos();
         while (!runtime.isReady() && System.nanoTime() < deadline) {
             Thread.sleep(10);
         }

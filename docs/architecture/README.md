@@ -1097,6 +1097,15 @@ runtime keeps a 30-second default and accepts only 5–60 seconds through
 seconds and never exceeds half the lease, while retry delay is capped at the
 same safety boundary. This allows fast disposable outage drills and deliberate
 production tuning while preserving the default-off graph and fail-closed expiry.
+ADR-0368 proves that policy against process death rather than a mocked adapter.
+One product gateway keeps two authenticated TLS/WSS sessions alive while its
+disposable Redis is stopped. After the five-second test lease expires,
+`/health/ready` returns 503 while `/health/live` remains 200; a message still
+commits atomically to PostgreSQL/outbox and reaches the local peer. Redis then
+restarts empty at the same endpoint, Lettuce reconnects, routes rebuild,
+readiness returns, the outbox becomes published, and Redis repair emits no
+duplicate client message. This single-gateway proof does not yet establish
+load-balancer withdrawal or availability while one of several gateways dies.
 
 ## 10. Attachment Flow
 

@@ -38,4 +38,6 @@ tasks.test {
             providers.environmentVariable("CHATROOM_TEST_POSTGRES_PASSWORD").orNull ?: "")
     environment("CHATROOM_TEST_REDIS_URI",
             providers.environmentVariable("CHATROOM_TEST_REDIS_URI").orNull ?: "")
+    environment("CHATROOM_TEST_REDIS_CONTROL_DIR",
+            providers.environmentVariable("CHATROOM_TEST_REDIS_CONTROL_DIR").orNull ?: "")
 }

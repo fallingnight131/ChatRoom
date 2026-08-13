@@ -1508,6 +1508,13 @@ Progress:
   derive a half-life-safe renewal interval, and cap retry delay inside the
   selected lease. This enables bounded failure drills without weakening the
   default or allowing invalid lease timing (ADR-0367).
+- [x] Pass a real product-runtime Redis dependency-loss gate: keep authenticated
+  TLS/WSS sessions alive, stop Redis until the five-second route lease withdraws
+  readiness while liveness remains healthy, commit and locally deliver one
+  PostgreSQL-backed message during the outage, restart an empty Redis at the
+  same endpoint, rebuild routing, restore readiness, publish the durable outbox,
+  and emit no duplicate client event. Multi-gateway loss/load-balancer and
+  rolling-deployment gates remain pending (ADR-0368).
 
 Work:
 
