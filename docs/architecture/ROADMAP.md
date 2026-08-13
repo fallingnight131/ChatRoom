@@ -1424,6 +1424,13 @@ Progress:
     aggregate rendering to the default-off Web V2 preview.
   - [x] Add the corresponding local projection, optimistic convergence,
     accessible controls, and aggregate rendering to the Windows V2 preview.
+- [ ] Deliver bounded, ordered pinned messages on V2 Web and Windows.
+  - [x] Define capability negotiation, permanent type allocation, role policy,
+    a 50-pin bound, exact idempotency, mixed-sequence ordering, target cleanup,
+    body-free projection, and offline cursor rules (ADR-0340).
+  - [ ] Add the generated wire contract and three-language compatibility gate.
+  - [ ] Persist and route authoritative pin operations, history, and live events.
+  - [ ] Add offline-safe Web and Windows projections and accessible controls.
 
 Candidate slices:
 
