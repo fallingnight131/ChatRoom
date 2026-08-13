@@ -63,6 +63,9 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageDel
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRenameCommand;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRenameResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRenameService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1NicknameChangeCommand;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1NicknameChangeResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1NicknameChangeService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordIntent;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordStatusResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordUpdateResult;
@@ -172,7 +175,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(36, first.migrate());
+        assertEquals(37, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -196,7 +199,8 @@ class PostgresMigratorTest {
                             "group_lifecycle", "group_resource_policy",
                             "legacy_v1_attachment_map", "legacy_v1_room_kick_event",
                             "legacy_v1_room_dissolution", "account_password_change_audit",
-                            "legacy_v1_registration_audit"),
+                            "legacy_v1_registration_audit",
+                            "account_display_name_change_audit"),
                     applicationTables(connection));
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
@@ -1726,6 +1730,75 @@ class PostgresMigratorTest {
         assertEquals(1, search.size()); assertEquals(room.legacyRoomId(),
                 search.getFirst().legacyRoomId());
         assertEquals("Renamed Room", search.getFirst().roomName());
+    }
+
+    @Test
+    @Order(93)
+    void changesV1NicknameAtomicallyWithCompleteRoomEffects() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID owner = UUID.randomUUID(), member = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'nickname-owner', 'Old Name', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'nickname-member', 'Member', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')", owner, member);
+            execute(connection, "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, "
+                    + "account_id) VALUES (213, ?), (214, ?)", owner, member);
+        }
+        LegacyV1RoomCreationResult.Created active = (LegacyV1RoomCreationResult.Created)
+                new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
+                        new LegacyV1RoomCreationIntent(owner, "nickname-active-room",
+                                "Active Room", java.util.Optional.empty()));
+        LegacyV1RoomCreationResult.Created closed = (LegacyV1RoomCreationResult.Created)
+                new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
+                        new LegacyV1RoomCreationIntent(owner, "nickname-closed-room",
+                                "Closed Room", java.util.Optional.empty()));
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
+                    + "account_id, role) VALUES (?, ?, 'MEMBER')",
+                    active.conversationId(), member);
+            execute(connection, "UPDATE chat.group_lifecycle SET closed_at = "
+                    + "transaction_timestamp() WHERE conversation_id = ?",
+                    closed.conversationId());
+        }
+        var service = new LegacyV1NicknameChangeService(
+                new PostgresLegacyV1NicknameChangeAdapter(dataSource()));
+        LegacyV1NicknameChangeResult.Changed first = assertInstanceOf(
+                LegacyV1NicknameChangeResult.Changed.class,
+                service.change(new LegacyV1NicknameChangeCommand(owner, "  New Name  ")));
+        assertTrue(first.changed()); assertEquals("Old Name", first.oldDisplayName());
+        assertEquals("New Name", first.newDisplayName());
+        assertEquals(1, first.roomAudiences().size());
+        assertEquals(active.legacyRoomId(), first.roomAudiences().getFirst().legacyRoomId());
+        assertEquals(Set.of(owner, member), first.roomAudiences().getFirst().accountIds());
+        assertEquals(1, count("SELECT count(*) FROM chat.account_display_name_change_audit "
+                + "WHERE account_id = '" + owner + "' AND old_display_name = 'Old Name' "
+                + "AND new_display_name = 'New Name'"));
+
+        LegacyV1NicknameChangeResult.Changed retry = assertInstanceOf(
+                LegacyV1NicknameChangeResult.Changed.class,
+                service.change(new LegacyV1NicknameChangeCommand(owner, "New Name")));
+        assertFalse(retry.changed()); assertTrue(retry.roomAudiences().isEmpty());
+        assertEquals(first.changedAt(), retry.changedAt());
+        assertEquals(1, count("SELECT count(*) FROM chat.account_display_name_change_audit "
+                + "WHERE account_id = '" + owner + "'"));
+
+        UUID unmapped = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'nickname-unmapped', 'Unmapped', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')", unmapped);
+            execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
+                    + "account_id, role) VALUES (?, ?, 'MEMBER')",
+                    active.conversationId(), unmapped);
+        }
+        assertThrows(ConversationPersistenceException.class, () -> service.change(
+                new LegacyV1NicknameChangeCommand(owner, "Must Roll Back")));
+        assertEquals(1, count("SELECT count(*) FROM chat.account WHERE id = '" + owner
+                + "' AND display_name = 'New Name'"));
+        assertEquals(1, count("SELECT count(*) FROM chat.account_display_name_change_audit "
+                + "WHERE account_id = '" + owner + "'"));
     }
 
     @Test
