@@ -1368,6 +1368,9 @@ Progress:
   - [x] Add Web optimistic/offline reply composition, IndexedDB-safe target
     identity, retry/replay, authoritative merge, recalled/unavailable rendering,
     keyboard operation, and accessible cancellation (ADR-0330).
+  - [x] Add a detached Windows V2 messaging protocol boundary for ordinary and
+    reply submissions, ACK correlation, ordered history/live projections,
+    reply-reference validation, and disconnect abandonment (ADR-0331).
   - [ ] Add the equivalent reply composition, local-cache behavior, and rendering
     to the supported Windows client.
 

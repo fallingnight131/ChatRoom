@@ -1254,6 +1254,13 @@ V2 IndexedDB, replay the same target and client ID after sync, merge the
 authoritative server reference, and render recalled or absent targets without a
 copied quote body. The preview UI exposes keyboard buttons for reply and cancel
 while remaining behind the existing default-off gate (ADR-0330).
+The isolated `v2_windows_messaging_protocol_test` compiles the detached Windows
+C++ messaging client against that same reviewed binding tree. It verifies exact
+type-100/type-105 submission, stable ACK correlation, sequence history and live
+reply projections, mutation-only cursor advancement, defensive UTF-8/reply
+validation, and disconnect abandonment. Passing it is protocol-boundary
+evidence only: the Windows V2 messaging client is not yet wired to Qt WSS,
+SQLite, Widgets, or the product gate (ADR-0331).
 Gateway tests separately verify authenticated server-bound identity,
 off-event-loop submit/history dispatch, per-connection ordering, safe denial,
 bounded saturation behavior, and isolation from the authentication worker pool.

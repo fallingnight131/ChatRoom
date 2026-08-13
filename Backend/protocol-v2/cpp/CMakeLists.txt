@@ -44,6 +44,23 @@ target_link_libraries(
 )
 
 add_executable(
+  v2_windows_messaging_protocol_test
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsMessagingProtocolClientTest.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsMessagingProtocolClient.cpp"
+  "${GENERATED_ROOT}/chat/v2/control.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/envelope.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/messaging.pb.cc"
+)
+target_compile_features(v2_windows_messaging_protocol_test PRIVATE cxx_std_17)
+target_include_directories(
+  v2_windows_messaging_protocol_test
+  PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/../../../Client"
+    "${GENERATED_ROOT}"
+)
+target_link_libraries(v2_windows_messaging_protocol_test PRIVATE protobuf::libprotobuf)
+
+add_executable(
   v2_windows_session_protocol_test
   "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsSessionProtocolClientTest.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsSessionProtocolClient.cpp"
@@ -180,12 +197,23 @@ else()
   endif()
 endif()
 
+if(MSVC)
+  target_compile_options(v2_windows_messaging_protocol_test PRIVATE /W4 /WX)
+else()
+  target_compile_options(v2_windows_messaging_protocol_test PRIVATE -Wall -Wextra -Werror)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(
+      v2_windows_messaging_protocol_test PRIVATE -Wno-nullability-extension)
+  endif()
+endif()
+
 enable_testing()
 add_test(NAME v2_cpp_envelope_golden COMMAND v2_cpp_envelope_test)
 add_test(
   NAME v2_windows_device_management_protocol
   COMMAND v2_windows_device_management_protocol_test
 )
+add_test(NAME v2_windows_messaging_protocol COMMAND v2_windows_messaging_protocol_test)
 add_test(NAME v2_windows_session_protocol COMMAND v2_windows_session_protocol_test)
 add_test(
   NAME v2_windows_device_management_transport
