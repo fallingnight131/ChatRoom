@@ -27,10 +27,10 @@ public final class V1ProfileImageImportCoordinator {
             throw new V1ProfileImageImportException(
                     "profile image import target preview is blocked");
         var uploaded = new V1ProfileImageObjectUploader(writer).upload(before);
-        var after = verifier.verify(directory, proof, expectedManifestSha256);
-        if (!before.importPlan().equals(after.importPlan()))
-            throw new V1ProfileImageExportException(
-                    "profile image export changed during provider upload");
+        // Re-read the manifest and every object after provider I/O. The verifier
+        // binds both passes to the same externally retained manifest hash and
+        // backup proof; byte-array-bearing records must not be reference-compared.
+        verifier.verify(directory, proof, expectedManifestSha256);
         var applied = new PostgresV1ProfileImageImporter(dataSource)
                 .apply(uploaded.input());
         return new Report(preview, uploaded, applied);

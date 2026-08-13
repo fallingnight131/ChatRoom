@@ -123,6 +123,10 @@ final class V1ProfileImageExporterTest {
         assertEquals(1, uploaded.uniqueObjects()); assertEquals(1, uploaded.created());
         assertEquals(verified.manifestSha256(),
                 uploaded.input().plan().manifestSha256());
+        var independentlyReverified = new V1ProfileImageExportVerifier().verify(
+                report.destination(), proof, report.manifestSha256());
+        assertEquals(verified.manifestSha256(), independentlyReverified.manifestSha256());
+        assertEquals(verified.entries().size(), independentlyReverified.entries().size());
 
         Files.writeString(report.destination().resolve("unexpected.txt"), "unexpected");
         assertThrows(V1ProfileImageExportException.class,
