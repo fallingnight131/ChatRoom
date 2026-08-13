@@ -673,6 +673,14 @@ bounded operation outbox, stable reconnect replay, optimistic convergence,
 correlated ACKs that do not advance the cursor, ordered history/live repair,
 and checkable accessible Widgets controls. Both ClientHello implementations
 therefore advertise the separate capability (ADR-0340).
+The next inactive V2 capability reserves revision-safe text editing. It binds
+author identity from the session, uses database time and a 15-minute window,
+requires an exact expected revision, caps successful revisions at 100, and
+orders only changed edits in the mixed conversation sequence. V1-mapped messages
+remain immutable during compatibility. Clients must persist an optimistic
+overlay separately from authoritative content, never advance cursors from an
+ACK, and expose stale revision conflicts for explicit rebase rather than
+silently overwriting another device (ADR-0341).
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
 single-gateway router now establishes one active subscription only through the

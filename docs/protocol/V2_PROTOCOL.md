@@ -151,6 +151,14 @@ pins. Both default-off V2 previews now advertise the capability after completing
 their durable operation outbox, optimistic projection, ACK/history/live repair,
 target cleanup, and accessible-control gates (ADR-0340).
 
+Types 114/115/116 and `MESSAGE_EDITS` are reserved for revision-safe text
+editing but remain inactive. A command will carry the target, expected content
+revision, bounded UTF-8 replacement, and stable operation ID. Only a changed
+author-owned V2 message edit increments the revision and consumes a mixed
+conversation sequence; ACKs never advance the client cursor. PostgreSQL,
+gateway, history/live filtering, revision cleanup, and both clients' explicit
+offline-conflict gates are required before negotiation (ADR-0341).
+
 `ListConversations` uses a limit of 1..100 and either no cursor or the complete
 pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are
 ordered by that server-owned pair descending and expose canonical kind, bounded
