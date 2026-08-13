@@ -204,6 +204,52 @@ int main(int argc, char *argv[]) {
                        alice, conversation, {}, 10, {}, {}, {}, {remotePin}),
                    repository.lastError())) return 1;
 
+        V2LocalMessageRepository::EditCommand edit{conversation, pin.messageId, 0,
+            QStringLiteral("我的编辑"), QStringLiteral("edit-operation-1"),
+            V2LocalMessageRepository::EditDeliveryState::Pending};
+        if (!check(repository.stageEdit(alice, edit), repository.lastError())) return 1;
+        auto optimisticEdit = repository.loadSnapshot(alice, conversation);
+        if (!check(optimisticEdit.messages.first().text == QStringLiteral("回复内容")
+                        && optimisticEdit.editCommands.size() == 1
+                        && optimisticEdit.editCommands.first().proposedText == QStringLiteral("我的编辑"),
+                    QStringLiteral("edit overlay replaced authoritative content"))
+                || !check(repository.pendingEdits(alice).size() == 1,
+                    QStringLiteral("edit outbox was not restart safe"))) return 1;
+        if (!check(repository.markEditFailed(alice, edit.clientOperationId, true),
+                   repository.lastError())) return 1;
+        auto conflictedEdit = repository.loadSnapshot(alice, conversation);
+        if (!check(conflictedEdit.editCommands.first().state
+                        == V2LocalMessageRepository::EditDeliveryState::Conflict
+                        && conflictedEdit.editCommands.first().proposedText == QStringLiteral("我的编辑"),
+                   QStringLiteral("edit conflict did not preserve proposed content"))) return 1;
+        V2LocalMessageRepository::EditChange remoteEdit{conversation, 11, pin.messageId, 1,
+            QStringLiteral("其他设备"), alice, QStringLiteral("edit-remote"), 1450};
+        if (!check(repository.mergeServerPage(alice, conversation, {}, 11, {}, {}, {}, {},
+                                              {remoteEdit}), repository.lastError())) return 1;
+        const auto afterRemoteEdit = repository.loadSnapshot(alice, conversation);
+        if (!check(afterRemoteEdit.messages.first().text == QStringLiteral("其他设备")
+                        && afterRemoteEdit.messages.first().contentRevision == 1
+                        && afterRemoteEdit.editCommands.first().state
+                            == V2LocalMessageRepository::EditDeliveryState::Conflict,
+                   QStringLiteral("authoritative edit did not preserve conflicting overlay"))) return 1;
+        V2LocalMessageRepository::EditCommand rebased{conversation, pin.messageId, 1,
+            QStringLiteral("我的编辑"), QStringLiteral("edit-operation-2"),
+            V2LocalMessageRepository::EditDeliveryState::Pending};
+        if (!check(repository.rebaseEdit(alice, edit.clientOperationId, rebased),
+                   repository.lastError())
+                || !check(repository.pendingEdits(alice).first().clientOperationId
+                            == rebased.clientOperationId,
+                    QStringLiteral("rebased edit did not rotate its operation id"))) return 1;
+        V2LocalMessageRepository::EditChange appliedEdit{conversation, 12, pin.messageId, 2,
+            QStringLiteral("我的编辑"), alice, rebased.clientOperationId, 1500};
+        if (!check(repository.applyEdit(alice, appliedEdit), repository.lastError())) return 1;
+        const auto afterEditAck = repository.loadSnapshot(alice, conversation);
+        if (!check(afterEditAck.editCommands.isEmpty()
+                        && afterEditAck.messages.first().text == QStringLiteral("我的编辑")
+                        && afterEditAck.messages.first().contentRevision == 2
+                        && afterEditAck.cursor == 11,
+                   QStringLiteral("edit ACK advanced cursor or failed to converge"))) return 1;
+
         if (!check(repository.upsertPending(alice, pending), repository.lastError())) return 1;
         accepted = repository.loadSnapshot(alice, conversation);
         if (!check(accepted.messages.first().state
@@ -221,14 +267,14 @@ int main(int argc, char *argv[]) {
                         && merged.messages.first().reply.targetSenderAccountId
                             == authoritative.reply.targetSenderAccountId,
                     QStringLiteral("authoritative reply projection was not merged"))
-                || !check(merged.cursor == 10,
+                || !check(merged.cursor == 11,
                     QStringLiteral("history merge regressed cursor"))
                 || !check(repository.loadSnapshot(bob, conversation).messages.size() == 1,
                     QStringLiteral("history merge crossed account boundary"))) return 1;
 
         if (!check(repository.mergeServerPage(alice, conversation, {}, 10),
                    repository.lastError())
-                || !check(repository.loadSnapshot(alice, conversation).cursor == 10,
+                || !check(repository.loadSnapshot(alice, conversation).cursor == 11,
                     QStringLiteral("mutation-only page did not advance cursor"))) return 1;
         auto live = authoritative;
         live.messageId = QStringLiteral("60000000-0000-4000-8000-000000000002");
@@ -238,7 +284,7 @@ int main(int argc, char *argv[]) {
         live.createdAtEpochMs = 1400;
         if (!check(repository.mergeLiveMessage(alice, live), repository.lastError())) return 1;
         const auto afterLive = repository.loadSnapshot(alice, conversation);
-        if (!check(afterLive.messages.size() == 2 && afterLive.cursor == 10,
+        if (!check(afterLive.messages.size() == 2 && afterLive.cursor == 11,
                    QStringLiteral("live message incorrectly advanced history cursor"))) return 1;
 
         if (!check(repository.mergeServerPage(
@@ -275,7 +321,10 @@ int main(int argc, char *argv[]) {
                QStringLiteral("reply identity schema is missing"))
             || !check(!schema.contains(QStringLiteral("reply_body"))
                     && !schema.contains(QStringLiteral("quote_body")),
-                QStringLiteral("copied quote content leaked into durable schema"))) return 1;
+                QStringLiteral("copied quote content leaked into durable schema"))
+            || !check(schema.contains(QStringLiteral("content_revision"))
+                    && schema.contains(QStringLiteral("edited_at")),
+                QStringLiteral("message edit metadata schema is missing"))) return 1;
 
     const QString futurePath = directory.filePath(QStringLiteral("future.sqlite"));
     {
