@@ -83,6 +83,22 @@
                   <span>{{ replyPreview(message) }}</span>
                 </div>
                 <p>{{ message.content }}</p>
+                <div v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
+                     class="reaction-bar" role="group" :aria-label="`回应消息 ${message.sequence}`">
+                  <button v-for="reaction in reactionChoices" :key="reaction.kind"
+                          :class="['reaction-button', { active: reactionActive(message, reaction.kind) }]"
+                          type="button" :aria-pressed="reactionActive(message, reaction.kind)"
+                          :aria-label="`${reaction.label}，${reactionCount(message, reaction.kind)} 人`"
+                          :disabled="reactionPending(message, reaction.kind)"
+                          @click="toggleReaction(message, reaction.kind)">
+                    <span aria-hidden="true">{{ reaction.emoji }}</span>
+                    <small v-if="reactionCount(message, reaction.kind)">{{ reactionCount(message, reaction.kind) }}</small>
+                  </button>
+                </div>
+                <button v-if="failedReaction(message)" class="retry-link" type="button"
+                        @click="retryReaction(failedReaction(message).clientOperationId)">
+                  重试回应
+                </button>
                 <span>#{{ message.sequence }} · {{ deliveryLabel(message.deliveryState) }}</span>
                 <button v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
                         class="reply-link" type="button" @click="startReply(message)">
@@ -167,6 +183,7 @@
 <script setup>
 import { computed, inject, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { V2_RUNTIME_KEY } from '../application/v2RuntimeKey'
+import { MessageReactionKind } from '../protocol/v2/generated/messaging_pb'
 
 const runtimeRef = inject(V2_RUNTIME_KEY)
 const username = ref('')
@@ -180,7 +197,7 @@ const confirmingDeviceId = ref(null)
 const deviceCloseButton = ref(null)
 const snapshot = ref({
   connectionState: 'idle', session: null, directory: [], directoryHasMore: false,
-  activeConversationId: null, messages: [], historyLoading: false, devices: [],
+  activeConversationId: null, messages: [], reactionCommands: [], historyLoading: false, devices: [],
   devicesLoading: false, revokingDeviceId: null, deviceFailure: '', lastFailure: ''
 })
 let unsubscribe = null
@@ -204,6 +221,14 @@ const connectionLabel = computed(() => ({
 const connectionTone = computed(() => snapshot.value.connectionState === 'authenticated'
   ? 'ok' : ['offline', 'reconnect-wait'].includes(snapshot.value.connectionState) ? 'warn' : '')
 const canManageDevices = computed(() => snapshot.value.connectionState === 'authenticated')
+const reactionChoices = [
+  { kind: MessageReactionKind.LIKE, emoji: '👍', label: '赞' },
+  { kind: MessageReactionKind.LOVE, emoji: '❤️', label: '喜欢' },
+  { kind: MessageReactionKind.LAUGH, emoji: '😂', label: '好笑' },
+  { kind: MessageReactionKind.SURPRISED, emoji: '😮', label: '惊讶' },
+  { kind: MessageReactionKind.SAD, emoji: '😢', label: '难过' },
+  { kind: MessageReactionKind.ANGRY, emoji: '😠', label: '生气' }
+]
 
 function attachRuntime(runtime) {
   unsubscribe?.()
@@ -284,6 +309,47 @@ function retryMessage(clientMessageId) {
     if (!runtimeRef.value.application.retryMessage(clientMessageId)) actionError.value = '该消息暂时无法重试'
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : '消息重试失败'
+  }
+}
+
+function reactionCount(message, reaction) {
+  return message.reactions?.find(item => item.reaction === reaction)?.actorAccountIds.length || 0
+}
+
+function reactionActive(message, reaction) {
+  return message.reactions?.some(item => item.reaction === reaction
+    && item.actorAccountIds.includes(snapshot.value.session?.accountId)) || false
+}
+
+function reactionPending(message, reaction) {
+  return snapshot.value.reactionCommands.some(command => command.messageId === message.id
+    && command.reaction === reaction && command.deliveryState === 'sending')
+}
+
+function failedReaction(message) {
+  return snapshot.value.reactionCommands.find(command => command.messageId === message.id
+    && command.deliveryState === 'failed') || null
+}
+
+function toggleReaction(message, reaction) {
+  actionError.value = ''
+  try {
+    if (!runtimeRef.value.application.setReaction(message.id, reaction)) {
+      actionError.value = '当前无法回应这条消息'
+    }
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : '回应失败'
+  }
+}
+
+function retryReaction(clientOperationId) {
+  actionError.value = ''
+  try {
+    if (!runtimeRef.value.application.retryReaction(clientOperationId)) {
+      actionError.value = '该回应暂时无法重试'
+    }
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : '回应重试失败'
   }
 }
 
@@ -370,6 +436,9 @@ onUnmounted(() => {
 .bubble { max-width: min(70%, 680px); padding: 10px 12px; border-radius: 12px; background: var(--bg-bubble-other); box-shadow: var(--shadow); }
 .mine .bubble { background: var(--bg-bubble-mine); }.bubble span { display: inline-block; margin-top: 6px; color: var(--text-secondary); font-size: 11px; }
 .bubble .reply-reference span { display: block; margin-top: 0; }
+.reaction-bar { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+.reaction-button { min-width: 34px; min-height: 30px; padding: 3px 7px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; border: 1px solid var(--border-color); border-radius: 999px; color: var(--text-primary); background: var(--bg-primary); cursor: pointer; }
+.reaction-button:hover { background: var(--bg-hover); }.reaction-button.active { border-color: var(--accent); background: var(--bg-active); }.reaction-button:disabled { cursor: wait; opacity: .65; }.reaction-button span { margin: 0; color: inherit; font-size: 16px; }.reaction-button small { font-size: 11px; }
 .retry-link { margin-left: 8px; border: 0; color: var(--danger); background: transparent; cursor: pointer; }
 .composer { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding: 14px 20px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); }
 .composer textarea { resize: none; }.empty-state { flex: 1; display: grid; place-content: center; text-align: center; color: var(--text-secondary); }

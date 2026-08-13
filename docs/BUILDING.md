@@ -1243,9 +1243,10 @@ sequence but no copied quote body (ADR-0328). Types 106--108 reserve an
 explicit-capability message-reaction command, response, and ordered live event.
 The same reaction command golden bytes are locked in Java, TypeScript, and C++;
 policy tests cover the fixed enum, canonical identities, idempotency operation
-ID, and changed/sequence invariant. This is wire compatibility evidence only:
-the gateway and supported clients do not advertise or activate the capability
-yet (ADR-0339). The gate also locks the V2
+ID, and changed/sequence invariant. The default-off Web V2 preview now
+advertises and activates this capability; Windows still treats the generated
+types as compatibility evidence only and does not advertise it (ADR-0339). The
+gate also locks the V2
 conversation-directory composite cursor across all
 three generated bindings. The generation task also publishes reviewed
 TypeScript into `WebClient/src/protocol/v2/generated` and reviewed Windows C++
@@ -1260,6 +1261,10 @@ V2 IndexedDB, replay the same target and client ID after sync, merge the
 authoritative server reference, and render recalled or absent targets without a
 copied quote body. The preview UI exposes keyboard buttons for reply and cancel
 while remaining behind the existing default-off gate (ADR-0330).
+Web reaction tests additionally verify account-scoped IndexedDB persistence,
+stable optimistic replay after reconnect history, ACK/history/live convergence,
+bounded fixed-kind aggregates, keyboard-native controls, pressed state, and
+explicit failed-operation retry. No reaction operation stores session secrets.
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

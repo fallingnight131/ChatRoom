@@ -15,6 +15,7 @@ import {
 } from "./generated/conversation_pb";
 import {
   ClientHelloSchema,
+  ClientCapability,
   ClientPlatform,
   MessageType,
   ProtocolErrorSchema,
@@ -25,15 +26,21 @@ import {
 import { EnvelopeSchema, MessageKind, type Envelope } from "./generated/envelope_pb";
 import {
   MessageAcceptedSchema,
+  MessageReactionAppliedSchema,
+  MessageReactionChangedRecordSchema,
+  MessageReactionKind,
   MessageContentType,
   MessageHistoryPageSchema,
   MessageRecordSchema,
   ReadMessageHistorySchema,
   SubmitMessageSchema,
   SubmitReplyMessageSchema,
+  SetMessageReactionSchema,
   type MessageAccepted,
   type MessageHistoryPage,
   type MessageRecord,
+  type MessageReactionApplied,
+  type MessageReactionChangedRecord,
 } from "./generated/messaging_pb";
 import {
   AttachmentReadySchema,
@@ -88,6 +95,8 @@ export type V2WebProtocolEvent = ResponseCorrelation & (
   | { type: "message-accepted"; value: MessageAccepted }
   | { type: "message-history-page"; value: MessageHistoryPage }
   | { type: "message-published"; value: MessageRecord }
+  | { type: "message-reaction-applied"; value: MessageReactionApplied }
+  | { type: "message-reaction-changed"; value: MessageReactionChangedRecord }
   | { type: "conversation-directory-page"; value: ConversationDirectoryPage }
   | { type: "attachment-registered"; value: AttachmentRegistered }
   | { type: "attachment-upload-authorized"; value: AttachmentUploadAuthorized }
@@ -151,6 +160,7 @@ export class V2WebProtocolClient {
       platform: ClientPlatform.WEB,
       appVersion: this.appVersion,
       clientDeviceId: this.clientDeviceId,
+      capabilities: [ClientCapability.MESSAGE_REACTIONS],
     }));
     const bytes = this.command(MessageType.CLIENT_HELLO, payload, new Set([MessageType.SERVER_HELLO]));
     this.currentState = "hello-sent";
@@ -286,6 +296,32 @@ export class V2WebProtocolClient {
       new Set([MessageType.MESSAGE_ACCEPTED]),
       clientMessageId,
     );
+  }
+
+  setMessageReaction(
+    conversationId: string,
+    messageId: string,
+    reaction: MessageReactionKind,
+    active: boolean,
+    clientOperationId: string,
+  ): V2CorrelatedCommand {
+    this.requireState("authenticated");
+    requireUuid("conversationId", conversationId);
+    requireUuid("messageId", messageId);
+    requireIdentifier("clientOperationId", clientOperationId);
+    requireReaction(reaction);
+    const payload = toBinary(SetMessageReactionSchema, create(SetMessageReactionSchema, {
+      conversationId,
+      messageId,
+      reaction,
+      active,
+      clientOperationId,
+    }));
+    return correlated(this.command(
+      MessageType.SET_MESSAGE_REACTION,
+      payload,
+      new Set([MessageType.MESSAGE_REACTION_APPLIED]),
+    ));
   }
 
   registerAttachment(
@@ -466,7 +502,8 @@ export class V2WebProtocolClient {
   private validateInboundEnvelope(envelope: Envelope): void {
     if (envelope.protocolVersion !== PROTOCOL_VERSION) throw new Error("unsupported protocol version");
     const publishedEvent = envelope.kind === MessageKind.EVENT
-      && envelope.messageType === MessageType.MESSAGE_PUBLISHED;
+      && (envelope.messageType === MessageType.MESSAGE_PUBLISHED
+        || envelope.messageType === MessageType.MESSAGE_REACTION_CHANGED);
     if (!publishedEvent && envelope.kind !== MessageKind.RESPONSE && envelope.kind !== MessageKind.ERROR) {
       throw new Error("unexpected inbound message kind");
     }
@@ -509,6 +546,10 @@ export class V2WebProtocolClient {
           return { ...correlation, type: "message-history-page", value: fromBinary(MessageHistoryPageSchema, envelope.payload) };
         case MessageType.MESSAGE_PUBLISHED:
           return { ...correlation, type: "message-published", value: fromBinary(MessageRecordSchema, envelope.payload) };
+        case MessageType.MESSAGE_REACTION_APPLIED:
+          return { ...correlation, type: "message-reaction-applied", value: fromBinary(MessageReactionAppliedSchema, envelope.payload) };
+        case MessageType.MESSAGE_REACTION_CHANGED:
+          return { ...correlation, type: "message-reaction-changed", value: fromBinary(MessageReactionChangedRecordSchema, envelope.payload) };
         case MessageType.CONVERSATION_DIRECTORY_PAGE:
           return { ...correlation, type: "conversation-directory-page", value: fromBinary(ConversationDirectoryPageSchema, envelope.payload) };
         case MessageType.ATTACHMENT_REGISTERED:
@@ -541,6 +582,10 @@ export class V2WebProtocolClient {
           throw new Error("invalid server hello");
         }
         requireIdentifier("connectionId", event.value.connectionId);
+        if (event.value.enabledCapabilities.length !== 1
+            || event.value.enabledCapabilities[0] !== ClientCapability.MESSAGE_REACTIONS) {
+          throw new Error("required V2 capability was not enabled");
+        }
         this.negotiatedMaximumFrameBytes = event.value.maximumFrameBytes;
         this.currentState = "negotiated";
         break;
@@ -580,6 +625,12 @@ export class V2WebProtocolClient {
         break;
       case "message-published":
         validateMessageRecord(event.value);
+        break;
+      case "message-reaction-applied":
+        validateReactionApplied(event.value);
+        break;
+      case "message-reaction-changed":
+        validateReactionChanged(event.value);
         break;
       case "conversation-directory-page":
         validateDirectoryPage(event.value);
@@ -717,6 +768,12 @@ function validateHistoryPage(page: MessageHistoryPage): void {
           || [...deletion.operatorNameSnapshot].length > 100) {
         throw new Error("invalid deletion entry detail");
       }
+    } else if (entry.detail.case === "reaction") {
+      validateReactionChanged(entry.detail.value);
+      if (entry.detail.value.conversationId !== entry.conversationId
+          || entry.detail.value.conversationSequence !== entry.conversationSequence) {
+        throw new Error("invalid reaction entry detail");
+      }
     } else {
       throw new Error("history entry detail is required");
     }
@@ -725,6 +782,40 @@ function validateHistoryPage(page: MessageHistoryPage): void {
   const lastSequence = page.entries.length > 0 ? previousEntry : previous;
   if (lastSequence !== 0n && page.nextSequence !== lastSequence) {
     throw new Error("history cursor does not identify the last entry");
+  }
+}
+
+function validateReactionApplied(value: MessageReactionApplied): void {
+  requireUuid("reaction.conversationId", value.conversationId);
+  requireUuid("reaction.messageId", value.messageId);
+  requireUuid("reaction.actorAccountId", value.actorAccountId);
+  requireIdentifier("reaction.clientOperationId", value.clientOperationId);
+  requireReaction(value.reaction);
+  if (value.occurredAtEpochMs <= 0n
+      || value.conversationSequence > MAX_SIGNED_SEQUENCE
+      || value.changed !== (value.conversationSequence > 0n)) {
+    throw new Error("invalid reaction application");
+  }
+}
+
+function validateReactionChanged(value: MessageReactionChangedRecord): void {
+  requireUuid("reaction.conversationId", value.conversationId);
+  requireUuid("reaction.messageId", value.messageId);
+  requireUuid("reaction.actorAccountId", value.actorAccountId);
+  requireIdentifier("reaction.clientOperationId", value.clientOperationId);
+  requireReaction(value.reaction);
+  if (value.conversationSequence <= 0n
+      || value.conversationSequence > MAX_SIGNED_SEQUENCE
+      || value.occurredAtEpochMs <= 0n) {
+    throw new Error("invalid reaction change");
+  }
+}
+
+function requireReaction(value: MessageReactionKind): void {
+  if (![MessageReactionKind.LIKE, MessageReactionKind.LOVE,
+    MessageReactionKind.LAUGH, MessageReactionKind.SURPRISED,
+    MessageReactionKind.SAD, MessageReactionKind.ANGRY].includes(value)) {
+    throw new Error("unsupported message reaction");
   }
 }
 

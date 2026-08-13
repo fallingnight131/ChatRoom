@@ -121,7 +121,7 @@ slow-consumer-close metrics use fixed labels. Routing is process-local: multiple
 gateways require M5 Redis routing, and future membership mutations must invalidate
 subscriptions before they are enabled.
 
-Types 106--108 define the inactive message-reaction wire contract. A command
+Types 106--108 define the negotiated message-reaction wire contract. A command
 sets one of six registered reactions to a desired active state and uses its
 client operation ID as the authenticated actor's idempotency key. A real state
 change receives the next positive conversation sequence; a convergent no-op
@@ -135,8 +135,11 @@ without exposing an unknown partial record. PostgreSQL storage and authenticated
 gateway dispatch are now composed. The gateway emits fixed-cardinality outcomes,
 filters history details for legacy V2 sessions while preserving their
 authoritative cursor, and publishes live changes only to capable subscribers.
-Local projections and UI remain follow-up slices; neither supported client
-advertises this capability yet (ADR-0339).
+The default-off Web V2 preview advertises the capability and converges its
+offline-safe optimistic projection through correlated responses, mixed history,
+and capable live events. Windows still parses compatible history at the
+protocol boundary but does not advertise the capability until its local
+projection and UI are complete (ADR-0339).
 
 `ListConversations` uses a limit of 1..100 and either no cursor or the complete
 pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are

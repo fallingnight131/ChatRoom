@@ -1,5 +1,11 @@
 import { ConversationKind, ConversationRole, type ConversationDirectoryRecord } from "../protocol/v2/generated/conversation_pb";
-import { MessageContentType, type ConversationEntryRecord, type MessageRecord } from "../protocol/v2/generated/messaging_pb";
+import {
+  MessageContentType,
+  MessageReactionKind,
+  type ConversationEntryRecord,
+  type MessageReactionChangedRecord,
+  type MessageRecord,
+} from "../protocol/v2/generated/messaging_pb";
 import type { V2WebProtocolEvent } from "../protocol/v2/webProtocolClient";
 import { ClientPlatform } from "../protocol/v2/generated/control_pb";
 import type {
@@ -11,6 +17,7 @@ const HISTORY_PAGE_SIZE = 100;
 const DIRECTORY_PAGE_SIZE = 50;
 const MAX_RETAINED_ACCEPTED_MESSAGES = 500;
 const MAX_PENDING_MESSAGES = 100;
+const MAX_PENDING_REACTIONS = 8;
 const decoder = new TextDecoder("utf-8", { fatal: true });
 const canonicalUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -32,11 +39,27 @@ export interface V2ConversationCacheMessage {
     targetConversationSequence: string;
     targetSenderAccountId: string;
   };
+  reactions: Array<{
+    reaction: MessageReactionKind;
+    actorAccountIds: string[];
+  }>;
+}
+
+export interface V2ConversationCacheReactionCommand {
+  conversationId: string;
+  messageId: string;
+  reaction: MessageReactionKind;
+  active: boolean;
+  clientOperationId: string;
+  deliveryState: "sending" | "failed";
+  errorCode: string;
+  requestId?: string;
 }
 
 export interface V2ConversationCacheSnapshot {
   messages: V2ConversationCacheMessage[];
   cursorSequence: string;
+  reactionCommands?: V2ConversationCacheReactionCommand[];
 }
 
 export interface V2ConversationCache {
@@ -46,6 +69,7 @@ export interface V2ConversationCache {
     conversationId: string,
     messages: V2ConversationCacheMessage[],
     cursorSequence: string,
+    reactionCommands?: V2ConversationCacheReactionCommand[],
   ): Promise<boolean>;
 }
 
@@ -65,6 +89,13 @@ export interface V2ChatTransport {
     clientMessageId: string,
     text: string,
   ): void;
+  setMessageReaction(
+    conversationId: string,
+    messageId: string,
+    reaction: MessageReactionKind,
+    active: boolean,
+    clientOperationId: string,
+  ): string;
   listDevices(): string;
   revokeDevice(targetDeviceId: string): string;
 }
@@ -100,6 +131,7 @@ export interface V2WebChatSnapshot {
   directoryHasMore: boolean;
   activeConversationId: string | null;
   messages: V2ConversationCacheMessage[];
+  reactionCommands: V2ConversationCacheReactionCommand[];
   historyLoading: boolean;
   devices: V2ManagedDevice[];
   devicesLoading: boolean;
@@ -118,6 +150,7 @@ export interface V2WebChatApplicationOptions {
 
 type ConversationState = {
   messages: V2ConversationCacheMessage[];
+  reactionCommands: V2ConversationCacheReactionCommand[];
   cursorSequence: string;
   loading: boolean;
 };
@@ -176,6 +209,7 @@ export class V2WebChatApplication {
       directoryHasMore: this.directoryHasMoreValue,
       activeConversationId: this.activeConversationIdValue,
       messages: active?.messages.map(cloneMessage) ?? [],
+      reactionCommands: active?.reactionCommands.map(cloneReactionCommand) ?? [],
       historyLoading: active?.loading ?? false,
       devices: this.devicesValue.map((device) => ({ ...device })),
       devicesLoading: this.devicesLoadingValue,
@@ -265,7 +299,7 @@ export class V2WebChatApplication {
     this.activeConversationIdValue = conversationId;
     let state = this.conversations.get(conversationId);
     if (!state) {
-      state = { messages: [], cursorSequence: "0", loading: true };
+      state = { messages: [], reactionCommands: [], cursorSequence: "0", loading: true };
       this.conversations.set(conversationId, state);
     } else {
       state.loading = true;
@@ -276,6 +310,8 @@ export class V2WebChatApplication {
       if (this.disposed || generation !== this.selectionGeneration) return;
       if (cached) {
         state.messages = boundMessages(cached.messages.map(normalizeCachedMessage));
+        state.reactionCommands = (cached.reactionCommands ?? [])
+          .map(normalizeReactionCommand).filter((value): value is V2ConversationCacheReactionCommand => Boolean(value));
         state.cursorSequence = normalizeSequence(cached.cursorSequence);
       }
     } catch {
@@ -333,6 +369,7 @@ export class V2WebChatApplication {
       errorCode: "",
       availability: "available",
       reply: reply ? { ...reply } : null,
+      reactions: [],
     };
     state.messages = boundMessages([...state.messages, message]);
     try {
@@ -363,6 +400,66 @@ export class V2WebChatApplication {
     this.persist(message.conversationId);
     this.emit();
     return message.deliveryState === "sending";
+  }
+
+  setReaction(messageId: string, reaction: MessageReactionKind): boolean {
+    this.requireActive();
+    if (!this.sessionValue || !this.activeConversationIdValue) return false;
+    requireReactionKind(reaction);
+    const state = this.requireConversation(this.activeConversationIdValue);
+    const message = state.messages.find((candidate) => candidate.id === messageId);
+    if (!message || message.deliveryState !== "accepted" || message.availability !== "available") return false;
+    if (state.reactionCommands.some((command) => command.messageId === messageId
+        && command.reaction === reaction && command.deliveryState === "sending")) return false;
+    if (state.reactionCommands.length >= MAX_PENDING_REACTIONS) {
+      throw new Error("V2 pending reaction limit reached");
+    }
+    const active = !messageReactionActive(message, reaction, this.sessionValue.accountId);
+    const command: V2ConversationCacheReactionCommand = {
+      conversationId: this.activeConversationIdValue,
+      messageId,
+      reaction,
+      active,
+      clientOperationId: this.createClientMessageId(),
+      deliveryState: "sending",
+      errorCode: "",
+    };
+    state.reactionCommands.push(command);
+    applyReactionState(message, reaction, this.sessionValue.accountId, active);
+    this.persist(command.conversationId);
+    try {
+      command.requestId = this.transport.setMessageReaction(
+        command.conversationId, command.messageId, command.reaction,
+        command.active, command.clientOperationId);
+    } catch {
+      command.deliveryState = "failed";
+      command.errorCode = "TRANSPORT_UNAVAILABLE";
+    }
+    this.persist(command.conversationId);
+    this.emit();
+    return true;
+  }
+
+  retryReaction(clientOperationId: string): boolean {
+    this.requireActive();
+    if (!this.activeConversationIdValue) return false;
+    const state = this.requireConversation(this.activeConversationIdValue);
+    const command = state.reactionCommands.find((value) =>
+      value.clientOperationId === clientOperationId && value.deliveryState === "failed");
+    if (!command) return false;
+    command.deliveryState = "sending";
+    command.errorCode = "";
+    try {
+      command.requestId = this.transport.setMessageReaction(
+        command.conversationId, command.messageId, command.reaction,
+        command.active, command.clientOperationId);
+    } catch {
+      command.deliveryState = "failed";
+      command.errorCode = "TRANSPORT_UNAVAILABLE";
+    }
+    this.persist(command.conversationId);
+    this.emit();
+    return command.deliveryState === "sending";
   }
 
   stop(): void {
@@ -466,6 +563,12 @@ export class V2WebChatApplication {
       case "message-published":
         this.applyPublishedMessage(event.value);
         break;
+      case "message-reaction-changed":
+        this.applyReactionChanged(event.value);
+        break;
+      case "message-reaction-applied":
+        this.applyReactionApplied(event);
+        break;
       case "message-accepted":
         this.applyMessageAccepted(event);
         break;
@@ -552,6 +655,8 @@ export class V2WebChatApplication {
         } else if (entry.detail.case === "deletion") {
           const deleted = new Set(entry.detail.value.messageIds);
           state.messages = state.messages.filter((message) => !deleted.has(message.id));
+        } else if (entry.detail.case === "reaction") {
+          this.applyReactionToState(state, entry.detail.value);
         }
       }
     }
@@ -561,6 +666,7 @@ export class V2WebChatApplication {
     if (hasMore) {
       this.transport.readMessageHistory(conversationId, BigInt(state.cursorSequence), HISTORY_PAGE_SIZE);
     } else {
+      this.replayPendingReactions(conversationId, state);
       this.replayPendingAfterSync(conversationId, state);
     }
   }
@@ -606,6 +712,46 @@ export class V2WebChatApplication {
     this.persist(record.conversationId);
   }
 
+  private applyReactionApplied(
+    event: Extract<V2WebProtocolEvent, { type: "message-reaction-applied" }>,
+  ): void {
+    const state = this.conversations.get(event.value.conversationId);
+    if (!state) return;
+    const command = state.reactionCommands.find((value) =>
+      value.clientOperationId === event.value.clientOperationId);
+    if (!command) return;
+    const message = state.messages.find((value) => value.id === event.value.messageId);
+    if (message) applyReactionState(
+      message, event.value.reaction, event.value.actorAccountId, event.value.active);
+    state.reactionCommands = state.reactionCommands.filter((value) =>
+      value.clientOperationId !== event.value.clientOperationId);
+    this.persist(event.value.conversationId);
+  }
+
+  private applyReactionChanged(record: MessageReactionChangedRecord): void {
+    const state = this.conversations.get(record.conversationId);
+    if (!state) return;
+    this.applyReactionToState(state, record);
+    const cursor = BigInt(state.cursorSequence);
+    if (record.conversationSequence === cursor + 1n) {
+      state.cursorSequence = record.conversationSequence.toString();
+    } else if (record.conversationSequence > cursor + 1n && !state.loading) {
+      state.loading = true;
+      this.transport.readMessageHistory(record.conversationId, cursor, HISTORY_PAGE_SIZE);
+    }
+    this.persist(record.conversationId);
+  }
+
+  private applyReactionToState(
+    state: ConversationState,
+    record: MessageReactionChangedRecord,
+  ): void {
+    const message = state.messages.find((value) => value.id === record.messageId);
+    if (message) applyReactionState(message, record.reaction, record.actorAccountId, record.active);
+    state.reactionCommands = state.reactionCommands.filter((value) =>
+      value.clientOperationId !== record.clientOperationId);
+  }
+
   private applyProtocolError(event: Extract<V2WebProtocolEvent, { type: "protocol-error" }>): void {
     if (event.requestId === this.deviceListRequestId) {
       this.deviceListRequestId = null;
@@ -633,6 +779,17 @@ export class V2WebChatApplication {
         return;
       }
     }
+    if (event.requestId) {
+      for (const [conversationId, state] of this.conversations) {
+        const command = state.reactionCommands.find((value) =>
+          value.deliveryState === "sending" && value.requestId === event.requestId);
+        if (!command) continue;
+        command.deliveryState = "failed";
+        command.errorCode = `PROTOCOL_${event.value.code}`;
+        this.persist(conversationId);
+        return;
+      }
+    }
     this.lastFailureValue = event.value.safeMessage || "V2 protocol error";
   }
 
@@ -645,6 +802,7 @@ export class V2WebChatApplication {
       conversationId,
       state.messages.map(cloneMessage),
       state.cursorSequence,
+      state.reactionCommands.map(cloneReactionCommand),
     ).catch(() => {
       this.lastFailureValue = "V2 cache write failed";
       this.emit();
@@ -658,6 +816,21 @@ export class V2WebChatApplication {
       .filter((message) => message.deliveryState === "sending")
       .map((message) => message.clientMessageId));
     this.dispatchNextReplay(conversationId, state);
+  }
+
+  private replayPendingReactions(conversationId: string, state: ConversationState): void {
+    for (const command of state.reactionCommands.filter((value) =>
+      value.deliveryState === "sending")) {
+      try {
+        command.requestId = this.transport.setMessageReaction(
+          conversationId, command.messageId, command.reaction,
+          command.active, command.clientOperationId);
+      } catch {
+        command.deliveryState = "failed";
+        command.errorCode = "TRANSPORT_UNAVAILABLE";
+      }
+    }
+    this.persist(conversationId);
   }
 
   private dispatchNextReplay(conversationId: string, state: ConversationState): void {
@@ -779,6 +952,7 @@ function mapMessageRecord(record: MessageRecord): V2ConversationCacheMessage {
       targetConversationSequence: record.reply.targetConversationSequence.toString(),
       targetSenderAccountId: record.reply.targetSenderAccountId,
     } : null,
+    reactions: [],
   };
 }
 
@@ -791,6 +965,7 @@ function normalizeCachedMessage(message: V2ConversationCacheMessage): V2Conversa
       : "accepted",
     availability: message.availability === "recalled" ? "recalled" : "available",
     reply: normalizeReply(message.reply),
+    reactions: normalizeReactions(message.reactions),
   };
 }
 
@@ -804,7 +979,79 @@ function normalizeReply(
 }
 
 function cloneMessage(message: V2ConversationCacheMessage): V2ConversationCacheMessage {
-  return { ...message, reply: message.reply ? { ...message.reply } : null };
+  return {
+    ...message,
+    reply: message.reply ? { ...message.reply } : null,
+    reactions: message.reactions.map((value) => ({
+      reaction: value.reaction,
+      actorAccountIds: [...value.actorAccountIds],
+    })),
+  };
+}
+
+function cloneReactionCommand(
+  command: V2ConversationCacheReactionCommand,
+): V2ConversationCacheReactionCommand {
+  return { ...command };
+}
+
+function normalizeReactionCommand(value: V2ConversationCacheReactionCommand):
+    V2ConversationCacheReactionCommand | null {
+  try { requireReactionKind(value.reaction); } catch { return null; }
+  if (!canonicalUuid.test(value.conversationId) || !canonicalUuid.test(value.messageId)
+      || !value.clientOperationId) return null;
+  return {
+    ...value,
+    deliveryState: value.deliveryState === "failed" ? "failed" : "sending",
+    errorCode: typeof value.errorCode === "string" ? value.errorCode : "",
+  };
+}
+
+function normalizeReactions(value: V2ConversationCacheMessage["reactions"] | undefined):
+    V2ConversationCacheMessage["reactions"] {
+  if (!Array.isArray(value)) return [];
+  const result: V2ConversationCacheMessage["reactions"] = [];
+  for (const item of value) {
+    try { requireReactionKind(item.reaction); } catch { continue; }
+    const actors = [...new Set(item.actorAccountIds.filter((id) => canonicalUuid.test(id)))].sort();
+    if (actors.length > 0) result.push({ reaction: item.reaction, actorAccountIds: actors });
+  }
+  return result.sort((left, right) => left.reaction - right.reaction);
+}
+
+function applyReactionState(
+  message: V2ConversationCacheMessage,
+  reaction: MessageReactionKind,
+  actorAccountId: string,
+  active: boolean,
+): void {
+  requireReactionKind(reaction);
+  let aggregate = message.reactions.find((value) => value.reaction === reaction);
+  if (!aggregate && active) {
+    aggregate = { reaction, actorAccountIds: [] };
+    message.reactions.push(aggregate);
+  }
+  if (!aggregate) return;
+  const actors = new Set(aggregate.actorAccountIds);
+  if (active) actors.add(actorAccountId); else actors.delete(actorAccountId);
+  aggregate.actorAccountIds = [...actors].sort();
+  message.reactions = message.reactions.filter((value) => value.actorAccountIds.length > 0)
+    .sort((left, right) => left.reaction - right.reaction);
+}
+
+function messageReactionActive(
+  message: V2ConversationCacheMessage,
+  reaction: MessageReactionKind,
+  actorAccountId: string,
+): boolean {
+  return message.reactions.some((value) => value.reaction === reaction
+    && value.actorAccountIds.includes(actorAccountId));
+}
+
+function requireReactionKind(value: MessageReactionKind): void {
+  if (![MessageReactionKind.LIKE, MessageReactionKind.LOVE, MessageReactionKind.LAUGH,
+    MessageReactionKind.SURPRISED, MessageReactionKind.SAD,
+    MessageReactionKind.ANGRY].includes(value)) throw new Error("unsupported reaction");
 }
 
 function mergeMessages(
@@ -816,7 +1063,13 @@ function mergeMessages(
     const index = merged.findIndex((message) =>
       (message.id && message.id === candidate.id)
       || (message.clientMessageId && message.clientMessageId === candidate.clientMessageId));
-    if (index >= 0) merged[index] = { ...merged[index], ...candidate };
+    if (index >= 0) merged[index] = {
+      ...merged[index],
+      ...candidate,
+      reactions: candidate.reactions.length > 0
+        ? candidate.reactions
+        : merged[index]!.reactions,
+    };
     else merged.push(candidate);
   }
   return boundMessages(merged);

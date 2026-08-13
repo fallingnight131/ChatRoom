@@ -8,7 +8,7 @@ import {
   ResumeSessionSchema,
   SessionEstablishedSchema,
 } from "../src/protocol/v2/generated/authentication_pb";
-import { MessageType, ServerHelloSchema } from "../src/protocol/v2/generated/control_pb";
+import { ClientCapability, MessageType, ServerHelloSchema } from "../src/protocol/v2/generated/control_pb";
 import { EnvelopeSchema, MessageKind, type Envelope } from "../src/protocol/v2/generated/envelope_pb";
 import { V2WebProtocolClient } from "../src/protocol/v2/webProtocolClient";
 import {
@@ -145,6 +145,7 @@ function helloResponse(request: Envelope): ArrayBuffer {
     connectionId: "gateway-connection-1",
     serverTimeEpochMs: BigInt(NOW),
     maximumFrameBytes: 1024 * 1024 + 1024,
+    enabledCapabilities: [ClientCapability.MESSAGE_REACTIONS],
   })));
 }
 

@@ -647,8 +647,12 @@ capability negotiation. Its PostgreSQL, gateway, local projection, and UI
 slices are separately gated. V045 now atomically persists exact operation
 results, current active state, and changed-only mixed-sequence events. The
 gateway now requires explicit capability negotiation for mutation/history/live
-details and publishes fixed-cardinality outcomes. Neither Web nor Windows yet
-advertises the capability, so the product feature remains inactive (ADR-0339).
+details and publishes fixed-cardinality outcomes. The default-off Web V2
+preview now advertises the capability and adds an account-scoped IndexedDB
+projection, restart-safe operation replay, optimistic convergence, fixed
+reaction aggregates, and keyboard-native accessible controls. Windows still
+does not advertise the capability until its local projection and interaction
+slice is complete (ADR-0339).
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
 single-gateway router now establishes one active subscription only through the

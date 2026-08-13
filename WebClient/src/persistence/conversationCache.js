@@ -83,7 +83,39 @@ export function sanitizeV2Message(message) {
       : 'accepted',
     errorCode: typeof message.errorCode === 'string' ? message.errorCode : '',
     availability: message.availability === 'recalled' ? 'recalled' : 'available',
-    reply
+    reply,
+    reactions: Array.isArray(message.reactions)
+      ? message.reactions.map(sanitizeV2Reaction).filter(Boolean).slice(0, 6)
+      : []
+  }
+}
+
+function sanitizeV2Reaction(value) {
+  const reaction = Number(value?.reaction)
+  if (!Number.isInteger(reaction) || reaction < 1 || reaction > 6) return null
+  const actorAccountIds = Array.isArray(value.actorAccountIds)
+    ? [...new Set(value.actorAccountIds.filter(id =>
+      typeof id === 'string' && CANONICAL_UUID.test(id)))].sort()
+    : []
+  return actorAccountIds.length ? { reaction, actorAccountIds } : null
+}
+
+function sanitizeV2ReactionCommand(value) {
+  const reaction = Number(value?.reaction)
+  if (!value || typeof value !== 'object'
+      || !CANONICAL_UUID.test(String(value.conversationId || ''))
+      || !CANONICAL_UUID.test(String(value.messageId || ''))
+      || !Number.isInteger(reaction) || reaction < 1 || reaction > 6
+      || typeof value.clientOperationId !== 'string'
+      || value.clientOperationId.length < 1 || value.clientOperationId.length > 128) return null
+  return {
+    conversationId: value.conversationId,
+    messageId: value.messageId,
+    reaction,
+    active: Boolean(value.active),
+    clientOperationId: value.clientOperationId,
+    deliveryState: value.deliveryState === 'failed' ? 'failed' : 'sending',
+    errorCode: typeof value.errorCode === 'string' ? value.errorCode : ''
   }
 }
 
@@ -107,6 +139,10 @@ export function sanitizeV2ConversationRecord(record) {
     accountId: String(record.accountId || ''),
     conversationId: String(record.conversationId || ''),
     messages: [...acceptedMessages, ...unresolvedMessages],
+    reactionCommands: Array.isArray(record.reactionCommands)
+      ? record.reactionCommands.map(sanitizeV2ReactionCommand).filter(Boolean)
+        .slice(-MAX_V2_PENDING_MESSAGES)
+      : [],
     cursorSequence: normalizeV2Sequence(record.cursorSequence),
     draft: typeof record.draft === 'string'
       ? record.draft.slice(0, MAX_DRAFT_LENGTH)
@@ -345,10 +381,11 @@ export class IndexedDbConversationCache {
     return sanitizeV2ConversationRecord(record)
   }
 
-  saveV2(accountId, conversationId, messages, cursorSequence) {
+  saveV2(accountId, conversationId, messages, cursorSequence, reactionCommands = []) {
     if (!accountId || !conversationId) return Promise.resolve(false)
     const record = sanitizeV2ConversationRecord({
-      accountId, conversationId, messages, cursorSequence, updatedAt: Date.now()
+      accountId, conversationId, messages, cursorSequence, reactionCommands,
+      updatedAt: Date.now()
     })
     this.writeQueue = this.writeQueue.catch(() => {}).then(async () => {
       const database = await this.openV2()

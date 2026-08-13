@@ -219,6 +219,13 @@ test('preserves exact V2 sequences without persisting secrets or media bytes', (
         targetConversationSequence: '9007199254740994',
         targetSenderAccountId: '20000000-0000-4000-8000-000000000002'
       },
+      reactions: [{
+        reaction: 2,
+        actorAccountIds: [
+          '20000000-0000-4000-8000-000000000002',
+          '20000000-0000-4000-8000-000000000002'
+        ]
+      }],
       resumeToken: 'secret',
       bytes: new Uint8Array([1])
       }
@@ -233,6 +240,10 @@ test('preserves exact V2 sequences without persisting secrets or media bytes', (
     targetConversationSequence: '9007199254740994',
     targetSenderAccountId: '20000000-0000-4000-8000-000000000002'
   })
+  assert.deepEqual(record.messages.at(-1).reactions, [{
+    reaction: 2,
+    actorAccountIds: ['20000000-0000-4000-8000-000000000002']
+  }])
   assert.equal('token' in record, false)
   assert.equal('resumeToken' in record.messages.at(-1), false)
   assert.equal('bytes' in record.messages.at(-1), false)
@@ -244,10 +255,19 @@ test('round trips V2 snapshots in an isolated exact-sequence store', async () =>
   const cache = new IndexedDbConversationCache(fakeIndexedDb())
   await cache.saveV2('account-1', 'conversation-1', [{
     id: 'message-1', sequence: '9007199254740993', content: 'hello'
-  }], '9007199254740993')
+  }], '9007199254740993', [{
+    conversationId: '50000000-0000-4000-8000-000000000001',
+    messageId: '60000000-0000-4000-8000-000000000001',
+    reaction: 1,
+    active: true,
+    clientOperationId: 'reaction-1',
+    deliveryState: 'sending',
+    errorCode: ''
+  }])
   const loaded = await cache.loadV2('account-1', 'conversation-1')
   assert.equal(loaded.cursorSequence, '9007199254740993')
   assert.equal(loaded.messages[0].sequence, '9007199254740993')
+  assert.equal(loaded.reactionCommands[0].clientOperationId, 'reaction-1')
   await cache.removeV2('account-1', 'conversation-1')
   assert.equal(await cache.loadV2('account-1', 'conversation-1'), null)
 })

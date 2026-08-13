@@ -1,4 +1,5 @@
 import type { V2WebProtocolClient, V2WebProtocolEvent } from "./webProtocolClient";
+import type { MessageReactionKind } from "./generated/messaging_pb";
 
 const SUBPROTOCOL = "chat.v2";
 const OPEN = 1;
@@ -170,6 +171,19 @@ export class V2WebSocketTransport {
   ): void {
     this.send(this.requireAuthenticated().submitReply(
       conversationId, targetMessageId, clientMessageId, text));
+  }
+
+  setMessageReaction(
+    conversationId: string,
+    messageId: string,
+    reaction: MessageReactionKind,
+    active: boolean,
+    clientOperationId: string,
+  ): string {
+    const command = this.requireAuthenticated().setMessageReaction(
+      conversationId, messageId, reaction, active, clientOperationId);
+    this.send(command.bytes);
+    return command.requestId;
   }
 
   listDevices(): string {

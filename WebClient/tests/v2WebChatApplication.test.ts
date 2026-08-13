@@ -21,6 +21,9 @@ import {
   MessageRecordSchema,
   MessageRecalledRecordSchema,
   MessagesDeletedRecordSchema,
+  MessageReactionKind,
+  MessageReactionAppliedSchema,
+  MessageReactionChangedRecordSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
 import type { V2WebProtocolEvent } from "../src/protocol/v2/webProtocolClient";
 import type {
@@ -67,6 +70,18 @@ class FakeTransport {
   ): void {
     this.calls.push(["reply", conversationId, targetMessageId, clientMessageId, text]);
   }
+  setMessageReaction(
+    conversationId: string,
+    messageId: string,
+    reaction: MessageReactionKind,
+    active: boolean,
+    clientOperationId: string,
+  ): string {
+    const requestId = `reaction-${this.calls.length}`;
+    this.calls.push(["reaction", conversationId, messageId, reaction, active,
+      clientOperationId, requestId]);
+    return requestId;
+  }
   listDevices(): string {
     const requestId = `device-list-${this.calls.length}`;
     this.calls.push(["devices", requestId]);
@@ -86,7 +101,8 @@ class FakeTransport {
 }
 
 class FakeCache {
-  readonly records = new Map<string, { messages: V2ConversationCacheMessage[]; cursorSequence: string }>();
+  readonly records = new Map<string, { messages: V2ConversationCacheMessage[]; cursorSequence: string;
+    reactionCommands?: import("../src/application/v2WebChatApplication").V2ConversationCacheReactionCommand[] }>();
   readonly saves: Array<{ accountId: string; conversationId: string; messages: V2ConversationCacheMessage[]; cursor: string }> = [];
 
   async loadV2(accountId: string, conversationId: string) {
@@ -94,9 +110,11 @@ class FakeCache {
     return value ? structuredClone(value) : null;
   }
 
-  async saveV2(accountId: string, conversationId: string, messages: V2ConversationCacheMessage[], cursor: string) {
+  async saveV2(accountId: string, conversationId: string, messages: V2ConversationCacheMessage[], cursor: string,
+    reactionCommands: import("../src/application/v2WebChatApplication").V2ConversationCacheReactionCommand[] = []) {
     this.saves.push({ accountId, conversationId, messages: structuredClone(messages), cursor });
-    this.records.set(`${accountId}:${conversationId}`, { messages: structuredClone(messages), cursorSequence: cursor });
+    this.records.set(`${accountId}:${conversationId}`, { messages: structuredClone(messages), cursorSequence: cursor,
+      reactionCommands: structuredClone(reactionCommands) });
     return true;
   }
 }
@@ -154,6 +172,7 @@ function cachedMessage(overrides: Partial<V2ConversationCacheMessage> = {}): V2C
     errorCode: "",
     availability: "available",
     reply: null,
+    reactions: [],
     ...overrides,
   };
 }
@@ -778,5 +797,89 @@ test("refuses new optimistic sends when the bounded unresolved outbox is full", 
   await application.openConversation(CONVERSATION_ID);
   assert.throws(() => application.sendText("overflow"), /pending message limit/);
   assert.equal(transport.calls.filter((call) => call[0] === "submit").length, 0);
+  application.dispose();
+});
+
+test("persists optimistic reactions and converges ACK, history, and live changes", async () => {
+  const transport = new FakeTransport();
+  const cache = new FakeCache();
+  cache.records.set(`${ACCOUNT_ID}:${CONVERSATION_ID}`, {
+    messages: [cachedMessage({ sequence: "1" })],
+    cursorSequence: "1",
+  });
+  const application = new V2WebChatApplication({
+    transport,
+    cache,
+    createClientMessageId: () => "70000000-0000-4000-8000-000000000001",
+  });
+  establish(transport);
+  directory(transport);
+  await application.openConversation(CONVERSATION_ID);
+
+  assert.equal(application.setReaction(MESSAGE_ID, MessageReactionKind.LOVE), true);
+  const optimistic = application.snapshot.messages[0]!.reactions[0]!;
+  assert.equal(optimistic.reaction, MessageReactionKind.LOVE);
+  assert.deepEqual(optimistic.actorAccountIds, [ACCOUNT_ID]);
+  assert.equal(application.snapshot.reactionCommands.length, 1);
+  assert.equal(cache.records.get(`${ACCOUNT_ID}:${CONVERSATION_ID}`)
+    ?.reactionCommands?.[0]?.clientOperationId,
+  "70000000-0000-4000-8000-000000000001");
+
+  transport.emit(correlated({
+    type: "message-reaction-applied",
+    value: create(MessageReactionAppliedSchema, {
+      conversationId: CONVERSATION_ID,
+      messageId: MESSAGE_ID,
+      reaction: MessageReactionKind.LOVE,
+      active: true,
+      actorAccountId: ACCOUNT_ID,
+      clientOperationId: "70000000-0000-4000-8000-000000000001",
+      changed: true,
+      conversationSequence: 2n,
+      occurredAtEpochMs: BigInt(NOW),
+    }),
+  }));
+  assert.equal(application.snapshot.reactionCommands.length, 0);
+  assert.equal(application.snapshot.messages[0]!.reactions[0]!.actorAccountIds.length, 1);
+
+  transport.emit(correlated({
+    type: "message-history-page",
+    value: create(MessageHistoryPageSchema, {
+      conversationId: CONVERSATION_ID,
+      entries: [create(ConversationEntryRecordSchema, {
+        conversationId: CONVERSATION_ID,
+        conversationSequence: 2n,
+        detail: { case: "reaction", value: create(MessageReactionChangedRecordSchema, {
+          conversationId: CONVERSATION_ID,
+          conversationSequence: 2n,
+          messageId: MESSAGE_ID,
+          reaction: MessageReactionKind.LOVE,
+          active: true,
+          actorAccountId: ACCOUNT_ID,
+          clientOperationId: "70000000-0000-4000-8000-000000000001",
+          occurredAtEpochMs: BigInt(NOW),
+        }) },
+      })],
+      nextSequence: 2n,
+      latestSequence: 2n,
+    }),
+  }));
+  assert.equal(application.snapshot.messages[0]!.reactions[0]!.actorAccountIds.length, 1,
+    "history replay remains idempotent");
+
+  transport.emit(correlated({
+    type: "message-reaction-changed",
+    value: create(MessageReactionChangedRecordSchema, {
+      conversationId: CONVERSATION_ID,
+      conversationSequence: 3n,
+      messageId: MESSAGE_ID,
+      reaction: MessageReactionKind.LOVE,
+      active: false,
+      actorAccountId: ACCOUNT_ID,
+      clientOperationId: "70000000-0000-4000-8000-000000000002",
+      occurredAtEpochMs: BigInt(NOW + 1),
+    }),
+  }));
+  assert.deepEqual(application.snapshot.messages[0]!.reactions, []);
   application.dispose();
 });

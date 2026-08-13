@@ -1419,8 +1419,11 @@ Progress:
     concurrent retry convergence, no-op cursor stability, and target cleanup.
   - [x] Compose authenticated gateway mutation, capability-filtered history,
     capable-only live fan-out, bounded telemetry, and opaque negative paths.
-  - [ ] Add offline-safe local projections, optimistic convergence, accessible
-    controls, and aggregate rendering to Web and Windows clients.
+  - [x] Add an offline-safe IndexedDB projection, stable optimistic operation
+    replay, ACK/history/live convergence, bounded accessible controls, and
+    aggregate rendering to the default-off Web V2 preview.
+  - [ ] Add the corresponding local projection, optimistic convergence,
+    accessible controls, and aggregate rendering to the Windows V2 preview.
 
 Candidate slices:
 

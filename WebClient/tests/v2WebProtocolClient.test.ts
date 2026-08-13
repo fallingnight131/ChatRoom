@@ -16,6 +16,7 @@ import {
 } from "../src/protocol/v2/generated/conversation_pb";
 import {
   ClientHelloSchema,
+  ClientCapability,
   ClientPlatform,
   MessageType,
   ServerHelloSchema,
@@ -27,10 +28,14 @@ import {
   MessageContentType,
   MessageHistoryPageSchema,
   MessageRecordSchema,
+  MessageReactionAppliedSchema,
+  MessageReactionChangedRecordSchema,
+  MessageReactionKind,
   MessageRecalledRecordSchema,
   ReadMessageHistorySchema,
   SubmitMessageSchema,
   SubmitReplyMessageSchema,
+  SetMessageReactionSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
 import { V2WebProtocolClient } from "../src/protocol/v2/webProtocolClient";
 import {
@@ -130,6 +135,7 @@ function negotiate(client: V2WebProtocolClient): Envelope {
   assert.equal(hello.platform, ClientPlatform.WEB);
   assert.equal(hello.appVersion, "2.0.0-test");
   assert.equal(hello.clientDeviceId, "web-test-device");
+  assert.deepEqual(hello.capabilities, [ClientCapability.MESSAGE_REACTIONS]);
   const event = client.receive(response(
     helloEnvelope,
     MessageType.SERVER_HELLO,
@@ -138,6 +144,7 @@ function negotiate(client: V2WebProtocolClient): Envelope {
       connectionId: "gateway-connection-1",
       serverTimeEpochMs: BigInt(NOW),
       maximumFrameBytes: 1024 * 1024 + 1024,
+      enabledCapabilities: [ClientCapability.MESSAGE_REACTIONS],
     })),
   ));
   assert.equal(event.type, "server-hello");
@@ -251,6 +258,56 @@ test("encodes authenticated directory, history, and idempotent text commands", (
   assert.equal(reply.targetMessageId, MESSAGE_ID);
   assert.equal(reply.contentType, MessageContentType.TEXT_UTF8);
   assert.equal(new TextDecoder().decode(reply.content), "reply V2");
+});
+
+test("encodes correlated reactions and validates capable live changes", () => {
+  const client = newClient();
+  authenticate(client);
+  const operationId = "70000000-0000-4000-8000-000000000001";
+  const command = client.setMessageReaction(
+    CONVERSATION_ID, MESSAGE_ID, MessageReactionKind.LOVE, true, operationId);
+  const request = decodeEnvelope(command.bytes);
+  assert.equal(request.messageType, MessageType.SET_MESSAGE_REACTION);
+  const payload = fromBinary(SetMessageReactionSchema, request.payload);
+  assert.equal(payload.clientOperationId, operationId);
+  assert.equal(payload.reaction, MessageReactionKind.LOVE);
+  const applied = client.receive(response(
+    request,
+    MessageType.MESSAGE_REACTION_APPLIED,
+    toBinary(MessageReactionAppliedSchema, create(MessageReactionAppliedSchema, {
+      conversationId: CONVERSATION_ID,
+      messageId: MESSAGE_ID,
+      reaction: MessageReactionKind.LOVE,
+      active: true,
+      actorAccountId: ACCOUNT_ID,
+      clientOperationId: operationId,
+      changed: true,
+      conversationSequence: 3n,
+      occurredAtEpochMs: BigInt(NOW),
+    })),
+    { sessionId: SESSION_ID },
+  ));
+  assert.equal(applied.type, "message-reaction-applied");
+
+  const live = toBinary(EnvelopeSchema, create(EnvelopeSchema, {
+    protocolVersion: 2,
+    kind: MessageKind.EVENT,
+    messageType: MessageType.MESSAGE_REACTION_CHANGED,
+    sessionId: SESSION_ID,
+    sentAtEpochMs: BigInt(NOW + 1),
+    payload: toBinary(MessageReactionChangedRecordSchema,
+      create(MessageReactionChangedRecordSchema, {
+        conversationId: CONVERSATION_ID,
+        conversationSequence: 3n,
+        messageId: MESSAGE_ID,
+        reaction: MessageReactionKind.LOVE,
+        active: true,
+        actorAccountId: ACCOUNT_ID,
+        clientOperationId: operationId,
+        occurredAtEpochMs: BigInt(NOW),
+      })),
+  }));
+  assert.equal(client.receive(live).type, "message-reaction-changed");
 });
 
 test("encodes and validates bounded device management commands", () => {
@@ -521,6 +578,7 @@ test("rejects invalid transitions, unknown requests, wrong sessions, and respons
     connectionId: "gateway-connection-1",
     serverTimeEpochMs: BigInt(NOW),
     maximumFrameBytes: 1024 * 1024 + 1024,
+    enabledCapabilities: [ClientCapability.MESSAGE_REACTIONS],
   }));
   assert.throws(
     () => client.receive(response(hello, MessageType.SERVER_HELLO, serverHello, { requestId: UNKNOWN_REQUEST_ID })),
