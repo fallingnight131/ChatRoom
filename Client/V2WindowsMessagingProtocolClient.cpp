@@ -69,8 +69,11 @@ V2WindowsMessagingProtocolClient::submitText(
     payload.set_conversation_id(conversationId);
     payload.set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
     payload.set_content(text);
+    Pending pending;
+    pending.type = PendingType::Submit; pending.conversationId = conversationId;
+    pending.clientMessageId = clientMessageId;
     return command(chat::v2::MESSAGE_TYPE_SUBMIT_MESSAGE, bytes(payload), clientMessageId,
-                   {PendingType::Submit, conversationId, clientMessageId});
+                   std::move(pending));
 }
 
 V2WindowsMessagingProtocolClient::Command
@@ -86,8 +89,11 @@ V2WindowsMessagingProtocolClient::submitReplyText(
     payload.set_target_message_id(targetMessageId);
     payload.set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
     payload.set_content(text);
+    Pending pending;
+    pending.type = PendingType::Reply; pending.conversationId = conversationId;
+    pending.clientMessageId = clientMessageId;
     return command(chat::v2::MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE, bytes(payload), clientMessageId,
-                   {PendingType::Reply, conversationId, clientMessageId});
+                   std::move(pending));
 }
 
 V2WindowsMessagingProtocolClient::Command
@@ -101,8 +107,36 @@ V2WindowsMessagingProtocolClient::readHistory(
     payload.set_conversation_id(conversationId);
     payload.set_after_sequence(afterSequence);
     payload.set_limit(limit);
+    Pending pending;
+    pending.type = PendingType::History; pending.conversationId = conversationId;
+    pending.afterSequence = afterSequence;
     return command(chat::v2::MESSAGE_TYPE_READ_MESSAGE_HISTORY, bytes(payload), {},
-                   {PendingType::History, conversationId, {}, afterSequence});
+                   std::move(pending));
+}
+
+V2WindowsMessagingProtocolClient::Command
+V2WindowsMessagingProtocolClient::setReaction(
+        const std::string &conversationId, const std::string &messageId,
+        ReactionKind reaction, bool active, const std::string &clientOperationId) {
+    const int value = static_cast<int>(reaction);
+    if (!canonicalUuid(conversationId) || !canonicalUuid(messageId)
+            || value < 1 || value > 6 || !boundedIdentifier(clientOperationId, true))
+        throw std::invalid_argument("invalid reaction command");
+    chat::v2::SetMessageReaction payload;
+    payload.set_conversation_id(conversationId);
+    payload.set_message_id(messageId);
+    payload.set_reaction(static_cast<chat::v2::MessageReactionKind>(value));
+    payload.set_active(active);
+    payload.set_client_operation_id(clientOperationId);
+    Pending pending;
+    pending.type = PendingType::Reaction;
+    pending.conversationId = conversationId;
+    pending.messageId = messageId;
+    pending.reaction = reaction;
+    pending.active = active;
+    pending.clientOperationId = clientOperationId;
+    return command(chat::v2::MESSAGE_TYPE_SET_MESSAGE_REACTION, bytes(payload), {},
+                   std::move(pending));
 }
 
 V2WindowsMessagingProtocolClient::Command
@@ -173,6 +207,23 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         return result;
     };
 
+    auto decodeReaction = [&](const chat::v2::MessageReactionChangedRecord &reaction) {
+        if (!canonicalUuid(reaction.conversation_id())
+                || !canonicalUuid(reaction.message_id())
+                || !canonicalUuid(reaction.actor_account_id())
+                || !boundedIdentifier(reaction.client_operation_id(), true)
+                || reaction.conversation_sequence() == 0
+                || reaction.conversation_sequence() > maximumSignedSequence
+                || reaction.occurred_at_epoch_ms() <= 0
+                || reaction.reaction() < chat::v2::MESSAGE_REACTION_KIND_LIKE
+                || reaction.reaction() > chat::v2::MESSAGE_REACTION_KIND_ANGRY)
+            throw std::runtime_error("invalid reaction change");
+        return ReactionChange{reaction.conversation_id(), reaction.conversation_sequence(),
+            reaction.message_id(), static_cast<ReactionKind>(reaction.reaction()),
+            reaction.active(), reaction.actor_account_id(), reaction.client_operation_id(),
+            reaction.occurred_at_epoch_ms()};
+    };
+
     if (envelope.kind() == chat::v2::MESSAGE_KIND_EVENT
             && envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_PUBLISHED) {
         if (!envelope.request_id().empty() || !envelope.client_message_id().empty())
@@ -184,6 +235,19 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         result.messageId = message.messageId;
         result.conversationSequence = message.conversationSequence;
         result.messages.push_back(std::move(message));
+        return result;
+    }
+    if (envelope.kind() == chat::v2::MESSAGE_KIND_EVENT
+            && envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_REACTION_CHANGED) {
+        if (!envelope.request_id().empty() || !envelope.client_message_id().empty())
+            throw std::runtime_error("reaction event must not claim request correlation");
+        Event result;
+        result.type = EventType::ReactionChanged;
+        result.reactionChange = decodeReaction(
+            parse<chat::v2::MessageReactionChangedRecord>(envelope.payload()));
+        result.conversationId = result.reactionChange.conversationId;
+        result.messageId = result.reactionChange.messageId;
+        result.conversationSequence = result.reactionChange.conversationSequence;
         return result;
     }
 
@@ -206,6 +270,11 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         result.clientMessageId = envelope.client_message_id();
         result.conversationId = pending.conversationId;
         result.retryable = error.retryable();
+        if (pending.type == PendingType::Reaction) {
+            result.messageId = pending.messageId;
+            result.reactionChange = {pending.conversationId, 0, pending.messageId,
+                pending.reaction, pending.active, {}, pending.clientOperationId, 0};
+        }
         return result;
     }
     if ((pending.type == PendingType::Submit || pending.type == PendingType::Reply)
@@ -228,6 +297,32 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         result.conversationSequence = accepted.conversation_sequence();
         result.acceptedAtEpochMs = accepted.accepted_at_epoch_ms();
         result.duplicate = accepted.duplicate();
+        return result;
+    }
+    if (pending.type == PendingType::Reaction
+            && envelope.kind() == chat::v2::MESSAGE_KIND_RESPONSE
+            && envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_REACTION_APPLIED) {
+        const auto applied = parse<chat::v2::MessageReactionApplied>(envelope.payload());
+        if (applied.conversation_id() != pending.conversationId
+                || applied.message_id() != pending.messageId
+                || applied.client_operation_id() != pending.clientOperationId
+                || applied.reaction() != static_cast<int>(pending.reaction)
+                || applied.active() != pending.active
+                || !canonicalUuid(applied.actor_account_id())
+                || applied.occurred_at_epoch_ms() <= 0
+                || applied.conversation_sequence() > maximumSignedSequence
+                || applied.changed() != (applied.conversation_sequence() > 0))
+            throw std::runtime_error("invalid reaction application");
+        m_pending.erase(position);
+        Event result;
+        result.type = EventType::ReactionApplied;
+        result.requestId = envelope.request_id();
+        result.conversationId = applied.conversation_id();
+        result.messageId = applied.message_id();
+        result.conversationSequence = applied.conversation_sequence();
+        result.reactionChange = {applied.conversation_id(), applied.conversation_sequence(),
+            applied.message_id(), pending.reaction, applied.active(), applied.actor_account_id(),
+            applied.client_operation_id(), applied.occurred_at_epoch_ms()};
         return result;
     }
     if (pending.type == PendingType::History

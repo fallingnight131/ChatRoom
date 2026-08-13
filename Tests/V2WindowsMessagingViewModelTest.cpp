@@ -39,23 +39,51 @@ int main(int argc, char **argv) {
     failed.clientMessageId = QStringLiteral("failed-1");
     failed.state = V2LocalMessageRepository::DeliveryState::Failed;
     snapshot.messages.append(failed);
+    snapshot.messages[0].reactions.append({
+        V2LocalMessageRepository::ReactionKind::Like, {account}});
+    V2LocalMessageRepository::ReactionCommand failedReaction;
+    failedReaction.conversationId = conversation;
+    failedReaction.messageId = target.messageId;
+    failedReaction.reaction = V2LocalMessageRepository::ReactionKind::Love;
+    failedReaction.clientOperationId = QStringLiteral("reaction-failed-1");
+    failedReaction.state = V2LocalMessageRepository::DeliveryState::Failed;
+    snapshot.reactionCommands.append(failedReaction);
 
     QString stagedTarget;
     QString stagedText;
     QString retried;
+    QString reactedMessage;
+    QString retriedReaction;
     V2WindowsMessagingViewModel model(
         account, [&](const QString &) { return snapshot; },
         [&](const QString &, const QString &targetId, const QString &text,
             V2LocalMessageRepository::Message *) {
             stagedTarget = targetId; stagedText = text; return true;
         },
-        [&](const QString &, const QString &clientId) { retried = clientId; return true; });
+        [&](const QString &, const QString &clientId) { retried = clientId; return true; },
+        [&](const QString &, const QString &messageId,
+            V2LocalMessageRepository::ReactionKind) {
+            reactedMessage = messageId; return true;
+        },
+        [&](const QString &, const QString &operationId) {
+            retriedReaction = operationId; return true;
+        });
     check(model.openConversation(conversation) && model.rows().size() == 3,
           QStringLiteral("cached conversation was not projected"));
     check(model.rows().at(1).replyPreview == QStringLiteral("line one line two"),
           QStringLiteral("reply preview did not resolve current target text"));
     check(model.rows().at(2).canRetry && !model.rows().at(2).canReply,
           QStringLiteral("failed optimistic state actions are incorrect"));
+    check(model.rows().first().reactions.size() == 6
+              && model.rows().first().reactions.first().mine
+              && model.rows().first().reactions.at(1).failed,
+          QStringLiteral("reaction aggregates and failure state were not projected"));
+    check(model.setReaction(target.messageId, V2LocalMessageRepository::ReactionKind::Like)
+              && reactedMessage == target.messageId,
+          QStringLiteral("reaction action did not preserve the message identity"));
+    check(model.retryReaction(failedReaction.clientOperationId)
+              && retriedReaction == failedReaction.clientOperationId,
+          QStringLiteral("reaction retry did not preserve the operation identity"));
     check(model.chooseReply(target.messageId) && !model.replyBanner().isEmpty(),
           QStringLiteral("accepted target was not selectable"));
     check(model.sendReply(QStringLiteral("new reply"))

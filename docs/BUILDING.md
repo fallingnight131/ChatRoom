@@ -1243,10 +1243,9 @@ sequence but no copied quote body (ADR-0328). Types 106--108 reserve an
 explicit-capability message-reaction command, response, and ordered live event.
 The same reaction command golden bytes are locked in Java, TypeScript, and C++;
 policy tests cover the fixed enum, canonical identities, idempotency operation
-ID, and changed/sequence invariant. The default-off Web V2 preview now
-advertises and activates this capability; Windows still treats the generated
-types as compatibility evidence only and does not advertise it (ADR-0339). The
-gate also locks the V2
+ID, and changed/sequence invariant. The default-off Web and Windows V2 previews
+now advertise and activate the capability only with their complete local
+projection/application/UI compositions (ADR-0339). The gate also locks the V2
 conversation-directory composite cursor across all
 three generated bindings. The generation task also publishes reviewed
 TypeScript into `WebClient/src/protocol/v2/generated` and reviewed Windows C++
@@ -1269,9 +1268,9 @@ The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live
 reply projections, mutation and reaction-detail cursor advancement, defensive
-UTF-8/reply/reaction validation, and disconnect abandonment. Parsing a reaction
-history record is not local projection or UI support and does not permit the
-Windows client to advertise the capability. The canonical default-off Windows CMake
+UTF-8/reply/reaction validation, and disconnect abandonment. It now also locks
+type-106 command identity, type-107 correlation, and uncorrelated ordered
+type-108 events. The canonical default-off Windows CMake
 product now composes this boundary with the shared authenticated Qt WSS,
 account-isolated SQLite, a strict conversation directory, and Widgets surface;
 the codec test alone remains protocol-boundary evidence (ADR-0331/ADR-0334–0338).
@@ -1288,14 +1287,16 @@ while administratively deleted targets are evicted. Existing reply rows retain
 only their reference identity and can render the target as unavailable. Its
 separate reaction projection and operation outbox verify account isolation,
 persist-before-send optimistic state, restart recovery, explicit failed state,
-idempotent acknowledgement, history convergence, and cursor monotonicity. This
-storage-only slice does not yet permit the Windows handshake to advertise the
-reaction capability.
+idempotent acknowledgement, history convergence, and cursor monotonicity. The
+completed application/UI slice is the gate that now permits the Windows
+handshake to advertise the reaction capability.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable
 deferral, permanent failure plus explicit retry, ACK reconciliation, and
-cursor-based atomic history merge. Higher product tests cover Qt WSS routing,
+cursor-based atomic history merge. Reaction coverage additionally proves exact
+operation replay, no-op ACK convergence, permanent failure plus explicit retry,
+and ordered history/live repair. Higher product tests cover Qt WSS routing,
 directory selection, and Widgets composition (ADR-0333–0338).
 `V2WindowsMessagingViewModelTest` verifies the presentation boundary independently
 through qmake and CMake: cached-first projection, newline-safe quote previews,
@@ -1304,8 +1305,10 @@ and explicit recalled/unavailable target labels. The ViewModel has no socket or
 SQL queries; the Windows product now composes it behind the runtime boundary.
 `V2WindowsMessagingPanelTest` runs the reusable Widgets panel with the Qt
 offscreen platform. It checks accessible names, keyboard-native reply/cancel/send
-controls, composer enablement and focus flow, while the ViewModel tests retain
-the recalled/unavailable rendering semantics. The canonical Windows CMake
+controls, composer enablement and focus flow. Six checkable reaction controls
+expose aggregate counts, caller state, pending disablement, accessible names,
+and explicit retry while the ViewModel retains no SQL or socket access. The
+canonical Windows CMake
 product compiles it behind the default-off V2 gate; the qmake rollback remains
 V1-only. `V2WindowsConversationDialogTest` verifies accessible directory and
 paging controls, user-facing unread rows, hidden authorized identity selection,

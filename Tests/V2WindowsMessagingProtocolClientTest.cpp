@@ -61,7 +61,8 @@ int main() {
     const std::string targetId = "50000000-0000-4000-8000-000000000001";
     const std::string replyId = "50000000-0000-4000-8000-000000000002";
     std::vector<std::string> ids{
-        "request-5", "request-4", "request-3", "request-2", "request-1"};
+        "request-7", "request-6", "request-5", "request-4", "request-3",
+        "request-2", "request-1"};
     V2WindowsMessagingProtocolClient client(
         [&] { auto value = ids.back(); ids.pop_back(); return value; }, [] { return 700; });
 
@@ -166,6 +167,45 @@ int main() {
     check(live.type == V2WindowsMessagingProtocolClient::EventType::Published
               && live.messages.size() == 1 && live.messages.front().hasReply,
           "uncorrelated live publication must preserve reply identity");
+
+    const auto reactionCommand = client.setReaction(conversationId, replyId,
+        V2WindowsMessagingProtocolClient::ReactionKind::Love, true, "reaction-operation-1");
+    chat::v2::Envelope reactionEnvelope;
+    chat::v2::SetMessageReaction reactionPayload;
+    check(reactionEnvelope.ParseFromString(reactionCommand.bytes)
+              && reactionEnvelope.message_type() == chat::v2::MESSAGE_TYPE_SET_MESSAGE_REACTION
+              && reactionEnvelope.client_message_id().empty()
+              && reactionPayload.ParseFromString(reactionEnvelope.payload())
+              && reactionPayload.client_operation_id() == "reaction-operation-1",
+          "reaction command must preserve the dedicated idempotency identity");
+    chat::v2::MessageReactionApplied reactionApplied;
+    reactionApplied.set_conversation_id(conversationId);
+    reactionApplied.set_message_id(replyId);
+    reactionApplied.set_reaction(chat::v2::MESSAGE_REACTION_KIND_LOVE);
+    reactionApplied.set_active(true);
+    reactionApplied.set_actor_account_id("30000000-0000-4000-8000-000000000001");
+    reactionApplied.set_client_operation_id("reaction-operation-1");
+    reactionApplied.set_changed(true);
+    reactionApplied.set_conversation_sequence(11);
+    reactionApplied.set_occurred_at_epoch_ms(880);
+    const auto reactionAck = client.receive(envelope(
+        chat::v2::MESSAGE_TYPE_MESSAGE_REACTION_APPLIED, chat::v2::MESSAGE_KIND_RESPONSE,
+        reactionCommand.requestId, sessionId, {}, reactionApplied));
+    check(reactionAck.type == V2WindowsMessagingProtocolClient::EventType::ReactionApplied
+              && reactionAck.reactionChange.clientOperationId == "reaction-operation-1",
+          "reaction response must correlate the exact operation");
+    chat::v2::MessageReactionChangedRecord changed;
+    changed.set_conversation_id(conversationId); changed.set_message_id(replyId);
+    changed.set_conversation_sequence(11);
+    changed.set_reaction(chat::v2::MESSAGE_REACTION_KIND_LOVE); changed.set_active(true);
+    changed.set_actor_account_id("30000000-0000-4000-8000-000000000001");
+    changed.set_client_operation_id("reaction-operation-1"); changed.set_occurred_at_epoch_ms(880);
+    const auto reactionLive = client.receive(envelope(
+        chat::v2::MESSAGE_TYPE_MESSAGE_REACTION_CHANGED, chat::v2::MESSAGE_KIND_EVENT,
+        {}, sessionId, {}, changed));
+    check(reactionLive.type == V2WindowsMessagingProtocolClient::EventType::ReactionChanged
+              && reactionLive.conversationSequence == 11,
+          "capable live reaction must remain uncorrelated and ordered");
 
     const auto invalidHistory = client.readHistory(conversationId, 8, 10);
     auto invalidPage = page;

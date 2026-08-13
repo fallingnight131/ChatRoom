@@ -6,10 +6,12 @@
 
 V2WindowsMessagingViewModel::V2WindowsMessagingViewModel(
         QString accountId, SnapshotLoader loader, StageReply stageReply,
-        Retry retry, QObject *parent)
+        Retry retry, SetReaction setReaction, RetryReaction retryReaction, QObject *parent)
     : QObject(parent), m_accountId(std::move(accountId)), m_loader(std::move(loader)),
-      m_stageReply(std::move(stageReply)), m_retry(std::move(retry)) {
-    if (m_accountId.isEmpty() || !m_loader || !m_stageReply || !m_retry)
+      m_stageReply(std::move(stageReply)), m_retry(std::move(retry)),
+      m_setReaction(std::move(setReaction)), m_retryReaction(std::move(retryReaction)) {
+    if (m_accountId.isEmpty() || !m_loader || !m_stageReply || !m_retry
+            || !m_setReaction || !m_retryReaction)
         throw std::invalid_argument("invalid Windows V2 messaging view model");
 }
 
@@ -80,6 +82,23 @@ bool V2WindowsMessagingViewModel::retry(const QString &clientMessageId) {
     return refresh();
 }
 
+bool V2WindowsMessagingViewModel::setReaction(
+        const QString &messageId, V2LocalMessageRepository::ReactionKind reaction) {
+    const auto position = std::find_if(m_rows.cbegin(), m_rows.cend(),
+        [&](const Row &row) { return row.messageId == messageId && row.canReply; });
+    if (position == m_rows.cend() || !m_setReaction(m_conversationId, messageId, reaction)) {
+        m_failure = QStringLiteral("无法更新消息反应"); emit changed(); return false;
+    }
+    return refresh();
+}
+
+bool V2WindowsMessagingViewModel::retryReaction(const QString &clientOperationId) {
+    if (!m_retryReaction(m_conversationId, clientOperationId)) {
+        m_failure = QStringLiteral("无法重试消息反应"); emit changed(); return false;
+    }
+    return refresh();
+}
+
 void V2WindowsMessagingViewModel::project(
         const V2LocalMessageRepository::Snapshot &snapshot) {
     m_rows.clear();
@@ -101,6 +120,27 @@ void V2WindowsMessagingViewModel::project(
         else if (message.state == V2LocalMessageRepository::DeliveryState::Failed)
             row.deliveryLabel = QStringLiteral("发送失败");
         row.replyPreview = previewFor(message, snapshot);
+        for (int value = static_cast<int>(V2LocalMessageRepository::ReactionKind::Like);
+             value <= static_cast<int>(V2LocalMessageRepository::ReactionKind::Angry); ++value) {
+            Row::Reaction projected;
+            projected.kind = static_cast<V2LocalMessageRepository::ReactionKind>(value);
+            const auto aggregate = std::find_if(message.reactions.cbegin(), message.reactions.cend(),
+                [&](const auto &item) { return item.reaction == projected.kind; });
+            if (aggregate != message.reactions.cend()) {
+                projected.count = aggregate->actorAccountIds.size();
+                projected.mine = aggregate->actorAccountIds.contains(m_accountId);
+            }
+            const auto command = std::find_if(snapshot.reactionCommands.cbegin(),
+                snapshot.reactionCommands.cend(), [&](const auto &item) {
+                    return item.messageId == message.messageId && item.reaction == projected.kind;
+                });
+            if (command != snapshot.reactionCommands.cend()) {
+                projected.pending = command->state == V2LocalMessageRepository::DeliveryState::Pending;
+                projected.failed = command->state == V2LocalMessageRepository::DeliveryState::Failed;
+                projected.clientOperationId = command->clientOperationId;
+            }
+            row.reactions.append(projected);
+        }
         m_rows.append(std::move(row));
     }
     if (!m_replyTargetMessageId.isEmpty()) {

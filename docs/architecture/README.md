@@ -650,9 +650,11 @@ gateway now requires explicit capability negotiation for mutation/history/live
 details and publishes fixed-cardinality outcomes. The default-off Web V2
 preview now advertises the capability and adds an account-scoped IndexedDB
 projection, restart-safe operation replay, optimistic convergence, fixed
-reaction aggregates, and keyboard-native accessible controls. Windows still
-does not advertise the capability until its local projection and interaction
-slice is complete (ADR-0339).
+reaction aggregates, and keyboard-native accessible controls. The default-off
+Windows V2 preview now also negotiates the capability and composes its isolated
+SQLite projection/outbox, exact reconnect replay, correlated ACK and ordered
+history/live convergence with six checkable, accessible Widgets controls
+(ADR-0339).
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
 single-gateway router now establishes one active subscription only through the

@@ -87,6 +87,7 @@ int main(int argc, char **argv) {
     hello.set_connection_id("connection-1");
     hello.set_server_time_epoch_ms(900);
     hello.set_maximum_frame_bytes(1024 * 1024 + 1024);
+    hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_REACTIONS);
     socket.binaryMessageReceived(response(
         chat::v2::MESSAGE_TYPE_SERVER_HELLO, clientHello.request_id(), "", hello));
     if (!check(sent.size() == 1,

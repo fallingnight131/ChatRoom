@@ -74,7 +74,8 @@ int main(int argc, char *argv[]) {
     check(repository.mergeServerMessage(account, target, 7), repository.lastError().toStdString());
 
     QVector<QByteArray> sent;
-    QList<QString> clientIds{
+    QList<QString> clientIds{QStringLiteral("reaction-operation-spoof"),
+        QStringLiteral("reaction-operation-1"),
         QStringLiteral("client-reply-2"), QStringLiteral("client-reply-1")};
     V2WindowsMessagingApplicationService service(
         &repository, account, device,
@@ -221,10 +222,55 @@ int main(int argc, char *argv[]) {
               && recalledTarget != snapshot.messages.cend() && recalledTarget->recalled
               && recalledTarget->text.isEmpty(),
           "ordered recall must erase cached target content and make it unavailable");
+    check(service.setReaction(conversation,
+              QStringLiteral("60000000-0000-4000-8000-000000000002"),
+              V2LocalMessageRepository::ReactionKind::Love),
+          service.lastError().toStdString());
+    const auto reactionRequest = decode(sent.last());
+    chat::v2::MessageReactionApplied appliedReaction;
+    appliedReaction.set_conversation_id(conversation.toStdString());
+    appliedReaction.set_message_id("60000000-0000-4000-8000-000000000002");
+    appliedReaction.set_reaction(chat::v2::MESSAGE_REACTION_KIND_LOVE);
+    appliedReaction.set_active(true); appliedReaction.set_actor_account_id(account.toStdString());
+    appliedReaction.set_client_operation_id("reaction-operation-1");
+    appliedReaction.set_changed(false); appliedReaction.set_conversation_sequence(0);
+    appliedReaction.set_occurred_at_epoch_ms(1950);
+    const auto reactionOutcome = service.receiveFrame(response(reactionRequest,
+        chat::v2::MESSAGE_TYPE_MESSAGE_REACTION_APPLIED,
+        chat::v2::MESSAGE_KIND_RESPONSE, appliedReaction));
+    const auto reactionSnapshot = service.hydrate(conversation);
+    const auto reactedMessage = std::find_if(reactionSnapshot.messages.cbegin(),
+        reactionSnapshot.messages.cend(), [](const auto &message) {
+            return message.messageId
+                == QStringLiteral("60000000-0000-4000-8000-000000000002");
+        });
+    check(reactionOutcome.type
+              == V2WindowsMessagingApplicationService::OutcomeType::ReactionApplied
+              && reactionSnapshot.reactionCommands.isEmpty()
+              && reactedMessage != reactionSnapshot.messages.cend()
+              && reactedMessage->reactions.first().actorAccountIds.contains(account),
+          "reaction ACK must converge the durable optimistic operation");
     V2LocalMessageRepository::Message rejectedReply;
     check(!service.stageReply(conversation, target.messageId, QStringLiteral("too late"),
                               &rejectedReply),
           "recalled target must not remain replyable");
+
+    check(service.setReaction(conversation,
+              QStringLiteral("60000000-0000-4000-8000-000000000002"),
+              V2LocalMessageRepository::ReactionKind::Love),
+          service.lastError().toStdString());
+    const auto spoofRequest = decode(sent.last());
+    auto spoofedReaction = appliedReaction;
+    spoofedReaction.set_active(false);
+    spoofedReaction.set_actor_account_id(remote.toStdString());
+    spoofedReaction.set_client_operation_id("reaction-operation-spoof");
+    const auto spoofOutcome = service.receiveFrame(response(spoofRequest,
+        chat::v2::MESSAGE_TYPE_MESSAGE_REACTION_APPLIED,
+        chat::v2::MESSAGE_KIND_RESPONSE, spoofedReaction));
+    check(spoofOutcome.type
+              == V2WindowsMessagingApplicationService::OutcomeType::ProtocolFailure
+              && !service.connected(),
+          "reaction ACK for a different actor must fail closed");
 
     if (failures) return 1;
     std::cout << "[V2WindowsMessagingApplicationServiceTest] PASS\n";

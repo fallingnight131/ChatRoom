@@ -478,8 +478,7 @@ bool V2LocalMessageRepository::applyReaction(
     command.prepare(QStringLiteral(
         "DELETE FROM v2_reaction_commands WHERE account_id = ? AND client_operation_id = ?"));
     command.addBindValue(accountId); command.addBindValue(change.clientOperationId);
-    if (!command.exec() || !ensureConversation(accountId, change.conversationId,
-            change.conversationSequence)) {
+    if (!command.exec()) {
         m_database.rollback(); return fail(QStringLiteral("applyReaction"), command.lastError().text());
     }
     if (!m_database.commit()) return fail(QStringLiteral("applyReaction"), m_database.lastError().text());

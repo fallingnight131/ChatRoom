@@ -103,6 +103,13 @@ void WindowsV2MessagingController::bindAuthenticatedSession(
                 },
                 [this](const QString &conversationId, const QString &clientMessageId) {
                     return m_service->retry(conversationId, clientMessageId);
+                },
+                [this](const QString &conversationId, const QString &messageId,
+                       V2LocalMessageRepository::ReactionKind reaction) {
+                    return m_service->setReaction(conversationId, messageId, reaction);
+                },
+                [this](const QString &conversationId, const QString &clientOperationId) {
+                    return m_service->retryReaction(conversationId, clientOperationId);
                 });
         } catch (const std::exception &exception) {
             m_viewModel.reset();

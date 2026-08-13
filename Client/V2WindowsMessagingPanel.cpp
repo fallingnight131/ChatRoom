@@ -95,6 +95,37 @@ void V2WindowsMessagingPanel::render() {
             actions->addWidget(reply);
         }
         layout->addLayout(actions);
+        if (message.canReply) {
+            auto *reactions = new QHBoxLayout;
+            static const QStringList labels{
+                QStringLiteral("👍"), QStringLiteral("❤"), QStringLiteral("😂"),
+                QStringLiteral("😮"), QStringLiteral("😢"), QStringLiteral("😠")};
+            for (const auto &reaction : message.reactions) {
+                const int index = static_cast<int>(reaction.kind) - 1;
+                auto *button = new QPushButton(
+                    QStringLiteral("%1 %2").arg(labels.value(index)).arg(reaction.count), row);
+                button->setCheckable(true);
+                button->setChecked(reaction.mine);
+                button->setEnabled(!reaction.pending);
+                button->setAccessibleName(QStringLiteral("消息反应 %1，%2 人")
+                    .arg(labels.value(index)).arg(reaction.count));
+                if (reaction.failed) {
+                    button->setText(QStringLiteral("%1 重试").arg(labels.value(index)));
+                    connect(button, &QPushButton::clicked, m_viewModel,
+                        [model = m_viewModel, id = reaction.clientOperationId] {
+                            model->retryReaction(id);
+                        });
+                } else {
+                    connect(button, &QPushButton::clicked, m_viewModel,
+                        [model = m_viewModel, id = message.messageId, kind = reaction.kind] {
+                            model->setReaction(id, kind);
+                        });
+                }
+                reactions->addWidget(button);
+            }
+            reactions->addStretch();
+            layout->addLayout(reactions);
+        }
         item->setSizeHint(row->sizeHint());
         m_messages->setItemWidget(item, row);
     }

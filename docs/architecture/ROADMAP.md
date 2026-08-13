@@ -1410,7 +1410,7 @@ Progress:
     authentication, select server-authorized hidden identities, render cached
     history and unread state, and retain offline access across disconnect
     (ADR-0338).
-- [ ] Deliver ordered, idempotent message reactions on V2 Web and Windows.
+- [x] Deliver ordered, idempotent message reactions on V2 Web and Windows.
   - [x] Allocate permanent type-106--108 command/response/event payloads, six
     bounded reaction identities, changed-only sequence semantics, and reaction
     details in the mixed conversation history contract (ADR-0339).
@@ -1422,7 +1422,7 @@ Progress:
   - [x] Add an offline-safe IndexedDB projection, stable optimistic operation
     replay, ACK/history/live convergence, bounded accessible controls, and
     aggregate rendering to the default-off Web V2 preview.
-  - [ ] Add the corresponding local projection, optimistic convergence,
+  - [x] Add the corresponding local projection, optimistic convergence,
     accessible controls, and aggregate rendering to the Windows V2 preview.
 
 Candidate slices:

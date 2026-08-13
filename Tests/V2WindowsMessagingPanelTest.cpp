@@ -26,6 +26,10 @@ int main(int argc, char **argv) {
         account, [&](const QString &) { return snapshot; },
         [&](const QString &, const QString &, const QString &,
             V2LocalMessageRepository::Message *) { return true; },
+        [](const QString &, const QString &) { return true; },
+        [](const QString &, const QString &, V2LocalMessageRepository::ReactionKind) {
+            return true;
+        },
         [](const QString &, const QString &) { return true; });
     model.openConversation(conversation);
     V2WindowsMessagingPanel panel(&model);
@@ -39,6 +43,12 @@ int main(int argc, char **argv) {
         return button->text() == QStringLiteral("回复");
     });
     if (reply == replies.cend()) return 1;
+    const auto reactionButtons = std::count_if(replies.cbegin(), replies.cend(),
+        [](QPushButton *button) {
+            return button->isCheckable()
+                && button->accessibleName().startsWith(QStringLiteral("消息反应"));
+        });
+    if (reactionButtons != 6) return 1;
     (*reply)->click();
     app.processEvents();
     if (!panel.cancelReplyForTest()->isVisible()

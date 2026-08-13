@@ -137,9 +137,9 @@ filters history details for legacy V2 sessions while preserving their
 authoritative cursor, and publishes live changes only to capable subscribers.
 The default-off Web V2 preview advertises the capability and converges its
 offline-safe optimistic projection through correlated responses, mixed history,
-and capable live events. Windows still parses compatible history at the
-protocol boundary but does not advertise the capability until its local
-projection and UI are complete (ADR-0339).
+and capable live events. The default-off Windows V2 preview also advertises the
+capability and converges its isolated SQLite operation outbox through the same
+three authoritative paths (ADR-0339).
 
 `ListConversations` uses a limit of 1..100 and either no cursor or the complete
 pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are

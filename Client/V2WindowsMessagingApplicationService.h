@@ -12,12 +12,13 @@ class V2WindowsMessagingApplicationService final {
 public:
     enum class OutcomeType {
         None, Accepted, HistoryApplied, Published, SendFailed,
-        Deferred, ProtocolFailure
+        ReactionApplied, ReactionChanged, ReactionFailed, Deferred, ProtocolFailure
     };
     struct Outcome {
         OutcomeType type = OutcomeType::None;
         QString conversationId;
         QString clientMessageId;
+        QString clientOperationId;
     };
     using SendFrame = std::function<bool(const QByteArray &)>;
     using Clock = std::function<qint64()>;
@@ -39,6 +40,9 @@ public:
                     const QString &text,
                     V2LocalMessageRepository::Message *optimistic);
     bool retry(const QString &conversationId, const QString &clientMessageId);
+    bool setReaction(const QString &conversationId, const QString &messageId,
+                     V2LocalMessageRepository::ReactionKind reaction);
+    bool retryReaction(const QString &conversationId, const QString &clientOperationId);
     bool requestHistory(const QString &conversationId);
     Outcome receiveFrame(const QByteArray &bytes);
     QString lastError() const { return m_lastError; }
@@ -46,10 +50,13 @@ public:
 private:
     static QString randomUuid();
     bool dispatch(const V2LocalMessageRepository::Message &message);
+    bool dispatchReaction(const V2LocalMessageRepository::ReactionCommand &command);
     bool sendCommand(const V2WindowsMessagingProtocolClient::Command &command);
     void pumpPending();
     static V2LocalMessageRepository::Message localMessage(
         const V2WindowsMessagingProtocolClient::Message &message);
+    static V2LocalMessageRepository::ReactionChange localReaction(
+        const V2WindowsMessagingProtocolClient::ReactionChange &change);
 
     V2LocalMessageRepository *m_repository;
     QString m_accountId;
@@ -60,6 +67,8 @@ private:
     V2WindowsMessagingProtocolClient m_protocol;
     QSet<QString> m_inFlightClientIds;
     QSet<QString> m_deferredClientIds;
+    QSet<QString> m_inFlightReactionIds;
+    QSet<QString> m_deferredReactionIds;
     bool m_connected = false;
     QString m_lastError;
 };

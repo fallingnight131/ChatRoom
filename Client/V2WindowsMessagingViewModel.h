@@ -10,6 +10,14 @@ class V2WindowsMessagingViewModel final : public QObject {
     Q_OBJECT
 public:
     struct Row {
+        struct Reaction {
+            V2LocalMessageRepository::ReactionKind kind = V2LocalMessageRepository::ReactionKind::Like;
+            int count = 0;
+            bool mine = false;
+            bool pending = false;
+            bool failed = false;
+            QString clientOperationId;
+        };
         QString messageId;
         QString clientMessageId;
         QString text;
@@ -20,16 +28,21 @@ public:
         bool recalled = false;
         bool canReply = false;
         bool canRetry = false;
+        QVector<Reaction> reactions;
     };
     using SnapshotLoader = std::function<V2LocalMessageRepository::Snapshot(const QString &)>;
     using StageReply = std::function<bool(
         const QString &, const QString &, const QString &,
         V2LocalMessageRepository::Message *)>;
     using Retry = std::function<bool(const QString &, const QString &)>;
+    using SetReaction = std::function<bool(const QString &, const QString &,
+        V2LocalMessageRepository::ReactionKind)>;
+    using RetryReaction = std::function<bool(const QString &, const QString &)>;
 
     V2WindowsMessagingViewModel(
         QString accountId, SnapshotLoader loader, StageReply stageReply,
-        Retry retry, QObject *parent = nullptr);
+        Retry retry, SetReaction setReaction, RetryReaction retryReaction,
+        QObject *parent = nullptr);
     bool openConversation(const QString &conversationId);
     bool refresh();
     QVector<Row> rows() const { return m_rows; }
@@ -41,6 +54,8 @@ public:
     void cancelReply();
     bool sendReply(const QString &text);
     bool retry(const QString &clientMessageId);
+    bool setReaction(const QString &messageId, V2LocalMessageRepository::ReactionKind reaction);
+    bool retryReaction(const QString &clientOperationId);
 
 signals:
     void changed();
@@ -55,6 +70,8 @@ private:
     SnapshotLoader m_loader;
     StageReply m_stageReply;
     Retry m_retry;
+    SetReaction m_setReaction;
+    RetryReaction m_retryReaction;
     QString m_conversationId;
     QString m_draft;
     QString m_replyTargetMessageId;
