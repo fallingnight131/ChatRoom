@@ -16,6 +16,10 @@ class MessagingProtocolTest {
             "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
                     + "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
                     + "180122026869";
+    private static final String SET_REACTION_GOLDEN =
+            "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+                    + "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
+                    + "180120012a0a7265616374696f6e2d31";
 
     @Test
     void submitMessageHasStableWireBytesAndPermanentRegistryKinds() throws Exception {
@@ -53,6 +57,51 @@ class MessagingProtocolTest {
                 SubmitReplyMessage.parseFrom(HexFormat.of().parseHex(SUBMIT_REPLY_GOLDEN)));
         assertEquals(MessageKind.MESSAGE_KIND_COMMAND,
                 MessageTypeRegistry.requiredKind(MessageType.MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE));
+    }
+
+    @Test
+    void reactionMutationHasStableWireBytesKindsAndChangedOnlySequence() throws Exception {
+        SetMessageReaction command = SetMessageReaction.newBuilder()
+                .setConversationId(CONVERSATION_ID)
+                .setMessageId("00000000-0000-0000-0000-000000000002")
+                .setReaction(MessageReactionKind.MESSAGE_REACTION_KIND_LIKE)
+                .setActive(true)
+                .setClientOperationId("reaction-1")
+                .build();
+        MessagingPayloadPolicy.requireValid(command);
+        assertEquals(SET_REACTION_GOLDEN, HexFormat.of().formatHex(command.toByteArray()));
+        assertEquals(command,
+                SetMessageReaction.parseFrom(HexFormat.of().parseHex(SET_REACTION_GOLDEN)));
+        assertEquals(MessageKind.MESSAGE_KIND_COMMAND,
+                MessageTypeRegistry.requiredKind(MessageType.MESSAGE_TYPE_SET_MESSAGE_REACTION));
+        assertEquals(MessageKind.MESSAGE_KIND_RESPONSE,
+                MessageTypeRegistry.requiredKind(
+                        MessageType.MESSAGE_TYPE_MESSAGE_REACTION_APPLIED));
+        assertEquals(MessageKind.MESSAGE_KIND_EVENT,
+                MessageTypeRegistry.requiredKind(
+                        MessageType.MESSAGE_TYPE_MESSAGE_REACTION_CHANGED));
+
+        MessageReactionApplied changed = MessageReactionApplied.newBuilder()
+                .setConversationId(CONVERSATION_ID)
+                .setMessageId("00000000-0000-0000-0000-000000000002")
+                .setReaction(MessageReactionKind.MESSAGE_REACTION_KIND_LIKE)
+                .setActive(true)
+                .setActorAccountId("00000000-0000-0000-0000-000000000003")
+                .setClientOperationId("reaction-1")
+                .setChanged(true)
+                .setConversationSequence(3)
+                .setOccurredAtEpochMs(1)
+                .build();
+        MessagingPayloadPolicy.requireValid(changed);
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(changed.toBuilder()
+                        .setChanged(false).build()));
+        MessagingPayloadPolicy.requireValid(changed.toBuilder()
+                .setChanged(false).setConversationSequence(0).build());
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(command.toBuilder()
+                        .setReaction(MessageReactionKind.MESSAGE_REACTION_KIND_UNSPECIFIED)
+                        .build()));
     }
 
     @Test
@@ -121,11 +170,32 @@ class MessagingProtocolTest {
                                 .setMessageId("00000000-0000-0000-0000-000000000002")
                                 .setActorAccountId("00000000-0000-0000-0000-000000000004")
                                 .setSource("V1_IMPORT")))
-                .setNextSequence(2)
-                .setLatestSequence(2)
+                .addEntries(ConversationEntryRecord.newBuilder()
+                        .setConversationId(CONVERSATION_ID)
+                        .setConversationSequence(3)
+                        .setReaction(MessageReactionChangedRecord.newBuilder()
+                                .setConversationId(CONVERSATION_ID)
+                                .setConversationSequence(3)
+                                .setMessageId("00000000-0000-0000-0000-000000000002")
+                                .setReaction(MessageReactionKind.MESSAGE_REACTION_KIND_LOVE)
+                                .setActive(true)
+                                .setActorAccountId(
+                                        "00000000-0000-0000-0000-000000000004")
+                                .setClientOperationId("reaction-history-1")
+                                .setOccurredAtEpochMs(1_700_000_000_003L)))
+                .setNextSequence(3)
+                .setLatestSequence(3)
                 .build();
         MessagingPayloadPolicy.requireValid(page);
         MessagingPayloadPolicy.requireValid(page.getMessages(0));
+        MessagingPayloadPolicy.requireValid(page.getEntries(2).getReaction());
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(page.toBuilder()
+                        .setEntries(2, page.getEntries(2).toBuilder()
+                                .setReaction(page.getEntries(2).getReaction().toBuilder()
+                                        .setReaction(MessageReactionKind
+                                                .MESSAGE_REACTION_KIND_UNSPECIFIED)))
+                        .build()));
 
         MessageRecord reply = record(2, "00000000-0000-0000-0000-000000000006")
                 .toBuilder()

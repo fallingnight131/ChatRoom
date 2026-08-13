@@ -58,6 +58,8 @@ namespace chat {
 namespace v2 {
 enum MessageContentType : int;
 extern const uint32_t MessageContentType_internal_data_[];
+enum MessageReactionKind : int;
+extern const uint32_t MessageReactionKind_internal_data_[];
 class ConversationEntryRecord;
 struct ConversationEntryRecordGlobalsTypeInternal;
 #ifndef PROTOBUF_MESSAGE_GLOBALS
@@ -81,6 +83,22 @@ extern MessageHistoryPageGlobalsTypeInternal MessageHistoryPage_globals_;
 extern const ::google::protobuf::internal::ClassDataFull MessageHistoryPage_class_data_;
 #else
 extern const MessageHistoryPageGlobalsTypeInternal MessageHistoryPage_globals_;
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+class MessageReactionApplied;
+struct MessageReactionAppliedGlobalsTypeInternal;
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+extern MessageReactionAppliedGlobalsTypeInternal MessageReactionApplied_globals_;
+extern const ::google::protobuf::internal::ClassDataFull MessageReactionApplied_class_data_;
+#else
+extern const MessageReactionAppliedGlobalsTypeInternal MessageReactionApplied_globals_;
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+class MessageReactionChangedRecord;
+struct MessageReactionChangedRecordGlobalsTypeInternal;
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+extern MessageReactionChangedRecordGlobalsTypeInternal MessageReactionChangedRecord_globals_;
+extern const ::google::protobuf::internal::ClassDataFull MessageReactionChangedRecord_class_data_;
+#else
+extern const MessageReactionChangedRecordGlobalsTypeInternal MessageReactionChangedRecord_globals_;
 #endif  // PROTOBUF_MESSAGE_GLOBALS
 class MessageRecalledRecord;
 struct MessageRecalledRecordGlobalsTypeInternal;
@@ -122,6 +140,14 @@ extern const ::google::protobuf::internal::ClassDataFull ReadMessageHistory_clas
 #else
 extern const ReadMessageHistoryGlobalsTypeInternal ReadMessageHistory_globals_;
 #endif  // PROTOBUF_MESSAGE_GLOBALS
+class SetMessageReaction;
+struct SetMessageReactionGlobalsTypeInternal;
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+extern SetMessageReactionGlobalsTypeInternal SetMessageReaction_globals_;
+extern const ::google::protobuf::internal::ClassDataFull SetMessageReaction_class_data_;
+#else
+extern const SetMessageReactionGlobalsTypeInternal SetMessageReaction_globals_;
+#endif  // PROTOBUF_MESSAGE_GLOBALS
 class SubmitMessage;
 struct SubmitMessageGlobalsTypeInternal;
 #ifndef PROTOBUF_MESSAGE_GLOBALS
@@ -145,6 +171,9 @@ namespace protobuf {
 template <>
 internal::EnumTraitsT<::chat::v2::MessageContentType_internal_data_>
     internal::EnumTraitsImpl::value<::chat::v2::MessageContentType>;
+template <>
+internal::EnumTraitsT<::chat::v2::MessageReactionKind_internal_data_>
+    internal::EnumTraitsImpl::value<::chat::v2::MessageReactionKind>;
 }  // namespace protobuf
 }  // namespace google
 
@@ -188,6 +217,51 @@ template <>
 [[nodiscard]] inline bool MessageContentType_Parse(
     ::absl::string_view name, MessageContentType* PROTOBUF_NONNULL value) {
   return ::google::protobuf::internal::ParseNamedEnum<MessageContentType>(MessageContentType_descriptor(), name,
+                                           value);
+}
+enum MessageReactionKind : int {
+  MESSAGE_REACTION_KIND_UNSPECIFIED = 0,
+  MESSAGE_REACTION_KIND_LIKE = 1,
+  MESSAGE_REACTION_KIND_LOVE = 2,
+  MESSAGE_REACTION_KIND_LAUGH = 3,
+  MESSAGE_REACTION_KIND_SURPRISED = 4,
+  MESSAGE_REACTION_KIND_SAD = 5,
+  MESSAGE_REACTION_KIND_ANGRY = 6,
+  MessageReactionKind_INT_MIN_SENTINEL_DO_NOT_USE_ =
+      ::std::numeric_limits<::int32_t>::min(),
+  MessageReactionKind_INT_MAX_SENTINEL_DO_NOT_USE_ =
+      ::std::numeric_limits<::int32_t>::max(),
+};
+
+extern const uint32_t MessageReactionKind_internal_data_[];
+inline constexpr MessageReactionKind MessageReactionKind_MIN =
+    static_cast<MessageReactionKind>(0);
+inline constexpr MessageReactionKind MessageReactionKind_MAX =
+    static_cast<MessageReactionKind>(6);
+[[nodiscard]] inline bool MessageReactionKind_IsValid(int value) {
+  return 0 <= value && value <= 6;
+}
+inline constexpr int MessageReactionKind_ARRAYSIZE = 6 + 1;
+[[nodiscard]] const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL
+MessageReactionKind_descriptor();
+[[nodiscard]] inline auto ProtobufInternalGetEnumDescriptor(MessageReactionKind) {
+  return MessageReactionKind_descriptor();
+}
+template <typename T>
+[[nodiscard]] const ::std::string& MessageReactionKind_Name(T value) {
+  static_assert(::std::is_same<T, MessageReactionKind>::value ||
+                    ::std::is_integral<T>::value,
+                "Incorrect type passed to MessageReactionKind_Name().");
+  return MessageReactionKind_Name(static_cast<MessageReactionKind>(value));
+}
+template <>
+[[nodiscard]] inline const ::std::string& MessageReactionKind_Name(MessageReactionKind value) {
+  return ::google::protobuf::internal::NameOfDenseEnum<MessageReactionKind_descriptor, 0, 6>(
+      static_cast<int>(value));
+}
+[[nodiscard]] inline bool MessageReactionKind_Parse(
+    ::absl::string_view name, MessageReactionKind* PROTOBUF_NONNULL value) {
+  return ::google::protobuf::internal::ParseNamedEnum<MessageReactionKind>(MessageReactionKind_descriptor(), name,
                                            value);
 }
 using ::google::protobuf::internal::generated_enum::AbslParseFlag;
@@ -685,6 +759,270 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED SubmitMessage final : public ::goog
 };
 // -------------------------------------------------------------------
 
+class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED SetMessageReaction final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:chat.v2.SetMessageReaction) */ {
+ public:
+  inline SetMessageReaction() : SetMessageReaction(nullptr) {}
+  ~SetMessageReaction() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(SetMessageReaction* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(SetMessageReaction));
+  }
+#endif
+
+  template <typename = void>
+  explicit constexpr SetMessageReaction(::google::protobuf::internal::ConstantInitialized,
+                           const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+                               class_data);
+
+  inline SetMessageReaction(const SetMessageReaction& from) : SetMessageReaction(nullptr, from) {}
+  inline SetMessageReaction(SetMessageReaction&& from) noexcept : SetMessageReaction(nullptr, ::std::move(from)) {}
+  inline SetMessageReaction& operator=(const SetMessageReaction& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline SetMessageReaction& operator=(SetMessageReaction&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  [[nodiscard]] inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  [[nodiscard]] inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL
+  mutable_unknown_fields() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL
+  GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  [[nodiscard]] static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  [[nodiscard]] static const SetMessageReaction& default_instance() {
+    return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<SetMessageReaction>(&SetMessageReaction_globals_);
+  }
+  static constexpr int kIndexInFileMessages = 2;
+  friend void swap(SetMessageReaction& a, SetMessageReaction& b) { a.Swap(&b); }
+  inline void Swap(SetMessageReaction* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(SetMessageReaction* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  [[nodiscard]] SetMessageReaction* PROTOBUF_NONNULL
+  New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<SetMessageReaction>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const SetMessageReaction& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const SetMessageReaction& from) { SetMessageReaction::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  [[nodiscard]] bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  [[nodiscard]] static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  [[nodiscard]] static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  [[nodiscard]] ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] ::size_t ByteSizeLong() const final;
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] int GetCachedSize() const {
+    return _impl_._cached_size_.Get();
+  }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(SetMessageReaction* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "chat.v2.SetMessageReaction"; }
+
+  explicit SetMessageReaction(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  SetMessageReaction(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const SetMessageReaction& from);
+  SetMessageReaction(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, SetMessageReaction&& from) noexcept
+      : SetMessageReaction(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_(
+      const MessageLite& prototype,
+      const ::google::protobuf::internal::TcParseTableBase* PROTOBUF_NULLABLE tc_table = nullptr);
+
+  [[nodiscard]] ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kConversationIdFieldNumber = 1,
+    kMessageIdFieldNumber = 2,
+    kClientOperationIdFieldNumber = 5,
+    kReactionFieldNumber = 3,
+    kActiveFieldNumber = 4,
+  };
+  // string conversation_id = 1;
+  void clear_conversation_id() ;
+  [[nodiscard]] const ::std::string& conversation_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_conversation_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_conversation_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_conversation_id();
+  void set_allocated_conversation_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_conversation_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_conversation_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_conversation_id();
+
+  public:
+  // string message_id = 2;
+  void clear_message_id() ;
+  [[nodiscard]] const ::std::string& message_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_message_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_message_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_message_id();
+  void set_allocated_message_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_message_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_message_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_message_id();
+
+  public:
+  // string client_operation_id = 5;
+  void clear_client_operation_id() ;
+  [[nodiscard]] const ::std::string& client_operation_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_client_operation_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_client_operation_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_client_operation_id();
+  void set_allocated_client_operation_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_client_operation_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_client_operation_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_client_operation_id();
+
+  public:
+  // .chat.v2.MessageReactionKind reaction = 3;
+  void clear_reaction() ;
+  [[nodiscard]] ::chat::v2::MessageReactionKind reaction() const;
+  void set_reaction(::chat::v2::MessageReactionKind value);
+
+  private:
+  ::chat::v2::MessageReactionKind _internal_reaction() const;
+  void _internal_set_reaction(::chat::v2::MessageReactionKind value);
+
+  public:
+  // bool active = 4;
+  void clear_active() ;
+  [[nodiscard]] bool active() const;
+  void set_active(bool value);
+
+  private:
+  bool _internal_active() const;
+  void _internal_set_active(bool value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:chat.v2.SetMessageReaction)
+ private:
+  class _Internal;
+  using ParseTableT_ =
+      ::google::protobuf::internal::TcParseTable<3, 5,
+                          0, 79,
+                          2>;
+  static constexpr ParseTableT_ InternalGenerateParseTable_(
+      const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL class_data);
+  friend class ::google::protobuf::internal::TcParser;
+  #ifndef PROTOBUF_MESSAGE_GLOBALS
+  static const ParseTableT_ _table_;
+  #endif
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  friend ::google::protobuf::internal::PrivateAccess;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                                    ::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const SetMessageReaction& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::internal::ArenaStringPtr conversation_id_;
+    ::google::protobuf::internal::ArenaStringPtr message_id_;
+    ::google::protobuf::internal::ArenaStringPtr client_operation_id_;
+    int reaction_;
+    bool active_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_chat_2fv2_2fmessaging_2eproto;
+};
+// -------------------------------------------------------------------
+
 class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ReadMessageHistory final : public ::google::protobuf::Message
 /* @@protoc_insertion_point(class_definition:chat.v2.ReadMessageHistory) */ {
  public:
@@ -741,7 +1079,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ReadMessageHistory final : public :
   [[nodiscard]] static const ReadMessageHistory& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<ReadMessageHistory>(&ReadMessageHistory_globals_);
   }
-  static constexpr int kIndexInFileMessages = 3;
+  static constexpr int kIndexInFileMessages = 5;
   friend void swap(ReadMessageHistory& a, ReadMessageHistory& b) { a.Swap(&b); }
   inline void Swap(ReadMessageHistory* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -971,7 +1309,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessagesDeletedRecord final : publi
   [[nodiscard]] static const MessagesDeletedRecord& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessagesDeletedRecord>(&MessagesDeletedRecord_globals_);
   }
-  static constexpr int kIndexInFileMessages = 7;
+  static constexpr int kIndexInFileMessages = 9;
   friend void swap(MessagesDeletedRecord& a, MessagesDeletedRecord& b) { a.Swap(&b); }
   inline void Swap(MessagesDeletedRecord* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1339,7 +1677,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageReplyReference final : publi
   [[nodiscard]] static const MessageReplyReference& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessageReplyReference>(&MessageReplyReference_globals_);
   }
-  static constexpr int kIndexInFileMessages = 5;
+  static constexpr int kIndexInFileMessages = 7;
   friend void swap(MessageReplyReference& a, MessageReplyReference& b) { a.Swap(&b); }
   inline void Swap(MessageReplyReference* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1574,7 +1912,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageRecalledRecord final : publi
   [[nodiscard]] static const MessageRecalledRecord& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessageRecalledRecord>(&MessageRecalledRecord_globals_);
   }
-  static constexpr int kIndexInFileMessages = 6;
+  static constexpr int kIndexInFileMessages = 8;
   friend void swap(MessageRecalledRecord& a, MessageRecalledRecord& b) { a.Swap(&b); }
   inline void Swap(MessageRecalledRecord* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1799,6 +2137,640 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageRecalledRecord final : publi
 };
 // -------------------------------------------------------------------
 
+class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageReactionChangedRecord final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:chat.v2.MessageReactionChangedRecord) */ {
+ public:
+  inline MessageReactionChangedRecord() : MessageReactionChangedRecord(nullptr) {}
+  ~MessageReactionChangedRecord() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(MessageReactionChangedRecord* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(MessageReactionChangedRecord));
+  }
+#endif
+
+  template <typename = void>
+  explicit constexpr MessageReactionChangedRecord(::google::protobuf::internal::ConstantInitialized,
+                           const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+                               class_data);
+
+  inline MessageReactionChangedRecord(const MessageReactionChangedRecord& from) : MessageReactionChangedRecord(nullptr, from) {}
+  inline MessageReactionChangedRecord(MessageReactionChangedRecord&& from) noexcept : MessageReactionChangedRecord(nullptr, ::std::move(from)) {}
+  inline MessageReactionChangedRecord& operator=(const MessageReactionChangedRecord& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline MessageReactionChangedRecord& operator=(MessageReactionChangedRecord&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  [[nodiscard]] inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  [[nodiscard]] inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL
+  mutable_unknown_fields() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL
+  GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  [[nodiscard]] static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  [[nodiscard]] static const MessageReactionChangedRecord& default_instance() {
+    return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessageReactionChangedRecord>(&MessageReactionChangedRecord_globals_);
+  }
+  static constexpr int kIndexInFileMessages = 10;
+  friend void swap(MessageReactionChangedRecord& a, MessageReactionChangedRecord& b) { a.Swap(&b); }
+  inline void Swap(MessageReactionChangedRecord* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(MessageReactionChangedRecord* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  [[nodiscard]] MessageReactionChangedRecord* PROTOBUF_NONNULL
+  New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<MessageReactionChangedRecord>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const MessageReactionChangedRecord& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const MessageReactionChangedRecord& from) { MessageReactionChangedRecord::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  [[nodiscard]] bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  [[nodiscard]] static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  [[nodiscard]] static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  [[nodiscard]] ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] ::size_t ByteSizeLong() const final;
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] int GetCachedSize() const {
+    return _impl_._cached_size_.Get();
+  }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(MessageReactionChangedRecord* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "chat.v2.MessageReactionChangedRecord"; }
+
+  explicit MessageReactionChangedRecord(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  MessageReactionChangedRecord(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const MessageReactionChangedRecord& from);
+  MessageReactionChangedRecord(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, MessageReactionChangedRecord&& from) noexcept
+      : MessageReactionChangedRecord(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_(
+      const MessageLite& prototype,
+      const ::google::protobuf::internal::TcParseTableBase* PROTOBUF_NULLABLE tc_table = nullptr);
+
+  [[nodiscard]] ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kConversationIdFieldNumber = 1,
+    kMessageIdFieldNumber = 3,
+    kActorAccountIdFieldNumber = 6,
+    kClientOperationIdFieldNumber = 7,
+    kConversationSequenceFieldNumber = 2,
+    kReactionFieldNumber = 4,
+    kActiveFieldNumber = 5,
+    kOccurredAtEpochMsFieldNumber = 8,
+  };
+  // string conversation_id = 1;
+  void clear_conversation_id() ;
+  [[nodiscard]] const ::std::string& conversation_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_conversation_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_conversation_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_conversation_id();
+  void set_allocated_conversation_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_conversation_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_conversation_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_conversation_id();
+
+  public:
+  // string message_id = 3;
+  void clear_message_id() ;
+  [[nodiscard]] const ::std::string& message_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_message_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_message_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_message_id();
+  void set_allocated_message_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_message_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_message_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_message_id();
+
+  public:
+  // string actor_account_id = 6;
+  void clear_actor_account_id() ;
+  [[nodiscard]] const ::std::string& actor_account_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_actor_account_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_actor_account_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_actor_account_id();
+  void set_allocated_actor_account_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_actor_account_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_actor_account_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_actor_account_id();
+
+  public:
+  // string client_operation_id = 7;
+  void clear_client_operation_id() ;
+  [[nodiscard]] const ::std::string& client_operation_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_client_operation_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_client_operation_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_client_operation_id();
+  void set_allocated_client_operation_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_client_operation_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_client_operation_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_client_operation_id();
+
+  public:
+  // uint64 conversation_sequence = 2;
+  void clear_conversation_sequence() ;
+  [[nodiscard]] ::uint64_t conversation_sequence() const;
+  void set_conversation_sequence(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_conversation_sequence() const;
+  void _internal_set_conversation_sequence(::uint64_t value);
+
+  public:
+  // .chat.v2.MessageReactionKind reaction = 4;
+  void clear_reaction() ;
+  [[nodiscard]] ::chat::v2::MessageReactionKind reaction() const;
+  void set_reaction(::chat::v2::MessageReactionKind value);
+
+  private:
+  ::chat::v2::MessageReactionKind _internal_reaction() const;
+  void _internal_set_reaction(::chat::v2::MessageReactionKind value);
+
+  public:
+  // bool active = 5;
+  void clear_active() ;
+  [[nodiscard]] bool active() const;
+  void set_active(bool value);
+
+  private:
+  bool _internal_active() const;
+  void _internal_set_active(bool value);
+
+  public:
+  // int64 occurred_at_epoch_ms = 8;
+  void clear_occurred_at_epoch_ms() ;
+  [[nodiscard]] ::int64_t occurred_at_epoch_ms() const;
+  void set_occurred_at_epoch_ms(::int64_t value);
+
+  private:
+  ::int64_t _internal_occurred_at_epoch_ms() const;
+  void _internal_set_occurred_at_epoch_ms(::int64_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:chat.v2.MessageReactionChangedRecord)
+ private:
+  class _Internal;
+  using ParseTableT_ =
+      ::google::protobuf::internal::TcParseTable<3, 8,
+                          0, 113,
+                          2>;
+  static constexpr ParseTableT_ InternalGenerateParseTable_(
+      const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL class_data);
+  friend class ::google::protobuf::internal::TcParser;
+  #ifndef PROTOBUF_MESSAGE_GLOBALS
+  static const ParseTableT_ _table_;
+  #endif
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  friend ::google::protobuf::internal::PrivateAccess;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                                    ::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const MessageReactionChangedRecord& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::internal::ArenaStringPtr conversation_id_;
+    ::google::protobuf::internal::ArenaStringPtr message_id_;
+    ::google::protobuf::internal::ArenaStringPtr actor_account_id_;
+    ::google::protobuf::internal::ArenaStringPtr client_operation_id_;
+    ::uint64_t conversation_sequence_;
+    int reaction_;
+    bool active_;
+    ::int64_t occurred_at_epoch_ms_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_chat_2fv2_2fmessaging_2eproto;
+};
+// -------------------------------------------------------------------
+
+class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageReactionApplied final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:chat.v2.MessageReactionApplied) */ {
+ public:
+  inline MessageReactionApplied() : MessageReactionApplied(nullptr) {}
+  ~MessageReactionApplied() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(MessageReactionApplied* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(MessageReactionApplied));
+  }
+#endif
+
+  template <typename = void>
+  explicit constexpr MessageReactionApplied(::google::protobuf::internal::ConstantInitialized,
+                           const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+                               class_data);
+
+  inline MessageReactionApplied(const MessageReactionApplied& from) : MessageReactionApplied(nullptr, from) {}
+  inline MessageReactionApplied(MessageReactionApplied&& from) noexcept : MessageReactionApplied(nullptr, ::std::move(from)) {}
+  inline MessageReactionApplied& operator=(const MessageReactionApplied& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline MessageReactionApplied& operator=(MessageReactionApplied&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  [[nodiscard]] inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  [[nodiscard]] inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL
+  mutable_unknown_fields() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL
+  GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  [[nodiscard]] static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  [[nodiscard]] static const MessageReactionApplied& default_instance() {
+    return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessageReactionApplied>(&MessageReactionApplied_globals_);
+  }
+  static constexpr int kIndexInFileMessages = 3;
+  friend void swap(MessageReactionApplied& a, MessageReactionApplied& b) { a.Swap(&b); }
+  inline void Swap(MessageReactionApplied* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(MessageReactionApplied* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  [[nodiscard]] MessageReactionApplied* PROTOBUF_NONNULL
+  New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<MessageReactionApplied>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const MessageReactionApplied& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const MessageReactionApplied& from) { MessageReactionApplied::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  [[nodiscard]] bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  [[nodiscard]] static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  [[nodiscard]] static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  [[nodiscard]] ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] ::size_t ByteSizeLong() const final;
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] int GetCachedSize() const {
+    return _impl_._cached_size_.Get();
+  }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(MessageReactionApplied* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "chat.v2.MessageReactionApplied"; }
+
+  explicit MessageReactionApplied(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  MessageReactionApplied(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const MessageReactionApplied& from);
+  MessageReactionApplied(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, MessageReactionApplied&& from) noexcept
+      : MessageReactionApplied(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_(
+      const MessageLite& prototype,
+      const ::google::protobuf::internal::TcParseTableBase* PROTOBUF_NULLABLE tc_table = nullptr);
+
+  [[nodiscard]] ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kConversationIdFieldNumber = 1,
+    kMessageIdFieldNumber = 2,
+    kActorAccountIdFieldNumber = 5,
+    kClientOperationIdFieldNumber = 6,
+    kReactionFieldNumber = 3,
+    kActiveFieldNumber = 4,
+    kChangedFieldNumber = 7,
+    kDuplicateFieldNumber = 10,
+    kConversationSequenceFieldNumber = 8,
+    kOccurredAtEpochMsFieldNumber = 9,
+  };
+  // string conversation_id = 1;
+  void clear_conversation_id() ;
+  [[nodiscard]] const ::std::string& conversation_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_conversation_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_conversation_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_conversation_id();
+  void set_allocated_conversation_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_conversation_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_conversation_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_conversation_id();
+
+  public:
+  // string message_id = 2;
+  void clear_message_id() ;
+  [[nodiscard]] const ::std::string& message_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_message_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_message_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_message_id();
+  void set_allocated_message_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_message_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_message_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_message_id();
+
+  public:
+  // string actor_account_id = 5;
+  void clear_actor_account_id() ;
+  [[nodiscard]] const ::std::string& actor_account_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_actor_account_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_actor_account_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_actor_account_id();
+  void set_allocated_actor_account_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_actor_account_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_actor_account_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_actor_account_id();
+
+  public:
+  // string client_operation_id = 6;
+  void clear_client_operation_id() ;
+  [[nodiscard]] const ::std::string& client_operation_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_client_operation_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_client_operation_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_client_operation_id();
+  void set_allocated_client_operation_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_client_operation_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_client_operation_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_client_operation_id();
+
+  public:
+  // .chat.v2.MessageReactionKind reaction = 3;
+  void clear_reaction() ;
+  [[nodiscard]] ::chat::v2::MessageReactionKind reaction() const;
+  void set_reaction(::chat::v2::MessageReactionKind value);
+
+  private:
+  ::chat::v2::MessageReactionKind _internal_reaction() const;
+  void _internal_set_reaction(::chat::v2::MessageReactionKind value);
+
+  public:
+  // bool active = 4;
+  void clear_active() ;
+  [[nodiscard]] bool active() const;
+  void set_active(bool value);
+
+  private:
+  bool _internal_active() const;
+  void _internal_set_active(bool value);
+
+  public:
+  // bool changed = 7;
+  void clear_changed() ;
+  [[nodiscard]] bool changed() const;
+  void set_changed(bool value);
+
+  private:
+  bool _internal_changed() const;
+  void _internal_set_changed(bool value);
+
+  public:
+  // bool duplicate = 10;
+  void clear_duplicate() ;
+  [[nodiscard]] bool duplicate() const;
+  void set_duplicate(bool value);
+
+  private:
+  bool _internal_duplicate() const;
+  void _internal_set_duplicate(bool value);
+
+  public:
+  // uint64 conversation_sequence = 8;
+  void clear_conversation_sequence() ;
+  [[nodiscard]] ::uint64_t conversation_sequence() const;
+  void set_conversation_sequence(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_conversation_sequence() const;
+  void _internal_set_conversation_sequence(::uint64_t value);
+
+  public:
+  // int64 occurred_at_epoch_ms = 9;
+  void clear_occurred_at_epoch_ms() ;
+  [[nodiscard]] ::int64_t occurred_at_epoch_ms() const;
+  void set_occurred_at_epoch_ms(::int64_t value);
+
+  private:
+  ::int64_t _internal_occurred_at_epoch_ms() const;
+  void _internal_set_occurred_at_epoch_ms(::int64_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:chat.v2.MessageReactionApplied)
+ private:
+  class _Internal;
+  using ParseTableT_ =
+      ::google::protobuf::internal::TcParseTable<4, 10,
+                          0, 107,
+                          2>;
+  static constexpr ParseTableT_ InternalGenerateParseTable_(
+      const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL class_data);
+  friend class ::google::protobuf::internal::TcParser;
+  #ifndef PROTOBUF_MESSAGE_GLOBALS
+  static const ParseTableT_ _table_;
+  #endif
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  friend ::google::protobuf::internal::PrivateAccess;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                                    ::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const MessageReactionApplied& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::internal::ArenaStringPtr conversation_id_;
+    ::google::protobuf::internal::ArenaStringPtr message_id_;
+    ::google::protobuf::internal::ArenaStringPtr actor_account_id_;
+    ::google::protobuf::internal::ArenaStringPtr client_operation_id_;
+    int reaction_;
+    bool active_;
+    bool changed_;
+    bool duplicate_;
+    ::uint64_t conversation_sequence_;
+    ::int64_t occurred_at_epoch_ms_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_chat_2fv2_2fmessaging_2eproto;
+};
+// -------------------------------------------------------------------
+
 class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageAccepted final : public ::google::protobuf::Message
 /* @@protoc_insertion_point(class_definition:chat.v2.MessageAccepted) */ {
  public:
@@ -1855,7 +2827,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageAccepted final : public ::go
   [[nodiscard]] static const MessageAccepted& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessageAccepted>(&MessageAccepted_globals_);
   }
-  static constexpr int kIndexInFileMessages = 2;
+  static constexpr int kIndexInFileMessages = 4;
   friend void swap(MessageAccepted& a, MessageAccepted& b) { a.Swap(&b); }
   inline void Swap(MessageAccepted* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2114,7 +3086,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageRecord final : public ::goog
   [[nodiscard]] static const MessageRecord& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessageRecord>(&MessageRecord_globals_);
   }
-  static constexpr int kIndexInFileMessages = 4;
+  static constexpr int kIndexInFileMessages = 6;
   friend void swap(MessageRecord& a, MessageRecord& b) { a.Swap(&b); }
   inline void Swap(MessageRecord* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2463,9 +3435,10 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ConversationEntryRecord final : pub
     kMessage = 3,
     kRecall = 4,
     kDeletion = 5,
+    kReaction = 6,
     DETAIL_NOT_SET = 0,
   };
-  static constexpr int kIndexInFileMessages = 8;
+  static constexpr int kIndexInFileMessages = 11;
   friend void swap(ConversationEntryRecord& a, ConversationEntryRecord& b) { a.Swap(&b); }
   inline void Swap(ConversationEntryRecord* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2562,6 +3535,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ConversationEntryRecord final : pub
     kMessageFieldNumber = 3,
     kRecallFieldNumber = 4,
     kDeletionFieldNumber = 5,
+    kReactionFieldNumber = 6,
   };
   // string conversation_id = 1;
   void clear_conversation_id() ;
@@ -2648,6 +3622,26 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ConversationEntryRecord final : pub
   ::chat::v2::MessagesDeletedRecord* PROTOBUF_NONNULL _internal_mutable_deletion();
 
   public:
+  // .chat.v2.MessageReactionChangedRecord reaction = 6;
+  [[nodiscard]] bool has_reaction()
+      const;
+  private:
+  bool _internal_has_reaction() const;
+
+  public:
+  void clear_reaction() ;
+  [[nodiscard]] const ::chat::v2::MessageReactionChangedRecord& reaction() const;
+  [[nodiscard]] ::chat::v2::MessageReactionChangedRecord* PROTOBUF_NULLABLE release_reaction();
+  ::chat::v2::MessageReactionChangedRecord* PROTOBUF_NONNULL mutable_reaction();
+  void set_allocated_reaction(::chat::v2::MessageReactionChangedRecord* PROTOBUF_NULLABLE value);
+  void unsafe_arena_set_allocated_reaction(::chat::v2::MessageReactionChangedRecord* PROTOBUF_NULLABLE value);
+  ::chat::v2::MessageReactionChangedRecord* PROTOBUF_NULLABLE unsafe_arena_release_reaction();
+
+  private:
+  const ::chat::v2::MessageReactionChangedRecord& _internal_reaction() const;
+  ::chat::v2::MessageReactionChangedRecord* PROTOBUF_NONNULL _internal_mutable_reaction();
+
+  public:
   void clear_detail();
   DetailCase detail_case() const;
   // @@protoc_insertion_point(class_scope:chat.v2.ConversationEntryRecord)
@@ -2656,11 +3650,12 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ConversationEntryRecord final : pub
   void set_has_message();
   void set_has_recall();
   void set_has_deletion();
+  void set_has_reaction();
   [[nodiscard]] inline bool has_detail() const;
   inline void clear_has_detail();
   using ParseTableT_ =
-      ::google::protobuf::internal::TcParseTable<1, 5,
-                          3, 55,
+      ::google::protobuf::internal::TcParseTable<1, 6,
+                          4, 55,
                           2>;
   static constexpr ParseTableT_ InternalGenerateParseTable_(
       const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL class_data);
@@ -2696,6 +3691,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ConversationEntryRecord final : pub
       ::google::protobuf::Message* PROTOBUF_NULLABLE message_;
       ::google::protobuf::Message* PROTOBUF_NULLABLE recall_;
       ::google::protobuf::Message* PROTOBUF_NULLABLE deletion_;
+      ::google::protobuf::Message* PROTOBUF_NULLABLE reaction_;
     } detail_;
     ::uint32_t _oneof_case_[1];
     PROTOBUF_TSAN_DECLARE_MEMBER
@@ -2761,7 +3757,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageHistoryPage final : public :
   [[nodiscard]] static const MessageHistoryPage& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessageHistoryPage>(&MessageHistoryPage_globals_);
   }
-  static constexpr int kIndexInFileMessages = 9;
+  static constexpr int kIndexInFileMessages = 12;
   friend void swap(MessageHistoryPage& a, MessageHistoryPage& b) { a.Swap(&b); }
   inline void Swap(MessageHistoryPage* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -3378,6 +4374,654 @@ inline void SubmitReplyMessage::set_allocated_content(::std::string* PROTOBUF_NU
     _impl_.content_.Set("", GetArena());
   }
   // @@protoc_insertion_point(field_set_allocated:chat.v2.SubmitReplyMessage.content)
+}
+
+// -------------------------------------------------------------------
+
+// SetMessageReaction
+
+// string conversation_id = 1;
+inline void SetMessageReaction::clear_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.conversation_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+}
+inline const ::std::string& SetMessageReaction::conversation_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.SetMessageReaction.conversation_id)
+  return _internal_conversation_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void SetMessageReaction::set_conversation_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  _impl_.conversation_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.SetMessageReaction.conversation_id)
+}
+inline ::std::string* PROTOBUF_NONNULL SetMessageReaction::mutable_conversation_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  ::std::string* _s = _internal_mutable_conversation_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.SetMessageReaction.conversation_id)
+  return _s;
+}
+inline const ::std::string& SetMessageReaction::_internal_conversation_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.conversation_id_.Get();
+}
+inline void SetMessageReaction::_internal_set_conversation_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.conversation_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL SetMessageReaction::_internal_mutable_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.conversation_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE SetMessageReaction::release_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.SetMessageReaction.conversation_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000001U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  auto* released = _impl_.conversation_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.conversation_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void SetMessageReaction::set_allocated_conversation_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  }
+  _impl_.conversation_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.conversation_id_.IsDefault()) {
+    _impl_.conversation_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.SetMessageReaction.conversation_id)
+}
+
+// string message_id = 2;
+inline void SetMessageReaction::clear_message_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.message_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+}
+inline const ::std::string& SetMessageReaction::message_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.SetMessageReaction.message_id)
+  return _internal_message_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void SetMessageReaction::set_message_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  _impl_.message_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.SetMessageReaction.message_id)
+}
+inline ::std::string* PROTOBUF_NONNULL SetMessageReaction::mutable_message_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ::std::string* _s = _internal_mutable_message_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.SetMessageReaction.message_id)
+  return _s;
+}
+inline const ::std::string& SetMessageReaction::_internal_message_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.message_id_.Get();
+}
+inline void SetMessageReaction::_internal_set_message_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.message_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL SetMessageReaction::_internal_mutable_message_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.message_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE SetMessageReaction::release_message_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.SetMessageReaction.message_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  auto* released = _impl_.message_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.message_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void SetMessageReaction::set_allocated_message_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  }
+  _impl_.message_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.message_id_.IsDefault()) {
+    _impl_.message_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.SetMessageReaction.message_id)
+}
+
+// .chat.v2.MessageReactionKind reaction = 3;
+inline void SetMessageReaction::clear_reaction() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.reaction_ = 0;
+  ClearHasBit(_impl_._has_bits_[0], 0x00000008U);
+}
+inline ::chat::v2::MessageReactionKind SetMessageReaction::reaction() const {
+  // @@protoc_insertion_point(field_get:chat.v2.SetMessageReaction.reaction)
+  return _internal_reaction();
+}
+inline void SetMessageReaction::set_reaction(::chat::v2::MessageReactionKind value) {
+  _internal_set_reaction(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000008U);
+  // @@protoc_insertion_point(field_set:chat.v2.SetMessageReaction.reaction)
+}
+inline ::chat::v2::MessageReactionKind SetMessageReaction::_internal_reaction() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return static_cast<::chat::v2::MessageReactionKind>(_impl_.reaction_);
+}
+inline void SetMessageReaction::_internal_set_reaction(::chat::v2::MessageReactionKind value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.reaction_ = value;
+}
+
+// bool active = 4;
+inline void SetMessageReaction::clear_active() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.active_ = false;
+  ClearHasBit(_impl_._has_bits_[0], 0x00000010U);
+}
+inline bool SetMessageReaction::active() const {
+  // @@protoc_insertion_point(field_get:chat.v2.SetMessageReaction.active)
+  return _internal_active();
+}
+inline void SetMessageReaction::set_active(bool value) {
+  _internal_set_active(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000010U);
+  // @@protoc_insertion_point(field_set:chat.v2.SetMessageReaction.active)
+}
+inline bool SetMessageReaction::_internal_active() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.active_;
+}
+inline void SetMessageReaction::_internal_set_active(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.active_ = value;
+}
+
+// string client_operation_id = 5;
+inline void SetMessageReaction::clear_client_operation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.client_operation_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+}
+inline const ::std::string& SetMessageReaction::client_operation_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.SetMessageReaction.client_operation_id)
+  return _internal_client_operation_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void SetMessageReaction::set_client_operation_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  _impl_.client_operation_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.SetMessageReaction.client_operation_id)
+}
+inline ::std::string* PROTOBUF_NONNULL SetMessageReaction::mutable_client_operation_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  ::std::string* _s = _internal_mutable_client_operation_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.SetMessageReaction.client_operation_id)
+  return _s;
+}
+inline const ::std::string& SetMessageReaction::_internal_client_operation_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.client_operation_id_.Get();
+}
+inline void SetMessageReaction::_internal_set_client_operation_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.client_operation_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL SetMessageReaction::_internal_mutable_client_operation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.client_operation_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE SetMessageReaction::release_client_operation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.SetMessageReaction.client_operation_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000004U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+  auto* released = _impl_.client_operation_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.client_operation_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void SetMessageReaction::set_allocated_client_operation_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+  }
+  _impl_.client_operation_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.client_operation_id_.IsDefault()) {
+    _impl_.client_operation_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.SetMessageReaction.client_operation_id)
+}
+
+// -------------------------------------------------------------------
+
+// MessageReactionApplied
+
+// string conversation_id = 1;
+inline void MessageReactionApplied::clear_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.conversation_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+}
+inline const ::std::string& MessageReactionApplied::conversation_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionApplied.conversation_id)
+  return _internal_conversation_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MessageReactionApplied::set_conversation_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  _impl_.conversation_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionApplied.conversation_id)
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionApplied::mutable_conversation_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  ::std::string* _s = _internal_mutable_conversation_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.MessageReactionApplied.conversation_id)
+  return _s;
+}
+inline const ::std::string& MessageReactionApplied::_internal_conversation_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.conversation_id_.Get();
+}
+inline void MessageReactionApplied::_internal_set_conversation_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.conversation_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionApplied::_internal_mutable_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.conversation_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MessageReactionApplied::release_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.MessageReactionApplied.conversation_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000001U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  auto* released = _impl_.conversation_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.conversation_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MessageReactionApplied::set_allocated_conversation_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  }
+  _impl_.conversation_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.conversation_id_.IsDefault()) {
+    _impl_.conversation_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.MessageReactionApplied.conversation_id)
+}
+
+// string message_id = 2;
+inline void MessageReactionApplied::clear_message_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.message_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+}
+inline const ::std::string& MessageReactionApplied::message_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionApplied.message_id)
+  return _internal_message_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MessageReactionApplied::set_message_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  _impl_.message_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionApplied.message_id)
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionApplied::mutable_message_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ::std::string* _s = _internal_mutable_message_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.MessageReactionApplied.message_id)
+  return _s;
+}
+inline const ::std::string& MessageReactionApplied::_internal_message_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.message_id_.Get();
+}
+inline void MessageReactionApplied::_internal_set_message_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.message_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionApplied::_internal_mutable_message_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.message_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MessageReactionApplied::release_message_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.MessageReactionApplied.message_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  auto* released = _impl_.message_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.message_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MessageReactionApplied::set_allocated_message_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  }
+  _impl_.message_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.message_id_.IsDefault()) {
+    _impl_.message_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.MessageReactionApplied.message_id)
+}
+
+// .chat.v2.MessageReactionKind reaction = 3;
+inline void MessageReactionApplied::clear_reaction() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.reaction_ = 0;
+  ClearHasBit(_impl_._has_bits_[0], 0x00000010U);
+}
+inline ::chat::v2::MessageReactionKind MessageReactionApplied::reaction() const {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionApplied.reaction)
+  return _internal_reaction();
+}
+inline void MessageReactionApplied::set_reaction(::chat::v2::MessageReactionKind value) {
+  _internal_set_reaction(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000010U);
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionApplied.reaction)
+}
+inline ::chat::v2::MessageReactionKind MessageReactionApplied::_internal_reaction() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return static_cast<::chat::v2::MessageReactionKind>(_impl_.reaction_);
+}
+inline void MessageReactionApplied::_internal_set_reaction(::chat::v2::MessageReactionKind value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.reaction_ = value;
+}
+
+// bool active = 4;
+inline void MessageReactionApplied::clear_active() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.active_ = false;
+  ClearHasBit(_impl_._has_bits_[0], 0x00000020U);
+}
+inline bool MessageReactionApplied::active() const {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionApplied.active)
+  return _internal_active();
+}
+inline void MessageReactionApplied::set_active(bool value) {
+  _internal_set_active(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000020U);
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionApplied.active)
+}
+inline bool MessageReactionApplied::_internal_active() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.active_;
+}
+inline void MessageReactionApplied::_internal_set_active(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.active_ = value;
+}
+
+// string actor_account_id = 5;
+inline void MessageReactionApplied::clear_actor_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.actor_account_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+}
+inline const ::std::string& MessageReactionApplied::actor_account_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionApplied.actor_account_id)
+  return _internal_actor_account_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MessageReactionApplied::set_actor_account_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  _impl_.actor_account_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionApplied.actor_account_id)
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionApplied::mutable_actor_account_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  ::std::string* _s = _internal_mutable_actor_account_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.MessageReactionApplied.actor_account_id)
+  return _s;
+}
+inline const ::std::string& MessageReactionApplied::_internal_actor_account_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.actor_account_id_.Get();
+}
+inline void MessageReactionApplied::_internal_set_actor_account_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.actor_account_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionApplied::_internal_mutable_actor_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.actor_account_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MessageReactionApplied::release_actor_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.MessageReactionApplied.actor_account_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000004U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+  auto* released = _impl_.actor_account_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.actor_account_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MessageReactionApplied::set_allocated_actor_account_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+  }
+  _impl_.actor_account_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.actor_account_id_.IsDefault()) {
+    _impl_.actor_account_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.MessageReactionApplied.actor_account_id)
+}
+
+// string client_operation_id = 6;
+inline void MessageReactionApplied::clear_client_operation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.client_operation_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000008U);
+}
+inline const ::std::string& MessageReactionApplied::client_operation_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionApplied.client_operation_id)
+  return _internal_client_operation_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MessageReactionApplied::set_client_operation_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000008U);
+  _impl_.client_operation_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionApplied.client_operation_id)
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionApplied::mutable_client_operation_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000008U);
+  ::std::string* _s = _internal_mutable_client_operation_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.MessageReactionApplied.client_operation_id)
+  return _s;
+}
+inline const ::std::string& MessageReactionApplied::_internal_client_operation_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.client_operation_id_.Get();
+}
+inline void MessageReactionApplied::_internal_set_client_operation_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.client_operation_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionApplied::_internal_mutable_client_operation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.client_operation_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MessageReactionApplied::release_client_operation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.MessageReactionApplied.client_operation_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000008U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000008U);
+  auto* released = _impl_.client_operation_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.client_operation_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MessageReactionApplied::set_allocated_client_operation_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000008U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000008U);
+  }
+  _impl_.client_operation_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.client_operation_id_.IsDefault()) {
+    _impl_.client_operation_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.MessageReactionApplied.client_operation_id)
+}
+
+// bool changed = 7;
+inline void MessageReactionApplied::clear_changed() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.changed_ = false;
+  ClearHasBit(_impl_._has_bits_[0], 0x00000040U);
+}
+inline bool MessageReactionApplied::changed() const {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionApplied.changed)
+  return _internal_changed();
+}
+inline void MessageReactionApplied::set_changed(bool value) {
+  _internal_set_changed(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000040U);
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionApplied.changed)
+}
+inline bool MessageReactionApplied::_internal_changed() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.changed_;
+}
+inline void MessageReactionApplied::_internal_set_changed(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.changed_ = value;
+}
+
+// uint64 conversation_sequence = 8;
+inline void MessageReactionApplied::clear_conversation_sequence() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.conversation_sequence_ = ::uint64_t{0u};
+  ClearHasBit(_impl_._has_bits_[0], 0x00000100U);
+}
+inline ::uint64_t MessageReactionApplied::conversation_sequence() const {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionApplied.conversation_sequence)
+  return _internal_conversation_sequence();
+}
+inline void MessageReactionApplied::set_conversation_sequence(::uint64_t value) {
+  _internal_set_conversation_sequence(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000100U);
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionApplied.conversation_sequence)
+}
+inline ::uint64_t MessageReactionApplied::_internal_conversation_sequence() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.conversation_sequence_;
+}
+inline void MessageReactionApplied::_internal_set_conversation_sequence(::uint64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.conversation_sequence_ = value;
+}
+
+// int64 occurred_at_epoch_ms = 9;
+inline void MessageReactionApplied::clear_occurred_at_epoch_ms() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.occurred_at_epoch_ms_ = ::int64_t{0};
+  ClearHasBit(_impl_._has_bits_[0], 0x00000200U);
+}
+inline ::int64_t MessageReactionApplied::occurred_at_epoch_ms() const {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionApplied.occurred_at_epoch_ms)
+  return _internal_occurred_at_epoch_ms();
+}
+inline void MessageReactionApplied::set_occurred_at_epoch_ms(::int64_t value) {
+  _internal_set_occurred_at_epoch_ms(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000200U);
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionApplied.occurred_at_epoch_ms)
+}
+inline ::int64_t MessageReactionApplied::_internal_occurred_at_epoch_ms() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.occurred_at_epoch_ms_;
+}
+inline void MessageReactionApplied::_internal_set_occurred_at_epoch_ms(::int64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.occurred_at_epoch_ms_ = value;
+}
+
+// bool duplicate = 10;
+inline void MessageReactionApplied::clear_duplicate() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.duplicate_ = false;
+  ClearHasBit(_impl_._has_bits_[0], 0x00000080U);
+}
+inline bool MessageReactionApplied::duplicate() const {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionApplied.duplicate)
+  return _internal_duplicate();
+}
+inline void MessageReactionApplied::set_duplicate(bool value) {
+  _internal_set_duplicate(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000080U);
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionApplied.duplicate)
+}
+inline bool MessageReactionApplied::_internal_duplicate() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.duplicate_;
+}
+inline void MessageReactionApplied::_internal_set_duplicate(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.duplicate_ = value;
 }
 
 // -------------------------------------------------------------------
@@ -5280,6 +6924,362 @@ inline void MessagesDeletedRecord::_internal_set_occurred_at_epoch_ms(::int64_t 
 
 // -------------------------------------------------------------------
 
+// MessageReactionChangedRecord
+
+// string conversation_id = 1;
+inline void MessageReactionChangedRecord::clear_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.conversation_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+}
+inline const ::std::string& MessageReactionChangedRecord::conversation_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionChangedRecord.conversation_id)
+  return _internal_conversation_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MessageReactionChangedRecord::set_conversation_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  _impl_.conversation_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionChangedRecord.conversation_id)
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionChangedRecord::mutable_conversation_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  ::std::string* _s = _internal_mutable_conversation_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.MessageReactionChangedRecord.conversation_id)
+  return _s;
+}
+inline const ::std::string& MessageReactionChangedRecord::_internal_conversation_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.conversation_id_.Get();
+}
+inline void MessageReactionChangedRecord::_internal_set_conversation_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.conversation_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionChangedRecord::_internal_mutable_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.conversation_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MessageReactionChangedRecord::release_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.MessageReactionChangedRecord.conversation_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000001U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  auto* released = _impl_.conversation_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.conversation_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MessageReactionChangedRecord::set_allocated_conversation_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  }
+  _impl_.conversation_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.conversation_id_.IsDefault()) {
+    _impl_.conversation_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.MessageReactionChangedRecord.conversation_id)
+}
+
+// uint64 conversation_sequence = 2;
+inline void MessageReactionChangedRecord::clear_conversation_sequence() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.conversation_sequence_ = ::uint64_t{0u};
+  ClearHasBit(_impl_._has_bits_[0], 0x00000010U);
+}
+inline ::uint64_t MessageReactionChangedRecord::conversation_sequence() const {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionChangedRecord.conversation_sequence)
+  return _internal_conversation_sequence();
+}
+inline void MessageReactionChangedRecord::set_conversation_sequence(::uint64_t value) {
+  _internal_set_conversation_sequence(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000010U);
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionChangedRecord.conversation_sequence)
+}
+inline ::uint64_t MessageReactionChangedRecord::_internal_conversation_sequence() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.conversation_sequence_;
+}
+inline void MessageReactionChangedRecord::_internal_set_conversation_sequence(::uint64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.conversation_sequence_ = value;
+}
+
+// string message_id = 3;
+inline void MessageReactionChangedRecord::clear_message_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.message_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+}
+inline const ::std::string& MessageReactionChangedRecord::message_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionChangedRecord.message_id)
+  return _internal_message_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MessageReactionChangedRecord::set_message_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  _impl_.message_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionChangedRecord.message_id)
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionChangedRecord::mutable_message_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ::std::string* _s = _internal_mutable_message_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.MessageReactionChangedRecord.message_id)
+  return _s;
+}
+inline const ::std::string& MessageReactionChangedRecord::_internal_message_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.message_id_.Get();
+}
+inline void MessageReactionChangedRecord::_internal_set_message_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.message_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionChangedRecord::_internal_mutable_message_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.message_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MessageReactionChangedRecord::release_message_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.MessageReactionChangedRecord.message_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  auto* released = _impl_.message_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.message_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MessageReactionChangedRecord::set_allocated_message_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  }
+  _impl_.message_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.message_id_.IsDefault()) {
+    _impl_.message_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.MessageReactionChangedRecord.message_id)
+}
+
+// .chat.v2.MessageReactionKind reaction = 4;
+inline void MessageReactionChangedRecord::clear_reaction() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.reaction_ = 0;
+  ClearHasBit(_impl_._has_bits_[0], 0x00000020U);
+}
+inline ::chat::v2::MessageReactionKind MessageReactionChangedRecord::reaction() const {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionChangedRecord.reaction)
+  return _internal_reaction();
+}
+inline void MessageReactionChangedRecord::set_reaction(::chat::v2::MessageReactionKind value) {
+  _internal_set_reaction(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000020U);
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionChangedRecord.reaction)
+}
+inline ::chat::v2::MessageReactionKind MessageReactionChangedRecord::_internal_reaction() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return static_cast<::chat::v2::MessageReactionKind>(_impl_.reaction_);
+}
+inline void MessageReactionChangedRecord::_internal_set_reaction(::chat::v2::MessageReactionKind value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.reaction_ = value;
+}
+
+// bool active = 5;
+inline void MessageReactionChangedRecord::clear_active() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.active_ = false;
+  ClearHasBit(_impl_._has_bits_[0], 0x00000040U);
+}
+inline bool MessageReactionChangedRecord::active() const {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionChangedRecord.active)
+  return _internal_active();
+}
+inline void MessageReactionChangedRecord::set_active(bool value) {
+  _internal_set_active(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000040U);
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionChangedRecord.active)
+}
+inline bool MessageReactionChangedRecord::_internal_active() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.active_;
+}
+inline void MessageReactionChangedRecord::_internal_set_active(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.active_ = value;
+}
+
+// string actor_account_id = 6;
+inline void MessageReactionChangedRecord::clear_actor_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.actor_account_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+}
+inline const ::std::string& MessageReactionChangedRecord::actor_account_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionChangedRecord.actor_account_id)
+  return _internal_actor_account_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MessageReactionChangedRecord::set_actor_account_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  _impl_.actor_account_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionChangedRecord.actor_account_id)
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionChangedRecord::mutable_actor_account_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  ::std::string* _s = _internal_mutable_actor_account_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.MessageReactionChangedRecord.actor_account_id)
+  return _s;
+}
+inline const ::std::string& MessageReactionChangedRecord::_internal_actor_account_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.actor_account_id_.Get();
+}
+inline void MessageReactionChangedRecord::_internal_set_actor_account_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.actor_account_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionChangedRecord::_internal_mutable_actor_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.actor_account_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MessageReactionChangedRecord::release_actor_account_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.MessageReactionChangedRecord.actor_account_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000004U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+  auto* released = _impl_.actor_account_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.actor_account_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MessageReactionChangedRecord::set_allocated_actor_account_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+  }
+  _impl_.actor_account_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.actor_account_id_.IsDefault()) {
+    _impl_.actor_account_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.MessageReactionChangedRecord.actor_account_id)
+}
+
+// string client_operation_id = 7;
+inline void MessageReactionChangedRecord::clear_client_operation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.client_operation_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000008U);
+}
+inline const ::std::string& MessageReactionChangedRecord::client_operation_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionChangedRecord.client_operation_id)
+  return _internal_client_operation_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void MessageReactionChangedRecord::set_client_operation_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000008U);
+  _impl_.client_operation_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionChangedRecord.client_operation_id)
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionChangedRecord::mutable_client_operation_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000008U);
+  ::std::string* _s = _internal_mutable_client_operation_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.MessageReactionChangedRecord.client_operation_id)
+  return _s;
+}
+inline const ::std::string& MessageReactionChangedRecord::_internal_client_operation_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.client_operation_id_.Get();
+}
+inline void MessageReactionChangedRecord::_internal_set_client_operation_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.client_operation_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL MessageReactionChangedRecord::_internal_mutable_client_operation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.client_operation_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE MessageReactionChangedRecord::release_client_operation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.MessageReactionChangedRecord.client_operation_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000008U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000008U);
+  auto* released = _impl_.client_operation_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.client_operation_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void MessageReactionChangedRecord::set_allocated_client_operation_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000008U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000008U);
+  }
+  _impl_.client_operation_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.client_operation_id_.IsDefault()) {
+    _impl_.client_operation_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.MessageReactionChangedRecord.client_operation_id)
+}
+
+// int64 occurred_at_epoch_ms = 8;
+inline void MessageReactionChangedRecord::clear_occurred_at_epoch_ms() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.occurred_at_epoch_ms_ = ::int64_t{0};
+  ClearHasBit(_impl_._has_bits_[0], 0x00000080U);
+}
+inline ::int64_t MessageReactionChangedRecord::occurred_at_epoch_ms() const {
+  // @@protoc_insertion_point(field_get:chat.v2.MessageReactionChangedRecord.occurred_at_epoch_ms)
+  return _internal_occurred_at_epoch_ms();
+}
+inline void MessageReactionChangedRecord::set_occurred_at_epoch_ms(::int64_t value) {
+  _internal_set_occurred_at_epoch_ms(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000080U);
+  // @@protoc_insertion_point(field_set:chat.v2.MessageReactionChangedRecord.occurred_at_epoch_ms)
+}
+inline ::int64_t MessageReactionChangedRecord::_internal_occurred_at_epoch_ms() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.occurred_at_epoch_ms_;
+}
+inline void MessageReactionChangedRecord::_internal_set_occurred_at_epoch_ms(::int64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.occurred_at_epoch_ms_ = value;
+}
+
+// -------------------------------------------------------------------
+
 // ConversationEntryRecord
 
 // string conversation_id = 1;
@@ -5616,6 +7616,88 @@ inline ::chat::v2::MessagesDeletedRecord* PROTOBUF_NONNULL ConversationEntryReco
   return _msg;
 }
 
+// .chat.v2.MessageReactionChangedRecord reaction = 6;
+inline bool ConversationEntryRecord::has_reaction() const {
+  return detail_case() == kReaction;
+}
+inline bool ConversationEntryRecord::_internal_has_reaction() const {
+  return detail_case() == kReaction;
+}
+inline void ConversationEntryRecord::set_has_reaction() {
+  _impl_._oneof_case_[0] = kReaction;
+}
+inline void ConversationEntryRecord::clear_reaction() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (detail_case() == kReaction) {
+    if (GetArena() == nullptr) {
+      delete _impl_.detail_.reaction_;
+    } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
+      ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.detail_.reaction_);
+    }
+    clear_has_detail();
+  }
+}
+inline ::chat::v2::MessageReactionChangedRecord* PROTOBUF_NULLABLE ConversationEntryRecord::release_reaction() {
+  // @@protoc_insertion_point(field_release:chat.v2.ConversationEntryRecord.reaction)
+  if (detail_case() == kReaction) {
+    clear_has_detail();
+    auto* temp = reinterpret_cast<::chat::v2::MessageReactionChangedRecord*>(_impl_.detail_.reaction_);
+    if (GetArena() != nullptr) {
+      temp = ::google::protobuf::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.detail_.reaction_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::chat::v2::MessageReactionChangedRecord& ConversationEntryRecord::_internal_reaction() const {
+  return detail_case() == kReaction ? static_cast<const ::chat::v2::MessageReactionChangedRecord&>(*reinterpret_cast<::chat::v2::MessageReactionChangedRecord*>(_impl_.detail_.reaction_))
+                     : *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<::chat::v2::MessageReactionChangedRecord>(&::chat::v2::MessageReactionChangedRecord_globals_);
+}
+inline const ::chat::v2::MessageReactionChangedRecord& ConversationEntryRecord::reaction() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.ConversationEntryRecord.reaction)
+  return _internal_reaction();
+}
+inline ::chat::v2::MessageReactionChangedRecord* PROTOBUF_NULLABLE ConversationEntryRecord::unsafe_arena_release_reaction() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:chat.v2.ConversationEntryRecord.reaction)
+  if (detail_case() == kReaction) {
+    clear_has_detail();
+    auto* temp = reinterpret_cast<::chat::v2::MessageReactionChangedRecord*>(_impl_.detail_.reaction_);
+    _impl_.detail_.reaction_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ConversationEntryRecord::unsafe_arena_set_allocated_reaction(
+    ::chat::v2::MessageReactionChangedRecord* PROTOBUF_NULLABLE value) {
+  // We rely on the oneof clear method to free the earlier contents
+  // of this oneof. We can directly use the pointer we're given to
+  // set the new value.
+  clear_detail();
+  if (value) {
+    set_has_reaction();
+    _impl_.detail_.reaction_ = reinterpret_cast<::google::protobuf::Message*>(value);
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:chat.v2.ConversationEntryRecord.reaction)
+}
+inline ::chat::v2::MessageReactionChangedRecord* PROTOBUF_NONNULL ConversationEntryRecord::_internal_mutable_reaction() {
+  if (detail_case() != kReaction) {
+    clear_detail();
+    set_has_reaction();
+    _impl_.detail_.reaction_ = reinterpret_cast<::google::protobuf::Message*>(
+        ::google::protobuf::Message::DefaultConstruct<::chat::v2::MessageReactionChangedRecord>(GetArena()));
+  }
+  return reinterpret_cast<::chat::v2::MessageReactionChangedRecord*>(_impl_.detail_.reaction_);
+}
+inline ::chat::v2::MessageReactionChangedRecord* PROTOBUF_NONNULL ConversationEntryRecord::mutable_reaction()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::chat::v2::MessageReactionChangedRecord* _msg = _internal_mutable_reaction();
+  // @@protoc_insertion_point(field_mutable:chat.v2.ConversationEntryRecord.reaction)
+  return _msg;
+}
+
 inline bool ConversationEntryRecord::has_detail() const {
   return detail_case() != DETAIL_NOT_SET;
 }
@@ -5892,6 +7974,12 @@ struct is_proto_enum<::chat::v2::MessageContentType> : std::true_type {};
 template <>
 inline const EnumDescriptor* PROTOBUF_NONNULL GetEnumDescriptor<::chat::v2::MessageContentType>() {
   return ::chat::v2::MessageContentType_descriptor();
+}
+template <>
+struct is_proto_enum<::chat::v2::MessageReactionKind> : std::true_type {};
+template <>
+inline const EnumDescriptor* PROTOBUF_NONNULL GetEnumDescriptor<::chat::v2::MessageReactionKind>() {
+  return ::chat::v2::MessageReactionKind_descriptor();
 }
 
 }  // namespace protobuf

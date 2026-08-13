@@ -26,6 +26,10 @@ constexpr char kSubmitReplyMessageGoldenHex[] =
     "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
     "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
     "180122026869";
+constexpr char kSetMessageReactionGoldenHex[] =
+    "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+    "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
+    "180120012a0a7265616374696f6e2d31";
 constexpr char kListConversationsGoldenHex[] =
     "0880d095ffbc31122430303030303030302d303030302d303030302d303030302d"
     "3030303030303030303030321819";
@@ -121,6 +125,20 @@ int main() {
             || submitReply.content() != "hi"
             || submitReply.SerializeAsString() != submitReplyGolden) {
         std::cerr << "generated C++ binding changed the SubmitReplyMessage golden payload\n";
+        return 1;
+    }
+    const std::string reactionGolden = fromHex(kSetMessageReactionGoldenHex);
+    chat::v2::SetMessageReaction reaction;
+    if (!reaction.ParseFromString(reactionGolden)
+            || reaction.conversation_id()
+                    != "00000000-0000-0000-0000-000000000001"
+            || reaction.message_id()
+                    != "00000000-0000-0000-0000-000000000002"
+            || reaction.reaction() != chat::v2::MESSAGE_REACTION_KIND_LIKE
+            || !reaction.active()
+            || reaction.client_operation_id() != "reaction-1"
+            || reaction.SerializeAsString() != reactionGolden) {
+        std::cerr << "generated C++ binding changed the SetMessageReaction golden payload\n";
         return 1;
     }
     const std::string listGolden = fromHex(kListConversationsGoldenHex);

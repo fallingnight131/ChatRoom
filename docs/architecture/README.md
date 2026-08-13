@@ -628,7 +628,7 @@ The application core and PostgreSQL adapter now also implement an inactive
 durable-message boundary: authorized append atomically allocates a conversation
 sequence, exact concurrent retries return one stable database-timestamped
 outcome, conflicting idempotency reuse is denied, and active members can read
-bounded ascending sequence pages. Permanent bounded V2 types 100..105 now cover
+bounded ascending sequence pages. Permanent bounded V2 types 100..108 now cover
 submit/accepted/history/page plus a server live-message event using the same
 record projection, and a distinct reply-submit command with an additive
 server-authoritative target reference, with generated Java/C++/TypeScript
@@ -640,8 +640,13 @@ missing/cross-conversation/recalled targets opaquely, and return the same
 reference on exact idempotent retry (ADR-0329). The default-off Web V2 product
 now composes reply selection, optimistic send, isolated IndexedDB recovery,
 fixed-target retry/replay, authoritative merge, and accessible unavailable/
-recalled rendering without persisting copied quote text (ADR-0330). Windows
-reply composition remains pending. A shared
+recalled rendering without persisting copied quote text (ADR-0330). The
+reaction wire contract adds six stable reaction identities, exact operation
+idempotency, changed-only conversation sequencing, and explicit handshake
+capability negotiation. Its PostgreSQL, gateway, local projection, and UI
+slices are not yet active, so neither Web nor Windows advertises support
+(ADR-0339). Windows reply composition is now available only in the default-off
+V2 preview. A shared
 single-gateway router now establishes one active subscription only through the
 final authorized history page, publishes non-duplicate durable acceptance, and
 closes unwritable subscribers for reconnect repair. The Web client validates,

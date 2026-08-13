@@ -135,13 +135,29 @@ int main() {
     recall->set_actor_account_id("30000000-0000-4000-8000-000000000001");
     recall->set_source("V2");
     recall->set_occurred_at_epoch_ms(860);
-    mutationPage.set_next_sequence(9);
-    mutationPage.set_latest_sequence(9);
+    auto *reactionEntry = mutationPage.add_entries();
+    reactionEntry->set_conversation_id(conversationId);
+    reactionEntry->set_conversation_sequence(10);
+    auto *reaction = reactionEntry->mutable_reaction();
+    reaction->set_conversation_id(conversationId);
+    reaction->set_conversation_sequence(10);
+    reaction->set_message_id(replyId);
+    reaction->set_reaction(chat::v2::MESSAGE_REACTION_KIND_LOVE);
+    reaction->set_active(true);
+    reaction->set_actor_account_id("30000000-0000-4000-8000-000000000001");
+    reaction->set_client_operation_id("reaction-history-1");
+    reaction->set_occurred_at_epoch_ms(870);
+    mutationPage.set_next_sequence(10);
+    mutationPage.set_latest_sequence(10);
     const auto mutationEvent = client.receive(envelope(
         chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE, chat::v2::MESSAGE_KIND_RESPONSE,
         mutationHistory.requestId, sessionId, {}, mutationPage));
-    check(mutationEvent.nextSequence == 9 && mutationEvent.messages.empty(),
-          "mutation-only history must advance by the ordered entry cursor");
+    check(mutationEvent.nextSequence == 10 && mutationEvent.messages.empty()
+              && mutationEvent.reactionChanges.size() == 1
+              && mutationEvent.reactionChanges.front().messageId == replyId
+              && mutationEvent.reactionChanges.front().reaction
+                    == V2WindowsMessagingProtocolClient::ReactionKind::Love,
+          "mutation-only history must expose reactions and advance one ordered cursor");
 
     auto published = second;
     const auto live = client.receive(envelope(

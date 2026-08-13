@@ -22,6 +22,9 @@ enum MessageType {
   MESSAGE_TYPE_MESSAGE_HISTORY_PAGE = 103;
   MESSAGE_TYPE_MESSAGE_PUBLISHED = 104;
   MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE = 105;
+  MESSAGE_TYPE_SET_MESSAGE_REACTION = 106;
+  MESSAGE_TYPE_MESSAGE_REACTION_APPLIED = 107;
+  MESSAGE_TYPE_MESSAGE_REACTION_CHANGED = 108;
   MESSAGE_TYPE_LIST_CONVERSATIONS = 110;
   MESSAGE_TYPE_CONVERSATION_DIRECTORY_PAGE = 111;
   MESSAGE_TYPE_REGISTER_ATTACHMENT = 120;
@@ -42,12 +45,18 @@ enum ClientPlatform {
   CLIENT_PLATFORM_WINDOWS = 2;
 }
 
+enum ClientCapability {
+  CLIENT_CAPABILITY_UNSPECIFIED = 0;
+  CLIENT_CAPABILITY_MESSAGE_REACTIONS = 1;
+}
+
 message ClientHello {
   uint32 minimum_protocol_version = 1;
   uint32 maximum_protocol_version = 2;
   ClientPlatform platform = 3;
   string app_version = 4;
   string client_device_id = 5;
+  repeated ClientCapability capabilities = 6;
 }
 
 message ServerHello {
@@ -55,6 +64,7 @@ message ServerHello {
   string connection_id = 2;
   int64 server_time_epoch_ms = 3;
   uint32 maximum_frame_bytes = 4;
+  repeated ClientCapability enabled_capabilities = 5;
 }
 
 enum ProtocolErrorCode {

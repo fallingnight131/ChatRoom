@@ -25,6 +25,17 @@ public:
         bool hasReply = false;
         ReplyReference reply;
     };
+    enum class ReactionKind { Like, Love, Laugh, Surprised, Sad, Angry };
+    struct ReactionChange {
+        std::string conversationId;
+        std::uint64_t conversationSequence = 0;
+        std::string messageId;
+        ReactionKind reaction = ReactionKind::Like;
+        bool active = false;
+        std::string actorAccountId;
+        std::string clientOperationId;
+        std::int64_t occurredAtEpochMs = 0;
+    };
     struct Command {
         std::string requestId;
         std::string clientMessageId;
@@ -44,6 +55,7 @@ public:
         std::vector<Message> messages;
         std::vector<std::string> recalledMessageIds;
         std::vector<std::string> deletedMessageIds;
+        std::vector<ReactionChange> reactionChanges;
         std::uint64_t nextSequence = 0;
         std::uint64_t latestSequence = 0;
         bool hasMore = false;

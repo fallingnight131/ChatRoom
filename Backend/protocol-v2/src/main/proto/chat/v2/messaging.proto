@@ -24,6 +24,37 @@ message SubmitReplyMessage {
   bytes content = 4;
 }
 
+enum MessageReactionKind {
+  MESSAGE_REACTION_KIND_UNSPECIFIED = 0;
+  MESSAGE_REACTION_KIND_LIKE = 1;
+  MESSAGE_REACTION_KIND_LOVE = 2;
+  MESSAGE_REACTION_KIND_LAUGH = 3;
+  MESSAGE_REACTION_KIND_SURPRISED = 4;
+  MESSAGE_REACTION_KIND_SAD = 5;
+  MESSAGE_REACTION_KIND_ANGRY = 6;
+}
+
+message SetMessageReaction {
+  string conversation_id = 1;
+  string message_id = 2;
+  MessageReactionKind reaction = 3;
+  bool active = 4;
+  string client_operation_id = 5;
+}
+
+message MessageReactionApplied {
+  string conversation_id = 1;
+  string message_id = 2;
+  MessageReactionKind reaction = 3;
+  bool active = 4;
+  string actor_account_id = 5;
+  string client_operation_id = 6;
+  bool changed = 7;
+  uint64 conversation_sequence = 8;
+  int64 occurred_at_epoch_ms = 9;
+  bool duplicate = 10;
+}
+
 message MessageAccepted {
   string conversation_id = 1;
   string message_id = 2;
@@ -80,6 +111,17 @@ message MessagesDeletedRecord {
   int64 occurred_at_epoch_ms = 11;
 }
 
+message MessageReactionChangedRecord {
+  string conversation_id = 1;
+  uint64 conversation_sequence = 2;
+  string message_id = 3;
+  MessageReactionKind reaction = 4;
+  bool active = 5;
+  string actor_account_id = 6;
+  string client_operation_id = 7;
+  int64 occurred_at_epoch_ms = 8;
+}
+
 message ConversationEntryRecord {
   string conversation_id = 1;
   uint64 conversation_sequence = 2;
@@ -87,6 +129,7 @@ message ConversationEntryRecord {
     MessageRecord message = 3;
     MessageRecalledRecord recall = 4;
     MessagesDeletedRecord deletion = 5;
+    MessageReactionChangedRecord reaction = 6;
   }
 }
 

@@ -65,6 +65,10 @@ reused:
 | 102 | `ReadMessageHistory` | command | authenticated client to server; forward sequence page |
 | 103 | `MessageHistoryPage` | response | server to requesting active member |
 | 104 | `MessageRecord` | event | server to authenticated active subscriber after durable commit |
+| 105 | `SubmitReplyMessage` | command | authenticated client to server; durable idempotent reply append |
+| 106 | `SetMessageReaction` | command | capable authenticated client to server; idempotent desired reaction state |
+| 107 | `MessageReactionApplied` | response | server to submitting capable client after durable decision |
+| 108 | `MessageReactionChanged` | event | server to capable active subscribers after a changed durable reaction |
 | 110 | `ListConversations` | command | authenticated client to server; bounded directory page |
 | 111 | `ConversationDirectoryPage` | response | server to authenticated active member |
 
@@ -81,7 +85,8 @@ does not mean destination delivery or read acknowledgement.
 
 `ReadMessageHistory` accepts a nonnegative signed-server-range `after_sequence`
 and limit 1..100. `MessageHistoryPage.entries` field 6 returns at most 100
-ascending message, recall, or administrative-deletion entries. The existing
+ascending message, recall, administrative-deletion, or negotiated reaction
+entries. The existing
 `messages` field 2 remains a creation-message mirror and is not reinterpreted.
 The explicit next cursor identifies the last returned entry, including a
 mutation-only page; `latest_sequence` is the current conversation high watermark.
@@ -115,6 +120,20 @@ history repairs the gap instead of accumulating unbounded output. Published and
 slow-consumer-close metrics use fixed labels. Routing is process-local: multiple
 gateways require M5 Redis routing, and future membership mutations must invalidate
 subscriptions before they are enabled.
+
+Types 106--108 define the inactive message-reaction wire contract. A command
+sets one of six registered reactions to a desired active state and uses its
+client operation ID as the authenticated actor's idempotency key. A real state
+change receives the next positive conversation sequence; a convergent no-op
+returns `changed=false` and sequence zero. Only changed reactions enter the
+mixed history and live stream. The gateway must reject type 106 unless the
+session negotiated `MESSAGE_REACTIONS`, and it must not emit reaction details
+or type 108 to a session without that capability. A compatible history
+projection for such an older V2 session may omit reaction entries while still
+advancing `next_after_sequence` across them, so later messages remain reachable
+without exposing an unknown partial record. PostgreSQL storage, gateway
+dispatch, local projections, and UI remain follow-up slices; neither supported
+client advertises this capability yet (ADR-0339).
 
 `ListConversations` uses a limit of 1..100 and either no cursor or the complete
 pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are
@@ -183,10 +202,14 @@ false progress or creating a retry storm. `failed` commands require explicit
 user retry. The local boundary retains at most 100 unresolved commands.
 
 `ClientHello` declares a minimum/maximum protocol generation, Web or Windows
-platform, app version, and client-device ID. App version is limited to 64 UTF-8
-bytes and device ID to 128 UTF-8 bytes. It intentionally contains no credential
-or resumable session secret. A structurally valid range that does not include V2
-is an unsupported-version result; it is not treated as malformed input.
+platform, app version, client-device ID, and a bounded set of explicitly
+requested capabilities. App version is limited to 64 UTF-8 bytes and device ID
+to 128 UTF-8 bytes. Unknown or duplicate capabilities are rejected. A
+`ServerHello` repeats only the subset enabled for that connection; absence is
+the legacy behavior and enables no optional feature. `ClientHello` intentionally
+contains no credential or resumable session secret. A structurally valid range
+that does not include V2 is an unsupported-version result; it is not treated as
+malformed input.
 
 `ServerHello.connection_id` is diagnostic connection identity, not an
 authenticated session.

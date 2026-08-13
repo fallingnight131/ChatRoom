@@ -12,6 +12,8 @@ import {
 } from '../generated/typescript/chat/v2/control_pb.js'
 import { AuthenticateSchema } from '../generated/typescript/chat/v2/authentication_pb.js'
 import {
+  MessageReactionKind,
+  SetMessageReactionSchema,
   SubmitMessageSchema,
   SubmitReplyMessageSchema
 } from '../generated/typescript/chat/v2/messaging_pb.js'
@@ -29,6 +31,10 @@ const SUBMIT_REPLY_MESSAGE_GOLDEN_HEX =
   '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
   '122430303030303030302d303030302d303030302d303030302d303030303030303030303032' +
   '180122026869'
+const SET_MESSAGE_REACTION_GOLDEN_HEX =
+  '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
+  '122430303030303030302d303030302d303030302d303030302d303030303030303030303032' +
+  '180120012a0a7265616374696f6e2d31'
 const LIST_CONVERSATIONS_GOLDEN_HEX = '0880d095ffbc31122430303030303030302d303030302d' +
   '303030302d303030302d3030303030303030303030321819'
 const REGISTER_ATTACHMENT_GOLDEN_HEX =
@@ -140,6 +146,30 @@ test('keeps the bounded SubmitReplyMessage payload compatible across generated b
   assert.equal(
     Buffer.from(toBinary(SubmitReplyMessageSchema, encoded)).toString('hex'),
     SUBMIT_REPLY_MESSAGE_GOLDEN_HEX
+  )
+})
+
+test('keeps the bounded SetMessageReaction payload compatible across bindings', () => {
+  const decoded = fromBinary(
+    SetMessageReactionSchema,
+    bytesFromHex(SET_MESSAGE_REACTION_GOLDEN_HEX)
+  )
+  assert.equal(decoded.conversationId, '00000000-0000-0000-0000-000000000001')
+  assert.equal(decoded.messageId, '00000000-0000-0000-0000-000000000002')
+  assert.equal(decoded.reaction, MessageReactionKind.LIKE)
+  assert.equal(decoded.active, true)
+  assert.equal(decoded.clientOperationId, 'reaction-1')
+
+  const encoded = create(SetMessageReactionSchema, {
+    conversationId: '00000000-0000-0000-0000-000000000001',
+    messageId: '00000000-0000-0000-0000-000000000002',
+    reaction: MessageReactionKind.LIKE,
+    active: true,
+    clientOperationId: 'reaction-1'
+  })
+  assert.equal(
+    Buffer.from(toBinary(SetMessageReactionSchema, encoded)).toString('hex'),
+    SET_MESSAGE_REACTION_GOLDEN_HEX
   )
 })
 

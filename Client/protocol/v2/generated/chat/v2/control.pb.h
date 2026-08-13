@@ -56,6 +56,8 @@ extern const ::google::protobuf::internal::DescriptorTable descriptor_table_chat
 }  // extern "C"
 namespace chat {
 namespace v2 {
+enum ClientCapability : int;
+extern const uint32_t ClientCapability_internal_data_[];
 enum ClientPlatform : int;
 extern const uint32_t ClientPlatform_internal_data_[];
 enum MessageType : int;
@@ -91,6 +93,9 @@ extern const ServerHelloGlobalsTypeInternal ServerHello_globals_;
 namespace google {
 namespace protobuf {
 template <>
+internal::EnumTraitsT<::chat::v2::ClientCapability_internal_data_>
+    internal::EnumTraitsImpl::value<::chat::v2::ClientCapability>;
+template <>
 internal::EnumTraitsT<::chat::v2::ClientPlatform_internal_data_>
     internal::EnumTraitsImpl::value<::chat::v2::ClientPlatform>;
 template <>
@@ -119,6 +124,9 @@ enum MessageType : int {
   MESSAGE_TYPE_MESSAGE_HISTORY_PAGE = 103,
   MESSAGE_TYPE_MESSAGE_PUBLISHED = 104,
   MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE = 105,
+  MESSAGE_TYPE_SET_MESSAGE_REACTION = 106,
+  MESSAGE_TYPE_MESSAGE_REACTION_APPLIED = 107,
+  MESSAGE_TYPE_MESSAGE_REACTION_CHANGED = 108,
   MESSAGE_TYPE_LIST_CONVERSATIONS = 110,
   MESSAGE_TYPE_CONVERSATION_DIRECTORY_PAGE = 111,
   MESSAGE_TYPE_REGISTER_ATTACHMENT = 120,
@@ -202,6 +210,46 @@ template <>
 [[nodiscard]] inline bool ClientPlatform_Parse(
     ::absl::string_view name, ClientPlatform* PROTOBUF_NONNULL value) {
   return ::google::protobuf::internal::ParseNamedEnum<ClientPlatform>(ClientPlatform_descriptor(), name,
+                                           value);
+}
+enum ClientCapability : int {
+  CLIENT_CAPABILITY_UNSPECIFIED = 0,
+  CLIENT_CAPABILITY_MESSAGE_REACTIONS = 1,
+  ClientCapability_INT_MIN_SENTINEL_DO_NOT_USE_ =
+      ::std::numeric_limits<::int32_t>::min(),
+  ClientCapability_INT_MAX_SENTINEL_DO_NOT_USE_ =
+      ::std::numeric_limits<::int32_t>::max(),
+};
+
+extern const uint32_t ClientCapability_internal_data_[];
+inline constexpr ClientCapability ClientCapability_MIN =
+    static_cast<ClientCapability>(0);
+inline constexpr ClientCapability ClientCapability_MAX =
+    static_cast<ClientCapability>(1);
+[[nodiscard]] inline bool ClientCapability_IsValid(int value) {
+  return 0 <= value && value <= 1;
+}
+inline constexpr int ClientCapability_ARRAYSIZE = 1 + 1;
+[[nodiscard]] const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL
+ClientCapability_descriptor();
+[[nodiscard]] inline auto ProtobufInternalGetEnumDescriptor(ClientCapability) {
+  return ClientCapability_descriptor();
+}
+template <typename T>
+[[nodiscard]] const ::std::string& ClientCapability_Name(T value) {
+  static_assert(::std::is_same<T, ClientCapability>::value ||
+                    ::std::is_integral<T>::value,
+                "Incorrect type passed to ClientCapability_Name().");
+  return ClientCapability_Name(static_cast<ClientCapability>(value));
+}
+template <>
+[[nodiscard]] inline const ::std::string& ClientCapability_Name(ClientCapability value) {
+  return ::google::protobuf::internal::NameOfDenseEnum<ClientCapability_descriptor, 0, 1>(
+      static_cast<int>(value));
+}
+[[nodiscard]] inline bool ClientCapability_Parse(
+    ::absl::string_view name, ClientCapability* PROTOBUF_NONNULL value) {
+  return ::google::protobuf::internal::ParseNamedEnum<ClientCapability>(ClientCapability_descriptor(), name,
                                            value);
 }
 enum ProtocolErrorCode : int {
@@ -407,11 +455,33 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ServerHello final : public ::google
 
   // accessors -------------------------------------------------------
   enum : int {
+    kEnabledCapabilitiesFieldNumber = 5,
     kConnectionIdFieldNumber = 2,
     kSelectedProtocolVersionFieldNumber = 1,
     kMaximumFrameBytesFieldNumber = 4,
     kServerTimeEpochMsFieldNumber = 3,
   };
+  // repeated .chat.v2.ClientCapability enabled_capabilities = 5;
+  [[nodiscard]] int enabled_capabilities_size()
+      const;
+  private:
+  int _internal_enabled_capabilities_size() const;
+
+  public:
+  void clear_enabled_capabilities() ;
+  public:
+  [[nodiscard]] ::chat::v2::ClientCapability enabled_capabilities(int index) const;
+  void set_enabled_capabilities(int index, ::chat::v2::ClientCapability value);
+  void add_enabled_capabilities(::chat::v2::ClientCapability value);
+  [[nodiscard]] const ::google::protobuf::RepeatedField<int>& enabled_capabilities()
+      const;
+  [[nodiscard]] ::google::protobuf::RepeatedField<int>* PROTOBUF_NONNULL mutable_enabled_capabilities();
+
+  private:
+  const ::google::protobuf::RepeatedField<int>& _internal_enabled_capabilities() const;
+  ::google::protobuf::RepeatedField<int>* PROTOBUF_NONNULL _internal_mutable_enabled_capabilities();
+
+  public:
   // string connection_id = 2;
   void clear_connection_id() ;
   [[nodiscard]] const ::std::string& connection_id() const;
@@ -461,7 +531,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ServerHello final : public ::google
  private:
   class _Internal;
   using ParseTableT_ =
-      ::google::protobuf::internal::TcParseTable<2, 4,
+      ::google::protobuf::internal::TcParseTable<3, 5,
                           0, 41,
                           2>;
   static constexpr ParseTableT_ InternalGenerateParseTable_(
@@ -490,6 +560,8 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ServerHello final : public ::google
         const ServerHello& from_msg);
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::RepeatedField<int> enabled_capabilities_;
+    ::google::protobuf::internal::CachedSize _enabled_capabilities_cached_byte_size_;
     ::google::protobuf::internal::ArenaStringPtr connection_id_;
     ::uint32_t selected_protocol_version_;
     ::uint32_t maximum_frame_bytes_;
@@ -879,12 +951,34 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ClientHello final : public ::google
 
   // accessors -------------------------------------------------------
   enum : int {
+    kCapabilitiesFieldNumber = 6,
     kAppVersionFieldNumber = 4,
     kClientDeviceIdFieldNumber = 5,
     kMinimumProtocolVersionFieldNumber = 1,
     kMaximumProtocolVersionFieldNumber = 2,
     kPlatformFieldNumber = 3,
   };
+  // repeated .chat.v2.ClientCapability capabilities = 6;
+  [[nodiscard]] int capabilities_size()
+      const;
+  private:
+  int _internal_capabilities_size() const;
+
+  public:
+  void clear_capabilities() ;
+  public:
+  [[nodiscard]] ::chat::v2::ClientCapability capabilities(int index) const;
+  void set_capabilities(int index, ::chat::v2::ClientCapability value);
+  void add_capabilities(::chat::v2::ClientCapability value);
+  [[nodiscard]] const ::google::protobuf::RepeatedField<int>& capabilities()
+      const;
+  [[nodiscard]] ::google::protobuf::RepeatedField<int>* PROTOBUF_NONNULL mutable_capabilities();
+
+  private:
+  const ::google::protobuf::RepeatedField<int>& _internal_capabilities() const;
+  ::google::protobuf::RepeatedField<int>* PROTOBUF_NONNULL _internal_mutable_capabilities();
+
+  public:
   // string app_version = 4;
   void clear_app_version() ;
   [[nodiscard]] const ::std::string& app_version() const;
@@ -949,7 +1043,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ClientHello final : public ::google
  private:
   class _Internal;
   using ParseTableT_ =
-      ::google::protobuf::internal::TcParseTable<3, 5,
+      ::google::protobuf::internal::TcParseTable<3, 6,
                           0, 55,
                           2>;
   static constexpr ParseTableT_ InternalGenerateParseTable_(
@@ -978,6 +1072,8 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ClientHello final : public ::google
         const ClientHello& from_msg);
     ::google::protobuf::internal::HasBits<1> _has_bits_;
     ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::RepeatedField<int> capabilities_;
+    ::google::protobuf::internal::CachedSize _capabilities_cached_byte_size_;
     ::google::protobuf::internal::ArenaStringPtr app_version_;
     ::google::protobuf::internal::ArenaStringPtr client_device_id_;
     ::uint32_t minimum_protocol_version_;
@@ -1009,7 +1105,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ClientHello final : public ::google
 inline void ClientHello::clear_minimum_protocol_version() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.minimum_protocol_version_ = 0u;
-  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+  ClearHasBit(_impl_._has_bits_[0], 0x00000008U);
 }
 inline ::uint32_t ClientHello::minimum_protocol_version() const {
   // @@protoc_insertion_point(field_get:chat.v2.ClientHello.minimum_protocol_version)
@@ -1017,7 +1113,7 @@ inline ::uint32_t ClientHello::minimum_protocol_version() const {
 }
 inline void ClientHello::set_minimum_protocol_version(::uint32_t value) {
   _internal_set_minimum_protocol_version(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000008U);
   // @@protoc_insertion_point(field_set:chat.v2.ClientHello.minimum_protocol_version)
 }
 inline ::uint32_t ClientHello::_internal_minimum_protocol_version() const {
@@ -1033,7 +1129,7 @@ inline void ClientHello::_internal_set_minimum_protocol_version(::uint32_t value
 inline void ClientHello::clear_maximum_protocol_version() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.maximum_protocol_version_ = 0u;
-  ClearHasBit(_impl_._has_bits_[0], 0x00000008U);
+  ClearHasBit(_impl_._has_bits_[0], 0x00000010U);
 }
 inline ::uint32_t ClientHello::maximum_protocol_version() const {
   // @@protoc_insertion_point(field_get:chat.v2.ClientHello.maximum_protocol_version)
@@ -1041,7 +1137,7 @@ inline ::uint32_t ClientHello::maximum_protocol_version() const {
 }
 inline void ClientHello::set_maximum_protocol_version(::uint32_t value) {
   _internal_set_maximum_protocol_version(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000008U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000010U);
   // @@protoc_insertion_point(field_set:chat.v2.ClientHello.maximum_protocol_version)
 }
 inline ::uint32_t ClientHello::_internal_maximum_protocol_version() const {
@@ -1057,7 +1153,7 @@ inline void ClientHello::_internal_set_maximum_protocol_version(::uint32_t value
 inline void ClientHello::clear_platform() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.platform_ = 0;
-  ClearHasBit(_impl_._has_bits_[0], 0x00000010U);
+  ClearHasBit(_impl_._has_bits_[0], 0x00000020U);
 }
 inline ::chat::v2::ClientPlatform ClientHello::platform() const {
   // @@protoc_insertion_point(field_get:chat.v2.ClientHello.platform)
@@ -1065,7 +1161,7 @@ inline ::chat::v2::ClientPlatform ClientHello::platform() const {
 }
 inline void ClientHello::set_platform(::chat::v2::ClientPlatform value) {
   _internal_set_platform(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000010U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000020U);
   // @@protoc_insertion_point(field_set:chat.v2.ClientHello.platform)
 }
 inline ::chat::v2::ClientPlatform ClientHello::_internal_platform() const {
@@ -1081,7 +1177,7 @@ inline void ClientHello::_internal_set_platform(::chat::v2::ClientPlatform value
 inline void ClientHello::clear_app_version() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.app_version_.ClearToEmpty();
-  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
 }
 inline const ::std::string& ClientHello::app_version() const
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -1091,13 +1187,13 @@ inline const ::std::string& ClientHello::app_version() const
 template <typename Arg_, typename... Args_>
 PROTOBUF_ALWAYS_INLINE void ClientHello::set_app_version(Arg_&& arg, Args_... args) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
   _impl_.app_version_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
   // @@protoc_insertion_point(field_set:chat.v2.ClientHello.app_version)
 }
 inline ::std::string* PROTOBUF_NONNULL ClientHello::mutable_app_version()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
   ::std::string* _s = _internal_mutable_app_version();
   // @@protoc_insertion_point(field_mutable:chat.v2.ClientHello.app_version)
   return _s;
@@ -1117,10 +1213,10 @@ inline ::std::string* PROTOBUF_NONNULL ClientHello::_internal_mutable_app_versio
 inline ::std::string* PROTOBUF_NULLABLE ClientHello::release_app_version() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   // @@protoc_insertion_point(field_release:chat.v2.ClientHello.app_version)
-  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000001U)) {
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
     return nullptr;
   }
-  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
   auto* released = _impl_.app_version_.Release();
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
     _impl_.app_version_.Set("", GetArena());
@@ -1130,9 +1226,9 @@ inline ::std::string* PROTOBUF_NULLABLE ClientHello::release_app_version() {
 inline void ClientHello::set_allocated_app_version(::std::string* PROTOBUF_NULLABLE value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (value != nullptr) {
-    SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
   } else {
-    ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
   }
   _impl_.app_version_.SetAllocated(value, GetArena());
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.app_version_.IsDefault()) {
@@ -1145,7 +1241,7 @@ inline void ClientHello::set_allocated_app_version(::std::string* PROTOBUF_NULLA
 inline void ClientHello::clear_client_device_id() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.client_device_id_.ClearToEmpty();
-  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
 }
 inline const ::std::string& ClientHello::client_device_id() const
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -1155,13 +1251,13 @@ inline const ::std::string& ClientHello::client_device_id() const
 template <typename Arg_, typename... Args_>
 PROTOBUF_ALWAYS_INLINE void ClientHello::set_client_device_id(Arg_&& arg, Args_... args) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
   _impl_.client_device_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
   // @@protoc_insertion_point(field_set:chat.v2.ClientHello.client_device_id)
 }
 inline ::std::string* PROTOBUF_NONNULL ClientHello::mutable_client_device_id()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
   ::std::string* _s = _internal_mutable_client_device_id();
   // @@protoc_insertion_point(field_mutable:chat.v2.ClientHello.client_device_id)
   return _s;
@@ -1181,10 +1277,10 @@ inline ::std::string* PROTOBUF_NONNULL ClientHello::_internal_mutable_client_dev
 inline ::std::string* PROTOBUF_NULLABLE ClientHello::release_client_device_id() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   // @@protoc_insertion_point(field_release:chat.v2.ClientHello.client_device_id)
-  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000004U)) {
     return nullptr;
   }
-  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
   auto* released = _impl_.client_device_id_.Release();
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
     _impl_.client_device_id_.Set("", GetArena());
@@ -1194,15 +1290,66 @@ inline ::std::string* PROTOBUF_NULLABLE ClientHello::release_client_device_id() 
 inline void ClientHello::set_allocated_client_device_id(::std::string* PROTOBUF_NULLABLE value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (value != nullptr) {
-    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+    SetHasBit(_impl_._has_bits_[0], 0x00000004U);
   } else {
-    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+    ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
   }
   _impl_.client_device_id_.SetAllocated(value, GetArena());
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.client_device_id_.IsDefault()) {
     _impl_.client_device_id_.Set("", GetArena());
   }
   // @@protoc_insertion_point(field_set_allocated:chat.v2.ClientHello.client_device_id)
+}
+
+// repeated .chat.v2.ClientCapability capabilities = 6;
+inline int ClientHello::_internal_capabilities_size() const {
+  return _internal_capabilities().size();
+}
+inline int ClientHello::capabilities_size() const {
+  return _internal_capabilities_size();
+}
+inline void ClientHello::clear_capabilities() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.capabilities_.Clear();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+}
+inline ::chat::v2::ClientCapability ClientHello::capabilities(int index) const {
+  // @@protoc_insertion_point(field_get:chat.v2.ClientHello.capabilities)
+  return static_cast<::chat::v2::ClientCapability>(_internal_capabilities().Get(index));
+}
+inline void ClientHello::set_capabilities(int index, ::chat::v2::ClientCapability value) {
+  _internal_mutable_capabilities()->Set(index, value);
+  // @@protoc_insertion_point(field_set:chat.v2.ClientHello.capabilities)
+}
+inline void ClientHello::add_capabilities(::chat::v2::ClientCapability value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _internal_mutable_capabilities()
+      ->InternalAddWithArena<const ::google::protobuf::MessageLite*>(
+          internal_visibility(), this, value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  // @@protoc_insertion_point(field_add:chat.v2.ClientHello.capabilities)
+}
+inline const ::google::protobuf::RepeatedField<int>& ClientHello::capabilities() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:chat.v2.ClientHello.capabilities)
+  return _internal_capabilities();
+}
+inline ::google::protobuf::RepeatedField<int>* PROTOBUF_NONNULL ClientHello::mutable_capabilities()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  // @@protoc_insertion_point(field_mutable_list:chat.v2.ClientHello.capabilities)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_capabilities();
+}
+inline const ::google::protobuf::RepeatedField<int>& ClientHello::_internal_capabilities()
+    const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.capabilities_;
+}
+inline ::google::protobuf::RepeatedField<int>* PROTOBUF_NONNULL
+ClientHello::_internal_mutable_capabilities() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.capabilities_;
 }
 
 // -------------------------------------------------------------------
@@ -1213,7 +1360,7 @@ inline void ClientHello::set_allocated_client_device_id(::std::string* PROTOBUF_
 inline void ServerHello::clear_selected_protocol_version() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.selected_protocol_version_ = 0u;
-  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
 }
 inline ::uint32_t ServerHello::selected_protocol_version() const {
   // @@protoc_insertion_point(field_get:chat.v2.ServerHello.selected_protocol_version)
@@ -1221,7 +1368,7 @@ inline ::uint32_t ServerHello::selected_protocol_version() const {
 }
 inline void ServerHello::set_selected_protocol_version(::uint32_t value) {
   _internal_set_selected_protocol_version(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
   // @@protoc_insertion_point(field_set:chat.v2.ServerHello.selected_protocol_version)
 }
 inline ::uint32_t ServerHello::_internal_selected_protocol_version() const {
@@ -1237,7 +1384,7 @@ inline void ServerHello::_internal_set_selected_protocol_version(::uint32_t valu
 inline void ServerHello::clear_connection_id() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.connection_id_.ClearToEmpty();
-  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
 }
 inline const ::std::string& ServerHello::connection_id() const
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
@@ -1247,13 +1394,13 @@ inline const ::std::string& ServerHello::connection_id() const
 template <typename Arg_, typename... Args_>
 PROTOBUF_ALWAYS_INLINE void ServerHello::set_connection_id(Arg_&& arg, Args_... args) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
-  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
   _impl_.connection_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
   // @@protoc_insertion_point(field_set:chat.v2.ServerHello.connection_id)
 }
 inline ::std::string* PROTOBUF_NONNULL ServerHello::mutable_connection_id()
     ABSL_ATTRIBUTE_LIFETIME_BOUND {
-  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
   ::std::string* _s = _internal_mutable_connection_id();
   // @@protoc_insertion_point(field_mutable:chat.v2.ServerHello.connection_id)
   return _s;
@@ -1273,10 +1420,10 @@ inline ::std::string* PROTOBUF_NONNULL ServerHello::_internal_mutable_connection
 inline ::std::string* PROTOBUF_NULLABLE ServerHello::release_connection_id() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   // @@protoc_insertion_point(field_release:chat.v2.ServerHello.connection_id)
-  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000001U)) {
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
     return nullptr;
   }
-  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
   auto* released = _impl_.connection_id_.Release();
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
     _impl_.connection_id_.Set("", GetArena());
@@ -1286,9 +1433,9 @@ inline ::std::string* PROTOBUF_NULLABLE ServerHello::release_connection_id() {
 inline void ServerHello::set_allocated_connection_id(::std::string* PROTOBUF_NULLABLE value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   if (value != nullptr) {
-    SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
   } else {
-    ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
   }
   _impl_.connection_id_.SetAllocated(value, GetArena());
   if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.connection_id_.IsDefault()) {
@@ -1301,7 +1448,7 @@ inline void ServerHello::set_allocated_connection_id(::std::string* PROTOBUF_NUL
 inline void ServerHello::clear_server_time_epoch_ms() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.server_time_epoch_ms_ = ::int64_t{0};
-  ClearHasBit(_impl_._has_bits_[0], 0x00000008U);
+  ClearHasBit(_impl_._has_bits_[0], 0x00000010U);
 }
 inline ::int64_t ServerHello::server_time_epoch_ms() const {
   // @@protoc_insertion_point(field_get:chat.v2.ServerHello.server_time_epoch_ms)
@@ -1309,7 +1456,7 @@ inline ::int64_t ServerHello::server_time_epoch_ms() const {
 }
 inline void ServerHello::set_server_time_epoch_ms(::int64_t value) {
   _internal_set_server_time_epoch_ms(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000008U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000010U);
   // @@protoc_insertion_point(field_set:chat.v2.ServerHello.server_time_epoch_ms)
 }
 inline ::int64_t ServerHello::_internal_server_time_epoch_ms() const {
@@ -1325,7 +1472,7 @@ inline void ServerHello::_internal_set_server_time_epoch_ms(::int64_t value) {
 inline void ServerHello::clear_maximum_frame_bytes() {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.maximum_frame_bytes_ = 0u;
-  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+  ClearHasBit(_impl_._has_bits_[0], 0x00000008U);
 }
 inline ::uint32_t ServerHello::maximum_frame_bytes() const {
   // @@protoc_insertion_point(field_get:chat.v2.ServerHello.maximum_frame_bytes)
@@ -1333,7 +1480,7 @@ inline ::uint32_t ServerHello::maximum_frame_bytes() const {
 }
 inline void ServerHello::set_maximum_frame_bytes(::uint32_t value) {
   _internal_set_maximum_frame_bytes(value);
-  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  SetHasBit(_impl_._has_bits_[0], 0x00000008U);
   // @@protoc_insertion_point(field_set:chat.v2.ServerHello.maximum_frame_bytes)
 }
 inline ::uint32_t ServerHello::_internal_maximum_frame_bytes() const {
@@ -1343,6 +1490,57 @@ inline ::uint32_t ServerHello::_internal_maximum_frame_bytes() const {
 inline void ServerHello::_internal_set_maximum_frame_bytes(::uint32_t value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.maximum_frame_bytes_ = value;
+}
+
+// repeated .chat.v2.ClientCapability enabled_capabilities = 5;
+inline int ServerHello::_internal_enabled_capabilities_size() const {
+  return _internal_enabled_capabilities().size();
+}
+inline int ServerHello::enabled_capabilities_size() const {
+  return _internal_enabled_capabilities_size();
+}
+inline void ServerHello::clear_enabled_capabilities() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.enabled_capabilities_.Clear();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+}
+inline ::chat::v2::ClientCapability ServerHello::enabled_capabilities(int index) const {
+  // @@protoc_insertion_point(field_get:chat.v2.ServerHello.enabled_capabilities)
+  return static_cast<::chat::v2::ClientCapability>(_internal_enabled_capabilities().Get(index));
+}
+inline void ServerHello::set_enabled_capabilities(int index, ::chat::v2::ClientCapability value) {
+  _internal_mutable_enabled_capabilities()->Set(index, value);
+  // @@protoc_insertion_point(field_set:chat.v2.ServerHello.enabled_capabilities)
+}
+inline void ServerHello::add_enabled_capabilities(::chat::v2::ClientCapability value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _internal_mutable_enabled_capabilities()
+      ->InternalAddWithArena<const ::google::protobuf::MessageLite*>(
+          internal_visibility(), this, value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  // @@protoc_insertion_point(field_add:chat.v2.ServerHello.enabled_capabilities)
+}
+inline const ::google::protobuf::RepeatedField<int>& ServerHello::enabled_capabilities() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:chat.v2.ServerHello.enabled_capabilities)
+  return _internal_enabled_capabilities();
+}
+inline ::google::protobuf::RepeatedField<int>* PROTOBUF_NONNULL ServerHello::mutable_enabled_capabilities()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  // @@protoc_insertion_point(field_mutable_list:chat.v2.ServerHello.enabled_capabilities)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_enabled_capabilities();
+}
+inline const ::google::protobuf::RepeatedField<int>& ServerHello::_internal_enabled_capabilities()
+    const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.enabled_capabilities_;
+}
+inline ::google::protobuf::RepeatedField<int>* PROTOBUF_NONNULL
+ServerHello::_internal_mutable_enabled_capabilities() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.enabled_capabilities_;
 }
 
 // -------------------------------------------------------------------
@@ -1484,6 +1682,12 @@ struct is_proto_enum<::chat::v2::ClientPlatform> : std::true_type {};
 template <>
 inline const EnumDescriptor* PROTOBUF_NONNULL GetEnumDescriptor<::chat::v2::ClientPlatform>() {
   return ::chat::v2::ClientPlatform_descriptor();
+}
+template <>
+struct is_proto_enum<::chat::v2::ClientCapability> : std::true_type {};
+template <>
+inline const EnumDescriptor* PROTOBUF_NONNULL GetEnumDescriptor<::chat::v2::ClientCapability>() {
+  return ::chat::v2::ClientCapability_descriptor();
 }
 template <>
 struct is_proto_enum<::chat::v2::ProtocolErrorCode> : std::true_type {};

@@ -62,6 +62,22 @@ class ControlProtocolTest {
     }
 
     @Test
+    void validatesExplicitReactionCapabilityWithoutChangingLegacyGolden() {
+        ClientHello capable = validHello().toBuilder()
+                .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS)
+                .build();
+        ClientHelloPolicy.requireValid(capable);
+        assertThrows(IllegalArgumentException.class, () ->
+                ClientHelloPolicy.requireValid(capable.toBuilder()
+                        .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS)
+                        .build()));
+        assertThrows(IllegalArgumentException.class, () ->
+                ClientHelloPolicy.requireValid(validHello().toBuilder()
+                        .addCapabilities(ClientCapability.CLIENT_CAPABILITY_UNSPECIFIED)
+                        .build()));
+    }
+
+    @Test
     void separatesUnsupportedVersionFromStructurallyInvalidRanges() {
         ClientHello future = validHello().toBuilder()
                 .setMinimumProtocolVersion(3)

@@ -253,6 +253,7 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         std::vector<Message> entryMessages;
         std::vector<std::string> recalledMessageIds;
         std::vector<std::string> deletedMessageIds;
+        std::vector<ReactionChange> reactionChanges;
         for (const auto &entry : page.entries()) {
             if (entry.conversation_id() != pending.conversationId
                     || entry.conversation_sequence() == 0
@@ -299,6 +300,34 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
                 }
                 break;
             }
+            case chat::v2::ConversationEntryRecord::kReaction: {
+                const auto &reaction = entry.reaction();
+                if (reaction.conversation_id() != entry.conversation_id()
+                        || reaction.conversation_sequence()
+                                != entry.conversation_sequence()
+                        || !canonicalUuid(reaction.message_id())
+                        || !canonicalUuid(reaction.actor_account_id())
+                        || !boundedIdentifier(reaction.client_operation_id(), true)
+                        || reaction.occurred_at_epoch_ms() <= 0)
+                    throw std::runtime_error("invalid reaction entry");
+                ReactionKind kind;
+                switch (reaction.reaction()) {
+                case chat::v2::MESSAGE_REACTION_KIND_LIKE: kind = ReactionKind::Like; break;
+                case chat::v2::MESSAGE_REACTION_KIND_LOVE: kind = ReactionKind::Love; break;
+                case chat::v2::MESSAGE_REACTION_KIND_LAUGH: kind = ReactionKind::Laugh; break;
+                case chat::v2::MESSAGE_REACTION_KIND_SURPRISED:
+                    kind = ReactionKind::Surprised; break;
+                case chat::v2::MESSAGE_REACTION_KIND_SAD: kind = ReactionKind::Sad; break;
+                case chat::v2::MESSAGE_REACTION_KIND_ANGRY: kind = ReactionKind::Angry; break;
+                case chat::v2::MESSAGE_REACTION_KIND_UNSPECIFIED:
+                default: throw std::runtime_error("unsupported reaction entry");
+                }
+                reactionChanges.push_back({reaction.conversation_id(),
+                    reaction.conversation_sequence(), reaction.message_id(), kind,
+                    reaction.active(), reaction.actor_account_id(),
+                    reaction.client_operation_id(), reaction.occurred_at_epoch_ms()});
+                break;
+            }
             case chat::v2::ConversationEntryRecord::DETAIL_NOT_SET:
                 throw std::runtime_error("history entry detail is required");
             }
@@ -321,6 +350,7 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
             ? std::move(messages) : std::move(entryMessages);
         result.recalledMessageIds = std::move(recalledMessageIds);
         result.deletedMessageIds = std::move(deletedMessageIds);
+        result.reactionChanges = std::move(reactionChanges);
         result.nextSequence = page.next_sequence();
         result.latestSequence = page.latest_sequence();
         result.hasMore = page.has_more();

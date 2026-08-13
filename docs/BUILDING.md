@@ -1233,13 +1233,19 @@ tests also verify binary envelope egress plus fixed WebSocket 1002/1009 close
 mapping for unsafe frames. They do not open a listener or imply that V2 is ready
 to receive traffic.
 The protocol-binding gate also compiles and round-trips permanent V2 messaging
-types 100..105 and content type 1 (bounded nonempty UTF-8 text). Type 104 is the
+types 100..108 and content type 1 (bounded nonempty UTF-8 text). Type 104 is the
 uncorrelated authenticated live `MessageRecord` event. It verifies the
 fixed `SubmitMessage` and `SubmitReplyMessage` golden payloads in Java,
 generated TypeScript, and generated C++. Type 105 is a distinct reply command,
 so an older server rejects it instead of silently accepting a plain message;
 the additive server-authored record reference contains target identity and
-sequence but no copied quote body (ADR-0328). It also locks the V2
+sequence but no copied quote body (ADR-0328). Types 106--108 reserve an
+explicit-capability message-reaction command, response, and ordered live event.
+The same reaction command golden bytes are locked in Java, TypeScript, and C++;
+policy tests cover the fixed enum, canonical identities, idempotency operation
+ID, and changed/sequence invariant. This is wire compatibility evidence only:
+the gateway and supported clients do not advertise or activate the capability
+yet (ADR-0339). The gate also locks the V2
 conversation-directory composite cursor across all
 three generated bindings. The generation task also publishes reviewed
 TypeScript into `WebClient/src/protocol/v2/generated` and reviewed Windows C++
@@ -1257,8 +1263,10 @@ while remaining behind the existing default-off gate (ADR-0330).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live
-reply projections, mutation-only cursor advancement, defensive UTF-8/reply
-validation, and disconnect abandonment. The canonical default-off Windows CMake
+reply projections, mutation and reaction-detail cursor advancement, defensive
+UTF-8/reply/reaction validation, and disconnect abandonment. Parsing a reaction
+history record is not local projection or UI support and does not permit the
+Windows client to advertise the capability. The canonical default-off Windows CMake
 product now composes this boundary with the shared authenticated Qt WSS,
 account-isolated SQLite, a strict conversation directory, and Widgets surface;
 the codec test alone remains protocol-boundary evidence (ADR-0331/ADR-0334–0338).

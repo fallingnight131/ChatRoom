@@ -50,6 +50,17 @@ public final class MessagingPayloadPolicy {
         return List.copyOf(violations);
     }
 
+    public static List<String> violations(SetMessageReaction command) {
+        List<String> violations = new ArrayList<>();
+        requireUuid("conversationId", command.getConversationId(), violations);
+        requireUuid("messageId", command.getMessageId(), violations);
+        requireIdentifier("clientOperationId", command.getClientOperationId(), true, violations);
+        if (!supportedReaction(command.getReaction())) {
+            violations.add("reaction is unsupported");
+        }
+        return List.copyOf(violations);
+    }
+
     public static void requireValid(SubmitMessage command, String clientMessageId) {
         requireNone(violations(command, clientMessageId));
     }
@@ -60,6 +71,31 @@ public final class MessagingPayloadPolicy {
 
     public static void requireValid(ReadMessageHistory command) {
         requireNone(violations(command));
+    }
+
+    public static void requireValid(SetMessageReaction command) {
+        requireNone(violations(command));
+    }
+
+    public static void requireValid(MessageReactionApplied response) {
+        List<String> violations = new ArrayList<>();
+        requireUuid("conversationId", response.getConversationId(), violations);
+        requireUuid("messageId", response.getMessageId(), violations);
+        requireUuid("actorAccountId", response.getActorAccountId(), violations);
+        requireIdentifier("clientOperationId",
+                response.getClientOperationId(), true, violations);
+        if (!supportedReaction(response.getReaction())
+                || response.getOccurredAtEpochMs() <= 0
+                || response.getChanged() != (response.getConversationSequence() > 0)) {
+            violations.add("reaction result bounds are invalid");
+        }
+        requireNone(violations);
+    }
+
+    public static void requireValid(MessageReactionChangedRecord event) {
+        List<String> violations = new ArrayList<>();
+        validateReaction(event, violations);
+        requireNone(violations);
     }
 
     public static void requireValid(MessageAccepted response) {
@@ -169,8 +205,40 @@ public final class MessagingPayloadPolicy {
                     violations.add("deletion entry detail is invalid");
                 }
             }
+            case REACTION -> {
+                MessageReactionChangedRecord reaction = entry.getReaction();
+                validateReaction(reaction, violations);
+                if (!entry.getConversationId().equals(reaction.getConversationId())
+                        || entry.getConversationSequence()
+                                != reaction.getConversationSequence()) {
+                    violations.add("reaction entry detail identity differs");
+                }
+            }
             case DETAIL_NOT_SET -> violations.add("history entry detail is required");
         }
+    }
+
+    private static void validateReaction(
+            MessageReactionChangedRecord reaction, List<String> violations) {
+        requireUuid("reaction.conversationId", reaction.getConversationId(), violations);
+        requireUuid("reaction.messageId", reaction.getMessageId(), violations);
+        requireUuid("reaction.actorAccountId", reaction.getActorAccountId(), violations);
+        requireIdentifier("reaction.clientOperationId",
+                reaction.getClientOperationId(), true, violations);
+        if (reaction.getConversationSequence() <= 0
+                || reaction.getOccurredAtEpochMs() <= 0
+                || !supportedReaction(reaction.getReaction())) {
+            violations.add("reaction entry detail is invalid");
+        }
+    }
+
+    private static boolean supportedReaction(MessageReactionKind reaction) {
+        return switch (reaction) {
+            case MESSAGE_REACTION_KIND_LIKE, MESSAGE_REACTION_KIND_LOVE,
+                    MESSAGE_REACTION_KIND_LAUGH, MESSAGE_REACTION_KIND_SURPRISED,
+                    MESSAGE_REACTION_KIND_SAD, MESSAGE_REACTION_KIND_ANGRY -> true;
+            case MESSAGE_REACTION_KIND_UNSPECIFIED, UNRECOGNIZED -> false;
+        };
     }
 
     private static boolean supportedSource(String value) {

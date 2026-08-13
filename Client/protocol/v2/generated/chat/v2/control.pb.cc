@@ -52,11 +52,11 @@ constexpr ServerHello::ParseTableT_ ServerHello::InternalGenerateParseTable_(con
     {
       PROTOBUF_FIELD_OFFSET(ServerHello, _impl_._has_bits_),
       0, // no _extensions_
-      4, 24,  // max_field_number, fast_idx_mask
+      5, 56,  // max_field_number, fast_idx_mask
       offsetof(ParseTableT_, field_lookup_table),
-      4294967280,  // skipmap
+      4294967264,  // skipmap
       offsetof(ParseTableT_, field_entries),
-      4,  // num_field_entries
+      5,  // num_field_entries
       0,  // num_aux_entries
       offsetof(ParseTableT_, field_names),  // no aux_entries
       class_data,
@@ -66,33 +66,42 @@ constexpr ServerHello::ParseTableT_ ServerHello::InternalGenerateParseTable_(con
       ::_pbi::TcParser::GetTable<::chat::v2::ServerHello>(),  // to_prefetch
       #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
     }, {{
-      // uint32 maximum_frame_bytes = 4;
-      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(ServerHello, _impl_.maximum_frame_bytes_), 2>(),
-       {32, 2, 0,
-        PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.maximum_frame_bytes_)}},
+      {::_pbi::TcParser::MiniParse, {}},
       // uint32 selected_protocol_version = 1;
-      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(ServerHello, _impl_.selected_protocol_version_), 1>(),
-       {8, 1, 0,
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(ServerHello, _impl_.selected_protocol_version_), 2>(),
+       {8, 2, 0,
         PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.selected_protocol_version_)}},
       // string connection_id = 2;
       {::_pbi::TcParser::FastUS1,
-       {18, 0, 0,
+       {18, 1, 0,
         PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.connection_id_)}},
       // int64 server_time_epoch_ms = 3;
-      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(ServerHello, _impl_.server_time_epoch_ms_), 3>(),
-       {24, 3, 0,
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(ServerHello, _impl_.server_time_epoch_ms_), 4>(),
+       {24, 4, 0,
         PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.server_time_epoch_ms_)}},
+      // uint32 maximum_frame_bytes = 4;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(ServerHello, _impl_.maximum_frame_bytes_), 3>(),
+       {32, 3, 0,
+        PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.maximum_frame_bytes_)}},
+      // repeated .chat.v2.ClientCapability enabled_capabilities = 5;
+      {::_pbi::TcParser::FastV32P1,
+       {42, 0, 0,
+        PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.enabled_capabilities_)}},
+      {::_pbi::TcParser::MiniParse, {}},
+      {::_pbi::TcParser::MiniParse, {}},
     }}, {{
       65535, 65535
     }}, {{
       // uint32 selected_protocol_version = 1;
-      {PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.selected_protocol_version_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+      {PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.selected_protocol_version_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
       // string connection_id = 2;
-      {PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.connection_id_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      {PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.connection_id_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
       // int64 server_time_epoch_ms = 3;
-      {PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.server_time_epoch_ms_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt64)},
+      {PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.server_time_epoch_ms_), _Internal::kHasBitsOffset + 4, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt64)},
       // uint32 maximum_frame_bytes = 4;
-      {PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.maximum_frame_bytes_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+      {PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.maximum_frame_bytes_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+      // repeated .chat.v2.ClientCapability enabled_capabilities = 5;
+      {PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.enabled_capabilities_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcRepeated | ::_fl::kPackedOpenEnum)},
     }},
     // no aux_entries
     {{
@@ -108,6 +117,12 @@ inline constexpr ServerHello::Impl_::Impl_(
     [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
+        enabled_capabilities_ { visibility, ::_pbi::InternalMetadataOffset::Build<
+            ::chat::v2::ServerHello,
+            PROTOBUF_FIELD_OFFSET(::chat::v2::ServerHello, _impl_.enabled_capabilities_)>()
+         }
+        ,
+        _enabled_capabilities_cached_byte_size_{0},
         connection_id_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
@@ -380,11 +395,11 @@ constexpr ClientHello::ParseTableT_ ClientHello::InternalGenerateParseTable_(con
     {
       PROTOBUF_FIELD_OFFSET(ClientHello, _impl_._has_bits_),
       0, // no _extensions_
-      5, 56,  // max_field_number, fast_idx_mask
+      6, 56,  // max_field_number, fast_idx_mask
       offsetof(ParseTableT_, field_lookup_table),
-      4294967264,  // skipmap
+      4294967232,  // skipmap
       offsetof(ParseTableT_, field_entries),
-      5,  // num_field_entries
+      6,  // num_field_entries
       0,  // num_aux_entries
       offsetof(ParseTableT_, field_names),  // no aux_entries
       class_data,
@@ -396,40 +411,45 @@ constexpr ClientHello::ParseTableT_ ClientHello::InternalGenerateParseTable_(con
     }, {{
       {::_pbi::TcParser::MiniParse, {}},
       // uint32 minimum_protocol_version = 1;
-      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(ClientHello, _impl_.minimum_protocol_version_), 2>(),
-       {8, 2, 0,
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(ClientHello, _impl_.minimum_protocol_version_), 3>(),
+       {8, 3, 0,
         PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.minimum_protocol_version_)}},
       // uint32 maximum_protocol_version = 2;
-      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(ClientHello, _impl_.maximum_protocol_version_), 3>(),
-       {16, 3, 0,
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(ClientHello, _impl_.maximum_protocol_version_), 4>(),
+       {16, 4, 0,
         PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.maximum_protocol_version_)}},
       // .chat.v2.ClientPlatform platform = 3;
-      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(ClientHello, _impl_.platform_), 4>(),
-       {24, 4, 0,
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(ClientHello, _impl_.platform_), 5>(),
+       {24, 5, 0,
         PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.platform_)}},
       // string app_version = 4;
       {::_pbi::TcParser::FastUS1,
-       {34, 0, 0,
+       {34, 1, 0,
         PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.app_version_)}},
       // string client_device_id = 5;
       {::_pbi::TcParser::FastUS1,
-       {42, 1, 0,
+       {42, 2, 0,
         PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.client_device_id_)}},
-      {::_pbi::TcParser::MiniParse, {}},
+      // repeated .chat.v2.ClientCapability capabilities = 6;
+      {::_pbi::TcParser::FastV32P1,
+       {50, 0, 0,
+        PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.capabilities_)}},
       {::_pbi::TcParser::MiniParse, {}},
     }}, {{
       65535, 65535
     }}, {{
       // uint32 minimum_protocol_version = 1;
-      {PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.minimum_protocol_version_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+      {PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.minimum_protocol_version_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
       // uint32 maximum_protocol_version = 2;
-      {PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.maximum_protocol_version_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+      {PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.maximum_protocol_version_), _Internal::kHasBitsOffset + 4, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
       // .chat.v2.ClientPlatform platform = 3;
-      {PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.platform_), _Internal::kHasBitsOffset + 4, 0, (0 | ::_fl::kFcOptional | ::_fl::kOpenEnum)},
+      {PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.platform_), _Internal::kHasBitsOffset + 5, 0, (0 | ::_fl::kFcOptional | ::_fl::kOpenEnum)},
       // string app_version = 4;
-      {PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.app_version_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      {PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.app_version_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
       // string client_device_id = 5;
-      {PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.client_device_id_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      {PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.client_device_id_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // repeated .chat.v2.ClientCapability capabilities = 6;
+      {PROTOBUF_FIELD_OFFSET(ClientHello, _impl_.capabilities_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcRepeated | ::_fl::kPackedOpenEnum)},
     }},
     // no aux_entries
     {{
@@ -446,6 +466,12 @@ inline constexpr ClientHello::Impl_::Impl_(
     [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
+        capabilities_ { visibility, ::_pbi::InternalMetadataOffset::Build<
+            ::chat::v2::ClientHello,
+            PROTOBUF_FIELD_OFFSET(::chat::v2::ClientHello, _impl_.capabilities_)>()
+         }
+        ,
+        _capabilities_cached_byte_size_{0},
         app_version_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
@@ -551,7 +577,7 @@ const ::_pbi::ClassData* ClientHello_get_class_data() {
 }  // namespace v2
 }  // namespace chat
 static const ::_pb::EnumDescriptor* PROTOBUF_NONNULL
-    file_level_enum_descriptors_chat_2fv2_2fcontrol_2eproto[3];
+    file_level_enum_descriptors_chat_2fv2_2fcontrol_2eproto[4];
 static constexpr const ::_pb::ServiceDescriptor* PROTOBUF_NONNULL* PROTOBUF_NULLABLE
     file_level_service_descriptors_chat_2fv2_2fcontrol_2eproto = nullptr;
 const ::uint32_t
@@ -559,28 +585,32 @@ const ::uint32_t
         protodesc_cold) = {
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::chat::v2::ClientHello, _impl_._has_bits_),
-        8, // hasbit index offset
+        9, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::chat::v2::ClientHello, _impl_.minimum_protocol_version_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::ClientHello, _impl_.maximum_protocol_version_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::ClientHello, _impl_.platform_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::ClientHello, _impl_.app_version_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::ClientHello, _impl_.client_device_id_),
-        2,
+        PROTOBUF_FIELD_OFFSET(::chat::v2::ClientHello, _impl_.capabilities_),
         3,
         4,
-        0,
+        5,
         1,
+        2,
+        0,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::chat::v2::ServerHello, _impl_._has_bits_),
-        7, // hasbit index offset
+        8, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::chat::v2::ServerHello, _impl_.selected_protocol_version_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::ServerHello, _impl_.connection_id_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::ServerHello, _impl_.server_time_epoch_ms_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::ServerHello, _impl_.maximum_frame_bytes_),
-        1,
-        0,
-        3,
+        PROTOBUF_FIELD_OFFSET(::chat::v2::ServerHello, _impl_.enabled_capabilities_),
         2,
+        1,
+        4,
+        3,
+        0,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::chat::v2::ProtocolError, _impl_._has_bits_),
         6, // hasbit index offset
@@ -595,8 +625,8 @@ const ::uint32_t
 static const ::_pbi::MigrationSchema
     schemas[] ABSL_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
         {0, sizeof(::chat::v2::ClientHello)},
-        {13, sizeof(::chat::v2::ServerHello)},
-        {24, sizeof(::chat::v2::ProtocolError)},
+        {15, sizeof(::chat::v2::ServerHello)},
+        {28, sizeof(::chat::v2::ProtocolError)},
 };
 static const ::_pbi::MessageGlobalsBase* PROTOBUF_NONNULL const
     file_message_globals[] = {
@@ -606,62 +636,70 @@ static const ::_pbi::MessageGlobalsBase* PROTOBUF_NONNULL const
 };
 const char descriptor_table_protodef_chat_2fv2_2fcontrol_2eproto[] ABSL_ATTRIBUTE_SECTION_VARIABLE(
     protodesc_cold) = {
-    "\n\025chat/v2/control.proto\022\007chat.v2\"\253\001\n\013Cli"
+    "\n\025chat/v2/control.proto\022\007chat.v2\"\334\001\n\013Cli"
     "entHello\022 \n\030minimum_protocol_version\030\001 \001"
     "(\r\022 \n\030maximum_protocol_version\030\002 \001(\r\022)\n\010"
     "platform\030\003 \001(\0162\027.chat.v2.ClientPlatform\022"
     "\023\n\013app_version\030\004 \001(\t\022\030\n\020client_device_id"
-    "\030\005 \001(\t\"\202\001\n\013ServerHello\022!\n\031selected_proto"
-    "col_version\030\001 \001(\r\022\025\n\rconnection_id\030\002 \001(\t"
-    "\022\034\n\024server_time_epoch_ms\030\003 \001(\003\022\033\n\023maximu"
-    "m_frame_bytes\030\004 \001(\r\"b\n\rProtocolError\022(\n\004"
-    "code\030\001 \001(\0162\032.chat.v2.ProtocolErrorCode\022\024"
-    "\n\014safe_message\030\002 \001(\t\022\021\n\tretryable\030\003 \001(\010*"
-    "\314\007\n\013MessageType\022\034\n\030MESSAGE_TYPE_UNSPECIF"
-    "IED\020\000\022\035\n\031MESSAGE_TYPE_CLIENT_HELLO\020\001\022\035\n\031"
-    "MESSAGE_TYPE_SERVER_HELLO\020\002\022\037\n\033MESSAGE_T"
-    "YPE_PROTOCOL_ERROR\020\003\022\035\n\031MESSAGE_TYPE_AUT"
-    "HENTICATE\020\n\022\037\n\033MESSAGE_TYPE_RESUME_SESSI"
-    "ON\020\013\022$\n MESSAGE_TYPE_SESSION_ESTABLISHED"
-    "\020\014\022(\n$MESSAGE_TYPE_AUTHENTICATION_REJECT"
-    "ED\020\r\022\037\n\033MESSAGE_TYPE_SUBMIT_MESSAGE\020d\022!\n"
-    "\035MESSAGE_TYPE_MESSAGE_ACCEPTED\020e\022%\n!MESS"
-    "AGE_TYPE_READ_MESSAGE_HISTORY\020f\022%\n!MESSA"
-    "GE_TYPE_MESSAGE_HISTORY_PAGE\020g\022\"\n\036MESSAG"
-    "E_TYPE_MESSAGE_PUBLISHED\020h\022%\n!MESSAGE_TY"
-    "PE_SUBMIT_REPLY_MESSAGE\020i\022#\n\037MESSAGE_TYP"
-    "E_LIST_CONVERSATIONS\020n\022,\n(MESSAGE_TYPE_C"
-    "ONVERSATION_DIRECTORY_PAGE\020o\022$\n MESSAGE_"
-    "TYPE_REGISTER_ATTACHMENT\020x\022&\n\"MESSAGE_TY"
-    "PE_ATTACHMENT_REGISTERED\020y\022,\n(MESSAGE_TY"
-    "PE_AUTHORIZE_ATTACHMENT_UPLOAD\020z\022-\n)MESS"
-    "AGE_TYPE_ATTACHMENT_UPLOAD_AUTHORIZED\020{\022"
-    "+\n\'MESSAGE_TYPE_COMPLETE_ATTACHMENT_UPLO"
-    "AD\020|\022!\n\035MESSAGE_TYPE_ATTACHMENT_READY\020}\022"
-    "\036\n\031MESSAGE_TYPE_LIST_DEVICES\020\202\001\022\"\n\035MESSA"
-    "GE_TYPE_DEVICE_DIRECTORY\020\203\001\022\037\n\032MESSAGE_T"
-    "YPE_REVOKE_DEVICE\020\204\001\022 \n\033MESSAGE_TYPE_DEV"
-    "ICE_REVOKED\020\205\001*g\n\016ClientPlatform\022\037\n\033CLIE"
-    "NT_PLATFORM_UNSPECIFIED\020\000\022\027\n\023CLIENT_PLAT"
-    "FORM_WEB\020\001\022\033\n\027CLIENT_PLATFORM_WINDOWS\020\002*"
-    "\213\003\n\021ProtocolErrorCode\022#\n\037PROTOCOL_ERROR_"
-    "CODE_UNSPECIFIED\020\000\022+\n\'PROTOCOL_ERROR_COD"
-    "E_UNSUPPORTED_VERSION\020\001\0220\n,PROTOCOL_ERRO"
-    "R_CODE_UNSUPPORTED_MESSAGE_TYPE\020\002\022\'\n#PRO"
-    "TOCOL_ERROR_CODE_INVALID_PAYLOAD\020\003\022%\n!PR"
-    "OTOCOL_ERROR_CODE_INVALID_STATE\020\004\022$\n PRO"
-    "TOCOL_ERROR_CODE_RATE_LIMITED\020\005\022&\n\"PROTO"
-    "COL_ERROR_CODE_INTERNAL_ERROR\020\006\022,\n(PROTO"
-    "COL_ERROR_CODE_IDEMPOTENCY_CONFLICT\020\007\022&\n"
-    "\"PROTOCOL_ERROR_CODE_NOT_AUTHORIZED\020\010B4\n"
-    "!com.fallingnight.chat.protocol.v2B\rCont"
-    "rolSchemaP\001b\006proto3"
+    "\030\005 \001(\t\022/\n\014capabilities\030\006 \003(\0162\031.chat.v2.C"
+    "lientCapability\"\273\001\n\013ServerHello\022!\n\031selec"
+    "ted_protocol_version\030\001 \001(\r\022\025\n\rconnection"
+    "_id\030\002 \001(\t\022\034\n\024server_time_epoch_ms\030\003 \001(\003\022"
+    "\033\n\023maximum_frame_bytes\030\004 \001(\r\0227\n\024enabled_"
+    "capabilities\030\005 \003(\0162\031.chat.v2.ClientCapab"
+    "ility\"b\n\rProtocolError\022(\n\004code\030\001 \001(\0162\032.c"
+    "hat.v2.ProtocolErrorCode\022\024\n\014safe_message"
+    "\030\002 \001(\t\022\021\n\tretryable\030\003 \001(\010*\311\010\n\013MessageTyp"
+    "e\022\034\n\030MESSAGE_TYPE_UNSPECIFIED\020\000\022\035\n\031MESSA"
+    "GE_TYPE_CLIENT_HELLO\020\001\022\035\n\031MESSAGE_TYPE_S"
+    "ERVER_HELLO\020\002\022\037\n\033MESSAGE_TYPE_PROTOCOL_E"
+    "RROR\020\003\022\035\n\031MESSAGE_TYPE_AUTHENTICATE\020\n\022\037\n"
+    "\033MESSAGE_TYPE_RESUME_SESSION\020\013\022$\n MESSAG"
+    "E_TYPE_SESSION_ESTABLISHED\020\014\022(\n$MESSAGE_"
+    "TYPE_AUTHENTICATION_REJECTED\020\r\022\037\n\033MESSAG"
+    "E_TYPE_SUBMIT_MESSAGE\020d\022!\n\035MESSAGE_TYPE_"
+    "MESSAGE_ACCEPTED\020e\022%\n!MESSAGE_TYPE_READ_"
+    "MESSAGE_HISTORY\020f\022%\n!MESSAGE_TYPE_MESSAG"
+    "E_HISTORY_PAGE\020g\022\"\n\036MESSAGE_TYPE_MESSAGE"
+    "_PUBLISHED\020h\022%\n!MESSAGE_TYPE_SUBMIT_REPL"
+    "Y_MESSAGE\020i\022%\n!MESSAGE_TYPE_SET_MESSAGE_"
+    "REACTION\020j\022)\n%MESSAGE_TYPE_MESSAGE_REACT"
+    "ION_APPLIED\020k\022)\n%MESSAGE_TYPE_MESSAGE_RE"
+    "ACTION_CHANGED\020l\022#\n\037MESSAGE_TYPE_LIST_CO"
+    "NVERSATIONS\020n\022,\n(MESSAGE_TYPE_CONVERSATI"
+    "ON_DIRECTORY_PAGE\020o\022$\n MESSAGE_TYPE_REGI"
+    "STER_ATTACHMENT\020x\022&\n\"MESSAGE_TYPE_ATTACH"
+    "MENT_REGISTERED\020y\022,\n(MESSAGE_TYPE_AUTHOR"
+    "IZE_ATTACHMENT_UPLOAD\020z\022-\n)MESSAGE_TYPE_"
+    "ATTACHMENT_UPLOAD_AUTHORIZED\020{\022+\n\'MESSAG"
+    "E_TYPE_COMPLETE_ATTACHMENT_UPLOAD\020|\022!\n\035M"
+    "ESSAGE_TYPE_ATTACHMENT_READY\020}\022\036\n\031MESSAG"
+    "E_TYPE_LIST_DEVICES\020\202\001\022\"\n\035MESSAGE_TYPE_D"
+    "EVICE_DIRECTORY\020\203\001\022\037\n\032MESSAGE_TYPE_REVOK"
+    "E_DEVICE\020\204\001\022 \n\033MESSAGE_TYPE_DEVICE_REVOK"
+    "ED\020\205\001*g\n\016ClientPlatform\022\037\n\033CLIENT_PLATFO"
+    "RM_UNSPECIFIED\020\000\022\027\n\023CLIENT_PLATFORM_WEB\020"
+    "\001\022\033\n\027CLIENT_PLATFORM_WINDOWS\020\002*^\n\020Client"
+    "Capability\022!\n\035CLIENT_CAPABILITY_UNSPECIF"
+    "IED\020\000\022\'\n#CLIENT_CAPABILITY_MESSAGE_REACT"
+    "IONS\020\001*\213\003\n\021ProtocolErrorCode\022#\n\037PROTOCOL"
+    "_ERROR_CODE_UNSPECIFIED\020\000\022+\n\'PROTOCOL_ER"
+    "ROR_CODE_UNSUPPORTED_VERSION\020\001\0220\n,PROTOC"
+    "OL_ERROR_CODE_UNSUPPORTED_MESSAGE_TYPE\020\002"
+    "\022\'\n#PROTOCOL_ERROR_CODE_INVALID_PAYLOAD\020"
+    "\003\022%\n!PROTOCOL_ERROR_CODE_INVALID_STATE\020\004"
+    "\022$\n PROTOCOL_ERROR_CODE_RATE_LIMITED\020\005\022&"
+    "\n\"PROTOCOL_ERROR_CODE_INTERNAL_ERROR\020\006\022,"
+    "\n(PROTOCOL_ERROR_CODE_IDEMPOTENCY_CONFLI"
+    "CT\020\007\022&\n\"PROTOCOL_ERROR_CODE_NOT_AUTHORIZ"
+    "ED\020\010B4\n!com.fallingnight.chat.protocol.v"
+    "2B\rControlSchemaP\001b\006proto3"
 };
 static ::absl::once_flag descriptor_table_chat_2fv2_2fcontrol_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_chat_2fv2_2fcontrol_2eproto = {
     false,
     false,
-    1979,
+    2306,
     descriptor_table_protodef_chat_2fv2_2fcontrol_2eproto,
     "chat/v2/control.proto",
     &descriptor_table_chat_2fv2_2fcontrol_2eproto_once,
@@ -682,7 +720,7 @@ MessageType_descriptor() {
   return file_level_enum_descriptors_chat_2fv2_2fcontrol_2eproto[0];
 }
 PROTOBUF_CONSTINIT const uint32_t MessageType_internal_data_[] = {
-    262144u, 160u, 960u, 0u, 0u, 3287288895u, 3u, };
+    262144u, 160u, 960u, 0u, 0u, 3287289343u, 3u, };
 [[nodiscard]] const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL
 ClientPlatform_descriptor() {
   ::google::protobuf::internal::AssignDescriptors(&descriptor_table_chat_2fv2_2fcontrol_2eproto);
@@ -691,9 +729,16 @@ ClientPlatform_descriptor() {
 PROTOBUF_CONSTINIT const uint32_t ClientPlatform_internal_data_[] = {
     196608u, 0u, };
 [[nodiscard]] const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL
-ProtocolErrorCode_descriptor() {
+ClientCapability_descriptor() {
   ::google::protobuf::internal::AssignDescriptors(&descriptor_table_chat_2fv2_2fcontrol_2eproto);
   return file_level_enum_descriptors_chat_2fv2_2fcontrol_2eproto[2];
+}
+PROTOBUF_CONSTINIT const uint32_t ClientCapability_internal_data_[] = {
+    131072u, 0u, };
+[[nodiscard]] const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL
+ProtocolErrorCode_descriptor() {
+  ::google::protobuf::internal::AssignDescriptors(&descriptor_table_chat_2fv2_2fcontrol_2eproto);
+  return file_level_enum_descriptors_chat_2fv2_2fcontrol_2eproto[3];
 }
 PROTOBUF_CONSTINIT const uint32_t ProtocolErrorCode_internal_data_[] = {
     589824u, 0u, };
@@ -714,6 +759,14 @@ PROTOBUF_NDEBUG_INLINE ClientHello::Impl_::Impl_(
     [[maybe_unused]] const ::chat::v2::ClientHello& from_msg)
       : _has_bits_{from._has_bits_},
         _cached_size_{0},
+        capabilities_ {
+          visibility, ::_pbi::InternalMetadataOffset::Build<
+              ::chat::v2::ClientHello,
+              PROTOBUF_FIELD_OFFSET(::chat::v2::ClientHello, _impl_.capabilities_)>()
+          , from.capabilities_
+        }
+        ,
+        _capabilities_cached_byte_size_{0},
         app_version_(arena, from.app_version_),
         client_device_id_(arena, from.client_device_id_) {}
 
@@ -745,6 +798,12 @@ PROTOBUF_NDEBUG_INLINE ClientHello::Impl_::Impl_(
     [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
     [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
       : _cached_size_{0},
+        capabilities_ { visibility, ::_pbi::InternalMetadataOffset::Build<
+            ::chat::v2::ClientHello,
+            PROTOBUF_FIELD_OFFSET(::chat::v2::ClientHello, _impl_.capabilities_)>()
+         }
+        ,
+        _capabilities_cached_byte_size_{0},
         app_version_(arena),
         client_device_id_(arena) {}
 
@@ -807,15 +866,18 @@ PROTOBUF_NOINLINE void ClientHello::Clear() {
   (void) cached_has_bits;
 
   cached_has_bits = _impl_._has_bits_[0];
-  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x00000007U)) {
     if (CheckHasBit(cached_has_bits, 0x00000001U)) {
-      _impl_.app_version_.ClearNonDefaultToEmpty();
+      _impl_.capabilities_.Clear();
     }
     if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.app_version_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
       _impl_.client_device_id_.ClearNonDefaultToEmpty();
     }
   }
-  if (BatchCheckHasBit(cached_has_bits, 0x0000001cU)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x00000038U)) {
     ::memset(&_impl_.minimum_protocol_version_, 0, static_cast<::size_t>(
         reinterpret_cast<char*>(&_impl_.platform_) -
         reinterpret_cast<char*>(&_impl_.minimum_protocol_version_)) + sizeof(_impl_.platform_));
@@ -844,7 +906,7 @@ PROTOBUF_NOINLINE void ClientHello::Clear() {
 
   cached_has_bits = this_._impl_._has_bits_[0];
   // uint32 minimum_protocol_version = 1;
-  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000008U)) {
     if (this_._internal_minimum_protocol_version() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
@@ -853,7 +915,7 @@ PROTOBUF_NOINLINE void ClientHello::Clear() {
   }
 
   // uint32 maximum_protocol_version = 2;
-  if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000010U)) {
     if (this_._internal_maximum_protocol_version() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
@@ -862,7 +924,7 @@ PROTOBUF_NOINLINE void ClientHello::Clear() {
   }
 
   // .chat.v2.ClientPlatform platform = 3;
-  if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000020U)) {
     if (this_._internal_platform() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteEnumToArray(
@@ -871,7 +933,7 @@ PROTOBUF_NOINLINE void ClientHello::Clear() {
   }
 
   // string app_version = 4;
-  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
     if (!this_._internal_app_version().empty()) {
       const ::std::string& _s = this_._internal_app_version();
       ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
@@ -881,12 +943,23 @@ PROTOBUF_NOINLINE void ClientHello::Clear() {
   }
 
   // string client_device_id = 5;
-  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
     if (!this_._internal_client_device_id().empty()) {
       const ::std::string& _s = this_._internal_client_device_id();
       ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
           _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.ClientHello.client_device_id");
       target = stream->WriteStringMaybeAliased(5, _s, target);
+    }
+  }
+
+  // repeated .chat.v2.ClientCapability capabilities = 6;
+  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    {
+      ::size_t byte_size = this_._impl_._capabilities_cached_byte_size_.Get();
+      if (byte_size > 0) {
+        target = stream->WriteEnumPacked(
+            6, this_._internal_capabilities(), byte_size, target);
+      }
     }
   }
 
@@ -915,37 +988,42 @@ PROTOBUF_NOINLINE void ClientHello::Clear() {
 
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
   cached_has_bits = this_._impl_._has_bits_[0];
-  if (BatchCheckHasBit(cached_has_bits, 0x0000001fU)) {
-    // string app_version = 4;
+  if (BatchCheckHasBit(cached_has_bits, 0x0000003fU)) {
+    // repeated .chat.v2.ClientCapability capabilities = 6;
     if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      total_size += ::_pbi::WireFormatLite::EnumSizeWithPackedTagSize(
+          this_._internal_capabilities(), 1, this_._impl_._capabilities_cached_byte_size_);
+    }
+    // string app_version = 4;
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
       if (!this_._internal_app_version().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
                                         this_._internal_app_version());
       }
     }
     // string client_device_id = 5;
-    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
       if (!this_._internal_client_device_id().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
                                         this_._internal_client_device_id());
       }
     }
     // uint32 minimum_protocol_version = 1;
-    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
       if (this_._internal_minimum_protocol_version() != 0) {
         total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
             this_._internal_minimum_protocol_version());
       }
     }
     // uint32 maximum_protocol_version = 2;
-    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
       if (this_._internal_maximum_protocol_version() != 0) {
         total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
             this_._internal_maximum_protocol_version());
       }
     }
     // .chat.v2.ClientPlatform platform = 3;
-    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000020U)) {
       if (this_._internal_platform() != 0) {
         total_size += 1 +
                       ::_pbi::WireFormatLite::EnumSize(this_._internal_platform());
@@ -969,8 +1047,11 @@ void ClientHello::MergeImpl(::google::protobuf::MessageLite& to_msg,
   (void)cached_has_bits;
 
   cached_has_bits = from._impl_._has_bits_[0];
-  if (BatchCheckHasBit(cached_has_bits, 0x0000001fU)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x0000003fU)) {
     if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _this->_internal_mutable_capabilities()->MergeFrom(from._internal_capabilities());
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
       if (!from._internal_app_version().empty()) {
         _this->_internal_set_app_version(from._internal_app_version());
       } else {
@@ -979,7 +1060,7 @@ void ClientHello::MergeImpl(::google::protobuf::MessageLite& to_msg,
         }
       }
     }
-    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
       if (!from._internal_client_device_id().empty()) {
         _this->_internal_set_client_device_id(from._internal_client_device_id());
       } else {
@@ -988,17 +1069,17 @@ void ClientHello::MergeImpl(::google::protobuf::MessageLite& to_msg,
         }
       }
     }
-    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
       if (from._internal_minimum_protocol_version() != 0) {
         _this->_impl_.minimum_protocol_version_ = from._impl_.minimum_protocol_version_;
       }
     }
-    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
       if (from._internal_maximum_protocol_version() != 0) {
         _this->_impl_.maximum_protocol_version_ = from._impl_.maximum_protocol_version_;
       }
     }
-    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000020U)) {
       if (from._internal_platform() != 0) {
         _this->_impl_.platform_ = from._impl_.platform_;
       }
@@ -1023,6 +1104,7 @@ void ClientHello::InternalSwap(ClientHello* PROTOBUF_RESTRICT PROTOBUF_NONNULL o
   ABSL_DCHECK_EQ(arena, other->GetArena());
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _impl_.capabilities_.InternalSwap(&other->_impl_.capabilities_);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.app_version_, &other->_impl_.app_version_, arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.client_device_id_, &other->_impl_.client_device_id_, arena);
   ::google::protobuf::internal::memswap<
@@ -1053,6 +1135,14 @@ PROTOBUF_NDEBUG_INLINE ServerHello::Impl_::Impl_(
     [[maybe_unused]] const ::chat::v2::ServerHello& from_msg)
       : _has_bits_{from._has_bits_},
         _cached_size_{0},
+        enabled_capabilities_ {
+          visibility, ::_pbi::InternalMetadataOffset::Build<
+              ::chat::v2::ServerHello,
+              PROTOBUF_FIELD_OFFSET(::chat::v2::ServerHello, _impl_.enabled_capabilities_)>()
+          , from.enabled_capabilities_
+        }
+        ,
+        _enabled_capabilities_cached_byte_size_{0},
         connection_id_(arena, from.connection_id_) {}
 
 ServerHello::ServerHello(
@@ -1083,6 +1173,12 @@ PROTOBUF_NDEBUG_INLINE ServerHello::Impl_::Impl_(
     [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
     [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
       : _cached_size_{0},
+        enabled_capabilities_ { visibility, ::_pbi::InternalMetadataOffset::Build<
+            ::chat::v2::ServerHello,
+            PROTOBUF_FIELD_OFFSET(::chat::v2::ServerHello, _impl_.enabled_capabilities_)>()
+         }
+        ,
+        _enabled_capabilities_cached_byte_size_{0},
         connection_id_(arena) {}
 
 inline void ServerHello::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
@@ -1143,10 +1239,15 @@ PROTOBUF_NOINLINE void ServerHello::Clear() {
   (void) cached_has_bits;
 
   cached_has_bits = _impl_._has_bits_[0];
-  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
-    _impl_.connection_id_.ClearNonDefaultToEmpty();
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _impl_.enabled_capabilities_.Clear();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.connection_id_.ClearNonDefaultToEmpty();
+    }
   }
-  if (BatchCheckHasBit(cached_has_bits, 0x0000000eU)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x0000001cU)) {
     ::memset(&_impl_.selected_protocol_version_, 0, static_cast<::size_t>(
         reinterpret_cast<char*>(&_impl_.server_time_epoch_ms_) -
         reinterpret_cast<char*>(&_impl_.selected_protocol_version_)) + sizeof(_impl_.server_time_epoch_ms_));
@@ -1175,7 +1276,7 @@ PROTOBUF_NOINLINE void ServerHello::Clear() {
 
   cached_has_bits = this_._impl_._has_bits_[0];
   // uint32 selected_protocol_version = 1;
-  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
     if (this_._internal_selected_protocol_version() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
@@ -1184,7 +1285,7 @@ PROTOBUF_NOINLINE void ServerHello::Clear() {
   }
 
   // string connection_id = 2;
-  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
     if (!this_._internal_connection_id().empty()) {
       const ::std::string& _s = this_._internal_connection_id();
       ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
@@ -1194,7 +1295,7 @@ PROTOBUF_NOINLINE void ServerHello::Clear() {
   }
 
   // int64 server_time_epoch_ms = 3;
-  if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000010U)) {
     if (this_._internal_server_time_epoch_ms() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt64ToArrayWithField<3>(
@@ -1203,11 +1304,22 @@ PROTOBUF_NOINLINE void ServerHello::Clear() {
   }
 
   // uint32 maximum_frame_bytes = 4;
-  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000008U)) {
     if (this_._internal_maximum_frame_bytes() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
           4, this_._internal_maximum_frame_bytes(), target);
+    }
+  }
+
+  // repeated .chat.v2.ClientCapability enabled_capabilities = 5;
+  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    {
+      ::size_t byte_size = this_._impl_._enabled_capabilities_cached_byte_size_.Get();
+      if (byte_size > 0) {
+        target = stream->WriteEnumPacked(
+            5, this_._internal_enabled_capabilities(), byte_size, target);
+      }
     }
   }
 
@@ -1236,30 +1348,35 @@ PROTOBUF_NOINLINE void ServerHello::Clear() {
 
   ::_pbi::Prefetch5LinesFrom7Lines(&this_);
   cached_has_bits = this_._impl_._has_bits_[0];
-  if (BatchCheckHasBit(cached_has_bits, 0x0000000fU)) {
-    // string connection_id = 2;
+  if (BatchCheckHasBit(cached_has_bits, 0x0000001fU)) {
+    // repeated .chat.v2.ClientCapability enabled_capabilities = 5;
     if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      total_size += ::_pbi::WireFormatLite::EnumSizeWithPackedTagSize(
+          this_._internal_enabled_capabilities(), 1, this_._impl_._enabled_capabilities_cached_byte_size_);
+    }
+    // string connection_id = 2;
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
       if (!this_._internal_connection_id().empty()) {
         total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
                                         this_._internal_connection_id());
       }
     }
     // uint32 selected_protocol_version = 1;
-    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
       if (this_._internal_selected_protocol_version() != 0) {
         total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
             this_._internal_selected_protocol_version());
       }
     }
     // uint32 maximum_frame_bytes = 4;
-    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
       if (this_._internal_maximum_frame_bytes() != 0) {
         total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
             this_._internal_maximum_frame_bytes());
       }
     }
     // int64 server_time_epoch_ms = 3;
-    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
       if (this_._internal_server_time_epoch_ms() != 0) {
         total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
             this_._internal_server_time_epoch_ms());
@@ -1283,8 +1400,11 @@ void ServerHello::MergeImpl(::google::protobuf::MessageLite& to_msg,
   (void)cached_has_bits;
 
   cached_has_bits = from._impl_._has_bits_[0];
-  if (BatchCheckHasBit(cached_has_bits, 0x0000000fU)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x0000001fU)) {
     if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _this->_internal_mutable_enabled_capabilities()->MergeFrom(from._internal_enabled_capabilities());
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
       if (!from._internal_connection_id().empty()) {
         _this->_internal_set_connection_id(from._internal_connection_id());
       } else {
@@ -1293,17 +1413,17 @@ void ServerHello::MergeImpl(::google::protobuf::MessageLite& to_msg,
         }
       }
     }
-    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
       if (from._internal_selected_protocol_version() != 0) {
         _this->_impl_.selected_protocol_version_ = from._impl_.selected_protocol_version_;
       }
     }
-    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
       if (from._internal_maximum_frame_bytes() != 0) {
         _this->_impl_.maximum_frame_bytes_ = from._impl_.maximum_frame_bytes_;
       }
     }
-    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
       if (from._internal_server_time_epoch_ms() != 0) {
         _this->_impl_.server_time_epoch_ms_ = from._impl_.server_time_epoch_ms_;
       }
@@ -1328,6 +1448,7 @@ void ServerHello::InternalSwap(ServerHello* PROTOBUF_RESTRICT PROTOBUF_NONNULL o
   ABSL_DCHECK_EQ(arena, other->GetArena());
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _impl_.enabled_capabilities_.InternalSwap(&other->_impl_.enabled_capabilities_);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.connection_id_, &other->_impl_.connection_id_, arena);
   ::google::protobuf::internal::memswap<
       PROTOBUF_FIELD_OFFSET(ServerHello, _impl_.server_time_epoch_ms_)

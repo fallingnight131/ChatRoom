@@ -1410,6 +1410,16 @@ Progress:
     authentication, select server-authorized hidden identities, render cached
     history and unread state, and retain offline access across disconnect
     (ADR-0338).
+- [ ] Deliver ordered, idempotent message reactions on V2 Web and Windows.
+  - [x] Allocate permanent type-106--108 command/response/event payloads, six
+    bounded reaction identities, changed-only sequence semantics, and reaction
+    details in the mixed conversation history contract (ADR-0339).
+  - [ ] Persist exact reaction operations, active state, and changed events in
+    PostgreSQL under the authoritative conversation sequence.
+  - [ ] Compose authenticated gateway mutation, history, live fan-out, bounded
+    telemetry, and negative-path behavior.
+  - [ ] Add offline-safe local projections, optimistic convergence, accessible
+    controls, and aggregate rendering to Web and Windows clients.
 
 Candidate slices:
 
