@@ -989,6 +989,10 @@ an independent fencing token, expired-lease reclamation, delayed retry, and
 strict per-conversation head-of-line ordering. No scheduler invokes it and no
 component publishes to Redis yet; other conversation event kinds still need
 their own atomic writers before distributed routing can replace the local router.
+ADR-0350 adds the application-level bounded relay pass around that port. It
+standardizes lease validation, fixed failure classes, exponential retry, stale
+ownership accounting, and fixed-cardinality run totals while remaining absent
+from product runtime composition.
 
 ## 10. Attachment Flow
 

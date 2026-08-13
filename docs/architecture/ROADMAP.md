@@ -1403,6 +1403,11 @@ Progress:
   owner/token/expiry completion. Real PostgreSQL rejects stale and wrong-owner
   completion and releases the next sequence only after its predecessor is
   published (ADR-0349).
+- [x] Add a scheduler-neutral bounded relay pass with strict claim-batch
+  validation, fixed publication outcomes, redacted unexpected failures,
+  exponential retry capped at five minutes, fenced ownership-loss accounting,
+  and fixed-cardinality run results. It remains uncomposed and does not affect
+  the local live path (ADR-0350).
 
 Work:
 
