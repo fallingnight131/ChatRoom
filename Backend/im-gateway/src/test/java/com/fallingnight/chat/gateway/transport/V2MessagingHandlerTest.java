@@ -65,6 +65,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
@@ -77,6 +78,45 @@ class V2MessagingHandlerTest {
     private static final Instant ACCEPTED_AT = Instant.parse("2026-08-12T03:04:05Z");
     private static final Clock CLOCK = Clock.fixed(
             Instant.parse("2026-08-12T04:05:06Z"), ZoneOffset.UTC);
+
+    @Test
+    void flushesHistoryResponseBeforeExternalSubscriptionActivation() throws Exception {
+        ControllableExecutor executor = new ControllableExecutor();
+        AtomicBoolean activated = new AtomicBoolean();
+        ConversationLiveRouter router = new DelegatingLiveRouter() {
+            @Override public MessageHistoryResult readAndSubscribe(
+                    io.netty.channel.Channel channel, MessageHistoryQuery query,
+                    com.fallingnight.chat.application.messaging.MessageHistoryPort history) {
+                return history.readAfter(query);
+            }
+            @Override public void activateSubscription(
+                    io.netty.channel.Channel channel, MessageHistoryQuery query,
+                    com.fallingnight.chat.application.messaging.MessageHistoryPort history) {
+                assertEquals(1, ((EmbeddedChannel) channel).outboundMessages().size());
+                activated.set(true);
+            }
+        };
+        EmbeddedChannel channel = reactionChannel(
+                command -> MessageReactionResult.Rejected.NOT_AUTHORIZED,
+                query -> new MessageHistoryResult.Page(List.of(), 0, 0, false),
+                router, false, executor);
+        try {
+            channel.writeInbound(historyEnvelope(0, 10));
+            executor.runNext();
+            channel.runPendingTasks();
+            assertFalse(activated.get());
+            assertEquals(1, executor.size());
+
+            executor.runNext();
+            channel.runPendingTasks();
+            assertEquals(true, activated.get());
+            Envelope response = channel.readOutbound();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    response.getMessageType());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
 
     @Test
     void submitsTextWithOnlyServerBoundIdentityAndReturnsAcceptance() throws Exception {
@@ -991,12 +1031,19 @@ class V2MessagingHandlerTest {
             com.fallingnight.chat.application.messaging.MessageHistoryPort history,
             ConversationLiveRouter router,
             boolean capable) {
+        return reactionChannel(reactions, history, router, capable, Runnable::run);
+    }
+
+    private static EmbeddedChannel reactionChannel(
+            com.fallingnight.chat.application.messaging.MessageReactionPort reactions,
+            com.fallingnight.chat.application.messaging.MessageHistoryPort history,
+            ConversationLiveRouter router, boolean capable, Executor executor) {
         EmbeddedChannel channel = new EmbeddedChannel(new V2MessagingHandler(
                 submission -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
                 history,
                 query -> new ConversationDirectoryPage(List.of(), Optional.empty(), false),
                 reactions,
-                Runnable::run,
+                executor,
                 MessagingEventSink.noop(),
                 router));
         channel.attr(V2ConnectionAttributes.AUTHENTICATED).set(
@@ -1099,6 +1146,25 @@ class V2MessagingHandlerTest {
 
         void runNext() {
             commands.removeFirst().run();
+        }
+    }
+
+    private abstract static class DelegatingLiveRouter implements ConversationLiveRouter {
+        private final ConversationLiveRouter delegate = ConversationLiveRouter.noop();
+        @Override public LivePublishResult publish(StoredMessage message) {
+            return delegate.publish(message);
+        }
+        @Override public LivePublishResult publishReaction(MessageReactionResult.Applied reaction) {
+            return delegate.publishReaction(reaction);
+        }
+        @Override public LivePublishResult publishPin(MessagePinResult.Applied pin) {
+            return delegate.publishPin(pin);
+        }
+        @Override public LivePublishResult publishEdit(MessageEditResult.Applied edit) {
+            return delegate.publishEdit(edit);
+        }
+        @Override public void unsubscribe(io.netty.channel.Channel channel) {
+            delegate.unsubscribe(channel);
         }
     }
 }

@@ -1059,6 +1059,13 @@ shares one Lettuce adapter across route/stream ports, composes PostgreSQL outbox
 relay and authoritative hint repair against the product's local router, owns
 bounded named scheduling, and closes partial construction safely. It returns
 fixed-cardinality telemetry but remains uncalled by `GatewayRuntime`.
+ADR-0363 closes the subscription visibility race without reordering the client
+stream. The handler flushes the authoritative history response before a
+distributed router publishes its Redis route; that router then performs bounded
+server-authorized PostgreSQL repair and fails the connection closed if activation
+cannot be trusted. A last-subscriber departure removes the reconstructable
+route. The decorator remains unconstructed until periodic route renewal and
+runtime readiness composition are complete.
 
 ## 10. Attachment Flow
 

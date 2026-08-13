@@ -362,6 +362,82 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
         liveMessageSequences(channel).clear();
     }
 
+    void unsubscribeConversation(Channel channel, UUID conversationId) {
+        Route route = routes.get(conversationId);
+        if (route != null) {
+            synchronized (route) {
+                route.channels.remove(channel);
+                if (route.channels.isEmpty()) routes.remove(conversationId, route);
+            }
+        }
+        subscriptions(channel).remove(conversationId);
+        liveMessageSequences(channel).remove(conversationId);
+    }
+
+    java.util.Set<UUID> subscribedConversations(Channel channel) {
+        return java.util.Set.copyOf(subscriptions(channel));
+    }
+
+    boolean hasSubscribers(UUID conversationId) {
+        Route route = routes.get(conversationId);
+        if (route == null) return false;
+        synchronized (route) { return !route.channels.isEmpty(); }
+    }
+
+    long observedSequence(Channel channel, UUID conversationId) {
+        return liveMessageSequences(channel).getOrDefault(conversationId, 0L);
+    }
+
+    /** Bounded authoritative second repair after an external route becomes visible. */
+    long repairAfterRouteRegistration(UUID conversationId, long afterSequence,
+            MessageHistoryPort history) {
+        Route route = routes.get(conversationId);
+        if (route == null) return afterSequence;
+        long repairedThrough = afterSequence;
+        synchronized (route) {
+            for (Channel channel : java.util.List.copyOf(route.channels)) {
+                AuthenticatedConnection identity =
+                        channel.attr(V2ConnectionAttributes.AUTHENTICATED).get();
+                if (!channel.isActive() || identity == null) {
+                    unsubscribeConversation(channel, conversationId); continue;
+                }
+                long cursor = Math.max(afterSequence,
+                        observedSequence(channel, conversationId));
+                for (int pageCount = 0; pageCount < 10; pageCount++) {
+                    MessageHistoryResult result = history.readAfter(new MessageHistoryQuery(
+                            conversationId, identity.accountId(), cursor, 100));
+                    if (result == MessageHistoryResult.Rejected.NOT_AUTHORIZED) {
+                        unsubscribeConversation(channel, conversationId); break;
+                    }
+                    MessageHistoryResult.Page page = (MessageHistoryResult.Page) result;
+                    if (page.nextSequence() < cursor
+                            || (page.hasMore() && page.nextSequence() == cursor)) {
+                        throw new IllegalStateException("route repair history did not progress");
+                    }
+                    long previous = cursor;
+                    for (StoredMessage message : page.messages()) {
+                        if (!message.conversationId().equals(conversationId)
+                                || message.conversationSequence() <= previous
+                                || message.conversationSequence() > page.nextSequence()) {
+                            throw new IllegalStateException("route repair history is unordered");
+                        }
+                        publishMessageToChannel(channel, route, message);
+                        previous = message.conversationSequence();
+                    }
+                    cursor = page.nextSequence();
+                    liveMessageSequences(channel).merge(conversationId, cursor, Math::max);
+                    repairedThrough = Math.max(repairedThrough, cursor);
+                    if (!page.hasMore()) break;
+                    if (pageCount == 9) {
+                        throw new IllegalStateException("route repair exceeded bounded pages");
+                    }
+                }
+            }
+            if (route.channels.isEmpty()) routes.remove(conversationId, route);
+        }
+        return repairedThrough;
+    }
+
     int activeConversationCount() {
         return routes.size();
     }

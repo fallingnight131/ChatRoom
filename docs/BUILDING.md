@@ -1419,6 +1419,12 @@ prove boot-lease/scheduler/adapter cleanup on normal close, complete cleanup on
 partial construction, and preservation of cleanup failures as suppressed
 causes. The fixed graph remains uncalled by `GatewayRuntime`, so these settings
 still do not change product traffic.
+ADR-0363 handler/router tests prove history response flush precedes external
+route activation, route publication precedes bounded PostgreSQL second repair,
+missed messages are emitted from server truth, rejected activation removes the
+local subscription, and only the last local departure removes the external
+route. Activation failure closes the connection to force reconnect sync. The
+decorator remains unconstructed pending periodic conversation-route renewal.
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound

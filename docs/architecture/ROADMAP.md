@@ -1479,6 +1479,11 @@ Progress:
   repair, owns bounded named scheduling, exposes fixed telemetry, and cleans all
   partial construction failures. `GatewayRuntime` still does not call it
   (ADR-0362).
+- [x] Add post-history-response external route activation and a distributed
+  local-router decorator: flush history first, publish the route, perform up to
+  ten bounded PostgreSQL repair pages with server-bound authorization, roll back
+  failed activation, and remove the route after the last subscriber. Periodic
+  conversation-route renewal remains required before composition (ADR-0363).
 
 Work:
 

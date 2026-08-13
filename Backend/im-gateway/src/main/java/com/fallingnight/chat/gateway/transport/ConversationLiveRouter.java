@@ -14,6 +14,10 @@ public interface ConversationLiveRouter {
     MessageHistoryResult readAndSubscribe(
             Channel channel, MessageHistoryQuery query, MessageHistoryPort history);
 
+    /** Activates external route visibility only after the history response is flushed. */
+    default void activateSubscription(
+            Channel channel, MessageHistoryQuery query, MessageHistoryPort history) { }
+
     LivePublishResult publish(StoredMessage message);
 
     LivePublishResult publishReaction(MessageReactionResult.Applied reaction);

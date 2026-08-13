@@ -529,6 +529,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                                 context.channel(), read.query(), history),
                         read.reactionsEnabled(), read.pinsEnabled(), read.editsEnabled(),
                         read.mentionsEnabled(), read.forwardingEnabled());
+                scheduleHistoryCompletion(context, response, read.query());
+                return;
             } else {
                 DirectoryWork list = (DirectoryWork) work;
                 response = directoryResponse(request, directory.list(list.query()));
@@ -544,6 +546,53 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
         }
         scheduleCompletion(context, response, publication, reactionPublication, pinPublication,
                 editPublication);
+    }
+
+    private void scheduleHistoryCompletion(ChannelHandlerContext context, Envelope response,
+            MessageHistoryQuery query) {
+        if (context.executor().isShuttingDown()) return;
+        try {
+            context.executor().execute(() -> {
+                if (!context.channel().isActive()) {
+                    pending.clear(); return;
+                }
+                context.writeAndFlush(response).addListener(written -> {
+                    if (!written.isSuccess() || !context.channel().isActive()) {
+                        pending.clear(); inFlight = false; context.close(); return;
+                    }
+                    try {
+                        executor.execute(() -> activateSubscription(context, query));
+                    } catch (RejectedExecutionException exception) {
+                        events.saturated(); pending.clear(); inFlight = false; context.close();
+                    }
+                });
+            });
+        } catch (RejectedExecutionException exception) {
+            pending.clear();
+        }
+    }
+
+    private void activateSubscription(ChannelHandlerContext context, MessageHistoryQuery query) {
+        boolean activated = true;
+        try {
+            liveRouter.activateSubscription(context.channel(), query, history);
+        } catch (RuntimeException exception) {
+            activated = false; events.failed();
+        }
+        boolean succeeded = activated;
+        if (context.executor().isShuttingDown()) return;
+        try {
+            context.executor().execute(() -> {
+                inFlight = false;
+                if (!succeeded) {
+                    pending.clear(); context.close(); return;
+                }
+                if (context.channel().isActive()) dispatchNext(context);
+                else pending.clear();
+            });
+        } catch (RejectedExecutionException exception) {
+            pending.clear(); context.close();
+        }
     }
 
     private void scheduleCompletion(ChannelHandlerContext context, Envelope response) {
