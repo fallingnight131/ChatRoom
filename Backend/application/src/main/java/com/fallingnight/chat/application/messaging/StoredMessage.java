@@ -21,7 +21,8 @@ public record StoredMessage(
         Optional<MessageReplyReference> reply,
         int contentRevision,
         Optional<Instant> editedAt,
-        List<MessageMention> mentions) {
+        List<MessageMention> mentions,
+        boolean forwarded) {
     public StoredMessage {
         Objects.requireNonNull(messageId, "messageId");
         Objects.requireNonNull(conversationId, "conversationId");
@@ -54,10 +55,21 @@ public record StoredMessage(
             UUID senderAccountId, UUID senderDeviceId, String clientMessageId,
             int messageType, byte[] payload, Instant acceptedAt,
             Optional<MessageReplyReference> reply, int contentRevision,
+            Optional<Instant> editedAt, List<MessageMention> mentions) {
+        this(messageId, conversationId, conversationSequence, senderAccountId,
+                senderDeviceId, clientMessageId, messageType, payload, acceptedAt,
+                reply, contentRevision, editedAt, mentions, false);
+    }
+
+    public StoredMessage(
+            UUID messageId, UUID conversationId, long conversationSequence,
+            UUID senderAccountId, UUID senderDeviceId, String clientMessageId,
+            int messageType, byte[] payload, Instant acceptedAt,
+            Optional<MessageReplyReference> reply, int contentRevision,
             Optional<Instant> editedAt) {
         this(messageId, conversationId, conversationSequence, senderAccountId,
                 senderDeviceId, clientMessageId, messageType, payload, acceptedAt,
-                reply, contentRevision, editedAt, List.of());
+                reply, contentRevision, editedAt, List.of(), false);
     }
 
     public StoredMessage(
@@ -73,7 +85,7 @@ public record StoredMessage(
             Optional<MessageReplyReference> reply) {
         this(messageId, conversationId, conversationSequence, senderAccountId,
                 senderDeviceId, clientMessageId, messageType, payload, acceptedAt,
-                reply, 0, Optional.empty(), List.of());
+                reply, 0, Optional.empty(), List.of(), false);
     }
 
     public StoredMessage(
@@ -88,7 +100,7 @@ public record StoredMessage(
             Instant acceptedAt) {
         this(messageId, conversationId, conversationSequence, senderAccountId,
                 senderDeviceId, clientMessageId, messageType, payload, acceptedAt,
-                Optional.empty(), 0, Optional.empty(), List.of());
+                Optional.empty(), 0, Optional.empty(), List.of(), false);
     }
 
     @Override

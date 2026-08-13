@@ -1583,6 +1583,12 @@ Progress:
   - [ ] Persist and authorize exact forwarding in PostgreSQL, then compose the
     default-off authenticated gateway handler, history/live projection,
     privacy-safe telemetry, and capability filtering.
+    - [x] Add V049 destination markers and digest-only forward outcomes plus a
+      transport-neutral command/result port and transactional PostgreSQL
+      authority for source read, destination write, exact retry, revision race,
+      current-text copy, and privacy-stripped history projection.
+    - [ ] Register the default-off capability-gated handler, capable history and
+      live marker projection, bounded execution, and fixed-cardinality signals.
   - [ ] Add offline-safe Web and Windows forward outboxes, destination picker,
     presentation, accessibility, reconnect convergence, and endpoint-specific
     activation gates.

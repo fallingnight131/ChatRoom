@@ -306,7 +306,8 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                 .setAcceptedAtEpochMs(message.acceptedAt().toEpochMilli())
                 .setContentRevision(message.contentRevision())
                 .setEditedAtEpochMs(message.editedAt().map(java.time.Instant::toEpochMilli)
-                        .orElse(0L));
+                        .orElse(0L))
+                .setForwarded(message.forwarded());
         message.reply().ifPresent(reply -> builder.setReply(
                 com.fallingnight.chat.protocol.v2.MessageReplyReference.newBuilder()
                         .setTargetMessageId(reply.targetMessageId().toString())

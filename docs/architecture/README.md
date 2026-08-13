@@ -765,7 +765,12 @@ into a new destination message. Only a `forwarded` presentation marker crosses
 the destination wire boundary: source identity, reply metadata, and mention
 spans do not. Generated bindings and structural policy exist, but gateway, Web,
 and Windows runtime paths must keep capability 5 disabled until the durable and
-client gates in the roadmap pass.
+client gates in the roadmap pass. V049 now adds an ordinary-message destination
+marker plus a digest-only forward outcome: the PostgreSQL adapter authorizes
+both conversations, locks current non-recalled text, rejects revision races,
+and atomically allocates the destination sequence. History projects the marker
+without source identity. The authenticated handler and all capability-5 runtime
+advertisement remain disabled.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

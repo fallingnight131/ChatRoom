@@ -729,7 +729,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 .setContent(ByteString.copyFrom(message.payload()))
                 .setAcceptedAtEpochMs(message.acceptedAt().toEpochMilli())
                 .setContentRevision(message.contentRevision())
-                .setEditedAtEpochMs(message.editedAt().map(Instant::toEpochMilli).orElse(0L));
+                .setEditedAtEpochMs(message.editedAt().map(Instant::toEpochMilli).orElse(0L))
+                .setForwarded(message.forwarded());
         message.reply().ifPresent(reply -> record.setReply(
                 com.fallingnight.chat.protocol.v2.MessageReplyReference.newBuilder()
                         .setTargetMessageId(reply.targetMessageId().toString())

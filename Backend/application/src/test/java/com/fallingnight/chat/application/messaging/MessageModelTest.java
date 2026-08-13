@@ -131,6 +131,30 @@ class MessageModelTest {
     }
 
     @Test
+    void forwardingModelsRequireBoundedIntentAndPrivacySafeProjection() {
+        MessageForwardCommand command = new MessageForwardCommand(
+                UUID.randomUUID(), UUID.randomUUID(), 0, UUID.randomUUID(),
+                UUID.randomUUID(), UUID.randomUUID(), "forward-1");
+        StoredMessage forwarded = new StoredMessage(
+                UUID.randomUUID(), command.targetConversationId(), 1,
+                command.actorAccountId(), command.actorDeviceId(), command.clientMessageId(),
+                1, "hello".getBytes(StandardCharsets.UTF_8), Instant.EPOCH,
+                Optional.empty(), 0, Optional.empty(), List.of(), true);
+        new MessageForwardResult.Accepted(forwarded, false);
+
+        assertThrows(IllegalArgumentException.class, () -> new MessageForwardCommand(
+                command.sourceConversationId(), command.sourceMessageId(), -1,
+                command.targetConversationId(), command.actorAccountId(),
+                command.actorDeviceId(), command.clientMessageId()));
+        assertThrows(IllegalArgumentException.class, () ->
+                new MessageForwardResult.Accepted(new StoredMessage(
+                        forwarded.messageId(), forwarded.conversationId(), 1,
+                        forwarded.senderAccountId(), forwarded.senderDeviceId(),
+                        forwarded.clientMessageId(), 1, forwarded.payload(), Instant.EPOCH),
+                        false));
+    }
+
+    @Test
     void reactionModelsEnforceOperationAndChangedSequenceInvariants() {
         MessageReactionCommand command = new MessageReactionCommand(
                 UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),

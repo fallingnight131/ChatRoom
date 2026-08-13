@@ -575,6 +575,23 @@ replaces current rows, and retains the resulting set with the ordered edit
 event. Recalled/deleted integration tests prove both projections disappear with
 the erased body. Gateway mapping and endpoint negotiation remain off.
 
+## Server-authoritative forwarding storage
+
+V049 adds a non-null `message.forwarded` destination marker, defaulting to
+false for every existing row, and `message_forward_request`. The request table
+is keyed by the newly created destination message and stores only a SHA-256 of
+the source conversation/message, expected revision, and target conversation.
+It therefore supports exact retry/conflict decisions without turning private
+source identity into destination history or long-lived operational metadata.
+
+The forwarding adapter authorizes the authenticated actor/device as an active
+member of both source and destination, locks current non-recalled text, compares
+the expected revision, then allocates and inserts the destination sequence,
+message, marker, and digest atomically. It copies only current content type/body;
+reply and mention rows are never copied. A raced unique client-message key rolls
+back its tentative sequence and resolves against the durable digest. Type 119
+gateway registration remains off while this additive storage slice is tested.
+
 ## Bounds and indexes
 
 - identifiers are limited to 128 characters at this storage boundary and are
@@ -619,7 +636,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V047, reruns migration as a
+cluster, migrates a clean database through current V049, reruns migration as a
 simulated restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable

@@ -96,6 +96,8 @@ import com.fallingnight.chat.application.conversation.ConversationParticipantRes
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.MessageMention;
+import com.fallingnight.chat.application.messaging.MessageForwardCommand;
+import com.fallingnight.chat.application.messaging.MessageForwardResult;
 import com.fallingnight.chat.application.messaging.ConversationEntryHistoryResult;
 import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
@@ -207,7 +209,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(48, first.migrate());
+        assertEquals(49, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -241,8 +243,15 @@ class PostgresMigratorTest {
                             "message_reaction", "message_reaction_event",
                             "message_pin_operation", "message_pin", "message_pin_event",
                             "message_edit_operation", "message_edit_event",
-                            "message_mention", "message_edit_event_mention"),
+                            "message_mention", "message_edit_event_mention",
+                            "message_forward_request"),
                     applicationTables(connection));
+            assertEquals(1, count("SELECT count(*) FROM information_schema.columns "
+                    + "WHERE table_schema = 'chat' AND table_name = 'message' "
+                    + "AND column_name = 'forwarded' AND is_nullable = 'NO'"));
+            assertEquals(1, count("SELECT count(*) FROM pg_constraint "
+                    + "WHERE connamespace = 'chat'::regnamespace "
+                    + "AND conname = 'message_forward_request_hash_length'"));
             assertEquals(2, count("SELECT count(*) FROM information_schema.columns "
                     + "WHERE table_schema = 'chat' AND table_name = 'message' "
                     + "AND column_name IN ('content_revision', 'edited_at')"));
@@ -601,6 +610,95 @@ class PostgresMigratorTest {
         assertEquals(
                 MessageHistoryResult.Rejected.NOT_AUTHORIZED,
                 adapter.readAfter(new MessageHistoryQuery(conversation, account, 0, 10)));
+    }
+
+    @Test
+    @Order(6)
+    void forwardsCurrentServerTextWithIndependentTargetIdempotency() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID account = UUID.randomUUID();
+        UUID device = UUID.randomUUID();
+        UUID sourceConversation = UUID.randomUUID();
+        UUID targetConversation = UUID.randomUUID();
+        seedMessageOwner(account, device, sourceConversation);
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.conversation(id,kind) VALUES (?,'DIRECT')",
+                    targetConversation);
+            execute(connection, "INSERT INTO chat.conversation_member("
+                            + "conversation_id,account_id) VALUES (?,?)",
+                    targetConversation, account);
+        }
+        PostgresMessageAdapter messages = new PostgresMessageAdapter(dataSource());
+        MessageSubmissionResult.Accepted source = (MessageSubmissionResult.Accepted)
+                messages.submit(new MessageSubmission(
+                        sourceConversation, account, device, "forward-source", 1,
+                        "server truth".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        PostgresMessageForwardAdapter forwards = new PostgresMessageForwardAdapter(dataSource());
+        MessageForwardCommand command = new MessageForwardCommand(
+                sourceConversation, source.messageId(), 0, targetConversation,
+                account, device, "forward-target-1");
+
+        MessageForwardResult.Accepted accepted =
+                (MessageForwardResult.Accepted) forwards.forward(command);
+        assertFalse(accepted.duplicate());
+        assertTrue(accepted.message().forwarded());
+        assertEquals("server truth", new String(accepted.message().payload(),
+                java.nio.charset.StandardCharsets.UTF_8));
+        assertTrue(accepted.message().reply().isEmpty());
+        assertTrue(accepted.message().mentions().isEmpty());
+        MessageForwardResult.Accepted duplicate =
+                (MessageForwardResult.Accepted) forwards.forward(command);
+        assertTrue(duplicate.duplicate());
+        assertEquals(accepted.message().messageId(), duplicate.message().messageId());
+        assertEquals(MessageForwardResult.Rejected.IDEMPOTENCY_CONFLICT,
+                forwards.forward(new MessageForwardCommand(
+                        sourceConversation, source.messageId(), 0, sourceConversation,
+                        account, device, "forward-target-1")));
+        assertEquals(MessageForwardResult.Rejected.SOURCE_REVISION_CONFLICT,
+                forwards.forward(new MessageForwardCommand(
+                        sourceConversation, source.messageId(), 1, targetConversation,
+                        account, device, "forward-target-2")));
+        assertEquals(MessageForwardResult.Rejected.NOT_AUTHORIZED,
+                forwards.forward(new MessageForwardCommand(
+                        sourceConversation, UUID.randomUUID(), 0, targetConversation,
+                        account, device, "forward-missing")));
+
+        MessageHistoryResult.Page history = (MessageHistoryResult.Page) messages.readAfter(
+                new MessageHistoryQuery(targetConversation, account, 0, 10));
+        assertEquals(1, history.messages().size());
+        assertTrue(history.messages().getFirst().forwarded());
+        assertEquals(1, count("SELECT count(*) FROM chat.message_forward_request"));
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.conversation SET next_sequence = 3 WHERE id = ?",
+                    sourceConversation);
+            execute(connection,
+                    "INSERT INTO chat.conversation_entry(conversation_id,"
+                            + "conversation_sequence,entry_kind,occurred_at) "
+                            + "VALUES (?,2,'MESSAGE_RECALLED',transaction_timestamp())",
+                    sourceConversation);
+            execute(connection,
+                    "INSERT INTO chat.message_recall_event(conversation_id,"
+                            + "conversation_sequence,message_id,actor_account_id,source) "
+                            + "VALUES (?,2,?,?,'V2')",
+                    sourceConversation, source.messageId(), account);
+        }
+        assertEquals(MessageForwardResult.Rejected.NOT_AUTHORIZED,
+                forwards.forward(new MessageForwardCommand(
+                        sourceConversation, source.messageId(), 0, targetConversation,
+                        account, device, "forward-recalled")));
+        MessageSubmissionResult.Accepted secondSource = (MessageSubmissionResult.Accepted)
+                messages.submit(new MessageSubmission(
+                        sourceConversation, account, device, "forward-source-2", 1,
+                        "still readable".getBytes(
+                                java.nio.charset.StandardCharsets.UTF_8)));
+        leaveConversation(targetConversation, account);
+        assertEquals(MessageForwardResult.Rejected.NOT_AUTHORIZED,
+                forwards.forward(new MessageForwardCommand(
+                        sourceConversation, secondSource.messageId(), 0, targetConversation,
+                        account, device, "forward-left-target")));
     }
 
     @Test

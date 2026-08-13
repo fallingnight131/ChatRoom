@@ -204,7 +204,8 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                            FROM chat.message_edit_event_mention mention
                            WHERE mention.conversation_id = edit.conversation_id
                              AND mention.conversation_sequence = edit.conversation_sequence
-                           ORDER BY mention.mention_ordinal)
+                           ORDER BY mention.mention_ordinal),
+                       m.forwarded
                 FROM chat.conversation_entry ce
                 LEFT JOIN chat.message m
                   ON ce.entry_kind = 'MESSAGE'
@@ -267,7 +268,7 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                     readReply(result, 22), result.getInt(34),
                     Optional.ofNullable(result.getObject(35, OffsetDateTime.class))
                             .map(OffsetDateTime::toInstant),
-                    readMentions(result, 43)));
+                    readMentions(result, 43), result.getBoolean(49)));
             case "MESSAGE_RECALLED" -> new ConversationHistoryEntry.Recall(
                     conversationId, sequence, result.getObject(11, UUID.class),
                     result.getObject(12, UUID.class), result.getString(13),
