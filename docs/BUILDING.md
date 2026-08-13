@@ -1452,18 +1452,27 @@ actions. The ViewModel has no socket or
 SQL queries; the Windows product now composes it behind the runtime boundary.
 `V2WindowsMessagingPanelTest` runs the reusable Widgets panel with the Qt
 offscreen platform. It checks accessible names, keyboard-native reply/cancel/send
-controls, composer enablement and focus flow. Six checkable reaction controls
+controls, composer enablement and focus flow. The mention extension adds an
+explicit-load member picker, Unicode-safe insertion, account-backed submission,
+escaped identity-preserving emphasis, and inline edit restore; the same test
+keeps a default-off construction for rollback. Six checkable reaction controls
 expose aggregate counts, caller state, pending disablement, accessible names,
 and explicit retry while a separate checkable pin control exposes shared state,
 pending disablement, accessible names, and failed-operation retry; the ViewModel
-retains no SQL or socket access. Edit controls use an accessible native dialog,
-show the edited marker and retained draft state, and expose explicit retry,
-rebase, and discard actions. The
+retains no SQL or socket access. Edit controls reuse the accessible inline
+composer, show the edited marker and retained draft state, and expose explicit
+retry, rebase, and discard actions. The
 canonical Windows CMake
 product compiles it behind the default-off V2 gate; the qmake rollback remains
 V1-only. `V2WindowsConversationDialogTest` verifies accessible directory and
 paging controls, user-facing unread rows, hidden authorized identity selection,
 and cached-message rendering (ADR-0338).
+`windows_v2_product_composition_test.py`, which is part of the Windows artifact
+policy step, locks the final source wiring: the product dialog enables mention
+authoring, the session requests and strictly validates capability 4, the
+controller filters self and repairs participant state after resume, and the
+panel serializes and renders stored identity spans. The following Windows
+Release build and offscreen Qt tests remain the platform evidence.
 Gateway tests separately verify authenticated server-bound identity,
 off-event-loop submit/history dispatch, per-connection ordering, safe denial,
 bounded saturation behavior, and isolation from the authentication worker pool.

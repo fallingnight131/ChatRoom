@@ -21,6 +21,13 @@ def main() -> int:
     controller = (ROOT / "Client/WindowsDeviceManagementController.cpp").read_text(
         encoding="utf-8"
     )
+    messaging_controller = (ROOT / "Client/WindowsV2MessagingController.cpp").read_text(
+        encoding="utf-8"
+    )
+    session_protocol = (ROOT / "Client/V2WindowsSessionProtocolClient.cpp").read_text(
+        encoding="utf-8"
+    )
+    panel = (ROOT / "Client/V2WindowsMessagingPanel.cpp").read_text(encoding="utf-8")
     qmake = (ROOT / "Client/Client.pro").read_text(encoding="utf-8")
 
     require(cmake, (
@@ -43,6 +50,7 @@ def main() -> int:
         "m_deviceManagementController->start()",
         "m_deviceManagementController->stop()",
         "DeviceManagementDialog",
+        "conversationParticipantViewModel(), this, true);",
     ), "Client/ChatWindow.cpp")
     require(controller, (
         "ReadyForAuthentication",
@@ -51,6 +59,20 @@ def main() -> int:
         "DeviceManagementViewModel::applyRevoked",
         "DeviceManagementViewModel::applyProtocolError",
     ), "Client/WindowsDeviceManagementController.cpp")
+    require(session_protocol, (
+        "CLIENT_CAPABILITY_MESSAGE_MENTIONS",
+        "hello.enabled_capabilities_size() != 4",
+    ), "Client/V2WindowsSessionProtocolClient.cpp")
+    require(messaging_controller, (
+        "participant.accountId) == m_accountId",
+        "m_participantProtocol->abandon(command.requestId)",
+        "m_participantViewModel->refresh()",
+    ), "Client/WindowsV2MessagingController.cpp")
+    require(panel, (
+        "m_mentionsEnabled && composing",
+        "V2WindowsMentionComposer::serialize",
+        'setProperty("mentionTargetAccountIds"',
+    ), "Client/V2WindowsMessagingPanel.cpp")
     for source in (
         "Client/WindowsDeviceManagementController.cpp",
         "Client/DeviceManagementApplicationService.cpp",
