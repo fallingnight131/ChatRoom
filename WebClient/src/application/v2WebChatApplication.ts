@@ -22,6 +22,8 @@ const MAX_PENDING_MESSAGES = 100;
 const MAX_PENDING_REACTIONS = 8;
 const MAX_PENDING_PINS = 8;
 const MAX_PENDING_EDITS = 8;
+const MAX_MENTION_SPANS = 20;
+const MAX_DISTINCT_MENTION_TARGETS = 10;
 const decoder = new TextDecoder("utf-8", { fatal: true });
 const canonicalUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -34,6 +36,7 @@ export interface V2ConversationCacheMessage {
   sequence: string;
   acceptedAtEpochMs: number;
   content: string;
+  mentions: V2ConversationMention[];
   contentType: "text";
   deliveryState: "sending" | "accepted" | "failed";
   errorCode: string;
@@ -50,6 +53,12 @@ export interface V2ConversationCacheMessage {
   pinned: boolean;
   contentRevision: number;
   editedAtEpochMs: number;
+}
+
+export interface V2ConversationMention {
+  targetAccountId: string;
+  startUtf8Byte: number;
+  lengthUtf8Bytes: number;
 }
 
 export interface V2ConversationCacheReactionCommand {
@@ -74,6 +83,7 @@ export interface V2ConversationCacheEditCommand {
   messageId: string;
   expectedRevision: number;
   proposedContent: string;
+  proposedMentions: V2ConversationMention[];
   clientOperationId: string;
   deliveryState: "sending" | "failed" | "conflict";
   errorCode: string;
@@ -247,7 +257,7 @@ export class V2WebChatApplication {
       messages: active?.messages.map(cloneMessage) ?? [],
       reactionCommands: active?.reactionCommands.map(cloneReactionCommand) ?? [],
       pinCommands: active?.pinCommands.map((value) => ({ ...value })) ?? [],
-      editCommands: active?.editCommands.map((value) => ({ ...value })) ?? [],
+      editCommands: active?.editCommands.map(cloneEditCommand) ?? [],
       historyLoading: active?.loading ?? false,
       devices: this.devicesValue.map((device) => ({ ...device })),
       devicesLoading: this.devicesLoadingValue,
@@ -415,6 +425,7 @@ export class V2WebChatApplication {
       sequence: "0",
       acceptedAtEpochMs: this.now(),
       content: text,
+      mentions: [],
       contentType: "text",
       deliveryState: "sending",
       errorCode: "",
@@ -568,6 +579,7 @@ export class V2WebChatApplication {
       messageId,
       expectedRevision: message.contentRevision,
       proposedContent: text,
+      proposedMentions: [],
       clientOperationId: this.createClientMessageId(),
       deliveryState: "sending",
       errorCode: "",
@@ -823,6 +835,7 @@ export class V2WebChatApplication {
           const recalled = state.messages.find((message) => message.id === recall.messageId);
           if (recalled) {
             recalled.content = "此消息已被撤回";
+            recalled.mentions = [];
             recalled.availability = "recalled";
             recalled.pinned = false;
             state.pinCommands = state.pinCommands.filter((value) => value.messageId !== recall.messageId);
@@ -974,6 +987,7 @@ export class V2WebChatApplication {
     const message = state.messages.find((value) => value.id === event.value.messageId);
     if (message && event.value.contentRevision >= message.contentRevision) {
       message.content = decoder.decode(event.value.content);
+      message.mentions = mapMentions(event.value.mentions);
       message.contentRevision = event.value.contentRevision;
       message.editedAtEpochMs = Number(event.value.occurredAtEpochMs);
     }
@@ -1000,6 +1014,7 @@ export class V2WebChatApplication {
     const message = state.messages.find((value) => value.id === record.messageId);
     if (message && record.contentRevision >= message.contentRevision) {
       message.content = decoder.decode(record.content);
+      message.mentions = mapMentions(record.mentions);
       message.contentRevision = record.contentRevision;
       message.editedAtEpochMs = Number(record.occurredAtEpochMs);
     }
@@ -1080,7 +1095,7 @@ export class V2WebChatApplication {
       state.cursorSequence,
       state.reactionCommands.map(cloneReactionCommand),
       state.pinCommands.map((value) => ({ ...value })),
-      state.editCommands.map((value) => ({ ...value })),
+      state.editCommands.map(cloneEditCommand),
     ).catch(() => {
       this.lastFailureValue = "V2 cache write failed";
       this.emit();
@@ -1248,6 +1263,7 @@ function mapMessageRecord(record: MessageRecord): V2ConversationCacheMessage {
     sequence: record.conversationSequence.toString(),
     acceptedAtEpochMs: Number(record.acceptedAtEpochMs),
     content: decoder.decode(record.content),
+    mentions: mapMentions(record.mentions),
     contentType: "text",
     deliveryState: "accepted",
     errorCode: "",
@@ -1275,6 +1291,9 @@ function normalizeCachedMessage(message: V2ConversationCacheMessage): V2Conversa
       ? message.deliveryState
       : "accepted",
     availability: message.availability === "recalled" ? "recalled" : "available",
+    mentions: message.availability === "recalled"
+      ? []
+      : normalizeMentions(message.content, message.mentions),
     reply: normalizeReply(message.reply),
     reactions: normalizeReactions(message.reactions),
     pinned: Boolean(message.pinned),
@@ -1300,6 +1319,7 @@ function cloneMessage(message: V2ConversationCacheMessage): V2ConversationCacheM
       reaction: value.reaction,
       actorAccountIds: [...value.actorAccountIds],
     })),
+    mentions: message.mentions.map((value) => ({ ...value })),
     pinned: message.pinned,
     contentRevision: message.contentRevision,
     editedAtEpochMs: message.editedAtEpochMs,
@@ -1325,11 +1345,58 @@ function normalizeEditCommand(value: V2ConversationCacheEditCommand): V2Conversa
     messageId: value.messageId,
     expectedRevision: value.expectedRevision,
     proposedContent: value.proposedContent,
+    proposedMentions: normalizeMentions(value.proposedContent, value.proposedMentions),
     clientOperationId: value.clientOperationId,
     deliveryState: value.deliveryState === "failed" || value.deliveryState === "conflict"
       ? value.deliveryState : "sending",
     errorCode: typeof value.errorCode === "string" ? value.errorCode : "",
   };
+}
+
+function cloneEditCommand(command: V2ConversationCacheEditCommand): V2ConversationCacheEditCommand {
+  return { ...command, proposedMentions: command.proposedMentions.map((value) => ({ ...value })) };
+}
+
+function mapMentions(values: readonly {
+  targetAccountId: string; startUtf8Byte: number; lengthUtf8Bytes: number;
+}[]): V2ConversationMention[] {
+  return values.map((value) => ({
+    targetAccountId: value.targetAccountId,
+    startUtf8Byte: value.startUtf8Byte,
+    lengthUtf8Bytes: value.lengthUtf8Bytes,
+  }));
+}
+
+function normalizeMentions(
+  content: string,
+  values: readonly V2ConversationMention[] | undefined,
+): V2ConversationMention[] {
+  if (!Array.isArray(values) || values.length === 0) return [];
+  if (values.length > MAX_MENTION_SPANS) return [];
+  const bytes = new TextEncoder().encode(content);
+  const targets = new Set<string>();
+  const result: V2ConversationMention[] = [];
+  let previousEnd = 0;
+  for (const value of values) {
+    const start = Number(value?.startUtf8Byte);
+    const length = Number(value?.lengthUtf8Bytes);
+    const end = start + length;
+    if (!canonicalUuid.test(value?.targetAccountId ?? "")
+        || !Number.isInteger(start) || !Number.isInteger(length)
+        || start < previousEnd || length < 1 || !Number.isSafeInteger(end)
+        || end > bytes.byteLength || !isUtf8Boundary(bytes, start)
+        || !isUtf8Boundary(bytes, end) || bytes[start] !== 0x40) return [];
+    targets.add(value.targetAccountId);
+    if (targets.size > MAX_DISTINCT_MENTION_TARGETS) return [];
+    result.push({ targetAccountId: value.targetAccountId,
+      startUtf8Byte: start, lengthUtf8Bytes: length });
+    previousEnd = end;
+  }
+  return result;
+}
+
+function isUtf8Boundary(content: Uint8Array, index: number): boolean {
+  return index === 0 || index === content.byteLength || (content[index]! & 0xc0) !== 0x80;
 }
 
 function normalizeContentRevision(value: number): number {

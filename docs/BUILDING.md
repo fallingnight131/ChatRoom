@@ -1287,8 +1287,11 @@ the 20-span/10-target bound, canonical IDs, ordered non-overlap, UTF-8
 boundaries, and `@` prefix policy. The authenticated gateway now accepts and
 projects mentions only for sessions that explicitly negotiate capability 4.
 The Web protocol boundary can opt into the same capability and rejects invalid
-or unnegotiated inbound spans, while the composed Web runtime and Windows client
-remain off until their complete persistence and UX slices pass (ADR-0342).
+or unnegotiated inbound spans. Web V2 cache records also retain bounded mention
+metadata for authoritative messages and edit intents, clear it on recall, and
+discard a malformed cached set without discarding ordinary text. The composed
+Web runtime and Windows client remain off until their complete persistence and
+UX slices pass (ADR-0342).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

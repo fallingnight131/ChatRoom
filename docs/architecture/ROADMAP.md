@@ -1495,9 +1495,12 @@ Progress:
     - [x] Add a default-off Web protocol boundary that encodes submission/edit
       mentions and defensively validates capability-gated history, ACK, and live
       UTF-8 spans without activating the Web runtime.
+    - [x] Extend Web V2 message and edit-intent records plus the isolated
+      IndexedDB sanitizer with bounded mention metadata, authoritative edit
+      replacement, deep-copy snapshots, and recall cleanup.
     - [ ] Persist Web mention metadata with authoritative messages and pending
-      submission/edit intents, then add composition, rendering, accessibility,
-      reconnect convergence, and Web capability activation.
+      submission/edit workflows, then add composition, rendering,
+      accessibility, reconnect convergence, and Web capability activation.
     - [ ] Add the equivalent Windows protocol, SQLite, composition, rendering,
       accessibility, reconnect convergence, and capability activation gates.
 

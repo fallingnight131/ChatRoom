@@ -210,7 +210,12 @@ test('preserves exact V2 sequences without persisting secrets or media bytes', (
       senderDeviceId: 'device-1',
       sequence: 9007199254740995n,
       acceptedAtEpochMs: 1700000000000,
-      content: 'hello',
+      content: '@李 hello',
+      mentions: [{
+        targetAccountId: '20000000-0000-4000-8000-000000000002',
+        startUtf8Byte: 0,
+        lengthUtf8Bytes: 4
+      }],
       contentType: 'text',
       deliveryState: 'accepted',
       availability: 'available',
@@ -246,6 +251,11 @@ test('preserves exact V2 sequences without persisting secrets or media bytes', (
     actorAccountIds: ['20000000-0000-4000-8000-000000000002']
   }])
   assert.equal(record.messages.at(-1).pinned, true)
+  assert.deepEqual(record.messages.at(-1).mentions, [{
+    targetAccountId: '20000000-0000-4000-8000-000000000002',
+    startUtf8Byte: 0,
+    lengthUtf8Bytes: 4
+  }])
   assert.equal('token' in record, false)
   assert.equal('resumeToken' in record.messages.at(-1), false)
   assert.equal('bytes' in record.messages.at(-1), false)
@@ -256,7 +266,9 @@ test('preserves exact V2 sequences without persisting secrets or media bytes', (
 test('round trips V2 snapshots in an isolated exact-sequence store', async () => {
   const cache = new IndexedDbConversationCache(fakeIndexedDb())
   await cache.saveV2('account-1', 'conversation-1', [{
-    id: 'message-1', sequence: '9007199254740993', content: 'hello'
+    id: 'message-1', sequence: '9007199254740993', content: '@李 hello',
+    mentions: [{ targetAccountId: '20000000-0000-4000-8000-000000000002',
+      startUtf8Byte: 0, lengthUtf8Bytes: 4 }]
   }], '9007199254740993', [{
     conversationId: '50000000-0000-4000-8000-000000000001',
     messageId: '60000000-0000-4000-8000-000000000001',
@@ -276,7 +288,9 @@ test('round trips V2 snapshots in an isolated exact-sequence store', async () =>
     conversationId: '50000000-0000-4000-8000-000000000001',
     messageId: '60000000-0000-4000-8000-000000000001',
     expectedRevision: 2,
-    proposedContent: 'edited text',
+    proposedContent: '@李 edited text',
+    proposedMentions: [{ targetAccountId: '20000000-0000-4000-8000-000000000002',
+      startUtf8Byte: 0, lengthUtf8Bytes: 4 }],
     clientOperationId: 'edit-1',
     deliveryState: 'conflict',
     errorCode: 'PROTOCOL_9',
@@ -288,7 +302,10 @@ test('round trips V2 snapshots in an isolated exact-sequence store', async () =>
   assert.equal(loaded.reactionCommands[0].clientOperationId, 'reaction-1')
   assert.equal(loaded.pinCommands[0].clientOperationId, 'pin-1')
   assert.equal(loaded.editCommands[0].clientOperationId, 'edit-1')
-  assert.equal(loaded.editCommands[0].proposedContent, 'edited text')
+  assert.equal(loaded.editCommands[0].proposedContent, '@李 edited text')
+  assert.equal(loaded.messages[0].mentions[0].lengthUtf8Bytes, 4)
+  assert.equal(loaded.editCommands[0].proposedMentions[0].targetAccountId,
+    '20000000-0000-4000-8000-000000000002')
   assert.equal(loaded.editCommands[0].deliveryState, 'conflict')
   assert.equal('requestId' in loaded.editCommands[0], false)
   await cache.removeV2('account-1', 'conversation-1')

@@ -10,6 +10,8 @@ export const MAX_V2_PENDING_MESSAGES = 100
 export const MAX_DRAFT_LENGTH = 10000
 const MAX_SIGNED_SEQUENCE = (1n << 63n) - 1n
 const MAX_V2_PENDING_EDITS = 8
+const MAX_V2_MENTION_SPANS = 20
+const MAX_V2_MENTION_TARGETS = 10
 const CANONICAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export const NON_PERSISTED_MEDIA_FIELDS = Object.freeze([
   'imageData',
@@ -83,6 +85,9 @@ export function sanitizeV2Message(message) {
     sequence: normalizeV2Sequence(message.sequence),
     acceptedAtEpochMs: Math.max(0, Number(message.acceptedAtEpochMs) || 0),
     content,
+    mentions: message.availability === 'recalled'
+      ? []
+      : sanitizeV2Mentions(content, message.mentions),
     contentType: 'text',
     deliveryState: ['sending', 'accepted', 'failed'].includes(message.deliveryState)
       ? message.deliveryState
@@ -156,11 +161,42 @@ function sanitizeV2EditCommand(value) {
     messageId: value.messageId,
     expectedRevision,
     proposedContent,
+    proposedMentions: sanitizeV2Mentions(proposedContent, value.proposedMentions),
     clientOperationId: value.clientOperationId,
     deliveryState: value.deliveryState === 'failed' || value.deliveryState === 'conflict'
       ? value.deliveryState : 'sending',
     errorCode: typeof value.errorCode === 'string' ? value.errorCode : ''
   }
+}
+
+function sanitizeV2Mentions(content, values) {
+  if (!Array.isArray(values) || values.length === 0) return []
+  if (values.length > MAX_V2_MENTION_SPANS) return []
+  const bytes = new TextEncoder().encode(content)
+  const targets = new Set()
+  const mentions = []
+  let previousEnd = 0
+  for (const value of values) {
+    const targetAccountId = String(value?.targetAccountId || '')
+    const startUtf8Byte = Number(value?.startUtf8Byte)
+    const lengthUtf8Bytes = Number(value?.lengthUtf8Bytes)
+    const end = startUtf8Byte + lengthUtf8Bytes
+    if (!CANONICAL_UUID.test(targetAccountId)
+        || !Number.isInteger(startUtf8Byte) || !Number.isInteger(lengthUtf8Bytes)
+        || startUtf8Byte < previousEnd || lengthUtf8Bytes < 1
+        || !Number.isSafeInteger(end) || end > bytes.byteLength
+        || !isUtf8Boundary(bytes, startUtf8Byte) || !isUtf8Boundary(bytes, end)
+        || bytes[startUtf8Byte] !== 0x40) return []
+    targets.add(targetAccountId)
+    if (targets.size > MAX_V2_MENTION_TARGETS) return []
+    mentions.push({ targetAccountId, startUtf8Byte, lengthUtf8Bytes })
+    previousEnd = end
+  }
+  return mentions
+}
+
+function isUtf8Boundary(content, index) {
+  return index === 0 || index === content.byteLength || (content[index] & 0xc0) !== 0x80
 }
 
 export function v2ConversationCacheKey(accountId, conversationId) {

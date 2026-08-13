@@ -198,6 +198,7 @@ function cachedMessage(overrides: Partial<V2ConversationCacheMessage> = {}): V2C
     contentRevision: overrides.contentRevision ?? 0,
     editedAtEpochMs: overrides.editedAtEpochMs ?? 0,
     ...overrides,
+    mentions: overrides.mentions?.map((value) => ({ ...value })) ?? [],
     pinned: Boolean(overrides.pinned),
   };
 }
@@ -978,13 +979,17 @@ test("persists an edit overlay, preserves conflicts for explicit rebase, and adv
       detail: { case: "edit", value: create(MessageEditedRecordSchema, {
         conversationId: CONVERSATION_ID, conversationSequence: 2n, messageId: MESSAGE_ID,
         contentRevision: 1, contentType: MessageContentType.TEXT_UTF8,
-        content: new TextEncoder().encode("other device"), actorAccountId: ACCOUNT_ID,
+        content: new TextEncoder().encode("@李 other device"), actorAccountId: ACCOUNT_ID,
+        mentions: [{ targetAccountId: "20000000-0000-4000-8000-000000000002",
+          startUtf8Byte: 0, lengthUtf8Bytes: 4 }],
         clientOperationId: otherOperationId, occurredAtEpochMs: BigInt(NOW),
       }) },
     })],
     nextSequence: 2n, latestSequence: 2n, hasMore: false,
   }) }));
-  assert.equal(application.snapshot.messages[0]!.content, "other device");
+  assert.equal(application.snapshot.messages[0]!.content, "@李 other device");
+  assert.equal(application.snapshot.messages[0]!.mentions[0]?.targetAccountId,
+    "20000000-0000-4000-8000-000000000002");
   assert.equal(application.snapshot.messages[0]!.contentRevision, 1);
   assert.equal(application.snapshot.editCommands[0]!.deliveryState, "conflict");
 
