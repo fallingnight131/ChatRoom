@@ -1481,6 +1481,13 @@ Progress:
   - [ ] Persist and authorize mention metadata with submission, edit, history,
     live delivery, recall/deletion cleanup, and privacy erasure in PostgreSQL and
     the authenticated gateway.
+    - [x] Add V048 current/edit-event mention storage, edit-operation mention
+      digests, bounded constraints, and transactional recall/deletion erasure
+      while preserving old-binary empty-mention writes.
+    - [ ] Bind active-member authorization and exact idempotency into PostgreSQL
+      message submission/edit adapters and project mention history.
+    - [ ] Compose capable-only gateway command, history/live projection, and
+      fixed-cardinality telemetry without activating either client.
   - [ ] Add offline-safe Web and Windows mention composition, local persistence,
     rendering, accessibility, and endpoint-specific capability activation.
 

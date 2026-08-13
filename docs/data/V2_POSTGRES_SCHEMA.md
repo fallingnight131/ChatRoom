@@ -545,6 +545,26 @@ the cursor can advance; a capable transport must omit their detail rather than
 serialize empty text. Both gateway negotiation and the transport filter are
 covered by the completed message-edit vertical-slice gates.
 
+## Structured mention storage foundation
+
+V048 adds inactive, metadata-only mention storage. `message_mention` binds the
+current authoritative message to ordered target-account and UTF-8 byte-span
+rows. `message_edit_event_mention` keeps the resulting mention set beside a
+retained ordered edit body, while `message_edit_operation` gains a separate
+SHA-256 for exact mention-set idempotency. The empty-set digest retains a
+database default so an older compatible server binary continues to write
+unmentioned edits during a rolling expand deployment.
+
+Database constraints cap ordinals at 20 rows and spans at the text-body byte
+limit. Application policy additionally enforces valid UTF-8 boundaries,
+ordering, non-overlap, an ASCII `@` prefix, and at most 10 distinct targets;
+the write adapter must validate active same-conversation membership before this
+inactive schema can receive product data. Recall and V2 administrative deletion
+triggers delete both current and retained edit-event mentions in the same
+transaction that erases message/edit bodies. Target indexes support later
+notification derivation without putting notification delivery in the message
+transaction (ADR-0342).
+
 ## Bounds and indexes
 
 - identifiers are limited to 128 characters at this storage boundary and are

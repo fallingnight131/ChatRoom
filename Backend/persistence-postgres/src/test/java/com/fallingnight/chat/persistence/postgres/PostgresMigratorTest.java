@@ -203,7 +203,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(47, first.migrate());
+        assertEquals(48, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -236,7 +236,8 @@ class PostgresMigratorTest {
                             "message_reply_reference", "message_reaction_operation",
                             "message_reaction", "message_reaction_event",
                             "message_pin_operation", "message_pin", "message_pin_event",
-                            "message_edit_operation", "message_edit_event"),
+                            "message_edit_operation", "message_edit_event",
+                            "message_mention", "message_edit_event_mention"),
                     applicationTables(connection));
             assertEquals(2, count("SELECT count(*) FROM information_schema.columns "
                     + "WHERE table_schema = 'chat' AND table_name = 'message' "
@@ -244,6 +245,13 @@ class PostgresMigratorTest {
             assertEquals(1, count("SELECT count(*) FROM pg_constraint "
                     + "WHERE connamespace = 'chat'::regnamespace "
                     + "AND conname = 'message_edit_event_revision_unique'"));
+            assertEquals(5, count("SELECT count(*) FROM pg_constraint "
+                    + "WHERE connamespace = 'chat'::regnamespace AND conname IN ("
+                    + "'message_mention_ordinal_bounded', "
+                    + "'message_mention_span_bounded', "
+                    + "'message_edit_operation_mentions_hash_length', "
+                    + "'message_edit_event_mention_ordinal_bounded', "
+                    + "'message_edit_event_mention_span_bounded')"));
             assertEquals(2, count("SELECT count(*) FROM pg_trigger "
                     + "WHERE NOT tgisinternal AND tgname IN ("
                     + "'message_recall_erase_edit_bodies', "
