@@ -69,6 +69,17 @@ def verify_java_performance(args: argparse.Namespace, output: Path) -> None:
     ], ROOT)
 
 
+def verify_java_gateway_performance(args: argparse.Namespace, output: Path) -> None:
+    run([
+        sys.executable,
+        str(ROOT / "tools" / "verify_java_gateway_performance.py"),
+        "--output", str(output),
+        "--warmup", str(args.java_gateway_performance_warmup),
+        "--messages", str(args.java_gateway_performance_messages),
+        "--payload-bytes", str(args.java_gateway_performance_payload_bytes),
+    ], ROOT)
+
+
 def verify_protocol_bindings(skip_install: bool) -> None:
     run([sys.executable, str(
         ROOT / "Tests" / "message_forwarding_activation_policy_test.py")], ROOT)
@@ -517,11 +528,17 @@ def parse_args() -> argparse.Namespace:
         help="record the disposable PostgreSQL Java V2 messaging baseline",
     )
     parser.add_argument(
+        "--java-gateway-performance",
+        action="store_true",
+        help="record the disposable PostgreSQL Java V2 TLS/WSS gateway baseline",
+    )
+    parser.add_argument(
         "--all",
         action="store_true",
         help=(
             "run inventory, Web, Java, database schema, password hash, CMake headless, "
-            "V1 smoke, V1 identity restore, V1/Java performance, and Qt verification"
+            "V1 smoke, V1 identity restore, V1/Java adapter/gateway performance, "
+            "and Qt verification"
         ),
     )
     parser.add_argument("--skip-npm-ci", action="store_true", help="reuse installed web dependencies")
@@ -540,6 +557,14 @@ def parse_args() -> argparse.Namespace:
         "--java-performance-output",
         type=Path,
         help="JSON result path (default: <build-root>/java-v2-postgres-performance.json)",
+    )
+    parser.add_argument("--java-gateway-performance-warmup", type=int, default=20)
+    parser.add_argument("--java-gateway-performance-messages", type=int, default=200)
+    parser.add_argument("--java-gateway-performance-payload-bytes", type=int, default=256)
+    parser.add_argument(
+        "--java-gateway-performance-output",
+        type=Path,
+        help="JSON result path (default: <build-root>/java-v2-gateway-performance.json)",
     )
     parser.add_argument(
         "--performance-output",
@@ -596,6 +621,12 @@ def main() -> int:
         if not java_performance_output.is_absolute():
             java_performance_output = ROOT / java_performance_output
         verify_java_performance(args, java_performance_output)
+    if args.java_gateway_performance or args.all:
+        gateway_output = args.java_gateway_performance_output or (
+            build_root / "java-v2-gateway-performance.json")
+        if not gateway_output.is_absolute():
+            gateway_output = ROOT / gateway_output
+        verify_java_gateway_performance(args, gateway_output)
     if args.qt or args.all:
         verify_qt(args.jobs, build_root)
     if not (
@@ -610,6 +641,7 @@ def main() -> int:
         or args.v1_identity_restore
         or args.performance
         or args.java_performance
+        or args.java_gateway_performance
         or args.qt
         or args.all
     ):
@@ -617,7 +649,7 @@ def main() -> int:
             "[M0] inventory-only verification complete; "
             "use --web, --java, --postgres, --protocol-bindings, --db-schema, --password-hash, "
             "--cmake-headless, --v1-smoke, --v1-identity-restore, --performance, "
-            "--java-performance, "
+            "--java-performance, --java-gateway-performance, "
             "--qt, or --all "
             "for builds/tests"
         )

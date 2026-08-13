@@ -168,6 +168,9 @@ Run what applies to the touched scope:
   --java-performance`; treat the JSON as local non-capacity evidence unless it
   passes the clean-tree and exact-revision gates documented in
   `docs/architecture/JAVA_PERFORMANCE.md`.
+- Java gateway performance: use `python3 tools/verify_m0.py
+  --java-gateway-performance`; it is a two-connection TLS/WSS development
+  scenario, not a concurrent-user or production-capacity claim.
 - PostgreSQL: use `python3 tools/verify_m0.py --postgres` for clean migration,
   same-database restart, checksum, and core constraint verification.
 - Protocol: test old-client/new-server and new-client/compatible-server paths.

@@ -2,11 +2,12 @@
 
 ## Purpose
 
-This baseline measures the canonical Java `PostgresMessageAdapter` against a
-fresh disposable PostgreSQL database after all forward migrations. It exists to
-provide evidence before M5 introduces Redis routing, a broker, multiple
-gateways, or database partitioning. It is not an end-to-end gateway capacity
-claim and must not be used to advertise supported user counts.
+These baselines measure both the canonical Java `PostgresMessageAdapter` and a
+bounded production `GatewayRuntime` path against a fresh disposable PostgreSQL
+database after all forward migrations. They exist to provide evidence before
+M5 introduces Redis routing, a broker, multiple gateways, or database
+partitioning. Neither is a production capacity claim and neither may be used to
+advertise supported user counts.
 
 The first slice deliberately measures the durable messaging boundary:
 
@@ -17,10 +18,17 @@ The first slice deliberately measures the durable messaging boundary:
 - exact durable message count, maximum sequence, and next-sequence
   reconciliation.
 
-TLS/WebSocket framing, authentication hashing, live fan-out, large groups,
-reconnect storms, slow consumers, Redis, cross-gateway routing, broker delivery,
-and dependency failure remain separate scenarios. Do not infer their behavior
-from this persistence result.
+The second slice measures one real single-gateway path with two connections:
+
+- TLS plus `chat.v2` WebSocket negotiation and password authentication;
+- sequential submit-to-`MESSAGE_ACCEPTED` latency;
+- submit-to-caught-up-peer `MESSAGE_PUBLISHED` latency;
+- completed message/peer-publication throughput;
+- exact durable message and conversation-sequence reconciliation.
+
+Large groups, reconnect storms, slow consumers, Redis, cross-gateway routing,
+broker delivery, and dependency failure remain separate scenarios. Do not infer
+their behavior from either bounded result.
 
 The disposable PostgreSQL verification now also carries a real-network
 correctness gate: `GatewayRuntimePostgresIntegrationTest` starts the production
@@ -37,6 +45,9 @@ Install PostgreSQL binaries and Java 21, then execute:
 ```bash
 python3 tools/verify_m0.py --java-performance \
   --java-performance-output build/m5/java-v2-postgres-performance.json
+
+python3 tools/verify_m0.py --java-gateway-performance \
+  --java-gateway-performance-output build/m5/java-v2-gateway-performance.json
 ```
 
 The wrapper builds the dedicated `Backend/performance-baseline` module, creates
@@ -47,10 +58,22 @@ the cluster. The Java executable additionally requires
 other than numeric loopback. Never point it at a shared, staging, or production
 database.
 
+The gateway wrapper builds `Backend/gateway-performance-baseline`, creates the
+same kind of disposable database plus a one-day localhost certificate, starts
+the production Netty gateway in the measured Java process, and drives two JDK
+WSS clients through the Windows endpoint. It uses the same confirmation and
+numeric-loopback database guard. The generated TLS key and database directory
+exist only inside the temporary directory and are deleted on exit.
+
 Defaults are 100 warm-up commits, 500 measured sequential commits, 200 exact
 retries, 500 commits at concurrency 8, 200 history reads, and a 256-byte text
 payload. Change one input only when recording a new scenario; otherwise later
 results are not directly comparable.
+
+Gateway defaults are 20 warm-up messages, 200 measured messages, two
+connections, one caught-up receiver per message, and a 256-byte text payload.
+The scenario is deliberately sequential so its latency distributions describe
+one submit/confirm/fan-out chain; it does not represent concurrent-user load.
 
 ## Evidence contract
 
@@ -65,6 +88,12 @@ results are not directly comparable.
 - positive sequential/concurrent throughput and zero concurrent errors;
 - no JDBC URL, password, token, session, or account identity.
 
+`tools/java_gateway_performance_result.py` additionally requires exactly two
+connections and one receiver, exact setup/accept/publish sample counts, positive
+completed-chain throughput, zero errors, and no TLS material path. A missing
+acknowledgement, missing peer publication, wrong sequence, or durable database
+mismatch causes the Java process to fail before evidence is promoted.
+
 Results also carry `worktreeDirty`. CI requires a clean tree and exact workflow
 revision. A dirty local result remains useful for development comparison but is
 not commit-exact evidence and must not be promoted into the dated baseline set.
@@ -78,12 +107,11 @@ scenario and should report both absolute distributions and relative change.
 
 Before selecting distributed infrastructure, extend the harness in this order:
 
-1. full TLS/WSS gateway submit-to-accept and live fan-out;
-2. many conversations and large active groups;
-3. reconnect storms and session resume;
-4. slow/unwritable consumers and bounded queue behavior;
-5. PostgreSQL saturation and transient dependency failure;
-6. two gateways, only after an ADR defines reconstructable routing/presence
+1. many conversations and large active groups;
+2. reconnect storms and session resume;
+3. slow/unwritable consumers and bounded queue behavior;
+4. PostgreSQL saturation and transient dependency failure;
+5. two gateways, only after an ADR defines reconstructable routing/presence
    ownership and measurements show the single-gateway limitation.
 
 Redis and a broker remain design candidates, not assumed solutions. Each later

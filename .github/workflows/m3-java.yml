@@ -44,17 +44,28 @@ jobs:
 
       - name: Record disposable Java V2 PostgreSQL performance evidence
         run: |
+          python3 -m unittest \
+            Tests/java_performance_result_test.py \
+            Tests/java_gateway_performance_result_test.py
           python3 tools/verify_m0.py --java-performance \
             --java-performance-output build/m5/java-v2-postgres-performance.json
           python3 tools/java_performance_result.py \
             build/m5/java-v2-postgres-performance.json \
             --source-revision "${{ github.sha }}" \
             --require-clean
+          python3 tools/verify_m0.py --java-gateway-performance \
+            --java-gateway-performance-output build/m5/java-v2-gateway-performance.json
+          python3 tools/java_gateway_performance_result.py \
+            build/m5/java-v2-gateway-performance.json \
+            --source-revision "${{ github.sha }}" \
+            --require-clean
 
       - name: Upload non-capacity Java performance evidence
         uses: actions/upload-artifact@v6
         with:
-          name: java-v2-postgres-performance-${{ github.sha }}
-          path: build/m5/java-v2-postgres-performance.json
+          name: java-v2-performance-${{ github.sha }}
+          path: |
+            build/m5/java-v2-postgres-performance.json
+            build/m5/java-v2-gateway-performance.json
           if-no-files-found: error
           retention-days: 14

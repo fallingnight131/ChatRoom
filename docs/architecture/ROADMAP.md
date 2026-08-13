@@ -1285,9 +1285,12 @@ Progress:
 - [x] Exercise the production single-gateway TLS/WSS submit-to-accept path with
   real Protobuf WebSocket clients, caught-up peer live fan-out, and disposable
   PostgreSQL before using that path for load evidence.
-- [ ] Measure the full single-gateway TLS/WSS path, large active groups,
-  reconnect storms, slow consumers, PostgreSQL saturation, and dependency
-  failure before selecting Redis, a broker, or multi-gateway topology.
+- [x] Measure a reproducible bounded single-gateway TLS/WSS path with connection
+  setup, submit-to-accept, caught-up peer fan-out, throughput, CPU, heap, RSS,
+  zero-error, and durable sequence evidence.
+- [ ] Measure many conversations, large active groups, reconnect storms, slow
+  consumers, PostgreSQL saturation, and dependency failure before selecting
+  Redis, a broker, or multi-gateway topology.
 
 Work:
 
