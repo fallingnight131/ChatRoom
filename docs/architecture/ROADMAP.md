@@ -1660,8 +1660,10 @@ Progress:
 - [x] Upgrade new dual-edge reconnect evidence to schema version 4, reconcile
   Netty probe progress across the window, and record event-loop availability,
   latest-lag, since-start-lag, and pending-task observations alongside worker
-  and PostgreSQL pressure. A clean schema-4 baseline and CPU/memory signals
-  remain pending (ADR-0390).
+  and PostgreSQL pressure. The clean baseline at `14e03b67...` completed 12/12
+  resumes with 68 shared samples, 28 advancing probe samples, 2.759 ms maximum
+  latest lag, no pending tasks, and an unchanged 24.897 ms since-start maximum.
+  CPU/memory signals and a saturation knee remain pending (ADR-0390).
 
 Work:
 

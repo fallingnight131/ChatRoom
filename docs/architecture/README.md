@@ -1246,6 +1246,10 @@ ADR-0390 incorporates event-loop availability, fixed worker count, probe
 progress, lag, and pending-task observations into schema version 4 of the shared
 dual-edge recovery evidence. It preserves schema versions 1 through 3 and does
 not interpret the since-start maximum as necessarily belonging to the window.
+The first clean schema version 4 result at `14e03b67...` observed 28 advancing
+probe samples across four workers, 2.759 ms maximum latest lag, no pending tasks,
+and no increase from the 24.897 ms since-start maximum while all 12 sessions
+resumed. One noisy local curve remains unsuitable for an SLO.
 
 ## 10. Attachment Flow
 

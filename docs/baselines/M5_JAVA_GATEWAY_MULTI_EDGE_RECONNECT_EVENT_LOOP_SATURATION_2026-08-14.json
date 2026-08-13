@@ -1,0 +1,87 @@
+{
+  "benchmark": "java-v2-haproxy-multi-edge-reconnect",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 536870912,
+    "os": "Mac OS X"
+  },
+  "host": {
+    "haproxyImage": "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "pythonVersion": "3.9.6"
+  },
+  "recordedAt": "2026-08-13T23:51:20.647349Z",
+  "results": {
+    "authenticationSaturation": {
+      "activeWorkersMaximum": 1,
+      "queuedWorkMaximum": 0,
+      "sampleIntervalMillis": 5,
+      "samples": 68
+    },
+    "elapsedMillis": 331.523,
+    "eventLoopSaturation": {
+      "latestMaximumLagMicros": 2759,
+      "metricsUnavailableSamples": 0,
+      "pendingTasksMaximum": 0,
+      "probeSamplesAfter": 420,
+      "probeSamplesBefore": 392,
+      "probeSamplesDelta": 28,
+      "sampleIntervalMillis": 5,
+      "samples": 68,
+      "sinceStartMaximumLagMicrosAfter": 24897,
+      "sinceStartMaximumLagMicrosBefore": 24897,
+      "workers": 4
+    },
+    "postgresPoolSaturation": {
+      "activeConnectionsMaximum": 1,
+      "configuredMaximumConnections": 4,
+      "metricsUnavailableSamples": 0,
+      "sampleIntervalMillis": 5,
+      "samples": 68,
+      "threadsAwaitingConnectionMaximum": 0,
+      "totalConnectionsMaximum": 2
+    },
+    "reconnectAttempts": 12,
+    "reconnectErrors": 0,
+    "reconnectSuccesses": 12,
+    "reconnectThroughputPerSecond": 36.197,
+    "scheduledStartJitterMicros": {
+      "max": 8125,
+      "mean": 4898.833,
+      "min": 17,
+      "p50": 6215,
+      "p95": 8125,
+      "p99": 8125,
+      "samples": 12
+    },
+    "secondaryGatewayAuthenticationAfter": 18,
+    "secondaryGatewayAuthenticationBefore": 6,
+    "sessionResumeLatencyMicros": {
+      "max": 53992,
+      "mean": 31258.5,
+      "min": 15822,
+      "p50": 17875,
+      "p95": 53992,
+      "p99": 53992,
+      "samples": 12
+    }
+  },
+  "scenario": {
+    "connections": 18,
+    "edgeProcesses": 2,
+    "failedEdgeConnections": 12,
+    "gatewayProcesses": 2,
+    "primaryEdgeKilled": true,
+    "reconnectBatchIntervalMillis": 100,
+    "reconnectBatchSize": 3,
+    "reconnectBatches": 4,
+    "scheduledReconnectSpanMillis": 300,
+    "survivingEdgeConnections": 6
+  },
+  "schemaVersion": 4,
+  "sourceRevision": "14e03b674a34cd45dfd9c9b3acaec3baa39e493a",
+  "warning": "local dual-edge recovery evidence; not a production capacity claim",
+  "worktreeDirty": false
+}

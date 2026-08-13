@@ -1640,6 +1640,8 @@ Schema version 4 dual-edge evidence reads those event-loop values in the same
 shared snapshots, reconciles probe totals before/after the window, and records
 latest-lag and pending-task peaks. The 50 ms product probe period remains
 coarser than the 5 ms admin sampling target (ADR-0390).
+The first clean schema version 4 result and its limitations are retained as
+`docs/baselines/M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_EVENT_LOOP_SATURATION_2026-08-14.*`.
 
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
