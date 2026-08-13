@@ -1727,6 +1727,137 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     @Test
+    void haproxySecondaryEdgeRepairsAfterPrimaryEdgeCrash() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String redisUri = System.getenv("CHATROOM_TEST_REDIS_URI");
+        String controlValue = System.getenv("CHATROOM_TEST_HAPROXY_CONTROL_DIR");
+        String primaryUrl = System.getenv("CHATROOM_TEST_HAPROXY_WSS_URL");
+        String secondaryUrl = System.getenv("CHATROOM_TEST_HAPROXY_SECONDARY_WSS_URL");
+        String certificatePath = System.getenv("CHATROOM_TEST_GATEWAY_CERTIFICATE");
+        String keyPath = System.getenv("CHATROOM_TEST_GATEWAY_PRIVATE_KEY");
+        Assumptions.assumeTrue(allNonBlank(jdbcUrl, username, redisUri, controlValue,
+                primaryUrl, secondaryUrl, certificatePath, keyPath),
+                "set disposable services, two HAProxy edges, and gateway TLS material");
+        assertFalse(primaryUrl.equals(secondaryUrl));
+        Path control = Path.of(controlValue);
+        new PostgresMigrator(jdbcUrl, username, "").migrate();
+        UUID accountId = UUID.randomUUID();
+        UUID peerId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        String login = "multi-edge-" + accountId;
+        String peerLogin = "multi-edge-" + peerId;
+        seedV2NetworkAccounts(jdbcUrl, username, "", accountId, peerId,
+                conversationId, login, peerLogin);
+
+        int firstPort = availablePort();
+        int firstAdmin = availablePort();
+        int secondPort = availablePort();
+        int secondAdmin = availablePort();
+        GatewayRuntime first = null;
+        GatewayRuntime second = null;
+        WebSocket sender = null;
+        WebSocket peer = null;
+        WebSocket replacement = null;
+        try {
+            Map<String, String> firstEnvironment = distributedNetworkEnvironment(
+                    firstPort, firstAdmin, certificatePath, keyPath, jdbcUrl, username,
+                    redisUri, proxyAuthority(primaryUrl));
+            Map<String, String> secondEnvironment = distributedNetworkEnvironment(
+                    secondPort, secondAdmin, certificatePath, keyPath, jdbcUrl, username,
+                    redisUri, proxyAuthority(secondaryUrl));
+            firstEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+            secondEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+            first = GatewayRuntime.create(
+                    GatewayRuntimeConfig.fromEnvironment(firstEnvironment));
+            second = GatewayRuntime.create(
+                    GatewayRuntimeConfig.fromEnvironment(secondEnvironment));
+            first.start();
+            second.start();
+            awaitReady(first);
+            awaitReady(second);
+            Files.writeString(control.resolve("gateway-ports"),
+                    firstPort + "\n" + secondPort + "\n");
+            Files.writeString(control.resolve("haproxy-start-request"), "start\n");
+            awaitFile(control.resolve("haproxy-started"), Duration.ofSeconds(10));
+
+            BinaryEnvelopeListener senderListener = new BinaryEnvelopeListener();
+            sender = connectWebSocket(
+                    URI.create(primaryUrl + "/v2/windows"), senderListener);
+            SessionEstablished senderSession = establish(
+                    sender, senderListener, login, "multi-edge-sender");
+            assertEquals(1, authenticationAccepted(firstAdmin));
+            assertEquals(0, authenticationAccepted(secondAdmin));
+            sender.sendBinary(ByteBuffer.wrap(history(
+                    senderSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    senderListener.next().getMessageType());
+
+            BinaryEnvelopeListener peerListener = new BinaryEnvelopeListener();
+            peer = connectWebSocket(
+                    URI.create(secondaryUrl + "/v2/windows"), peerListener);
+            SessionEstablished peerSession = establish(
+                    peer, peerListener, peerLogin, "multi-edge-peer");
+            assertEquals(1, authenticationAccepted(secondAdmin));
+            peer.sendBinary(ByteBuffer.wrap(history(
+                    peerSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    peerListener.next().getMessageType());
+
+            sender.sendBinary(ByteBuffer.wrap(submit(
+                    senderSession.getSessionId(), conversationId,
+                    "multi-edge-submit-1", "multi-edge-message-1", "before edge loss")
+                    .toByteArray()), true).join();
+            MessageAccepted firstMessage = accepted(senderListener.next());
+            assertEquals(1, firstMessage.getConversationSequence());
+            assertEquals(1, published(senderListener.next()).getConversationSequence());
+            assertEquals(1, published(peerListener.next(Duration.ofSeconds(10)))
+                    .getConversationSequence());
+
+            Files.writeString(
+                    control.resolve("haproxy-primary-stop-request"), "stop\n");
+            awaitFile(control.resolve("haproxy-primary-stopped"), Duration.ofSeconds(10));
+            senderListener.awaitTerminal(Duration.ofSeconds(3));
+            sender = null;
+            assertTrue(first.isReady(), "edge loss must not poison gateway readiness");
+            assertTrue(second.isReady(), "secondary gateway must remain ready");
+
+            BinaryEnvelopeListener replacementListener = new BinaryEnvelopeListener();
+            replacement = connectWebSocket(
+                    URI.create(secondaryUrl + "/v2/windows"), replacementListener);
+            SessionEstablished resumed = resume(
+                    replacement, replacementListener, senderSession, "multi-edge-sender");
+            assertEquals(senderSession.getSessionId(), resumed.getSessionId());
+            assertEquals(2, authenticationAccepted(secondAdmin));
+            replacement.sendBinary(ByteBuffer.wrap(history(
+                    resumed.getSessionId(), conversationId).toByteArray()), true).join();
+            MessageHistoryPage repaired = MessageHistoryPage.parseFrom(
+                    replacementListener.next().getPayload());
+            assertEquals(1, repaired.getMessagesCount());
+            assertEquals(firstMessage.getMessageId(), repaired.getMessages(0).getMessageId());
+
+            replacement.sendBinary(ByteBuffer.wrap(submit(
+                    resumed.getSessionId(), conversationId,
+                    "multi-edge-submit-2", "multi-edge-message-2", "after edge loss")
+                    .toByteArray()), true).join();
+            assertEquals(2, accepted(replacementListener.next()).getConversationSequence());
+            assertEquals(2, published(replacementListener.next()).getConversationSequence());
+            assertEquals(2, published(peerListener.next(Duration.ofSeconds(10)))
+                    .getConversationSequence());
+            peerListener.assertNoEnvelope(Duration.ofSeconds(1));
+            assertEquals(2, countQuery(jdbcUrl, username, "",
+                    "SELECT count(*) FROM chat.message WHERE conversation_id = '"
+                            + conversationId + "'"));
+        } finally {
+            if (replacement != null) replacement.abort();
+            if (peer != null) peer.abort();
+            if (sender != null) sender.abort();
+            if (second != null) second.close();
+            if (first != null) first.close();
+        }
+    }
+
+    @Test
     void composesRealV1LoginOnlyForMappedImportedAccounts() throws Exception {
         String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
         String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");

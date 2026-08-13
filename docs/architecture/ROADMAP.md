@@ -1595,6 +1595,12 @@ Progress:
   deliver sequences 1 and 2 bidirectionally across versions, remove the previous
   JVM through HAProxy health, repair history on the candidate, and deliver
   sequence 3. Every future release pair must rerun the gate (ADR-0380).
+- [x] Treat the edge as a separate failure domain: run two independent HAProxy
+  containers and two gateways, deliver sequence 1 across both edge and gateway
+  boundaries, force-kill only the primary edge, preserve gateway readiness,
+  explicitly resume the durable device session through the secondary edge,
+  repair history, and deliver sequence 2 without duplication. DNS/GSLB and
+  automatic client endpoint failover remain pending (ADR-0381).
 
 Work:
 

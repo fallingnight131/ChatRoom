@@ -1183,6 +1183,13 @@ real additive metrics difference distinguishes the artifacts, messages flow in
 both directions, and after the previous JVM leaves HAProxy the candidate repairs
 history and continues the conversation sequence. This is not a claim for an
 arbitrary future version pair.
+ADR-0381 makes the edge itself a tested failure domain. Two independent HAProxy
+containers terminate separate WSS entry points and deliberately reach different
+gateways. After sequence 1 crosses both boundaries, the primary edge is killed;
+the Java gateways remain ready, the same device session explicitly resumes on
+the secondary edge, repairs PostgreSQL history, and continues with sequence 2.
+Automatic Web/Windows endpoint selection, DNS/GSLB convergence, multi-host
+partitions, and secure production secret distribution remain unproven.
 
 ## 10. Attachment Flow
 

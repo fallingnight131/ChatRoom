@@ -136,6 +136,20 @@ gateway still uses the old certificate. Retain the overlap bundle until the
 rollback window closes; CA key deletion and compromise response require a
 separate, reviewed ceremony.
 
+Verify the edge as an independent failure domain with:
+
+```bash
+python3 tools/verify_m0.py --gateway-multi-edge
+```
+
+This disposable gate uses two independent HAProxy processes and explicit
+primary/secondary client URLs. Production should place at least two edge
+instances in distinct failure domains, let each reach the reviewed healthy
+gateway pool, distribute identical certificate generations through the secret
+store, and remove an unhealthy edge from discovery before its reconnect load
+overwhelms the survivor. The gate does not select or authorize a DNS, GSLB,
+anycast, or certificate-distribution product (ADR-0381).
+
 Before reload, validate the fully rendered deployment file with the exact
 production HAProxy binary. Roll one bounded subset of gateways at a time:
 

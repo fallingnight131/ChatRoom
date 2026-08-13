@@ -159,11 +159,15 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
     docker = required("docker")
     python = required("python3")
     wrapper = BACKEND / ("gradlew.bat" if os.name == "nt" else "gradlew")
+    multi_edge = bool(extra_environment
+                      and extra_environment.get("CHATROOM_TEST_MULTI_EDGE") == "true")
     proxy_port = available_port()
+    secondary_proxy_port = available_port() if multi_edge else None
     postgres_port = available_port()
     redis_port = available_port()
     docker_host = docker_reachable_host_address()
     proxy_name = f"chat-haproxy-runtime-{os.getpid()}-{proxy_port}"
+    secondary_proxy_name = (f"{proxy_name}-secondary" if multi_edge else None)
 
     with tempfile.TemporaryDirectory(prefix="chat-haproxy-runtime-", dir="/tmp") as value:
         root = Path(value)
@@ -190,6 +194,7 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
         redis_started = False
         gradle: subprocess.Popen[bytes] | None = None
         proxy: subprocess.Popen[bytes] | None = None
+        secondary_proxy: subprocess.Popen[bytes] | None = None
         run([initdb, "-D", str(data), "--username", TEST_USER, "--auth", "trust",
              "--encoding", "UTF8", "--locale", "C", "--no-sync"], ROOT)
         try:
@@ -215,6 +220,9 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
                 "CHATROOM_TEST_GATEWAY_NEXT_CERTIFICATE": str(root / "gateway-next.crt"),
                 "CHATROOM_TEST_GATEWAY_NEXT_PRIVATE_KEY": str(root / "gateway-next.key"),
             })
+            if secondary_proxy_port is not None:
+                environment["CHATROOM_TEST_HAPROXY_SECONDARY_WSS_URL"] = (
+                    f"wss://localhost:{secondary_proxy_port}")
             if extra_environment:
                 environment.update(extra_environment)
             command = [str(wrapper), "--no-daemon", "--no-configuration-cache",
@@ -229,32 +237,70 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
             reload_frontend = root / "haproxy-reload-frontend"
             reload_ca = root / "haproxy-reload-ca"
             reload_marker = root / "haproxy-reloaded"
+            primary_stop_request = root / "haproxy-primary-stop-request"
+            primary_stopped_marker = root / "haproxy-primary-stopped"
             ports: list[str] | None = None
             while gradle.poll() is None:
-                if request.is_file() and ports_file.is_file() and proxy is None:
+                if (request.is_file() and ports_file.is_file() and proxy is None
+                        and not started_marker.exists()):
                     ports = ports_file.read_text(encoding="utf-8").splitlines()
                     if len(ports) != 2 or not all(value.isdigit() for value in ports):
                         raise RuntimeError("gateway ports control file is invalid")
-                    config = proxy_root / "haproxy.cfg"
-                    run([python, str(ROOT / "tools" / "render_haproxy_gateway.py"),
-                         "--bind-address", "0.0.0.0", "--bind-port", "8443",
-                         "--frontend-certificate", "/work/frontend.pem",
-                         "--backend-ca", "/work/ca.crt",
-                         "--health-host", "chat.example.com",
-                         "--gateway", f"gateway-a,{docker_host},{ports[0]},gateway.internal",
-                         "--gateway", f"gateway-b,{docker_host},{ports[1]},gateway.internal",
-                         "--output", str(config)], ROOT)
+                    config_name = "haproxy-primary.cfg" if multi_edge else "haproxy.cfg"
+                    config = proxy_root / config_name
+                    primary_gateways = [(0, "gateway-a")] if multi_edge else [
+                        (0, "gateway-a"), (1, "gateway-b")]
+                    render = [python, str(ROOT / "tools" / "render_haproxy_gateway.py"),
+                              "--bind-address", "0.0.0.0", "--bind-port", "8443",
+                              "--frontend-certificate", "/work/frontend.pem",
+                              "--backend-ca", "/work/ca.crt",
+                              "--health-host", "chat.example.com"]
+                    for index, name in primary_gateways:
+                        render.extend(["--gateway",
+                                       f"{name},{docker_host},{ports[index]},gateway.internal"])
+                    render.extend(["--output", str(config)])
+                    run(render, ROOT)
                     proxy = subprocess.Popen([
                         docker, "run", "--rm", "--name", proxy_name, "--read-only",
                         "-p", f"127.0.0.1:{proxy_port}:8443",
                         "--mount", f"type=bind,src={proxy_root},dst=/work,readonly",
-                        IMAGE, "haproxy", "-W", "-db", "-f", "/work/haproxy.cfg",
+                        IMAGE, "haproxy", "-W", "-db", "-f", f"/work/{config_name}",
                     ], cwd=ROOT)
                     await_port(proxy_port, proxy)
+                    if multi_edge:
+                        if secondary_proxy_port is None or secondary_proxy_name is None:
+                            raise RuntimeError("multi-edge proxy configuration is incomplete")
+                        secondary_config = proxy_root / "haproxy-secondary.cfg"
+                        run([python, str(ROOT / "tools" / "render_haproxy_gateway.py"),
+                             "--bind-address", "0.0.0.0", "--bind-port", "8443",
+                             "--frontend-certificate", "/work/frontend.pem",
+                             "--backend-ca", "/work/ca.crt",
+                             "--health-host", "chat.example.com",
+                             "--gateway",
+                             f"gateway-b,{docker_host},{ports[1]},gateway.internal",
+                             "--output", str(secondary_config)], ROOT)
+                        secondary_proxy = subprocess.Popen([
+                            docker, "run", "--rm", "--name", secondary_proxy_name,
+                            "--read-only",
+                            "-p", f"127.0.0.1:{secondary_proxy_port}:8443",
+                            "--mount", f"type=bind,src={proxy_root},dst=/work,readonly",
+                            IMAGE, "haproxy", "-W", "-db", "-f",
+                            "/work/haproxy-secondary.cfg",
+                        ], cwd=ROOT)
+                        await_port(secondary_proxy_port, secondary_proxy)
                     time.sleep(2)
                     if proxy.poll() is not None:
                         raise subprocess.CalledProcessError(proxy.returncode, proxy.args)
+                    if secondary_proxy is not None and secondary_proxy.poll() is not None:
+                        raise subprocess.CalledProcessError(
+                            secondary_proxy.returncode, secondary_proxy.args)
                     started_marker.write_text("started\n", encoding="utf-8")
+                if (multi_edge and proxy is not None and primary_stop_request.is_file()
+                        and not primary_stopped_marker.exists()):
+                    run([docker, "kill", proxy_name], ROOT)
+                    proxy.wait(timeout=5)
+                    proxy = None
+                    primary_stopped_marker.write_text("stopped\n", encoding="utf-8")
                 if (proxy is not None and ports is not None
                         and reload_request.is_file() and not reload_marker.exists()):
                     retained = reload_request.read_text(encoding="utf-8").strip()
@@ -296,8 +342,12 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
         finally:
             stop_process(gradle)
             stop_process(proxy)
+            stop_process(secondary_proxy)
             subprocess.run([docker, "rm", "-f", proxy_name], cwd=ROOT,
                            check=False, capture_output=True)
+            if secondary_proxy_name is not None:
+                subprocess.run([docker, "rm", "-f", secondary_proxy_name], cwd=ROOT,
+                               check=False, capture_output=True)
             if redis_started:
                 stop_redis(redis_pidfile)
             if postgres_started:

@@ -1574,6 +1574,19 @@ running loopback identities, then sends ordered WSS traffic in both directions
 and through previous-version removal/history repair. It is an exact-pair gate,
 not a general compatibility claim (ADR-0380).
 
+Exercise loss of one of two independent edge processes with:
+
+```bash
+python3 tools/verify_m0.py --gateway-multi-edge
+```
+
+The gate starts two separately named HAProxy containers and two complete Java
+gateways. It sends sequence 1 across both edge and gateway boundaries, kills
+only the primary edge, requires both gateways to remain ready, explicitly
+resumes the durable session through the secondary URL, repairs history, and
+delivers sequence 2 without duplication. It does not emulate DNS/GSLB or prove
+automatic product-client endpoint selection (ADR-0381).
+
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
 consume ports while PostgreSQL supplies outbox and message repair. They also
