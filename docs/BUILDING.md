@@ -1335,11 +1335,13 @@ provides `profile-image-export`, which verifies a protected backup/proof pair
 and atomically emits a deterministic manifest plus bounded canonical PNG
 objects. `profile-image-verify` independently requires the retained manifest
 hash and rejects proof/record/object/tree disagreement. Neither command uploads
-objects or writes PostgreSQL. Message apply requires separate state and payload
-fingerprint confirmations. Unit tests verify the versioned proof artifact and
-safe output; the PostgreSQL verifier then exercises the ordered identity/
-conversation/message command boundary serially after repository tests. Operator
-procedure and stop conditions are documented in
+objects or writes PostgreSQL. `profile-image-preview` then repeats strict bundle
+verification and checks mappings, pointer conflicts, registered object evidence,
+cleanup claims, and prior runs without provider access or database writes.
+Message apply requires separate state and payload fingerprint confirmations.
+Unit tests verify the versioned proof artifact and safe output; the PostgreSQL
+verifier then exercises the ordered identity/conversation/message command
+boundary serially after repository tests. Operator procedure and stop conditions are documented in
 `docs/deployment/V1_IDENTITY_IMPORT_RUNBOOK.md`.
 
 Run the V2 PostgreSQL migration gate with local PostgreSQL server tools

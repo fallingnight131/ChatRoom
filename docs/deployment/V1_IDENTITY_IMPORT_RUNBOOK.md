@@ -246,6 +246,20 @@ with the export evidence. The verifier rejects a substituted manifest, proof
 mismatch, invalid record, non-canonical/tampered object, symbolic link, missing
 path, or unexpected path. It prints neither target IDs nor local paths.
 
+With identity and conversation import already applied to the rehearsal target,
+run the read-only PostgreSQL gate before supplying any object credentials:
+
+```bash
+./gradlew --no-daemon :migration-cli:run --args='profile-image-preview <export-directory> <final-proof.properties> <manifest-sha256>'
+```
+
+Require `status=READY_FOR_PROVIDER_WRITES` and `issues=0`. Archive the counts of
+already registered objects and objects still requiring upload. Stop on a
+missing/disabled mapping, closed or wrong-kind room, existing account/room
+pointer, conflicting object metadata, active delete claim, or previously
+imported manifest. This command validates PostgreSQL only and never contacts the
+object provider.
+
 Exit status 2 or `status=PROFILE_IMAGES_BLOCKED` is a stop condition. Remediate
 invalid source data under a reviewed plan; never silently drop it or edit the
 manifest. This milestone has not yet implemented the object-storage/PostgreSQL

@@ -49,7 +49,11 @@ intentional evidence that missing source bytes were not silently discarded.
 
 V042 adds `profile_image_import_run` and `profile_image_import_entry`. It is an
 additive expansion and does not activate Java authority or the detached V1
-avatar handlers. The current C++/SQLite runtime remains the rollback path.
+avatar handlers. The read-only pre-provider planner is implemented and checks
+all account/room mappings, target availability, existing pointers, exact
+registered object evidence, active cleanup claims, and prior manifest runs.
+Provider upload and atomic apply remain incomplete. The current C++/SQLite
+runtime remains the rollback path.
 
 ## Verification
 

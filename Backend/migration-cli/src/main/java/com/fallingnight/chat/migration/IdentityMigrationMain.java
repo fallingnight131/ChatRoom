@@ -7,6 +7,7 @@ import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityIm
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ConversationImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ContactRequestImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1MessageImporter;
+import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ProfileImageImportPlanner;
 import com.fallingnight.chat.persistence.postgres.migration.V1ContactRequestImportInputVerifier;
 import com.fallingnight.chat.persistence.postgres.migration.V1ContactRequestImportPlan;
 import com.fallingnight.chat.persistence.postgres.migration.V1ContactRequestImportReport;
@@ -108,6 +109,9 @@ public final class IdentityMigrationMain {
             }
             if (args.length == 4 && "profile-image-verify".equals(args[0])) {
                 return profileImageVerify(args, output);
+            }
+            if (args.length == 4 && "profile-image-preview".equals(args[0])) {
+                return profileImagePreview(args, environment, output);
             }
             usage(error);
             return 64;
@@ -510,6 +514,8 @@ public final class IdentityMigrationMain {
                 + "<new-export-directory>");
         error.println("  profile-image-verify <export-directory> <proof.properties> "
                 + "<manifest-sha256>");
+        error.println("  profile-image-preview <export-directory> <proof.properties> "
+                + "<manifest-sha256>");
     }
 
     private static int profileImageExport(String[] args, PrintStream output) {
@@ -529,10 +535,7 @@ public final class IdentityMigrationMain {
     }
 
     private static int profileImageVerify(String[] args, PrintStream output) {
-        VerifiedV1IdentityBackup proof = new V1IdentityBackupProofFile()
-                .read(Path.of(args[2]));
-        var verified = new V1ProfileImageExportVerifier().verify(
-                Path.of(args[1]), proof, args[3]);
+        var verified = verifiedProfileImageExport(args);
         long present = verified.entries().stream()
                 .filter(entry -> entry.present()).count();
         output.println("status=PROFILE_IMAGE_EXPORT_VERIFIED");
@@ -542,5 +545,33 @@ public final class IdentityMigrationMain {
         output.println("absent=" + (verified.entries().size() - present));
         output.println("unique_objects=" + verified.uniqueObjects());
         return 0;
+    }
+
+    private static int profileImagePreview(String[] args,
+            Map<String, String> environment, PrintStream output) {
+        var verified = verifiedProfileImageExport(args);
+        var report = new PostgresV1ProfileImageImportPlanner(
+                dataSource(environment)).preview(verified.importPlan());
+        output.println("status=" + (report.readyForProviderWrites()
+                ? "READY_FOR_PROVIDER_WRITES" : "PROFILE_IMAGE_IMPORT_BLOCKED"));
+        output.println("manifest_sha256=" + report.manifestSha256());
+        output.println("entries=" + report.entries());
+        output.println("present=" + report.present());
+        output.println("absent=" + report.absent());
+        output.println("unique_objects=" + report.uniqueObjects());
+        output.println("objects_already_registered=" + report.objectsAlreadyRegistered());
+        output.println("objects_to_upload=" + report.objectsToUpload());
+        output.println("issues=" + report.issues().size());
+        report.issues().forEach(issue -> output.println("issue="
+                + issue.kind() + ":" + issue.legacyId() + ":" + issue.code()));
+        return report.readyForProviderWrites() ? 0 : 2;
+    }
+
+    private static com.fallingnight.chat.migration.profile.VerifiedV1ProfileImageExport
+            verifiedProfileImageExport(String[] args) {
+        VerifiedV1IdentityBackup proof = new V1IdentityBackupProofFile()
+                .read(Path.of(args[2]));
+        return new V1ProfileImageExportVerifier().verify(
+                Path.of(args[1]), proof, args[3]);
     }
 }

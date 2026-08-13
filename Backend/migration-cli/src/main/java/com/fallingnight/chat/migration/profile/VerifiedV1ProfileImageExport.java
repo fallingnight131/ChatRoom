@@ -1,6 +1,8 @@
 package com.fallingnight.chat.migration.profile;
 
 import com.fallingnight.chat.application.profile.ProfileImageObjectEvidence;
+import com.fallingnight.chat.persistence.postgres.migration.V1ProfileImageImportEntry;
+import com.fallingnight.chat.persistence.postgres.migration.V1ProfileImageImportPlan;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
@@ -26,6 +28,15 @@ public record VerifiedV1ProfileImageExport(Path directory, String manifestSha256
     }
 
     public enum Kind { ACCOUNT, ROOM }
+
+    public V1ProfileImageImportPlan importPlan() {
+        return new V1ProfileImageImportPlan(manifestSha256, backupFileSha256,
+                identityFingerprintSha256, entries.stream().map(entry ->
+                        new V1ProfileImageImportEntry(
+                                V1ProfileImageImportEntry.Kind.valueOf(entry.kind().name()),
+                                entry.legacyId(), entry.object(), entry.width(), entry.height(),
+                                entry.updatedAt())).toList(), uniqueObjects);
+    }
 
     public record Entry(Kind kind, long legacyId,
             ProfileImageObjectEvidence object, int width, int height,

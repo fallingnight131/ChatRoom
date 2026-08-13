@@ -808,6 +808,9 @@ Progress:
     - [x] Define ADR-0320 and add V042 immutable manifest/entry import evidence
       with explicit absence, account/group target constraints, and exact-manifest
       retry convergence. Import application logic still remains.
+    - [x] Add a read-only PostgreSQL pre-provider preview for every historical
+      account/room mapping, availability, empty target pointer, exact registered
+      object evidence, active delete claims, and prior manifest runs.
     - [ ] Retain dated profile-image provider PASS, policy, lifecycle,
       no-object-remains, lease/timeout, rollback, and restart evidence; this
       destructive probe has not run in repository CI or this development host.
