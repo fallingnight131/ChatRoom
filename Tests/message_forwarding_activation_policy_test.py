@@ -56,6 +56,18 @@ def main() -> int:
         'option(CHATROOM_ENABLE_WINDOWS_V2_FORWARDING',
         "CHAT_WINDOWS_V2_FORWARDING_ENABLED=1",
     ))
+    require(".github/workflows/m0-baseline.yml", (
+        "Verify forwarding-enabled Web preview candidate compiles",
+        'VITE_CHAT_V2_MESSAGE_FORWARDING: "true"',
+        "build/m6/web-forwarding-gate",
+    ))
+    require(".github/workflows/m0-product-builds.yml", (
+        "Build forwarding-enabled Windows candidate gate",
+        "-DCHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON",
+        "-DCHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON",
+        "--target ChatClient V2WindowsForwardTargetDialogTest",
+        "m6_windows_v2_forward_target_dialog",
+    ))
     print("Message forwarding activation policy passed")
     return 0
 

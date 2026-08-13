@@ -81,7 +81,7 @@ jobs:
   windows-release:
     name: Windows client payload verification
     runs-on: windows-2025
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Check out source
@@ -206,6 +206,27 @@ jobs:
             --source-revision "${{ github.sha }}" `
             --output $evidence
           if ($LASTEXITCODE -ne 0) { throw "CMake/qmake payload parity failed" }
+
+      - name: Build forwarding-enabled Windows candidate gate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          cmake -S . -B build/m6/windows-forwarding-gate -A x64 `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCHATROOM_BUILD_HEADLESS_SERVER=ON `
+            -DCHATROOM_BUILD_WINDOWS_CLIENT=ON `
+            -DCHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON `
+            -DCHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON `
+            -DCHATROOM_WINDOWS_V2_WSS_URL=wss://preview-chat.example.test/v2/windows `
+            -DBUILD_TESTING=ON `
+            "-DSODIUM_ROOT=$env:SODIUM_ROOT"
+          if ($LASTEXITCODE -ne 0) { throw "Forwarding Windows configuration failed" }
+          cmake --build build/m6/windows-forwarding-gate --config Release `
+            --target ChatClient V2WindowsForwardTargetDialogTest --parallel 4
+          if ($LASTEXITCODE -ne 0) { throw "Forwarding Windows build failed" }
+          ctest --test-dir build/m6/windows-forwarding-gate -C Release `
+            -R "^m6_windows_v2_forward_target_dialog$" --output-on-failure
+          if ($LASTEXITCODE -ne 0) { throw "Forwarding Windows Widgets gate failed" }
 
       - name: Install pinned NSIS compiler
         shell: pwsh

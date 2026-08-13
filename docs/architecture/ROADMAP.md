@@ -1649,6 +1649,9 @@ Progress:
     - [x] Document and lock the cross-endpoint activation contract, complete the
       Java forwarding configuration reference, and require gateway-first
       activation with client-first rollback and retained release evidence.
+    - [x] Add non-published CI compile gates for a forwarding-enabled Web preview
+      and Windows Release client, retaining the ordinary default-off artifacts
+      and running the Windows target-dialog interaction test separately.
 
 Candidate slices:
 

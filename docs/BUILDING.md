@@ -1543,6 +1543,12 @@ callback before the UI can expose it. Because the CMake option remains `OFF`,
 ordinary preview builds preserve the four-capability behavior. A Windows
 Release build with the option enabled remains the product-platform gate; a
 macOS protocol build is development evidence only.
+CI compiles a separate, non-published forwarding-enabled `ChatClient` and runs
+the target-dialog Widgets test without replacing the ordinary default-off
+Windows verification payload. The Web baseline likewise compiles an enabled
+preview into `build/m6/web-forwarding-gate` without uploading or promoting it.
+These jobs prove buildability only; signing, native interaction, deployment,
+and the activation evidence in the runbook remain separate release gates.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic
