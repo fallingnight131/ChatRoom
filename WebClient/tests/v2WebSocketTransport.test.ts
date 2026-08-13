@@ -337,10 +337,13 @@ test("turns synchronous socket construction failure into a cancellable retry", (
   const timers = new FakeTimers();
   const socket = new FakeSocket();
   let attempts = 0;
+  const endpoints: string[] = [];
   const transport = new V2WebSocketTransport({
-    endpoint: "wss://chat.example/v2/web",
+    endpoint: "wss://edge-a.example/v2/web",
+    fallbackEndpoints: ["wss://edge-b.example/v2/web"],
     createProtocolClient: protocolFactory(),
-    createSocket: () => {
+    createSocket: endpoint => {
+      endpoints.push(endpoint);
       if (++attempts === 1) throw new Error("browser rejected constructor");
       return socket;
     },
@@ -353,6 +356,10 @@ test("turns synchronous socket construction failure into a cancellable retry", (
   assert.equal(transport.state, "reconnect-wait");
   assert.equal(timers.runOnly(), 50);
   assert.equal(attempts, 2);
+  assert.deepEqual(endpoints, [
+    "wss://edge-a.example/v2/web",
+    "wss://edge-b.example/v2/web",
+  ]);
   transport.stop();
   assert.equal(timers.tasks.size, 0);
 });
@@ -406,11 +413,14 @@ test("pauses attempts while offline and reconnects immediately after browser rec
   const network = new FakeNetwork();
   const timers = new FakeTimers();
   const sockets: FakeSocket[] = [];
+  const endpoints: string[] = [];
   network.online = false;
   const transport = new V2WebSocketTransport({
     endpoint: "wss://chat.example/v2/web",
+    fallbackEndpoints: ["wss://chat-secondary.example/v2/web"],
     createProtocolClient: protocolFactory(),
-    createSocket: () => {
+    createSocket: endpoint => {
+      endpoints.push(endpoint);
       const socket = new FakeSocket();
       sockets.push(socket);
       return socket;
@@ -435,6 +445,10 @@ test("pauses attempts while offline and reconnects immediately after browser rec
 
   network.setOnline(true);
   assert.equal(sockets.length, 2);
+  assert.deepEqual(endpoints, [
+    "wss://chat.example/v2/web",
+    "wss://chat.example/v2/web",
+  ], "explicit browser-offline recovery keeps the selected endpoint");
   transport.stop();
   assert.equal(network.subscriptions, 1);
   assert.equal(network.unsubscriptions, 1);

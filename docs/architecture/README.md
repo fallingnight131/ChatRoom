@@ -1204,6 +1204,9 @@ then protocol negotiation resumes the memory-only durable session. Canonical
 diagnostic schema 2 exposes the compiled pair for Windows release evidence.
 Native Windows CI, signed candidate testing, V1 cutover, dynamic discovery, and
 degraded-but-connectable edge eviction remain separate gates.
+The normative cross-client behavior and deliberate Web/Windows configuration
+bounds are summarized in
+[`CLIENT_EDGE_FAILOVER_CONTRACT.md`](CLIENT_EDGE_FAILOVER_CONTRACT.md).
 
 ## 10. Attachment Flow
 

@@ -1613,6 +1613,10 @@ Progress:
   reconnect policy, preserve memory-only session resume, and expose diagnostic
   schema 2 for native Windows evidence. Dynamic discovery and signed clean-host
   product proof remain pending (ADR-0383).
+- [x] Publish the Web/Windows edge-failover behavior contract: trusted immutable
+  configuration, rotation events, offline distinction, jitter/backoff, fresh
+  negotiation, memory-only resume, evidence ownership, and rollback are now
+  explicit. Product multi-host and reconnect-capacity evidence remain pending.
 
 Work:
 
