@@ -12,6 +12,10 @@ import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
+import com.fallingnight.chat.application.messaging.MessageReactionCommand;
+import com.fallingnight.chat.application.messaging.MessageReactionKind;
+import com.fallingnight.chat.application.messaging.MessageReactionPort;
+import com.fallingnight.chat.application.messaging.MessageReactionResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.ConversationDirectoryRecord;
@@ -19,10 +23,13 @@ import com.fallingnight.chat.protocol.v2.ConversationPayloadPolicy;
 import com.fallingnight.chat.protocol.v2.ListConversations;
 import com.fallingnight.chat.protocol.v2.EnvelopePolicy;
 import com.fallingnight.chat.protocol.v2.MessageAccepted;
+import com.fallingnight.chat.protocol.v2.ClientCapability;
 import com.fallingnight.chat.protocol.v2.MessageHistoryPage;
 import com.fallingnight.chat.protocol.v2.ConversationEntryRecord;
 import com.fallingnight.chat.protocol.v2.MessageRecalledRecord;
 import com.fallingnight.chat.protocol.v2.MessagesDeletedRecord;
+import com.fallingnight.chat.protocol.v2.MessageReactionApplied;
+import com.fallingnight.chat.protocol.v2.MessageReactionChangedRecord;
 import com.fallingnight.chat.protocol.v2.MessageKind;
 import com.fallingnight.chat.protocol.v2.MessageRecord;
 import com.fallingnight.chat.protocol.v2.MessageType;
@@ -33,6 +40,7 @@ import com.fallingnight.chat.protocol.v2.ProtocolErrorCode;
 import com.fallingnight.chat.protocol.v2.ReadMessageHistory;
 import com.fallingnight.chat.protocol.v2.SubmitMessage;
 import com.fallingnight.chat.protocol.v2.SubmitReplyMessage;
+import com.fallingnight.chat.protocol.v2.SetMessageReaction;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.channel.ChannelHandlerContext;
@@ -52,6 +60,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
 
     private final MessageSubmissionPort submissions;
     private final MessageHistoryPort history;
+    private final MessageReactionPort reactions;
     private final ConversationDirectoryPort directory;
     private final Executor executor;
     private final MessagingEventSink events;
@@ -124,7 +133,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             Clock clock) {
         this(submissions, history, query -> new ConversationDirectoryPage(
                 java.util.List.of(), Optional.empty(), false), executor, events,
-                liveRouter, clock);
+                liveRouter, command -> MessageReactionResult.Rejected.NOT_AUTHORIZED, clock);
     }
 
     V2MessagingHandler(
@@ -135,7 +144,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessagingEventSink events,
             Clock clock) {
         this(submissions, history, directory, executor, events,
-                ConversationLiveRouter.noop(), clock);
+                ConversationLiveRouter.noop(), command ->
+                        MessageReactionResult.Rejected.NOT_AUTHORIZED, clock);
     }
 
     V2MessagingHandler(
@@ -146,8 +156,34 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessagingEventSink events,
             ConversationLiveRouter liveRouter,
             Clock clock) {
+        this(submissions, history, directory, executor, events, liveRouter,
+                command -> MessageReactionResult.Rejected.NOT_AUTHORIZED, clock);
+    }
+
+    public V2MessagingHandler(
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            MessageReactionPort reactions,
+            Executor executor,
+            MessagingEventSink events,
+            ConversationLiveRouter liveRouter) {
+        this(submissions, history, directory, executor, events, liveRouter, reactions,
+                Clock.systemUTC());
+    }
+
+    private V2MessagingHandler(
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            Executor executor,
+            MessagingEventSink events,
+            ConversationLiveRouter liveRouter,
+            MessageReactionPort reactions,
+            Clock clock) {
         this.submissions = Objects.requireNonNull(submissions, "submissions");
         this.history = Objects.requireNonNull(history, "history");
+        this.reactions = Objects.requireNonNull(reactions, "reactions");
         this.directory = Objects.requireNonNull(directory, "directory");
         this.executor = Objects.requireNonNull(executor, "executor");
         this.events = Objects.requireNonNull(events, "events");
@@ -169,6 +205,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
         MessageType type = MessageTypeRegistry.find(envelope.getMessageType()).orElse(null);
         if (type != MessageType.MESSAGE_TYPE_SUBMIT_MESSAGE
                 && type != MessageType.MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE
+                && type != MessageType.MESSAGE_TYPE_SET_MESSAGE_REACTION
                 && type != MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY
                 && type != MessageType.MESSAGE_TYPE_LIST_CONVERSATIONS) {
             writeError(
@@ -176,6 +213,16 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     envelope,
                     ProtocolErrorCode.PROTOCOL_ERROR_CODE_UNSUPPORTED_MESSAGE_TYPE,
                     "unsupported authenticated message type",
+                    false);
+            return;
+        }
+        if (type == MessageType.MESSAGE_TYPE_SET_MESSAGE_REACTION
+                && !hasReactionCapability(context)) {
+            writeError(
+                    context,
+                    envelope,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_UNSUPPORTED_MESSAGE_TYPE,
+                    "message reactions were not negotiated",
                     false);
             return;
         }
@@ -272,6 +319,18 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     payload.getContent().toByteArray(),
                     Optional.of(UUID.fromString(payload.getTargetMessageId()))));
         }
+        if (type == MessageType.MESSAGE_TYPE_SET_MESSAGE_REACTION) {
+            SetMessageReaction payload = SetMessageReaction.parseFrom(envelope.getPayload());
+            MessagingPayloadPolicy.requireValid(payload);
+            return new ReactionWork(new MessageReactionCommand(
+                    UUID.fromString(payload.getConversationId()),
+                    UUID.fromString(payload.getMessageId()),
+                    identity.accountId(),
+                    identity.deviceId(),
+                    reactionKind(payload.getReaction()),
+                    payload.getActive(),
+                    payload.getClientOperationId()));
+        }
         if (type == MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY) {
             ReadMessageHistory payload = ReadMessageHistory.parseFrom(envelope.getPayload());
             MessagingPayloadPolicy.requireValid(payload);
@@ -279,7 +338,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     UUID.fromString(payload.getConversationId()),
                     identity.accountId(),
                     payload.getAfterSequence(),
-                    payload.getLimit()));
+                    payload.getLimit()), hasReactionCapability(context));
         }
         ListConversations payload = ListConversations.parseFrom(envelope.getPayload());
         ConversationPayloadPolicy.requireValid(payload);
@@ -296,15 +355,24 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             ChannelHandlerContext context, Envelope request, Work work) {
         final Envelope response;
         StoredMessage publication = null;
+        MessageReactionResult.Applied reactionPublication = null;
         try {
             if (work instanceof SubmitWork submit) {
                 MessageSubmissionResult result = submissions.submit(submit.submission());
                 response = submitResponse(request, submit.submission(), result);
                 publication = publication(submit.submission(), result);
+            } else if (work instanceof ReactionWork reaction) {
+                MessageReactionResult result = reactions.set(reaction.command());
+                response = reactionResponse(request, reaction.command(), result);
+                if (result instanceof MessageReactionResult.Applied applied
+                        && applied.changed() && !applied.duplicate()) {
+                    reactionPublication = applied;
+                }
             } else if (work instanceof HistoryWork read) {
                 response = historyResponse(
                         request, read.query(), liveRouter.readAndSubscribe(
-                                context.channel(), read.query(), history));
+                                context.channel(), read.query(), history),
+                        read.reactionsEnabled());
             } else {
                 DirectoryWork list = (DirectoryWork) work;
                 response = directoryResponse(request, directory.list(list.query()));
@@ -318,15 +386,23 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     true));
             return;
         }
-        scheduleCompletion(context, response, publication);
+        scheduleCompletion(context, response, publication, reactionPublication);
     }
 
     private void scheduleCompletion(ChannelHandlerContext context, Envelope response) {
-        scheduleCompletion(context, response, null);
+        scheduleCompletion(context, response, null, null);
     }
 
     private void scheduleCompletion(
             ChannelHandlerContext context, Envelope response, StoredMessage publication) {
+        scheduleCompletion(context, response, publication, null);
+    }
+
+    private void scheduleCompletion(
+            ChannelHandlerContext context,
+            Envelope response,
+            StoredMessage publication,
+            MessageReactionResult.Applied reactionPublication) {
         if (context.executor().isShuttingDown()) {
             return;
         }
@@ -339,6 +415,16 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                         try {
                             ConversationLiveRouter.LivePublishResult result =
                                     liveRouter.publish(publication);
+                            events.livePublished(result.published());
+                            events.liveSlowConsumerClosed(result.slowClosed());
+                        } catch (RuntimeException exception) {
+                            events.failed();
+                        }
+                    }
+                    if (reactionPublication != null) {
+                        try {
+                            ConversationLiveRouter.LivePublishResult result =
+                                    liveRouter.publishReaction(reactionPublication);
                             events.livePublished(result.published());
                             events.liveSlowConsumerClosed(result.slowClosed());
                         } catch (RuntimeException exception) {
@@ -410,7 +496,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
     private Envelope historyResponse(
             Envelope request,
             MessageHistoryQuery query,
-            MessageHistoryResult result) {
+            MessageHistoryResult result,
+            boolean reactionsEnabled) {
         if (result == MessageHistoryResult.Rejected.NOT_AUTHORIZED) {
             events.denied();
             return errorEnvelope(
@@ -457,6 +544,17 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                         .setOccurredAtEpochMs(deletion.occurredAt().toEpochMilli());
                 deletion.messageIds().forEach(value -> detail.addMessageIds(value.toString()));
                 encoded.setDeletion(detail);
+            } else if (entry instanceof ConversationHistoryEntry.Reaction reaction) {
+                if (!reactionsEnabled) continue;
+                encoded.setReaction(MessageReactionChangedRecord.newBuilder()
+                        .setConversationId(reaction.conversationId().toString())
+                        .setConversationSequence(reaction.conversationSequence())
+                        .setMessageId(reaction.messageId().toString())
+                        .setReaction(protocolReaction(reaction.reaction()))
+                        .setActive(reaction.active())
+                        .setActorAccountId(reaction.actorAccountId().toString())
+                        .setClientOperationId(reaction.clientOperationId())
+                        .setOccurredAtEpochMs(reaction.occurredAt().toEpochMilli()));
             }
             payload.addEntries(encoded);
         }
@@ -484,6 +582,80 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                         .setTargetConversationSequence(reply.targetConversationSequence())
                         .setTargetSenderAccountId(reply.targetSenderAccountId().toString())));
         return record.build();
+    }
+
+    private Envelope reactionResponse(
+            Envelope request,
+            MessageReactionCommand command,
+            MessageReactionResult result) {
+        if (result == MessageReactionResult.Rejected.NOT_AUTHORIZED) {
+            events.denied();
+            return errorEnvelope(request, ProtocolErrorCode.PROTOCOL_ERROR_CODE_NOT_AUTHORIZED,
+                    "not authorized", false);
+        }
+        if (result == MessageReactionResult.Rejected.IDEMPOTENCY_CONFLICT) {
+            events.conflict();
+            return errorEnvelope(request,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_IDEMPOTENCY_CONFLICT,
+                    "client operation id conflicts with an accepted reaction", false);
+        }
+        MessageReactionResult.Applied applied = (MessageReactionResult.Applied) result;
+        MessageReactionApplied payload = MessageReactionApplied.newBuilder()
+                .setConversationId(applied.conversationId().toString())
+                .setMessageId(applied.messageId().toString())
+                .setReaction(protocolReaction(applied.reaction()))
+                .setActive(applied.active())
+                .setActorAccountId(applied.actorAccountId().toString())
+                .setClientOperationId(applied.clientOperationId())
+                .setChanged(applied.changed())
+                .setConversationSequence(applied.conversationSequence())
+                .setOccurredAtEpochMs(applied.occurredAt().toEpochMilli())
+                .setDuplicate(applied.duplicate())
+                .build();
+        MessagingPayloadPolicy.requireValid(payload);
+        events.reactionApplied(applied.changed(), applied.duplicate());
+        return responseEnvelope(
+                request, MessageType.MESSAGE_TYPE_MESSAGE_REACTION_APPLIED,
+                payload.toByteString());
+    }
+
+    private static boolean hasReactionCapability(ChannelHandlerContext context) {
+        java.util.Set<ClientCapability> capabilities =
+                context.channel().attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get();
+        return capabilities != null && capabilities.contains(
+                ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS);
+    }
+
+    private static MessageReactionKind reactionKind(
+            com.fallingnight.chat.protocol.v2.MessageReactionKind reaction) {
+        return switch (reaction) {
+            case MESSAGE_REACTION_KIND_LIKE -> MessageReactionKind.LIKE;
+            case MESSAGE_REACTION_KIND_LOVE -> MessageReactionKind.LOVE;
+            case MESSAGE_REACTION_KIND_LAUGH -> MessageReactionKind.LAUGH;
+            case MESSAGE_REACTION_KIND_SURPRISED -> MessageReactionKind.SURPRISED;
+            case MESSAGE_REACTION_KIND_SAD -> MessageReactionKind.SAD;
+            case MESSAGE_REACTION_KIND_ANGRY -> MessageReactionKind.ANGRY;
+            case MESSAGE_REACTION_KIND_UNSPECIFIED, UNRECOGNIZED ->
+                    throw new IllegalArgumentException("unsupported reaction");
+        };
+    }
+
+    static com.fallingnight.chat.protocol.v2.MessageReactionKind protocolReaction(
+            MessageReactionKind reaction) {
+        return switch (reaction) {
+            case LIKE -> com.fallingnight.chat.protocol.v2.MessageReactionKind
+                    .MESSAGE_REACTION_KIND_LIKE;
+            case LOVE -> com.fallingnight.chat.protocol.v2.MessageReactionKind
+                    .MESSAGE_REACTION_KIND_LOVE;
+            case LAUGH -> com.fallingnight.chat.protocol.v2.MessageReactionKind
+                    .MESSAGE_REACTION_KIND_LAUGH;
+            case SURPRISED -> com.fallingnight.chat.protocol.v2.MessageReactionKind
+                    .MESSAGE_REACTION_KIND_SURPRISED;
+            case SAD -> com.fallingnight.chat.protocol.v2.MessageReactionKind
+                    .MESSAGE_REACTION_KIND_SAD;
+            case ANGRY -> com.fallingnight.chat.protocol.v2.MessageReactionKind
+                    .MESSAGE_REACTION_KIND_ANGRY;
+        };
     }
 
     private Envelope directoryResponse(Envelope request, ConversationDirectoryPage page) {
@@ -571,7 +743,10 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
 
     private record SubmitWork(MessageSubmission submission) implements Work {}
 
-    private record HistoryWork(MessageHistoryQuery query) implements Work {}
+    private record HistoryWork(
+            MessageHistoryQuery query, boolean reactionsEnabled) implements Work {}
+
+    private record ReactionWork(MessageReactionCommand command) implements Work {}
 
     private record DirectoryWork(ConversationDirectoryQuery query) implements Work {}
 }

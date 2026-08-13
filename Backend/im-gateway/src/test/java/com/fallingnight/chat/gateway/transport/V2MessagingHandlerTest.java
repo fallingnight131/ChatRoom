@@ -19,14 +19,20 @@ import com.fallingnight.chat.application.messaging.MessageReplyReference;
 import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
+import com.fallingnight.chat.application.messaging.MessageReactionCommand;
+import com.fallingnight.chat.application.messaging.MessageReactionKind;
+import com.fallingnight.chat.application.messaging.MessageReactionResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.protocol.v2.Envelope;
+import com.fallingnight.chat.protocol.v2.ClientCapability;
 import com.fallingnight.chat.protocol.v2.ListConversations;
 import com.fallingnight.chat.protocol.v2.EnvelopePolicy;
 import com.fallingnight.chat.protocol.v2.MessageAccepted;
 import com.fallingnight.chat.protocol.v2.MessageContentType;
 import com.fallingnight.chat.protocol.v2.MessageHistoryPage;
 import com.fallingnight.chat.protocol.v2.MessageKind;
+import com.fallingnight.chat.protocol.v2.MessageReactionApplied;
+import com.fallingnight.chat.protocol.v2.MessageReactionChangedRecord;
 import com.fallingnight.chat.protocol.v2.MessageRecord;
 import com.fallingnight.chat.protocol.v2.MessageType;
 import com.fallingnight.chat.protocol.v2.ProtocolError;
@@ -34,6 +40,7 @@ import com.fallingnight.chat.protocol.v2.ProtocolErrorCode;
 import com.fallingnight.chat.protocol.v2.ReadMessageHistory;
 import com.fallingnight.chat.protocol.v2.SubmitMessage;
 import com.fallingnight.chat.protocol.v2.SubmitReplyMessage;
+import com.fallingnight.chat.protocol.v2.SetMessageReaction;
 import com.google.protobuf.ByteString;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.time.Clock;
@@ -42,6 +49,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayDeque;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
@@ -244,6 +252,121 @@ class V2MessagingHandlerTest {
             assertEquals(11, page.getNextSequence());
         } finally {
             channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void rejectsReactionCommandWithoutNegotiatedCapability() throws Exception {
+        AtomicReference<MessageReactionCommand> captured = new AtomicReference<>();
+        EmbeddedChannel channel = reactionChannel(
+                command -> {
+                    captured.set(command);
+                    return MessageReactionResult.Rejected.NOT_AUTHORIZED;
+                },
+                query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
+                ConversationLiveRouter.noop(),
+                false);
+        try {
+            channel.writeInbound(reactionEnvelope("reaction-1", true));
+            assertError(channel,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_UNSUPPORTED_MESSAGE_TYPE, false);
+            assertNull(captured.get());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void appliesAndPublishesNegotiatedReactionWithServerBoundIdentity() throws Exception {
+        AtomicReference<MessageReactionCommand> captured = new AtomicReference<>();
+        SingleGatewayConversationLiveRouter router =
+                new SingleGatewayConversationLiveRouter(CLOCK);
+        MessagingTelemetry telemetry = new MessagingTelemetry();
+        EmbeddedChannel channel = new EmbeddedChannel(new V2MessagingHandler(
+                submission -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                query -> new MessageHistoryResult.Page(List.of(), 0, 0, false),
+                query -> new ConversationDirectoryPage(
+                        List.of(), Optional.empty(), false),
+                command -> {
+                    captured.set(command);
+                    return new MessageReactionResult.Applied(
+                            command.conversationId(), command.messageId(),
+                            command.actorAccountId(), command.reaction(), command.active(),
+                            command.clientOperationId(), true, 7, ACCEPTED_AT, false);
+                },
+                Runnable::run,
+                telemetry,
+                router));
+        channel.attr(V2ConnectionAttributes.AUTHENTICATED).set(
+                new AuthenticatedConnection(ACCOUNT_ID, DEVICE_ID, SESSION_ID));
+        channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(Set.of(
+                ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS));
+        try {
+            channel.writeInbound(historyEnvelope(0, 100));
+            channel.runPendingTasks();
+            channel.readOutbound();
+
+            channel.writeInbound(reactionEnvelope("reaction-1", true));
+            channel.runPendingTasks();
+
+            assertEquals(ACCOUNT_ID, captured.get().actorAccountId());
+            assertEquals(DEVICE_ID, captured.get().actorDeviceId());
+            assertEquals(MessageReactionKind.LOVE, captured.get().reaction());
+            Envelope response = channel.readOutbound();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_REACTION_APPLIED_VALUE,
+                    response.getMessageType());
+            MessageReactionApplied applied =
+                    MessageReactionApplied.parseFrom(response.getPayload());
+            assertEquals(7, applied.getConversationSequence());
+            assertEquals(ACCOUNT_ID.toString(), applied.getActorAccountId());
+            Envelope event = channel.readOutbound();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_REACTION_CHANGED_VALUE,
+                    event.getMessageType());
+            MessageReactionChangedRecord changed =
+                    MessageReactionChangedRecord.parseFrom(event.getPayload());
+            assertEquals("reaction-1", changed.getClientOperationId());
+            assertEquals(1, telemetry.snapshot().reactionChanged());
+            assertEquals(1, telemetry.snapshot().livePublished());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void filtersReactionHistoryForLegacyV2ButKeepsAuthoritativeCursor() throws Exception {
+        ConversationHistoryEntry.Reaction reaction = new ConversationHistoryEntry.Reaction(
+                CONVERSATION_ID, 9, MESSAGE_ID, ACCOUNT_ID, MessageReactionKind.LIKE,
+                true, "reaction-history", ACCEPTED_AT);
+        MessageHistoryResult.Page stored = new MessageHistoryResult.Page(
+                List.of(), List.of(reaction), 9, 9, false);
+        EmbeddedChannel legacy = reactionChannel(
+                command -> MessageReactionResult.Rejected.NOT_AUTHORIZED,
+                query -> stored,
+                ConversationLiveRouter.noop(),
+                false);
+        EmbeddedChannel capable = reactionChannel(
+                command -> MessageReactionResult.Rejected.NOT_AUTHORIZED,
+                query -> stored,
+                ConversationLiveRouter.noop(),
+                true);
+        try {
+            legacy.writeInbound(historyEnvelope(0, 10));
+            legacy.runPendingTasks();
+            MessageHistoryPage legacyPage = MessageHistoryPage.parseFrom(
+                    ((Envelope) legacy.readOutbound()).getPayload());
+            assertEquals(0, legacyPage.getEntriesCount());
+            assertEquals(9, legacyPage.getNextSequence());
+
+            capable.writeInbound(historyEnvelope(0, 10));
+            capable.runPendingTasks();
+            MessageHistoryPage capablePage = MessageHistoryPage.parseFrom(
+                    ((Envelope) capable.readOutbound()).getPayload());
+            assertEquals(1, capablePage.getEntriesCount());
+            assertEquals("reaction-history",
+                    capablePage.getEntries(0).getReaction().getClientOperationId());
+        } finally {
+            legacy.finishAndReleaseAll();
+            capable.finishAndReleaseAll();
         }
     }
 
@@ -507,6 +630,43 @@ class V2MessagingHandlerTest {
                 .build();
         return commandEnvelope(
                 MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY,
+                "",
+                payload.toByteString());
+    }
+
+    private static EmbeddedChannel reactionChannel(
+            com.fallingnight.chat.application.messaging.MessageReactionPort reactions,
+            com.fallingnight.chat.application.messaging.MessageHistoryPort history,
+            ConversationLiveRouter router,
+            boolean capable) {
+        EmbeddedChannel channel = new EmbeddedChannel(new V2MessagingHandler(
+                submission -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                history,
+                query -> new ConversationDirectoryPage(List.of(), Optional.empty(), false),
+                reactions,
+                Runnable::run,
+                MessagingEventSink.noop(),
+                router));
+        channel.attr(V2ConnectionAttributes.AUTHENTICATED).set(
+                new AuthenticatedConnection(ACCOUNT_ID, DEVICE_ID, SESSION_ID));
+        if (capable) {
+            channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(Set.of(
+                    ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS));
+        }
+        return channel;
+    }
+
+    private static Envelope reactionEnvelope(String operationId, boolean active) {
+        SetMessageReaction payload = SetMessageReaction.newBuilder()
+                .setConversationId(CONVERSATION_ID.toString())
+                .setMessageId(MESSAGE_ID.toString())
+                .setReaction(com.fallingnight.chat.protocol.v2.MessageReactionKind
+                        .MESSAGE_REACTION_KIND_LOVE)
+                .setActive(active)
+                .setClientOperationId(operationId)
+                .build();
+        return commandEnvelope(
+                MessageType.MESSAGE_TYPE_SET_MESSAGE_REACTION,
                 "",
                 payload.toByteString());
     }

@@ -6,6 +6,7 @@ import com.fallingnight.chat.application.identity.SessionResumeUseCase;
 import com.fallingnight.chat.application.identity.DeviceManagementService;
 import com.fallingnight.chat.application.messaging.MessageHistoryPort;
 import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
+import com.fallingnight.chat.application.messaging.MessageReactionPort;
 import io.netty.channel.ChannelPipeline;
 import java.time.Duration;
 import java.util.Objects;
@@ -22,6 +23,7 @@ public final class V2ApplicationPipeline {
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
             ConversationDirectoryPort directory,
+            MessageReactionPort reactions,
             DeviceManagementService deviceManagement,
             Executor authenticationExecutor,
             Executor messagingExecutor,
@@ -50,7 +52,8 @@ public final class V2ApplicationPipeline {
         pipeline.addLast("v2-device-management", new V2DeviceManagementHandler(
                 deviceManagement, messagingExecutor, deviceConnections, deviceEvents));
         pipeline.addLast("v2-messaging", new V2MessagingHandler(
-                submissions, history, directory, messagingExecutor, messagingEvents, liveRouter));
+                submissions, history, directory, reactions, messagingExecutor,
+                messagingEvents, liveRouter));
         pipeline.addLast("v2-authenticated-heartbeat", new V2AuthenticatedHeartbeatHandler());
         pipeline.addLast("v2-authenticated-idle-close", new V2AuthenticatedIdleCloseHandler());
     }

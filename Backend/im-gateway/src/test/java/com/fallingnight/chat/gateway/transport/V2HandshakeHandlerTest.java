@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fallingnight.chat.protocol.v2.ClientHello;
+import com.fallingnight.chat.protocol.v2.ClientCapability;
 import com.fallingnight.chat.protocol.v2.ClientPlatform;
 import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.MessageKind;
@@ -20,6 +21,8 @@ import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class V2HandshakeHandlerTest {
@@ -42,6 +45,7 @@ class V2HandshakeHandlerTest {
             assertEquals("connection-1", hello.getConnectionId());
             assertEquals(NOW, hello.getServerTimeEpochMs());
             assertEquals(V2EnvelopeDecoder.MAX_WIRE_BYTES, hello.getMaximumFrameBytes());
+            assertEquals(0, hello.getEnabledCapabilitiesCount());
             assertTrue(channel.isActive());
             assertEquals(
                     "device-1",
@@ -53,6 +57,24 @@ class V2HandshakeHandlerTest {
                     .build();
             assertTrue(channel.writeInbound(next));
             assertEquals(next, channel.readInbound());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void enablesOnlyTheExplicitlyRequestedKnownCapability() throws Exception {
+        EmbeddedChannel channel = channel();
+        try {
+            ClientHello capable = validHello().toBuilder()
+                    .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS)
+                    .build();
+            channel.writeInbound(clientHelloEnvelope(capable));
+            ServerHello response = ServerHello.parseFrom(readEnvelope(channel).getPayload());
+            assertEquals(List.of(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS),
+                    response.getEnabledCapabilitiesList());
+            assertEquals(Set.of(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS),
+                    channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get());
         } finally {
             channel.finishAndReleaseAll();
         }

@@ -60,6 +60,8 @@ class V2WebSocketUpgradeHandlerTest {
                 query -> new com.fallingnight.chat.application.conversation
                         .ConversationDirectoryPage(
                                 java.util.List.of(), java.util.Optional.empty(), false),
+                command -> com.fallingnight.chat.application.messaging
+                        .MessageReactionResult.Rejected.NOT_AUTHORIZED,
                 new DeviceManagementService(new RejectingDeviceManagementPort()),
                 Runnable::run,
                 Runnable::run,

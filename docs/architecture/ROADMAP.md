@@ -1417,8 +1417,8 @@ Progress:
   - [x] Persist exact reaction operations, active state, and changed events in
     PostgreSQL V045 under the authoritative conversation sequence, including
     concurrent retry convergence, no-op cursor stability, and target cleanup.
-  - [ ] Compose authenticated gateway mutation, history, live fan-out, bounded
-    telemetry, and negative-path behavior.
+  - [x] Compose authenticated gateway mutation, capability-filtered history,
+    capable-only live fan-out, bounded telemetry, and opaque negative paths.
   - [ ] Add offline-safe local projections, optimistic convergence, accessible
     controls, and aggregate rendering to Web and Windows clients.
 

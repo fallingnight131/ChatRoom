@@ -131,9 +131,12 @@ session negotiated `MESSAGE_REACTIONS`, and it must not emit reaction details
 or type 108 to a session without that capability. A compatible history
 projection for such an older V2 session may omit reaction entries while still
 advancing `next_after_sequence` across them, so later messages remain reachable
-without exposing an unknown partial record. PostgreSQL storage, gateway
-dispatch, local projections, and UI remain follow-up slices; neither supported
-client advertises this capability yet (ADR-0339).
+without exposing an unknown partial record. PostgreSQL storage and authenticated
+gateway dispatch are now composed. The gateway emits fixed-cardinality outcomes,
+filters history details for legacy V2 sessions while preserving their
+authoritative cursor, and publishes live changes only to capable subscribers.
+Local projections and UI remain follow-up slices; neither supported client
+advertises this capability yet (ADR-0339).
 
 `ListConversations` uses a limit of 1..100 and either no cursor or the complete
 pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are

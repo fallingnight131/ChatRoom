@@ -434,8 +434,9 @@ losing transaction rolls back any tentative state and sequence before reading
 the winner. Reusing an operation ID with a changed conversation, device,
 message, reaction, or desired state is an idempotency conflict. A desired-state
 no-op persists sequence `NULL` (projected as zero by the application) and does
-not alter the conversation watermark. Gateway dispatch remains disabled until
-capability negotiation and compatible history/live filtering are composed.
+not alter the conversation watermark. Gateway dispatch now requires explicit
+capability negotiation and applies compatible history/live filtering; supported
+clients still do not request the capability.
 
 ## Implemented conversation directory
 

@@ -29,6 +29,8 @@ class V2ApplicationPipelineTest {
                     query -> new com.fallingnight.chat.application.conversation
                             .ConversationDirectoryPage(
                                     java.util.List.of(), java.util.Optional.empty(), false),
+                    command -> com.fallingnight.chat.application.messaging
+                            .MessageReactionResult.Rejected.NOT_AUTHORIZED,
                     new DeviceManagementService(new DeviceManagementPort() {
                         @Override public DeviceDirectoryResult listActive(
                                 com.fallingnight.chat.application.identity

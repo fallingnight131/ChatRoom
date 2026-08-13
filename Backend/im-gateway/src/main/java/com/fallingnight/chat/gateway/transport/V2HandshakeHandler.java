@@ -17,6 +17,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -118,12 +119,17 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
                         hello.getClientDeviceId(),
                         platform,
                         hello.getAppVersion()));
+        Set<com.fallingnight.chat.protocol.v2.ClientCapability> enabledCapabilities =
+                Set.copyOf(hello.getCapabilitiesList());
+        context.channel().attr(V2ConnectionAttributes.ENABLED_CAPABILITIES)
+                .set(enabledCapabilities);
         long now = clock.millis();
         ServerHello response = ServerHello.newBuilder()
                 .setSelectedProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
                 .setConnectionId(connectionId)
                 .setServerTimeEpochMs(now)
                 .setMaximumFrameBytes(V2EnvelopeDecoder.MAX_WIRE_BYTES)
+                .addAllEnabledCapabilities(hello.getCapabilitiesList())
                 .build();
         context.writeAndFlush(Envelope.newBuilder()
                 .setProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)

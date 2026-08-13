@@ -6,6 +6,7 @@ import com.fallingnight.chat.application.identity.SessionResumeUseCase;
 import com.fallingnight.chat.application.identity.DeviceManagementService;
 import com.fallingnight.chat.application.messaging.MessageHistoryPort;
 import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
+import com.fallingnight.chat.application.messaging.MessageReactionPort;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
@@ -22,6 +23,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
     private final MessageSubmissionPort submissions;
     private final MessageHistoryPort history;
     private final ConversationDirectoryPort directory;
+    private final MessageReactionPort reactions;
     private final DeviceManagementService deviceManagement;
     private final Executor authenticationExecutor;
     private final Executor messagingExecutor;
@@ -41,6 +43,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
             ConversationDirectoryPort directory,
+            MessageReactionPort reactions,
             DeviceManagementService deviceManagement,
             Executor authenticationExecutor,
             Executor messagingExecutor,
@@ -57,6 +60,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
         this.submissions = Objects.requireNonNull(submissions, "submissions");
         this.history = Objects.requireNonNull(history, "history");
         this.directory = Objects.requireNonNull(directory, "directory");
+        this.reactions = Objects.requireNonNull(reactions, "reactions");
         this.deviceManagement = Objects.requireNonNull(deviceManagement, "deviceManagement");
         this.authenticationExecutor = Objects.requireNonNull(
                 authenticationExecutor, "authenticationExecutor");
@@ -97,6 +101,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
                     submissions,
                     history,
                     directory,
+                    reactions,
                     deviceManagement,
                     authenticationExecutor,
                     messagingExecutor,

@@ -6,6 +6,7 @@ import com.fallingnight.chat.application.identity.SessionResumeUseCase;
 import com.fallingnight.chat.application.identity.DeviceManagementService;
 import com.fallingnight.chat.application.messaging.MessageHistoryPort;
 import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
+import com.fallingnight.chat.application.messaging.MessageReactionPort;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
 import com.fallingnight.chat.gateway.transport.GatewayConnectionLimitHandler;
@@ -64,6 +65,7 @@ public final class V2GatewayServer implements AutoCloseable {
     private final MessageSubmissionPort submissions;
     private final MessageHistoryPort history;
     private final ConversationDirectoryPort directory;
+    private final MessageReactionPort reactions;
     private final DeviceManagementService deviceManagement;
     private final Executor authenticationExecutor;
     private final Executor messagingExecutor;
@@ -88,6 +90,7 @@ public final class V2GatewayServer implements AutoCloseable {
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
             ConversationDirectoryPort directory,
+            MessageReactionPort reactions,
             DeviceManagementService deviceManagement,
             Executor authenticationExecutor,
             Executor messagingExecutor,
@@ -96,7 +99,7 @@ public final class V2GatewayServer implements AutoCloseable {
             MessagingEventSink messagingEvents,
             DeviceManagementEventSink deviceEvents,
             DeviceConnectionRegistry deviceConnections) {
-        this(config, authentication, sessionResume, submissions, history, directory,
+        this(config, authentication, sessionResume, submissions, history, directory, reactions,
                 deviceManagement, authenticationExecutor, messagingExecutor, admission,
                 events, messagingEvents, deviceEvents, deviceConnections,
                 createSslContext(config));
@@ -109,6 +112,7 @@ public final class V2GatewayServer implements AutoCloseable {
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
             ConversationDirectoryPort directory,
+            MessageReactionPort reactions,
             DeviceManagementService deviceManagement,
             Executor authenticationExecutor,
             Executor messagingExecutor,
@@ -124,6 +128,7 @@ public final class V2GatewayServer implements AutoCloseable {
         this.submissions = Objects.requireNonNull(submissions, "submissions");
         this.history = Objects.requireNonNull(history, "history");
         this.directory = Objects.requireNonNull(directory, "directory");
+        this.reactions = Objects.requireNonNull(reactions, "reactions");
         this.deviceManagement = Objects.requireNonNull(deviceManagement, "deviceManagement");
         this.authenticationExecutor = Objects.requireNonNull(
                 authenticationExecutor, "authenticationExecutor");
@@ -236,6 +241,7 @@ public final class V2GatewayServer implements AutoCloseable {
                 submissions,
                 history,
                 directory,
+                reactions,
                 deviceManagement,
                 authenticationExecutor,
                 messagingExecutor,

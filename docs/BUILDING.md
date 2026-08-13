@@ -1457,7 +1457,10 @@ V045 verifies actor-scoped reaction operation idempotency, exact concurrent
 retry convergence, durable active-state projection, changed-only sequence/event
 allocation, no-op cursor stability, mixed-history projection, opaque target and
 actor denial, and target-deletion cleanup (ADR-0339). It does not activate the
-gateway capability or a supported client feature.
+supported client feature. Gateway tests separately prove explicit capability
+echo, pre-capability command rejection, server-bound actor/device identity,
+capable-only live fan-out, legacy-history detail filtering with cursor
+advancement, and fixed-cardinality outcomes.
 
 Generate the non-Java V2 bindings and run the Java-to-TypeScript golden-wire
 test with Node.js 22:
