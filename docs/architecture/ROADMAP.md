@@ -670,6 +670,9 @@ Progress:
   - [x] Compose V1 administrator changes in the detached Java compatibility
     module and prove login-to-promotion, duplicate suppression, durable member
     projection, and replacement-login recovery through real PostgreSQL.
+  - [x] Define the server-bound V1 room-kick contract with protected roles,
+    append-only moderation audit, membership-generation retry convergence, and
+    first-commit-only live effects.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
