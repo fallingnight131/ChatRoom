@@ -76,6 +76,7 @@ export function sanitizeV2Message(message) {
   const validEditMetadata = Number.isInteger(candidateRevision)
     && candidateRevision >= 0 && candidateRevision <= 100
     && ((candidateRevision === 0) === (candidateEditedAt === 0))
+  const forwardSource = sanitizeV2ForwardSource(message)
   return {
     conversationId: String(message.conversationId || ''),
     id: String(message.id || ''),
@@ -100,7 +101,23 @@ export function sanitizeV2Message(message) {
       : [],
     pinned: Boolean(message.pinned),
     contentRevision: validEditMetadata ? candidateRevision : 0,
-    editedAtEpochMs: validEditMetadata ? candidateEditedAt : 0
+    editedAtEpochMs: validEditMetadata ? candidateEditedAt : 0,
+    forwarded: Boolean(message.forwarded),
+    forwardSource: message.deliveryState === 'accepted' ? null : forwardSource
+  }
+}
+
+function sanitizeV2ForwardSource(message) {
+  const source = message?.forwardSource
+  const revision = Number(source?.expectedSourceContentRevision)
+  if (!source || typeof source !== 'object'
+      || !CANONICAL_UUID.test(String(source.sourceConversationId || ''))
+      || !CANONICAL_UUID.test(String(source.sourceMessageId || ''))
+      || !Number.isInteger(revision) || revision < 0 || revision > 100) return null
+  return {
+    sourceConversationId: source.sourceConversationId,
+    sourceMessageId: source.sourceMessageId,
+    expectedSourceContentRevision: revision
   }
 }
 

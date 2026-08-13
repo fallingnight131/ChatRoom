@@ -267,8 +267,19 @@ test('round trips V2 snapshots in an isolated exact-sequence store', async () =>
   const cache = new IndexedDbConversationCache(fakeIndexedDb())
   await cache.saveV2('account-1', 'conversation-1', [{
     id: 'message-1', sequence: '9007199254740993', content: '@李 hello',
+    forwarded: true,
     mentions: [{ targetAccountId: '20000000-0000-4000-8000-000000000002',
       startUtf8Byte: 0, lengthUtf8Bytes: 4 }]
+  }, {
+    conversationId: '50000000-0000-4000-8000-000000000002',
+    id: '', sequence: '0', content: 'forward preview',
+    clientMessageId: 'forward-client-1', deliveryState: 'sending',
+    forwarded: true,
+    forwardSource: {
+      sourceConversationId: '50000000-0000-4000-8000-000000000001',
+      sourceMessageId: '60000000-0000-4000-8000-000000000001',
+      expectedSourceContentRevision: 2
+    }
   }], '9007199254740993', [{
     conversationId: '50000000-0000-4000-8000-000000000001',
     messageId: '60000000-0000-4000-8000-000000000001',
@@ -304,6 +315,14 @@ test('round trips V2 snapshots in an isolated exact-sequence store', async () =>
   assert.equal(loaded.editCommands[0].clientOperationId, 'edit-1')
   assert.equal(loaded.editCommands[0].proposedContent, '@李 edited text')
   assert.equal(loaded.messages[0].mentions[0].lengthUtf8Bytes, 4)
+  assert.equal(loaded.messages[0].forwarded, true)
+  assert.equal(loaded.messages[0].forwardSource, null,
+    'accepted projections never retain a local source pointer')
+  assert.deepEqual(loaded.messages[1].forwardSource, {
+    sourceConversationId: '50000000-0000-4000-8000-000000000001',
+    sourceMessageId: '60000000-0000-4000-8000-000000000001',
+    expectedSourceContentRevision: 2
+  })
   assert.equal(loaded.editCommands[0].proposedMentions[0].targetAccountId,
     '20000000-0000-4000-8000-000000000002')
   assert.equal(loaded.editCommands[0].deliveryState, 'conflict')

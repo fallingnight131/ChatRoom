@@ -1595,6 +1595,9 @@ Progress:
     - [x] Add a default-off Web protocol and transport boundary with capability
       gating, bounded command construction, stable idempotency correlation, and
       defensive validation of the additive forwarded marker.
+    - [x] Extend the isolated Web V2 IndexedDB message model with the forwarded
+      marker and a validated local-only source pointer for unresolved commands;
+      confirmed projections discard that pointer.
 
 Candidate slices:
 

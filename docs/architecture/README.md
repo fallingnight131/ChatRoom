@@ -779,7 +779,11 @@ construct the bounded correlated command only for an explicitly configured
 capability-5 client and reject an unexpected inbound `forwarded` marker when
 that capability is absent. Product runtime composition still does not request
 capability 5, and gateway handshake enablement remains off, so neither Web nor
-Windows advertises or exposes forwarding yet.
+Windows advertises or exposes forwarding yet. The isolated Web V2 cache now
+retains the presentation marker and, only while a destination send is
+unresolved, a validated local source conversation/message/revision pointer.
+Accepted server projections discard that pointer, so source identity does not
+become durable presentation data.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

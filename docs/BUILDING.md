@@ -1333,6 +1333,12 @@ client message ID; the WebSocket transport forwards only those validated bytes.
 Default clients also reject an unexpected inbound `forwarded` marker. Product
 runtime composition still leaves capability 5 disabled while cache, outbox,
 reconnect, presentation, and accessibility gates remain open (ADR-0344).
+The isolated Web V2 IndexedDB record accepts the `forwarded` presentation flag
+and a canonical local source conversation/message/revision pointer only for an
+unresolved optimistic send. Sanitization drops malformed pointers and always
+removes the pointer from accepted projections. It stores no source content,
+server digest, credential, or temporary authorization. Dispatch/replay and UI
+activation remain separate gates.
 The application participant directory returns either a validated page or one
 fixed authorization rejection. Its PostgreSQL adapter first proves that the
 requester is an enabled active member, then pages enabled active participants

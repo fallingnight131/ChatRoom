@@ -60,6 +60,12 @@ export interface V2ConversationCacheMessage {
   pinned: boolean;
   contentRevision: number;
   editedAtEpochMs: number;
+  forwarded: boolean;
+  forwardSource: null | {
+    sourceConversationId: string;
+    sourceMessageId: string;
+    expectedSourceContentRevision: number;
+  };
 }
 
 export interface V2ConversationMention {
@@ -510,6 +516,8 @@ export class V2WebChatApplication {
       pinned: false,
       contentRevision: 0,
       editedAtEpochMs: 0,
+      forwarded: false,
+      forwardSource: null,
     };
     state.messages = boundMessages([...state.messages, message]);
     try {
@@ -1445,6 +1453,8 @@ function mapMessageRecord(record: MessageRecord): V2ConversationCacheMessage {
     pinned: false,
     contentRevision: record.contentRevision,
     editedAtEpochMs: Number(record.editedAtEpochMs),
+    forwarded: record.forwarded,
+    forwardSource: null,
   };
 }
 
@@ -1467,6 +1477,8 @@ function normalizeCachedMessage(message: V2ConversationCacheMessage): V2Conversa
     pinned: Boolean(message.pinned),
     contentRevision: validEditMetadata ? candidateRevision : 0,
     editedAtEpochMs: validEditMetadata ? candidateEditedAt : 0,
+    forwarded: Boolean(message.forwarded),
+    forwardSource: normalizeForwardSource(message),
   };
 }
 
@@ -1491,7 +1503,22 @@ function cloneMessage(message: V2ConversationCacheMessage): V2ConversationCacheM
     pinned: message.pinned,
     contentRevision: message.contentRevision,
     editedAtEpochMs: message.editedAtEpochMs,
+    forwarded: message.forwarded,
+    forwardSource: message.forwardSource ? { ...message.forwardSource } : null,
   };
+}
+
+function normalizeForwardSource(
+  message: V2ConversationCacheMessage,
+): V2ConversationCacheMessage["forwardSource"] {
+  const source = message.forwardSource;
+  if (message.deliveryState === "accepted" || !source
+      || !canonicalUuid.test(source.sourceConversationId)
+      || !canonicalUuid.test(source.sourceMessageId)
+      || !Number.isInteger(source.expectedSourceContentRevision)
+      || source.expectedSourceContentRevision < 0
+      || source.expectedSourceContentRevision > 100) return null;
+  return { ...source };
 }
 
 function normalizePinCommand(value: V2ConversationCachePinCommand): V2ConversationCachePinCommand | null {

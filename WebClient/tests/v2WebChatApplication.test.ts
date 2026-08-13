@@ -210,6 +210,8 @@ function cachedMessage(overrides: Partial<V2ConversationCacheMessage> = {}): V2C
     reactions: [],
     contentRevision: overrides.contentRevision ?? 0,
     editedAtEpochMs: overrides.editedAtEpochMs ?? 0,
+    forwarded: Boolean(overrides.forwarded),
+    forwardSource: overrides.forwardSource ? { ...overrides.forwardSource } : null,
     ...overrides,
     mentions: overrides.mentions?.map((value) => ({ ...value })) ?? [],
     pinned: Boolean(overrides.pinned),
