@@ -1142,6 +1142,12 @@ backend, the stale Redis conversation route expires, the client reconnects on
 the survivor, PostgreSQL history repairs the committed message, and ordered
 delivery continues without a duplicate peer event. This remains a single-host,
 same-build proof rather than correlated-failure or reconnect-storm evidence.
+ADR-0374 adds the first bounded measurement on that failure topology. Twelve
+sessions are split evenly across two independent JVMs; after one is force-killed,
+its six sessions resume through HAProxy on the survivor in three batches of two
+scheduled 100 ms apart. Versioned evidence records resume latency, scheduling
+jitter, reconciliation, environment, revision, and worktree state. It is a
+local comparison curve, not a safe fleet reconnect rate or capacity claim.
 
 ## 10. Attachment Flow
 

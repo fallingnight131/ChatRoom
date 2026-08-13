@@ -70,8 +70,11 @@ def verify_gateway_load_balancer_runtime() -> None:
     run([sys.executable, str(ROOT / "tools" / "verify_haproxy_runtime.py")], ROOT)
 
 
-def verify_gateway_crash() -> None:
-    run([sys.executable, str(ROOT / "tools" / "verify_gateway_crash.py")], ROOT)
+def verify_gateway_crash(output: Path | None) -> None:
+    command = [sys.executable, str(ROOT / "tools" / "verify_gateway_crash.py")]
+    if output is not None:
+        command.extend(["--output", str(output)])
+    run(command, ROOT)
 
 
 def verify_java_performance(args: argparse.Namespace, output: Path) -> None:
@@ -551,6 +554,11 @@ def parse_args() -> argparse.Namespace:
         help="verify HAProxy and client recovery after abrupt gateway process loss",
     )
     parser.add_argument(
+        "--gateway-crash-output",
+        type=Path,
+        help="write bounded HAProxy crash/reconnect performance evidence",
+    )
+    parser.add_argument(
         "--protocol-bindings",
         action="store_true",
         help="generate and verify V2 C++ and TypeScript client bindings",
@@ -646,7 +654,10 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=ROOT / "build" / "m0" / platform.system().lower(),
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.gateway_crash_output is not None and not args.gateway_crash:
+        parser.error("--gateway-crash-output requires --gateway-crash")
+    return args
 
 
 def main() -> int:
@@ -670,7 +681,7 @@ def main() -> int:
     if args.gateway_load_balancer_runtime:
         verify_gateway_load_balancer_runtime()
     if args.gateway_crash:
-        verify_gateway_crash()
+        verify_gateway_crash(args.gateway_crash_output)
     if args.protocol_bindings or args.all:
         verify_protocol_bindings(args.skip_npm_ci)
     if args.db_schema or args.all:

@@ -47,6 +47,7 @@ tasks.test {
         "CHATROOM_TEST_HAPROXY_WSS_URL",
         "CHATROOM_TEST_GATEWAY_CERTIFICATE",
         "CHATROOM_TEST_GATEWAY_PRIVATE_KEY",
+        "CHATROOM_TEST_GATEWAY_CRASH_EVIDENCE",
     ).forEach { name ->
         environment(name, providers.environmentVariable(name).orNull ?: "")
     }

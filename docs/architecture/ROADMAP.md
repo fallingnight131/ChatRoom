@@ -1550,6 +1550,13 @@ Progress:
   sequence 1 from PostgreSQL, and deliver sequence 2 exactly once. Correlated
   failure, mixed-version, reload, and reconnect-storm capacity remain pending
   (ADR-0373).
+- [x] Add a bounded post-crash reconnect measurement: distribute twelve WSS
+  sessions evenly across two independent gateways through HAProxy, force-kill
+  one JVM, and resume its six sessions on the survivor in three batches of two
+  scheduled 100 ms apart. Versioned JSON records exact identity rotation,
+  latency, arrival jitter, successes/errors, environment, revision, and dirty
+  state; a strict validator gates clean comparable evidence. This bounded local
+  curve is not a production fleet rate (ADR-0374).
 
 Work:
 

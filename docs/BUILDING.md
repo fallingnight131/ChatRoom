@@ -1497,6 +1497,20 @@ conversation route to expire, the client to reconnect on the survivor, history
 to repair from PostgreSQL, and ordered messaging to continue. It is also
 excluded from `--all`; see ADR-0373.
 
+Generate the separate bounded post-crash reconnect measurement with:
+
+```bash
+python3 tools/verify_m0.py --gateway-crash \
+  --gateway-crash-output /tmp/gateway-crash-reconnect.json
+```
+
+This distributes twelve connections evenly across two gateways, kills one JVM,
+then resumes the affected six sessions in three batches of two scheduled 100 ms
+apart. The JSON includes latency, scheduling jitter, success/error
+reconciliation, environment, exact source revision, and worktree state. Only a
+clean-tree result revalidated against its exact commit is baseline evidence; the
+bounded local curve is not a production-capacity claim (ADR-0374).
+
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
 consume ports while PostgreSQL supplies outbox and message repair. They also

@@ -119,7 +119,7 @@ def await_port(port: int, process: subprocess.Popen[bytes]) -> None:
     raise RuntimeError("HAProxy frontend did not become reachable")
 
 
-def verify(test_method: str) -> int:
+def verify(test_method: str, extra_environment: dict[str, str] | None = None) -> int:
     initdb = required("initdb")
     pg_ctl = required("pg_ctl")
     createdb = required("createdb")
@@ -178,6 +178,8 @@ def verify(test_method: str) -> int:
                 "CHATROOM_TEST_GATEWAY_CERTIFICATE": str(root / "gateway.crt"),
                 "CHATROOM_TEST_GATEWAY_PRIVATE_KEY": str(root / "gateway.key"),
             })
+            if extra_environment:
+                environment.update(extra_environment)
             command = [str(wrapper), "--no-daemon", "--no-configuration-cache",
                        ":im-gateway:test", "--tests",
                        "*GatewayRuntimePostgresIntegrationTest." + test_method,
