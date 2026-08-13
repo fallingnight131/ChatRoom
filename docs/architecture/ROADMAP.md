@@ -1408,6 +1408,11 @@ Progress:
   exponential retry capped at five minutes, fenced ownership-loss accounting,
   and fixed-cardinality run results. It remains uncomposed and does not affect
   the local live path (ADR-0350).
+- [x] Add an identity-free PostgreSQL outbox status snapshot and fixed Prometheus
+  gauge renderer for unpublished/ready/leased/delayed/retried counts, maximum
+  attempt count, and oldest backlog age. Real lifecycle tests prove ready counts
+  respect per-conversation blocking; the renderer is not exposed until runtime
+  composition is activated.
 
 Work:
 

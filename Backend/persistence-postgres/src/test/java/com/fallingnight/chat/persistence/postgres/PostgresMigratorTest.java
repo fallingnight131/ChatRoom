@@ -100,6 +100,7 @@ import com.fallingnight.chat.application.messaging.MessageForwardCommand;
 import com.fallingnight.chat.application.messaging.MessageForwardResult;
 import com.fallingnight.chat.application.messaging.ConversationEntryHistoryResult;
 import com.fallingnight.chat.application.messaging.ConversationEventOutboxClaim;
+import com.fallingnight.chat.application.messaging.ConversationEventOutboxStatus;
 import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
@@ -1115,8 +1116,17 @@ class PostgresMigratorTest {
                 "outbox-second-1", 1, new byte[] {3}));
 
         var outbox = new PostgresConversationEventOutboxAdapter(dataSource());
+        var status = new PostgresConversationEventOutboxStatusAdapter(dataSource());
         UUID firstOwner = UUID.randomUUID();
         Instant start = Instant.parse("2030-01-01T00:00:00Z");
+        ConversationEventOutboxStatus initialStatus = status.readStatus(start);
+        assertEquals(3, initialStatus.unpublished());
+        assertEquals(2, initialStatus.ready());
+        assertEquals(0, initialStatus.leased());
+        assertEquals(0, initialStatus.delayed());
+        assertEquals(0, initialStatus.retried());
+        assertEquals(0, initialStatus.maximumAttemptCount());
+        assertTrue(initialStatus.oldestAgeSeconds(start) > 0);
         List<ConversationEventOutboxClaim> initial =
                 outbox.claim(firstOwner, start, Duration.ofSeconds(5), 10);
         assertEquals(2, initial.size());
@@ -1125,6 +1135,11 @@ class PostgresMigratorTest {
                         .collect(java.util.stream.Collectors.toSet()));
         assertTrue(initial.stream().allMatch(claim -> claim.conversationSequence() == 1));
         assertTrue(initial.stream().allMatch(claim -> claim.attemptCount() == 1));
+        ConversationEventOutboxStatus leasedStatus = status.readStatus(start.plusSeconds(1));
+        assertEquals(3, leasedStatus.unpublished());
+        assertEquals(0, leasedStatus.ready());
+        assertEquals(2, leasedStatus.leased());
+        assertEquals(1, leasedStatus.maximumAttemptCount());
 
         ConversationEventOutboxClaim delayed = initial.stream()
                 .filter(claim -> claim.conversationId().equals(firstConversation))
@@ -1136,6 +1151,12 @@ class PostgresMigratorTest {
                 "REDIS_UNAVAILABLE"));
         assertTrue(outbox.markPublished(completed, start.plusSeconds(1)));
         assertFalse(outbox.markPublished(completed, start.plusSeconds(1)));
+        ConversationEventOutboxStatus delayedStatus = status.readStatus(start.plusSeconds(2));
+        assertEquals(2, delayedStatus.unpublished());
+        assertEquals(0, delayedStatus.ready());
+        assertEquals(0, delayedStatus.leased());
+        assertEquals(1, delayedStatus.delayed());
+        assertEquals(0, delayedStatus.retried());
         assertTrue(outbox.claim(UUID.randomUUID(), start.plusSeconds(2),
                 Duration.ofSeconds(2), 10).isEmpty());
 
@@ -1145,6 +1166,7 @@ class PostgresMigratorTest {
         assertEquals(delayed.eventId(), retried.eventId());
         assertEquals(2, retried.attemptCount());
         assertNotEquals(delayed.claimId(), retried.claimId());
+        assertEquals(1, status.readStatus(start.plusSeconds(11)).retried());
         assertFalse(outbox.markPublished(delayed, start.plusSeconds(2)));
 
         ConversationEventOutboxClaim reclaimed = outbox.claim(UUID.randomUUID(),
@@ -1170,6 +1192,9 @@ class PostgresMigratorTest {
         assertEquals(3, count("SELECT count(*) FROM chat.conversation_event_outbox "
                 + "WHERE published_at IS NOT NULL AND claim_owner IS NULL "
                 + "AND claim_id IS NULL AND claim_expires_at IS NULL"));
+        assertEquals(new ConversationEventOutboxStatus(
+                0, 0, 0, 0, 0, 0, Optional.empty()),
+                status.readStatus(start.plusSeconds(15)));
     }
 
     @Test

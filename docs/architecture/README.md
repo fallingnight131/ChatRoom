@@ -993,6 +993,10 @@ ADR-0350 adds the application-level bounded relay pass around that port. It
 standardizes lease validation, fixed failure classes, exponential retry, stale
 ownership accounting, and fixed-cardinality run totals while remaining absent
 from product runtime composition.
+An aggregate PostgreSQL status port and fixed-name Prometheus renderer now define
+the activation telemetry without leaking event, conversation, or account IDs.
+They report ready conversation heads rather than every nominally available row,
+so head-of-line blocking remains visible in backlog versus ready gauges.
 
 ## 10. Attachment Flow
 

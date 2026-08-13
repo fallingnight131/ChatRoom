@@ -650,6 +650,12 @@ This expand phase does not backfill history, write outbox rows for
 reaction/pin/edit/recall/deletion events, schedule relay work, or publish to
 Redis. The current single-gateway live router remains unchanged.
 
+The inactive status adapter returns one aggregate snapshot only: unpublished,
+currently ready conversation heads, live leases, delayed rows, retried rows,
+maximum attempt count, and the oldest creation time. It never returns event,
+conversation, or account identities. `ready` applies the same head-of-line rule
+as claim, so blocked later sequences are not reported as immediately runnable.
+
 ## Deployment and rollback
 
 Before migrating a database that owns traffic, operations must take and verify a
