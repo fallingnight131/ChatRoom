@@ -1457,6 +1457,11 @@ Progress:
   unsigned Redis IDs, immediate full-batch drain, bounded idle polling,
   exponential repair-failure retry without failed-cursor advancement, clean
   shutdown, and fixed identity-free lease/consumer metrics (ADR-0357).
+- [x] Add a default-off real PostgreSQL/Redis two-gateway proof: one atomic
+  message/outbox commit reaches both boot-specific streams and both authorized
+  local connections, while repeated hints produce no duplicate socket output.
+  The product listener, TLS/ACL, dependency-loss, and load-balancer gates remain
+  pending (ADR-0358).
 
 Work:
 

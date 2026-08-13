@@ -1380,6 +1380,20 @@ Gateway tests for ADR-0357 prove strict Redis ID ordering, full-batch immediate
 drain, failed cursor retention across classified and unexpected repair failures,
 bounded backoff/idle reset, cancellation, and fixed Prometheus lease/hint
 counters without identity labels.
+To run the ADR-0358 two-gateway vertical proof, start an isolated disposable
+Redis and pass its loopback URI while running the existing disposable
+PostgreSQL verifier:
+
+```bash
+CHATROOM_TEST_REDIS_URI=redis://127.0.0.1:<port> \
+  python3 tools/verify_m0.py --postgres
+```
+
+The conditional scenario commits one message/outbox row, relays it to two
+gateway boot streams, reauthorizes both local deliveries from PostgreSQL, and
+rejects repeated hints as duplicates. Without `CHATROOM_TEST_REDIS_URI`, the
+PostgreSQL gate remains Redis-independent. Do not point this gate at shared or
+production Redis; it is not product activation or TLS/ACL evidence.
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound

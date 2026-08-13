@@ -1031,6 +1031,13 @@ ADR-0357 wraps that path in a default-off, non-overlapping consumer lifecycle.
 Strictly increasing boot-stream IDs, failed-cursor retention, bounded idle/
 failure delays, and identity-free lease/consumer metrics are enforced before
 runtime composition.
+ADR-0358 adds the first real cross-adapter vertical proof. One PostgreSQL
+message/outbox commit is relayed through Redis to two distinct gateway boot
+streams; each gateway reauthorizes and reads the exact message from PostgreSQL
+before local delivery, and repeated hints produce no second socket output. The
+scenario is opt-in and uses disposable dependencies. It does not activate the
+product listener or satisfy Redis TLS/ACL, dependency-loss, rolling-deployment,
+or non-message-event gates.
 
 ## 10. Attachment Flow
 

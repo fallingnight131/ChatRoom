@@ -126,6 +126,15 @@ def main() -> int:
                 "*GatewayRuntimePostgresIntegrationTest",
                 "--rerun-tasks",
             ], BACKEND, environment)
+            if environment.get("CHATROOM_TEST_REDIS_URI", "").strip():
+                run([
+                    str(wrapper),
+                    "--no-daemon",
+                    ":im-gateway:test",
+                    "--tests",
+                    "*TwoGatewayRedisPostgresIntegrationTest",
+                    "--rerun-tasks",
+                ], BACKEND, environment)
         finally:
             if started:
                 run([pg_ctl, "-D", str(data), "-m", "fast", "-w", "stop"], ROOT)
