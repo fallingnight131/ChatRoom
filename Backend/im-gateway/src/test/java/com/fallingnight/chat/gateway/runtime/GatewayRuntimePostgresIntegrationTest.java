@@ -29,6 +29,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomPasswordEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDissolutionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1PasswordChangeEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RegistrationEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1NicknameChangeEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomAdminEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomKickEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
@@ -408,6 +409,8 @@ class GatewayRuntimePostgresIntegrationTest {
                             assertRoomPasswordRecoveredAndCancelled(
                                     peerReplacement, reconnected,
                                     jdbcUrl, username, password);
+                            assertNicknameChange(peerReplacement, reconnected,
+                                    jdbcUrl, username, password);
                             assertRoomDissolution(module, peerReplacement, reconnected,
                                     jdbcUrl, username, password);
                             assertPasswordChange(module, dataSource, peerReplacement,
@@ -467,6 +470,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomDissolutionEventSink.noop(),
                 V1PasswordChangeEventSink.noop(),
                 V1RegistrationEventSink.noop(),
+                V1NicknameChangeEventSink.noop(),
                 V1RoomAdminEventSink.noop(),
                 V1RoomKickEventSink.noop(),
                 V1RoomDirectoryEventSink.noop(),
@@ -1291,7 +1295,7 @@ class GatewayRuntimePostgresIntegrationTest {
         TextWebSocketFrame ownNotify = admin.readOutbound(), ownerNotify = owner.readOutbound();
         try {
             assertTrue(ownNotify.text().contains("\"type\":\"DELETE_ROOM_NOTIFY\""));
-            assertTrue(ownerNotify.text().contains("\"operator\":\"Imported Peer\""));
+            assertTrue(ownerNotify.text().contains("\"operator\":\"Modern Peer\""));
             assertFalse(ownNotify.text().contains("Spoofed Room"));
         } finally { ownNotify.release(); ownerNotify.release(); }
 
@@ -1331,6 +1335,49 @@ class GatewayRuntimePostgresIntegrationTest {
                 assertFalse(rooms.text().contains("Renamed Imported Room"));
             } finally { rooms.release(); }
         } finally { replacementOwner.finishAndReleaseAll(); }
+    }
+
+    private static void assertNicknameChange(EmbeddedChannel actor, EmbeddedChannel roomPeer,
+            String url, String user, String password) throws Exception {
+        String request = "{\"type\":\"CHANGE_NICKNAME_REQ\",\"data\":{"
+                + "\"displayName\":\"  Modern Peer  \"}}";
+        actor.writeInbound(new TextWebSocketFrame(request)); actor.runPendingTasks();
+        TextWebSocketFrame response = actor.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"CHANGE_NICKNAME_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"changed\":true"));
+            assertTrue(response.text().contains("\"displayName\":\"Modern Peer\""));
+            assertFalse(response.text().contains("15000000-0000"));
+        } finally { response.release(); }
+        assertEquals("Modern Peer", actor.attr(V1ConnectionAttributes.AUTHENTICATED)
+                .get().displayName());
+        actor.runPendingTasks(); roomPeer.runPendingTasks();
+        TextWebSocketFrame ownNotify = actor.readOutbound(), peerNotify = roomPeer.readOutbound();
+        try {
+            assertTrue(ownNotify.text().contains("\"type\":\"NICKNAME_CHANGE_NOTIFY\""));
+            assertTrue(ownNotify.text().contains("\"roomId\":7"));
+            assertTrue(peerNotify.text().contains("\"username\":\"imported-peer\""));
+            assertTrue(peerNotify.text().contains("\"displayName\":\"Modern Peer\""));
+        } finally { ownNotify.release(); peerNotify.release(); }
+
+        actor.writeInbound(new TextWebSocketFrame(request)); actor.runPendingTasks();
+        response = actor.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"changed\":false"));
+        } finally { response.release(); }
+        actor.runPendingTasks(); roomPeer.runPendingTasks();
+        assertNull(actor.readOutbound()); assertNull(roomPeer.readOutbound());
+        assertEquals(1, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.account_display_name_change_audit audit "
+                        + "JOIN chat.account account ON account.id = audit.account_id "
+                        + "WHERE account.username_key = 'imported-peer' "
+                        + "AND audit.old_display_name = 'Imported Peer' "
+                        + "AND audit.new_display_name = 'Modern Peer'"));
+        assertEquals(1, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.account WHERE username_key = 'imported-peer' "
+                        + "AND display_name = 'Modern Peer'"));
     }
 
     private static void assertPasswordChange(V1CompatibilityModule module,
@@ -1394,7 +1441,10 @@ class GatewayRuntimePostgresIntegrationTest {
                 newLogin.writeInbound(loginFrame(
                         "imported-peer", "changed-v1-password")); newLogin.runPendingTasks();
                 TextWebSocketFrame accepted = newLogin.readOutbound();
-                try { assertTrue(accepted.text().contains("\"success\":true")); }
+                try {
+                    assertTrue(accepted.text().contains("\"success\":true"));
+                    assertTrue(accepted.text().contains("\"displayName\":\"Modern Peer\""));
+                }
                 finally { accepted.release(); }
             } finally { newLogin.finishAndReleaseAll(); }
         }

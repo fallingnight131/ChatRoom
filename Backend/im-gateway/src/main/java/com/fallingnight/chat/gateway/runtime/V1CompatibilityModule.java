@@ -26,6 +26,7 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordSe
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomDissolutionService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1PasswordChangeService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RegistrationService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1NicknameChangeService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomAdminService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomKickService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomAudienceService;
@@ -114,6 +115,9 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1JsonPasswordChangeCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRegistrationCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RegistrationEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RegistrationHandler;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonNicknameChangeCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1NicknameChangeEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1NicknameChangeHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomAdminEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomAdminHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomKickEventSink;
@@ -162,6 +166,7 @@ import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomPasswordAd
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomDissolutionAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1PasswordChangeAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RegistrationAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1NicknameChangeAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomAdminAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomKickAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1AccountProjection;
@@ -208,6 +213,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
     private final LegacyV1RoomDissolutionService roomDissolution;
     private final LegacyV1PasswordChangeService passwordChange;
     private final LegacyV1RegistrationService registration;
+    private final LegacyV1NicknameChangeService nicknameChange;
     private final LegacyV1RoomAdminService roomAdmin;
     private final LegacyV1RoomKickService roomKick;
     private final LegacyV1RoomDirectoryService roomDirectory;
@@ -247,6 +253,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
             LegacyV1RoomDissolutionService roomDissolution,
             LegacyV1PasswordChangeService passwordChange,
             LegacyV1RegistrationService registration,
+            LegacyV1NicknameChangeService nicknameChange,
             LegacyV1RoomAdminService roomAdmin,
             LegacyV1RoomKickService roomKick,
             LegacyV1RoomDirectoryService roomDirectory,
@@ -285,6 +292,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
         this.roomDissolution = Objects.requireNonNull(roomDissolution, "roomDissolution");
         this.passwordChange = Objects.requireNonNull(passwordChange, "passwordChange");
         this.registration = Objects.requireNonNull(registration, "registration");
+        this.nicknameChange = Objects.requireNonNull(nicknameChange, "nicknameChange");
         this.roomAdmin = Objects.requireNonNull(roomAdmin, "roomAdmin");
         this.roomKick = Objects.requireNonNull(roomKick, "roomKick");
         this.roomDirectory = Objects.requireNonNull(roomDirectory, "roomDirectory");
@@ -372,6 +380,8 @@ public final class V1CompatibilityModule implements AutoCloseable {
                 new LegacyV1RegistrationService(new Argon2idCredentialHasher(),
                         credentialVerifier,
                         new PostgresLegacyV1RegistrationAdapter(dataSource)),
+                new LegacyV1NicknameChangeService(
+                        new PostgresLegacyV1NicknameChangeAdapter(dataSource)),
                 new LegacyV1RoomAdminService(
                         new PostgresLegacyV1RoomAdminAdapter(dataSource)),
                 new LegacyV1RoomKickService(
@@ -435,6 +445,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
             V1RoomDissolutionEventSink roomDissolutionEvents,
             V1PasswordChangeEventSink passwordChangeEvents,
             V1RegistrationEventSink registrationEvents,
+            V1NicknameChangeEventSink nicknameChangeEvents,
             V1RoomAdminEventSink roomAdminEvents,
             V1RoomKickEventSink roomKickEvents,
             V1RoomDirectoryEventSink directoryEvents,
@@ -477,6 +488,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
                         roomDissolutionEvents,
                         passwordChangeEvents,
                         registrationEvents,
+                        nicknameChangeEvents,
                         roomAdminEvents,
                         roomKickEvents,
                         directoryEvents,
@@ -520,6 +532,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
             V1RoomDissolutionEventSink roomDissolutionEvents,
             V1PasswordChangeEventSink passwordChangeEvents,
             V1RegistrationEventSink registrationEvents,
+            V1NicknameChangeEventSink nicknameChangeEvents,
             V1RoomAdminEventSink roomAdminEvents,
             V1RoomKickEventSink roomKickEvents,
             V1RoomDirectoryEventSink directoryEvents,
@@ -642,6 +655,12 @@ public final class V1CompatibilityModule implements AutoCloseable {
                 authenticationExecutor,
                 admission,
                 passwordChangeEvents));
+        pipeline.addLast("v1-nickname-change", new V1NicknameChangeHandler(
+                nicknameChange,
+                new V1JsonNicknameChangeCodec(clock),
+                connections,
+                directoryExecutor,
+                nicknameChangeEvents));
         pipeline.addLast("v1-room-admin", new V1RoomAdminHandler(
                 roomAdmin,
                 new V1JsonRoomAdminCodec(clock),

@@ -250,6 +250,16 @@ never serialized. The product listener remains unchanged pending cutover.
 `ROOM_AVATAR_UPLOAD_REQ`, `ROOM_AVATAR_UPLOAD_RSP`, `ROOM_AVATAR_GET_REQ`,
 `ROOM_AVATAR_GET_RSP`, `ROOM_AVATAR_UPDATE_NOTIFY`.
 
+The detached Java compatibility path implements `CHANGE_NICKNAME_REQ` with
+server-bound identity and canonical 1-20-code-point display-name validation.
+`CHANGE_NICKNAME_RSP` preserves `success` and `displayName` and may add
+`changed`/`changedAt`. Only a committed first change emits one
+`NICKNAME_CHANGE_NOTIFY` per active joined room with the established `roomId`,
+`username`, and `displayName` fields; an exact retry emits none. PostgreSQL is
+the profile authority, so disconnected clients recover the new name through a
+later login or directory snapshot. The product listener remains unchanged
+pending the documented cutover.
+
 ### Contacts and direct messages
 
 `USER_SEARCH_REQ`, `USER_SEARCH_RSP`, `FRIEND_REQUEST_REQ`,
