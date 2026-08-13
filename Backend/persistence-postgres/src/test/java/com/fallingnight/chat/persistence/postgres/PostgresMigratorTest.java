@@ -99,6 +99,7 @@ import com.fallingnight.chat.application.messaging.MessageMention;
 import com.fallingnight.chat.application.messaging.MessageForwardCommand;
 import com.fallingnight.chat.application.messaging.MessageForwardResult;
 import com.fallingnight.chat.application.messaging.ConversationEntryHistoryResult;
+import com.fallingnight.chat.application.messaging.ConversationEventOutboxClaim;
 import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
@@ -173,6 +174,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -209,7 +211,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(50, first.migrate());
+        assertEquals(51, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -252,6 +254,10 @@ class PostgresMigratorTest {
             assertEquals(1, count("SELECT count(*) FROM pg_indexes "
                     + "WHERE schemaname = 'chat' "
                     + "AND indexname = 'conversation_event_outbox_available_idx'"));
+            assertEquals(1, count("SELECT count(*) FROM information_schema.columns "
+                    + "WHERE table_schema = 'chat' "
+                    + "AND table_name = 'conversation_event_outbox' "
+                    + "AND column_name = 'claim_id' AND is_nullable = 'YES'"));
             assertEquals(1, count("SELECT count(*) FROM information_schema.columns "
                     + "WHERE table_schema = 'chat' AND table_name = 'message' "
                     + "AND column_name = 'forwarded' AND is_nullable = 'NO'"));
@@ -1081,6 +1087,89 @@ class PostgresMigratorTest {
                 .map(ConversationHistoryEntry.Edit.class::cast)
                 .filter(ConversationHistoryEntry.Edit::contentErased)
                 .count());
+    }
+
+    @Test
+    @Order(16)
+    void leasesConversationOutboxWithOrderingRetryExpiryAndFencing() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID account = UUID.randomUUID();
+        UUID device = UUID.randomUUID();
+        UUID firstConversation = UUID.randomUUID();
+        UUID secondConversation = UUID.randomUUID();
+        seedMessageOwner(account, device, firstConversation);
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')",
+                    secondConversation);
+            execute(connection, "INSERT INTO chat.conversation_member("
+                            + "conversation_id, account_id) VALUES (?, ?)",
+                    secondConversation, account);
+        }
+        PostgresMessageAdapter messages = new PostgresMessageAdapter(dataSource());
+        messages.submit(new MessageSubmission(firstConversation, account, device,
+                "outbox-first-1", 1, new byte[] {1}));
+        messages.submit(new MessageSubmission(firstConversation, account, device,
+                "outbox-first-2", 1, new byte[] {2}));
+        messages.submit(new MessageSubmission(secondConversation, account, device,
+                "outbox-second-1", 1, new byte[] {3}));
+
+        var outbox = new PostgresConversationEventOutboxAdapter(dataSource());
+        UUID firstOwner = UUID.randomUUID();
+        Instant start = Instant.parse("2030-01-01T00:00:00Z");
+        List<ConversationEventOutboxClaim> initial =
+                outbox.claim(firstOwner, start, Duration.ofSeconds(5), 10);
+        assertEquals(2, initial.size());
+        assertEquals(Set.of(firstConversation, secondConversation),
+                initial.stream().map(ConversationEventOutboxClaim::conversationId)
+                        .collect(java.util.stream.Collectors.toSet()));
+        assertTrue(initial.stream().allMatch(claim -> claim.conversationSequence() == 1));
+        assertTrue(initial.stream().allMatch(claim -> claim.attemptCount() == 1));
+
+        ConversationEventOutboxClaim delayed = initial.stream()
+                .filter(claim -> claim.conversationId().equals(firstConversation))
+                .findFirst().orElseThrow();
+        ConversationEventOutboxClaim completed = initial.stream()
+                .filter(claim -> claim.conversationId().equals(secondConversation))
+                .findFirst().orElseThrow();
+        assertTrue(outbox.defer(delayed, start.plusSeconds(1), start.plusSeconds(10),
+                "REDIS_UNAVAILABLE"));
+        assertTrue(outbox.markPublished(completed, start.plusSeconds(1)));
+        assertFalse(outbox.markPublished(completed, start.plusSeconds(1)));
+        assertTrue(outbox.claim(UUID.randomUUID(), start.plusSeconds(2),
+                Duration.ofSeconds(2), 10).isEmpty());
+
+        UUID secondOwner = UUID.randomUUID();
+        ConversationEventOutboxClaim retried = outbox.claim(secondOwner,
+                start.plusSeconds(10), Duration.ofSeconds(2), 10).getFirst();
+        assertEquals(delayed.eventId(), retried.eventId());
+        assertEquals(2, retried.attemptCount());
+        assertNotEquals(delayed.claimId(), retried.claimId());
+        assertFalse(outbox.markPublished(delayed, start.plusSeconds(2)));
+
+        ConversationEventOutboxClaim reclaimed = outbox.claim(UUID.randomUUID(),
+                start.plusSeconds(12), Duration.ofSeconds(2), 10).getFirst();
+        assertEquals(retried.eventId(), reclaimed.eventId());
+        assertEquals(3, reclaimed.attemptCount());
+        assertNotEquals(retried.claimId(), reclaimed.claimId());
+        assertFalse(outbox.markPublished(retried, start.plusSeconds(11)));
+        ConversationEventOutboxClaim wrongOwner = new ConversationEventOutboxClaim(
+                reclaimed.eventId(), reclaimed.conversationId(),
+                reclaimed.conversationSequence(), reclaimed.claimId(), UUID.randomUUID(),
+                reclaimed.claimedAt(), reclaimed.claimExpiresAt(), reclaimed.attemptCount());
+        assertFalse(outbox.markPublished(wrongOwner, start.plusSeconds(13)));
+        assertTrue(outbox.markPublished(reclaimed, start.plusSeconds(13)));
+
+        ConversationEventOutboxClaim next = outbox.claim(UUID.randomUUID(),
+                start.plusSeconds(13), Duration.ofSeconds(2), 10).getFirst();
+        assertEquals(firstConversation, next.conversationId());
+        assertEquals(2, next.conversationSequence());
+        assertTrue(outbox.markPublished(next, start.plusSeconds(14)));
+        assertTrue(outbox.claim(UUID.randomUUID(), start.plusSeconds(15),
+                Duration.ofSeconds(2), 10).isEmpty());
+        assertEquals(3, count("SELECT count(*) FROM chat.conversation_event_outbox "
+                + "WHERE published_at IS NOT NULL AND claim_owner IS NULL "
+                + "AND claim_id IS NULL AND claim_expires_at IS NULL"));
     }
 
     @Test

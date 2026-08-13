@@ -635,9 +635,20 @@ message, reply reference, and mentions. Exact idempotent retry returns the
 existing result without another sequence or outbox row; any outbox failure rolls
 back the message, conversation entry, and sequence allocation. A real
 event-identity conflict proves that rollback, after which an ordinary submission
-reuses the unconsumed sequence. This first expand slice does not backfill history,
-write outbox rows for reaction/pin/edit/recall/deletion events, claim work, or
-publish to Redis. The current single-gateway live router remains unchanged.
+reuses the unconsumed sequence.
+
+V051 adds a random `claim_id` fencing token and the inactive PostgreSQL relay
+port (ADR-0349). A bounded claim uses `FOR UPDATE SKIP LOCKED`, selects only the
+earliest unpublished event per conversation, increments `attempt_count`, and
+may reclaim an expired lease with a new token. Exact owner/token/expiry matching
+guards publish and defer transitions. Deferred work records only an uppercase
+bounded failure code and future availability time; it continues to block later
+events in that conversation until published. Claims expose no event payload or
+identity.
+
+This expand phase does not backfill history, write outbox rows for
+reaction/pin/edit/recall/deletion events, schedule relay work, or publish to
+Redis. The current single-gateway live router remains unchanged.
 
 ## Deployment and rollback
 
@@ -656,7 +667,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V050, reruns migration as a
+cluster, migrates a clean database through current V051, reruns migration as a
 simulated restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable

@@ -77,10 +77,11 @@ multi-gateway gap with one new operational dependency. Background scanning,
 push, thumbnails, retention, audit export, or sustained relay backlog may later
 justify a dedicated broker through a separate ADR and operational benchmark.
 
-V050 completes the first part of phase 1 for new V2 message events: the
-payload-free table, constraints/index, and atomic message write are active, but
-claim/relay operations and non-message event writers remain absent. The local
-router is still the only live-delivery path.
+V050 completes atomic new-message outbox writes. V051 and ADR-0349 add the
+inactive, payload-free PostgreSQL claim/defer/publish port with independent
+fencing tokens and per-conversation head ordering. No scheduler or Redis relay
+is composed, non-message event writers remain absent, and the local router is
+still the only live-delivery path.
 
 ## Consequences
 

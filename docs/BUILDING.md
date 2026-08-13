@@ -1321,8 +1321,12 @@ claim/retry, publication, and failure state. New V2 messages create one row in
 the same transaction as their message/entry/reply/mention data; exact retries
 create none. The PostgreSQL gate verifies V001-to-V050 migration, same-database
 restart, table constraints/index, concurrent idempotency, and exact outbox row
-counts. No relay, Redis connection, historical backfill, or product route is
-activated by this expand slice (ADR-0348).
+counts. V051 adds the independent claim fencing token and inactive PostgreSQL
+relay port. The same gate proves per-conversation head ordering, bounded leases,
+delayed retry, expiry reclamation, attempt increments, stale-token/wrong-owner
+rejection, and idempotent publication. No scheduler, Redis connection,
+historical backfill, or product route is activated by these expand slices
+(ADR-0348, ADR-0349).
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound

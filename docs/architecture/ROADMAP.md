@@ -1397,10 +1397,17 @@ Progress:
   exact and raced retries create no additional sequence or outbox row, and an
   injected outbox conflict rolls back the message/entry/sequence before the next
   submission reuses that sequence.
+- [x] Add V051 fenced outbox ownership and the inactive PostgreSQL relay port:
+  bounded `SKIP LOCKED` claims, one unpublished head per conversation, durable
+  attempt count, delayed retry, expired-lease reclamation, and exact
+  owner/token/expiry completion. Real PostgreSQL rejects stale and wrong-owner
+  completion and releases the next sequence only after its predecessor is
+  published (ADR-0349).
 
 Work:
 
-- add the inactive V050 transactional outbox and bounded relay ownership;
+- compose a bounded outbox publisher with lifecycle, backoff, and fixed-label
+  backlog/age/attempt telemetry while retaining the local router;
 - add expiring Redis gateway/route leases and bounded per-gateway Streams;
 - run multiple gateways behind a load balancer;
 - introduce an independent durable broker only when background-consumer or
