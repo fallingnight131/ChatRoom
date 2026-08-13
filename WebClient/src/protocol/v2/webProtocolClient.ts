@@ -36,6 +36,7 @@ import {
   MessageReactionKind,
   MessageContentType,
   MessageHistoryPageSchema,
+  MessageMentionSchema,
   MessageRecordSchema,
   ReadMessageHistorySchema,
   SubmitMessageSchema,
@@ -51,6 +52,7 @@ import {
   type MessagePinChangedRecord,
   type MessageEditApplied,
   type MessageEditedRecord,
+  type MessageMention,
 } from "./generated/messaging_pb";
 import {
   AttachmentReadySchema,
@@ -80,6 +82,8 @@ const MAX_PASSWORD_BYTES = 1024;
 const MAX_TEXT_BYTES = 65_536;
 const MAX_PAGE_SIZE = 100;
 const MAX_CONTENT_REVISIONS = 100;
+const MAX_MENTION_SPANS = 20;
+const MAX_DISTINCT_MENTION_TARGETS = 10;
 const MAX_DELETION_TARGETS = 1_000;
 const MAX_PENDING_REQUESTS = 16;
 const MAX_CANCELLED_REQUESTS = 32;
@@ -134,7 +138,14 @@ export interface V2WebProtocolClientOptions {
   createRequestId?: () => string;
   now?: () => number;
   enableMessageEdits?: boolean;
+  enableMessageMentions?: boolean;
 }
+
+export type V2MessageMention = Readonly<{
+  targetAccountId: string;
+  startUtf8Byte: number;
+  lengthUtf8Bytes: number;
+}>;
 
 export class V2WebProtocolClient {
   private readonly appVersion: string;
@@ -155,9 +166,12 @@ export class V2WebProtocolClient {
     this.clientDeviceId = options.clientDeviceId;
     this.createRequestId = options.createRequestId ?? (() => crypto.randomUUID());
     this.now = options.now ?? Date.now;
-    this.requestedCapabilities = options.enableMessageEdits
-      ? [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS, ClientCapability.MESSAGE_EDITS]
-      : [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS];
+    this.requestedCapabilities = [
+      ClientCapability.MESSAGE_REACTIONS,
+      ClientCapability.MESSAGE_PINS,
+      ...(options.enableMessageEdits ? [ClientCapability.MESSAGE_EDITS] : []),
+      ...(options.enableMessageMentions ? [ClientCapability.MESSAGE_MENTIONS] : []),
+    ];
   }
 
   get state(): V2WebProtocolState {
@@ -269,7 +283,8 @@ export class V2WebProtocolClient {
     );
   }
 
-  submitText(conversationId: string, clientMessageId: string, text: string): Uint8Array {
+  submitText(conversationId: string, clientMessageId: string, text: string,
+    mentions: readonly V2MessageMention[] = []): Uint8Array {
     this.requireState("authenticated");
     requireUuid("conversationId", conversationId);
     requireIdentifier("clientMessageId", clientMessageId);
@@ -277,10 +292,12 @@ export class V2WebProtocolClient {
     if (content.byteLength < 1 || content.byteLength > MAX_TEXT_BYTES) {
       throw new Error("text must contain 1..65536 UTF-8 bytes");
     }
+    const validMentions = this.requireOutboundMentions(content, mentions);
     const payload = toBinary(SubmitMessageSchema, create(SubmitMessageSchema, {
       conversationId,
       contentType: MessageContentType.TEXT_UTF8,
       content,
+      mentions: validMentions,
     }));
     return this.command(
       MessageType.SUBMIT_MESSAGE,
@@ -295,6 +312,7 @@ export class V2WebProtocolClient {
     targetMessageId: string,
     clientMessageId: string,
     text: string,
+    mentions: readonly V2MessageMention[] = [],
   ): Uint8Array {
     this.requireState("authenticated");
     requireUuid("conversationId", conversationId);
@@ -304,11 +322,13 @@ export class V2WebProtocolClient {
     if (content.byteLength < 1 || content.byteLength > MAX_TEXT_BYTES) {
       throw new Error("text must contain 1..65536 UTF-8 bytes");
     }
+    const validMentions = this.requireOutboundMentions(content, mentions);
     const payload = toBinary(SubmitReplyMessageSchema, create(SubmitReplyMessageSchema, {
       conversationId,
       targetMessageId,
       contentType: MessageContentType.TEXT_UTF8,
       content,
+      mentions: validMentions,
     }));
     return this.command(
       MessageType.SUBMIT_REPLY_MESSAGE,
@@ -367,6 +387,7 @@ export class V2WebProtocolClient {
     expectedRevision: number,
     text: string,
     clientOperationId: string,
+    mentions: readonly V2MessageMention[] = [],
   ): V2CorrelatedCommand {
     this.requireState("authenticated");
     if (!this.requestedCapabilities.includes(ClientCapability.MESSAGE_EDITS)) {
@@ -383,12 +404,31 @@ export class V2WebProtocolClient {
     if (content.byteLength < 1 || content.byteLength > MAX_TEXT_BYTES) {
       throw new Error("text must contain 1..65536 UTF-8 bytes");
     }
+    const validMentions = this.requireOutboundMentions(content, mentions);
     const payload = toBinary(EditMessageSchema, create(EditMessageSchema, {
       conversationId, messageId, expectedRevision,
       contentType: MessageContentType.TEXT_UTF8, content, clientOperationId,
+      mentions: validMentions,
     }));
     return correlated(this.command(
       MessageType.EDIT_MESSAGE, payload, new Set([MessageType.MESSAGE_EDIT_APPLIED])));
+  }
+
+  private requireOutboundMentions(
+    content: Uint8Array,
+    mentions: readonly V2MessageMention[],
+  ): MessageMention[] {
+    if (mentions.length > 0
+        && !this.requestedCapabilities.includes(ClientCapability.MESSAGE_MENTIONS)) {
+      throw new Error("message mentions were not enabled for this client");
+    }
+    const values = mentions.map(mention => create(MessageMentionSchema, {
+      targetAccountId: mention.targetAccountId,
+      startUtf8Byte: mention.startUtf8Byte,
+      lengthUtf8Bytes: mention.lengthUtf8Bytes,
+    }));
+    validateMentions(content, values);
+    return values;
   }
 
   registerAttachment(
@@ -699,10 +739,10 @@ export class V2WebProtocolClient {
         }
         break;
       case "message-history-page":
-        validateHistoryPage(event.value);
+        validateHistoryPage(event.value, this.mentionsEnabled());
         break;
       case "message-published":
-        validateMessageRecord(event.value);
+        validateMessageRecord(event.value, this.mentionsEnabled());
         break;
       case "message-reaction-applied":
         validateReactionApplied(event.value);
@@ -717,10 +757,10 @@ export class V2WebProtocolClient {
         validatePinChanged(event.value);
         break;
       case "message-edit-applied":
-        validateEditApplied(event.value);
+        validateEditApplied(event.value, this.mentionsEnabled());
         break;
       case "message-edited":
-        validateEditedRecord(event.value);
+        validateEditedRecord(event.value, this.mentionsEnabled());
         break;
       case "conversation-directory-page":
         validateDirectoryPage(event.value);
@@ -771,6 +811,10 @@ export class V2WebProtocolClient {
   private requireState(expected: V2WebProtocolState): void {
     if (this.currentState !== expected) throw new Error(`expected ${expected} state, found ${this.currentState}`);
   }
+
+  private mentionsEnabled(): boolean {
+    return this.requestedCapabilities.includes(ClientCapability.MESSAGE_MENTIONS);
+  }
 }
 
 function validateUploadAuthorization(value: AttachmentUploadAuthorized): void {
@@ -799,7 +843,7 @@ function correlated(bytes: Uint8Array): V2CorrelatedCommand {
   return { requestId, bytes };
 }
 
-function validateHistoryPage(page: MessageHistoryPage): void {
+function validateHistoryPage(page: MessageHistoryPage, allowMentions: boolean): void {
   requireUuid("conversationId", page.conversationId);
   if (page.messages.length > MAX_PAGE_SIZE
       || page.entries.length > MAX_PAGE_SIZE
@@ -809,7 +853,7 @@ function validateHistoryPage(page: MessageHistoryPage): void {
   }
   let previous = 0n;
   for (const message of page.messages) {
-    validateMessageRecord(message);
+    validateMessageRecord(message, allowMentions);
     if (message.conversationId !== page.conversationId
         || message.conversationSequence <= previous) {
       throw new Error("invalid history message");
@@ -825,7 +869,7 @@ function validateHistoryPage(page: MessageHistoryPage): void {
       throw new Error("invalid history entry identity");
     }
     if (entry.detail.case === "message") {
-      validateMessageRecord(entry.detail.value);
+      validateMessageRecord(entry.detail.value, allowMentions);
       if (entry.detail.value.conversationId !== entry.conversationId
           || entry.detail.value.conversationSequence !== entry.conversationSequence) {
         throw new Error("invalid message entry detail");
@@ -871,7 +915,7 @@ function validateHistoryPage(page: MessageHistoryPage): void {
         throw new Error("invalid pin entry detail");
       }
     } else if (entry.detail.case === "edit") {
-      validateEditedRecord(entry.detail.value);
+      validateEditedRecord(entry.detail.value, allowMentions);
       if (entry.detail.value.conversationId !== entry.conversationId
           || entry.detail.value.conversationSequence !== entry.conversationSequence) {
         throw new Error("invalid edit entry detail");
@@ -887,10 +931,11 @@ function validateHistoryPage(page: MessageHistoryPage): void {
   }
 }
 
-function validateEditApplied(value: MessageEditApplied): void {
+function validateEditApplied(value: MessageEditApplied, allowMentions: boolean): void {
   validateEditIdentity(value.conversationId, value.messageId, value.actorAccountId,
     value.clientOperationId);
   validateEditContent(value.contentType, value.content);
+  requireInboundMentions(value.content, value.mentions, allowMentions);
   if (value.contentRevision > MAX_CONTENT_REVISIONS
       || (value.changed && value.contentRevision === 0)
       || value.occurredAtEpochMs <= 0n
@@ -900,10 +945,11 @@ function validateEditApplied(value: MessageEditApplied): void {
   }
 }
 
-function validateEditedRecord(value: MessageEditedRecord): void {
+function validateEditedRecord(value: MessageEditedRecord, allowMentions: boolean): void {
   validateEditIdentity(value.conversationId, value.messageId, value.actorAccountId,
     value.clientOperationId);
   validateEditContent(value.contentType, value.content);
+  requireInboundMentions(value.content, value.mentions, allowMentions);
   if (value.contentRevision < 1 || value.contentRevision > MAX_CONTENT_REVISIONS
       || value.conversationSequence <= 0n
       || value.conversationSequence > MAX_SIGNED_SEQUENCE
@@ -987,7 +1033,7 @@ function requireReaction(value: MessageReactionKind): void {
   }
 }
 
-function validateMessageRecord(message: MessageRecord): void {
+function validateMessageRecord(message: MessageRecord, allowMentions: boolean): void {
   requireUuid("conversationId", message.conversationId);
   requireUuid("messageId", message.messageId);
   requireUuid("senderAccountId", message.senderAccountId);
@@ -1005,6 +1051,7 @@ function validateMessageRecord(message: MessageRecord): void {
   }
   try { strictDecoder.decode(message.content); }
   catch { throw new Error("message text is not valid UTF-8"); }
+  requireInboundMentions(message.content, message.mentions, allowMentions);
   if (message.reply) {
     requireUuid("reply.targetMessageId", message.reply.targetMessageId);
     requireUuid("reply.targetSenderAccountId", message.reply.targetSenderAccountId);
@@ -1013,6 +1060,49 @@ function validateMessageRecord(message: MessageRecord): void {
       throw new Error("reply target sequence must precede the reply message");
     }
   }
+}
+
+function requireInboundMentions(
+  content: Uint8Array,
+  mentions: readonly MessageMention[],
+  allowMentions: boolean,
+): void {
+  if (mentions.length > 0 && !allowMentions) {
+    throw new Error("received message mentions without negotiated capability");
+  }
+  validateMentions(content, mentions);
+}
+
+function validateMentions(content: Uint8Array, mentions: readonly MessageMention[]): void {
+  if (mentions.length > MAX_MENTION_SPANS) throw new Error("message has too many mention spans");
+  const targets = new Set<string>();
+  let previousEnd = 0;
+  for (const mention of mentions) {
+    requireUuid("mention.targetAccountId", mention.targetAccountId);
+    if (!Number.isInteger(mention.startUtf8Byte)
+        || !Number.isInteger(mention.lengthUtf8Bytes)
+        || mention.startUtf8Byte < previousEnd
+        || mention.lengthUtf8Bytes < 1) {
+      throw new Error("invalid message mention span");
+    }
+    const end = mention.startUtf8Byte + mention.lengthUtf8Bytes;
+    if (!Number.isSafeInteger(end)
+        || end > content.byteLength
+        || !isUtf8Boundary(content, mention.startUtf8Byte)
+        || !isUtf8Boundary(content, end)
+        || content[mention.startUtf8Byte] !== 0x40) {
+      throw new Error("invalid message mention span");
+    }
+    targets.add(mention.targetAccountId);
+    if (targets.size > MAX_DISTINCT_MENTION_TARGETS) {
+      throw new Error("message has too many distinct mention targets");
+    }
+    previousEnd = end;
+  }
+}
+
+function isUtf8Boundary(content: Uint8Array, index: number): boolean {
+  return index === 0 || index === content.byteLength || (content[index]! & 0xc0) !== 0x80;
 }
 
 function validateDirectoryPage(page: ConversationDirectoryPage): void {

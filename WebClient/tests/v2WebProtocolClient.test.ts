@@ -61,6 +61,7 @@ import {
 
 const UNKNOWN_REQUEST_ID = "10000000-0000-4000-8000-999999999999";
 const ACCOUNT_ID = "20000000-0000-4000-8000-000000000001";
+const SECOND_ACCOUNT_ID = "20000000-0000-4000-8000-000000000002";
 const DEVICE_ID = "30000000-0000-4000-8000-000000000001";
 const SESSION_ID = "40000000-0000-4000-8000-000000000001";
 const CONVERSATION_ID = "50000000-0000-4000-8000-000000000001";
@@ -69,7 +70,7 @@ const MESSAGE_ID = "60000000-0000-4000-8000-000000000001";
 const CLIENT_MESSAGE_ID = "client-message-1";
 const NOW = 1_800_000_000_000;
 
-function newClient(enableMessageEdits = false): V2WebProtocolClient {
+function newClient(enableMessageEdits = false, enableMessageMentions = false): V2WebProtocolClient {
   let next = 0;
   return new V2WebProtocolClient({
     appVersion: "2.0.0-test",
@@ -77,6 +78,7 @@ function newClient(enableMessageEdits = false): V2WebProtocolClient {
     createRequestId: () => `10000000-0000-4000-8000-${String(++next).padStart(12, "0")}`,
     now: () => NOW,
     enableMessageEdits,
+    enableMessageMentions,
   });
 }
 
@@ -107,6 +109,12 @@ function publishedMessage(options: {
   sessionId?: string;
   kind?: MessageKind;
   replyTargetSequence?: bigint;
+  text?: string;
+  mentions?: Array<{
+    targetAccountId: string;
+    startUtf8Byte: number;
+    lengthUtf8Bytes: number;
+  }>;
 } = {}): Uint8Array {
   return toBinary(EnvelopeSchema, create(EnvelopeSchema, {
     protocolVersion: 2,
@@ -123,7 +131,8 @@ function publishedMessage(options: {
       senderDeviceId: DEVICE_ID,
       clientMessageId: CLIENT_MESSAGE_ID,
       contentType: MessageContentType.TEXT_UTF8,
-      content: new TextEncoder().encode("live"),
+      content: new TextEncoder().encode(options.text ?? "live"),
+      mentions: options.mentions ?? [],
       acceptedAtEpochMs: BigInt(NOW),
       reply: options.replyTargetSequence === undefined ? undefined : {
         targetMessageId: "60000000-0000-4000-8000-000000000002",
@@ -271,6 +280,49 @@ test("encodes authenticated directory, history, and idempotent text commands", (
   assert.equal(reply.targetMessageId, MESSAGE_ID);
   assert.equal(reply.contentType, MessageContentType.TEXT_UTF8);
   assert.equal(new TextDecoder().decode(reply.content), "reply V2");
+});
+
+test("gates and validates structured mentions on outbound and inbound messages", () => {
+  const mention = {
+    targetAccountId: SECOND_ACCOUNT_ID,
+    startUtf8Byte: 0,
+    lengthUtf8Bytes: 4,
+  };
+  const disabled = newClient();
+  authenticate(disabled);
+  assert.throws(() => disabled.submitText(
+    CONVERSATION_ID, "mention-disabled", "@李 hi", [mention]), /not enabled/);
+  assert.throws(() => disabled.receive(publishedMessage({
+    text: "@李 hi",
+    mentions: [mention],
+  })), /without negotiated capability/);
+
+  const capabilities = [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS,
+    ClientCapability.MESSAGE_EDITS, ClientCapability.MESSAGE_MENTIONS];
+  const client = newClient(true, true);
+  authenticate(client, capabilities);
+
+  const submitEnvelope = decodeEnvelope(client.submitText(
+    CONVERSATION_ID, "mention-submit", "@李 hi", [mention]));
+  const submit = fromBinary(SubmitMessageSchema, submitEnvelope.payload);
+  assert.deepEqual(submit.mentions.map(({ targetAccountId, startUtf8Byte, lengthUtf8Bytes }) => ({
+    targetAccountId, startUtf8Byte, lengthUtf8Bytes,
+  })), [mention]);
+
+  const edit = client.editMessage(
+    CONVERSATION_ID, MESSAGE_ID, 0, "@李 edited", "mention-edit", [mention]);
+  const editPayload = fromBinary(EditMessageSchema, decodeEnvelope(edit.bytes).payload);
+  assert.equal(editPayload.mentions[0]?.targetAccountId, SECOND_ACCOUNT_ID);
+
+  assert.throws(() => client.submitText(CONVERSATION_ID, "mention-boundary", "@李 hi", [{
+    ...mention,
+    lengthUtf8Bytes: 2,
+  }]), /invalid message mention span/);
+  const published = client.receive(publishedMessage({ text: "@李 hi", mentions: [mention] }));
+  assert.equal(published.type, "message-published");
+  if (published.type === "message-published") {
+    assert.equal(published.value.mentions[0]?.targetAccountId, SECOND_ACCOUNT_ID);
+  }
 });
 
 test("encodes correlated reactions and validates capable live changes", () => {

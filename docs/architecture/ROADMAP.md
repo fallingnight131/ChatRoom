@@ -1478,7 +1478,7 @@ Progress:
     behavior, compatibility, and staged activation (ADR-0342).
   - [x] Add additive generated wire fields and fixed Java/C++/TypeScript golden
     compatibility plus bounded structural policy while runtime paths remain off.
-  - [ ] Persist and authorize mention metadata with submission, edit, history,
+  - [x] Persist and authorize mention metadata with submission, edit, history,
     live delivery, recall/deletion cleanup, and privacy erasure in PostgreSQL and
     the authenticated gateway.
     - [x] Add V048 current/edit-event mention storage, edit-operation mention
@@ -1492,6 +1492,14 @@ Progress:
       fixed-cardinality telemetry without activating either client.
   - [ ] Add offline-safe Web and Windows mention composition, local persistence,
     rendering, accessibility, and endpoint-specific capability activation.
+    - [x] Add a default-off Web protocol boundary that encodes submission/edit
+      mentions and defensively validates capability-gated history, ACK, and live
+      UTF-8 spans without activating the Web runtime.
+    - [ ] Persist Web mention metadata with authoritative messages and pending
+      submission/edit intents, then add composition, rendering, accessibility,
+      reconnect convergence, and Web capability activation.
+    - [ ] Add the equivalent Windows protocol, SQLite, composition, rendering,
+      accessibility, reconnect convergence, and capability activation gates.
 
 Candidate slices:
 

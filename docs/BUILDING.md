@@ -1280,12 +1280,15 @@ changed-only sequencing, message metadata, and mixed-history detail identity.
 The gateway and completed Web/Windows preview compositions now negotiate the
 capability only after their durability, reconnect, conflict, UI, and
 accessibility gates pass (ADR-0341).
-Capability 4 reserves inactive structured mentions through additive fields on
+Capability 4 reserves structured mentions through additive fields on
 submission, reply, edit, authoritative message, and ordered edit payloads. The
 protocol gate locks a Unicode mention across Java, TypeScript, and C++ and tests
 the 20-span/10-target bound, canonical IDs, ordered non-overlap, UTF-8
-boundaries, and `@` prefix policy. Gateway and client runtime negotiation remain
-off until their complete persistence and UX slices pass (ADR-0342).
+boundaries, and `@` prefix policy. The authenticated gateway now accepts and
+projects mentions only for sessions that explicitly negotiate capability 4.
+The Web protocol boundary can opt into the same capability and rejects invalid
+or unnegotiated inbound spans, while the composed Web runtime and Windows client
+remain off until their complete persistence and UX slices pass (ADR-0342).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live
