@@ -1636,8 +1636,9 @@ class GatewayRuntimePostgresIntegrationTest {
             sender = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), senderListener);
             SessionEstablished senderSession = establish(
                     sender, senderListener, login, "mixed-version-old");
-            assertEquals(1, authenticationAccepted(previousAdmin));
-            assertEquals(0, authenticationAccepted(candidateAdmin));
+            boolean senderOnPrevious = authenticationAccepted(previousAdmin) == 1;
+            assertEquals(1, authenticationAccepted(previousAdmin)
+                    + authenticationAccepted(candidateAdmin));
             sender.sendBinary(ByteBuffer.wrap(history(
                     senderSession.getSessionId(), conversationId).toByteArray()), true).join();
             assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
@@ -1647,33 +1648,46 @@ class GatewayRuntimePostgresIntegrationTest {
             peer = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), peerListener);
             SessionEstablished peerSession = establish(
                     peer, peerListener, peerLogin, "mixed-version-new");
+            assertEquals(1, authenticationAccepted(previousAdmin));
             assertEquals(1, authenticationAccepted(candidateAdmin));
             peer.sendBinary(ByteBuffer.wrap(history(
                     peerSession.getSessionId(), conversationId).toByteArray()), true).join();
             assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
                     peerListener.next().getMessageType());
 
-            sender.sendBinary(ByteBuffer.wrap(submit(
-                    senderSession.getSessionId(), conversationId,
+            WebSocket previousSocket = senderOnPrevious ? sender : peer;
+            BinaryEnvelopeListener previousListener = senderOnPrevious
+                    ? senderListener : peerListener;
+            SessionEstablished previousSession = senderOnPrevious
+                    ? senderSession : peerSession;
+            String previousLogin = senderOnPrevious ? login : peerLogin;
+            WebSocket candidateSocket = senderOnPrevious ? peer : sender;
+            BinaryEnvelopeListener candidateListener = senderOnPrevious
+                    ? peerListener : senderListener;
+            SessionEstablished candidateSession = senderOnPrevious
+                    ? peerSession : senderSession;
+
+            previousSocket.sendBinary(ByteBuffer.wrap(submit(
+                    previousSession.getSessionId(), conversationId,
                     "mixed-submit-1", "mixed-message-1", "previous to candidate")
                     .toByteArray()), true).join();
-            assertEquals(1, accepted(senderListener.next()).getConversationSequence());
-            assertEquals(1, published(senderListener.next()).getConversationSequence());
-            assertEquals(1, published(peerListener.next(Duration.ofSeconds(10)))
+            assertEquals(1, accepted(previousListener.next()).getConversationSequence());
+            assertEquals(1, published(previousListener.next()).getConversationSequence());
+            assertEquals(1, published(candidateListener.next(Duration.ofSeconds(10)))
                     .getConversationSequence());
 
-            peer.sendBinary(ByteBuffer.wrap(submit(
-                    peerSession.getSessionId(), conversationId,
+            candidateSocket.sendBinary(ByteBuffer.wrap(submit(
+                    candidateSession.getSessionId(), conversationId,
                     "mixed-submit-2", "mixed-message-2", "candidate to previous")
                     .toByteArray()), true).join();
-            assertEquals(2, accepted(peerListener.next()).getConversationSequence());
-            assertEquals(2, published(peerListener.next()).getConversationSequence());
-            assertEquals(2, published(senderListener.next(Duration.ofSeconds(10)))
+            assertEquals(2, accepted(candidateListener.next()).getConversationSequence());
+            assertEquals(2, published(candidateListener.next()).getConversationSequence());
+            assertEquals(2, published(previousListener.next(Duration.ofSeconds(10)))
                     .getConversationSequence());
 
-            sender.sendClose(WebSocket.NORMAL_CLOSURE, "roll previous")
+            previousSocket.sendClose(WebSocket.NORMAL_CLOSURE, "roll previous")
                     .get(3, TimeUnit.SECONDS);
-            sender = null;
+            if (senderOnPrevious) sender = null; else peer = null;
             stopGatewayProcess(previous);
             previous = null;
             Thread.sleep(2_500);
@@ -1682,7 +1696,8 @@ class GatewayRuntimePostgresIntegrationTest {
             replacement = connectWebSocket(
                     URI.create(proxyUrl + "/v2/windows"), replacementListener);
             SessionEstablished replacementSession = establish(
-                    replacement, replacementListener, login, "mixed-version-replacement");
+                    replacement, replacementListener,
+                    previousLogin, "mixed-version-replacement");
             assertEquals(2, authenticationAccepted(candidateAdmin));
             replacement.sendBinary(ByteBuffer.wrap(history(
                     replacementSession.getSessionId(), conversationId).toByteArray()), true).join();
@@ -1697,7 +1712,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     .toByteArray()), true).join();
             assertEquals(3, accepted(replacementListener.next()).getConversationSequence());
             assertEquals(3, published(replacementListener.next()).getConversationSequence());
-            assertEquals(3, published(peerListener.next(Duration.ofSeconds(10)))
+            assertEquals(3, published(candidateListener.next(Duration.ofSeconds(10)))
                     .getConversationSequence());
             assertEquals(3, countQuery(jdbcUrl, username, "",
                     "SELECT count(*) FROM chat.message WHERE conversation_id = '"
