@@ -40,6 +40,16 @@ final class LettuceGatewayRoutingAdapterTest {
                         adapter.publish(new GatewayLiveEventHint(gateway, UUID.randomUUID(),
                                 conversation, sequence), 100));
             }
+            GatewayLiveEventBatch firstBatch = adapter.readAfter(gateway, "0-0", 60);
+            assertEquals(60, firstBatch.entries().size());
+            assertEquals(51, firstBatch.entries().getFirst().hint().conversationSequence());
+            assertEquals(110, firstBatch.entries().getLast().hint().conversationSequence());
+            GatewayLiveEventBatch secondBatch = adapter.readAfter(
+                    gateway, firstBatch.nextStreamId(), 60);
+            assertEquals(40, secondBatch.entries().size());
+            assertEquals(150, secondBatch.entries().getLast().hint().conversationSequence());
+            assertTrue(adapter.readAfter(gateway, secondBatch.nextStreamId(), 60)
+                    .entries().isEmpty());
         }
 
         RedisClient inspect = RedisClient.create(URI);

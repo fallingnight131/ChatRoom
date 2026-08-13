@@ -1356,6 +1356,10 @@ only for loopback test mode. The test flushes that selected database and must
 never point at shared or production Redis. It proves route lease prerequisites,
 expiry/reconnect cleanup, and exact 100-entry Stream trimming. TLS/ACL failure
 tests remain required before product composition (ADR-0352).
+The real Redis test also validates ADR-0353 consumption after exact trimming:
+150 appends retain conversation sequences 51–150, read as bounded 60/40 pages,
+then an empty page that preserves the last opaque stream ID. This is Redis
+position evidence only, not durable message-cursor evidence.
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound

@@ -1428,6 +1428,11 @@ Progress:
   bounded payload-free Streams. An isolated real Redis test proves expiry,
   reconnect, and 100-entry trimming; TLS/ACL capability remains an activation
   gate (ADR-0352).
+- [x] Add bounded per-boot-gateway stream consumption with strict three-field
+  payload-free parsing, opaque Redis cursor paging, and empty-tail stability.
+  Real Redis proves exact-trimmed 51–150 retention and 60/40 reads; stream
+  position is explicitly non-durable and product consumption still requires
+  local subscription matching plus sequence repair (ADR-0353).
 
 Work:
 

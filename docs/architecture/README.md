@@ -1010,6 +1010,10 @@ short expiring keys/sorted sets, atomic lease-conditional Lua operations, and
 exact-length Streams. Production configuration requires TLS and credentials;
 the module remains absent from gateway runtime composition pending TLS/ACL and
 consumer-repair gates (ADR-0352).
+The same adapter can now read its boot-specific stream in bounded, non-blocking
+batches with strict hint shape validation. Redis IDs are ephemeral read
+positions only; ADR-0353 requires local authorized-subscription matching and
+PostgreSQL sequence repair before any hint affects a connected client.
 
 ## 10. Attachment Flow
 

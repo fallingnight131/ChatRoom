@@ -6,6 +6,7 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.SetArgs;
 import io.lettuce.core.XAddArgs;
+import io.lettuce.core.XReadArgs;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
 import io.lettuce.core.ScriptOutputType;
@@ -14,7 +15,8 @@ import java.util.*;
 
 /** Standalone Redis lease/routes and bounded payload-free target streams. */
 public final class LettuceGatewayRoutingAdapter
-        implements GatewayRouteLeasePort, GatewayLiveEventPublishPort, AutoCloseable {
+        implements GatewayRouteLeasePort, GatewayLiveEventPublishPort,
+        GatewayLiveEventConsumePort, AutoCloseable {
     private static final String PREFIX = "chat:v2:";
     private static final String PUBLISH_ROUTE = """
             if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
@@ -114,6 +116,34 @@ public final class LettuceGatewayRoutingAdapter
         } catch (RuntimeException exception) {
             return PublishResult.DEPENDENCY_UNAVAILABLE;
         }
+    }
+
+    @Override @SuppressWarnings("unchecked") public GatewayLiveEventBatch readAfter(
+            UUID gatewayId, String afterStreamId, int limit) {
+        Objects.requireNonNull(gatewayId, "gatewayId");
+        Objects.requireNonNull(afterStreamId, "afterStreamId");
+        if (!afterStreamId.matches("[0-9]+-[0-9]+") || limit < 1 || limit > 1_000) {
+            throw new IllegalArgumentException("invalid gateway live event read");
+        }
+        var messages = execute(() -> commands.xread(XReadArgs.Builder.count(limit),
+                XReadArgs.StreamOffset.from(stream(gatewayId), afterStreamId)));
+        List<GatewayLiveEventStreamEntry> entries = messages.stream().map(message -> {
+            Map<String, String> body = message.getBody();
+            if (body.size() != 3 || !body.keySet().equals(
+                    Set.of("event", "conversation", "sequence"))) {
+                throw new RedisRoutingException("Redis event hint shape invalid");
+            }
+            try {
+                return new GatewayLiveEventStreamEntry(message.getId(),
+                        new GatewayLiveEventHint(gatewayId,
+                                UUID.fromString(body.get("event")),
+                                UUID.fromString(body.get("conversation")),
+                                Long.parseLong(body.get("sequence"))));
+            } catch (IllegalArgumentException exception) {
+                throw new RedisRoutingException("Redis event hint value invalid", exception);
+            }
+        }).toList();
+        return new GatewayLiveEventBatch(afterStreamId, entries);
     }
 
     @Override public void close() {
