@@ -710,8 +710,11 @@ Progress:
     tags, administrator authorization, and changed-only room effects.
   - [x] Expand canonical credentials with retry tags and implement serializable
     PostgreSQL status/set/replace/cancel convergence with real join verification.
-  - [ ] Add and compose strict detached password status/mutation handlers, then
-    prove secret-safe compatibility and relogin recovery through PostgreSQL.
+  - [x] Add strict detached password status/mutation handlers with clearable
+    JSON secret ownership, authenticated actor binding, bounded off-loop work,
+    changed-only compatible effects, and fail-closed malformed/saturation paths.
+  - [ ] Compose the detached password handlers and prove secret-safe
+    compatibility plus replacement-login recovery through real PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
