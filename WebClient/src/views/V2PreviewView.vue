@@ -83,14 +83,23 @@
                   <strong>回复</strong>
                   <span>{{ replyPreview(message) }}</span>
                 </div>
-                <p>{{ visibleMessageContent(message) }}</p>
+                <p class="message-content">
+                  <template v-for="(segment, index) in messageSegments(message)" :key="index">
+                    <span v-if="segment.kind === 'mention'" class="message-mention"
+                          :title="`账号 ${segment.targetAccountId}`">{{ segment.text }}</span>
+                    <template v-else>{{ segment.text }}</template>
+                  </template>
+                </p>
                 <span v-if="message.contentRevision > 0" class="edited-badge">已编辑</span>
                 <form v-if="editingMessageId === message.id" class="edit-form"
                       @submit.prevent="submitEdit(message)">
                   <label :for="`edit-${message.id}`">编辑消息</label>
-                  <textarea :id="`edit-${message.id}`" v-model="editDraft" class="input"
-                            rows="3" maxlength="65536" required></textarea>
+                  <textarea :id="`edit-${message.id}`" :value="editDraft" class="input"
+                            rows="3" maxlength="65536" required
+                            @input="updateEditDraft"></textarea>
                   <div>
+                    <button class="btn btn-text" type="button"
+                            @click="openMentionPicker('edit')">@ 提及成员</button>
                     <button class="btn btn-primary" type="submit" :disabled="!editDraft.trim()">保存</button>
                     <button class="btn btn-text" type="button" @click="cancelEdit">取消</button>
                   </div>
@@ -163,10 +172,37 @@
               <button class="icon-button" type="button" aria-label="取消回复" @click="cancelReply">×</button>
             </div>
             <label class="visually-hidden" for="v2-message">输入消息</label>
-            <textarea id="v2-message" v-model="draft" class="input" rows="2"
-                      placeholder="输入消息" @keydown.enter.exact.prevent="sendMessage"></textarea>
+            <textarea id="v2-message" :value="draft" class="input" rows="2"
+                      placeholder="输入消息" @input="updateDraft"
+                      @keydown.enter.exact.prevent="sendMessage"></textarea>
+            <button class="btn btn-text" type="button"
+                    aria-haspopup="dialog" @click="openMentionPicker('draft')">@ 提及成员</button>
             <button class="btn btn-primary" type="submit" :disabled="!draft.trim()">发送</button>
           </form>
+          <section v-if="mentionPickerOpen" class="mention-picker" role="dialog"
+                   aria-modal="false" aria-labelledby="mention-picker-title"
+                   @keydown.esc="closeMentionPicker">
+            <header>
+              <strong id="mention-picker-title">选择要提及的成员</strong>
+              <button class="icon-button" type="button" aria-label="关闭成员选择器"
+                      @click="closeMentionPicker">×</button>
+            </header>
+            <p v-if="snapshot.participantFailure" role="alert">
+              {{ snapshot.participantFailure }}
+              <button class="retry-link" type="button" @click="refreshParticipants">重试</button>
+            </p>
+            <ul role="listbox" aria-label="会话成员" :aria-busy="snapshot.participantsLoading">
+              <li v-for="participant in snapshot.participants" :key="participant.accountId">
+                <button type="button" role="option" @click="chooseMention(participant)">
+                  <strong>{{ participant.displayName }}</strong>
+                  <span>{{ participant.role === 'owner' ? '群主' : participant.role === 'admin' ? '管理员' : '成员' }}</span>
+                </button>
+              </li>
+            </ul>
+            <p v-if="snapshot.participantsLoading" role="status">正在加载成员…</p>
+            <button v-if="snapshot.participantsHasMore" class="btn btn-text" type="button"
+                    @click="loadMoreParticipants">加载更多成员</button>
+          </section>
         </template>
         <p v-if="actionError" class="action-error" role="alert">{{ actionError }}</p>
       </section>
@@ -227,6 +263,13 @@
 import { computed, inject, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { V2_RUNTIME_KEY } from '../application/v2RuntimeKey'
 import { MessageReactionKind } from '../protocol/v2/generated/messaging_pb'
+import {
+  anchorsFromMentionSpans,
+  insertMention,
+  reconcileMentionEdit,
+  segmentMentionText,
+  serializeMentionAnchors
+} from '../application/v2MentionComposer'
 
 const runtimeRef = inject(V2_RUNTIME_KEY)
 const username = ref('')
@@ -236,6 +279,9 @@ const actionError = ref('')
 const replyTarget = ref(null)
 const editingMessageId = ref(null)
 const editDraft = ref('')
+const draftMentionAnchors = ref([])
+const editMentionAnchors = ref([])
+const mentionPickerMode = ref(null)
 const authenticationPending = ref(false)
 const devicesOpen = ref(false)
 const confirmingDeviceId = ref(null)
@@ -243,6 +289,7 @@ const deviceCloseButton = ref(null)
 const snapshot = ref({
   connectionState: 'idle', session: null, directory: [], directoryHasMore: false,
   activeConversationId: null, messages: [], reactionCommands: [], pinCommands: [], editCommands: [],
+  participants: [], participantsLoading: false, participantsHasMore: false, participantFailure: '',
   historyLoading: false, devices: [],
   devicesLoading: false, revokingDeviceId: null, deviceFailure: '', lastFailure: ''
 })
@@ -308,6 +355,8 @@ async function openConversation(conversationId) {
   actionError.value = ''
   replyTarget.value = null
   cancelEdit()
+  closeMentionPicker()
+  draftMentionAnchors.value = []
   try { await runtimeRef.value.application.openConversation(conversationId) }
   catch (error) { actionError.value = error instanceof Error ? error.message : '无法打开会话' }
 }
@@ -318,16 +367,19 @@ function loadMoreDirectory() {
 }
 
 function sendMessage() {
-  const text = draft.value.trim()
-  if (!text) return
+  const text = draft.value
+  if (!text.trim()) return
   actionError.value = ''
   try {
+    const mentions = serializeMentionAnchors(text, draftMentionAnchors.value)
     if (replyTarget.value) {
-      runtimeRef.value.application.sendReply(replyTarget.value.id, text)
+      runtimeRef.value.application.sendReply(replyTarget.value.id, text, mentions)
     } else {
-      runtimeRef.value.application.sendText(text)
+      runtimeRef.value.application.sendText(text, mentions)
     }
     draft.value = ''
+    draftMentionAnchors.value = []
+    closeMentionPicker()
     replyTarget.value = null
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : '消息发送失败'
@@ -437,20 +489,25 @@ function startEdit(message) {
   if (!canEdit(message)) return
   editingMessageId.value = message.id
   editDraft.value = message.content
+  try { editMentionAnchors.value = anchorsFromMentionSpans(message.content, message.mentions || []) }
+  catch { editMentionAnchors.value = [] }
   nextTick(() => document.getElementById(`edit-${message.id}`)?.focus())
 }
 
 function cancelEdit() {
   editingMessageId.value = null
   editDraft.value = ''
+  editMentionAnchors.value = []
+  if (mentionPickerMode.value === 'edit') closeMentionPicker()
 }
 
 function submitEdit(message) {
-  const text = editDraft.value.trim()
-  if (!text) return
+  const text = editDraft.value
+  if (!text.trim()) return
   actionError.value = ''
   try {
-    if (!runtimeRef.value.application.editMessage(message.id, text)) {
+    const mentions = serializeMentionAnchors(text, editMentionAnchors.value)
+    if (!runtimeRef.value.application.editMessage(message.id, text, mentions)) {
       actionError.value = '当前无法编辑这条消息'
       return
     }
@@ -458,6 +515,68 @@ function submitEdit(message) {
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : '编辑失败'
   }
+}
+
+function updateDraft(event) {
+  const next = event.target.value
+  draftMentionAnchors.value = reconcileMentionEdit(draft.value, next, draftMentionAnchors.value)
+  draft.value = next
+}
+
+function updateEditDraft(event) {
+  const next = event.target.value
+  editMentionAnchors.value = reconcileMentionEdit(editDraft.value, next, editMentionAnchors.value)
+  editDraft.value = next
+}
+
+function openMentionPicker(mode) {
+  mentionPickerMode.value = mode
+  if (snapshot.value.participants.length === 0) refreshParticipants()
+}
+
+function closeMentionPicker() {
+  mentionPickerMode.value = null
+}
+
+const mentionPickerOpen = computed(() => Boolean(mentionPickerMode.value))
+
+function refreshParticipants() {
+  try { runtimeRef.value.application.refreshParticipants() }
+  catch (error) { actionError.value = error instanceof Error ? error.message : '无法加载成员' }
+}
+
+function loadMoreParticipants() {
+  try { runtimeRef.value.application.loadMoreParticipants() }
+  catch (error) { actionError.value = error instanceof Error ? error.message : '无法加载更多成员' }
+}
+
+function chooseMention(participant) {
+  const edit = mentionPickerMode.value === 'edit'
+  const element = document.getElementById(edit ? `edit-${editingMessageId.value}` : 'v2-message')
+  const text = edit ? editDraft.value : draft.value
+  const anchors = edit ? editMentionAnchors.value : draftMentionAnchors.value
+  const start = element?.selectionStart ?? text.length
+  const end = element?.selectionEnd ?? start
+  try {
+    const next = insertMention(text, anchors, start, end, participant)
+    if (edit) { editDraft.value = next.text; editMentionAnchors.value = next.anchors }
+    else { draft.value = next.text; draftMentionAnchors.value = next.anchors }
+    closeMentionPicker()
+    nextTick(() => {
+      element?.focus()
+      element?.setSelectionRange(next.caretUtf16, next.caretUtf16)
+    })
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : '无法插入成员'
+  }
+}
+
+function messageSegments(message) {
+  const command = editCommand(message)
+  return segmentMentionText(
+    command?.proposedContent || message.content,
+    command?.proposedMentions || message.mentions || []
+  )
 }
 
 function retryEdit(operationId) {
@@ -570,6 +689,8 @@ onUnmounted(() => {
 .bubble { max-width: min(70%, 680px); padding: 10px 12px; border-radius: 12px; background: var(--bg-bubble-other); box-shadow: var(--shadow); }
 .mine .bubble { background: var(--bg-bubble-mine); }.bubble span { display: inline-block; margin-top: 6px; color: var(--text-secondary); font-size: 11px; }
 .bubble .reply-reference span { display: block; margin-top: 0; }
+.message-content { white-space: pre-wrap; overflow-wrap: anywhere; }
+.message-mention { margin: 0; color: var(--accent); font: inherit; font-weight: 600; }
 .reaction-bar { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
 .reaction-button { min-width: 34px; min-height: 30px; padding: 3px 7px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; border: 1px solid var(--border-color); border-radius: 999px; color: var(--text-primary); background: var(--bg-primary); cursor: pointer; }
 .reaction-button:hover { background: var(--bg-hover); }.reaction-button.active { border-color: var(--accent); background: var(--bg-active); }.reaction-button:disabled { cursor: wait; opacity: .65; }.reaction-button span { margin: 0; color: inherit; font-size: 16px; }.reaction-button small { font-size: 11px; }
@@ -577,6 +698,8 @@ onUnmounted(() => {
 .pin-badge { display: inline-block; margin-bottom: 4px; color: var(--accent); font-size: 12px; font-weight: 600; }
 .retry-link { margin-left: 8px; border: 0; color: var(--danger); background: transparent; cursor: pointer; }
 .composer { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding: 14px 20px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); }
+.mention-picker { position: absolute; right: 20px; bottom: 86px; z-index: 10; width: min(360px, calc(100% - 40px)); max-height: 360px; overflow: auto; padding: 12px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--bg-secondary); box-shadow: var(--shadow-lg); }
+.mention-picker header { display: flex; align-items: center; justify-content: space-between; }.mention-picker ul { max-height: 230px; overflow: auto; list-style: none; }.mention-picker li button { width: 100%; padding: 10px; display: flex; justify-content: space-between; border: 0; border-radius: 8px; color: var(--text-primary); background: transparent; cursor: pointer; }.mention-picker li button:hover, .mention-picker li button:focus-visible { background: var(--bg-hover); }.mention-picker li span { color: var(--text-secondary); }
 .composer textarea { resize: none; }.empty-state { flex: 1; display: grid; place-content: center; text-align: center; color: var(--text-secondary); }
 .action-error { position: absolute; right: 20px; bottom: 86px; padding: 8px 12px; border-radius: 8px; background: var(--bg-secondary); box-shadow: var(--shadow); }
 .dialog-backdrop { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 48%); }

@@ -8,7 +8,7 @@ test('exposes keyboard-operable reply composition and unavailable target renderi
   for (const marker of [
     '@click="startReply(message)"',
     'type="button" aria-label="取消回复"',
-    'application.sendReply(replyTarget.value.id, text)',
+    'application.sendReply(replyTarget.value.id, text, mentions)',
     "return '原消息暂不可用'",
     "target.availability === 'recalled' ? '原消息已撤回'",
   ]) assert.ok(source.includes(marker), `missing V2 reply UI marker: ${marker}`)

@@ -15,7 +15,7 @@ test('exposes author-only accessible message editing and explicit conflict recov
   assert.match(view, />\s*基于新版本重试\s*</)
   assert.match(view, />放弃草稿<\/button>/)
   assert.match(view, /message\.contentRevision > 0/)
-  assert.match(view, /application\.editMessage\(message\.id, text\)/)
+  assert.match(view, /application\.editMessage\(message\.id, text, mentions\)/)
   assert.match(view, /application\.rebaseEdit\(operationId\)/)
 })
 

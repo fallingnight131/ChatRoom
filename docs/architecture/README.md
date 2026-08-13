@@ -700,23 +700,23 @@ same-conversation membership and bind mention metadata into submission/edit
 idempotency; recall, deletion, and edit-history privacy erasure remove it with
 the body. Capability 4 now exists in all generated schemas, PostgreSQL, and the
 gateway. The gateway rejects unnegotiated mention metadata and filters it from
-history/live events for unsupported peers without stalling their cursors. Web
-and Windows still leave the capability unadvertised until their offline storage
-and accessible composition/rendering gates pass. ADR-0343 adds the missing
+history/live events for unsupported peers without stalling their cursors. The
+Web V2 preview now advertises capability 4 after its offline storage and
+accessible composition/rendering gates passed; Windows remains off. ADR-0343 adds the missing
 capability-gated participant directory: active members are paged by stable
 account ID and projected with current display names only after the caller's
 membership is authorized, so clients do not build incomplete UUID-only pickers
 from message history. The Java runtime now composes its PostgreSQL adapter into
 the authenticated WebSocket pipeline, with bounded worker ownership and fixed
-denial behavior; Web and Windows negotiation remain off pending their complete
-composition and rendering gates. The default-off Web protocol and transport
+denial behavior. The Web protocol and transport
 boundary now provides correlated participant paging with strict account-order,
-role, display-name, bound, and cursor validation; it is not yet wired into the
-Web UI. The Web application state now holds only a bounded, conversation-scoped
+role, display-name, bound, and cursor validation. The Web application state holds only a bounded, conversation-scoped
 participant projection, abandons stale/disconnected requests, and treats it as
 transient picker data rather than durable identity truth. Validated mention
-spans now flow unchanged through optimistic Web send/reply/edit records and
-their retry transport paths, while the incomplete UI and capability remain off.
+spans flow unchanged through optimistic Web send/reply/edit records and their
+retry transport paths. The build-gated Web V2 preview provides a keyboard-native
+participant picker, Unicode-safe span maintenance, accessible loading/error
+controls, identity-preserving rendering, and capability-4 negotiation.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

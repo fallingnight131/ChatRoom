@@ -53,6 +53,7 @@ export function createConfiguredV2Runtime(
         appVersion,
         clientDeviceId: identity.deviceId,
         enableMessageEdits: true,
+        enableMessageMentions: true,
       }),
     });
     const application = new V2WebChatApplication({

@@ -1290,8 +1290,9 @@ The Web protocol boundary can opt into the same capability and rejects invalid
 or unnegotiated inbound spans. Web V2 cache records also retain bounded mention
 metadata for authoritative messages and edit intents, clear it on recall, and
 discard a malformed cached set without discarding ordinary text. The composed
-Web runtime and Windows client remain off until their complete persistence and
-UX slices pass (ADR-0342).
+Web V2 preview now advertises capability 4 after its persistence, composition,
+rendering, and accessibility gate passed. Windows remains off until its
+equivalent client gate passes (ADR-0342).
 Types 117/118 define the capability-gated V2 conversation-participant query
 and response. Java payload policy and the Java/TypeScript/C++ compatibility
 gate require a canonical conversation ID, optional canonical account cursor,
@@ -1309,30 +1310,34 @@ serializes work through the bounded messaging executor, and returns fixed
 invalid, unauthorized, busy, or internal outcomes. The product runtime now
 injects the PostgreSQL port through the WebSocket upgrade and application
 pipeline. Its pipeline integration gate negotiates capability 4, authenticates,
-and proves a type-117 request reaches the injected participant port before
-either client advertises the capability (ADR-0343).
-The default-off Web protocol boundary can now issue a correlated type-117 page
+and proves a type-117 request reaches the injected participant port (ADR-0343).
+The Web protocol boundary issues a correlated type-117 page
 request and rejects unnegotiated, oversized, unordered, duplicate, malformed,
 or cursor-inconsistent type-118 data. The WebSocket transport forwards this
-command only through an authenticated capability-4 protocol client; the Web
-runtime still does not advertise capability 4 (ADR-0343).
+command only through an authenticated capability-4 protocol client. The Web V2
+preview advertises capability 4; supported V1 traffic and Windows remain
+unchanged (ADR-0343).
 The Web application layer exposes a conversation-scoped, maximum-500-member
 transient view model with explicit refresh and load-more operations. It merges
 pages by stable account ID, contains authorization failures, abandons ambiguous
 requests on disconnect, and ignores responses after a conversation switch.
-This state is deliberately not durable identity truth and does not activate the
-mention UI or capability (ADR-0343).
+This state is deliberately not durable identity truth. The Web V2 mention
+picker consumes it only as current server-authorized display data (ADR-0343).
 Web application send, reply, and edit commands now accept already-composed
 mention spans, reject any span set that no longer matches the exact UTF-8 text,
 and retain the validated set in optimistic records and edit commands. Retry and
 reconnect dispatch forward those same stable spans through the WebSocket
-transport. Capability 4 remains disabled until the picker and rendering gate
-passes (ADR-0342/ADR-0343).
+transport (ADR-0342/ADR-0343).
 The framework-independent Web mention composer converts between editor UTF-16
 positions and protocol UTF-8 bytes, shifts spans after non-overlapping edits,
 invalidates a span when its visible token is edited, restores anchors from
 stored spans, and segments rendering without deriving identity from display
 text. Unicode-focused unit tests lock these rules (ADR-0342).
+The Web V2 preview composes mentions from a keyboard-native participant dialog,
+preserves cursor insertion across Unicode, highlights mention segments without
+reparsing identity, exposes fixed loading/denial states, and advertises
+capability 4. This activation applies only to the build-gated V2 preview; V1
+and Windows behavior are unchanged (ADR-0342/ADR-0343).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live
