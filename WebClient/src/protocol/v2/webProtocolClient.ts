@@ -30,6 +30,7 @@ import {
   MessageRecordSchema,
   ReadMessageHistorySchema,
   SubmitMessageSchema,
+  SubmitReplyMessageSchema,
   type MessageAccepted,
   type MessageHistoryPage,
   type MessageRecord,
@@ -253,6 +254,34 @@ export class V2WebProtocolClient {
     }));
     return this.command(
       MessageType.SUBMIT_MESSAGE,
+      payload,
+      new Set([MessageType.MESSAGE_ACCEPTED]),
+      clientMessageId,
+    );
+  }
+
+  submitReply(
+    conversationId: string,
+    targetMessageId: string,
+    clientMessageId: string,
+    text: string,
+  ): Uint8Array {
+    this.requireState("authenticated");
+    requireUuid("conversationId", conversationId);
+    requireUuid("targetMessageId", targetMessageId);
+    requireIdentifier("clientMessageId", clientMessageId);
+    const content = encoder.encode(text);
+    if (content.byteLength < 1 || content.byteLength > MAX_TEXT_BYTES) {
+      throw new Error("text must contain 1..65536 UTF-8 bytes");
+    }
+    const payload = toBinary(SubmitReplyMessageSchema, create(SubmitReplyMessageSchema, {
+      conversationId,
+      targetMessageId,
+      contentType: MessageContentType.TEXT_UTF8,
+      content,
+    }));
+    return this.command(
+      MessageType.SUBMIT_REPLY_MESSAGE,
       payload,
       new Set([MessageType.MESSAGE_ACCEPTED]),
       clientMessageId,
@@ -715,6 +744,14 @@ function validateMessageRecord(message: MessageRecord): void {
   }
   try { strictDecoder.decode(message.content); }
   catch { throw new Error("message text is not valid UTF-8"); }
+  if (message.reply) {
+    requireUuid("reply.targetMessageId", message.reply.targetMessageId);
+    requireUuid("reply.targetSenderAccountId", message.reply.targetSenderAccountId);
+    if (message.reply.targetConversationSequence <= 0n
+        || message.reply.targetConversationSequence >= message.conversationSequence) {
+      throw new Error("reply target sequence must precede the reply message");
+    }
+  }
 }
 
 function validateDirectoryPage(page: ConversationDirectoryPage): void {

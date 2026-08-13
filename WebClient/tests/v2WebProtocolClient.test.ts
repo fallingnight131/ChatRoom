@@ -30,6 +30,7 @@ import {
   MessageRecalledRecordSchema,
   ReadMessageHistorySchema,
   SubmitMessageSchema,
+  SubmitReplyMessageSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
 import { V2WebProtocolClient } from "../src/protocol/v2/webProtocolClient";
 import {
@@ -89,7 +90,12 @@ function response(
   }));
 }
 
-function publishedMessage(options: { requestId?: string; sessionId?: string; kind?: MessageKind } = {}): Uint8Array {
+function publishedMessage(options: {
+  requestId?: string;
+  sessionId?: string;
+  kind?: MessageKind;
+  replyTargetSequence?: bigint;
+} = {}): Uint8Array {
   return toBinary(EnvelopeSchema, create(EnvelopeSchema, {
     protocolVersion: 2,
     kind: options.kind ?? MessageKind.EVENT,
@@ -107,6 +113,11 @@ function publishedMessage(options: { requestId?: string; sessionId?: string; kin
       contentType: MessageContentType.TEXT_UTF8,
       content: new TextEncoder().encode("live"),
       acceptedAtEpochMs: BigInt(NOW),
+      reply: options.replyTargetSequence === undefined ? undefined : {
+        targetMessageId: "60000000-0000-4000-8000-000000000002",
+        targetConversationSequence: options.replyTargetSequence,
+        targetSenderAccountId: ACCOUNT_ID,
+      },
     })),
   }));
 }
@@ -231,6 +242,15 @@ test("encodes authenticated directory, history, and idempotent text commands", (
   const submit = fromBinary(SubmitMessageSchema, submitEnvelope.payload);
   assert.equal(submit.contentType, MessageContentType.TEXT_UTF8);
   assert.equal(new TextDecoder().decode(submit.content), "hello V2");
+
+  const replyEnvelope = decodeEnvelope(client.submitReply(
+    CONVERSATION_ID, MESSAGE_ID, "client-reply-1", "reply V2"));
+  assert.equal(replyEnvelope.messageType, MessageType.SUBMIT_REPLY_MESSAGE);
+  assert.equal(replyEnvelope.clientMessageId, "client-reply-1");
+  const reply = fromBinary(SubmitReplyMessageSchema, replyEnvelope.payload);
+  assert.equal(reply.targetMessageId, MESSAGE_ID);
+  assert.equal(reply.contentType, MessageContentType.TEXT_UTF8);
+  assert.equal(new TextDecoder().decode(reply.content), "reply V2");
 });
 
 test("encodes and validates bounded device management commands", () => {
@@ -482,6 +502,11 @@ test("accepts only uncorrelated authenticated live-message events", () => {
   assert.equal(event.requestId, "");
   assert.equal(event.clientMessageId, "");
   assert.equal(event.type === "message-published" && new TextDecoder().decode(event.value.content), "live");
+  const reply = client.receive(publishedMessage({ replyTargetSequence: 1n }));
+  assert.equal(reply.type === "message-published"
+    && reply.value.reply?.targetConversationSequence, 1n);
+  assert.throws(() => client.receive(publishedMessage({ replyTargetSequence: 2n })),
+    /reply target sequence/);
   assert.throws(() => client.receive(publishedMessage({ requestId: UNKNOWN_REQUEST_ID })), /must not carry request/);
   assert.throws(() => client.receive(publishedMessage({ sessionId: DEVICE_ID })), /session does not match/);
   assert.throws(() => client.receive(publishedMessage({ kind: MessageKind.RESPONSE })), /pending request/);

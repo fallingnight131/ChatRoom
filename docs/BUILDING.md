@@ -1246,7 +1246,10 @@ TypeScript into `WebClient/src/protocol/v2/generated` and reviewed Windows C++
 into `Client/protocol/v2/generated/chat/v2`. The gate snapshots both committed
 trees, regenerates, and fails if either changes. Do not edit generated client
 files manually. The C++ golden test compiles the committed Windows tree rather
-than an ignored temporary copy. Gateway tests separately verify authenticated server-bound identity,
+than an ignored temporary copy. Web V2 protocol tests also encode type 105 with
+the stable envelope idempotency key and reject malformed, noncanonical, or
+non-preceding server reply references before application state sees them.
+Gateway tests separately verify authenticated server-bound identity,
 off-event-loop submit/history dispatch, per-connection ordering, safe denial,
 bounded saturation behavior, and isolation from the authentication worker pool.
 They also verify that final authorized history establishes a process-local active

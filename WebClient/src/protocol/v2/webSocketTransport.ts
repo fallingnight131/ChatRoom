@@ -162,6 +162,16 @@ export class V2WebSocketTransport {
     this.send(this.requireAuthenticated().submitText(conversationId, clientMessageId, text));
   }
 
+  submitReply(
+    conversationId: string,
+    targetMessageId: string,
+    clientMessageId: string,
+    text: string,
+  ): void {
+    this.send(this.requireAuthenticated().submitReply(
+      conversationId, targetMessageId, clientMessageId, text));
+  }
+
   listDevices(): string {
     const command = this.requireAuthenticated().listDevices();
     this.send(command.bytes);

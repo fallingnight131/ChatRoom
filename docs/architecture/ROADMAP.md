@@ -1363,6 +1363,8 @@ Progress:
     validate live targets under the conversation write lock, preserve exact
     idempotent retries, and compose Java gateway/history/live projection
     (ADR-0329).
+  - [x] Extend the Web V2 protocol/transport boundary with type-105 reply
+    submission and fail-closed server reply-reference validation.
   - [ ] Add offline/cache-safe reply composition and rendering to Web and Windows.
 
 Candidate slices:
