@@ -181,10 +181,15 @@ class SingleGatewayConversationLiveRouterTest {
                 java.util.Optional.empty(), 0, java.util.Optional.empty(), List.of(), true);
         try {
             assertEquals(2, router.publish(forwarded).published());
-            assertEquals(true, MessageRecord.parseFrom(
-                    ((Envelope) capable.readOutbound()).getPayload()).getForwarded());
-            assertEquals(false, MessageRecord.parseFrom(
-                    ((Envelope) legacy.readOutbound()).getPayload()).getForwarded());
+            MessageRecord capableRecord = MessageRecord.parseFrom(
+                    ((Envelope) capable.readOutbound()).getPayload());
+            MessageRecord legacyRecord = MessageRecord.parseFrom(
+                    ((Envelope) legacy.readOutbound()).getPayload());
+            assertEquals(true, capableRecord.getForwarded());
+            assertEquals(false, legacyRecord.getForwarded());
+            assertEquals("copied", legacyRecord.getContent().toStringUtf8());
+            assertEquals(capableRecord.getConversationSequence(),
+                    legacyRecord.getConversationSequence());
         } finally {
             capable.finishAndReleaseAll();
             legacy.finishAndReleaseAll();

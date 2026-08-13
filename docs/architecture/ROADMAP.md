@@ -1625,6 +1625,9 @@ Progress:
     - [x] Add a bounded process-local per-account forwarding admission port,
       strict runtime limits, retryable fixed protocol rejection, and a
       fixed-label counter before capability activation.
+    - [x] Lock old-client compatibility for forwarded history and live events:
+      legacy peers receive ordinary copied text with identical sequence/cursor
+      progress while only capability-5 peers receive the marker.
 
 Candidate slices:
 

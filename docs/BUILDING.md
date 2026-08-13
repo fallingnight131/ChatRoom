@@ -1497,6 +1497,14 @@ without reaching PostgreSQL and increments only the fixed
 `forward_rate_limited` messaging outcome. The limiter stores account UUID keys
 in memory but emits no identity, source, target, or body labels/logs. It is a
 single-node abuse guard; M5 distributed policy may replace it at the same port.
+The Java history and live-router compatibility tests lock the downgrade path:
+connections without capability 5 receive the same copied UTF-8 body and durable
+conversation sequence while `forwarded` is cleared, so their cursor cannot
+stall and they render an ordinary text message. Capability-5 connections see
+the marker without receiving any source identity. The handler rejects type 119
+before parsing or invoking the forwarding/admission port when capability 5 was
+not negotiated. Web and C++ protocol tests independently reject unexpected
+markers and keep forwarding construction default-off.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic

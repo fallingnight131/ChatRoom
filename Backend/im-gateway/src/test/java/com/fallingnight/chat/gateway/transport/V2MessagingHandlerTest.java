@@ -257,6 +257,9 @@ class V2MessagingHandlerTest {
             MessageHistoryPage legacy = MessageHistoryPage.parseFrom(
                     ((Envelope) channel.readOutbound()).getPayload());
             assertFalse(legacy.getMessages(0).getForwarded());
+            assertEquals("copied", legacy.getMessages(0).getContent().toStringUtf8());
+            assertEquals(1, legacy.getMessages(0).getConversationSequence());
+            assertEquals(1, legacy.getNextSequence());
 
             channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(Set.of(
                     ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING));
@@ -265,6 +268,8 @@ class V2MessagingHandlerTest {
             MessageHistoryPage capable = MessageHistoryPage.parseFrom(
                     ((Envelope) channel.readOutbound()).getPayload());
             assertEquals(true, capable.getMessages(0).getForwarded());
+            assertEquals("copied", capable.getMessages(0).getContent().toStringUtf8());
+            assertEquals(legacy.getNextSequence(), capable.getNextSequence());
         } finally {
             channel.finishAndReleaseAll();
         }
