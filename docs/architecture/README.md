@@ -724,6 +724,12 @@ type-117/type-118 command/response pair over the existing WSS transport only
 after an explicit caller activates a conversation. It remains detached from
 SQLite message state and the Widgets UI, and capability 4 remains off, so this
 integration does not expose unfinished mention behavior to the product.
+The Windows messaging protocol adapter also carries structured mentions through
+send, reply, edit, authoritative history, and live projections. It enforces the
+same 20-span/10-target canonical-ID, ordering, non-overlap, ASCII-`@`, and UTF-8
+boundary policy as Java and Web, and preserves edit mentions in correlated
+success and failure outcomes. SQLite persistence, composition, rendering, and
+capability negotiation remain off, so this is protocol-boundary evidence only.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

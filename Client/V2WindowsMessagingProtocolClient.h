@@ -8,6 +8,11 @@
 
 class V2WindowsMessagingProtocolClient final {
 public:
+    struct Mention {
+        std::string targetAccountId;
+        std::uint32_t startUtf8Byte = 0;
+        std::uint32_t lengthUtf8Bytes = 0;
+    };
     struct ReplyReference {
         std::string targetMessageId;
         std::uint64_t targetConversationSequence = 0;
@@ -26,6 +31,7 @@ public:
         std::int64_t editedAtEpochMs = 0;
         bool hasReply = false;
         ReplyReference reply;
+        std::vector<Mention> mentions;
     };
     enum class ReactionKind { Like = 1, Love, Laugh, Surprised, Sad, Angry };
     struct ReactionChange {
@@ -48,6 +54,7 @@ public:
         std::string messageId; std::uint32_t contentRevision = 0;
         std::string text; std::string actorAccountId; std::string clientOperationId;
         std::int64_t occurredAtEpochMs = 0;
+        std::vector<Mention> mentions;
     };
     struct Command {
         std::string requestId;
@@ -91,11 +98,13 @@ public:
     void clearSession();
     Command submitText(const std::string &conversationId,
                        const std::string &clientMessageId,
-                       const std::string &text);
+                       const std::string &text,
+                       const std::vector<Mention> &mentions = {});
     Command submitReplyText(const std::string &conversationId,
                             const std::string &clientMessageId,
                             const std::string &targetMessageId,
-                            const std::string &text);
+                            const std::string &text,
+                            const std::vector<Mention> &mentions = {});
     Command readHistory(const std::string &conversationId,
                         std::uint64_t afterSequence,
                         std::uint32_t limit);
@@ -106,7 +115,8 @@ public:
                    bool pinned, const std::string &clientOperationId);
     Command editMessage(const std::string &conversationId, const std::string &messageId,
                         std::uint32_t expectedRevision, const std::string &text,
-                        const std::string &clientOperationId);
+                        const std::string &clientOperationId,
+                        const std::vector<Mention> &mentions = {});
     Event receive(const std::string &bytes);
     std::size_t pendingCount() const;
 
@@ -124,12 +134,15 @@ private:
         std::string clientOperationId;
         std::uint32_t expectedRevision = 0;
         std::string text;
+        std::vector<Mention> mentions;
     };
     Command command(int messageType, const std::string &payload,
                     const std::string &clientMessageId, Pending pending);
     static bool canonicalUuid(const std::string &value);
     static bool boundedIdentifier(const std::string &value, bool required);
     static bool validUtf8(const std::string &value);
+    static bool validMentions(const std::string &text,
+                              const std::vector<Mention> &mentions);
     static std::string randomUuid();
 
     RequestIdFactory m_factory;

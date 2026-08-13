@@ -1359,7 +1359,13 @@ The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live
 reply projections, mutation, reaction, and pin-detail cursor advancement,
-defensive UTF-8/reply/reaction/pin validation, and disconnect abandonment. It
+defensive UTF-8/reply/reaction/pin validation, and disconnect abandonment. The
+boundary now also carries mentions through send/reply/edit and authoritative
+history/live data while enforcing 20 spans, 10 distinct canonical targets,
+ordered non-overlap, ASCII-`@` starts, and exact UTF-8 boundaries. Unicode
+negative tests prove malformed inbound data fails without consuming its request
+correlation. This is not Windows capability-4 activation: SQLite, composition,
+rendering, accessibility, and replay gates remain outstanding. It
 also locks type-106/109 command identity, type-107/112 correlation, and
 uncorrelated ordered type-108/113 events. The canonical default-off Windows CMake
 product now composes this boundary with the shared authenticated Qt WSS,

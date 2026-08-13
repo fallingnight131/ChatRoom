@@ -9,11 +9,14 @@
 #include <limits>
 #include <random>
 #include <stdexcept>
+#include <unordered_set>
 #include <utility>
 
 namespace {
 constexpr std::size_t maximumEnvelopeBytes = 1024U * 1024U + 1024U;
 constexpr std::size_t maximumTextBytes = 65536U;
+constexpr std::size_t maximumMentionSpans = 20U;
+constexpr std::size_t maximumMentionTargets = 10U;
 constexpr std::uint32_t maximumContentRevisions = 100U;
 constexpr std::uint64_t maximumSignedSequence =
     static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max());
@@ -62,14 +65,21 @@ std::size_t V2WindowsMessagingProtocolClient::pendingCount() const {
 V2WindowsMessagingProtocolClient::Command
 V2WindowsMessagingProtocolClient::submitText(
         const std::string &conversationId, const std::string &clientMessageId,
-        const std::string &text) {
+        const std::string &text, const std::vector<Mention> &mentions) {
     if (!canonicalUuid(conversationId) || !boundedIdentifier(clientMessageId, true)
-            || text.empty() || text.size() > maximumTextBytes || !validUtf8(text))
+            || text.empty() || text.size() > maximumTextBytes || !validUtf8(text)
+            || !validMentions(text, mentions))
         throw std::invalid_argument("invalid text submission");
     chat::v2::SubmitMessage payload;
     payload.set_conversation_id(conversationId);
     payload.set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
     payload.set_content(text);
+    for (const auto &mention : mentions) {
+        auto *value = payload.add_mentions();
+        value->set_target_account_id(mention.targetAccountId);
+        value->set_start_utf8_byte(mention.startUtf8Byte);
+        value->set_length_utf8_bytes(mention.lengthUtf8Bytes);
+    }
     Pending pending;
     pending.type = PendingType::Submit; pending.conversationId = conversationId;
     pending.clientMessageId = clientMessageId;
@@ -80,16 +90,24 @@ V2WindowsMessagingProtocolClient::submitText(
 V2WindowsMessagingProtocolClient::Command
 V2WindowsMessagingProtocolClient::submitReplyText(
         const std::string &conversationId, const std::string &clientMessageId,
-        const std::string &targetMessageId, const std::string &text) {
+        const std::string &targetMessageId, const std::string &text,
+        const std::vector<Mention> &mentions) {
     if (!canonicalUuid(conversationId) || !canonicalUuid(targetMessageId)
             || !boundedIdentifier(clientMessageId, true) || text.empty()
-            || text.size() > maximumTextBytes || !validUtf8(text))
+            || text.size() > maximumTextBytes || !validUtf8(text)
+            || !validMentions(text, mentions))
         throw std::invalid_argument("invalid reply submission");
     chat::v2::SubmitReplyMessage payload;
     payload.set_conversation_id(conversationId);
     payload.set_target_message_id(targetMessageId);
     payload.set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
     payload.set_content(text);
+    for (const auto &mention : mentions) {
+        auto *value = payload.add_mentions();
+        value->set_target_account_id(mention.targetAccountId);
+        value->set_start_utf8_byte(mention.startUtf8Byte);
+        value->set_length_utf8_bytes(mention.lengthUtf8Bytes);
+    }
     Pending pending;
     pending.type = PendingType::Reply; pending.conversationId = conversationId;
     pending.clientMessageId = clientMessageId;
@@ -160,20 +178,29 @@ V2WindowsMessagingProtocolClient::Command
 V2WindowsMessagingProtocolClient::editMessage(
         const std::string &conversationId, const std::string &messageId,
         std::uint32_t expectedRevision, const std::string &text,
-        const std::string &clientOperationId) {
+        const std::string &clientOperationId,
+        const std::vector<Mention> &mentions) {
     if (!canonicalUuid(conversationId) || !canonicalUuid(messageId)
             || expectedRevision > maximumContentRevisions
             || text.empty() || text.size() > maximumTextBytes || !validUtf8(text)
-            || !boundedIdentifier(clientOperationId, true))
+            || !boundedIdentifier(clientOperationId, true)
+            || !validMentions(text, mentions))
         throw std::invalid_argument("invalid edit command");
     chat::v2::EditMessage payload;
     payload.set_conversation_id(conversationId); payload.set_message_id(messageId);
     payload.set_expected_revision(expectedRevision);
     payload.set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
     payload.set_content(text); payload.set_client_operation_id(clientOperationId);
+    for (const auto &mention : mentions) {
+        auto *value = payload.add_mentions();
+        value->set_target_account_id(mention.targetAccountId);
+        value->set_start_utf8_byte(mention.startUtf8Byte);
+        value->set_length_utf8_bytes(mention.lengthUtf8Bytes);
+    }
     Pending pending; pending.type = PendingType::Edit; pending.conversationId = conversationId;
     pending.messageId = messageId; pending.expectedRevision = expectedRevision;
     pending.text = text; pending.clientOperationId = clientOperationId;
+    pending.mentions = mentions;
     return command(chat::v2::MESSAGE_TYPE_EDIT_MESSAGE, bytes(payload), {}, std::move(pending));
 }
 
@@ -211,6 +238,29 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
             || envelope.payload().size() > 1024U * 1024U)
         throw std::runtime_error("invalid messaging envelope");
 
+    auto decodeMentions = [&](const std::string &text, const auto &wireMentions) {
+        std::vector<Mention> mentions;
+        mentions.reserve(static_cast<std::size_t>(wireMentions.size()));
+        for (const auto &value : wireMentions) {
+            mentions.push_back({value.target_account_id(), value.start_utf8_byte(),
+                                value.length_utf8_bytes()});
+        }
+        if (!validMentions(text, mentions))
+            throw std::runtime_error("invalid message mention spans");
+        return mentions;
+    };
+    const auto sameMentions = [](const std::vector<Mention> &left,
+                                 const std::vector<Mention> &right) {
+        if (left.size() != right.size()) return false;
+        for (std::size_t index = 0; index < left.size(); ++index) {
+            if (left[index].targetAccountId != right[index].targetAccountId
+                    || left[index].startUtf8Byte != right[index].startUtf8Byte
+                    || left[index].lengthUtf8Bytes != right[index].lengthUtf8Bytes)
+                return false;
+        }
+        return true;
+    };
+
     auto decodeMessage = [&](const chat::v2::MessageRecord &record) {
         if (!canonicalUuid(record.conversation_id()) || !canonicalUuid(record.message_id())
                 || !canonicalUuid(record.sender_account_id())
@@ -235,6 +285,7 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         result.acceptedAtEpochMs = record.accepted_at_epoch_ms();
         result.contentRevision = record.content_revision();
         result.editedAtEpochMs = record.edited_at_epoch_ms();
+        result.mentions = decodeMentions(record.content(), record.mentions());
         result.hasReply = record.has_reply();
         if (record.has_reply()) {
             const auto &reply = record.reply();
@@ -289,9 +340,11 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
                 || edit.content().empty() || edit.content().size() > maximumTextBytes
                 || !validUtf8(edit.content()) || edit.occurred_at_epoch_ms() <= 0)
             throw std::runtime_error("invalid message edit");
-        return EditChange{edit.conversation_id(), edit.conversation_sequence(),
+        EditChange result{edit.conversation_id(), edit.conversation_sequence(),
             edit.message_id(), edit.content_revision(), edit.content(),
-            edit.actor_account_id(), edit.client_operation_id(), edit.occurred_at_epoch_ms()};
+            edit.actor_account_id(), edit.client_operation_id(), edit.occurred_at_epoch_ms(), {}};
+        result.mentions = decodeMentions(edit.content(), edit.mentions());
+        return result;
     };
 
     if (envelope.kind() == chat::v2::MESSAGE_KIND_EVENT
@@ -376,7 +429,8 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         if (pending.type == PendingType::Edit) {
             result.messageId = pending.messageId;
             result.editChange = {pending.conversationId, 0, pending.messageId,
-                pending.expectedRevision, pending.text, {}, pending.clientOperationId, 0};
+                pending.expectedRevision, pending.text, {}, pending.clientOperationId, 0,
+                pending.mentions};
         }
         return result;
     }
@@ -452,11 +506,13 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
             && envelope.kind() == chat::v2::MESSAGE_KIND_RESPONSE
             && envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_EDIT_APPLIED) {
         const auto applied = parse<chat::v2::MessageEditApplied>(envelope.payload());
+        const auto appliedMentions = decodeMentions(applied.content(), applied.mentions());
         if (applied.conversation_id() != pending.conversationId
                 || applied.message_id() != pending.messageId
                 || applied.client_operation_id() != pending.clientOperationId
                 || applied.content_type() != chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8
                 || applied.content() != pending.text
+                || !sameMentions(appliedMentions, pending.mentions)
                 || !canonicalUuid(applied.actor_account_id())
                 || applied.content_revision() > maximumContentRevisions
                 || (applied.changed() && applied.content_revision() == 0)
@@ -469,7 +525,9 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         result.messageId = applied.message_id(); result.conversationSequence = applied.conversation_sequence();
         result.editChange = {applied.conversation_id(), applied.conversation_sequence(),
             applied.message_id(), applied.content_revision(), applied.content(),
-            applied.actor_account_id(), applied.client_operation_id(), applied.occurred_at_epoch_ms()};
+            applied.actor_account_id(), applied.client_operation_id(),
+            applied.occurred_at_epoch_ms(), {}};
+        result.editChange.mentions = appliedMentions;
         return result;
     }
     if (pending.type == PendingType::History
@@ -664,6 +722,33 @@ bool V2WindowsMessagingProtocolClient::validUtf8(const std::string &value) {
                 || (codepoint >= 0xd800U && codepoint <= 0xdfffU)
                 || codepoint > 0x10ffffU)
             return false;
+    }
+    return true;
+}
+
+bool V2WindowsMessagingProtocolClient::validMentions(
+        const std::string &text, const std::vector<Mention> &mentions) {
+    if (mentions.size() > maximumMentionSpans) return false;
+    std::uint64_t previousEnd = 0;
+    std::unordered_set<std::string> targets;
+    for (const auto &mention : mentions) {
+        const std::uint64_t start = mention.startUtf8Byte;
+        const std::uint64_t length = mention.lengthUtf8Bytes;
+        const std::uint64_t end = start + length;
+        const auto boundary = [&](std::uint64_t index) {
+            return index == 0 || index == text.size()
+                || (index < text.size()
+                    && (static_cast<unsigned char>(text[static_cast<std::size_t>(index)])
+                        & 0xc0U) != 0x80U);
+        };
+        if (!canonicalUuid(mention.targetAccountId) || length == 0
+                || start < previousEnd || start >= text.size() || end > text.size()
+                || !boundary(start) || !boundary(end)
+                || text[static_cast<std::size_t>(start)] != '@')
+            return false;
+        targets.insert(mention.targetAccountId);
+        if (targets.size() > maximumMentionTargets) return false;
+        previousEnd = end;
     }
     return true;
 }

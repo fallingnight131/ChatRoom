@@ -60,6 +60,7 @@ int main() {
     const std::string conversationId = "20000000-0000-4000-8000-000000000001";
     const std::string targetId = "50000000-0000-4000-8000-000000000001";
     const std::string replyId = "50000000-0000-4000-8000-000000000002";
+    const std::string mentionedAccountId = "60000000-0000-4000-8000-000000000001";
     std::vector<std::string> ids{
         "request-8",
         "request-7", "request-6", "request-5", "request-4", "request-3",
@@ -72,8 +73,16 @@ int main() {
     client.bindSession(sessionId);
     checkThrows([&] { client.submitText(conversationId, "local-1", std::string("\xc0\x80", 2)); },
                 "invalid UTF-8 must fail before serialization");
+    checkThrows([&] {
+        client.submitText(conversationId, "local-invalid", u8"@张三",
+            {{mentionedAccountId, 0, 2}});
+    }, "mention spans that split a Unicode scalar must fail before serialization");
 
-    const auto reply = client.submitReplyText(conversationId, "local-reply", targetId, "reply");
+    const std::string replyText = u8"@张三 reply";
+    const std::vector<V2WindowsMessagingProtocolClient::Mention> replyMentions{
+        {mentionedAccountId, 0, 7}};
+    const auto reply = client.submitReplyText(
+        conversationId, "local-reply", targetId, replyText, replyMentions);
     chat::v2::Envelope replyEnvelope;
     chat::v2::SubmitReplyMessage replyPayload;
     check(replyEnvelope.ParseFromString(reply.bytes)
@@ -84,8 +93,11 @@ int main() {
               && replyPayload.ParseFromString(replyEnvelope.payload())
               && replyPayload.conversation_id() == conversationId
               && replyPayload.target_message_id() == targetId
-              && replyPayload.content() == "reply",
-          "reply command must preserve distinct type and stable identities");
+              && replyPayload.content() == replyText
+              && replyPayload.mentions_size() == 1
+              && replyPayload.mentions(0).target_account_id() == mentionedAccountId
+              && replyPayload.mentions(0).length_utf8_bytes() == 7,
+          "reply command must preserve distinct type, stable identities, and UTF-8 mentions");
 
     chat::v2::MessageAccepted accepted;
     accepted.set_conversation_id(conversationId);
@@ -107,6 +119,11 @@ int main() {
     *page.add_messages() = first;
     auto second = record(conversationId, replyId, 8);
     second.set_client_message_id("local-reply");
+    second.set_content(replyText);
+    auto *historyMention = second.add_mentions();
+    historyMention->set_target_account_id(mentionedAccountId);
+    historyMention->set_start_utf8_byte(0);
+    historyMention->set_length_utf8_bytes(7);
     auto *reference = second.mutable_reply();
     reference->set_target_message_id(targetId);
     reference->set_target_conversation_sequence(7);
@@ -121,8 +138,11 @@ int main() {
               && historyEvent.messages.size() == 2
               && historyEvent.messages.at(1).hasReply
               && historyEvent.messages.at(1).reply.targetMessageId == targetId
+              && historyEvent.messages.at(1).mentions.size() == 1
+              && historyEvent.messages.at(1).mentions.front().targetAccountId
+                    == mentionedAccountId
               && historyEvent.nextSequence == 8,
-          "history must expose validated authoritative reply identity");
+          "history must expose validated authoritative reply and mention identity");
 
     const auto mutationHistory = client.readHistory(conversationId, 8, 10);
     chat::v2::MessageHistoryPage mutationPage;
@@ -277,23 +297,31 @@ int main() {
               && pinLive.conversationSequence == 13,
           "capable live pin must remain uncorrelated and ordered");
 
-    const auto editCommand = client.editMessage(
-        conversationId, replyId, 1, "edited on Windows", "edit-operation-1");
+    const std::string editedText = u8"@李四 edited on Windows";
+    const std::vector<V2WindowsMessagingProtocolClient::Mention> editMentions{
+        {mentionedAccountId, 0, 7}};
+    const auto editCommand = client.editMessage(conversationId, replyId, 1,
+        editedText, "edit-operation-1", editMentions);
     chat::v2::Envelope editEnvelope;
     chat::v2::EditMessage editPayload;
     check(editEnvelope.ParseFromString(editCommand.bytes)
               && editEnvelope.message_type() == chat::v2::MESSAGE_TYPE_EDIT_MESSAGE
               && editPayload.ParseFromString(editEnvelope.payload())
               && editPayload.expected_revision() == 1
-              && editPayload.content() == "edited on Windows"
+              && editPayload.content() == editedText
+              && editPayload.mentions_size() == 1
               && editPayload.client_operation_id() == "edit-operation-1",
-          "edit command must preserve revision, content, and idempotency identity");
+          "edit command must preserve revision, content, mentions, and idempotency identity");
     chat::v2::MessageEditApplied editApplied;
     editApplied.set_conversation_id(conversationId);
     editApplied.set_message_id(replyId);
     editApplied.set_content_revision(2);
     editApplied.set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
-    editApplied.set_content("edited on Windows");
+    editApplied.set_content(editedText);
+    auto *appliedMention = editApplied.add_mentions();
+    appliedMention->set_target_account_id(mentionedAccountId);
+    appliedMention->set_start_utf8_byte(0);
+    appliedMention->set_length_utf8_bytes(7);
     editApplied.set_actor_account_id("30000000-0000-4000-8000-000000000001");
     editApplied.set_client_operation_id("edit-operation-1");
     editApplied.set_changed(true);
@@ -304,6 +332,7 @@ int main() {
         editCommand.requestId, sessionId, {}, editApplied));
     check(editAck.type == V2WindowsMessagingProtocolClient::EventType::EditApplied
               && editAck.editChange.contentRevision == 2
+              && editAck.editChange.mentions.size() == 1
               && editAck.editChange.clientOperationId == "edit-operation-1",
           "edit response must correlate the exact revision-safe operation");
     chat::v2::MessageEditedRecord edited;
@@ -312,7 +341,11 @@ int main() {
     edited.set_message_id(replyId);
     edited.set_content_revision(2);
     edited.set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
-    edited.set_content("edited on Windows");
+    edited.set_content(editedText);
+    auto *liveMention = edited.add_mentions();
+    liveMention->set_target_account_id(mentionedAccountId);
+    liveMention->set_start_utf8_byte(0);
+    liveMention->set_length_utf8_bytes(7);
     edited.set_actor_account_id("30000000-0000-4000-8000-000000000001");
     edited.set_client_operation_id("edit-operation-1");
     edited.set_occurred_at_epoch_ms(895);
@@ -320,11 +353,19 @@ int main() {
         chat::v2::MESSAGE_TYPE_MESSAGE_EDITED, chat::v2::MESSAGE_KIND_EVENT,
         {}, sessionId, {}, edited));
     check(editLive.type == V2WindowsMessagingProtocolClient::EventType::Edited
-              && editLive.conversationSequence == 14,
+              && editLive.conversationSequence == 14
+              && editLive.editChange.mentions.size() == 1,
           "capable live edit must remain uncorrelated and ordered");
 
     const auto invalidHistory = client.readHistory(conversationId, 8, 10);
     auto invalidPage = page;
+    invalidPage.mutable_messages(1)->mutable_mentions(0)->set_length_utf8_bytes(2);
+    checkThrows([&] {
+        client.receive(envelope(chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE,
+                                chat::v2::MESSAGE_KIND_RESPONSE, invalidHistory.requestId,
+                                sessionId, {}, invalidPage));
+    }, "history mentions that split a Unicode scalar must fail closed");
+    invalidPage.mutable_messages(1)->mutable_mentions(0)->set_length_utf8_bytes(7);
     invalidPage.mutable_messages(1)->mutable_reply()->set_target_conversation_sequence(8);
     checkThrows([&] {
         client.receive(envelope(chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE,
