@@ -730,7 +730,7 @@ Progress:
   - [x] Add strict detached `CHANGE_PASSWORD_REQ` decoding and handling with
     clearable dual-secret ownership, auth admission, bounded off-loop crypto,
     generic rejection, malformed closure, and saturation telemetry.
-  - [ ] Compose password change and prove old/new login, exact retry,
+  - [x] Compose password change and prove old/new login, exact retry,
     other-session revocation, and restart durability through PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.

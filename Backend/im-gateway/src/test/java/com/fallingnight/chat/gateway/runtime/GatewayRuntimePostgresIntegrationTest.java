@@ -27,6 +27,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageDeletionEvent
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomRenameEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomPasswordEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDissolutionEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1PasswordChangeEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomAdminEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomKickEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
@@ -408,6 +409,8 @@ class GatewayRuntimePostgresIntegrationTest {
                                     jdbcUrl, username, password);
                             assertRoomDissolution(module, peerReplacement, reconnected,
                                     jdbcUrl, username, password);
+                            assertPasswordChange(module, dataSource, peerReplacement,
+                                    jdbcUrl, username, password);
                         } finally { peerReplacement.finishAndReleaseAll(); }
                     } finally { reconnected.finishAndReleaseAll(); }
                 } finally {
@@ -431,7 +434,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     response.release();
                 }
                 assertFalse(nativeV2.isActive());
-                assertEquals(10, sessionCount(jdbcUrl, username, password));
+                assertEquals(11, sessionCount(jdbcUrl, username, password));
             } finally {
                 nativeV2.finishAndReleaseAll();
             }
@@ -459,6 +462,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomRenameEventSink.noop(),
                 V1RoomPasswordEventSink.noop(),
                 V1RoomDissolutionEventSink.noop(),
+                V1PasswordChangeEventSink.noop(),
                 V1RoomAdminEventSink.noop(),
                 V1RoomKickEventSink.noop(),
                 V1RoomDirectoryEventSink.noop(),
@@ -1256,6 +1260,73 @@ class GatewayRuntimePostgresIntegrationTest {
                 assertFalse(rooms.text().contains("Renamed Imported Room"));
             } finally { rooms.release(); }
         } finally { replacementOwner.finishAndReleaseAll(); }
+    }
+
+    private static void assertPasswordChange(V1CompatibilityModule module,
+            HikariDataSource dataSource, EmbeddedChannel current,
+            String url, String user, String password) throws Exception {
+        String request = "{\"type\":\"CHANGE_PASSWORD_REQ\",\"data\":{"
+                + "\"oldPassword\":\"java-v2-test-password\","
+                + "\"newPassword\":\"changed-v1-password\"}}";
+        current.writeInbound(new TextWebSocketFrame(request)); current.runPendingTasks();
+        TextWebSocketFrame response = current.readOutbound();
+        int revoked;
+        try {
+            assertTrue(response.text().contains("\"type\":\"CHANGE_PASSWORD_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"changed\":true"));
+            revoked = (int) numericDataField(response.text(), "otherSessionsRevoked");
+            assertTrue(revoked >= 1);
+            assertFalse(response.text().contains("java-v2-test-password"));
+            assertFalse(response.text().contains("changed-v1-password"));
+            assertFalse(response.text().contains("10000000-0000"));
+        } finally { response.release(); }
+
+        current.writeInbound(new TextWebSocketFrame(request)); current.runPendingTasks();
+        response = current.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"changed\":false"));
+            assertTrue(response.text().contains("\"otherSessionsRevoked\":0"));
+        } finally { response.release(); }
+        assertEquals(1, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.account_password_change_audit audit "
+                        + "JOIN chat.account account ON account.id = audit.account_id "
+                        + "WHERE account.username_key = 'imported-peer' "
+                        + "AND audit.other_sessions_revoked = " + revoked));
+        assertEquals(1, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.account WHERE username_key = 'imported-peer' "
+                        + "AND password_scheme = 'ARGON2ID' "
+                        + "AND password_hash LIKE '$argon2id$%' "
+                        + "AND password_hash NOT LIKE '%changed-v1-password%'"));
+
+        EmbeddedChannel oldLogin = upgradedChannel(module, Runnable::run,
+                AuthenticationAdmissionControl.allowAll(), AuthenticationEventSink.noop());
+        try {
+            oldLogin.writeInbound(loginFrame(
+                    "imported-peer", "java-v2-test-password")); oldLogin.runPendingTasks();
+            TextWebSocketFrame denied = oldLogin.readOutbound();
+            try { assertTrue(denied.text().contains("\"success\":false")); }
+            finally { denied.release(); }
+            assertFalse(oldLogin.isActive());
+        } finally { oldLogin.finishAndReleaseAll(); }
+
+        try (V1RoomPasswordKeyMaterial key = V1RoomPasswordKeyMaterial.fromEnvironment(Map.of(
+                    V1RoomPasswordKeyMaterial.ENVIRONMENT_KEY,
+                    Base64.getEncoder().encodeToString(new byte[32])));
+                V1CompatibilityModule restarted = V1CompatibilityModule.create(
+                        dataSource, Clock.fixed(Instant.parse("2026-08-12T12:00:00Z"),
+                                ZoneOffset.UTC), key)) {
+            EmbeddedChannel newLogin = upgradedChannel(restarted, Runnable::run,
+                    AuthenticationAdmissionControl.allowAll(), AuthenticationEventSink.noop());
+            try {
+                newLogin.writeInbound(loginFrame(
+                        "imported-peer", "changed-v1-password")); newLogin.runPendingTasks();
+                TextWebSocketFrame accepted = newLogin.readOutbound();
+                try { assertTrue(accepted.text().contains("\"success\":true")); }
+                finally { accepted.release(); }
+            } finally { newLogin.finishAndReleaseAll(); }
+        }
     }
 
     private static void assertRoomAdminPromotion(EmbeddedChannel owner,
