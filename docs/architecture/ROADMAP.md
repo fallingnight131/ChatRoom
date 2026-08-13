@@ -1315,6 +1315,9 @@ Progress:
   - [x] Compose the handler, PostgreSQL adapter, fixed-cardinality telemetry,
     process-local connection index, and bounded worker ownership in the product
     gateway runtime.
+  - [x] Extend the default-off Web V2 protocol client with correlated bounded
+    device listing/revocation commands, defensive response validation, and
+    current-device refusal. Application coordinator and UI remain pending.
   - [ ] Add supported Web and Windows device-management UI and recovery behavior.
 
 Candidate slices:

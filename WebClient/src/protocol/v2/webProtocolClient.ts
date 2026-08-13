@@ -45,6 +45,14 @@ import {
   type AttachmentRegistered,
   type AttachmentUploadAuthorized,
 } from "./generated/attachment_pb";
+import {
+  DeviceDirectorySchema,
+  DeviceRevokedSchema,
+  ListDevicesSchema,
+  RevokeDeviceSchema,
+  type DeviceDirectory,
+  type DeviceRevoked,
+} from "./generated/device_management_pb";
 
 const PROTOCOL_VERSION = 2;
 const MAX_IDENTIFIER_BYTES = 128;
@@ -83,6 +91,8 @@ export type V2WebProtocolEvent = ResponseCorrelation & (
   | { type: "attachment-registered"; value: AttachmentRegistered }
   | { type: "attachment-upload-authorized"; value: AttachmentUploadAuthorized }
   | { type: "attachment-ready"; value: AttachmentReady }
+  | { type: "device-directory"; value: DeviceDirectory }
+  | { type: "device-revoked"; value: DeviceRevoked }
   | { type: "cancelled-response"; value: undefined }
 );
 
@@ -308,6 +318,28 @@ export class V2WebProtocolClient {
     ));
   }
 
+  listDevices(): V2CorrelatedCommand {
+    this.requireState("authenticated");
+    return correlated(this.command(
+      MessageType.LIST_DEVICES,
+      toBinary(ListDevicesSchema, create(ListDevicesSchema, {})),
+      new Set([MessageType.DEVICE_DIRECTORY]),
+    ));
+  }
+
+  revokeDevice(targetDeviceId: string): V2CorrelatedCommand {
+    this.requireState("authenticated");
+    requireUuid("targetDeviceId", targetDeviceId);
+    if (targetDeviceId === this.currentSession?.deviceId) {
+      throw new Error("the current device cannot be revoked");
+    }
+    return correlated(this.command(
+      MessageType.REVOKE_DEVICE,
+      toBinary(RevokeDeviceSchema, create(RevokeDeviceSchema, { targetDeviceId })),
+      new Set([MessageType.DEVICE_REVOKED]),
+    ));
+  }
+
   cancelPendingRequest(requestId: string): void {
     const pending = this.pending.get(requestId);
     if (!pending) return;
@@ -456,6 +488,10 @@ export class V2WebProtocolClient {
           return { ...correlation, type: "attachment-upload-authorized", value: fromBinary(AttachmentUploadAuthorizedSchema, envelope.payload) };
         case MessageType.ATTACHMENT_READY:
           return { ...correlation, type: "attachment-ready", value: fromBinary(AttachmentReadySchema, envelope.payload) };
+        case MessageType.DEVICE_DIRECTORY:
+          return { ...correlation, type: "device-directory", value: fromBinary(DeviceDirectorySchema, envelope.payload) };
+        case MessageType.DEVICE_REVOKED:
+          return { ...correlation, type: "device-revoked", value: fromBinary(DeviceRevokedSchema, envelope.payload) };
         default:
           throw new Error("unsupported inbound message type");
       }
@@ -531,6 +567,31 @@ export class V2WebProtocolClient {
         requireUuid("attachmentId", event.value.attachmentId);
         requireUuid("conversationId", event.value.conversationId);
         if (event.value.readyAtEpochMs <= 0n) throw new Error("invalid attachment ready response");
+        break;
+      case "device-directory": {
+        if (event.value.devices.length < 1 || event.value.devices.length > 100
+            || event.value.devices.filter((device) => device.current).length !== 1) {
+          throw new Error("invalid device directory");
+        }
+        const ids = new Set<string>();
+        for (const device of event.value.devices) {
+          requireUuid("deviceId", device.deviceId);
+          if (ids.has(device.deviceId) || (device.platform !== ClientPlatform.WEB
+              && device.platform !== ClientPlatform.WINDOWS)
+              || device.createdAtEpochMs <= 0n
+              || device.lastSeenAtEpochMs < device.createdAtEpochMs) {
+            throw new Error("invalid device directory");
+          }
+          ids.add(device.deviceId);
+        }
+        break;
+      }
+      case "device-revoked":
+        requireUuid("targetDeviceId", event.value.targetDeviceId);
+        if (event.value.targetDeviceId === this.currentSession?.deviceId
+            || event.value.revokedAtEpochMs <= 0n) {
+          throw new Error("invalid device revocation");
+        }
         break;
       case "cancelled-response":
         break;

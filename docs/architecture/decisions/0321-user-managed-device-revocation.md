@@ -62,6 +62,11 @@ device index can close every registered target channel after durable commit;
 it is not authorization state. The product gateway runtime composes the
 PostgreSQL adapter, service, shared bounded messaging worker pool, connection
 index, handler, and fixed-label Prometheus counters. Clients remain detached.
+The default-off Web V2 protocol client now encodes correlated list/revoke
+commands and rejects ambiguous directories, unsupported platforms, invalid
+timestamps, duplicate IDs, malformed targets, and current-device revocation.
+It retains no additional durable device state; application/UI composition is
+still detached.
 
 ## Verification
 

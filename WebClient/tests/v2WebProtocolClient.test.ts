@@ -40,6 +40,12 @@ import {
   CompleteAttachmentUploadSchema,
   RegisterAttachmentSchema,
 } from "../src/protocol/v2/generated/attachment_pb";
+import {
+  DeviceDirectorySchema,
+  DeviceRevokedSchema,
+  ListDevicesSchema,
+  RevokeDeviceSchema,
+} from "../src/protocol/v2/generated/device_management_pb";
 
 const UNKNOWN_REQUEST_ID = "10000000-0000-4000-8000-999999999999";
 const ACCOUNT_ID = "20000000-0000-4000-8000-000000000001";
@@ -225,6 +231,33 @@ test("encodes authenticated directory, history, and idempotent text commands", (
   const submit = fromBinary(SubmitMessageSchema, submitEnvelope.payload);
   assert.equal(submit.contentType, MessageContentType.TEXT_UTF8);
   assert.equal(new TextDecoder().decode(submit.content), "hello V2");
+});
+
+test("encodes and validates bounded device management commands", () => {
+  const client = newClient();
+  authenticate(client);
+  const target = "30000000-0000-4000-8000-000000000002";
+
+  const listRequest = decodeEnvelope(client.listDevices().bytes);
+  assert.equal(listRequest.messageType, MessageType.LIST_DEVICES);
+  assert.deepEqual(fromBinary(ListDevicesSchema, listRequest.payload), create(ListDevicesSchema, {}));
+  const listed = client.receive(response(listRequest, MessageType.DEVICE_DIRECTORY,
+    toBinary(DeviceDirectorySchema, create(DeviceDirectorySchema, { devices: [
+      { deviceId: DEVICE_ID, platform: ClientPlatform.WEB, createdAtEpochMs: 1n,
+        lastSeenAtEpochMs: 2n, current: true },
+      { deviceId: target, platform: ClientPlatform.WINDOWS, createdAtEpochMs: 1n,
+        lastSeenAtEpochMs: 3n, current: false },
+    ] })), { sessionId: SESSION_ID }));
+  assert.equal(listed.type, "device-directory");
+
+  assert.throws(() => client.revokeDevice(DEVICE_ID), /current device/);
+  const revokeRequest = decodeEnvelope(client.revokeDevice(target).bytes);
+  assert.equal(fromBinary(RevokeDeviceSchema, revokeRequest.payload).targetDeviceId, target);
+  const revoked = client.receive(response(revokeRequest, MessageType.DEVICE_REVOKED,
+    toBinary(DeviceRevokedSchema, create(DeviceRevokedSchema, {
+      targetDeviceId: target, revokedAtEpochMs: BigInt(NOW), revokedSessions: 2, changed: true,
+    })), { sessionId: SESSION_ID }));
+  assert.equal(revoked.type, "device-revoked");
 });
 
 test("encodes and correlates the bounded V2 attachment workflow", () => {
