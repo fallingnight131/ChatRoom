@@ -700,8 +700,11 @@ Progress:
   - [x] Implement serializable PostgreSQL room rename with active mapped
     administrator authorization, compare-and-set title updates, convergent
     retries, and durable directory projection.
-  - [ ] Add and compose the strict detached `RENAME_ROOM_REQ` adapter with real
-    database notification suppression and replacement-login recovery proof.
+  - [x] Add the strict detached `RENAME_ROOM_REQ` handler with authenticated
+    actor binding, bounded off-loop work, changed-only compatible room effects,
+    malformed-frame closure, and explicit saturation handling.
+  - [ ] Compose V1 room rename and prove changed-only notification suppression
+    plus replacement-login directory recovery through real PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
