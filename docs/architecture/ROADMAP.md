@@ -1646,6 +1646,11 @@ Progress:
   availability without issuing a database query or changing readiness. Window-
   bound reconnect sampling and other resource signals remain pending
   (ADR-0387).
+- [x] Upgrade new reconnect evidence to schema version 3 and sample PostgreSQL
+  pool availability, active/total connections, and waiting threads in the same
+  target five-millisecond window as authentication saturation. Historical
+  schemas remain valid; a clean schema-3 baseline and wider resource signals
+  remain pending (ADR-0388).
 
 Work:
 

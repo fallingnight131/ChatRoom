@@ -1964,12 +1964,12 @@ class GatewayRuntimePostgresIntegrationTest {
             AtomicBoolean sampleSaturation = new AtomicBoolean(true);
             long[] startNanos = new long[1];
             List<ReconnectSample> samples = new ArrayList<>();
-            AuthenticationSaturation saturation;
+            ReconnectSaturation saturation;
             try (ExecutorService sampler = Executors.newSingleThreadExecutor();
                     ExecutorService executor =
                             Executors.newFixedThreadPool(primaryClients.size())) {
-                Future<AuthenticationSaturation> saturationFuture = sampler.submit(
-                        () -> sampleAuthenticationSaturation(
+                Future<ReconnectSaturation> saturationFuture = sampler.submit(
+                        () -> sampleReconnectSaturation(
                                 secondAdmin, saturationSamplerReady, sampleSaturation));
                 assertTrue(saturationSamplerReady.await(5, TimeUnit.SECONDS),
                         "authentication saturation sampler did not start");
@@ -4548,11 +4548,18 @@ class GatewayRuntimePostgresIntegrationTest {
         return Long.parseLong(matcher.group(1));
     }
 
-    private static AuthenticationSaturation sampleAuthenticationSaturation(
+    private static ReconnectSaturation sampleReconnectSaturation(
             int adminPort, CountDownLatch ready, AtomicBoolean running) throws Exception {
         int samples = 0;
         int activeWorkersMaximum = 0;
         int queuedWorkMaximum = 0;
+        int postgresMetricsUnavailableSamples = 0;
+        int postgresActiveConnectionsMaximum = 0;
+        int postgresTotalConnectionsMaximum = 0;
+        int postgresThreadsAwaitingConnectionMaximum = 0;
+        int postgresMaximumConnections = -1;
+        long sampleIntervalNanos = TimeUnit.MILLISECONDS.toNanos(5);
+        long nextSampleNanos = System.nanoTime();
         do {
             String metrics = adminMetrics(adminPort);
             activeWorkersMaximum = Math.max(activeWorkersMaximum,
@@ -4561,13 +4568,43 @@ class GatewayRuntimePostgresIntegrationTest {
             queuedWorkMaximum = Math.max(queuedWorkMaximum,
                     fixedGauge(metrics,
                             "chat_gateway_authentication_queue_size"));
+            int configuredMaximum = fixedGauge(
+                    metrics, "chat_gateway_postgres_connections_maximum");
+            if (postgresMaximumConnections < 0) {
+                postgresMaximumConnections = configuredMaximum;
+            } else {
+                assertEquals(postgresMaximumConnections, configuredMaximum,
+                        "PostgreSQL pool maximum changed during reconnect sampling");
+            }
+            if (fixedGauge(metrics,
+                    "chat_gateway_postgres_pool_metrics_available") == 0) {
+                postgresMetricsUnavailableSamples++;
+            } else {
+                postgresActiveConnectionsMaximum = Math.max(
+                        postgresActiveConnectionsMaximum,
+                        fixedGauge(metrics,
+                                "chat_gateway_postgres_connections_active"));
+                postgresTotalConnectionsMaximum = Math.max(
+                        postgresTotalConnectionsMaximum,
+                        fixedGauge(metrics,
+                                "chat_gateway_postgres_connections_total"));
+                postgresThreadsAwaitingConnectionMaximum = Math.max(
+                        postgresThreadsAwaitingConnectionMaximum,
+                        fixedGauge(metrics,
+                                "chat_gateway_postgres_threads_awaiting_connection"));
+            }
             samples++;
             ready.countDown();
             if (!running.get()) break;
-            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(5));
+            nextSampleNanos += sampleIntervalNanos;
+            long remaining = nextSampleNanos - System.nanoTime();
+            if (remaining > 0) LockSupport.parkNanos(remaining);
         } while (true);
-        return new AuthenticationSaturation(
-                samples, activeWorkersMaximum, queuedWorkMaximum);
+        return new ReconnectSaturation(
+                samples, activeWorkersMaximum, queuedWorkMaximum,
+                postgresMetricsUnavailableSamples, postgresActiveConnectionsMaximum,
+                postgresTotalConnectionsMaximum,
+                postgresThreadsAwaitingConnectionMaximum, postgresMaximumConnections);
     }
 
     private static int fixedGauge(String metrics, String name) {
@@ -4819,7 +4856,7 @@ class GatewayRuntimePostgresIntegrationTest {
     private static void writeMultiEdgeReconnectEvidence(
             Path output, int affected, int surviving, int batchSize,
             int intervalMillis, List<ReconnectSample> samples,
-            AuthenticationSaturation saturation, long elapsedNanos)
+            ReconnectSaturation saturation, long elapsedNanos)
             throws Exception {
         List<Long> latency = samples.stream().map(ReconnectSample::latencyMicros)
                 .sorted().toList();
@@ -4828,7 +4865,7 @@ class GatewayRuntimePostgresIntegrationTest {
         int batches = (affected + batchSize - 1) / batchSize;
         String json = """
                 {
-                  "schemaVersion": 2,
+                  "schemaVersion": 3,
                   "benchmark": "java-v2-haproxy-multi-edge-reconnect",
                   "warning": "local dual-edge recovery evidence; not a production capacity claim",
                   "recordedAt": "%s",
@@ -4863,6 +4900,15 @@ class GatewayRuntimePostgresIntegrationTest {
                       "activeWorkersMaximum": %d,
                       "queuedWorkMaximum": %d
                     },
+                    "postgresPoolSaturation": {
+                      "sampleIntervalMillis": 5,
+                      "samples": %d,
+                      "metricsUnavailableSamples": %d,
+                      "activeConnectionsMaximum": %d,
+                      "totalConnectionsMaximum": %d,
+                      "threadsAwaitingConnectionMaximum": %d,
+                      "configuredMaximumConnections": %d
+                    },
                     "elapsedMillis": %.3f,
                     "reconnectThroughputPerSecond": %.3f,
                     "sessionResumeLatencyMicros": %s,
@@ -4878,6 +4924,11 @@ class GatewayRuntimePostgresIntegrationTest {
                         (batches - 1) * intervalMillis, affected, samples.size(),
                         surviving, surviving + affected, saturation.samples(),
                         saturation.activeWorkersMaximum(), saturation.queuedWorkMaximum(),
+                        saturation.samples(), saturation.postgresMetricsUnavailableSamples(),
+                        saturation.postgresActiveConnectionsMaximum(),
+                        saturation.postgresTotalConnectionsMaximum(),
+                        saturation.postgresThreadsAwaitingConnectionMaximum(),
+                        saturation.postgresMaximumConnections(),
                         elapsedNanos / 1_000_000.0,
                         affected * 1_000_000_000.0 / elapsedNanos,
                         distributionJson(latency), distributionJson(jitter));
@@ -4907,8 +4958,15 @@ class GatewayRuntimePostgresIntegrationTest {
             long latencyMicros, long jitterMicros) {
     }
 
-    private record AuthenticationSaturation(
-            int samples, int activeWorkersMaximum, int queuedWorkMaximum) {
+    private record ReconnectSaturation(
+            int samples,
+            int activeWorkersMaximum,
+            int queuedWorkMaximum,
+            int postgresMetricsUnavailableSamples,
+            int postgresActiveConnectionsMaximum,
+            int postgresTotalConnectionsMaximum,
+            int postgresThreadsAwaitingConnectionMaximum,
+            int postgresMaximumConnections) {
     }
 
     private static Envelope clientHello(String deviceId) {

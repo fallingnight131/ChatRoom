@@ -1230,6 +1230,10 @@ Hikari active, idle, total, maximum, waiting-thread, and management-view
 availability gauges expose the gateway-owned PostgreSQL pool without SQL or
 identity labels. They are diagnostic only and do not change readiness or size
 the pool.
+ADR-0388 incorporates those gauges into the same reconnect-window snapshots as
+authentication saturation. Schema version 3 binds pool availability, active,
+total, waiting-thread, and configured-maximum observations to one target
+five-millisecond cadence while retaining schema versions 1 and 2 as history.
 
 ## 10. Attachment Flow
 

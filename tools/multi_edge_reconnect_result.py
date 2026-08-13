@@ -28,8 +28,8 @@ def validate(value: Any, expected_revision: str | None = None,
              require_clean: bool = False) -> dict[str, Any]:
     root = object_value(value, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2):
-        raise EvidenceError("schemaVersion must be 1 or 2")
+    if schema not in (1, 2, 3):
+        raise EvidenceError("schemaVersion must be 1, 2, or 3")
     if root.get("benchmark") != "java-v2-haproxy-multi-edge-reconnect":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != (
@@ -107,7 +107,7 @@ def validate(value: Any, expected_revision: str | None = None,
                  "scheduledStartJitterMicros", affected)
     if schema == 1 and "authenticationSaturation" in results:
         raise EvidenceError("schemaVersion 1 cannot contain authenticationSaturation")
-    if schema == 2:
+    if schema >= 2:
         saturation = object_value(
             results.get("authenticationSaturation"),
             "authenticationSaturation")
@@ -126,6 +126,45 @@ def validate(value: Any, expected_revision: str | None = None,
             "authenticationSaturation.queuedWorkMaximum", 0)
         if active > affected or queued > affected:
             raise EvidenceError("authentication saturation exceeds bounded workload")
+    if schema < 3 and "postgresPoolSaturation" in results:
+        raise EvidenceError("schemaVersion below 3 cannot contain postgresPoolSaturation")
+    if schema == 3:
+        postgres = object_value(
+            results.get("postgresPoolSaturation"), "postgresPoolSaturation")
+        if set(postgres) != {
+                "sampleIntervalMillis", "samples", "metricsUnavailableSamples",
+                "activeConnectionsMaximum", "totalConnectionsMaximum",
+                "threadsAwaitingConnectionMaximum",
+                "configuredMaximumConnections"}:
+            raise EvidenceError("postgresPoolSaturation fields are invalid")
+        if postgres.get("sampleIntervalMillis") != 5:
+            raise EvidenceError("PostgreSQL pool saturation interval must be 5 ms")
+        postgres_samples = integer(
+            postgres.get("samples"), "postgresPoolSaturation.samples", 2)
+        if postgres_samples != saturation["samples"]:
+            raise EvidenceError("resource saturation sample counts disagree")
+        unavailable = integer(
+            postgres.get("metricsUnavailableSamples"),
+            "postgresPoolSaturation.metricsUnavailableSamples", 0)
+        if unavailable != 0:
+            raise EvidenceError("PostgreSQL pool metrics must be available for every sample")
+        configured = integer(
+            postgres.get("configuredMaximumConnections"),
+            "postgresPoolSaturation.configuredMaximumConnections", 1)
+        if configured != 4:
+            raise EvidenceError("PostgreSQL pool maximum does not match the scenario")
+        active_connections = integer(
+            postgres.get("activeConnectionsMaximum"),
+            "postgresPoolSaturation.activeConnectionsMaximum", 1)
+        total_connections = integer(
+            postgres.get("totalConnectionsMaximum"),
+            "postgresPoolSaturation.totalConnectionsMaximum", 1)
+        awaiting = integer(
+            postgres.get("threadsAwaitingConnectionMaximum"),
+            "postgresPoolSaturation.threadsAwaitingConnectionMaximum", 0)
+        if (active_connections > configured or total_connections > configured
+                or active_connections > total_connections or awaiting > affected):
+            raise EvidenceError("PostgreSQL pool saturation exceeds bounded scenario")
     return root
 
 

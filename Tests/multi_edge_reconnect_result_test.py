@@ -51,6 +51,27 @@ def evidence():
     }
 
 
+def authentication_saturation():
+    return {
+        "sampleIntervalMillis": 5,
+        "samples": 24,
+        "activeWorkersMaximum": 3,
+        "queuedWorkMaximum": 0,
+    }
+
+
+def postgres_pool_saturation():
+    return {
+        "sampleIntervalMillis": 5,
+        "samples": 24,
+        "metricsUnavailableSamples": 0,
+        "activeConnectionsMaximum": 3,
+        "totalConnectionsMaximum": 4,
+        "threadsAwaitingConnectionMaximum": 0,
+        "configuredMaximumConnections": 4,
+    }
+
+
 class MultiEdgeReconnectResultTest(unittest.TestCase):
     def test_accepts_reconciled_clean_evidence(self):
         validate(evidence(), "a" * 40, require_clean=True)
@@ -58,22 +79,19 @@ class MultiEdgeReconnectResultTest(unittest.TestCase):
     def test_accepts_in_window_saturation_evidence(self):
         value = evidence()
         value["schemaVersion"] = 2
-        value["results"]["authenticationSaturation"] = {
-            "sampleIntervalMillis": 5,
-            "samples": 24,
-            "activeWorkersMaximum": 3,
-            "queuedWorkMaximum": 0,
-        }
+        value["results"]["authenticationSaturation"] = authentication_saturation()
+        validate(value, "a" * 40, require_clean=True)
+
+    def test_accepts_postgres_pool_saturation_evidence(self):
+        value = evidence()
+        value["schemaVersion"] = 3
+        value["results"]["authenticationSaturation"] = authentication_saturation()
+        value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
         validate(value, "a" * 40, require_clean=True)
 
     def test_rejects_saturation_extension_without_schema_upgrade(self):
         value = evidence()
-        value["results"]["authenticationSaturation"] = {
-            "sampleIntervalMillis": 5,
-            "samples": 24,
-            "activeWorkersMaximum": 3,
-            "queuedWorkMaximum": 0,
-        }
+        value["results"]["authenticationSaturation"] = authentication_saturation()
         with self.assertRaises(EvidenceError):
             validate(value, "a" * 40, require_clean=True)
 
@@ -102,6 +120,41 @@ class MultiEdgeReconnectResultTest(unittest.TestCase):
             mutate(saturation)
             with self.subTest(saturation=saturation), self.assertRaises(EvidenceError):
                 validate(value, "a" * 40, require_clean=True)
+
+    def test_rejects_missing_or_invalid_postgres_pool_saturation(self):
+        value = evidence()
+        value["schemaVersion"] = 3
+        value["results"]["authenticationSaturation"] = authentication_saturation()
+        with self.assertRaises(EvidenceError):
+            validate(value, "a" * 40, require_clean=True)
+
+        for mutate in (
+            lambda saturation: saturation.update(sampleIntervalMillis=10),
+            lambda saturation: saturation.update(samples=23),
+            lambda saturation: saturation.update(metricsUnavailableSamples=1),
+            lambda saturation: saturation.update(activeConnectionsMaximum=0),
+            lambda saturation: saturation.update(totalConnectionsMaximum=5),
+            lambda saturation: saturation.update(
+                threadsAwaitingConnectionMaximum=13),
+            lambda saturation: saturation.update(configuredMaximumConnections=8),
+            lambda saturation: saturation.update(extraField=1),
+        ):
+            value = evidence()
+            value["schemaVersion"] = 3
+            value["results"]["authenticationSaturation"] = authentication_saturation()
+            saturation = postgres_pool_saturation()
+            value["results"]["postgresPoolSaturation"] = saturation
+            mutate(saturation)
+            with self.subTest(saturation=saturation), self.assertRaises(EvidenceError):
+                validate(value, "a" * 40, require_clean=True)
+
+    def test_rejects_postgres_pool_extension_without_schema_upgrade(self):
+        value = evidence()
+        value["schemaVersion"] = 2
+        value["results"]["authenticationSaturation"] = authentication_saturation()
+        value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+        with self.assertRaises(EvidenceError):
+            validate(value, "a" * 40, require_clean=True)
 
     def test_rejects_topology_reconciliation_and_distribution_errors(self):
         for mutate in (

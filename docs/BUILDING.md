@@ -1626,6 +1626,10 @@ The loopback metrics endpoint also exports the gateway-owned PostgreSQL pool's
 management-view availability, active, idle, total, configured maximum, and
 waiting-thread gauges. Sample these during a workload; an idle snapshot cannot
 exclude transient connection pressure (ADR-0387).
+New dual-edge evidence uses schema version 3 to capture authentication and
+PostgreSQL pool peaks from each shared loopback snapshot. Sample starts follow a
+five-millisecond target cadence; overruns are not followed by an extra delay,
+and the recorded sample count remains part of the result (ADR-0388).
 
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
