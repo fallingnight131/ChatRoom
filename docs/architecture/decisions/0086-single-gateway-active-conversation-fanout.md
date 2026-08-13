@@ -1,6 +1,6 @@
 # ADR-0086: Single-gateway Active-conversation Fan-out
 
-- Status: Accepted
+- Status: Superseded by ADR-0345
 - Date: 2026-08-12
 - Related milestone: M3
 

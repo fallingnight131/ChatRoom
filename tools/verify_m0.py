@@ -78,6 +78,7 @@ def verify_java_gateway_performance(args: argparse.Namespace, output: Path) -> N
         "--messages", str(args.java_gateway_performance_messages),
         "--payload-bytes", str(args.java_gateway_performance_payload_bytes),
         "--receivers", str(args.java_gateway_performance_receivers),
+        "--active-conversations", str(args.java_gateway_performance_active_conversations),
         "--reconnect-rounds", str(args.java_gateway_performance_reconnect_rounds),
         "--slow-consumer-max-messages",
         str(args.java_gateway_performance_slow_consumer_max_messages),
@@ -571,6 +572,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--java-gateway-performance-messages", type=int, default=200)
     parser.add_argument("--java-gateway-performance-payload-bytes", type=int, default=256)
     parser.add_argument("--java-gateway-performance-receivers", type=int, default=1)
+    parser.add_argument("--java-gateway-performance-active-conversations", type=int, default=1)
     parser.add_argument("--java-gateway-performance-reconnect-rounds", type=int, default=0)
     parser.add_argument(
         "--java-gateway-performance-slow-consumer-max-messages", type=int, default=0)

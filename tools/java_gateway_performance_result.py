@@ -54,8 +54,8 @@ def validate(
 ) -> dict[str, Any]:
     root = object_value(result, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2, 3, 4, 5, 6):
-        raise EvidenceError("schemaVersion must be 1, 2, 3, 4, 5, or 6")
+    if schema not in (1, 2, 3, 4, 5, 6, 7):
+        raise EvidenceError("schemaVersion must be 1, 2, 3, 4, 5, 6, or 7")
     if root.get("benchmark") != "java-v2-gateway-messaging":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != "loopback development evidence; not a capacity claim":
@@ -114,6 +114,8 @@ def validate(
         raise EvidenceError("PostgreSQL saturation evidence requires GROUP identity")
     if schema == 6 and receivers > 1 and scenario.get("conversationKind") != "GROUP":
         raise EvidenceError("multi-receiver PostgreSQL outage evidence requires GROUP identity")
+    if schema == 7 and scenario.get("conversationKind") != "GROUP":
+        raise EvidenceError("active-conversation evidence requires GROUP identity")
     warmup = integer(scenario.get("warmupOperations"), "warmupOperations")
     messages = integer(scenario.get("messageOperations"), "messageOperations", 1)
     payload_bytes = integer(scenario.get("payloadBytes"), "payloadBytes", 1)
@@ -136,6 +138,19 @@ def validate(
                         + saturation_senders + (1 if schema == 6 else 0))
     if scenario.get("durableMessages") != expected_durable:
         raise EvidenceError("durable message reconciliation is invalid")
+    if schema == 7:
+        active_conversations = integer(
+            scenario.get("activeConversations"), "activeConversations", 2)
+        if active_conversations > 100:
+            raise EvidenceError("activeConversations exceeds the bounded scenario")
+        if warmup % active_conversations or messages % active_conversations:
+            raise EvidenceError("operations must divide evenly across active conversations")
+        if scenario.get("memberships") != active_conversations * (receivers + 1):
+            raise EvidenceError("active-conversation membership count is invalid")
+        if scenario.get("routingSubscriptions") != active_conversations * receivers:
+            raise EvidenceError("active-conversation routing subscription count is invalid")
+        if scenario.get("durableMessagesPerConversation") != expected_durable // active_conversations:
+            raise EvidenceError("per-conversation durable reconciliation is invalid")
 
     results = object_value(root.get("results"), "results")
     distributions = (
@@ -157,6 +172,23 @@ def validate(
         mean = number(distribution.get("mean"), f"{distribution_name}.mean", positive=True)
         if mean < ordered[0] or mean > ordered[-1]:
             raise EvidenceError(f"{distribution_name} mean is out of range")
+    if schema == 7:
+        activation = object_value(
+            results.get("conversationActivationLatencyMicros"),
+            "conversationActivationLatencyMicros")
+        if activation.get("samples") != receivers:
+            raise EvidenceError("conversation activation sample count is invalid")
+        ordered = [
+            number(activation.get(field),
+                   f"conversationActivationLatencyMicros.{field}", positive=True)
+            for field in ("min", "p50", "p95", "p99", "max")
+        ]
+        if ordered != sorted(ordered):
+            raise EvidenceError("conversation activation percentiles are not monotonic")
+        mean = number(activation.get("mean"),
+                      "conversationActivationLatencyMicros.mean", positive=True)
+        if mean < ordered[0] or mean > ordered[-1]:
+            raise EvidenceError("conversation activation mean is out of range")
     number(results.get("completedMessageThroughputPerSecond"),
            "completedMessageThroughputPerSecond", positive=True)
     if results.get("errors") != 0:

@@ -179,6 +179,21 @@ one live publication to each caught-up peer. It records outage-response and
 recovery latency, but a single loopback restart is not an availability SLO or a
 claim about production failover.
 
+Set `--java-gateway-performance-active-conversations C` (`2 <= C <= 100`) to
+run the mutually exclusive schema-7 active-conversation scenario. Every
+receiver reads the final authorized history page for all `C` GROUP
+conversations, retaining each process-local subscription. Warm-up and measured
+operation counts must divide evenly by `C`; submissions rotate across the
+conversations and each conversation must finish with the same continuous
+durable sequence. The scenario records receiver activation latency across all
+conversations, exact `(C * receivers)` routing subscriptions, exact
+`C * (receivers + 1)` memberships, ordinary all-peer latency, and aggregate
+publications.
+
+The 100-conversation bound matches the production per-channel route bound in
+ADR-0345. This measures one gateway's reconstructable live-routing state; it
+does not prove cross-gateway delivery or establish that Redis is required.
+
 ## Evidence contract
 
 `tools/java_performance_result.py` requires:
@@ -212,6 +227,10 @@ Schema 6 requires the same bounded pool/timeout identity, an original-connection
 retry marker, liveness 200 during the outage, readiness 503-to-200 recovery, one
 redacted retryable failure, one converged retry, exact peer publications, and
 one additional durable sequence.
+Schema 7 requires 2–100 active GROUP conversations, evenly distributed
+operations, exact membership and routing-subscription counts, one activation
+sample per receiver, exact all-peer publications, and identical independently
+reconciled durable counts per conversation.
 
 Results also carry `worktreeDirty`. CI requires a clean tree and exact workflow
 revision. A dirty local result remains useful for development comparison but is

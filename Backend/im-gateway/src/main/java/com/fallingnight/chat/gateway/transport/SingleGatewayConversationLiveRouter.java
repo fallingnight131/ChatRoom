@@ -26,10 +26,12 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Bounded-by-active-channels local router; Redis/multi-gateway routing belongs to M5. */
+/** Bounded per-channel local conversation router; Redis/multi-gateway routing belongs to M5. */
 public final class SingleGatewayConversationLiveRouter implements ConversationLiveRouter {
-    private static final AttributeKey<UUID> ACTIVE_CONVERSATION =
-            AttributeKey.valueOf("v2.activeConversation");
+    private static final int MAX_CONVERSATIONS_PER_CHANNEL = 100;
+    @SuppressWarnings("rawtypes")
+    private static final AttributeKey<java.util.Set> ACTIVE_CONVERSATIONS =
+            AttributeKey.valueOf("v2.activeConversations");
     private static final AttributeKey<Boolean> CLEANUP_REGISTERED =
             AttributeKey.valueOf("v2.liveCleanupRegistered");
 
@@ -46,7 +48,11 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
         Objects.requireNonNull(channel, "channel");
         Objects.requireNonNull(query, "query");
         Objects.requireNonNull(history, "history");
-        unsubscribe(channel);
+        java.util.Set<UUID> subscriptions = subscriptions(channel);
+        if (!subscriptions.contains(query.conversationId())
+                && subscriptions.size() >= MAX_CONVERSATIONS_PER_CHANNEL) {
+            throw new IllegalStateException("live conversation subscription limit reached");
+        }
         Route route = routes.computeIfAbsent(query.conversationId(), ignored -> new Route());
         synchronized (route) {
             try {
@@ -56,7 +62,7 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                         && channel.isActive()
                         && channel.attr(V2ConnectionAttributes.AUTHENTICATED).get() != null) {
                     route.channels.add(channel);
-                    channel.attr(ACTIVE_CONVERSATION).set(query.conversationId());
+                    subscriptions.add(query.conversationId());
                     registerCleanup(channel);
                 } else if (route.channels.isEmpty()) {
                     routes.remove(query.conversationId(), route);
@@ -278,14 +284,16 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
 
     @Override
     public void unsubscribe(Channel channel) {
-        UUID conversationId = channel.attr(ACTIVE_CONVERSATION).getAndSet(null);
-        if (conversationId == null) return;
-        Route route = routes.get(conversationId);
-        if (route == null) return;
-        synchronized (route) {
-            route.channels.remove(channel);
-            if (route.channels.isEmpty()) routes.remove(conversationId, route);
+        java.util.Set<UUID> conversationIds = subscriptions(channel);
+        for (UUID conversationId : java.util.Set.copyOf(conversationIds)) {
+            Route route = routes.get(conversationId);
+            if (route == null) continue;
+            synchronized (route) {
+                route.channels.remove(channel);
+                if (route.channels.isEmpty()) routes.remove(conversationId, route);
+            }
         }
+        conversationIds.clear();
     }
 
     int activeConversationCount() {
@@ -296,6 +304,17 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
         if (channel.attr(CLEANUP_REGISTERED).setIfAbsent(Boolean.TRUE) == null) {
             channel.closeFuture().addListener(ignored -> unsubscribe(channel));
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static java.util.Set<UUID> subscriptions(Channel channel) {
+        java.util.Set<UUID> subscriptions =
+                (java.util.Set<UUID>) channel.attr(ACTIVE_CONVERSATIONS).get();
+        if (subscriptions != null) return subscriptions;
+        java.util.Set<UUID> created = ConcurrentHashMap.newKeySet();
+        java.util.Set<UUID> existing =
+                (java.util.Set<UUID>) channel.attr(ACTIVE_CONVERSATIONS).setIfAbsent(created);
+        return existing == null ? created : existing;
     }
 
     private static MessageRecord record(StoredMessage message) {

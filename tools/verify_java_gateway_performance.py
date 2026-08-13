@@ -152,6 +152,7 @@ def executable_arguments(
         "--output", str(output), "--warmup", str(args.warmup),
         "--messages", str(args.messages), "--payload-bytes", str(args.payload_bytes),
         "--receivers", str(args.receivers),
+        "--active-conversations", str(args.active_conversations),
         "--reconnect-rounds", str(args.reconnect_rounds),
         "--slow-consumer-max-messages", str(args.slow_consumer_max_messages),
         "--postgres-saturation-senders", str(args.postgres_saturation_senders),
@@ -170,7 +171,7 @@ def require_boundary_rejections(
         boundary = argparse.Namespace(
             warmup=0, messages=1, payload_bytes=1, receivers=1, reconnect_rounds=0,
             slow_consumer_max_messages=0, postgres_saturation_senders=0,
-            postgres_outage=False)
+            postgres_outage=False, active_conversations=1)
         arguments = executable_arguments(
             executable, "jdbc:postgresql://database.example.test/chat",
             certificate, private_key, 9443, 9090, unused, Path(name), boundary)
@@ -204,6 +205,7 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--messages", type=int, default=200)
     value.add_argument("--payload-bytes", type=int, default=256)
     value.add_argument("--receivers", type=int, default=1)
+    value.add_argument("--active-conversations", type=int, default=1)
     value.add_argument("--reconnect-rounds", type=int, default=0)
     value.add_argument("--slow-consumer-max-messages", type=int, default=0)
     value.add_argument("--postgres-saturation-senders", type=int, default=0)

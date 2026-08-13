@@ -117,8 +117,9 @@ conversation as active. This is live fan-out, not delivery/read acknowledgement.
 The router serializes the final history query/subscription with local publication
 so a racing durable commit is observed in either the page or the stream. Only a
 new durable acceptance publishes; idempotent duplicates return type 101 without
-another event. Each channel has one active subscription, and switching, denial,
-disconnect, or close removes it. An unwritable subscriber is closed so reconnect
+another event. Each channel retains up to 100 authorized, caught-up conversation
+subscriptions; a denied history read affects no existing route, while disconnect
+or close removes all of them. An unwritable subscriber is closed so reconnect
 history repairs the gap instead of accumulating unbounded output. Published and
 slow-consumer-close metrics use fixed labels. Routing is process-local: multiple
 gateways require M5 Redis routing, and future membership mutations must invalidate

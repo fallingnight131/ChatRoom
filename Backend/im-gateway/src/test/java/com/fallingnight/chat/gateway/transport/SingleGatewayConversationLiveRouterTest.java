@@ -63,9 +63,63 @@ class SingleGatewayConversationLiveRouterTest {
                     channel,
                     new MessageHistoryQuery(OTHER_CONVERSATION, ACCOUNT, 0, 100),
                     ignored -> MessageHistoryResult.Rejected.NOT_AUTHORIZED);
+            assertEquals(1, router.activeConversationCount());
+            assertEquals(1, router.publish(message(CONVERSATION, 2)).published());
+            assertEquals(2, MessageRecord.parseFrom(
+                    ((Envelope) channel.readOutbound()).getPayload())
+                    .getConversationSequence());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void retainsMultipleAuthorizedCaughtUpConversationSubscriptions() throws Exception {
+        SingleGatewayConversationLiveRouter router = new SingleGatewayConversationLiveRouter(
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        EmbeddedChannel channel = authenticatedChannel();
+        try {
+            for (UUID conversation : List.of(CONVERSATION, OTHER_CONVERSATION)) {
+                router.readAndSubscribe(channel,
+                        new MessageHistoryQuery(conversation, ACCOUNT, 0, 100),
+                        ignored -> new MessageHistoryResult.Page(List.of(), 0, 0, false));
+            }
+            assertEquals(2, router.activeConversationCount());
+            assertEquals(1, router.publish(message(CONVERSATION, 1)).published());
+            assertEquals(1, router.publish(message(OTHER_CONVERSATION, 1)).published());
+            assertEquals(CONVERSATION.toString(), MessageRecord.parseFrom(
+                    ((Envelope) channel.readOutbound()).getPayload()).getConversationId());
+            assertEquals(OTHER_CONVERSATION.toString(), MessageRecord.parseFrom(
+                    ((Envelope) channel.readOutbound()).getPayload()).getConversationId());
+            channel.close().syncUninterruptibly();
             assertEquals(0, router.activeConversationCount());
-            assertEquals(0, router.publish(message(CONVERSATION, 2)).published());
-            assertNull(channel.readOutbound());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void rejectsTheOneHundredFirstSubscriptionWithoutRemovingExistingRoutes() {
+        SingleGatewayConversationLiveRouter router = new SingleGatewayConversationLiveRouter(
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        EmbeddedChannel channel = authenticatedChannel();
+        try {
+            for (int index = 1; index <= 100; ++index) {
+                UUID conversation = new UUID(0x5000000000004000L, index);
+                router.readAndSubscribe(channel,
+                        new MessageHistoryQuery(conversation, ACCOUNT, 0, 100),
+                        ignored -> new MessageHistoryResult.Page(List.of(), 0, 0, false));
+            }
+            assertEquals(100, router.activeConversationCount());
+            UUID overflow = new UUID(0x5000000000004000L, 101);
+            assertThrows(IllegalStateException.class, () -> router.readAndSubscribe(channel,
+                    new MessageHistoryQuery(overflow, ACCOUNT, 0, 100),
+                    ignored -> new MessageHistoryResult.Page(List.of(), 0, 0, false)));
+            assertEquals(100, router.activeConversationCount());
+            assertEquals(1, router.publish(message(
+                    new UUID(0x5000000000004000L, 1), 1)).published());
+            channel.close().syncUninterruptibly();
+            assertEquals(0, router.activeConversationCount());
         } finally {
             channel.finishAndReleaseAll();
         }

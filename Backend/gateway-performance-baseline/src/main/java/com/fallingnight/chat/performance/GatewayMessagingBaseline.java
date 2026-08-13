@@ -96,8 +96,11 @@ public final class GatewayMessagingBaseline {
         for (int index = 0; index < configuration.postgresSaturationSenders(); ++index) {
             saturationAccounts.add(UUID.randomUUID());
         }
-        UUID conversation = UUID.randomUUID();
-        seed(configuration, senderAccount, peerAccounts, saturationAccounts, conversation);
+        List<UUID> conversations = new ArrayList<>(configuration.activeConversations());
+        for (int index = 0; index < configuration.activeConversations(); ++index) {
+            conversations.add(UUID.randomUUID());
+        }
+        seed(configuration, senderAccount, peerAccounts, saturationAccounts, conversations);
 
         OperatingSystemMXBean operatingSystem = (OperatingSystemMXBean)
                 ManagementFactory.getOperatingSystemMXBean();
@@ -109,6 +112,7 @@ public final class GatewayMessagingBaseline {
         List<ClientConnection> peers = new ArrayList<>(configuration.receivers());
         List<ClientConnection> saturationSenders =
                 new ArrayList<>(configuration.postgresSaturationSenders());
+        List<Long> conversationActivationMicros = new ArrayList<>(configuration.receivers());
         try {
             runtime = GatewayRuntime.create(runtimeConfiguration(configuration));
             runtime.start();
@@ -122,7 +126,9 @@ public final class GatewayMessagingBaseline {
                 ClientConnection peer = connectAndAuthenticate(
                         configuration, "gateway-peer-" + index, "peer-device-" + index);
                 setupMicros.add(elapsedMicros(peerSetupStart));
-                catchUp(peer, conversation);
+                long activationStarted = System.nanoTime();
+                for (UUID conversation : conversations) catchUp(peer, conversation);
+                conversationActivationMicros.add(elapsedMicros(activationStarted));
                 peers.add(peer);
             }
             for (int index = 0; index < configuration.postgresSaturationSenders(); ++index) {
@@ -133,16 +139,20 @@ public final class GatewayMessagingBaseline {
             }
 
             for (int index = 0; index < configuration.warmupOperations(); ++index) {
-                roundTrip(sender, peers, conversation, "warmup-" + index,
-                        configuration.payloadBytes(), index + 1L);
+                int conversationIndex = index % conversations.size();
+                long expectedSequence = index / conversations.size() + 1L;
+                roundTrip(sender, peers, conversations.get(conversationIndex),
+                        "warmup-" + index, configuration.payloadBytes(), expectedSequence);
             }
             List<Long> acknowledgementMicros = new ArrayList<>(configuration.messageOperations());
             List<Long> fanoutMicros = new ArrayList<>(configuration.messageOperations());
             long measuredStart = System.nanoTime();
             for (int index = 0; index < configuration.messageOperations(); ++index) {
-                long expectedSequence = configuration.warmupOperations() + index + 1L;
+                int conversationIndex = index % conversations.size();
+                long expectedSequence = configuration.warmupOperations()
+                        / conversations.size() + index / conversations.size() + 1L;
                 TimedRoundTrip result = roundTrip(
-                        sender, peers, conversation, "measured-" + index,
+                        sender, peers, conversations.get(conversationIndex), "measured-" + index,
                         configuration.payloadBytes(), expectedSequence);
                 acknowledgementMicros.add(result.acknowledgementMicros());
                 fanoutMicros.add(result.fanoutMicros());
@@ -151,7 +161,9 @@ public final class GatewayMessagingBaseline {
             long measuredNanos = System.nanoTime() - measuredStart;
             long durableMessages = (long) configuration.warmupOperations()
                     + configuration.messageOperations();
-            requireMessageState(configuration, conversation, durableMessages);
+            requireMessageState(configuration, conversations,
+                    durableMessages / conversations.size());
+            UUID conversation = conversations.getFirst();
             SlowConsumerResult slowConsumer = slowConsumer(
                     configuration, sender, peers, conversation, durableMessages);
             if (slowConsumer.measured()) {
@@ -184,7 +196,7 @@ public final class GatewayMessagingBaseline {
             peakHeap = Math.max(peakHeap, usedHeap());
             write(configuration, startedAt, Duration.between(startedAt, Instant.now()),
                     cpuNanos, peakHeap, durableMessages,
-                    setupMicros,
+                    setupMicros, conversationActivationMicros,
                     acknowledgementMicros, fanoutMicros, measuredNanos, reconnect,
                     slowConsumer, saturation, outage);
         } finally {
@@ -882,7 +894,7 @@ public final class GatewayMessagingBaseline {
 
     private static void seed(
             Configuration configuration, UUID sender, List<UUID> peers,
-            List<UUID> saturationSenders, UUID conversation)
+            List<UUID> saturationSenders, List<UUID> conversations)
             throws SQLException {
         PGSimpleDataSource dataSource = new PGSimpleDataSource();
         dataSource.setUrl(configuration.jdbcUrl());
@@ -904,24 +916,29 @@ public final class GatewayMessagingBaseline {
                         "gateway-saturation-" + index, "Gateway Saturation " + index,
                         PASSWORD_HASH);
             }
-            if (!configuration.group()) {
-                execute(connection,
-                        "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')",
-                        conversation);
-            } else {
-                execute(connection, "INSERT INTO chat.conversation(id, kind, title) "
-                        + "VALUES (?, 'GROUP', 'Gateway Benchmark Group')", conversation);
-            }
-            execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
-                    + "account_id, role) VALUES (?, ?, ?)", conversation, sender,
-                    configuration.group() ? "OWNER" : "MEMBER");
-            for (UUID peer : peers) {
+            for (int conversationIndex = 0;
+                    conversationIndex < conversations.size(); ++conversationIndex) {
+                UUID conversation = conversations.get(conversationIndex);
+                if (!configuration.group()) {
+                    execute(connection,
+                            "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')",
+                            conversation);
+                } else {
+                    execute(connection, "INSERT INTO chat.conversation(id, kind, title) "
+                            + "VALUES (?, 'GROUP', ?)", conversation,
+                            "Gateway Benchmark Group " + conversationIndex);
+                }
                 execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
-                        + "account_id) VALUES (?, ?)", conversation, peer);
-            }
-            for (UUID saturationSender : saturationSenders) {
-                execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
-                        + "account_id) VALUES (?, ?)", conversation, saturationSender);
+                        + "account_id, role) VALUES (?, ?, ?)", conversation, sender,
+                        configuration.group() ? "OWNER" : "MEMBER");
+                for (UUID peer : peers) {
+                    execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
+                            + "account_id) VALUES (?, ?)", conversation, peer);
+                }
+                for (UUID saturationSender : saturationSenders) {
+                    execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
+                            + "account_id) VALUES (?, ?)", conversation, saturationSender);
+                }
             }
             if (!saturationSenders.isEmpty()) installSaturationTrigger(connection);
             connection.commit();
@@ -968,6 +985,14 @@ public final class GatewayMessagingBaseline {
         }
     }
 
+    private static void requireMessageState(
+            Configuration configuration, List<UUID> conversations, long expectedPerConversation)
+            throws SQLException {
+        for (UUID conversation : conversations) {
+            requireMessageState(configuration, conversation, expectedPerConversation);
+        }
+    }
+
     private static void execute(Connection connection, String sql, Object... values)
             throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -983,7 +1008,8 @@ public final class GatewayMessagingBaseline {
     private static void write(
             Configuration configuration, Instant startedAt, Duration wall,
             long cpuNanos, long peakHeap, long durableMessages,
-            List<Long> setupMicros, List<Long> acknowledgementMicros,
+            List<Long> setupMicros, List<Long> conversationActivationMicros,
+            List<Long> acknowledgementMicros,
             List<Long> fanoutMicros, long measuredNanos, ReconnectResult reconnect,
             SlowConsumerResult slowConsumer, PostgresSaturationResult saturation,
             PostgresOutageResult outage)
@@ -999,9 +1025,10 @@ public final class GatewayMessagingBaseline {
             boolean slowConsumerMeasured = configuration.slowConsumerMaxMessages() > 0;
             boolean saturationMeasured = configuration.postgresSaturationSenders() > 0;
             boolean outageMeasured = configuration.postgresOutage();
-            json.writeNumberField("schemaVersion", outageMeasured
-                    ? 6 : (saturationMeasured ? 5 : (slowConsumerMeasured
-                            ? 4 : (reconnectMeasured ? 3 : (group ? 2 : 1)))));
+            boolean activeConversationsMeasured = configuration.activeConversations() > 1;
+            json.writeNumberField("schemaVersion", activeConversationsMeasured
+                    ? 7 : (outageMeasured ? 6 : (saturationMeasured ? 5 : (slowConsumerMeasured
+                            ? 4 : (reconnectMeasured ? 3 : (group ? 2 : 1))))));
             json.writeStringField("benchmark", "java-v2-gateway-messaging");
             json.writeStringField("startedAt", startedAt.toString());
             json.writeStringField("warning", "loopback development evidence; not a capacity claim");
@@ -1026,6 +1053,18 @@ public final class GatewayMessagingBaseline {
             json.writeNumberField("messageOperations", configuration.messageOperations());
             json.writeNumberField("payloadBytes", configuration.payloadBytes());
             json.writeNumberField("durableMessages", durableMessages);
+            if (activeConversationsMeasured) {
+                json.writeNumberField("activeConversations",
+                        configuration.activeConversations());
+                json.writeNumberField("memberships",
+                        (long) configuration.activeConversations()
+                                * (configuration.receivers() + 1));
+                json.writeNumberField("routingSubscriptions",
+                        (long) configuration.activeConversations()
+                                * configuration.receivers());
+                json.writeNumberField("durableMessagesPerConversation",
+                        durableMessages / configuration.activeConversations());
+            }
             if (reconnectMeasured) {
                 json.writeNumberField("reconnectRounds", configuration.reconnectRounds());
                 json.writeNumberField("reconnectOperations", reconnect.latencyMicros().size());
@@ -1054,6 +1093,10 @@ public final class GatewayMessagingBaseline {
             json.writeEndObject();
             json.writeObjectFieldStart("results");
             distribution(json, "connectionSetupLatencyMicros", setupMicros);
+            if (activeConversationsMeasured) {
+                distribution(json, "conversationActivationLatencyMicros",
+                        conversationActivationMicros);
+            }
             distribution(json, "submitToAcceptLatencyMicros", acknowledgementMicros);
             distribution(json, group
                     ? "submitToAllPeersPublishedLatencyMicros"
@@ -1334,7 +1377,7 @@ public final class GatewayMessagingBaseline {
             String jdbcUrl, String username, String password,
             Path certificate, Path privateKey, int gatewayPort, int adminPort,
             Path output, int warmupOperations, int messageOperations,
-            int payloadBytes, int receivers, int reconnectRounds,
+            int payloadBytes, int receivers, int activeConversations, int reconnectRounds,
             int slowConsumerMaxMessages, int postgresSaturationSenders,
             boolean postgresOutage, Path postgresOutageControlDir) {
         private Configuration {
@@ -1360,6 +1403,7 @@ public final class GatewayMessagingBaseline {
             // The default gateway allows 60 authentication attempts per direct peer;
             // the sender consumes one and the benchmark must not weaken that policy.
             bounded("receivers", receivers, 1, 59);
+            bounded("active conversations", activeConversations, 1, 100);
             bounded("reconnect rounds", reconnectRounds, 0, 20);
             bounded("slow consumer max messages", slowConsumerMaxMessages, 0, 100);
             bounded("PostgreSQL saturation senders", postgresSaturationSenders, 0, 16);
@@ -1385,6 +1429,17 @@ public final class GatewayMessagingBaseline {
                 throw new IllegalArgumentException(
                         "PostgreSQL outage must be measured separately");
             }
+            if (activeConversations > 1 && (postgresOutage
+                    || postgresSaturationSenders > 0 || slowConsumerMaxMessages > 0
+                    || reconnectRounds > 0)) {
+                throw new IllegalArgumentException(
+                        "active-conversation curves must be measured separately");
+            }
+            if (warmupOperations % activeConversations != 0
+                    || messageOperations % activeConversations != 0) {
+                throw new IllegalArgumentException(
+                        "warmup and messages must divide evenly across active conversations");
+            }
             long authenticationAttempts = (long) (receivers + 1) * (reconnectRounds + 1)
                     + (slowConsumerMaxMessages > 0 ? 1L : 0L)
                     + postgresSaturationSenders;
@@ -1409,6 +1464,7 @@ public final class GatewayMessagingBaseline {
                     "--jdbc-url", "--username", "--password", "--certificate",
                     "--private-key", "--gateway-port", "--admin-port", "--output",
                     "--warmup", "--messages", "--payload-bytes", "--receivers",
+                    "--active-conversations",
                     "--reconnect-rounds", "--slow-consumer-max-messages",
                     "--postgres-saturation-senders", "--postgres-outage",
                     "--postgres-outage-control-dir");
@@ -1427,6 +1483,7 @@ public final class GatewayMessagingBaseline {
                         Integer.parseInt(values.get("--messages")),
                         Integer.parseInt(values.get("--payload-bytes")),
                         Integer.parseInt(values.get("--receivers")),
+                        Integer.parseInt(values.get("--active-conversations")),
                         Integer.parseInt(values.get("--reconnect-rounds")),
                         Integer.parseInt(values.get("--slow-consumer-max-messages")),
                         Integer.parseInt(values.get("--postgres-saturation-senders")),
@@ -1451,7 +1508,8 @@ public final class GatewayMessagingBaseline {
         }
 
         private boolean group() {
-            return receivers > 1 || postgresSaturationSenders > 0;
+            return receivers > 1 || postgresSaturationSenders > 0
+                    || activeConversations > 1;
         }
     }
 }

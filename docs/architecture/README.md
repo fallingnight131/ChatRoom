@@ -804,9 +804,10 @@ sequence are in
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
-single-gateway router now establishes one active subscription only through the
-final authorized history page, publishes non-duplicate durable acceptance, and
-closes unwritable subscribers for reconnect repair. The Web client validates,
+single-gateway router now retains up to 100 active subscriptions per channel,
+each established only through that conversation's final authorized history
+page. It publishes non-duplicate durable acceptance and closes unwritable
+subscribers for reconnect repair. The Web client validates,
 merges, and history-repairs the event without skipping its contiguous cursor.
 Authenticated gateway connections now dispatch registered UTF-8 text submission
 and sequence-history reads through this boundary outside the Netty event loop,
@@ -822,14 +823,18 @@ or saturated database therefore removes the instance from new load without
 terminating existing sockets; readiness recovers automatically after the pool
 can provide a valid connection, and dependency details never enter the HTTP
 response.
-The disposable Java gateway harness now applies bounded pressure to a real
-two-connection Hikari pool with multiple authenticated WSS senders. Its
+The disposable Java gateway harness can distribute operations evenly across up
+to 100 active GROUP conversations, requiring exact per-conversation sequences,
+membership/subscription counts, and all-peer delivery. It also applies bounded
+pressure to a real two-connection Hikari pool with multiple authenticated WSS senders. Its
 throwaway-database-only delay trigger produces mixed initial acceptance and
 retryable acquisition timeout, proves readiness withdrawal without socket
 termination, then removes pressure and resubmits the original stable IDs until
 the database and live subscriber converge on one sequence/publication per
-operation. This is pool-saturation evidence, not complete database-host failure
-or a production pool-sizing claim.
+operation. A separate scenario stops and restarts its disposable PostgreSQL
+while the gateway and original WSS sessions remain alive, requiring liveness /
+readiness separation and same-ID recovery. These are bounded failure evidence,
+not production pool-sizing or availability claims.
 The application/PostgreSQL boundary now also provides a bounded, descending
 composite-cursor directory of only the authenticated account's active
 conversations, including canonical kind, direct-peer or group display name,
@@ -850,8 +855,8 @@ login/heartbeat with a separately injected directory executor, and the
 disposable PostgreSQL gate proves imported membership/admin/unread projection
 while excluding an unrelated room and canonical identifiers. No product
 listener installs that module.
-This remains a pre-cutover path: live fan-out is process-local and active-
-conversation-only, while delivery/read state, multi-gateway routing, membership
+This remains a pre-cutover path: live fan-out is process-local and bounded to
+caught-up conversations, while delivery/read state, multi-gateway routing, membership
 invalidation, broader conversation discovery, and supported-client cutover are
 still absent.
 

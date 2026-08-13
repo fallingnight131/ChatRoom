@@ -179,6 +179,8 @@ Run what applies to the touched scope:
   disposable-database pool-saturation/readiness/idempotent-retry scenario; use
   `--java-gateway-performance-postgres-outage` for the mutually exclusive real
   disposable-PostgreSQL stop/start, liveness/readiness, and original-WSS retry
+  scenario; use `--java-gateway-performance-active-conversations` for the
+  separate bounded multi-GROUP subscription and per-conversation sequence
   scenario;
   none is a production-capacity claim.
 - PostgreSQL: use `python3 tools/verify_m0.py --postgres` for clean migration,

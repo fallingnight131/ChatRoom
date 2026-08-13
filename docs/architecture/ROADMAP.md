@@ -1332,6 +1332,15 @@ Progress:
   recovery baseline with a 5.917 ms retryable outage response, liveness
   200/readiness 503 separation, readiness recovery in 307.830 ms, original-WSS
   same-ID retry, one durable sequence, and four exact peer publications.
+- [x] Replace the one-active-conversation-per-channel preview with up to 100
+  retained, authorized, caught-up process-local subscriptions, preserving
+  failed-history isolation, close cleanup, and sequence-history repair
+  (ADR-0345).
+- [x] Add a schema-7 production WSS/PostgreSQL active-conversation scenario with
+  even per-conversation operations, exact membership/subscription counts,
+  activation latency, all-peer publications, and independent durable sequence
+  reconciliation while preserving schema 1–6 evidence.
+- [ ] Record clean, comparable active-conversation and large-group curves.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.

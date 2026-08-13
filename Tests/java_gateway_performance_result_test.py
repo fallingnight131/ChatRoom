@@ -167,6 +167,27 @@ def valid_postgres_outage_result() -> dict:
     return result
 
 
+def valid_active_conversations_result() -> dict:
+    result = valid_group_result()
+    result["schemaVersion"] = 7
+    result["scenario"].update({
+        "activeConversations": 2,
+        "memberships": 10,
+        "routingSubscriptions": 8,
+        "durableMessagesPerConversation": 2,
+        "messageOperations": 4,
+    })
+    result["scenario"]["warmupOperations"] = 0
+    result["results"]["submitToAcceptLatencyMicros"]["samples"] = 4
+    result["results"]["submitToAllPeersPublishedLatencyMicros"]["samples"] = 4
+    result["results"]["peerPublications"] = 16
+    result["results"]["conversationActivationLatencyMicros"] = {
+        "samples": 4, "min": 1, "p50": 2, "p95": 3,
+        "p99": 4, "max": 5, "mean": 2.5,
+    }
+    return result
+
+
 class GatewayPerformanceEvidenceTest(unittest.TestCase):
     def test_accepts_valid_clean_evidence(self) -> None:
         self.assertEqual(REVISION, validate(
@@ -181,6 +202,8 @@ class GatewayPerformanceEvidenceTest(unittest.TestCase):
             valid_postgres_saturation_result(), REVISION, require_clean=True)["schemaVersion"])
         self.assertEqual(6, validate(
             valid_postgres_outage_result(), REVISION, require_clean=True)["schemaVersion"])
+        self.assertEqual(7, validate(
+            valid_active_conversations_result(), REVISION, require_clean=True)["schemaVersion"])
 
     def test_rejects_semantic_mismatch_and_secret_content(self) -> None:
         mutations = []
@@ -236,6 +259,9 @@ class GatewayPerformanceEvidenceTest(unittest.TestCase):
         duplicate_outage_publication = valid_postgres_outage_result()
         duplicate_outage_publication["results"]["postgresOutagePeerPublications"] = 5
         mutations.append(duplicate_outage_publication)
+        wrong_subscriptions = valid_active_conversations_result()
+        wrong_subscriptions["scenario"]["routingSubscriptions"] = 7
+        mutations.append(wrong_subscriptions)
         for mutation in mutations:
             with self.subTest(mutation=mutation):
                 with self.assertRaises(EvidenceError):
