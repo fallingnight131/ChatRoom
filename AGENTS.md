@@ -172,7 +172,10 @@ Run what applies to the touched scope:
   --java-gateway-performance`; it is a two-connection TLS/WSS development
   scenario by default. Use `--java-gateway-performance-receivers` for bounded
   GROUP fan-out and `--java-gateway-performance-reconnect-rounds` for bounded
-  concurrent same-session resume; none is a production-capacity claim.
+  concurrent same-session resume. Use
+  `--java-gateway-performance-slow-consumer-max-messages` only with at least two
+  receivers to verify real-socket slow-consumer isolation and history repair;
+  none is a production-capacity claim.
 - PostgreSQL: use `python3 tools/verify_m0.py --postgres` for clean migration,
   same-database restart, checksum, and core constraint verification.
 - Protocol: test old-client/new-server and new-client/compatible-server paths.

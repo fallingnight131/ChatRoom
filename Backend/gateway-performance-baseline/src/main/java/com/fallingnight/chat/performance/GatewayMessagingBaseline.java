@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
@@ -136,6 +138,13 @@ public final class GatewayMessagingBaseline {
             long durableMessages = (long) configuration.warmupOperations()
                     + configuration.messageOperations();
             requireMessageState(configuration, conversation, durableMessages);
+            SlowConsumerResult slowConsumer = slowConsumer(
+                    configuration, sender, peers, conversation, durableMessages);
+            if (slowConsumer.measured()) {
+                peers.set(peers.size() - 1, slowConsumer.recoveredConnection());
+                durableMessages += slowConsumer.durableMessages();
+                requireMessageState(configuration, conversation, durableMessages);
+            }
             List<ClientConnection> activeConnections = new ArrayList<>(peers.size() + 1);
             activeConnections.add(sender);
             activeConnections.addAll(peers);
@@ -150,7 +159,8 @@ public final class GatewayMessagingBaseline {
             write(configuration, startedAt, Duration.between(startedAt, Instant.now()),
                     cpuNanos, peakHeap, durableMessages,
                     setupMicros,
-                    acknowledgementMicros, fanoutMicros, measuredNanos, reconnect);
+                    acknowledgementMicros, fanoutMicros, measuredNanos, reconnect,
+                    slowConsumer);
         } finally {
             for (ClientConnection peer : peers) peer.close();
             if (sender != null) sender.close();
@@ -287,6 +297,123 @@ public final class GatewayMessagingBaseline {
             if (cause instanceof Exception checked) throw checked;
             throw new IllegalStateException("reconnect worker failed", cause);
         }
+    }
+
+    private static SlowConsumerResult slowConsumer(
+            Configuration configuration,
+            ClientConnection sender,
+            List<ClientConnection> peers,
+            UUID conversation,
+            long initialSequence) throws Exception {
+        if (configuration.slowConsumerMaxMessages() == 0) {
+            return SlowConsumerResult.NONE;
+        }
+        ClientConnection slow = peers.getLast();
+        List<ClientConnection> healthy = List.copyOf(
+                peers.subList(0, peers.size() - 1));
+        slow.listener().pauseDemand();
+        List<Long> healthyLatencies = new ArrayList<>();
+        int sent = 0;
+        for (int index = 0; index < configuration.slowConsumerMaxMessages(); ++index) {
+            long expectedSequence = initialSequence + index + 1L;
+            TimedRoundTrip result = roundTrip(
+                    sender, healthy, conversation, "slow-" + index,
+                    configuration.payloadBytes(), expectedSequence);
+            healthyLatencies.add(result.fanoutMicros());
+            sent += 1;
+            if (metric(configuration, "live_slow_consumer_closed") == 1L) break;
+        }
+        long closures = metric(configuration, "live_slow_consumer_closed");
+        if (closures != 1L) {
+            throw new IllegalStateException(
+                    "slow consumer did not cross the production write watermark");
+        }
+
+        slow.close();
+        ClientConnection recovered = connectAndResume(configuration, slow);
+        try {
+            recoverHistory(recovered, conversation, initialSequence, sent,
+                    configuration.payloadBytes());
+            List<ClientConnection> recoveredPeers = new ArrayList<>(healthy.size() + 1);
+            recoveredPeers.addAll(healthy);
+            recoveredPeers.add(recovered);
+            TimedRoundTrip probe = roundTrip(
+                    sender, recoveredPeers, conversation, "slow-recovery-probe",
+                    configuration.payloadBytes(), initialSequence + sent + 1L);
+            return new SlowConsumerResult(
+                    recovered, sent, List.copyOf(healthyLatencies),
+                    probe.fanoutMicros(), closures);
+        } catch (Exception exception) {
+            recovered.close();
+            throw exception;
+        }
+    }
+
+    private static void recoverHistory(
+            ClientConnection recovered,
+            UUID conversation,
+            long afterSequence,
+            int expectedMessages,
+            int payloadBytes) throws Exception {
+        long cursor = afterSequence;
+        int recoveredMessages = 0;
+        long expectedLatest = afterSequence + expectedMessages;
+        while (recoveredMessages < expectedMessages) {
+            // Current compatible pages carry each message in both messages[] and entries[].
+            // Four maximum-size text messages keep the encoded envelope below 1 MiB.
+            int limit = Math.min(4, expectedMessages - recoveredMessages);
+            ReadMessageHistory payload = ReadMessageHistory.newBuilder()
+                    .setConversationId(conversation.toString())
+                    .setAfterSequence(cursor)
+                    .setLimit(limit)
+                    .build();
+            send(recovered.socket(), command(MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY,
+                    "slow-history-" + recoveredMessages, recovered.sessionId(), "",
+                    payload.toByteString()));
+            Envelope response = recovered.listener().next();
+            requireType(response, MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE);
+            MessageHistoryPage page = MessageHistoryPage.parseFrom(response.getPayload());
+            if (page.getMessagesCount() < 1 || page.getMessagesCount() > limit
+                    || page.getLatestSequence() != expectedLatest
+                    || page.getNextSequence() <= cursor) {
+                throw new IllegalStateException("slow consumer history page did not reconcile");
+            }
+            for (MessageRecord record : page.getMessagesList()) {
+                long expectedSequence = afterSequence + recoveredMessages + 1L;
+                if (record.getConversationSequence() != expectedSequence
+                        || !record.getClientMessageId().equals("slow-" + recoveredMessages)
+                        || record.getContent().size() != payloadBytes) {
+                    throw new IllegalStateException(
+                            "slow consumer history message did not reconcile");
+                }
+                recoveredMessages += 1;
+            }
+            cursor = page.getNextSequence();
+            if ((recoveredMessages < expectedMessages) != page.getHasMore()) {
+                throw new IllegalStateException("slow consumer history continuation was invalid");
+            }
+        }
+        if (cursor != expectedLatest) {
+            throw new IllegalStateException("slow consumer final history cursor was invalid");
+        }
+    }
+
+    private static long metric(Configuration configuration, String outcome) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(
+                        "http://127.0.0.1:" + configuration.adminPort() + "/metrics"))
+                .timeout(Duration.ofSeconds(2))
+                .GET()
+                .build();
+        HttpResponse<String> response = HttpClient.newHttpClient().send(
+                request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            throw new IllegalStateException("gateway metrics endpoint was unavailable");
+        }
+        String expected = "chat_gateway_messaging_total{outcome=\"" + outcome + "\"} ";
+        for (String line : response.body().lines().toList()) {
+            if (line.startsWith(expected)) return Long.parseLong(line.substring(expected.length()));
+        }
+        throw new IllegalStateException("gateway metric was absent: " + outcome);
     }
 
     private static void catchUp(ClientConnection peer, UUID conversation) throws Exception {
@@ -479,8 +606,8 @@ public final class GatewayMessagingBaseline {
             Configuration configuration, Instant startedAt, Duration wall,
             long cpuNanos, long peakHeap, long durableMessages,
             List<Long> setupMicros, List<Long> acknowledgementMicros,
-            List<Long> fanoutMicros, long measuredNanos, ReconnectResult reconnect)
-            throws IOException {
+            List<Long> fanoutMicros, long measuredNanos, ReconnectResult reconnect,
+            SlowConsumerResult slowConsumer) throws IOException {
         Path parent = configuration.output().toAbsolutePath().getParent();
         if (parent != null) Files.createDirectories(parent);
         try (JsonGenerator json = new JsonFactory().createGenerator(
@@ -489,7 +616,9 @@ public final class GatewayMessagingBaseline {
             json.writeStartObject();
             boolean group = configuration.receivers() > 1;
             boolean reconnectMeasured = configuration.reconnectRounds() > 0;
-            json.writeNumberField("schemaVersion", reconnectMeasured ? 3 : (group ? 2 : 1));
+            boolean slowConsumerMeasured = configuration.slowConsumerMaxMessages() > 0;
+            json.writeNumberField("schemaVersion", slowConsumerMeasured
+                    ? 4 : (reconnectMeasured ? 3 : (group ? 2 : 1)));
             json.writeStringField("benchmark", "java-v2-gateway-messaging");
             json.writeStringField("startedAt", startedAt.toString());
             json.writeStringField("warning", "loopback development evidence; not a capacity claim");
@@ -517,6 +646,14 @@ public final class GatewayMessagingBaseline {
                 json.writeNumberField("reconnectRounds", configuration.reconnectRounds());
                 json.writeNumberField("reconnectOperations", reconnect.latencyMicros().size());
             }
+            if (slowConsumerMeasured) {
+                json.writeNumberField(
+                        "slowConsumerMaxMessages", configuration.slowConsumerMaxMessages());
+                json.writeNumberField(
+                        "slowConsumerMessagesBeforeClosure", slowConsumer.messagesBeforeClosure());
+                json.writeNumberField("slowConsumerHealthyReceivers",
+                        configuration.receivers() - 1);
+            }
             json.writeEndObject();
             json.writeObjectFieldStart("results");
             distribution(json, "connectionSetupLatencyMicros", setupMicros);
@@ -533,6 +670,19 @@ public final class GatewayMessagingBaseline {
                 json.writeNumberField("sessionResumeThroughputPerSecond",
                         throughput(reconnect.latencyMicros().size(), reconnect.elapsedNanos()));
                 json.writeNumberField("resumeErrors", reconnect.errors());
+            }
+            if (slowConsumerMeasured) {
+                distribution(json, "slowConsumerHealthyPublishLatencyMicros",
+                        slowConsumer.healthyPublishLatencyMicros());
+                distribution(json, "slowConsumerRecoveryProbeLatencyMicros",
+                        List.of(slowConsumer.recoveryProbeLatencyMicros()));
+                json.writeNumberField("slowConsumerHealthyPeerPublications",
+                        (long) slowConsumer.messagesBeforeClosure()
+                                * (configuration.receivers() - 1));
+                json.writeNumberField("slowConsumerRecoveredHistoryMessages",
+                        slowConsumer.messagesBeforeClosure());
+                json.writeNumberField("slowConsumerClosed", slowConsumer.closures());
+                json.writeNumberField("slowConsumerErrors", 0);
             }
             json.writeNumberField("errors", 0);
             json.writeEndObject();
@@ -619,6 +769,28 @@ public final class GatewayMessagingBaseline {
         }
     }
 
+    private record SlowConsumerResult(
+            ClientConnection recoveredConnection,
+            int messagesBeforeClosure,
+            List<Long> healthyPublishLatencyMicros,
+            long recoveryProbeLatencyMicros,
+            long closures) {
+        private static final SlowConsumerResult NONE =
+                new SlowConsumerResult(null, 0, List.of(), 0, 0);
+
+        private SlowConsumerResult {
+            healthyPublishLatencyMicros = List.copyOf(healthyPublishLatencyMicros);
+        }
+
+        private boolean measured() {
+            return recoveredConnection != null;
+        }
+
+        private long durableMessages() {
+            return messagesBeforeClosure + 1L;
+        }
+    }
+
     private record ClientConnection(
             HttpClient client, WebSocket socket, EnvelopeListener listener,
             SessionEstablished session, String deviceId)
@@ -644,6 +816,7 @@ public final class GatewayMessagingBaseline {
         private final BlockingQueue<Envelope> envelopes = new LinkedBlockingQueue<>();
         private final AtomicReference<Throwable> failure = new AtomicReference<>();
         private final ByteArrayOutputStream fragments = new ByteArrayOutputStream();
+        private boolean demandEnabled = true;
 
         @Override public void onOpen(WebSocket webSocket) {
             webSocket.request(1);
@@ -663,7 +836,7 @@ public final class GatewayMessagingBaseline {
                     fragments.reset();
                 }
             }
-            webSocket.request(1);
+            if (demandEnabled) webSocket.request(1);
             return null;
         }
 
@@ -678,13 +851,18 @@ public final class GatewayMessagingBaseline {
             if (envelope == null) throw new IllegalStateException("timed out waiting for gateway");
             return envelope;
         }
+
+        private synchronized void pauseDemand() {
+            demandEnabled = false;
+        }
     }
 
     private record Configuration(
             String jdbcUrl, String username, String password,
             Path certificate, Path privateKey, int gatewayPort, int adminPort,
             Path output, int warmupOperations, int messageOperations,
-            int payloadBytes, int receivers, int reconnectRounds) {
+            int payloadBytes, int receivers, int reconnectRounds,
+            int slowConsumerMaxMessages) {
         private Configuration {
             Objects.requireNonNull(jdbcUrl, "jdbcUrl");
             Objects.requireNonNull(username, "username");
@@ -705,7 +883,17 @@ public final class GatewayMessagingBaseline {
             // the sender consumes one and the benchmark must not weaken that policy.
             bounded("receivers", receivers, 1, 59);
             bounded("reconnect rounds", reconnectRounds, 0, 20);
-            long authenticationAttempts = (long) (receivers + 1) * (reconnectRounds + 1);
+            bounded("slow consumer max messages", slowConsumerMaxMessages, 0, 100);
+            if (slowConsumerMaxMessages > 0 && receivers < 2) {
+                throw new IllegalArgumentException(
+                        "slow consumer scenario requires one slow and one healthy receiver");
+            }
+            if (slowConsumerMaxMessages > 0 && reconnectRounds > 0) {
+                throw new IllegalArgumentException(
+                        "slow consumer and reconnect scenarios must be measured separately");
+            }
+            long authenticationAttempts = (long) (receivers + 1) * (reconnectRounds + 1)
+                    + (slowConsumerMaxMessages > 0 ? 1L : 0L);
             if (authenticationAttempts > 60) {
                 throw new IllegalArgumentException(
                         "initial authentication plus resumes exceed the default peer window");
@@ -727,7 +915,7 @@ public final class GatewayMessagingBaseline {
                     "--jdbc-url", "--username", "--password", "--certificate",
                     "--private-key", "--gateway-port", "--admin-port", "--output",
                     "--warmup", "--messages", "--payload-bytes", "--receivers",
-                    "--reconnect-rounds");
+                    "--reconnect-rounds", "--slow-consumer-max-messages");
             if (!values.keySet().equals(expected)) {
                 throw new IllegalArgumentException("missing or unknown gateway argument");
             }
@@ -743,7 +931,8 @@ public final class GatewayMessagingBaseline {
                         Integer.parseInt(values.get("--messages")),
                         Integer.parseInt(values.get("--payload-bytes")),
                         Integer.parseInt(values.get("--receivers")),
-                        Integer.parseInt(values.get("--reconnect-rounds")));
+                        Integer.parseInt(values.get("--reconnect-rounds")),
+                        Integer.parseInt(values.get("--slow-consumer-max-messages")));
             } catch (NumberFormatException exception) {
                 throw new IllegalArgumentException("gateway counts must be integers", exception);
             }

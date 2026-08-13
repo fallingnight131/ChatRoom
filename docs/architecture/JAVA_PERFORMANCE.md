@@ -78,7 +78,8 @@ The scenario is deliberately sequential so its latency distributions describe
 one submit/confirm/fan-out chain; it does not represent concurrent-user load.
 The payload parameter is bounded to `1..65536` bytes because this harness sends
 `TEXT_UTF8`; larger binary/file content belongs outside the messaging path and
-must not be used to force artificial socket pressure.
+must not be used to force socket pressure. The dedicated slow-consumer scenario
+uses the maximum valid text payload rather than inventing an oversized message.
 
 Set `--java-gateway-performance-receivers N` on the unified verifier to create a
 real GROUP conversation with one sender and `N` authenticated, caught-up WSS
@@ -112,6 +113,31 @@ safe production reconnect rate. Stale-token rejection remains a correctness
 gate in the session integration tests rather than a successful-resume latency
 sample.
 
+Set `--java-gateway-performance-slow-consumer-max-messages M` (`1 <= M <= 100`)
+with at least two receivers to run the separate schema-4 slow-consumer scenario.
+The last caught-up receiver stops requesting WebSocket messages while the
+sender continues durable submissions and every other receiver must consume each
+live publication. The scenario polls the production fixed-cardinality
+`live_slow_consumer_closed` metric and fails unless exactly one slow connection
+crosses the configured production write watermark within `M` messages. It does
+not lower the write watermark or weaken authentication admission.
+
+After closure, the client resumes the same server session with token rotation,
+requests every missing sequence in bounded pages, and must receive a final live
+probe together with all healthy receivers. Compatible history currently carries
+message data in both `messages[]` and ordered `entries[]`, so maximum-size text
+recovery uses four messages per page to remain below the 1 MiB V2 envelope
+limit. Slow-consumer and reconnect-round modes are mutually exclusive so their
+latency and admission effects cannot be conflated.
+
+Use a 65,536-byte payload when deliberately filling a real socket. The exact
+message at which closure occurs depends on the host kernel, TLS, and client
+receive buffers; it is a recorded observation, not a portable threshold. The
+scenario records healthy-peer latency until closure, exact healthy publication
+and recovered-history counts, the closure counter, and the post-recovery live
+probe. It does not yet record per-channel pending bytes because the production
+admin endpoint intentionally exposes no connection labels.
+
 ## Evidence contract
 
 `tools/java_performance_result.py` requires:
@@ -131,7 +157,10 @@ positive completed-chain throughput, zero errors, and no TLS material path.
 Schema 2 also requires GROUP identity and exact aggregate peer-publication
 count. Schema 3 additionally requires bounded rounds, exact per-connection
 resume counts, a monotonic latency distribution, positive resume throughput,
-and zero resume errors. A missing acknowledgement, publication, session
+and zero resume errors. Schema 4 requires a bounded closure point, exactly one
+slow-consumer action, continuous healthy-peer publications, exact sequence-based
+history recovery, and a recovery-probe latency sample. A missing acknowledgement,
+publication, session
 identity, token rotation, sequence, or durable database reconciliation causes
 the Java process to fail before evidence is promoted.
 
@@ -151,7 +180,7 @@ Before selecting distributed infrastructure, extend the harness in this order:
 1. many conversations and large active groups;
 2. broaden bounded session-resume evidence into controlled reconnect-rate and
    network-failure scenarios;
-3. slow/unwritable consumers and bounded queue behavior;
+3. extend slow-consumer evidence with portable pending-byte/backlog observation;
 4. PostgreSQL saturation and transient dependency failure;
 5. two gateways, only after an ADR defines reconstructable routing/presence
    ownership and measurements show the single-gateway limitation.

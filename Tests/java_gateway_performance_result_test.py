@@ -84,6 +84,32 @@ def valid_reconnect_result() -> dict:
     return result
 
 
+def valid_slow_consumer_result() -> dict:
+    result = valid_group_result()
+    result["schemaVersion"] = 4
+    result["scenario"].update({
+        "slowConsumerMaxMessages": 10,
+        "slowConsumerMessagesBeforeClosure": 5,
+        "slowConsumerHealthyReceivers": 3,
+        "durableMessages": 10,
+    })
+    result["results"].update({
+        "slowConsumerHealthyPublishLatencyMicros": {
+            "samples": 5, "min": 1, "p50": 2, "p95": 3,
+            "p99": 4, "max": 5, "mean": 2.5,
+        },
+        "slowConsumerRecoveryProbeLatencyMicros": {
+            "samples": 1, "min": 2, "p50": 2, "p95": 2,
+            "p99": 2, "max": 2, "mean": 2.0,
+        },
+        "slowConsumerHealthyPeerPublications": 15,
+        "slowConsumerRecoveredHistoryMessages": 5,
+        "slowConsumerClosed": 1,
+        "slowConsumerErrors": 0,
+    })
+    return result
+
+
 class GatewayPerformanceEvidenceTest(unittest.TestCase):
     def test_accepts_valid_clean_evidence(self) -> None:
         self.assertEqual(REVISION, validate(
@@ -92,6 +118,8 @@ class GatewayPerformanceEvidenceTest(unittest.TestCase):
             valid_group_result(), REVISION, require_clean=True)["schemaVersion"])
         self.assertEqual(3, validate(
             valid_reconnect_result(), REVISION, require_clean=True)["schemaVersion"])
+        self.assertEqual(4, validate(
+            valid_slow_consumer_result(), REVISION, require_clean=True)["schemaVersion"])
 
     def test_rejects_semantic_mismatch_and_secret_content(self) -> None:
         mutations = []
@@ -137,6 +165,9 @@ class GatewayPerformanceEvidenceTest(unittest.TestCase):
             },
         })
         mutations.append(excessive_authentication)
+        wrong_slow_recovery = valid_slow_consumer_result()
+        wrong_slow_recovery["results"]["slowConsumerRecoveredHistoryMessages"] = 4
+        mutations.append(wrong_slow_recovery)
         for mutation in mutations:
             with self.subTest(mutation=mutation):
                 with self.assertRaises(EvidenceError):

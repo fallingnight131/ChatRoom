@@ -1301,6 +1301,10 @@ Progress:
 - [x] Add a deterministic gateway-router correctness gate proving an unwritable
   subscriber is closed without blocking a healthy peer and can re-establish its
   subscription from durable history before live delivery resumes.
+- [x] Add a real TLS/WSS schema-4 slow-consumer scenario that preserves healthy
+  peer delivery, observes exactly one production closure metric, resumes the
+  same session, repairs every missing sequence in envelope-safe pages, and
+  proves restored live delivery without lowering production write watermarks.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.

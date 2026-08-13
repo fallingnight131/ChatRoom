@@ -54,8 +54,8 @@ def validate(
 ) -> dict[str, Any]:
     root = object_value(result, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2, 3):
-        raise EvidenceError("schemaVersion must be 1, 2, or 3")
+    if schema not in (1, 2, 3, 4):
+        raise EvidenceError("schemaVersion must be 1, 2, 3, or 4")
     if root.get("benchmark") != "java-v2-gateway-messaging":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != "loopback development evidence; not a capacity claim":
@@ -102,12 +102,28 @@ def validate(
         raise EvidenceError("schema 2 requires a multi-receiver group")
     if schema == 3 and receivers > 1 and scenario.get("conversationKind") != "GROUP":
         raise EvidenceError("multi-receiver reconnect evidence requires GROUP identity")
+    if schema == 4 and (receivers < 2 or scenario.get("conversationKind") != "GROUP"):
+        raise EvidenceError("slow-consumer evidence requires a multi-receiver group")
     warmup = integer(scenario.get("warmupOperations"), "warmupOperations")
     messages = integer(scenario.get("messageOperations"), "messageOperations", 1)
     payload_bytes = integer(scenario.get("payloadBytes"), "payloadBytes", 1)
     if payload_bytes > 65_536:
         raise EvidenceError("payloadBytes exceeds the UTF-8 text messaging limit")
-    if scenario.get("durableMessages") != warmup + messages:
+    slow_messages = 0
+    if schema == 4:
+        slow_max = integer(
+            scenario.get("slowConsumerMaxMessages"), "slowConsumerMaxMessages", 1)
+        if slow_max > 100:
+            raise EvidenceError("slowConsumerMaxMessages exceeds the bounded scenario")
+        slow_messages = integer(
+            scenario.get("slowConsumerMessagesBeforeClosure"),
+            "slowConsumerMessagesBeforeClosure", 1)
+        if slow_messages > slow_max:
+            raise EvidenceError("slow consumer closure exceeded the configured message bound")
+        if scenario.get("slowConsumerHealthyReceivers") != receivers - 1:
+            raise EvidenceError("slow consumer healthy receiver count is invalid")
+    expected_durable = warmup + messages + (slow_messages + 1 if schema == 4 else 0)
+    if scenario.get("durableMessages") != expected_durable:
         raise EvidenceError("durable message reconciliation is invalid")
 
     results = object_value(root.get("results"), "results")
@@ -162,6 +178,38 @@ def validate(
                "sessionResumeThroughputPerSecond", positive=True)
         if results.get("resumeErrors") != 0:
             raise EvidenceError("resumeErrors must be zero")
+    if schema == 4:
+        slow_distribution = object_value(
+            results.get("slowConsumerHealthyPublishLatencyMicros"),
+            "slowConsumerHealthyPublishLatencyMicros")
+        if slow_distribution.get("samples") != slow_messages:
+            raise EvidenceError("slow consumer healthy latency sample count is invalid")
+        probe_distribution = object_value(
+            results.get("slowConsumerRecoveryProbeLatencyMicros"),
+            "slowConsumerRecoveryProbeLatencyMicros")
+        for distribution_name, distribution, samples in (
+            ("slowConsumerHealthyPublishLatencyMicros", slow_distribution, slow_messages),
+            ("slowConsumerRecoveryProbeLatencyMicros", probe_distribution, 1),
+        ):
+            if distribution.get("samples") != samples:
+                raise EvidenceError(f"{distribution_name} sample count is invalid")
+            ordered = [
+                number(distribution.get(field), f"{distribution_name}.{field}", positive=True)
+                for field in ("min", "p50", "p95", "p99", "max")
+            ]
+            if ordered != sorted(ordered):
+                raise EvidenceError(f"{distribution_name} percentiles are not monotonic")
+            mean = number(distribution.get("mean"), f"{distribution_name}.mean", positive=True)
+            if mean < ordered[0] or mean > ordered[-1]:
+                raise EvidenceError(f"{distribution_name} mean is out of range")
+        if results.get("slowConsumerHealthyPeerPublications") != slow_messages * (receivers - 1):
+            raise EvidenceError("slow consumer healthy publication count is invalid")
+        if results.get("slowConsumerRecoveredHistoryMessages") != slow_messages:
+            raise EvidenceError("slow consumer recovered history count is invalid")
+        if results.get("slowConsumerClosed") != 1:
+            raise EvidenceError("slow consumer closure count must be exactly one")
+        if results.get("slowConsumerErrors") != 0:
+            raise EvidenceError("slowConsumerErrors must be zero")
 
     serialized = json.dumps(root, sort_keys=True)
     for forbidden in (

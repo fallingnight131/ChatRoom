@@ -2027,11 +2027,15 @@ The Java V2 measurements are documented in
 [`JAVA_PERFORMANCE.md`](JAVA_PERFORMANCE.md). One isolates the durable
 PostgreSQL messaging adapter; the gateway scenarios drive the production
 TLS/WSS path with a sender, bounded caught-up peers, and optional concurrent
-same-session resume rounds. They record latency distributions, throughput, CPU,
-heap, RSS, errors, token rotation, and durable reconciliation without setting a
+same-session resume rounds. A separate real-socket slow-consumer mode stops one
+receiver's demand, requires uninterrupted healthy-peer delivery, observes the
+production closure counter, repairs missing sequences through bounded history,
+and verifies restored live delivery. These scenarios record latency
+distributions, throughput, CPU, heap, RSS, errors, token rotation, and durable
+reconciliation without setting a
 hosted-runner capacity threshold. They cannot justify Redis, a broker, or a
 scale claim by themselves; many-conversation, controlled reconnect-rate,
-slow-consumer, saturation, and dependency-failure scenarios remain before an
+portable socket-backlog, saturation, and dependency-failure scenarios remain before an
 M5 topology ADR.
 
 ## 15. Explicit Non-goals
