@@ -1,0 +1,87 @@
+{
+  "benchmark": "java-v2-gateway-messaging",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 4294967296,
+    "os": "Mac OS X",
+    "osVersion": "26.5.2",
+    "peakObservedHeapBytes": 140189608,
+    "processCpuSeconds": 3.731,
+    "scenarioWallSeconds": 5.752,
+    "vm": "OpenJDK 64-Bit Server VM"
+  },
+  "host": {
+    "javaPeakRssBytes": 549732352,
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "postgresPostmasterPeakRssBytes": 24461312,
+    "pythonVersion": "3.9.6"
+  },
+  "recordedAt": "2026-08-13T18:46:31.522479Z",
+  "results": {
+    "completedMessageThroughputPerSecond": 772.627,
+    "connectionSetupLatencyMicros": {
+      "max": 258097,
+      "mean": 98220.462,
+      "min": 76900,
+      "p50": 83132,
+      "p95": 258097,
+      "p99": 258097,
+      "samples": 13
+    },
+    "errors": 0,
+    "peerPublications": 80,
+    "postgresSaturationAcceptLatencyMicros": {
+      "max": 4015076,
+      "mean": 1510879.875,
+      "min": 1010716,
+      "p50": 1010776,
+      "p95": 4015076,
+      "p99": 4015076,
+      "samples": 8
+    },
+    "postgresSaturationConvergedRetries": 6,
+    "postgresSaturationErrors": 0,
+    "postgresSaturationPeerPublications": 32,
+    "postgresSaturationRecoveredReadinessStatus": 200,
+    "postgresSaturationRetryableFailures": 6,
+    "postgresSaturationUnavailableReadinessStatus": 503,
+    "submitToAcceptLatencyMicros": {
+      "max": 2015,
+      "mean": 1004.55,
+      "min": 742,
+      "p50": 853,
+      "p95": 1355,
+      "p99": 2015,
+      "samples": 20
+    },
+    "submitToAllPeersPublishedLatencyMicros": {
+      "max": 2436,
+      "mean": 1274.5,
+      "min": 989,
+      "p50": 1098,
+      "p95": 1738,
+      "p99": 2436,
+      "samples": 20
+    }
+  },
+  "scenario": {
+    "connections": 13,
+    "conversationKind": "GROUP",
+    "durableMessages": 33,
+    "messageOperations": 20,
+    "payloadBytes": 256,
+    "postgresConnectionTimeoutMillis": 1000,
+    "postgresInjectedDelayMillis": 2000,
+    "postgresPoolMaximum": 2,
+    "postgresSaturationSenders": 8,
+    "receiversPerMessage": 4,
+    "warmupOperations": 5
+  },
+  "schemaVersion": 5,
+  "sourceRevision": "567e77d03e65640a56ba7073838f402c83906573",
+  "startedAt": "2026-08-13T18:46:24.293261Z",
+  "warning": "loopback development evidence; not a capacity claim",
+  "worktreeDirty": false
+}

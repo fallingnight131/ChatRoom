@@ -1320,6 +1320,9 @@ Progress:
   disposable-database-only delay trigger, requiring mixed initial success and
   retryable failure, readiness 503, same-ID convergence after pressure removal,
   readiness 200 recovery, exact unique publications, and durable sequences.
+- [x] Record a clean, commit-exact 13-connection PostgreSQL pool-saturation
+  baseline with eight concurrent senders, six retryable timeouts, same-ID
+  convergence, 503-to-200 readiness recovery, and 32 unique peer publications.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.
