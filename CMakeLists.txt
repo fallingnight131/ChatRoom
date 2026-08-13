@@ -10,6 +10,9 @@ option(CHATROOM_BUILD_HEADLESS_SERVER "Build the Qt V1 headless server" ON)
 option(CHATROOM_BUILD_WINDOWS_CLIENT "Build the supported Windows Qt client" OFF)
 option(CHATROOM_ENABLE_WINDOWS_UPDATES
        "Compile reviewed public Windows update trust configuration" OFF)
+option(CHATROOM_ENABLE_WINDOWS_V2_PREVIEW
+       "Compile the reviewed Windows V2 preview endpoint" OFF)
+set(CHATROOM_WINDOWS_V2_WSS_URL "" CACHE STRING "Exact Windows V2 WSS endpoint")
 set(CHATROOM_UPDATE_CHANNEL "" CACHE STRING "Windows update channel")
 set(CHATROOM_UPDATE_MANIFEST_URL "" CACHE STRING "Windows update manifest HTTPS URL")
 set(CHATROOM_UPDATE_PRIMARY_KEY_ID "" CACHE STRING "Primary Windows update public-key ID")
@@ -18,6 +21,8 @@ set(CHATROOM_UPDATE_SECONDARY_KEY_ID "" CACHE STRING "Secondary Windows update p
 set(CHATROOM_UPDATE_SECONDARY_PUBLIC_KEY_HEX "" CACHE STRING "Secondary Ed25519 public key")
 include(cmake/WindowsUpdateConfiguration.cmake)
 chatroom_validate_windows_update_configuration()
+include(cmake/WindowsV2Configuration.cmake)
+chatroom_validate_windows_v2_configuration()
 include(CTest)
 
 if(CHATROOM_BUILD_WINDOWS_CLIENT AND NOT WIN32)
@@ -30,6 +35,10 @@ endif()
 if(CHATROOM_ENABLE_WINDOWS_UPDATES AND NOT CHATROOM_BUILD_WINDOWS_CLIENT)
     message(FATAL_ERROR
         "CHATROOM_ENABLE_WINDOWS_UPDATES requires CHATROOM_BUILD_WINDOWS_CLIENT=ON")
+endif()
+if(CHATROOM_ENABLE_WINDOWS_V2_PREVIEW AND NOT CHATROOM_BUILD_WINDOWS_CLIENT)
+    message(FATAL_ERROR
+        "CHATROOM_ENABLE_WINDOWS_V2_PREVIEW requires CHATROOM_BUILD_WINDOWS_CLIENT=ON")
 endif()
 
 if(CHATROOM_BUILD_HEADLESS_SERVER)
@@ -198,6 +207,25 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             PROPERTIES AUTOMOC ON CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
         target_include_directories(chatroom_device_management_ui_core PUBLIC Client)
         target_link_libraries(chatroom_device_management_ui_core PUBLIC Qt6::Core)
+
+        add_library(
+            chatroom_windows_v2_configuration
+            STATIC
+            Client/WindowsV2ProductConfiguration.cpp
+            Client/WindowsV2ProductConfiguration.h
+        )
+        target_include_directories(
+            chatroom_windows_v2_configuration PUBLIC Client)
+        target_link_libraries(
+            chatroom_windows_v2_configuration PUBLIC Qt6::Core)
+        if(CHATROOM_ENABLE_WINDOWS_V2_PREVIEW)
+            target_compile_definitions(
+                chatroom_windows_v2_configuration
+                PRIVATE
+                    CHAT_WINDOWS_V2_CONFIGURATION_ENABLED=1
+                    CHAT_WINDOWS_V2_WSS_URL="${CHATROOM_WINDOWS_V2_WSS_URL}"
+            )
+        endif()
         set_target_properties(
             chatroom_client_local_data
             PROPERTIES
@@ -526,6 +554,7 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                     chatroom_client_local_data
                     chatroom_client_transport
                     chatroom_device_management_ui_core
+                    chatroom_windows_v2_configuration
                     chatroom_windows_v2_transport
                     chatroom_windows_update_orchestration
                     chatroom_windows_update_lifecycle
@@ -629,6 +658,33 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
         add_executable(DeviceManagementViewModelTest Tests/DeviceManagementViewModelTest.cpp)
         target_link_libraries(DeviceManagementViewModelTest PRIVATE chatroom_device_management_ui_core)
         add_test(NAME m6_windows_device_management_view_model COMMAND DeviceManagementViewModelTest)
+
+        add_executable(
+            WindowsV2ProductConfigurationTest
+            Tests/WindowsV2ProductConfigurationTest.cpp)
+        target_link_libraries(
+            WindowsV2ProductConfigurationTest PRIVATE chatroom_windows_v2_configuration)
+        add_test(
+            NAME m6_windows_v2_product_configuration
+            COMMAND WindowsV2ProductConfigurationTest)
+
+        add_executable(
+            WindowsV2ProductConfigurationEnabledTest
+            Tests/WindowsV2ProductConfigurationEnabledTest.cpp
+            Client/WindowsV2ProductConfiguration.cpp
+            Client/WindowsV2ProductConfiguration.h)
+        target_include_directories(
+            WindowsV2ProductConfigurationEnabledTest PRIVATE Client)
+        target_compile_definitions(
+            WindowsV2ProductConfigurationEnabledTest
+            PRIVATE
+                CHAT_WINDOWS_V2_CONFIGURATION_ENABLED=1
+                CHAT_WINDOWS_V2_WSS_URL="wss://chat.example.test/v2/windows")
+        target_link_libraries(
+            WindowsV2ProductConfigurationEnabledTest PRIVATE Qt6::Core)
+        add_test(
+            NAME m6_windows_v2_product_configuration_enabled
+            COMMAND WindowsV2ProductConfigurationEnabledTest)
 
         chatroom_add_transport_test(HttpUploadTransportTest v1_client_http_upload)
         chatroom_add_transport_test(HttpDownloadTransportTest v1_client_http_download)

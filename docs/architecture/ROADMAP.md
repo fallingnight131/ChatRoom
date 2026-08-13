@@ -1344,6 +1344,8 @@ Progress:
   - [x] Compile the reviewed V2 bindings and detached Windows WSS/session/device
     stack into the canonical CMake product with checksum-pinned, static
     Protobuf/Abseil and no new installer runtime DLL (ADR-0323).
+  - [x] Add fail-closed, default-off Windows V2 product configuration for one
+    exact compiled `wss://authority/v2/windows` endpoint (ADR-0324).
   - [ ] Add the supported Windows device-management application/UI path; Web is
     implemented behind the existing V2 preview/cutover gate.
 

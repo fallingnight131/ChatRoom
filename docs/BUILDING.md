@@ -336,6 +336,26 @@ qmake remains a parity fallback. The Windows-only graph compiles the detached
 V2 session/device WSS adapter into a static library using checksum-pinned
 Protobuf 35.1 and Abseil 20250512.1 source archives; it adds no protocol runtime
 DLL to the installer (ADR-0323).
+
+Windows V2 product networking remains default-off. A reviewed preview build
+must supply both values to the canonical Windows CMake invocation:
+
+```powershell
+cmake -S . -B build/windows-v2-preview -A x64 `
+  -DCHATROOM_BUILD_HEADLESS_SERVER=ON `
+  -DCHATROOM_BUILD_WINDOWS_CLIENT=ON `
+  -DCHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON `
+  -DCHATROOM_WINDOWS_V2_WSS_URL=wss://preview-chat.example.com/v2/windows `
+  -DSODIUM_ROOT="$env:SODIUM_ROOT"
+```
+
+The URL is public build metadata, not a secret. It must be the exact Windows V2
+WSS route and cannot contain credentials, query parameters, or a fragment.
+Supplying the URL while the switch is off or enabling an incomplete/unsafe
+configuration fails CMake generation. Ordinary CI intentionally leaves it off;
+activation and rollback require an explicit reviewed preview/cutover build
+(ADR-0324).
+
 On a macOS Homebrew development host:
 
 ```bash

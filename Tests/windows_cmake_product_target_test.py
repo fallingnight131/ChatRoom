@@ -46,6 +46,9 @@ def main() -> int:
         "Qt6::WebSockets",
         'CHAT_APP_VERSION="${CHATROOM_PRODUCT_VERSION}"',
         "CHATROOM_ENABLE_WINDOWS_UPDATES",
+        "CHATROOM_ENABLE_WINDOWS_V2_PREVIEW",
+        "CHATROOM_WINDOWS_V2_WSS_URL",
+        "chatroom_windows_v2_configuration",
         'CHAT_UPDATE_CONFIGURATION_ENABLED=1',
         'CHAT_UPDATE_MANIFEST_URL="${CHATROOM_UPDATE_MANIFEST_URL}"',
     )

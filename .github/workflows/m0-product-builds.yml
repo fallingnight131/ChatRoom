@@ -106,6 +106,7 @@ jobs:
           python Tests/windows_cmake_installer_gate_test.py
           python Tests/windows_cmake_packaging_promotion_test.py
           python Tests/windows_cmake_update_configuration_test.py
+          python Tests/windows_cmake_v2_configuration_test.py
           python Tests/windows_update_trust_diagnostic_policy_test.py
           python Tests/windows_unsigned_artifact_verifier_test.py
 

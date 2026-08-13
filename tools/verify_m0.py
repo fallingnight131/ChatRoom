@@ -247,12 +247,15 @@ def verify_cmake_headless(jobs: int, build_root: Path) -> None:
         "WindowsUpdateHandoffApplicationServiceTest", "WindowsUpdateInstallCoordinatorTest",
         "WindowsUpdateProductConfigurationTest",
         "WindowsUpdateProductConfigurationEnabledTest",
+        "DeviceManagementViewModelTest",
+        "WindowsV2ProductConfigurationTest",
+        "WindowsV2ProductConfigurationEnabledTest",
         "--parallel", str(jobs),
     ], ROOT)
     ctest = command_path("ctest")
     run([
         ctest, "--test-dir", str(target_dir), "--build-config", "Release",
-        "--output-on-failure", "-R", "^(v1_|m4_)",
+        "--output-on-failure", "-R", "^(v1_|m4_|m6_)",
     ], ROOT)
     executable = locate_executable(target_dir, "ChatServerHeadless")
     run([
