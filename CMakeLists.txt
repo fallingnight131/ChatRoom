@@ -245,6 +245,18 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
         )
 
         add_library(
+            chatroom_v2_local_data
+            STATIC
+            Client/V2LocalMessageRepository.cpp
+            Client/V2LocalMessageRepository.h
+        )
+        set_target_properties(
+            chatroom_v2_local_data
+            PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+        target_include_directories(chatroom_v2_local_data PUBLIC Client)
+        target_link_libraries(chatroom_v2_local_data PUBLIC Qt6::Core Qt6::Sql)
+
+        add_library(
             chatroom_client_transport
             STATIC
             Client/HttpUploadTransport.cpp
@@ -659,6 +671,10 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
 
         chatroom_add_local_data_test(MessageModelTest v1_client_message_model)
         chatroom_add_local_data_test(LocalConversationRepositoryTest v1_client_local_repository)
+        add_executable(V2LocalMessageRepositoryTest Tests/V2LocalMessageRepositoryTest.cpp)
+        target_link_libraries(V2LocalMessageRepositoryTest PRIVATE chatroom_v2_local_data)
+        add_test(NAME m6_windows_v2_local_message_repository COMMAND V2LocalMessageRepositoryTest)
+        set_tests_properties(m6_windows_v2_local_message_repository PROPERTIES TIMEOUT 30)
         chatroom_add_local_data_test(OutgoingMessageServiceTest v1_client_outgoing_message)
         chatroom_add_local_data_test(ConversationSyncServiceTest v1_client_conversation_sync)
         chatroom_add_local_data_test(AttachmentOutboxServiceTest v1_client_attachment_outbox)

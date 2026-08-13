@@ -1371,6 +1371,10 @@ Progress:
   - [x] Add a detached Windows V2 messaging protocol boundary for ordinary and
     reply submissions, ACK correlation, ordered history/live projections,
     reply-reference validation, and disconnect abandonment (ADR-0331).
+  - [x] Add the isolated Windows V2 SQLite message store with account isolation,
+    monotonic cursors, bounded optimistic/accepted rows, exact reply identity,
+    ACK reconciliation, explicit retry state, and no copied quote body
+    (ADR-0332).
   - [ ] Add the equivalent reply composition, local-cache behavior, and rendering
     to the supported Windows client.
 
