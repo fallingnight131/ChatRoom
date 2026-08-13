@@ -6,6 +6,7 @@ import com.fallingnight.chat.application.messaging.ConversationEntryHistoryResul
 import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
+import com.fallingnight.chat.application.messaging.MessageReplyReference;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
@@ -60,6 +61,11 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                     return existingResult(existing.orElseThrow(), submission, payload, payloadHash);
                 }
                 long sequence = allocateSequence(connection, submission.conversationId());
+                Optional<MessageReplyReference> reply = resolveReply(connection, submission);
+                if (submission.replyToMessageId().isPresent() && reply.isEmpty()) {
+                    connection.rollback();
+                    return MessageSubmissionResult.Rejected.NOT_AUTHORIZED;
+                }
                 UUID messageId = Objects.requireNonNull(uuidSupplier.get(), "messageId");
                 Optional<Instant> insertedAt = insert(
                         connection,
@@ -67,11 +73,12 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                         sequence,
                         submission,
                         payload,
-                        payloadHash);
+                        payloadHash,
+                        reply);
                 if (insertedAt.isPresent()) {
                     connection.commit();
                     return new MessageSubmissionResult.Accepted(
-                            messageId, sequence, insertedAt.orElseThrow(), false);
+                            messageId, sequence, insertedAt.orElseThrow(), false, reply);
                 }
                 connection.rollback();
                 ExistingMessage raced = findExistingAfterRace(submission);
@@ -150,7 +157,9 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                            ORDER BY source_id.position)
                        ELSE ARRAY[]::uuid[] END AS deletion_message_ids,
                        d.cutoff_epoch_ms, d.deleted_count,
-                       d.operator_name_snapshot
+                       d.operator_name_snapshot,
+                       rr.target_message_id, rr.target_conversation_sequence,
+                       rr.target_sender_account_id
                 FROM chat.conversation_entry ce
                 LEFT JOIN chat.message m
                   ON ce.entry_kind = 'MESSAGE'
@@ -164,6 +173,9 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                   ON ce.entry_kind = 'MESSAGES_DELETED'
                  AND d.conversation_id = ce.conversation_id
                  AND d.conversation_sequence = ce.conversation_sequence
+                LEFT JOIN chat.message_reply_reference rr
+                  ON ce.entry_kind = 'MESSAGE'
+                 AND rr.message_id = m.id
                 LEFT JOIN chat.legacy_v1_deletion_event_map ldm
                   ON d.source = 'V1_IMPORT'
                  AND ldm.conversation_id = ce.conversation_id
@@ -194,7 +206,8 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                     result.getObject(4, UUID.class), conversationId, sequence,
                     result.getObject(5, UUID.class), result.getObject(6, UUID.class),
                     result.getString(7), result.getInt(8), result.getBytes(9),
-                    result.getObject(10, OffsetDateTime.class).toInstant()));
+                    result.getObject(10, OffsetDateTime.class).toInstant(),
+                    readReply(result, 22)));
             case "MESSAGE_RECALLED" -> new ConversationHistoryEntry.Recall(
                     conversationId, sequence, result.getObject(11, UUID.class),
                     result.getObject(12, UUID.class), result.getString(13),
@@ -264,9 +277,12 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
 
     private static Optional<ExistingMessage> findExisting(
             Connection connection, MessageSubmission submission) throws SQLException {
-        String sql = "SELECT id, conversation_id, conversation_sequence, sender_device_id, "
-                + "message_type, payload, payload_sha256, accepted_at "
-                + "FROM chat.message WHERE sender_account_id = ? AND client_message_id = ?";
+        String sql = "SELECT m.id, m.conversation_id, m.conversation_sequence, "
+                + "m.sender_device_id, m.message_type, m.payload, m.payload_sha256, "
+                + "m.accepted_at, rr.target_message_id, rr.target_conversation_sequence, "
+                + "rr.target_sender_account_id FROM chat.message m "
+                + "LEFT JOIN chat.message_reply_reference rr ON rr.message_id = m.id "
+                + "WHERE m.sender_account_id = ? AND m.client_message_id = ?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setObject(1, submission.senderAccountId());
             statement.setString(2, submission.clientMessageId());
@@ -309,7 +325,8 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
             long sequence,
             MessageSubmission submission,
             byte[] payload,
-            byte[] payloadHash) throws SQLException {
+            byte[] payloadHash,
+            Optional<MessageReplyReference> reply) throws SQLException {
         insertConversationEntry(connection, submission.conversationId(), sequence);
         String sql = "INSERT INTO chat.message(id, conversation_id, conversation_sequence, "
                 + "sender_account_id, sender_device_id, client_message_id, message_type, "
@@ -327,10 +344,32 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
             statement.setBytes(8, payload);
             statement.setBytes(9, payloadHash);
             try (ResultSet result = statement.executeQuery()) {
-                return result.next()
-                        ? Optional.of(result.getObject(1, OffsetDateTime.class).toInstant())
-                        : Optional.empty();
+                if (!result.next()) return Optional.empty();
+                Instant acceptedAt = result.getObject(1, OffsetDateTime.class).toInstant();
+                if (reply.isPresent()) {
+                    insertReplyReference(connection, messageId, submission.conversationId(),
+                            reply.orElseThrow());
+                }
+                return Optional.of(acceptedAt);
             }
+        }
+    }
+
+    private static void insertReplyReference(
+            Connection connection,
+            UUID messageId,
+            UUID conversationId,
+            MessageReplyReference reply) throws SQLException {
+        String sql = "INSERT INTO chat.message_reply_reference(message_id, conversation_id, "
+                + "target_message_id, target_conversation_sequence, target_sender_account_id) "
+                + "VALUES (?, ?, ?, ?, ?)";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, messageId);
+            statement.setObject(2, conversationId);
+            statement.setObject(3, reply.targetMessageId());
+            statement.setLong(4, reply.targetConversationSequence());
+            statement.setObject(5, reply.targetSenderAccountId());
+            statement.executeUpdate();
         }
     }
 
@@ -354,6 +393,8 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
         boolean exact = existing.conversationId().equals(submission.conversationId())
                 && existing.senderDeviceId().equals(submission.senderDeviceId())
                 && existing.messageType() == submission.messageType()
+                && existing.reply().map(MessageReplyReference::targetMessageId)
+                        .equals(submission.replyToMessageId())
                 && MessageDigest.isEqual(existing.payloadHash(), payloadHash)
                 && Arrays.equals(existing.payload(), payload);
         return exact
@@ -361,7 +402,8 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                         existing.messageId(),
                         existing.sequence(),
                         existing.acceptedAt(),
-                        true)
+                        true,
+                        existing.reply())
                 : MessageSubmissionResult.Rejected.IDEMPOTENCY_CONFLICT;
     }
 
@@ -374,7 +416,37 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                 result.getInt(5),
                 result.getBytes(6),
                 result.getBytes(7),
-                result.getObject(8, OffsetDateTime.class).toInstant());
+                result.getObject(8, OffsetDateTime.class).toInstant(),
+                readReply(result, 9));
+    }
+
+    private static Optional<MessageReplyReference> resolveReply(
+            Connection connection, MessageSubmission submission) throws SQLException {
+        if (submission.replyToMessageId().isEmpty()) return Optional.empty();
+        String sql = "SELECT m.id, m.conversation_sequence, m.sender_account_id "
+                + "FROM chat.message m WHERE m.id = ? AND m.conversation_id = ? "
+                + "AND NOT EXISTS (SELECT 1 FROM chat.message_recall_event r "
+                + "WHERE r.conversation_id = m.conversation_id AND r.message_id = m.id)";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, submission.replyToMessageId().orElseThrow());
+            statement.setObject(2, submission.conversationId());
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next()
+                        ? Optional.of(new MessageReplyReference(
+                                result.getObject(1, UUID.class), result.getLong(2),
+                                result.getObject(3, UUID.class)))
+                        : Optional.empty();
+            }
+        }
+    }
+
+    private static Optional<MessageReplyReference> readReply(
+            ResultSet result, int firstColumn) throws SQLException {
+        UUID target = result.getObject(firstColumn, UUID.class);
+        if (target == null) return Optional.empty();
+        return Optional.of(new MessageReplyReference(
+                target, result.getLong(firstColumn + 1),
+                result.getObject(firstColumn + 2, UUID.class)));
     }
 
     private static byte[] sha256(byte[] value) {
@@ -401,5 +473,6 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
             int messageType,
             byte[] payload,
             byte[] payloadHash,
-            Instant acceptedAt) {}
+            Instant acceptedAt,
+            Optional<MessageReplyReference> reply) {}
 }

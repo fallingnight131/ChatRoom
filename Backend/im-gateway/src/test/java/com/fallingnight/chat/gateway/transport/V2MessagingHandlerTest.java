@@ -15,6 +15,7 @@ import com.fallingnight.chat.application.conversation.ConversationKind;
 import com.fallingnight.chat.application.conversation.ConversationRole;
 import com.fallingnight.chat.application.conversation.ConversationSummary;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
+import com.fallingnight.chat.application.messaging.MessageReplyReference;
 import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
@@ -32,6 +33,7 @@ import com.fallingnight.chat.protocol.v2.ProtocolError;
 import com.fallingnight.chat.protocol.v2.ProtocolErrorCode;
 import com.fallingnight.chat.protocol.v2.ReadMessageHistory;
 import com.fallingnight.chat.protocol.v2.SubmitMessage;
+import com.fallingnight.chat.protocol.v2.SubmitReplyMessage;
 import com.google.protobuf.ByteString;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.time.Clock;
@@ -90,12 +92,40 @@ class V2MessagingHandlerTest {
     }
 
     @Test
+    void submitsReplyWithServerBoundIdentity()
+            throws Exception {
+        UUID target = UUID.fromString("50000000-0000-4000-8000-000000000006");
+        MessageReplyReference reference = new MessageReplyReference(target, 6, ACCOUNT_ID);
+        AtomicReference<MessageSubmission> captured = new AtomicReference<>();
+        EmbeddedChannel channel = channel(
+                submission -> {
+                    captured.set(submission);
+                    return new MessageSubmissionResult.Accepted(
+                            MESSAGE_ID, 7, ACCEPTED_AT, false, Optional.of(reference));
+                },
+                query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
+                Runnable::run);
+        try {
+            channel.writeInbound(replyEnvelope("client-reply-1", target, "reply"));
+            channel.runPendingTasks();
+            assertEquals(Optional.of(target), captured.get().replyToMessageId());
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED_VALUE,
+                    ((Envelope) channel.readOutbound()).getMessageType());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void publishesOnlyNewDurableAcceptanceToCaughtUpActiveConversation() throws Exception {
         SingleGatewayConversationLiveRouter router = new SingleGatewayConversationLiveRouter(CLOCK);
         AtomicReference<Boolean> duplicate = new AtomicReference<>(false);
+        UUID replyTarget = UUID.fromString("50000000-0000-4000-8000-000000000006");
         EmbeddedChannel channel = new EmbeddedChannel(new V2MessagingHandler(
                 submission -> new MessageSubmissionResult.Accepted(
-                        MESSAGE_ID, 7, ACCEPTED_AT, duplicate.get()),
+                        MESSAGE_ID, 7, ACCEPTED_AT, duplicate.get(),
+                        submission.replyToMessageId().map(target ->
+                                new MessageReplyReference(target, 6, ACCOUNT_ID))),
                 query -> new MessageHistoryResult.Page(List.of(), 0, 0, false),
                 query -> new ConversationDirectoryPage(
                         List.of(), java.util.Optional.empty(), false),
@@ -126,6 +156,17 @@ class V2MessagingHandlerTest {
             assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED_VALUE,
                     ((Envelope) channel.readOutbound()).getMessageType());
             assertNull(channel.readOutbound());
+
+            duplicate.set(false);
+            channel.writeInbound(replyEnvelope("client-reply-1", replyTarget, "reply-live"));
+            channel.runPendingTasks();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED_VALUE,
+                    ((Envelope) channel.readOutbound()).getMessageType());
+            MessageRecord replyPublished = MessageRecord.parseFrom(
+                    ((Envelope) channel.readOutbound()).getPayload());
+            assertEquals(replyTarget.toString(),
+                    replyPublished.getReply().getTargetMessageId());
+            assertEquals(6, replyPublished.getReply().getTargetConversationSequence());
         } finally {
             channel.finishAndReleaseAll();
         }
@@ -142,7 +183,11 @@ class V2MessagingHandlerTest {
                 "client-message-9",
                 MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE,
                 "history".getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                ACCEPTED_AT);
+                ACCEPTED_AT,
+                Optional.of(new MessageReplyReference(
+                        UUID.fromString("50000000-0000-4000-8000-000000000006"),
+                        8,
+                        ACCOUNT_ID)));
         AtomicReference<MessageHistoryQuery> captured = new AtomicReference<>();
         EmbeddedChannel channel = channel(
                 submission -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
@@ -165,6 +210,7 @@ class V2MessagingHandlerTest {
                     page.getEntries(0).getMessage().getDescriptorForType().getFullName());
             assertEquals(9, page.getMessages(0).getConversationSequence());
             assertEquals("history", page.getMessages(0).getContent().toStringUtf8());
+            assertEquals(8, page.getMessages(0).getReply().getTargetConversationSequence());
             assertEquals(12, page.getLatestSequence());
             assertEquals(true, page.getHasMore());
         } finally {
@@ -435,6 +481,20 @@ class V2MessagingHandlerTest {
                 .build();
         return commandEnvelope(
                 MessageType.MESSAGE_TYPE_SUBMIT_MESSAGE,
+                clientMessageId,
+                payload.toByteString());
+    }
+
+    private static Envelope replyEnvelope(
+            String clientMessageId, UUID targetMessageId, String content) {
+        SubmitReplyMessage payload = SubmitReplyMessage.newBuilder()
+                .setConversationId(CONVERSATION_ID.toString())
+                .setTargetMessageId(targetMessageId.toString())
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
+                .setContent(ByteString.copyFromUtf8(content))
+                .build();
+        return commandEnvelope(
+                MessageType.MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE,
                 clientMessageId,
                 payload.toByteString());
     }

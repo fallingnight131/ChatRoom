@@ -1359,8 +1359,10 @@ Progress:
   - [x] Allocate the distinct `SubmitReplyMessage` command and an additive,
     server-authoritative reply reference on message records, with bounded
     Java/C++/TypeScript golden-wire compatibility (ADR-0328).
-  - [ ] Persist and validate same-conversation reply targets in PostgreSQL and
-    compose the Java gateway/application boundary.
+  - [x] Persist immutable same-conversation reply identity in PostgreSQL V044;
+    validate live targets under the conversation write lock, preserve exact
+    idempotent retries, and compose Java gateway/history/live projection
+    (ADR-0329).
   - [ ] Add offline/cache-safe reply composition and rendering to Web and Windows.
 
 Candidate slices:

@@ -123,7 +123,7 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
     }
 
     private static MessageRecord record(StoredMessage message) {
-        MessageRecord record = MessageRecord.newBuilder()
+        MessageRecord.Builder builder = MessageRecord.newBuilder()
                 .setConversationId(message.conversationId().toString())
                 .setMessageId(message.messageId().toString())
                 .setConversationSequence(message.conversationSequence())
@@ -132,8 +132,13 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                 .setClientMessageId(message.clientMessageId())
                 .setContentType(message.messageType())
                 .setContent(ByteString.copyFrom(message.payload()))
-                .setAcceptedAtEpochMs(message.acceptedAt().toEpochMilli())
-                .build();
+                .setAcceptedAtEpochMs(message.acceptedAt().toEpochMilli());
+        message.reply().ifPresent(reply -> builder.setReply(
+                com.fallingnight.chat.protocol.v2.MessageReplyReference.newBuilder()
+                        .setTargetMessageId(reply.targetMessageId().toString())
+                        .setTargetConversationSequence(reply.targetConversationSequence())
+                        .setTargetSenderAccountId(reply.targetSenderAccountId().toString())));
+        MessageRecord record = builder.build();
         MessagingPayloadPolicy.requireValid(record);
         return record;
     }

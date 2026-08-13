@@ -196,7 +196,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(43, first.migrate());
+        assertEquals(44, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -225,7 +225,8 @@ class PostgresMigratorTest {
                             "account_username_change_audit", "profile_image_object",
                             "account_profile_image", "group_profile_image",
                             "profile_image_change_audit", "profile_image_import_run",
-                            "profile_image_import_entry", "device_revocation_audit"),
+                            "profile_image_import_entry", "device_revocation_audit",
+                            "message_reply_reference"),
                     applicationTables(connection));
             assertEquals(9, count("SELECT count(*) FROM pg_constraint "
                     + "WHERE connamespace = 'chat'::regnamespace AND conname IN ("
@@ -480,6 +481,37 @@ class PostgresMigratorTest {
         assertFalse(secondPage.hasMore());
         assertEquals(2, secondPage.nextSequence());
         assertMessageHistoryIndexEligible(conversation);
+
+        MessageSubmissionResult.Accepted reply =
+                (MessageSubmissionResult.Accepted) adapter.submit(new MessageSubmission(
+                        conversation, account, device, "client-reply", 100,
+                        new byte[] {5}, Optional.of(raced.getFirst().messageId())));
+        assertEquals(3, reply.conversationSequence());
+        assertEquals(raced.getFirst().messageId(),
+                reply.reply().orElseThrow().targetMessageId());
+        MessageSubmissionResult.Accepted duplicateReply =
+                (MessageSubmissionResult.Accepted) adapter.submit(new MessageSubmission(
+                        conversation, account, device, "client-reply", 100,
+                        new byte[] {5}, Optional.of(raced.getFirst().messageId())));
+        assertTrue(duplicateReply.duplicate());
+        assertEquals(reply.reply(), duplicateReply.reply());
+        assertEquals(MessageSubmissionResult.Rejected.IDEMPOTENCY_CONFLICT,
+                adapter.submit(new MessageSubmission(
+                        conversation, account, device, "client-reply", 100,
+                        new byte[] {5}, Optional.of(second.messageId()))));
+        assertEquals(MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                adapter.submit(new MessageSubmission(
+                        conversation, account, device, "missing-reply", 100,
+                        new byte[] {5}, Optional.of(UUID.randomUUID()))));
+        MessageHistoryResult.Page replyPage = (MessageHistoryResult.Page) adapter.readAfter(
+                new MessageHistoryQuery(conversation, account, 2, 10));
+        assertEquals(reply.reply(), replyPage.messages().getFirst().reply());
+        try (Connection connection = connect()) {
+            assertThrows(SQLException.class, () -> execute(connection,
+                    "UPDATE chat.message_reply_reference "
+                            + "SET target_conversation_sequence = 2 WHERE message_id = ?",
+                    reply.messageId()));
+        }
         assertEquals(
                 MessageHistoryResult.Rejected.NOT_AUTHORIZED,
                 adapter.readAfter(new MessageHistoryQuery(

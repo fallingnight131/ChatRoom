@@ -1396,6 +1396,9 @@ device reuse, digest-only session tokens, and revoked/disabled denial. It never
 reads or modifies a developer or production database. CI runs the same gate
 using the PostgreSQL tools bundled
 with the Ubuntu runner.
+V044 additionally verifies immutable reply-reference creation from a live
+same-conversation target, exact duplicate replay, changed-target conflict,
+missing-target denial, and authoritative history projection (ADR-0329).
 
 Generate the non-Java V2 bindings and run the Java-to-TypeScript golden-wire
 test with Node.js 22:

@@ -32,6 +32,7 @@ import com.fallingnight.chat.protocol.v2.ProtocolError;
 import com.fallingnight.chat.protocol.v2.ProtocolErrorCode;
 import com.fallingnight.chat.protocol.v2.ReadMessageHistory;
 import com.fallingnight.chat.protocol.v2.SubmitMessage;
+import com.fallingnight.chat.protocol.v2.SubmitReplyMessage;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.channel.ChannelHandlerContext;
@@ -167,6 +168,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
         }
         MessageType type = MessageTypeRegistry.find(envelope.getMessageType()).orElse(null);
         if (type != MessageType.MESSAGE_TYPE_SUBMIT_MESSAGE
+                && type != MessageType.MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE
                 && type != MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY
                 && type != MessageType.MESSAGE_TYPE_LIST_CONVERSATIONS) {
             writeError(
@@ -257,6 +259,18 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     envelope.getClientMessageId(),
                     payload.getContentType(),
                     payload.getContent().toByteArray()));
+        }
+        if (type == MessageType.MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE) {
+            SubmitReplyMessage payload = SubmitReplyMessage.parseFrom(envelope.getPayload());
+            MessagingPayloadPolicy.requireValid(payload, envelope.getClientMessageId());
+            return new SubmitWork(new MessageSubmission(
+                    UUID.fromString(payload.getConversationId()),
+                    identity.accountId(),
+                    identity.deviceId(),
+                    envelope.getClientMessageId(),
+                    payload.getContentType(),
+                    payload.getContent().toByteArray(),
+                    Optional.of(UUID.fromString(payload.getTargetMessageId()))));
         }
         if (type == MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY) {
             ReadMessageHistory payload = ReadMessageHistory.parseFrom(envelope.getPayload());
@@ -355,7 +369,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 submission.clientMessageId(),
                 submission.messageType(),
                 submission.payload(),
-                accepted.acceptedAt());
+                accepted.acceptedAt(),
+                accepted.reply());
     }
 
     private Envelope submitResponse(
@@ -453,7 +468,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
     }
 
     private static MessageRecord messageRecord(StoredMessage message) {
-        return MessageRecord.newBuilder()
+        MessageRecord.Builder record = MessageRecord.newBuilder()
                 .setConversationId(message.conversationId().toString())
                 .setMessageId(message.messageId().toString())
                 .setConversationSequence(message.conversationSequence())
@@ -462,8 +477,13 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 .setClientMessageId(message.clientMessageId())
                 .setContentType(message.messageType())
                 .setContent(ByteString.copyFrom(message.payload()))
-                .setAcceptedAtEpochMs(message.acceptedAt().toEpochMilli())
-                .build();
+                .setAcceptedAtEpochMs(message.acceptedAt().toEpochMilli());
+        message.reply().ifPresent(reply -> record.setReply(
+                com.fallingnight.chat.protocol.v2.MessageReplyReference.newBuilder()
+                        .setTargetMessageId(reply.targetMessageId().toString())
+                        .setTargetConversationSequence(reply.targetConversationSequence())
+                        .setTargetSenderAccountId(reply.targetSenderAccountId().toString())));
+        return record.build();
     }
 
     private Envelope directoryResponse(Envelope request, ConversationDirectoryPage page) {
