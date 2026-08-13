@@ -1298,6 +1298,9 @@ Progress:
   evidence contracts.
 - [x] Record a clean, commit-exact 10-connection/5-round session-resume baseline
   without weakening the default direct-peer authentication admission window.
+- [x] Add a deterministic gateway-router correctness gate proving an unwritable
+  subscriber is closed without blocking a healthy peer and can re-establish its
+  subscription from durable history before live delivery resumes.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.

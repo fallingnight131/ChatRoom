@@ -1,6 +1,7 @@
 package com.fallingnight.chat.gateway.transport;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -114,6 +115,56 @@ class SingleGatewayConversationLiveRouterTest {
         });
         assertEquals(0, router.activeConversationCount());
         channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void closesOnlyTheUnwritableSubscriberAndAllowsHistoryRecovery() throws Exception {
+        SingleGatewayConversationLiveRouter router = new SingleGatewayConversationLiveRouter(
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        EmbeddedChannel slow = authenticatedChannel();
+        EmbeddedChannel healthy = authenticatedChannel();
+        MessageHistoryQuery initial = new MessageHistoryQuery(
+                CONVERSATION, ACCOUNT, 0, 100);
+        router.readAndSubscribe(slow, initial, ignored -> new MessageHistoryResult.Page(
+                List.of(), 0, 0, false));
+        router.readAndSubscribe(healthy, initial, ignored -> new MessageHistoryResult.Page(
+                List.of(), 0, 0, false));
+        slow.unsafe().outboundBuffer().setUserDefinedWritability(1, false);
+
+        EmbeddedChannel recovered = null;
+        try {
+            ConversationLiveRouter.LivePublishResult result =
+                    router.publish(message(CONVERSATION, 1));
+            assertEquals(1, result.published());
+            assertEquals(1, result.slowClosed());
+            assertFalse(slow.isActive());
+            assertEquals(1, MessageRecord.parseFrom(
+                    ((Envelope) healthy.readOutbound()).getPayload())
+                    .getConversationSequence());
+            assertEquals(1, router.activeConversationCount());
+
+            recovered = authenticatedChannel();
+            MessageHistoryResult recovery = router.readAndSubscribe(
+                    recovered,
+                    new MessageHistoryQuery(CONVERSATION, ACCOUNT, 0, 100),
+                    ignored -> new MessageHistoryResult.Page(
+                            List.of(message(CONVERSATION, 1)), 1, 1, false));
+            MessageHistoryResult.Page page = (MessageHistoryResult.Page) recovery;
+            assertEquals(1, page.messages().size());
+            assertEquals(1, page.messages().getFirst().conversationSequence());
+
+            assertEquals(2, router.publish(message(CONVERSATION, 2)).published());
+            assertEquals(2, MessageRecord.parseFrom(
+                    ((Envelope) healthy.readOutbound()).getPayload())
+                    .getConversationSequence());
+            assertEquals(2, MessageRecord.parseFrom(
+                    ((Envelope) recovered.readOutbound()).getPayload())
+                    .getConversationSequence());
+        } finally {
+            slow.finishAndReleaseAll();
+            healthy.finishAndReleaseAll();
+            if (recovered != null) recovered.finishAndReleaseAll();
+        }
     }
 
     @Test
