@@ -1533,6 +1533,9 @@ Progress:
       accessibility, reconnect convergence, and Web capability activation.
     - [ ] Add the equivalent Windows protocol, SQLite, composition, rendering,
       accessibility, reconnect convergence, and capability activation gates.
+      - [x] Add a default-off Windows participant-directory protocol client with
+        bounded correlation, stable account cursor, strict Unicode/role/order
+        validation, and disconnect abandonment.
 
 Candidate slices:
 

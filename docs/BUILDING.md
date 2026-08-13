@@ -1338,6 +1338,13 @@ preserves cursor insertion across Unicode, highlights mention segments without
 reparsing identity, exposes fixed loading/denial states, and advertises
 capability 4. This activation applies only to the build-gated V2 preview; V1
 and Windows behavior are unchanged (ADR-0342/ADR-0343).
+The default-off Windows participant protocol boundary now emits type 117 and
+strictly validates correlated type-118 pages, including conversation identity,
+ascending account IDs, cursor advancement, roles, Unicode display-name bounds,
+Unicode-only whitespace, and disconnect cleanup. It is compiled into the
+Windows V2 messaging product library but is not composed or negotiated yet.
+The cross-language protocol gate runs this test with Clang warnings-as-errors on
+the macOS development host (ADR-0343).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

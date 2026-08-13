@@ -717,6 +717,9 @@ spans flow unchanged through optimistic Web send/reply/edit records and their
 retry transport paths. The build-gated Web V2 preview provides a keyboard-native
 participant picker, Unicode-safe span maintenance, accessible loading/error
 controls, identity-preserving rendering, and capability-4 negotiation.
+The default-off Windows boundary can now issue and validate the same participant
+pages with stable cursor and Unicode policy, but it remains detached from the
+Windows controller, SQLite state, Widgets UI, and capability negotiation.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

@@ -129,6 +129,7 @@ def verify_protocol_bindings(skip_install: bool) -> None:
          "v2_windows_device_management_protocol_test", "v2_windows_session_protocol_test",
          "v2_windows_messaging_protocol_test",
          "v2_windows_conversation_directory_protocol_test",
+         "v2_windows_conversation_participant_protocol_test",
          "v2_windows_messaging_application_test",
          "v2_windows_messaging_controller_test",
          "v2_windows_device_management_transport_test",
