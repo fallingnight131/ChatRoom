@@ -1222,6 +1222,9 @@ ADR-0386 consumes those gauges during the dual-edge reconnect window at a fixed
 five-millisecond interval. Schema version 2 records successful sample count and
 active-worker/queued-work peaks, while the validator continues to accept the
 committed schema version 1 history without silently extending that schema.
+The first clean schema version 2 baseline at `4d9574f8...` completed all 12
+resumes and observed 38 samples, active-worker peak 1, and queue peak 0. This is
+not a saturation knee or production-capacity result.
 
 ## 10. Attachment Flow
 

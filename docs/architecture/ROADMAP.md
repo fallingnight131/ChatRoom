@@ -1636,8 +1636,10 @@ Progress:
   database/event-loop/resource saturation remain pending (ADR-0385).
 - [x] Upgrade new bounded dual-edge reconnect evidence to schema version 2 and
   sample authentication worker/queue peaks every five milliseconds across the
-  recovery window. Historical schema version 1 remains valid; a clean exact-
-  revision saturation baseline and wider resource signals remain pending
+  recovery window. The clean exact-revision baseline at `4d9574f8...` completed
+  12/12 resumes with 38 samples, maximum observed active workers 1, queue peak
+  0, and 21.804/32.788 ms P50/P95 latency. Historical schema version 1 remains
+  valid; wider resource signals and the saturation knee remain pending
   (ADR-0386).
 
 Work:

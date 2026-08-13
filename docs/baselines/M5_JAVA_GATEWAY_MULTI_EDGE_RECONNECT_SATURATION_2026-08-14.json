@@ -1,0 +1,65 @@
+{
+  "benchmark": "java-v2-haproxy-multi-edge-reconnect",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 536870912,
+    "os": "Mac OS X"
+  },
+  "host": {
+    "haproxyImage": "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "pythonVersion": "3.9.6"
+  },
+  "recordedAt": "2026-08-13T23:30:25.692731Z",
+  "results": {
+    "authenticationSaturation": {
+      "activeWorkersMaximum": 1,
+      "queuedWorkMaximum": 0,
+      "sampleIntervalMillis": 5,
+      "samples": 38
+    },
+    "elapsedMillis": 340.132,
+    "reconnectAttempts": 12,
+    "reconnectErrors": 0,
+    "reconnectSuccesses": 12,
+    "reconnectThroughputPerSecond": 35.28,
+    "scheduledStartJitterMicros": {
+      "max": 10019,
+      "mean": 5468.5,
+      "min": 40,
+      "p50": 3258,
+      "p95": 10019,
+      "p99": 10019,
+      "samples": 12
+    },
+    "secondaryGatewayAuthenticationAfter": 18,
+    "secondaryGatewayAuthenticationBefore": 6,
+    "sessionResumeLatencyMicros": {
+      "max": 32788,
+      "mean": 23416.75,
+      "min": 17175,
+      "p50": 21804,
+      "p95": 32788,
+      "p99": 32788,
+      "samples": 12
+    }
+  },
+  "scenario": {
+    "connections": 18,
+    "edgeProcesses": 2,
+    "failedEdgeConnections": 12,
+    "gatewayProcesses": 2,
+    "primaryEdgeKilled": true,
+    "reconnectBatchIntervalMillis": 100,
+    "reconnectBatchSize": 3,
+    "reconnectBatches": 4,
+    "scheduledReconnectSpanMillis": 300,
+    "survivingEdgeConnections": 6
+  },
+  "schemaVersion": 2,
+  "sourceRevision": "4d9574f8c936dfc733a40982994a2eac8e0bd721",
+  "warning": "local dual-edge recovery evidence; not a production capacity claim",
+  "worktreeDirty": false
+}
