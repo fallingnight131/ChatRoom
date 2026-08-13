@@ -738,7 +738,7 @@ Progress:
   - [x] Implement PostgreSQL registration allocation and concurrent convergence.
   - [x] Add strict detached `REGISTER_REQ` with auth admission, clearable secret
     decoding, bounded off-loop hashing, generic collision, and login pass-through.
-  - [ ] Compose registration and prove registration-to-login, exact retry,
+  - [x] Compose registration and prove registration-to-login, exact retry,
     username collision, and restart durability through PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.

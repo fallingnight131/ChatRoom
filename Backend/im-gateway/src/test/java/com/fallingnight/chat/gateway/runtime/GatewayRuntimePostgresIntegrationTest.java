@@ -28,6 +28,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomRenameEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomPasswordEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDissolutionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1PasswordChangeEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RegistrationEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomAdminEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomKickEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
@@ -420,6 +421,8 @@ class GatewayRuntimePostgresIntegrationTest {
                 imported.finishAndReleaseAll();
             }
 
+            assertRegistrationAndLogin(module, dataSource, jdbcUrl, username, password);
+
             EmbeddedChannel nativeV2 = upgradedChannel(module,
                     Runnable::run,
                     AuthenticationAdmissionControl.allowAll(),
@@ -434,7 +437,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     response.release();
                 }
                 assertFalse(nativeV2.isActive());
-                assertEquals(11, sessionCount(jdbcUrl, username, password));
+                assertEquals(12, sessionCount(jdbcUrl, username, password));
             } finally {
                 nativeV2.finishAndReleaseAll();
             }
@@ -463,6 +466,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomPasswordEventSink.noop(),
                 V1RoomDissolutionEventSink.noop(),
                 V1PasswordChangeEventSink.noop(),
+                V1RegistrationEventSink.noop(),
                 V1RoomAdminEventSink.noop(),
                 V1RoomKickEventSink.noop(),
                 V1RoomDirectoryEventSink.noop(),
@@ -492,6 +496,73 @@ class GatewayRuntimePostgresIntegrationTest {
                         EmptyHttpHeaders.INSTANCE,
                         "chat.v1"));
         return channel;
+    }
+
+    private static void assertRegistrationAndLogin(V1CompatibilityModule module,
+            HikariDataSource dataSource, String url, String user, String password) throws Exception {
+        String registration = "{\"type\":\"REGISTER_REQ\",\"data\":{"
+                + "\"username\":\"runtime_user\",\"displayName\":\"Runtime User\","
+                + "\"password\":\"runtime-password\"}}";
+        long userId;
+        EmbeddedChannel first = upgradedChannel(module, Runnable::run,
+                AuthenticationAdmissionControl.allowAll(), AuthenticationEventSink.noop());
+        try {
+            first.writeInbound(new TextWebSocketFrame(registration)); first.runPendingTasks();
+            TextWebSocketFrame response = first.readOutbound();
+            try {
+                assertTrue(response.text().contains("\"type\":\"REGISTER_RSP\""));
+                assertTrue(response.text().contains("\"success\":true"));
+                assertTrue(response.text().contains("\"duplicate\":false"));
+                userId = numericDataField(response.text(), "userId");
+                assertTrue(userId > 0); assertFalse(response.text().contains("runtime-password"));
+            } finally { response.release(); }
+        } finally { first.finishAndReleaseAll(); }
+
+        try (V1RoomPasswordKeyMaterial key = V1RoomPasswordKeyMaterial.fromEnvironment(Map.of(
+                    V1RoomPasswordKeyMaterial.ENVIRONMENT_KEY,
+                    Base64.getEncoder().encodeToString(new byte[32])));
+                V1CompatibilityModule restarted = V1CompatibilityModule.create(
+                        dataSource, Clock.fixed(Instant.parse("2026-08-12T12:00:00Z"),
+                                ZoneOffset.UTC), key)) {
+            EmbeddedChannel retry = upgradedChannel(restarted, Runnable::run,
+                    AuthenticationAdmissionControl.allowAll(), AuthenticationEventSink.noop());
+            try {
+                retry.writeInbound(new TextWebSocketFrame(registration)); retry.runPendingTasks();
+                TextWebSocketFrame response = retry.readOutbound();
+                try {
+                    assertTrue(response.text().contains("\"duplicate\":true"));
+                    assertEquals(userId, numericDataField(response.text(), "userId"));
+                } finally { response.release(); }
+            } finally { retry.finishAndReleaseAll(); }
+
+            EmbeddedChannel collision = upgradedChannel(restarted, Runnable::run,
+                    AuthenticationAdmissionControl.allowAll(), AuthenticationEventSink.noop());
+            try {
+                collision.writeInbound(new TextWebSocketFrame(registration.replace(
+                        "Runtime User", "Different User"))); collision.runPendingTasks();
+                TextWebSocketFrame response = collision.readOutbound();
+                try {
+                    assertTrue(response.text().contains("\"success\":false"));
+                    assertTrue(response.text().contains("USERNAME_TAKEN"));
+                } finally { response.release(); }
+            } finally { collision.finishAndReleaseAll(); }
+
+            EmbeddedChannel login = upgradedChannel(restarted, Runnable::run,
+                    AuthenticationAdmissionControl.allowAll(), AuthenticationEventSink.noop());
+            try {
+                login.writeInbound(loginFrame("runtime_user", "runtime-password"));
+                login.runPendingTasks(); TextWebSocketFrame response = login.readOutbound();
+                try {
+                    assertTrue(response.text().contains("\"success\":true"));
+                    assertTrue(response.text().contains("\"userId\":" + userId));
+                } finally { response.release(); }
+            } finally { login.finishAndReleaseAll(); }
+        }
+        assertEquals(1, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.legacy_v1_registration_audit audit "
+                        + "JOIN chat.account account ON account.id = audit.account_id "
+                        + "WHERE account.username_key = 'runtime_user' "
+                        + "AND account.password_hash LIKE '$argon2id$%'"));
     }
 
     private static TextWebSocketFrame loginFrame(String username, String password) {
