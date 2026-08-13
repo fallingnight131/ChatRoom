@@ -19,7 +19,7 @@ and desired administrator state. The application service validates input and
 rejects any persistence result whose room, target username, or desired state
 differs from the command.
 
-The future atomic adapter must return a canonical conversation and target
+The atomic PostgreSQL adapter returns a canonical conversation and target
 account plus a `changed` flag. Stable rejection categories distinguish invalid
 input, missing administrator authority, attempts to demote another account,
 inactive/non-member targets, and the protected canonical OWNER role.
@@ -31,8 +31,11 @@ transfer remains an explicit lifecycle operation. Repeating an already reached
 role is a successful `changed=false` convergence and must not emit another live
 notification.
 
-This ADR defines no wire handler, database mutation, or product-listener change.
-Those are subsequent independently verified slices.
+The adapter locks the active mapped room plus actor and target memberships in a
+serializable transaction, uses compare-and-set role updates, touches the
+conversation only on change, and retries bounded serialization/deadlock
+failures. This ADR defines no wire handler or product-listener change; transport
+composition is a subsequent independently verified slice.
 
 ## Consequences
 

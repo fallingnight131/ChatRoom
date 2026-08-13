@@ -661,6 +661,9 @@ Progress:
   - [x] Define the server-bound V1 room-administrator command contract with
     bounded target identity, convergent role state, and protected OWNER
     semantics before adding persistence or transport.
+  - [x] Implement serializable PostgreSQL V1 administrator promotion and
+    self-demotion with active mapped membership checks, OWNER protection, and
+    convergent duplicate state.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-

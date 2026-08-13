@@ -52,6 +52,8 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomJoinIntent
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomJoinResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomLeaveIntent;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomLeaveResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomAdminCommand;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomAdminResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMemberListPort;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettings;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettingsPort;
@@ -1316,6 +1318,76 @@ class PostgresMigratorTest {
         assertEquals(LegacyV1RoomReadResult.Rejected.ROOM_ACCESS_DENIED,
                 new PostgresLegacyV1RoomReadAdapter(dataSource()).markRead(
                         new LegacyV1RoomReadCommand(admin, created.legacyRoomId())));
+    }
+
+    @Test
+    @Order(93)
+    void changesV1RoomAdministratorRolesAtomicallyAndConvergently() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID owner = UUID.randomUUID(), admin = UUID.randomUUID();
+        UUID member = UUID.randomUUID(), outsider = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'admin-owner', 'Owner', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'admin-admin', 'Admin', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'admin-member', 'Member', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'admin-outsider', 'Outsider', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    owner, admin, member, outsider);
+            execute(connection, "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, "
+                    + "account_id) VALUES (75, ?), (76, ?), (77, ?), (78, ?)",
+                    owner, admin, member, outsider);
+        }
+        var created = (LegacyV1RoomCreationResult.Created)
+                new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
+                        new LegacyV1RoomCreationIntent(owner, "admin-room-create",
+                                "Admin Room", Optional.empty()));
+        PostgresLegacyV1RoomJoinAdapter joins =
+                new PostgresLegacyV1RoomJoinAdapter(dataSource());
+        for (UUID actor : List.of(admin, member)) {
+            var access = (LegacyV1RoomJoinAccess.Candidate)
+                    joins.inspect(actor, created.legacyRoomId());
+            joins.join(new LegacyV1RoomJoinIntent(actor, access.conversationId(),
+                    access.legacyRoomId(), access.joinCredential()));
+        }
+        PostgresLegacyV1RoomAdminAdapter roles =
+                new PostgresLegacyV1RoomAdminAdapter(dataSource());
+        assertEquals(LegacyV1RoomAdminResult.Rejected.ROOM_ADMIN_REQUIRED,
+                roles.change(new LegacyV1RoomAdminCommand(
+                        member, created.legacyRoomId(), "admin-admin", true)));
+        assertEquals(LegacyV1RoomAdminResult.Rejected.TARGET_NOT_ACTIVE_MEMBER,
+                roles.change(new LegacyV1RoomAdminCommand(
+                        owner, created.legacyRoomId(), "admin-outsider", true)));
+        assertEquals(LegacyV1RoomAdminResult.Rejected.OWNER_PROTECTED,
+                roles.change(new LegacyV1RoomAdminCommand(
+                        owner, created.legacyRoomId(), "admin-owner", false)));
+
+        var promoted = (LegacyV1RoomAdminResult.Changed) roles.change(
+                new LegacyV1RoomAdminCommand(
+                        owner, created.legacyRoomId(), "admin-admin", true));
+        assertTrue(promoted.changed()); assertTrue(promoted.admin());
+        assertEquals(admin, promoted.targetAccountId());
+        var retry = (LegacyV1RoomAdminResult.Changed) roles.change(
+                new LegacyV1RoomAdminCommand(
+                        owner, created.legacyRoomId(), "admin-admin", true));
+        assertFalse(retry.changed()); assertTrue(retry.admin());
+        assertEquals(LegacyV1RoomAdminResult.Rejected.SELF_DEMOTION_REQUIRED,
+                roles.change(new LegacyV1RoomAdminCommand(
+                        owner, created.legacyRoomId(), "admin-admin", false)));
+
+        var demoted = (LegacyV1RoomAdminResult.Changed) roles.change(
+                new LegacyV1RoomAdminCommand(
+                        admin, created.legacyRoomId(), "admin-admin", false));
+        assertTrue(demoted.changed()); assertFalse(demoted.admin());
+        assertEquals(1, count("SELECT count(*) FROM chat.conversation_member WHERE "
+                + "conversation_id = '" + created.conversationId() + "' "
+                + "AND account_id = '" + admin + "' AND role = 'MEMBER'"));
+        assertEquals(LegacyV1RoomAdminResult.Rejected.ROOM_ADMIN_REQUIRED,
+                roles.change(new LegacyV1RoomAdminCommand(
+                        admin, created.legacyRoomId(), "admin-admin", false)));
     }
 
     @Test
