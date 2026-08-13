@@ -215,7 +215,9 @@ and ADMIN targets are protected. A first commit returns `changed=true`, sends
 system message to remaining active local members. An exact same-actor retry is
 reconstructed from durable membership-generation audit, returns
 `changed=false`, and emits no live effect. The handler is not yet composed into
-the compatibility module or product listener.
+the product listener. It is composed in the detached Java compatibility module
+and covered through real PostgreSQL login, first kick, retry, notification, and
+room-list exclusion tests.
 
 ### Room files
 

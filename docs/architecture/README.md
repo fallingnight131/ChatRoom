@@ -881,7 +881,10 @@ same serializable transaction as membership `left_at`; exact retry must match
 conversation, actor, target, and that precise membership-generation timestamp.
 Voluntary leave, another operator, or rejoin cannot impersonate the retry.
 PostgreSQL proves protected roles, first/retry behavior, rejoin separation, and
-audit retention. No handler or product listener is composed yet.
+audit retention. The detached compatibility module now composes the strict
+handler; real PostgreSQL proves login-to-kick, target/remaining-member effects,
+audit linkage, retry suppression, and immediate directory exclusion. The
+product listener remains unchanged.
 
 ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
 create-only, length, type, and SHA-256 constraints and reads checksum-enabled

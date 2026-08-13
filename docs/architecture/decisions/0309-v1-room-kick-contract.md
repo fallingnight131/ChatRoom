@@ -37,8 +37,8 @@ authoritative if routing fails. The detached strict handler now emits those
 effects plus the compatible room system message, with bounded off-event-loop
 work and fixed outcomes. Exact retry and business rejection never notify;
 malformed, concurrent, saturated, and dependency-failed commands close
-generically. The handler is not yet composed into the compatibility module or
-product listener.
+generically. It is composed only in the detached compatibility module; the
+product listener remains unchanged.
 
 ## Consequences
 
@@ -52,5 +52,7 @@ product listener.
   denial, rejoin, and a distinct second-generation audit event.
 - Handler tests cover strict parsing, actor binding, first-only target/member
   effects, UUID-free responses, rejection, dependency failure, and saturation.
-- Compatibility-module composition and the product listener remain subsequent
-  independently verified slices.
+- The handler and adapter are now composed in the detached compatibility module.
+  Real PostgreSQL covers login, first kick, target and remaining-member effects,
+  durable audit linkage, retry suppression, and immediate room-list exclusion.
+- The product listener remains unchanged.

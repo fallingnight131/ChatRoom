@@ -24,6 +24,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomSettingsEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFilesEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFileDeletionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomAdminEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomKickEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestAcceptanceEventSink;
@@ -358,6 +359,8 @@ class GatewayRuntimePostgresIntegrationTest {
                                     "imported-newcomer", "java-v2-test-password"));
                             newcomer.runPendingTasks();
                             ((TextWebSocketFrame) newcomer.readOutbound()).release();
+                            assertRoomKick(reconnected, peer, newcomer,
+                                    jdbcUrl, username, password);
                             assertFriendRequestSuccess(peer, "imported-newcomer");
                             newcomer.runPendingTasks();
                             TextWebSocketFrame requestNotification = newcomer.readOutbound();
@@ -437,6 +440,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomFilesEventSink.noop(),
                 V1RoomFileDeletionEventSink.noop(),
                 V1RoomAdminEventSink.noop(),
+                V1RoomKickEventSink.noop(),
                 V1RoomDirectoryEventSink.noop(),
                 V1RoomMessageEventSink.noop(),
                 V1RoomHistoryEventSink.noop(),
@@ -944,6 +948,62 @@ class GatewayRuntimePostgresIntegrationTest {
         } finally { response.release(); }
     }
 
+    private static void assertRoomKick(EmbeddedChannel owner, EmbeddedChannel remaining,
+            EmbeddedChannel target, String url, String user, String password) throws Exception {
+        String request = "{\"type\":\"KICK_USER_REQ\",\"data\":{\"roomId\":7,"
+                + "\"username\":\"imported-newcomer\"}}";
+        owner.writeInbound(new TextWebSocketFrame(request)); owner.runPendingTasks();
+        TextWebSocketFrame response = owner.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"KICK_USER_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"changed\":true"));
+            assertTrue(response.text().contains("\"username\":\"imported-newcomer\""));
+            assertFalse(response.text().contains("16000000-0000"));
+        } finally { response.release(); }
+
+        target.runPendingTasks(); TextWebSocketFrame kicked = target.readOutbound();
+        try {
+            assertTrue(kicked.text().contains("\"type\":\"KICK_USER_NOTIFY\""));
+            assertTrue(kicked.text().contains("\"roomId\":7"));
+            assertTrue(kicked.text().contains("\"roomName\":\"Imported Room\""));
+            assertTrue(kicked.text().contains("\"operator\":\"Imported V1\""));
+        } finally { kicked.release(); }
+        remaining.runPendingTasks();
+        TextWebSocketFrame left = remaining.readOutbound(), system = remaining.readOutbound();
+        try {
+            assertTrue(left.text().contains("\"type\":\"USER_LEFT\""));
+            assertTrue(left.text().contains("\"username\":\"imported-newcomer\""));
+            assertTrue(system.text().contains("\"type\":\"SYSTEM_MSG\""));
+            assertTrue(system.text().contains("Imported Newcomer"));
+        } finally { left.release(); system.release(); }
+        assertEquals(1, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.legacy_v1_room_kick_event event "
+                        + "JOIN chat.conversation_member member "
+                        + "ON member.conversation_id = event.conversation_id "
+                        + "AND member.account_id = event.target_account_id "
+                        + "AND member.left_at = event.kicked_at "
+                        + "WHERE event.legacy_room_id = 7 "
+                        + "AND event.target_username_snapshot = 'imported-newcomer'"));
+
+        owner.writeInbound(new TextWebSocketFrame(request)); owner.runPendingTasks();
+        response = owner.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"changed\":false"));
+        } finally { response.release(); }
+        target.runPendingTasks(); assertNull(target.readOutbound());
+        remaining.runPendingTasks(); assertNull(remaining.readOutbound());
+
+        target.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"ROOM_LIST_REQ\",\"data\":{}}"));
+        target.runPendingTasks(); response = target.readOutbound();
+        try {
+            assertFalse(response.text().contains("\"roomId\":7"));
+            assertFalse(response.text().contains("Imported Room"));
+        } finally { response.release(); }
+    }
+
     private static void assertDirectRecallFirst(
             EmbeddedChannel sender, EmbeddedChannel recipient, long messageId) {
         sendDirectRecall(sender, messageId);
@@ -1054,7 +1114,7 @@ class GatewayRuntimePostgresIntegrationTest {
             assertTrue(response.text().contains("\"roomId\":7"));
             assertTrue(response.text().contains("\"roomName\":\"Imported Room\""));
             assertTrue(response.text().contains("\"creatorId\":42"));
-            assertTrue(response.text().contains("\"memberCount\":2"));
+            assertTrue(response.text().contains("\"memberCount\":3"));
             assertFalse(response.text().contains("30000000-0000"));
             assertFalse(response.text().contains("Unrelated Room"));
         } finally { response.release(); }
@@ -1355,6 +1415,11 @@ class GatewayRuntimePostgresIntegrationTest {
                 member.addBatch();
                 member.setObject(1, importedRoom);
                 member.setObject(2, peer);
+                member.setString(3, "MEMBER");
+                member.setLong(4, 0);
+                member.addBatch();
+                member.setObject(1, importedRoom);
+                member.setObject(2, newcomer);
                 member.setString(3, "MEMBER");
                 member.setLong(4, 0);
                 member.addBatch();
