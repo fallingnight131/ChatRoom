@@ -55,6 +55,11 @@ class GatewayRuntimeConfigTest {
         assertEquals(Duration.ofSeconds(60), config.forwardAdmissionLimits().window());
         assertEquals(120, config.forwardAdmissionLimits().attemptsPerAccount());
         assertEquals(10_000, config.forwardAdmissionLimits().maximumTrackedAccounts());
+        assertFalse(config.messageForwardingEnabled());
+        Map<String, String> enabledForwarding = requiredEnvironment();
+        enabledForwarding.put("CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED", "true");
+        assertTrue(GatewayRuntimeConfig.fromEnvironment(enabledForwarding)
+                .messageForwardingEnabled());
         assertTrue(config.hostPolicy().allows(List.of("gateway.example.com:443")));
         assertEquals(ClientPlatform.WEB, config.endpointPolicy().expectedPlatform(
                 WebSocketEndpointPolicy.WEB_PATH,
@@ -99,6 +104,11 @@ class GatewayRuntimeConfigTest {
         forwardAttempts.put("CHATROOM_GATEWAY_FORWARD_ATTEMPTS", "0");
         assertThrows(IllegalArgumentException.class,
                 () -> GatewayRuntimeConfig.fromEnvironment(forwardAttempts));
+
+        Map<String, String> forwardingFlag = requiredEnvironment();
+        forwardingFlag.put("CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED", "TRUE");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(forwardingFlag));
 
         Map<String, String> waterMarks = requiredEnvironment();
         waterMarks.put("CHATROOM_GATEWAY_WRITE_BUFFER_LOW_BYTES", "65536");

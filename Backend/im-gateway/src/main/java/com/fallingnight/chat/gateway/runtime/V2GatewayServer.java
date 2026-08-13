@@ -417,7 +417,8 @@ public final class V2GatewayServer implements AutoCloseable {
                 deviceConnections,
                 liveRouter,
                 config.handshakeTimeout(),
-                config.authenticationTimeout()));
+                config.authenticationTimeout(),
+                config.messageForwardingEnabled()));
         pipeline.addLast("safe-channel-error", new GatewayChannelExceptionHandler());
     }
 

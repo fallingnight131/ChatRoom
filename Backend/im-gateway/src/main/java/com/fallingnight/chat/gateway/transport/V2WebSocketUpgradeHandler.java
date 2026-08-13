@@ -47,6 +47,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
     private final ConversationLiveRouter liveRouter;
     private final Duration handshakeTimeout;
     private final Duration authenticationTimeout;
+    private final boolean messageForwardingEnabled;
     private ScheduledFuture<?> upgradeDeadline;
 
     public V2WebSocketUpgradeHandler(
@@ -178,6 +179,35 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
             ConversationLiveRouter liveRouter,
             Duration handshakeTimeout,
             Duration authenticationTimeout) {
+        this(authentication, sessionResume, submissions, history, directory, participants,
+                reactions, pins, edits, forwards, deviceManagement, authenticationExecutor,
+                messagingExecutor, admission, events, messagingEvents, deviceEvents,
+                deviceConnections, liveRouter, handshakeTimeout, authenticationTimeout, false);
+    }
+
+    public V2WebSocketUpgradeHandler(
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            ConversationLiveRouter liveRouter,
+            Duration handshakeTimeout,
+            Duration authenticationTimeout,
+            boolean messageForwardingEnabled) {
         this.authentication = Objects.requireNonNull(authentication, "authentication");
         this.sessionResume = Objects.requireNonNull(sessionResume, "sessionResume");
         this.submissions = Objects.requireNonNull(submissions, "submissions");
@@ -201,6 +231,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
         this.handshakeTimeout = Objects.requireNonNull(handshakeTimeout, "handshakeTimeout");
         this.authenticationTimeout = Objects.requireNonNull(
                 authenticationTimeout, "authenticationTimeout");
+        this.messageForwardingEnabled = messageForwardingEnabled;
     }
 
     @Override
@@ -243,7 +274,8 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
                     deviceConnections,
                     liveRouter,
                     handshakeTimeout,
-                    authenticationTimeout);
+                    authenticationTimeout,
+                    messageForwardingEnabled);
             context.pipeline().remove(this);
         }
         context.fireUserEventTriggered(event);

@@ -1511,6 +1511,13 @@ input is true and the client explicitly requested it. Existing pipeline calls
 delegate with false, so compiling this seam cannot activate production. A later
 runtime-composition step must provide reviewed configuration explicitly; turning
 it off immediately stops new negotiations without changing stored messages.
+The product composition now supplies that input from
+`CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED`. It is false when absent, accepts
+only exact lowercase `true` or `false`, and rejects any other value before bind.
+Changing it requires a gateway restart; existing connections retain the
+capabilities negotiated for that connection, while new connections immediately
+follow the new policy. Client product paths remain off, so enabling only this
+server setting does not expose an authoring action.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic

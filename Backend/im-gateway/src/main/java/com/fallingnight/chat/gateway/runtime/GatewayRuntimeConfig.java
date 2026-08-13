@@ -55,6 +55,7 @@ public final class GatewayRuntimeConfig {
     private final Duration authenticatedHeartbeatInterval;
     private final AuthenticationAdmissionLimits admissionLimits;
     private final MessageForwardAdmissionLimits forwardAdmissionLimits;
+    private final boolean messageForwardingEnabled;
 
     private GatewayRuntimeConfig(
             InetSocketAddress listenerAddress,
@@ -86,7 +87,8 @@ public final class GatewayRuntimeConfig {
             Duration authenticatedIdleTimeout,
             Duration authenticatedHeartbeatInterval,
             AuthenticationAdmissionLimits admissionLimits,
-            MessageForwardAdmissionLimits forwardAdmissionLimits) {
+            MessageForwardAdmissionLimits forwardAdmissionLimits,
+            boolean messageForwardingEnabled) {
         this.listenerAddress = listenerAddress;
         this.adminAddress = adminAddress;
         this.tlsCertificateChain = tlsCertificateChain;
@@ -117,6 +119,7 @@ public final class GatewayRuntimeConfig {
         this.authenticatedHeartbeatInterval = authenticatedHeartbeatInterval;
         this.admissionLimits = admissionLimits;
         this.forwardAdmissionLimits = forwardAdmissionLimits;
+        this.messageForwardingEnabled = messageForwardingEnabled;
     }
 
     public static GatewayRuntimeConfig fromEnvironment(Map<String, String> environment) {
@@ -215,6 +218,8 @@ public final class GatewayRuntimeConfig {
                 integer(environment, "CHATROOM_GATEWAY_FORWARD_ATTEMPTS", 120, 1, 10_000),
                 integer(environment, "CHATROOM_GATEWAY_FORWARD_MAX_KEYS",
                         10_000, 16, 1_000_000));
+        boolean messageForwardingEnabled = bool(
+                environment, "CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED", false);
         return new GatewayRuntimeConfig(
                 listener,
                 admin,
@@ -245,7 +250,8 @@ public final class GatewayRuntimeConfig {
                 idleTimeout,
                 heartbeatInterval,
                 limits,
-                forwardLimits);
+                forwardLimits,
+                messageForwardingEnabled);
     }
 
     public InetSocketAddress listenerAddress() {
@@ -366,6 +372,10 @@ public final class GatewayRuntimeConfig {
 
     public MessageForwardAdmissionLimits forwardAdmissionLimits() {
         return forwardAdmissionLimits;
+    }
+
+    public boolean messageForwardingEnabled() {
+        return messageForwardingEnabled;
     }
 
     private static String required(Map<String, String> environment, String key) {

@@ -1631,6 +1631,9 @@ Progress:
     - [x] Add a default-deny gateway handshake policy seam that negotiates
       capability 5 only when both an explicit server policy and the client
       request it; product runtime policy remains off.
+    - [x] Thread the strict default-false
+      `CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED` product setting through the
+      gateway composition root and WebSocket upgrade into that handshake seam.
 
 Candidate slices:
 
