@@ -30,6 +30,10 @@ public:
 private:
     void render();
     void renderParticipants();
+    void chooseReply(const QString &messageId);
+    void beginEdit(const QString &messageId, const QString &text,
+                   const QList<V2LocalMessageRepository::Mention> &mentions);
+    void cancelComposition();
     void toggleParticipantPicker();
     void insertParticipant(QListWidgetItem *item);
     void reconcileComposer();
@@ -50,6 +54,7 @@ private:
     QPushButton *m_mention;
     QPushButton *m_send;
     QString m_conversationId;
+    QString m_editTargetMessageId;
     QString m_previousComposerText;
     QList<V2WindowsMentionComposer::Anchor> m_mentionAnchors;
     bool m_updatingComposer = false;

@@ -3,9 +3,9 @@
 #include "V2WindowsMessagingViewModel.h"
 
 #include <QHBoxLayout>
-#include <QInputDialog>
 #include <QLabel>
 #include <QListWidget>
+#include <QPalette>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QTextCursor>
@@ -88,7 +88,7 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
             &V2WindowsConversationParticipantViewModel::changed,
             this, &V2WindowsMessagingPanel::renderParticipants);
     connect(m_cancelReply, &QPushButton::clicked,
-            m_viewModel, &V2WindowsMessagingViewModel::cancelReply);
+            this, &V2WindowsMessagingPanel::cancelComposition);
     connect(m_send, &QPushButton::clicked, this, &V2WindowsMessagingPanel::sendReply);
     connect(m_mention, &QPushButton::clicked,
             this, &V2WindowsMessagingPanel::toggleParticipantPicker);
@@ -109,9 +109,14 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
 void V2WindowsMessagingPanel::setConversation(const QString &conversationId) {
     if (conversationId == m_conversationId) return;
     m_conversationId = conversationId;
+    m_editTargetMessageId.clear();
     m_participantPane->hide();
     m_mentionAnchors.clear();
-    m_previousComposerText = m_composer->toPlainText();
+    m_updatingComposer = true;
+    m_composer->clear();
+    m_updatingComposer = false;
+    m_previousComposerText.clear();
+    m_mention->setEnabled(false);
 }
 
 void V2WindowsMessagingPanel::render() {
@@ -121,7 +126,27 @@ void V2WindowsMessagingPanel::render() {
         auto *item = new QListWidgetItem(m_messages);
         auto *row = new QWidget(m_messages);
         auto *layout = new QVBoxLayout(row);
-        auto *body = new QLabel(message.text, row);
+        auto *body = new QLabel(row);
+        QString richBody;
+        QStringList mentionTargetAccountIds;
+        const QString mentionColor = palette().color(QPalette::Link).name();
+        for (const auto &segment : V2WindowsMentionComposer::segments(
+                 message.text, message.mentions)) {
+            const QString escaped = segment.text.toHtmlEscaped().replace(
+                QStringLiteral("\n"), QStringLiteral("<br>"));
+            if (segment.mention) {
+                richBody += QStringLiteral(
+                    "<span style=\"color:%1;font-weight:600\">%2</span>")
+                    .arg(mentionColor, escaped);
+                mentionTargetAccountIds.append(segment.targetAccountId);
+            } else {
+                richBody += escaped;
+            }
+        }
+        body->setText(richBody);
+        body->setTextFormat(Qt::RichText);
+        body->setAccessibleName(QStringLiteral("消息内容：%1").arg(message.text));
+        body->setProperty("mentionTargetAccountIds", mentionTargetAccountIds);
         body->setWordWrap(true);
         body->setTextInteractionFlags(Qt::TextSelectableByKeyboard | Qt::TextSelectableByMouse);
         if (!message.replyPreview.isEmpty()) {
@@ -188,21 +213,16 @@ void V2WindowsMessagingPanel::render() {
         if (message.canReply) {
             auto *reply = new QPushButton(QStringLiteral("回复"), row);
             reply->setAccessibleName(QStringLiteral("回复此消息"));
-            connect(reply, &QPushButton::clicked, m_viewModel,
-                    [model = m_viewModel, id = message.messageId] { model->chooseReply(id); });
+            connect(reply, &QPushButton::clicked, this,
+                    [this, id = message.messageId] { chooseReply(id); });
             actions->addWidget(reply);
             if (message.canEdit) {
                 auto *edit = new QPushButton(QStringLiteral("编辑"), row);
                 edit->setAccessibleName(QStringLiteral("编辑此消息"));
-                connect(edit, &QPushButton::clicked, m_viewModel,
-                    [model = m_viewModel, id = message.messageId,
-                     current = message.text, row] {
-                        bool accepted = false;
-                        const QString text = QInputDialog::getMultiLineText(
-                            row, QStringLiteral("编辑消息"), QStringLiteral("消息内容"),
-                            current, &accepted);
-                        if (accepted && !text.trimmed().isEmpty())
-                            model->editMessage(id, text);
+                connect(edit, &QPushButton::clicked, this,
+                    [this, id = message.messageId, current = message.text,
+                     mentions = message.mentions] {
+                        beginEdit(id, current, mentions);
                     });
                 actions->addWidget(edit);
             }
@@ -261,13 +281,22 @@ void V2WindowsMessagingPanel::render() {
         item->setSizeHint(row->sizeHint());
         m_messages->setItemWidget(item, row);
     }
+    const bool editing = !m_editTargetMessageId.isEmpty();
     const bool replying = !m_viewModel->replyTargetMessageId().isEmpty();
-    m_replyBanner->setText(m_viewModel->replyBanner());
-    m_replyBanner->setVisible(replying);
-    m_cancelReply->setVisible(replying);
+    const bool composing = replying || editing;
+    m_replyBanner->setText(editing
+        ? QStringLiteral("正在编辑消息") : m_viewModel->replyBanner());
+    m_replyBanner->setVisible(composing);
+    m_cancelReply->setText(editing ? QStringLiteral("取消编辑") : QStringLiteral("取消回复"));
+    m_cancelReply->setAccessibleName(editing
+        ? QStringLiteral("取消当前编辑") : QStringLiteral("取消当前回复"));
+    m_cancelReply->setVisible(composing);
+    m_send->setText(editing ? QStringLiteral("保存编辑") : QStringLiteral("发送回复"));
+    m_send->setAccessibleName(editing
+        ? QStringLiteral("保存当前消息编辑") : QStringLiteral("发送当前回复"));
     m_mention->setEnabled(
-        m_mentionsEnabled && replying && !m_conversationId.isEmpty());
-    m_send->setEnabled(replying && !m_composer->toPlainText().trimmed().isEmpty());
+        m_mentionsEnabled && composing && !m_conversationId.isEmpty());
+    m_send->setEnabled(composing && !m_composer->toPlainText().trimmed().isEmpty());
 }
 
 void V2WindowsMessagingPanel::renderParticipants() {
@@ -293,6 +322,53 @@ void V2WindowsMessagingPanel::renderParticipants() {
         m_participantStatus->setText(QStringLiteral("没有可提及的成员"));
     else
         m_participantStatus->setText(QStringLiteral("选择成员并按 Enter 插入提及"));
+}
+
+void V2WindowsMessagingPanel::chooseReply(const QString &messageId) {
+    if (messageId.isEmpty()) return;
+    if (!m_editTargetMessageId.isEmpty()) {
+        m_editTargetMessageId.clear();
+        m_mentionAnchors.clear();
+        m_updatingComposer = true;
+        m_composer->clear();
+        m_updatingComposer = false;
+        m_previousComposerText.clear();
+    }
+    m_viewModel->chooseReply(messageId);
+}
+
+void V2WindowsMessagingPanel::beginEdit(
+        const QString &messageId, const QString &text,
+        const QList<V2LocalMessageRepository::Mention> &mentions) {
+    try {
+        const auto anchors = V2WindowsMentionComposer::restore(text, mentions);
+        m_viewModel->cancelReply();
+        m_editTargetMessageId = messageId;
+        m_updatingComposer = true;
+        m_composer->setPlainText(text);
+        m_updatingComposer = false;
+        m_previousComposerText = text;
+        m_mentionAnchors = anchors;
+        render();
+        m_composer->setFocus();
+    } catch (const std::exception &) {
+        m_status->setText(QStringLiteral("无法恢复消息中的提及，暂不能编辑"));
+    }
+}
+
+void V2WindowsMessagingPanel::cancelComposition() {
+    const bool editing = !m_editTargetMessageId.isEmpty();
+    m_editTargetMessageId.clear();
+    m_participantPane->hide();
+    if (editing) {
+        m_updatingComposer = true;
+        m_composer->clear();
+        m_updatingComposer = false;
+        m_previousComposerText.clear();
+        m_mentionAnchors.clear();
+    }
+    m_viewModel->cancelReply();
+    render();
 }
 
 void V2WindowsMessagingPanel::toggleParticipantPicker() {
@@ -355,8 +431,8 @@ void V2WindowsMessagingPanel::reconcileComposer() {
         }
     }
     m_previousComposerText = next;
-    m_send->setEnabled(!m_viewModel->replyTargetMessageId().isEmpty()
-        && !next.trimmed().isEmpty());
+    m_send->setEnabled((!m_viewModel->replyTargetMessageId().isEmpty()
+        || !m_editTargetMessageId.isEmpty()) && !next.trimmed().isEmpty());
 }
 
 void V2WindowsMessagingPanel::sendReply() {
@@ -368,7 +444,12 @@ void V2WindowsMessagingPanel::sendReply() {
         m_status->setText(QStringLiteral("提及内容已失效，请重新选择成员"));
         return;
     }
-    if (m_viewModel->sendReply(m_composer->toPlainText(), mentions)) {
+    const bool accepted = m_editTargetMessageId.isEmpty()
+        ? m_viewModel->sendReply(m_composer->toPlainText(), mentions)
+        : m_viewModel->editMessage(
+            m_editTargetMessageId, m_composer->toPlainText(), mentions);
+    if (accepted) {
+        m_editTargetMessageId.clear();
         m_composer->clear();
         m_mentionAnchors.clear();
         m_previousComposerText.clear();

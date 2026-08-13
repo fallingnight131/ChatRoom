@@ -1369,6 +1369,11 @@ the active conversation, accessible keyboard selection inserts Unicode text,
 and reply submission carries the exact account-backed UTF-8 span. The default
 product composition still hides this control until the remaining Windows
 mention gates pass.
+The panel test also locks identity-preserving display and edit behavior: message
+HTML is escaped before mention emphasis, assistive technology receives the
+plain body, the highlighted segment retains its stored account target, and an
+author edit restores then resubmits the original span after an unrelated suffix
+change. These assertions do not activate capability 4.
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

@@ -746,9 +746,12 @@ identity-preserving render segments. The Widgets reply editor has a default-off
 integration with an explicit-load, keyboard-native participant picker. Its
 loading, denial, empty, refresh, and paging controls expose fixed accessible
 text; selecting an authorized row inserts a stable account-backed anchor and
-send serializes it without reparsing the display name. The product flag remains
-off until rendering, edit restore, reconnect, capability, and Windows gates are
-complete.
+send serializes it without reparsing the display name. Message rows now escape
+untrusted text before applying identity-backed mention emphasis and retain a
+plain accessible name. Author edits restore the stored spans into the shared
+inline editor, preserve them across non-overlapping changes, and submit the
+updated body and spans atomically. The product flag remains off until reconnect,
+capability, and Windows gates are complete.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

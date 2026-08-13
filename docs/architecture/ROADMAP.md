@@ -1563,6 +1563,10 @@ Progress:
         participant picker with bounded paging, fixed accessible states,
         Unicode-safe insertion, edit reconciliation, and structured send while
         keeping the product flag and capability 4 off.
+      - [x] Render Windows mentions from stored identity spans with escaped rich
+        text and accessible plain text, and restore those same spans into the
+        shared inline editor for identity-preserving edits while activation
+        remains off.
 
 Candidate slices:
 
