@@ -1446,6 +1446,12 @@ uncorrelated ordered type-108/113 events. The canonical default-off Windows CMak
 product now composes this boundary with the shared authenticated Qt WSS,
 account-isolated SQLite, a strict conversation directory, and Widgets surface;
 the codec test alone remains protocol-boundary evidence (ADR-0331/ADR-0334–0338).
+The codec also has a constructor-gated type-119 path. Tests lock canonical
+source/destination IDs, revision 0..100, stable destination client-message-ID
+correlation, acceptance, and capable `forwarded` projection; the default
+constructor rejects both forwarding commands and unexpected markers. This is
+protocol evidence only: the Windows session still requests exactly capabilities
+1–4, and no SQLite/controller/Widgets path activates capability 5 (ADR-0344).
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic

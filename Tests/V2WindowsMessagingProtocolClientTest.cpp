@@ -71,6 +71,9 @@ int main() {
     checkThrows([&] { client.submitText(conversationId, "local-1", "hello"); },
                 "unauthenticated submission must fail");
     client.bindSession(sessionId);
+    checkThrows([&] {
+        client.forwardMessage(conversationId, targetId, 0, conversationId, "forward-disabled");
+    }, "forwarding must remain default-off");
     checkThrows([&] { client.submitText(conversationId, "local-1", std::string("\xc0\x80", 2)); },
                 "invalid UTF-8 must fail before serialization");
     checkThrows([&] {
@@ -111,6 +114,43 @@ int main() {
               && ack.clientMessageId == "local-reply" && ack.messageId == replyId
               && ack.conversationSequence == 8 && client.pendingCount() == 0,
           "acceptance must reconcile the exact optimistic identity");
+
+    std::vector<std::string> forwardIds{"forward-request-1"};
+    V2WindowsMessagingProtocolClient forwardingClient(
+        [&] { auto value = forwardIds.back(); forwardIds.pop_back(); return value; },
+        [] { return 700; }, true);
+    forwardingClient.bindSession(sessionId);
+    const auto forward = forwardingClient.forwardMessage(
+        conversationId, targetId, 3, "20000000-0000-4000-8000-000000000002",
+        "forward-client-1");
+    chat::v2::Envelope forwardEnvelope;
+    chat::v2::ForwardMessage forwardPayload;
+    check(forwardEnvelope.ParseFromString(forward.bytes)
+              && forwardEnvelope.message_type() == chat::v2::MESSAGE_TYPE_FORWARD_MESSAGE
+              && forwardEnvelope.client_message_id() == "forward-client-1"
+              && forwardPayload.ParseFromString(forwardEnvelope.payload())
+              && forwardPayload.source_conversation_id() == conversationId
+              && forwardPayload.source_message_id() == targetId
+              && forwardPayload.expected_source_content_revision() == 3
+              && forwardPayload.target_conversation_id()
+                    == "20000000-0000-4000-8000-000000000002",
+          "capable forward command must preserve bounded authority and idempotency fields");
+    checkThrows([&] {
+        forwardingClient.forwardMessage(conversationId, targetId, 101,
+            "20000000-0000-4000-8000-000000000002", "forward-invalid");
+    }, "forward revision above the protocol bound must fail");
+    chat::v2::MessageAccepted forwardAccepted;
+    forwardAccepted.set_conversation_id("20000000-0000-4000-8000-000000000002");
+    forwardAccepted.set_message_id("50000000-0000-4000-8000-000000000003");
+    forwardAccepted.set_conversation_sequence(1);
+    forwardAccepted.set_accepted_at_epoch_ms(851);
+    const auto forwardAck = forwardingClient.receive(envelope(
+        chat::v2::MESSAGE_TYPE_MESSAGE_ACCEPTED, chat::v2::MESSAGE_KIND_RESPONSE,
+        forward.requestId, sessionId, forward.clientMessageId, forwardAccepted));
+    check(forwardAck.type == V2WindowsMessagingProtocolClient::EventType::Accepted
+              && forwardAck.clientMessageId == "forward-client-1"
+              && forwardingClient.pendingCount() == 0,
+          "forward acceptance must correlate the stable destination identity");
 
     const auto history = client.readHistory(conversationId, 0, 100);
     chat::v2::MessageHistoryPage page;
@@ -216,6 +256,18 @@ int main() {
     check(live.type == V2WindowsMessagingProtocolClient::EventType::Published
               && live.messages.size() == 1 && live.messages.front().hasReply,
           "uncorrelated live publication must preserve reply identity");
+    published.set_forwarded(true);
+    checkThrows([&] {
+        client.receive(envelope(chat::v2::MESSAGE_TYPE_MESSAGE_PUBLISHED,
+            chat::v2::MESSAGE_KIND_EVENT, {}, sessionId, {}, published));
+    }, "default client must reject an unexpected forwarded marker");
+    const auto forwardedLive = forwardingClient.receive(envelope(
+        chat::v2::MESSAGE_TYPE_MESSAGE_PUBLISHED, chat::v2::MESSAGE_KIND_EVENT,
+        {}, sessionId, {}, published));
+    check(forwardedLive.type == V2WindowsMessagingProtocolClient::EventType::Published
+              && forwardedLive.messages.size() == 1
+              && forwardedLive.messages.front().forwarded,
+          "capable client must expose the privacy-safe forwarded marker");
 
     const auto reactionCommand = client.setReaction(conversationId, replyId,
         V2WindowsMessagingProtocolClient::ReactionKind::Love, true, "reaction-operation-1");

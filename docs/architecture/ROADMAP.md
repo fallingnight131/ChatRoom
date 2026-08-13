@@ -1604,6 +1604,9 @@ Progress:
     - [x] Add a default-off accessible Web target-conversation dialog,
       server-authority/privacy copy, forwarded presentation, retry feedback,
       and an application-level activation guard.
+    - [x] Add the default-off Windows C++ type-119 protocol boundary with
+      bounded command construction, stable acceptance correlation, and
+      defensive capability-gated forwarded-marker projection.
 
 Candidate slices:
 

@@ -32,6 +32,7 @@ public:
         bool hasReply = false;
         ReplyReference reply;
         std::vector<Mention> mentions;
+        bool forwarded = false;
     };
     enum class ReactionKind { Like = 1, Love, Laugh, Surprised, Sad, Angry };
     struct ReactionChange {
@@ -93,7 +94,7 @@ public:
     using Clock = std::function<std::int64_t()>;
 
     explicit V2WindowsMessagingProtocolClient(
-        RequestIdFactory factory = {}, Clock clock = {});
+        RequestIdFactory factory = {}, Clock clock = {}, bool enableForwarding = false);
     void bindSession(const std::string &sessionId);
     void clearSession();
     Command submitText(const std::string &conversationId,
@@ -105,6 +106,11 @@ public:
                             const std::string &targetMessageId,
                             const std::string &text,
                             const std::vector<Mention> &mentions = {});
+    Command forwardMessage(const std::string &sourceConversationId,
+                           const std::string &sourceMessageId,
+                           std::uint32_t expectedSourceContentRevision,
+                           const std::string &targetConversationId,
+                           const std::string &clientMessageId);
     Command readHistory(const std::string &conversationId,
                         std::uint64_t afterSequence,
                         std::uint32_t limit);
@@ -121,7 +127,7 @@ public:
     std::size_t pendingCount() const;
 
 private:
-    enum class PendingType { Submit, Reply, History, Reaction, Pin, Edit };
+    enum class PendingType { Submit, Reply, Forward, History, Reaction, Pin, Edit };
     struct Pending {
         PendingType type = PendingType::Submit;
         std::string conversationId;
@@ -148,5 +154,6 @@ private:
     RequestIdFactory m_factory;
     Clock m_clock;
     std::string m_sessionId;
+    bool m_enableForwarding = false;
     std::unordered_map<std::string, Pending> m_pending;
 };

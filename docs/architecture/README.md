@@ -795,6 +795,12 @@ an explicit server-authority/privacy explanation, a forwarded marker, and
 failure/retry feedback. Both the action and its entry point are guarded by the
 application's default-false forwarding option; production Web composition does
 not set it yet.
+The Windows C++ messaging codec now has the same default-off capability-5
+boundary: an explicitly enabled instance can construct one bounded type-119
+command and correlate its `MessageAccepted`, while the normal constructor
+rejects both commands and unexpected forwarded markers. Session negotiation,
+SQLite outbox, controller, ViewModel, Widgets, and product composition remain
+unchanged and do not advertise capability 5.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

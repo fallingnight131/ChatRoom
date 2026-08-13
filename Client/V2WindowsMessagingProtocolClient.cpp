@@ -40,12 +40,13 @@ T parse(const std::string &encoded) {
 }
 
 V2WindowsMessagingProtocolClient::V2WindowsMessagingProtocolClient(
-        RequestIdFactory factory, Clock clock)
+        RequestIdFactory factory, Clock clock, bool enableForwarding)
     : m_factory(factory ? std::move(factory) : randomUuid),
       m_clock(clock ? std::move(clock) : [] {
           return std::chrono::duration_cast<std::chrono::milliseconds>(
               std::chrono::system_clock::now().time_since_epoch()).count();
-      }) {}
+      }),
+      m_enableForwarding(enableForwarding) {}
 
 void V2WindowsMessagingProtocolClient::bindSession(const std::string &sessionId) {
     if (!canonicalUuid(sessionId)) throw std::invalid_argument("invalid authenticated session");
@@ -130,6 +131,30 @@ V2WindowsMessagingProtocolClient::readHistory(
     pending.type = PendingType::History; pending.conversationId = conversationId;
     pending.afterSequence = afterSequence;
     return command(chat::v2::MESSAGE_TYPE_READ_MESSAGE_HISTORY, bytes(payload), {},
+                   std::move(pending));
+}
+
+V2WindowsMessagingProtocolClient::Command
+V2WindowsMessagingProtocolClient::forwardMessage(
+        const std::string &sourceConversationId, const std::string &sourceMessageId,
+        std::uint32_t expectedSourceContentRevision,
+        const std::string &targetConversationId, const std::string &clientMessageId) {
+    if (!m_enableForwarding) throw std::logic_error("message forwarding is not enabled");
+    if (!canonicalUuid(sourceConversationId) || !canonicalUuid(sourceMessageId)
+            || expectedSourceContentRevision > maximumContentRevisions
+            || !canonicalUuid(targetConversationId)
+            || !boundedIdentifier(clientMessageId, true))
+        throw std::invalid_argument("invalid forward command");
+    chat::v2::ForwardMessage payload;
+    payload.set_source_conversation_id(sourceConversationId);
+    payload.set_source_message_id(sourceMessageId);
+    payload.set_expected_source_content_revision(expectedSourceContentRevision);
+    payload.set_target_conversation_id(targetConversationId);
+    Pending pending;
+    pending.type = PendingType::Forward;
+    pending.conversationId = targetConversationId;
+    pending.clientMessageId = clientMessageId;
+    return command(chat::v2::MESSAGE_TYPE_FORWARD_MESSAGE, bytes(payload), clientMessageId,
                    std::move(pending));
 }
 
@@ -286,6 +311,9 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         result.contentRevision = record.content_revision();
         result.editedAtEpochMs = record.edited_at_epoch_ms();
         result.mentions = decodeMentions(record.content(), record.mentions());
+        if (record.forwarded() && !m_enableForwarding)
+            throw std::runtime_error("forwarded marker was not negotiated");
+        result.forwarded = record.forwarded();
         result.hasReply = record.has_reply();
         if (record.has_reply()) {
             const auto &reply = record.reply();
@@ -434,7 +462,8 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         }
         return result;
     }
-    if ((pending.type == PendingType::Submit || pending.type == PendingType::Reply)
+    if ((pending.type == PendingType::Submit || pending.type == PendingType::Reply
+            || pending.type == PendingType::Forward)
             && envelope.kind() == chat::v2::MESSAGE_KIND_RESPONSE
             && envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_ACCEPTED) {
         const auto accepted = parse<chat::v2::MessageAccepted>(envelope.payload());
