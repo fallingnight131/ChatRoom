@@ -75,6 +75,7 @@ int main(int argc, char *argv[]) {
     const QString bob = QStringLiteral("10000000-0000-4000-8000-000000000002");
     const QString device = QStringLiteral("20000000-0000-4000-8000-000000000001");
     const QString conversation = QStringLiteral("30000000-0000-4000-8000-000000000001");
+    const QString forwardConversation = QStringLiteral("30000000-0000-4000-8000-000000000002");
     auto pending = reply(conversation, alice, device);
     pending.text = QStringLiteral("@张三 回复内容");
     pending.mentions.append({bob, 0, 7});
@@ -85,6 +86,20 @@ int main(int argc, char *argv[]) {
                 || !check(repository.upsertPending(alice, pending), repository.lastError())
                 || !check(repository.saveDraft(alice, conversation, QStringLiteral("draft")),
                           repository.lastError())) return 1;
+        auto forward = pending;
+        forward.conversationId = forwardConversation;
+        forward.clientMessageId = QStringLiteral("forward-client-1");
+        forward.text = QStringLiteral("本地预览");
+        forward.hasReply = false; forward.reply = {}; forward.mentions.clear();
+        forward.forwarded = true;
+        forward.forwardSourceConversationId = conversation;
+        forward.forwardSourceMessageId = QStringLiteral("60000000-0000-4000-8000-000000000009");
+        forward.expectedForwardSourceRevision = 2;
+        if (!check(repository.upsertPending(alice, forward), repository.lastError())) return 1;
+        auto changedForward = forward;
+        changedForward.expectedForwardSourceRevision = 3;
+        if (!check(!repository.upsertPending(alice, changedForward),
+                   QStringLiteral("changed forward source was accepted as an idempotent retry"))) return 1;
         auto conflict = pending;
         conflict.reply.targetConversationSequence = 6;
         if (!check(!repository.upsertPending(alice, conflict),
@@ -124,8 +139,24 @@ int main(int argc, char *argv[]) {
                     QStringLiteral("pending mention intent was not restored"))
                 || !check(restored.draft == QStringLiteral("draft"),
                     QStringLiteral("draft was not restored"))
-                || !check(repository.pendingSends(alice).size() == 1,
+                || !check(repository.pendingSends(alice).size() == 2,
                     QStringLiteral("pending outbox intent was not restored"))) return 1;
+        const auto restoredForward = repository.loadSnapshot(alice, forwardConversation);
+        if (!check(restoredForward.messages.size() == 1
+                        && restoredForward.messages.first().forwarded
+                        && restoredForward.messages.first().forwardSourceConversationId == conversation
+                        && restoredForward.messages.first().expectedForwardSourceRevision == 2,
+                   QStringLiteral("pending forward authority was not restored"))) return 1;
+        if (!check(repository.applyAccepted(alice, forwardConversation,
+                    QStringLiteral("forward-client-1"),
+                    QStringLiteral("60000000-0000-4000-8000-000000000010"), 1, 1201),
+                   repository.lastError())) return 1;
+        const auto acceptedForward = repository.loadSnapshot(alice, forwardConversation);
+        if (!check(acceptedForward.messages.first().forwarded
+                        && acceptedForward.messages.first().forwardSourceConversationId.isEmpty()
+                        && acceptedForward.messages.first().forwardSourceMessageId.isEmpty()
+                        && acceptedForward.messages.first().expectedForwardSourceRevision == 0,
+                   QStringLiteral("forward acceptance retained private source identity"))) return 1;
 
         if (!check(repository.markFailed(alice, conversation, pending.clientMessageId),
                    repository.lastError())
@@ -361,6 +392,11 @@ int main(int argc, char *argv[]) {
             || !check(schema.contains(QStringLiteral("content_revision"))
                     && schema.contains(QStringLiteral("edited_at")),
                 QStringLiteral("message edit metadata schema is missing"))
+            || !check(schema.contains(QStringLiteral("forwarded"))
+                    && schema.contains(QStringLiteral("forward_source_conversation_id"))
+                    && schema.contains(QStringLiteral("forward_source_message_id"))
+                    && schema.contains(QStringLiteral("forward_source_revision")),
+                QStringLiteral("forward outbox metadata schema is missing"))
             || !check(schemaTables.contains(QStringLiteral("v2_message_mentions"))
                     && schemaTables.contains(QStringLiteral("v2_edit_command_mentions")),
                 QStringLiteral("normalized mention schema is missing"))) return 1;

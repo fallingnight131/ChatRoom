@@ -82,6 +82,10 @@ public:
         int contentRevision = 0;
         qint64 editedAtEpochMs = 0;
         QList<Mention> mentions;
+        bool forwarded = false;
+        QString forwardSourceConversationId;
+        QString forwardSourceMessageId;
+        int expectedForwardSourceRevision = 0;
     };
     struct Snapshot {
         QList<Message> messages;

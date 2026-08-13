@@ -12,7 +12,7 @@
 #include <QUuid>
 #include <QDebug>
 
-namespace { constexpr int SchemaVersion = 6; }
+namespace { constexpr int SchemaVersion = 7; }
 
 V2LocalMessageRepository::V2LocalMessageRepository(const QString &databasePath)
     : m_databasePath(databasePath),
@@ -169,13 +169,26 @@ bool V2LocalMessageRepository::initialize() {
         m_database.rollback();
         return fail(QStringLiteral("migrate"), query.lastError().text());
     }
-    if (!query.exec(QStringLiteral("PRAGMA user_version = 6"))) {
+    if (version < 7 && (!query.exec(QStringLiteral(
+            "ALTER TABLE v2_messages ADD COLUMN forwarded INTEGER NOT NULL DEFAULT 0 "
+            "CHECK(forwarded IN (0,1))"))
+            || !query.exec(QStringLiteral(
+            "ALTER TABLE v2_messages ADD COLUMN forward_source_conversation_id TEXT NOT NULL DEFAULT ''"))
+            || !query.exec(QStringLiteral(
+            "ALTER TABLE v2_messages ADD COLUMN forward_source_message_id TEXT NOT NULL DEFAULT ''"))
+            || !query.exec(QStringLiteral(
+            "ALTER TABLE v2_messages ADD COLUMN forward_source_revision INTEGER NOT NULL DEFAULT 0 "
+            "CHECK(forward_source_revision BETWEEN 0 AND 100)")))) {
+        m_database.rollback();
+        return fail(QStringLiteral("migrate"), query.lastError().text());
+    }
+    if (!query.exec(QStringLiteral("PRAGMA user_version = 7"))) {
         m_database.rollback();
         return fail(QStringLiteral("migrate"), query.lastError().text());
     }
     if (!m_database.commit()) return fail(QStringLiteral("migrate"), m_database.lastError().text());
     m_lastError.clear();
-    qInfo() << "[V2LocalStore] operation=initialize outcome=success schema=6";
+    qInfo() << "[V2LocalStore] operation=initialize outcome=success schema=7";
     return true;
 }
 
@@ -192,7 +205,8 @@ bool V2LocalMessageRepository::upsertPending(
     existing.prepare(QStringLiteral(
         "SELECT text_content, reply_target_message_id, reply_target_sequence, "
         "reply_target_sender_account_id, delivery_state, sender_account_id, "
-        "sender_device_id, created_at FROM v2_messages "
+        "sender_device_id, created_at, forwarded, forward_source_conversation_id, "
+        "forward_source_message_id, forward_source_revision FROM v2_messages "
         "WHERE account_id = ? AND conversation_id = ? AND client_message_id = ?"));
     existing.addBindValue(accountId); existing.addBindValue(message.conversationId);
     existing.addBindValue(message.clientMessageId);
@@ -220,6 +234,10 @@ bool V2LocalMessageRepository::upsertPending(
             && existing.value(5).toString() == message.senderAccountId
             && existing.value(6).toString() == message.senderDeviceId
             && existing.value(7).toLongLong() == message.createdAtEpochMs
+            && existing.value(8).toBool() == message.forwarded
+            && (accepted || (existing.value(9).toString() == message.forwardSourceConversationId
+                && existing.value(10).toString() == message.forwardSourceMessageId
+                && existing.value(11).toInt() == message.expectedForwardSourceRevision))
             && sameMentions(storedMentions, message.mentions);
         if (!same) {
             m_database.rollback();
@@ -310,7 +328,8 @@ bool V2LocalMessageRepository::applyAccepted(
     QSqlQuery query(m_database);
     query.prepare(QStringLiteral(
         "UPDATE v2_messages SET message_id = ?, conversation_sequence = ?, "
-        "accepted_at = ?, delivery_state = 'accepted' WHERE account_id = ? "
+        "accepted_at = ?, delivery_state = 'accepted', forward_source_conversation_id = '', "
+        "forward_source_message_id = '', forward_source_revision = 0 WHERE account_id = ? "
         "AND conversation_id = ? AND client_message_id = ? AND "
         "(delivery_state <> 'accepted' OR (message_id = ? AND conversation_sequence = ?))"));
     query.addBindValue(messageId); query.addBindValue(conversationSequence);
@@ -879,7 +898,8 @@ V2LocalMessageRepository::Snapshot V2LocalMessageRepository::loadSnapshot(
         "SELECT message_id, conversation_sequence, sender_account_id, sender_device_id, "
         "client_message_id, text_content, accepted_at, created_at, delivery_state, "
         "reply_target_message_id, reply_target_sequence, reply_target_sender_account_id, recalled, "
-        "content_revision, edited_at "
+        "content_revision, edited_at, forwarded, forward_source_conversation_id, "
+        "forward_source_message_id, forward_source_revision "
         "FROM v2_messages WHERE account_id = ? AND conversation_id = ? "
         "ORDER BY CASE WHEN conversation_sequence = 0 THEN 1 ELSE 0 END, "
         "conversation_sequence, created_at, client_message_id"));
@@ -899,6 +919,10 @@ V2LocalMessageRepository::Snapshot V2LocalMessageRepository::loadSnapshot(
         message.recalled = query.value(12).toBool();
         message.contentRevision = query.value(13).toInt();
         message.editedAtEpochMs = query.value(14).toLongLong();
+        message.forwarded = query.value(15).toBool();
+        message.forwardSourceConversationId = query.value(16).toString();
+        message.forwardSourceMessageId = query.value(17).toString();
+        message.expectedForwardSourceRevision = query.value(18).toInt();
         message.hasReply = !message.reply.targetMessageId.isEmpty();
         result.messages.append(message);
     }
@@ -1101,8 +1125,9 @@ bool V2LocalMessageRepository::insertMessage(const QString &accountId, const Mes
         "INSERT INTO v2_messages(account_id, conversation_id, client_message_id, message_id, "
         "conversation_sequence, sender_account_id, sender_device_id, text_content, accepted_at, "
         "created_at, delivery_state, reply_target_message_id, reply_target_sequence, "
-        "reply_target_sender_account_id, content_revision, edited_at) "
-        "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"));
+        "reply_target_sender_account_id, content_revision, edited_at, "
+        "forwarded, forward_source_conversation_id, forward_source_message_id, "
+        "forward_source_revision) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"));
     query.addBindValue(accountId); query.addBindValue(message.conversationId);
     query.addBindValue(message.clientMessageId);
     query.addBindValue(message.messageId.isNull() ? QStringLiteral("") : message.messageId);
@@ -1115,6 +1140,12 @@ bool V2LocalMessageRepository::insertMessage(const QString &accountId, const Mes
     query.addBindValue(message.hasReply
         ? message.reply.targetSenderAccountId : QStringLiteral(""));
     query.addBindValue(message.contentRevision); query.addBindValue(message.editedAtEpochMs);
+    query.addBindValue(message.forwarded);
+    query.addBindValue(message.forwardSourceConversationId.isNull()
+        ? QStringLiteral("") : message.forwardSourceConversationId);
+    query.addBindValue(message.forwardSourceMessageId.isNull()
+        ? QStringLiteral("") : message.forwardSourceMessageId);
+    query.addBindValue(message.expectedForwardSourceRevision);
     if (!query.exec()) return fail(QStringLiteral("insertMessage"), query.lastError().text());
     return insertMessageMentions(
         accountId, message.conversationId, message.clientMessageId, message.mentions);
@@ -1293,6 +1324,14 @@ bool V2LocalMessageRepository::validBaseMessage(const Message &message) {
             || message.contentRevision > MaxContentRevisions
             || ((message.contentRevision == 0) != (message.editedAtEpochMs == 0))
             || !validMentions(message.text, message.mentions)) return false;
+    const bool hasForwardSource = !message.forwardSourceConversationId.isEmpty()
+        || !message.forwardSourceMessageId.isEmpty();
+    if (hasForwardSource && (!message.forwarded || message.hasReply || !message.mentions.isEmpty()
+            || !canonicalUuid(message.forwardSourceConversationId)
+            || !canonicalUuid(message.forwardSourceMessageId)
+            || message.expectedForwardSourceRevision < 0
+            || message.expectedForwardSourceRevision > MaxContentRevisions)) return false;
+    if (!hasForwardSource && message.expectedForwardSourceRevision != 0) return false;
     return !message.hasReply || (canonicalUuid(message.reply.targetMessageId)
         && message.reply.targetConversationSequence > 0
         && canonicalUuid(message.reply.targetSenderAccountId));
@@ -1306,6 +1345,9 @@ bool V2LocalMessageRepository::validAccepted(const Message &message) {
     return validBaseMessage(message) && canonicalUuid(message.messageId)
         && message.conversationSequence > 0 && message.acceptedAtEpochMs > 0
         && message.state == DeliveryState::Accepted && !message.recalled
+        && message.forwardSourceConversationId.isEmpty()
+        && message.forwardSourceMessageId.isEmpty()
+        && message.expectedForwardSourceRevision == 0
         && (!message.hasReply
             || message.reply.targetConversationSequence < message.conversationSequence);
 }

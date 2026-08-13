@@ -801,6 +801,12 @@ command and correlate its `MessageAccepted`, while the normal constructor
 rejects both commands and unexpected forwarded markers. Session negotiation,
 SQLite outbox, controller, ViewModel, Widgets, and product composition remain
 unchanged and do not advertise capability 5.
+Windows local schema 7 now persists `forwarded` plus the canonical source
+conversation/message/revision triple only on unresolved outbox rows. Retry
+comparison includes that triple, malformed combinations fail validation, and
+acceptance atomically clears the private source fields while preserving the
+presentation marker. No source body, original sender, or source timestamp is
+stored as forwarding metadata.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

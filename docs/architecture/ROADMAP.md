@@ -1607,6 +1607,9 @@ Progress:
     - [x] Add the default-off Windows C++ type-119 protocol boundary with
       bounded command construction, stable acceptance correlation, and
       defensive capability-gated forwarded-marker projection.
+    - [x] Migrate the isolated Windows V2 SQLite store to retain the forwarded
+      marker and unresolved local source triple, enforce retry equality across
+      restart, and erase private source identity on acceptance.
 
 Candidate slices:
 
