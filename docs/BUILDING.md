@@ -1488,6 +1488,9 @@ same-transaction ordered recall cleanup. The schema also implements durable
 cleanup. Gateway tests cover pre-capability rejection, server-bound identity,
 fixed response mapping, capable history detail, and capable-only live fan-out.
 Pin capability activation still waits for both client projections (ADR-0340).
+The Web protocol/transport tests additionally cover pin command correlation,
+ACK and live-event validation. Web ClientHello still omits `MESSAGE_PINS`, so
+this latent path cannot be mistaken for a completed offline product feature.
 
 Generate the non-Java V2 bindings and run the Java-to-TypeScript golden-wire
 test with Node.js 22:

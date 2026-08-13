@@ -665,7 +665,10 @@ ordered automatic unpin events in the initiating transaction; gateway routing
 binds the actor/device to the authenticated session, requires the separate
 capability, filters legacy V2 history detail while preserving its cursor, and
 publishes live changes only to capable subscribers. Offline Web and Windows
-convergence remain mandatory before activation (ADR-0340).
+convergence remain mandatory before activation. The Web protocol and transport
+now validate and encode the complete pin exchange, but ClientHello deliberately
+does not advertise the capability until IndexedDB replay and UI convergence are
+connected (ADR-0340).
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
 single-gateway router now establishes one active subscription only through the

@@ -1440,6 +1440,9 @@ Progress:
       history detail without stalling cursors, and fan out live changes only to
       capable subscribers.
   - [ ] Add offline-safe Web and Windows projections and accessible controls.
+    - [x] Add validated Web pin command/ACK/history/live protocol and transport
+      paths while keeping capability advertisement disabled until its durable
+      projection and UI are complete.
 
 Candidate slices:
 

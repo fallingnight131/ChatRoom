@@ -36,6 +36,9 @@ import {
   SubmitMessageSchema,
   SubmitReplyMessageSchema,
   SetMessageReactionSchema,
+  SetMessagePinSchema,
+  MessagePinAppliedSchema,
+  MessagePinChangedRecordSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
 import { V2WebProtocolClient } from "../src/protocol/v2/webProtocolClient";
 import {
@@ -308,6 +311,35 @@ test("encodes correlated reactions and validates capable live changes", () => {
       })),
   }));
   assert.equal(client.receive(live).type, "message-reaction-changed");
+});
+
+test("encodes correlated pins and validates capable live changes", () => {
+  const client = newClient();
+  authenticate(client);
+  const operationId = "70000000-0000-4000-8000-000000000002";
+  const command = client.setMessagePin(CONVERSATION_ID, MESSAGE_ID, true, operationId);
+  const request = decodeEnvelope(command.bytes);
+  assert.equal(request.messageType, MessageType.SET_MESSAGE_PIN);
+  assert.equal(fromBinary(SetMessagePinSchema, request.payload).pinned, true);
+  const applied = client.receive(response(request, MessageType.MESSAGE_PIN_APPLIED,
+    toBinary(MessagePinAppliedSchema, create(MessagePinAppliedSchema, {
+      conversationId: CONVERSATION_ID, messageId: MESSAGE_ID, pinned: true,
+      actorAccountId: ACCOUNT_ID, clientOperationId: operationId, changed: true,
+      conversationSequence: 4n, occurredAtEpochMs: BigInt(NOW),
+    })), { sessionId: SESSION_ID }));
+  assert.equal(applied.type, "message-pin-applied");
+
+  const live = toBinary(EnvelopeSchema, create(EnvelopeSchema, {
+    protocolVersion: 2, kind: MessageKind.EVENT,
+    messageType: MessageType.MESSAGE_PIN_CHANGED, sessionId: SESSION_ID,
+    sentAtEpochMs: BigInt(NOW + 1),
+    payload: toBinary(MessagePinChangedRecordSchema, create(MessagePinChangedRecordSchema, {
+      conversationId: CONVERSATION_ID, conversationSequence: 4n,
+      messageId: MESSAGE_ID, pinned: true, actorAccountId: ACCOUNT_ID,
+      clientOperationId: operationId, occurredAtEpochMs: BigInt(NOW),
+    })),
+  }));
+  assert.equal(client.receive(live).type, "message-pin-changed");
 });
 
 test("encodes and validates bounded device management commands", () => {

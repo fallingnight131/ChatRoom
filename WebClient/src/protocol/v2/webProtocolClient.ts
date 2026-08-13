@@ -28,6 +28,8 @@ import {
   MessageAcceptedSchema,
   MessageReactionAppliedSchema,
   MessageReactionChangedRecordSchema,
+  MessagePinAppliedSchema,
+  MessagePinChangedRecordSchema,
   MessageReactionKind,
   MessageContentType,
   MessageHistoryPageSchema,
@@ -36,11 +38,14 @@ import {
   SubmitMessageSchema,
   SubmitReplyMessageSchema,
   SetMessageReactionSchema,
+  SetMessagePinSchema,
   type MessageAccepted,
   type MessageHistoryPage,
   type MessageRecord,
   type MessageReactionApplied,
   type MessageReactionChangedRecord,
+  type MessagePinApplied,
+  type MessagePinChangedRecord,
 } from "./generated/messaging_pb";
 import {
   AttachmentReadySchema,
@@ -97,6 +102,8 @@ export type V2WebProtocolEvent = ResponseCorrelation & (
   | { type: "message-published"; value: MessageRecord }
   | { type: "message-reaction-applied"; value: MessageReactionApplied }
   | { type: "message-reaction-changed"; value: MessageReactionChangedRecord }
+  | { type: "message-pin-applied"; value: MessagePinApplied }
+  | { type: "message-pin-changed"; value: MessagePinChangedRecord }
   | { type: "conversation-directory-page"; value: ConversationDirectoryPage }
   | { type: "attachment-registered"; value: AttachmentRegistered }
   | { type: "attachment-upload-authorized"; value: AttachmentUploadAuthorized }
@@ -324,6 +331,23 @@ export class V2WebProtocolClient {
     ));
   }
 
+  setMessagePin(
+    conversationId: string,
+    messageId: string,
+    pinned: boolean,
+    clientOperationId: string,
+  ): V2CorrelatedCommand {
+    this.requireState("authenticated");
+    requireUuid("conversationId", conversationId);
+    requireUuid("messageId", messageId);
+    requireIdentifier("clientOperationId", clientOperationId);
+    const payload = toBinary(SetMessagePinSchema, create(SetMessagePinSchema, {
+      conversationId, messageId, pinned, clientOperationId,
+    }));
+    return correlated(this.command(
+      MessageType.SET_MESSAGE_PIN, payload, new Set([MessageType.MESSAGE_PIN_APPLIED])));
+  }
+
   registerAttachment(
     conversationId: string,
     clientAttachmentId: string,
@@ -503,7 +527,8 @@ export class V2WebProtocolClient {
     if (envelope.protocolVersion !== PROTOCOL_VERSION) throw new Error("unsupported protocol version");
     const publishedEvent = envelope.kind === MessageKind.EVENT
       && (envelope.messageType === MessageType.MESSAGE_PUBLISHED
-        || envelope.messageType === MessageType.MESSAGE_REACTION_CHANGED);
+        || envelope.messageType === MessageType.MESSAGE_REACTION_CHANGED
+        || envelope.messageType === MessageType.MESSAGE_PIN_CHANGED);
     if (!publishedEvent && envelope.kind !== MessageKind.RESPONSE && envelope.kind !== MessageKind.ERROR) {
       throw new Error("unexpected inbound message kind");
     }
@@ -550,6 +575,10 @@ export class V2WebProtocolClient {
           return { ...correlation, type: "message-reaction-applied", value: fromBinary(MessageReactionAppliedSchema, envelope.payload) };
         case MessageType.MESSAGE_REACTION_CHANGED:
           return { ...correlation, type: "message-reaction-changed", value: fromBinary(MessageReactionChangedRecordSchema, envelope.payload) };
+        case MessageType.MESSAGE_PIN_APPLIED:
+          return { ...correlation, type: "message-pin-applied", value: fromBinary(MessagePinAppliedSchema, envelope.payload) };
+        case MessageType.MESSAGE_PIN_CHANGED:
+          return { ...correlation, type: "message-pin-changed", value: fromBinary(MessagePinChangedRecordSchema, envelope.payload) };
         case MessageType.CONVERSATION_DIRECTORY_PAGE:
           return { ...correlation, type: "conversation-directory-page", value: fromBinary(ConversationDirectoryPageSchema, envelope.payload) };
         case MessageType.ATTACHMENT_REGISTERED:
@@ -631,6 +660,12 @@ export class V2WebProtocolClient {
         break;
       case "message-reaction-changed":
         validateReactionChanged(event.value);
+        break;
+      case "message-pin-applied":
+        validatePinApplied(event.value);
+        break;
+      case "message-pin-changed":
+        validatePinChanged(event.value);
         break;
       case "conversation-directory-page":
         validateDirectoryPage(event.value);
@@ -774,6 +809,12 @@ function validateHistoryPage(page: MessageHistoryPage): void {
           || entry.detail.value.conversationSequence !== entry.conversationSequence) {
         throw new Error("invalid reaction entry detail");
       }
+    } else if (entry.detail.case === "pin") {
+      validatePinChanged(entry.detail.value);
+      if (entry.detail.value.conversationId !== entry.conversationId
+          || entry.detail.value.conversationSequence !== entry.conversationSequence) {
+        throw new Error("invalid pin entry detail");
+      }
     } else {
       throw new Error("history entry detail is required");
     }
@@ -783,6 +824,27 @@ function validateHistoryPage(page: MessageHistoryPage): void {
   if (lastSequence !== 0n && page.nextSequence !== lastSequence) {
     throw new Error("history cursor does not identify the last entry");
   }
+}
+
+function validatePinApplied(value: MessagePinApplied): void {
+  requireUuid("pin.conversationId", value.conversationId);
+  requireUuid("pin.messageId", value.messageId);
+  requireUuid("pin.actorAccountId", value.actorAccountId);
+  requireIdentifier("pin.clientOperationId", value.clientOperationId);
+  if (value.occurredAtEpochMs <= 0n || value.conversationSequence > MAX_SIGNED_SEQUENCE
+      || value.changed !== (value.conversationSequence > 0n)) {
+    throw new Error("invalid pin application");
+  }
+}
+
+function validatePinChanged(value: MessagePinChangedRecord): void {
+  requireUuid("pin.conversationId", value.conversationId);
+  requireUuid("pin.messageId", value.messageId);
+  requireUuid("pin.actorAccountId", value.actorAccountId);
+  requireIdentifier("pin.clientOperationId", value.clientOperationId);
+  if (value.conversationSequence <= 0n
+      || value.conversationSequence > MAX_SIGNED_SEQUENCE
+      || value.occurredAtEpochMs <= 0n) throw new Error("invalid pin change");
 }
 
 function validateReactionApplied(value: MessageReactionApplied): void {

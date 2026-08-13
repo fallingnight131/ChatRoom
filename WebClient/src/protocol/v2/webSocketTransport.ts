@@ -186,6 +186,18 @@ export class V2WebSocketTransport {
     return command.requestId;
   }
 
+  setMessagePin(
+    conversationId: string,
+    messageId: string,
+    pinned: boolean,
+    clientOperationId: string,
+  ): string {
+    const command = this.requireAuthenticated().setMessagePin(
+      conversationId, messageId, pinned, clientOperationId);
+    this.send(command.bytes);
+    return command.requestId;
+  }
+
   listDevices(): string {
     const command = this.requireAuthenticated().listDevices();
     this.send(command.bytes);
