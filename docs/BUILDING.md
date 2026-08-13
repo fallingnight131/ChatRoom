@@ -1268,6 +1268,10 @@ cursors, atomic mutation-only history pages, live events that do not hide sync
 gaps, explicit failed-versus-pending replay state, and the absence of copied
 quote-body columns. This does not migrate or modify the V1 local database, and
 the repository remains detached from product UI/transport (ADR-0332).
+Schema 2 also verifies that ordered recall/deletion history mutations are
+committed with their cursor: recalled text is erased and made non-replyable,
+while administratively deleted targets are evicted. Existing reply rows retain
+only their reference identity and can render the target as unavailable.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

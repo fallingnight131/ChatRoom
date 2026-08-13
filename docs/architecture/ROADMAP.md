@@ -1379,6 +1379,9 @@ Progress:
     persist-before-send, same-ID reconnect replay, bounded in-flight work,
     retryable deferral, explicit permanent-failure retry, ACK reconciliation,
     and cursor-based history repair (ADR-0333).
+  - [x] Project ordered recall/deletion mutations into Windows SQLite before
+    cursor commit, erase recalled target bodies, evict deleted targets, and
+    refuse new replies to recalled messages (ADR-0332/ADR-0333).
   - [ ] Add the equivalent reply composition, local-cache behavior, and rendering
     to the supported Windows client.
 

@@ -3,6 +3,7 @@
 #include <QList>
 #include <QSqlDatabase>
 #include <QString>
+#include <QStringList>
 
 class V2LocalMessageRepository final {
 public:
@@ -23,6 +24,7 @@ public:
         qint64 acceptedAtEpochMs = 0;
         qint64 createdAtEpochMs = 0;
         DeliveryState state = DeliveryState::Pending;
+        bool recalled = false;
         bool hasReply = false;
         ReplyReference reply;
     };
@@ -53,7 +55,9 @@ public:
     bool mergeServerMessage(const QString &accountId, const Message &message,
                             qint64 cursor);
     bool mergeServerPage(const QString &accountId, const QString &conversationId,
-                         const QList<Message> &messages, qint64 nextCursor);
+                         const QList<Message> &messages, qint64 nextCursor,
+                         const QStringList &recalledMessageIds = {},
+                         const QStringList &deletedMessageIds = {});
     bool mergeLiveMessage(const QString &accountId, const Message &message);
     bool saveDraft(const QString &accountId, const QString &conversationId,
                    const QString &draft);

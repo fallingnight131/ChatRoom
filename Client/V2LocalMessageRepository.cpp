@@ -11,7 +11,7 @@
 #include <QUuid>
 #include <QDebug>
 
-namespace { constexpr int SchemaVersion = 1; }
+namespace { constexpr int SchemaVersion = 2; }
 
 V2LocalMessageRepository::V2LocalMessageRepository(const QString &databasePath)
     : m_databasePath(databasePath),
@@ -84,7 +84,6 @@ bool V2LocalMessageRepository::initialize() {
         QStringLiteral(
             "CREATE INDEX IF NOT EXISTS idx_v2_messages_order ON v2_messages("
             "account_id, conversation_id, conversation_sequence, created_at)"),
-        QStringLiteral("PRAGMA user_version = 1")
     };
     for (const auto &statement : statements) {
         if (!query.exec(statement)) {
@@ -92,9 +91,19 @@ bool V2LocalMessageRepository::initialize() {
             return fail(QStringLiteral("migrate"), query.lastError().text());
         }
     }
+    if (version < 2 && !query.exec(QStringLiteral(
+            "ALTER TABLE v2_messages ADD COLUMN recalled INTEGER NOT NULL DEFAULT 0 "
+            "CHECK(recalled IN (0, 1))"))) {
+        m_database.rollback();
+        return fail(QStringLiteral("migrate"), query.lastError().text());
+    }
+    if (!query.exec(QStringLiteral("PRAGMA user_version = 2"))) {
+        m_database.rollback();
+        return fail(QStringLiteral("migrate"), query.lastError().text());
+    }
     if (!m_database.commit()) return fail(QStringLiteral("migrate"), m_database.lastError().text());
     m_lastError.clear();
-    qInfo() << "[V2LocalStore] operation=initialize outcome=success schema=1";
+    qInfo() << "[V2LocalStore] operation=initialize outcome=success schema=2";
     return true;
 }
 
@@ -244,7 +253,9 @@ bool V2LocalMessageRepository::mergeServerMessage(
 
 bool V2LocalMessageRepository::mergeServerPage(
         const QString &accountId, const QString &conversationId,
-        const QList<Message> &messages, qint64 nextCursor) {
+        const QList<Message> &messages, qint64 nextCursor,
+        const QStringList &recalledMessageIds,
+        const QStringList &deletedMessageIds) {
     if (!canonicalUuid(accountId) || !canonicalUuid(conversationId) || nextCursor < 0)
         return fail(QStringLiteral("mergeServerPage"), QStringLiteral("invalid page identity"));
     qint64 previous = 0;
@@ -255,6 +266,12 @@ bool V2LocalMessageRepository::mergeServerPage(
             return fail(QStringLiteral("mergeServerPage"), QStringLiteral("invalid ordered page"));
         previous = message.conversationSequence;
     }
+    for (const auto &messageId : recalledMessageIds)
+        if (!canonicalUuid(messageId))
+            return fail(QStringLiteral("mergeServerPage"), QStringLiteral("invalid recall target"));
+    for (const auto &messageId : deletedMessageIds)
+        if (!canonicalUuid(messageId))
+            return fail(QStringLiteral("mergeServerPage"), QStringLiteral("invalid deletion target"));
     if (!m_database.transaction())
         return fail(QStringLiteral("mergeServerPage"), m_database.lastError().text());
     if (!ensureConversation(accountId, conversationId, nextCursor)) {
@@ -272,6 +289,29 @@ bool V2LocalMessageRepository::mergeServerPage(
             return fail(QStringLiteral("mergeServerPage"), remove.lastError().text());
         }
         if (!insertMessage(accountId, message)) { m_database.rollback(); return false; }
+    }
+    QSqlQuery mutation(m_database);
+    mutation.prepare(QStringLiteral(
+        "UPDATE v2_messages SET text_content = '', recalled = 1 WHERE account_id = ? "
+        "AND conversation_id = ? AND message_id = ?"));
+    for (const auto &messageId : recalledMessageIds) {
+        mutation.bindValue(0, accountId); mutation.bindValue(1, conversationId);
+        mutation.bindValue(2, messageId);
+        if (!mutation.exec()) {
+            m_database.rollback();
+            return fail(QStringLiteral("mergeServerPage"), mutation.lastError().text());
+        }
+    }
+    QSqlQuery deletion(m_database);
+    deletion.prepare(QStringLiteral(
+        "DELETE FROM v2_messages WHERE account_id = ? AND conversation_id = ? AND message_id = ?"));
+    for (const auto &messageId : deletedMessageIds) {
+        deletion.bindValue(0, accountId); deletion.bindValue(1, conversationId);
+        deletion.bindValue(2, messageId);
+        if (!deletion.exec()) {
+            m_database.rollback();
+            return fail(QStringLiteral("mergeServerPage"), deletion.lastError().text());
+        }
     }
     if (!pruneAccepted(accountId, conversationId)) { m_database.rollback(); return false; }
     if (!m_database.commit()) {
@@ -341,7 +381,7 @@ V2LocalMessageRepository::Snapshot V2LocalMessageRepository::loadSnapshot(
     query.prepare(QStringLiteral(
         "SELECT message_id, conversation_sequence, sender_account_id, sender_device_id, "
         "client_message_id, text_content, accepted_at, created_at, delivery_state, "
-        "reply_target_message_id, reply_target_sequence, reply_target_sender_account_id "
+        "reply_target_message_id, reply_target_sequence, reply_target_sender_account_id, recalled "
         "FROM v2_messages WHERE account_id = ? AND conversation_id = ? "
         "ORDER BY CASE WHEN conversation_sequence = 0 THEN 1 ELSE 0 END, "
         "conversation_sequence, created_at, client_message_id"));
@@ -358,6 +398,7 @@ V2LocalMessageRepository::Snapshot V2LocalMessageRepository::loadSnapshot(
         message.reply.targetMessageId = query.value(9).toString();
         message.reply.targetConversationSequence = query.value(10).toLongLong();
         message.reply.targetSenderAccountId = query.value(11).toString();
+        message.recalled = query.value(12).toBool();
         message.hasReply = !message.reply.targetMessageId.isEmpty();
         result.messages.append(message);
     }
@@ -473,7 +514,7 @@ bool V2LocalMessageRepository::validPending(const Message &message) {
 bool V2LocalMessageRepository::validAccepted(const Message &message) {
     return validBaseMessage(message) && canonicalUuid(message.messageId)
         && message.conversationSequence > 0 && message.acceptedAtEpochMs > 0
-        && message.state == DeliveryState::Accepted
+        && message.state == DeliveryState::Accepted && !message.recalled
         && (!message.hasReply
             || message.reply.targetConversationSequence < message.conversationSequence);
 }

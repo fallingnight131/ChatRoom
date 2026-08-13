@@ -66,7 +66,8 @@ bool V2WindowsMessagingApplicationService::stageReply(
     const auto target = std::find_if(snapshot.messages.cbegin(), snapshot.messages.cend(),
         [&](const auto &message) {
             return message.messageId == targetMessageId
-                && message.state == V2LocalMessageRepository::DeliveryState::Accepted;
+                && message.state == V2LocalMessageRepository::DeliveryState::Accepted
+                && !message.recalled;
         });
     if (target == snapshot.messages.cend()) {
         m_lastError = QStringLiteral("reply target is unavailable");
@@ -196,7 +197,19 @@ V2WindowsMessagingApplicationService::receiveFrame(const QByteArray &bytes) {
     for (const auto &message : event.messages) messages.append(localMessage(message));
     if (!m_repository->mergeServerPage(
             m_accountId, result.conversationId, messages,
-            static_cast<qint64>(event.nextSequence))) {
+            static_cast<qint64>(event.nextSequence),
+            [&] {
+                QStringList values;
+                for (const auto &id : event.recalledMessageIds)
+                    values.append(QString::fromStdString(id));
+                return values;
+            }(),
+            [&] {
+                QStringList values;
+                for (const auto &id : event.deletedMessageIds)
+                    values.append(QString::fromStdString(id));
+                return values;
+            }())) {
         m_lastError = m_repository->lastError();
         disconnectSession();
         result.type = OutcomeType::ProtocolFailure;

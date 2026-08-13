@@ -42,6 +42,8 @@ public:
         bool duplicate = false;
         bool retryable = false;
         std::vector<Message> messages;
+        std::vector<std::string> recalledMessageIds;
+        std::vector<std::string> deletedMessageIds;
         std::uint64_t nextSequence = 0;
         std::uint64_t latestSequence = 0;
         bool hasMore = false;

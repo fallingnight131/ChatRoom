@@ -250,6 +250,9 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
             messages.push_back(std::move(message));
         }
         std::uint64_t previousEntry = 0;
+        std::vector<Message> entryMessages;
+        std::vector<std::string> recalledMessageIds;
+        std::vector<std::string> deletedMessageIds;
         for (const auto &entry : page.entries()) {
             if (entry.conversation_id() != pending.conversationId
                     || entry.conversation_sequence() == 0
@@ -263,6 +266,7 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
                 if (message.conversationSequence != entry.conversation_sequence()
                         || message.conversationId != entry.conversation_id())
                     throw std::runtime_error("message entry identity differs");
+                entryMessages.push_back(std::move(message));
                 break;
             }
             case chat::v2::ConversationEntryRecord::kRecall: {
@@ -274,6 +278,7 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
                         || (recall.source() != "V2" && recall.source() != "V1_IMPORT")
                         || recall.occurred_at_epoch_ms() < 0)
                     throw std::runtime_error("invalid recall entry");
+                recalledMessageIds.push_back(recall.message_id());
                 break;
             }
             case chat::v2::ConversationEntryRecord::kDeletion: {
@@ -290,6 +295,7 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
                 for (const auto &messageId : deletion.message_ids()) {
                     if (!canonicalUuid(messageId))
                         throw std::runtime_error("invalid deletion target");
+                    deletedMessageIds.push_back(messageId);
                 }
                 break;
             }
@@ -311,7 +317,10 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         result.type = EventType::HistoryPage;
         result.requestId = envelope.request_id();
         result.conversationId = page.conversation_id();
-        result.messages = std::move(messages);
+        result.messages = page.entries_size() == 0
+            ? std::move(messages) : std::move(entryMessages);
+        result.recalledMessageIds = std::move(recalledMessageIds);
+        result.deletedMessageIds = std::move(deletedMessageIds);
         result.nextSequence = page.next_sequence();
         result.latestSequence = page.latest_sequence();
         result.hasMore = page.has_more();

@@ -6,6 +6,7 @@
 #include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QDebug>
+#include <algorithm>
 
 namespace {
 bool check(bool condition, const QString &message) {
@@ -154,6 +155,24 @@ int main(int argc, char *argv[]) {
         if (!check(afterLive.messages.size() == 2 && afterLive.cursor == 10,
                    QStringLiteral("live message incorrectly advanced history cursor"))) return 1;
 
+        if (!check(repository.mergeServerPage(
+                       alice, conversation, {}, 11, {authoritative.messageId}, {}),
+                   repository.lastError())) return 1;
+        const auto recalled = repository.loadSnapshot(alice, conversation);
+        const auto recalledTarget = std::find_if(
+            recalled.messages.cbegin(), recalled.messages.cend(),
+            [&](const auto &message) { return message.messageId == authoritative.messageId; });
+        if (!check(recalledTarget != recalled.messages.cend()
+                        && recalledTarget->recalled && recalledTarget->text.isEmpty(),
+                   QStringLiteral("recall did not erase cached target content"))) return 1;
+        if (!check(repository.mergeServerPage(
+                       alice, conversation, {}, 12, {}, {live.messageId}),
+                   repository.lastError())) return 1;
+        const auto afterDeletion = repository.loadSnapshot(alice, conversation);
+        if (!check(std::none_of(afterDeletion.messages.cbegin(), afterDeletion.messages.cend(),
+                       [&](const auto &message) { return message.messageId == live.messageId; }),
+                   QStringLiteral("administrative deletion retained cached message"))) return 1;
+
         auto invalidSecond = live;
         invalidSecond.messageId = QStringLiteral("60000000-0000-4000-8000-000000000003");
         invalidSecond.clientMessageId = QStringLiteral("remote-invalid-order");
@@ -161,7 +180,7 @@ int main(int argc, char *argv[]) {
         if (!check(!repository.mergeServerPage(
                        alice, conversation, {live, invalidSecond}, 11),
                    QStringLiteral("unordered history page was accepted"))
-                || !check(repository.loadSnapshot(alice, conversation).cursor == 10,
+                || !check(repository.loadSnapshot(alice, conversation).cursor == 12,
                     QStringLiteral("rejected page changed durable cursor"))) return 1;
     }
 

@@ -194,6 +194,38 @@ int main(int argc, char *argv[]) {
               && snapshot.cursor == 10 && snapshot.messages.last().hasReply,
           "history page must atomically persist authoritative reply reference and cursor");
 
+    check(service.requestHistory(conversation), service.lastError().toStdString());
+    const auto mutationRequest = decode(sent.last());
+    chat::v2::MessageHistoryPage mutationPage;
+    mutationPage.set_conversation_id(conversation.toStdString());
+    auto *mutation = mutationPage.add_entries();
+    mutation->set_conversation_id(conversation.toStdString());
+    mutation->set_conversation_sequence(11);
+    auto *recall = mutation->mutable_recall();
+    recall->set_conversation_id(conversation.toStdString());
+    recall->set_conversation_sequence(11);
+    recall->set_message_id(target.messageId.toStdString());
+    recall->set_actor_account_id(remote.toStdString());
+    recall->set_source("V2");
+    recall->set_occurred_at_epoch_ms(1900);
+    mutationPage.set_next_sequence(11);
+    mutationPage.set_latest_sequence(11);
+    const auto mutationOutcome = service.receiveFrame(response(
+        mutationRequest, chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE,
+        chat::v2::MESSAGE_KIND_RESPONSE, mutationPage));
+    snapshot = service.hydrate(conversation);
+    const auto recalledTarget = std::find_if(snapshot.messages.cbegin(), snapshot.messages.cend(),
+        [&](const auto &message) { return message.messageId == target.messageId; });
+    check(mutationOutcome.type
+              == V2WindowsMessagingApplicationService::OutcomeType::HistoryApplied
+              && recalledTarget != snapshot.messages.cend() && recalledTarget->recalled
+              && recalledTarget->text.isEmpty(),
+          "ordered recall must erase cached target content and make it unavailable");
+    V2LocalMessageRepository::Message rejectedReply;
+    check(!service.stageReply(conversation, target.messageId, QStringLiteral("too late"),
+                              &rejectedReply),
+          "recalled target must not remain replyable");
+
     if (failures) return 1;
     std::cout << "[V2WindowsMessagingApplicationServiceTest] PASS\n";
     return 0;

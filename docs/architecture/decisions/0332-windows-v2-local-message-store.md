@@ -25,6 +25,10 @@ serialization and make rollback harder.
 - Apply each history page and its continuation cursor in one SQLite transaction,
   including mutation-only pages. Merge live events without advancing the durable
   history cursor so a stream gap is still repaired by the next history read.
+- Apply recall/deletion entries inside that same page transaction. Recall erases
+  cached target text and marks the row unavailable; administrative deletion
+  removes the target row. Reply rows retain only target identity and therefore
+  render an unavailable reference when their target is absent or recalled.
 - Persist only reply target message UUID, target sequence, and target sender
   account UUID. Never persist a copied quote body or transient transport data.
 - Preserve failed intent for explicit user retry, but replay only pending rows.
@@ -53,6 +57,8 @@ failure/retry selection, ACK reconciliation, no accepted-state downgrade,
 authoritative merge, monotonic cursors, absence of copied quote columns, and
 future-schema rejection. It also covers atomic rejection of an unordered page,
 mutation-only cursor advancement, and live-event merge without cursor movement.
+Schema version 2 and application tests additionally cover recalled-target body
+erasure, reply refusal, and deletion eviction before cursor commit.
 
 ## Rollback
 
