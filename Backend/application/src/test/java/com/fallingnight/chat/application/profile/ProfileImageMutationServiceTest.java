@@ -38,6 +38,10 @@ final class ProfileImageMutationServiceTest {
         assertEquals(image.width(), command.get().width());
         assertEquals(image.height(), command.get().height());
         assertEquals(result.metadata().objectKey(), command.get().object().objectKey());
+        assertEquals(PNG.length, result.notificationPayload().orElseThrow().byteSize());
+        result.close();
+        assertThrows(IllegalStateException.class,
+                result.notificationPayload().orElseThrow()::byteSize);
         assertThrows(IllegalStateException.class, upload::byteSize);
     }
 

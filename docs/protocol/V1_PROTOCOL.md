@@ -274,6 +274,22 @@ closes the detached connection instead of inventing an absent avatar. Object
 keys, hashes, bucket names, and provider URLs never cross V1 JSON. This handler
 remains uncomposed until the dated real-provider capability gate passes.
 
+The detached upload adapter reserves exact `AVATAR_UPLOAD_REQ.data.avatarData`
+and `ROOM_AVATAR_UPLOAD_REQ.data.{roomId,avatarData}` shapes. It accepts only
+canonical padded Base64 that decodes to 1-256 KiB, transfers those bytes into a
+clearable owned buffer, authorizes before decoding image pixels, and requires a
+bounded canonical PNG before a checksum-bound create-only object write. The
+PostgreSQL pointer is committed only after exact object evidence; a newly
+created object whose pointer cannot be committed receives durable, reference-
+aware cleanup intent. Compatible upload responses preserve `success`, optional
+`error`, and room `roomId`, with additive `version`, `changed`, and `updatedAt`.
+Only a first committed change emits `AVATAR_UPDATE_NOTIFY` to other local V1
+sessions or `ROOM_AVATAR_UPDATE_NOTIFY` to the authoritative mapped room peers;
+an exact retry emits no notification. Notification Base64 is produced from one
+owned canonical payload at the gateway edge and then cleared. Storage keys,
+hashes, and provider details are never serialized. The handler remains
+uncomposed until the real-provider capability gate passes.
+
 `CHANGE_UID_REQ.data.newUid` remains the V1 name for changing the mutable login
 name; it never changes the stable numeric user ID or canonical account UUID. The
 detached Java path accepts only trimmed `[A-Za-z0-9_]{6,20}` destinations,

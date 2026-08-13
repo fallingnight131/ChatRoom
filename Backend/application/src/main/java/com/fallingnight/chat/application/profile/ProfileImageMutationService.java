@@ -5,7 +5,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /** Authorize, canonicalize, create the immutable object, then commit its pointer. */
-public final class ProfileImageMutationService {
+public final class ProfileImageMutationService implements ProfileImageMutationUseCase {
     private final ProfileImageMutationAuthorizationPort authorization;
     private final ProfileImageInspectionPort inspector;
     private final ProfileImageObjectWritePort objects;
@@ -23,7 +23,7 @@ public final class ProfileImageMutationService {
     }
 
     /** Takes ownership of {@code upload} and clears it before returning. */
-    public ProfileImageMutationResult change(ProfileImageTarget target,
+    @Override public ProfileImageMutationResult change(ProfileImageTarget target,
             LegacyV1AvatarUpload upload) {
         Objects.requireNonNull(target, "target"); Objects.requireNonNull(upload, "upload");
         try (upload) {
@@ -42,8 +42,12 @@ public final class ProfileImageMutationService {
                 ProfileImageMetadataResult committed = Objects.requireNonNull(metadata.commit(
                         new ProfileImageMetadataCommand(target, stored.evidence(),
                                 image.width(), image.height())), "profile image metadata result");
-                if (committed instanceof ProfileImageMetadataResult.Committed success)
-                    return new ProfileImageMutationResult.Committed(success);
+                if (committed instanceof ProfileImageMetadataResult.Committed success) {
+                    Optional<ProfileImageObjectPayload> notification = success.changed()
+                            ? Optional.of(ProfileImageObjectPayload.copyOf(image.pngBytes()))
+                            : Optional.empty();
+                    return new ProfileImageMutationResult.Committed(success, notification);
+                }
                 if (stored.created()) {
                     cleanupAttempted = true;
                     cleanup.requestIfUnreferenced(stored.evidence());

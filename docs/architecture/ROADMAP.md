@@ -775,6 +775,11 @@ Progress:
     - [x] Add an inactive S3 create-only profile-image writer with exact PUT
       length/type/SHA-256 constraints, no-overwrite precondition, checksum-
       verified success, and exact HEAD convergence for already-present content.
+    - [x] Add detached strict user/room V1 avatar upload handlers with canonical
+      Base64 limits, clearable ownership, authenticated mutation targets,
+      bounded off-loop work, compatible responses, first-commit-only local
+      notifications, fixed telemetry, and no object-evidence disclosure.
+      Keep them uncomposed pending the real-provider gate.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
