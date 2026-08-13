@@ -185,7 +185,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(40, first.migrate());
+        assertEquals(41, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -1973,6 +1973,12 @@ class PostgresMigratorTest {
         assertEquals(1, count("SELECT count(*) FROM chat.profile_image_object WHERE object_key = '"
                 + orphan.objectKey() + "' AND cleanup_requested_at IS NOT NULL "
                 + "AND delete_confirmed_at IS NULL"));
+        try (Connection connection = connect()) {
+            SQLException unpairedClaim = assertThrows(SQLException.class, () -> execute(connection,
+                    "UPDATE chat.profile_image_object SET delete_claim_id = ? "
+                            + "WHERE object_key = ?", UUID.randomUUID(), orphan.objectKey()));
+            assertEquals("23514", unpairedClaim.getSQLState());
+        }
         guard.requestIfUnreferenced(shared);
         assertEquals(0, count("SELECT count(*) FROM chat.profile_image_object WHERE object_key = '"
                 + shared.objectKey() + "' AND cleanup_requested_at IS NOT NULL"));

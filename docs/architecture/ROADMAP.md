@@ -780,6 +780,10 @@ Progress:
       bounded off-loop work, compatible responses, first-commit-only local
       notifications, fixed telemetry, and no object-evidence disclosure.
       Keep them uncomposed pending the real-provider gate.
+    - [x] Define ADR-0319 and V041 leased profile-image cleanup state, plus the
+      inactive bounded claim-delete-confirm application service with stale-claim
+      recovery, exact tokens, provider-failure release, and real PostgreSQL
+      migration/constraint verification.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-

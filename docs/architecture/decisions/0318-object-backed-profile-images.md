@@ -4,6 +4,7 @@
 - Date: 2026-08-13
 - Owners: project maintainers
 - Related milestone: M3
+- Follow-up: ADR-0319 leased profile-image cleanup
 
 ## Context
 
