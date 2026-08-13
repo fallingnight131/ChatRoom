@@ -740,6 +740,9 @@ Progress:
     decoding, bounded off-loop hashing, generic collision, and login pass-through.
   - [x] Compose registration and prove registration-to-login, exact retry,
     username collision, and restart durability through PostgreSQL.
+  - [ ] Define and compose convergent V1 nickname change with canonical Unicode
+    validation, atomic profile audit, authoritative room audiences, identity
+    refresh, exact-retry suppression, and restart recovery.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
