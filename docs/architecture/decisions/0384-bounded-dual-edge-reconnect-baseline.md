@@ -62,6 +62,11 @@ Comparable release evidence must be generated from a clean commit and
 revalidated with `tools/multi_edge_reconnect_result.py --require-clean` against
 that exact revision.
 
+The first accepted clean record is
+[`M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_PERFORMANCE_2026-08-14.json`](../../baselines/M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_PERFORMANCE_2026-08-14.json),
+measured at revision `ad97e070...`. Its explanatory report preserves the host,
+curve, measured percentiles, and unproven production dimensions.
+
 ## Rollback
 
 Remove the optional output path, performance scenario, validator, and selector.

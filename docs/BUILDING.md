@@ -1608,6 +1608,9 @@ in four batches of three scheduled 100ms apart. The strict evidence records
 topology, identity reconciliation, latency, scheduling jitter, environment,
 exact revision, and worktree state. It is a local comparison curve, not a fleet
 capacity or SLO claim (ADR-0384).
+The first clean exact-revision result is retained under `docs/baselines/` as
+both strict JSON and an explanatory Markdown report; future comparisons must
+retain the same pinned scenario and validator.
 
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and

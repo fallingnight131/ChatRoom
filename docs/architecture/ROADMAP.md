@@ -1625,8 +1625,11 @@ Progress:
   primary edge and six on secondary, kill only primary HAProxy, resume all
   twelve through secondary in four batches of three at 100ms intervals, and
   strictly record identity reconciliation, latency, scheduling jitter,
-  environment, revision, and dirty state. Clean exact-revision evidence and
-  production saturation/fleet capacity remain separate gates (ADR-0384).
+  environment, revision, and dirty state (ADR-0384).
+- [x] Record and independently validate the clean exact-revision dual-edge
+  baseline at `ad97e070...`: 12/12 resumes, zero errors, 21.696/37.212 ms
+  P50/P95, 8.503 ms maximum scheduling jitter, and 36.132 controlled resumes/s.
+  This local curve is not production saturation or fleet capacity evidence.
 
 Work:
 
