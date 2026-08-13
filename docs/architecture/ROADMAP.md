@@ -1486,7 +1486,7 @@ Progress:
       while preserving old-binary empty-mention writes.
     - [x] Bind active-member authorization and exact idempotency into PostgreSQL
       message submission and project current mention history.
-    - [ ] Bind exact mention-set idempotency, replacement, and ordered history
+    - [x] Bind exact mention-set idempotency, replacement, and ordered history
       projection into the PostgreSQL message-edit adapter.
     - [ ] Compose capable-only gateway command, history/live projection, and
       fixed-cardinality telemetry without activating either client.

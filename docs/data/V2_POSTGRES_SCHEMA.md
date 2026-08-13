@@ -565,6 +565,16 @@ transaction that erases message/edit bodies. Target indexes support later
 notification derivation without putting notification delivery in the message
 transaction (ADR-0342).
 
+The PostgreSQL submission adapter now checks every distinct mention target as
+an enabled active member under the conversation sequence transaction, writes
+the ordered current rows, includes the exact set in duplicate comparison, and
+projects it with message history. The edit adapter similarly hashes mention
+identity/spans separately from content, includes that digest in exact operation
+replay, treats mention-only replacement as a changed revision, atomically
+replaces current rows, and retains the resulting set with the ordered edit
+event. Recalled/deleted integration tests prove both projections disappear with
+the erased body. Gateway mapping and endpoint negotiation remain off.
+
 ## Bounds and indexes
 
 - identifiers are limited to 128 characters at this storage boundary and are

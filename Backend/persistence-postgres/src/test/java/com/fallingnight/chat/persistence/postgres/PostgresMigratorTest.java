@@ -789,15 +789,21 @@ class PostgresMigratorTest {
         UUID device = UUID.randomUUID();
         UUID conversation = UUID.randomUUID();
         seedMessageOwner(account, device, conversation);
+        UUID mentionTarget = UUID.randomUUID();
+        seedMentionTarget(mentionTarget, conversation);
         PostgresMessageAdapter messages = new PostgresMessageAdapter(dataSource());
         MessageSubmissionResult.Accepted target =
                 (MessageSubmissionResult.Accepted) messages.submit(new MessageSubmission(
                         conversation, account, device, "edit-target", 1,
                         "original".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         PostgresMessageEditAdapter edits = new PostgresMessageEditAdapter(dataSource());
+        byte[] mentionedEditBody = "@李 hi".getBytes(
+                java.nio.charset.StandardCharsets.UTF_8);
+        List<MessageMention> editMentions = List.of(
+                new MessageMention(mentionTarget, 0, 4));
         MessageEditCommand first = new MessageEditCommand(
                 conversation, target.messageId(), account, device, 0, 1,
-                "updated".getBytes(java.nio.charset.StandardCharsets.UTF_8), "edit-first");
+                mentionedEditBody, "edit-first", editMentions);
 
         List<MessageEditResult.Applied> raced = raceEdit(edits, first);
         assertEquals(1, raced.stream().filter(result -> !result.duplicate()).count());
@@ -805,14 +811,16 @@ class PostgresMigratorTest {
         assertTrue(raced.stream().allMatch(result -> result.contentRevision() == 1));
         assertTrue(raced.stream().allMatch(result -> result.conversationSequence() == 2));
         assertEquals(1, count("SELECT count(*) FROM chat.message_edit_event"));
+        assertEquals(1, count("SELECT count(*) FROM chat.message_edit_event_mention"));
         assertEquals(1, count("SELECT count(*) FROM chat.message_edit_operation"));
         MessageHistoryResult.Page current = (MessageHistoryResult.Page) messages.readAfter(
                 new MessageHistoryQuery(conversation, account, 0, 10));
         assertEquals(1, current.messages().size());
         assertEquals(1, current.messages().getFirst().contentRevision());
         assertTrue(current.messages().getFirst().editedAt().isPresent());
-        assertEquals("updated", new String(current.messages().getFirst().payload(),
+        assertEquals("@李 hi", new String(current.messages().getFirst().payload(),
                 java.nio.charset.StandardCharsets.UTF_8));
+        assertEquals(editMentions, current.messages().getFirst().mentions());
         ConversationEntryHistoryResult.Page initialEdits =
                 (ConversationEntryHistoryResult.Page) messages.readEntriesAfter(
                         new MessageHistoryQuery(conversation, account, 1, 10));
@@ -821,12 +829,13 @@ class PostgresMigratorTest {
         assertEquals(2, initialEdit.conversationSequence());
         assertEquals(1, initialEdit.contentRevision());
         assertFalse(initialEdit.contentErased());
-        assertEquals("updated", new String(initialEdit.content(),
+        assertEquals("@李 hi", new String(initialEdit.content(),
                 java.nio.charset.StandardCharsets.UTF_8));
+        assertEquals(editMentions, initialEdit.mentions());
 
         MessageEditResult.Applied noOp = (MessageEditResult.Applied) edits.edit(
                 new MessageEditCommand(conversation, target.messageId(), account, device, 1, 1,
-                        "updated".getBytes(java.nio.charset.StandardCharsets.UTF_8), "edit-no-op"));
+                        mentionedEditBody, "edit-no-op", editMentions));
         assertFalse(noOp.changed());
         assertEquals(1, noOp.contentRevision());
         assertEquals(0, noOp.conversationSequence());
@@ -840,6 +849,16 @@ class PostgresMigratorTest {
                 new MessageEditCommand(conversation, target.messageId(), account, device, 0, 1,
                         "changed-key".getBytes(java.nio.charset.StandardCharsets.UTF_8),
                         "edit-stale")));
+        assertEquals(MessageEditResult.Rejected.IDEMPOTENCY_CONFLICT, edits.edit(
+                new MessageEditCommand(conversation, target.messageId(), account, device, 0, 1,
+                        mentionedEditBody, "edit-stale",
+                        editMentions)));
+        UUID outsiderMention = UUID.randomUUID();
+        seedAccount(outsiderMention, "edit-mention-outsider");
+        assertEquals(MessageEditResult.Rejected.NOT_AUTHORIZED, edits.edit(
+                new MessageEditCommand(conversation, target.messageId(), account, device, 1, 1,
+                        mentionedEditBody, "edit-bad-mention",
+                        List.of(new MessageMention(outsiderMention, 0, 4)))));
         assertEquals(MessageEditResult.Rejected.NOT_AUTHORIZED, edits.edit(
                 new MessageEditCommand(conversation, target.messageId(), UUID.randomUUID(),
                         UUID.randomUUID(), 1, 1, new byte[] {1}, "edit-outsider")));
@@ -909,6 +928,7 @@ class PostgresMigratorTest {
                 + "','" + deleted.messageId() + "')"));
         assertEquals(2, count("SELECT count(*) FROM chat.message_edit_event "
                 + "WHERE content IS NULL AND content_erased_at IS NOT NULL"));
+        assertEquals(0, count("SELECT count(*) FROM chat.message_edit_event_mention"));
         ConversationEntryHistoryResult.Page erasedHistory =
                 (ConversationEntryHistoryResult.Page) messages.readEntriesAfter(
                         new MessageHistoryQuery(conversation, account, 1, 100));

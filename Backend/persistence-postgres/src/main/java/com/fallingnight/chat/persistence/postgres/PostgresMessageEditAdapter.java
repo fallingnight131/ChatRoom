@@ -3,6 +3,9 @@ package com.fallingnight.chat.persistence.postgres;
 import com.fallingnight.chat.application.messaging.MessageEditCommand;
 import com.fallingnight.chat.application.messaging.MessageEditPort;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
+import com.fallingnight.chat.application.messaging.MessageMention;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
@@ -14,6 +17,8 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import javax.sql.DataSource;
@@ -31,6 +36,7 @@ public final class PostgresMessageEditAdapter implements MessageEditPort {
         Objects.requireNonNull(command, "command");
         byte[] content = command.content();
         byte[] contentHash = sha256(content);
+        byte[] mentionsHash = mentionsHash(command.mentions());
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
             try {
@@ -41,28 +47,33 @@ public final class PostgresMessageEditAdapter implements MessageEditPort {
                 ExistingOperation existing = findExisting(connection, command);
                 if (existing != null) {
                     connection.rollback();
-                    return replay(existing, command, contentHash);
+                    return replay(existing, command, contentHash, mentionsHash);
                 }
                 LockedMessage target = lockEditableTarget(connection, command);
                 if (target == null) {
                     connection.rollback();
                     return MessageEditResult.Rejected.NOT_AUTHORIZED;
                 }
+                if (!authorizedMentionTargets(connection, command)) {
+                    connection.rollback();
+                    return MessageEditResult.Rejected.NOT_AUTHORIZED;
+                }
                 Instant now = transactionTime(connection);
                 if (target.revision != command.expectedRevision()) {
-                    return persistRejection(connection, command, contentHash,
+                    return persistRejection(connection, command, contentHash, mentionsHash,
                             "STALE_REVISION", target.revision, now);
                 }
                 if (now.isAfter(target.acceptedAt.plusSeconds(15 * 60))) {
-                    return persistRejection(connection, command, contentHash,
+                    return persistRejection(connection, command, contentHash, mentionsHash,
                             "WINDOW_EXPIRED", target.revision, now);
                 }
                 if (target.revision >= MessageEditCommand.MAX_REVISION) {
-                    return persistRejection(connection, command, contentHash,
+                    return persistRejection(connection, command, contentHash, mentionsHash,
                             "REVISION_LIMIT", target.revision, now);
                 }
                 boolean changed = !MessageDigest.isEqual(target.payloadHash, contentHash)
-                        || !Arrays.equals(target.payload, content);
+                        || !Arrays.equals(target.payload, content)
+                        || !target.mentions.equals(command.mentions());
                 int resultRevision = target.revision + (changed ? 1 : 0);
                 long sequence = changed ? allocateSequence(connection, command.conversationId()) : 0;
                 if (changed) {
@@ -70,10 +81,10 @@ public final class PostgresMessageEditAdapter implements MessageEditPort {
                     insertEntryAndEvent(connection, command, content, contentHash,
                             resultRevision, sequence, now);
                 }
-                if (!insertOperation(connection, command, contentHash, "APPLIED",
+                if (!insertOperation(connection, command, contentHash, mentionsHash, "APPLIED",
                         resultRevision, changed, sequence, now)) {
                     connection.rollback();
-                    return existingAfterRace(command, contentHash);
+                    return existingAfterRace(command, contentHash, mentionsHash);
                 }
                 connection.commit();
                 return applied(command, resultRevision, content, changed, sequence, now, false);
@@ -87,12 +98,13 @@ public final class PostgresMessageEditAdapter implements MessageEditPort {
     }
 
     private MessageEditResult persistRejection(Connection connection, MessageEditCommand command,
-            byte[] contentHash, String outcome, int resultRevision, Instant now)
+            byte[] contentHash, byte[] mentionsHash, String outcome,
+            int resultRevision, Instant now)
             throws SQLException {
-        if (!insertOperation(connection, command, contentHash, outcome,
+        if (!insertOperation(connection, command, contentHash, mentionsHash, outcome,
                 resultRevision, false, 0, now)) {
             connection.rollback();
-            return existingAfterRace(command, contentHash);
+            return existingAfterRace(command, contentHash, mentionsHash);
         }
         connection.commit();
         return rejected(outcome);
@@ -137,7 +149,8 @@ public final class PostgresMessageEditAdapter implements MessageEditPort {
             try (ResultSet r = s.executeQuery()) {
                 if (!r.next()) return null;
                 return new LockedMessage(r.getBytes(1), r.getBytes(2),
-                        r.getObject(3, OffsetDateTime.class).toInstant(), r.getInt(4));
+                        r.getObject(3, OffsetDateTime.class).toInstant(), r.getInt(4),
+                        readCurrentMentions(c, command.conversationId(), command.messageId()));
             }
         }
     }
@@ -145,7 +158,8 @@ public final class PostgresMessageEditAdapter implements MessageEditPort {
     private static ExistingOperation findExisting(Connection c, MessageEditCommand command)
             throws SQLException {
         String sql = "SELECT conversation_id,actor_device_id,message_id,expected_revision,"
-                + "content_type,requested_content_sha256,outcome,result_revision,changed,"
+                + "content_type,requested_content_sha256,requested_mentions_sha256,"
+                + "outcome,result_revision,changed,"
                 + "conversation_sequence,occurred_at FROM chat.message_edit_operation "
                 + "WHERE actor_account_id=? AND client_operation_id=?";
         try (PreparedStatement s = c.prepareStatement(sql)) {
@@ -153,34 +167,36 @@ public final class PostgresMessageEditAdapter implements MessageEditPort {
             s.setString(2, command.clientOperationId());
             try (ResultSet r = s.executeQuery()) {
                 if (!r.next()) return null;
-                long sequence = r.getLong(10);
+                long sequence = r.getLong(11);
                 boolean sequenceNull = r.wasNull();
                 return new ExistingOperation(r.getObject(1, UUID.class),
                         r.getObject(2, UUID.class), r.getObject(3, UUID.class), r.getInt(4),
-                        r.getInt(5), r.getBytes(6), r.getString(7), r.getInt(8),
-                        r.getBoolean(9), sequenceNull ? 0 : sequence,
-                        r.getObject(11, OffsetDateTime.class).toInstant());
+                        r.getInt(5), r.getBytes(6), r.getBytes(7), r.getString(8), r.getInt(9),
+                        r.getBoolean(10), sequenceNull ? 0 : sequence,
+                        r.getObject(12, OffsetDateTime.class).toInstant());
             }
         }
     }
 
-    private MessageEditResult existingAfterRace(MessageEditCommand command, byte[] contentHash)
+    private MessageEditResult existingAfterRace(
+            MessageEditCommand command, byte[] contentHash, byte[] mentionsHash)
             throws SQLException {
         try (Connection connection = dataSource.getConnection()) {
             ExistingOperation existing = findExisting(connection, command);
             if (existing == null) throw new SQLException("edit conflict row disappeared");
-            return replay(existing, command, contentHash);
+            return replay(existing, command, contentHash, mentionsHash);
         }
     }
 
     private static MessageEditResult replay(ExistingOperation existing,
-            MessageEditCommand command, byte[] contentHash) {
+            MessageEditCommand command, byte[] contentHash, byte[] mentionsHash) {
         boolean exact = existing.conversationId.equals(command.conversationId())
                 && existing.deviceId.equals(command.actorDeviceId())
                 && existing.messageId.equals(command.messageId())
                 && existing.expectedRevision == command.expectedRevision()
                 && existing.contentType == command.contentType()
-                && MessageDigest.isEqual(existing.contentHash, contentHash);
+                && MessageDigest.isEqual(existing.contentHash, contentHash)
+                && MessageDigest.isEqual(existing.mentionsHash, mentionsHash);
         if (!exact) return MessageEditResult.Rejected.IDEMPOTENCY_CONFLICT;
         if (!existing.outcome.equals("APPLIED")) return rejected(existing.outcome);
         return applied(command, existing.resultRevision, command.content(), existing.changed,
@@ -221,6 +237,7 @@ public final class PostgresMessageEditAdapter implements MessageEditPort {
             s.setInt(7, command.expectedRevision());
             if (s.executeUpdate() != 1) throw new SQLException("locked edit target changed");
         }
+        replaceCurrentMentions(c, command);
     }
 
     private static void insertEntryAndEvent(Connection c, MessageEditCommand command,
@@ -251,16 +268,19 @@ public final class PostgresMessageEditAdapter implements MessageEditPort {
             s.setObject(11, time);
             s.executeUpdate();
         }
+        insertEventMentions(c, command, sequence);
     }
 
     private static boolean insertOperation(Connection c, MessageEditCommand command,
-            byte[] contentHash, String outcome, int resultRevision, boolean changed,
+            byte[] contentHash, byte[] mentionsHash, String outcome,
+            int resultRevision, boolean changed,
             long sequence, Instant now) throws SQLException {
         try (PreparedStatement s = c.prepareStatement("INSERT INTO chat.message_edit_operation("
                 + "actor_account_id,client_operation_id,conversation_id,actor_device_id,"
-                + "message_id,expected_revision,content_type,requested_content_sha256,outcome,"
+                + "message_id,expected_revision,content_type,requested_content_sha256,"
+                + "requested_mentions_sha256,outcome,"
                 + "result_revision,changed,conversation_sequence,occurred_at) "
-                + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING")) {
+                + "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING")) {
             s.setObject(1, command.actorAccountId());
             s.setString(2, command.clientOperationId());
             s.setObject(3, command.conversationId());
@@ -269,11 +289,12 @@ public final class PostgresMessageEditAdapter implements MessageEditPort {
             s.setInt(6, command.expectedRevision());
             s.setInt(7, command.contentType());
             s.setBytes(8, contentHash);
-            s.setString(9, outcome);
-            s.setInt(10, resultRevision);
-            s.setBoolean(11, changed);
-            if (changed) s.setLong(12, sequence); else s.setNull(12, Types.BIGINT);
-            s.setObject(13, OffsetDateTime.ofInstant(now, ZoneOffset.UTC));
+            s.setBytes(9, mentionsHash);
+            s.setString(10, outcome);
+            s.setInt(11, resultRevision);
+            s.setBoolean(12, changed);
+            if (changed) s.setLong(13, sequence); else s.setNull(13, Types.BIGINT);
+            s.setObject(14, OffsetDateTime.ofInstant(now, ZoneOffset.UTC));
             return s.executeUpdate() == 1;
         }
     }
@@ -282,7 +303,8 @@ public final class PostgresMessageEditAdapter implements MessageEditPort {
             byte[] content, boolean changed, long sequence, Instant at, boolean duplicate) {
         return new MessageEditResult.Applied(command.conversationId(), command.messageId(),
                 command.actorAccountId(), revision, command.contentType(), content,
-                command.clientOperationId(), changed, sequence, at, duplicate);
+                command.clientOperationId(), changed, sequence, at, duplicate,
+                command.mentions());
     }
 
     private static MessageEditResult.Rejected rejected(String outcome) {
@@ -302,14 +324,110 @@ public final class PostgresMessageEditAdapter implements MessageEditPort {
         }
     }
 
+    private static byte[] mentionsHash(List<MessageMention> mentions) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            for (MessageMention mention : mentions) {
+                digest.update(mention.targetAccountId().toString()
+                        .getBytes(StandardCharsets.US_ASCII));
+                digest.update(ByteBuffer.allocate(8)
+                        .putInt(mention.startUtf8Byte())
+                        .putInt(mention.lengthUtf8Bytes()).array());
+            }
+            return digest.digest();
+        } catch (NoSuchAlgorithmException unavailable) {
+            throw new IllegalStateException("SHA-256 is unavailable", unavailable);
+        }
+    }
+
+    private static boolean authorizedMentionTargets(
+            Connection c, MessageEditCommand command) throws SQLException {
+        if (command.mentions().isEmpty()) return true;
+        List<UUID> targets = command.mentions().stream()
+                .map(MessageMention::targetAccountId).distinct().toList();
+        java.sql.Array targetArray = c.createArrayOf("uuid", targets.toArray());
+        String sql = "SELECT cm.account_id FROM chat.conversation_member cm "
+                + "JOIN chat.account a ON a.id=cm.account_id "
+                + "WHERE cm.conversation_id=? AND cm.account_id=ANY (?) "
+                + "AND cm.left_at IS NULL AND a.disabled_at IS NULL FOR KEY SHARE OF cm,a";
+        try (PreparedStatement s = c.prepareStatement(sql)) {
+            s.setObject(1, command.conversationId());
+            s.setArray(2, targetArray);
+            int found = 0;
+            try (ResultSet r = s.executeQuery()) { while (r.next()) found++; }
+            return found == targets.size();
+        } finally {
+            targetArray.free();
+        }
+    }
+
+    private static List<MessageMention> readCurrentMentions(
+            Connection c, UUID conversationId, UUID messageId) throws SQLException {
+        List<MessageMention> mentions = new ArrayList<>();
+        try (PreparedStatement s = c.prepareStatement(
+                "SELECT target_account_id,start_utf8_byte,length_utf8_bytes "
+                + "FROM chat.message_mention WHERE conversation_id=? AND message_id=? "
+                + "ORDER BY mention_ordinal")) {
+            s.setObject(1, conversationId);
+            s.setObject(2, messageId);
+            try (ResultSet r = s.executeQuery()) {
+                while (r.next()) mentions.add(new MessageMention(
+                        r.getObject(1, UUID.class), r.getInt(2), r.getInt(3)));
+            }
+        }
+        return List.copyOf(mentions);
+    }
+
+    private static void replaceCurrentMentions(
+            Connection c, MessageEditCommand command) throws SQLException {
+        try (PreparedStatement s = c.prepareStatement(
+                "DELETE FROM chat.message_mention WHERE conversation_id=? AND message_id=?")) {
+            s.setObject(1, command.conversationId());
+            s.setObject(2, command.messageId());
+            s.executeUpdate();
+        }
+        insertMentions(c, "message_mention", command.conversationId(),
+                command.messageId(), 0, command.mentions());
+    }
+
+    private static void insertEventMentions(
+            Connection c, MessageEditCommand command, long sequence) throws SQLException {
+        insertMentions(c, "message_edit_event_mention", command.conversationId(),
+                null, sequence, command.mentions());
+    }
+
+    private static void insertMentions(
+            Connection c, String table, UUID conversationId, UUID messageId,
+            long sequence, List<MessageMention> mentions) throws SQLException {
+        if (mentions.isEmpty()) return;
+        String identity = table.equals("message_mention") ? "message_id" : "conversation_sequence";
+        String sql = "INSERT INTO chat." + table + "(conversation_id," + identity
+                + ",mention_ordinal,target_account_id,start_utf8_byte,length_utf8_bytes) "
+                + "VALUES (?,?,?,?,?,?)";
+        try (PreparedStatement s = c.prepareStatement(sql)) {
+            for (int index = 0; index < mentions.size(); index++) {
+                MessageMention mention = mentions.get(index);
+                s.setObject(1, conversationId);
+                if (messageId != null) s.setObject(2, messageId); else s.setLong(2, sequence);
+                s.setInt(3, index);
+                s.setObject(4, mention.targetAccountId());
+                s.setInt(5, mention.startUtf8Byte());
+                s.setInt(6, mention.lengthUtf8Bytes());
+                s.addBatch();
+            }
+            s.executeBatch();
+        }
+    }
+
     private static void rollback(Connection c, Exception original) {
         try { c.rollback(); } catch (SQLException failure) { original.addSuppressed(failure); }
     }
 
     private record LockedMessage(byte[] payload, byte[] payloadHash, Instant acceptedAt,
-            int revision) { }
+            int revision, List<MessageMention> mentions) { }
 
     private record ExistingOperation(UUID conversationId, UUID deviceId, UUID messageId,
-            int expectedRevision, int contentType, byte[] contentHash, String outcome,
+            int expectedRevision, int contentType, byte[] contentHash, byte[] mentionsHash,
+            String outcome,
             int resultRevision, boolean changed, long sequence, Instant occurredAt) { }
 }
