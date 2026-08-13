@@ -186,6 +186,8 @@ public final class GatewayRuntime implements AutoCloseable {
                     messagingTelemetry,
                     deviceTelemetry,
                     attachmentCleanupTelemetry,
+                    workers::activeCount,
+                    workers::queuedCount,
                     messagingWorkers::activeCount,
                     messagingWorkers::queuedCount,
                     publicReadiness,

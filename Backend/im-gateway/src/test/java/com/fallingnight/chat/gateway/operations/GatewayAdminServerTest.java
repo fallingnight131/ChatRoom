@@ -46,6 +46,8 @@ class GatewayAdminServerTest {
                 messaging,
                 devices,
                 cleanup,
+                () -> 4,
+                () -> 5,
                 () -> 2,
                 () -> 3,
                 readiness,
@@ -74,6 +76,10 @@ class GatewayAdminServerTest {
             assertEquals(200, metrics.statusCode());
             assertTrue(metrics.body().contains(
                     "chat_gateway_authentication_total{outcome=\"accepted\"} 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_authentication_workers_active 4"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_authentication_queue_size 5"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_release_info{release_version=\"1.2.3\","
                             + "source_revision=\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\","
@@ -137,6 +143,8 @@ class GatewayAdminServerTest {
                 new AttachmentCleanupTelemetry(),
                 () -> 0,
                 () -> 0,
+                () -> 0,
+                () -> 0,
                 readiness));
         assertThrows(IllegalArgumentException.class, () -> new GatewayAdminServer(
                 new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
@@ -145,6 +153,8 @@ class GatewayAdminServerTest {
                 new MessagingTelemetry(),
                 new DeviceManagementTelemetry(),
                 new AttachmentCleanupTelemetry(),
+                () -> 0,
+                () -> 0,
                 () -> 0,
                 () -> 0,
                 readiness));

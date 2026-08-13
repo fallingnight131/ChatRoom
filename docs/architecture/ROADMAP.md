@@ -1630,6 +1630,10 @@ Progress:
   baseline at `ad97e070...`: 12/12 resumes, zero errors, 21.696/37.212 ms
   P50/P95, 8.503 ms maximum scheduling jitter, and 36.132 controlled resumes/s.
   This local curve is not production saturation or fleet capacity evidence.
+- [x] Export fixed-name authentication worker active/queue gauges from the
+  runnable gateway's bounded executor on the loopback metrics endpoint, without
+  identity labels or readiness side effects. In-window peak sampling and wider
+  database/event-loop/resource saturation remain pending (ADR-0385).
 
 Work:
 

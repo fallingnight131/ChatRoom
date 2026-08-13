@@ -20,7 +20,7 @@ class PrometheusAuthenticationMetricsTest {
         telemetry.completed(AuthenticationOutcome.ACCEPTED, true, 2_000_000L);
         telemetry.completed(AuthenticationOutcome.REJECTED, false, 7_000_000L);
 
-        String rendered = PrometheusAuthenticationMetrics.render(telemetry.snapshot());
+        String rendered = PrometheusAuthenticationMetrics.render(telemetry.snapshot(), 3, 7);
 
         assertTrue(rendered.contains(
                 "chat_gateway_authentication_total{outcome=\"accepted\"} 1"));
@@ -38,6 +38,8 @@ class PrometheusAuthenticationMetricsTest {
                         + "{le=\"+Inf\"} 2"));
         assertTrue(rendered.contains(
                 "chat_gateway_authentication_execution_duration_seconds_count 2"));
+        assertTrue(rendered.contains("chat_gateway_authentication_workers_active 3"));
+        assertTrue(rendered.contains("chat_gateway_authentication_queue_size 7"));
         assertFalse(rendered.contains("alice"));
         assertFalse(rendered.contains("192.0.2.1"));
     }

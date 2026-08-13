@@ -1611,6 +1611,10 @@ capacity or SLO claim (ADR-0384).
 The first clean exact-revision result is retained under `docs/baselines/` as
 both strict JSON and an explanatory Markdown report; future comparisons must
 retain the same pinned scenario and validator.
+The loopback gateway metrics now include
+`chat_gateway_authentication_workers_active` and
+`chat_gateway_authentication_queue_size`; collect them during reconnect windows,
+not only before and after, when diagnosing saturation (ADR-0385).
 
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and

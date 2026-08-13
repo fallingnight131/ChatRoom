@@ -12,6 +12,14 @@ public final class PrometheusAuthenticationMetrics {
     private PrometheusAuthenticationMetrics() {}
 
     public static String render(AuthenticationTelemetrySnapshot snapshot) {
+        return render(snapshot, 0, 0);
+    }
+
+    public static String render(
+            AuthenticationTelemetrySnapshot snapshot, int activeWorkers, int queuedWork) {
+        if (activeWorkers < 0 || queuedWork < 0) {
+            throw new IllegalArgumentException("authentication worker gauges cannot be negative");
+        }
         StringBuilder output = new StringBuilder(2048);
         output.append("# TYPE chat_gateway_authentication_total counter\n");
         counter(output, "accepted", snapshot.accepted());
@@ -46,7 +54,13 @@ public final class PrometheusAuthenticationMetrics {
                 .append(seconds(snapshot.executionDurationTotalNanos())).append('\n');
         output.append("# TYPE chat_gateway_authentication_execution_duration_max_seconds gauge\n")
                 .append("chat_gateway_authentication_execution_duration_max_seconds ")
-                .append(seconds(snapshot.executionDurationMaxNanos())).append('\n');
+                .append(seconds(snapshot.executionDurationMaxNanos())).append('\n')
+                .append("# TYPE chat_gateway_authentication_workers_active gauge\n")
+                .append("chat_gateway_authentication_workers_active ")
+                .append(activeWorkers).append('\n')
+                .append("# TYPE chat_gateway_authentication_queue_size gauge\n")
+                .append("chat_gateway_authentication_queue_size ")
+                .append(queuedWork).append('\n');
         return output.toString();
     }
 

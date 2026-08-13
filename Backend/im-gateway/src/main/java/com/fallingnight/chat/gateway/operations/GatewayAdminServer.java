@@ -32,11 +32,14 @@ public final class GatewayAdminServer implements AutoCloseable {
             MessagingTelemetry messagingTelemetry,
             DeviceManagementTelemetry deviceManagementTelemetry,
             AttachmentCleanupTelemetry attachmentCleanupTelemetry,
+            IntSupplier authenticationActiveWorkers,
+            IntSupplier authenticationQueuedWork,
             IntSupplier messagingActiveWorkers,
             IntSupplier messagingQueuedWork,
             BooleanSupplier readiness) {
         this(address, workers, telemetry, messagingTelemetry, deviceManagementTelemetry,
-                attachmentCleanupTelemetry, messagingActiveWorkers, messagingQueuedWork,
+                attachmentCleanupTelemetry, authenticationActiveWorkers,
+                authenticationQueuedWork, messagingActiveWorkers, messagingQueuedWork,
                 readiness, () -> "", GatewayReleaseIdentity.fromEnvironment(Map.of()));
     }
 
@@ -45,10 +48,12 @@ public final class GatewayAdminServer implements AutoCloseable {
             MessagingTelemetry messagingTelemetry,
             DeviceManagementTelemetry deviceManagementTelemetry,
             AttachmentCleanupTelemetry attachmentCleanupTelemetry,
+            IntSupplier authenticationActiveWorkers, IntSupplier authenticationQueuedWork,
             IntSupplier messagingActiveWorkers, IntSupplier messagingQueuedWork,
             BooleanSupplier readiness, Supplier<String> distributedMetrics) {
         this(address, workers, telemetry, messagingTelemetry, deviceManagementTelemetry,
-                attachmentCleanupTelemetry, messagingActiveWorkers, messagingQueuedWork,
+                attachmentCleanupTelemetry, authenticationActiveWorkers,
+                authenticationQueuedWork, messagingActiveWorkers, messagingQueuedWork,
                 readiness, distributedMetrics,
                 GatewayReleaseIdentity.fromEnvironment(Map.of()));
     }
@@ -58,6 +63,7 @@ public final class GatewayAdminServer implements AutoCloseable {
             MessagingTelemetry messagingTelemetry,
             DeviceManagementTelemetry deviceManagementTelemetry,
             AttachmentCleanupTelemetry attachmentCleanupTelemetry,
+            IntSupplier authenticationActiveWorkers, IntSupplier authenticationQueuedWork,
             IntSupplier messagingActiveWorkers, IntSupplier messagingQueuedWork,
             BooleanSupplier readiness, Supplier<String> distributedMetrics,
             GatewayReleaseIdentity releaseIdentity) {
@@ -66,6 +72,8 @@ public final class GatewayAdminServer implements AutoCloseable {
         Objects.requireNonNull(messagingTelemetry, "messagingTelemetry");
         Objects.requireNonNull(deviceManagementTelemetry, "deviceManagementTelemetry");
         Objects.requireNonNull(attachmentCleanupTelemetry, "attachmentCleanupTelemetry");
+        Objects.requireNonNull(authenticationActiveWorkers, "authenticationActiveWorkers");
+        Objects.requireNonNull(authenticationQueuedWork, "authenticationQueuedWork");
         Objects.requireNonNull(messagingActiveWorkers, "messagingActiveWorkers");
         Objects.requireNonNull(messagingQueuedWork, "messagingQueuedWork");
         Objects.requireNonNull(readiness, "readiness");
@@ -103,7 +111,10 @@ public final class GatewayAdminServer implements AutoCloseable {
                 exchange,
                 "/metrics",
                 200,
-                PrometheusAuthenticationMetrics.render(telemetry.snapshot())
+                PrometheusAuthenticationMetrics.render(
+                        telemetry.snapshot(),
+                        authenticationActiveWorkers.getAsInt(),
+                        authenticationQueuedWork.getAsInt())
                         + releaseIdentity.prometheus()
                         + PrometheusMessagingMetrics.render(
                                 messagingTelemetry.snapshot(),

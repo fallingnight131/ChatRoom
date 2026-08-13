@@ -1213,6 +1213,11 @@ six sessions remain on the secondary edge and gateway. A strict JSON record
 binds identity recovery, latency, jitter, topology, revision, and dirty state.
 This is a local comparison curve; multi-host fleet capacity, saturation signals,
 real product-client arrival distributions, and production discovery remain open.
+ADR-0385 adds the first missing saturation explanation to the loopback
+operations surface: fixed-name active-worker and queued-work gauges now expose
+the bounded authentication/session-resume executor without identity labels.
+They do not alter readiness or admission and do not replace in-window sampling,
+database-pool, event-loop, CPU, or memory observations.
 
 ## 10. Attachment Flow
 
