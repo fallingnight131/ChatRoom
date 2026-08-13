@@ -1501,7 +1501,7 @@ Progress:
     - [x] Define a capability-gated, active-member-authorized, account-ID-cursor
       participant directory so mention composition uses current display names
       without treating them as identity (ADR-0343).
-    - [ ] Implement the participant-directory protocol, PostgreSQL adapter, and
+    - [x] Implement the participant-directory protocol, PostgreSQL adapter, and
       authenticated gateway handler while clients remain unactivated.
       - [x] Allocate types 117/118, add bounded participant payload policy, and
         lock the account-ID cursor across generated Java, TypeScript, and C++
@@ -1509,12 +1509,12 @@ Progress:
       - [x] Add bounded application page/query/result models and the
         active-member-authorized PostgreSQL query with active-account filtering
         and stable ascending account-ID pagination.
-      - [ ] Register the capability-gated authenticated gateway handler with
+      - [x] Register the capability-gated authenticated gateway handler with
         fixed denial and telemetry behavior.
         - [x] Add a dedicated serialized off-event-loop handler with
           server-bound requester identity, capability/shape checks, fixed
           authorization denial, bounded queue, and fixed-cardinality signals.
-        - [ ] Compose the handler and PostgreSQL port into the product pipeline
+        - [x] Compose the handler and PostgreSQL port into the product pipeline
           and prove the real runtime path without activating either client.
     - [ ] Persist Web mention metadata with authoritative messages and pending
       submission/edit workflows, then add composition, rendering,

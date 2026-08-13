@@ -1292,24 +1292,25 @@ metadata for authoritative messages and edit intents, clear it on recall, and
 discard a malformed cached set without discarding ordinary text. The composed
 Web runtime and Windows client remain off until their complete persistence and
 UX slices pass (ADR-0342).
-Types 117/118 reserve the capability-gated V2 conversation-participant query
+Types 117/118 define the capability-gated V2 conversation-participant query
 and response. Java payload policy and the Java/TypeScript/C++ compatibility
 gate require a canonical conversation ID, optional canonical account cursor,
 1..100 bound, ascending unique account IDs, current display-name bounds, roles,
-and a cursor equal to the last row. No runtime handler is registered until the
-authorized PostgreSQL slice passes (ADR-0343).
+and a cursor equal to the last row (ADR-0343).
 The application participant directory returns either a validated page or one
 fixed authorization rejection. Its PostgreSQL adapter first proves that the
 requester is an enabled active member, then pages enabled active participants
 by account ID without a schema migration. The disposable PostgreSQL gate covers
 departed/nonmember callers, departed-member filtering, Unicode names, and page
-continuation; gateway registration remains a separate step (ADR-0343).
+continuation (ADR-0343).
 The dedicated participant handler consumes only type 117, requires an
 authenticated capability-4 session, binds the requester from channel state,
 serializes work through the bounded messaging executor, and returns fixed
-invalid, unauthorized, busy, or internal outcomes. Its unit gate covers
-successful Unicode projection and every negative boundary; product-pipeline
-composition remains the next gate (ADR-0343).
+invalid, unauthorized, busy, or internal outcomes. The product runtime now
+injects the PostgreSQL port through the WebSocket upgrade and application
+pipeline. Its pipeline integration gate negotiates capability 4, authenticates,
+and proves a type-117 request reaches the injected participant port before
+either client advertises the capability (ADR-0343).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

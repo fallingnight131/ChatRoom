@@ -706,7 +706,10 @@ and accessible composition/rendering gates pass. ADR-0343 adds the missing
 capability-gated participant directory: active members are paged by stable
 account ID and projected with current display names only after the caller's
 membership is authorized, so clients do not build incomplete UUID-only pickers
-from message history.
+from message history. The Java runtime now composes its PostgreSQL adapter into
+the authenticated WebSocket pipeline, with bounded worker ownership and fixed
+denial behavior; Web and Windows negotiation remain off pending their complete
+composition and rendering gates.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

@@ -16,6 +16,7 @@ import com.fallingnight.chat.identity.crypto.Argon2idCredentialHasher;
 import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
 import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresConversationDirectoryAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresConversationParticipantAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMessageAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMessageReactionAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMessagePinAdapter;
@@ -80,6 +81,8 @@ public final class GatewayRuntime implements AutoCloseable {
             PostgresMessageEditAdapter edits = new PostgresMessageEditAdapter(dataSource);
             PostgresConversationDirectoryAdapter conversations =
                     new PostgresConversationDirectoryAdapter(dataSource);
+            PostgresConversationParticipantAdapter participants =
+                    new PostgresConversationParticipantAdapter(dataSource);
             DeviceManagementService deviceManagement = new DeviceManagementService(
                     new PostgresDeviceManagementAdapter(dataSource));
             Clock clock = Clock.systemUTC();
@@ -114,6 +117,7 @@ public final class GatewayRuntime implements AutoCloseable {
                     messages,
                     messages,
                     conversations,
+                    participants,
                     reactions,
                     pins,
                     edits,
