@@ -1496,6 +1496,13 @@ Progress:
   PostgreSQL+Redis+TLS/WSS proves exactly-once-visible delivery across the
   Redis-first/local-publish race; production TLS/ACL and failure gates remain
   pending (ADR-0365).
+- [x] Add a disposable TLS-only Redis capability gate with an ephemeral CA,
+  hostname verification, disabled default user, `chat:v2:*` key scope, and only
+  the routing commands required at runtime. Real Lettuce operations prove the
+  route/Stream path works while an out-of-scope key, wrong ACL password, and
+  certificate hostname mismatch fail closed without credential disclosure.
+  Redis dependency-loss/recovery and rolling multi-gateway gates remain
+  pending (ADR-0366).
 
 Work:
 

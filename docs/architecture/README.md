@@ -1082,6 +1082,15 @@ Redis repair preceded local publication: exact already-observed messages are now
 suppressed, while noncontiguous sequences never advance the server high
 watermark. Production deployment remains gated on real Redis TLS/ACL and
 multi-gateway failure/rolling evidence.
+ADR-0366 closes the Redis transport and least-privilege capability gate with a
+repeatable disposable TLS-only instance. The gate generates a one-day test CA
+and IP-bound server certificate, imports only that CA into the isolated test JVM,
+disables Redis's default user, and restricts the routing account to
+`chat:v2:*` plus the exact route/Stream command set. It proves successful real
+Lettuce operations and fail-closed behavior for an outside key, a wrong password,
+and a hostname mismatch without printing credentials. This evidence does not
+cover credential rotation, managed-service policy, Redis outage recovery,
+load-balancer withdrawal, or rolling multi-gateway availability.
 
 ## 10. Attachment Flow
 

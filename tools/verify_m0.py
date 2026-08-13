@@ -54,6 +54,10 @@ def verify_postgres() -> None:
     run([sys.executable, str(ROOT / "tools" / "verify_postgres.py")], ROOT)
 
 
+def verify_redis_tls() -> None:
+    run([sys.executable, str(ROOT / "tools" / "verify_redis_tls.py")], ROOT)
+
+
 def verify_java_performance(args: argparse.Namespace, output: Path) -> None:
     run([
         sys.executable,
@@ -506,6 +510,11 @@ def parse_args() -> argparse.Namespace:
         help="run V2 migrations against a disposable local PostgreSQL cluster",
     )
     parser.add_argument(
+        "--redis-tls",
+        action="store_true",
+        help="verify Redis routing against disposable TLS and scoped ACL",
+    )
+    parser.add_argument(
         "--protocol-bindings",
         action="store_true",
         help="generate and verify V2 C++ and TypeScript client bindings",
@@ -616,6 +625,8 @@ def main() -> int:
         verify_java()
     if args.postgres or args.all:
         verify_postgres()
+    if args.redis_tls:
+        verify_redis_tls()
     if args.protocol_bindings or args.all:
         verify_protocol_bindings(args.skip_npm_ci)
     if args.db_schema or args.all:
@@ -659,6 +670,7 @@ def main() -> int:
         or args.java
         or args.protocol_bindings
         or args.postgres
+        or args.redis_tls
         or args.db_schema
         or args.cmake_headless
         or args.password_hash
@@ -672,7 +684,8 @@ def main() -> int:
     ):
         print(
             "[M0] inventory-only verification complete; "
-            "use --web, --java, --postgres, --protocol-bindings, --db-schema, --password-hash, "
+            "use --web, --java, --postgres, --redis-tls, --protocol-bindings, "
+            "--db-schema, --password-hash, "
             "--cmake-headless, --v1-smoke, --v1-identity-restore, --performance, "
             "--java-performance, --java-gateway-performance, "
             "--qt, or --all "

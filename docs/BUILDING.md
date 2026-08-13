@@ -1354,8 +1354,9 @@ start an isolated disposable Redis and set
 `./gradlew :routing-redis:test --rerun-tasks`; explicit plaintext is accepted
 only for loopback test mode. The test flushes that selected database and must
 never point at shared or production Redis. It proves route lease prerequisites,
-expiry/reconnect cleanup, and exact 100-entry Stream trimming. TLS/ACL failure
-tests remain required before product composition (ADR-0352).
+expiry/reconnect cleanup, and exact 100-entry Stream trimming. The separate
+TLS/ACL capability gate below must never reuse that developer-supplied endpoint
+(ADR-0352, ADR-0366).
 The real Redis test also validates ADR-0353 consumption after exact trimming:
 150 appends retain conversation sequences 51–150, read as bounded 60/40 pages,
 then an empty page that preserves the last opaque stream ID. This is Redis
@@ -1447,6 +1448,25 @@ CHATROOM_TEST_REDIS_URI=redis://127.0.0.1:<port> \
 ```
 
 This loopback proof is not production Redis TLS/ACL or rolling-failure evidence.
+Run the isolated Redis transport and least-privilege capability gate separately:
+
+```bash
+python3 tools/verify_m0.py --redis-tls
+```
+
+The command requires `openssl`, `keytool`, `redis-server`, and JDK 21. It starts
+a TLS-only Redis on a random loopback port, generates a disposable CA/server
+certificate and Java trust store, disables the default Redis user, and grants
+the test routing user access only to `chat:v2:*` with the route/Stream command
+set. It proves actual route and bounded Stream operations, rejects an outside
+key, rejects a wrong ACL password, rejects a certificate hostname mismatch, and
+redacts disposable credentials from command and exception output. The process,
+certificates, trust store, and configuration are removed after the test, even on
+failure. This explicit gate is not part of `--all` because it requires local
+Redis and certificate tooling. It is TLS/ACL capability evidence, not credential
+rotation, managed-service configuration, outage recovery, or rolling-deployment
+evidence (ADR-0366).
+
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound
