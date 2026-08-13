@@ -655,6 +655,11 @@ Windows V2 preview now also negotiates the capability and composes its isolated
 SQLite projection/outbox, exact reconnect replay, correlated ACK and ordered
 history/live convergence with six checkable, accessible Widgets controls
 (ADR-0339).
+The next inactive V2 contract reserves bounded shared message pins under a
+separate capability. It stores only target identity, uses desired-state
+idempotency and changed-only mixed sequencing, limits active pins to 50, and
+requires group OWNER/ADMIN mutation authority. Recall/deletion cleanup and
+offline client convergence remain mandatory before activation (ADR-0340).
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
 single-gateway router now establishes one active subscription only through the

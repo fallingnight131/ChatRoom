@@ -30,6 +30,10 @@ constexpr char kSetMessageReactionGoldenHex[] =
     "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
     "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
     "180120012a0a7265616374696f6e2d31";
+constexpr char kSetMessagePinGoldenHex[] =
+    "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+    "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
+    "1801220570696e2d31";
 constexpr char kListConversationsGoldenHex[] =
     "0880d095ffbc31122430303030303030302d303030302d303030302d303030302d"
     "3030303030303030303030321819";
@@ -139,6 +143,17 @@ int main() {
             || reaction.client_operation_id() != "reaction-1"
             || reaction.SerializeAsString() != reactionGolden) {
         std::cerr << "generated C++ binding changed the SetMessageReaction golden payload\n";
+        return 1;
+    }
+    const std::string pinGolden = fromHex(kSetMessagePinGoldenHex);
+    chat::v2::SetMessagePin pin;
+    if (!pin.ParseFromString(pinGolden)
+            || pin.conversation_id() != "00000000-0000-0000-0000-000000000001"
+            || pin.message_id() != "00000000-0000-0000-0000-000000000002"
+            || !pin.pinned()
+            || pin.client_operation_id() != "pin-1"
+            || pin.SerializeAsString() != pinGolden) {
+        std::cerr << "generated C++ binding changed the SetMessagePin golden payload\n";
         return 1;
     }
     const std::string listGolden = fromHex(kListConversationsGoldenHex);

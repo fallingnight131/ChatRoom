@@ -251,6 +251,22 @@ public final class MessagingPayloadPolicy {
                     violations.add("reaction entry detail identity differs");
                 }
             }
+            case PIN -> {
+                MessagePinChangedRecord pin = entry.getPin();
+                List<String> pinViolations = new ArrayList<>();
+                requireUuid("pin.conversationId", pin.getConversationId(), pinViolations);
+                requireUuid("pin.messageId", pin.getMessageId(), pinViolations);
+                requireUuid("pin.actorAccountId", pin.getActorAccountId(), pinViolations);
+                requireIdentifier("pin.clientOperationId",
+                        pin.getClientOperationId(), true, pinViolations);
+                if (!entry.getConversationId().equals(pin.getConversationId())
+                        || entry.getConversationSequence() != pin.getConversationSequence()
+                        || pin.getConversationSequence() <= 0
+                        || pin.getOccurredAtEpochMs() <= 0) {
+                    pinViolations.add("pin entry detail is invalid");
+                }
+                violations.addAll(pinViolations);
+            }
             case DETAIL_NOT_SET -> violations.add("history entry detail is required");
         }
     }

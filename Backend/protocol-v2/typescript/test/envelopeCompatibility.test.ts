@@ -13,6 +13,7 @@ import {
 import { AuthenticateSchema } from '../generated/typescript/chat/v2/authentication_pb.js'
 import {
   MessageReactionKind,
+  SetMessagePinSchema,
   SetMessageReactionSchema,
   SubmitMessageSchema,
   SubmitReplyMessageSchema
@@ -35,6 +36,10 @@ const SET_MESSAGE_REACTION_GOLDEN_HEX =
   '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
   '122430303030303030302d303030302d303030302d303030302d303030303030303030303032' +
   '180120012a0a7265616374696f6e2d31'
+const SET_MESSAGE_PIN_GOLDEN_HEX =
+  '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
+  '122430303030303030302d303030302d303030302d303030302d303030303030303030303032' +
+  '1801220570696e2d31'
 const LIST_CONVERSATIONS_GOLDEN_HEX = '0880d095ffbc31122430303030303030302d303030302d' +
   '303030302d303030302d3030303030303030303030321819'
 const REGISTER_ATTACHMENT_GOLDEN_HEX =
@@ -170,6 +175,25 @@ test('keeps the bounded SetMessageReaction payload compatible across bindings', 
   assert.equal(
     Buffer.from(toBinary(SetMessageReactionSchema, encoded)).toString('hex'),
     SET_MESSAGE_REACTION_GOLDEN_HEX
+  )
+})
+
+test('keeps the bounded SetMessagePin payload compatible across bindings', () => {
+  const decoded = fromBinary(SetMessagePinSchema, bytesFromHex(SET_MESSAGE_PIN_GOLDEN_HEX))
+  assert.equal(decoded.conversationId, '00000000-0000-0000-0000-000000000001')
+  assert.equal(decoded.messageId, '00000000-0000-0000-0000-000000000002')
+  assert.equal(decoded.pinned, true)
+  assert.equal(decoded.clientOperationId, 'pin-1')
+
+  const encoded = create(SetMessagePinSchema, {
+    conversationId: '00000000-0000-0000-0000-000000000001',
+    messageId: '00000000-0000-0000-0000-000000000002',
+    pinned: true,
+    clientOperationId: 'pin-1'
+  })
+  assert.equal(
+    Buffer.from(toBinary(SetMessagePinSchema, encoded)).toString('hex'),
+    SET_MESSAGE_PIN_GOLDEN_HEX
   )
 })
 

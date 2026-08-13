@@ -62,9 +62,10 @@ class ControlProtocolTest {
     }
 
     @Test
-    void validatesExplicitReactionCapabilityWithoutChangingLegacyGolden() {
+    void validatesExplicitCapabilitiesWithoutChangingLegacyGolden() {
         ClientHello capable = validHello().toBuilder()
                 .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS)
+                .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_PINS)
                 .build();
         ClientHelloPolicy.requireValid(capable);
         assertThrows(IllegalArgumentException.class, () ->

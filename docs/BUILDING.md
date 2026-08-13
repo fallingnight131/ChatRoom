@@ -1233,7 +1233,7 @@ tests also verify binary envelope egress plus fixed WebSocket 1002/1009 close
 mapping for unsafe frames. They do not open a listener or imply that V2 is ready
 to receive traffic.
 The protocol-binding gate also compiles and round-trips permanent V2 messaging
-types 100..108 and content type 1 (bounded nonempty UTF-8 text). Type 104 is the
+types 100..113 and content type 1 (bounded nonempty UTF-8 text). Type 104 is the
 uncorrelated authenticated live `MessageRecord` event. It verifies the
 fixed `SubmitMessage` and `SubmitReplyMessage` golden payloads in Java,
 generated TypeScript, and generated C++. Type 105 is a distinct reply command,
@@ -1264,6 +1264,13 @@ Web reaction tests additionally verify account-scoped IndexedDB persistence,
 stable optimistic replay after reconnect history, ACK/history/live convergence,
 bounded fixed-kind aggregates, keyboard-native controls, pressed state, and
 explicit failed-operation retry. No reaction operation stores session secrets.
+Types 109/112/113 reserve the independently negotiated pinned-message command,
+response, and event around the existing 110/111 directory allocation. Java,
+TypeScript, and C++ lock the same `SetMessagePin` bytes; Java policy tests also
+cover canonical identity, operation bounds, changed-only sequence semantics,
+pin history-detail identity, and duplicate/unknown capability rejection. Web
+and Windows do not advertise `MESSAGE_PINS` until persistence, gateway, cache,
+and UI gates complete (ADR-0340).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

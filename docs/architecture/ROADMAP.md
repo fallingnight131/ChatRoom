@@ -1428,7 +1428,9 @@ Progress:
   - [x] Define capability negotiation, permanent type allocation, role policy,
     a 50-pin bound, exact idempotency, mixed-sequence ordering, target cleanup,
     body-free projection, and offline cursor rules (ADR-0340).
-  - [ ] Add the generated wire contract and three-language compatibility gate.
+  - [x] Add the generated wire contract, bounded Java policy, mixed-history pin
+    detail, and fixed Java/C++/TypeScript golden compatibility gate while both
+    clients keep the capability disabled.
   - [ ] Persist and route authoritative pin operations, history, and live events.
   - [ ] Add offline-safe Web and Windows projections and accessible controls.
 
