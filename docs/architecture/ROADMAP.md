@@ -1341,6 +1341,9 @@ Progress:
   - [x] Add the detached Qt WSS lifecycle for the exact Windows endpoint and
     `chat.v2` binary subprotocol with phase timeouts, memory-only resume,
     bounded jittered reconnect, fail-closed framing, and Qt device projection.
+  - [x] Compile the reviewed V2 bindings and detached Windows WSS/session/device
+    stack into the canonical CMake product with checksum-pinned, static
+    Protobuf/Abseil and no new installer runtime DLL (ADR-0323).
   - [ ] Add the supported Windows device-management application/UI path; Web is
     implemented behind the existing V2 preview/cutover gate.
 

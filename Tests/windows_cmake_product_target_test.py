@@ -40,6 +40,10 @@ def main() -> int:
         "add_executable(\n                ChatClient WIN32",
         "add_executable(\n                ChatRoomUpdateLauncher WIN32",
         "Client/resources/windows_product.rc.in",
+        "chatroom_windows_v2_transport",
+        "cmake/ChatRoomV2Protobuf.cmake",
+        "protobuf::libprotobuf",
+        "Qt6::WebSockets",
         'CHAT_APP_VERSION="${CHATROOM_PRODUCT_VERSION}"',
         "CHATROOM_ENABLE_WINDOWS_UPDATES",
         'CHAT_UPDATE_CONFIGURATION_ENABLED=1',
@@ -62,6 +66,22 @@ def main() -> int:
     for marker in required_workflow:
         if marker not in workflow:
             raise AssertionError(f"native Windows CMake gate missing: {marker}")
+
+    protobuf_policy = (ROOT / "cmake/ChatRoomV2Protobuf.cmake").read_text(
+        encoding="utf-8"
+    )
+    required_protobuf = (
+        "protobuf-35.1.tar.gz",
+        "SHA256=f0b6838e7522a8da96126d487068c959bc624926368f3024ac8fd03abd0a1ac4",
+        "abseil-cpp-20250512.1.tar.gz",
+        "SHA256=9b7a064305e9fd94d124ffa6cc358592eb42b5da588fb4e07d09254aa40086db",
+        'set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)',
+    )
+    for marker in required_protobuf:
+        if marker not in protobuf_policy:
+            raise AssertionError(f"Windows static Protobuf policy marker missing: {marker}")
+    if "protobuf" in (ROOT / "vcpkg.json").read_text(encoding="utf-8"):
+        raise AssertionError("Windows V2 Protobuf must remain static, not a payload DLL")
 
     print("Windows CMake product target policy passed")
     return 0

@@ -81,7 +81,7 @@ jobs:
   windows-release:
     name: Windows client payload verification
     runs-on: windows-2025
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Check out source

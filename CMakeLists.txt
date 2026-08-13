@@ -394,6 +394,50 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             PUBLIC Qt6::Core chatroom_windows_update_trust_core)
 
         if(CHATROOM_BUILD_WINDOWS_CLIENT)
+            include(cmake/ChatRoomV2Protobuf.cmake)
+            chatroom_configure_v2_protobuf()
+
+            set(CHATROOM_V2_GENERATED_ROOT
+                "${CMAKE_CURRENT_SOURCE_DIR}/Client/protocol/v2/generated")
+            add_library(
+                chatroom_windows_v2_transport
+                STATIC
+                Client/V2DeviceManagementProtocolClient.cpp
+                Client/V2DeviceManagementProtocolClient.h
+                Client/V2WindowsSessionProtocolClient.cpp
+                Client/V2WindowsSessionProtocolClient.h
+                Client/V2WindowsDeviceManagementTransport.cpp
+                Client/V2WindowsDeviceManagementTransport.h
+                "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/authentication.pb.cc"
+                "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/authentication.pb.h"
+                "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/control.pb.cc"
+                "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/control.pb.h"
+                "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/device_management.pb.cc"
+                "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/device_management.pb.h"
+                "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/envelope.pb.cc"
+                "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/envelope.pb.h"
+            )
+            set_target_properties(
+                chatroom_windows_v2_transport
+                PROPERTIES
+                    AUTOMOC ON
+                    CXX_STANDARD 17
+                    CXX_STANDARD_REQUIRED ON
+                    CXX_EXTENSIONS OFF
+            )
+            target_include_directories(
+                chatroom_windows_v2_transport
+                PUBLIC Client "${CHATROOM_V2_GENERATED_ROOT}")
+            target_link_libraries(
+                chatroom_windows_v2_transport
+                PUBLIC
+                    Qt6::Core
+                    Qt6::Network
+                    Qt6::WebSockets
+                    protobuf::libprotobuf
+                    chatroom_device_management_ui_core
+            )
+
             enable_language(RC)
             file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION"
                  CHATROOM_PRODUCT_VERSION LIMIT_COUNT 1)
@@ -482,6 +526,7 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                     chatroom_client_local_data
                     chatroom_client_transport
                     chatroom_device_management_ui_core
+                    chatroom_windows_v2_transport
                     chatroom_windows_update_orchestration
                     chatroom_windows_update_lifecycle
                     chatroom_windows_update_handoff

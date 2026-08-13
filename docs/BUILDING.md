@@ -328,12 +328,14 @@ alignment, verification, and rollback.
 
 ## Incremental CMake server path
 
-The root `CMakeLists.txt` currently represents the V1 persistence/server-core
-libraries, shared V1 Common, non-UI Windows client local-data and transport
-libraries, portable Windows update trust/transport boundaries, thin
-`ChatServerHeadless`, and twenty-nine CTest entries. Together they compile
-the same Common/Server/client-core sources as the qmake projects and do not
-replace the Windows product build or installer.
+The root `CMakeLists.txt` represents the V1 persistence/server-core libraries,
+shared V1 Common, non-UI Windows client local-data and transport libraries,
+portable Windows update boundaries, and thin `ChatServerHeadless`. On Windows
+it also owns the canonical `ChatClient` and update-launcher product graph while
+qmake remains a parity fallback. The Windows-only graph compiles the detached
+V2 session/device WSS adapter into a static library using checksum-pinned
+Protobuf 35.1 and Abseil 20250512.1 source archives; it adds no protocol runtime
+DLL to the installer (ADR-0323).
 On a macOS Homebrew development host:
 
 ```bash
@@ -1390,9 +1392,10 @@ exact-version Windows hello, fresh authentication, memory-only resume, session
 authority, authenticated device-codec composition, and the detached Qt WSS
 lifecycle. The Qt regression checks exact `wss://.../v2/windows` routing,
 `chat.v2` negotiation, binary framing, authentication, and Qt projection. The
-first run downloads and builds the isolated C++ runtime. These components are
-not yet linked into the current Qt product; native dependency packaging and UI
-composition remain separate changes.
+first run downloads and builds the isolated C++ runtime. The supported Windows
+CMake product now compiles the same sources and statically links the same pinned
+runtime; it does not activate or expose the V2 screen. Application and UI
+composition remains a separate change.
 
 ## Server Password Hashing Dependency
 
