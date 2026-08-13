@@ -1481,6 +1481,12 @@ supported client feature. Gateway tests separately prove explicit capability
 echo, pre-capability command rejection, server-bound actor/device identity,
 capable-only live fan-out, legacy-history detail filtering with cursor
 advancement, and fixed-cardinality outcomes.
+V046 verifies shared message-pin desired-state idempotency, changed-only mixed
+history, opaque authorization failure, durable current-state projection, and
+same-transaction ordered recall cleanup. The schema also implements durable
+50-pin rejection, GROUP OWNER/ADMIN mutation policy, and ordered V2 deletion
+cleanup. Pin capability activation still waits for gateway and both client
+projections (ADR-0340).
 
 Generate the non-Java V2 bindings and run the Java-to-TypeScript golden-wire
 test with Node.js 22:

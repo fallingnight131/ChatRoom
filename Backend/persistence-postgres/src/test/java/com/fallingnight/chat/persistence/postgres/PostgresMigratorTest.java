@@ -99,6 +99,8 @@ import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.application.messaging.MessageReactionCommand;
 import com.fallingnight.chat.application.messaging.MessageReactionKind;
 import com.fallingnight.chat.application.messaging.MessageReactionResult;
+import com.fallingnight.chat.application.messaging.MessagePinCommand;
+import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.application.security.SecretBytes;
 import com.fallingnight.chat.application.profile.ProfileImageMetadataCommand;
 import com.fallingnight.chat.application.profile.ProfileImageMetadataResult;
@@ -199,7 +201,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(45, first.migrate());
+        assertEquals(46, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -230,7 +232,8 @@ class PostgresMigratorTest {
                             "profile_image_change_audit", "profile_image_import_run",
                             "profile_image_import_entry", "device_revocation_audit",
                             "message_reply_reference", "message_reaction_operation",
-                            "message_reaction", "message_reaction_event"),
+                            "message_reaction", "message_reaction_event",
+                            "message_pin_operation", "message_pin", "message_pin_event"),
                     applicationTables(connection));
             assertEquals(9, count("SELECT count(*) FROM pg_constraint "
                     + "WHERE connamespace = 'chat'::regnamespace AND conname IN ("
@@ -622,6 +625,94 @@ class PostgresMigratorTest {
         assertEquals(0, count("SELECT count(*) FROM chat.message_reaction_event"));
         assertEquals(1, allConversationEntryCount(conversation));
         assertEquals(3, count("SELECT count(*) FROM chat.message_reaction_operation"));
+    }
+
+    @Test
+    @Order(14)
+    void appliesSharedMessagePinsIdempotentlyWithChangedOnlyOrdering() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID account = UUID.randomUUID();
+        UUID device = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        seedMessageOwner(account, device, conversation);
+        PostgresMessageAdapter messages = new PostgresMessageAdapter(dataSource());
+        MessageSubmissionResult.Accepted target =
+                (MessageSubmissionResult.Accepted) messages.submit(new MessageSubmission(
+                        conversation, account, device, "pin-target", 100, new byte[] {1}));
+        PostgresMessagePinAdapter pins = new PostgresMessagePinAdapter(dataSource());
+        MessagePinCommand add = new MessagePinCommand(
+                conversation, target.messageId(), account, device, true, "pin-add");
+
+        MessagePinResult.Applied added = (MessagePinResult.Applied) pins.set(add);
+        assertTrue(added.changed());
+        assertEquals(2, added.conversationSequence());
+        MessagePinResult.Applied duplicate = (MessagePinResult.Applied) pins.set(add);
+        assertTrue(duplicate.duplicate());
+        assertEquals(added.occurredAt(), duplicate.occurredAt());
+        assertEquals(MessagePinResult.Rejected.IDEMPOTENCY_CONFLICT,
+                pins.set(new MessagePinCommand(conversation, target.messageId(), account, device,
+                        false, "pin-add")));
+
+        MessagePinResult.Applied noOp = (MessagePinResult.Applied) pins.set(
+                new MessagePinCommand(conversation, target.messageId(), account, device,
+                        true, "pin-no-op"));
+        assertFalse(noOp.changed());
+        assertEquals(0, noOp.conversationSequence());
+        MessagePinResult.Applied removed = (MessagePinResult.Applied) pins.set(
+                new MessagePinCommand(conversation, target.messageId(), account, device,
+                        false, "pin-remove"));
+        assertTrue(removed.changed());
+        assertEquals(3, removed.conversationSequence());
+
+        ConversationEntryHistoryResult.Page history =
+                (ConversationEntryHistoryResult.Page) messages.readEntriesAfter(
+                        new MessageHistoryQuery(conversation, account, 1, 10));
+        assertEquals(List.of(2L, 3L), history.entries().stream()
+                .map(ConversationHistoryEntry::conversationSequence).toList());
+        ConversationHistoryEntry.Pin first =
+                (ConversationHistoryEntry.Pin) history.entries().getFirst();
+        ConversationHistoryEntry.Pin last =
+                (ConversationHistoryEntry.Pin) history.entries().getLast();
+        assertTrue(first.pinned());
+        assertFalse(last.pinned());
+        assertEquals(target.messageId(), last.messageId());
+        assertEquals(0, count("SELECT count(*) FROM chat.message_pin"));
+        assertEquals(2, count("SELECT count(*) FROM chat.message_pin_event"));
+        assertEquals(3, count("SELECT count(*) FROM chat.message_pin_operation"));
+
+        assertEquals(MessagePinResult.Rejected.NOT_AUTHORIZED,
+                pins.set(new MessagePinCommand(conversation, target.messageId(),
+                        UUID.randomUUID(), UUID.randomUUID(), true, "pin-outsider")));
+
+        MessagePinResult.Applied readded = (MessagePinResult.Applied) pins.set(
+                new MessagePinCommand(conversation, target.messageId(), account, device,
+                        true, "pin-readd"));
+        assertEquals(4, readded.conversationSequence());
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.conversation SET next_sequence = 6 WHERE id = ?",
+                    conversation);
+            execute(connection,
+                    "INSERT INTO chat.conversation_entry(conversation_id, "
+                            + "conversation_sequence, entry_kind, occurred_at) "
+                            + "VALUES (?, 5, 'MESSAGE_RECALLED', transaction_timestamp())",
+                    conversation);
+            execute(connection,
+                    "INSERT INTO chat.message_recall_event(conversation_id, "
+                            + "conversation_sequence, message_id, actor_account_id, source) "
+                            + "VALUES (?, 5, ?, ?, 'V2')",
+                    conversation, target.messageId(), account);
+        }
+        assertEquals(0, count("SELECT count(*) FROM chat.message_pin"));
+        assertEquals(4, count("SELECT count(*) FROM chat.message_pin_event"));
+        ConversationEntryHistoryResult.Page cleanupHistory =
+                (ConversationEntryHistoryResult.Page) messages.readEntriesAfter(
+                        new MessageHistoryQuery(conversation, account, 5, 10));
+        ConversationHistoryEntry.Pin automatic =
+                (ConversationHistoryEntry.Pin) cleanupHistory.entries().getFirst();
+        assertEquals(6, automatic.conversationSequence());
+        assertFalse(automatic.pinned());
+        assertTrue(automatic.clientOperationId().startsWith("AUTO_RECALL:"));
     }
 
     @Test

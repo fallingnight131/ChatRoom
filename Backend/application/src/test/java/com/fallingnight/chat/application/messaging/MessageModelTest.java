@@ -92,4 +92,27 @@ class MessageModelTest {
                 command.reaction(), command.active(), command.clientOperationId(),
                 false, 1, Instant.EPOCH, false));
     }
+
+    @Test
+    void pinModelsEnforceOperationAndChangedSequenceInvariants() {
+        MessagePinCommand command = new MessagePinCommand(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                true, "pin-1");
+        new MessagePinResult.Applied(
+                command.conversationId(), command.messageId(), command.actorAccountId(),
+                command.pinned(), command.clientOperationId(), true, 2,
+                Instant.EPOCH, false);
+        new MessagePinResult.Applied(
+                command.conversationId(), command.messageId(), command.actorAccountId(),
+                command.pinned(), command.clientOperationId(), false, 0,
+                Instant.EPOCH, false);
+
+        assertThrows(IllegalArgumentException.class, () -> new MessagePinCommand(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                true, " "));
+        assertThrows(IllegalArgumentException.class, () -> new MessagePinResult.Applied(
+                command.conversationId(), command.messageId(), command.actorAccountId(),
+                command.pinned(), command.clientOperationId(), false, 1,
+                Instant.EPOCH, false));
+    }
 }

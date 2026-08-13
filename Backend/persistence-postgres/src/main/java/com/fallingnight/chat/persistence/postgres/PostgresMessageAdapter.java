@@ -163,7 +163,9 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                        rr.target_sender_account_id,
                        reaction.message_id, reaction.actor_account_id,
                        reaction.reaction, reaction.active,
-                       reaction.client_operation_id
+                       reaction.client_operation_id,
+                       pin.message_id, pin.actor_account_id, pin.pinned,
+                       pin.client_operation_id
                 FROM chat.conversation_entry ce
                 LEFT JOIN chat.message m
                   ON ce.entry_kind = 'MESSAGE'
@@ -184,6 +186,10 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                   ON ce.entry_kind = 'MESSAGE_REACTION_CHANGED'
                  AND reaction.conversation_id = ce.conversation_id
                  AND reaction.conversation_sequence = ce.conversation_sequence
+                LEFT JOIN chat.message_pin_event pin
+                  ON ce.entry_kind = 'MESSAGE_PIN_CHANGED'
+                 AND pin.conversation_id = ce.conversation_id
+                 AND pin.conversation_sequence = ce.conversation_sequence
                 LEFT JOIN chat.legacy_v1_deletion_event_map ldm
                   ON d.source = 'V1_IMPORT'
                  AND ldm.conversation_id = ce.conversation_id
@@ -232,6 +238,11 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                     result.getObject(26, UUID.class),
                     MessageReactionKind.valueOf(result.getString(27)),
                     result.getBoolean(28), result.getString(29),
+                    result.getObject(3, OffsetDateTime.class).toInstant());
+            case "MESSAGE_PIN_CHANGED" -> new ConversationHistoryEntry.Pin(
+                    conversationId, sequence, result.getObject(30, UUID.class),
+                    result.getObject(31, UUID.class), result.getBoolean(32),
+                    result.getString(33),
                     result.getObject(3, OffsetDateTime.class).toInstant());
             default -> throw new SQLException("unsupported conversation entry kind");
         };

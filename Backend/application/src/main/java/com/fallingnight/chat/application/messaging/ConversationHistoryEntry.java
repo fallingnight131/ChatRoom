@@ -81,6 +81,25 @@ public sealed interface ConversationHistoryEntry {
         }
     }
 
+    record Pin(
+            UUID conversationId,
+            long conversationSequence,
+            UUID messageId,
+            UUID actorAccountId,
+            boolean pinned,
+            String clientOperationId,
+            Instant occurredAt) implements ConversationHistoryEntry {
+        public Pin {
+            requireIdentity(conversationId, conversationSequence, actorAccountId, "V2");
+            Objects.requireNonNull(messageId, "messageId");
+            Objects.requireNonNull(clientOperationId, "clientOperationId");
+            Objects.requireNonNull(occurredAt, "occurredAt");
+            if (clientOperationId.isBlank()) {
+                throw new IllegalArgumentException("pin operation identity is invalid");
+            }
+        }
+    }
+
     private static void requireIdentity(
             UUID conversationId, long sequence, UUID actorAccountId, String source) {
         Objects.requireNonNull(conversationId, "conversationId");
