@@ -110,7 +110,12 @@ public final class V1JsonRoomHistoryCodec {
     private static void writeMessage(JsonGenerator g, LegacyV1RoomHistoryMessage m) throws IOException {
         g.writeStartObject(); g.writeNumberField("id", m.legacyMessageId());
         g.writeStringField("content", m.content()); g.writeStringField("contentType", m.contentType());
-        g.writeStringField("fileName", ""); g.writeNumberField("fileSize", 0); g.writeNumberField("fileId", 0);
+        g.writeStringField("fileName", m.fileName()); g.writeNumberField("fileSize", m.fileSize());
+        g.writeNumberField("fileId", m.legacyFileId());
+        if (m.fileCleared()) {
+            g.writeBooleanField("fileCleared", true);
+            g.writeStringField("clearReason", m.clearReason());
+        }
         g.writeBooleanField("recalled", m.recalled()); g.writeNumberField("timestamp", m.acceptedAt().toEpochMilli());
         g.writeStringField("sender", m.senderUsername()); g.writeStringField("senderName", m.senderDisplayName());
         g.writeNumberField("sequence", m.sequence()); g.writeStringField("clientMessageId", m.clientMessageId());

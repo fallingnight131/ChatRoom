@@ -270,7 +270,6 @@ class GatewayRuntimePostgresIntegrationTest {
                     assertRoomMembersOnline(imported);
                     assertRoomSettings(imported);
                     assertRoomFiles(imported);
-                    removeRoomAttachment(jdbcUrl, username, password);
                     long roomMessageId = assertRoomMessageFirst(imported, peer);
                     assertRoomMessageDuplicate(imported, peer);
 
@@ -563,12 +562,21 @@ class GatewayRuntimePostgresIntegrationTest {
     private static void assertRoomHistoryAfterReconnect(EmbeddedChannel channel) {
         channel.writeInbound(new TextWebSocketFrame(
                 "{\"type\":\"HISTORY_REQ\",\"data\":{\"roomId\":7,"
-                        + "\"count\":50,\"afterSequence\":7}}"));
+                        + "\"count\":50,\"afterSequence\":5}}"));
         channel.runPendingTasks(); TextWebSocketFrame response = channel.readOutbound();
         try {
             assertTrue(response.text().contains("\"type\":\"HISTORY_RSP\""));
             assertTrue(response.text().contains("\"success\":true"));
             assertTrue(response.text().contains("\"content\":\"hello Java room\""));
+            assertTrue(response.text().contains("\"content\":\"design.pdf\""));
+            assertTrue(response.text().contains("\"contentType\":\"file\""));
+            assertTrue(response.text().contains("\"fileId\":501"));
+            assertTrue(response.text().contains("\"fileName\":\"design.pdf\""));
+            assertTrue(response.text().contains("\"fileSize\":321"));
+            assertTrue(response.text().contains("\"fileId\":500"));
+            assertTrue(response.text().contains("\"fileName\":\"cleared.zip\""));
+            assertTrue(response.text().contains("\"fileCleared\":true"));
+            assertTrue(response.text().contains("\"clearReason\":\"source file cleared\""));
             assertTrue(response.text().contains("\"sequence\":8"));
             assertTrue(response.text().contains("\"nextSequence\":8"));
             assertTrue(response.text().contains("\"lastSequence\":8"));
@@ -1038,6 +1046,8 @@ class GatewayRuntimePostgresIntegrationTest {
                     "\"createdAt\":\"2026-08-11 01:02:03\""));
             assertTrue(response.text().contains("\"usedFileSpace\":321"));
             assertTrue(response.text().contains("\"maxFileSpace\":8192"));
+            assertFalse(response.text().contains("\"fileId\":500"));
+            assertFalse(response.text().contains("cleared.zip"));
             assertFalse(response.text().contains("71000000-0000"));
             assertFalse(response.text().contains("legacy/room-7/file-501"));
         } finally { response.release(); }
@@ -1238,21 +1248,63 @@ class GatewayRuntimePostgresIntegrationTest {
             mapping.setObject(2, attachment);
             assertEquals(1, mapping.executeUpdate());
         }
+        seedUnavailableRoomAttachment(connection, room, owner, device);
     }
 
-    private static void removeRoomAttachment(
-            String url, String user, String password) throws Exception {
-        try (Connection connection = DriverManager.getConnection(url, user, password);
-                Statement statement = connection.createStatement()) {
-            connection.setAutoCommit(false);
-            assertEquals(1, statement.executeUpdate("DELETE FROM chat.message "
-                    + "WHERE id = '72000000-0000-0000-0000-000000000701'"));
-            assertEquals(1, statement.executeUpdate("DELETE FROM chat.conversation_entry "
-                    + "WHERE conversation_id = '30000000-0000-0000-0000-000000000007' "
-                    + "AND conversation_sequence = 7"));
-            assertEquals(1, statement.executeUpdate("DELETE FROM chat.attachment "
-                    + "WHERE id = '71000000-0000-0000-0000-000000000501'"));
-            connection.commit();
+    private static void seedUnavailableRoomAttachment(
+            Connection connection, UUID room, UUID owner, UUID device) throws Exception {
+        UUID attachment = UUID.fromString("71000000-0000-0000-0000-000000000500");
+        UUID message = UUID.fromString("72000000-0000-0000-0000-000000000700");
+        try (PreparedStatement file = connection.prepareStatement(
+                "INSERT INTO chat.attachment(id, conversation_id, owner_account_id, "
+                        + "owner_device_id, client_attachment_id, file_name, byte_size, state, "
+                        + "created_at, unavailable_at, unavailable_reason) VALUES (?, ?, ?, ?, "
+                        + "'legacy-room-file-500', 'cleared.zip', 111, 'UNAVAILABLE', "
+                        + "TIMESTAMPTZ '2026-08-10 01:02:03+00', "
+                        + "TIMESTAMPTZ '2026-08-10 01:02:04+00', 'source file cleared')")) {
+            file.setObject(1, attachment);
+            file.setObject(2, room);
+            file.setObject(3, owner);
+            file.setObject(4, device);
+            assertEquals(1, file.executeUpdate());
+        }
+        try (PreparedStatement entry = connection.prepareStatement(
+                "INSERT INTO chat.conversation_entry(conversation_id, "
+                        + "conversation_sequence, entry_kind, occurred_at) "
+                        + "VALUES (?, 6, 'MESSAGE', TIMESTAMPTZ '2026-08-10 01:02:03+00')")) {
+            entry.setObject(1, room);
+            assertEquals(1, entry.executeUpdate());
+        }
+        try (PreparedStatement persisted = connection.prepareStatement(
+                "INSERT INTO chat.message(id, conversation_id, conversation_sequence, "
+                        + "sender_account_id, sender_device_id, client_message_id, "
+                        + "message_type, payload, payload_sha256, attachment_id, accepted_at) "
+                        + "VALUES (?, ?, 6, ?, ?, 'legacy-room-message-700', 2, "
+                        + "decode('', 'hex'), decode(?, 'hex'), ?, "
+                        + "TIMESTAMPTZ '2026-08-10 01:02:03+00')")) {
+            persisted.setObject(1, message);
+            persisted.setObject(2, room);
+            persisted.setObject(3, owner);
+            persisted.setObject(4, device);
+            persisted.setString(5, "00".repeat(32));
+            persisted.setObject(6, attachment);
+            assertEquals(1, persisted.executeUpdate());
+        }
+        try (PreparedStatement mapping = connection.prepareStatement(
+                "INSERT INTO chat.legacy_v1_message_map(legacy_kind, legacy_message_id, "
+                        + "legacy_conversation_id, conversation_id, message_id, "
+                        + "legacy_content_type) VALUES ('ROOM', 700, 7, ?, ?, 'file')")) {
+            mapping.setObject(1, room);
+            mapping.setObject(2, message);
+            assertEquals(1, mapping.executeUpdate());
+        }
+        try (PreparedStatement mapping = connection.prepareStatement(
+                "INSERT INTO chat.legacy_v1_attachment_map(legacy_kind, legacy_file_id, "
+                        + "legacy_conversation_id, conversation_id, attachment_id) "
+                        + "VALUES ('ROOM', 500, 7, ?, ?)")) {
+            mapping.setObject(1, room);
+            mapping.setObject(2, attachment);
+            assertEquals(1, mapping.executeUpdate());
         }
     }
 

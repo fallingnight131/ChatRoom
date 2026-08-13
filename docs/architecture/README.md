@@ -844,6 +844,12 @@ The detached compatibility module now exposes that projection through a strict,
 authenticated `ROOM_FILES_REQ` handler. The handler performs no authorization
 or storage logic, emits no canonical attachment identifiers or object keys, and
 is covered from V1 login through PostgreSQL projection and compatible response.
+ADR-0305 closes the corresponding room-history gap: complete READY and
+UNAVAILABLE attachment messages now retain their shared sequence and legacy
+file/message identities in V1 history. Cleared history carries only its safe
+reason; object keys, hashes, MIME evidence, provider URLs, paths and canonical
+UUIDs remain outside the compatibility response. Partial or pending attachment
+state fails the page instead of silently skipping a synchronization sequence.
 
 ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
 create-only, length, type, and SHA-256 constraints and reads checksum-enabled

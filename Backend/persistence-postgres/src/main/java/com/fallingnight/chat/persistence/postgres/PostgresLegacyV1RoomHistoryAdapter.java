@@ -22,7 +22,7 @@ import java.util.Objects;
 import java.util.UUID;
 import javax.sql.DataSource;
 
-/** Complete active-membership V1 room text/emoji and deletion history snapshot. */
+/** Complete active-membership V1 room message and deletion history snapshot. */
 public final class PostgresLegacyV1RoomHistoryAdapter implements LegacyV1RoomHistoryPort {
     private final DataSource dataSource;
 
@@ -156,10 +156,27 @@ public final class PostgresLegacyV1RoomHistoryAdapter implements LegacyV1RoomHis
                     LEFT JOIN chat.account sender ON sender.id = message.sender_account_id
                     LEFT JOIN chat.legacy_v1_account_map sender_map
                       ON sender_map.account_id = sender.id
+                    LEFT JOIN chat.attachment attachment
+                      ON attachment.id = message.attachment_id
+                     AND attachment.conversation_id = message.conversation_id
+                    LEFT JOIN chat.legacy_v1_attachment_map file_map
+                      ON file_map.attachment_id = attachment.id
+                     AND file_map.conversation_id = message.conversation_id
+                     AND file_map.legacy_kind = 'ROOM'
+                     AND file_map.legacy_conversation_id = mapping.legacy_conversation_id
                     WHERE message.conversation_id = ?
-                      AND (message.message_type <> 1 OR mapping.message_id IS NULL
+                      AND (message.message_type NOT IN (1, 2) OR mapping.message_id IS NULL
                         OR mapping.legacy_content_type IS NULL OR sender_map.account_id IS NULL
-                        OR mapping.legacy_message_id NOT BETWEEN 1 AND 2147483647))
+                        OR mapping.legacy_message_id NOT BETWEEN 1 AND 2147483647
+                        OR (message.message_type = 1 AND
+                            mapping.legacy_content_type NOT IN ('text', 'emoji'))
+                        OR (message.message_type = 2 AND (
+                            mapping.legacy_content_type NOT IN ('file', 'image', 'video')
+                            OR attachment.id IS NULL OR file_map.attachment_id IS NULL
+                            OR file_map.legacy_file_id NOT BETWEEN 1 AND 2147483647
+                            OR attachment.state NOT IN ('READY', 'UNAVAILABLE')
+                            OR (attachment.state = 'UNAVAILABLE'
+                                AND attachment.unavailable_reason IS NULL)))))
                   OR EXISTS (
                     SELECT 1 FROM chat.message_recall_event recall
                     LEFT JOIN chat.legacy_v1_message_map mapping
@@ -255,6 +272,9 @@ public final class PostgresLegacyV1RoomHistoryAdapter implements LegacyV1RoomHis
                        recall.conversation_sequence AS mutation_sequence,
                        message.client_message_id, account.username_key, account.display_name,
                        message.payload, mapping.legacy_content_type, message.accepted_at,
+                       file_map.legacy_file_id, attachment.file_name,
+                       attachment.byte_size, attachment.state AS attachment_state,
+                       attachment.unavailable_reason,
                        deletion_map.legacy_event_id, deletion.operator_name_snapshot,
                        deletion.client_operation_id, deletion.mode,
                        ARRAY(SELECT value::bigint FROM jsonb_array_elements_text(
@@ -270,6 +290,14 @@ public final class PostgresLegacyV1RoomHistoryAdapter implements LegacyV1RoomHis
                 LEFT JOIN chat.legacy_v1_message_map mapping
                   ON mapping.message_id = message.id AND mapping.legacy_kind = 'ROOM'
                 LEFT JOIN chat.account account ON account.id = message.sender_account_id
+                LEFT JOIN chat.attachment attachment
+                  ON attachment.id = message.attachment_id
+                 AND attachment.conversation_id = message.conversation_id
+                LEFT JOIN chat.legacy_v1_attachment_map file_map
+                  ON file_map.attachment_id = attachment.id
+                 AND file_map.conversation_id = message.conversation_id
+                 AND file_map.legacy_kind = 'ROOM'
+                 AND file_map.legacy_conversation_id = mapping.legacy_conversation_id
                 LEFT JOIN chat.message_recall_event recall
                   ON recall.conversation_id = message.conversation_id
                  AND recall.message_id = message.id
@@ -294,13 +322,24 @@ public final class PostgresLegacyV1RoomHistoryAdapter implements LegacyV1RoomHis
                        GREATEST(message.conversation_sequence,
                            COALESCE(recall.conversation_sequence, 0)) AS sync_sequence,
                        message.client_message_id, account.username_key, account.display_name,
-                       message.payload, mapping.legacy_content_type, message.accepted_at
+                       message.payload, mapping.legacy_content_type, message.accepted_at,
+                       file_map.legacy_file_id, attachment.file_name,
+                       attachment.byte_size, attachment.state AS attachment_state,
+                       attachment.unavailable_reason
                 FROM chat.message message
                 JOIN chat.legacy_v1_message_map mapping
                   ON mapping.message_id = message.id AND mapping.conversation_id = message.conversation_id
                  AND mapping.legacy_kind = 'ROOM' AND mapping.legacy_conversation_id = ?
                 JOIN chat.account account ON account.id = message.sender_account_id
                 JOIN chat.legacy_v1_account_map sender_map ON sender_map.account_id = account.id
+                LEFT JOIN chat.attachment attachment
+                  ON attachment.id = message.attachment_id
+                 AND attachment.conversation_id = message.conversation_id
+                LEFT JOIN chat.legacy_v1_attachment_map file_map
+                  ON file_map.attachment_id = attachment.id
+                 AND file_map.conversation_id = message.conversation_id
+                 AND file_map.legacy_kind = 'ROOM'
+                 AND file_map.legacy_conversation_id = mapping.legacy_conversation_id
                 LEFT JOIN chat.message_recall_event recall
                   ON recall.conversation_id = message.conversation_id AND recall.message_id = message.id
                 WHERE message.conversation_id = ?
@@ -309,11 +348,20 @@ public final class PostgresLegacyV1RoomHistoryAdapter implements LegacyV1RoomHis
 
     private static LegacyV1RoomHistoryMessage message(ResultSet row) throws SQLException {
         Long mutation = row.getObject("mutation_sequence", Long.class);
+        String contentType = row.getString("legacy_content_type");
+        boolean attachment = "file".equals(contentType) || "image".equals(contentType)
+                || "video".equals(contentType);
+        String fileName = attachment ? row.getString("file_name") : "";
+        String attachmentState = attachment ? row.getString("attachment_state") : null;
+        boolean cleared = "UNAVAILABLE".equals(attachmentState);
+        String clearReason = cleared ? row.getString("unavailable_reason") : "";
         return new LegacyV1RoomHistoryMessage(row.getLong("legacy_message_id"),
                 row.getLong("sequence"), mutation, row.getLong("sync_sequence"),
                 row.getString("client_message_id"), row.getString("username_key"),
-                displayName(row), decodeUtf8(row.getBytes("payload")),
-                row.getString("legacy_content_type"), mutation != null,
+                displayName(row), attachment ? fileName : decodeUtf8(row.getBytes("payload")),
+                contentType, attachment ? row.getLong("legacy_file_id") : 0,
+                fileName, attachment ? row.getLong("byte_size") : 0,
+                cleared, clearReason, mutation != null,
                 row.getObject("accepted_at", OffsetDateTime.class).toInstant());
     }
 

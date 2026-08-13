@@ -22,8 +22,11 @@ final class V1RoomHistoryHandlerTest {
         EmbeddedChannel channel = channel(query -> {
             captured.set(query);
             return new LegacyV1RoomHistoryResult.Page(7, true,
-                    List.of(new LegacyV1RoomHistoryMessage(101, 1, 3L, 3, "client-1",
-                            "owner", "Owner", "hello", "text", true, NOW)),
+                    List.of(new LegacyV1RoomHistoryMessage(102, 2, null, 2, "client-2",
+                                    "owner", "Owner", "report.pdf", "file", 501,
+                                    "report.pdf", 321, true, "源文件已清理", false, NOW),
+                            new LegacyV1RoomHistoryMessage(101, 1, 3L, 3, "client-1",
+                                    "owner", "Owner", "hello", "text", true, NOW)),
                     List.of(new LegacyV1RoomHistoryDeletion(900, 4, "Admin", "delete-1",
                             "selected", List.of(101L), List.of(), 0, 1, NOW)), 4, 4, false);
         }, Runnable::run);
@@ -34,6 +37,11 @@ final class V1RoomHistoryHandlerTest {
             try {
                 assertTrue(response.text().contains("\"type\":\"HISTORY_RSP\""));
                 assertTrue(response.text().contains("\"mutationSequence\":3"));
+                assertTrue(response.text().contains("\"fileId\":501"));
+                assertTrue(response.text().contains("\"fileName\":\"report.pdf\""));
+                assertTrue(response.text().contains("\"fileSize\":321"));
+                assertTrue(response.text().contains("\"fileCleared\":true"));
+                assertTrue(response.text().contains("\"clearReason\":\"源文件已清理\""));
                 assertTrue(response.text().contains("\"eventType\":\"messagesDeleted\""));
                 assertTrue(response.text().contains("\"eventId\":900"));
                 assertTrue(response.text().contains("\"nextSequence\":4"));

@@ -651,6 +651,8 @@ Progress:
     file-list projection with complete V1 mappings and exact quota usage.
   - [x] Compose strict `ROOM_FILES_REQ` transport handling and prove login-to-list
     compatibility through real PostgreSQL.
+  - [x] Preserve complete READY and UNAVAILABLE imported attachment messages in
+    V1 room history without exposing canonical storage identities.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
