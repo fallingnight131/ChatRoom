@@ -27,4 +27,17 @@ final class PrometheusConversationEventOutboxMetricsTest {
         assertFalse(rendered.contains("conversation"));
         assertFalse(rendered.contains("event_id"));
     }
+
+    @Test
+    void rendersFixedRelayCountersAndLifecycleGauges() {
+        String rendered = PrometheusConversationEventOutboxMetrics.renderRelay(
+                new ConversationEventRelayTelemetrySnapshot(8, 1, 40, 35, 3, 2, 1,
+                        2, 500));
+        assertTrue(rendered.contains("chat_gateway_outbox_relay_runs_total 8\n"));
+        assertTrue(rendered.contains("chat_gateway_outbox_relay_published_total 35\n"));
+        assertTrue(rendered.contains("chat_gateway_outbox_relay_ownership_lost_total 2\n"));
+        assertTrue(rendered.contains("chat_gateway_outbox_relay_consecutive_failures 2\n"));
+        assertTrue(rendered.contains("chat_gateway_outbox_relay_next_delay_milliseconds 500\n"));
+        assertFalse(rendered.contains("{"));
+    }
 }

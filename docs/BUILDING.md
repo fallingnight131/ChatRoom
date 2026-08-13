@@ -1337,6 +1337,10 @@ initial backlog, live leases, delayed retry, reclaimed attempts, and empty
 completion. Focused gateway tests render fixed Prometheus gauges for backlog,
 ready heads, leases, delay, retry, maximum attempts, and oldest age without
 labels. The admin endpoint does not expose these gauges until relay composition.
+The gateway lifecycle tests additionally prove immediate full-batch draining,
+non-overlap, bounded idle/failure delays, reset after recovery, repeated-start
+rejection, pending-work cancellation, and fixed relay counter rendering. The
+loop is not constructed or started by the product listener.
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound

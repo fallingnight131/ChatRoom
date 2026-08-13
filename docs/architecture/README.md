@@ -997,6 +997,10 @@ An aggregate PostgreSQL status port and fixed-name Prometheus renderer now defin
 the activation telemetry without leaking event, conversation, or account IDs.
 They report ready conversation heads rather than every nominally available row,
 so head-of-line blocking remains visible in backlog versus ready gauges.
+A default-uncomposed lifecycle loop now serializes relay passes, drains full
+batches without an idle pause, applies bounded dependency backoff, cancels
+pending work on close, and accumulates identity-free counters. Redis and product
+runtime composition remain absent.
 
 ## 10. Attachment Flow
 

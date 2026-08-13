@@ -22,6 +22,28 @@ public final class PrometheusConversationEventOutboxMetrics {
         return output.toString();
     }
 
+    public static String renderRelay(ConversationEventRelayTelemetrySnapshot snapshot) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        StringBuilder output = new StringBuilder();
+        counter(output, "runs", snapshot.runs());
+        counter(output, "run_failures", snapshot.runFailures());
+        counter(output, "claimed", snapshot.claimed());
+        counter(output, "published", snapshot.published());
+        counter(output, "deferred", snapshot.deferred());
+        counter(output, "ownership_lost", snapshot.ownershipLost());
+        counter(output, "publisher_failures", snapshot.publisherFailures());
+        gauge(output, "relay_consecutive_failures", snapshot.consecutiveFailures());
+        gauge(output, "relay_next_delay_milliseconds", snapshot.nextDelayMillis());
+        return output.toString();
+    }
+
+    private static void counter(StringBuilder output, String name, long value) {
+        output.append("# TYPE chat_gateway_outbox_relay_").append(name)
+                .append("_total counter\n")
+                .append("chat_gateway_outbox_relay_").append(name).append("_total ")
+                .append(value).append('\n');
+    }
+
     private static void gauge(StringBuilder output, String name, long value) {
         output.append("# TYPE chat_gateway_outbox_").append(name).append(" gauge\n")
                 .append("chat_gateway_outbox_").append(name).append(' ')

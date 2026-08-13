@@ -1413,6 +1413,10 @@ Progress:
   attempt count, and oldest backlog age. Real lifecycle tests prove ready counts
   respect per-conversation blocking; the renderer is not exposed until runtime
   composition is activated.
+- [x] Add an explicitly started, single-task relay lifecycle loop that drains a
+  full batch immediately, polls healthy/idle state at a bounded interval, backs
+  off deferred/lost/failed passes, rejects repeated start, cancels pending work
+  on close, and exports only fixed counters/gauges. It remains uncomposed.
 
 Work:
 
