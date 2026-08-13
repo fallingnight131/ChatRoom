@@ -1484,8 +1484,10 @@ Progress:
     - [x] Add V048 current/edit-event mention storage, edit-operation mention
       digests, bounded constraints, and transactional recall/deletion erasure
       while preserving old-binary empty-mention writes.
-    - [ ] Bind active-member authorization and exact idempotency into PostgreSQL
-      message submission/edit adapters and project mention history.
+    - [x] Bind active-member authorization and exact idempotency into PostgreSQL
+      message submission and project current mention history.
+    - [ ] Bind exact mention-set idempotency, replacement, and ordered history
+      projection into the PostgreSQL message-edit adapter.
     - [ ] Compose capable-only gateway command, history/live projection, and
       fixed-cardinality telemetry without activating either client.
   - [ ] Add offline-safe Web and Windows mention composition, local persistence,

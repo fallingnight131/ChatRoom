@@ -92,6 +92,7 @@ import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery
 import com.fallingnight.chat.application.conversation.ConversationKind;
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
+import com.fallingnight.chat.application.messaging.MessageMention;
 import com.fallingnight.chat.application.messaging.ConversationEntryHistoryResult;
 import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
@@ -540,6 +541,49 @@ class PostgresMigratorTest {
                             + "SET target_conversation_sequence = 2 WHERE message_id = ?",
                     reply.messageId()));
         }
+        UUID mentionTarget = UUID.randomUUID();
+        seedMentionTarget(mentionTarget, conversation);
+        byte[] mentionedBody = "@李 hi".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        List<MessageMention> mentions = List.of(new MessageMention(mentionTarget, 0, 4));
+        MessageSubmission mentioned = new MessageSubmission(
+                conversation, account, device, "client-mentioned", 1, mentionedBody,
+                Optional.empty(), mentions);
+        MessageSubmissionResult.Accepted mentionedAccepted =
+                (MessageSubmissionResult.Accepted) adapter.submit(mentioned);
+        assertEquals(4, mentionedAccepted.conversationSequence());
+        assertTrue(((MessageSubmissionResult.Accepted) adapter.submit(mentioned)).duplicate());
+        assertEquals(MessageSubmissionResult.Rejected.IDEMPOTENCY_CONFLICT,
+                adapter.submit(new MessageSubmission(
+                        conversation, account, device, "client-mentioned", 1,
+                        mentionedBody, Optional.empty(), List.of())));
+        MessageHistoryResult.Page mentionedPage = (MessageHistoryResult.Page) adapter.readAfter(
+                new MessageHistoryQuery(conversation, account, 3, 10));
+        assertEquals(mentions, mentionedPage.messages().getFirst().mentions());
+        assertEquals(1, count("SELECT count(*) FROM chat.message_mention"));
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.conversation SET next_sequence = 6 WHERE id = ?",
+                    conversation);
+            execute(connection,
+                    "INSERT INTO chat.conversation_entry(conversation_id, "
+                            + "conversation_sequence, entry_kind, occurred_at) "
+                            + "VALUES (?, 5, 'MESSAGE_RECALLED', transaction_timestamp())",
+                    conversation);
+            execute(connection,
+                    "INSERT INTO chat.message_recall_event(conversation_id, "
+                            + "conversation_sequence, message_id, actor_account_id, source) "
+                            + "VALUES (?, 5, ?, ?, 'V2')",
+                    conversation, mentionedAccepted.messageId(), account);
+        }
+        assertEquals(0, count("SELECT count(*) FROM chat.message_mention"));
+
+        UUID outsider = UUID.randomUUID();
+        seedAccount(outsider, "mention-outsider");
+        assertEquals(MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                adapter.submit(new MessageSubmission(
+                        conversation, account, device, "client-bad-mention", 1,
+                        mentionedBody, Optional.empty(),
+                        List.of(new MessageMention(outsider, 0, 4)))));
         assertEquals(
                 MessageHistoryResult.Rejected.NOT_AUTHORIZED,
                 adapter.readAfter(new MessageHistoryQuery(
@@ -4796,6 +4840,26 @@ class PostgresMigratorTest {
                 statement.setObject(2, account);
                 statement.executeUpdate();
             }
+        }
+    }
+
+    private static void seedMentionTarget(UUID account, UUID conversation) throws SQLException {
+        seedAccount(account, "mention-target");
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id) "
+                            + "VALUES (?, ?)",
+                    conversation, account);
+        }
+    }
+
+    private static void seedAccount(UUID account, String username) throws SQLException {
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, ?, 'Mention Target', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    account, username);
         }
     }
 

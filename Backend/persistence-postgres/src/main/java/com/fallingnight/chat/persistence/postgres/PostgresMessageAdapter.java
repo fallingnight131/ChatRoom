@@ -6,6 +6,7 @@ import com.fallingnight.chat.application.messaging.ConversationEntryHistoryResul
 import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
+import com.fallingnight.chat.application.messaging.MessageMention;
 import com.fallingnight.chat.application.messaging.MessageReplyReference;
 import com.fallingnight.chat.application.messaging.MessageReactionKind;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
@@ -62,6 +63,10 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                     return existingResult(existing.orElseThrow(), submission, payload, payloadHash);
                 }
                 long sequence = allocateSequence(connection, submission.conversationId());
+                if (!authorizedMentionTargets(connection, submission)) {
+                    connection.rollback();
+                    return MessageSubmissionResult.Rejected.NOT_AUTHORIZED;
+                }
                 Optional<MessageReplyReference> reply = resolveReply(connection, submission);
                 if (submission.replyToMessageId().isPresent() && reply.isEmpty()) {
                     connection.rollback();
@@ -169,7 +174,37 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                        m.content_revision, m.edited_at,
                        edit.message_id, edit.content_revision, edit.content_type,
                        edit.content, edit.content_erased_at IS NOT NULL,
-                       edit.actor_account_id, edit.client_operation_id
+                       edit.actor_account_id, edit.client_operation_id,
+                       ARRAY(SELECT mention.target_account_id
+                           FROM chat.message_mention mention
+                           WHERE mention.conversation_id = m.conversation_id
+                             AND mention.message_id = m.id
+                           ORDER BY mention.mention_ordinal),
+                       ARRAY(SELECT mention.start_utf8_byte
+                           FROM chat.message_mention mention
+                           WHERE mention.conversation_id = m.conversation_id
+                             AND mention.message_id = m.id
+                           ORDER BY mention.mention_ordinal),
+                       ARRAY(SELECT mention.length_utf8_bytes
+                           FROM chat.message_mention mention
+                           WHERE mention.conversation_id = m.conversation_id
+                             AND mention.message_id = m.id
+                           ORDER BY mention.mention_ordinal),
+                       ARRAY(SELECT mention.target_account_id
+                           FROM chat.message_edit_event_mention mention
+                           WHERE mention.conversation_id = edit.conversation_id
+                             AND mention.conversation_sequence = edit.conversation_sequence
+                           ORDER BY mention.mention_ordinal),
+                       ARRAY(SELECT mention.start_utf8_byte
+                           FROM chat.message_edit_event_mention mention
+                           WHERE mention.conversation_id = edit.conversation_id
+                             AND mention.conversation_sequence = edit.conversation_sequence
+                           ORDER BY mention.mention_ordinal),
+                       ARRAY(SELECT mention.length_utf8_bytes
+                           FROM chat.message_edit_event_mention mention
+                           WHERE mention.conversation_id = edit.conversation_id
+                             AND mention.conversation_sequence = edit.conversation_sequence
+                           ORDER BY mention.mention_ordinal)
                 FROM chat.conversation_entry ce
                 LEFT JOIN chat.message m
                   ON ce.entry_kind = 'MESSAGE'
@@ -231,7 +266,8 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                     result.getObject(10, OffsetDateTime.class).toInstant(),
                     readReply(result, 22), result.getInt(34),
                     Optional.ofNullable(result.getObject(35, OffsetDateTime.class))
-                            .map(OffsetDateTime::toInstant)));
+                            .map(OffsetDateTime::toInstant),
+                    readMentions(result, 43)));
             case "MESSAGE_RECALLED" -> new ConversationHistoryEntry.Recall(
                     conversationId, sequence, result.getObject(11, UUID.class),
                     result.getObject(12, UUID.class), result.getString(13),
@@ -260,7 +296,8 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                     Optional.ofNullable(result.getBytes(39)).orElseGet(() -> new byte[0]),
                     result.getBoolean(40), result.getObject(41, UUID.class),
                     result.getString(42),
-                    result.getObject(3, OffsetDateTime.class).toInstant());
+                    result.getObject(3, OffsetDateTime.class).toInstant(),
+                    readMentions(result, 46));
             default -> throw new SQLException("unsupported conversation entry kind");
         };
     }
@@ -329,7 +366,9 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
             statement.setObject(1, submission.senderAccountId());
             statement.setString(2, submission.clientMessageId());
             try (ResultSet result = statement.executeQuery()) {
-                return result.next() ? Optional.of(readExisting(result)) : Optional.empty();
+                return result.next()
+                        ? Optional.of(readExisting(connection, result))
+                        : Optional.empty();
             }
         }
     }
@@ -392,6 +431,8 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                     insertReplyReference(connection, messageId, submission.conversationId(),
                             reply.orElseThrow());
                 }
+                insertMentions(connection, submission.conversationId(), messageId,
+                        submission.mentions());
                 return Optional.of(acceptedAt);
             }
         }
@@ -412,6 +453,28 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
             statement.setLong(4, reply.targetConversationSequence());
             statement.setObject(5, reply.targetSenderAccountId());
             statement.executeUpdate();
+        }
+    }
+
+    private static void insertMentions(
+            Connection connection, UUID conversationId, UUID messageId,
+            List<MessageMention> mentions) throws SQLException {
+        if (mentions.isEmpty()) return;
+        String sql = "INSERT INTO chat.message_mention(conversation_id,message_id,"
+                + "mention_ordinal,target_account_id,start_utf8_byte,length_utf8_bytes) "
+                + "VALUES (?,?,?,?,?,?)";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            for (int index = 0; index < mentions.size(); index++) {
+                MessageMention mention = mentions.get(index);
+                statement.setObject(1, conversationId);
+                statement.setObject(2, messageId);
+                statement.setInt(3, index);
+                statement.setObject(4, mention.targetAccountId());
+                statement.setInt(5, mention.startUtf8Byte());
+                statement.setInt(6, mention.lengthUtf8Bytes());
+                statement.addBatch();
+            }
+            statement.executeBatch();
         }
     }
 
@@ -437,6 +500,7 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                 && existing.messageType() == submission.messageType()
                 && existing.reply().map(MessageReplyReference::targetMessageId)
                         .equals(submission.replyToMessageId())
+                && existing.mentions().equals(submission.mentions())
                 && MessageDigest.isEqual(existing.payloadHash(), payloadHash)
                 && Arrays.equals(existing.payload(), payload);
         return exact
@@ -449,17 +513,91 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                 : MessageSubmissionResult.Rejected.IDEMPOTENCY_CONFLICT;
     }
 
-    private static ExistingMessage readExisting(ResultSet result) throws SQLException {
+    private static ExistingMessage readExisting(
+            Connection connection, ResultSet result) throws SQLException {
+        UUID conversationId = result.getObject(2, UUID.class);
+        UUID messageId = result.getObject(1, UUID.class);
         return new ExistingMessage(
-                result.getObject(1, UUID.class),
-                result.getObject(2, UUID.class),
+                messageId,
+                conversationId,
                 result.getLong(3),
                 result.getObject(4, UUID.class),
                 result.getInt(5),
                 result.getBytes(6),
                 result.getBytes(7),
                 result.getObject(8, OffsetDateTime.class).toInstant(),
-                readReply(result, 9));
+                readReply(result, 9),
+                readMentions(connection, conversationId, messageId));
+    }
+
+    private static boolean authorizedMentionTargets(
+            Connection connection, MessageSubmission submission) throws SQLException {
+        if (submission.mentions().isEmpty()) return true;
+        List<UUID> targets = submission.mentions().stream()
+                .map(MessageMention::targetAccountId).distinct().toList();
+        java.sql.Array targetArray = connection.createArrayOf("uuid", targets.toArray());
+        String sql = "SELECT cm.account_id FROM chat.conversation_member cm "
+                + "JOIN chat.account a ON a.id = cm.account_id "
+                + "WHERE cm.conversation_id = ? AND cm.account_id = ANY (?) "
+                + "AND cm.left_at IS NULL AND a.disabled_at IS NULL FOR KEY SHARE OF cm, a";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, submission.conversationId());
+            statement.setArray(2, targetArray);
+            int found = 0;
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) found++;
+            }
+            return found == targets.size();
+        } finally {
+            targetArray.free();
+        }
+    }
+
+    private static List<MessageMention> readMentions(
+            Connection connection, UUID conversationId, UUID messageId) throws SQLException {
+        String sql = "SELECT target_account_id,start_utf8_byte,length_utf8_bytes "
+                + "FROM chat.message_mention WHERE conversation_id = ? AND message_id = ? "
+                + "ORDER BY mention_ordinal";
+        List<MessageMention> mentions = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, conversationId);
+            statement.setObject(2, messageId);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    mentions.add(new MessageMention(result.getObject(1, UUID.class),
+                            result.getInt(2), result.getInt(3)));
+                }
+            }
+        }
+        return List.copyOf(mentions);
+    }
+
+    private static List<MessageMention> readMentions(
+            ResultSet result, int firstColumn) throws SQLException {
+        List<UUID> targets = uuidList(result.getArray(firstColumn));
+        List<Integer> starts = integerList(result.getArray(firstColumn + 1));
+        List<Integer> lengths = integerList(result.getArray(firstColumn + 2));
+        if (targets.size() != starts.size() || targets.size() != lengths.size()) {
+            throw new SQLException("mention projection cardinality differs");
+        }
+        List<MessageMention> mentions = new ArrayList<>(targets.size());
+        for (int index = 0; index < targets.size(); index++) {
+            mentions.add(new MessageMention(targets.get(index), starts.get(index),
+                    lengths.get(index)));
+        }
+        return List.copyOf(mentions);
+    }
+
+    private static List<Integer> integerList(java.sql.Array array) throws SQLException {
+        if (array == null) return List.of();
+        try {
+            Object[] values = (Object[]) array.getArray();
+            List<Integer> result = new ArrayList<>(values.length);
+            for (Object value : values) result.add(((Number) value).intValue());
+            return List.copyOf(result);
+        } finally {
+            array.free();
+        }
     }
 
     private static Optional<MessageReplyReference> resolveReply(
@@ -516,5 +654,6 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
             byte[] payload,
             byte[] payloadHash,
             Instant acceptedAt,
-            Optional<MessageReplyReference> reply) {}
+            Optional<MessageReplyReference> reply,
+            List<MessageMention> mentions) {}
 }
