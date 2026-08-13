@@ -51,6 +51,18 @@ int main(int argc, char *argv[]) {
     service.stop();
     if (!check(stops == 1, QStringLiteral("stop command was not called exactly once"))) return 1;
 
+    DeviceManagementViewModel rejectedModel(
+        [] { return QStringLiteral("list-r"); },
+        [](const QString &) { return QStringLiteral("revoke-r"); });
+    int rejectionStops = 0;
+    DeviceManagementApplicationService rejected(
+        &rejectedModel, QStringLiteral("user_03"), QByteArrayLiteral("rejected"),
+        [] {}, [&] { ++rejectionStops; }, [](const QString &, QByteArray) {});
+    if (!rejected.start()) return 1;
+    rejected.authenticationRejected();
+    if (!check(rejectionStops == 1 && !rejected.credentialAvailable(),
+               QStringLiteral("authentication rejection did not stop and erase"))) return 1;
+
     DeviceManagementViewModel expiryModel(
         [] { return QStringLiteral("list-2"); },
         [](const QString &) { return QStringLiteral("revoke-2"); });

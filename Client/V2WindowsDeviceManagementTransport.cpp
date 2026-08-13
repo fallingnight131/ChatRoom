@@ -206,7 +206,7 @@ void V2WindowsDeviceManagementTransport::handleBinary(const QByteArray &message)
             m_phaseTimer.stop();
             clearResumeCredential();
             emit authenticationRejected(event.retryAfterMs);
-            m_hooks.abort();
+            if (m_state != State::Stopped) m_hooks.abort();
             break;
         case V2WindowsSessionProtocolClient::EventType::ProtocolError:
             emit protocolError(qt(event.requestId));

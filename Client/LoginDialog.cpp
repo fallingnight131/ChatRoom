@@ -102,6 +102,12 @@ QString LoginDialog::username() const {
     return m_username;
 }
 
+QByteArray LoginDialog::takePasswordUtf8() {
+    QByteArray password = m_loginPass->text().toUtf8();
+    m_loginPass->clear();
+    return password;
+}
+
 // ==================== 登录 ====================
 
 void LoginDialog::onLogin() {

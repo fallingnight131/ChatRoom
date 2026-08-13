@@ -6,8 +6,10 @@
 #include <QIcon>
 #include <QPointer>
 #include <QStandardPaths>
+#include <QDir>
 #include <QTimer>
 #include <cstdio>
+#include <utility>
 #include "LoginDialog.h"
 #include "ChatWindow.h"
 #include "NetworkManager.h"
@@ -18,6 +20,10 @@
 #include "WindowsUpdateController.h"
 #include "WindowsUpdateProductConfiguration.h"
 #include "WindowsUpdateTrustDiagnostic.h"
+#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+#include "WindowsDeviceIdentityRepository.h"
+#include "WindowsV2ProductConfiguration.h"
+#endif
 
 #ifndef CHAT_APP_VERSION
 #error "CHAT_APP_VERSION must come from the repository VERSION file"
@@ -132,6 +138,26 @@ int main(int argc, char *argv[]) {
     }
     WindowsUpdateController updateController(
         updateConfiguration, updatePaths, &app);
+#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+    const auto v2Configuration = WindowsV2ProductConfiguration::fromBuild();
+    QString v2DeviceId;
+    if (v2Configuration.enabled) {
+        WindowsDeviceIdentityRepository identityRepository(
+            QDir(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation))
+                .filePath(QStringLiteral("security")));
+        QString identityError;
+        if (!identityRepository.loadOrCreate(&v2DeviceId, &identityError)) {
+            qWarning().noquote()
+                << "[WindowsV2] operation=device-identity outcome=disabled detail="
+                << identityError;
+            v2DeviceId.clear();
+        }
+    } else if (!v2Configuration.error.isEmpty()) {
+        qWarning().noquote()
+            << "[WindowsV2] operation=configuration outcome=disabled detail="
+            << v2Configuration.error;
+    }
+#endif
 #endif
 
     // 应用默认主题
@@ -166,6 +192,27 @@ int main(int argc, char *argv[]) {
             });
         }
     };
+#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+    auto configureDeviceUi = [&](ChatWindow *window, LoginDialog *dialog) {
+        if (!window || !dialog) return;
+        QByteArray password = dialog->takePasswordUtf8();
+        if (!v2Configuration.enabled || v2DeviceId.isEmpty()) {
+            password.fill('\0');
+            return;
+        }
+        if (!window->configureDeviceManagement(
+                v2Configuration.endpoint, v2DeviceId, std::move(password))) {
+            qWarning().noquote()
+                << "[WindowsV2] operation=device-management outcome=disabled";
+        }
+    };
+#else
+    auto configureDeviceUi = [](ChatWindow *, LoginDialog *dialog) {
+        if (!dialog) return;
+        QByteArray password = dialog->takePasswordUtf8();
+        password.fill('\0');
+    };
+#endif
     QObject::connect(&updateController, &WindowsUpdateController::quitRequested,
                      &app, [&] {
         if (chatWindow) chatWindow->requestApplicationQuit();
@@ -190,11 +237,16 @@ int main(int argc, char *argv[]) {
         // 重新显示登录对话框
         LoginDialog *loginDialog = new LoginDialog;
         QObject::connect(loginDialog, &LoginDialog::loginSuccess,
-                         [&](int userId, const QString &username, const QString &displayName) {
+                         [&, loginDialog](int userId, const QString &username,
+                                          const QString &displayName) {
             chatWindow = new ChatWindow;
             chatWindow->setCurrentUser(userId, username, displayName);
 #ifdef Q_OS_WIN
             configureUpdateUi(chatWindow);
+            configureDeviceUi(chatWindow, loginDialog);
+#else
+            QByteArray password = loginDialog->takePasswordUtf8();
+            password.fill('\0');
 #endif
             chatWindow->show();
         });
@@ -214,6 +266,10 @@ int main(int argc, char *argv[]) {
         chatWindow->setCurrentUser(userId, username, displayName);
 #ifdef Q_OS_WIN
         configureUpdateUi(chatWindow);
+        configureDeviceUi(chatWindow, &loginDialog);
+#else
+        QByteArray password = loginDialog.takePasswordUtf8();
+        password.fill('\0');
 #endif
         chatWindow->show();
     });

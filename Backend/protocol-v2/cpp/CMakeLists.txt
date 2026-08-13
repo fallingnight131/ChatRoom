@@ -67,6 +67,12 @@ add_executable(
   "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsDeviceManagementTransportTest.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsDeviceManagementTransport.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsDeviceManagementTransport.h"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/WindowsDeviceManagementController.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/WindowsDeviceManagementController.h"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/DeviceManagementApplicationService.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/DeviceManagementApplicationService.h"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/DeviceManagementViewModel.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/DeviceManagementViewModel.h"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsSessionProtocolClient.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2DeviceManagementProtocolClient.cpp"
   "${GENERATED_ROOT}/chat/v2/authentication.pb.cc"
@@ -87,6 +93,31 @@ target_link_libraries(
   PRIVATE Qt6::Core Qt6::Network Qt6::WebSockets protobuf::libprotobuf
 )
 
+add_executable(
+  v2_windows_device_management_controller_test
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/WindowsDeviceManagementControllerTest.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/WindowsDeviceManagementController.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/DeviceManagementApplicationService.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/DeviceManagementViewModel.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsDeviceManagementTransport.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsSessionProtocolClient.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2DeviceManagementProtocolClient.cpp"
+  "${GENERATED_ROOT}/chat/v2/authentication.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/control.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/device_management.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/envelope.pb.cc"
+)
+set_target_properties(v2_windows_device_management_controller_test PROPERTIES AUTOMOC ON)
+target_compile_features(v2_windows_device_management_controller_test PRIVATE cxx_std_17)
+target_include_directories(
+  v2_windows_device_management_controller_test
+  PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../../Client" "${GENERATED_ROOT}"
+)
+target_link_libraries(
+  v2_windows_device_management_controller_test
+  PRIVATE Qt6::Core Qt6::Network Qt6::WebSockets protobuf::libprotobuf
+)
+
 if(MSVC)
   target_compile_options(v2_cpp_envelope_test PRIVATE /W4 /WX)
 else()
@@ -102,12 +133,21 @@ endif()
 
 if(MSVC)
   target_compile_options(v2_windows_device_management_transport_test PRIVATE /W4 /WX)
+  target_compile_options(v2_windows_device_management_controller_test PRIVATE /W4 /WX)
 else()
   target_compile_options(
     v2_windows_device_management_transport_test PRIVATE -Wall -Wextra -Werror)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(
       v2_windows_device_management_transport_test
+      PRIVATE -Wno-nullability-extension
+    )
+  endif()
+  target_compile_options(
+    v2_windows_device_management_controller_test PRIVATE -Wall -Wextra -Werror)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(
+      v2_windows_device_management_controller_test
       PRIVATE -Wno-nullability-extension
     )
   endif()
@@ -150,4 +190,8 @@ add_test(NAME v2_windows_session_protocol COMMAND v2_windows_session_protocol_te
 add_test(
   NAME v2_windows_device_management_transport
   COMMAND v2_windows_device_management_transport_test
+)
+add_test(
+  NAME v2_windows_device_management_controller
+  COMMAND v2_windows_device_management_controller_test
 )

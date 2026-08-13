@@ -19,6 +19,11 @@
 #include "UserInfoDialog.h"
 #include "Protocol.h"
 #include "Message.h"
+#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+#include "DeviceManagementDialog.h"
+#include "DeviceManagementViewModel.h"
+#include "WindowsDeviceManagementController.h"
+#endif
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -164,6 +169,31 @@ void ChatWindow::requestApplicationQuit() {
     m_forceQuit = true;
     close();
 }
+
+#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+bool ChatWindow::configureDeviceManagement(
+        const QUrl &endpoint, const QString &deviceId, QByteArray passwordUtf8) {
+    if (m_deviceManagementController || passwordUtf8.isEmpty()) {
+        passwordUtf8.fill('\0');
+        return false;
+    }
+    try {
+        m_deviceManagementController =
+            std::make_unique<WindowsDeviceManagementController>(
+                endpoint, qApp->applicationVersion(), deviceId, m_username,
+                std::move(passwordUtf8));
+    } catch (...) {
+        passwordUtf8.fill('\0');
+        return false;
+    }
+    if (!m_deviceManagementController->start()) {
+        m_deviceManagementController.reset();
+        return false;
+    }
+    if (m_deviceManagementAction) m_deviceManagementAction->setVisible(true);
+    return true;
+}
+#endif
 
 // 创建不随选中状态变色的 QIcon
 static QIcon makeStableIcon(const QPixmap &pm) {
@@ -554,6 +584,12 @@ void ChatWindow::setupMenuBar() {
 
     auto *settingsMenu = menuBar()->addMenu("设置(&S)");
     settingsMenu->addAction("修改个人信息(&P)...", this, &ChatWindow::showProfileDialog);
+#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+    m_deviceManagementAction = settingsMenu->addAction(
+        QStringLiteral("登录设备(&D)..."), this,
+        &ChatWindow::showDeviceManagement);
+    m_deviceManagementAction->setVisible(false);
+#endif
     settingsMenu->addSeparator();
     settingsMenu->addAction("缓存路径(&C)...", this, &ChatWindow::onChangeCacheDir);
     settingsMenu->addAction("清除缓存(&X)...", this, &ChatWindow::onClearCache);
@@ -4443,6 +4479,10 @@ void ChatWindow::onLogout() {
     if (QMessageBox::question(this, "注销", "确定要注销当前账号吗？")
         != QMessageBox::Yes) return;
 
+#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+    if (m_deviceManagementController) m_deviceManagementController->stop();
+#endif
+
     // 断开网络连接
     NetworkManager::instance()->disconnectFromServer();
 
@@ -4690,6 +4730,25 @@ void ChatWindow::showPendingAttachments() {
     refresh();
     dialog.exec();
 }
+
+#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+void ChatWindow::showDeviceManagement() {
+    if (!m_deviceManagementController) return;
+    if (m_deviceManagementDialog) {
+        m_deviceManagementDialog->raise();
+        m_deviceManagementDialog->activateWindow();
+        return;
+    }
+    m_deviceManagementDialog = new DeviceManagementDialog(
+        m_deviceManagementController->viewModel(), this);
+    m_deviceManagementDialog->setAttribute(Qt::WA_DeleteOnClose);
+    connect(m_deviceManagementDialog, &QObject::destroyed, this, [this] {
+        m_deviceManagementDialog = nullptr;
+    });
+    m_deviceManagementController->viewModel()->refresh();
+    m_deviceManagementDialog->show();
+}
+#endif
 
 void ChatWindow::onClearCache() {
     const qint64 mediaCacheSize = FileCache::instance()->totalCacheSize();

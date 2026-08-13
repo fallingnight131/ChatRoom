@@ -1301,7 +1301,7 @@ Goal: grow features on top of reliable foundations.
 
 Progress:
 
-- [ ] Deliver user-managed multi-device login and device management on V2 Web
+- [x] Deliver user-managed multi-device login and device management on V2 Web
   and Windows clients.
   - [x] Define ADR-0321 and add V043 immutable actor/session-bound device
     revocation audit with same-account and non-self constraints.
@@ -1351,8 +1351,10 @@ Progress:
     disconnect abandonment, and no durable security-state cache (ADR-0325).
   - [x] Add an owner-only, atomic, fail-closed Windows installation device UUID
     independent of accounts, cache, update rollout, and sessions (ADR-0326).
-  - [ ] Add the supported Windows device-management application/UI path; Web is
-    implemented behind the existing V2 preview/cutover gate.
+  - [x] Compose the supported Windows application/UI path behind the default-off
+    product gate: V1-login one-use handoff, controller-owned V2 session, automatic
+    live refresh, hidden-by-default settings entry, and logout teardown
+    (ADR-0327). Web remains behind its existing V2 preview/cutover gate.
 
 Candidate slices:
 

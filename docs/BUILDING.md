@@ -1413,9 +1413,8 @@ authority, authenticated device-codec composition, and the detached Qt WSS
 lifecycle. The Qt regression checks exact `wss://.../v2/windows` routing,
 `chat.v2` negotiation, binary framing, authentication, and Qt projection. The
 first run downloads and builds the isolated C++ runtime. The supported Windows
-CMake product now compiles the same sources and statically links the same pinned
-runtime; it does not activate or expose the V2 screen. Application and UI
-composition remains a separate change. The detached application service caps a
+CMake product compiles the same sources and statically links the same pinned
+runtime. The application service caps a
 pending fresh-login credential at 60 seconds, consumes it once, clears live
 directory work on disconnect, and writes neither the password nor the device
 directory to durable storage (ADR-0325).
@@ -1423,6 +1422,13 @@ The V2 ClientHello uses one account-independent installation UUID from an
 owner-only atomic file under the application-local security directory. Corrupt
 or unsafe existing identity state fails closed instead of silently creating a
 new server device (ADR-0326).
+The canonical Windows client composes these boundaries only when the reviewed
+V2 build configuration is enabled. A successful V1 login clears its password
+field and transfers the UTF-8 bytes once to the V2 controller; invalid/disabled
+configuration erases them without starting V2. The “登录设备” settings entry is
+hidden by default, appears only after controller startup, refreshes authoritative
+live state when opened, and stops before V1 logout. V2 failure does not break V1
+chat. The qmake rollback remains V1-only (ADR-0327).
 
 ## Server Password Hashing Dependency
 

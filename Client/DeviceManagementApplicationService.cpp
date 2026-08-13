@@ -81,6 +81,8 @@ void DeviceManagementApplicationService::unavailable() {
 void DeviceManagementApplicationService::authenticationRejected() {
     eraseCredential();
     if (m_viewModel) m_viewModel->setAuthenticated(false);
+    if (m_started && !m_stopped && m_stop) m_stop();
+    m_stopped = true;
 }
 
 void DeviceManagementApplicationService::stop() {

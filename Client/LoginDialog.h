@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QByteArray>
 #include <QDialog>
 
 class QLineEdit;
@@ -15,6 +16,7 @@ public:
     explicit LoginDialog(QWidget *parent = nullptr);
 
     QString username() const;
+    QByteArray takePasswordUtf8();
     QString displayName() const { return m_displayName; }
     int     userId() const { return m_userId; }
 

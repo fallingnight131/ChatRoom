@@ -107,6 +107,7 @@ jobs:
           python Tests/windows_cmake_packaging_promotion_test.py
           python Tests/windows_cmake_update_configuration_test.py
           python Tests/windows_cmake_v2_configuration_test.py
+          python Tests/windows_v2_product_composition_test.py
           python Tests/windows_update_trust_diagnostic_policy_test.py
           python Tests/windows_unsigned_artifact_verifier_test.py
 
@@ -136,12 +137,15 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release `
             -DCHATROOM_BUILD_HEADLESS_SERVER=ON `
             -DCHATROOM_BUILD_WINDOWS_CLIENT=ON `
-            -DBUILD_TESTING=OFF `
+            -DBUILD_TESTING=ON `
             "-DSODIUM_ROOT=$env:SODIUM_ROOT"
           if ($LASTEXITCODE -ne 0) { throw "Windows CMake configuration failed" }
           cmake --build build/m4/windows-cmake --config Release `
-            --target ChatClient ChatRoomUpdateLauncher --parallel 4
+            --target ChatClient ChatRoomUpdateLauncher `
+              WindowsV2ProductConfigurationEnabledTest --parallel 4
           if ($LASTEXITCODE -ne 0) { throw "Windows CMake client build failed" }
+          & build/m4/windows-cmake/Release/WindowsV2ProductConfigurationEnabledTest.exe
+          if ($LASTEXITCODE -ne 0) { throw "Enabled Windows V2 configuration test failed" }
           $cmakeClient = Get-Item build/m4/windows-cmake/Release/ChatClient.exe
           $cmakeLauncher = Get-Item build/m4/windows-cmake/Release/ChatRoomUpdateLauncher.exe
           $version = "${{ steps.product-version.outputs.version }}"

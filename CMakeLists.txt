@@ -440,6 +440,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/V2WindowsSessionProtocolClient.h
                 Client/V2WindowsDeviceManagementTransport.cpp
                 Client/V2WindowsDeviceManagementTransport.h
+                Client/WindowsDeviceManagementController.cpp
+                Client/WindowsDeviceManagementController.h
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/authentication.pb.cc"
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/authentication.pb.h"
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/control.pb.cc"
@@ -525,7 +527,10 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                     VERSION "${CHATROOM_PRODUCT_VERSION}"
             )
             target_compile_definitions(
-                ChatClient PRIVATE CHAT_APP_VERSION="${CHATROOM_PRODUCT_VERSION}")
+                ChatClient
+                PRIVATE
+                    CHAT_APP_VERSION="${CHATROOM_PRODUCT_VERSION}"
+                    CHAT_WINDOWS_V2_PRODUCT_AVAILABLE=1)
             if(CHATROOM_ENABLE_WINDOWS_UPDATES)
                 target_compile_definitions(
                     ChatClient

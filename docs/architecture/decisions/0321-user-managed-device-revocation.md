@@ -70,23 +70,22 @@ now implemented behind the existing default-off Web V2 preview gate. Web
 refreshes after authentication, resume, and successful revocation, abandons
 ambiguous in-flight UI state on disconnect, disables mutation offline, protects
 the current device, and requires an accessible in-context confirmation. No
-security device directory is written to IndexedDB or browser storage. Windows
-V2 transport and product composition remain pending.
-The Windows client now has a transport-independent Qt ViewModel plus Widgets
-dialog with the same live-only projection and confirmation behavior. It is
+security device directory is written to IndexedDB or browser storage.
+The Windows client has a transport-independent Qt ViewModel plus Widgets dialog
+with the same live-only projection and confirmation behavior. It is
 paired with a transport-independent V2 protocol client built from the reviewed
 C++ bindings. The protocol client binds every command and response to the
 authenticated session and request, caps in-flight work, rejects ambiguous
 server projections and type confusion, and abandons pending state on
-disconnect. Both remain deliberately detached: the current Windows product
-network manager is V1 JSON. A pure C++ Windows V2 session protocol now composes
+disconnect. A pure C++ Windows V2 session protocol composes
 exact-version hello, fresh authentication, memory-only resume, authenticated
 session validation, and the device codec. A detached Qt WSS lifecycle now
 enforces the exact `wss` Windows endpoint, `chat.v2` binary subprotocol,
 phase-specific timeouts, memory-only resume, bounded jittered reconnect, and
-fail-closed response mapping. Activating the screen still requires product
-dependency/packaging composition rather than silently tunneling a V2 security
-command through V1.
+fail-closed response mapping. The canonical Windows product composes this
+screen behind an exact default-off WSS build gate using a one-use V1-login
+credential handoff and stable installation identity. V1 chat remains unchanged;
+ordinary builds expose no V2 entry or traffic.
 
 ## Verification
 

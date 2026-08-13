@@ -49,6 +49,8 @@ def main() -> int:
         "CHATROOM_ENABLE_WINDOWS_V2_PREVIEW",
         "CHATROOM_WINDOWS_V2_WSS_URL",
         "chatroom_windows_v2_configuration",
+        "CHAT_WINDOWS_V2_PRODUCT_AVAILABLE=1",
+        "WindowsDeviceManagementController.cpp",
         'CHAT_UPDATE_CONFIGURATION_ENABLED=1',
         'CHAT_UPDATE_MANIFEST_URL="${CHATROOM_UPDATE_MANIFEST_URL}"',
     )
@@ -60,6 +62,8 @@ def main() -> int:
         "Build Windows CMake client targets in Release mode",
         "-DCHATROOM_BUILD_WINDOWS_CLIENT=ON",
         "--target ChatClient ChatRoomUpdateLauncher",
+        "WindowsV2ProductConfigurationEnabledTest",
+        "Enabled Windows V2 configuration test failed",
         "CMake client version does not match canonical VERSION",
         "CMake update launcher version does not match canonical VERSION",
         "Compare deployed CMake and qmake Windows payloads",

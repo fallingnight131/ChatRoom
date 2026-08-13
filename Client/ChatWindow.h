@@ -4,6 +4,8 @@
 #include <QMap>
 #include <QSet>
 #include <QJsonArray>
+#include <QByteArray>
+#include <QUrl>
 #include <memory>
 #include "Protocol.h"
 #include "AttachmentOutboxService.h"
@@ -32,6 +34,10 @@ class ProfileDialog;
 class RoomFileManagerDialog;
 class ForwardSelectDialog;
 class LocalConversationRepository;
+#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+class WindowsDeviceManagementController;
+class DeviceManagementDialog;
+#endif
 
 /// 主聊天窗口 —— MVC 架构的 View/Controller 层
 class ChatWindow : public QMainWindow {
@@ -43,6 +49,10 @@ public:
     void setCurrentUser(int userId, const QString &username, const QString &displayName);
     void setUpdateCheckAvailable(bool available);
     void requestApplicationQuit();
+#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+    bool configureDeviceManagement(
+        const QUrl &endpoint, const QString &deviceId, QByteArray passwordUtf8);
+#endif
 
     /// 获取用户头像缓存
     static QPixmap avatarForUser(const QString &username);
@@ -112,6 +122,9 @@ private slots:
     void onChangeCacheDir();
     void onClearCache();
     void showPendingAttachments();
+#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+    void showDeviceManagement();
+#endif
 
     // 连接状态
     void onConnected();
@@ -313,6 +326,11 @@ private:
     QLabel       *m_nicknameLabel  = nullptr;
     QPushButton  *m_roomSettingsBtn = nullptr;
     ProfileDialog *m_profileDialog = nullptr;
+#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+    std::unique_ptr<WindowsDeviceManagementController> m_deviceManagementController;
+    DeviceManagementDialog *m_deviceManagementDialog = nullptr;
+    QAction *m_deviceManagementAction = nullptr;
+#endif
     RoomFileManagerDialog *m_roomFileManagerDialog = nullptr;
     QLabel       *m_avatarPreview  = nullptr;
     EmojiPicker  *m_emojiPicker    = nullptr;
