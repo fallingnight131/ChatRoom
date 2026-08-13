@@ -1486,6 +1486,17 @@ gateway from new-session routing, continued delivery on its existing WSS
 session, reconnect history repair, ordered follow-up delivery, and outbox
 convergence. It is intentionally excluded from `--all`; see ADR-0372.
 
+Force-kill one of two independently running gateway JVMs with:
+
+```bash
+python3 tools/verify_m0.py --gateway-crash
+```
+
+This explicit variant requires HAProxy to remove the dead backend, its Redis
+conversation route to expire, the client to reconnect on the survivor, history
+to repair from PostgreSQL, and ordered messaging to continue. It is also
+excluded from `--all`; see ADR-0373.
+
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
 consume ports while PostgreSQL supplies outbox and message repair. They also

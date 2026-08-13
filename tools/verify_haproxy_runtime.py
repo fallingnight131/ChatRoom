@@ -119,7 +119,7 @@ def await_port(port: int, process: subprocess.Popen[bytes]) -> None:
     raise RuntimeError("HAProxy frontend did not become reachable")
 
 
-def main() -> int:
+def verify(test_method: str) -> int:
     initdb = required("initdb")
     pg_ctl = required("pg_ctl")
     createdb = required("createdb")
@@ -180,8 +180,7 @@ def main() -> int:
             })
             command = [str(wrapper), "--no-daemon", "--no-configuration-cache",
                        ":im-gateway:test", "--tests",
-                       "*GatewayRuntimePostgresIntegrationTest."
-                       "haproxyWithdrawsOneGatewayWhileItsExistingWssSessionDrains",
+                       "*GatewayRuntimePostgresIntegrationTest." + test_method,
                        "--rerun-tasks"]
             gradle = subprocess.Popen(command, cwd=BACKEND, env=environment)
             request = root / "haproxy-start-request"
@@ -220,6 +219,10 @@ def main() -> int:
             if postgres_started:
                 run([pg_ctl, "-D", str(data), "-m", "fast", "-w", "stop"], ROOT)
     return 0
+
+
+def main() -> int:
+    return verify("haproxyWithdrawsOneGatewayWhileItsExistingWssSessionDrains")
 
 
 if __name__ == "__main__":

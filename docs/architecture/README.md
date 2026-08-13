@@ -1136,6 +1136,12 @@ routing while an established WSS session drains, delivery during that drain,
 reconnect history repair, and continued ordered delivery on the surviving
 gateway. Abrupt crash, mixed-version rollout, reload/certificate rotation, and
 reconnect-storm capacity remain unproven.
+ADR-0373 removes the graceful-shutdown assumption by running each gateway in a
+separate JVM and force-killing the sender's process. HAProxy removes the refused
+backend, the stale Redis conversation route expires, the client reconnects on
+the survivor, PostgreSQL history repairs the committed message, and ordered
+delivery continues without a duplicate peer event. This remains a single-host,
+same-build proof rather than correlated-failure or reconnect-storm evidence.
 
 ## 10. Attachment Flow
 

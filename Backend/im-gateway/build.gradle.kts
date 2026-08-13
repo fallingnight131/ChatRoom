@@ -30,6 +30,8 @@ application {
 }
 
 tasks.test {
+    environment("CHATROOM_TEST_GATEWAY_RUNTIME_CLASSPATH",
+            sourceSets.main.get().runtimeClasspath.asPath)
     environment("CHATROOM_TEST_POSTGRES_URL",
             providers.environmentVariable("CHATROOM_TEST_POSTGRES_URL").orNull ?: "")
     environment("CHATROOM_TEST_POSTGRES_USER",

@@ -1543,6 +1543,13 @@ Progress:
   exactly once with two durable messages and published outbox rows. Abrupt
   crash, mixed-version, reload, and reconnect-storm evidence remain pending
   (ADR-0372).
+- [x] Pass an abrupt process-loss gate with two independent gateway JVMs: commit
+  and deliver sequence 1 across two HAProxy-placed sessions, force-kill the
+  sender JVM without shutdown cleanup, let HAProxy remove its dead port and its
+  five-second Redis route expire, reconnect through the survivor, repair
+  sequence 1 from PostgreSQL, and deliver sequence 2 exactly once. Correlated
+  failure, mixed-version, reload, and reconnect-storm capacity remain pending
+  (ADR-0373).
 
 Work:
 

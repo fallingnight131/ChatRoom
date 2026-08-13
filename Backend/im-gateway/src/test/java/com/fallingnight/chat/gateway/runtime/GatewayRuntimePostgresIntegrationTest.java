@@ -780,6 +780,145 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     @Test
+    void haproxyRemovesAbruptlyKilledGatewayAndClientRepairs() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String password = System.getenv().getOrDefault("CHATROOM_TEST_POSTGRES_PASSWORD", "");
+        String redisUri = System.getenv("CHATROOM_TEST_REDIS_URI");
+        String controlValue = System.getenv("CHATROOM_TEST_HAPROXY_CONTROL_DIR");
+        String proxyUrl = System.getenv("CHATROOM_TEST_HAPROXY_WSS_URL");
+        String certificatePath = System.getenv("CHATROOM_TEST_GATEWAY_CERTIFICATE");
+        String keyPath = System.getenv("CHATROOM_TEST_GATEWAY_PRIVATE_KEY");
+        String runtimeClasspath = System.getenv("CHATROOM_TEST_GATEWAY_RUNTIME_CLASSPATH");
+        Assumptions.assumeTrue(jdbcUrl != null && !jdbcUrl.isBlank()
+                && username != null && !username.isBlank()
+                && redisUri != null && !redisUri.isBlank()
+                && controlValue != null && !controlValue.isBlank()
+                && proxyUrl != null && !proxyUrl.isBlank()
+                && certificatePath != null && !certificatePath.isBlank()
+                && keyPath != null && !keyPath.isBlank()
+                && runtimeClasspath != null && !runtimeClasspath.isBlank(),
+                "set disposable services, HAProxy, gateway TLS, and runtime classpath");
+        Path control = Path.of(controlValue);
+        new PostgresMigrator(jdbcUrl, username, password).migrate();
+
+        UUID accountId = UUID.randomUUID();
+        UUID peerAccountId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        String login = "crash-gateway-" + accountId;
+        String peerLogin = "crash-gateway-" + peerAccountId;
+        seedV2NetworkAccounts(jdbcUrl, username, password, accountId, peerAccountId,
+                conversationId, login, peerLogin);
+
+        int firstPort = availablePort();
+        int firstAdmin = availablePort();
+        int secondPort = availablePort();
+        int secondAdmin = availablePort();
+        Map<String, String> firstEnvironment = distributedNetworkEnvironment(
+                firstPort, firstAdmin, certificatePath, keyPath, jdbcUrl, username,
+                redisUri, proxyAuthority(proxyUrl));
+        Map<String, String> secondEnvironment = distributedNetworkEnvironment(
+                secondPort, secondAdmin, certificatePath, keyPath, jdbcUrl, username,
+                redisUri, proxyAuthority(proxyUrl));
+        firstEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+        secondEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+
+        Process first = null;
+        Process second = null;
+        WebSocket sender = null;
+        WebSocket peer = null;
+        WebSocket replacement = null;
+        try {
+            first = startGatewayProcess(firstEnvironment, runtimeClasspath,
+                    control.resolve("gateway-a.log"));
+            second = startGatewayProcess(secondEnvironment, runtimeClasspath,
+                    control.resolve("gateway-b.log"));
+            awaitProductReady(firstAdmin, first, control.resolve("gateway-a.log"),
+                    Duration.ofSeconds(10));
+            awaitProductReady(secondAdmin, second, control.resolve("gateway-b.log"),
+                    Duration.ofSeconds(10));
+            Files.writeString(control.resolve("gateway-ports"),
+                    firstPort + "\n" + secondPort + "\n");
+            Files.writeString(control.resolve("haproxy-start-request"), "start\n");
+            awaitFile(control.resolve("haproxy-started"), Duration.ofSeconds(10));
+
+            BinaryEnvelopeListener senderListener = new BinaryEnvelopeListener();
+            sender = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), senderListener);
+            SessionEstablished senderSession = establish(
+                    sender, senderListener, login, "crash-device-1");
+            boolean killFirst = authenticationAccepted(firstAdmin) == 1;
+            assertEquals(1, authenticationAccepted(firstAdmin)
+                    + authenticationAccepted(secondAdmin));
+            sender.sendBinary(ByteBuffer.wrap(history(
+                    senderSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    senderListener.next().getMessageType());
+
+            BinaryEnvelopeListener peerListener = new BinaryEnvelopeListener();
+            peer = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), peerListener);
+            SessionEstablished peerSession = establish(
+                    peer, peerListener, peerLogin, "crash-device-2");
+            assertEquals(1, authenticationAccepted(firstAdmin));
+            assertEquals(1, authenticationAccepted(secondAdmin));
+            peer.sendBinary(ByteBuffer.wrap(history(
+                    peerSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    peerListener.next().getMessageType());
+
+            sender.sendBinary(ByteBuffer.wrap(submit(
+                    senderSession.getSessionId(), conversationId,
+                    "crash-submit-1", "crash-message-1", "before crash")
+                    .toByteArray()), true).join();
+            MessageAccepted firstMessage = accepted(senderListener.next());
+            assertEquals(1, firstMessage.getConversationSequence());
+            assertEquals(1, published(peerListener.next(Duration.ofSeconds(10)))
+                    .getConversationSequence());
+            assertEquals(2, activeRouteCount(redisUri, conversationId));
+
+            Process killed = killFirst ? first : second;
+            killed.destroyForcibly();
+            assertTrue(killed.waitFor(5, TimeUnit.SECONDS), "gateway process did not die");
+            if (killFirst) first = null; else second = null;
+            sender = null;
+            Thread.sleep(2_500);
+
+            int stableAdmin = killFirst ? secondAdmin : firstAdmin;
+            BinaryEnvelopeListener replacementListener = new BinaryEnvelopeListener();
+            replacement = connectWebSocket(
+                    URI.create(proxyUrl + "/v2/windows"), replacementListener);
+            SessionEstablished replacementSession = establish(
+                    replacement, replacementListener, login, "crash-device-3");
+            assertEquals(2, authenticationAccepted(stableAdmin));
+            awaitActiveRouteCount(redisUri, conversationId, 1, Duration.ofSeconds(10));
+
+            replacement.sendBinary(ByteBuffer.wrap(history(
+                    replacementSession.getSessionId(), conversationId).toByteArray()), true).join();
+            MessageHistoryPage repaired = MessageHistoryPage.parseFrom(
+                    replacementListener.next().getPayload());
+            assertEquals(1, repaired.getMessagesCount());
+            assertEquals(firstMessage.getMessageId(), repaired.getMessages(0).getMessageId());
+            replacement.sendBinary(ByteBuffer.wrap(submit(
+                    replacementSession.getSessionId(), conversationId,
+                    "crash-submit-2", "crash-message-2", "after crash")
+                    .toByteArray()), true).join();
+            assertEquals(2, accepted(replacementListener.next()).getConversationSequence());
+            assertEquals(2, published(replacementListener.next()).getConversationSequence());
+            assertEquals(2, published(peerListener.next(Duration.ofSeconds(10)))
+                    .getConversationSequence());
+            peerListener.assertNoEnvelope(Duration.ofSeconds(1));
+            assertEquals(2, countQuery(jdbcUrl, username, password,
+                    "SELECT count(*) FROM chat.message WHERE conversation_id = '"
+                            + conversationId + "'"));
+        } finally {
+            if (replacement != null) replacement.abort();
+            if (peer != null) peer.abort();
+            if (sender != null) sender.abort();
+            stopGatewayProcess(second);
+            stopGatewayProcess(first);
+        }
+    }
+
+    @Test
     void composesRealV1LoginOnlyForMappedImportedAccounts() throws Exception {
         String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
         String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
@@ -3148,6 +3287,47 @@ class GatewayRuntimePostgresIntegrationTest {
         assertTrue(Files.isRegularFile(path), "timed out waiting for " + path.getFileName());
     }
 
+    private static Process startGatewayProcess(
+            Map<String, String> environment, String classpath, Path log) throws Exception {
+        ProcessBuilder builder = new ProcessBuilder(
+                Path.of(System.getProperty("java.home"), "bin", "java").toString(),
+                "-cp", classpath, "com.fallingnight.chat.gateway.GatewayMain");
+        builder.environment().putAll(environment);
+        builder.redirectErrorStream(true);
+        builder.redirectOutput(log.toFile());
+        return builder.start();
+    }
+
+    private static void awaitProductReady(
+            int adminPort, Process process, Path log, Duration timeout) throws Exception {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        while (System.nanoTime() < deadline) {
+            assertTrue(process.isAlive(), "gateway process exited before readiness");
+            try {
+                HttpResponse<String> response = HttpClient.newHttpClient().send(
+                        HttpRequest.newBuilder(URI.create(
+                                "http://127.0.0.1:" + adminPort + "/health/ready"))
+                                .timeout(Duration.ofMillis(500)).GET().build(),
+                        HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() == 200) return;
+            } catch (java.io.IOException ignored) {
+                // Listener startup is asynchronous relative to the child process.
+            }
+            Thread.sleep(25);
+        }
+        String output = Files.isRegularFile(log) ? Files.readString(log) : "log unavailable";
+        throw new AssertionError("gateway process did not become ready; log:\n" + output);
+    }
+
+    private static void stopGatewayProcess(Process process) throws Exception {
+        if (process == null || !process.isAlive()) return;
+        process.destroy();
+        if (!process.waitFor(5, TimeUnit.SECONDS)) {
+            process.destroyForcibly();
+            assertTrue(process.waitFor(5, TimeUnit.SECONDS), "gateway process did not stop");
+        }
+    }
+
     private static void awaitNotReady(GatewayRuntime runtime, Duration timeout)
             throws Exception {
         long deadline = System.nanoTime() + timeout.toNanos();
@@ -3261,6 +3441,19 @@ class GatewayRuntimePostgresIntegrationTest {
             return redis.findConversationGateways(
                     conversationId, Instant.now(), 64).gatewayIds().size();
         }
+    }
+
+    private static void awaitActiveRouteCount(
+            String redisUri, UUID conversationId, int expected, Duration timeout)
+            throws Exception {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        int actual;
+        do {
+            actual = activeRouteCount(redisUri, conversationId);
+            if (actual == expected) return;
+            Thread.sleep(25);
+        } while (System.nanoTime() < deadline);
+        assertEquals(expected, actual, "active Redis routes did not converge");
     }
 
     private static void awaitRoutingMetric(

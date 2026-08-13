@@ -70,6 +70,18 @@ ports through the host's routed address; the HAProxy frontend and every admin or
 data dependency remain host-loopback. Local firewall policy must permit that
 test path (ADR-0372).
 
+Exercise ungraceful process loss separately:
+
+```bash
+python3 tools/verify_m0.py --gateway-crash
+```
+
+This variant runs each gateway in its own JVM, force-kills the gateway holding
+one client without a shutdown hook, and requires HAProxy removal, Redis route
+expiry, survivor placement, PostgreSQL history repair, and ordered delivery to
+converge. It proves a single same-host process loss, not correlated host loss or
+reconnect-storm capacity (ADR-0373).
+
 Before reload, validate the fully rendered deployment file with the exact
 production HAProxy binary. Roll one bounded subset of gateways at a time:
 
