@@ -2,6 +2,7 @@ package com.fallingnight.chat.application.messaging;
 
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -18,7 +19,8 @@ public sealed interface MessageEditResult {
             boolean changed,
             long conversationSequence,
             Instant occurredAt,
-            boolean duplicate) implements MessageEditResult {
+            boolean duplicate,
+            List<MessageMention> mentions) implements MessageEditResult {
         public Applied {
             Objects.requireNonNull(conversationId, "conversationId");
             Objects.requireNonNull(messageId, "messageId");
@@ -26,6 +28,7 @@ public sealed interface MessageEditResult {
             Objects.requireNonNull(content, "content");
             Objects.requireNonNull(clientOperationId, "clientOperationId");
             Objects.requireNonNull(occurredAt, "occurredAt");
+            mentions = MessageMentionPolicy.validateAndCopy(content, mentions);
             if (contentRevision < 0 || contentRevision > MessageEditCommand.MAX_REVISION) {
                 throw new IllegalArgumentException("contentRevision must be 0..100");
             }
@@ -40,6 +43,16 @@ public sealed interface MessageEditResult {
                         "changed edits require a positive sequence and no-ops require zero");
             }
             content = Arrays.copyOf(content, content.length);
+        }
+
+        public Applied(
+                UUID conversationId, UUID messageId, UUID actorAccountId,
+                int contentRevision, int contentType, byte[] content,
+                String clientOperationId, boolean changed,
+                long conversationSequence, Instant occurredAt, boolean duplicate) {
+            this(conversationId, messageId, actorAccountId, contentRevision,
+                    contentType, content, clientOperationId, changed,
+                    conversationSequence, occurredAt, duplicate, List.of());
         }
 
         @Override

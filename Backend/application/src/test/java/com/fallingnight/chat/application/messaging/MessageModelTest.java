@@ -36,7 +36,37 @@ class MessageModelTest {
                         java.util.Arrays.asList((MessageMention) null)));
         assertThrows(IllegalArgumentException.class, () ->
                 MessageMentionPolicy.validateAndCopy(
-                        new byte[] {(byte) 0xc3, (byte) 0x28}, List.of()));
+                        new byte[] {(byte) 0xc3, (byte) 0x28},
+                        List.of(new MessageMention(first, 0, 1))));
+
+        MessageSubmission submission = new MessageSubmission(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                "mentioned-1", 1, content, Optional.empty(), mentions);
+        org.junit.jupiter.api.Assertions.assertEquals(mentions, submission.mentions());
+        StoredMessage stored = new StoredMessage(
+                UUID.randomUUID(), submission.conversationId(), 1,
+                submission.senderAccountId(), submission.senderDeviceId(),
+                submission.clientMessageId(), submission.messageType(),
+                submission.payload(), Instant.EPOCH, Optional.empty(), 0,
+                Optional.empty(), mentions);
+        org.junit.jupiter.api.Assertions.assertEquals(mentions, stored.mentions());
+
+        MessageEditCommand edit = new MessageEditCommand(
+                submission.conversationId(), stored.messageId(),
+                submission.senderAccountId(), submission.senderDeviceId(), 0,
+                MessageEditCommand.TEXT_UTF8_CONTENT_TYPE, content, "edit-mention-1",
+                mentions);
+        MessageEditResult.Applied applied = new MessageEditResult.Applied(
+                edit.conversationId(), edit.messageId(), edit.actorAccountId(), 1,
+                edit.contentType(), edit.content(), edit.clientOperationId(), true,
+                2, Instant.EPOCH, false, mentions);
+        org.junit.jupiter.api.Assertions.assertEquals(mentions, applied.mentions());
+
+        assertThrows(IllegalArgumentException.class, () ->
+                new ConversationHistoryEntry.Edit(
+                        edit.conversationId(), 2, edit.messageId(), 1,
+                        edit.contentType(), new byte[0], true, edit.actorAccountId(),
+                        edit.clientOperationId(), Instant.EPOCH, mentions));
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.fallingnight.chat.application.messaging;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,7 +15,8 @@ public record MessageSubmission(
         String clientMessageId,
         int messageType,
         byte[] payload,
-        Optional<UUID> replyToMessageId) {
+        Optional<UUID> replyToMessageId,
+        List<MessageMention> mentions) {
     public static final int MAX_PAYLOAD_BYTES = 1_048_576;
 
     public MessageSubmission {
@@ -24,6 +26,8 @@ public record MessageSubmission(
         Objects.requireNonNull(clientMessageId, "clientMessageId");
         Objects.requireNonNull(payload, "payload");
         replyToMessageId = Objects.requireNonNull(replyToMessageId, "replyToMessageId");
+        mentions = MessageMentionPolicy.validateAndCopy(payload, mentions);
+        MessageMentionPolicy.requireNoSelfMention(senderAccountId, mentions);
         if (clientMessageId.isBlank()
                 || clientMessageId.getBytes(StandardCharsets.UTF_8).length > 128) {
             throw new IllegalArgumentException("clientMessageId UTF-8 length must be 1..128");
@@ -43,9 +47,21 @@ public record MessageSubmission(
             UUID senderDeviceId,
             String clientMessageId,
             int messageType,
+            byte[] payload,
+            Optional<UUID> replyToMessageId) {
+        this(conversationId, senderAccountId, senderDeviceId, clientMessageId,
+                messageType, payload, replyToMessageId, List.of());
+    }
+
+    public MessageSubmission(
+            UUID conversationId,
+            UUID senderAccountId,
+            UUID senderDeviceId,
+            String clientMessageId,
+            int messageType,
             byte[] payload) {
         this(conversationId, senderAccountId, senderDeviceId, clientMessageId,
-                messageType, payload, Optional.empty());
+                messageType, payload, Optional.empty(), List.of());
     }
 
     @Override

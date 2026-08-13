@@ -2,6 +2,7 @@ package com.fallingnight.chat.application.messaging;
 
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -19,7 +20,8 @@ public record StoredMessage(
         Instant acceptedAt,
         Optional<MessageReplyReference> reply,
         int contentRevision,
-        Optional<Instant> editedAt) {
+        Optional<Instant> editedAt,
+        List<MessageMention> mentions) {
     public StoredMessage {
         Objects.requireNonNull(messageId, "messageId");
         Objects.requireNonNull(conversationId, "conversationId");
@@ -30,6 +32,7 @@ public record StoredMessage(
         Objects.requireNonNull(acceptedAt, "acceptedAt");
         reply = Objects.requireNonNull(reply, "reply");
         editedAt = Objects.requireNonNull(editedAt, "editedAt");
+        mentions = MessageMentionPolicy.validateAndCopy(payload, mentions);
         if (conversationSequence < 1 || messageType < 1) {
             throw new IllegalArgumentException("stored message identity is invalid");
         }
@@ -47,6 +50,17 @@ public record StoredMessage(
     }
 
     public StoredMessage(
+            UUID messageId, UUID conversationId, long conversationSequence,
+            UUID senderAccountId, UUID senderDeviceId, String clientMessageId,
+            int messageType, byte[] payload, Instant acceptedAt,
+            Optional<MessageReplyReference> reply, int contentRevision,
+            Optional<Instant> editedAt) {
+        this(messageId, conversationId, conversationSequence, senderAccountId,
+                senderDeviceId, clientMessageId, messageType, payload, acceptedAt,
+                reply, contentRevision, editedAt, List.of());
+    }
+
+    public StoredMessage(
             UUID messageId,
             UUID conversationId,
             long conversationSequence,
@@ -59,7 +73,7 @@ public record StoredMessage(
             Optional<MessageReplyReference> reply) {
         this(messageId, conversationId, conversationSequence, senderAccountId,
                 senderDeviceId, clientMessageId, messageType, payload, acceptedAt,
-                reply, 0, Optional.empty());
+                reply, 0, Optional.empty(), List.of());
     }
 
     public StoredMessage(
@@ -74,7 +88,7 @@ public record StoredMessage(
             Instant acceptedAt) {
         this(messageId, conversationId, conversationSequence, senderAccountId,
                 senderDeviceId, clientMessageId, messageType, payload, acceptedAt,
-                Optional.empty(), 0, Optional.empty());
+                Optional.empty(), 0, Optional.empty(), List.of());
     }
 
     @Override

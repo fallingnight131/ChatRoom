@@ -22,6 +22,9 @@ public final class MessageMentionPolicy {
         Objects.requireNonNull(utf8Body, "utf8Body");
         Objects.requireNonNull(mentions, "mentions");
         List<MessageMention> copy = List.copyOf(mentions);
+        if (copy.isEmpty()) {
+            return copy;
+        }
         requireValidUtf8(utf8Body);
         if (copy.size() > MAX_SPANS) {
             throw new IllegalArgumentException("mentions exceed span limit");
