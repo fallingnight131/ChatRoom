@@ -757,6 +757,13 @@ Progress:
       reference-aware cleanup intent, and real PostgreSQL verification.
     - [x] Add authorized metadata reads for enabled mapped usernames and active
       room members, with missing-vs-denied outcomes and no provider URL exposure.
+    - [x] Add owned private-object read orchestration plus an inactive S3 reader
+      that requires exact length, media type, provider checksum, application
+      SHA-256, and canonical PNG evidence before returning bytes.
+    - [x] Add detached strict `AVATAR_GET_REQ`/`ROOM_AVATAR_GET_REQ` handlers with
+      authenticated targets, bounded off-loop reads, compatibility-only Base64,
+      fixed-cardinality telemetry, and fail-closed storage-integrity handling.
+      Keep them uncomposed until the real-provider capability gate passes.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-

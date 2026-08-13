@@ -3,7 +3,7 @@ package com.fallingnight.chat.application.profile;
 import java.util.Objects;
 
 /** Authorizes through durable metadata before loading and verifying private bytes. */
-public final class ProfileImageLoadService {
+public final class ProfileImageLoadService implements ProfileImageLoadUseCase {
     private final ProfileImageReadPort metadata;
     private final ProfileImageObjectReadPort objects;
 
@@ -13,7 +13,7 @@ public final class ProfileImageLoadService {
         this.objects = Objects.requireNonNull(objects, "objects");
     }
 
-    public ProfileImageLoadResult load(ProfileImageReadTarget target) {
+    @Override public ProfileImageLoadResult load(ProfileImageReadTarget target) {
         Objects.requireNonNull(target, "target");
         ProfileImageReadResult result = metadata.read(target);
         if (result == ProfileImageReadResult.Missing.INSTANCE)

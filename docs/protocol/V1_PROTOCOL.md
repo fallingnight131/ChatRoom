@@ -260,6 +260,20 @@ the profile authority, so disconnected clients recover the new name through a
 later login or directory snapshot. The product listener remains unchanged
 pending the documented cutover.
 
+The detached Java read adapter now reserves strict `AVATAR_GET_REQ.data.username`
+and `ROOM_AVATAR_GET_REQ.data.roomId` shapes. It binds the authenticated account
+to each query, permits room reads only for active members, then reads at most one
+private object after PostgreSQL authorization. Object length, `image/png` media
+type, provider checksum, application SHA-256, and canonical PNG evidence must all
+agree. A found object is Base64-encoded only while producing the compatible
+`AVATAR_GET_RSP` or `ROOM_AVATAR_GET_RSP`; `success`, `username`/`roomId`, and
+`avatarData` retain their V1 meaning, while dimensions, `version`, and
+`updatedAt` are additive. Missing or unauthorized reads return `success:false`
+without leaking whether a room object exists. Metadata/object disagreement
+closes the detached connection instead of inventing an absent avatar. Object
+keys, hashes, bucket names, and provider URLs never cross V1 JSON. This handler
+remains uncomposed until the dated real-provider capability gate passes.
+
 `CHANGE_UID_REQ.data.newUid` remains the V1 name for changing the mutable login
 name; it never changes the stable numeric user ID or canonical account UUID. The
 detached Java path accepts only trimmed `[A-Za-z0-9_]{6,20}` destinations,

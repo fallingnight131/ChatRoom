@@ -50,10 +50,21 @@ object manifest; missing bytes must remain an explicit absent avatar rather than
 fabricated evidence. The image inspection adapter and object-provider acceptance
 remain implementation gates.
 
+As of 2026-08-13, the bounded PNG inspector, V040 metadata/read adapters,
+application-level private-object verification, S3 checksum-bound reader, and
+strict detached V1 user/room read handlers are implemented and locally tested.
+They are intentionally absent from runtime composition; real-provider evidence,
+write lifecycle, historical import, and restart recovery remain activation
+gates.
+
 ## Verification
 
 - application tests cover owned byte limits, canonical PNG/dimension/digest
   invariants, immutable evidence, and defensive copying;
+- private-read tests cover authorization-before-fetch, missing-object and
+  metadata/object disagreement, payload ownership/clearing, S3 404 mapping,
+  checksum-enabled GET, exact length/type/hash, bounded Base64 responses, strict
+  request fields, saturation, and object-key non-disclosure;
 - decoder tests must cover malformed images, metadata stripping, pixel bombs,
   timeout/memory bounds, and deterministic output;
 - PostgreSQL/object tests must cover first apply, exact retry, authorization,
