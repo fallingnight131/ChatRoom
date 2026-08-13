@@ -972,6 +972,15 @@ When a broker is introduced, use a transactional outbox or an equivalent
 recoverable publication design so a committed message cannot disappear between
 the SQL transaction and event publication.
 
+ADR-0348 selects the first measured M5 topology. PostgreSQL gains a
+transactional, conversation-partitioned outbox while Redis owns only expiring
+gateway/route leases and bounded per-gateway live-event streams. A gateway
+repairs missing, duplicate, or out-of-order hints from authoritative PostgreSQL
+sequence history. Redis is therefore reconstructable and its loss cannot erase
+a committed message. A separate Kafka/RocketMQ/Pulsar-class broker remains
+deferred until asynchronous worker or sustained relay evidence justifies a
+second new operational dependency.
+
 ## 10. Attachment Flow
 
 Target flow:

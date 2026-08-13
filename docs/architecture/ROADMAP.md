@@ -1383,16 +1383,22 @@ Progress:
   after 16 maximum-size messages, 200,253 bytes reported to restore
   writability, 48 uninterrupted healthy-peer publications, exact 16-sequence
   repair, restored live delivery, and zero errors.
-- [ ] Measure many conversations, large active groups, reconnect storms, slow
-  consumers, PostgreSQL saturation, and dependency failure before selecting
-  Redis, a broker, or multi-gateway topology.
+- [x] Measure many conversations, large active groups, controlled reconnect
+  arrivals, slow consumers, PostgreSQL saturation, and dependency failure before
+  selecting distributed infrastructure.
+- [x] Select the first M5 multi-gateway topology: PostgreSQL transactional
+  outbox and sequence truth, expiring Redis gateway/routes plus bounded
+  per-gateway Streams, post-registration/periodic sequence repair, and no
+  independent durable broker until worker/backlog evidence justifies it
+  (ADR-0348).
 
 Work:
 
-- move gateway routing and presence leases to Redis;
+- add the inactive V050 transactional outbox and bounded relay ownership;
+- add expiring Redis gateway/route leases and bounded per-gateway Streams;
 - run multiple gateways behind a load balancer;
-- introduce a durable broker and transactional outbox for cross-node delivery
-  and background consumers;
+- introduce an independent durable broker only when background-consumer or
+  sustained relay evidence justifies its second operational dependency;
 - define partition keys that preserve per-conversation order;
 - isolate push, thumbnail, scanning, retention, audit, and analytics workers;
 - validate load-balancer deregistration, rolling multi-gateway deployment, and
