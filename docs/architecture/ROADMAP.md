@@ -664,6 +664,9 @@ Progress:
   - [x] Implement serializable PostgreSQL V1 administrator promotion and
     self-demotion with active mapped membership checks, OWNER protection, and
     convergent duplicate state.
+  - [x] Add the detached strict V1 administrator handler with authenticated actor
+    binding, bounded off-loop execution, compatible response/status projection,
+    and changed-only local target notification.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-

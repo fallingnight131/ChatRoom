@@ -197,6 +197,15 @@ remains unchanged.
 `KICK_USER_RSP`, `KICK_USER_NOTIFY`, `DELETE_MSGS_REQ`, `DELETE_MSGS_RSP`,
 `DELETE_MSGS_NOTIFY`, `RECALL_REQ`, `RECALL_RSP`, `RECALL_NOTIFY`.
 
+The detached Java `SET_ADMIN_REQ` handler requires exact `roomId`, `username`,
+and boolean `isAdmin` fields and binds the actor from the authenticated session.
+Promotion requires active OWNER/ADMIN authority and an active mapped target;
+demotion is ADMIN self-service, while OWNER is protected. `SET_ADMIN_RSP` adds
+stable rejection codes and a `changed` convergence flag. Only a committed role
+change may emit `ADMIN_STATUS` to the active local target; repeating the same
+target role emits no notification. The handler is not yet composed into the
+compatibility module or product listener.
+
 ### Room files
 
 `FILE_SEND`, `FILE_NOTIFY`, `FILE_DOWNLOAD_REQ`, `FILE_DOWNLOAD_RSP`,

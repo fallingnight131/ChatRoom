@@ -36,6 +36,13 @@ serializable transaction, uses compare-and-set role updates, touches the
 conversation only on change, and retries bounded serialization/deadlock
 failures. This ADR defines no wire handler or product-listener change; transport
 composition is a subsequent independently verified slice.
+The detached Netty handler now owns strict bounded JSON parsing, authenticated
+actor binding, one in-flight command per connection, and bounded off-event-loop
+execution. It emits compatible `SET_ADMIN_RSP`; only a committed
+`changed=true` result may route `ADMIN_STATUS` to the active local target.
+Stable business rejection keeps the connection usable, while malformed,
+concurrent, saturated, or failed commands close generically. The handler is not
+yet composed into the compatibility module or product listener.
 
 ## Consequences
 
