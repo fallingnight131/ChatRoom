@@ -138,6 +138,8 @@ def validate(
         rounds = integer(scenario.get("reconnectRounds"), "reconnectRounds", 1)
         if rounds > 20:
             raise EvidenceError("reconnectRounds exceeds the bounded scenario")
+        if (receivers + 1) * (rounds + 1) > 60:
+            raise EvidenceError("initial authentication plus resumes exceed the default peer window")
         operations = (receivers + 1) * rounds
         if scenario.get("reconnectOperations") != operations:
             raise EvidenceError("reconnect operation count is invalid")

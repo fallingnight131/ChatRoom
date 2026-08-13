@@ -96,6 +96,13 @@ aggregate resume throughput, and zero resume errors. It retains the preceding
 message/fan-out phase as a correctness preflight and uses no new password login
 during the measured resume rounds.
 
+The combined scenario must satisfy `(N + 1) * (R + 1) <= 60`: all clients share
+the numeric-loopback source, and the production gateway's default direct-peer
+admission window counts the initial password authentication plus every resume.
+The harness rejects a larger combination instead of weakening the security
+control. For example, 9 receivers and 5 rounds use exactly 60 authentication
+attempts (10 initial plus 50 resumes).
+
 This scenario measures successful bounded same-host resumes. It does not inject
 network loss, reuse stale tokens, exercise client retry/backoff, or establish a
 safe production reconnect rate. Stale-token rejection remains a correctness

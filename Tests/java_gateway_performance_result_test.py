@@ -117,6 +117,23 @@ class GatewayPerformanceEvidenceTest(unittest.TestCase):
         wrong_reconnect = valid_reconnect_result()
         wrong_reconnect["scenario"]["reconnectOperations"] = 9
         mutations.append(wrong_reconnect)
+        excessive_authentication = valid_reconnect_result()
+        excessive_authentication["scenario"].update({
+            "connections": 21, "receiversPerMessage": 20,
+            "reconnectRounds": 2, "reconnectOperations": 42,
+        })
+        excessive_authentication["results"].update({
+            "peerPublications": 400,
+            "connectionSetupLatencyMicros": {
+                "samples": 21, "min": 1, "p50": 2, "p95": 3,
+                "p99": 4, "max": 5, "mean": 2.5,
+            },
+            "sessionResumeLatencyMicros": {
+                "samples": 42, "min": 1, "p50": 2, "p95": 3,
+                "p99": 4, "max": 5, "mean": 2.5,
+            },
+        })
+        mutations.append(excessive_authentication)
         for mutation in mutations:
             with self.subTest(mutation=mutation):
                 with self.assertRaises(EvidenceError):

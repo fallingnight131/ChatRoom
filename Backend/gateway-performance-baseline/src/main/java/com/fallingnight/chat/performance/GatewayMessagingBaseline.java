@@ -705,6 +705,11 @@ public final class GatewayMessagingBaseline {
             // the sender consumes one and the benchmark must not weaken that policy.
             bounded("receivers", receivers, 1, 59);
             bounded("reconnect rounds", reconnectRounds, 0, 20);
+            long authenticationAttempts = (long) (receivers + 1) * (reconnectRounds + 1);
+            if (authenticationAttempts > 60) {
+                throw new IllegalArgumentException(
+                        "initial authentication plus resumes exceed the default peer window");
+            }
         }
 
         private static Configuration parse(String[] arguments) {
