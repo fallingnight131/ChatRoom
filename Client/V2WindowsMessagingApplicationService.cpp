@@ -68,7 +68,8 @@ V2WindowsMessagingApplicationService::hydrate(const QString &conversationId) {
 
 bool V2WindowsMessagingApplicationService::stageReply(
         const QString &conversationId, const QString &targetMessageId,
-        const QString &text, V2LocalMessageRepository::Message *optimistic) {
+        const QString &text, V2LocalMessageRepository::Message *optimistic,
+        const QList<V2LocalMessageRepository::Mention> &mentions) {
     m_lastError.clear();
     if (!optimistic || text.isEmpty()) {
         m_lastError = QStringLiteral("missing reply output or content");
@@ -94,6 +95,7 @@ bool V2WindowsMessagingApplicationService::stageReply(
     message.text = text;
     message.createdAtEpochMs = m_clock();
     message.state = V2LocalMessageRepository::DeliveryState::Pending;
+    message.mentions = mentions;
     message.hasReply = true;
     message.reply = {target->messageId, target->conversationSequence, target->senderAccountId};
     if (!m_repository->upsertPending(m_accountId, message)) {
@@ -221,7 +223,8 @@ bool V2WindowsMessagingApplicationService::retryPin(
 }
 
 bool V2WindowsMessagingApplicationService::editMessage(
-        const QString &conversationId, const QString &messageId, const QString &text) {
+        const QString &conversationId, const QString &messageId, const QString &text,
+        const QList<V2LocalMessageRepository::Mention> &mentions) {
     m_lastError.clear(); const auto snapshot=hydrate(conversationId);
     const auto target=std::find_if(snapshot.messages.cbegin(),snapshot.messages.cend(),
         [&](const auto &message){ return message.messageId==messageId && message.senderAccountId==m_accountId
@@ -230,7 +233,7 @@ bool V2WindowsMessagingApplicationService::editMessage(
         m_lastError=QStringLiteral("edit target unavailable"); return false;
     }
     V2LocalMessageRepository::EditCommand command{conversationId,messageId,target->contentRevision,
-        text,m_clientMessageIdFactory(),V2LocalMessageRepository::EditDeliveryState::Pending,{}};
+        text,m_clientMessageIdFactory(),V2LocalMessageRepository::EditDeliveryState::Pending,mentions};
     if (!m_repository->stageEdit(m_accountId,command)) { m_lastError=m_repository->lastError(); return false; }
     if (m_connected) dispatchEdit(command); return true;
 }
@@ -482,12 +485,18 @@ bool V2WindowsMessagingApplicationService::dispatch(
     if (!m_connected || m_inFlightClientIds.contains(message.clientMessageId)
             || m_deferredClientIds.contains(message.clientMessageId)) return m_connected;
     try {
+        std::vector<V2WindowsMessagingProtocolClient::Mention> mentions;
+        mentions.reserve(static_cast<std::size_t>(message.mentions.size()));
+        for (const auto &mention : message.mentions)
+            mentions.push_back({mention.targetAccountId.toStdString(),
+                static_cast<std::uint32_t>(mention.startUtf8Byte),
+                static_cast<std::uint32_t>(mention.lengthUtf8Bytes)});
         const auto command = message.hasReply
             ? m_protocol.submitReplyText(
                 message.conversationId.toStdString(), message.clientMessageId.toStdString(),
-                message.reply.targetMessageId.toStdString(), message.text.toStdString())
+                message.reply.targetMessageId.toStdString(), message.text.toStdString(), mentions)
             : m_protocol.submitText(message.conversationId.toStdString(),
-                message.clientMessageId.toStdString(), message.text.toStdString());
+                message.clientMessageId.toStdString(), message.text.toStdString(), mentions);
         if (!sendCommand(command)) return false;
         m_inFlightClientIds.insert(message.clientMessageId);
         return true;
@@ -535,9 +544,16 @@ bool V2WindowsMessagingApplicationService::dispatchEdit(
     if (!m_connected || m_inFlightEditIds.contains(command.clientOperationId)
             || m_deferredEditIds.contains(command.clientOperationId)) return m_connected;
     try {
+        std::vector<V2WindowsMessagingProtocolClient::Mention> mentions;
+        mentions.reserve(static_cast<std::size_t>(command.mentions.size()));
+        for (const auto &mention : command.mentions)
+            mentions.push_back({mention.targetAccountId.toStdString(),
+                static_cast<std::uint32_t>(mention.startUtf8Byte),
+                static_cast<std::uint32_t>(mention.lengthUtf8Bytes)});
         if (!sendCommand(m_protocol.editMessage(command.conversationId.toStdString(),
                 command.messageId.toStdString(),static_cast<std::uint32_t>(command.expectedRevision),
-                command.proposedText.toStdString(),command.clientOperationId.toStdString()))) return false;
+                command.proposedText.toStdString(),command.clientOperationId.toStdString(),
+                mentions))) return false;
         m_inFlightEditIds.insert(command.clientOperationId); return true;
     } catch (const std::exception &exception) { m_lastError=QString::fromUtf8(exception.what()); return false; }
 }
@@ -589,6 +605,10 @@ V2WindowsMessagingApplicationService::localMessage(
     result.createdAtEpochMs = message.acceptedAtEpochMs;
     result.state = V2LocalMessageRepository::DeliveryState::Accepted;
     result.hasReply = message.hasReply;
+    for (const auto &mention : message.mentions)
+        result.mentions.append({QString::fromStdString(mention.targetAccountId),
+            static_cast<int>(mention.startUtf8Byte),
+            static_cast<int>(mention.lengthUtf8Bytes)});
     if (message.hasReply) result.reply = {
         QString::fromStdString(message.reply.targetMessageId),
         static_cast<qint64>(message.reply.targetConversationSequence),
@@ -620,10 +640,16 @@ V2WindowsMessagingApplicationService::localPin(
 V2LocalMessageRepository::EditChange
 V2WindowsMessagingApplicationService::localEdit(
         const V2WindowsMessagingProtocolClient::EditChange &change) {
-    return {QString::fromStdString(change.conversationId),static_cast<qint64>(change.conversationSequence),
+    V2LocalMessageRepository::EditChange result{
+        QString::fromStdString(change.conversationId),static_cast<qint64>(change.conversationSequence),
         QString::fromStdString(change.messageId),static_cast<int>(change.contentRevision),
         QString::fromStdString(change.text),QString::fromStdString(change.actorAccountId),
         QString::fromStdString(change.clientOperationId),change.occurredAtEpochMs,{}};
+    for (const auto &mention : change.mentions)
+        result.mentions.append({QString::fromStdString(mention.targetAccountId),
+            static_cast<int>(mention.startUtf8Byte),
+            static_cast<int>(mention.lengthUtf8Bytes)});
+    return result;
 }
 
 QString V2WindowsMessagingApplicationService::randomUuid() {

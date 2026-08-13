@@ -40,7 +40,8 @@ public:
     V2LocalMessageRepository::Snapshot hydrate(const QString &conversationId);
     bool stageReply(const QString &conversationId, const QString &targetMessageId,
                     const QString &text,
-                    V2LocalMessageRepository::Message *optimistic);
+                    V2LocalMessageRepository::Message *optimistic,
+                    const QList<V2LocalMessageRepository::Mention> &mentions = {});
     bool retry(const QString &conversationId, const QString &clientMessageId);
     bool setReaction(const QString &conversationId, const QString &messageId,
                      V2LocalMessageRepository::ReactionKind reaction);
@@ -48,7 +49,8 @@ public:
     bool setPin(const QString &conversationId, const QString &messageId);
     bool retryPin(const QString &conversationId, const QString &clientOperationId);
     bool editMessage(const QString &conversationId, const QString &messageId,
-                     const QString &text);
+                     const QString &text,
+                     const QList<V2LocalMessageRepository::Mention> &mentions = {});
     bool retryEdit(const QString &conversationId, const QString &clientOperationId);
     bool rebaseEdit(const QString &conversationId, const QString &clientOperationId);
     bool discardEdit(const QString &clientOperationId);

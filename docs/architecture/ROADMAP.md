@@ -1540,6 +1540,9 @@ Progress:
         normalized message/edit-outbox mention rows, restart-safe replay,
         idempotency checks, authoritative edit replacement, and recall/delete
         cleanup while capability 4 remains off.
+      - [x] Carry Windows mentions through the application service across
+        optimistic reply/edit staging, reconnect replay, authoritative history
+        and live projection, edit conflict/rebase, and correlated outcomes.
       - [x] Add a default-off Windows participant-directory protocol client with
         bounded correlation, stable account cursor, strict Unicode/role/order
         validation, and disconnect abandonment.

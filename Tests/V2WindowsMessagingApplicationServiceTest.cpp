@@ -88,15 +88,18 @@ int main(int argc, char *argv[]) {
 
     check(service.connectSession(session1), service.lastError().toStdString());
     V2LocalMessageRepository::Message optimistic;
-    check(service.stageReply(conversation, target.messageId, QStringLiteral("reply one"),
-                             &optimistic), service.lastError().toStdString());
+    const QList<V2LocalMessageRepository::Mention> mentions{{remote, 0, 7}};
+    check(service.stageReply(conversation, target.messageId, QStringLiteral("@张三 reply one"),
+                             &optimistic, mentions), service.lastError().toStdString());
     const auto submit = decode(sent.last());
     chat::v2::SubmitReplyMessage submitPayload;
     check(submit.message_type() == chat::v2::MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE
               && submit.client_message_id() == optimistic.clientMessageId.toStdString()
               && submitPayload.ParseFromString(submit.payload())
-              && submitPayload.target_message_id() == target.messageId.toStdString(),
-          "stage must persist then send exact type-105 reply identity");
+              && submitPayload.target_message_id() == target.messageId.toStdString()
+              && submitPayload.mentions_size() == 1
+              && submitPayload.mentions(0).target_account_id() == remote.toStdString(),
+          "stage must persist then send exact type-105 reply and mention identity");
 
     chat::v2::MessageAccepted accepted;
     accepted.set_conversation_id(conversation.toStdString());
@@ -112,20 +115,24 @@ int main(int argc, char *argv[]) {
               && snapshot.messages.size() == 2
               && snapshot.messages.last().state
                  == V2LocalMessageRepository::DeliveryState::Accepted
-              && snapshot.messages.last().reply.targetMessageId == target.messageId,
+              && snapshot.messages.last().reply.targetMessageId == target.messageId
+              && snapshot.messages.last().mentions.size() == 1,
           "ACK must reconcile the same durable optimistic reply");
 
     service.disconnectSession();
     V2LocalMessageRepository::Message offline;
     const int beforeOffline = sent.size();
-    check(service.stageReply(conversation, target.messageId, QStringLiteral("reply offline"),
-                             &offline), service.lastError().toStdString());
+    check(service.stageReply(conversation, target.messageId, QStringLiteral("@张三 reply offline"),
+                             &offline, mentions), service.lastError().toStdString());
     check(sent.size() == beforeOffline,
           "offline staging must not attempt transport dispatch");
     check(service.connectSession(session2), service.lastError().toStdString());
     const auto replay = decode(sent.last());
-    check(replay.client_message_id() == offline.clientMessageId.toStdString(),
-          "reconnect must replay the persisted client message identity");
+    chat::v2::SubmitReplyMessage replayPayload;
+    check(replay.client_message_id() == offline.clientMessageId.toStdString()
+              && replayPayload.ParseFromString(replay.payload())
+              && replayPayload.mentions_size() == 1,
+          "reconnect must replay the persisted client message and mention identity");
 
     chat::v2::ProtocolError busy;
     busy.set_code(chat::v2::PROTOCOL_ERROR_CODE_RATE_LIMITED);
@@ -181,7 +188,11 @@ int main(int argc, char *argv[]) {
     record->set_sender_device_id(remoteDevice.toStdString());
     record->set_client_message_id("remote-reply");
     record->set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
-    record->set_content("server reply");
+    record->set_content(u8"@李四 server reply");
+    auto *recordMention = record->add_mentions();
+    recordMention->set_target_account_id(account.toStdString());
+    recordMention->set_start_utf8_byte(0);
+    recordMention->set_length_utf8_bytes(7);
     record->set_accepted_at_epoch_ms(1800);
     auto *reference = record->mutable_reply();
     reference->set_target_message_id(target.messageId.toStdString());
@@ -195,7 +206,8 @@ int main(int argc, char *argv[]) {
     snapshot = service.hydrate(conversation);
     check(historyOutcome.type
               == V2WindowsMessagingApplicationService::OutcomeType::HistoryApplied
-              && snapshot.cursor == 10 && snapshot.messages.last().hasReply,
+              && snapshot.cursor == 10 && snapshot.messages.last().hasReply
+              && snapshot.messages.last().mentions.size() == 1,
           "history page must atomically persist authoritative reply reference and cursor");
 
     check(service.requestHistory(conversation), service.lastError().toStdString());
@@ -321,13 +333,15 @@ int main(int argc, char *argv[]) {
               == V2WindowsMessagingApplicationService::OutcomeType::HistoryApplied
               && service.hydrate(conversation).cursor == 12,
           "pin history repair must authoritatively advance the durable cursor");
-    check(service.editMessage(conversation, pinTarget, QStringLiteral("我的 Windows 编辑")),
+    check(service.editMessage(conversation, pinTarget, QStringLiteral("@张三 我的 Windows 编辑"),
+                              mentions),
           service.lastError().toStdString());
     const auto editRequest = decode(sent.last());
     chat::v2::EditMessage editPayload;
     check(editPayload.ParseFromString(editRequest.payload())
               && editPayload.expected_revision() == 0
-              && editPayload.client_operation_id() == "edit-operation-1",
+              && editPayload.client_operation_id() == "edit-operation-1"
+              && editPayload.mentions_size() == 1,
           "edit must persist and send one revision-safe operation");
     chat::v2::ProtocolError conflict;
     conflict.set_code(chat::v2::PROTOCOL_ERROR_CODE_MESSAGE_REVISION_CONFLICT);
@@ -337,7 +351,8 @@ int main(int argc, char *argv[]) {
     auto conflicted = service.hydrate(conversation);
     check(conflictOutcome.type == V2WindowsMessagingApplicationService::OutcomeType::EditConflict
               && conflicted.editCommands.size() == 1
-              && conflicted.editCommands.first().proposedText == QStringLiteral("我的 Windows 编辑"),
+              && conflicted.editCommands.first().proposedText == QStringLiteral("@张三 我的 Windows 编辑")
+              && conflicted.editCommands.first().mentions.size() == 1,
           "revision conflict must preserve the local edit overlay");
     const auto editRepairRequest = decode(sent.last());
     chat::v2::MessageHistoryPage editRepairPage;
@@ -364,14 +379,19 @@ int main(int argc, char *argv[]) {
     check(editPayload.ParseFromString(rebasedRequest.payload())
               && editPayload.expected_revision() == 1
               && editPayload.client_operation_id() == "edit-operation-2"
-              && editPayload.content() == "我的 Windows 编辑",
-          "explicit rebase must rotate operation id and retain proposed text");
+              && editPayload.content() == u8"@张三 我的 Windows 编辑"
+              && editPayload.mentions_size() == 1,
+          "explicit rebase must rotate operation id and retain proposed text and mentions");
     chat::v2::MessageEditApplied editApplied;
     editApplied.set_conversation_id(conversation.toStdString());
     editApplied.set_message_id(pinTarget.toStdString());
     editApplied.set_content_revision(2);
     editApplied.set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
-    editApplied.set_content("我的 Windows 编辑");
+    editApplied.set_content(u8"@张三 我的 Windows 编辑");
+    auto *editMention = editApplied.add_mentions();
+    editMention->set_target_account_id(remote.toStdString());
+    editMention->set_start_utf8_byte(0);
+    editMention->set_length_utf8_bytes(7);
     editApplied.set_actor_account_id(account.toStdString());
     editApplied.set_client_operation_id("edit-operation-2");
     editApplied.set_changed(true); editApplied.set_conversation_sequence(14);
@@ -384,7 +404,8 @@ int main(int argc, char *argv[]) {
     check(editOutcome.type == V2WindowsMessagingApplicationService::OutcomeType::EditApplied
               && afterEditAck.editCommands.isEmpty() && afterEditAck.cursor == 13
               && editedMessage != afterEditAck.messages.cend()
-              && editedMessage->text == QStringLiteral("我的 Windows 编辑")
+              && editedMessage->text == QStringLiteral("@张三 我的 Windows 编辑")
+              && editedMessage->mentions.size() == 1
               && editedMessage->contentRevision == 2,
           "edit ACK must converge content without advancing history cursor");
     V2LocalMessageRepository::Message rejectedReply;

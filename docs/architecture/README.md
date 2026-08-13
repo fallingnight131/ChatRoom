@@ -732,8 +732,11 @@ success and failure outcomes. Windows SQLite schema 6 stores authoritative and
 pending-message spans in a normalized child table and pending-edit spans in a
 separate outbox child table. Foreign-key cleanup, authoritative edit
 replacement, and exact retry checks preserve the body/mention atomicity from
-ADR-0342. Application composition, rendering, and capability negotiation remain
-off, so capable traffic still cannot enter the Windows product path.
+ADR-0342. The Windows messaging application service now maps these values at
+the protocol/storage boundary for optimistic staging, reconnect replay,
+authoritative history/live convergence, and edit conflict/rebase. View-model
+composition, rendering, accessible authoring, and capability negotiation remain
+off, so capable traffic still cannot enter the Windows product UI.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
