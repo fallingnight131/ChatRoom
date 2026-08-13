@@ -14,6 +14,7 @@
 namespace {
 constexpr std::size_t maximumEnvelopeBytes = 1024U * 1024U + 1024U;
 constexpr std::size_t maximumTextBytes = 65536U;
+constexpr std::uint32_t maximumContentRevisions = 100U;
 constexpr std::uint64_t maximumSignedSequence =
     static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max());
 
@@ -156,6 +157,27 @@ V2WindowsMessagingProtocolClient::setPin(
 }
 
 V2WindowsMessagingProtocolClient::Command
+V2WindowsMessagingProtocolClient::editMessage(
+        const std::string &conversationId, const std::string &messageId,
+        std::uint32_t expectedRevision, const std::string &text,
+        const std::string &clientOperationId) {
+    if (!canonicalUuid(conversationId) || !canonicalUuid(messageId)
+            || expectedRevision > maximumContentRevisions
+            || text.empty() || text.size() > maximumTextBytes || !validUtf8(text)
+            || !boundedIdentifier(clientOperationId, true))
+        throw std::invalid_argument("invalid edit command");
+    chat::v2::EditMessage payload;
+    payload.set_conversation_id(conversationId); payload.set_message_id(messageId);
+    payload.set_expected_revision(expectedRevision);
+    payload.set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
+    payload.set_content(text); payload.set_client_operation_id(clientOperationId);
+    Pending pending; pending.type = PendingType::Edit; pending.conversationId = conversationId;
+    pending.messageId = messageId; pending.expectedRevision = expectedRevision;
+    pending.text = text; pending.clientOperationId = clientOperationId;
+    return command(chat::v2::MESSAGE_TYPE_EDIT_MESSAGE, bytes(payload), {}, std::move(pending));
+}
+
+V2WindowsMessagingProtocolClient::Command
 V2WindowsMessagingProtocolClient::command(
         int messageType, const std::string &payload, const std::string &clientMessageId,
         Pending pending) {
@@ -198,7 +220,9 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
                 || record.conversation_sequence() > maximumSignedSequence
                 || record.content_type() != chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8
                 || record.content().empty() || record.content().size() > maximumTextBytes
-                || !validUtf8(record.content()) || record.accepted_at_epoch_ms() <= 0)
+                || !validUtf8(record.content()) || record.accepted_at_epoch_ms() <= 0
+                || record.content_revision() > maximumContentRevisions
+                || (record.content_revision() == 0) != (record.edited_at_epoch_ms() == 0))
             throw std::runtime_error("invalid message record");
         Message result;
         result.conversationId = record.conversation_id();
@@ -209,6 +233,8 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         result.clientMessageId = record.client_message_id();
         result.text = record.content();
         result.acceptedAtEpochMs = record.accepted_at_epoch_ms();
+        result.contentRevision = record.content_revision();
+        result.editedAtEpochMs = record.edited_at_epoch_ms();
         result.hasReply = record.has_reply();
         if (record.has_reply()) {
             const auto &reply = record.reply();
@@ -251,6 +277,22 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
             pin.pinned(), pin.actor_account_id(), pin.client_operation_id(),
             pin.occurred_at_epoch_ms()};
     };
+    auto decodeEdit = [&](const chat::v2::MessageEditedRecord &edit) {
+        if (!canonicalUuid(edit.conversation_id()) || !canonicalUuid(edit.message_id())
+                || !canonicalUuid(edit.actor_account_id())
+                || !boundedIdentifier(edit.client_operation_id(), true)
+                || edit.conversation_sequence() == 0
+                || edit.conversation_sequence() > maximumSignedSequence
+                || edit.content_revision() < 1
+                || edit.content_revision() > maximumContentRevisions
+                || edit.content_type() != chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8
+                || edit.content().empty() || edit.content().size() > maximumTextBytes
+                || !validUtf8(edit.content()) || edit.occurred_at_epoch_ms() <= 0)
+            throw std::runtime_error("invalid message edit");
+        return EditChange{edit.conversation_id(), edit.conversation_sequence(),
+            edit.message_id(), edit.content_revision(), edit.content(),
+            edit.actor_account_id(), edit.client_operation_id(), edit.occurred_at_epoch_ms()};
+    };
 
     if (envelope.kind() == chat::v2::MESSAGE_KIND_EVENT
             && envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_PUBLISHED) {
@@ -289,6 +331,17 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         result.conversationSequence = result.reactionChange.conversationSequence;
         return result;
     }
+    if (envelope.kind() == chat::v2::MESSAGE_KIND_EVENT
+            && envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_EDITED) {
+        if (!envelope.request_id().empty() || !envelope.client_message_id().empty())
+            throw std::runtime_error("edit event must not claim request correlation");
+        Event result; result.type = EventType::Edited;
+        result.editChange = decodeEdit(parse<chat::v2::MessageEditedRecord>(envelope.payload()));
+        result.conversationId = result.editChange.conversationId;
+        result.messageId = result.editChange.messageId;
+        result.conversationSequence = result.editChange.conversationSequence;
+        return result;
+    }
 
     const auto position = m_pending.find(envelope.request_id());
     if (position == m_pending.end()) throw std::runtime_error("uncorrelated messaging response");
@@ -299,7 +352,7 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
             && envelope.message_type() == chat::v2::MESSAGE_TYPE_PROTOCOL_ERROR) {
         const auto error = parse<chat::v2::ProtocolError>(envelope.payload());
         if (error.code() <= chat::v2::PROTOCOL_ERROR_CODE_UNSPECIFIED
-                || error.code() > chat::v2::PROTOCOL_ERROR_CODE_NOT_AUTHORIZED
+                || error.code() > chat::v2::PROTOCOL_ERROR_CODE_MESSAGE_EDIT_REVISION_LIMIT
                 || error.safe_message().size() > 512 || !validUtf8(error.safe_message()))
             throw std::runtime_error("invalid protocol error");
         m_pending.erase(position);
@@ -309,6 +362,7 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         result.clientMessageId = envelope.client_message_id();
         result.conversationId = pending.conversationId;
         result.retryable = error.retryable();
+        result.protocolErrorCode = error.code();
         if (pending.type == PendingType::Reaction) {
             result.messageId = pending.messageId;
             result.reactionChange = {pending.conversationId, 0, pending.messageId,
@@ -318,6 +372,11 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
             result.messageId = pending.messageId;
             result.pinChange = {pending.conversationId, 0, pending.messageId, pending.pinned,
                 {}, pending.clientOperationId, 0};
+        }
+        if (pending.type == PendingType::Edit) {
+            result.messageId = pending.messageId;
+            result.editChange = {pending.conversationId, 0, pending.messageId,
+                pending.expectedRevision, pending.text, {}, pending.clientOperationId, 0};
         }
         return result;
     }
@@ -389,6 +448,30 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
             applied.client_operation_id(), applied.occurred_at_epoch_ms()};
         return result;
     }
+    if (pending.type == PendingType::Edit
+            && envelope.kind() == chat::v2::MESSAGE_KIND_RESPONSE
+            && envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_EDIT_APPLIED) {
+        const auto applied = parse<chat::v2::MessageEditApplied>(envelope.payload());
+        if (applied.conversation_id() != pending.conversationId
+                || applied.message_id() != pending.messageId
+                || applied.client_operation_id() != pending.clientOperationId
+                || applied.content_type() != chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8
+                || applied.content() != pending.text
+                || !canonicalUuid(applied.actor_account_id())
+                || applied.content_revision() > maximumContentRevisions
+                || (applied.changed() && applied.content_revision() == 0)
+                || applied.occurred_at_epoch_ms() <= 0
+                || applied.conversation_sequence() > maximumSignedSequence
+                || applied.changed() != (applied.conversation_sequence() > 0))
+            throw std::runtime_error("invalid edit application");
+        m_pending.erase(position); Event result; result.type = EventType::EditApplied;
+        result.requestId = envelope.request_id(); result.conversationId = applied.conversation_id();
+        result.messageId = applied.message_id(); result.conversationSequence = applied.conversation_sequence();
+        result.editChange = {applied.conversation_id(), applied.conversation_sequence(),
+            applied.message_id(), applied.content_revision(), applied.content(),
+            applied.actor_account_id(), applied.client_operation_id(), applied.occurred_at_epoch_ms()};
+        return result;
+    }
     if (pending.type == PendingType::History
             && envelope.kind() == chat::v2::MESSAGE_KIND_RESPONSE
             && envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE) {
@@ -414,6 +497,7 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         std::vector<std::string> deletedMessageIds;
         std::vector<ReactionChange> reactionChanges;
         std::vector<PinChange> pinChanges;
+        std::vector<EditChange> editChanges;
         for (const auto &entry : page.entries()) {
             if (entry.conversation_id() != pending.conversationId
                     || entry.conversation_sequence() == 0
@@ -495,16 +579,21 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
                     throw std::runtime_error("pin entry identity differs");
                 pinChanges.push_back(pin); break;
             }
-            case chat::v2::ConversationEntryRecord::kEdit:
-                throw std::runtime_error("edit entry received without capability");
+            case chat::v2::ConversationEntryRecord::kEdit: {
+                const auto edit = decodeEdit(entry.edit());
+                if (edit.conversationId != entry.conversation_id()
+                        || edit.conversationSequence != entry.conversation_sequence())
+                    throw std::runtime_error("edit entry identity differs");
+                editChanges.push_back(edit); break;
+            }
             case chat::v2::ConversationEntryRecord::DETAIL_NOT_SET:
                 throw std::runtime_error("history entry detail is required");
             }
             previousEntry = entry.conversation_sequence();
         }
         const std::uint64_t lastSequence = previousEntry == 0 ? previous : previousEntry;
-        if (lastSequence != 0 && page.next_sequence() != lastSequence)
-            throw std::runtime_error("history cursor differs from last entry");
+        if (page.next_sequence() < lastSequence)
+            throw std::runtime_error("history cursor trails visible entries");
         if (page.next_sequence() < pending.afterSequence
                 || (page.has_more() && page.next_sequence() <= pending.afterSequence))
             throw std::runtime_error("history cursor did not advance");
@@ -521,6 +610,7 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         result.deletedMessageIds = std::move(deletedMessageIds);
         result.reactionChanges = std::move(reactionChanges);
         result.pinChanges = std::move(pinChanges);
+        result.editChanges = std::move(editChanges);
         result.nextSequence = page.next_sequence();
         result.latestSequence = page.latest_sequence();
         result.hasMore = page.has_more();

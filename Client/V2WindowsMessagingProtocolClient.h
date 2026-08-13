@@ -22,6 +22,8 @@ public:
         std::string clientMessageId;
         std::string text;
         std::int64_t acceptedAtEpochMs = 0;
+        std::uint32_t contentRevision = 0;
+        std::int64_t editedAtEpochMs = 0;
         bool hasReply = false;
         ReplyReference reply;
     };
@@ -41,6 +43,12 @@ public:
         std::string messageId; bool pinned = false; std::string actorAccountId;
         std::string clientOperationId; std::int64_t occurredAtEpochMs = 0;
     };
+    struct EditChange {
+        std::string conversationId; std::uint64_t conversationSequence = 0;
+        std::string messageId; std::uint32_t contentRevision = 0;
+        std::string text; std::string actorAccountId; std::string clientOperationId;
+        std::int64_t occurredAtEpochMs = 0;
+    };
     struct Command {
         std::string requestId;
         std::string clientMessageId;
@@ -48,7 +56,7 @@ public:
     };
     enum class EventType {
         Accepted, HistoryPage, Published, ReactionApplied, ReactionChanged, PinApplied, PinChanged,
-        ProtocolError
+        EditApplied, Edited, ProtocolError
     };
     struct Event {
         EventType type = EventType::ProtocolError;
@@ -67,9 +75,12 @@ public:
         ReactionChange reactionChange;
         std::vector<PinChange> pinChanges;
         PinChange pinChange;
+        std::vector<EditChange> editChanges;
+        EditChange editChange;
         std::uint64_t nextSequence = 0;
         std::uint64_t latestSequence = 0;
         bool hasMore = false;
+        int protocolErrorCode = 0;
     };
     using RequestIdFactory = std::function<std::string()>;
     using Clock = std::function<std::int64_t()>;
@@ -93,11 +104,14 @@ public:
                         bool active, const std::string &clientOperationId);
     Command setPin(const std::string &conversationId, const std::string &messageId,
                    bool pinned, const std::string &clientOperationId);
+    Command editMessage(const std::string &conversationId, const std::string &messageId,
+                        std::uint32_t expectedRevision, const std::string &text,
+                        const std::string &clientOperationId);
     Event receive(const std::string &bytes);
     std::size_t pendingCount() const;
 
 private:
-    enum class PendingType { Submit, Reply, History, Reaction, Pin };
+    enum class PendingType { Submit, Reply, History, Reaction, Pin, Edit };
     struct Pending {
         PendingType type = PendingType::Submit;
         std::string conversationId;
@@ -108,6 +122,8 @@ private:
         bool active = false;
         bool pinned = false;
         std::string clientOperationId;
+        std::uint32_t expectedRevision = 0;
+        std::string text;
     };
     Command command(int messageType, const std::string &payload,
                     const std::string &clientMessageId, Pending pending);

@@ -61,6 +61,7 @@ int main() {
     const std::string targetId = "50000000-0000-4000-8000-000000000001";
     const std::string replyId = "50000000-0000-4000-8000-000000000002";
     std::vector<std::string> ids{
+        "request-8",
         "request-7", "request-6", "request-5", "request-4", "request-3",
         "request-2", "request-1"};
     V2WindowsMessagingProtocolClient client(
@@ -159,14 +160,29 @@ int main() {
     pinHistory->set_actor_account_id("30000000-0000-4000-8000-000000000001");
     pinHistory->set_client_operation_id("pin-history-1");
     pinHistory->set_occurred_at_epoch_ms(875);
-    mutationPage.set_next_sequence(11);
-    mutationPage.set_latest_sequence(11);
+    auto *editEntry = mutationPage.add_entries();
+    editEntry->set_conversation_id(conversationId);
+    editEntry->set_conversation_sequence(12);
+    auto *editHistory = editEntry->mutable_edit();
+    editHistory->set_conversation_id(conversationId);
+    editHistory->set_conversation_sequence(12);
+    editHistory->set_message_id(replyId);
+    editHistory->set_content_revision(1);
+    editHistory->set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
+    editHistory->set_content("history edit");
+    editHistory->set_actor_account_id("30000000-0000-4000-8000-000000000001");
+    editHistory->set_client_operation_id("edit-history-1");
+    editHistory->set_occurred_at_epoch_ms(878);
+    mutationPage.set_next_sequence(13);
+    mutationPage.set_latest_sequence(13);
     const auto mutationEvent = client.receive(envelope(
         chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE, chat::v2::MESSAGE_KIND_RESPONSE,
         mutationHistory.requestId, sessionId, {}, mutationPage));
-    check(mutationEvent.nextSequence == 11 && mutationEvent.messages.empty()
+    check(mutationEvent.nextSequence == 13 && mutationEvent.messages.empty()
               && mutationEvent.reactionChanges.size() == 1
               && mutationEvent.pinChanges.size() == 1
+              && mutationEvent.editChanges.size() == 1
+              && mutationEvent.editChanges.front().text == "history edit"
               && mutationEvent.pinChanges.front().pinned
               && mutationEvent.reactionChanges.front().messageId == replyId
               && mutationEvent.reactionChanges.front().reaction
@@ -260,6 +276,52 @@ int main() {
     check(pinLive.type == V2WindowsMessagingProtocolClient::EventType::PinChanged
               && pinLive.conversationSequence == 13,
           "capable live pin must remain uncorrelated and ordered");
+
+    const auto editCommand = client.editMessage(
+        conversationId, replyId, 1, "edited on Windows", "edit-operation-1");
+    chat::v2::Envelope editEnvelope;
+    chat::v2::EditMessage editPayload;
+    check(editEnvelope.ParseFromString(editCommand.bytes)
+              && editEnvelope.message_type() == chat::v2::MESSAGE_TYPE_EDIT_MESSAGE
+              && editPayload.ParseFromString(editEnvelope.payload())
+              && editPayload.expected_revision() == 1
+              && editPayload.content() == "edited on Windows"
+              && editPayload.client_operation_id() == "edit-operation-1",
+          "edit command must preserve revision, content, and idempotency identity");
+    chat::v2::MessageEditApplied editApplied;
+    editApplied.set_conversation_id(conversationId);
+    editApplied.set_message_id(replyId);
+    editApplied.set_content_revision(2);
+    editApplied.set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
+    editApplied.set_content("edited on Windows");
+    editApplied.set_actor_account_id("30000000-0000-4000-8000-000000000001");
+    editApplied.set_client_operation_id("edit-operation-1");
+    editApplied.set_changed(true);
+    editApplied.set_conversation_sequence(14);
+    editApplied.set_occurred_at_epoch_ms(895);
+    const auto editAck = client.receive(envelope(
+        chat::v2::MESSAGE_TYPE_MESSAGE_EDIT_APPLIED, chat::v2::MESSAGE_KIND_RESPONSE,
+        editCommand.requestId, sessionId, {}, editApplied));
+    check(editAck.type == V2WindowsMessagingProtocolClient::EventType::EditApplied
+              && editAck.editChange.contentRevision == 2
+              && editAck.editChange.clientOperationId == "edit-operation-1",
+          "edit response must correlate the exact revision-safe operation");
+    chat::v2::MessageEditedRecord edited;
+    edited.set_conversation_id(conversationId);
+    edited.set_conversation_sequence(14);
+    edited.set_message_id(replyId);
+    edited.set_content_revision(2);
+    edited.set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
+    edited.set_content("edited on Windows");
+    edited.set_actor_account_id("30000000-0000-4000-8000-000000000001");
+    edited.set_client_operation_id("edit-operation-1");
+    edited.set_occurred_at_epoch_ms(895);
+    const auto editLive = client.receive(envelope(
+        chat::v2::MESSAGE_TYPE_MESSAGE_EDITED, chat::v2::MESSAGE_KIND_EVENT,
+        {}, sessionId, {}, edited));
+    check(editLive.type == V2WindowsMessagingProtocolClient::EventType::Edited
+              && editLive.conversationSequence == 14,
+          "capable live edit must remain uncorrelated and ordered");
 
     const auto invalidHistory = client.readHistory(conversationId, 8, 10);
     auto invalidPage = page;
