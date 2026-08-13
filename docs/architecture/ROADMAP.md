@@ -788,6 +788,9 @@ Progress:
       stale-token replacement, exact release/confirmation, reference exclusion,
       active-claim pointer rejection, and confirmed-object revival; verify the
       complete lifecycle against real PostgreSQL.
+    - [x] Add an inactive S3 profile-image deleter that accepts only canonical
+      content-addressed private keys, treats provider 404 as idempotent success,
+      and surfaces denial/failure for leased retry.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
