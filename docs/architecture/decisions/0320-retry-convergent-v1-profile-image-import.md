@@ -54,8 +54,12 @@ all account/room mappings, target availability, existing pointers, exact
 registered object evidence, active cleanup claims, and prior manifest runs.
 The inactive upload pass now rechecks bounded object bytes and requires exact
 create-only Provider results for every unique manifest object; database metadata
-never substitutes for Provider evidence. Atomic PostgreSQL apply remains
-incomplete. The current C++/SQLite runtime remains the rollback path.
+never substitutes for Provider evidence. The serializable PostgreSQL importer
+now registers/revives exact objects, writes version-1 pointers and explicit
+present/absent audit entries atomically, returns the retained run on exact
+retry, and re-reconciles mappings, pointers, objects, and audit after restart.
+It remains detached from an operator Provider/apply command. The current
+C++/SQLite runtime remains the rollback path.
 
 ## Verification
 

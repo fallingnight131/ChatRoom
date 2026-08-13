@@ -265,8 +265,10 @@ object provider.
 Exit status 2 or `status=PROFILE_IMAGES_BLOCKED` is a stop condition. Remediate
 invalid source data under a reviewed plan; never silently drop it or edit the
 manifest. This milestone has not yet implemented the object-storage/PostgreSQL
-importer, so even a verified export is evidence only and must not be uploaded or
-used to activate avatar handlers.
+Provider/apply operator command, so even a verified export is evidence only and
+must not be uploaded or used to activate avatar handlers. The underlying
+PostgreSQL adapter is implemented and tested, but invoking infrastructure pieces
+manually is not an approved migration procedure.
 
 ## Stop conditions
 

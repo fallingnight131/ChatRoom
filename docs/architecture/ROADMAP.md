@@ -814,7 +814,11 @@ Progress:
     - [x] Add inactive bounded upload orchestration that rechecks each unique
       canonical object, performs create-only Provider convergence even when
       PostgreSQL metadata already exists, and produces an exact-evidence apply
-      capability. PostgreSQL atomic apply still remains.
+      capability.
+    - [x] Add serializable PostgreSQL historical apply with exact object
+      registration/revival, version-1 account/group pointers, explicit absence
+      audit, no fabricated user-change events, whole-transaction rollback, and
+      retained-run exact retry/restart reconciliation.
     - [ ] Retain dated profile-image provider PASS, policy, lifecycle,
       no-object-remains, lease/timeout, rollback, and restart evidence; this
       destructive probe has not run in repository CI or this development host.

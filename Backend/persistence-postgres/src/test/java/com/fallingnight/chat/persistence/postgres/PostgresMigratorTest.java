@@ -106,6 +106,8 @@ import com.fallingnight.chat.persistence.postgres.migration.PostgresV1Conversati
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ContactRequestImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1MessageImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ProfileImageImportPlanner;
+import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ProfileImageImporter;
+import com.fallingnight.chat.persistence.postgres.migration.ProviderVerifiedV1ProfileImageImportInput;
 import com.fallingnight.chat.persistence.postgres.migration.PlannedV1ConversationCursor;
 import com.fallingnight.chat.persistence.postgres.migration.PlannedV1HistoricalMessage;
 import com.fallingnight.chat.persistence.postgres.migration.PlannedV1LegacyDevice;
@@ -114,6 +116,7 @@ import com.fallingnight.chat.persistence.postgres.migration.V1MessageImportRepor
 import com.fallingnight.chat.persistence.postgres.migration.V1MessageImportException;
 import com.fallingnight.chat.persistence.postgres.migration.V1ProfileImageImportEntry;
 import com.fallingnight.chat.persistence.postgres.migration.V1ProfileImageImportPlan;
+import com.fallingnight.chat.persistence.postgres.migration.V1ProfileImageImportException;
 import com.fallingnight.chat.persistence.postgres.migration.V1MessageImportBundleVerifier;
 import com.fallingnight.chat.persistence.postgres.migration.V1MessagePayloadImportInputVerifier;
 import com.fallingnight.chat.persistence.postgres.migration.V1MessagePayloadImportPlanner;
@@ -2069,13 +2072,15 @@ class PostgresMigratorTest {
     @Order(93)
     void previewsHistoricalProfileImagesBeforeAnyProviderWrite() throws Exception {
         requireDatabase(); truncateApplicationData();
-        UUID owner = UUID.randomUUID();
+        UUID owner = UUID.randomUUID(), noAvatar = UUID.randomUUID();
         try (Connection connection = connect()) {
             execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
                     + "password_hash) VALUES (?, 'avatar_import_owner', 'Import Owner', "
-                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')", owner);
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'avatar_import_absent', 'Import Absent', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')", owner, noAvatar);
             execute(connection, "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, "
-                    + "account_id) VALUES (301, ?)", owner);
+                    + "account_id) VALUES (301, ?), (302, ?)", owner, noAvatar);
         }
         LegacyV1RoomCreationResult.Created room = (LegacyV1RoomCreationResult.Created)
                 new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
@@ -2087,6 +2092,9 @@ class PostgresMigratorTest {
                         new V1ProfileImageImportEntry(
                                 V1ProfileImageImportEntry.Kind.ACCOUNT, 301,
                                 shared, 16, 16, Instant.parse("2026-08-13T01:00:00Z")),
+                        new V1ProfileImageImportEntry(
+                                V1ProfileImageImportEntry.Kind.ACCOUNT, 302,
+                                null, 0, 0, null),
                         new V1ProfileImageImportEntry(
                                 V1ProfileImageImportEntry.Kind.ROOM, room.legacyRoomId(),
                                 shared, 16, 16, Instant.parse("2026-08-13T02:00:00Z"))), 1);
@@ -2106,23 +2114,49 @@ class PostgresMigratorTest {
         assertEquals(1, registered.objectsAlreadyRegistered());
         assertEquals(1, registered.providerObjectsToVerify());
 
-        try (Connection connection = connect()) {
-            execute(connection, "INSERT INTO chat.account_profile_image(account_id, object_key, "
-                    + "width, height, version) VALUES (?, ?, 16, 16, 1)",
-                    owner, shared.objectKey());
-        }
+        var importer = new PostgresV1ProfileImageImporter(dataSource());
+        var applied = importer.apply(ProviderVerifiedV1ProfileImageImportInput.confirm(
+                plan, List.of(shared)));
+        assertFalse(applied.alreadyApplied()); assertEquals(2, applied.insertedPointers());
+        assertEquals(1, count("SELECT count(*) FROM chat.profile_image_import_run"));
+        assertEquals(3, count("SELECT count(*) FROM chat.profile_image_import_entry"));
+        assertEquals(1, count("SELECT count(*) FROM chat.profile_image_import_entry "
+                + "WHERE target_account_id = '" + noAvatar + "' AND object_key IS NULL "
+                + "AND width = 0 AND height = 0 AND source_updated_at IS NULL"));
+        assertEquals(0, count("SELECT count(*) FROM chat.profile_image_change_audit"));
+        assertEquals(1, count("SELECT count(*) FROM chat.account_profile_image "
+                + "WHERE account_id = '" + owner + "' AND version = 1"));
+        assertEquals(1, count("SELECT count(*) FROM chat.group_profile_image "
+                + "WHERE conversation_id = '" + room.conversationId() + "' AND version = 1"));
+
+        new PostgresMigrator(URL, USER, PASSWORD).validate();
+        var retry = new PostgresV1ProfileImageImporter(dataSource()).apply(
+                ProviderVerifiedV1ProfileImageImportInput.confirm(plan, List.of(shared)));
+        assertTrue(retry.alreadyApplied()); assertEquals(0, retry.insertedPointers());
+        assertEquals(applied.importRunId(), retry.importRunId());
+        assertEquals(1, count("SELECT count(*) FROM chat.profile_image_import_run"));
+        assertEquals(3, count("SELECT count(*) FROM chat.profile_image_import_entry"));
+
         var conflict = planner.preview(plan);
         assertFalse(conflict.readyForProviderWrites());
         assertTrue(conflict.issues().stream().anyMatch(issue ->
                 issue.code().equals("TARGET_POINTER_EXISTS")));
 
+        ProfileImageObjectEvidence unowned = profileImageEvidence(32, 20);
         V1ProfileImageImportPlan missingMapping = new V1ProfileImageImportPlan(
                 "d".repeat(64), "b".repeat(64), "c".repeat(64), List.of(
                         new V1ProfileImageImportEntry(
                                 V1ProfileImageImportEntry.Kind.ACCOUNT, 999,
-                                null, 0, 0, null)), 0);
+                                unowned, 8, 8,
+                                Instant.parse("2026-08-13T03:00:00Z"))), 1);
         assertTrue(planner.preview(missingMapping).issues().stream().anyMatch(issue ->
                 issue.code().equals("TARGET_MAPPING_MISSING")));
+        assertThrows(V1ProfileImageImportException.class, () -> importer.apply(
+                ProviderVerifiedV1ProfileImageImportInput.confirm(
+                        missingMapping, List.of(unowned))));
+        assertEquals(0, count("SELECT count(*) FROM chat.profile_image_object WHERE object_key = '"
+                + unowned.objectKey() + "'"));
+        assertEquals(1, count("SELECT count(*) FROM chat.profile_image_import_run"));
     }
 
     @Test

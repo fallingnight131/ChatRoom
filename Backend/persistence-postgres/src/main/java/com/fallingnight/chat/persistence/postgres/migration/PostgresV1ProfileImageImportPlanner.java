@@ -72,10 +72,10 @@ public final class PostgresV1ProfileImageImportPlanner {
         }
     }
 
-    private static Map<Long, Target> accountTargets(Connection connection) throws SQLException {
+    static Map<Long, Target> accountTargets(Connection connection) throws SQLException {
         Map<Long, Target> result = new HashMap<>();
         try (PreparedStatement statement = connection.prepareStatement("""
-                SELECT mapping.legacy_user_id, account.disabled_at,
+                SELECT mapping.legacy_user_id, account.id, account.disabled_at,
                        current.object_key
                 FROM chat.legacy_v1_account_map mapping
                 JOIN chat.account account ON account.id = mapping.account_id
@@ -83,15 +83,16 @@ public final class PostgresV1ProfileImageImportPlanner {
                   ON current.account_id = account.id
                 """); ResultSet row = statement.executeQuery()) {
             while (row.next()) putUnique(result, row.getLong(1),
-                    new Target(row.getObject(2) == null, row.getString(3)));
+                    new Target(row.getObject(2, UUID.class), row.getObject(3) == null,
+                            row.getString(4)));
         }
         return result;
     }
 
-    private static Map<Long, Target> roomTargets(Connection connection) throws SQLException {
+    static Map<Long, Target> roomTargets(Connection connection) throws SQLException {
         Map<Long, Target> result = new HashMap<>();
         try (PreparedStatement statement = connection.prepareStatement("""
-                SELECT mapping.legacy_conversation_id,
+                SELECT mapping.legacy_conversation_id, conversation.id,
                        lifecycle.conversation_id, lifecycle.closed_at, current.object_key
                 FROM chat.legacy_v1_conversation_map mapping
                 JOIN chat.conversation conversation
@@ -104,8 +105,9 @@ public final class PostgresV1ProfileImageImportPlanner {
                 WHERE mapping.legacy_kind = 'ROOM'
                 """); ResultSet row = statement.executeQuery()) {
             while (row.next()) putUnique(result, row.getLong(1),
-                    new Target(row.getObject(2) != null && row.getObject(3) == null,
-                            row.getString(4)));
+                    new Target(row.getObject(2, UUID.class),
+                            row.getObject(3) != null && row.getObject(4) == null,
+                            row.getString(5)));
         }
         return result;
     }
@@ -116,7 +118,7 @@ public final class PostgresV1ProfileImageImportPlanner {
             throw new SQLException("V1 profile image target mapping duplicated");
     }
 
-    private static Map<String, ProfileImageObjectEvidence> uniqueObjects(
+    static Map<String, ProfileImageObjectEvidence> uniqueObjects(
             V1ProfileImageImportPlan plan) {
         Map<String, ProfileImageObjectEvidence> result = new LinkedHashMap<>();
         for (V1ProfileImageImportEntry entry : plan.entries()) if (entry.present())
@@ -124,7 +126,7 @@ public final class PostgresV1ProfileImageImportPlanner {
         return result;
     }
 
-    private static Map<String, StoredObject> storedObjects(Connection connection,
+    static Map<String, StoredObject> storedObjects(Connection connection,
             Set<String> keys) throws SQLException {
         Map<String, StoredObject> result = new HashMap<>();
         List<String> ordered = new ArrayList<>(keys);
@@ -183,8 +185,8 @@ public final class PostgresV1ProfileImageImportPlanner {
         try { connection.rollback(); }
         catch (SQLException rollback) { original.addSuppressed(rollback); }
     }
-    private record Target(boolean available, String objectKey) { }
-    private record StoredObject(long bytes, byte[] digest, String mediaType,
+    record Target(UUID id, boolean available, String objectKey) { }
+    record StoredObject(long bytes, byte[] digest, String mediaType,
             boolean claimed, boolean deleted) {
         boolean matches(ProfileImageObjectEvidence expected) {
             return bytes == expected.byteSize()
