@@ -61,7 +61,9 @@ the S3 create-only write adapter and strict detached V1 upload handler are
 implemented but still lack real-provider evidence. A proof-bound offline
 extractor now turns V1 user/room avatar rows into deterministic canonical PNG
 objects plus an explicit absent/invalid manifest without opening the protected
-backup in place. Strict manifest verification, object/PostgreSQL import, and
+backup in place. An independent verifier now requires the externally retained
+manifest hash and rechecks the proof binding, record grammar/order/counts,
+canonical object bytes, and exact non-symlink tree. Object/PostgreSQL import and
 restart recovery remain activation gates.
 
 Cleanup claim concurrency and confirmed-object revival follow ADR-0319.

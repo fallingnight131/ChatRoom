@@ -800,7 +800,11 @@ Progress:
     - [x] Add proof-bound, deterministic V1 SQLite user/room avatar extraction
       with explicit absent/invalid records, bounded canonical PNG objects,
       content deduplication, and a SHA-256 manifest. The export is offline
-      evidence only; strict manifest verification and target import remain.
+      evidence only.
+    - [x] Add an independent strict export verifier requiring the expected
+      manifest hash, proof binding, exact ordered/count-reconciled records,
+      canonical object bytes, and a no-symlink/no-extra-path directory tree.
+      Object-storage/PostgreSQL import still remains.
     - [ ] Retain dated profile-image provider PASS, policy, lifecycle,
       no-object-remains, lease/timeout, rollback, and restart evidence; this
       destructive probe has not run in repository CI or this development host.

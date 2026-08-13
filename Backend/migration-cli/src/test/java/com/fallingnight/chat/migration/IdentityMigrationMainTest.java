@@ -164,6 +164,20 @@ class IdentityMigrationMainTest {
         assertFalse(text.contains(source.toString())); assertFalse(text.contains(backup.toString()));
         assertFalse(text.contains("alice"));
         assertTrue(Files.isRegularFile(export.resolve("profile-images.tsv")));
+
+        String manifestSha = text.lines()
+                .filter(line -> line.startsWith("manifest_sha256="))
+                .findFirst().orElseThrow().substring("manifest_sha256=".length());
+        ByteArrayOutputStream verifiedOutput = new ByteArrayOutputStream();
+        assertEquals(0, IdentityMigrationMain.run(new String[] {"profile-image-verify",
+                    export.toString(), proof.toString(), manifestSha}, Map.of(),
+                new PrintStream(verifiedOutput, true, StandardCharsets.UTF_8),
+                new PrintStream(new ByteArrayOutputStream()), Clock.systemUTC()));
+        String verifiedText = verifiedOutput.toString(StandardCharsets.UTF_8);
+        assertTrue(verifiedText.contains("status=PROFILE_IMAGE_EXPORT_VERIFIED"));
+        assertTrue(verifiedText.contains("entries=1"));
+        assertFalse(verifiedText.contains(export.toString()));
+        assertFalse(verifiedText.contains("alice"));
     }
 
     @Test

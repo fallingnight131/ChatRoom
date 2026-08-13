@@ -1,6 +1,7 @@
 package com.fallingnight.chat.migration;
 
 import com.fallingnight.chat.migration.profile.V1ProfileImageExporter;
+import com.fallingnight.chat.migration.profile.V1ProfileImageExportVerifier;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ConversationImporter;
@@ -104,6 +105,9 @@ public final class IdentityMigrationMain {
             }
             if (args.length == 4 && "profile-image-export".equals(args[0])) {
                 return profileImageExport(args, output);
+            }
+            if (args.length == 4 && "profile-image-verify".equals(args[0])) {
+                return profileImageVerify(args, output);
             }
             usage(error);
             return 64;
@@ -504,6 +508,8 @@ public final class IdentityMigrationMain {
                 + "<proof.properties> <state-fingerprint> <payload-fingerprint>");
         error.println("  profile-image-export <backup.db> <proof.properties> "
                 + "<new-export-directory>");
+        error.println("  profile-image-verify <export-directory> <proof.properties> "
+                + "<manifest-sha256>");
     }
 
     private static int profileImageExport(String[] args, PrintStream output) {
@@ -520,5 +526,21 @@ public final class IdentityMigrationMain {
         output.println("invalid=" + report.invalid());
         output.println("unique_objects=" + report.uniqueObjects());
         return report.readyToImport() ? 0 : 2;
+    }
+
+    private static int profileImageVerify(String[] args, PrintStream output) {
+        VerifiedV1IdentityBackup proof = new V1IdentityBackupProofFile()
+                .read(Path.of(args[2]));
+        var verified = new V1ProfileImageExportVerifier().verify(
+                Path.of(args[1]), proof, args[3]);
+        long present = verified.entries().stream()
+                .filter(entry -> entry.present()).count();
+        output.println("status=PROFILE_IMAGE_EXPORT_VERIFIED");
+        output.println("manifest_sha256=" + verified.manifestSha256());
+        output.println("entries=" + verified.entries().size());
+        output.println("present=" + present);
+        output.println("absent=" + (verified.entries().size() - present));
+        output.println("unique_objects=" + verified.uniqueObjects());
+        return 0;
     }
 }

@@ -90,6 +90,62 @@ final class V1ProfileImageExporterTest {
         assertFalse(Files.exists(destination));
     }
 
+    @Test void verifierRechecksManifestCanonicalObjectsAndExactTree() throws Exception {
+        Path backup = temporary.resolve("verified.sqlite"); createFixture(backup, png(), true);
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + backup);
+                Statement statement = connection.createStatement()) {
+            statement.execute("DELETE FROM room_avatars WHERE room_id = 10");
+        }
+        VerifiedV1IdentityBackup proof = proof(backup);
+        var report = new V1ProfileImageExporter().export(
+                backup, proof, temporary.resolve("verified-export"));
+        assertTrue(report.readyToImport());
+
+        var verified = new V1ProfileImageExportVerifier().verify(
+                report.destination(), proof, report.manifestSha256());
+        assertEquals(report.entries(), verified.entries().size());
+        assertEquals(1, verified.uniqueObjects());
+        assertEquals(2, verified.entries().stream().filter(
+                VerifiedV1ProfileImageExport.Entry::present).count());
+
+        Files.writeString(report.destination().resolve("unexpected.txt"), "unexpected");
+        assertThrows(V1ProfileImageExportException.class,
+                () -> new V1ProfileImageExportVerifier().verify(
+                        report.destination(), proof, report.manifestSha256()));
+    }
+
+    @Test void verifierRejectsObjectTamperingEvenWithUntouchedManifest() throws Exception {
+        Path backup = temporary.resolve("tampered.sqlite"); createFixture(backup, png(), true);
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + backup);
+                Statement statement = connection.createStatement()) {
+            statement.execute("DELETE FROM room_avatars WHERE room_id = 10");
+        }
+        VerifiedV1IdentityBackup proof = proof(backup);
+        var report = new V1ProfileImageExporter().export(
+                backup, proof, temporary.resolve("tampered-export"));
+        Path object;
+        try (var paths = Files.walk(report.destination().resolve("objects"))) {
+            object = paths.filter(Files::isRegularFile).findFirst().orElseThrow();
+        }
+        byte[] bytes = Files.readAllBytes(object); bytes[bytes.length - 1] ^= 1;
+        Files.write(object, bytes, StandardOpenOption.TRUNCATE_EXISTING);
+        assertThrows(V1ProfileImageExportException.class,
+                () -> new V1ProfileImageExportVerifier().verify(
+                        report.destination(), proof, report.manifestSha256()));
+    }
+
+    @Test void verifierRejectsInvalidEvidenceBundle() throws Exception {
+        Path backup = temporary.resolve("invalid-bundle.sqlite");
+        createFixture(backup, png(), true);
+        VerifiedV1IdentityBackup proof = proof(backup);
+        var report = new V1ProfileImageExporter().export(
+                backup, proof, temporary.resolve("invalid-bundle-export"));
+        assertFalse(report.readyToImport());
+        assertThrows(V1ProfileImageExportException.class,
+                () -> new V1ProfileImageExportVerifier().verify(
+                        report.destination(), proof, report.manifestSha256()));
+    }
+
     private static void createFixture(Path database, byte[] png, boolean populate)
             throws Exception {
         try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + database);

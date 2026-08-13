@@ -234,11 +234,23 @@ access-controlled storage. Every mapped user and room has an explicit manifest
 record: missing/empty source data remains `ABSENT`, exact canonical content is
 deduplicated as `PRESENT`, and malformed or oversized data is `INVALID`.
 
+Before any downstream use, independently verify the preserved bundle using the
+exact manifest hash retained separately with the migration evidence:
+
+```bash
+./gradlew --no-daemon :migration-cli:run --args='profile-image-verify <export-directory> <final-proof.properties> <manifest-sha256>'
+```
+
+Require `status=PROFILE_IMAGE_EXPORT_VERIFIED` and reconcile the printed counts
+with the export evidence. The verifier rejects a substituted manifest, proof
+mismatch, invalid record, non-canonical/tampered object, symbolic link, missing
+path, or unexpected path. It prints neither target IDs nor local paths.
+
 Exit status 2 or `status=PROFILE_IMAGES_BLOCKED` is a stop condition. Remediate
 invalid source data under a reviewed plan; never silently drop it or edit the
-manifest. This milestone has not yet implemented the independent strict
-manifest verifier or the object-storage/PostgreSQL importer, so the export is
-evidence only and must not be uploaded or used to activate avatar handlers.
+manifest. This milestone has not yet implemented the object-storage/PostgreSQL
+importer, so even a verified export is evidence only and must not be uploaded or
+used to activate avatar handlers.
 
 ## Stop conditions
 
