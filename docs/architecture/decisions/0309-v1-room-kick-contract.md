@@ -25,7 +25,7 @@ inactive membership generation returns the original result with
 `changed=false`. Voluntary leave, a kick by another actor, and a prior kick
 followed by rejoin are not exact retries.
 
-The persistence slice must therefore write an append-only administrative kick
+V032 and the PostgreSQL adapter write an append-only administrative kick
 record in the same serializable transaction that sets membership `left_at`.
 Retry recognition must match conversation, actor, target, and the exact current
 membership `left_at`. Rejoin clears `left_at`, creating a new active generation
@@ -43,5 +43,8 @@ later composition and cutover gate.
   than trusting client state.
 - Durable audit distinguishes administrative removal from voluntary leave and
   survives reconnect or process restart.
-- This slice defines no schema, handler, or listener change; those follow as
-  independently verified commits.
+- Disposable PostgreSQL verifies clean/restart migration, unauthorized actor,
+  protected role, non-member target, first kick, exact retry, different-actor
+  denial, rejoin, and a distinct second-generation audit event.
+- The detached handler and product listener remain subsequent independently
+  verified slices.

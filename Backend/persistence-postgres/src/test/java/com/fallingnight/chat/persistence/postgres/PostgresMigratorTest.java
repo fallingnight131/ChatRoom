@@ -54,6 +54,8 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomLeaveInten
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomLeaveResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomAdminCommand;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomAdminResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomKickCommand;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomKickResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMemberListPort;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettings;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettingsPort;
@@ -151,7 +153,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(31, first.migrate());
+        assertEquals(32, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -173,7 +175,7 @@ class PostgresMigratorTest {
                             "contact_request_import_run", "group_join_credential",
                             "legacy_v1_room_creation", "group_admission_policy",
                             "group_lifecycle", "group_resource_policy",
-                            "legacy_v1_attachment_map"),
+                            "legacy_v1_attachment_map", "legacy_v1_room_kick_event"),
                     applicationTables(connection));
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
@@ -1318,6 +1320,79 @@ class PostgresMigratorTest {
         assertEquals(LegacyV1RoomReadResult.Rejected.ROOM_ACCESS_DENIED,
                 new PostgresLegacyV1RoomReadAdapter(dataSource()).markRead(
                         new LegacyV1RoomReadCommand(admin, created.legacyRoomId())));
+    }
+
+    @Test
+    @Order(93)
+    void kicksV1RoomMembersAtomicallyWithGenerationBoundRetryAudit() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID owner = UUID.randomUUID(), admin = UUID.randomUUID();
+        UUID member = UUID.randomUUID(), outsider = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'kick-owner', 'Owner', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'kick-admin', 'Admin', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'kick-member', 'Member', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'kick-outsider', 'Outsider', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    owner, admin, member, outsider);
+            execute(connection, "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, "
+                    + "account_id) VALUES (85, ?), (86, ?), (87, ?), (88, ?)",
+                    owner, admin, member, outsider);
+        }
+        var created = (LegacyV1RoomCreationResult.Created)
+                new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
+                        new LegacyV1RoomCreationIntent(owner, "kick-room-create",
+                                "Kick Room", Optional.empty()));
+        PostgresLegacyV1RoomJoinAdapter joins = new PostgresLegacyV1RoomJoinAdapter(dataSource());
+        for (UUID account : List.of(admin, member)) {
+            var access = (LegacyV1RoomJoinAccess.Candidate)
+                    joins.inspect(account, created.legacyRoomId());
+            joins.join(new LegacyV1RoomJoinIntent(account, access.conversationId(),
+                    access.legacyRoomId(), access.joinCredential()));
+        }
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.conversation_member SET role = 'ADMIN' "
+                    + "WHERE conversation_id = ? AND account_id = ?",
+                    created.conversationId(), admin);
+        }
+
+        PostgresLegacyV1RoomKickAdapter kicks = new PostgresLegacyV1RoomKickAdapter(dataSource());
+        assertEquals(LegacyV1RoomKickResult.Rejected.ROOM_ADMIN_REQUIRED,
+                kicks.kick(new LegacyV1RoomKickCommand(
+                        member, created.legacyRoomId(), "kick-admin")));
+        assertEquals(LegacyV1RoomKickResult.Rejected.TARGET_ROLE_PROTECTED,
+                kicks.kick(new LegacyV1RoomKickCommand(
+                        owner, created.legacyRoomId(), "kick-admin")));
+        assertEquals(LegacyV1RoomKickResult.Rejected.TARGET_NOT_ACTIVE_MEMBER,
+                kicks.kick(new LegacyV1RoomKickCommand(
+                        owner, created.legacyRoomId(), "kick-outsider")));
+
+        var first = (LegacyV1RoomKickResult.Kicked) kicks.kick(
+                new LegacyV1RoomKickCommand(owner, created.legacyRoomId(), "kick-member"));
+        assertTrue(first.changed()); assertEquals("Kick Room", first.roomName());
+        var retry = (LegacyV1RoomKickResult.Kicked) kicks.kick(
+                new LegacyV1RoomKickCommand(owner, created.legacyRoomId(), "kick-member"));
+        assertFalse(retry.changed()); assertEquals(first.kickedAt(), retry.kickedAt());
+        assertEquals(LegacyV1RoomKickResult.Rejected.TARGET_NOT_ACTIVE_MEMBER,
+                kicks.kick(new LegacyV1RoomKickCommand(
+                        admin, created.legacyRoomId(), "kick-member")));
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_room_kick_event "
+                + "WHERE conversation_id = '" + created.conversationId() + "'"));
+
+        var candidate = (LegacyV1RoomJoinAccess.Candidate)
+                joins.inspect(member, created.legacyRoomId());
+        assertTrue(((LegacyV1RoomJoinResult.Joined) joins.join(
+                new LegacyV1RoomJoinIntent(member, candidate.conversationId(),
+                        candidate.legacyRoomId(), candidate.joinCredential()))).newJoin());
+        var second = (LegacyV1RoomKickResult.Kicked) kicks.kick(
+                new LegacyV1RoomKickCommand(owner, created.legacyRoomId(), "kick-member"));
+        assertTrue(second.changed()); assertNotEquals(first.kickedAt(), second.kickedAt());
+        assertEquals(2, count("SELECT count(*) FROM chat.legacy_v1_room_kick_event "
+                + "WHERE conversation_id = '" + created.conversationId() + "'"));
     }
 
     @Test

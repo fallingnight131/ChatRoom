@@ -875,6 +875,13 @@ returns `changed=false` and suppresses duplicate notifications. The detached
 compatibility module composes this path and real PostgreSQL proves
 login-to-promotion, target notification, directory refresh, and
 replacement-login role recovery. No product listener is changed yet.
+ADR-0309 defines the next moderation boundary. A server-bound OWNER/ADMIN may
+kick only an active mapped MEMBER. V032 records an append-only kick event in the
+same serializable transaction as membership `left_at`; exact retry must match
+conversation, actor, target, and that precise membership-generation timestamp.
+Voluntary leave, another operator, or rejoin cannot impersonate the retry.
+PostgreSQL proves protected roles, first/retry behavior, rejoin separation, and
+audit retention. No handler or product listener is composed yet.
 
 ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
 create-only, length, type, and SHA-256 constraints and reads checksum-enabled
