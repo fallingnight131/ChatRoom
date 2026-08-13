@@ -31,11 +31,15 @@ PROTOBUF_CONSTINIT ::google::protobuf::internal::ReflectionData
     file_reflection_data[] = {
         // ::chat::v2::SubmitMessage
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
+        // ::chat::v2::SubmitReplyMessage
+        {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
         // ::chat::v2::MessageAccepted
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
         // ::chat::v2::ReadMessageHistory
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
         // ::chat::v2::MessageRecord
+        {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
+        // ::chat::v2::MessageReplyReference
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
         // ::chat::v2::MessageRecalledRecord
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
@@ -50,6 +54,178 @@ PROTOBUF_CONSTINIT ::google::protobuf::internal::ReflectionData
 #endif
 namespace chat {
 namespace v2 {
+class SubmitReplyMessage::_Internal {
+ public:
+  using HasBits = decltype(::std::declval<SubmitReplyMessage>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(SubmitReplyMessage, _impl_._has_bits_);
+};
+
+constexpr SubmitReplyMessage::ParseTableT_ SubmitReplyMessage::InternalGenerateParseTable_(const ::_pbi::ClassData* class_data) {
+  return ParseTableT_{
+    {
+      PROTOBUF_FIELD_OFFSET(SubmitReplyMessage, _impl_._has_bits_),
+      0, // no _extensions_
+      4, 24,  // max_field_number, fast_idx_mask
+      offsetof(ParseTableT_, field_lookup_table),
+      4294967280,  // skipmap
+      offsetof(ParseTableT_, field_entries),
+      4,  // num_field_entries
+      0,  // num_aux_entries
+      offsetof(ParseTableT_, field_names),  // no aux_entries
+      class_data,
+      nullptr,  // post_loop_handler
+      ::_pbi::TcParser::GenericFallback,  // fallback
+      #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+      ::_pbi::TcParser::GetTable<::chat::v2::SubmitReplyMessage>(),  // to_prefetch
+      #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+    }, {{
+      // bytes content = 4;
+      {::_pbi::TcParser::FastBS1,
+       {34, 2, 0,
+        PROTOBUF_FIELD_OFFSET(SubmitReplyMessage, _impl_.content_)}},
+      // string conversation_id = 1;
+      {::_pbi::TcParser::FastUS1,
+       {10, 0, 0,
+        PROTOBUF_FIELD_OFFSET(SubmitReplyMessage, _impl_.conversation_id_)}},
+      // string target_message_id = 2;
+      {::_pbi::TcParser::FastUS1,
+       {18, 1, 0,
+        PROTOBUF_FIELD_OFFSET(SubmitReplyMessage, _impl_.target_message_id_)}},
+      // uint32 content_type = 3;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(SubmitReplyMessage, _impl_.content_type_), 3>(),
+       {24, 3, 0,
+        PROTOBUF_FIELD_OFFSET(SubmitReplyMessage, _impl_.content_type_)}},
+    }}, {{
+      65535, 65535
+    }}, {{
+      // string conversation_id = 1;
+      {PROTOBUF_FIELD_OFFSET(SubmitReplyMessage, _impl_.conversation_id_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // string target_message_id = 2;
+      {PROTOBUF_FIELD_OFFSET(SubmitReplyMessage, _impl_.target_message_id_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // uint32 content_type = 3;
+      {PROTOBUF_FIELD_OFFSET(SubmitReplyMessage, _impl_.content_type_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+      // bytes content = 4;
+      {PROTOBUF_FIELD_OFFSET(SubmitReplyMessage, _impl_.content_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kBytes | ::_fl::kRepAString)},
+    }},
+    // no aux_entries
+    {{
+      "\32\17\21\0\0\0\0\0"
+      "chat.v2.SubmitReplyMessage"
+      "conversation_id"
+      "target_message_id"
+    }},
+  };
+}
+
+
+inline constexpr SubmitReplyMessage::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        conversation_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        target_message_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        content_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        content_type_{0u} {}
+
+template <typename>
+constexpr SubmitReplyMessage::SubmitReplyMessage(::_pbi::ConstantInitialized,
+                       const ::_pbi::ClassData* PROTOBUF_NONNULL class_data)
+    : ::google::protobuf::Message(
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          class_data
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          ),
+      _impl_(internal_visibility(), ::_pbi::ConstantInitialized()) {
+}
+inline void* PROTOBUF_NONNULL SubmitReplyMessage::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) SubmitReplyMessage(arena);
+}
+constexpr auto SubmitReplyMessage::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(SubmitReplyMessage), alignof(SubmitReplyMessage));
+}
+constexpr auto SubmitReplyMessage::InternalGenerateClassData_(
+    const MessageLite& prototype,
+    const ::google::protobuf::internal::TcParseTableBase* tc_table) {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &prototype,
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+          &_table_.header,
+#else
+          tc_table,
+#endif
+          nullptr,  // IsInitialized
+          &SubmitReplyMessage::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<SubmitReplyMessage>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &SubmitReplyMessage::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<SubmitReplyMessage>(), &SubmitReplyMessage::ByteSizeLong,
+              &SubmitReplyMessage::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(SubmitReplyMessage, _impl_._cached_size_),
+          false,
+      },
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+      &file_reflection_data[1],
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+      &::_pbi::kDescriptorMethods,
+      &descriptor_table_chat_2fv2_2fmessaging_2eproto,
+      nullptr,  // tracker
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  };
+}
+struct SubmitReplyMessageGlobalsTypeInternal : ::_pbi::MessageGlobalsBase {
+  constexpr SubmitReplyMessageGlobalsTypeInternal()
+      :
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+        _default(::_pbi::ConstantInitialized{},
+                 SubmitReplyMessage_class_data_.base())
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+        MessageGlobalsBase(SubmitReplyMessage::InternalGenerateClassData_(
+            _default, &SubmitReplyMessage_globals_._table.header)),
+        _default(::_pbi::ConstantInitialized{}, GetClassData()),
+        _table(::_pbi::PrivateAccess::GenerateParseTable<SubmitReplyMessage>(
+            GetClassData()))
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  {
+  }
+  ~SubmitReplyMessageGlobalsTypeInternal() {}
+  union {
+    alignas(::_pbi::kMaxMessageAlignment) SubmitReplyMessage _default;
+  };
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  decltype(::_pbi::PrivateAccess::GenerateParseTable<SubmitReplyMessage>(
+      ::std::declval<const ::_pbi::ClassData*>())) _table;
+#endif
+};
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+static_assert(PROTOBUF_FIELD_OFFSET(SubmitReplyMessageGlobalsTypeInternal, _default) ==
+              ::_pbi::MessageGlobalsBase::OffsetToDefault());
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PROTOBUF_MESSAGE_GLOBALS_CONST SubmitReplyMessageGlobalsTypeInternal SubmitReplyMessage_globals_
+        PROTOBUF_MESSAGE_GLOBALS_SECTION(.data.rel.ro);
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+namespace {
+const ::_pbi::ClassData* SubmitReplyMessage_get_class_data() {
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  return SubmitReplyMessage_globals_.GetClassData();
+#else
+  return SubmitReplyMessage_class_data_.base();
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+}
+}  // namespace
+#endif  // PROTOBUF_CUSTOM_VTABLE
 class SubmitMessage::_Internal {
  public:
   using HasBits = decltype(::std::declval<SubmitMessage>()._impl_._has_bits_);
@@ -323,7 +499,7 @@ constexpr auto ReadMessageHistory::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[2],
+      &file_reflection_data[3],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -564,7 +740,7 @@ constexpr auto MessagesDeletedRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[5],
+      &file_reflection_data[7],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -615,139 +791,80 @@ const ::_pbi::ClassData* MessagesDeletedRecord_get_class_data() {
 }
 }  // namespace
 #endif  // PROTOBUF_CUSTOM_VTABLE
-class MessageRecord::_Internal {
+class MessageReplyReference::_Internal {
  public:
-  using HasBits = decltype(::std::declval<MessageRecord>()._impl_._has_bits_);
+  using HasBits = decltype(::std::declval<MessageReplyReference>()._impl_._has_bits_);
   static constexpr ::int32_t kHasBitsOffset =
-      8 * PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_._has_bits_);
+      8 * PROTOBUF_FIELD_OFFSET(MessageReplyReference, _impl_._has_bits_);
 };
 
-constexpr MessageRecord::ParseTableT_ MessageRecord::InternalGenerateParseTable_(const ::_pbi::ClassData* class_data) {
+constexpr MessageReplyReference::ParseTableT_ MessageReplyReference::InternalGenerateParseTable_(const ::_pbi::ClassData* class_data) {
   return ParseTableT_{
     {
-      PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_._has_bits_),
+      PROTOBUF_FIELD_OFFSET(MessageReplyReference, _impl_._has_bits_),
       0, // no _extensions_
-      9, 120,  // max_field_number, fast_idx_mask
+      3, 24,  // max_field_number, fast_idx_mask
       offsetof(ParseTableT_, field_lookup_table),
-      4294966784,  // skipmap
+      4294967288,  // skipmap
       offsetof(ParseTableT_, field_entries),
-      9,  // num_field_entries
+      3,  // num_field_entries
       0,  // num_aux_entries
       offsetof(ParseTableT_, field_names),  // no aux_entries
       class_data,
       nullptr,  // post_loop_handler
       ::_pbi::TcParser::GenericFallback,  // fallback
       #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
-      ::_pbi::TcParser::GetTable<::chat::v2::MessageRecord>(),  // to_prefetch
+      ::_pbi::TcParser::GetTable<::chat::v2::MessageReplyReference>(),  // to_prefetch
       #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
     }, {{
       {::_pbi::TcParser::MiniParse, {}},
-      // string conversation_id = 1;
+      // string target_message_id = 1;
       {::_pbi::TcParser::FastUS1,
        {10, 0, 0,
-        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.conversation_id_)}},
-      // string message_id = 2;
+        PROTOBUF_FIELD_OFFSET(MessageReplyReference, _impl_.target_message_id_)}},
+      // uint64 target_conversation_sequence = 2;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(MessageReplyReference, _impl_.target_conversation_sequence_), 2>(),
+       {16, 2, 0,
+        PROTOBUF_FIELD_OFFSET(MessageReplyReference, _impl_.target_conversation_sequence_)}},
+      // string target_sender_account_id = 3;
       {::_pbi::TcParser::FastUS1,
-       {18, 1, 0,
-        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.message_id_)}},
-      // uint64 conversation_sequence = 3;
-      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(MessageRecord, _impl_.conversation_sequence_), 6>(),
-       {24, 6, 0,
-        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.conversation_sequence_)}},
-      // string sender_account_id = 4;
-      {::_pbi::TcParser::FastUS1,
-       {34, 2, 0,
-        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.sender_account_id_)}},
-      // string sender_device_id = 5;
-      {::_pbi::TcParser::FastUS1,
-       {42, 3, 0,
-        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.sender_device_id_)}},
-      // string client_message_id = 6;
-      {::_pbi::TcParser::FastUS1,
-       {50, 4, 0,
-        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.client_message_id_)}},
-      // uint32 content_type = 7;
-      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MessageRecord, _impl_.content_type_), 8>(),
-       {56, 8, 0,
-        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.content_type_)}},
-      // bytes content = 8;
-      {::_pbi::TcParser::FastBS1,
-       {66, 5, 0,
-        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.content_)}},
-      // int64 accepted_at_epoch_ms = 9;
-      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(MessageRecord, _impl_.accepted_at_epoch_ms_), 7>(),
-       {72, 7, 0,
-        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.accepted_at_epoch_ms_)}},
-      {::_pbi::TcParser::MiniParse, {}},
-      {::_pbi::TcParser::MiniParse, {}},
-      {::_pbi::TcParser::MiniParse, {}},
-      {::_pbi::TcParser::MiniParse, {}},
-      {::_pbi::TcParser::MiniParse, {}},
-      {::_pbi::TcParser::MiniParse, {}},
+       {26, 1, 0,
+        PROTOBUF_FIELD_OFFSET(MessageReplyReference, _impl_.target_sender_account_id_)}},
     }}, {{
       65535, 65535
     }}, {{
-      // string conversation_id = 1;
-      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.conversation_id_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
-      // string message_id = 2;
-      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.message_id_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
-      // uint64 conversation_sequence = 3;
-      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.conversation_sequence_), _Internal::kHasBitsOffset + 6, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt64)},
-      // string sender_account_id = 4;
-      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.sender_account_id_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
-      // string sender_device_id = 5;
-      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.sender_device_id_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
-      // string client_message_id = 6;
-      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.client_message_id_), _Internal::kHasBitsOffset + 4, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
-      // uint32 content_type = 7;
-      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.content_type_), _Internal::kHasBitsOffset + 8, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
-      // bytes content = 8;
-      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.content_), _Internal::kHasBitsOffset + 5, 0, (0 | ::_fl::kFcOptional | ::_fl::kBytes | ::_fl::kRepAString)},
-      // int64 accepted_at_epoch_ms = 9;
-      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.accepted_at_epoch_ms_), _Internal::kHasBitsOffset + 7, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt64)},
+      // string target_message_id = 1;
+      {PROTOBUF_FIELD_OFFSET(MessageReplyReference, _impl_.target_message_id_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // uint64 target_conversation_sequence = 2;
+      {PROTOBUF_FIELD_OFFSET(MessageReplyReference, _impl_.target_conversation_sequence_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt64)},
+      // string target_sender_account_id = 3;
+      {PROTOBUF_FIELD_OFFSET(MessageReplyReference, _impl_.target_sender_account_id_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
     }},
     // no aux_entries
     {{
-      "\25\17\12\0\21\20\21\0\0\0\0\0\0\0\0\0"
-      "chat.v2.MessageRecord"
-      "conversation_id"
-      "message_id"
-      "sender_account_id"
-      "sender_device_id"
-      "client_message_id"
+      "\35\21\0\30\0\0\0\0"
+      "chat.v2.MessageReplyReference"
+      "target_message_id"
+      "target_sender_account_id"
     }},
   };
 }
 
 
-inline constexpr MessageRecord::Impl_::Impl_(
+inline constexpr MessageReplyReference::Impl_::Impl_(
     [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
     ::_pbi::ConstantInitialized) noexcept
       : _cached_size_{0},
-        conversation_id_(
+        target_message_id_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
-        message_id_(
+        target_sender_account_id_(
             &::google::protobuf::internal::fixed_address_empty_string,
             ::_pbi::ConstantInitialized()),
-        sender_account_id_(
-            &::google::protobuf::internal::fixed_address_empty_string,
-            ::_pbi::ConstantInitialized()),
-        sender_device_id_(
-            &::google::protobuf::internal::fixed_address_empty_string,
-            ::_pbi::ConstantInitialized()),
-        client_message_id_(
-            &::google::protobuf::internal::fixed_address_empty_string,
-            ::_pbi::ConstantInitialized()),
-        content_(
-            &::google::protobuf::internal::fixed_address_empty_string,
-            ::_pbi::ConstantInitialized()),
-        conversation_sequence_{::uint64_t{0u}},
-        accepted_at_epoch_ms_{::int64_t{0}},
-        content_type_{0u} {}
+        target_conversation_sequence_{::uint64_t{0u}} {}
 
 template <typename>
-constexpr MessageRecord::MessageRecord(::_pbi::ConstantInitialized,
+constexpr MessageReplyReference::MessageReplyReference(::_pbi::ConstantInitialized,
                        const ::_pbi::ClassData* PROTOBUF_NONNULL class_data)
     : ::google::protobuf::Message(
 #if defined(PROTOBUF_CUSTOM_VTABLE)
@@ -756,15 +873,15 @@ constexpr MessageRecord::MessageRecord(::_pbi::ConstantInitialized,
           ),
       _impl_(internal_visibility(), ::_pbi::ConstantInitialized()) {
 }
-inline void* PROTOBUF_NONNULL MessageRecord::PlacementNew_(
+inline void* PROTOBUF_NONNULL MessageReplyReference::PlacementNew_(
     const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
     ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
-  return ::new (mem) MessageRecord(arena);
+  return ::new (mem) MessageReplyReference(arena);
 }
-constexpr auto MessageRecord::InternalNewImpl_() {
-  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(MessageRecord), alignof(MessageRecord));
+constexpr auto MessageReplyReference::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(MessageReplyReference), alignof(MessageReplyReference));
 }
-constexpr auto MessageRecord::InternalGenerateClassData_(
+constexpr auto MessageReplyReference::InternalGenerateClassData_(
     const MessageLite& prototype,
     const ::google::protobuf::internal::TcParseTableBase* tc_table) {
   return ::google::protobuf::internal::ClassDataFull{
@@ -776,18 +893,18 @@ constexpr auto MessageRecord::InternalGenerateClassData_(
           tc_table,
 #endif
           nullptr,  // IsInitialized
-          &MessageRecord::MergeImpl,
-          ::google::protobuf::Message::GetNewImpl<MessageRecord>(),
+          &MessageReplyReference::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<MessageReplyReference>(),
 #if defined(PROTOBUF_CUSTOM_VTABLE)
-          &MessageRecord::SharedDtor,
-          ::google::protobuf::Message::GetClearImpl<MessageRecord>(), &MessageRecord::ByteSizeLong,
-              &MessageRecord::_InternalSerialize,
+          &MessageReplyReference::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<MessageReplyReference>(), &MessageReplyReference::ByteSizeLong,
+              &MessageReplyReference::_InternalSerialize,
 #endif  // PROTOBUF_CUSTOM_VTABLE
-          PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_._cached_size_),
+          PROTOBUF_FIELD_OFFSET(MessageReplyReference, _impl_._cached_size_),
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[3],
+      &file_reflection_data[5],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -795,45 +912,45 @@ constexpr auto MessageRecord::InternalGenerateClassData_(
 #endif  // PROTOBUF_MESSAGE_GLOBALS
   };
 }
-struct MessageRecordGlobalsTypeInternal : ::_pbi::MessageGlobalsBase {
-  constexpr MessageRecordGlobalsTypeInternal()
+struct MessageReplyReferenceGlobalsTypeInternal : ::_pbi::MessageGlobalsBase {
+  constexpr MessageReplyReferenceGlobalsTypeInternal()
       :
 #ifndef PROTOBUF_MESSAGE_GLOBALS
         _default(::_pbi::ConstantInitialized{},
-                 MessageRecord_class_data_.base())
+                 MessageReplyReference_class_data_.base())
 #else   // !PROTOBUF_MESSAGE_GLOBALS
-        MessageGlobalsBase(MessageRecord::InternalGenerateClassData_(
-            _default, &MessageRecord_globals_._table.header)),
+        MessageGlobalsBase(MessageReplyReference::InternalGenerateClassData_(
+            _default, &MessageReplyReference_globals_._table.header)),
         _default(::_pbi::ConstantInitialized{}, GetClassData()),
-        _table(::_pbi::PrivateAccess::GenerateParseTable<MessageRecord>(
+        _table(::_pbi::PrivateAccess::GenerateParseTable<MessageReplyReference>(
             GetClassData()))
 #endif  // PROTOBUF_MESSAGE_GLOBALS
   {
   }
-  ~MessageRecordGlobalsTypeInternal() {}
+  ~MessageReplyReferenceGlobalsTypeInternal() {}
   union {
-    alignas(::_pbi::kMaxMessageAlignment) MessageRecord _default;
+    alignas(::_pbi::kMaxMessageAlignment) MessageReplyReference _default;
   };
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-  decltype(::_pbi::PrivateAccess::GenerateParseTable<MessageRecord>(
+  decltype(::_pbi::PrivateAccess::GenerateParseTable<MessageReplyReference>(
       ::std::declval<const ::_pbi::ClassData*>())) _table;
 #endif
 };
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-static_assert(PROTOBUF_FIELD_OFFSET(MessageRecordGlobalsTypeInternal, _default) ==
+static_assert(PROTOBUF_FIELD_OFFSET(MessageReplyReferenceGlobalsTypeInternal, _default) ==
               ::_pbi::MessageGlobalsBase::OffsetToDefault());
 #endif  // PROTOBUF_MESSAGE_GLOBALS
 
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
-    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PROTOBUF_MESSAGE_GLOBALS_CONST MessageRecordGlobalsTypeInternal MessageRecord_globals_
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PROTOBUF_MESSAGE_GLOBALS_CONST MessageReplyReferenceGlobalsTypeInternal MessageReplyReference_globals_
         PROTOBUF_MESSAGE_GLOBALS_SECTION(.data.rel.ro);
 #if defined(PROTOBUF_CUSTOM_VTABLE)
 namespace {
-const ::_pbi::ClassData* MessageRecord_get_class_data() {
+const ::_pbi::ClassData* MessageReplyReference_get_class_data() {
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-  return MessageRecord_globals_.GetClassData();
+  return MessageReplyReference_globals_.GetClassData();
 #else
-  return MessageRecord_class_data_.base();
+  return MessageReplyReference_class_data_.base();
 #endif  // PROTOBUF_MESSAGE_GLOBALS
 }
 }  // namespace
@@ -979,7 +1096,7 @@ constexpr auto MessageRecalledRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[4],
+      &file_reflection_data[6],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -1159,7 +1276,7 @@ constexpr auto MessageAccepted::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[1],
+      &file_reflection_data[2],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -1206,6 +1323,241 @@ const ::_pbi::ClassData* MessageAccepted_get_class_data() {
   return MessageAccepted_globals_.GetClassData();
 #else
   return MessageAccepted_class_data_.base();
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+}
+}  // namespace
+#endif  // PROTOBUF_CUSTOM_VTABLE
+class MessageRecord::_Internal {
+ public:
+  using HasBits = decltype(::std::declval<MessageRecord>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_._has_bits_);
+};
+
+constexpr MessageRecord::ParseTableT_ MessageRecord::InternalGenerateParseTable_(const ::_pbi::ClassData* class_data) {
+  return ParseTableT_{
+    {
+      PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_._has_bits_),
+      0, // no _extensions_
+      10, 120,  // max_field_number, fast_idx_mask
+      offsetof(ParseTableT_, field_lookup_table),
+      4294966272,  // skipmap
+      offsetof(ParseTableT_, field_entries),
+      10,  // num_field_entries
+      1,  // num_aux_entries
+      offsetof(ParseTableT_, aux_entries),
+      class_data,
+      nullptr,  // post_loop_handler
+      ::_pbi::TcParser::GenericFallback,  // fallback
+      #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+      ::_pbi::TcParser::GetTable<::chat::v2::MessageRecord>(),  // to_prefetch
+      #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+    }, {{
+      {::_pbi::TcParser::MiniParse, {}},
+      // string conversation_id = 1;
+      {::_pbi::TcParser::FastUS1,
+       {10, 0, 0,
+        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.conversation_id_)}},
+      // string message_id = 2;
+      {::_pbi::TcParser::FastUS1,
+       {18, 1, 0,
+        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.message_id_)}},
+      // uint64 conversation_sequence = 3;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(MessageRecord, _impl_.conversation_sequence_), 7>(),
+       {24, 7, 0,
+        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.conversation_sequence_)}},
+      // string sender_account_id = 4;
+      {::_pbi::TcParser::FastUS1,
+       {34, 2, 0,
+        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.sender_account_id_)}},
+      // string sender_device_id = 5;
+      {::_pbi::TcParser::FastUS1,
+       {42, 3, 0,
+        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.sender_device_id_)}},
+      // string client_message_id = 6;
+      {::_pbi::TcParser::FastUS1,
+       {50, 4, 0,
+        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.client_message_id_)}},
+      // uint32 content_type = 7;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MessageRecord, _impl_.content_type_), 9>(),
+       {56, 9, 0,
+        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.content_type_)}},
+      // bytes content = 8;
+      {::_pbi::TcParser::FastBS1,
+       {66, 5, 0,
+        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.content_)}},
+      // int64 accepted_at_epoch_ms = 9;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(MessageRecord, _impl_.accepted_at_epoch_ms_), 8>(),
+       {72, 8, 0,
+        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.accepted_at_epoch_ms_)}},
+      // .chat.v2.MessageReplyReference reply = 10;
+      {::_pbi::TcParser::FastMtS1,
+       {82, 6, 0,
+        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.reply_)}},
+      {::_pbi::TcParser::MiniParse, {}},
+      {::_pbi::TcParser::MiniParse, {}},
+      {::_pbi::TcParser::MiniParse, {}},
+      {::_pbi::TcParser::MiniParse, {}},
+      {::_pbi::TcParser::MiniParse, {}},
+    }}, {{
+      65535, 65535
+    }}, {{
+      // string conversation_id = 1;
+      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.conversation_id_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // string message_id = 2;
+      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.message_id_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // uint64 conversation_sequence = 3;
+      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.conversation_sequence_), _Internal::kHasBitsOffset + 7, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt64)},
+      // string sender_account_id = 4;
+      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.sender_account_id_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // string sender_device_id = 5;
+      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.sender_device_id_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // string client_message_id = 6;
+      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.client_message_id_), _Internal::kHasBitsOffset + 4, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // uint32 content_type = 7;
+      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.content_type_), _Internal::kHasBitsOffset + 9, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+      // bytes content = 8;
+      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.content_), _Internal::kHasBitsOffset + 5, 0, (0 | ::_fl::kFcOptional | ::_fl::kBytes | ::_fl::kRepAString)},
+      // int64 accepted_at_epoch_ms = 9;
+      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.accepted_at_epoch_ms_), _Internal::kHasBitsOffset + 8, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt64)},
+      // .chat.v2.MessageReplyReference reply = 10;
+      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.reply_), _Internal::kHasBitsOffset + 6, 0, (0 | ::_fl::kFcOptional | ::_fl::kMessage | ::_fl::kTvTable)},
+    }},
+    {{
+        #ifndef PROTOBUF_MESSAGE_GLOBALS
+        {::_pbi::TcParser::GetTable<::chat::v2::MessageReplyReference>()},
+        #else
+        {::_pbi::FieldAuxMessageGlobals(), &::chat::v2::MessageReplyReference_globals_},
+        #endif
+    }},
+    {{
+      "\25\17\12\0\21\20\21\0\0\0\0\0\0\0\0\0"
+      "chat.v2.MessageRecord"
+      "conversation_id"
+      "message_id"
+      "sender_account_id"
+      "sender_device_id"
+      "client_message_id"
+    }},
+  };
+}
+
+
+inline constexpr MessageRecord::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        conversation_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        message_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        sender_account_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        sender_device_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        client_message_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        content_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        reply_{nullptr},
+        conversation_sequence_{::uint64_t{0u}},
+        accepted_at_epoch_ms_{::int64_t{0}},
+        content_type_{0u} {}
+
+template <typename>
+constexpr MessageRecord::MessageRecord(::_pbi::ConstantInitialized,
+                       const ::_pbi::ClassData* PROTOBUF_NONNULL class_data)
+    : ::google::protobuf::Message(
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          class_data
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          ),
+      _impl_(internal_visibility(), ::_pbi::ConstantInitialized()) {
+}
+inline void* PROTOBUF_NONNULL MessageRecord::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) MessageRecord(arena);
+}
+constexpr auto MessageRecord::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(MessageRecord), alignof(MessageRecord));
+}
+constexpr auto MessageRecord::InternalGenerateClassData_(
+    const MessageLite& prototype,
+    const ::google::protobuf::internal::TcParseTableBase* tc_table) {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &prototype,
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+          &_table_.header,
+#else
+          tc_table,
+#endif
+          nullptr,  // IsInitialized
+          &MessageRecord::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<MessageRecord>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &MessageRecord::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<MessageRecord>(), &MessageRecord::ByteSizeLong,
+              &MessageRecord::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_._cached_size_),
+          false,
+      },
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+      &file_reflection_data[4],
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+      &::_pbi::kDescriptorMethods,
+      &descriptor_table_chat_2fv2_2fmessaging_2eproto,
+      nullptr,  // tracker
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  };
+}
+struct MessageRecordGlobalsTypeInternal : ::_pbi::MessageGlobalsBase {
+  constexpr MessageRecordGlobalsTypeInternal()
+      :
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+        _default(::_pbi::ConstantInitialized{},
+                 MessageRecord_class_data_.base())
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+        MessageGlobalsBase(MessageRecord::InternalGenerateClassData_(
+            _default, &MessageRecord_globals_._table.header)),
+        _default(::_pbi::ConstantInitialized{}, GetClassData()),
+        _table(::_pbi::PrivateAccess::GenerateParseTable<MessageRecord>(
+            GetClassData()))
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  {
+  }
+  ~MessageRecordGlobalsTypeInternal() {}
+  union {
+    alignas(::_pbi::kMaxMessageAlignment) MessageRecord _default;
+  };
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  decltype(::_pbi::PrivateAccess::GenerateParseTable<MessageRecord>(
+      ::std::declval<const ::_pbi::ClassData*>())) _table;
+#endif
+};
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+static_assert(PROTOBUF_FIELD_OFFSET(MessageRecordGlobalsTypeInternal, _default) ==
+              ::_pbi::MessageGlobalsBase::OffsetToDefault());
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PROTOBUF_MESSAGE_GLOBALS_CONST MessageRecordGlobalsTypeInternal MessageRecord_globals_
+        PROTOBUF_MESSAGE_GLOBALS_SECTION(.data.rel.ro);
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+namespace {
+const ::_pbi::ClassData* MessageRecord_get_class_data() {
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  return MessageRecord_globals_.GetClassData();
+#else
+  return MessageRecord_class_data_.base();
 #endif  // PROTOBUF_MESSAGE_GLOBALS
 }
 }  // namespace
@@ -1338,7 +1690,7 @@ constexpr auto ConversationEntryRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[6],
+      &file_reflection_data[8],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -1540,7 +1892,7 @@ constexpr auto MessageHistoryPage::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[7],
+      &file_reflection_data[9],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -1610,6 +1962,17 @@ const ::uint32_t
         2,
         1,
         0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::chat::v2::SubmitReplyMessage, _impl_._has_bits_),
+        7, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::chat::v2::SubmitReplyMessage, _impl_.conversation_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::SubmitReplyMessage, _impl_.target_message_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::SubmitReplyMessage, _impl_.content_type_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::SubmitReplyMessage, _impl_.content_),
+        0,
+        1,
+        3,
+        2,
+        0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageAccepted, _impl_._has_bits_),
         8, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageAccepted, _impl_.conversation_id_),
@@ -1633,7 +1996,7 @@ const ::uint32_t
         2,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_._has_bits_),
-        12, // hasbit index offset
+        13, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.conversation_id_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.message_id_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.conversation_sequence_),
@@ -1643,15 +2006,26 @@ const ::uint32_t
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.content_type_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.content_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.accepted_at_epoch_ms_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.reply_),
         0,
         1,
-        6,
+        7,
         2,
         3,
         4,
-        8,
+        9,
         5,
-        7,
+        8,
+        6,
+        0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageReplyReference, _impl_._has_bits_),
+        6, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageReplyReference, _impl_.target_message_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageReplyReference, _impl_.target_conversation_sequence_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageReplyReference, _impl_.target_sender_account_id_),
+        0,
+        2,
+        1,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecalledRecord, _impl_._has_bits_),
         9, // hasbit index offset
@@ -1727,20 +2101,24 @@ const ::uint32_t
 static const ::_pbi::MigrationSchema
     schemas[] ABSL_ATTRIBUTE_SECTION_VARIABLE(protodesc_cold) = {
         {0, sizeof(::chat::v2::SubmitMessage)},
-        {9, sizeof(::chat::v2::MessageAccepted)},
-        {22, sizeof(::chat::v2::ReadMessageHistory)},
-        {31, sizeof(::chat::v2::MessageRecord)},
-        {52, sizeof(::chat::v2::MessageRecalledRecord)},
-        {67, sizeof(::chat::v2::MessagesDeletedRecord)},
-        {92, sizeof(::chat::v2::ConversationEntryRecord)},
-        {107, sizeof(::chat::v2::MessageHistoryPage)},
+        {9, sizeof(::chat::v2::SubmitReplyMessage)},
+        {20, sizeof(::chat::v2::MessageAccepted)},
+        {33, sizeof(::chat::v2::ReadMessageHistory)},
+        {42, sizeof(::chat::v2::MessageRecord)},
+        {65, sizeof(::chat::v2::MessageReplyReference)},
+        {74, sizeof(::chat::v2::MessageRecalledRecord)},
+        {89, sizeof(::chat::v2::MessagesDeletedRecord)},
+        {114, sizeof(::chat::v2::ConversationEntryRecord)},
+        {129, sizeof(::chat::v2::MessageHistoryPage)},
 };
 static const ::_pbi::MessageGlobalsBase* PROTOBUF_NONNULL const
     file_message_globals[] = {
         &::chat::v2::SubmitMessage_globals_,
+        &::chat::v2::SubmitReplyMessage_globals_,
         &::chat::v2::MessageAccepted_globals_,
         &::chat::v2::ReadMessageHistory_globals_,
         &::chat::v2::MessageRecord_globals_,
+        &::chat::v2::MessageReplyReference_globals_,
         &::chat::v2::MessageRecalledRecord_globals_,
         &::chat::v2::MessagesDeletedRecord_globals_,
         &::chat::v2::ConversationEntryRecord_globals_,
@@ -1750,58 +2128,65 @@ const char descriptor_table_protodef_chat_2fv2_2fmessaging_2eproto[] ABSL_ATTRIB
     protodesc_cold) = {
     "\n\027chat/v2/messaging.proto\022\007chat.v2\"O\n\rSu"
     "bmitMessage\022\027\n\017conversation_id\030\001 \001(\t\022\024\n\014"
-    "content_type\030\002 \001(\r\022\017\n\007content\030\003 \001(\014\"\216\001\n\017"
-    "MessageAccepted\022\027\n\017conversation_id\030\001 \001(\t"
-    "\022\022\n\nmessage_id\030\002 \001(\t\022\035\n\025conversation_seq"
-    "uence\030\003 \001(\004\022\034\n\024accepted_at_epoch_ms\030\004 \001("
-    "\003\022\021\n\tduplicate\030\005 \001(\010\"T\n\022ReadMessageHisto"
-    "ry\022\027\n\017conversation_id\030\001 \001(\t\022\026\n\016after_seq"
-    "uence\030\002 \001(\004\022\r\n\005limit\030\003 \001(\r\"\360\001\n\rMessageRe"
-    "cord\022\027\n\017conversation_id\030\001 \001(\t\022\022\n\nmessage"
-    "_id\030\002 \001(\t\022\035\n\025conversation_sequence\030\003 \001(\004"
-    "\022\031\n\021sender_account_id\030\004 \001(\t\022\030\n\020sender_de"
-    "vice_id\030\005 \001(\t\022\031\n\021client_message_id\030\006 \001(\t"
-    "\022\024\n\014content_type\030\007 \001(\r\022\017\n\007content\030\010 \001(\014\022"
-    "\034\n\024accepted_at_epoch_ms\030\t \001(\003\"\253\001\n\025Messag"
-    "eRecalledRecord\022\027\n\017conversation_id\030\001 \001(\t"
-    "\022\035\n\025conversation_sequence\030\002 \001(\004\022\022\n\nmessa"
-    "ge_id\030\003 \001(\t\022\030\n\020actor_account_id\030\004 \001(\t\022\016\n"
-    "\006source\030\005 \001(\t\022\034\n\024occurred_at_epoch_ms\030\006 "
-    "\001(\003\"\247\002\n\025MessagesDeletedRecord\022\027\n\017convers"
-    "ation_id\030\001 \001(\t\022\035\n\025conversation_sequence\030"
-    "\002 \001(\004\022\030\n\020actor_account_id\030\003 \001(\t\022\016\n\006sourc"
-    "e\030\004 \001(\t\022\014\n\004mode\030\005 \001(\t\022\033\n\023client_operatio"
-    "n_id\030\006 \001(\t\022\023\n\013message_ids\030\007 \003(\t\022\027\n\017cutof"
-    "f_epoch_ms\030\010 \001(\003\022\025\n\rdeleted_count\030\t \001(\r\022"
-    "\036\n\026operator_name_snapshot\030\n \001(\t\022\034\n\024occur"
-    "red_at_epoch_ms\030\013 \001(\003\"\354\001\n\027ConversationEn"
-    "tryRecord\022\027\n\017conversation_id\030\001 \001(\t\022\035\n\025co"
-    "nversation_sequence\030\002 \001(\004\022)\n\007message\030\003 \001"
-    "(\0132\026.chat.v2.MessageRecordH\000\0220\n\006recall\030\004"
-    " \001(\0132\036.chat.v2.MessageRecalledRecordH\000\0222"
-    "\n\010deletion\030\005 \001(\0132\036.chat.v2.MessagesDelet"
-    "edRecordH\000B\010\n\006detail\"\314\001\n\022MessageHistoryP"
-    "age\022\027\n\017conversation_id\030\001 \001(\t\022(\n\010messages"
-    "\030\002 \003(\0132\026.chat.v2.MessageRecord\022\025\n\rnext_s"
-    "equence\030\003 \001(\004\022\027\n\017latest_sequence\030\004 \001(\004\022\020"
-    "\n\010has_more\030\005 \001(\010\0221\n\007entries\030\006 \003(\0132 .chat"
-    ".v2.ConversationEntryRecord*^\n\022MessageCo"
-    "ntentType\022$\n MESSAGE_CONTENT_TYPE_UNSPEC"
-    "IFIED\020\000\022\"\n\036MESSAGE_CONTENT_TYPE_TEXT_UTF"
-    "8\020\001B6\n!com.fallingnight.chat.protocol.v2"
-    "B\017MessagingSchemaP\001b\006proto3"
+    "content_type\030\002 \001(\r\022\017\n\007content\030\003 \001(\014\"o\n\022S"
+    "ubmitReplyMessage\022\027\n\017conversation_id\030\001 \001"
+    "(\t\022\031\n\021target_message_id\030\002 \001(\t\022\024\n\014content"
+    "_type\030\003 \001(\r\022\017\n\007content\030\004 \001(\014\"\216\001\n\017Message"
+    "Accepted\022\027\n\017conversation_id\030\001 \001(\t\022\022\n\nmes"
+    "sage_id\030\002 \001(\t\022\035\n\025conversation_sequence\030\003"
+    " \001(\004\022\034\n\024accepted_at_epoch_ms\030\004 \001(\003\022\021\n\tdu"
+    "plicate\030\005 \001(\010\"T\n\022ReadMessageHistory\022\027\n\017c"
+    "onversation_id\030\001 \001(\t\022\026\n\016after_sequence\030\002"
+    " \001(\004\022\r\n\005limit\030\003 \001(\r\"\237\002\n\rMessageRecord\022\027\n"
+    "\017conversation_id\030\001 \001(\t\022\022\n\nmessage_id\030\002 \001"
+    "(\t\022\035\n\025conversation_sequence\030\003 \001(\004\022\031\n\021sen"
+    "der_account_id\030\004 \001(\t\022\030\n\020sender_device_id"
+    "\030\005 \001(\t\022\031\n\021client_message_id\030\006 \001(\t\022\024\n\014con"
+    "tent_type\030\007 \001(\r\022\017\n\007content\030\010 \001(\014\022\034\n\024acce"
+    "pted_at_epoch_ms\030\t \001(\003\022-\n\005reply\030\n \001(\0132\036."
+    "chat.v2.MessageReplyReference\"z\n\025Message"
+    "ReplyReference\022\031\n\021target_message_id\030\001 \001("
+    "\t\022$\n\034target_conversation_sequence\030\002 \001(\004\022"
+    " \n\030target_sender_account_id\030\003 \001(\t\"\253\001\n\025Me"
+    "ssageRecalledRecord\022\027\n\017conversation_id\030\001"
+    " \001(\t\022\035\n\025conversation_sequence\030\002 \001(\004\022\022\n\nm"
+    "essage_id\030\003 \001(\t\022\030\n\020actor_account_id\030\004 \001("
+    "\t\022\016\n\006source\030\005 \001(\t\022\034\n\024occurred_at_epoch_m"
+    "s\030\006 \001(\003\"\247\002\n\025MessagesDeletedRecord\022\027\n\017con"
+    "versation_id\030\001 \001(\t\022\035\n\025conversation_seque"
+    "nce\030\002 \001(\004\022\030\n\020actor_account_id\030\003 \001(\t\022\016\n\006s"
+    "ource\030\004 \001(\t\022\014\n\004mode\030\005 \001(\t\022\033\n\023client_oper"
+    "ation_id\030\006 \001(\t\022\023\n\013message_ids\030\007 \003(\t\022\027\n\017c"
+    "utoff_epoch_ms\030\010 \001(\003\022\025\n\rdeleted_count\030\t "
+    "\001(\r\022\036\n\026operator_name_snapshot\030\n \001(\t\022\034\n\024o"
+    "ccurred_at_epoch_ms\030\013 \001(\003\"\354\001\n\027Conversati"
+    "onEntryRecord\022\027\n\017conversation_id\030\001 \001(\t\022\035"
+    "\n\025conversation_sequence\030\002 \001(\004\022)\n\007message"
+    "\030\003 \001(\0132\026.chat.v2.MessageRecordH\000\0220\n\006reca"
+    "ll\030\004 \001(\0132\036.chat.v2.MessageRecalledRecord"
+    "H\000\0222\n\010deletion\030\005 \001(\0132\036.chat.v2.MessagesD"
+    "eletedRecordH\000B\010\n\006detail\"\314\001\n\022MessageHist"
+    "oryPage\022\027\n\017conversation_id\030\001 \001(\t\022(\n\010mess"
+    "ages\030\002 \003(\0132\026.chat.v2.MessageRecord\022\025\n\rne"
+    "xt_sequence\030\003 \001(\004\022\027\n\017latest_sequence\030\004 \001"
+    "(\004\022\020\n\010has_more\030\005 \001(\010\0221\n\007entries\030\006 \003(\0132 ."
+    "chat.v2.ConversationEntryRecord*^\n\022Messa"
+    "geContentType\022$\n MESSAGE_CONTENT_TYPE_UN"
+    "SPECIFIED\020\000\022\"\n\036MESSAGE_CONTENT_TYPE_TEXT"
+    "_UTF8\020\001B6\n!com.fallingnight.chat.protoco"
+    "l.v2B\017MessagingSchemaP\001b\006proto3"
 };
 static ::absl::once_flag descriptor_table_chat_2fv2_2fmessaging_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_chat_2fv2_2fmessaging_2eproto = {
     false,
     false,
-    1667,
+    1951,
     descriptor_table_protodef_chat_2fv2_2fmessaging_2eproto,
     "chat/v2/messaging.proto",
     &descriptor_table_chat_2fv2_2fmessaging_2eproto_once,
     nullptr,
     0,
-    8,
+    10,
     schemas,
     file_message_globals,
     TableStruct_chat_2fv2_2fmessaging_2eproto::offsets,
@@ -2090,6 +2475,314 @@ void SubmitMessage::InternalSwap(SubmitMessage* PROTOBUF_RESTRICT PROTOBUF_NONNU
 }
 
 ::google::protobuf::Metadata SubmitMessage::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
+SubmitReplyMessage::SubmitReplyMessage(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, SubmitReplyMessage_get_class_data()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:chat.v2.SubmitReplyMessage)
+}
+PROTOBUF_NDEBUG_INLINE SubmitReplyMessage::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    [[maybe_unused]] const ::chat::v2::SubmitReplyMessage& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        conversation_id_(arena, from.conversation_id_),
+        target_message_id_(arena, from.target_message_id_),
+        content_(arena, from.content_) {}
+
+SubmitReplyMessage::SubmitReplyMessage(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const SubmitReplyMessage& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, SubmitReplyMessage_get_class_data()) {
+
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SubmitReplyMessage* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  _impl_.content_type_ = from._impl_.content_type_;
+
+  // @@protoc_insertion_point(copy_constructor:chat.v2.SubmitReplyMessage)
+}
+PROTOBUF_NDEBUG_INLINE SubmitReplyMessage::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        conversation_id_(arena),
+        target_message_id_(arena),
+        content_(arena) {}
+
+inline void SubmitReplyMessage::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  _impl_.content_type_ = {};
+}
+SubmitReplyMessage::~SubmitReplyMessage() {
+  // @@protoc_insertion_point(destructor:chat.v2.SubmitReplyMessage)
+  SharedDtor(*this);
+}
+inline void SubmitReplyMessage::SharedDtor(MessageLite& self) {
+  SubmitReplyMessage& this_ = static_cast<SubmitReplyMessage&>(self);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.conversation_id_.Destroy();
+  this_._impl_.target_message_id_.Destroy();
+  this_._impl_.content_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull SubmitReplyMessage_class_data_ =
+        SubmitReplyMessage::InternalGenerateClassData_(SubmitReplyMessage_globals_._default);
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+SubmitReplyMessage::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&SubmitReplyMessage_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(SubmitReplyMessage_class_data_.tc_table);
+  return SubmitReplyMessage_class_data_.base();
+}
+#else
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+SubmitReplyMessage::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&SubmitReplyMessage_globals_);
+  ::google::protobuf::internal::PrefetchToLocalCache(
+      ::google::protobuf::internal::MessageGlobalsBase::ToParseTableBase(&SubmitReplyMessage_globals_));
+  return SubmitReplyMessage_globals_.GetClassData();
+}
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const SubmitReplyMessage::ParseTableT_
+    SubmitReplyMessage::_table_ =
+        SubmitReplyMessage::InternalGenerateParseTable_(SubmitReplyMessage_class_data_.base());
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_NOINLINE void SubmitReplyMessage::Clear() {
+// @@protoc_insertion_point(message_clear_start:chat.v2.SubmitReplyMessage)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000007U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _impl_.conversation_id_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.target_message_id_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      _impl_.content_.ClearNonDefaultToEmpty();
+    }
+  }
+  _impl_.content_type_ = 0u;
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL SubmitReplyMessage::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const SubmitReplyMessage& this_ = static_cast<const SubmitReplyMessage&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL SubmitReplyMessage::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const SubmitReplyMessage& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(serialize_to_array_start:chat.v2.SubmitReplyMessage)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = this_._impl_._has_bits_[0];
+  // string conversation_id = 1;
+  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    if (!this_._internal_conversation_id().empty()) {
+      const ::std::string& _s = this_._internal_conversation_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.SubmitReplyMessage.conversation_id");
+      target = stream->WriteStringMaybeAliased(1, _s, target);
+    }
+  }
+
+  // string target_message_id = 2;
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (!this_._internal_target_message_id().empty()) {
+      const ::std::string& _s = this_._internal_target_message_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.SubmitReplyMessage.target_message_id");
+      target = stream->WriteStringMaybeAliased(2, _s, target);
+    }
+  }
+
+  // uint32 content_type = 3;
+  if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+    if (this_._internal_content_type() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+          3, this_._internal_content_type(), target);
+    }
+  }
+
+  // bytes content = 4;
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (!this_._internal_content().empty()) {
+      const ::std::string& _s = this_._internal_content();
+      target = stream->WriteBytesMaybeAliased(4, _s, target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:chat.v2.SubmitReplyMessage)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t SubmitReplyMessage::ByteSizeLong(const MessageLite& base) {
+  const SubmitReplyMessage& this_ = static_cast<const SubmitReplyMessage&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t SubmitReplyMessage::ByteSizeLong() const {
+  const SubmitReplyMessage& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:chat.v2.SubmitReplyMessage)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x0000000fU)) {
+    // string conversation_id = 1;
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!this_._internal_conversation_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_conversation_id());
+      }
+    }
+    // string target_message_id = 2;
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!this_._internal_target_message_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_target_message_id());
+      }
+    }
+    // bytes content = 4;
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (!this_._internal_content().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::BytesSize(
+                                        this_._internal_content());
+      }
+    }
+    // uint32 content_type = 3;
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      if (this_._internal_content_type() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+            this_._internal_content_type());
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void SubmitReplyMessage::MergeImpl(::google::protobuf::MessageLite& to_msg,
+                      const ::google::protobuf::MessageLite& from_msg) {
+   auto* const _this = static_cast<SubmitReplyMessage*>(&to_msg);
+  auto& from = static_cast<const SubmitReplyMessage&>(from_msg);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    from.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(class_specific_merge_from_start:chat.v2.SubmitReplyMessage)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x0000000fU)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!from._internal_conversation_id().empty()) {
+        _this->_internal_set_conversation_id(from._internal_conversation_id());
+      } else {
+        if (_this->_impl_.conversation_id_.IsDefault()) {
+          _this->_internal_set_conversation_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!from._internal_target_message_id().empty()) {
+        _this->_internal_set_target_message_id(from._internal_target_message_id());
+      } else {
+        if (_this->_impl_.target_message_id_.IsDefault()) {
+          _this->_internal_set_target_message_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (!from._internal_content().empty()) {
+        _this->_internal_set_content(from._internal_content());
+      } else {
+        if (_this->_impl_.content_.IsDefault()) {
+          _this->_internal_set_content("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      if (from._internal_content_type() != 0) {
+        _this->_impl_.content_type_ = from._impl_.content_type_;
+      }
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+}
+
+void SubmitReplyMessage::CopyFrom(const SubmitReplyMessage& from) {
+  // @@protoc_insertion_point(class_specific_copy_from_start:chat.v2.SubmitReplyMessage)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void SubmitReplyMessage::InternalSwap(SubmitReplyMessage* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.conversation_id_, &other->_impl_.conversation_id_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_message_id_, &other->_impl_.target_message_id_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.content_, &other->_impl_.content_, arena);
+  swap(_impl_.content_type_, other->_impl_.content_type_);
+}
+
+::google::protobuf::Metadata SubmitReplyMessage::GetMetadata() const {
   return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
 }
 // ===================================================================
@@ -2751,6 +3444,10 @@ MessageRecord::MessageRecord(
   _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
       from._internal_metadata_);
   new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  ::uint32_t cached_has_bits = _impl_._has_bits_[0];
+  _impl_.reply_ = (CheckHasBit(cached_has_bits, 0x00000040U))
+                ? ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.reply_)
+                : nullptr;
   ::memcpy(reinterpret_cast<char*>(&_impl_) +
                offsetof(Impl_, conversation_sequence_),
            reinterpret_cast<const char*>(&from._impl_) +
@@ -2775,10 +3472,10 @@ PROTOBUF_NDEBUG_INLINE MessageRecord::Impl_::Impl_(
 inline void MessageRecord::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   new (&_impl_) Impl_(internal_visibility(), arena);
   ::memset(reinterpret_cast<char*>(&_impl_) +
-               offsetof(Impl_, conversation_sequence_),
+               offsetof(Impl_, reply_),
            0,
            offsetof(Impl_, content_type_) -
-               offsetof(Impl_, conversation_sequence_) +
+               offsetof(Impl_, reply_) +
                sizeof(Impl_::content_type_));
 }
 MessageRecord::~MessageRecord() {
@@ -2798,6 +3495,7 @@ inline void MessageRecord::SharedDtor(MessageLite& self) {
   this_._impl_.sender_device_id_.Destroy();
   this_._impl_.client_message_id_.Destroy();
   this_._impl_.content_.Destroy();
+  delete this_._impl_.reply_;
   this_._impl_.~Impl_();
 }
 
@@ -2835,7 +3533,7 @@ PROTOBUF_NOINLINE void MessageRecord::Clear() {
   (void) cached_has_bits;
 
   cached_has_bits = _impl_._has_bits_[0];
-  if (BatchCheckHasBit(cached_has_bits, 0x0000003fU)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x0000007fU)) {
     if (CheckHasBit(cached_has_bits, 0x00000001U)) {
       _impl_.conversation_id_.ClearNonDefaultToEmpty();
     }
@@ -2854,13 +3552,17 @@ PROTOBUF_NOINLINE void MessageRecord::Clear() {
     if (CheckHasBit(cached_has_bits, 0x00000020U)) {
       _impl_.content_.ClearNonDefaultToEmpty();
     }
+    if (CheckHasBit(cached_has_bits, 0x00000040U)) {
+      ABSL_DCHECK(_impl_.reply_ != nullptr);
+      _impl_.reply_->Clear();
+    }
   }
-  if (BatchCheckHasBit(cached_has_bits, 0x000000c0U)) {
-    ::memset(&_impl_.conversation_sequence_, 0, static_cast<::size_t>(
-        reinterpret_cast<char*>(&_impl_.accepted_at_epoch_ms_) -
-        reinterpret_cast<char*>(&_impl_.conversation_sequence_)) + sizeof(_impl_.accepted_at_epoch_ms_));
+  _impl_.conversation_sequence_ = ::uint64_t{0u};
+  if (BatchCheckHasBit(cached_has_bits, 0x00000300U)) {
+    ::memset(&_impl_.accepted_at_epoch_ms_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.content_type_) -
+        reinterpret_cast<char*>(&_impl_.accepted_at_epoch_ms_)) + sizeof(_impl_.content_type_));
   }
-  _impl_.content_type_ = 0u;
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
 }
@@ -2905,7 +3607,7 @@ PROTOBUF_NOINLINE void MessageRecord::Clear() {
   }
 
   // uint64 conversation_sequence = 3;
-  if (CheckHasBit(cached_has_bits, 0x00000040U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000080U)) {
     if (this_._internal_conversation_sequence() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
@@ -2944,7 +3646,7 @@ PROTOBUF_NOINLINE void MessageRecord::Clear() {
   }
 
   // uint32 content_type = 7;
-  if (CheckHasBit(cached_has_bits, 0x00000100U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000200U)) {
     if (this_._internal_content_type() != 0) {
       target = stream->EnsureSpace(target);
       target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
@@ -2961,12 +3663,19 @@ PROTOBUF_NOINLINE void MessageRecord::Clear() {
   }
 
   // int64 accepted_at_epoch_ms = 9;
-  if (CheckHasBit(cached_has_bits, 0x00000080U)) {
+  if (CheckHasBit(cached_has_bits, 0x00000100U)) {
     if (this_._internal_accepted_at_epoch_ms() != 0) {
       target =
           ::google::protobuf::internal::WireFormatLite::WriteInt64ToArrayWithField<9>(
               stream, this_._internal_accepted_at_epoch_ms(), target);
     }
+  }
+
+  // .chat.v2.MessageReplyReference reply = 10;
+  if (CheckHasBit(cached_has_bits, 0x00000040U)) {
+    target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+        10, *this_._impl_.reply_, this_._impl_.reply_->GetCachedSize(), target,
+        stream);
   }
 
   if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
@@ -3037,24 +3746,29 @@ PROTOBUF_NOINLINE void MessageRecord::Clear() {
                                         this_._internal_content());
       }
     }
-    // uint64 conversation_sequence = 3;
+    // .chat.v2.MessageReplyReference reply = 10;
     if (CheckHasBit(cached_has_bits, 0x00000040U)) {
+      total_size += 1 +
+                    ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.reply_);
+    }
+    // uint64 conversation_sequence = 3;
+    if (CheckHasBit(cached_has_bits, 0x00000080U)) {
       if (this_._internal_conversation_sequence() != 0) {
         total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
             this_._internal_conversation_sequence());
       }
     }
+  }
+  if (BatchCheckHasBit(cached_has_bits, 0x00000300U)) {
     // int64 accepted_at_epoch_ms = 9;
-    if (CheckHasBit(cached_has_bits, 0x00000080U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000100U)) {
       if (this_._internal_accepted_at_epoch_ms() != 0) {
         total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
             this_._internal_accepted_at_epoch_ms());
       }
     }
-  }
-   {
     // uint32 content_type = 7;
-    if (CheckHasBit(cached_has_bits, 0x00000100U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000200U)) {
       if (this_._internal_content_type() != 0) {
         total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
             this_._internal_content_type());
@@ -3072,6 +3786,7 @@ void MessageRecord::MergeImpl(::google::protobuf::MessageLite& to_msg,
   if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
     from.CheckHasBitConsistency();
   }
+  ::google::protobuf::Arena* arena = _this->GetArena();
   // @@protoc_insertion_point(class_specific_merge_from_start:chat.v2.MessageRecord)
   ABSL_DCHECK_NE(&from, _this);
   ::uint32_t cached_has_bits = 0;
@@ -3134,19 +3849,29 @@ void MessageRecord::MergeImpl(::google::protobuf::MessageLite& to_msg,
       }
     }
     if (CheckHasBit(cached_has_bits, 0x00000040U)) {
+      ABSL_DCHECK(from._impl_.reply_ != nullptr);
+      if (_this->_impl_.reply_ == nullptr) {
+        _this->_impl_.reply_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.reply_);
+      } else {
+        _this->_impl_.reply_->MergeFrom(*from._impl_.reply_);
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000080U)) {
       if (from._internal_conversation_sequence() != 0) {
         _this->_impl_.conversation_sequence_ = from._impl_.conversation_sequence_;
       }
     }
-    if (CheckHasBit(cached_has_bits, 0x00000080U)) {
+  }
+  if (BatchCheckHasBit(cached_has_bits, 0x00000300U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000100U)) {
       if (from._internal_accepted_at_epoch_ms() != 0) {
         _this->_impl_.accepted_at_epoch_ms_ = from._impl_.accepted_at_epoch_ms_;
       }
     }
-  }
-  if (CheckHasBit(cached_has_bits, 0x00000100U)) {
-    if (from._internal_content_type() != 0) {
-      _this->_impl_.content_type_ = from._impl_.content_type_;
+    if (CheckHasBit(cached_has_bits, 0x00000200U)) {
+      if (from._internal_content_type() != 0) {
+        _this->_impl_.content_type_ = from._impl_.content_type_;
+      }
     }
   }
   _this->_impl_._has_bits_[0] |= cached_has_bits;
@@ -3177,12 +3902,289 @@ void MessageRecord::InternalSwap(MessageRecord* PROTOBUF_RESTRICT PROTOBUF_NONNU
   ::google::protobuf::internal::memswap<
       PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.content_type_)
       + sizeof(MessageRecord::_impl_.content_type_)
-      - PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.conversation_sequence_)>(
-          reinterpret_cast<char*>(&_impl_.conversation_sequence_),
-          reinterpret_cast<char*>(&other->_impl_.conversation_sequence_));
+      - PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.reply_)>(
+          reinterpret_cast<char*>(&_impl_.reply_),
+          reinterpret_cast<char*>(&other->_impl_.reply_));
 }
 
 ::google::protobuf::Metadata MessageRecord::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
+MessageReplyReference::MessageReplyReference(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, MessageReplyReference_get_class_data()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:chat.v2.MessageReplyReference)
+}
+PROTOBUF_NDEBUG_INLINE MessageReplyReference::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    [[maybe_unused]] const ::chat::v2::MessageReplyReference& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        target_message_id_(arena, from.target_message_id_),
+        target_sender_account_id_(arena, from.target_sender_account_id_) {}
+
+MessageReplyReference::MessageReplyReference(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const MessageReplyReference& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, MessageReplyReference_get_class_data()) {
+
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  MessageReplyReference* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  _impl_.target_conversation_sequence_ = from._impl_.target_conversation_sequence_;
+
+  // @@protoc_insertion_point(copy_constructor:chat.v2.MessageReplyReference)
+}
+PROTOBUF_NDEBUG_INLINE MessageReplyReference::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        target_message_id_(arena),
+        target_sender_account_id_(arena) {}
+
+inline void MessageReplyReference::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  _impl_.target_conversation_sequence_ = {};
+}
+MessageReplyReference::~MessageReplyReference() {
+  // @@protoc_insertion_point(destructor:chat.v2.MessageReplyReference)
+  SharedDtor(*this);
+}
+inline void MessageReplyReference::SharedDtor(MessageLite& self) {
+  MessageReplyReference& this_ = static_cast<MessageReplyReference&>(self);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.target_message_id_.Destroy();
+  this_._impl_.target_sender_account_id_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull MessageReplyReference_class_data_ =
+        MessageReplyReference::InternalGenerateClassData_(MessageReplyReference_globals_._default);
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+MessageReplyReference::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&MessageReplyReference_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(MessageReplyReference_class_data_.tc_table);
+  return MessageReplyReference_class_data_.base();
+}
+#else
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+MessageReplyReference::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&MessageReplyReference_globals_);
+  ::google::protobuf::internal::PrefetchToLocalCache(
+      ::google::protobuf::internal::MessageGlobalsBase::ToParseTableBase(&MessageReplyReference_globals_));
+  return MessageReplyReference_globals_.GetClassData();
+}
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const MessageReplyReference::ParseTableT_
+    MessageReplyReference::_table_ =
+        MessageReplyReference::InternalGenerateParseTable_(MessageReplyReference_class_data_.base());
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_NOINLINE void MessageReplyReference::Clear() {
+// @@protoc_insertion_point(message_clear_start:chat.v2.MessageReplyReference)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _impl_.target_message_id_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.target_sender_account_id_.ClearNonDefaultToEmpty();
+    }
+  }
+  _impl_.target_conversation_sequence_ = ::uint64_t{0u};
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL MessageReplyReference::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const MessageReplyReference& this_ = static_cast<const MessageReplyReference&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL MessageReplyReference::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const MessageReplyReference& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(serialize_to_array_start:chat.v2.MessageReplyReference)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = this_._impl_._has_bits_[0];
+  // string target_message_id = 1;
+  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    if (!this_._internal_target_message_id().empty()) {
+      const ::std::string& _s = this_._internal_target_message_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.MessageReplyReference.target_message_id");
+      target = stream->WriteStringMaybeAliased(1, _s, target);
+    }
+  }
+
+  // uint64 target_conversation_sequence = 2;
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (this_._internal_target_conversation_sequence() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+          2, this_._internal_target_conversation_sequence(), target);
+    }
+  }
+
+  // string target_sender_account_id = 3;
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (!this_._internal_target_sender_account_id().empty()) {
+      const ::std::string& _s = this_._internal_target_sender_account_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.MessageReplyReference.target_sender_account_id");
+      target = stream->WriteStringMaybeAliased(3, _s, target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:chat.v2.MessageReplyReference)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t MessageReplyReference::ByteSizeLong(const MessageLite& base) {
+  const MessageReplyReference& this_ = static_cast<const MessageReplyReference&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t MessageReplyReference::ByteSizeLong() const {
+  const MessageReplyReference& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:chat.v2.MessageReplyReference)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000007U)) {
+    // string target_message_id = 1;
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!this_._internal_target_message_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_target_message_id());
+      }
+    }
+    // string target_sender_account_id = 3;
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!this_._internal_target_sender_account_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_target_sender_account_id());
+      }
+    }
+    // uint64 target_conversation_sequence = 2;
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (this_._internal_target_conversation_sequence() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+            this_._internal_target_conversation_sequence());
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void MessageReplyReference::MergeImpl(::google::protobuf::MessageLite& to_msg,
+                      const ::google::protobuf::MessageLite& from_msg) {
+   auto* const _this = static_cast<MessageReplyReference*>(&to_msg);
+  auto& from = static_cast<const MessageReplyReference&>(from_msg);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    from.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(class_specific_merge_from_start:chat.v2.MessageReplyReference)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000007U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!from._internal_target_message_id().empty()) {
+        _this->_internal_set_target_message_id(from._internal_target_message_id());
+      } else {
+        if (_this->_impl_.target_message_id_.IsDefault()) {
+          _this->_internal_set_target_message_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!from._internal_target_sender_account_id().empty()) {
+        _this->_internal_set_target_sender_account_id(from._internal_target_sender_account_id());
+      } else {
+        if (_this->_impl_.target_sender_account_id_.IsDefault()) {
+          _this->_internal_set_target_sender_account_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (from._internal_target_conversation_sequence() != 0) {
+        _this->_impl_.target_conversation_sequence_ = from._impl_.target_conversation_sequence_;
+      }
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+}
+
+void MessageReplyReference::CopyFrom(const MessageReplyReference& from) {
+  // @@protoc_insertion_point(class_specific_copy_from_start:chat.v2.MessageReplyReference)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void MessageReplyReference::InternalSwap(MessageReplyReference* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_message_id_, &other->_impl_.target_message_id_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.target_sender_account_id_, &other->_impl_.target_sender_account_id_, arena);
+  swap(_impl_.target_conversation_sequence_, other->_impl_.target_conversation_sequence_);
+}
+
+::google::protobuf::Metadata MessageReplyReference::GetMetadata() const {
   return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
 }
 // ===================================================================

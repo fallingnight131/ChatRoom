@@ -1233,10 +1233,14 @@ tests also verify binary envelope egress plus fixed WebSocket 1002/1009 close
 mapping for unsafe frames. They do not open a listener or imply that V2 is ready
 to receive traffic.
 The protocol-binding gate also compiles and round-trips permanent V2 messaging
-types 100..104 and content type 1 (bounded nonempty UTF-8 text). Type 104 is the
+types 100..105 and content type 1 (bounded nonempty UTF-8 text). Type 104 is the
 uncorrelated authenticated live `MessageRecord` event. It verifies the
-fixed `SubmitMessage` golden payload in Java, generated TypeScript, and generated
-C++. It also locks the V2 conversation-directory composite cursor across all
+fixed `SubmitMessage` and `SubmitReplyMessage` golden payloads in Java,
+generated TypeScript, and generated C++. Type 105 is a distinct reply command,
+so an older server rejects it instead of silently accepting a plain message;
+the additive server-authored record reference contains target identity and
+sequence but no copied quote body (ADR-0328). It also locks the V2
+conversation-directory composite cursor across all
 three generated bindings. The generation task also publishes reviewed
 TypeScript into `WebClient/src/protocol/v2/generated` and reviewed Windows C++
 into `Client/protocol/v2/generated/chat/v2`. The gate snapshots both committed

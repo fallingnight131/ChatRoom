@@ -11,7 +11,10 @@ import {
   ClientPlatform
 } from '../generated/typescript/chat/v2/control_pb.js'
 import { AuthenticateSchema } from '../generated/typescript/chat/v2/authentication_pb.js'
-import { SubmitMessageSchema } from '../generated/typescript/chat/v2/messaging_pb.js'
+import {
+  SubmitMessageSchema,
+  SubmitReplyMessageSchema
+} from '../generated/typescript/chat/v2/messaging_pb.js'
 import { ListConversationsSchema } from '../generated/typescript/chat/v2/conversation_pb.js'
 import { RegisterAttachmentSchema } from '../generated/typescript/chat/v2/attachment_pb.js'
 import { RevokeDeviceSchema } from '../generated/typescript/chat/v2/device_management_pb.js'
@@ -22,6 +25,10 @@ const CLIENT_HELLO_GOLDEN_HEX = '0802100218012205302e312e302a086465766963652d31'
 const AUTHENTICATE_GOLDEN_HEX = '0a05616c696365120d746573742d70617373776f7264'
 const SUBMIT_MESSAGE_GOLDEN_HEX = '0a2430303030303030302d303030302d303030302d' +
   '303030302d30303030303030303030303110011a026869'
+const SUBMIT_REPLY_MESSAGE_GOLDEN_HEX =
+  '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
+  '122430303030303030302d303030302d303030302d303030302d303030303030303030303032' +
+  '180122026869'
 const LIST_CONVERSATIONS_GOLDEN_HEX = '0880d095ffbc31122430303030303030302d303030302d' +
   '303030302d303030302d3030303030303030303030321819'
 const REGISTER_ATTACHMENT_GOLDEN_HEX =
@@ -111,6 +118,28 @@ test('keeps the bounded SubmitMessage payload compatible across generated bindin
   assert.equal(
     Buffer.from(toBinary(SubmitMessageSchema, encoded)).toString('hex'),
     SUBMIT_MESSAGE_GOLDEN_HEX
+  )
+})
+
+test('keeps the bounded SubmitReplyMessage payload compatible across generated bindings', () => {
+  const decoded = fromBinary(
+    SubmitReplyMessageSchema,
+    bytesFromHex(SUBMIT_REPLY_MESSAGE_GOLDEN_HEX)
+  )
+  assert.equal(decoded.conversationId, '00000000-0000-0000-0000-000000000001')
+  assert.equal(decoded.targetMessageId, '00000000-0000-0000-0000-000000000002')
+  assert.equal(decoded.contentType, 1)
+  assert.equal(new TextDecoder().decode(decoded.content), 'hi')
+
+  const encoded = create(SubmitReplyMessageSchema, {
+    conversationId: '00000000-0000-0000-0000-000000000001',
+    targetMessageId: '00000000-0000-0000-0000-000000000002',
+    contentType: 1,
+    content: new TextEncoder().encode('hi')
+  })
+  assert.equal(
+    Buffer.from(toBinary(SubmitReplyMessageSchema, encoded)).toString('hex'),
+    SUBMIT_REPLY_MESSAGE_GOLDEN_HEX
   )
 })
 

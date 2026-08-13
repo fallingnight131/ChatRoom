@@ -12,6 +12,10 @@ class MessagingProtocolTest {
     private static final String SUBMIT_GOLDEN =
             "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
                     + "10011a026869";
+    private static final String SUBMIT_REPLY_GOLDEN =
+            "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+                    + "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
+                    + "180122026869";
 
     @Test
     void submitMessageHasStableWireBytesAndPermanentRegistryKinds() throws Exception {
@@ -36,6 +40,22 @@ class MessagingProtocolTest {
     }
 
     @Test
+    void replySubmitHasStableWireBytesAndPermanentCommandKind() throws Exception {
+        SubmitReplyMessage command = SubmitReplyMessage.newBuilder()
+                .setConversationId(CONVERSATION_ID)
+                .setTargetMessageId("00000000-0000-0000-0000-000000000002")
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
+                .setContent(ByteString.copyFromUtf8("hi"))
+                .build();
+        MessagingPayloadPolicy.requireValid(command, "client-reply-1");
+        assertEquals(SUBMIT_REPLY_GOLDEN, HexFormat.of().formatHex(command.toByteArray()));
+        assertEquals(command,
+                SubmitReplyMessage.parseFrom(HexFormat.of().parseHex(SUBMIT_REPLY_GOLDEN)));
+        assertEquals(MessageKind.MESSAGE_KIND_COMMAND,
+                MessageTypeRegistry.requiredKind(MessageType.MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE));
+    }
+
+    @Test
     void rejectsMalformedCommandsAndUnboundedOrOutOfOrderPages() {
         SubmitMessage invalidSubmit = SubmitMessage.newBuilder()
                 .setConversationId("not-a-uuid")
@@ -44,6 +64,15 @@ class MessagingProtocolTest {
                 .build();
         assertThrows(IllegalArgumentException.class,
                 () -> MessagingPayloadPolicy.requireValid(invalidSubmit, " "));
+
+        SubmitReplyMessage invalidReply = SubmitReplyMessage.newBuilder()
+                .setConversationId(CONVERSATION_ID)
+                .setTargetMessageId("not-a-message")
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
+                .setContent(ByteString.copyFromUtf8("hi"))
+                .build();
+        assertThrows(IllegalArgumentException.class,
+                () -> MessagingPayloadPolicy.requireValid(invalidReply, "client-reply"));
 
         ReadMessageHistory invalidHistory = ReadMessageHistory.newBuilder()
                 .setConversationId(CONVERSATION_ID)
@@ -97,6 +126,21 @@ class MessagingProtocolTest {
                 .build();
         MessagingPayloadPolicy.requireValid(page);
         MessagingPayloadPolicy.requireValid(page.getMessages(0));
+
+        MessageRecord reply = record(2, "00000000-0000-0000-0000-000000000006")
+                .toBuilder()
+                .setReply(MessageReplyReference.newBuilder()
+                        .setTargetMessageId("00000000-0000-0000-0000-000000000002")
+                        .setTargetConversationSequence(1)
+                        .setTargetSenderAccountId(
+                                "00000000-0000-0000-0000-000000000004"))
+                .build();
+        MessagingPayloadPolicy.requireValid(reply);
+        assertThrows(IllegalArgumentException.class,
+                () -> MessagingPayloadPolicy.requireValid(reply.toBuilder()
+                        .setReply(reply.getReply().toBuilder()
+                                .setTargetConversationSequence(2))
+                        .build()));
 
         MessageHistoryPage missingDetail = MessageHistoryPage.newBuilder()
                 .setConversationId(CONVERSATION_ID)

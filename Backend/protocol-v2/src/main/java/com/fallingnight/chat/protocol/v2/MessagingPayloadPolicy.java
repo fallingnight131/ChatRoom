@@ -25,6 +25,19 @@ public final class MessagingPayloadPolicy {
         return List.copyOf(violations);
     }
 
+    public static List<String> violations(
+            SubmitReplyMessage command, String clientMessageId) {
+        List<String> violations = new ArrayList<>();
+        requireUuid("conversationId", command.getConversationId(), violations);
+        requireUuid("targetMessageId", command.getTargetMessageId(), violations);
+        if (command.getContent().size() > MAX_CONTENT_BYTES) {
+            violations.add("content exceeds messaging limit");
+        }
+        validateContent(command.getContentType(), command.getContent(), violations);
+        requireIdentifier("clientMessageId", clientMessageId, true, violations);
+        return List.copyOf(violations);
+    }
+
     public static List<String> violations(ReadMessageHistory command) {
         List<String> violations = new ArrayList<>();
         requireUuid("conversationId", command.getConversationId(), violations);
@@ -38,6 +51,10 @@ public final class MessagingPayloadPolicy {
     }
 
     public static void requireValid(SubmitMessage command, String clientMessageId) {
+        requireNone(violations(command, clientMessageId));
+    }
+
+    public static void requireValid(SubmitReplyMessage command, String clientMessageId) {
         requireNone(violations(command, clientMessageId));
     }
 
@@ -172,6 +189,17 @@ public final class MessagingPayloadPolicy {
             violations.add("message record bounds are invalid");
         }
         validateContent(message.getContentType(), message.getContent(), violations);
+        if (message.hasReply()) {
+            MessageReplyReference reply = message.getReply();
+            requireUuid("reply.targetMessageId", reply.getTargetMessageId(), violations);
+            requireUuid("reply.targetSenderAccountId",
+                    reply.getTargetSenderAccountId(), violations);
+            if (reply.getTargetConversationSequence() <= 0
+                    || reply.getTargetConversationSequence()
+                            >= message.getConversationSequence()) {
+                violations.add("reply target sequence must precede the reply message");
+            }
+        }
     }
 
     private static void requireUuid(String field, String value, List<String> violations) {

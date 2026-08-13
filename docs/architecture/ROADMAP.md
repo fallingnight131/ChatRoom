@@ -1355,6 +1355,13 @@ Progress:
     product gate: V1-login one-use handoff, controller-owned V2 session, automatic
     live refresh, hidden-by-default settings entry, and logout teardown
     (ADR-0327). Web remains behind its existing V2 preview/cutover gate.
+- [ ] Deliver reply and quote behavior on V2 Web and Windows clients.
+  - [x] Allocate the distinct `SubmitReplyMessage` command and an additive,
+    server-authoritative reply reference on message records, with bounded
+    Java/C++/TypeScript golden-wire compatibility (ADR-0328).
+  - [ ] Persist and validate same-conversation reply targets in PostgreSQL and
+    compose the Java gateway/application boundary.
+  - [ ] Add offline/cache-safe reply composition and rendering to Web and Windows.
 
 Candidate slices:
 

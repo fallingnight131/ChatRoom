@@ -17,6 +17,13 @@ message SubmitMessage {
   bytes content = 3;
 }
 
+message SubmitReplyMessage {
+  string conversation_id = 1;
+  string target_message_id = 2;
+  uint32 content_type = 3;
+  bytes content = 4;
+}
+
 message MessageAccepted {
   string conversation_id = 1;
   string message_id = 2;
@@ -41,6 +48,13 @@ message MessageRecord {
   uint32 content_type = 7;
   bytes content = 8;
   int64 accepted_at_epoch_ms = 9;
+  MessageReplyReference reply = 10;
+}
+
+message MessageReplyReference {
+  string target_message_id = 1;
+  uint64 target_conversation_sequence = 2;
+  string target_sender_account_id = 3;
 }
 
 message MessageRecalledRecord {

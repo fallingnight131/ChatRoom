@@ -628,9 +628,13 @@ The application core and PostgreSQL adapter now also implement an inactive
 durable-message boundary: authorized append atomically allocates a conversation
 sequence, exact concurrent retries return one stable database-timestamped
 outcome, conflicting idempotency reuse is denied, and active members can read
-bounded ascending sequence pages. Permanent bounded V2 types 100..104 now cover
+bounded ascending sequence pages. Permanent bounded V2 types 100..105 now cover
 submit/accepted/history/page plus a server live-message event using the same
-record projection, with generated Java/C++/TypeScript compatibility. A shared
+record projection, and a distinct reply-submit command with an additive
+server-authoritative target reference, with generated Java/C++/TypeScript
+compatibility. The reply command is not yet installed in the gateway; its
+separate type prevents unsupported servers from silently degrading a reply to a
+plain message, and its record metadata copies no target body (ADR-0328). A shared
 single-gateway router now establishes one active subscription only through the
 final authorized history page, publishes non-duplicate durable acceptance, and
 closes unwritable subscribers for reconnect repair. The Web client validates,

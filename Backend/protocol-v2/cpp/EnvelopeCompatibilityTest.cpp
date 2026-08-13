@@ -22,6 +22,10 @@ constexpr char kAuthenticateGoldenHex[] =
 constexpr char kSubmitMessageGoldenHex[] =
     "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
     "10011a026869";
+constexpr char kSubmitReplyMessageGoldenHex[] =
+    "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+    "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
+    "180122026869";
 constexpr char kListConversationsGoldenHex[] =
     "0880d095ffbc31122430303030303030302d303030302d303030302d303030302d"
     "3030303030303030303030321819";
@@ -104,6 +108,19 @@ int main() {
             || submit.content() != "hi"
             || submit.SerializeAsString() != submitGolden) {
         std::cerr << "generated C++ binding changed the SubmitMessage golden payload\n";
+        return 1;
+    }
+    const std::string submitReplyGolden = fromHex(kSubmitReplyMessageGoldenHex);
+    chat::v2::SubmitReplyMessage submitReply;
+    if (!submitReply.ParseFromString(submitReplyGolden)
+            || submitReply.conversation_id()
+                    != "00000000-0000-0000-0000-000000000001"
+            || submitReply.target_message_id()
+                    != "00000000-0000-0000-0000-000000000002"
+            || submitReply.content_type() != chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8
+            || submitReply.content() != "hi"
+            || submitReply.SerializeAsString() != submitReplyGolden) {
+        std::cerr << "generated C++ binding changed the SubmitReplyMessage golden payload\n";
         return 1;
     }
     const std::string listGolden = fromHex(kListConversationsGoldenHex);
