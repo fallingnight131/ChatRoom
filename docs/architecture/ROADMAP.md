@@ -755,6 +755,8 @@ Progress:
     - [x] Add V040 metadata-only content-addressed object registration, versioned
       account/group pointers, non-byte audit, complete room audiences, shared-
       reference-aware cleanup intent, and real PostgreSQL verification.
+    - [x] Add authorized metadata reads for enabled mapped usernames and active
+      room members, with missing-vs-denied outcomes and no provider URL exposure.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-

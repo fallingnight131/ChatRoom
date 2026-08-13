@@ -91,6 +91,11 @@ an account nor group pointer still references it. Missing V1 room mappings roll
 back object registration, pointer, audit, and cleanup intent together. Actual
 object upload/read/delete and V1 transport composition remain inactive behind
 the real-provider capability gate.
+The detached read adapter resolves enabled V1-mapped account names or active
+mapped room membership under a repeatable-read snapshot. It returns only exact
+private object evidence, dimensions, version, and database update time to the
+application boundary; missing user images are distinct from denied room access,
+and a referenced object carrying cleanup/deletion state fails closed.
 
 V004 adds the server-owned group title and an active-membership directory index.
 Any pre-product group row is assigned a deterministic placeholder before the

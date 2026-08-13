@@ -97,6 +97,8 @@ import com.fallingnight.chat.application.profile.ProfileImageMetadataCommand;
 import com.fallingnight.chat.application.profile.ProfileImageMetadataResult;
 import com.fallingnight.chat.application.profile.ProfileImageObjectEvidence;
 import com.fallingnight.chat.application.profile.ProfileImageTarget;
+import com.fallingnight.chat.application.profile.ProfileImageReadResult;
+import com.fallingnight.chat.application.profile.ProfileImageReadTarget;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ConversationImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ContactRequestImporter;
@@ -1897,6 +1899,14 @@ class PostgresMigratorTest {
                         new ProfileImageTarget.Account(owner), firstObject, 256, 256)));
         assertTrue(first.changed()); assertEquals(1, first.version());
         assertTrue(first.cleanupObjectKey().isEmpty()); assertTrue(first.roomPeerAccountIds().isEmpty());
+        var reads = new PostgresProfileImageReadAdapter(dataSource());
+        ProfileImageReadResult.Found accountRead = assertInstanceOf(
+                ProfileImageReadResult.Found.class, reads.read(
+                        new ProfileImageReadTarget.AccountByUsername(member, "avatar_owner")));
+        assertEquals(firstObject.objectKey(), accountRead.object().objectKey());
+        assertEquals(1, accountRead.version());
+        assertEquals(ProfileImageReadResult.Missing.INSTANCE, reads.read(
+                new ProfileImageReadTarget.AccountByUsername(owner, "avatar_member")));
 
         ProfileImageMetadataResult.Committed retry = assertInstanceOf(
                 ProfileImageMetadataResult.Committed.class,
@@ -1933,6 +1943,11 @@ class PostgresMigratorTest {
                         new ProfileImageTarget.LegacyRoom(owner, room.legacyRoomId()),
                         shared, 128, 128)));
         assertTrue(roomFirst.changed()); assertEquals(Set.of(member), roomFirst.roomPeerAccountIds());
+        ProfileImageReadResult.Found roomRead = assertInstanceOf(
+                ProfileImageReadResult.Found.class, reads.read(
+                        new ProfileImageReadTarget.LegacyRoom(member, room.legacyRoomId())));
+        assertEquals(shared.objectKey(), roomRead.object().objectKey());
+        assertEquals(1, roomRead.version());
 
         ProfileImageObjectEvidence roomReplacement = profileImageEvidence(3, 11);
         ProfileImageMetadataResult.Committed roomChanged = assertInstanceOf(
