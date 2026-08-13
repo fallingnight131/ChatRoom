@@ -16,6 +16,12 @@ public final class LegacyV1UsernameChangeService implements LegacyV1UsernameChan
         return username != null && USERNAME.matcher(username).matches();
     }
 
+    static boolean validStoredUsername(String username) {
+        return username != null && !username.isBlank() && username.equals(username.strip())
+                && username.codePointCount(0, username.length()) <= 128
+                && username.codePoints().noneMatch(Character::isISOControl);
+    }
+
     @Override public LegacyV1UsernameChangeResult change(
             LegacyV1UsernameChangeCommand command) {
         Objects.requireNonNull(command, "command");

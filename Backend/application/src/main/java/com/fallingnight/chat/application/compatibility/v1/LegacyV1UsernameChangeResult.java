@@ -26,7 +26,7 @@ public sealed interface LegacyV1UsernameChangeResult {
             Objects.requireNonNull(changedAt, "changedAt");
             Objects.requireNonNull(nextAllowedAt, "nextAllowedAt");
             roomAudiences = List.copyOf(Objects.requireNonNull(roomAudiences, "roomAudiences"));
-            if (!LegacyV1UsernameChangeService.validUsername(oldUsername)
+            if (!LegacyV1UsernameChangeService.validStoredUsername(oldUsername)
                     || !LegacyV1UsernameChangeService.validUsername(newUsername)
                     || changed == oldUsername.equals(newUsername)
                     || nextAllowedAt.isBefore(changedAt)

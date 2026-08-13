@@ -53,4 +53,11 @@ final class LegacyV1UsernameChangeServiceTest {
                         List.of(new LegacyV1UsernameChangeResult.RoomAudience(
                                 7, java.util.Set.of(actor)))));
     }
+
+    @Test void permitsBoundedLegacySourceNameWhenDestinationUsesNewPolicy() {
+        UUID actor = UUID.randomUUID();
+        assertDoesNotThrow(() -> new LegacyV1UsernameChangeResult.Changed(actor,
+                "imported-peer", "modern_peer", true, Instant.EPOCH,
+                Instant.EPOCH.plusSeconds(30L * 86400), List.of()));
+    }
 }

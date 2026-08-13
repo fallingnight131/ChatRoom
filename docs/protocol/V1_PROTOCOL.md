@@ -260,6 +260,17 @@ the profile authority, so disconnected clients recover the new name through a
 later login or directory snapshot. The product listener remains unchanged
 pending the documented cutover.
 
+`CHANGE_UID_REQ.data.newUid` remains the V1 name for changing the mutable login
+name; it never changes the stable numeric user ID or canonical account UUID. The
+detached Java path accepts only trimmed `[A-Za-z0-9_]{6,20}` destinations,
+enforces database-time uniqueness and a 30-day cooldown, and refreshes the
+authenticated connection after commit. `CHANGE_UID_RSP` preserves
+`success`/`oldUid`/`newUid` and may add `changed`, `changedAt`, `nextAllowedAt`,
+`errorCode`, or `retryAt`. Only a first commit emits `UID_CHANGE_NOTIFY` to
+other active mapped members of each joined room; the actor and exact retries
+receive no notification. Subsequent login accepts the new name and rejects the
+old one. The product listener remains unchanged pending cutover.
+
 ### Contacts and direct messages
 
 `USER_SEARCH_REQ`, `USER_SEARCH_RSP`, `FRIEND_REQUEST_REQ`,

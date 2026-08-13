@@ -16,7 +16,9 @@ and other users' cached sender keys. The current server permits one change per
 ## Decision
 
 - Keep the stable numeric/UUID identities unchanged. Accept only trimmed ASCII
-  `[A-Za-z0-9_]{6,20}` names and bind the actor to its authenticated account.
+  `[A-Za-z0-9_]{6,20}` destination names and bind the actor to its authenticated
+  account. Permit a bounded pre-policy imported username as the audited source
+  so legacy accounts can converge to the current rule.
 - In one serializable PostgreSQL transaction, lock the enabled mapped account,
   enforce global exact-name uniqueness and a database-time 30-day cooldown,
   update `account.username_key`, and append an old/new audit row.

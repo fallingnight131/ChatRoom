@@ -743,7 +743,7 @@ Progress:
   - [x] Define and compose convergent V1 nickname change with canonical Unicode
     validation, atomic profile audit, authoritative room audiences, identity
     refresh, exact-retry suppression, and restart recovery.
-  - [ ] Define and compose cooldown-bound V1 username change with stable account
+  - [x] Define and compose cooldown-bound V1 username change with stable account
     identity, atomic uniqueness/audit, authoritative peer audiences, exact-retry
     convergence, new-name login recovery, and old-name denial.
   - [x] Add the inactive attachment registration application port and exact

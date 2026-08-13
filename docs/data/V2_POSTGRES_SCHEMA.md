@@ -32,6 +32,7 @@ not server truth.
 | `messages_deleted_event` | typed bulk-deletion event and bounded operation metadata |
 | `identity_import_run` | non-secret proof and reconciled counts for each committed V1 identity apply |
 | `account_display_name_change_audit` | non-secret old/new display-name audit for committed profile mutations |
+| `account_username_change_audit` | non-secret old/new login-name audit and exact-retry proof |
 | `legacy_v1_account_map` | temporary one-to-one V1 numeric ID to V2 account UUID compatibility projection |
 | `legacy_v1_conversation_map` | typed one-to-one V1 room/friendship ID to V2 conversation UUID projection |
 | `legacy_v1_message_map` | typed retained V1 message ID to V2 message UUID projection |
@@ -66,6 +67,15 @@ enabled mapped account, commits the profile value/time/audit atomically, and
 returns complete active mapped room audiences as post-commit effect intent. An
 exact desired-state retry creates no audit or notification intent; an incomplete
 active V1 room mapping rolls the entire mutation back.
+
+V038 adds nullable `account.username_changed_at` plus the append-only
+`account_username_change_audit`. The serializable adapter preserves the stable
+account UUID/V1 numeric ID, enforces exact destination-name uniqueness and a
+database-time 30-day cooldown, and atomically changes only the login natural
+key. A same-as-current request succeeds only when the latest audit proves it is
+an exact retry. V039 widens only the audited source-name constraint so bounded
+pre-policy imported names can converge to the current `[A-Za-z0-9_]{6,20}`
+destination policy; it does not weaken new-name validation.
 
 V004 adds the server-owned group title and an active-membership directory index.
 Any pre-product group row is assigned a deterministic placeholder before the
@@ -501,7 +511,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V037, reruns migration as a simulated
+cluster, migrates a clean database through current V039, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable
