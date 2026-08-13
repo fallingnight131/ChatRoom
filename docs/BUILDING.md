@@ -1533,6 +1533,11 @@ compiled `WindowsV2ProductConfiguration` exposes the immutable boolean; default
 and ordinary preview builds keep it false. This slice does not yet pass the
 value into session negotiation, application service, or Widgets, so setting it
 alone cannot create a half-enabled product path.
+The Windows session codec and Qt WSS transport now accept the same default-false
+runtime input. The default `ClientHello` and validation remain exactly
+capabilities 1–4. Enabled construction appends capability 5 and rejects a
+`ServerHello` that omits, reorders, or adds capabilities. This is still a
+detached seam until the product controller passes its compiled configuration.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic

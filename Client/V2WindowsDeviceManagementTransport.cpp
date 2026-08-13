@@ -31,7 +31,8 @@ V2WindowsDeviceManagementTransport::V2WindowsDeviceManagementTransport(
         QString clientDeviceId,
         QWebSocket *socket,
         SocketHooks hooks,
-        QObject *parent)
+        QObject *parent,
+        bool enableMessageForwarding)
     : QObject(parent),
       m_endpoint(std::move(endpoint)),
       m_appVersion(std::move(appVersion)),
@@ -39,7 +40,8 @@ V2WindowsDeviceManagementTransport::V2WindowsDeviceManagementTransport(
       m_socket(socket ? socket
                       : new QWebSocket(QString(), QWebSocketProtocol::VersionLatest, this)),
       m_ownsSocket(!socket),
-      m_hooks(std::move(hooks)) {
+      m_hooks(std::move(hooks)),
+      m_messageForwardingEnabled(enableMessageForwarding) {
     if (!isValidEndpoint(m_endpoint))
         throw std::invalid_argument("Windows V2 endpoint must be exact wss /v2/windows");
     if (!m_hooks.subprotocol) m_hooks.subprotocol = [this] { return m_socket->subprotocol(); };
@@ -192,7 +194,10 @@ void V2WindowsDeviceManagementTransport::handleConnected() {
     try {
         clearProtocol();
         m_protocol = std::make_unique<V2WindowsSessionProtocolClient>(
-            standard(m_appVersion), standard(m_clientDeviceId));
+            standard(m_appVersion), standard(m_clientDeviceId),
+            V2WindowsSessionProtocolClient::RequestIdFactory{},
+            V2WindowsSessionProtocolClient::Clock{},
+            m_messageForwardingEnabled);
         transition(State::Negotiating);
         send(m_protocol->createClientHello());
         armPhaseTimeout(helloTimeoutMs, QStringLiteral("V2 协商超时"));

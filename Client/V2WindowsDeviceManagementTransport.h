@@ -43,7 +43,8 @@ public:
         QString clientDeviceId,
         QWebSocket *socket = nullptr,
         SocketHooks hooks = {},
-        QObject *parent = nullptr);
+        QObject *parent = nullptr,
+        bool enableMessageForwarding = false);
     ~V2WindowsDeviceManagementTransport() override;
 
     State state() const;
@@ -97,6 +98,7 @@ private:
     QString m_timeoutReason;
     State m_state = State::Idle;
     bool m_desired = false;
+    bool m_messageForwardingEnabled = false;
     int m_reconnectAttempt = 0;
 };
 

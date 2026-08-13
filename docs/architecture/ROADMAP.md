@@ -1639,6 +1639,9 @@ Progress:
     - [x] Add the independent default-off Windows CMake forwarding gate, require
       the V2 preview build, and expose one immutable product-configuration value
       without changing runtime negotiation yet.
+    - [x] Add the Windows session/transport capability-5 negotiation seam:
+      default construction requests exactly capabilities 1–4, while enabled
+      construction requests and requires the ordered fifth capability.
 
 Candidate slices:
 

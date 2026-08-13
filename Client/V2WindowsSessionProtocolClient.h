@@ -47,7 +47,8 @@ public:
         std::string appVersion,
         std::string clientDeviceId,
         RequestIdFactory requestIdFactory = {},
-        Clock clock = {});
+        Clock clock = {},
+        bool enableMessageForwarding = false);
     ~V2WindowsSessionProtocolClient();
 
     State state() const;
@@ -82,5 +83,6 @@ private:
     std::string m_pendingRequestId;
     std::uint32_t m_expectedType = 0;
     std::size_t m_maximumFrameBytes = 1024U * 1024U + 1024U;
+    bool m_messageForwardingEnabled = false;
     Session m_session;
 };

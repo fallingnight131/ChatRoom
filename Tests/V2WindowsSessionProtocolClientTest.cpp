@@ -112,6 +112,40 @@ int main() {
     serverHello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS);
     serverHello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS);
     serverHello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_MENTIONS);
+    Ids forwardingIds;
+    V2WindowsSessionProtocolClient forwardingClient(
+        "2.0.0-test", deviceId,
+        [&] { return forwardingIds.next(); }, [] { return 800; }, true);
+    const auto forwardingHello = forwardingClient.createClientHello();
+    chat::v2::Envelope forwardingHelloEnvelope;
+    chat::v2::ClientHello forwardingHelloPayload;
+    check(forwardingHelloEnvelope.ParseFromString(forwardingHello.bytes)
+              && forwardingHelloPayload.ParseFromString(
+                  forwardingHelloEnvelope.payload())
+              && forwardingHelloPayload.capabilities_size() == 5
+              && forwardingHelloPayload.capabilities(4)
+                  == chat::v2::CLIENT_CAPABILITY_MESSAGE_FORWARDING,
+          "enabled Windows forwarding must request capability 5 exactly");
+    checkThrows([&] {
+        forwardingClient.receive(response(
+            chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
+            forwardingHello.requestId, "", serverHello));
+    }, "enabled Windows forwarding must fail closed when capability 5 is omitted");
+
+    Ids capableForwardingIds;
+    V2WindowsSessionProtocolClient capableForwardingClient(
+        "2.0.0-test", deviceId,
+        [&] { return capableForwardingIds.next(); }, [] { return 800; }, true);
+    const auto capableForwardingHello = capableForwardingClient.createClientHello();
+    auto forwardingServerHello = serverHello;
+    forwardingServerHello.add_enabled_capabilities(
+        chat::v2::CLIENT_CAPABILITY_MESSAGE_FORWARDING);
+    const auto capableForwardingEvent = capableForwardingClient.receive(response(
+        chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
+        capableForwardingHello.requestId, "", forwardingServerHello));
+    check(capableForwardingEvent.type
+              == V2WindowsSessionProtocolClient::EventType::ServerHello,
+          "enabled Windows forwarding must accept the exact five-capability hello");
     Ids downgradeIds;
     V2WindowsSessionProtocolClient downgradeClient(
         "2.0.0-test", deviceId,
