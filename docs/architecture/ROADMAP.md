@@ -1536,6 +1536,10 @@ Progress:
       - [x] Extend the default-off Windows messaging protocol boundary with
         bounded structured mentions across send, reply, edit, history, and live
         events, including strict UTF-8 span and response-correlation checks.
+      - [x] Migrate the account-isolated Windows cache to schema 6 with
+        normalized message/edit-outbox mention rows, restart-safe replay,
+        idempotency checks, authoritative edit replacement, and recall/delete
+        cleanup while capability 4 remains off.
       - [x] Add a default-off Windows participant-directory protocol client with
         bounded correlation, stable account cursor, strict Unicode/role/order
         validation, and disconnect abandonment.

@@ -10,6 +10,11 @@ public:
     enum class DeliveryState { Pending, Failed, Accepted };
     enum class EditDeliveryState { Pending, Failed, Conflict };
     enum class ReactionKind { Like = 1, Love, Laugh, Surprised, Sad, Angry };
+    struct Mention {
+        QString targetAccountId;
+        int startUtf8Byte = 0;
+        int lengthUtf8Bytes = 0;
+    };
     struct ReactionAggregate {
         ReactionKind reaction = ReactionKind::Like;
         QStringList actorAccountIds;
@@ -45,11 +50,13 @@ public:
         QString conversationId; qint64 conversationSequence = 0; QString messageId;
         int contentRevision = 0; QString text; QString actorAccountId;
         QString clientOperationId; qint64 occurredAtEpochMs = 0;
+        QList<Mention> mentions;
     };
     struct EditCommand {
         QString conversationId; QString messageId; int expectedRevision = 0;
         QString proposedText; QString clientOperationId;
         EditDeliveryState state = EditDeliveryState::Pending;
+        QList<Mention> mentions;
     };
     struct ReplyReference {
         QString targetMessageId;
@@ -74,6 +81,7 @@ public:
         bool pinned = false;
         int contentRevision = 0;
         qint64 editedAtEpochMs = 0;
+        QList<Mention> mentions;
     };
     struct Snapshot {
         QList<Message> messages;
@@ -147,6 +155,8 @@ private:
     static QString stateValue(DeliveryState state);
     static bool parseState(const QString &value, DeliveryState *state);
     static bool validBaseMessage(const Message &message);
+    static bool validMentions(const QString &text, const QList<Mention> &mentions);
+    static bool sameMentions(const QList<Mention> &left, const QList<Mention> &right);
     static bool validPending(const Message &message);
     static bool validAccepted(const Message &message);
     static bool validReactionKind(ReactionKind reaction);
@@ -159,6 +169,11 @@ private:
     bool ensureConversation(const QString &accountId, const QString &conversationId,
                             qint64 cursor);
     bool insertMessage(const QString &accountId, const Message &message);
+    bool insertMessageMentions(const QString &accountId, const QString &conversationId,
+                               const QString &clientMessageId,
+                               const QList<Mention> &mentions);
+    bool insertEditMentions(const QString &accountId, const QString &clientOperationId,
+                            const QList<Mention> &mentions);
     bool pruneAccepted(const QString &accountId, const QString &conversationId);
     bool applyReactionProjection(const QString &accountId, const ReactionChange &change);
     bool applyPinProjection(const QString &accountId, const PinChange &change);

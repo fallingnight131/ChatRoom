@@ -6,12 +6,13 @@
 #include <QFileInfo>
 #include <QSqlError>
 #include <QSqlQuery>
+#include <QSet>
 #include <QStandardPaths>
 #include <QStringEncoder>
 #include <QUuid>
 #include <QDebug>
 
-namespace { constexpr int SchemaVersion = 5; }
+namespace { constexpr int SchemaVersion = 6; }
 
 V2LocalMessageRepository::V2LocalMessageRepository(const QString &databasePath)
     : m_databasePath(databasePath),
@@ -127,6 +128,24 @@ bool V2LocalMessageRepository::initialize() {
             "(account_id, conversation_id) ON DELETE CASCADE)"),
         QStringLiteral("CREATE INDEX IF NOT EXISTS idx_v2_edit_commands_pending ON "
             "v2_edit_commands(account_id, delivery_state, conversation_id)"),
+        QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS v2_message_mentions ("
+            "account_id TEXT NOT NULL, conversation_id TEXT NOT NULL, "
+            "client_message_id TEXT NOT NULL, ordinal INTEGER NOT NULL CHECK(ordinal BETWEEN 0 AND 19), "
+            "target_account_id TEXT NOT NULL, start_utf8_byte INTEGER NOT NULL CHECK(start_utf8_byte >= 0), "
+            "length_utf8_bytes INTEGER NOT NULL CHECK(length_utf8_bytes > 0), "
+            "PRIMARY KEY(account_id, conversation_id, client_message_id, ordinal), "
+            "FOREIGN KEY(account_id, conversation_id, client_message_id) REFERENCES v2_messages"
+            "(account_id, conversation_id, client_message_id) ON DELETE CASCADE)"),
+        QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS v2_edit_command_mentions ("
+            "account_id TEXT NOT NULL, client_operation_id TEXT NOT NULL, "
+            "ordinal INTEGER NOT NULL CHECK(ordinal BETWEEN 0 AND 19), "
+            "target_account_id TEXT NOT NULL, start_utf8_byte INTEGER NOT NULL CHECK(start_utf8_byte >= 0), "
+            "length_utf8_bytes INTEGER NOT NULL CHECK(length_utf8_bytes > 0), "
+            "PRIMARY KEY(account_id, client_operation_id, ordinal), "
+            "FOREIGN KEY(account_id, client_operation_id) REFERENCES v2_edit_commands"
+            "(account_id, client_operation_id) ON DELETE CASCADE ON UPDATE CASCADE)"),
     };
     for (const auto &statement : statements) {
         if (!query.exec(statement)) {
@@ -150,13 +169,13 @@ bool V2LocalMessageRepository::initialize() {
         m_database.rollback();
         return fail(QStringLiteral("migrate"), query.lastError().text());
     }
-    if (!query.exec(QStringLiteral("PRAGMA user_version = 5"))) {
+    if (!query.exec(QStringLiteral("PRAGMA user_version = 6"))) {
         m_database.rollback();
         return fail(QStringLiteral("migrate"), query.lastError().text());
     }
     if (!m_database.commit()) return fail(QStringLiteral("migrate"), m_database.lastError().text());
     m_lastError.clear();
-    qInfo() << "[V2LocalStore] operation=initialize outcome=success schema=5";
+    qInfo() << "[V2LocalStore] operation=initialize outcome=success schema=6";
     return true;
 }
 
@@ -180,6 +199,16 @@ bool V2LocalMessageRepository::upsertPending(
     if (!existing.exec()) { m_database.rollback(); return fail(QStringLiteral("upsertPending"), existing.lastError().text()); }
     const bool exists = existing.next();
     if (exists) {
+        QList<Mention> storedMentions;
+        QSqlQuery mentionQuery(m_database);
+        mentionQuery.prepare(QStringLiteral("SELECT target_account_id,start_utf8_byte,"
+            "length_utf8_bytes FROM v2_message_mentions WHERE account_id=? AND conversation_id=? "
+            "AND client_message_id=? ORDER BY ordinal"));
+        mentionQuery.addBindValue(accountId); mentionQuery.addBindValue(message.conversationId);
+        mentionQuery.addBindValue(message.clientMessageId);
+        if (!mentionQuery.exec()) { m_database.rollback(); return fail(QStringLiteral("upsertPending"), mentionQuery.lastError().text()); }
+        while (mentionQuery.next()) storedMentions.append({mentionQuery.value(0).toString(),
+            mentionQuery.value(1).toInt(), mentionQuery.value(2).toInt()});
         const bool accepted = existing.value(4).toString() == QStringLiteral("accepted");
         const bool same = (accepted || existing.value(0).toString() == message.text)
             && existing.value(1).toString()
@@ -190,7 +219,8 @@ bool V2LocalMessageRepository::upsertPending(
                 == (message.hasReply ? message.reply.targetSenderAccountId : QString())
             && existing.value(5).toString() == message.senderAccountId
             && existing.value(6).toString() == message.senderDeviceId
-            && existing.value(7).toLongLong() == message.createdAtEpochMs;
+            && existing.value(7).toLongLong() == message.createdAtEpochMs
+            && sameMentions(storedMentions, message.mentions);
         if (!same) {
             m_database.rollback();
             return fail(QStringLiteral("upsertPending"), QStringLiteral("idempotency conflict"));
@@ -369,6 +399,15 @@ bool V2LocalMessageRepository::mergeServerPage(
             m_database.rollback();
             return fail(QStringLiteral("mergeServerPage"), mutation.lastError().text());
         }
+        QSqlQuery removeMentions(m_database);
+        removeMentions.prepare(QStringLiteral(
+            "DELETE FROM v2_message_mentions WHERE account_id=? AND conversation_id=? "
+            "AND client_message_id IN (SELECT client_message_id FROM v2_messages WHERE "
+            "account_id=? AND conversation_id=? AND message_id=?)"));
+        removeMentions.addBindValue(accountId); removeMentions.addBindValue(conversationId);
+        removeMentions.addBindValue(accountId); removeMentions.addBindValue(conversationId);
+        removeMentions.addBindValue(messageId);
+        if (!removeMentions.exec()) { m_database.rollback(); return fail(QStringLiteral("mergeServerPage"), removeMentions.lastError().text()); }
         QSqlQuery cleanup(m_database);
         cleanup.prepare(QStringLiteral("DELETE FROM v2_message_pins WHERE account_id=? AND conversation_id=? AND message_id=?"));
         cleanup.addBindValue(accountId); cleanup.addBindValue(conversationId); cleanup.addBindValue(messageId);
@@ -684,10 +723,20 @@ bool V2LocalMessageRepository::stageEdit(
     existing.addBindValue(accountId); existing.addBindValue(command.clientOperationId);
     if (!existing.exec()) { m_database.rollback(); return fail(QStringLiteral("stageEdit"), existing.lastError().text()); }
     if (existing.next()) {
+        QList<Mention> storedMentions;
+        QSqlQuery mentionQuery(m_database);
+        mentionQuery.prepare(QStringLiteral("SELECT target_account_id,start_utf8_byte,"
+            "length_utf8_bytes FROM v2_edit_command_mentions WHERE account_id=? "
+            "AND client_operation_id=? ORDER BY ordinal"));
+        mentionQuery.addBindValue(accountId); mentionQuery.addBindValue(command.clientOperationId);
+        if (!mentionQuery.exec()) { m_database.rollback(); return fail(QStringLiteral("stageEdit"), mentionQuery.lastError().text()); }
+        while (mentionQuery.next()) storedMentions.append({mentionQuery.value(0).toString(),
+            mentionQuery.value(1).toInt(), mentionQuery.value(2).toInt()});
         if (existing.value(0).toString()!=command.conversationId
                 || existing.value(1).toString()!=command.messageId
                 || existing.value(2).toInt()!=command.expectedRevision
-                || existing.value(3).toString()!=command.proposedText) {
+                || existing.value(3).toString()!=command.proposedText
+                || !sameMentions(storedMentions, command.mentions)) {
             m_database.rollback(); return fail(QStringLiteral("stageEdit"), QStringLiteral("idempotency conflict"));
         }
         QSqlQuery retry(m_database);
@@ -708,6 +757,9 @@ bool V2LocalMessageRepository::stageEdit(
         insert.addBindValue(command.expectedRevision); insert.addBindValue(command.proposedText);
         insert.addBindValue(command.clientOperationId);
         if (!insert.exec()) { m_database.rollback(); return fail(QStringLiteral("stageEdit"), insert.lastError().text()); }
+        if (!insertEditMentions(accountId, command.clientOperationId, command.mentions)) {
+            m_database.rollback(); return false;
+        }
     }
     if (!m_database.commit()) return fail(QStringLiteral("stageEdit"), m_database.lastError().text());
     m_lastError.clear(); return true;
@@ -742,6 +794,17 @@ bool V2LocalMessageRepository::rebaseEdit(
             || stale.value(3).toString()!=replacement.proposedText
             || stale.value(2).toInt()>=replacement.expectedRevision) {
         m_database.rollback(); return fail(QStringLiteral("rebaseEdit"), QStringLiteral("stale edit unavailable"));
+    }
+    QList<Mention> staleMentions;
+    QSqlQuery mentionQuery(m_database);
+    mentionQuery.prepare(QStringLiteral("SELECT target_account_id,start_utf8_byte,length_utf8_bytes "
+        "FROM v2_edit_command_mentions WHERE account_id=? AND client_operation_id=? ORDER BY ordinal"));
+    mentionQuery.addBindValue(accountId); mentionQuery.addBindValue(staleOperationId);
+    if (!mentionQuery.exec()) { m_database.rollback(); return fail(QStringLiteral("rebaseEdit"), mentionQuery.lastError().text()); }
+    while (mentionQuery.next()) staleMentions.append({mentionQuery.value(0).toString(),
+        mentionQuery.value(1).toInt(), mentionQuery.value(2).toInt()});
+    if (!sameMentions(staleMentions, replacement.mentions)) {
+        m_database.rollback(); return fail(QStringLiteral("rebaseEdit"), QStringLiteral("stale edit mention conflict"));
     }
     QSqlQuery revision(m_database);
     revision.prepare(QStringLiteral("SELECT content_revision FROM v2_messages WHERE account_id=? AND "
@@ -839,6 +902,22 @@ V2LocalMessageRepository::Snapshot V2LocalMessageRepository::loadSnapshot(
         message.hasReply = !message.reply.targetMessageId.isEmpty();
         result.messages.append(message);
     }
+    QSqlQuery mentions(m_database);
+    mentions.prepare(QStringLiteral(
+        "SELECT client_message_id,target_account_id,start_utf8_byte,length_utf8_bytes "
+        "FROM v2_message_mentions WHERE account_id=? AND conversation_id=? "
+        "ORDER BY client_message_id,ordinal"));
+    mentions.addBindValue(accountId); mentions.addBindValue(conversationId);
+    if (!mentions.exec()) { fail(QStringLiteral("loadSnapshot"), mentions.lastError().text()); return {}; }
+    while (mentions.next()) {
+        auto message = std::find_if(result.messages.begin(), result.messages.end(),
+            [&](const Message &value) {
+                return value.clientMessageId == mentions.value(0).toString();
+            });
+        if (message != result.messages.end())
+            message->mentions.append({mentions.value(1).toString(), mentions.value(2).toInt(),
+                                      mentions.value(3).toInt()});
+    }
     QSqlQuery reactions(m_database);
     reactions.prepare(QStringLiteral(
         "SELECT message_id, reaction, actor_account_id FROM v2_message_reactions "
@@ -908,6 +987,14 @@ V2LocalMessageRepository::Snapshot V2LocalMessageRepository::loadSnapshot(
         const QString state=editCommands.value(4).toString();
         command.state=state==QStringLiteral("failed") ? EditDeliveryState::Failed
             : state==QStringLiteral("conflict") ? EditDeliveryState::Conflict : EditDeliveryState::Pending;
+        QSqlQuery mentionQuery(m_database);
+        mentionQuery.prepare(QStringLiteral("SELECT target_account_id,start_utf8_byte,"
+            "length_utf8_bytes FROM v2_edit_command_mentions WHERE account_id=? "
+            "AND client_operation_id=? ORDER BY ordinal"));
+        mentionQuery.addBindValue(accountId); mentionQuery.addBindValue(command.clientOperationId);
+        if (!mentionQuery.exec()) { fail(QStringLiteral("loadSnapshot"), mentionQuery.lastError().text()); return {}; }
+        while (mentionQuery.next()) command.mentions.append({mentionQuery.value(0).toString(),
+            mentionQuery.value(1).toInt(), mentionQuery.value(2).toInt()});
         if (validEditCommand(command)) result.editCommands.append(command);
     }
     m_lastError.clear(); return result;
@@ -980,7 +1067,17 @@ V2LocalMessageRepository::pendingEdits(const QString &accountId) {
     if (!query.exec()) { fail(QStringLiteral("pendingEdits"), query.lastError().text()); return {}; }
     while (query.next()) {
         EditCommand command{query.value(0).toString(),query.value(1).toString(),query.value(2).toInt(),
-            query.value(3).toString(),query.value(4).toString(),EditDeliveryState::Pending};
+            query.value(3).toString(),query.value(4).toString(),EditDeliveryState::Pending, {}};
+        QSqlQuery mentions(m_database);
+        mentions.prepare(QStringLiteral(
+            "SELECT target_account_id,start_utf8_byte,length_utf8_bytes "
+            "FROM v2_edit_command_mentions WHERE account_id=? AND client_operation_id=? "
+            "ORDER BY ordinal"));
+        mentions.addBindValue(accountId); mentions.addBindValue(command.clientOperationId);
+        if (!mentions.exec()) { fail(QStringLiteral("pendingEdits"), mentions.lastError().text()); return {}; }
+        while (mentions.next())
+            command.mentions.append({mentions.value(0).toString(), mentions.value(1).toInt(),
+                                     mentions.value(2).toInt()});
         if (validEditCommand(command)) result.append(command);
     }
     m_lastError.clear(); return result;
@@ -1018,7 +1115,46 @@ bool V2LocalMessageRepository::insertMessage(const QString &accountId, const Mes
     query.addBindValue(message.hasReply
         ? message.reply.targetSenderAccountId : QStringLiteral(""));
     query.addBindValue(message.contentRevision); query.addBindValue(message.editedAtEpochMs);
-    return query.exec() || fail(QStringLiteral("insertMessage"), query.lastError().text());
+    if (!query.exec()) return fail(QStringLiteral("insertMessage"), query.lastError().text());
+    return insertMessageMentions(
+        accountId, message.conversationId, message.clientMessageId, message.mentions);
+}
+
+bool V2LocalMessageRepository::insertMessageMentions(
+        const QString &accountId, const QString &conversationId,
+        const QString &clientMessageId, const QList<Mention> &mentions) {
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "INSERT INTO v2_message_mentions(account_id,conversation_id,client_message_id,ordinal,"
+        "target_account_id,start_utf8_byte,length_utf8_bytes) VALUES(?,?,?,?,?,?,?)"));
+    for (qsizetype index = 0; index < mentions.size(); ++index) {
+        query.bindValue(0, accountId); query.bindValue(1, conversationId);
+        query.bindValue(2, clientMessageId); query.bindValue(3, index);
+        query.bindValue(4, mentions[index].targetAccountId);
+        query.bindValue(5, mentions[index].startUtf8Byte);
+        query.bindValue(6, mentions[index].lengthUtf8Bytes);
+        if (!query.exec())
+            return fail(QStringLiteral("insertMessageMentions"), query.lastError().text());
+    }
+    return true;
+}
+
+bool V2LocalMessageRepository::insertEditMentions(
+        const QString &accountId, const QString &clientOperationId,
+        const QList<Mention> &mentions) {
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "INSERT INTO v2_edit_command_mentions(account_id,client_operation_id,ordinal,"
+        "target_account_id,start_utf8_byte,length_utf8_bytes) VALUES(?,?,?,?,?,?)"));
+    for (qsizetype index = 0; index < mentions.size(); ++index) {
+        query.bindValue(0, accountId); query.bindValue(1, clientOperationId);
+        query.bindValue(2, index); query.bindValue(3, mentions[index].targetAccountId);
+        query.bindValue(4, mentions[index].startUtf8Byte);
+        query.bindValue(5, mentions[index].lengthUtf8Bytes);
+        if (!query.exec())
+            return fail(QStringLiteral("insertEditMentions"), query.lastError().text());
+    }
+    return true;
 }
 
 bool V2LocalMessageRepository::pruneAccepted(
@@ -1103,7 +1239,23 @@ bool V2LocalMessageRepository::applyEditProjection(
     query.addBindValue(change.conversationId); query.addBindValue(change.messageId);
     query.addBindValue(change.contentRevision);
     if (!query.exec()) return fail(QStringLiteral("applyEditProjection"), query.lastError().text());
-    return true;
+    if (query.numRowsAffected() == 0) return true;
+    QSqlQuery identity(m_database);
+    identity.prepare(QStringLiteral("SELECT client_message_id FROM v2_messages WHERE account_id=? "
+        "AND conversation_id=? AND message_id=? AND delivery_state='accepted' AND recalled=0"));
+    identity.addBindValue(accountId); identity.addBindValue(change.conversationId);
+    identity.addBindValue(change.messageId);
+    if (!identity.exec()) return fail(QStringLiteral("applyEditProjection"), identity.lastError().text());
+    if (!identity.next()) return true;
+    const QString clientMessageId = identity.value(0).toString();
+    QSqlQuery remove(m_database);
+    remove.prepare(QStringLiteral("DELETE FROM v2_message_mentions WHERE account_id=? "
+        "AND conversation_id=? AND client_message_id=?"));
+    remove.addBindValue(accountId); remove.addBindValue(change.conversationId);
+    remove.addBindValue(clientMessageId);
+    if (!remove.exec()) return fail(QStringLiteral("applyEditProjection"), remove.lastError().text());
+    return insertMessageMentions(
+        accountId, change.conversationId, clientMessageId, change.mentions);
 }
 
 bool V2LocalMessageRepository::canonicalUuid(const QString &value) {
@@ -1139,7 +1291,8 @@ bool V2LocalMessageRepository::validBaseMessage(const Message &message) {
             || encoder.hasError() || text.isEmpty() || text.size() > MaxTextBytes
             || message.createdAtEpochMs <= 0 || message.contentRevision < 0
             || message.contentRevision > MaxContentRevisions
-            || ((message.contentRevision == 0) != (message.editedAtEpochMs == 0))) return false;
+            || ((message.contentRevision == 0) != (message.editedAtEpochMs == 0))
+            || !validMentions(message.text, message.mentions)) return false;
     return !message.hasReply || (canonicalUuid(message.reply.targetMessageId)
         && message.reply.targetConversationSequence > 0
         && canonicalUuid(message.reply.targetSenderAccountId));
@@ -1192,6 +1345,7 @@ bool V2LocalMessageRepository::validEditChange(
     return canonicalUuid(change.conversationId) && canonicalUuid(change.messageId)
         && change.contentRevision>=1 && change.contentRevision<=MaxContentRevisions
         && !encoder.hasError() && !text.isEmpty() && text.size()<=MaxTextBytes
+        && validMentions(change.text, change.mentions)
         && canonicalUuid(change.actorAccountId) && validIdentifier(change.clientOperationId)
         && change.occurredAtEpochMs>0 && (sequenceRequired
             ? change.conversationSequence>0 : change.conversationSequence>=0);
@@ -1201,7 +1355,42 @@ bool V2LocalMessageRepository::validEditCommand(const EditCommand &command) {
     return canonicalUuid(command.conversationId) && canonicalUuid(command.messageId)
         && command.expectedRevision>=0 && command.expectedRevision<=MaxContentRevisions
         && !encoder.hasError() && !text.isEmpty() && text.size()<=MaxTextBytes
-        && validIdentifier(command.clientOperationId);
+        && validIdentifier(command.clientOperationId)
+        && validMentions(command.proposedText, command.mentions);
+}
+bool V2LocalMessageRepository::validMentions(
+        const QString &text, const QList<Mention> &mentions) {
+    const QByteArray bytes = text.toUtf8();
+    if (mentions.size() > 20) return false;
+    int previousEnd = 0;
+    QSet<QString> targets;
+    for (const auto &mention : mentions) {
+        if (!canonicalUuid(mention.targetAccountId) || mention.lengthUtf8Bytes <= 0
+                || mention.startUtf8Byte < previousEnd || mention.startUtf8Byte >= bytes.size()
+                || mention.lengthUtf8Bytes > bytes.size() - mention.startUtf8Byte)
+            return false;
+        const int end = mention.startUtf8Byte + mention.lengthUtf8Bytes;
+        const auto boundary = [&](int index) {
+            return index == 0 || index == bytes.size()
+                || (static_cast<unsigned char>(bytes.at(index)) & 0xc0U) != 0x80U;
+        };
+        if (!boundary(mention.startUtf8Byte) || !boundary(end)
+                || bytes.at(mention.startUtf8Byte) != '@') return false;
+        targets.insert(mention.targetAccountId);
+        if (targets.size() > 10) return false;
+        previousEnd = end;
+    }
+    return true;
+}
+bool V2LocalMessageRepository::sameMentions(
+        const QList<Mention> &left, const QList<Mention> &right) {
+    if (left.size() != right.size()) return false;
+    for (qsizetype index = 0; index < left.size(); ++index)
+        if (left[index].targetAccountId != right[index].targetAccountId
+                || left[index].startUtf8Byte != right[index].startUtf8Byte
+                || left[index].lengthUtf8Bytes != right[index].lengthUtf8Bytes)
+            return false;
+    return true;
 }
 bool V2LocalMessageRepository::fail(const QString &operation, const QString &detail) {
     m_lastError = operation + QStringLiteral(": ") + detail;

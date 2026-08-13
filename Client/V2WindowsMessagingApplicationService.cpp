@@ -230,7 +230,7 @@ bool V2WindowsMessagingApplicationService::editMessage(
         m_lastError=QStringLiteral("edit target unavailable"); return false;
     }
     V2LocalMessageRepository::EditCommand command{conversationId,messageId,target->contentRevision,
-        text,m_clientMessageIdFactory(),V2LocalMessageRepository::EditDeliveryState::Pending};
+        text,m_clientMessageIdFactory(),V2LocalMessageRepository::EditDeliveryState::Pending,{}};
     if (!m_repository->stageEdit(m_accountId,command)) { m_lastError=m_repository->lastError(); return false; }
     if (m_connected) dispatchEdit(command); return true;
 }
@@ -623,7 +623,7 @@ V2WindowsMessagingApplicationService::localEdit(
     return {QString::fromStdString(change.conversationId),static_cast<qint64>(change.conversationSequence),
         QString::fromStdString(change.messageId),static_cast<int>(change.contentRevision),
         QString::fromStdString(change.text),QString::fromStdString(change.actorAccountId),
-        QString::fromStdString(change.clientOperationId),change.occurredAtEpochMs};
+        QString::fromStdString(change.clientOperationId),change.occurredAtEpochMs,{}};
 }
 
 QString V2WindowsMessagingApplicationService::randomUuid() {

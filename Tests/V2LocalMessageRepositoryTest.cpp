@@ -47,6 +47,23 @@ QSet<QString> columns(const QString &path) {
     QSqlDatabase::removeDatabase(connection);
     return result;
 }
+
+QSet<QString> tables(const QString &path) {
+    const QString connection = QStringLiteral("v2-local-table-probe");
+    QSet<QString> result;
+    {
+        auto database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+        database.setDatabaseName(path);
+        if (database.open()) {
+            QSqlQuery query(database);
+            if (query.exec(QStringLiteral("SELECT name FROM sqlite_master WHERE type='table'")))
+                while (query.next()) result.insert(query.value(0).toString());
+        }
+        database.close();
+    }
+    QSqlDatabase::removeDatabase(connection);
+    return result;
+}
 }
 
 int main(int argc, char *argv[]) {
@@ -59,6 +76,8 @@ int main(int argc, char *argv[]) {
     const QString device = QStringLiteral("20000000-0000-4000-8000-000000000001");
     const QString conversation = QStringLiteral("30000000-0000-4000-8000-000000000001");
     auto pending = reply(conversation, alice, device);
+    pending.text = QStringLiteral("@张三 回复内容");
+    pending.mentions.append({bob, 0, 7});
 
     {
         V2LocalMessageRepository repository(path);
@@ -70,6 +89,15 @@ int main(int argc, char *argv[]) {
         conflict.reply.targetConversationSequence = 6;
         if (!check(!repository.upsertPending(alice, conflict),
                    QStringLiteral("changed reply target was accepted as an idempotent retry"))) return 1;
+        auto mentionConflict = pending;
+        mentionConflict.mentions.first().targetAccountId = alice;
+        if (!check(!repository.upsertPending(alice, mentionConflict),
+                   QStringLiteral("changed mention target was accepted as an idempotent retry"))) return 1;
+        auto invalidMention = pending;
+        invalidMention.clientMessageId = QStringLiteral("invalid-mention-span");
+        invalidMention.mentions.first().lengthUtf8Bytes = 2;
+        if (!check(!repository.upsertPending(alice, invalidMention),
+                   QStringLiteral("Unicode-splitting mention entered the outbox"))) return 1;
         auto spoofed = pending;
         spoofed.clientMessageId = QStringLiteral("spoofed-local-sender");
         spoofed.senderAccountId = bob;
@@ -89,8 +117,11 @@ int main(int argc, char *argv[]) {
                 || !check(restored.messages.first().hasReply
                         && restored.messages.first().reply.targetConversationSequence == 7,
                     QStringLiteral("reply target identity was not restored"))
-                || !check(restored.messages.first().text == QStringLiteral("回复内容"),
+                || !check(restored.messages.first().text == QStringLiteral("@张三 回复内容"),
                     QStringLiteral("UTF-8 text was not restored"))
+                || !check(restored.messages.first().mentions.size() == 1
+                        && restored.messages.first().mentions.first().targetAccountId == bob,
+                    QStringLiteral("pending mention intent was not restored"))
                 || !check(restored.draft == QStringLiteral("draft"),
                     QStringLiteral("draft was not restored"))
                 || !check(repository.pendingSends(alice).size() == 1,
@@ -205,13 +236,14 @@ int main(int argc, char *argv[]) {
                    repository.lastError())) return 1;
 
         V2LocalMessageRepository::EditCommand edit{conversation, pin.messageId, 0,
-            QStringLiteral("我的编辑"), QStringLiteral("edit-operation-1"),
-            V2LocalMessageRepository::EditDeliveryState::Pending};
+            QStringLiteral("@李四 我的编辑"), QStringLiteral("edit-operation-1"),
+            V2LocalMessageRepository::EditDeliveryState::Pending, {{bob, 0, 7}}};
         if (!check(repository.stageEdit(alice, edit), repository.lastError())) return 1;
         auto optimisticEdit = repository.loadSnapshot(alice, conversation);
-        if (!check(optimisticEdit.messages.first().text == QStringLiteral("回复内容")
+        if (!check(optimisticEdit.messages.first().text == QStringLiteral("@张三 回复内容")
                         && optimisticEdit.editCommands.size() == 1
-                        && optimisticEdit.editCommands.first().proposedText == QStringLiteral("我的编辑"),
+                        && optimisticEdit.editCommands.first().proposedText == QStringLiteral("@李四 我的编辑")
+                        && optimisticEdit.editCommands.first().mentions.size() == 1,
                     QStringLiteral("edit overlay replaced authoritative content"))
                 || !check(repository.pendingEdits(alice).size() == 1,
                     QStringLiteral("edit outbox was not restart safe"))) return 1;
@@ -220,10 +252,10 @@ int main(int argc, char *argv[]) {
         auto conflictedEdit = repository.loadSnapshot(alice, conversation);
         if (!check(conflictedEdit.editCommands.first().state
                         == V2LocalMessageRepository::EditDeliveryState::Conflict
-                        && conflictedEdit.editCommands.first().proposedText == QStringLiteral("我的编辑"),
+                        && conflictedEdit.editCommands.first().proposedText == QStringLiteral("@李四 我的编辑"),
                    QStringLiteral("edit conflict did not preserve proposed content"))) return 1;
         V2LocalMessageRepository::EditChange remoteEdit{conversation, 11, pin.messageId, 1,
-            QStringLiteral("其他设备"), alice, QStringLiteral("edit-remote"), 1450};
+            QStringLiteral("其他设备"), alice, QStringLiteral("edit-remote"), 1450, {}};
         if (!check(repository.mergeServerPage(alice, conversation, {}, 11, {}, {}, {}, {},
                                               {remoteEdit}), repository.lastError())) return 1;
         const auto afterRemoteEdit = repository.loadSnapshot(alice, conversation);
@@ -233,19 +265,21 @@ int main(int argc, char *argv[]) {
                             == V2LocalMessageRepository::EditDeliveryState::Conflict,
                    QStringLiteral("authoritative edit did not preserve conflicting overlay"))) return 1;
         V2LocalMessageRepository::EditCommand rebased{conversation, pin.messageId, 1,
-            QStringLiteral("我的编辑"), QStringLiteral("edit-operation-2"),
-            V2LocalMessageRepository::EditDeliveryState::Pending};
+            QStringLiteral("@李四 我的编辑"), QStringLiteral("edit-operation-2"),
+            V2LocalMessageRepository::EditDeliveryState::Pending, {{bob, 0, 7}}};
         if (!check(repository.rebaseEdit(alice, edit.clientOperationId, rebased),
                    repository.lastError())
                 || !check(repository.pendingEdits(alice).first().clientOperationId
                             == rebased.clientOperationId,
                     QStringLiteral("rebased edit did not rotate its operation id"))) return 1;
         V2LocalMessageRepository::EditChange appliedEdit{conversation, 12, pin.messageId, 2,
-            QStringLiteral("我的编辑"), alice, rebased.clientOperationId, 1500};
+            QStringLiteral("@李四 我的编辑"), alice, rebased.clientOperationId, 1500,
+            {{bob, 0, 7}}};
         if (!check(repository.applyEdit(alice, appliedEdit), repository.lastError())) return 1;
         const auto afterEditAck = repository.loadSnapshot(alice, conversation);
         if (!check(afterEditAck.editCommands.isEmpty()
-                        && afterEditAck.messages.first().text == QStringLiteral("我的编辑")
+                        && afterEditAck.messages.first().text == QStringLiteral("@李四 我的编辑")
+                        && afterEditAck.messages.first().mentions.size() == 1
                         && afterEditAck.messages.first().contentRevision == 2
                         && afterEditAck.cursor == 11,
                    QStringLiteral("edit ACK advanced cursor or failed to converge"))) return 1;
@@ -295,7 +329,8 @@ int main(int argc, char *argv[]) {
             recalled.messages.cbegin(), recalled.messages.cend(),
             [&](const auto &message) { return message.messageId == authoritative.messageId; });
         if (!check(recalledTarget != recalled.messages.cend()
-                        && recalledTarget->recalled && recalledTarget->text.isEmpty(),
+                        && recalledTarget->recalled && recalledTarget->text.isEmpty()
+                        && recalledTarget->mentions.isEmpty(),
                    QStringLiteral("recall did not erase cached target content"))) return 1;
         if (!check(repository.mergeServerPage(
                        alice, conversation, {}, 12, {}, {live.messageId}),
@@ -317,6 +352,7 @@ int main(int argc, char *argv[]) {
     }
 
     const auto schema = columns(path);
+    const auto schemaTables = tables(path);
     if (!check(schema.contains(QStringLiteral("reply_target_message_id")),
                QStringLiteral("reply identity schema is missing"))
             || !check(!schema.contains(QStringLiteral("reply_body"))
@@ -324,7 +360,10 @@ int main(int argc, char *argv[]) {
                 QStringLiteral("copied quote content leaked into durable schema"))
             || !check(schema.contains(QStringLiteral("content_revision"))
                     && schema.contains(QStringLiteral("edited_at")),
-                QStringLiteral("message edit metadata schema is missing"))) return 1;
+                QStringLiteral("message edit metadata schema is missing"))
+            || !check(schemaTables.contains(QStringLiteral("v2_message_mentions"))
+                    && schemaTables.contains(QStringLiteral("v2_edit_command_mentions")),
+                QStringLiteral("normalized mention schema is missing"))) return 1;
 
     const QString futurePath = directory.filePath(QStringLiteral("future.sqlite"));
     {

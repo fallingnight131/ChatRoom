@@ -1364,8 +1364,9 @@ boundary now also carries mentions through send/reply/edit and authoritative
 history/live data while enforcing 20 spans, 10 distinct canonical targets,
 ordered non-overlap, ASCII-`@` starts, and exact UTF-8 boundaries. Unicode
 negative tests prove malformed inbound data fails without consuming its request
-correlation. This is not Windows capability-4 activation: SQLite, composition,
-rendering, accessibility, and replay gates remain outstanding. It
+correlation. This is not Windows capability-4 activation: application
+composition, rendering, accessibility, and end-to-end replay gates remain
+outstanding. It
 also locks type-106/109 command identity, type-107/112 correlation, and
 uncorrelated ordered type-108/113 events. The canonical default-off Windows CMake
 product now composes this boundary with the shared authenticated Qt WSS,
@@ -1393,6 +1394,13 @@ separate bounded edit-command outbox and message revision metadata; tests cover
 authoritative-content separation, exact reconnect replay, ACK cursor isolation,
 history/live convergence, permanent conflict, explicit rebase with a new
 operation ID, and discard.
+Schema 6 adds normalized child tables for authoritative/pending-message mentions
+and edit-outbox mentions. The repository regression proves Unicode span
+validation, target-sensitive idempotency, restart-safe pending replay,
+authoritative edit replacement, account isolation, and mention removal with
+recall/deletion. Existing schema-5 rows migrate to empty mention sets; capability
+4 stays off until the application and Widgets gates consume these values
+(ADR-0342).
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable
