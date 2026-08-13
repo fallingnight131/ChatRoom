@@ -226,6 +226,7 @@ test('preserves exact V2 sequences without persisting secrets or media bytes', (
           '20000000-0000-4000-8000-000000000002'
         ]
       }],
+      pinned: true,
       resumeToken: 'secret',
       bytes: new Uint8Array([1])
       }
@@ -244,6 +245,7 @@ test('preserves exact V2 sequences without persisting secrets or media bytes', (
     reaction: 2,
     actorAccountIds: ['20000000-0000-4000-8000-000000000002']
   }])
+  assert.equal(record.messages.at(-1).pinned, true)
   assert.equal('token' in record, false)
   assert.equal('resumeToken' in record.messages.at(-1), false)
   assert.equal('bytes' in record.messages.at(-1), false)
@@ -263,11 +265,19 @@ test('round trips V2 snapshots in an isolated exact-sequence store', async () =>
     clientOperationId: 'reaction-1',
     deliveryState: 'sending',
     errorCode: ''
+  }], [{
+    conversationId: '50000000-0000-4000-8000-000000000001',
+    messageId: '60000000-0000-4000-8000-000000000001',
+    pinned: true,
+    clientOperationId: 'pin-1',
+    deliveryState: 'sending',
+    errorCode: ''
   }])
   const loaded = await cache.loadV2('account-1', 'conversation-1')
   assert.equal(loaded.cursorSequence, '9007199254740993')
   assert.equal(loaded.messages[0].sequence, '9007199254740993')
   assert.equal(loaded.reactionCommands[0].clientOperationId, 'reaction-1')
+  assert.equal(loaded.pinCommands[0].clientOperationId, 'pin-1')
   await cache.removeV2('account-1', 'conversation-1')
   assert.equal(await cache.loadV2('account-1', 'conversation-1'), null)
 })

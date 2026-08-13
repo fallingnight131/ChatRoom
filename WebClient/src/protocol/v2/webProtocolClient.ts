@@ -167,7 +167,7 @@ export class V2WebProtocolClient {
       platform: ClientPlatform.WEB,
       appVersion: this.appVersion,
       clientDeviceId: this.clientDeviceId,
-      capabilities: [ClientCapability.MESSAGE_REACTIONS],
+      capabilities: [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS],
     }));
     const bytes = this.command(MessageType.CLIENT_HELLO, payload, new Set([MessageType.SERVER_HELLO]));
     this.currentState = "hello-sent";
@@ -611,8 +611,9 @@ export class V2WebProtocolClient {
           throw new Error("invalid server hello");
         }
         requireIdentifier("connectionId", event.value.connectionId);
-        if (event.value.enabledCapabilities.length !== 1
-            || event.value.enabledCapabilities[0] !== ClientCapability.MESSAGE_REACTIONS) {
+        if (event.value.enabledCapabilities.length !== 2
+            || event.value.enabledCapabilities[0] !== ClientCapability.MESSAGE_REACTIONS
+            || event.value.enabledCapabilities[1] !== ClientCapability.MESSAGE_PINS) {
           throw new Error("required V2 capability was not enabled");
         }
         this.negotiatedMaximumFrameBytes = event.value.maximumFrameBytes;

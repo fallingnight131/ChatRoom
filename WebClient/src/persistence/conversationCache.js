@@ -86,7 +86,8 @@ export function sanitizeV2Message(message) {
     reply,
     reactions: Array.isArray(message.reactions)
       ? message.reactions.map(sanitizeV2Reaction).filter(Boolean).slice(0, 6)
-      : []
+      : [],
+    pinned: Boolean(message.pinned)
   }
 }
 
@@ -119,6 +120,18 @@ function sanitizeV2ReactionCommand(value) {
   }
 }
 
+function sanitizeV2PinCommand(value) {
+  if (!value || typeof value !== 'object'
+      || !CANONICAL_UUID.test(String(value.conversationId || ''))
+      || !CANONICAL_UUID.test(String(value.messageId || ''))
+      || typeof value.clientOperationId !== 'string'
+      || value.clientOperationId.length < 1 || value.clientOperationId.length > 128) return null
+  return { conversationId: value.conversationId, messageId: value.messageId,
+    pinned: Boolean(value.pinned), clientOperationId: value.clientOperationId,
+    deliveryState: value.deliveryState === 'failed' ? 'failed' : 'sending',
+    errorCode: typeof value.errorCode === 'string' ? value.errorCode : '' }
+}
+
 export function v2ConversationCacheKey(accountId, conversationId) {
   return `${String(accountId)}\u001f${String(conversationId)}`
 }
@@ -141,6 +154,10 @@ export function sanitizeV2ConversationRecord(record) {
     messages: [...acceptedMessages, ...unresolvedMessages],
     reactionCommands: Array.isArray(record.reactionCommands)
       ? record.reactionCommands.map(sanitizeV2ReactionCommand).filter(Boolean)
+        .slice(-MAX_V2_PENDING_MESSAGES)
+      : [],
+    pinCommands: Array.isArray(record.pinCommands)
+      ? record.pinCommands.map(sanitizeV2PinCommand).filter(Boolean)
         .slice(-MAX_V2_PENDING_MESSAGES)
       : [],
     cursorSequence: normalizeV2Sequence(record.cursorSequence),
@@ -381,10 +398,10 @@ export class IndexedDbConversationCache {
     return sanitizeV2ConversationRecord(record)
   }
 
-  saveV2(accountId, conversationId, messages, cursorSequence, reactionCommands = []) {
+  saveV2(accountId, conversationId, messages, cursorSequence, reactionCommands = [], pinCommands = []) {
     if (!accountId || !conversationId) return Promise.resolve(false)
     const record = sanitizeV2ConversationRecord({
-      accountId, conversationId, messages, cursorSequence, reactionCommands,
+      accountId, conversationId, messages, cursorSequence, reactionCommands, pinCommands,
       updatedAt: Date.now()
     })
     this.writeQueue = this.writeQueue.catch(() => {}).then(async () => {

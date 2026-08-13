@@ -4,6 +4,7 @@ import {
   MessageReactionKind,
   type ConversationEntryRecord,
   type MessageReactionChangedRecord,
+  type MessagePinChangedRecord,
   type MessageRecord,
 } from "../protocol/v2/generated/messaging_pb";
 import type { V2WebProtocolEvent } from "../protocol/v2/webProtocolClient";
@@ -18,6 +19,7 @@ const DIRECTORY_PAGE_SIZE = 50;
 const MAX_RETAINED_ACCEPTED_MESSAGES = 500;
 const MAX_PENDING_MESSAGES = 100;
 const MAX_PENDING_REACTIONS = 8;
+const MAX_PENDING_PINS = 8;
 const decoder = new TextDecoder("utf-8", { fatal: true });
 const canonicalUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -43,6 +45,7 @@ export interface V2ConversationCacheMessage {
     reaction: MessageReactionKind;
     actorAccountIds: string[];
   }>;
+  pinned: boolean;
 }
 
 export interface V2ConversationCacheReactionCommand {
@@ -56,10 +59,17 @@ export interface V2ConversationCacheReactionCommand {
   requestId?: string;
 }
 
+export interface V2ConversationCachePinCommand {
+  conversationId: string; messageId: string; pinned: boolean;
+  clientOperationId: string; deliveryState: "sending" | "failed";
+  errorCode: string; requestId?: string;
+}
+
 export interface V2ConversationCacheSnapshot {
   messages: V2ConversationCacheMessage[];
   cursorSequence: string;
   reactionCommands?: V2ConversationCacheReactionCommand[];
+  pinCommands?: V2ConversationCachePinCommand[];
 }
 
 export interface V2ConversationCache {
@@ -70,6 +80,7 @@ export interface V2ConversationCache {
     messages: V2ConversationCacheMessage[],
     cursorSequence: string,
     reactionCommands?: V2ConversationCacheReactionCommand[],
+    pinCommands?: V2ConversationCachePinCommand[],
   ): Promise<boolean>;
 }
 
@@ -96,6 +107,8 @@ export interface V2ChatTransport {
     active: boolean,
     clientOperationId: string,
   ): string;
+  setMessagePin(conversationId: string, messageId: string, pinned: boolean,
+    clientOperationId: string): string;
   listDevices(): string;
   revokeDevice(targetDeviceId: string): string;
 }
@@ -132,6 +145,7 @@ export interface V2WebChatSnapshot {
   activeConversationId: string | null;
   messages: V2ConversationCacheMessage[];
   reactionCommands: V2ConversationCacheReactionCommand[];
+  pinCommands: V2ConversationCachePinCommand[];
   historyLoading: boolean;
   devices: V2ManagedDevice[];
   devicesLoading: boolean;
@@ -151,6 +165,7 @@ export interface V2WebChatApplicationOptions {
 type ConversationState = {
   messages: V2ConversationCacheMessage[];
   reactionCommands: V2ConversationCacheReactionCommand[];
+  pinCommands: V2ConversationCachePinCommand[];
   cursorSequence: string;
   loading: boolean;
 };
@@ -210,6 +225,7 @@ export class V2WebChatApplication {
       activeConversationId: this.activeConversationIdValue,
       messages: active?.messages.map(cloneMessage) ?? [],
       reactionCommands: active?.reactionCommands.map(cloneReactionCommand) ?? [],
+      pinCommands: active?.pinCommands.map((value) => ({ ...value })) ?? [],
       historyLoading: active?.loading ?? false,
       devices: this.devicesValue.map((device) => ({ ...device })),
       devicesLoading: this.devicesLoadingValue,
@@ -299,7 +315,7 @@ export class V2WebChatApplication {
     this.activeConversationIdValue = conversationId;
     let state = this.conversations.get(conversationId);
     if (!state) {
-      state = { messages: [], reactionCommands: [], cursorSequence: "0", loading: true };
+      state = { messages: [], reactionCommands: [], pinCommands: [], cursorSequence: "0", loading: true };
       this.conversations.set(conversationId, state);
     } else {
       state.loading = true;
@@ -312,6 +328,8 @@ export class V2WebChatApplication {
         state.messages = boundMessages(cached.messages.map(normalizeCachedMessage));
         state.reactionCommands = (cached.reactionCommands ?? [])
           .map(normalizeReactionCommand).filter((value): value is V2ConversationCacheReactionCommand => Boolean(value));
+        state.pinCommands = (cached.pinCommands ?? []).map(normalizePinCommand)
+          .filter((value): value is V2ConversationCachePinCommand => Boolean(value));
         state.cursorSequence = normalizeSequence(cached.cursorSequence);
       }
     } catch {
@@ -370,6 +388,7 @@ export class V2WebChatApplication {
       availability: "available",
       reply: reply ? { ...reply } : null,
       reactions: [],
+      pinned: false,
     };
     state.messages = boundMessages([...state.messages, message]);
     try {
@@ -460,6 +479,40 @@ export class V2WebChatApplication {
     this.persist(command.conversationId);
     this.emit();
     return command.deliveryState === "sending";
+  }
+
+  setPin(messageId: string): boolean {
+    this.requireActive();
+    if (!this.sessionValue || !this.activeConversationIdValue) return false;
+    const state = this.requireConversation(this.activeConversationIdValue);
+    const message = state.messages.find((value) => value.id === messageId);
+    if (!message || message.deliveryState !== "accepted" || message.availability !== "available"
+        || state.pinCommands.some((value) => value.messageId === messageId
+          && value.deliveryState === "sending")) return false;
+    if (state.pinCommands.length >= MAX_PENDING_PINS) throw new Error("V2 pending pin limit reached");
+    const command: V2ConversationCachePinCommand = {
+      conversationId: this.activeConversationIdValue, messageId, pinned: !message.pinned,
+      clientOperationId: this.createClientMessageId(), deliveryState: "sending", errorCode: "",
+    };
+    state.pinCommands.push(command); message.pinned = command.pinned; this.persist(command.conversationId);
+    try { command.requestId = this.transport.setMessagePin(command.conversationId,
+      messageId, command.pinned, command.clientOperationId); }
+    catch { command.deliveryState = "failed"; command.errorCode = "TRANSPORT_UNAVAILABLE"; }
+    this.persist(command.conversationId); this.emit(); return true;
+  }
+
+  retryPin(clientOperationId: string): boolean {
+    this.requireActive();
+    if (!this.activeConversationIdValue) return false;
+    const state = this.requireConversation(this.activeConversationIdValue);
+    const command = state.pinCommands.find((value) => value.clientOperationId === clientOperationId
+      && value.deliveryState === "failed");
+    if (!command) return false;
+    command.deliveryState = "sending"; command.errorCode = "";
+    try { command.requestId = this.transport.setMessagePin(command.conversationId,
+      command.messageId, command.pinned, command.clientOperationId); }
+    catch { command.deliveryState = "failed"; command.errorCode = "TRANSPORT_UNAVAILABLE"; }
+    this.persist(command.conversationId); this.emit(); return command.deliveryState === "sending";
   }
 
   stop(): void {
@@ -569,6 +622,8 @@ export class V2WebChatApplication {
       case "message-reaction-applied":
         this.applyReactionApplied(event);
         break;
+      case "message-pin-changed": this.applyPinChanged(event.value); break;
+      case "message-pin-applied": this.applyPinApplied(event); break;
       case "message-accepted":
         this.applyMessageAccepted(event);
         break;
@@ -651,12 +706,17 @@ export class V2WebChatApplication {
           if (recalled) {
             recalled.content = "此消息已被撤回";
             recalled.availability = "recalled";
+            recalled.pinned = false;
+            state.pinCommands = state.pinCommands.filter((value) => value.messageId !== recall.messageId);
           }
         } else if (entry.detail.case === "deletion") {
           const deleted = new Set(entry.detail.value.messageIds);
           state.messages = state.messages.filter((message) => !deleted.has(message.id));
+          state.pinCommands = state.pinCommands.filter((value) => !deleted.has(value.messageId));
         } else if (entry.detail.case === "reaction") {
           this.applyReactionToState(state, entry.detail.value);
+        } else if (entry.detail.case === "pin") {
+          this.applyPinToState(state, entry.detail.value);
         }
       }
     }
@@ -667,6 +727,7 @@ export class V2WebChatApplication {
       this.transport.readMessageHistory(conversationId, BigInt(state.cursorSequence), HISTORY_PAGE_SIZE);
     } else {
       this.replayPendingReactions(conversationId, state);
+      this.replayPendingPins(conversationId, state);
       this.replayPendingAfterSync(conversationId, state);
     }
   }
@@ -752,6 +813,35 @@ export class V2WebChatApplication {
       value.clientOperationId !== record.clientOperationId);
   }
 
+  private applyPinApplied(event: Extract<V2WebProtocolEvent, { type: "message-pin-applied" }>): void {
+    const state = this.conversations.get(event.value.conversationId); if (!state) return;
+    const command = state.pinCommands.find((value) =>
+      value.clientOperationId === event.value.clientOperationId); if (!command) return;
+    const message = state.messages.find((value) => value.id === event.value.messageId);
+    if (message) message.pinned = event.value.pinned;
+    state.pinCommands = state.pinCommands.filter((value) =>
+      value.clientOperationId !== event.value.clientOperationId);
+    this.persist(event.value.conversationId);
+  }
+
+  private applyPinChanged(record: MessagePinChangedRecord): void {
+    const state = this.conversations.get(record.conversationId); if (!state) return;
+    this.applyPinToState(state, record);
+    const cursor = BigInt(state.cursorSequence);
+    if (record.conversationSequence === cursor + 1n) state.cursorSequence = record.conversationSequence.toString();
+    else if (record.conversationSequence > cursor + 1n && !state.loading) {
+      state.loading = true; this.transport.readMessageHistory(record.conversationId, cursor, HISTORY_PAGE_SIZE);
+    }
+    this.persist(record.conversationId);
+  }
+
+  private applyPinToState(state: ConversationState, record: MessagePinChangedRecord): void {
+    const message = state.messages.find((value) => value.id === record.messageId);
+    if (message) message.pinned = record.pinned;
+    state.pinCommands = state.pinCommands.filter((value) =>
+      value.clientOperationId !== record.clientOperationId);
+  }
+
   private applyProtocolError(event: Extract<V2WebProtocolEvent, { type: "protocol-error" }>): void {
     if (event.requestId === this.deviceListRequestId) {
       this.deviceListRequestId = null;
@@ -789,6 +879,13 @@ export class V2WebChatApplication {
         this.persist(conversationId);
         return;
       }
+      for (const [conversationId, state] of this.conversations) {
+        const command = state.pinCommands.find((value) =>
+          value.deliveryState === "sending" && value.requestId === event.requestId);
+        if (!command) continue;
+        command.deliveryState = "failed"; command.errorCode = `PROTOCOL_${event.value.code}`;
+        this.persist(conversationId); return;
+      }
     }
     this.lastFailureValue = event.value.safeMessage || "V2 protocol error";
   }
@@ -803,6 +900,7 @@ export class V2WebChatApplication {
       state.messages.map(cloneMessage),
       state.cursorSequence,
       state.reactionCommands.map(cloneReactionCommand),
+      state.pinCommands.map((value) => ({ ...value })),
     ).catch(() => {
       this.lastFailureValue = "V2 cache write failed";
       this.emit();
@@ -829,6 +927,15 @@ export class V2WebChatApplication {
         command.deliveryState = "failed";
         command.errorCode = "TRANSPORT_UNAVAILABLE";
       }
+    }
+    this.persist(conversationId);
+  }
+
+  private replayPendingPins(conversationId: string, state: ConversationState): void {
+    for (const command of state.pinCommands.filter((value) => value.deliveryState === "sending")) {
+      try { command.requestId = this.transport.setMessagePin(conversationId, command.messageId,
+        command.pinned, command.clientOperationId); }
+      catch { command.deliveryState = "failed"; command.errorCode = "TRANSPORT_UNAVAILABLE"; }
     }
     this.persist(conversationId);
   }
@@ -953,6 +1060,7 @@ function mapMessageRecord(record: MessageRecord): V2ConversationCacheMessage {
       targetSenderAccountId: record.reply.targetSenderAccountId,
     } : null,
     reactions: [],
+    pinned: false,
   };
 }
 
@@ -966,6 +1074,7 @@ function normalizeCachedMessage(message: V2ConversationCacheMessage): V2Conversa
     availability: message.availability === "recalled" ? "recalled" : "available",
     reply: normalizeReply(message.reply),
     reactions: normalizeReactions(message.reactions),
+    pinned: Boolean(message.pinned),
   };
 }
 
@@ -986,7 +1095,16 @@ function cloneMessage(message: V2ConversationCacheMessage): V2ConversationCacheM
       reaction: value.reaction,
       actorAccountIds: [...value.actorAccountIds],
     })),
+    pinned: message.pinned,
   };
+}
+
+function normalizePinCommand(value: V2ConversationCachePinCommand): V2ConversationCachePinCommand | null {
+  if (!canonicalUuid.test(value?.conversationId) || !canonicalUuid.test(value?.messageId)
+      || !value.clientOperationId) return null;
+  return { ...value, pinned: Boolean(value.pinned),
+    deliveryState: value.deliveryState === "failed" ? "failed" : "sending",
+    errorCode: typeof value.errorCode === "string" ? value.errorCode : "" };
 }
 
 function cloneReactionCommand(

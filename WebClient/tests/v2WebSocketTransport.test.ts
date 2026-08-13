@@ -145,7 +145,7 @@ function helloResponse(request: Envelope): ArrayBuffer {
     connectionId: "gateway-connection-1",
     serverTimeEpochMs: BigInt(NOW),
     maximumFrameBytes: 1024 * 1024 + 1024,
-    enabledCapabilities: [ClientCapability.MESSAGE_REACTIONS],
+    enabledCapabilities: [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS],
   })));
 }
 

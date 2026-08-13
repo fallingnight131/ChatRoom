@@ -138,7 +138,8 @@ function negotiate(client: V2WebProtocolClient): Envelope {
   assert.equal(hello.platform, ClientPlatform.WEB);
   assert.equal(hello.appVersion, "2.0.0-test");
   assert.equal(hello.clientDeviceId, "web-test-device");
-  assert.deepEqual(hello.capabilities, [ClientCapability.MESSAGE_REACTIONS]);
+  assert.deepEqual(hello.capabilities,
+    [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS]);
   const event = client.receive(response(
     helloEnvelope,
     MessageType.SERVER_HELLO,
@@ -147,7 +148,7 @@ function negotiate(client: V2WebProtocolClient): Envelope {
       connectionId: "gateway-connection-1",
       serverTimeEpochMs: BigInt(NOW),
       maximumFrameBytes: 1024 * 1024 + 1024,
-      enabledCapabilities: [ClientCapability.MESSAGE_REACTIONS],
+      enabledCapabilities: [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS],
     })),
   ));
   assert.equal(event.type, "server-hello");
@@ -610,7 +611,7 @@ test("rejects invalid transitions, unknown requests, wrong sessions, and respons
     connectionId: "gateway-connection-1",
     serverTimeEpochMs: BigInt(NOW),
     maximumFrameBytes: 1024 * 1024 + 1024,
-    enabledCapabilities: [ClientCapability.MESSAGE_REACTIONS],
+    enabledCapabilities: [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS],
   }));
   assert.throws(
     () => client.receive(response(hello, MessageType.SERVER_HELLO, serverHello, { requestId: UNKNOWN_REQUEST_ID })),

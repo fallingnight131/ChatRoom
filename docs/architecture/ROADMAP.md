@@ -1429,8 +1429,8 @@ Progress:
     a 50-pin bound, exact idempotency, mixed-sequence ordering, target cleanup,
     body-free projection, and offline cursor rules (ADR-0340).
   - [x] Add the generated wire contract, bounded Java policy, mixed-history pin
-    detail, and fixed Java/C++/TypeScript golden compatibility gate while both
-    clients keep the capability disabled.
+    detail, and fixed Java/C++/TypeScript golden compatibility gate while the
+    feature remains inactive until each client completes its local slice.
   - [x] Persist and route authoritative pin operations, history, and live events.
     - [x] Persist exact manual outcomes, shared current state, changed-only mixed
       history, the 50-pin bound, OWNER/ADMIN group authority, and ordered
@@ -1440,9 +1440,9 @@ Progress:
       history detail without stalling cursors, and fan out live changes only to
       capable subscribers.
   - [ ] Add offline-safe Web and Windows projections and accessible controls.
-    - [x] Add validated Web pin command/ACK/history/live protocol and transport
-      paths while keeping capability advertisement disabled until its durable
-      projection and UI are complete.
+    - [x] Add the Web IndexedDB projection and bounded outbox, optimistic intent,
+      ACK/history/live/reconnect convergence, target cleanup, accessible
+      controls, and capability activation.
 
 Candidate slices:
 

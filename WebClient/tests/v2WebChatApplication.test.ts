@@ -24,6 +24,8 @@ import {
   MessageReactionKind,
   MessageReactionAppliedSchema,
   MessageReactionChangedRecordSchema,
+  MessagePinAppliedSchema,
+  MessagePinChangedRecordSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
 import type { V2WebProtocolEvent } from "../src/protocol/v2/webProtocolClient";
 import type {
@@ -82,6 +84,12 @@ class FakeTransport {
       clientOperationId, requestId]);
     return requestId;
   }
+  setMessagePin(conversationId: string, messageId: string, pinned: boolean,
+    clientOperationId: string): string {
+    const requestId = `pin-${this.calls.length}`;
+    this.calls.push(["pin", conversationId, messageId, pinned, clientOperationId, requestId]);
+    return requestId;
+  }
   listDevices(): string {
     const requestId = `device-list-${this.calls.length}`;
     this.calls.push(["devices", requestId]);
@@ -102,7 +110,8 @@ class FakeTransport {
 
 class FakeCache {
   readonly records = new Map<string, { messages: V2ConversationCacheMessage[]; cursorSequence: string;
-    reactionCommands?: import("../src/application/v2WebChatApplication").V2ConversationCacheReactionCommand[] }>();
+    reactionCommands?: import("../src/application/v2WebChatApplication").V2ConversationCacheReactionCommand[];
+    pinCommands?: import("../src/application/v2WebChatApplication").V2ConversationCachePinCommand[] }>();
   readonly saves: Array<{ accountId: string; conversationId: string; messages: V2ConversationCacheMessage[]; cursor: string }> = [];
 
   async loadV2(accountId: string, conversationId: string) {
@@ -111,10 +120,11 @@ class FakeCache {
   }
 
   async saveV2(accountId: string, conversationId: string, messages: V2ConversationCacheMessage[], cursor: string,
-    reactionCommands: import("../src/application/v2WebChatApplication").V2ConversationCacheReactionCommand[] = []) {
+    reactionCommands: import("../src/application/v2WebChatApplication").V2ConversationCacheReactionCommand[] = [],
+    pinCommands: import("../src/application/v2WebChatApplication").V2ConversationCachePinCommand[] = []) {
     this.saves.push({ accountId, conversationId, messages: structuredClone(messages), cursor });
     this.records.set(`${accountId}:${conversationId}`, { messages: structuredClone(messages), cursorSequence: cursor,
-      reactionCommands: structuredClone(reactionCommands) });
+      reactionCommands: structuredClone(reactionCommands), pinCommands: structuredClone(pinCommands) });
     return true;
   }
 }
@@ -174,6 +184,7 @@ function cachedMessage(overrides: Partial<V2ConversationCacheMessage> = {}): V2C
     reply: null,
     reactions: [],
     ...overrides,
+    pinned: Boolean(overrides.pinned),
   };
 }
 
@@ -881,5 +892,34 @@ test("persists optimistic reactions and converges ACK, history, and live changes
     }),
   }));
   assert.deepEqual(application.snapshot.messages[0]!.reactions, []);
+  application.dispose();
+});
+
+test("persists optimistic pins and advances cursor only from ordered events", async () => {
+  const transport = new FakeTransport(); const cache = new FakeCache();
+  cache.records.set(`${ACCOUNT_ID}:${CONVERSATION_ID}`, {
+    messages: [cachedMessage({ sequence: "1" })], cursorSequence: "1" });
+  const operationId = "70000000-0000-4000-8000-000000000003";
+  const application = new V2WebChatApplication({ transport, cache,
+    createClientMessageId: () => operationId });
+  establish(transport); directory(transport); await application.openConversation(CONVERSATION_ID);
+  assert.equal(application.setPin(MESSAGE_ID), true);
+  assert.equal(application.snapshot.messages[0]!.pinned, true);
+  assert.equal(cache.records.get(`${ACCOUNT_ID}:${CONVERSATION_ID}`)?.pinCommands?.length, 1);
+  transport.emit(correlated({ type: "message-pin-applied", value: create(MessagePinAppliedSchema, {
+    conversationId: CONVERSATION_ID, messageId: MESSAGE_ID, pinned: true,
+    actorAccountId: ACCOUNT_ID, clientOperationId: operationId, changed: true,
+    conversationSequence: 2n, occurredAtEpochMs: BigInt(NOW),
+  }) }));
+  assert.equal(application.snapshot.pinCommands.length, 0);
+  assert.equal(cache.records.get(`${ACCOUNT_ID}:${CONVERSATION_ID}`)?.cursorSequence, "1",
+    "ACK never advances the contiguous cursor");
+  transport.emit(correlated({ type: "message-pin-changed", value: create(MessagePinChangedRecordSchema, {
+    conversationId: CONVERSATION_ID, conversationSequence: 2n, messageId: MESSAGE_ID,
+    pinned: true, actorAccountId: ACCOUNT_ID, clientOperationId: operationId,
+    occurredAtEpochMs: BigInt(NOW),
+  }) }));
+  assert.equal(cache.records.get(`${ACCOUNT_ID}:${CONVERSATION_ID}`)?.cursorSequence, "2");
+  assert.equal(application.snapshot.messages[0]!.pinned, true);
   application.dispose();
 });

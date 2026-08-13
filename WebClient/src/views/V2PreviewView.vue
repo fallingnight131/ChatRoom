@@ -75,8 +75,9 @@
           <ol class="message-list" role="log" aria-live="polite"
               :aria-busy="snapshot.historyLoading" aria-label="消息记录">
             <li v-for="message in snapshot.messages" :key="message.id || message.clientMessageId"
-                :class="['message-row', { mine: message.senderAccountId === snapshot.session.accountId }]">
+                :class="['message-row', { mine: message.senderAccountId === snapshot.session.accountId, pinned: message.pinned }]">
               <div class="bubble">
+                <span v-if="message.pinned" class="pin-badge" role="status">已置顶</span>
                 <div v-if="message.reply" class="reply-reference"
                      :aria-label="`回复：${replyPreview(message)}`">
                   <strong>回复</strong>
@@ -99,6 +100,13 @@
                         @click="retryReaction(failedReaction(message).clientOperationId)">
                   重试回应
                 </button>
+                <button v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
+                        class="pin-link" type="button" :aria-pressed="message.pinned"
+                        :disabled="pinPending(message)" @click="togglePin(message)">
+                  {{ message.pinned ? '取消置顶' : '置顶' }}
+                </button>
+                <button v-if="failedPin(message)" class="retry-link" type="button"
+                        @click="retryPin(failedPin(message).clientOperationId)">重试置顶</button>
                 <span>#{{ message.sequence }} · {{ deliveryLabel(message.deliveryState) }}</span>
                 <button v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
                         class="reply-link" type="button" @click="startReply(message)">
@@ -197,7 +205,7 @@ const confirmingDeviceId = ref(null)
 const deviceCloseButton = ref(null)
 const snapshot = ref({
   connectionState: 'idle', session: null, directory: [], directoryHasMore: false,
-  activeConversationId: null, messages: [], reactionCommands: [], historyLoading: false, devices: [],
+  activeConversationId: null, messages: [], reactionCommands: [], pinCommands: [], historyLoading: false, devices: [],
   devicesLoading: false, revokingDeviceId: null, deviceFailure: '', lastFailure: ''
 })
 let unsubscribe = null
@@ -353,6 +361,25 @@ function retryReaction(clientOperationId) {
   }
 }
 
+function pinPending(message) {
+  return snapshot.value.pinCommands.some(command => command.messageId === message.id
+    && command.deliveryState === 'sending')
+}
+function failedPin(message) {
+  return snapshot.value.pinCommands.find(command => command.messageId === message.id
+    && command.deliveryState === 'failed') || null
+}
+function togglePin(message) {
+  actionError.value = ''
+  try { if (!runtimeRef.value.application.setPin(message.id)) actionError.value = '当前无法置顶这条消息' }
+  catch (error) { actionError.value = error instanceof Error ? error.message : '置顶失败' }
+}
+function retryPin(operationId) {
+  actionError.value = ''
+  try { if (!runtimeRef.value.application.retryPin(operationId)) actionError.value = '该置顶操作暂时无法重试' }
+  catch (error) { actionError.value = error instanceof Error ? error.message : '置顶重试失败' }
+}
+
 function openDevices() {
   devicesOpen.value = true
   confirmingDeviceId.value = null
@@ -439,6 +466,8 @@ onUnmounted(() => {
 .reaction-bar { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
 .reaction-button { min-width: 34px; min-height: 30px; padding: 3px 7px; display: inline-flex; align-items: center; justify-content: center; gap: 3px; border: 1px solid var(--border-color); border-radius: 999px; color: var(--text-primary); background: var(--bg-primary); cursor: pointer; }
 .reaction-button:hover { background: var(--bg-hover); }.reaction-button.active { border-color: var(--accent); background: var(--bg-active); }.reaction-button:disabled { cursor: wait; opacity: .65; }.reaction-button span { margin: 0; color: inherit; font-size: 16px; }.reaction-button small { font-size: 11px; }
+.pin-link { margin-left: 8px; border: 0; background: transparent; color: var(--accent); cursor: pointer; }.pin-link:disabled { opacity: .6; cursor: wait; }
+.pin-badge { display: inline-block; margin-bottom: 4px; color: var(--accent); font-size: 12px; font-weight: 600; }
 .retry-link { margin-left: 8px; border: 0; color: var(--danger); background: transparent; cursor: pointer; }
 .composer { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding: 14px 20px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); }
 .composer textarea { resize: none; }.empty-state { flex: 1; display: grid; place-content: center; text-align: center; color: var(--text-secondary); }
