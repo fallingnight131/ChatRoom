@@ -1038,6 +1038,11 @@ before local delivery, and repeated hints produce no second socket output. The
 scenario is opt-in and uses disposable dependencies. It does not activate the
 product listener or satisfy Redis TLS/ACL, dependency-loss, rolling-deployment,
 or non-message-event gates.
+ADR-0359 adds one default-off resource owner around the three distributed loops,
+their scheduler, gateway lease release, and shared Redis adapter. It starts
+lease renewal before consumption and relay, exposes readiness only while the
+boot lease is valid, and performs bounded ordered cleanup after normal or
+partial startup. `GatewayMain` still does not construct this owner.
 
 ## 10. Attachment Flow
 

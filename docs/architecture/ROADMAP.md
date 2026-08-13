@@ -1462,6 +1462,10 @@ Progress:
   local connections, while repeated hints produce no duplicate socket output.
   The product listener, TLS/ACL, dependency-loss, and load-balancer gates remain
   pending (ADR-0358).
+- [x] Add one default-off owner for the route-lease, hint-consumer, and relay
+  lifecycles plus their scheduler, gateway release, and Redis adapter. It gates
+  readiness on the live boot lease and provides ordered partial-start rollback
+  and bounded shutdown without constructing the product graph (ADR-0359).
 
 Work:
 

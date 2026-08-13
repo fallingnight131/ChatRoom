@@ -1394,6 +1394,12 @@ gateway boot streams, reauthorizes both local deliveries from PostgreSQL, and
 rejects repeated hints as duplicates. Without `CHATROOM_TEST_REDIS_URI`, the
 PostgreSQL gate remains Redis-independent. Do not point this gate at shared or
 production Redis; it is not product activation or TLS/ACL evidence.
+Gateway operation tests for ADR-0359 prove that the uncomposed distributed
+runtime owner starts lease renewal before hint consumption and relay, remains
+unready until that lease is valid, and closes loops, scheduler, boot lease, and
+Redis ownership in a deterministic order. They also prove complete rollback
+after partial startup and bounded scheduler-timeout reporting. The owner is not
+constructed by `GatewayMain`.
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound
