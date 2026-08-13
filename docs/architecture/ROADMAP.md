@@ -1355,8 +1355,11 @@ Progress:
   size/interval, fixed scheduled span/rate, measured scheduling jitter, exact
   session/account/device identity, token rotation, default admission-window
   preservation, and zero-error evidence while preserving schema 1–7.
-- [ ] Record clean controlled reconnect-rate curves and use them to define
-  client backoff and rolling-drain defaults.
+- [x] Record a clean 10-connection/5-round curve with two resumes per batch at
+  100 ms intervals: 8.878 ms resume P50, 12.798 ms P95, about 10 ms maximum
+  scheduled-start jitter, exact token rotation, and zero errors.
+- [ ] Record the comparable 25 ms curve and derive provisional client
+  backoff/rolling-drain guidance.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.
