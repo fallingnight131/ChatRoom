@@ -83,7 +83,40 @@
                   <strong>回复</strong>
                   <span>{{ replyPreview(message) }}</span>
                 </div>
-                <p>{{ message.content }}</p>
+                <p>{{ visibleMessageContent(message) }}</p>
+                <span v-if="message.contentRevision > 0" class="edited-badge">已编辑</span>
+                <form v-if="editingMessageId === message.id" class="edit-form"
+                      @submit.prevent="submitEdit(message)">
+                  <label :for="`edit-${message.id}`">编辑消息</label>
+                  <textarea :id="`edit-${message.id}`" v-model="editDraft" class="input"
+                            rows="3" maxlength="65536" required></textarea>
+                  <div>
+                    <button class="btn btn-primary" type="submit" :disabled="!editDraft.trim()">保存</button>
+                    <button class="btn btn-text" type="button" @click="cancelEdit">取消</button>
+                  </div>
+                </form>
+                <div v-if="editCommand(message)" class="edit-state" aria-live="polite">
+                  <p v-if="editCommand(message).deliveryState === 'sending'" role="status">正在保存编辑…</p>
+                  <template v-else-if="editCommand(message).deliveryState === 'conflict'">
+                    <p role="alert">其他设备已修改此消息。你的编辑草稿已保留。</p>
+                    <small>服务器版本：{{ message.content }}</small>
+                    <div>
+                      <button class="retry-link" type="button"
+                              @click="rebaseEdit(editCommand(message).clientOperationId)">
+                        基于新版本重试
+                      </button>
+                      <button class="btn btn-text" type="button"
+                              @click="discardEdit(editCommand(message).clientOperationId)">放弃草稿</button>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <p role="alert">编辑保存失败，草稿仍保存在本机。</p>
+                    <button class="retry-link" type="button"
+                            @click="retryEdit(editCommand(message).clientOperationId)">重试编辑</button>
+                    <button class="btn btn-text" type="button"
+                            @click="discardEdit(editCommand(message).clientOperationId)">放弃草稿</button>
+                  </template>
+                </div>
                 <div v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
                      class="reaction-bar" role="group" :aria-label="`回应消息 ${message.sequence}`">
                   <button v-for="reaction in reactionChoices" :key="reaction.kind"
@@ -112,6 +145,8 @@
                         class="reply-link" type="button" @click="startReply(message)">
                   回复
                 </button>
+                <button v-if="canEdit(message)" class="edit-link" type="button"
+                        @click="startEdit(message)">编辑</button>
                 <button v-if="message.deliveryState === 'failed'" class="retry-link" type="button"
                         @click="retryMessage(message.clientMessageId)">
                   重试
@@ -199,13 +234,16 @@ const password = ref('')
 const draft = ref('')
 const actionError = ref('')
 const replyTarget = ref(null)
+const editingMessageId = ref(null)
+const editDraft = ref('')
 const authenticationPending = ref(false)
 const devicesOpen = ref(false)
 const confirmingDeviceId = ref(null)
 const deviceCloseButton = ref(null)
 const snapshot = ref({
   connectionState: 'idle', session: null, directory: [], directoryHasMore: false,
-  activeConversationId: null, messages: [], reactionCommands: [], pinCommands: [], historyLoading: false, devices: [],
+  activeConversationId: null, messages: [], reactionCommands: [], pinCommands: [], editCommands: [],
+  historyLoading: false, devices: [],
   devicesLoading: false, revokingDeviceId: null, deviceFailure: '', lastFailure: ''
 })
 let unsubscribe = null
@@ -269,6 +307,7 @@ function login() {
 async function openConversation(conversationId) {
   actionError.value = ''
   replyTarget.value = null
+  cancelEdit()
   try { await runtimeRef.value.application.openConversation(conversationId) }
   catch (error) { actionError.value = error instanceof Error ? error.message : '无法打开会话' }
 }
@@ -380,6 +419,68 @@ function retryPin(operationId) {
   catch (error) { actionError.value = error instanceof Error ? error.message : '置顶重试失败' }
 }
 
+function editCommand(message) {
+  return snapshot.value.editCommands.find(command => command.messageId === message.id) || null
+}
+
+function visibleMessageContent(message) {
+  return editCommand(message)?.proposedContent || message.content
+}
+
+function canEdit(message) {
+  return message.senderAccountId === snapshot.value.session?.accountId
+    && message.deliveryState === 'accepted' && message.availability === 'available'
+    && !editCommand(message) && editingMessageId.value !== message.id
+}
+
+function startEdit(message) {
+  if (!canEdit(message)) return
+  editingMessageId.value = message.id
+  editDraft.value = message.content
+  nextTick(() => document.getElementById(`edit-${message.id}`)?.focus())
+}
+
+function cancelEdit() {
+  editingMessageId.value = null
+  editDraft.value = ''
+}
+
+function submitEdit(message) {
+  const text = editDraft.value.trim()
+  if (!text) return
+  actionError.value = ''
+  try {
+    if (!runtimeRef.value.application.editMessage(message.id, text)) {
+      actionError.value = '当前无法编辑这条消息'
+      return
+    }
+    cancelEdit()
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : '编辑失败'
+  }
+}
+
+function retryEdit(operationId) {
+  actionError.value = ''
+  try { if (!runtimeRef.value.application.retryEdit(operationId)) actionError.value = '该编辑暂时无法重试' }
+  catch (error) { actionError.value = error instanceof Error ? error.message : '编辑重试失败' }
+}
+
+function rebaseEdit(operationId) {
+  actionError.value = ''
+  try {
+    if (!runtimeRef.value.application.rebaseEdit(operationId)) {
+      actionError.value = '服务器新版本尚未同步，请稍后再试'
+    }
+  } catch (error) { actionError.value = error instanceof Error ? error.message : '编辑重试失败' }
+}
+
+function discardEdit(operationId) {
+  actionError.value = ''
+  try { if (!runtimeRef.value.application.discardEdit(operationId)) actionError.value = '该编辑草稿已不存在' }
+  catch (error) { actionError.value = error instanceof Error ? error.message : '无法放弃编辑草稿' }
+}
+
 function openDevices() {
   devicesOpen.value = true
   confirmingDeviceId.value = null
@@ -453,6 +554,12 @@ onUnmounted(() => {
 .reply-reference { margin-bottom: 6px; padding: 6px 8px; display: grid; gap: 2px; border-left: 3px solid var(--accent); border-radius: 4px; color: var(--text-secondary); background: var(--bg-primary); font-size: 12px; }
 .reply-reference span, .composer-reply span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .reply-link { margin-left: 8px; border: 0; color: var(--text-link); background: transparent; cursor: pointer; }
+.edit-link { margin-left: 8px; border: 0; color: var(--text-link); background: transparent; cursor: pointer; }
+.edited-badge { margin-left: 6px; }
+.edit-form, .edit-state { margin-top: 8px; padding: 8px; display: grid; gap: 8px; border-radius: 8px; background: var(--bg-primary); }
+.edit-form label { font-size: 12px; font-weight: 600; }.edit-form textarea { width: 100%; resize: vertical; }
+.edit-form > div, .edit-state > div { display: flex; align-items: center; gap: 8px; }
+.edit-state p { margin: 0; font-size: 12px; }.edit-state small { color: var(--text-secondary); overflow-wrap: anywhere; }
 .composer-reply { flex: 1 0 100%; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-left: 3px solid var(--accent); border-radius: 6px; background: var(--bg-primary); }
 .composer-reply > div { min-width: 0; display: grid; gap: 2px; }
 .conversation-button span { color: var(--text-secondary); font-size: 12px; }.empty-copy { padding: 20px; }

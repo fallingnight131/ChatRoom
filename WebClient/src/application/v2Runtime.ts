@@ -52,6 +52,7 @@ export function createConfiguredV2Runtime(
       createProtocolClient: () => new V2WebProtocolClient({
         appVersion,
         clientDeviceId: identity.deviceId,
+        enableMessageEdits: true,
       }),
     });
     const application = new V2WebChatApplication({
