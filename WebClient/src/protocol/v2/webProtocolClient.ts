@@ -30,6 +30,9 @@ import {
   MessageReactionChangedRecordSchema,
   MessagePinAppliedSchema,
   MessagePinChangedRecordSchema,
+  EditMessageSchema,
+  MessageEditAppliedSchema,
+  MessageEditedRecordSchema,
   MessageReactionKind,
   MessageContentType,
   MessageHistoryPageSchema,
@@ -46,6 +49,8 @@ import {
   type MessageReactionChangedRecord,
   type MessagePinApplied,
   type MessagePinChangedRecord,
+  type MessageEditApplied,
+  type MessageEditedRecord,
 } from "./generated/messaging_pb";
 import {
   AttachmentReadySchema,
@@ -74,6 +79,7 @@ const MAX_WIRE_BYTES = MAX_PAYLOAD_BYTES + 1024;
 const MAX_PASSWORD_BYTES = 1024;
 const MAX_TEXT_BYTES = 65_536;
 const MAX_PAGE_SIZE = 100;
+const MAX_CONTENT_REVISIONS = 100;
 const MAX_DELETION_TARGETS = 1_000;
 const MAX_PENDING_REQUESTS = 16;
 const MAX_CANCELLED_REQUESTS = 32;
@@ -104,6 +110,8 @@ export type V2WebProtocolEvent = ResponseCorrelation & (
   | { type: "message-reaction-changed"; value: MessageReactionChangedRecord }
   | { type: "message-pin-applied"; value: MessagePinApplied }
   | { type: "message-pin-changed"; value: MessagePinChangedRecord }
+  | { type: "message-edit-applied"; value: MessageEditApplied }
+  | { type: "message-edited"; value: MessageEditedRecord }
   | { type: "conversation-directory-page"; value: ConversationDirectoryPage }
   | { type: "attachment-registered"; value: AttachmentRegistered }
   | { type: "attachment-upload-authorized"; value: AttachmentUploadAuthorized }
@@ -125,6 +133,7 @@ export interface V2WebProtocolClientOptions {
   clientDeviceId: string;
   createRequestId?: () => string;
   now?: () => number;
+  enableMessageEdits?: boolean;
 }
 
 export class V2WebProtocolClient {
@@ -137,6 +146,7 @@ export class V2WebProtocolClient {
   private currentSession: SessionEstablished | null = null;
   private retainedResumeToken: Uint8Array | null = null;
   private negotiatedMaximumFrameBytes = MAX_WIRE_BYTES;
+  private readonly requestedCapabilities: readonly ClientCapability[];
 
   constructor(options: V2WebProtocolClientOptions) {
     requireUtf8("appVersion", options.appVersion, 1, 64);
@@ -145,6 +155,9 @@ export class V2WebProtocolClient {
     this.clientDeviceId = options.clientDeviceId;
     this.createRequestId = options.createRequestId ?? (() => crypto.randomUUID());
     this.now = options.now ?? Date.now;
+    this.requestedCapabilities = options.enableMessageEdits
+      ? [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS, ClientCapability.MESSAGE_EDITS]
+      : [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS];
   }
 
   get state(): V2WebProtocolState {
@@ -167,7 +180,7 @@ export class V2WebProtocolClient {
       platform: ClientPlatform.WEB,
       appVersion: this.appVersion,
       clientDeviceId: this.clientDeviceId,
-      capabilities: [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS],
+      capabilities: [...this.requestedCapabilities],
     }));
     const bytes = this.command(MessageType.CLIENT_HELLO, payload, new Set([MessageType.SERVER_HELLO]));
     this.currentState = "hello-sent";
@@ -346,6 +359,36 @@ export class V2WebProtocolClient {
     }));
     return correlated(this.command(
       MessageType.SET_MESSAGE_PIN, payload, new Set([MessageType.MESSAGE_PIN_APPLIED])));
+  }
+
+  editMessage(
+    conversationId: string,
+    messageId: string,
+    expectedRevision: number,
+    text: string,
+    clientOperationId: string,
+  ): V2CorrelatedCommand {
+    this.requireState("authenticated");
+    if (!this.requestedCapabilities.includes(ClientCapability.MESSAGE_EDITS)) {
+      throw new Error("message edits were not enabled for this client");
+    }
+    requireUuid("conversationId", conversationId);
+    requireUuid("messageId", messageId);
+    requireIdentifier("clientOperationId", clientOperationId);
+    if (!Number.isInteger(expectedRevision) || expectedRevision < 0
+        || expectedRevision > MAX_CONTENT_REVISIONS) {
+      throw new Error("expectedRevision must be an integer in 0..100");
+    }
+    const content = encoder.encode(text);
+    if (content.byteLength < 1 || content.byteLength > MAX_TEXT_BYTES) {
+      throw new Error("text must contain 1..65536 UTF-8 bytes");
+    }
+    const payload = toBinary(EditMessageSchema, create(EditMessageSchema, {
+      conversationId, messageId, expectedRevision,
+      contentType: MessageContentType.TEXT_UTF8, content, clientOperationId,
+    }));
+    return correlated(this.command(
+      MessageType.EDIT_MESSAGE, payload, new Set([MessageType.MESSAGE_EDIT_APPLIED])));
   }
 
   registerAttachment(
@@ -528,7 +571,8 @@ export class V2WebProtocolClient {
     const publishedEvent = envelope.kind === MessageKind.EVENT
       && (envelope.messageType === MessageType.MESSAGE_PUBLISHED
         || envelope.messageType === MessageType.MESSAGE_REACTION_CHANGED
-        || envelope.messageType === MessageType.MESSAGE_PIN_CHANGED);
+        || envelope.messageType === MessageType.MESSAGE_PIN_CHANGED
+        || envelope.messageType === MessageType.MESSAGE_EDITED);
     if (!publishedEvent && envelope.kind !== MessageKind.RESPONSE && envelope.kind !== MessageKind.ERROR) {
       throw new Error("unexpected inbound message kind");
     }
@@ -579,6 +623,10 @@ export class V2WebProtocolClient {
           return { ...correlation, type: "message-pin-applied", value: fromBinary(MessagePinAppliedSchema, envelope.payload) };
         case MessageType.MESSAGE_PIN_CHANGED:
           return { ...correlation, type: "message-pin-changed", value: fromBinary(MessagePinChangedRecordSchema, envelope.payload) };
+        case MessageType.MESSAGE_EDIT_APPLIED:
+          return { ...correlation, type: "message-edit-applied", value: fromBinary(MessageEditAppliedSchema, envelope.payload) };
+        case MessageType.MESSAGE_EDITED:
+          return { ...correlation, type: "message-edited", value: fromBinary(MessageEditedRecordSchema, envelope.payload) };
         case MessageType.CONVERSATION_DIRECTORY_PAGE:
           return { ...correlation, type: "conversation-directory-page", value: fromBinary(ConversationDirectoryPageSchema, envelope.payload) };
         case MessageType.ATTACHMENT_REGISTERED:
@@ -611,9 +659,9 @@ export class V2WebProtocolClient {
           throw new Error("invalid server hello");
         }
         requireIdentifier("connectionId", event.value.connectionId);
-        if (event.value.enabledCapabilities.length !== 2
-            || event.value.enabledCapabilities[0] !== ClientCapability.MESSAGE_REACTIONS
-            || event.value.enabledCapabilities[1] !== ClientCapability.MESSAGE_PINS) {
+        if (event.value.enabledCapabilities.length !== this.requestedCapabilities.length
+            || event.value.enabledCapabilities.some((capability, index) =>
+              capability !== this.requestedCapabilities[index])) {
           throw new Error("required V2 capability was not enabled");
         }
         this.negotiatedMaximumFrameBytes = event.value.maximumFrameBytes;
@@ -667,6 +715,12 @@ export class V2WebProtocolClient {
         break;
       case "message-pin-changed":
         validatePinChanged(event.value);
+        break;
+      case "message-edit-applied":
+        validateEditApplied(event.value);
+        break;
+      case "message-edited":
+        validateEditedRecord(event.value);
         break;
       case "conversation-directory-page":
         validateDirectoryPage(event.value);
@@ -816,15 +870,66 @@ function validateHistoryPage(page: MessageHistoryPage): void {
           || entry.detail.value.conversationSequence !== entry.conversationSequence) {
         throw new Error("invalid pin entry detail");
       }
+    } else if (entry.detail.case === "edit") {
+      validateEditedRecord(entry.detail.value);
+      if (entry.detail.value.conversationId !== entry.conversationId
+          || entry.detail.value.conversationSequence !== entry.conversationSequence) {
+        throw new Error("invalid edit entry detail");
+      }
     } else {
       throw new Error("history entry detail is required");
     }
     previousEntry = entry.conversationSequence;
   }
   const lastSequence = page.entries.length > 0 ? previousEntry : previous;
-  if (lastSequence !== 0n && page.nextSequence !== lastSequence) {
-    throw new Error("history cursor does not identify the last entry");
+  if (page.nextSequence < lastSequence || page.nextSequence > page.latestSequence) {
+    throw new Error("history cursor is outside the visible and latest sequence bounds");
   }
+}
+
+function validateEditApplied(value: MessageEditApplied): void {
+  validateEditIdentity(value.conversationId, value.messageId, value.actorAccountId,
+    value.clientOperationId);
+  validateEditContent(value.contentType, value.content);
+  if (value.contentRevision > MAX_CONTENT_REVISIONS
+      || (value.changed && value.contentRevision === 0)
+      || value.occurredAtEpochMs <= 0n
+      || value.conversationSequence > MAX_SIGNED_SEQUENCE
+      || value.changed !== (value.conversationSequence > 0n)) {
+    throw new Error("invalid edit application");
+  }
+}
+
+function validateEditedRecord(value: MessageEditedRecord): void {
+  validateEditIdentity(value.conversationId, value.messageId, value.actorAccountId,
+    value.clientOperationId);
+  validateEditContent(value.contentType, value.content);
+  if (value.contentRevision < 1 || value.contentRevision > MAX_CONTENT_REVISIONS
+      || value.conversationSequence <= 0n
+      || value.conversationSequence > MAX_SIGNED_SEQUENCE
+      || value.occurredAtEpochMs <= 0n) {
+    throw new Error("invalid message edit");
+  }
+}
+
+function validateEditIdentity(
+  conversationId: string,
+  messageId: string,
+  actorAccountId: string,
+  clientOperationId: string,
+): void {
+  requireUuid("edit.conversationId", conversationId);
+  requireUuid("edit.messageId", messageId);
+  requireUuid("edit.actorAccountId", actorAccountId);
+  requireIdentifier("edit.clientOperationId", clientOperationId);
+}
+
+function validateEditContent(contentType: number, content: Uint8Array): void {
+  if (contentType !== MessageContentType.TEXT_UTF8
+      || content.byteLength < 1 || content.byteLength > MAX_TEXT_BYTES) {
+    throw new Error("invalid edited content");
+  }
+  try { strictDecoder.decode(content); } catch { throw new Error("invalid edited content"); }
 }
 
 function validatePinApplied(value: MessagePinApplied): void {

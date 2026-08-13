@@ -39,6 +39,9 @@ import {
   SetMessagePinSchema,
   MessagePinAppliedSchema,
   MessagePinChangedRecordSchema,
+  EditMessageSchema,
+  MessageEditAppliedSchema,
+  MessageEditedRecordSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
 import { V2WebProtocolClient } from "../src/protocol/v2/webProtocolClient";
 import {
@@ -66,13 +69,14 @@ const MESSAGE_ID = "60000000-0000-4000-8000-000000000001";
 const CLIENT_MESSAGE_ID = "client-message-1";
 const NOW = 1_800_000_000_000;
 
-function newClient(): V2WebProtocolClient {
+function newClient(enableMessageEdits = false): V2WebProtocolClient {
   let next = 0;
   return new V2WebProtocolClient({
     appVersion: "2.0.0-test",
     clientDeviceId: "web-test-device",
     createRequestId: () => `10000000-0000-4000-8000-${String(++next).padStart(12, "0")}`,
     now: () => NOW,
+    enableMessageEdits,
   });
 }
 
@@ -130,7 +134,10 @@ function publishedMessage(options: {
   }));
 }
 
-function negotiate(client: V2WebProtocolClient): Envelope {
+function negotiate(
+  client: V2WebProtocolClient,
+  capabilities = [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS],
+): Envelope {
   const helloEnvelope = decodeEnvelope(client.createClientHello());
   const hello = fromBinary(ClientHelloSchema, helloEnvelope.payload);
   assert.equal(hello.minimumProtocolVersion, 2);
@@ -138,8 +145,7 @@ function negotiate(client: V2WebProtocolClient): Envelope {
   assert.equal(hello.platform, ClientPlatform.WEB);
   assert.equal(hello.appVersion, "2.0.0-test");
   assert.equal(hello.clientDeviceId, "web-test-device");
-  assert.deepEqual(hello.capabilities,
-    [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS]);
+  assert.deepEqual(hello.capabilities, capabilities);
   const event = client.receive(response(
     helloEnvelope,
     MessageType.SERVER_HELLO,
@@ -148,7 +154,7 @@ function negotiate(client: V2WebProtocolClient): Envelope {
       connectionId: "gateway-connection-1",
       serverTimeEpochMs: BigInt(NOW),
       maximumFrameBytes: 1024 * 1024 + 1024,
-      enabledCapabilities: [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS],
+      enabledCapabilities: capabilities,
     })),
   ));
   assert.equal(event.type, "server-hello");
@@ -156,8 +162,11 @@ function negotiate(client: V2WebProtocolClient): Envelope {
   return helloEnvelope;
 }
 
-function authenticate(client: V2WebProtocolClient): Envelope {
-  negotiate(client);
+function authenticate(
+  client: V2WebProtocolClient,
+  capabilities = [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS],
+): Envelope {
+  negotiate(client, capabilities);
   const callerPassword = new TextEncoder().encode("correct horse battery staple");
   const passwordBefore = callerPassword.slice();
   const authEnvelope = decodeEnvelope(client.authenticate("alice", callerPassword));
@@ -341,6 +350,71 @@ test("encodes correlated pins and validates capable live changes", () => {
     })),
   }));
   assert.equal(client.receive(live).type, "message-pin-changed");
+});
+
+test("gates edits, correlates edit results, validates live edits, and accepts a filtered tail cursor", () => {
+  const disabled = newClient();
+  authenticate(disabled);
+  assert.throws(() => disabled.editMessage(
+    CONVERSATION_ID, MESSAGE_ID, 0, "updated", "edit-disabled"), /not enabled/);
+
+  const capabilities = [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS,
+    ClientCapability.MESSAGE_EDITS];
+  const client = newClient(true);
+  authenticate(client, capabilities);
+  const operationId = "70000000-0000-4000-8000-000000000003";
+  const command = client.editMessage(CONVERSATION_ID, MESSAGE_ID, 0, "updated", operationId);
+  const request = decodeEnvelope(command.bytes);
+  assert.equal(request.messageType, MessageType.EDIT_MESSAGE);
+  const payload = fromBinary(EditMessageSchema, request.payload);
+  assert.equal(payload.expectedRevision, 0);
+  assert.equal(payload.contentType, MessageContentType.TEXT_UTF8);
+  assert.equal(new TextDecoder().decode(payload.content), "updated");
+  assert.equal(payload.clientOperationId, operationId);
+
+  const applied = client.receive(response(request, MessageType.MESSAGE_EDIT_APPLIED,
+    toBinary(MessageEditAppliedSchema, create(MessageEditAppliedSchema, {
+      conversationId: CONVERSATION_ID, messageId: MESSAGE_ID, contentRevision: 1,
+      contentType: MessageContentType.TEXT_UTF8,
+      content: new TextEncoder().encode("updated"), actorAccountId: ACCOUNT_ID,
+      clientOperationId: operationId, changed: true, conversationSequence: 2n,
+      occurredAtEpochMs: BigInt(NOW), duplicate: false,
+    })), { sessionId: SESSION_ID }));
+  assert.equal(applied.type, "message-edit-applied");
+
+  const historyRequest = decodeEnvelope(client.readMessageHistory(CONVERSATION_ID, 0n, 10));
+  const history = client.receive(response(historyRequest, MessageType.MESSAGE_HISTORY_PAGE,
+    toBinary(MessageHistoryPageSchema, create(MessageHistoryPageSchema, {
+      conversationId: CONVERSATION_ID,
+      entries: [create(ConversationEntryRecordSchema, {
+        conversationId: CONVERSATION_ID, conversationSequence: 2n,
+        detail: { case: "edit", value: create(MessageEditedRecordSchema, {
+          conversationId: CONVERSATION_ID, conversationSequence: 2n,
+          messageId: MESSAGE_ID, contentRevision: 1,
+          contentType: MessageContentType.TEXT_UTF8,
+          content: new TextEncoder().encode("updated"), actorAccountId: ACCOUNT_ID,
+          clientOperationId: operationId, occurredAtEpochMs: BigInt(NOW),
+        }) },
+      })],
+      nextSequence: 3n,
+      latestSequence: 3n,
+      hasMore: false,
+    })), { sessionId: SESSION_ID }));
+  assert.equal(history.type, "message-history-page");
+
+  const live = toBinary(EnvelopeSchema, create(EnvelopeSchema, {
+    protocolVersion: 2, kind: MessageKind.EVENT, messageType: MessageType.MESSAGE_EDITED,
+    sessionId: SESSION_ID, sentAtEpochMs: BigInt(NOW + 1),
+    payload: toBinary(MessageEditedRecordSchema, create(MessageEditedRecordSchema, {
+      conversationId: CONVERSATION_ID, conversationSequence: 4n,
+      messageId: MESSAGE_ID, contentRevision: 2,
+      contentType: MessageContentType.TEXT_UTF8,
+      content: new TextEncoder().encode("updated again"), actorAccountId: ACCOUNT_ID,
+      clientOperationId: "70000000-0000-4000-8000-000000000004",
+      occurredAtEpochMs: BigInt(NOW + 1),
+    })),
+  }));
+  assert.equal(client.receive(live).type, "message-edited");
 });
 
 test("encodes and validates bounded device management commands", () => {
