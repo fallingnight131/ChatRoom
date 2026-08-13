@@ -17,7 +17,7 @@ public record LegacyV1RoomHistoryDeletion(
         long cutoffEpochMillis,
         int deletedCount,
         Instant occurredAt) {
-    public static final int MAX_IDS_PER_EVENT = 1_000;
+    public static final int MAX_IDS_PER_EVENT = 1_500;
 
     public LegacyV1RoomHistoryDeletion {
         if (legacyEventId <= 0 || legacyEventId > Integer.MAX_VALUE || sequence <= 0

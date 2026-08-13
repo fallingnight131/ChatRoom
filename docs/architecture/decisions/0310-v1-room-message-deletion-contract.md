@@ -40,6 +40,9 @@ authorization and durable idempotency.
   cutoff locally. Selected events expose only actually deleted mapped IDs.
   Deleted file IDs remain bounded by the V1 room resource contract and drive
   asynchronous object cleanup after commit.
+- Resolve at most 100,000 messages and 1,500 file identities per operation.
+  Reject a larger scope atomically instead of loading or returning an unbounded
+  result; an operations-led retention/batching path is required for larger rooms.
 - Exact retries return the first durable outcome and never emit a second live
   effect. Empty target sets are still successful durable events, preserving the
   established V1 behavior and deterministic retry outcome.

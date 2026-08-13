@@ -685,7 +685,7 @@ Progress:
   - [x] Define the strict server-bound V1 room administrative message-deletion
     contract for selected/all/before/after modes, whole-second cutoffs, bounded
     selections, canonical retry fingerprints, and first-commit-only effects.
-  - [ ] Implement serializable PostgreSQL V1 administrative message deletion
+  - [x] Implement serializable PostgreSQL V1 administrative message deletion
     with atomic target resolution, attachment revocation, recall cleanup,
     shared sequence allocation, durable replay event, and exact retry recovery.
   - [ ] Add and compose the detached strict `DELETE_MSGS_REQ` handler, then prove

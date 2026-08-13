@@ -134,8 +134,8 @@ public final class PostgresLegacyV1RoomHistoryAdapter implements LegacyV1RoomHis
                         OR deletion.source NOT IN ('V1_IMPORT', 'V2')
                         OR mapping.legacy_event_id IS NULL
                         OR mapping.legacy_event_id NOT BETWEEN 1 AND 2147483647
-                        OR jsonb_array_length(deletion.message_ids) > 1000
-                        OR jsonb_array_length(deletion.file_ids) > 1000
+                        OR jsonb_array_length(deletion.message_ids) > 1500
+                        OR jsonb_array_length(deletion.file_ids) > 1500
                         OR EXISTS (SELECT 1 FROM jsonb_array_elements_text(
                             deletion.message_ids) value WHERE CASE
                               WHEN value ~ '^[1-9][0-9]{0,9}$'

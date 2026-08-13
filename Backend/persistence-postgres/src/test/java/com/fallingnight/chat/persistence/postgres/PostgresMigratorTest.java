@@ -2,6 +2,7 @@ package com.fallingnight.chat.persistence.postgres;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -56,6 +57,9 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomAdminComma
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomAdminResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomKickCommand;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomKickResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageDeletionCommand;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageDeletionResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageDeletionService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMemberListPort;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettings;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettingsPort;
@@ -121,6 +125,7 @@ import java.time.Instant;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
@@ -1551,6 +1556,118 @@ class PostgresMigratorTest {
         }
         assertEquals(LegacyV1RoomSettingsPort.QueryResult.Rejected.ROOM_ACCESS_DENIED,
                 adapter.read(owner, created.legacyRoomId()));
+    }
+
+    @Test
+    @Order(93)
+    void atomicallyDeletesV1RoomMessagesInAllModesAndReplaysExactRetries()
+            throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID owner = UUID.randomUUID(), outsider = UUID.randomUUID();
+        UUID ownerDevice = UUID.randomUUID(), outsiderDevice = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'delete-owner', 'Delete Owner', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'delete-outsider', 'Delete Outsider', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')", owner, outsider);
+            execute(connection, "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, "
+                    + "account_id) VALUES (201, ?), (202, ?)", owner, outsider);
+            execute(connection, "INSERT INTO chat.device(id, account_id, client_device_id, "
+                    + "platform) VALUES (?, ?, 'delete-owner-device', 'LEGACY'), "
+                    + "(?, ?, 'delete-outsider-device', 'LEGACY')",
+                    ownerDevice, owner, outsiderDevice, outsider);
+        }
+        LegacyV1RoomCreationResult.Created room =
+                (LegacyV1RoomCreationResult.Created)
+                new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
+                        new LegacyV1RoomCreationIntent(owner, "delete-room-create",
+                                "Delete Room", Optional.empty()));
+        PostgresLegacyV1RoomMessageAdapter messages =
+                new PostgresLegacyV1RoomMessageAdapter(dataSource());
+        List<LegacyV1RoomMessageResult.Accepted> accepted = new ArrayList<>();
+        for (int index = 1; index <= 4; index++) {
+            accepted.add((LegacyV1RoomMessageResult.Accepted) messages.submit(
+                    new LegacyV1RoomMessageCommand(owner, ownerDevice, room.legacyRoomId(),
+                            "delete-message-" + index, "message " + index, "text")));
+        }
+        LegacyV1RoomRecallResult recalled = new PostgresLegacyV1RoomRecallAdapter(dataSource())
+                .recall(new LegacyV1RoomRecallCommand(
+                        owner, room.legacyRoomId(), accepted.get(1).legacyMessageId()));
+        assertInstanceOf(LegacyV1RoomRecallResult.Recalled.class, recalled);
+        List<Instant> times = List.of(Instant.parse("2020-01-01T00:00:00Z"),
+                Instant.parse("2021-01-01T00:00:00Z"),
+                Instant.parse("2022-01-01T00:00:00Z"),
+                Instant.parse("2023-01-01T00:00:00Z"));
+        try (Connection connection = connect()) {
+            for (int index = 0; index < accepted.size(); index++) {
+                execute(connection, "UPDATE chat.message SET accepted_at = ? WHERE id = "
+                        + "(SELECT message_id FROM chat.legacy_v1_message_map "
+                        + "WHERE legacy_kind = 'ROOM' AND legacy_message_id = ?)",
+                        OffsetDateTime.ofInstant(times.get(index), ZoneOffset.UTC),
+                        accepted.get(index).legacyMessageId());
+            }
+        }
+        var deletion = new LegacyV1RoomMessageDeletionService(
+                new PostgresLegacyV1RoomMessageDeletionAdapter(dataSource()));
+        LegacyV1RoomMessageDeletionResult.Deleted selected = deleted(deletion.delete(
+                new LegacyV1RoomMessageDeletionCommand(owner, room.legacyRoomId(),
+                        "delete-selected", "selected",
+                        List.of(accepted.get(1).legacyMessageId()), 0)));
+        assertFalse(selected.duplicate()); assertEquals(1, selected.deletedCount());
+        assertEquals(List.of(accepted.get(1).legacyMessageId()),
+                selected.legacyMessageIds());
+
+        long beforeCutoff = Instant.parse("2021-06-01T00:00:00.999Z").toEpochMilli();
+        LegacyV1RoomMessageDeletionResult.Deleted before = deleted(deletion.delete(
+                new LegacyV1RoomMessageDeletionCommand(owner, room.legacyRoomId(),
+                        "delete-before", "before", List.of(), beforeCutoff)));
+        assertEquals(Instant.parse("2021-06-01T00:00:00Z").toEpochMilli(),
+                before.cutoffEpochMillis());
+        assertEquals(1, before.deletedCount()); assertTrue(before.legacyMessageIds().isEmpty());
+
+        long afterCutoff = Instant.parse("2022-06-01T00:00:00Z").toEpochMilli();
+        LegacyV1RoomMessageDeletionResult.Deleted after = deleted(deletion.delete(
+                new LegacyV1RoomMessageDeletionCommand(owner, room.legacyRoomId(),
+                        "delete-after", "after", List.of(), afterCutoff)));
+        assertEquals(1, after.deletedCount());
+
+        LegacyV1RoomMessageDeletionCommand allCommand =
+                new LegacyV1RoomMessageDeletionCommand(owner, room.legacyRoomId(),
+                        "delete-all", "all", List.of(), 0);
+        LegacyV1RoomMessageDeletionResult.Deleted all = deleted(deletion.delete(allCommand));
+        assertEquals(1, all.deletedCount()); assertFalse(all.duplicate());
+        LegacyV1RoomMessageDeletionResult.Deleted retry = deleted(deletion.delete(allCommand));
+        assertTrue(retry.duplicate()); assertEquals(all.sequence(), retry.sequence());
+        assertEquals(all.occurredAt(), retry.occurredAt());
+        assertEquals(LegacyV1RoomMessageDeletionResult.Rejected.CLIENT_OPERATION_ID_CONFLICT,
+                deletion.delete(new LegacyV1RoomMessageDeletionCommand(owner,
+                        room.legacyRoomId(), "delete-all", "before", List.of(), beforeCutoff)));
+        assertEquals(LegacyV1RoomMessageDeletionResult.Rejected.ROOM_ADMIN_REQUIRED,
+                deletion.delete(new LegacyV1RoomMessageDeletionCommand(outsider,
+                        room.legacyRoomId(), "outsider-delete", "all", List.of(), 0)));
+
+        assertEquals(0, count("SELECT count(*) FROM chat.message WHERE conversation_id = '"
+                + room.conversationId() + "'"));
+        assertEquals(0, count("SELECT count(*) FROM chat.message_recall_event "
+                + "WHERE conversation_id = '" + room.conversationId() + "'"));
+        assertEquals(4, count("SELECT count(*) FROM chat.messages_deleted_event "
+                + "WHERE conversation_id = '" + room.conversationId() + "' "
+                + "AND source = 'V2'"));
+        assertEquals(4, count("SELECT count(*) FROM chat.legacy_v1_deletion_event_map "
+                + "WHERE conversation_id = '" + room.conversationId() + "'"));
+        LegacyV1RoomHistoryResult.Page history = (LegacyV1RoomHistoryResult.Page)
+                new PostgresLegacyV1RoomHistoryAdapter(dataSource()).read(
+                        new LegacyV1RoomHistoryQuery(owner, room.legacyRoomId(),
+                                10, 0, 0L));
+        assertEquals(List.of("selected", "before", "after", "all"),
+                history.events().stream().map(event -> event.mode()).toList());
+        assertTrue(history.messages().isEmpty());
+    }
+
+    private static LegacyV1RoomMessageDeletionResult.Deleted deleted(
+            LegacyV1RoomMessageDeletionResult result) {
+        return assertInstanceOf(LegacyV1RoomMessageDeletionResult.Deleted.class, result);
     }
 
     @Test
