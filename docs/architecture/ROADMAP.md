@@ -1392,6 +1392,10 @@ Progress:
     live message events over the existing authenticated product WSS while
     preserving strict device-protocol isolation and fail-closed routing
     (ADR-0334).
+  - [x] Compose the authenticated Windows messaging runtime around the
+    account-isolated SQLite repository, offline application service, ViewModel,
+    and shared product transport; abandon only volatile correlations on
+    disconnect and fail the socket closed on codec corruption (ADR-0335).
   - [ ] Add the equivalent reply composition, local-cache behavior, and rendering
     to the supported Windows client.
 

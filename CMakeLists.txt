@@ -497,6 +497,35 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                     chatroom_device_management_ui_core
             )
 
+            add_library(
+                chatroom_windows_v2_messaging_product
+                STATIC
+                Client/V2WindowsMessagingProtocolClient.cpp
+                Client/V2WindowsMessagingProtocolClient.h
+                Client/V2WindowsMessagingApplicationService.cpp
+                Client/V2WindowsMessagingApplicationService.h
+                Client/WindowsV2MessagingController.cpp
+                Client/WindowsV2MessagingController.h
+                "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/messaging.pb.cc"
+                "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/messaging.pb.h"
+            )
+            set_target_properties(
+                chatroom_windows_v2_messaging_product
+                PROPERTIES AUTOMOC ON CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+            target_include_directories(
+                chatroom_windows_v2_messaging_product
+                PUBLIC Client "${CHATROOM_V2_GENERATED_ROOT}")
+            target_link_libraries(
+                chatroom_windows_v2_messaging_product
+                PUBLIC
+                    Qt6::Core
+                    Qt6::Sql
+                    protobuf::libprotobuf
+                    chatroom_windows_v2_transport
+                    chatroom_v2_local_data
+                    chatroom_v2_messaging_ui_core
+            )
+
             enable_language(RC)
             file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION"
                  CHATROOM_PRODUCT_VERSION LIMIT_COUNT 1)
@@ -590,6 +619,7 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                     chatroom_device_management_ui_core
                     chatroom_windows_v2_configuration
                     chatroom_windows_v2_transport
+                    chatroom_windows_v2_messaging_product
                     chatroom_windows_update_orchestration
                     chatroom_windows_update_lifecycle
                     chatroom_windows_update_handoff

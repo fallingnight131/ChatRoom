@@ -155,6 +155,11 @@ bool V2WindowsDeviceManagementTransport::sendMessagingFrame(const QByteArray &fr
     return false;
 }
 
+void V2WindowsDeviceManagementTransport::rejectMessagingProtocol() {
+    if (m_state == State::Authenticated)
+        failProtocol(QStringLiteral("V2 消息协议数据无效"));
+}
+
 bool V2WindowsDeviceManagementTransport::isValidEndpoint(const QUrl &endpoint) {
     return endpoint.isValid() && endpoint.scheme() == QStringLiteral("wss")
         && !endpoint.host().isEmpty() && endpoint.userInfo().isEmpty()

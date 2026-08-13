@@ -53,6 +53,7 @@ public:
     QString listDevices();
     QString revokeDevice(const QString &targetDeviceId);
     bool sendMessagingFrame(const QByteArray &frame);
+    void rejectMessagingProtocol();
     static bool isValidEndpoint(const QUrl &endpoint);
 
 signals:
