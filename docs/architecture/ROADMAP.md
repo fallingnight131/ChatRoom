@@ -1385,6 +1385,9 @@ Progress:
   - [x] Add the detached Windows reply ViewModel with cached-first rows,
     explicit normal/recalled/unavailable reference presentation, target
     selection/cancellation, focus intent, optimistic send, and stable-ID retry.
+  - [x] Add the detached accessible Windows Widgets reply panel with explicit
+    quote/status labels, keyboard-native buttons, composer focus restoration,
+    cancellation, retry, and recalled/unavailable presentation.
   - [ ] Add the equivalent reply composition, local-cache behavior, and rendering
     to the supported Windows client.
 

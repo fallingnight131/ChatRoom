@@ -1283,6 +1283,11 @@ through qmake and CMake: cached-first projection, newline-safe quote previews,
 reply selection and cancellation focus intent, failed-send retry eligibility,
 and explicit recalled/unavailable target labels. The ViewModel has no socket or
 SQL queries and remains detached until the Widgets/product composition slice.
+`V2WindowsMessagingPanelTest` runs the detached Widgets panel with the Qt
+offscreen platform. It checks accessible names, keyboard-native reply/cancel/send
+controls, composer enablement and focus flow, while the ViewModel tests retain
+the recalled/unavailable rendering semantics. This panel is not yet compiled
+into `Client.pro`; that happens only with the reviewed WSS/product composition.
 Gateway tests separately verify authenticated server-bound identity,
 off-event-loop submit/history dispatch, per-connection ordering, safe denial,
 bounded saturation behavior, and isolation from the authentication worker pool.
