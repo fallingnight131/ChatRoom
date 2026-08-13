@@ -727,8 +727,11 @@ Progress:
     ownership, current-session binding, Argon2id replacement, other-session
     revocation, non-secret audit intent, and compatible desired-state retry.
   - [x] Implement serializable PostgreSQL credential replacement and audit.
-  - [ ] Add and compose strict `CHANGE_PASSWORD_REQ`, then prove old/new login,
-    exact retry, other-session revocation, and restart durability.
+  - [x] Add strict detached `CHANGE_PASSWORD_REQ` decoding and handling with
+    clearable dual-secret ownership, auth admission, bounded off-loop crypto,
+    generic rejection, malformed closure, and saturation telemetry.
+  - [ ] Compose password change and prove old/new login, exact retry,
+    other-session revocation, and restart durability through PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
