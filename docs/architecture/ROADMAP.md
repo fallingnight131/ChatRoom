@@ -1453,6 +1453,10 @@ Progress:
   suppression, membership-revocation route cleanup, and fail-closed conflict.
   The adapter remains uncomposed and mixed event kinds remain out of scope until
   they gain atomic outbox writers (ADR-0356).
+- [x] Add the default-uncomposed hint consumer lifecycle with strictly increasing
+  unsigned Redis IDs, immediate full-batch drain, bounded idle polling,
+  exponential repair-failure retry without failed-cursor advancement, clean
+  shutdown, and fixed identity-free lease/consumer metrics (ADR-0357).
 
 Work:
 

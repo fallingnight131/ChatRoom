@@ -34,6 +34,12 @@ final class GatewayLiveEventConsumerServiceTest {
         assertThrows(IllegalArgumentException.class, () -> new GatewayLiveEventConsumerService(
                 (id, after, limit) -> new GatewayLiveEventBatch(after, List.of()),
                 hint -> LocalConversationHintResult.APPLIED, gateway, 1001));
+        UUID conversation = UUID.randomUUID();
+        assertThrows(IllegalArgumentException.class, () -> new GatewayLiveEventBatch("2-0",
+                List.of(entry(gateway, conversation, "1-0", 1))));
+        assertThrows(IllegalArgumentException.class, () -> new GatewayLiveEventBatch("0-0",
+                List.of(entry(gateway, conversation, "2-0", 2),
+                        entry(gateway, conversation, "1-0", 1))));
     }
 
     private static GatewayLiveEventStreamEntry entry(

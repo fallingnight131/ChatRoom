@@ -14,9 +14,28 @@ public record GatewayLiveEventBatch(
                     .distinct().count() != entries.size()) {
             throw new IllegalArgumentException("invalid gateway live event batch");
         }
+        String previous = requestedAfterStreamId;
+        for (GatewayLiveEventStreamEntry entry : entries) {
+            if (compareStreamIds(entry.streamId(), previous) <= 0) {
+                throw new IllegalArgumentException("gateway event stream ids are not ordered");
+            }
+            previous = entry.streamId();
+        }
     }
 
     public String nextStreamId() {
         return entries.isEmpty() ? requestedAfterStreamId : entries.getLast().streamId();
+    }
+
+    private static int compareStreamIds(String first, String second) {
+        String[] left = first.split("-", -1), right = second.split("-", -1);
+        try {
+            int milliseconds = Long.compareUnsigned(
+                    Long.parseUnsignedLong(left[0]), Long.parseUnsignedLong(right[0]));
+            return milliseconds != 0 ? milliseconds : Long.compareUnsigned(
+                    Long.parseUnsignedLong(left[1]), Long.parseUnsignedLong(right[1]));
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("invalid gateway event stream id", exception);
+        }
     }
 }

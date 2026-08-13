@@ -1027,6 +1027,10 @@ ADR-0356 implements that local repair for the only current outbox event kind,
 new messages. Every behind connection reauthorizes through PostgreSQL using its
 server-bound account, loads the exact stable message, applies existing client
 capability filtering, and suppresses already observed sequence hints.
+ADR-0357 wraps that path in a default-off, non-overlapping consumer lifecycle.
+Strictly increasing boot-stream IDs, failed-cursor retention, bounded idle/
+failure delays, and identity-free lease/consumer metrics are enforced before
+runtime composition.
 
 ## 10. Attachment Flow
 
