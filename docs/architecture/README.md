@@ -1207,6 +1207,12 @@ degraded-but-connectable edge eviction remain separate gates.
 The normative cross-client behavior and deliberate Web/Windows configuration
 bounds are summarized in
 [`CLIENT_EDGE_FAILOVER_CONTRACT.md`](CLIENT_EDGE_FAILOVER_CONTRACT.md).
+ADR-0384 adds a bounded concentration measurement below that client contract:
+twelve sessions leave a killed primary HAProxy in four scheduled batches while
+six sessions remain on the secondary edge and gateway. A strict JSON record
+binds identity recovery, latency, jitter, topology, revision, and dirty state.
+This is a local comparison curve; multi-host fleet capacity, saturation signals,
+real product-client arrival distributions, and production discovery remain open.
 
 ## 10. Attachment Flow
 

@@ -1858,6 +1858,153 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     @Test
+    void haproxyMeasuresBatchedReconnectAfterPrimaryEdgeCrash() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String redisUri = System.getenv("CHATROOM_TEST_REDIS_URI");
+        String controlValue = System.getenv("CHATROOM_TEST_HAPROXY_CONTROL_DIR");
+        String primaryUrl = System.getenv("CHATROOM_TEST_HAPROXY_WSS_URL");
+        String secondaryUrl = System.getenv("CHATROOM_TEST_HAPROXY_SECONDARY_WSS_URL");
+        String certificatePath = System.getenv("CHATROOM_TEST_GATEWAY_CERTIFICATE");
+        String keyPath = System.getenv("CHATROOM_TEST_GATEWAY_PRIVATE_KEY");
+        String runtimeClasspath = System.getenv("CHATROOM_TEST_GATEWAY_RUNTIME_CLASSPATH");
+        String evidenceValue = System.getenv("CHATROOM_TEST_MULTI_EDGE_RECONNECT_EVIDENCE");
+        Assumptions.assumeTrue(allNonBlank(jdbcUrl, username, redisUri, controlValue,
+                primaryUrl, secondaryUrl, certificatePath, keyPath, runtimeClasspath,
+                evidenceValue), "set disposable services, two edges, and evidence path");
+        Path control = Path.of(controlValue);
+        Path evidence = Path.of(evidenceValue);
+        new PostgresMigrator(jdbcUrl, username, "").migrate();
+
+        int firstPort = availablePort();
+        int firstAdmin = availablePort();
+        int secondPort = availablePort();
+        int secondAdmin = availablePort();
+        Map<String, String> firstEnvironment = distributedNetworkEnvironment(
+                firstPort, firstAdmin, certificatePath, keyPath, jdbcUrl, username,
+                redisUri, proxyAuthority(primaryUrl));
+        Map<String, String> secondEnvironment = distributedNetworkEnvironment(
+                secondPort, secondAdmin, certificatePath, keyPath, jdbcUrl, username,
+                redisUri, proxyAuthority(secondaryUrl));
+        firstEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+        secondEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+
+        Process first = null;
+        Process second = null;
+        List<CrashClient> primaryClients = new ArrayList<>();
+        List<BinaryEnvelopeListener> primaryListeners = new ArrayList<>();
+        List<CrashClient> survivorClients = new ArrayList<>();
+        List<WebSocket> replacements = new ArrayList<>();
+        try {
+            int failedConnections = 12;
+            int survivingConnections = 6;
+            seedCrashAccounts(jdbcUrl, username, failedConnections + survivingConnections);
+            first = startGatewayProcess(firstEnvironment, runtimeClasspath,
+                    control.resolve("gateway-a.log"));
+            second = startGatewayProcess(secondEnvironment, runtimeClasspath,
+                    control.resolve("gateway-b.log"));
+            awaitProductReady(firstAdmin, first, control.resolve("gateway-a.log"),
+                    Duration.ofSeconds(10));
+            awaitProductReady(secondAdmin, second, control.resolve("gateway-b.log"),
+                    Duration.ofSeconds(10));
+            Files.writeString(control.resolve("gateway-ports"),
+                    firstPort + "\n" + secondPort + "\n");
+            Files.writeString(control.resolve("haproxy-start-request"), "start\n");
+            awaitFile(control.resolve("haproxy-started"), Duration.ofSeconds(10));
+
+            for (int index = 0; index < failedConnections; index++) {
+                BinaryEnvelopeListener listener = new BinaryEnvelopeListener();
+                WebSocket socket = connectWebSocket(
+                        URI.create(primaryUrl + "/v2/windows"), listener);
+                String deviceId = "crash-load-device-" + index;
+                SessionEstablished session = establish(
+                        socket, listener, "crash-load-user-" + index, deviceId);
+                primaryClients.add(new CrashClient(socket, session, deviceId, true));
+                primaryListeners.add(listener);
+            }
+            for (int index = failedConnections;
+                    index < failedConnections + survivingConnections; index++) {
+                BinaryEnvelopeListener listener = new BinaryEnvelopeListener();
+                WebSocket socket = connectWebSocket(
+                        URI.create(secondaryUrl + "/v2/windows"), listener);
+                String deviceId = "crash-load-device-" + index;
+                SessionEstablished session = establish(
+                        socket, listener, "crash-load-user-" + index, deviceId);
+                survivorClients.add(new CrashClient(socket, session, deviceId, false));
+            }
+            assertEquals(failedConnections, authenticationAccepted(firstAdmin));
+            assertEquals(survivingConnections, authenticationAccepted(secondAdmin));
+
+            Files.writeString(control.resolve("haproxy-primary-stop-request"), "stop\n");
+            awaitFile(control.resolve("haproxy-primary-stopped"), Duration.ofSeconds(10));
+            assertTrue(first.isAlive(), "primary edge loss must not kill gateway A");
+            assertTrue(second.isAlive(), "secondary gateway must remain alive");
+            for (BinaryEnvelopeListener listener : primaryListeners) {
+                listener.awaitTerminal(Duration.ofSeconds(3));
+            }
+            for (CrashClient survivor : survivorClients) {
+                assertFalse(survivor.socket().isInputClosed(),
+                        "secondary-edge survivor session must remain connected");
+            }
+
+            int batchSize = 3;
+            int intervalMillis = 100;
+            CountDownLatch ready = new CountDownLatch(primaryClients.size());
+            CountDownLatch start = new CountDownLatch(1);
+            long[] startNanos = new long[1];
+            List<ReconnectSample> samples = new ArrayList<>();
+            try (ExecutorService executor = Executors.newFixedThreadPool(primaryClients.size())) {
+                List<Future<ReconnectSample>> futures = new ArrayList<>();
+                for (int index = 0; index < primaryClients.size(); index++) {
+                    int position = index;
+                    CrashClient previous = primaryClients.get(index);
+                    futures.add(executor.submit(() -> {
+                        ready.countDown();
+                        start.await();
+                        long offset = (long) (position / batchSize) * intervalMillis;
+                        long scheduled = startNanos[0] + TimeUnit.MILLISECONDS.toNanos(offset);
+                        long remaining;
+                        while ((remaining = scheduled - System.nanoTime()) > 0) {
+                            LockSupport.parkNanos(remaining);
+                        }
+                        long began = System.nanoTime();
+                        BinaryEnvelopeListener listener = new BinaryEnvelopeListener();
+                        WebSocket socket = connectWebSocket(
+                                URI.create(secondaryUrl + "/v2/windows"), listener);
+                        SessionEstablished rotated = resume(
+                                socket, listener, previous.session(), previous.deviceId());
+                        long latency = TimeUnit.NANOSECONDS.toMicros(
+                                System.nanoTime() - began);
+                        long jitter = TimeUnit.NANOSECONDS.toMicros(
+                                Math.abs(began - scheduled));
+                        return new ReconnectSample(position, socket, rotated,
+                                Math.max(1, latency), Math.max(1, jitter));
+                    }));
+                }
+                assertTrue(ready.await(5, TimeUnit.SECONDS));
+                startNanos[0] = System.nanoTime();
+                start.countDown();
+                for (Future<ReconnectSample> future : futures) {
+                    samples.add(future.get(10, TimeUnit.SECONDS));
+                }
+            }
+            samples.sort(Comparator.comparingInt(ReconnectSample::position));
+            samples.forEach(sample -> replacements.add(sample.socket()));
+            assertEquals(survivingConnections + failedConnections,
+                    authenticationAccepted(secondAdmin));
+            writeMultiEdgeReconnectEvidence(
+                    evidence, failedConnections, survivingConnections, batchSize,
+                    intervalMillis, samples, System.nanoTime() - startNanos[0]);
+        } finally {
+            replacements.forEach(WebSocket::abort);
+            primaryClients.forEach(client -> client.socket().abort());
+            survivorClients.forEach(client -> client.socket().abort());
+            stopGatewayProcess(second);
+            stopGatewayProcess(first);
+        }
+    }
+
+    @Test
     void composesRealV1LoginOnlyForMappedImportedAccounts() throws Exception {
         String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
         String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
@@ -4609,6 +4756,65 @@ class GatewayRuntimePostgresIntegrationTest {
                         batchSize, intervalMillis, batches,
                         (batches - 1) * intervalMillis, affected, samples.size(),
                         elapsedNanos / 1_000_000.0,
+                        affected * 1_000_000_000.0 / elapsedNanos,
+                        distributionJson(latency), distributionJson(jitter));
+        Files.writeString(output, json);
+    }
+
+    private static void writeMultiEdgeReconnectEvidence(
+            Path output, int affected, int surviving, int batchSize,
+            int intervalMillis, List<ReconnectSample> samples, long elapsedNanos)
+            throws Exception {
+        List<Long> latency = samples.stream().map(ReconnectSample::latencyMicros)
+                .sorted().toList();
+        List<Long> jitter = samples.stream().map(ReconnectSample::jitterMicros)
+                .sorted().toList();
+        int batches = (affected + batchSize - 1) / batchSize;
+        String json = """
+                {
+                  "schemaVersion": 1,
+                  "benchmark": "java-v2-haproxy-multi-edge-reconnect",
+                  "warning": "local dual-edge recovery evidence; not a production capacity claim",
+                  "recordedAt": "%s",
+                  "environment": {
+                    "javaVersion": "%s",
+                    "os": "%s",
+                    "architecture": "%s",
+                    "availableProcessors": %d,
+                    "maximumHeapBytes": %d
+                  },
+                  "scenario": {
+                    "edgeProcesses": 2,
+                    "gatewayProcesses": 2,
+                    "primaryEdgeKilled": true,
+                    "connections": %d,
+                    "failedEdgeConnections": %d,
+                    "survivingEdgeConnections": %d,
+                    "reconnectBatchSize": %d,
+                    "reconnectBatchIntervalMillis": %d,
+                    "reconnectBatches": %d,
+                    "scheduledReconnectSpanMillis": %d
+                  },
+                  "results": {
+                    "reconnectAttempts": %d,
+                    "reconnectSuccesses": %d,
+                    "reconnectErrors": 0,
+                    "secondaryGatewayAuthenticationBefore": %d,
+                    "secondaryGatewayAuthenticationAfter": %d,
+                    "elapsedMillis": %.3f,
+                    "reconnectThroughputPerSecond": %.3f,
+                    "sessionResumeLatencyMicros": %s,
+                    "scheduledStartJitterMicros": %s
+                  }
+                }
+                """.formatted(
+                        Instant.now(), System.getProperty("java.version"),
+                        System.getProperty("os.name"), System.getProperty("os.arch"),
+                        Runtime.getRuntime().availableProcessors(),
+                        Runtime.getRuntime().maxMemory(), affected + surviving, affected,
+                        surviving, batchSize, intervalMillis, batches,
+                        (batches - 1) * intervalMillis, affected, samples.size(),
+                        surviving, surviving + affected, elapsedNanos / 1_000_000.0,
                         affected * 1_000_000_000.0 / elapsedNanos,
                         distributionJson(latency), distributionJson(jitter));
         Files.writeString(output, json);

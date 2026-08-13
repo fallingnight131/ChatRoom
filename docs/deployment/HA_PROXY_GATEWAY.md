@@ -150,6 +150,14 @@ store, and remove an unhealthy edge from discovery before its reconnect load
 overwhelms the survivor. The gate does not select or authorize a DNS, GSLB,
 anycast, or certificate-distribution product (ADR-0381).
 
+For a bounded secondary-edge concentration curve, add
+`--gateway-multi-edge-output <path>`. The scenario keeps six sessions on the
+secondary edge and resumes twelve primary-edge sessions in four controlled
+batches after primary HAProxy is force-killed. Treat the JSON only as an
+exact-revision local comparison; it does not size a production edge or gateway.
+Release comparison requires clean-tree validation with
+`tools/multi_edge_reconnect_result.py --require-clean` (ADR-0384).
+
 Before reload, validate the fully rendered deployment file with the exact
 production HAProxy binary. Roll one bounded subset of gateways at a time:
 

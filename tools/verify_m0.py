@@ -99,8 +99,11 @@ def verify_gateway_mixed_version() -> None:
     run([sys.executable, str(ROOT / "tools" / "verify_gateway_mixed_version.py")], ROOT)
 
 
-def verify_gateway_multi_edge() -> None:
-    run([sys.executable, str(ROOT / "tools" / "verify_haproxy_multi_edge.py")], ROOT)
+def verify_gateway_multi_edge(output: Path | None) -> None:
+    command = [sys.executable, str(ROOT / "tools" / "verify_haproxy_multi_edge.py")]
+    if output is not None:
+        command.extend(["--output", str(output)])
+    run(command, ROOT)
 
 
 def verify_java_performance(args: argparse.Namespace, output: Path) -> None:
@@ -615,6 +618,11 @@ def parse_args() -> argparse.Namespace:
         help="verify client recovery after one of two HAProxy edges fails",
     )
     parser.add_argument(
+        "--gateway-multi-edge-output",
+        type=Path,
+        help="write bounded dual-edge reconnect evidence (requires --gateway-multi-edge)",
+    )
+    parser.add_argument(
         "--protocol-bindings",
         action="store_true",
         help="generate and verify V2 C++ and TypeScript client bindings",
@@ -713,6 +721,8 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     if args.gateway_crash_output is not None and not args.gateway_crash:
         parser.error("--gateway-crash-output requires --gateway-crash")
+    if args.gateway_multi_edge_output is not None and not args.gateway_multi_edge:
+        parser.error("--gateway-multi-edge-output requires --gateway-multi-edge")
     return args
 
 
@@ -749,7 +759,7 @@ def main() -> int:
     if args.gateway_mixed_version:
         verify_gateway_mixed_version()
     if args.gateway_multi_edge:
-        verify_gateway_multi_edge()
+        verify_gateway_multi_edge(args.gateway_multi_edge_output)
     if args.protocol_bindings or args.all:
         verify_protocol_bindings(args.skip_npm_ci)
     if args.db_schema or args.all:

@@ -1595,6 +1595,20 @@ resumes the durable session through the secondary URL, repairs history, and
 delivers sequence 2 without duplication. It does not emulate DNS/GSLB or prove
 automatic product-client endpoint selection (ADR-0381).
 
+Generate the separate bounded dual-edge reconnect curve with:
+
+```bash
+python3 tools/verify_m0.py --gateway-multi-edge \
+  --gateway-multi-edge-output /tmp/chat-room-multi-edge-reconnect.json
+```
+
+This variant holds six sessions on the secondary edge, kills only the primary
+edge carrying twelve sessions, and resumes those twelve through the secondary
+in four batches of three scheduled 100ms apart. The strict evidence records
+topology, identity reconciliation, latency, scheduling jitter, environment,
+exact revision, and worktree state. It is a local comparison curve, not a fleet
+capacity or SLO claim (ADR-0384).
+
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
 consume ports while PostgreSQL supplies outbox and message repair. They also
