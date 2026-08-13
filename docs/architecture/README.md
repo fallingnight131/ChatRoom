@@ -1048,6 +1048,11 @@ to `GatewayRuntime` ownership. The injected instance remains the product's
 single local publish/subscription authority and can later be shared with the
 PostgreSQL-backed Redis hint repair adapter. No Redis component is constructed
 by this ownership-only change.
+ADR-0361 adds the immutable activation policy: distributed routing is false by
+default; enabling it requires a Redis endpoint, production TLS/authentication,
+bounded command timeout/request queue, and redacted configuration rendering.
+Plaintext is accepted only for explicit loopback tests. The Redis adapter is now
+on the gateway runtime classpath but is still not instantiated.
 
 ## 10. Attachment Flow
 

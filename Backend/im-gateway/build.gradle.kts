@@ -13,6 +13,7 @@ dependencies {
     implementation(project(":identity-crypto"))
     implementation(project(":persistence-postgres"))
     implementation(project(":protocol-v2"))
+    implementation(project(":routing-redis"))
     implementation(libs.hikari)
     implementation(libs.netty.codec.http)
     implementation(libs.jackson.core)
@@ -21,7 +22,6 @@ dependencies {
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.postgresql)
-    testImplementation(project(":routing-redis"))
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 

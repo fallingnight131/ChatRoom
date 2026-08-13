@@ -1470,6 +1470,10 @@ Progress:
   inject the same instance into the product WebSocket server, establishing the
   shared subscription boundary required by future Redis hint repair without
   activating distributed routing (ADR-0360).
+- [x] Add a strict default-off distributed-routing configuration boundary with
+  production Redis TLS/authentication, secret redaction, bounded command/queue
+  resources, and explicit loopback-only plaintext test mode. The Redis module
+  is now runtime-linkable but remains unconstructed (ADR-0361).
 
 Work:
 

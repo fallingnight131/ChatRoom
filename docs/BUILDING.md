@@ -1405,6 +1405,13 @@ composition root now injects its process-local live router into the WebSocket
 server, while compatibility/test constructors retain an isolated default. This
 is required so future Redis hint repair shares the product subscription state;
 it does not enable Redis.
+ADR-0361 configuration tests prove distributed routing is disabled by default,
+enabled production endpoints require `rediss://` authentication, configuration
+text redacts credentials, and command timeout/request queues stay bounded.
+Plaintext `redis://` works only for localhost/127.0.0.1 with
+`CHATROOM_REDIS_ALLOW_INSECURE_LOOPBACK_FOR_TESTS=true`; this flag is test-only
+and does not activate routing without
+`CHATROOM_GATEWAY_DISTRIBUTED_ROUTING_ENABLED=true`.
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound
