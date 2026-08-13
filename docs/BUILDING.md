@@ -1465,6 +1465,12 @@ persist-before-type-119 dispatch, stable destination identity, ACK convergence,
 and source-field erasure. A separate default construction rejects the action
 before creating a destination outbox row. Existing pending-send reconnect and
 denial behavior applies to forwarding through the same bounded queue.
+The detached Windows ViewModel and Widgets panel now project the authoritative
+`forwarded` flag as the accessible text marker `已转发`. The row deliberately
+does not reveal the source conversation, source message, original sender, or
+timestamp, and it adds no forwarding action while capability 5 remains disabled.
+`V2WindowsMessagingViewModelTest` and `V2WindowsMessagingPanelTest` lock this
+privacy-safe presentation boundary; the macOS run is portability evidence only.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic

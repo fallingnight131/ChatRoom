@@ -1613,6 +1613,9 @@ Progress:
     - [x] Add the default-off Windows application-service forward path with
       source availability checks, persist-before-send, reconnect replay,
       stable acceptance, and authoritative marker projection.
+    - [x] Project the privacy-safe Windows forwarded marker through the detached
+      ViewModel and accessible Widgets message row without exposing source
+      identity or enabling forwarding authoring.
 
 Candidate slices:
 

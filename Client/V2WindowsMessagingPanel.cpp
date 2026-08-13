@@ -157,6 +157,11 @@ void V2WindowsMessagingPanel::render() {
             layout->addWidget(reference);
         }
         layout->addWidget(body);
+        if (message.forwarded) {
+            auto *forwarded = new QLabel(QStringLiteral("已转发"), row);
+            forwarded->setAccessibleName(QStringLiteral("此消息由服务器转发"));
+            layout->addWidget(forwarded);
+        }
         if (message.edited) {
             auto *edited = new QLabel(QStringLiteral("已编辑"), row);
             edited->setAccessibleName(QStringLiteral("此消息已编辑"));

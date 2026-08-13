@@ -31,6 +31,7 @@ int main(int argc, char **argv) {
     reply.senderAccountId = account;
     reply.text = QStringLiteral("reply");
     reply.hasReply = true;
+    reply.forwarded = true;
     reply.reply = {target.messageId, 1, target.senderAccountId};
     snapshot.messages.append(reply);
     auto failed = reply;
@@ -119,6 +120,8 @@ int main(int argc, char **argv) {
           QStringLiteral("message row lost identity-preserving mention spans"));
     check(model.rows().at(1).replyPreview == QStringLiteral("line one line two"),
           QStringLiteral("reply preview did not resolve current target text"));
+    check(model.rows().at(1).forwarded,
+          QStringLiteral("forwarded presentation marker was not projected"));
     check(model.rows().at(2).canRetry && !model.rows().at(2).canReply,
           QStringLiteral("failed optimistic state actions are incorrect"));
     check(model.rows().first().reactions.size() == 6

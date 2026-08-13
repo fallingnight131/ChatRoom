@@ -34,6 +34,7 @@ public:
         QString pinOperationId;
         bool canEdit = false;
         bool edited = false;
+        bool forwarded = false;
         bool editPending = false;
         bool editFailed = false;
         bool editConflict = false;

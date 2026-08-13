@@ -184,6 +184,7 @@ void V2WindowsMessagingViewModel::project(
         row.canRetry = message.state == V2LocalMessageRepository::DeliveryState::Failed;
         row.pinned = message.pinned;
         row.edited = message.contentRevision > 0;
+        row.forwarded = message.forwarded;
         row.canEdit = row.mine && row.canReply;
         const auto editCommand = std::find_if(
             snapshot.editCommands.cbegin(), snapshot.editCommands.cend(),

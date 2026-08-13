@@ -27,6 +27,7 @@ int main(int argc, char **argv) {
     message.mentions.append({mentionTarget, 0,
         static_cast<int>(QStringLiteral("@张三😀").toUtf8().size())});
     message.state = V2LocalMessageRepository::DeliveryState::Accepted;
+    message.forwarded = true;
     snapshot.messages.append(message);
     QList<V2LocalMessageRepository::Mention> submittedMentions;
     QList<V2LocalMessageRepository::Mention> editedMentions;
@@ -87,6 +88,15 @@ int main(int argc, char **argv) {
             || (*mentionedBody)->accessibleName()
                 != QStringLiteral("消息内容：@张三😀 hello <b>x</b>")) {
         qCritical() << "identity-backed rich rendering failed";
+        return 1;
+    }
+    const auto forwardedLabel = std::find_if(
+        messageLabels.cbegin(), messageLabels.cend(), [](QLabel *label) {
+            return label->accessibleName() == QStringLiteral("此消息由服务器转发");
+        });
+    if (forwardedLabel == messageLabels.cend()
+            || (*forwardedLabel)->text() != QStringLiteral("已转发")) {
+        qCritical() << "forwarded presentation marker missing";
         return 1;
     }
     auto replies = panel.findChildren<QPushButton *>(QString(), Qt::FindChildrenRecursively);
