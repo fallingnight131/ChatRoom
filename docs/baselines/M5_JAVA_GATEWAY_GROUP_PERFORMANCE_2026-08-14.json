@@ -1,0 +1,68 @@
+{
+  "benchmark": "java-v2-gateway-messaging",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 4294967296,
+    "os": "Mac OS X",
+    "osVersion": "26.5.2",
+    "peakObservedHeapBytes": 158795448,
+    "processCpuSeconds": 4.784,
+    "scenarioWallSeconds": 2.153,
+    "vm": "OpenJDK 64-Bit Server VM"
+  },
+  "host": {
+    "javaPeakRssBytes": 573325312,
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "postgresPostmasterPeakRssBytes": 24428544,
+    "pythonVersion": "3.9.6"
+  },
+  "recordedAt": "2026-08-13T18:03:31.447536Z",
+  "results": {
+    "completedMessageThroughputPerSecond": 806.175,
+    "connectionSetupLatencyMicros": {
+      "max": 269027,
+      "mean": 95475.647,
+      "min": 77338,
+      "p50": 81148,
+      "p95": 269027,
+      "p99": 269027,
+      "samples": 17
+    },
+    "errors": 0,
+    "peerPublications": 1600,
+    "submitToAcceptLatencyMicros": {
+      "max": 1934,
+      "mean": 817.92,
+      "min": 444,
+      "p50": 740,
+      "p95": 1488,
+      "p99": 1817,
+      "samples": 100
+    },
+    "submitToAllPeersPublishedLatencyMicros": {
+      "max": 2517,
+      "mean": 1225.51,
+      "min": 712,
+      "p50": 1181,
+      "p95": 2068,
+      "p99": 2330,
+      "samples": 100
+    }
+  },
+  "scenario": {
+    "connections": 17,
+    "conversationKind": "GROUP",
+    "durableMessages": 110,
+    "messageOperations": 100,
+    "payloadBytes": 256,
+    "receiversPerMessage": 16,
+    "warmupOperations": 10
+  },
+  "schemaVersion": 2,
+  "sourceRevision": "ff7ed91ac2d3552309920d3ca16572d7e31b235a",
+  "startedAt": "2026-08-13T18:03:27.828184Z",
+  "warning": "loopback development evidence; not a capacity claim",
+  "worktreeDirty": false
+}
