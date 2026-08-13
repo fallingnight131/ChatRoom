@@ -1484,6 +1484,11 @@ Progress:
   ten bounded PostgreSQL repair pages with server-bound authorization, roll back
   failed activation, and remove the route after the last subscriber. Periodic
   conversation-route renewal remains required before composition (ADR-0363).
+- [x] Renew every active conversation route with the gateway boot lease at a
+  10-second interval inside its 30-second expiry, carrying the maximum locally
+  observed sequence and failing future distributed readiness closed if any
+  renewal fails. Empty/unsubscribed snapshots produce no route writes
+  (ADR-0364).
 
 Work:
 

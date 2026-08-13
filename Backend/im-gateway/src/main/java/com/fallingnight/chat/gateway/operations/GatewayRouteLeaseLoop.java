@@ -44,6 +44,18 @@ public final class GatewayRouteLeaseLoop implements AutoCloseable {
         Objects.requireNonNull(scheduler, "scheduler");
     }
 
+    public GatewayRouteLeaseLoop(BooleanSupplier renew,
+            ScheduledExecutorService scheduler, Clock clock, Duration lease,
+            Duration healthyInterval, Duration initialFailureDelay,
+            Duration maximumFailureDelay) {
+        this(renew, (task, delay) -> {
+            ScheduledFuture<?> future = scheduler.schedule(
+                    task, delay.toMillis(), TimeUnit.MILLISECONDS);
+            return () -> future.cancel(false);
+        }, clock, lease, healthyInterval, initialFailureDelay, maximumFailureDelay);
+        Objects.requireNonNull(scheduler, "scheduler");
+    }
+
     GatewayRouteLeaseLoop(BooleanSupplier renew, Scheduler scheduler, Clock clock,
             Duration lease, Duration healthyInterval, Duration initialFailureDelay,
             Duration maximumFailureDelay) {

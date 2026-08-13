@@ -1425,6 +1425,11 @@ missed messages are emitted from server truth, rejected activation removes the
 local subscription, and only the last local departure removes the external
 route. Activation failure closes the connection to force reconnect sync. The
 decorator remains unconstructed pending periodic conversation-route renewal.
+ADR-0364 application/router/factory tests prove active conversation routes are
+renewed with their observed sequence inside the gateway lease loop, individual
+failures are aggregated into lease failure, and unsubscribed/empty snapshots
+perform no further route writes. The reviewed interval is 10 seconds for a
+30-second expiry; this graph remains unstarted by the product runtime.
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound

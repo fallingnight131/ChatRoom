@@ -70,4 +70,18 @@ public final class DistributedConversationLiveRouter implements ConversationLive
             }
         }
     }
+
+    public boolean renewActiveRoutes() {
+        boolean renewed = true;
+        for (var route : local.activeConversationSequences().entrySet()) {
+            try {
+                if (!registration.renewConversation(route.getKey(), route.getValue())) {
+                    renewed = false;
+                }
+            } catch (RuntimeException exception) {
+                renewed = false;
+            }
+        }
+        return renewed;
+    }
 }

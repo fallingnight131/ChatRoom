@@ -384,6 +384,20 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
         synchronized (route) { return !route.channels.isEmpty(); }
     }
 
+    java.util.Map<UUID, Long> activeConversationSequences() {
+        java.util.Map<UUID, Long> values = new java.util.HashMap<>();
+        routes.forEach((conversationId, route) -> {
+            synchronized (route) {
+                long sequence = route.channels.stream()
+                        .filter(Channel::isActive)
+                        .mapToLong(channel -> observedSequence(channel, conversationId))
+                        .max().orElse(-1);
+                if (sequence >= 0) values.put(conversationId, sequence);
+            }
+        });
+        return java.util.Map.copyOf(values);
+    }
+
     long observedSequence(Channel channel, UUID conversationId) {
         return liveMessageSequences(channel).getOrDefault(conversationId, 0L);
     }

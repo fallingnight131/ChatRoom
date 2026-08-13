@@ -15,6 +15,7 @@ import com.fallingnight.chat.gateway.operations.GatewayLiveEventConsumerLoop;
 import com.fallingnight.chat.gateway.operations.GatewayLiveEventConsumerTelemetry;
 import com.fallingnight.chat.gateway.operations.GatewayRouteLeaseLoop;
 import com.fallingnight.chat.gateway.transport.LocalConversationMessageHintRepairAdapter;
+import com.fallingnight.chat.gateway.transport.DistributedConversationLiveRouter;
 import com.fallingnight.chat.gateway.transport.SingleGatewayConversationLiveRouter;
 import com.fallingnight.chat.persistence.postgres.PostgresConversationEventOutboxAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMessageAdapter;
@@ -85,8 +86,12 @@ public final class DistributedGatewayRoutingFactory {
             GatewayRouteRegistrationService registration =
                     new GatewayRouteRegistrationService(
                             resources.routes(), gatewayId, ROUTE_LEASE, clock);
+            DistributedConversationLiveRouter distributedRouter =
+                    new DistributedConversationLiveRouter(localRouter, registration);
             GatewayRouteLeaseLoop leaseLoop = new GatewayRouteLeaseLoop(
-                    registration, scheduler, clock, ROUTE_LEASE, ROUTE_RENEWAL,
+                    () -> registration.renewGateway()
+                            && distributedRouter.renewActiveRoutes(),
+                    scheduler, clock, ROUTE_LEASE, ROUTE_RENEWAL,
                     INITIAL_FAILURE_DELAY, Duration.ofSeconds(5));
 
             PostgresMessageAdapter messages = new PostgresMessageAdapter(dataSource);
@@ -121,7 +126,8 @@ public final class DistributedGatewayRoutingFactory {
             resources = null;
             scheduler = null;
             return Optional.of(new DistributedGatewayRoutingComponents(
-                    gatewayId, runtime, registration, relayTelemetry, consumerTelemetry));
+                    gatewayId, runtime, registration, distributedRouter,
+                    relayTelemetry, consumerTelemetry));
         } catch (RuntimeException exception) {
             closeAfterFailure(scheduler, resources, exception);
             throw exception;

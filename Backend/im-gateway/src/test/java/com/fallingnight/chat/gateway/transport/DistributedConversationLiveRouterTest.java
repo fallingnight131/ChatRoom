@@ -102,6 +102,35 @@ final class DistributedConversationLiveRouterTest {
         }
     }
 
+    @Test
+    void renewsEveryActiveConversationAndStopsAfterUnsubscribe() {
+        Routes routes = new Routes();
+        SingleGatewayConversationLiveRouter local =
+                new SingleGatewayConversationLiveRouter(CLOCK);
+        DistributedConversationLiveRouter router = router(local, routes);
+        EmbeddedChannel channel = authenticated();
+        MessageHistoryQuery query = new MessageHistoryQuery(CONVERSATION, ACCOUNT, 0, 100);
+        var history = (com.fallingnight.chat.application.messaging.MessageHistoryPort) ignored ->
+                new MessageHistoryResult.Page(List.of(), 7, 7, false);
+        try {
+            router.readAndSubscribe(channel, query, history);
+            router.activateSubscription(channel, query, history);
+            assertEquals(1, routes.published);
+            assertTrue(router.renewActiveRoutes());
+            assertEquals(2, routes.published);
+            assertEquals(7, routes.lastCaughtUpSequence);
+
+            routes.acceptPublish = false;
+            assertFalse(router.renewActiveRoutes());
+            router.unsubscribe(channel);
+            int publishedBeforeEmptyRenewal = routes.published;
+            assertTrue(router.renewActiveRoutes());
+            assertEquals(publishedBeforeEmptyRenewal, routes.published);
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
     private static DistributedConversationLiveRouter router(
             SingleGatewayConversationLiveRouter local, Routes routes) {
         return new DistributedConversationLiveRouter(local,
@@ -127,9 +156,11 @@ final class DistributedConversationLiveRouterTest {
         private boolean acceptPublish = true;
         private int published;
         private int removed;
+        private long lastCaughtUpSequence;
         @Override public boolean renewGateway(GatewayRouteLease lease) { return true; }
         @Override public boolean publishConversationRoute(ConversationGatewayRoute route) {
-            published++; return acceptPublish;
+            published++; lastCaughtUpSequence = route.caughtUpThroughSequence();
+            return acceptPublish;
         }
         @Override public ConversationGatewayRoutePage findConversationGateways(
                 UUID conversationId, Instant observedAt, int limit) {

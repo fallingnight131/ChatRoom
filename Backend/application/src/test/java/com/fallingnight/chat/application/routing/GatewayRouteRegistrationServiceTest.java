@@ -24,6 +24,11 @@ final class GatewayRouteRegistrationServiceTest {
         assertEquals(12, result.orElseThrow().caughtUpThroughSequence());
         assertEquals(10, routes.route.caughtUpThroughSequence());
         assertFalse(routes.removed);
+
+        assertTrue(service.renewConversation(conversation, 12));
+        assertEquals(conversation, routes.route.conversationId());
+        assertEquals(12, routes.route.caughtUpThroughSequence());
+        assertEquals(NOW.plusSeconds(30), routes.route.expiresAt());
     }
 
     @Test void removesVisibleRouteWhenSecondRepairFailsOrMovesBackwards() {

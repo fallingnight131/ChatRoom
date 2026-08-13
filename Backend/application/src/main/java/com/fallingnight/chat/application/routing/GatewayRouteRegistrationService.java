@@ -33,6 +33,17 @@ public final class GatewayRouteRegistrationService {
         return routes.renewGateway(new GatewayRouteLease(gatewayId, now, now.plus(lease)));
     }
 
+    public boolean renewConversation(UUID conversationId, long caughtUpThroughSequence) {
+        Objects.requireNonNull(conversationId, "conversationId");
+        if (caughtUpThroughSequence < 0) {
+            throw new IllegalArgumentException("caughtUpThroughSequence must not be negative");
+        }
+        Instant publishedAt = clock.instant();
+        return routes.publishConversationRoute(new ConversationGatewayRoute(
+                gatewayId, conversationId, caughtUpThroughSequence,
+                publishedAt, publishedAt.plus(lease)));
+    }
+
     public Optional<ConversationRouteRegistration> registerAfterCatchUp(UUID conversationId,
             long caughtUpThroughSequence, ConversationRouteRepairPort repair) {
         Objects.requireNonNull(conversationId, "conversationId");

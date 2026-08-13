@@ -1066,6 +1066,12 @@ server-authorized PostgreSQL repair and fails the connection closed if activatio
 cannot be trusted. A last-subscriber departure removes the reconstructable
 route. The decorator remains unconstructed until periodic route renewal and
 runtime readiness composition are complete.
+ADR-0364 extends the same renewal pass from the gateway boot lease to every
+active local conversation route. The immutable snapshot carries the maximum
+locally observed sequence, refreshes 30-second routes every 10 seconds, and
+causes lease validity/readiness to fail closed if any refresh fails. Empty or
+unsubscribed snapshots write no conversation routes. Runtime composition is
+still not activated.
 
 ## 10. Attachment Flow
 
