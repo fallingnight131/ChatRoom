@@ -14,6 +14,7 @@ import { AuthenticateSchema } from '../generated/typescript/chat/v2/authenticati
 import { SubmitMessageSchema } from '../generated/typescript/chat/v2/messaging_pb.js'
 import { ListConversationsSchema } from '../generated/typescript/chat/v2/conversation_pb.js'
 import { RegisterAttachmentSchema } from '../generated/typescript/chat/v2/attachment_pb.js'
+import { RevokeDeviceSchema } from '../generated/typescript/chat/v2/device_management_pb.js'
 
 const GOLDEN_HEX = '08021001186422057265712d312a0973657373696f6e2d31' +
   '3208636c69656e742d313880d095ffbc314203616263'
@@ -27,6 +28,8 @@ const REGISTER_ATTACHMENT_GOLDEN_HEX =
   '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
   '12086174746163682d311a05612e747874220a746578742f706c61696e28023220' +
   '0101010101010101010101010101010101010101010101010101010101010101'
+const REVOKE_DEVICE_GOLDEN_HEX =
+  '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031'
 
 function bytesFromHex(hex: string): Uint8Array {
   return Uint8Array.from(hex.match(/.{2}/g) ?? [], byte => Number.parseInt(byte, 16))
@@ -154,5 +157,18 @@ test('keeps bounded attachment registration compatible across bindings', () => {
   assert.equal(
     Buffer.from(toBinary(RegisterAttachmentSchema, encoded)).toString('hex'),
     REGISTER_ATTACHMENT_GOLDEN_HEX
+  )
+})
+
+test('keeps canonical device revocation compatible across bindings', () => {
+  const decoded = fromBinary(RevokeDeviceSchema, bytesFromHex(REVOKE_DEVICE_GOLDEN_HEX))
+  assert.equal(decoded.targetDeviceId, '00000000-0000-0000-0000-000000000001')
+
+  const encoded = create(RevokeDeviceSchema, {
+    targetDeviceId: '00000000-0000-0000-0000-000000000001'
+  })
+  assert.equal(
+    Buffer.from(toBinary(RevokeDeviceSchema, encoded)).toString('hex'),
+    REVOKE_DEVICE_GOLDEN_HEX
   )
 })

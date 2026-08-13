@@ -37,6 +37,10 @@ public final class MessageTypeRegistry {
             case MESSAGE_TYPE_ATTACHMENT_REGISTERED,
                     MESSAGE_TYPE_ATTACHMENT_UPLOAD_AUTHORIZED,
                     MESSAGE_TYPE_ATTACHMENT_READY -> MessageKind.MESSAGE_KIND_RESPONSE;
+            case MESSAGE_TYPE_LIST_DEVICES, MESSAGE_TYPE_REVOKE_DEVICE ->
+                    MessageKind.MESSAGE_KIND_COMMAND;
+            case MESSAGE_TYPE_DEVICE_DIRECTORY, MESSAGE_TYPE_DEVICE_REVOKED ->
+                    MessageKind.MESSAGE_KIND_RESPONSE;
             case MESSAGE_TYPE_UNSPECIFIED, UNRECOGNIZED ->
                     throw new IllegalArgumentException("unregistered message type");
         };

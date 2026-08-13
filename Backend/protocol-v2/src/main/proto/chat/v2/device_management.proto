@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package chat.v2;
+
+option java_multiple_files = true;
+option java_package = "com.fallingnight.chat.protocol.v2";
+option java_outer_classname = "DeviceManagementSchema";
+
+import "chat/v2/control.proto";
+
+// The authenticated connection is the only source of account/device/session authority.
+message ListDevices {}
+
+message DeviceSummary {
+  string device_id = 1;
+  ClientPlatform platform = 2;
+  int64 created_at_epoch_ms = 3;
+  int64 last_seen_at_epoch_ms = 4;
+  bool current = 5;
+}
+
+message DeviceDirectory {
+  repeated DeviceSummary devices = 1;
+}
+
+message RevokeDevice {
+  string target_device_id = 1;
+}
+
+message DeviceRevoked {
+  string target_device_id = 1;
+  int64 revoked_at_epoch_ms = 2;
+  uint32 revoked_sessions = 3;
+  bool changed = 4;
+}

@@ -72,7 +72,7 @@ abstract class GenerateClientBindings : DefaultTask() {
                 "--cpp_out=${output.resolve("cpp")}",
                 "--plugin=protoc-gen-es=${typescriptPlugin.get().asFile}",
                 "--es_out=${output.resolve("typescript")}",
-                "--es_opt=target=ts",
+                "--es_opt=target=ts,import_extension=js",
                 "--descriptor_set_out=${output.resolve("chat-v2.desc")}",
                 "--include_imports",
             )

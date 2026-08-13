@@ -52,7 +52,11 @@ As of 2026-08-13, the transport-independent service and PostgreSQL adapter are
 implemented. The directory is capped at 100 active Web/Windows devices and
 requires exactly one current device. Revocation uses serializable retry,
 database time, all-session invalidation, immutable audit, and retained-audit
-exact retry. Protocol and client entry points remain detached.
+exact retry. V2 permanently allocates message types 130--133 for the empty list
+command, bounded directory, canonical target revocation command, and revocation
+result. Account, actor device, actor session, audit ID, tokens, and network
+metadata are deliberately absent from payloads. Gateway and client entry points
+remain detached.
 
 ## Verification
 

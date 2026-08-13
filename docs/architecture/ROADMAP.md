@@ -1308,7 +1308,9 @@ Progress:
   - [x] Implement the bounded active-device directory and serializable
     other-device revocation boundary with durable admission, all-session
     invalidation, exact retry, mutual-revocation convergence, and restart proof.
-  - [ ] Allocate and compose the V2 protocol/gateway handlers.
+  - [x] Allocate permanent V2 message types 130--133 with bounded payload policy
+    and Java/C++/TypeScript golden-wire compatibility.
+  - [ ] Compose the authenticated V2 gateway handler and local disconnect path.
   - [ ] Add supported Web and Windows device-management UI and recovery behavior.
 
 Candidate slices:

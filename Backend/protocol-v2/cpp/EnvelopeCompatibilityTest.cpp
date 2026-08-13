@@ -4,6 +4,7 @@
 #include "chat/v2/messaging.pb.h"
 #include "chat/v2/conversation.pb.h"
 #include "chat/v2/attachment.pb.h"
+#include "chat/v2/device_management.pb.h"
 
 #include <cstdint>
 #include <iostream>
@@ -28,6 +29,8 @@ constexpr char kRegisterAttachmentGoldenHex[] =
     "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
     "12086174746163682d311a05612e747874220a746578742f706c61696e28023220"
     "0101010101010101010101010101010101010101010101010101010101010101";
+constexpr char kRevokeDeviceGoldenHex[] =
+    "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031";
 
 int hexDigit(char value) {
     if (value >= '0' && value <= '9') return value - '0';
@@ -125,6 +128,14 @@ int main() {
             || attachment.content_sha256().size() != 32
             || attachment.SerializeAsString() != attachmentGolden) {
         std::cerr << "generated C++ binding changed the RegisterAttachment golden payload\n";
+        return 1;
+    }
+    const std::string revokeGolden = fromHex(kRevokeDeviceGoldenHex);
+    chat::v2::RevokeDevice revoke;
+    if (!revoke.ParseFromString(revokeGolden)
+            || revoke.target_device_id() != "00000000-0000-0000-0000-000000000001"
+            || revoke.SerializeAsString() != revokeGolden) {
+        std::cerr << "generated C++ binding changed the RevokeDevice golden payload\n";
         return 1;
     }
     return 0;
