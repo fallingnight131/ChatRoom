@@ -50,6 +50,8 @@ SOURCES += \
     AttachmentOutboxService.cpp \
     OutgoingMessageService.cpp \
     ConversationSyncService.cpp \
+    DeviceManagementViewModel.cpp \
+    DeviceManagementDialog.cpp \
     V1HistoryPageAdapter.cpp \
     UpdateManifestSignatureVerifier.cpp \
     UpdateManifestDecisionPolicy.cpp \
@@ -93,6 +95,8 @@ HEADERS += \
     AttachmentOutboxService.h \
     OutgoingMessageService.h \
     ConversationSyncService.h \
+    DeviceManagementViewModel.h \
+    DeviceManagementDialog.h \
     V1HistoryPageAdapter.h \
     UpdateManifestSignatureVerifier.h \
     UpdateManifestDecisionPolicy.h \

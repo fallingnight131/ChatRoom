@@ -1322,6 +1322,11 @@ Progress:
     post-auth/reconnect refresh, no durable security-state cache, ambiguous
     disconnect recovery, current-device protection, accessible confirmation,
     opaque failure/retry behavior, and offline mutation disablement.
+  - [x] Add a detached Windows Qt device-management ViewModel and accessible
+    Widgets dialog with request correlation, stale-response containment,
+    disconnect ambiguity recovery, server-projection validation,
+    current-device protection, and explicit destructive confirmation. The
+    generated-C++ V2 WSS transport adapter and product composition remain.
   - [ ] Add the supported Windows device-management application/UI path; Web is
     implemented behind the existing V2 preview/cutover gate.
 

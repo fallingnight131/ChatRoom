@@ -61,7 +61,7 @@ persistence, opaque denials, and fixed-cardinality outcomes. A process-local
 device index can close every registered target channel after durable commit;
 it is not authorization state. The product gateway runtime composes the
 PostgreSQL adapter, service, shared bounded messaging worker pool, connection
-index, handler, and fixed-label Prometheus counters. Clients remain detached.
+index, handler, and fixed-label Prometheus counters.
 The default-off Web V2 protocol client now encodes correlated list/revoke
 commands and rejects ambiguous directories, unsupported platforms, invalid
 timestamps, duplicate IDs, malformed targets, and current-device revocation.
@@ -71,7 +71,12 @@ refreshes after authentication, resume, and successful revocation, abandons
 ambiguous in-flight UI state on disconnect, disables mutation offline, protects
 the current device, and requires an accessible in-context confirmation. No
 security device directory is written to IndexedDB or browser storage. Windows
-UI composition remains pending.
+V2 transport and product composition remain pending.
+The Windows client now has a transport-independent Qt ViewModel plus Widgets
+dialog with the same live-only projection and confirmation behavior. It is
+deliberately detached: the current Windows product network manager is V1 JSON,
+so activating this screen requires the future generated-C++ V2 WSS/session
+adapter rather than silently tunneling a V2 security command through V1.
 
 ## Verification
 

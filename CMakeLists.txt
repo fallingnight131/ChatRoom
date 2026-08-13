@@ -186,6 +186,18 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             Client/AttachmentOutboxService.h
             Client/V1HistoryPageAdapter.h
         )
+
+        add_library(
+            chatroom_device_management_ui_core
+            STATIC
+            Client/DeviceManagementViewModel.cpp
+            Client/DeviceManagementViewModel.h
+        )
+        set_target_properties(
+            chatroom_device_management_ui_core
+            PROPERTIES AUTOMOC ON CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON CXX_EXTENSIONS OFF)
+        target_include_directories(chatroom_device_management_ui_core PUBLIC Client)
+        target_link_libraries(chatroom_device_management_ui_core PUBLIC Qt6::Core)
         set_target_properties(
             chatroom_client_local_data
             PROPERTIES
@@ -424,6 +436,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/RoomFileManagerDialog.cpp
                 Client/ProfileDialog.cpp
                 Client/UserInfoDialog.cpp
+                Client/DeviceManagementDialog.cpp
+                Client/DeviceManagementDialog.h
                 Client/resources/resources.qrc
                 "${CMAKE_CURRENT_BINARY_DIR}/generated/ChatClient.rc"
             )
@@ -467,6 +481,7 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                     Qt6::Sql
                     chatroom_client_local_data
                     chatroom_client_transport
+                    chatroom_device_management_ui_core
                     chatroom_windows_update_orchestration
                     chatroom_windows_update_lifecycle
                     chatroom_windows_update_handoff
@@ -565,6 +580,10 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
         chatroom_add_local_data_test(ConversationSyncServiceTest v1_client_conversation_sync)
         chatroom_add_local_data_test(AttachmentOutboxServiceTest v1_client_attachment_outbox)
         chatroom_add_local_data_test(V1HistoryPageAdapterTest v1_client_history_adapter)
+
+        add_executable(DeviceManagementViewModelTest Tests/DeviceManagementViewModelTest.cpp)
+        target_link_libraries(DeviceManagementViewModelTest PRIVATE chatroom_device_management_ui_core)
+        add_test(NAME m6_windows_device_management_view_model COMMAND DeviceManagementViewModelTest)
 
         chatroom_add_transport_test(HttpUploadTransportTest v1_client_http_upload)
         chatroom_add_transport_test(HttpDownloadTransportTest v1_client_http_download)
