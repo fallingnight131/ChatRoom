@@ -25,10 +25,12 @@ def main() -> int:
         "CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON",
         "CHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON",
         "CHATROOM_WINDOWS_V2_WSS_URL=wss://chat.example.test/v2/windows",
+        "CHATROOM_WINDOWS_V2_FALLBACK_WSS_URL=wss://chat-secondary.example.test/v2/windows",
     ).returncode == 0
 
     rejected = (
         ("CHATROOM_WINDOWS_V2_WSS_URL=wss://chat.example.test/v2/windows",),
+        ("CHATROOM_WINDOWS_V2_FALLBACK_WSS_URL=wss://chat-secondary.example.test/v2/windows",),
         ("CHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON",),
         ("CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON",),
         ("CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON",
@@ -39,6 +41,12 @@ def main() -> int:
          "CHATROOM_WINDOWS_V2_WSS_URL=wss://chat.example.test/v2/web"),
         ("CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON",
          "CHATROOM_WINDOWS_V2_WSS_URL=wss://chat.example.test/v2/windows?token=x"),
+        ("CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON",
+         "CHATROOM_WINDOWS_V2_WSS_URL=wss://chat.example.test/v2/windows",
+         "CHATROOM_WINDOWS_V2_FALLBACK_WSS_URL=ws://chat-secondary.example.test/v2/windows"),
+        ("CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON",
+         "CHATROOM_WINDOWS_V2_WSS_URL=wss://chat.example.test/v2/windows",
+         "CHATROOM_WINDOWS_V2_FALLBACK_WSS_URL=wss://chat.example.test/v2/windows"),
     )
     for definitions in rejected:
         assert run(*definitions).returncode != 0, definitions

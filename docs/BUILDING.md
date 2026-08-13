@@ -351,15 +351,19 @@ cmake -S . -B build/windows-v2-preview -A x64 `
   -DCHATROOM_BUILD_WINDOWS_CLIENT=ON `
   -DCHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON `
   -DCHATROOM_WINDOWS_V2_WSS_URL=wss://preview-chat.example.com/v2/windows `
+  -DCHATROOM_WINDOWS_V2_FALLBACK_WSS_URL=wss://preview-chat-secondary.example.com/v2/windows `
   -DSODIUM_ROOT="$env:SODIUM_ROOT"
 ```
 
-The URL is public build metadata, not a secret. It must be the exact Windows V2
-WSS route and cannot contain credentials, query parameters, or a fragment.
-Supplying the URL while the switch is off or enabling an incomplete/unsafe
-configuration fails CMake generation. Ordinary CI intentionally leaves it off;
+The URLs are public build metadata, not secrets. The primary is required and one
+distinct fallback is optional; each must be the exact Windows V2 WSS route and
+cannot contain credentials, query parameters, or a fragment. Disconnect rotates
+to the other compiled entry under the existing bounded jitter policy and
+memory-only session resume. Supplying either URL while the switch is off or
+enabling an incomplete/unsafe pair fails CMake generation. Diagnostic schema 2
+reports the final compiled pair. Ordinary CI intentionally leaves V2 off;
 activation and rollback require an explicit reviewed preview/cutover build
-(ADR-0324).
+(ADR-0324, ADR-0383).
 
 On a macOS Homebrew development host:
 

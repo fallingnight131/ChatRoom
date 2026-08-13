@@ -6,6 +6,8 @@
 #include "chat/v2/envelope.pb.h"
 #include <QCoreApplication>
 #include <QDebug>
+#include <QEventLoop>
+#include <QTimer>
 #include <google/protobuf/message_lite.h>
 #include <stdexcept>
 
@@ -62,7 +64,8 @@ int main(int argc, char **argv) {
           QStringLiteral("insecure, Web, and user-info endpoints must be rejected"));
 
     QWebSocket socket;
-    bool openCalled = false;
+    QList<QUrl> openedEndpoints;
+    QEventLoop *reconnectLoop = nullptr;
     bool connected = true;
     bool aborted = false;
     QList<QByteArray> sent;
@@ -70,9 +73,10 @@ int main(int argc, char **argv) {
     hooks.subprotocol = [] { return QStringLiteral("chat.v2"); };
     hooks.open = [&](const QNetworkRequest &request,
                      const QWebSocketHandshakeOptions &options) {
-        openCalled = request.url() == QUrl(QStringLiteral("wss://chat.example.test/v2/windows"))
-            && !request.hasRawHeader("Origin")
-            && options.subprotocols() == QStringList{QStringLiteral("chat.v2")};
+        if (!request.hasRawHeader("Origin")
+                && options.subprotocols() == QStringList{QStringLiteral("chat.v2")})
+            openedEndpoints.push_back(request.url());
+        if (reconnectLoop) reconnectLoop->quit();
     };
     hooks.sendBinary = [&](const QByteArray &bytes) {
         sent.push_back(bytes);
@@ -84,9 +88,12 @@ int main(int argc, char **argv) {
     const QString deviceId = QStringLiteral("20000000-0000-4000-8000-000000000001");
     V2WindowsDeviceManagementTransport transport(
         QUrl(QStringLiteral("wss://chat.example.test/v2/windows")),
-        QStringLiteral("2.0.0-test"), deviceId, &socket, std::move(hooks));
+        QStringLiteral("2.0.0-test"), deviceId, &socket, std::move(hooks), nullptr,
+        false, {QUrl(QStringLiteral("wss://chat-secondary.example.test/v2/windows"))});
     transport.start();
-    check(openCalled, QStringLiteral("start must request exact endpoint and chat.v2 only"));
+    check(openedEndpoints == QList<QUrl>{
+              QUrl(QStringLiteral("wss://chat.example.test/v2/windows"))},
+          QStringLiteral("start must request exact endpoint and chat.v2 only"));
     socket.connected();
     check(transport.state()
               == V2WindowsDeviceManagementTransport::State::Negotiating
@@ -236,6 +243,29 @@ int main(int argc, char **argv) {
 
     socket.textMessageReceived(QStringLiteral("not binary"));
     check(aborted, QStringLiteral("text frames must fail closed"));
+
+    sent.clear();
+    socket.disconnected();
+    QEventLoop loop;
+    reconnectLoop = &loop;
+    QTimer::singleShot(700, &loop, &QEventLoop::quit);
+    loop.exec();
+    reconnectLoop = nullptr;
+    check(openedEndpoints.size() == 2
+              && openedEndpoints.last()
+                  == QUrl(QStringLiteral("wss://chat-secondary.example.test/v2/windows")),
+          QStringLiteral("socket loss must rotate to the compiled fallback endpoint"));
+    socket.connected();
+    check(sent.size() == 1, QStringLiteral("fallback connection must restart negotiation"));
+    const auto fallbackHelloEnvelope = envelope(sent.takeFirst());
+    socket.binaryMessageReceived(response(
+        chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
+        fallbackHelloEnvelope.request_id(), "", hello));
+    check(transport.state() == V2WindowsDeviceManagementTransport::State::Resuming
+              && sent.size() == 1
+              && envelope(sent.first()).message_type()
+                  == chat::v2::MESSAGE_TYPE_RESUME_SESSION,
+          QStringLiteral("fallback negotiation must reuse the memory-only session proof"));
     transport.stop();
 
     if (failures) return 1;

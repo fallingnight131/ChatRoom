@@ -1607,6 +1607,12 @@ Progress:
   preserve memory-only session resume, and keep browser-offline transitions
   outside the rotation budget. Windows parity and production discovery remain
   pending (ADR-0382).
+- [x] Add the matching bounded Windows V2 edge selection: validate one required
+  compiled primary and one optional distinct fallback at CMake and runtime
+  boundaries, rotate after connection failure under the existing jittered
+  reconnect policy, preserve memory-only session resume, and expose diagnostic
+  schema 2 for native Windows evidence. Dynamic discovery and signed clean-host
+  product proof remain pending (ADR-0383).
 
 Work:
 

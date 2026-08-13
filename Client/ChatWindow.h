@@ -4,6 +4,7 @@
 #include <QMap>
 #include <QSet>
 #include <QJsonArray>
+#include <QList>
 #include <QByteArray>
 #include <QUrl>
 #include <memory>
@@ -53,7 +54,8 @@ public:
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
     bool configureDeviceManagement(
         const QUrl &endpoint, const QString &deviceId, QByteArray passwordUtf8,
-        bool enableMessageForwarding = false);
+        bool enableMessageForwarding = false,
+        QList<QUrl> fallbackEndpoints = {});
 #endif
 
     /// 获取用户头像缓存

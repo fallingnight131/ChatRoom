@@ -25,7 +25,8 @@ public:
         V2WindowsDeviceManagementTransport::SocketHooks hooks = {},
         WindowsV2MessagingController::RepositoryFactory messagingRepositoryFactory = {},
         QObject *parent = nullptr,
-        bool enableMessageForwarding = false);
+        bool enableMessageForwarding = false,
+        QList<QUrl> fallbackEndpoints = {});
     ~WindowsDeviceManagementController() override;
 
     DeviceManagementViewModel *viewModel() const;

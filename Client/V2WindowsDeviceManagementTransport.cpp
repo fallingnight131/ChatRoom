@@ -32,9 +32,10 @@ V2WindowsDeviceManagementTransport::V2WindowsDeviceManagementTransport(
         QWebSocket *socket,
         SocketHooks hooks,
         QObject *parent,
-        bool enableMessageForwarding)
+        bool enableMessageForwarding,
+        QList<QUrl> fallbackEndpoints)
     : QObject(parent),
-      m_endpoint(std::move(endpoint)),
+      m_endpoints{std::move(endpoint)},
       m_appVersion(std::move(appVersion)),
       m_clientDeviceId(std::move(clientDeviceId)),
       m_socket(socket ? socket
@@ -42,8 +43,15 @@ V2WindowsDeviceManagementTransport::V2WindowsDeviceManagementTransport(
       m_ownsSocket(!socket),
       m_hooks(std::move(hooks)),
       m_messageForwardingEnabled(enableMessageForwarding) {
-    if (!isValidEndpoint(m_endpoint))
-        throw std::invalid_argument("Windows V2 endpoint must be exact wss /v2/windows");
+    for (QUrl &fallback : fallbackEndpoints) m_endpoints.push_back(std::move(fallback));
+    QSet<QUrl> uniqueEndpoints;
+    for (const QUrl &candidate : m_endpoints) {
+        if (!isValidEndpoint(candidate) || uniqueEndpoints.contains(candidate))
+            throw std::invalid_argument("Windows V2 endpoints must be unique exact wss /v2/windows URLs");
+        uniqueEndpoints.insert(candidate);
+    }
+    if (m_endpoints.size() > 2)
+        throw std::invalid_argument("Windows V2 endpoint list is bounded to two entries");
     if (!m_hooks.subprotocol) m_hooks.subprotocol = [this] { return m_socket->subprotocol(); };
     if (!m_hooks.open) m_hooks.open = [this](const QNetworkRequest &request,
                                              const QWebSocketHandshakeOptions &options) {
@@ -179,10 +187,17 @@ void V2WindowsDeviceManagementTransport::connectSocket() {
     if (!m_desired || m_socket->state() != QAbstractSocket::UnconnectedState) return;
     m_phaseTimer.stop();
     transition(State::Connecting);
-    QNetworkRequest request(m_endpoint);
+    QNetworkRequest request(m_endpoints.at(m_endpointIndex));
     QWebSocketHandshakeOptions options;
     options.setSubprotocols({QString::fromLatin1(subprotocol)});
-    m_hooks.open(request, options);
+    try {
+        m_hooks.open(request, options);
+    } catch (...) {
+        emit failure(QStringLiteral("V2 连接无法启动"));
+        m_endpointIndex = (m_endpointIndex + 1) % m_endpoints.size();
+        scheduleReconnect();
+        return;
+    }
     armPhaseTimeout(connectTimeoutMs, QStringLiteral("V2 连接超时"));
 }
 
@@ -282,7 +297,10 @@ void V2WindowsDeviceManagementTransport::handleBinary(const QByteArray &message)
 void V2WindowsDeviceManagementTransport::handleDisconnected() {
     m_phaseTimer.stop();
     clearProtocol();
-    if (m_desired) scheduleReconnect();
+    if (m_desired) {
+        m_endpointIndex = (m_endpointIndex + 1) % m_endpoints.size();
+        scheduleReconnect();
+    }
 }
 
 void V2WindowsDeviceManagementTransport::send(

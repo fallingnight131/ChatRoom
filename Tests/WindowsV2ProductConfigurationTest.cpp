@@ -15,9 +15,13 @@ int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     using Configuration = WindowsV2ProductConfiguration;
     const auto valid = Configuration::validate(
-        QStringLiteral("wss://chat.example.test/v2/windows"));
+        QStringLiteral("wss://chat.example.test/v2/windows"),
+        QStringLiteral("wss://chat-secondary.example.test/v2/windows"));
     if (!check(valid.enabled && valid.error.isEmpty()
                    && !valid.messageForwardingEnabled
+                   && valid.fallbackEndpoints.size() == 1
+                   && valid.fallbackEndpoints.first().host()
+                       == QStringLiteral("chat-secondary.example.test")
                    && valid.endpoint.host() == QStringLiteral("chat.example.test"),
                QStringLiteral("valid Windows V2 endpoint was rejected"))
             || !check(!Configuration::fromBuild().enabled
@@ -40,6 +44,10 @@ int main(int argc, char *argv[]) {
                    QStringLiteral("unsafe Windows V2 endpoint was enabled: %1")
                        .arg(endpoint))) return 1;
     }
+    if (!check(!Configuration::validate(
+                    QStringLiteral("wss://chat.example.test/v2/windows"),
+                    QStringLiteral("wss://chat.example.test/v2/windows")).enabled,
+               QStringLiteral("duplicate Windows V2 fallback endpoint was enabled"))) return 1;
 
     qInfo() << "[WindowsV2ProductConfigurationTest] PASS";
     return 0;

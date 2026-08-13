@@ -1197,6 +1197,13 @@ policy while offline events consume neither endpoint position nor retry budget.
 All authorities remain subject to build review, CSP and gateway Origin/Host
 policy. Windows parity, V1 cutover, dynamic discovery, degraded-edge eviction,
 and production multi-host evidence remain pending.
+ADR-0383 adds that parity to the default-off Windows V2 preview. A reviewed
+binary may contain one primary and one distinct fallback exact WSS endpoint;
+disconnect rotates through the pair under the existing bounded jitter policy,
+then protocol negotiation resumes the memory-only durable session. Canonical
+diagnostic schema 2 exposes the compiled pair for Windows release evidence.
+Native Windows CI, signed candidate testing, V1 cutover, dynamic discovery, and
+degraded-but-connectable edge eviction remain separate gates.
 
 ## 10. Attachment Flow
 

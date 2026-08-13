@@ -15,6 +15,7 @@ option(CHATROOM_ENABLE_WINDOWS_V2_PREVIEW
 option(CHATROOM_ENABLE_WINDOWS_V2_FORWARDING
        "Compile the default-off Windows V2 message forwarding feature" OFF)
 set(CHATROOM_WINDOWS_V2_WSS_URL "" CACHE STRING "Exact Windows V2 WSS endpoint")
+set(CHATROOM_WINDOWS_V2_FALLBACK_WSS_URL "" CACHE STRING "Optional Windows V2 fallback WSS endpoint")
 set(CHATROOM_UPDATE_CHANNEL "" CACHE STRING "Windows update channel")
 set(CHATROOM_UPDATE_MANIFEST_URL "" CACHE STRING "Windows update manifest HTTPS URL")
 set(CHATROOM_UPDATE_PRIMARY_KEY_ID "" CACHE STRING "Primary Windows update public-key ID")
@@ -237,6 +238,11 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                     CHAT_WINDOWS_V2_CONFIGURATION_ENABLED=1
                     CHAT_WINDOWS_V2_WSS_URL="${CHATROOM_WINDOWS_V2_WSS_URL}"
             )
+            if(NOT "${CHATROOM_WINDOWS_V2_FALLBACK_WSS_URL}" STREQUAL "")
+                target_compile_definitions(
+                    chatroom_windows_v2_configuration
+                    PRIVATE CHAT_WINDOWS_V2_FALLBACK_WSS_URL="${CHATROOM_WINDOWS_V2_FALLBACK_WSS_URL}")
+            endif()
         endif()
         if(CHATROOM_ENABLE_WINDOWS_V2_FORWARDING)
             target_compile_definitions(
@@ -756,6 +762,17 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
         set_tests_properties(m6_windows_v2_messaging_view_model PROPERTIES TIMEOUT 30)
         if(CHATROOM_BUILD_WINDOWS_CLIENT)
             add_executable(
+                V2WindowsDeviceManagementTransportTest
+                Tests/V2WindowsDeviceManagementTransportTest.cpp)
+            target_link_libraries(
+                V2WindowsDeviceManagementTransportTest
+                PRIVATE chatroom_windows_v2_transport)
+            add_test(
+                NAME m6_windows_v2_device_management_transport
+                COMMAND V2WindowsDeviceManagementTransportTest)
+            set_tests_properties(
+                m6_windows_v2_device_management_transport PROPERTIES TIMEOUT 30)
+            add_executable(
                 V2WindowsForwardTargetDialogTest
                 Tests/V2WindowsForwardTargetDialogTest.cpp
                 Client/V2WindowsForwardTargetDialog.cpp
@@ -813,7 +830,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             PRIVATE
                 CHAT_WINDOWS_V2_CONFIGURATION_ENABLED=1
                 CHAT_WINDOWS_V2_FORWARDING_ENABLED=1
-                CHAT_WINDOWS_V2_WSS_URL="wss://chat.example.test/v2/windows")
+                CHAT_WINDOWS_V2_WSS_URL="wss://chat.example.test/v2/windows"
+                CHAT_WINDOWS_V2_FALLBACK_WSS_URL="wss://chat-secondary.example.test/v2/windows")
         target_link_libraries(
             WindowsV2ProductConfigurationEnabledTest PRIVATE Qt6::Core)
         add_test(

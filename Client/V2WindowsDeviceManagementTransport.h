@@ -6,6 +6,7 @@
 #include <QNetworkRequest>
 #include <QObject>
 #include <QSet>
+#include <QList>
 #include <QTimer>
 #include <QUrl>
 #include <QWebSocket>
@@ -44,7 +45,8 @@ public:
         QWebSocket *socket = nullptr,
         SocketHooks hooks = {},
         QObject *parent = nullptr,
-        bool enableMessageForwarding = false);
+        bool enableMessageForwarding = false,
+        QList<QUrl> fallbackEndpoints = {});
     ~V2WindowsDeviceManagementTransport() override;
 
     State state() const;
@@ -83,7 +85,8 @@ private:
     void clearResumeCredential();
     bool routeAuthenticatedMessagingFrame(const QByteArray &message);
 
-    QUrl m_endpoint;
+    QList<QUrl> m_endpoints;
+    qsizetype m_endpointIndex = 0;
     QString m_appVersion;
     QString m_clientDeviceId;
     QWebSocket *m_socket = nullptr;
