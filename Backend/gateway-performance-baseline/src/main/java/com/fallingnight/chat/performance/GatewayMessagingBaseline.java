@@ -16,6 +16,8 @@ import com.fallingnight.chat.protocol.v2.MessageHistoryPage;
 import com.fallingnight.chat.protocol.v2.MessageKind;
 import com.fallingnight.chat.protocol.v2.MessageRecord;
 import com.fallingnight.chat.protocol.v2.MessageType;
+import com.fallingnight.chat.protocol.v2.ProtocolError;
+import com.fallingnight.chat.protocol.v2.ProtocolErrorCode;
 import com.fallingnight.chat.protocol.v2.ReadMessageHistory;
 import com.fallingnight.chat.protocol.v2.ResumeSession;
 import com.fallingnight.chat.protocol.v2.SessionEstablished;
@@ -90,8 +92,12 @@ public final class GatewayMessagingBaseline {
         for (int index = 0; index < configuration.receivers(); ++index) {
             peerAccounts.add(UUID.randomUUID());
         }
+        List<UUID> saturationAccounts = new ArrayList<>(configuration.postgresSaturationSenders());
+        for (int index = 0; index < configuration.postgresSaturationSenders(); ++index) {
+            saturationAccounts.add(UUID.randomUUID());
+        }
         UUID conversation = UUID.randomUUID();
-        seed(configuration, senderAccount, peerAccounts, conversation);
+        seed(configuration, senderAccount, peerAccounts, saturationAccounts, conversation);
 
         OperatingSystemMXBean operatingSystem = (OperatingSystemMXBean)
                 ManagementFactory.getOperatingSystemMXBean();
@@ -101,6 +107,8 @@ public final class GatewayMessagingBaseline {
         GatewayRuntime runtime = null;
         ClientConnection sender = null;
         List<ClientConnection> peers = new ArrayList<>(configuration.receivers());
+        List<ClientConnection> saturationSenders =
+                new ArrayList<>(configuration.postgresSaturationSenders());
         try {
             runtime = GatewayRuntime.create(runtimeConfiguration(configuration));
             runtime.start();
@@ -116,6 +124,12 @@ public final class GatewayMessagingBaseline {
                 setupMicros.add(elapsedMicros(peerSetupStart));
                 catchUp(peer, conversation);
                 peers.add(peer);
+            }
+            for (int index = 0; index < configuration.postgresSaturationSenders(); ++index) {
+                long setupStart = System.nanoTime();
+                saturationSenders.add(connectAndAuthenticate(configuration,
+                        "gateway-saturation-" + index, "saturation-device-" + index));
+                setupMicros.add(elapsedMicros(setupStart));
             }
 
             for (int index = 0; index < configuration.warmupOperations(); ++index) {
@@ -145,6 +159,12 @@ public final class GatewayMessagingBaseline {
                 durableMessages += slowConsumer.durableMessages();
                 requireMessageState(configuration, conversation, durableMessages);
             }
+            PostgresSaturationResult saturation = postgresSaturation(
+                    configuration, saturationSenders, peers, conversation, durableMessages);
+            if (saturation.measured()) {
+                durableMessages += saturationSenders.size();
+                requireMessageState(configuration, conversation, durableMessages);
+            }
             List<ClientConnection> activeConnections = new ArrayList<>(peers.size() + 1);
             activeConnections.add(sender);
             activeConnections.addAll(peers);
@@ -160,8 +180,11 @@ public final class GatewayMessagingBaseline {
                     cpuNanos, peakHeap, durableMessages,
                     setupMicros,
                     acknowledgementMicros, fanoutMicros, measuredNanos, reconnect,
-                    slowConsumer);
+                    slowConsumer, saturation);
         } finally {
+            for (ClientConnection saturationSender : saturationSenders) {
+                saturationSender.close();
+            }
             for (ClientConnection peer : peers) peer.close();
             if (sender != null) sender.close();
             if (runtime != null) runtime.close();
@@ -349,6 +372,212 @@ public final class GatewayMessagingBaseline {
         }
     }
 
+    private static PostgresSaturationResult postgresSaturation(
+            Configuration configuration,
+            List<ClientConnection> senders,
+            List<ClientConnection> peers,
+            UUID conversation,
+            long initialSequence) throws Exception {
+        if (senders.isEmpty()) return PostgresSaturationResult.NONE;
+        CountDownLatch ready = new CountDownLatch(senders.size());
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<SaturationAttempt>> futures = new ArrayList<>(senders.size());
+        try (ExecutorService executor = Executors.newFixedThreadPool(senders.size())) {
+            for (int index = 0; index < senders.size(); ++index) {
+                int position = index;
+                ClientConnection sender = senders.get(index);
+                futures.add(executor.submit(() -> {
+                    ready.countDown();
+                    start.await();
+                    return saturationAttempt(sender, conversation, position);
+                }));
+            }
+            if (!ready.await(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("saturation workers did not become ready");
+            }
+            start.countDown();
+            awaitMetricAtLeast(configuration, "chat_gateway_messaging_workers_active", 2);
+            int unavailableStatus = readinessStatus(configuration);
+            if (unavailableStatus != 503) {
+                throw new IllegalStateException(
+                        "gateway remained ready while the PostgreSQL pool was saturated");
+            }
+            List<SaturationAttempt> attempts = new ArrayList<>(senders.size());
+            for (Future<SaturationAttempt> future : futures) attempts.add(getSaturation(future));
+            long retryableFailures = attempts.stream().filter(attempt -> !attempt.accepted()).count();
+            if (retryableFailures < 1 || retryableFailures >= attempts.size()) {
+                throw new IllegalStateException(
+                        "saturation did not produce both accepted and retryable outcomes");
+            }
+            removeSaturationTrigger(configuration);
+            int recoveredStatus = awaitReadiness(configuration);
+            List<SaturationAttempt> converged = new ArrayList<>(attempts.size());
+            for (SaturationAttempt attempt : attempts) {
+                if (attempt.accepted()) {
+                    converged.add(attempt);
+                    continue;
+                }
+                SaturationAttempt retry = saturationAttempt(
+                        senders.get(attempt.position()), conversation, attempt.position());
+                if (!retry.accepted()) {
+                    throw new IllegalStateException("saturation retry did not recover");
+                }
+                converged.add(retry);
+            }
+            validateSaturationAttempts(converged, initialSequence);
+            validateSaturationPublications(
+                    peers, converged, conversation, initialSequence, senders.size());
+            return new PostgresSaturationResult(
+                    attempts.stream().map(SaturationAttempt::latencyMicros).toList(),
+                    unavailableStatus,
+                    recoveredStatus,
+                    (long) peers.size() * senders.size(),
+                    Math.toIntExact(retryableFailures),
+                    Math.toIntExact(retryableFailures),
+                    0);
+        }
+    }
+
+    private static SaturationAttempt saturationAttempt(
+            ClientConnection sender, UUID conversation, int position) throws Exception {
+        String clientMessageId = "saturation-" + position;
+        SubmitMessage payload = SubmitMessage.newBuilder()
+                .setConversationId(conversation.toString())
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
+                .setContent(ByteString.copyFromUtf8("database saturation"))
+                .build();
+        long started = System.nanoTime();
+        send(sender.socket(), command(MessageType.MESSAGE_TYPE_SUBMIT_MESSAGE,
+                "submit-" + clientMessageId, sender.sessionId(), clientMessageId,
+                payload.toByteString()));
+        Envelope response = sender.listener().next();
+        long latency = elapsedMicros(started);
+        if (response.getMessageType() == MessageType.MESSAGE_TYPE_PROTOCOL_ERROR_VALUE) {
+            ProtocolError error = ProtocolError.parseFrom(response.getPayload());
+            if (error.getCode() != ProtocolErrorCode.PROTOCOL_ERROR_CODE_INTERNAL_ERROR
+                    || !error.getRetryable()) {
+                throw new IllegalStateException("saturation failure was not safely retryable");
+            }
+            return new SaturationAttempt(position, clientMessageId, 0, latency, false);
+        }
+        requireType(response, MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED);
+        MessageAccepted accepted = MessageAccepted.parseFrom(response.getPayload());
+        if (accepted.getDuplicate()
+                || !accepted.getConversationId().equals(conversation.toString())) {
+            throw new IllegalStateException("saturation acknowledgement did not reconcile");
+        }
+        return new SaturationAttempt(position, clientMessageId,
+                accepted.getConversationSequence(), latency, true);
+    }
+
+    private static void removeSaturationTrigger(Configuration configuration) throws SQLException {
+        try (Connection connection = DriverManager.getConnection(
+                configuration.jdbcUrl(), configuration.username(), configuration.password());
+                java.sql.Statement statement = connection.createStatement()) {
+            statement.execute("DROP TRIGGER gateway_performance_delay ON chat.message");
+            statement.execute("DROP FUNCTION chat.gateway_performance_delay()");
+        }
+    }
+
+    private static SaturationAttempt getSaturation(Future<SaturationAttempt> future)
+            throws Exception {
+        try {
+            return future.get(20, TimeUnit.SECONDS);
+        } catch (ExecutionException exception) {
+            Throwable cause = exception.getCause();
+            if (cause instanceof Exception checked) throw checked;
+            throw new IllegalStateException("saturation worker failed", cause);
+        }
+    }
+
+    private static void validateSaturationAttempts(
+            List<SaturationAttempt> attempts, long initialSequence) {
+        java.util.Set<String> ids = new java.util.HashSet<>();
+        java.util.Set<Long> sequences = new java.util.HashSet<>();
+        for (SaturationAttempt attempt : attempts) {
+            ids.add(attempt.clientMessageId());
+            sequences.add(attempt.sequence());
+        }
+        for (int index = 0; index < attempts.size(); ++index) {
+            if (!ids.contains("saturation-" + index)
+                    || !sequences.contains(initialSequence + index + 1L)) {
+                throw new IllegalStateException("saturation durable identities did not reconcile");
+            }
+        }
+    }
+
+    private static void validateSaturationPublications(
+            List<ClientConnection> peers,
+            List<SaturationAttempt> attempts,
+            UUID conversation,
+            long initialSequence,
+            int senders) throws Exception {
+        for (ClientConnection peer : peers) {
+            java.util.Set<String> ids = new java.util.HashSet<>();
+            java.util.Set<Long> sequences = new java.util.HashSet<>();
+            for (int index = 0; index < senders; ++index) {
+                Envelope publication = peer.listener().next();
+                requireType(publication, MessageType.MESSAGE_TYPE_MESSAGE_PUBLISHED);
+                MessageRecord record = MessageRecord.parseFrom(publication.getPayload());
+                if (!record.getConversationId().equals(conversation.toString())) {
+                    throw new IllegalStateException("saturation publication conversation differed");
+                }
+                ids.add(record.getClientMessageId());
+                sequences.add(record.getConversationSequence());
+            }
+            if (ids.size() != attempts.size() || sequences.size() != attempts.size()) {
+                throw new IllegalStateException("saturation publications were duplicated");
+            }
+            for (int index = 0; index < attempts.size(); ++index) {
+                if (!ids.contains("saturation-" + index)
+                        || !sequences.contains(initialSequence + index + 1L)) {
+                    throw new IllegalStateException(
+                            "saturation publications did not reconcile");
+                }
+            }
+        }
+    }
+
+    private static void awaitMetricAtLeast(
+            Configuration configuration, String metric, long expected) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        do {
+            if (scalarMetric(configuration, metric) >= expected) return;
+            Thread.sleep(10);
+        } while (System.nanoTime() < deadline);
+        throw new IllegalStateException("gateway metric did not reach saturation: " + metric);
+    }
+
+    private static int awaitReadiness(Configuration configuration) throws Exception {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        int status;
+        do {
+            status = readinessStatus(configuration);
+            if (status == 200) return status;
+            Thread.sleep(25);
+        } while (System.nanoTime() < deadline);
+        throw new IllegalStateException("gateway readiness did not recover");
+    }
+
+    private static int readinessStatus(Configuration configuration) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(
+                        "http://127.0.0.1:" + configuration.adminPort() + "/health/ready"))
+                .timeout(Duration.ofSeconds(3))
+                .GET()
+                .build();
+        return HttpClient.newHttpClient().send(
+                request, HttpResponse.BodyHandlers.discarding()).statusCode();
+    }
+
+    private static long scalarMetric(Configuration configuration, String metric) throws Exception {
+        String body = metrics(configuration);
+        String prefix = metric + " ";
+        for (String line : body.lines().toList()) {
+            if (line.startsWith(prefix)) return Long.parseLong(line.substring(prefix.length()));
+        }
+        throw new IllegalStateException("gateway metric was absent: " + metric);
+    }
+
     private static void recoverHistory(
             ClientConnection recovered,
             UUID conversation,
@@ -399,6 +628,15 @@ public final class GatewayMessagingBaseline {
     }
 
     private static long metric(Configuration configuration, String outcome) throws Exception {
+        String body = metrics(configuration);
+        String expected = "chat_gateway_messaging_total{outcome=\"" + outcome + "\"} ";
+        for (String line : body.lines().toList()) {
+            if (line.startsWith(expected)) return Long.parseLong(line.substring(expected.length()));
+        }
+        throw new IllegalStateException("gateway metric was absent: " + outcome);
+    }
+
+    private static String metrics(Configuration configuration) throws Exception {
         HttpRequest request = HttpRequest.newBuilder(URI.create(
                         "http://127.0.0.1:" + configuration.adminPort() + "/metrics"))
                 .timeout(Duration.ofSeconds(2))
@@ -409,11 +647,7 @@ public final class GatewayMessagingBaseline {
         if (response.statusCode() != 200) {
             throw new IllegalStateException("gateway metrics endpoint was unavailable");
         }
-        String expected = "chat_gateway_messaging_total{outcome=\"" + outcome + "\"} ";
-        for (String line : response.body().lines().toList()) {
-            if (line.startsWith(expected)) return Long.parseLong(line.substring(expected.length()));
-        }
-        throw new IllegalStateException("gateway metric was absent: " + outcome);
+        return response.body();
     }
 
     private static void catchUp(ClientConnection peer, UUID conversation) throws Exception {
@@ -530,13 +764,21 @@ public final class GatewayMessagingBaseline {
         environment.put("CHATROOM_POSTGRES_USER", configuration.username());
         environment.put("CHATROOM_POSTGRES_PASSWORD", "disposable-trust-password");
         environment.put("CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", "true");
-        environment.put("CHATROOM_POSTGRES_POOL_MAXIMUM", "8");
-        environment.put("CHATROOM_POSTGRES_POOL_MINIMUM_IDLE", "1");
+        boolean saturation = configuration.postgresSaturationSenders() > 0;
+        environment.put("CHATROOM_POSTGRES_POOL_MAXIMUM", saturation ? "2" : "8");
+        environment.put("CHATROOM_POSTGRES_POOL_MINIMUM_IDLE", saturation ? "2" : "1");
+        if (saturation) {
+            environment.put("CHATROOM_POSTGRES_CONNECTION_TIMEOUT_SECONDS", "1");
+            environment.put("CHATROOM_GATEWAY_MESSAGING_WORKERS",
+                    Integer.toString(configuration.postgresSaturationSenders()));
+            environment.put("CHATROOM_GATEWAY_MESSAGING_QUEUE_CAPACITY", "16");
+        }
         return GatewayRuntimeConfig.fromEnvironment(environment);
     }
 
     private static void seed(
-            Configuration configuration, UUID sender, List<UUID> peers, UUID conversation)
+            Configuration configuration, UUID sender, List<UUID> peers,
+            List<UUID> saturationSenders, UUID conversation)
             throws SQLException {
         PGSimpleDataSource dataSource = new PGSimpleDataSource();
         dataSource.setUrl(configuration.jdbcUrl());
@@ -552,7 +794,13 @@ public final class GatewayMessagingBaseline {
                         + "password_hash) VALUES (?, ?, ?, ?)", peers.get(index),
                         "gateway-peer-" + index, "Gateway Peer " + index, PASSWORD_HASH);
             }
-            if (configuration.receivers() == 1) {
+            for (int index = 0; index < saturationSenders.size(); ++index) {
+                execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                                + "password_hash) VALUES (?, ?, ?, ?)", saturationSenders.get(index),
+                        "gateway-saturation-" + index, "Gateway Saturation " + index,
+                        PASSWORD_HASH);
+            }
+            if (!configuration.group()) {
                 execute(connection,
                         "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')",
                         conversation);
@@ -562,12 +810,38 @@ public final class GatewayMessagingBaseline {
             }
             execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
                     + "account_id, role) VALUES (?, ?, ?)", conversation, sender,
-                    configuration.receivers() == 1 ? "MEMBER" : "OWNER");
+                    configuration.group() ? "OWNER" : "MEMBER");
             for (UUID peer : peers) {
                 execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
                         + "account_id) VALUES (?, ?)", conversation, peer);
             }
+            for (UUID saturationSender : saturationSenders) {
+                execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
+                        + "account_id) VALUES (?, ?)", conversation, saturationSender);
+            }
+            if (!saturationSenders.isEmpty()) installSaturationTrigger(connection);
             connection.commit();
+        }
+    }
+
+    private static void installSaturationTrigger(Connection connection) throws SQLException {
+        try (java.sql.Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE FUNCTION chat.gateway_performance_delay() RETURNS trigger
+                    LANGUAGE plpgsql AS $$
+                    BEGIN
+                      IF NEW.client_message_id LIKE 'saturation-%' THEN
+                        PERFORM pg_sleep(2);
+                      END IF;
+                      RETURN NEW;
+                    END
+                    $$
+                    """);
+            statement.execute("""
+                    CREATE TRIGGER gateway_performance_delay
+                    BEFORE INSERT ON chat.message
+                    FOR EACH ROW EXECUTE FUNCTION chat.gateway_performance_delay()
+                    """);
         }
     }
 
@@ -607,18 +881,21 @@ public final class GatewayMessagingBaseline {
             long cpuNanos, long peakHeap, long durableMessages,
             List<Long> setupMicros, List<Long> acknowledgementMicros,
             List<Long> fanoutMicros, long measuredNanos, ReconnectResult reconnect,
-            SlowConsumerResult slowConsumer) throws IOException {
+            SlowConsumerResult slowConsumer, PostgresSaturationResult saturation)
+            throws IOException {
         Path parent = configuration.output().toAbsolutePath().getParent();
         if (parent != null) Files.createDirectories(parent);
         try (JsonGenerator json = new JsonFactory().createGenerator(
                 Files.newOutputStream(configuration.output()))) {
             json.useDefaultPrettyPrinter();
             json.writeStartObject();
-            boolean group = configuration.receivers() > 1;
+            boolean group = configuration.group();
             boolean reconnectMeasured = configuration.reconnectRounds() > 0;
             boolean slowConsumerMeasured = configuration.slowConsumerMaxMessages() > 0;
-            json.writeNumberField("schemaVersion", slowConsumerMeasured
-                    ? 4 : (reconnectMeasured ? 3 : (group ? 2 : 1)));
+            boolean saturationMeasured = configuration.postgresSaturationSenders() > 0;
+            json.writeNumberField("schemaVersion", saturationMeasured
+                    ? 5 : (slowConsumerMeasured
+                            ? 4 : (reconnectMeasured ? 3 : (group ? 2 : 1))));
             json.writeStringField("benchmark", "java-v2-gateway-messaging");
             json.writeStringField("startedAt", startedAt.toString());
             json.writeStringField("warning", "loopback development evidence; not a capacity claim");
@@ -635,7 +912,8 @@ public final class GatewayMessagingBaseline {
             json.writeNumberField("scenarioWallSeconds", round(wall.toNanos() / 1_000_000_000.0));
             json.writeEndObject();
             json.writeObjectFieldStart("scenario");
-            json.writeNumberField("connections", configuration.receivers() + 1);
+            json.writeNumberField("connections", configuration.receivers() + 1
+                    + configuration.postgresSaturationSenders());
             json.writeNumberField("receiversPerMessage", configuration.receivers());
             if (group) json.writeStringField("conversationKind", "GROUP");
             json.writeNumberField("warmupOperations", configuration.warmupOperations());
@@ -653,6 +931,13 @@ public final class GatewayMessagingBaseline {
                         "slowConsumerMessagesBeforeClosure", slowConsumer.messagesBeforeClosure());
                 json.writeNumberField("slowConsumerHealthyReceivers",
                         configuration.receivers() - 1);
+            }
+            if (saturationMeasured) {
+                json.writeNumberField(
+                        "postgresSaturationSenders", configuration.postgresSaturationSenders());
+                json.writeNumberField("postgresPoolMaximum", 2);
+                json.writeNumberField("postgresConnectionTimeoutMillis", 1000);
+                json.writeNumberField("postgresInjectedDelayMillis", 2000);
             }
             json.writeEndObject();
             json.writeObjectFieldStart("results");
@@ -683,6 +968,21 @@ public final class GatewayMessagingBaseline {
                         slowConsumer.messagesBeforeClosure());
                 json.writeNumberField("slowConsumerClosed", slowConsumer.closures());
                 json.writeNumberField("slowConsumerErrors", 0);
+            }
+            if (saturationMeasured) {
+                distribution(json, "postgresSaturationAcceptLatencyMicros",
+                        saturation.latencyMicros());
+                json.writeNumberField("postgresSaturationPeerPublications",
+                        saturation.peerPublications());
+                json.writeNumberField("postgresSaturationUnavailableReadinessStatus",
+                        saturation.unavailableReadinessStatus());
+                json.writeNumberField("postgresSaturationRecoveredReadinessStatus",
+                        saturation.recoveredReadinessStatus());
+                json.writeNumberField("postgresSaturationRetryableFailures",
+                        saturation.retryableFailures());
+                json.writeNumberField("postgresSaturationConvergedRetries",
+                        saturation.convergedRetries());
+                json.writeNumberField("postgresSaturationErrors", saturation.errors());
             }
             json.writeNumberField("errors", 0);
             json.writeEndObject();
@@ -791,6 +1091,30 @@ public final class GatewayMessagingBaseline {
         }
     }
 
+    private record SaturationAttempt(
+            int position, String clientMessageId, long sequence, long latencyMicros,
+            boolean accepted) {}
+
+    private record PostgresSaturationResult(
+            List<Long> latencyMicros,
+            int unavailableReadinessStatus,
+            int recoveredReadinessStatus,
+            long peerPublications,
+            int retryableFailures,
+            int convergedRetries,
+            int errors) {
+        private static final PostgresSaturationResult NONE =
+                new PostgresSaturationResult(List.of(), 0, 0, 0, 0, 0, 0);
+
+        private PostgresSaturationResult {
+            latencyMicros = List.copyOf(latencyMicros);
+        }
+
+        private boolean measured() {
+            return !latencyMicros.isEmpty();
+        }
+    }
+
     private record ClientConnection(
             HttpClient client, WebSocket socket, EnvelopeListener listener,
             SessionEstablished session, String deviceId)
@@ -862,7 +1186,7 @@ public final class GatewayMessagingBaseline {
             Path certificate, Path privateKey, int gatewayPort, int adminPort,
             Path output, int warmupOperations, int messageOperations,
             int payloadBytes, int receivers, int reconnectRounds,
-            int slowConsumerMaxMessages) {
+            int slowConsumerMaxMessages, int postgresSaturationSenders) {
         private Configuration {
             Objects.requireNonNull(jdbcUrl, "jdbcUrl");
             Objects.requireNonNull(username, "username");
@@ -884,6 +1208,11 @@ public final class GatewayMessagingBaseline {
             bounded("receivers", receivers, 1, 59);
             bounded("reconnect rounds", reconnectRounds, 0, 20);
             bounded("slow consumer max messages", slowConsumerMaxMessages, 0, 100);
+            bounded("PostgreSQL saturation senders", postgresSaturationSenders, 0, 16);
+            if (postgresSaturationSenders == 1) {
+                throw new IllegalArgumentException(
+                        "PostgreSQL saturation requires zero or at least two senders");
+            }
             if (slowConsumerMaxMessages > 0 && receivers < 2) {
                 throw new IllegalArgumentException(
                         "slow consumer scenario requires one slow and one healthy receiver");
@@ -892,8 +1221,14 @@ public final class GatewayMessagingBaseline {
                 throw new IllegalArgumentException(
                         "slow consumer and reconnect scenarios must be measured separately");
             }
+            if (postgresSaturationSenders > 0
+                    && (slowConsumerMaxMessages > 0 || reconnectRounds > 0)) {
+                throw new IllegalArgumentException(
+                        "PostgreSQL saturation must be measured separately");
+            }
             long authenticationAttempts = (long) (receivers + 1) * (reconnectRounds + 1)
-                    + (slowConsumerMaxMessages > 0 ? 1L : 0L);
+                    + (slowConsumerMaxMessages > 0 ? 1L : 0L)
+                    + postgresSaturationSenders;
             if (authenticationAttempts > 60) {
                 throw new IllegalArgumentException(
                         "initial authentication plus resumes exceed the default peer window");
@@ -915,7 +1250,8 @@ public final class GatewayMessagingBaseline {
                     "--jdbc-url", "--username", "--password", "--certificate",
                     "--private-key", "--gateway-port", "--admin-port", "--output",
                     "--warmup", "--messages", "--payload-bytes", "--receivers",
-                    "--reconnect-rounds", "--slow-consumer-max-messages");
+                    "--reconnect-rounds", "--slow-consumer-max-messages",
+                    "--postgres-saturation-senders");
             if (!values.keySet().equals(expected)) {
                 throw new IllegalArgumentException("missing or unknown gateway argument");
             }
@@ -932,7 +1268,8 @@ public final class GatewayMessagingBaseline {
                         Integer.parseInt(values.get("--payload-bytes")),
                         Integer.parseInt(values.get("--receivers")),
                         Integer.parseInt(values.get("--reconnect-rounds")),
-                        Integer.parseInt(values.get("--slow-consumer-max-messages")));
+                        Integer.parseInt(values.get("--slow-consumer-max-messages")),
+                        Integer.parseInt(values.get("--postgres-saturation-senders")));
             } catch (NumberFormatException exception) {
                 throw new IllegalArgumentException("gateway counts must be integers", exception);
             }
@@ -943,6 +1280,10 @@ public final class GatewayMessagingBaseline {
                 throw new IllegalArgumentException(String.format(Locale.ROOT,
                         "%s must be in %d..%d", name, minimum, maximum));
             }
+        }
+
+        private boolean group() {
+            return receivers > 1 || postgresSaturationSenders > 0;
         }
     }
 }

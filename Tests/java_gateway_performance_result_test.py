@@ -110,6 +110,33 @@ def valid_slow_consumer_result() -> dict:
     return result
 
 
+def valid_postgres_saturation_result() -> dict:
+    result = valid_group_result()
+    result["schemaVersion"] = 5
+    result["scenario"].update({
+        "connections": 9,
+        "postgresSaturationSenders": 4,
+        "postgresPoolMaximum": 2,
+        "postgresConnectionTimeoutMillis": 1000,
+        "postgresInjectedDelayMillis": 2000,
+        "durableMessages": 8,
+    })
+    result["results"]["connectionSetupLatencyMicros"]["samples"] = 9
+    result["results"].update({
+        "postgresSaturationAcceptLatencyMicros": {
+            "samples": 4, "min": 1, "p50": 2, "p95": 3,
+            "p99": 4, "max": 5, "mean": 2.5,
+        },
+        "postgresSaturationPeerPublications": 16,
+        "postgresSaturationUnavailableReadinessStatus": 503,
+        "postgresSaturationRecoveredReadinessStatus": 200,
+        "postgresSaturationRetryableFailures": 2,
+        "postgresSaturationConvergedRetries": 2,
+        "postgresSaturationErrors": 0,
+    })
+    return result
+
+
 class GatewayPerformanceEvidenceTest(unittest.TestCase):
     def test_accepts_valid_clean_evidence(self) -> None:
         self.assertEqual(REVISION, validate(
@@ -120,6 +147,8 @@ class GatewayPerformanceEvidenceTest(unittest.TestCase):
             valid_reconnect_result(), REVISION, require_clean=True)["schemaVersion"])
         self.assertEqual(4, validate(
             valid_slow_consumer_result(), REVISION, require_clean=True)["schemaVersion"])
+        self.assertEqual(5, validate(
+            valid_postgres_saturation_result(), REVISION, require_clean=True)["schemaVersion"])
 
     def test_rejects_semantic_mismatch_and_secret_content(self) -> None:
         mutations = []
@@ -168,6 +197,10 @@ class GatewayPerformanceEvidenceTest(unittest.TestCase):
         wrong_slow_recovery = valid_slow_consumer_result()
         wrong_slow_recovery["results"]["slowConsumerRecoveredHistoryMessages"] = 4
         mutations.append(wrong_slow_recovery)
+        ready_while_saturated = valid_postgres_saturation_result()
+        ready_while_saturated["results"][
+            "postgresSaturationUnavailableReadinessStatus"] = 200
+        mutations.append(ready_while_saturated)
         for mutation in mutations:
             with self.subTest(mutation=mutation):
                 with self.assertRaises(EvidenceError):

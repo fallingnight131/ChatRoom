@@ -54,8 +54,8 @@ def validate(
 ) -> dict[str, Any]:
     root = object_value(result, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2, 3, 4):
-        raise EvidenceError("schemaVersion must be 1, 2, 3, or 4")
+    if schema not in (1, 2, 3, 4, 5):
+        raise EvidenceError("schemaVersion must be 1, 2, 3, 4, or 5")
     if root.get("benchmark") != "java-v2-gateway-messaging":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != "loopback development evidence; not a capacity claim":
@@ -94,7 +94,13 @@ def validate(
     receivers = integer(scenario.get("receiversPerMessage"), "receiversPerMessage", 1)
     if receivers > 59:
         raise EvidenceError("receiversPerMessage exceeds the default peer admission window")
-    if scenario.get("connections") != receivers + 1:
+    saturation_senders = 0
+    if schema == 5:
+        saturation_senders = integer(
+            scenario.get("postgresSaturationSenders"), "postgresSaturationSenders", 2)
+        if saturation_senders > 16:
+            raise EvidenceError("postgresSaturationSenders exceeds the bounded scenario")
+    if scenario.get("connections") != receivers + 1 + saturation_senders:
         raise EvidenceError("gateway connection count must include sender and receivers")
     if schema == 1 and receivers != 1:
         raise EvidenceError("schema 1 requires exactly one receiver")
@@ -104,6 +110,8 @@ def validate(
         raise EvidenceError("multi-receiver reconnect evidence requires GROUP identity")
     if schema == 4 and (receivers < 2 or scenario.get("conversationKind") != "GROUP"):
         raise EvidenceError("slow-consumer evidence requires a multi-receiver group")
+    if schema == 5 and scenario.get("conversationKind") != "GROUP":
+        raise EvidenceError("PostgreSQL saturation evidence requires GROUP identity")
     warmup = integer(scenario.get("warmupOperations"), "warmupOperations")
     messages = integer(scenario.get("messageOperations"), "messageOperations", 1)
     payload_bytes = integer(scenario.get("payloadBytes"), "payloadBytes", 1)
@@ -122,15 +130,16 @@ def validate(
             raise EvidenceError("slow consumer closure exceeded the configured message bound")
         if scenario.get("slowConsumerHealthyReceivers") != receivers - 1:
             raise EvidenceError("slow consumer healthy receiver count is invalid")
-    expected_durable = warmup + messages + (slow_messages + 1 if schema == 4 else 0)
+    expected_durable = (warmup + messages + (slow_messages + 1 if schema == 4 else 0)
+                        + saturation_senders)
     if scenario.get("durableMessages") != expected_durable:
         raise EvidenceError("durable message reconciliation is invalid")
 
     results = object_value(root.get("results"), "results")
     distributions = (
-        ("connectionSetupLatencyMicros", receivers + 1),
+        ("connectionSetupLatencyMicros", receivers + 1 + saturation_senders),
         ("submitToAcceptLatencyMicros", messages),
-        ("submitToPeerPublishLatencyMicros" if receivers == 1
+        ("submitToPeerPublishLatencyMicros" if scenario.get("conversationKind") != "GROUP"
          else "submitToAllPeersPublishedLatencyMicros", messages),
     )
     for distribution_name, samples in distributions:
@@ -210,6 +219,44 @@ def validate(
             raise EvidenceError("slow consumer closure count must be exactly one")
         if results.get("slowConsumerErrors") != 0:
             raise EvidenceError("slowConsumerErrors must be zero")
+    if schema == 5:
+        if scenario.get("postgresPoolMaximum") != 2:
+            raise EvidenceError("PostgreSQL saturation pool maximum must be two")
+        if scenario.get("postgresConnectionTimeoutMillis") != 1000:
+            raise EvidenceError("PostgreSQL saturation connection timeout is invalid")
+        if scenario.get("postgresInjectedDelayMillis") != 2000:
+            raise EvidenceError("PostgreSQL saturation delay is invalid")
+        saturation = object_value(
+            results.get("postgresSaturationAcceptLatencyMicros"),
+            "postgresSaturationAcceptLatencyMicros")
+        if saturation.get("samples") != saturation_senders:
+            raise EvidenceError("PostgreSQL saturation latency sample count is invalid")
+        ordered = [
+            number(saturation.get(field),
+                   f"postgresSaturationAcceptLatencyMicros.{field}", positive=True)
+            for field in ("min", "p50", "p95", "p99", "max")
+        ]
+        if ordered != sorted(ordered):
+            raise EvidenceError("PostgreSQL saturation percentiles are not monotonic")
+        mean = number(saturation.get("mean"),
+                      "postgresSaturationAcceptLatencyMicros.mean", positive=True)
+        if mean < ordered[0] or mean > ordered[-1]:
+            raise EvidenceError("PostgreSQL saturation mean is out of range")
+        if results.get("postgresSaturationPeerPublications") != saturation_senders * receivers:
+            raise EvidenceError("PostgreSQL saturation publication count is invalid")
+        if results.get("postgresSaturationUnavailableReadinessStatus") != 503:
+            raise EvidenceError("PostgreSQL saturation must make readiness unavailable")
+        if results.get("postgresSaturationRecoveredReadinessStatus") != 200:
+            raise EvidenceError("PostgreSQL readiness did not recover")
+        retryable_failures = integer(
+            results.get("postgresSaturationRetryableFailures"),
+            "postgresSaturationRetryableFailures", 1)
+        if retryable_failures >= saturation_senders:
+            raise EvidenceError("PostgreSQL saturation must retain at least one initial success")
+        if results.get("postgresSaturationConvergedRetries") != retryable_failures:
+            raise EvidenceError("PostgreSQL saturation retries did not converge")
+        if results.get("postgresSaturationErrors") != 0:
+            raise EvidenceError("postgresSaturationErrors must be zero")
 
     serialized = json.dumps(root, sort_keys=True)
     for forbidden in (

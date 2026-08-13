@@ -822,6 +822,14 @@ or saturated database therefore removes the instance from new load without
 terminating existing sockets; readiness recovers automatically after the pool
 can provide a valid connection, and dependency details never enter the HTTP
 response.
+The disposable Java gateway harness now applies bounded pressure to a real
+two-connection Hikari pool with multiple authenticated WSS senders. Its
+throwaway-database-only delay trigger produces mixed initial acceptance and
+retryable acquisition timeout, proves readiness withdrawal without socket
+termination, then removes pressure and resubmits the original stable IDs until
+the database and live subscriber converge on one sequence/publication per
+operation. This is pool-saturation evidence, not complete database-host failure
+or a production pool-sizing claim.
 The application/PostgreSQL boundary now also provides a bounded, descending
 composite-cursor directory of only the authenticated account's active
 conversations, including canonical kind, direct-peer or group display name,

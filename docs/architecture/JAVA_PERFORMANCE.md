@@ -138,6 +138,29 @@ and recovered-history counts, the closure counter, and the post-recovery live
 probe. It does not yet record per-channel pending bytes because the production
 admin endpoint intentionally exposes no connection labels.
 
+Set `--java-gateway-performance-postgres-saturation-senders S` (`2 <= S <= 16`)
+to run the separate schema-5 connection-pool saturation scenario. The disposable
+database alone receives a trigger that delays only `saturation-*` benchmark
+message inserts for two seconds. The production gateway retains its ordinary
+code path but uses an explicit two-connection Hikari pool, one-second connection
+timeout, and `S` message workers. `S` separately authenticated WSS senders start
+together; an already caught-up peer remains subscribed.
+
+The initial wave must produce both durable acceptances and retryable, redacted
+connection-acquisition failures. While both pool connections are occupied,
+`/health/ready` must return 503 without closing established WSS sessions. The
+harness then removes the temporary trigger, requires readiness to recover to
+200, and resubmits every failed operation with its original `clientMessageId`.
+The final database sequence set and peer publications must contain exactly one
+entry per sender. The temporary function/trigger exists only inside the
+throwaway database and is never a migration or runtime failure switch.
+
+This scenario records first-wave response latency, failure/retry counts,
+readiness transitions, exact publications, CPU, heap, and RSS. It proves bounded
+pool-pressure behavior, not PostgreSQL host loss, database throughput, a safe
+pool size, or production capacity. Complete server stop/start recovery remains
+a separate failure scenario.
+
 ## Evidence contract
 
 `tools/java_performance_result.py` requires:
@@ -163,6 +186,10 @@ history recovery, and a recovery-probe latency sample. A missing acknowledgement
 publication, session
 identity, token rotation, sequence, or durable database reconciliation causes
 the Java process to fail before evidence is promoted.
+Schema 5 additionally requires a two-connection pool and fixed timeout/delay inputs,
+both initial successes and retryable failures, 503-to-200 readiness recovery,
+matching converged retries, exact unique publications, and durable sequence
+reconciliation.
 
 Results also carry `worktreeDirty`. CI requires a clean tree and exact workflow
 revision. A dirty local result remains useful for development comparison but is
@@ -181,7 +208,8 @@ Before selecting distributed infrastructure, extend the harness in this order:
 2. broaden bounded session-resume evidence into controlled reconnect-rate and
    network-failure scenarios;
 3. extend slow-consumer evidence with portable pending-byte/backlog observation;
-4. PostgreSQL saturation and transient dependency failure;
+4. extend bounded PostgreSQL pool saturation into complete server stop/start
+   recovery and longer contention curves;
 5. two gateways, only after an ADR defines reconstructable routing/presence
    ownership and measurements show the single-gateway limitation.
 

@@ -81,6 +81,8 @@ def verify_java_gateway_performance(args: argparse.Namespace, output: Path) -> N
         "--reconnect-rounds", str(args.java_gateway_performance_reconnect_rounds),
         "--slow-consumer-max-messages",
         str(args.java_gateway_performance_slow_consumer_max_messages),
+        "--postgres-saturation-senders",
+        str(args.java_gateway_performance_postgres_saturation_senders),
     ], ROOT)
 
 
@@ -569,6 +571,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--java-gateway-performance-reconnect-rounds", type=int, default=0)
     parser.add_argument(
         "--java-gateway-performance-slow-consumer-max-messages", type=int, default=0)
+    parser.add_argument(
+        "--java-gateway-performance-postgres-saturation-senders", type=int, default=0)
     parser.add_argument(
         "--java-gateway-performance-output",
         type=Path,

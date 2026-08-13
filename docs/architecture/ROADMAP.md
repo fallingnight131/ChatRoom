@@ -1316,6 +1316,10 @@ Progress:
   connection after process startup, fail closed without exposing database error
   details, and recover automatically when the dependency is valid again while
   keeping liveness independent.
+- [x] Add a schema-5 real WSS/two-connection-pool saturation scenario using a
+  disposable-database-only delay trigger, requiring mixed initial success and
+  retryable failure, readiness 503, same-ID convergence after pressure removal,
+  readiness 200 recovery, exact unique publications, and durable sequences.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.

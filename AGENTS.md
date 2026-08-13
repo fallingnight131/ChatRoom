@@ -175,6 +175,8 @@ Run what applies to the touched scope:
   concurrent same-session resume. Use
   `--java-gateway-performance-slow-consumer-max-messages` only with at least two
   receivers to verify real-socket slow-consumer isolation and history repair;
+  use `--java-gateway-performance-postgres-saturation-senders` for the separate
+  disposable-database pool-saturation/readiness/idempotent-retry scenario;
   none is a production-capacity claim.
 - PostgreSQL: use `python3 tools/verify_m0.py --postgres` for clean migration,
   same-database restart, checksum, and core constraint verification.
