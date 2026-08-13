@@ -1001,6 +1001,10 @@ A default-uncomposed lifecycle loop now serializes relay passes, drains full
 batches without an idle pause, applies bounded dependency backoff, cancels
 pending work on close, and accumulates identity-free counters. Redis and product
 runtime composition remain absent.
+ADR-0351 now isolates Redis behind one-minute gateway/conversation route leases
+and bounded per-gateway hint streams. The application publisher refuses partial
+target discovery and retries the whole stable event after any target failure;
+the hint contains no body and never authorizes access.
 
 ## 10. Attachment Flow
 

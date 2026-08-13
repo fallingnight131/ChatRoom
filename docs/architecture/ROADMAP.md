@@ -1417,6 +1417,11 @@ Progress:
   full batch immediately, polls healthy/idle state at a bounded interval, backs
   off deferred/lost/failed passes, rejects repeated start, cancels pending work
   on close, and exports only fixed counters/gauges. It remains uncomposed.
+- [x] Define the Redis-independent expiring gateway/conversation route and
+  bounded target-stream ports. The aggregate publisher refuses incomplete
+  target lookup, emits payload-free stable hints to every target, retries any
+  partial dependency failure, and treats an empty complete route set as durable
+  success (ADR-0351).
 
 Work:
 

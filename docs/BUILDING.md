@@ -1341,6 +1341,11 @@ The gateway lifecycle tests additionally prove immediate full-batch draining,
 non-overlap, bounded idle/failure delays, reset after recovery, repeated-start
 rejection, pending-work cancellation, and fixed relay counter rendering. The
 loop is not constructed or started by the product listener.
+Application routing tests cover the Redis-independent contract: complete
+multi-gateway target resolution, payload-free stable hints, bounded stream size,
+incomplete-target refusal, empty-route success, and whole-event retry after any
+target dependency failure. No Redis client or production composition exists in
+this slice (ADR-0351).
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound
