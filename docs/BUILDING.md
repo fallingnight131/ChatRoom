@@ -1561,6 +1561,19 @@ admits only the new gateway. Established former-worker WSS traffic must remain
 ordered across both reloads. Run it separately from
 `--all` because it requires Docker and disposable local services (ADR-0378).
 
+After committing a candidate, exercise two independently built gateway
+revisions with:
+
+```bash
+python3 tools/verify_m0.py --gateway-mixed-version
+```
+
+The command requires a clean worktree, exports the pinned previous-compatible
+Git tree, builds separate previous/candidate distributions, verifies their
+running loopback identities, then sends ordered WSS traffic in both directions
+and through previous-version removal/history repair. It is an exact-pair gate,
+not a general compatibility claim (ADR-0380).
+
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
 consume ports while PostgreSQL supplies outbox and message repair. They also

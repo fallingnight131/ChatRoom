@@ -1558,6 +1558,160 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     @Test
+    void haproxyRollsAcrossTwoCommittedGatewayVersions() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String redisUri = System.getenv("CHATROOM_TEST_REDIS_URI");
+        String controlValue = System.getenv("CHATROOM_TEST_HAPROXY_CONTROL_DIR");
+        String proxyUrl = System.getenv("CHATROOM_TEST_HAPROXY_WSS_URL");
+        String certificatePath = System.getenv("CHATROOM_TEST_GATEWAY_CERTIFICATE");
+        String keyPath = System.getenv("CHATROOM_TEST_GATEWAY_PRIVATE_KEY");
+        String previousClasspath = System.getenv(
+                "CHATROOM_TEST_GATEWAY_PREVIOUS_CLASSPATH");
+        String candidateClasspath = System.getenv(
+                "CHATROOM_TEST_GATEWAY_CANDIDATE_CLASSPATH");
+        String previousRevision = System.getenv(
+                "CHATROOM_TEST_GATEWAY_PREVIOUS_REVISION");
+        String candidateRevision = System.getenv(
+                "CHATROOM_TEST_GATEWAY_CANDIDATE_REVISION");
+        Assumptions.assumeTrue(allNonBlank(jdbcUrl, username, redisUri, controlValue,
+                proxyUrl, certificatePath, keyPath, previousClasspath, candidateClasspath,
+                previousRevision, candidateRevision),
+                "set disposable services and two committed gateway distributions");
+        assertFalse(previousRevision.equals(candidateRevision));
+        Path control = Path.of(controlValue);
+        new PostgresMigrator(jdbcUrl, username, "").migrate();
+        UUID accountId = UUID.randomUUID();
+        UUID peerId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        String login = "mixed-version-" + accountId;
+        String peerLogin = "mixed-version-" + peerId;
+        seedV2NetworkAccounts(jdbcUrl, username, "", accountId, peerId,
+                conversationId, login, peerLogin);
+
+        int previousPort = availablePort();
+        int previousAdmin = availablePort();
+        int candidatePort = availablePort();
+        int candidateAdmin = availablePort();
+        Map<String, String> previousEnvironment = distributedNetworkEnvironment(
+                previousPort, previousAdmin, certificatePath, keyPath, jdbcUrl, username,
+                redisUri, proxyAuthority(proxyUrl));
+        Map<String, String> candidateEnvironment = distributedNetworkEnvironment(
+                candidatePort, candidateAdmin, certificatePath, keyPath, jdbcUrl, username,
+                redisUri, proxyAuthority(proxyUrl));
+        previousEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+        candidateEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+        previousEnvironment.put("CHATROOM_GATEWAY_RELEASE_VERSION", "1.0.0");
+        previousEnvironment.put("CHATROOM_GATEWAY_SOURCE_REVISION", previousRevision);
+        candidateEnvironment.put("CHATROOM_GATEWAY_RELEASE_VERSION", "1.1.0");
+        candidateEnvironment.put("CHATROOM_GATEWAY_SOURCE_REVISION", candidateRevision);
+
+        Process previous = null;
+        Process candidate = null;
+        WebSocket sender = null;
+        WebSocket peer = null;
+        WebSocket replacement = null;
+        try {
+            previous = startGatewayProcess(previousEnvironment, previousClasspath,
+                    control.resolve("gateway-previous.log"));
+            candidate = startGatewayProcess(candidateEnvironment, candidateClasspath,
+                    control.resolve("gateway-candidate.log"));
+            awaitProductReady(previousAdmin, previous,
+                    control.resolve("gateway-previous.log"), Duration.ofSeconds(10));
+            awaitProductReady(candidateAdmin, candidate,
+                    control.resolve("gateway-candidate.log"), Duration.ofSeconds(10));
+            assertAdminEndpoint(previousAdmin, "/identity", 200,
+                    releaseIdentityJson("1.0.0", previousRevision));
+            assertAdminEndpoint(candidateAdmin, "/identity", 200,
+                    releaseIdentityJson("1.1.0", candidateRevision));
+            assertFalse(adminMetrics(previousAdmin).contains("chat_gateway_release_info"));
+            assertTrue(adminMetrics(candidateAdmin).contains("chat_gateway_release_info"));
+
+            Files.writeString(control.resolve("gateway-ports"),
+                    previousPort + "\n" + candidatePort + "\n");
+            Files.writeString(control.resolve("haproxy-start-request"), "start\n");
+            awaitFile(control.resolve("haproxy-started"), Duration.ofSeconds(10));
+
+            BinaryEnvelopeListener senderListener = new BinaryEnvelopeListener();
+            sender = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), senderListener);
+            SessionEstablished senderSession = establish(
+                    sender, senderListener, login, "mixed-version-old");
+            assertEquals(1, authenticationAccepted(previousAdmin));
+            assertEquals(0, authenticationAccepted(candidateAdmin));
+            sender.sendBinary(ByteBuffer.wrap(history(
+                    senderSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    senderListener.next().getMessageType());
+
+            BinaryEnvelopeListener peerListener = new BinaryEnvelopeListener();
+            peer = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), peerListener);
+            SessionEstablished peerSession = establish(
+                    peer, peerListener, peerLogin, "mixed-version-new");
+            assertEquals(1, authenticationAccepted(candidateAdmin));
+            peer.sendBinary(ByteBuffer.wrap(history(
+                    peerSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    peerListener.next().getMessageType());
+
+            sender.sendBinary(ByteBuffer.wrap(submit(
+                    senderSession.getSessionId(), conversationId,
+                    "mixed-submit-1", "mixed-message-1", "previous to candidate")
+                    .toByteArray()), true).join();
+            assertEquals(1, accepted(senderListener.next()).getConversationSequence());
+            assertEquals(1, published(senderListener.next()).getConversationSequence());
+            assertEquals(1, published(peerListener.next(Duration.ofSeconds(10)))
+                    .getConversationSequence());
+
+            peer.sendBinary(ByteBuffer.wrap(submit(
+                    peerSession.getSessionId(), conversationId,
+                    "mixed-submit-2", "mixed-message-2", "candidate to previous")
+                    .toByteArray()), true).join();
+            assertEquals(2, accepted(peerListener.next()).getConversationSequence());
+            assertEquals(2, published(peerListener.next()).getConversationSequence());
+            assertEquals(2, published(senderListener.next(Duration.ofSeconds(10)))
+                    .getConversationSequence());
+
+            sender.sendClose(WebSocket.NORMAL_CLOSURE, "roll previous")
+                    .get(3, TimeUnit.SECONDS);
+            sender = null;
+            stopGatewayProcess(previous);
+            previous = null;
+            Thread.sleep(2_500);
+
+            BinaryEnvelopeListener replacementListener = new BinaryEnvelopeListener();
+            replacement = connectWebSocket(
+                    URI.create(proxyUrl + "/v2/windows"), replacementListener);
+            SessionEstablished replacementSession = establish(
+                    replacement, replacementListener, login, "mixed-version-replacement");
+            assertEquals(2, authenticationAccepted(candidateAdmin));
+            replacement.sendBinary(ByteBuffer.wrap(history(
+                    replacementSession.getSessionId(), conversationId).toByteArray()), true).join();
+            MessageHistoryPage repaired = MessageHistoryPage.parseFrom(
+                    replacementListener.next().getPayload());
+            assertEquals(2, repaired.getMessagesCount());
+            assertEquals(1, repaired.getMessages(0).getConversationSequence());
+            assertEquals(2, repaired.getMessages(1).getConversationSequence());
+            replacement.sendBinary(ByteBuffer.wrap(submit(
+                    replacementSession.getSessionId(), conversationId,
+                    "mixed-submit-3", "mixed-message-3", "candidate after rollout")
+                    .toByteArray()), true).join();
+            assertEquals(3, accepted(replacementListener.next()).getConversationSequence());
+            assertEquals(3, published(replacementListener.next()).getConversationSequence());
+            assertEquals(3, published(peerListener.next(Duration.ofSeconds(10)))
+                    .getConversationSequence());
+            assertEquals(3, countQuery(jdbcUrl, username, "",
+                    "SELECT count(*) FROM chat.message WHERE conversation_id = '"
+                            + conversationId + "'"));
+        } finally {
+            if (replacement != null) replacement.abort();
+            if (peer != null) peer.abort();
+            if (sender != null) sender.abort();
+            stopGatewayProcess(candidate);
+            stopGatewayProcess(previous);
+        }
+    }
+
+    @Test
     void composesRealV1LoginOnlyForMappedImportedAccounts() throws Exception {
         String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
         String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
@@ -4058,6 +4212,12 @@ class GatewayRuntimePostgresIntegrationTest {
                 .getPeerCertificates()[0].getEncoded();
         return HexFormat.of().formatHex(
                 MessageDigest.getInstance("SHA-256").digest(certificate));
+    }
+
+    private static String releaseIdentityJson(String version, String revision) {
+        return "{\"schemaVersion\":1,\"releaseVersion\":\"" + version
+                + "\",\"sourceRevision\":\"" + revision
+                + "\",\"protocolVersion\":2,\"compatibilityEpoch\":1}\n";
     }
 
     private static long authenticationAccepted(int adminPort) throws Exception {

@@ -95,6 +95,10 @@ def verify_gateway_backend_ca_rotation() -> None:
          str(ROOT / "tools" / "verify_haproxy_backend_ca_rotation.py")], ROOT)
 
 
+def verify_gateway_mixed_version() -> None:
+    run([sys.executable, str(ROOT / "tools" / "verify_gateway_mixed_version.py")], ROOT)
+
+
 def verify_java_performance(args: argparse.Namespace, output: Path) -> None:
     run([
         sys.executable,
@@ -597,6 +601,11 @@ def parse_args() -> argparse.Namespace:
         help="verify HAProxy backend CA expand-migrate-contract rotation",
     )
     parser.add_argument(
+        "--gateway-mixed-version",
+        action="store_true",
+        help="build two committed gateway revisions and verify rolling compatibility",
+    )
+    parser.add_argument(
         "--protocol-bindings",
         action="store_true",
         help="generate and verify V2 C++ and TypeScript client bindings",
@@ -728,6 +737,8 @@ def main() -> int:
         verify_gateway_load_balancer_certificate_rotation()
     if args.gateway_backend_ca_rotation:
         verify_gateway_backend_ca_rotation()
+    if args.gateway_mixed_version:
+        verify_gateway_mixed_version()
     if args.protocol_bindings or args.all:
         verify_protocol_bindings(args.skip_npm_ci)
     if args.db_schema or args.all:
@@ -780,6 +791,7 @@ def main() -> int:
         or args.gateway_load_balancer_reload
         or args.gateway_load_balancer_certificate_rotation
         or args.gateway_backend_ca_rotation
+        or args.gateway_mixed_version
         or args.db_schema
         or args.cmake_headless
         or args.password_hash
@@ -801,6 +813,7 @@ def main() -> int:
             "--gateway-load-balancer-reload, "
             "--gateway-load-balancer-certificate-rotation, "
             "--gateway-backend-ca-rotation, "
+            "--gateway-mixed-version, "
             "--protocol-bindings, "
             "--db-schema, --password-hash, "
             "--cmake-headless, --v1-smoke, --v1-identity-restore, --performance, "
