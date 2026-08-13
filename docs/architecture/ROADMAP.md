@@ -1438,6 +1438,10 @@ Progress:
   authoritative repair, monotonic progress validation, and fail-closed route
   removal after repair failure. Gateway reference counting/renewal composition
   remains default-off (ADR-0354).
+- [x] Add a default-uncomposed boot-lease renewal loop: immediate first renewal,
+  healthy interval no longer than half the 5–60 second lease, bounded fast retry
+  before expiry, explicit `leaseValid=false` at expiry, fixed counters, repeated
+  start rejection, and pending-task cancellation on close.
 
 Work:
 

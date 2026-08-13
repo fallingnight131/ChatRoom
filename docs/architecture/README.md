@@ -1017,6 +1017,9 @@ PostgreSQL sequence repair before any hint affects a connected client.
 ADR-0354 encodes the route visibility race closure: catch up first, publish the
 expiring route, then repair again from the exact contiguous sequence. A failed
 or backwards second repair removes the route before surfacing failure.
+A default-off renewal loop now maintains the boot lease before half-life, retries
+failures before expiry, and exposes an identity-free validity snapshot suitable
+for later readiness composition. It never keeps an expired lease locally valid.
 
 ## 10. Attachment Flow
 

@@ -1363,6 +1363,10 @@ position evidence only, not durable message-cursor evidence.
 Application tests for ADR-0354 prove gateway boot-lease renewal and the required
 catch-up/register/second-repair sequence, including no repair on rejected route
 publication and fail-closed removal after repair failure or backwards progress.
+Gateway operation tests additionally cover the default-off boot-lease loop:
+immediate renewal, half-life-safe healthy scheduling, bounded failure retry at
+the exact expiry boundary, invalid status after expiry, counters, repeated-start
+rejection, and pending-task cancellation.
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound
