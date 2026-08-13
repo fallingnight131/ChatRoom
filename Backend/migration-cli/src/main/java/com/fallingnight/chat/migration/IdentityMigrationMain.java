@@ -1,5 +1,6 @@
 package com.fallingnight.chat.migration;
 
+import com.fallingnight.chat.migration.profile.V1ProfileImageExporter;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ConversationImporter;
@@ -100,6 +101,9 @@ public final class IdentityMigrationMain {
             }
             if (args.length == 6 && "message-apply".equals(args[0])) {
                 return messageApply(args, environment, output);
+            }
+            if (args.length == 4 && "profile-image-export".equals(args[0])) {
+                return profileImageExport(args, output);
             }
             usage(error);
             return 64;
@@ -498,5 +502,23 @@ public final class IdentityMigrationMain {
                 + "<proof.properties> <state-fingerprint> <payload-fingerprint>");
         error.println("  message-apply <v1-source.db> <backup.db> "
                 + "<proof.properties> <state-fingerprint> <payload-fingerprint>");
+        error.println("  profile-image-export <backup.db> <proof.properties> "
+                + "<new-export-directory>");
+    }
+
+    private static int profileImageExport(String[] args, PrintStream output) {
+        VerifiedV1IdentityBackup proof = new V1IdentityBackupProofFile()
+                .read(Path.of(args[2]));
+        var report = new V1ProfileImageExporter().export(
+                Path.of(args[1]), proof, Path.of(args[3]));
+        output.println("status=" + (report.readyToImport()
+                ? "PROFILE_IMAGES_EXPORTED" : "PROFILE_IMAGES_BLOCKED"));
+        output.println("manifest_sha256=" + report.manifestSha256());
+        output.println("entries=" + report.entries());
+        output.println("present=" + report.present());
+        output.println("absent=" + report.absent());
+        output.println("invalid=" + report.invalid());
+        output.println("unique_objects=" + report.uniqueObjects());
+        return report.readyToImport() ? 0 : 2;
     }
 }

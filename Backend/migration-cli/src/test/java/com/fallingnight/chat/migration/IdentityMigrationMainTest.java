@@ -134,6 +134,38 @@ class IdentityMigrationMainTest {
                 Clock.systemUTC()));
     }
 
+    @Test void exportsProofBoundProfileImageManifestWithoutPrintingPrivatePaths()
+            throws Exception {
+        Path source = temporary.resolve("avatar-source.db");
+        Path backup = temporary.resolve("avatar-backup.db");
+        Path proof = temporary.resolve("avatar-proof.properties");
+        Path export = temporary.resolve("avatar-export");
+        createSource(source);
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite:" + source);
+                Statement statement = connection.createStatement()) {
+            statement.execute("CREATE TABLE rooms(id INTEGER PRIMARY KEY)");
+            statement.execute("CREATE TABLE user_avatars(user_id INTEGER PRIMARY KEY, "
+                    + "avatar_data BLOB, updated_at TEXT)");
+            statement.execute("CREATE TABLE room_avatars(room_id INTEGER PRIMARY KEY, "
+                    + "avatar_data BLOB, updated_at TEXT)");
+        }
+        assertEquals(0, IdentityMigrationMain.run(
+                new String[] {"backup", source.toString(), backup.toString(), proof.toString()},
+                Map.of(), new PrintStream(new ByteArrayOutputStream()),
+                new PrintStream(new ByteArrayOutputStream()), Clock.systemUTC()));
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        assertEquals(0, IdentityMigrationMain.run(new String[] {"profile-image-export",
+                    backup.toString(), proof.toString(), export.toString()}, Map.of(),
+                new PrintStream(output, true, StandardCharsets.UTF_8),
+                new PrintStream(new ByteArrayOutputStream()), Clock.systemUTC()));
+        String text = output.toString(StandardCharsets.UTF_8);
+        assertTrue(text.contains("status=PROFILE_IMAGES_EXPORTED"));
+        assertTrue(text.contains("entries=1")); assertTrue(text.contains("absent=1"));
+        assertFalse(text.contains(source.toString())); assertFalse(text.contains(backup.toString()));
+        assertFalse(text.contains("alice"));
+        assertTrue(Files.isRegularFile(export.resolve("profile-images.tsv")));
+    }
+
     @Test
     void verifiesConversationFinalInputWithoutDatabaseOrSensitiveOutput() throws Exception {
         Path source = temporary.resolve("conversation-private-source.db");

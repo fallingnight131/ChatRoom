@@ -9,8 +9,9 @@ additive `message-*` commands then cover retained message text, recalls,
 administrative deletion audit events, translated read sequences, compatibility
 maps, and preserved high watermarks. The `contact-*` commands preserve pending
 friend requests after identity import without fabricating accepted/rejected
-resolution history. Attachment bytes, avatars, and active sessions remain
-outside this runbook.
+resolution history. The profile-image section exports bounded user/room avatar
+evidence only; it does not upload objects or change PostgreSQL. Attachment bytes
+and active sessions remain outside this runbook.
 Completing an apply does not authorize routing user traffic to Java V2.
 
 ## Preconditions
@@ -210,6 +211,34 @@ quiesced source, final backup/proof, and PostgreSQL target.
    `import_run_id` must be non-empty. Verify `chat.message_import_run` through an
    approved read-only database channel. An identical rerun is permitted and
    must report zero insertable messages and entries.
+
+## Profile-image export rehearsal
+
+Run this after creating the final backup/proof pair while every V1 writer is
+still stopped. This command reads only the protected backup and does not require
+PostgreSQL or object-storage credentials:
+
+```bash
+./gradlew --no-daemon :migration-cli:run --args='profile-image-export <final-backup.db> <final-proof.properties> <new-export-directory>'
+```
+
+The source backup must have no adjacent `-wal`, `-shm`, or `-journal` file, and
+the destination must not exist. The command verifies the proof, stages a private
+temporary input copy, checks the identity fingerprint and SQLite integrity,
+then rechecks the protected backup before atomically publishing the export.
+
+Require `status=PROFILE_IMAGES_EXPORTED`, `invalid=0`, and a non-empty
+`manifest_sha256`. Preserve the resulting `profile-images.tsv` and
+`objects/avatars/sha256/<digest>.png` tree together on encrypted,
+access-controlled storage. Every mapped user and room has an explicit manifest
+record: missing/empty source data remains `ABSENT`, exact canonical content is
+deduplicated as `PRESENT`, and malformed or oversized data is `INVALID`.
+
+Exit status 2 or `status=PROFILE_IMAGES_BLOCKED` is a stop condition. Remediate
+invalid source data under a reviewed plan; never silently drop it or edit the
+manifest. This milestone has not yet implemented the independent strict
+manifest verifier or the object-storage/PostgreSQL importer, so the export is
+evidence only and must not be uploaded or used to activate avatar handlers.
 
 ## Stop conditions
 

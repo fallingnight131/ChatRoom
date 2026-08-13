@@ -11,7 +11,9 @@ java {
 dependencies {
     implementation(project(":application"))
     implementation(project(":persistence-postgres"))
+    implementation(project(":profile-image-codec"))
     implementation(libs.postgresql)
+    implementation(libs.sqlite.jdbc)
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

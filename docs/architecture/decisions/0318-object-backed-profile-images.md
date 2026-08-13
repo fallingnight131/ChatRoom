@@ -58,8 +58,11 @@ The inactive mutation service and PostgreSQL guard now also enforce preflight
 authorization, object-before-pointer ordering, and serializable unreferenced-
 object cleanup intent. They are intentionally absent from runtime composition;
 the S3 create-only write adapter and strict detached V1 upload handler are
-implemented but still lack real-provider evidence. Historical import and
-restart recovery also remain activation gates.
+implemented but still lack real-provider evidence. A proof-bound offline
+extractor now turns V1 user/room avatar rows into deterministic canonical PNG
+objects plus an explicit absent/invalid manifest without opening the protected
+backup in place. Strict manifest verification, object/PostgreSQL import, and
+restart recovery remain activation gates.
 
 Cleanup claim concurrency and confirmed-object revival follow ADR-0319.
 The guarded real-provider procedure is documented in

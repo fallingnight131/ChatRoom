@@ -797,6 +797,10 @@ Progress:
     - [x] Add a separately confirmed, auto-cleaning real-provider profile-image
       probe for fresh create-only PUT, exact retry, checksum-bound GET, DELETE,
       and final absence, with secret-safe output and a non-production runbook.
+    - [x] Add proof-bound, deterministic V1 SQLite user/room avatar extraction
+      with explicit absent/invalid records, bounded canonical PNG objects,
+      content deduplication, and a SHA-256 manifest. The export is offline
+      evidence only; strict manifest verification and target import remain.
     - [ ] Retain dated profile-image provider PASS, policy, lifecycle,
       no-object-remains, lease/timeout, rollback, and restart evidence; this
       destructive probe has not run in repository CI or this development host.
