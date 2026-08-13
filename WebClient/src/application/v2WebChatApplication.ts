@@ -5,10 +5,11 @@ import {
   type ConversationEntryRecord,
   type MessageReactionChangedRecord,
   type MessagePinChangedRecord,
+  type MessageEditedRecord,
   type MessageRecord,
 } from "../protocol/v2/generated/messaging_pb";
 import type { V2WebProtocolEvent } from "../protocol/v2/webProtocolClient";
-import { ClientPlatform } from "../protocol/v2/generated/control_pb";
+import { ClientPlatform, ProtocolErrorCode } from "../protocol/v2/generated/control_pb";
 import type {
   V2WebSocketTransportObserver,
   V2WebSocketTransportState,
@@ -20,6 +21,7 @@ const MAX_RETAINED_ACCEPTED_MESSAGES = 500;
 const MAX_PENDING_MESSAGES = 100;
 const MAX_PENDING_REACTIONS = 8;
 const MAX_PENDING_PINS = 8;
+const MAX_PENDING_EDITS = 8;
 const decoder = new TextDecoder("utf-8", { fatal: true });
 const canonicalUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -46,6 +48,8 @@ export interface V2ConversationCacheMessage {
     actorAccountIds: string[];
   }>;
   pinned: boolean;
+  contentRevision: number;
+  editedAtEpochMs: number;
 }
 
 export interface V2ConversationCacheReactionCommand {
@@ -65,11 +69,23 @@ export interface V2ConversationCachePinCommand {
   errorCode: string; requestId?: string;
 }
 
+export interface V2ConversationCacheEditCommand {
+  conversationId: string;
+  messageId: string;
+  expectedRevision: number;
+  proposedContent: string;
+  clientOperationId: string;
+  deliveryState: "sending" | "failed" | "conflict";
+  errorCode: string;
+  requestId?: string;
+}
+
 export interface V2ConversationCacheSnapshot {
   messages: V2ConversationCacheMessage[];
   cursorSequence: string;
   reactionCommands?: V2ConversationCacheReactionCommand[];
   pinCommands?: V2ConversationCachePinCommand[];
+  editCommands?: V2ConversationCacheEditCommand[];
 }
 
 export interface V2ConversationCache {
@@ -81,6 +97,7 @@ export interface V2ConversationCache {
     cursorSequence: string,
     reactionCommands?: V2ConversationCacheReactionCommand[],
     pinCommands?: V2ConversationCachePinCommand[],
+    editCommands?: V2ConversationCacheEditCommand[],
   ): Promise<boolean>;
 }
 
@@ -109,6 +126,8 @@ export interface V2ChatTransport {
   ): string;
   setMessagePin(conversationId: string, messageId: string, pinned: boolean,
     clientOperationId: string): string;
+  editMessage(conversationId: string, messageId: string, expectedRevision: number,
+    text: string, clientOperationId: string): string;
   listDevices(): string;
   revokeDevice(targetDeviceId: string): string;
 }
@@ -146,6 +165,7 @@ export interface V2WebChatSnapshot {
   messages: V2ConversationCacheMessage[];
   reactionCommands: V2ConversationCacheReactionCommand[];
   pinCommands: V2ConversationCachePinCommand[];
+  editCommands: V2ConversationCacheEditCommand[];
   historyLoading: boolean;
   devices: V2ManagedDevice[];
   devicesLoading: boolean;
@@ -166,6 +186,7 @@ type ConversationState = {
   messages: V2ConversationCacheMessage[];
   reactionCommands: V2ConversationCacheReactionCommand[];
   pinCommands: V2ConversationCachePinCommand[];
+  editCommands: V2ConversationCacheEditCommand[];
   cursorSequence: string;
   loading: boolean;
 };
@@ -226,6 +247,7 @@ export class V2WebChatApplication {
       messages: active?.messages.map(cloneMessage) ?? [],
       reactionCommands: active?.reactionCommands.map(cloneReactionCommand) ?? [],
       pinCommands: active?.pinCommands.map((value) => ({ ...value })) ?? [],
+      editCommands: active?.editCommands.map((value) => ({ ...value })) ?? [],
       historyLoading: active?.loading ?? false,
       devices: this.devicesValue.map((device) => ({ ...device })),
       devicesLoading: this.devicesLoadingValue,
@@ -315,7 +337,8 @@ export class V2WebChatApplication {
     this.activeConversationIdValue = conversationId;
     let state = this.conversations.get(conversationId);
     if (!state) {
-      state = { messages: [], reactionCommands: [], pinCommands: [], cursorSequence: "0", loading: true };
+      state = { messages: [], reactionCommands: [], pinCommands: [], editCommands: [],
+        cursorSequence: "0", loading: true };
       this.conversations.set(conversationId, state);
     } else {
       state.loading = true;
@@ -330,6 +353,16 @@ export class V2WebChatApplication {
           .map(normalizeReactionCommand).filter((value): value is V2ConversationCacheReactionCommand => Boolean(value));
         state.pinCommands = (cached.pinCommands ?? []).map(normalizePinCommand)
           .filter((value): value is V2ConversationCachePinCommand => Boolean(value));
+        state.editCommands = [];
+        const cachedEdits = (cached.editCommands ?? []).map(normalizeEditCommand)
+          .filter((value): value is V2ConversationCacheEditCommand => Boolean(value))
+          .slice(-MAX_PENDING_EDITS);
+        for (const command of cachedEdits) {
+          if (!state.editCommands.some((value) => value.messageId === command.messageId
+              || value.clientOperationId === command.clientOperationId)) {
+            state.editCommands.push(command);
+          }
+        }
         state.cursorSequence = normalizeSequence(cached.cursorSequence);
       }
     } catch {
@@ -389,6 +422,8 @@ export class V2WebChatApplication {
       reply: reply ? { ...reply } : null,
       reactions: [],
       pinned: false,
+      contentRevision: 0,
+      editedAtEpochMs: 0,
     };
     state.messages = boundMessages([...state.messages, message]);
     try {
@@ -515,6 +550,87 @@ export class V2WebChatApplication {
     this.persist(command.conversationId); this.emit(); return command.deliveryState === "sending";
   }
 
+  editMessage(messageId: string, text: string): boolean {
+    this.requireActive();
+    if (!this.sessionValue || !this.activeConversationIdValue) return false;
+    requireEditText(text);
+    const state = this.requireConversation(this.activeConversationIdValue);
+    const message = state.messages.find((value) => value.id === messageId);
+    if (!message || message.senderAccountId !== this.sessionValue.accountId
+        || message.deliveryState !== "accepted" || message.availability !== "available"
+        || text === message.content
+        || state.editCommands.some((value) => value.messageId === messageId)) return false;
+    if (state.editCommands.length >= MAX_PENDING_EDITS) {
+      throw new Error("V2 pending edit limit reached");
+    }
+    const command: V2ConversationCacheEditCommand = {
+      conversationId: this.activeConversationIdValue,
+      messageId,
+      expectedRevision: message.contentRevision,
+      proposedContent: text,
+      clientOperationId: this.createClientMessageId(),
+      deliveryState: "sending",
+      errorCode: "",
+    };
+    state.editCommands.push(command);
+    this.persist(command.conversationId);
+    this.dispatchEdit(command);
+    this.persist(command.conversationId);
+    this.emit();
+    return true;
+  }
+
+  retryEdit(clientOperationId: string): boolean {
+    this.requireActive();
+    if (!this.activeConversationIdValue) return false;
+    const state = this.requireConversation(this.activeConversationIdValue);
+    const command = state.editCommands.find((value) =>
+      value.clientOperationId === clientOperationId && value.deliveryState === "failed");
+    if (!command) return false;
+    command.deliveryState = "sending";
+    command.errorCode = "";
+    this.dispatchEdit(command);
+    this.persist(command.conversationId);
+    this.emit();
+    return command.deliveryState === "sending";
+  }
+
+  rebaseEdit(clientOperationId: string): boolean {
+    this.requireActive();
+    if (!this.activeConversationIdValue) return false;
+    const state = this.requireConversation(this.activeConversationIdValue);
+    const command = state.editCommands.find((value) =>
+      value.clientOperationId === clientOperationId && value.deliveryState === "conflict");
+    const message = command
+      ? state.messages.find((value) => value.id === command.messageId)
+      : undefined;
+    if (!command || !message || message.availability !== "available"
+        || message.contentRevision <= command.expectedRevision
+        || message.content === command.proposedContent) return false;
+    command.expectedRevision = message.contentRevision;
+    command.clientOperationId = this.createClientMessageId();
+    command.deliveryState = "sending";
+    command.errorCode = "";
+    command.requestId = undefined;
+    this.dispatchEdit(command);
+    this.persist(command.conversationId);
+    this.emit();
+    return command.deliveryState === "sending";
+  }
+
+  discardEdit(clientOperationId: string): boolean {
+    this.requireActive();
+    if (!this.activeConversationIdValue) return false;
+    const state = this.requireConversation(this.activeConversationIdValue);
+    const before = state.editCommands.length;
+    state.editCommands = state.editCommands.filter((value) =>
+      value.clientOperationId !== clientOperationId);
+    if (state.editCommands.length === before) return false;
+    this.persist(this.activeConversationIdValue);
+    this.emit();
+    return true;
+  }
+
   stop(): void {
     this.requireActive();
     this.selectionGeneration += 1;
@@ -624,6 +740,8 @@ export class V2WebChatApplication {
         break;
       case "message-pin-changed": this.applyPinChanged(event.value); break;
       case "message-pin-applied": this.applyPinApplied(event); break;
+      case "message-edited": this.applyEditedRecord(event.value); break;
+      case "message-edit-applied": this.applyEditApplied(event); break;
       case "message-accepted":
         this.applyMessageAccepted(event);
         break;
@@ -708,15 +826,19 @@ export class V2WebChatApplication {
             recalled.availability = "recalled";
             recalled.pinned = false;
             state.pinCommands = state.pinCommands.filter((value) => value.messageId !== recall.messageId);
+            state.editCommands = state.editCommands.filter((value) => value.messageId !== recall.messageId);
           }
         } else if (entry.detail.case === "deletion") {
           const deleted = new Set(entry.detail.value.messageIds);
           state.messages = state.messages.filter((message) => !deleted.has(message.id));
           state.pinCommands = state.pinCommands.filter((value) => !deleted.has(value.messageId));
+          state.editCommands = state.editCommands.filter((value) => !deleted.has(value.messageId));
         } else if (entry.detail.case === "reaction") {
           this.applyReactionToState(state, entry.detail.value);
         } else if (entry.detail.case === "pin") {
           this.applyPinToState(state, entry.detail.value);
+        } else if (entry.detail.case === "edit") {
+          this.applyEditToState(state, entry.detail.value);
         }
       }
     }
@@ -728,6 +850,7 @@ export class V2WebChatApplication {
     } else {
       this.replayPendingReactions(conversationId, state);
       this.replayPendingPins(conversationId, state);
+      this.replayPendingEdits(conversationId, state);
       this.replayPendingAfterSync(conversationId, state);
     }
   }
@@ -842,6 +965,48 @@ export class V2WebChatApplication {
       value.clientOperationId !== record.clientOperationId);
   }
 
+  private applyEditApplied(event: Extract<V2WebProtocolEvent, { type: "message-edit-applied" }>): void {
+    const state = this.conversations.get(event.value.conversationId);
+    if (!state) return;
+    const command = state.editCommands.find((value) =>
+      value.clientOperationId === event.value.clientOperationId);
+    if (!command) return;
+    const message = state.messages.find((value) => value.id === event.value.messageId);
+    if (message && event.value.contentRevision >= message.contentRevision) {
+      message.content = decoder.decode(event.value.content);
+      message.contentRevision = event.value.contentRevision;
+      message.editedAtEpochMs = Number(event.value.occurredAtEpochMs);
+    }
+    state.editCommands = state.editCommands.filter((value) =>
+      value.clientOperationId !== event.value.clientOperationId);
+    this.persist(event.value.conversationId);
+  }
+
+  private applyEditedRecord(record: MessageEditedRecord): void {
+    const state = this.conversations.get(record.conversationId);
+    if (!state) return;
+    this.applyEditToState(state, record);
+    const cursor = BigInt(state.cursorSequence);
+    if (record.conversationSequence === cursor + 1n) {
+      state.cursorSequence = record.conversationSequence.toString();
+    } else if (record.conversationSequence > cursor + 1n && !state.loading) {
+      state.loading = true;
+      this.transport.readMessageHistory(record.conversationId, cursor, HISTORY_PAGE_SIZE);
+    }
+    this.persist(record.conversationId);
+  }
+
+  private applyEditToState(state: ConversationState, record: MessageEditedRecord): void {
+    const message = state.messages.find((value) => value.id === record.messageId);
+    if (message && record.contentRevision >= message.contentRevision) {
+      message.content = decoder.decode(record.content);
+      message.contentRevision = record.contentRevision;
+      message.editedAtEpochMs = Number(record.occurredAtEpochMs);
+    }
+    state.editCommands = state.editCommands.filter((value) =>
+      value.clientOperationId !== record.clientOperationId);
+  }
+
   private applyProtocolError(event: Extract<V2WebProtocolEvent, { type: "protocol-error" }>): void {
     if (event.requestId === this.deviceListRequestId) {
       this.deviceListRequestId = null;
@@ -886,6 +1051,20 @@ export class V2WebChatApplication {
         command.deliveryState = "failed"; command.errorCode = `PROTOCOL_${event.value.code}`;
         this.persist(conversationId); return;
       }
+      for (const [conversationId, state] of this.conversations) {
+        const command = state.editCommands.find((value) =>
+          value.deliveryState === "sending" && value.requestId === event.requestId);
+        if (!command) continue;
+        command.deliveryState = event.value.code === ProtocolErrorCode.MESSAGE_REVISION_CONFLICT
+          ? "conflict" : "failed";
+        command.errorCode = `PROTOCOL_${event.value.code}`;
+        if (command.deliveryState === "conflict" && !state.loading) {
+          state.loading = true;
+          this.transport.readMessageHistory(conversationId, BigInt(state.cursorSequence), HISTORY_PAGE_SIZE);
+        }
+        this.persist(conversationId);
+        return;
+      }
     }
     this.lastFailureValue = event.value.safeMessage || "V2 protocol error";
   }
@@ -901,6 +1080,7 @@ export class V2WebChatApplication {
       state.cursorSequence,
       state.reactionCommands.map(cloneReactionCommand),
       state.pinCommands.map((value) => ({ ...value })),
+      state.editCommands.map((value) => ({ ...value })),
     ).catch(() => {
       this.lastFailureValue = "V2 cache write failed";
       this.emit();
@@ -936,6 +1116,13 @@ export class V2WebChatApplication {
       try { command.requestId = this.transport.setMessagePin(conversationId, command.messageId,
         command.pinned, command.clientOperationId); }
       catch { command.deliveryState = "failed"; command.errorCode = "TRANSPORT_UNAVAILABLE"; }
+    }
+    this.persist(conversationId);
+  }
+
+  private replayPendingEdits(conversationId: string, state: ConversationState): void {
+    for (const command of state.editCommands.filter((value) => value.deliveryState === "sending")) {
+      this.dispatchEdit(command);
     }
     this.persist(conversationId);
   }
@@ -1000,6 +1187,17 @@ export class V2WebChatApplication {
     this.transport.submitText(message.conversationId, message.clientMessageId, message.content);
   }
 
+  private dispatchEdit(command: V2ConversationCacheEditCommand): void {
+    try {
+      command.requestId = this.transport.editMessage(
+        command.conversationId, command.messageId, command.expectedRevision,
+        command.proposedContent, command.clientOperationId);
+    } catch {
+      command.deliveryState = "failed";
+      command.errorCode = "TRANSPORT_UNAVAILABLE";
+    }
+  }
+
   private clearDeviceState(): void {
     this.devicesValue = [];
     this.deviceFailureValue = "";
@@ -1061,10 +1259,15 @@ function mapMessageRecord(record: MessageRecord): V2ConversationCacheMessage {
     } : null,
     reactions: [],
     pinned: false,
+    contentRevision: record.contentRevision,
+    editedAtEpochMs: Number(record.editedAtEpochMs),
   };
 }
 
 function normalizeCachedMessage(message: V2ConversationCacheMessage): V2ConversationCacheMessage {
+  const candidateRevision = normalizeContentRevision(message.contentRevision);
+  const candidateEditedAt = Math.max(0, Number(message.editedAtEpochMs) || 0);
+  const validEditMetadata = (candidateRevision === 0) === (candidateEditedAt === 0);
   return {
     ...message,
     sequence: normalizeSequence(message.sequence),
@@ -1075,6 +1278,8 @@ function normalizeCachedMessage(message: V2ConversationCacheMessage): V2Conversa
     reply: normalizeReply(message.reply),
     reactions: normalizeReactions(message.reactions),
     pinned: Boolean(message.pinned),
+    contentRevision: validEditMetadata ? candidateRevision : 0,
+    editedAtEpochMs: validEditMetadata ? candidateEditedAt : 0,
   };
 }
 
@@ -1096,6 +1301,8 @@ function cloneMessage(message: V2ConversationCacheMessage): V2ConversationCacheM
       actorAccountIds: [...value.actorAccountIds],
     })),
     pinned: message.pinned,
+    contentRevision: message.contentRevision,
+    editedAtEpochMs: message.editedAtEpochMs,
   };
 }
 
@@ -1105,6 +1312,35 @@ function normalizePinCommand(value: V2ConversationCachePinCommand): V2Conversati
   return { ...value, pinned: Boolean(value.pinned),
     deliveryState: value.deliveryState === "failed" ? "failed" : "sending",
     errorCode: typeof value.errorCode === "string" ? value.errorCode : "" };
+}
+
+function normalizeEditCommand(value: V2ConversationCacheEditCommand): V2ConversationCacheEditCommand | null {
+  if (!canonicalUuid.test(value?.conversationId) || !canonicalUuid.test(value?.messageId)
+      || !value.clientOperationId || value.clientOperationId.length > 128
+      || !Number.isInteger(value.expectedRevision) || value.expectedRevision < 0
+      || value.expectedRevision > 100) return null;
+  try { requireEditText(value.proposedContent); } catch { return null; }
+  return {
+    conversationId: value.conversationId,
+    messageId: value.messageId,
+    expectedRevision: value.expectedRevision,
+    proposedContent: value.proposedContent,
+    clientOperationId: value.clientOperationId,
+    deliveryState: value.deliveryState === "failed" || value.deliveryState === "conflict"
+      ? value.deliveryState : "sending",
+    errorCode: typeof value.errorCode === "string" ? value.errorCode : "",
+  };
+}
+
+function normalizeContentRevision(value: number): number {
+  return Number.isInteger(value) && value >= 0 && value <= 100 ? value : 0;
+}
+
+function requireEditText(value: string): void {
+  if (typeof value !== "string" || !value
+      || new TextEncoder().encode(value).byteLength > 65_536) {
+    throw new Error("text must contain 1..65536 UTF-8 bytes");
+  }
 }
 
 function cloneReactionCommand(

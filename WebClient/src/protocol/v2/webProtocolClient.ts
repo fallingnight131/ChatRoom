@@ -998,7 +998,9 @@ function validateMessageRecord(message: MessageRecord): void {
       || message.acceptedAtEpochMs <= 0n
       || message.contentType !== MessageContentType.TEXT_UTF8
       || message.content.byteLength < 1
-      || message.content.byteLength > MAX_TEXT_BYTES) {
+      || message.content.byteLength > MAX_TEXT_BYTES
+      || message.contentRevision > MAX_CONTENT_REVISIONS
+      || (message.contentRevision === 0) !== (message.editedAtEpochMs === 0n)) {
     throw new Error("invalid message record");
   }
   try { strictDecoder.decode(message.content); }

@@ -9,6 +9,7 @@ export const MAX_CACHED_MESSAGES = 500
 export const MAX_V2_PENDING_MESSAGES = 100
 export const MAX_DRAFT_LENGTH = 10000
 const MAX_SIGNED_SEQUENCE = (1n << 63n) - 1n
+const MAX_V2_PENDING_EDITS = 8
 const CANONICAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export const NON_PERSISTED_MEDIA_FIELDS = Object.freeze([
   'imageData',
@@ -68,6 +69,11 @@ export function sanitizeV2Message(message) {
         targetSenderAccountId: message.reply.targetSenderAccountId
       }
     : null
+  const candidateRevision = Number(message.contentRevision)
+  const candidateEditedAt = Math.max(0, Number(message.editedAtEpochMs) || 0)
+  const validEditMetadata = Number.isInteger(candidateRevision)
+    && candidateRevision >= 0 && candidateRevision <= 100
+    && ((candidateRevision === 0) === (candidateEditedAt === 0))
   return {
     conversationId: String(message.conversationId || ''),
     id: String(message.id || ''),
@@ -87,7 +93,9 @@ export function sanitizeV2Message(message) {
     reactions: Array.isArray(message.reactions)
       ? message.reactions.map(sanitizeV2Reaction).filter(Boolean).slice(0, 6)
       : [],
-    pinned: Boolean(message.pinned)
+    pinned: Boolean(message.pinned),
+    contentRevision: validEditMetadata ? candidateRevision : 0,
+    editedAtEpochMs: validEditMetadata ? candidateEditedAt : 0
   }
 }
 
@@ -132,6 +140,29 @@ function sanitizeV2PinCommand(value) {
     errorCode: typeof value.errorCode === 'string' ? value.errorCode : '' }
 }
 
+function sanitizeV2EditCommand(value) {
+  const expectedRevision = Number(value?.expectedRevision)
+  const proposedContent = typeof value?.proposedContent === 'string' ? value.proposedContent : ''
+  if (!value || typeof value !== 'object'
+      || !CANONICAL_UUID.test(String(value.conversationId || ''))
+      || !CANONICAL_UUID.test(String(value.messageId || ''))
+      || !Number.isInteger(expectedRevision) || expectedRevision < 0 || expectedRevision > 100
+      || new TextEncoder().encode(proposedContent).byteLength < 1
+      || new TextEncoder().encode(proposedContent).byteLength > 65_536
+      || typeof value.clientOperationId !== 'string'
+      || value.clientOperationId.length < 1 || value.clientOperationId.length > 128) return null
+  return {
+    conversationId: value.conversationId,
+    messageId: value.messageId,
+    expectedRevision,
+    proposedContent,
+    clientOperationId: value.clientOperationId,
+    deliveryState: value.deliveryState === 'failed' || value.deliveryState === 'conflict'
+      ? value.deliveryState : 'sending',
+    errorCode: typeof value.errorCode === 'string' ? value.errorCode : ''
+  }
+}
+
 export function v2ConversationCacheKey(accountId, conversationId) {
   return `${String(accountId)}\u001f${String(conversationId)}`
 }
@@ -159,6 +190,10 @@ export function sanitizeV2ConversationRecord(record) {
     pinCommands: Array.isArray(record.pinCommands)
       ? record.pinCommands.map(sanitizeV2PinCommand).filter(Boolean)
         .slice(-MAX_V2_PENDING_MESSAGES)
+      : [],
+    editCommands: Array.isArray(record.editCommands)
+      ? record.editCommands.map(sanitizeV2EditCommand).filter(Boolean)
+        .slice(-MAX_V2_PENDING_EDITS)
       : [],
     cursorSequence: normalizeV2Sequence(record.cursorSequence),
     draft: typeof record.draft === 'string'
@@ -398,10 +433,11 @@ export class IndexedDbConversationCache {
     return sanitizeV2ConversationRecord(record)
   }
 
-  saveV2(accountId, conversationId, messages, cursorSequence, reactionCommands = [], pinCommands = []) {
+  saveV2(accountId, conversationId, messages, cursorSequence, reactionCommands = [], pinCommands = [],
+    editCommands = []) {
     if (!accountId || !conversationId) return Promise.resolve(false)
     const record = sanitizeV2ConversationRecord({
-      accountId, conversationId, messages, cursorSequence, reactionCommands, pinCommands,
+      accountId, conversationId, messages, cursorSequence, reactionCommands, pinCommands, editCommands,
       updatedAt: Date.now()
     })
     this.writeQueue = this.writeQueue.catch(() => {}).then(async () => {

@@ -272,12 +272,25 @@ test('round trips V2 snapshots in an isolated exact-sequence store', async () =>
     clientOperationId: 'pin-1',
     deliveryState: 'sending',
     errorCode: ''
+  }], [{
+    conversationId: '50000000-0000-4000-8000-000000000001',
+    messageId: '60000000-0000-4000-8000-000000000001',
+    expectedRevision: 2,
+    proposedContent: 'edited text',
+    clientOperationId: 'edit-1',
+    deliveryState: 'conflict',
+    errorCode: 'PROTOCOL_9',
+    requestId: 'must-not-persist'
   }])
   const loaded = await cache.loadV2('account-1', 'conversation-1')
   assert.equal(loaded.cursorSequence, '9007199254740993')
   assert.equal(loaded.messages[0].sequence, '9007199254740993')
   assert.equal(loaded.reactionCommands[0].clientOperationId, 'reaction-1')
   assert.equal(loaded.pinCommands[0].clientOperationId, 'pin-1')
+  assert.equal(loaded.editCommands[0].clientOperationId, 'edit-1')
+  assert.equal(loaded.editCommands[0].proposedContent, 'edited text')
+  assert.equal(loaded.editCommands[0].deliveryState, 'conflict')
+  assert.equal('requestId' in loaded.editCommands[0], false)
   await cache.removeV2('account-1', 'conversation-1')
   assert.equal(await cache.loadV2('account-1', 'conversation-1'), null)
 })

@@ -198,6 +198,19 @@ export class V2WebSocketTransport {
     return command.requestId;
   }
 
+  editMessage(
+    conversationId: string,
+    messageId: string,
+    expectedRevision: number,
+    text: string,
+    clientOperationId: string,
+  ): string {
+    const command = this.requireAuthenticated().editMessage(
+      conversationId, messageId, expectedRevision, text, clientOperationId);
+    this.send(command.bytes);
+    return command.requestId;
+  }
+
   listDevices(): string {
     const command = this.requireAuthenticated().listDevices();
     this.send(command.bytes);

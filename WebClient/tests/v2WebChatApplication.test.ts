@@ -26,6 +26,8 @@ import {
   MessageReactionChangedRecordSchema,
   MessagePinAppliedSchema,
   MessagePinChangedRecordSchema,
+  MessageEditAppliedSchema,
+  MessageEditedRecordSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
 import type { V2WebProtocolEvent } from "../src/protocol/v2/webProtocolClient";
 import type {
@@ -90,6 +92,13 @@ class FakeTransport {
     this.calls.push(["pin", conversationId, messageId, pinned, clientOperationId, requestId]);
     return requestId;
   }
+  editMessage(conversationId: string, messageId: string, expectedRevision: number,
+    text: string, clientOperationId: string): string {
+    const requestId = `edit-${this.calls.length}`;
+    this.calls.push(["edit", conversationId, messageId, expectedRevision, text,
+      clientOperationId, requestId]);
+    return requestId;
+  }
   listDevices(): string {
     const requestId = `device-list-${this.calls.length}`;
     this.calls.push(["devices", requestId]);
@@ -111,7 +120,8 @@ class FakeTransport {
 class FakeCache {
   readonly records = new Map<string, { messages: V2ConversationCacheMessage[]; cursorSequence: string;
     reactionCommands?: import("../src/application/v2WebChatApplication").V2ConversationCacheReactionCommand[];
-    pinCommands?: import("../src/application/v2WebChatApplication").V2ConversationCachePinCommand[] }>();
+    pinCommands?: import("../src/application/v2WebChatApplication").V2ConversationCachePinCommand[];
+    editCommands?: import("../src/application/v2WebChatApplication").V2ConversationCacheEditCommand[] }>();
   readonly saves: Array<{ accountId: string; conversationId: string; messages: V2ConversationCacheMessage[]; cursor: string }> = [];
 
   async loadV2(accountId: string, conversationId: string) {
@@ -121,10 +131,12 @@ class FakeCache {
 
   async saveV2(accountId: string, conversationId: string, messages: V2ConversationCacheMessage[], cursor: string,
     reactionCommands: import("../src/application/v2WebChatApplication").V2ConversationCacheReactionCommand[] = [],
-    pinCommands: import("../src/application/v2WebChatApplication").V2ConversationCachePinCommand[] = []) {
+    pinCommands: import("../src/application/v2WebChatApplication").V2ConversationCachePinCommand[] = [],
+    editCommands: import("../src/application/v2WebChatApplication").V2ConversationCacheEditCommand[] = []) {
     this.saves.push({ accountId, conversationId, messages: structuredClone(messages), cursor });
     this.records.set(`${accountId}:${conversationId}`, { messages: structuredClone(messages), cursorSequence: cursor,
-      reactionCommands: structuredClone(reactionCommands), pinCommands: structuredClone(pinCommands) });
+      reactionCommands: structuredClone(reactionCommands), pinCommands: structuredClone(pinCommands),
+      editCommands: structuredClone(editCommands) });
     return true;
   }
 }
@@ -183,6 +195,8 @@ function cachedMessage(overrides: Partial<V2ConversationCacheMessage> = {}): V2C
     availability: "available",
     reply: null,
     reactions: [],
+    contentRevision: overrides.contentRevision ?? 0,
+    editedAtEpochMs: overrides.editedAtEpochMs ?? 0,
     ...overrides,
     pinned: Boolean(overrides.pinned),
   };
@@ -921,5 +935,87 @@ test("persists optimistic pins and advances cursor only from ordered events", as
   }) }));
   assert.equal(cache.records.get(`${ACCOUNT_ID}:${CONVERSATION_ID}`)?.cursorSequence, "2");
   assert.equal(application.snapshot.messages[0]!.pinned, true);
+  application.dispose();
+});
+
+test("persists an edit overlay, preserves conflicts for explicit rebase, and advances only on events", async () => {
+  const transport = new FakeTransport(); const cache = new FakeCache();
+  cache.records.set(`${ACCOUNT_ID}:${CONVERSATION_ID}`, {
+    messages: [cachedMessage({ sequence: "1", content: "original" })], cursorSequence: "1" });
+  const operationIds = [
+    "70000000-0000-4000-8000-000000000010",
+    "70000000-0000-4000-8000-000000000011",
+  ];
+  const application = new V2WebChatApplication({ transport, cache,
+    createClientMessageId: () => operationIds.shift()! });
+  establish(transport); directory(transport); await application.openConversation(CONVERSATION_ID);
+  transport.emit(correlated({ type: "message-history-page", value: create(MessageHistoryPageSchema, {
+    conversationId: CONVERSATION_ID, nextSequence: 1n, latestSequence: 1n, hasMore: false,
+  }) }));
+
+  assert.equal(application.editMessage(MESSAGE_ID, "my proposal"), true);
+  assert.equal(application.snapshot.messages[0]!.content, "original",
+    "optimistic content remains an overlay, not durable truth");
+  assert.equal(application.snapshot.editCommands[0]!.proposedContent, "my proposal");
+  assert.equal(application.snapshot.editCommands[0]!.expectedRevision, 0);
+  const firstRequestId = application.snapshot.editCommands[0]!.requestId!;
+  assert.equal(cache.records.get(`${ACCOUNT_ID}:${CONVERSATION_ID}`)?.editCommands?.length, 1);
+
+  transport.emit({ type: "protocol-error", requestId: firstRequestId, clientMessageId: "",
+    value: create(ProtocolErrorSchema, {
+      code: ProtocolErrorCode.MESSAGE_REVISION_CONFLICT,
+      safeMessage: "message revision conflict",
+    }) });
+  assert.equal(application.snapshot.editCommands[0]!.deliveryState, "conflict");
+  assert.equal(application.snapshot.editCommands[0]!.proposedContent, "my proposal");
+  assert.deepEqual(transport.calls.at(-1)?.slice(0, 3), ["history", CONVERSATION_ID, 1n]);
+
+  const otherOperationId = "70000000-0000-4000-8000-000000000099";
+  transport.emit(correlated({ type: "message-history-page", value: create(MessageHistoryPageSchema, {
+    conversationId: CONVERSATION_ID,
+    entries: [create(ConversationEntryRecordSchema, {
+      conversationId: CONVERSATION_ID, conversationSequence: 2n,
+      detail: { case: "edit", value: create(MessageEditedRecordSchema, {
+        conversationId: CONVERSATION_ID, conversationSequence: 2n, messageId: MESSAGE_ID,
+        contentRevision: 1, contentType: MessageContentType.TEXT_UTF8,
+        content: new TextEncoder().encode("other device"), actorAccountId: ACCOUNT_ID,
+        clientOperationId: otherOperationId, occurredAtEpochMs: BigInt(NOW),
+      }) },
+    })],
+    nextSequence: 2n, latestSequence: 2n, hasMore: false,
+  }) }));
+  assert.equal(application.snapshot.messages[0]!.content, "other device");
+  assert.equal(application.snapshot.messages[0]!.contentRevision, 1);
+  assert.equal(application.snapshot.editCommands[0]!.deliveryState, "conflict");
+
+  const staleOperationId = application.snapshot.editCommands[0]!.clientOperationId;
+  assert.equal(application.rebaseEdit(staleOperationId), true);
+  assert.equal(application.snapshot.editCommands[0]!.expectedRevision, 1);
+  assert.notEqual(application.snapshot.editCommands[0]!.clientOperationId, staleOperationId);
+  const rebased = application.snapshot.editCommands[0]!;
+  const rebasedCall = [...transport.calls].reverse().find((call) => call[0] === "edit")!;
+  assert.deepEqual(rebasedCall.slice(1, 6), [CONVERSATION_ID, MESSAGE_ID, 1,
+    "my proposal", rebased.clientOperationId]);
+
+  transport.emit({ type: "message-edit-applied", requestId: rebased.requestId!, clientMessageId: "",
+    value: create(MessageEditAppliedSchema, {
+      conversationId: CONVERSATION_ID, messageId: MESSAGE_ID, contentRevision: 2,
+      contentType: MessageContentType.TEXT_UTF8, content: new TextEncoder().encode("my proposal"),
+      actorAccountId: ACCOUNT_ID, clientOperationId: rebased.clientOperationId,
+      changed: true, conversationSequence: 3n, occurredAtEpochMs: BigInt(NOW + 1),
+    }) });
+  assert.equal(application.snapshot.editCommands.length, 0);
+  assert.equal(application.snapshot.messages[0]!.content, "my proposal");
+  assert.equal(cache.records.get(`${ACCOUNT_ID}:${CONVERSATION_ID}`)?.cursorSequence, "2",
+    "edit ACK does not advance the mixed cursor");
+
+  transport.emit(correlated({ type: "message-edited", value: create(MessageEditedRecordSchema, {
+    conversationId: CONVERSATION_ID, conversationSequence: 3n, messageId: MESSAGE_ID,
+    contentRevision: 2, contentType: MessageContentType.TEXT_UTF8,
+    content: new TextEncoder().encode("my proposal"), actorAccountId: ACCOUNT_ID,
+    clientOperationId: rebased.clientOperationId, occurredAtEpochMs: BigInt(NOW + 1),
+  }) }));
+  assert.equal(cache.records.get(`${ACCOUNT_ID}:${CONVERSATION_ID}`)?.cursorSequence, "3");
+  assert.equal(application.snapshot.messages[0]!.editedAtEpochMs, NOW + 1);
   application.dispose();
 });
