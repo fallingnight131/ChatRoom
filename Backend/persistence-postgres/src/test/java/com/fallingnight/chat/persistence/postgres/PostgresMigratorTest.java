@@ -101,6 +101,8 @@ import com.fallingnight.chat.application.messaging.MessageReactionKind;
 import com.fallingnight.chat.application.messaging.MessageReactionResult;
 import com.fallingnight.chat.application.messaging.MessagePinCommand;
 import com.fallingnight.chat.application.messaging.MessagePinResult;
+import com.fallingnight.chat.application.messaging.MessageEditCommand;
+import com.fallingnight.chat.application.messaging.MessageEditResult;
 import com.fallingnight.chat.application.security.SecretBytes;
 import com.fallingnight.chat.application.profile.ProfileImageMetadataCommand;
 import com.fallingnight.chat.application.profile.ProfileImageMetadataResult;
@@ -724,6 +726,120 @@ class PostgresMigratorTest {
         assertEquals(6, automatic.conversationSequence());
         assertFalse(automatic.pinned());
         assertTrue(automatic.clientOperationId().startsWith("AUTO_RECALL:"));
+    }
+
+    @Test
+    @Order(15)
+    void editsV2TextWithSerializedRevisionPolicyAndPrivacyCleanup() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID account = UUID.randomUUID();
+        UUID device = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        seedMessageOwner(account, device, conversation);
+        PostgresMessageAdapter messages = new PostgresMessageAdapter(dataSource());
+        MessageSubmissionResult.Accepted target =
+                (MessageSubmissionResult.Accepted) messages.submit(new MessageSubmission(
+                        conversation, account, device, "edit-target", 1,
+                        "original".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        PostgresMessageEditAdapter edits = new PostgresMessageEditAdapter(dataSource());
+        MessageEditCommand first = new MessageEditCommand(
+                conversation, target.messageId(), account, device, 0, 1,
+                "updated".getBytes(java.nio.charset.StandardCharsets.UTF_8), "edit-first");
+
+        List<MessageEditResult.Applied> raced = raceEdit(edits, first);
+        assertEquals(1, raced.stream().filter(result -> !result.duplicate()).count());
+        assertEquals(1, raced.stream().filter(MessageEditResult.Applied::duplicate).count());
+        assertTrue(raced.stream().allMatch(result -> result.contentRevision() == 1));
+        assertTrue(raced.stream().allMatch(result -> result.conversationSequence() == 2));
+        assertEquals(1, count("SELECT count(*) FROM chat.message_edit_event"));
+        assertEquals(1, count("SELECT count(*) FROM chat.message_edit_operation"));
+
+        MessageEditResult.Applied noOp = (MessageEditResult.Applied) edits.edit(
+                new MessageEditCommand(conversation, target.messageId(), account, device, 1, 1,
+                        "updated".getBytes(java.nio.charset.StandardCharsets.UTF_8), "edit-no-op"));
+        assertFalse(noOp.changed());
+        assertEquals(1, noOp.contentRevision());
+        assertEquals(0, noOp.conversationSequence());
+        assertEquals(MessageEditResult.Rejected.STALE_REVISION, edits.edit(
+                new MessageEditCommand(conversation, target.messageId(), account, device, 0, 1,
+                        "stale".getBytes(java.nio.charset.StandardCharsets.UTF_8), "edit-stale")));
+        assertEquals(MessageEditResult.Rejected.STALE_REVISION, edits.edit(
+                new MessageEditCommand(conversation, target.messageId(), account, device, 0, 1,
+                        "stale".getBytes(java.nio.charset.StandardCharsets.UTF_8), "edit-stale")));
+        assertEquals(MessageEditResult.Rejected.IDEMPOTENCY_CONFLICT, edits.edit(
+                new MessageEditCommand(conversation, target.messageId(), account, device, 0, 1,
+                        "changed-key".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        "edit-stale")));
+        assertEquals(MessageEditResult.Rejected.NOT_AUTHORIZED, edits.edit(
+                new MessageEditCommand(conversation, target.messageId(), UUID.randomUUID(),
+                        UUID.randomUUID(), 1, 1, new byte[] {1}, "edit-outsider")));
+
+        MessageSubmissionResult.Accepted expired =
+                (MessageSubmissionResult.Accepted) messages.submit(new MessageSubmission(
+                        conversation, account, device, "edit-expired", 1, new byte[] {1}));
+        MessageSubmissionResult.Accepted limited =
+                (MessageSubmissionResult.Accepted) messages.submit(new MessageSubmission(
+                        conversation, account, device, "edit-limited", 1, new byte[] {1}));
+        MessageSubmissionResult.Accepted legacy =
+                (MessageSubmissionResult.Accepted) messages.submit(new MessageSubmission(
+                        conversation, account, device, "edit-legacy", 1, new byte[] {1}));
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.message SET accepted_at="
+                    + "transaction_timestamp()-interval '16 minutes' WHERE id=?",
+                    expired.messageId());
+            execute(connection, "UPDATE chat.message SET content_revision=100,"
+                    + "edited_at=transaction_timestamp() WHERE id=?", limited.messageId());
+            execute(connection, "INSERT INTO chat.legacy_v1_conversation_map(legacy_kind,"
+                    + "legacy_conversation_id,conversation_id) VALUES ('FRIENDSHIP',919,?)",
+                    conversation);
+            execute(connection, "INSERT INTO chat.legacy_v1_message_map(legacy_kind,"
+                    + "legacy_message_id,legacy_conversation_id,conversation_id,message_id) "
+                    + "VALUES ('FRIENDSHIP',1919,919,?,?)", conversation, legacy.messageId());
+        }
+        assertEquals(MessageEditResult.Rejected.WINDOW_EXPIRED, edits.edit(
+                new MessageEditCommand(conversation, expired.messageId(), account, device, 0, 1,
+                        new byte[] {2}, "edit-expired")));
+        assertEquals(MessageEditResult.Rejected.REVISION_LIMIT, edits.edit(
+                new MessageEditCommand(conversation, limited.messageId(), account, device, 100, 1,
+                        new byte[] {2}, "edit-limited")));
+        assertEquals(MessageEditResult.Rejected.NOT_AUTHORIZED, edits.edit(
+                new MessageEditCommand(conversation, legacy.messageId(), account, device, 0, 1,
+                        new byte[] {2}, "edit-legacy")));
+
+        MessageSubmissionResult.Accepted deleted =
+                (MessageSubmissionResult.Accepted) messages.submit(new MessageSubmission(
+                        conversation, account, device, "edit-delete", 1, new byte[] {1}));
+        MessageEditResult.Applied deletedEdit = (MessageEditResult.Applied) edits.edit(
+                new MessageEditCommand(conversation, deleted.messageId(), account, device, 0, 1,
+                        new byte[] {2}, "edit-delete-first"));
+        try (Connection connection = connect()) {
+            long recallSequence = deletedEdit.conversationSequence() + 1;
+            long deletionSequence = recallSequence + 1;
+            execute(connection, "UPDATE chat.conversation SET next_sequence=? WHERE id=?",
+                    deletionSequence + 1, conversation);
+            execute(connection, "INSERT INTO chat.conversation_entry VALUES "
+                    + "(?,?,'MESSAGE_RECALLED',transaction_timestamp())",
+                    conversation, recallSequence);
+            execute(connection, "INSERT INTO chat.message_recall_event(conversation_id,"
+                    + "conversation_sequence,message_id,actor_account_id,source) "
+                    + "VALUES (?,?,?,?,'V2')", conversation, recallSequence,
+                    target.messageId(), account);
+            execute(connection, "INSERT INTO chat.conversation_entry VALUES "
+                    + "(?,?,'MESSAGES_DELETED',transaction_timestamp())",
+                    conversation, deletionSequence);
+            execute(connection, "INSERT INTO chat.messages_deleted_event(conversation_id,"
+                    + "conversation_sequence,actor_account_id,source,mode,client_operation_id,"
+                    + "command_fingerprint,message_ids,deleted_count) VALUES "
+                    + "(?,?,?,'V2','MESSAGE_IDS','edit-delete-cleanup','fixture',"
+                    + "?::jsonb,1)", conversation, deletionSequence, account,
+                    "[\"" + deleted.messageId() + "\"]");
+        }
+        assertEquals(0, count("SELECT count(*) FROM chat.message_edit_event "
+                + "WHERE content IS NOT NULL AND message_id IN ('" + target.messageId()
+                + "','" + deleted.messageId() + "')"));
+        assertEquals(2, count("SELECT count(*) FROM chat.message_edit_event "
+                + "WHERE content IS NULL AND content_erased_at IS NOT NULL"));
     }
 
     @Test
@@ -4374,6 +4490,30 @@ class PostgresMigratorTest {
             return List.of(
                     (MessageReactionResult.Applied) futures.get(0).get(),
                     (MessageReactionResult.Applied) futures.get(1).get());
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
+        }
+    }
+
+    private static List<MessageEditResult.Applied> raceEdit(
+            PostgresMessageEditAdapter adapter, MessageEditCommand command) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<Future<MessageEditResult>> futures = java.util.stream.IntStream.range(0, 2)
+                    .mapToObj(index -> executor.submit(() -> {
+                        ready.countDown();
+                        assertTrue(start.await(2, TimeUnit.SECONDS));
+                        return adapter.edit(command);
+                    }))
+                    .toList();
+            assertTrue(ready.await(2, TimeUnit.SECONDS));
+            start.countDown();
+            return List.of((MessageEditResult.Applied) futures.get(0).get(),
+                    (MessageEditResult.Applied) futures.get(1).get());
         } finally {
             start.countDown();
             executor.shutdownNow();

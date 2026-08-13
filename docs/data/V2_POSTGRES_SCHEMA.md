@@ -527,8 +527,14 @@ in the same transaction. The legacy mapping remains the authority for detecting
 V1-authored messages, so the main message row does not gain a denormalized source
 flag. The application command/result port validates strict UTF-8 text, the
 65,536-byte edit bound, operation IDs, revisions, and changed/sequence shape.
-The gateway still does not advertise or invoke message editing; serialized
-authorization and mutation are the next expansion step.
+`PostgresMessageEditAdapter` now locks the target message and conversation,
+authorizes the active author/device, excludes V1-mapped, recalled, deleted, and
+non-text targets, and uses database time for the fixed 15-minute window. Exact
+concurrent retries converge through the digest-bound operation row; stale,
+expired, and revision-limit outcomes are durable, while changed edits alone
+update the current body and consume one mixed sequence. The gateway still does
+not advertise or invoke message editing; current-message and ordered-history
+projection are the next expansion step.
 
 ## Bounds and indexes
 

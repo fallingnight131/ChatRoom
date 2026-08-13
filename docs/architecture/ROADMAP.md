@@ -1457,8 +1457,11 @@ Progress:
     - [x] Add V047 current revision metadata, digest-bound operation outcomes,
       ordered edit events with privacy erasure, and transport-neutral command/
       result ports while runtime capability paths remain off.
-    - [ ] Implement the serialized PostgreSQL authority, filtered history, and
-      recall/deletion cleanup integration tests.
+    - [x] Implement serialized PostgreSQL authority with exact concurrent
+      replay, author/member/V2-origin/window/revision policy, changed-only
+      sequence allocation, and recall/deletion body-erasure integration tests.
+    - [ ] Project current revision metadata and capability-filtered ordered edit
+      history without stalling sequence cursors.
   - [ ] Compose authenticated gateway mutation, capability-filtered history,
     capable-only live fan-out, bounded telemetry, and opaque conflict paths.
   - [ ] Add offline-safe Web and Windows edit overlays/outboxes, explicit
