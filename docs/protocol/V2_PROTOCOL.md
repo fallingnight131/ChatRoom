@@ -155,10 +155,16 @@ Types 114/115/116 and `MESSAGE_EDITS` define the generated revision-safe text
 editing wire contract but remain runtime-inactive. A command carries the target, expected content
 revision, bounded UTF-8 replacement, and stable operation ID. Only a changed
 author-owned V2 message edit increments the revision and consumes a mixed
-conversation sequence; ACKs never advance the client cursor. PostgreSQL,
+conversation sequence; ACKs never advance the client cursor. PostgreSQL and
 Java/C++/TypeScript lock the same bounded command bytes and structural revision
-invariants. Gateway, history/live filtering, revision cleanup, and both clients' explicit
-offline-conflict gates are required before negotiation (ADR-0341).
+invariants. The default-off gateway handler binds actor and device from the
+authenticated session, returns stable error codes 9--11 for revision/window/
+limit outcomes, includes current revision metadata, and emits only capable,
+non-erased edit history details. `next_sequence` may therefore be greater than
+the last visible detail when capability or privacy filtering hides an ordered
+entry; it must never trail a visible detail. Runtime composition, live
+filtering, telemetry, and both clients' explicit offline-conflict gates are
+still required before negotiation (ADR-0341).
 
 `ListConversations` uses a limit of 1..100 and either no cursor or the complete
 pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are

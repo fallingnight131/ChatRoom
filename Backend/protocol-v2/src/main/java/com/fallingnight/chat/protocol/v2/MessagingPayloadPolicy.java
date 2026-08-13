@@ -218,8 +218,8 @@ public final class MessagingPayloadPolicy {
             previousEntry = entry.getConversationSequence();
         }
         long last = page.getEntriesCount() == 0 ? previous : previousEntry;
-        if (last != 0 && page.getNextSequence() != last) {
-            violations.add("nextSequence must equal the last history sequence");
+        if (last != 0 && page.getNextSequence() < last) {
+            violations.add("nextSequence must not trail the last visible history sequence");
         }
         requireNone(violations);
     }

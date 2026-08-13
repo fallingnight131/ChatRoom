@@ -24,6 +24,8 @@ import com.fallingnight.chat.application.messaging.MessageReactionKind;
 import com.fallingnight.chat.application.messaging.MessageReactionResult;
 import com.fallingnight.chat.application.messaging.MessagePinCommand;
 import com.fallingnight.chat.application.messaging.MessagePinResult;
+import com.fallingnight.chat.application.messaging.MessageEditCommand;
+import com.fallingnight.chat.application.messaging.MessageEditResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.ClientCapability;
@@ -46,6 +48,8 @@ import com.fallingnight.chat.protocol.v2.SetMessageReaction;
 import com.fallingnight.chat.protocol.v2.SetMessagePin;
 import com.fallingnight.chat.protocol.v2.MessagePinApplied;
 import com.fallingnight.chat.protocol.v2.MessagePinChangedRecord;
+import com.fallingnight.chat.protocol.v2.EditMessage;
+import com.fallingnight.chat.protocol.v2.MessageEditApplied;
 import com.google.protobuf.ByteString;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.time.Clock;
@@ -247,8 +251,10 @@ class V2MessagingHandlerTest {
             channel.writeInbound(historyEnvelope(9, 25));
             channel.runPendingTasks();
 
-            MessageHistoryPage page = MessageHistoryPage.parseFrom(
-                    ((Envelope) channel.readOutbound()).getPayload());
+            Envelope historyResponse = channel.readOutbound();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    historyResponse.getMessageType());
+            MessageHistoryPage page = MessageHistoryPage.parseFrom(historyResponse.getPayload());
             assertEquals(0, page.getMessagesCount());
             assertEquals(2, page.getEntriesCount());
             assertEquals(0, page.getEntries(0).getRecall().getOccurredAtEpochMs());
@@ -427,6 +433,74 @@ class V2MessagingHandlerTest {
             MessagePinChangedRecord changed =
                     MessagePinChangedRecord.parseFrom(event.getPayload());
             assertEquals("pin-add", changed.getClientOperationId());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void gatesAppliesAndFiltersMessageEditsWithStableConflictCodes() throws Exception {
+        AtomicReference<MessageEditCommand> captured = new AtomicReference<>();
+        ConversationHistoryEntry.Edit visible = new ConversationHistoryEntry.Edit(
+                CONVERSATION_ID, 8, MESSAGE_ID, 1, 1, ByteString.copyFromUtf8("updated")
+                        .toByteArray(), false, ACCOUNT_ID, "edit-history", ACCEPTED_AT);
+        ConversationHistoryEntry.Edit erased = new ConversationHistoryEntry.Edit(
+                CONVERSATION_ID, 9, MESSAGE_ID, 2, 1, new byte[0], true,
+                ACCOUNT_ID, "edit-erased", ACCEPTED_AT);
+        MessageHistoryResult.Page stored = new MessageHistoryResult.Page(
+                List.of(), List.of(visible, erased), 9, 9, false);
+        EmbeddedChannel channel = new EmbeddedChannel(new V2MessagingHandler(
+                submission -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                query -> stored,
+                query -> new ConversationDirectoryPage(List.of(), Optional.empty(), false),
+                command -> MessageReactionResult.Rejected.NOT_AUTHORIZED,
+                command -> MessagePinResult.Rejected.NOT_AUTHORIZED,
+                command -> {
+                    captured.set(command);
+                    if (command.clientOperationId().equals("edit-stale")) {
+                        return MessageEditResult.Rejected.STALE_REVISION;
+                    }
+                    return new MessageEditResult.Applied(
+                            command.conversationId(), command.messageId(),
+                            command.actorAccountId(), 1, command.contentType(), command.content(),
+                            command.clientOperationId(), true, 8, ACCEPTED_AT, false);
+                }, Runnable::run, MessagingEventSink.noop(), ConversationLiveRouter.noop()));
+        channel.attr(V2ConnectionAttributes.AUTHENTICATED).set(
+                new AuthenticatedConnection(ACCOUNT_ID, DEVICE_ID, SESSION_ID));
+        try {
+            channel.writeInbound(editEnvelope("edit-denied", 0, "updated"));
+            assertError(channel,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_UNSUPPORTED_MESSAGE_TYPE, false);
+            assertNull(captured.get());
+
+            channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(Set.of(
+                    ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS));
+            channel.writeInbound(historyEnvelope(0, 10));
+            channel.runPendingTasks();
+            Envelope editHistoryResponse = channel.readOutbound();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    editHistoryResponse.getMessageType());
+            MessageHistoryPage page = MessageHistoryPage.parseFrom(
+                    editHistoryResponse.getPayload());
+            assertEquals(1, page.getEntriesCount());
+            assertEquals(9, page.getNextSequence());
+            assertEquals("edit-history", page.getEntries(0).getEdit().getClientOperationId());
+
+            channel.writeInbound(editEnvelope("edit-first", 0, "updated"));
+            channel.runPendingTasks();
+            assertEquals(ACCOUNT_ID, captured.get().actorAccountId());
+            assertEquals(DEVICE_ID, captured.get().actorDeviceId());
+            Envelope response = channel.readOutbound();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_EDIT_APPLIED_VALUE,
+                    response.getMessageType());
+            MessageEditApplied applied = MessageEditApplied.parseFrom(response.getPayload());
+            assertEquals(1, applied.getContentRevision());
+            assertEquals("updated", applied.getContent().toStringUtf8());
+
+            channel.writeInbound(editEnvelope("edit-stale", 0, "stale"));
+            channel.runPendingTasks();
+            assertError(channel,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_MESSAGE_REVISION_CONFLICT, false);
         } finally {
             channel.finishAndReleaseAll();
         }
@@ -739,6 +813,20 @@ class V2MessagingHandlerTest {
                 .setMessageId(MESSAGE_ID.toString()).setPinned(pinned)
                 .setClientOperationId(operationId).build();
         return commandEnvelope(MessageType.MESSAGE_TYPE_SET_MESSAGE_PIN, "",
+                payload.toByteString());
+    }
+
+    private static Envelope editEnvelope(
+            String operationId, int expectedRevision, String content) {
+        EditMessage payload = EditMessage.newBuilder()
+                .setConversationId(CONVERSATION_ID.toString())
+                .setMessageId(MESSAGE_ID.toString())
+                .setExpectedRevision(expectedRevision)
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
+                .setContent(ByteString.copyFromUtf8(content))
+                .setClientOperationId(operationId)
+                .build();
+        return commandEnvelope(MessageType.MESSAGE_TYPE_EDIT_MESSAGE, "",
                 payload.toByteString());
     }
 

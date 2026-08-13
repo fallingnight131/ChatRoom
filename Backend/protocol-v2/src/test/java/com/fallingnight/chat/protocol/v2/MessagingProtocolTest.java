@@ -308,6 +308,11 @@ class MessagingProtocolTest {
         MessagingPayloadPolicy.requireValid(page.getEntries(2).getReaction());
         MessagingPayloadPolicy.requireValid(page.getEntries(3).getPin());
         MessagingPayloadPolicy.requireValid(page.getEntries(4).getEdit());
+        MessagingPayloadPolicy.requireValid(page.toBuilder()
+                .setNextSequence(6).setLatestSequence(6).build());
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(page.toBuilder()
+                        .setNextSequence(4).build()));
         assertThrows(IllegalArgumentException.class, () ->
                 MessagingPayloadPolicy.requireValid(page.toBuilder()
                         .setEntries(2, page.getEntries(2).toBuilder()

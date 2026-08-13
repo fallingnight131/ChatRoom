@@ -19,6 +19,9 @@ import com.fallingnight.chat.application.messaging.MessageReactionResult;
 import com.fallingnight.chat.application.messaging.MessagePinCommand;
 import com.fallingnight.chat.application.messaging.MessagePinPort;
 import com.fallingnight.chat.application.messaging.MessagePinResult;
+import com.fallingnight.chat.application.messaging.MessageEditCommand;
+import com.fallingnight.chat.application.messaging.MessageEditPort;
+import com.fallingnight.chat.application.messaging.MessageEditResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.ConversationDirectoryRecord;
@@ -47,6 +50,9 @@ import com.fallingnight.chat.protocol.v2.SetMessageReaction;
 import com.fallingnight.chat.protocol.v2.SetMessagePin;
 import com.fallingnight.chat.protocol.v2.MessagePinApplied;
 import com.fallingnight.chat.protocol.v2.MessagePinChangedRecord;
+import com.fallingnight.chat.protocol.v2.EditMessage;
+import com.fallingnight.chat.protocol.v2.MessageEditApplied;
+import com.fallingnight.chat.protocol.v2.MessageEditedRecord;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.channel.ChannelHandlerContext;
@@ -68,6 +74,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
     private final MessageHistoryPort history;
     private final MessageReactionPort reactions;
     private final MessagePinPort pins;
+    private final MessageEditPort edits;
     private final ConversationDirectoryPort directory;
     private final Executor executor;
     private final MessagingEventSink events;
@@ -141,7 +148,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
         this(submissions, history, query -> new ConversationDirectoryPage(
                 java.util.List.of(), Optional.empty(), false), executor, events,
                 liveRouter, command -> MessageReactionResult.Rejected.NOT_AUTHORIZED,
-                command -> MessagePinResult.Rejected.NOT_AUTHORIZED, clock);
+                command -> MessagePinResult.Rejected.NOT_AUTHORIZED,
+                command -> MessageEditResult.Rejected.NOT_AUTHORIZED, clock);
     }
 
     V2MessagingHandler(
@@ -154,7 +162,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
         this(submissions, history, directory, executor, events,
                 ConversationLiveRouter.noop(), command ->
                         MessageReactionResult.Rejected.NOT_AUTHORIZED,
-                command -> MessagePinResult.Rejected.NOT_AUTHORIZED, clock);
+                command -> MessagePinResult.Rejected.NOT_AUTHORIZED,
+                command -> MessageEditResult.Rejected.NOT_AUTHORIZED, clock);
     }
 
     V2MessagingHandler(
@@ -167,7 +176,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             Clock clock) {
         this(submissions, history, directory, executor, events, liveRouter,
                 command -> MessageReactionResult.Rejected.NOT_AUTHORIZED,
-                command -> MessagePinResult.Rejected.NOT_AUTHORIZED, clock);
+                command -> MessagePinResult.Rejected.NOT_AUTHORIZED,
+                command -> MessageEditResult.Rejected.NOT_AUTHORIZED, clock);
     }
 
     public V2MessagingHandler(
@@ -179,7 +189,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessagingEventSink events,
             ConversationLiveRouter liveRouter) {
         this(submissions, history, directory, executor, events, liveRouter, reactions,
-                command -> MessagePinResult.Rejected.NOT_AUTHORIZED, Clock.systemUTC());
+                command -> MessagePinResult.Rejected.NOT_AUTHORIZED,
+                command -> MessageEditResult.Rejected.NOT_AUTHORIZED, Clock.systemUTC());
     }
 
     public V2MessagingHandler(
@@ -192,7 +203,21 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessagingEventSink events,
             ConversationLiveRouter liveRouter) {
         this(submissions, history, directory, executor, events, liveRouter, reactions, pins,
-                Clock.systemUTC());
+                command -> MessageEditResult.Rejected.NOT_AUTHORIZED, Clock.systemUTC());
+    }
+
+    public V2MessagingHandler(
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            Executor executor,
+            MessagingEventSink events,
+            ConversationLiveRouter liveRouter) {
+        this(submissions, history, directory, executor, events, liveRouter, reactions, pins,
+                edits, Clock.systemUTC());
     }
 
     private V2MessagingHandler(
@@ -204,11 +229,13 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             ConversationLiveRouter liveRouter,
             MessageReactionPort reactions,
             MessagePinPort pins,
+            MessageEditPort edits,
             Clock clock) {
         this.submissions = Objects.requireNonNull(submissions, "submissions");
         this.history = Objects.requireNonNull(history, "history");
         this.reactions = Objects.requireNonNull(reactions, "reactions");
         this.pins = Objects.requireNonNull(pins, "pins");
+        this.edits = Objects.requireNonNull(edits, "edits");
         this.directory = Objects.requireNonNull(directory, "directory");
         this.executor = Objects.requireNonNull(executor, "executor");
         this.events = Objects.requireNonNull(events, "events");
@@ -232,6 +259,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 && type != MessageType.MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE
                 && type != MessageType.MESSAGE_TYPE_SET_MESSAGE_REACTION
                 && type != MessageType.MESSAGE_TYPE_SET_MESSAGE_PIN
+                && type != MessageType.MESSAGE_TYPE_EDIT_MESSAGE
                 && type != MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY
                 && type != MessageType.MESSAGE_TYPE_LIST_CONVERSATIONS) {
             writeError(
@@ -256,6 +284,12 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             writeError(context, envelope,
                     ProtocolErrorCode.PROTOCOL_ERROR_CODE_UNSUPPORTED_MESSAGE_TYPE,
                     "message pins were not negotiated", false);
+            return;
+        }
+        if (type == MessageType.MESSAGE_TYPE_EDIT_MESSAGE && !hasEditCapability(context)) {
+            writeError(context, envelope,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_UNSUPPORTED_MESSAGE_TYPE,
+                    "message edits were not negotiated", false);
             return;
         }
         if (envelope.getKind() != MessageKind.MESSAGE_KIND_COMMAND) {
@@ -371,6 +405,15 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     UUID.fromString(payload.getMessageId()), identity.accountId(),
                     identity.deviceId(), payload.getPinned(), payload.getClientOperationId()));
         }
+        if (type == MessageType.MESSAGE_TYPE_EDIT_MESSAGE) {
+            EditMessage payload = EditMessage.parseFrom(envelope.getPayload());
+            MessagingPayloadPolicy.requireValid(payload);
+            return new EditWork(new MessageEditCommand(
+                    UUID.fromString(payload.getConversationId()),
+                    UUID.fromString(payload.getMessageId()), identity.accountId(),
+                    identity.deviceId(), payload.getExpectedRevision(), payload.getContentType(),
+                    payload.getContent().toByteArray(), payload.getClientOperationId()));
+        }
         if (type == MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY) {
             ReadMessageHistory payload = ReadMessageHistory.parseFrom(envelope.getPayload());
             MessagingPayloadPolicy.requireValid(payload);
@@ -378,7 +421,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     UUID.fromString(payload.getConversationId()),
                     identity.accountId(),
                     payload.getAfterSequence(),
-                    payload.getLimit()), hasReactionCapability(context), hasPinCapability(context));
+                    payload.getLimit()), hasReactionCapability(context), hasPinCapability(context),
+                    hasEditCapability(context));
         }
         ListConversations payload = ListConversations.parseFrom(envelope.getPayload());
         ConversationPayloadPolicy.requireValid(payload);
@@ -414,11 +458,14 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 response = pinResponse(request, result);
                 if (result instanceof MessagePinResult.Applied applied
                         && applied.changed() && !applied.duplicate()) pinPublication = applied;
+            } else if (work instanceof EditWork edit) {
+                MessageEditResult result = edits.edit(edit.command());
+                response = editResponse(request, result);
             } else if (work instanceof HistoryWork read) {
                 response = historyResponse(
                         request, read.query(), liveRouter.readAndSubscribe(
                                 context.channel(), read.query(), history),
-                        read.reactionsEnabled(), read.pinsEnabled());
+                        read.reactionsEnabled(), read.pinsEnabled(), read.editsEnabled());
             } else {
                 DirectoryWork list = (DirectoryWork) work;
                 response = directoryResponse(request, directory.list(list.query()));
@@ -553,7 +600,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessageHistoryQuery query,
             MessageHistoryResult result,
             boolean reactionsEnabled,
-            boolean pinsEnabled) {
+            boolean pinsEnabled,
+            boolean editsEnabled) {
         if (result == MessageHistoryResult.Rejected.NOT_AUTHORIZED) {
             events.denied();
             return errorEnvelope(
@@ -620,6 +668,18 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                         .setActorAccountId(pin.actorAccountId().toString())
                         .setClientOperationId(pin.clientOperationId())
                         .setOccurredAtEpochMs(pin.occurredAt().toEpochMilli()));
+            } else if (entry instanceof ConversationHistoryEntry.Edit edit) {
+                if (!editsEnabled || edit.contentErased()) continue;
+                encoded.setEdit(MessageEditedRecord.newBuilder()
+                        .setConversationId(edit.conversationId().toString())
+                        .setConversationSequence(edit.conversationSequence())
+                        .setMessageId(edit.messageId().toString())
+                        .setContentRevision(edit.contentRevision())
+                        .setContentType(edit.contentType())
+                        .setContent(ByteString.copyFrom(edit.content()))
+                        .setActorAccountId(edit.actorAccountId().toString())
+                        .setClientOperationId(edit.clientOperationId())
+                        .setOccurredAtEpochMs(edit.occurredAt().toEpochMilli()));
             }
             payload.addEntries(encoded);
         }
@@ -640,7 +700,9 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 .setClientMessageId(message.clientMessageId())
                 .setContentType(message.messageType())
                 .setContent(ByteString.copyFrom(message.payload()))
-                .setAcceptedAtEpochMs(message.acceptedAt().toEpochMilli());
+                .setAcceptedAtEpochMs(message.acceptedAt().toEpochMilli())
+                .setContentRevision(message.contentRevision())
+                .setEditedAtEpochMs(message.editedAt().map(Instant::toEpochMilli).orElse(0L));
         message.reply().ifPresent(reply -> record.setReply(
                 com.fallingnight.chat.protocol.v2.MessageReplyReference.newBuilder()
                         .setTargetMessageId(reply.targetMessageId().toString())
@@ -696,6 +758,59 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 context.channel().attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get();
         return capabilities != null && capabilities.contains(
                 ClientCapability.CLIENT_CAPABILITY_MESSAGE_PINS);
+    }
+
+    private static boolean hasEditCapability(ChannelHandlerContext context) {
+        java.util.Set<ClientCapability> capabilities =
+                context.channel().attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get();
+        return capabilities != null && capabilities.contains(
+                ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS);
+    }
+
+    private Envelope editResponse(Envelope request, MessageEditResult result) {
+        if (result == MessageEditResult.Rejected.NOT_AUTHORIZED) {
+            events.denied();
+            return errorEnvelope(request, ProtocolErrorCode.PROTOCOL_ERROR_CODE_NOT_AUTHORIZED,
+                    "not authorized", false);
+        }
+        if (result == MessageEditResult.Rejected.IDEMPOTENCY_CONFLICT) {
+            events.conflict();
+            return errorEnvelope(request,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_IDEMPOTENCY_CONFLICT,
+                    "client operation id conflicts with an accepted edit", false);
+        }
+        if (result == MessageEditResult.Rejected.STALE_REVISION) {
+            events.conflict();
+            return errorEnvelope(request,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_MESSAGE_REVISION_CONFLICT,
+                    "message revision conflict", false);
+        }
+        if (result == MessageEditResult.Rejected.WINDOW_EXPIRED) {
+            return errorEnvelope(request,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_MESSAGE_EDIT_WINDOW_EXPIRED,
+                    "message edit window expired", false);
+        }
+        if (result == MessageEditResult.Rejected.REVISION_LIMIT) {
+            return errorEnvelope(request,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_MESSAGE_EDIT_REVISION_LIMIT,
+                    "message edit revision limit reached", false);
+        }
+        MessageEditResult.Applied applied = (MessageEditResult.Applied) result;
+        MessageEditApplied payload = MessageEditApplied.newBuilder()
+                .setConversationId(applied.conversationId().toString())
+                .setMessageId(applied.messageId().toString())
+                .setContentRevision(applied.contentRevision())
+                .setContentType(applied.contentType())
+                .setContent(ByteString.copyFrom(applied.content()))
+                .setActorAccountId(applied.actorAccountId().toString())
+                .setClientOperationId(applied.clientOperationId())
+                .setChanged(applied.changed())
+                .setConversationSequence(applied.conversationSequence())
+                .setOccurredAtEpochMs(applied.occurredAt().toEpochMilli())
+                .setDuplicate(applied.duplicate()).build();
+        MessagingPayloadPolicy.requireValid(payload);
+        return responseEnvelope(request, MessageType.MESSAGE_TYPE_MESSAGE_EDIT_APPLIED,
+                payload.toByteString());
     }
 
     private Envelope pinResponse(Envelope request, MessagePinResult result) {
@@ -846,12 +961,15 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
     private record SubmitWork(MessageSubmission submission) implements Work {}
 
     private record HistoryWork(
-            MessageHistoryQuery query, boolean reactionsEnabled, boolean pinsEnabled)
+            MessageHistoryQuery query, boolean reactionsEnabled, boolean pinsEnabled,
+            boolean editsEnabled)
             implements Work {}
 
     private record ReactionWork(MessageReactionCommand command) implements Work {}
 
     private record PinWork(MessagePinCommand command) implements Work {}
+
+    private record EditWork(MessageEditCommand command) implements Work {}
 
     private record DirectoryWork(ConversationDirectoryQuery query) implements Work {}
 }
