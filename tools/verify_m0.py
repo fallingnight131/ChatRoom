@@ -77,6 +77,10 @@ def verify_gateway_crash(output: Path | None) -> None:
     run(command, ROOT)
 
 
+def verify_gateway_forced_drain() -> None:
+    run([sys.executable, str(ROOT / "tools" / "verify_gateway_forced_drain.py")], ROOT)
+
+
 def verify_java_performance(args: argparse.Namespace, output: Path) -> None:
     run([
         sys.executable,
@@ -559,6 +563,11 @@ def parse_args() -> argparse.Namespace:
         help="write bounded HAProxy crash/reconnect performance evidence",
     )
     parser.add_argument(
+        "--gateway-forced-drain",
+        action="store_true",
+        help="verify HAProxy withdrawal and bounded forced WebSocket drain",
+    )
+    parser.add_argument(
         "--protocol-bindings",
         action="store_true",
         help="generate and verify V2 C++ and TypeScript client bindings",
@@ -682,6 +691,8 @@ def main() -> int:
         verify_gateway_load_balancer_runtime()
     if args.gateway_crash:
         verify_gateway_crash(args.gateway_crash_output)
+    if args.gateway_forced_drain:
+        verify_gateway_forced_drain()
     if args.protocol_bindings or args.all:
         verify_protocol_bindings(args.skip_npm_ci)
     if args.db_schema or args.all:
@@ -730,6 +741,7 @@ def main() -> int:
         or args.gateway_load_balancer_config
         or args.gateway_load_balancer_runtime
         or args.gateway_crash
+        or args.gateway_forced_drain
         or args.db_schema
         or args.cmake_headless
         or args.password_hash
@@ -747,6 +759,7 @@ def main() -> int:
             "--gateway-load-balancer-config, "
             "--gateway-load-balancer-runtime, "
             "--gateway-crash, "
+            "--gateway-forced-drain, "
             "--protocol-bindings, "
             "--db-schema, --password-hash, "
             "--cmake-headless, --v1-smoke, --v1-identity-restore, --performance, "

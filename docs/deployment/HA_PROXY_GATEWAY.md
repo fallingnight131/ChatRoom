@@ -82,6 +82,18 @@ expiry, survivor placement, PostgreSQL history repair, and ordered delivery to
 converge. It proves a single same-host process loss, not correlated host loss or
 reconnect-storm capacity (ADR-0373).
 
+Verify the forced end of the drain window with:
+
+```bash
+python3 tools/verify_m0.py --gateway-forced-drain
+```
+
+This holds an authenticated WSS session open past a disposable one-second drain,
+requires listener withdrawal before bounded forced closure, then resumes that
+session through HAProxy on the survivor. Production termination grace must still
+exceed the configured application drain plus health-check propagation
+(ADR-0375).
+
 Before reload, validate the fully rendered deployment file with the exact
 production HAProxy binary. Roll one bounded subset of gateways at a time:
 

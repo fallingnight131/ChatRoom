@@ -1148,6 +1148,12 @@ its six sessions resume through HAProxy on the survivor in three batches of two
 scheduled 100 ms apart. Versioned evidence records resume latency, scheduling
 jitter, reconciliation, environment, revision, and worktree state. It is a
 local comparison curve, not a safe fleet reconnect rate or capacity claim.
+ADR-0375 closes the other bounded-drain branch with real WSS and HAProxy. A
+non-cooperative authenticated session holds past a disposable one-second window;
+the gateway first withdraws admission, then forcibly terminates the connection
+and completes within the bounded timing envelope. After health propagation, the
+same durable session resumes on the survivor. Production keeps the 15-second
+default and must add load-balancer propagation to its termination grace.
 
 ## 10. Attachment Flow
 

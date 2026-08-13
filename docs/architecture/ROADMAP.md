@@ -1559,6 +1559,12 @@ Progress:
   curve recorded 6/6 successful resumes, 29.745/44.200 ms P50/P95, and 10.043
   ms maximum scheduling jitter on the documented Mac development host; it is
   not a production fleet rate (ADR-0374).
+- [x] Pass the forced-drain branch through the real edge: hold an authenticated
+  WSS session open, withdraw its gateway from admission, require the configured
+  one-second drain to wait at least 900 ms but finish inside three seconds,
+  observe forced client termination, then resume the exact durable session
+  through HAProxy on the still-connected surviving gateway. The production
+  default remains 15 seconds (ADR-0375).
 
 Work:
 

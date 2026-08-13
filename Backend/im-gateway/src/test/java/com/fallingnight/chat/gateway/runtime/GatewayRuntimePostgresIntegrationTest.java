@@ -1054,6 +1054,112 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     @Test
+    void haproxyRoutesAwayBeforeForcedDrainTimeoutClosesOldSession() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String redisUri = System.getenv("CHATROOM_TEST_REDIS_URI");
+        String controlValue = System.getenv("CHATROOM_TEST_HAPROXY_CONTROL_DIR");
+        String proxyUrl = System.getenv("CHATROOM_TEST_HAPROXY_WSS_URL");
+        String certificatePath = System.getenv("CHATROOM_TEST_GATEWAY_CERTIFICATE");
+        String keyPath = System.getenv("CHATROOM_TEST_GATEWAY_PRIVATE_KEY");
+        Assumptions.assumeTrue(allNonBlank(jdbcUrl, username, redisUri, controlValue,
+                proxyUrl, certificatePath, keyPath),
+                "set disposable services, HAProxy, and gateway TLS material");
+        Path control = Path.of(controlValue);
+        new PostgresMigrator(jdbcUrl, username, "").migrate();
+        UUID accountId = UUID.randomUUID();
+        UUID peerId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        String login = "forced-drain-" + accountId;
+        String peerLogin = "forced-drain-" + peerId;
+        seedV2NetworkAccounts(jdbcUrl, username, "", accountId, peerId,
+                conversationId, login, peerLogin);
+
+        int firstPort = availablePort();
+        int firstAdmin = availablePort();
+        int secondPort = availablePort();
+        int secondAdmin = availablePort();
+        GatewayRuntime first = null;
+        GatewayRuntime second = null;
+        WebSocket sender = null;
+        WebSocket peer = null;
+        WebSocket replacement = null;
+        Thread closeThread = null;
+        AtomicReference<Throwable> closeFailure = new AtomicReference<>();
+        try {
+            Map<String, String> firstEnvironment = distributedNetworkEnvironment(
+                    firstPort, firstAdmin, certificatePath, keyPath, jdbcUrl, username,
+                    redisUri, proxyAuthority(proxyUrl));
+            Map<String, String> secondEnvironment = distributedNetworkEnvironment(
+                    secondPort, secondAdmin, certificatePath, keyPath, jdbcUrl, username,
+                    redisUri, proxyAuthority(proxyUrl));
+            firstEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+            secondEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+            firstEnvironment.put("CHATROOM_GATEWAY_DRAIN_TIMEOUT_SECONDS", "1");
+            secondEnvironment.put("CHATROOM_GATEWAY_DRAIN_TIMEOUT_SECONDS", "1");
+            first = GatewayRuntime.create(
+                    GatewayRuntimeConfig.fromEnvironment(firstEnvironment));
+            second = GatewayRuntime.create(
+                    GatewayRuntimeConfig.fromEnvironment(secondEnvironment));
+            first.start();
+            second.start();
+            awaitReady(first);
+            awaitReady(second);
+            Files.writeString(control.resolve("gateway-ports"),
+                    firstPort + "\n" + secondPort + "\n");
+            Files.writeString(control.resolve("haproxy-start-request"), "start\n");
+            awaitFile(control.resolve("haproxy-started"), Duration.ofSeconds(10));
+
+            BinaryEnvelopeListener senderListener = new BinaryEnvelopeListener();
+            sender = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), senderListener);
+            SessionEstablished senderSession = establish(
+                    sender, senderListener, login, "forced-drain-device");
+            boolean closeFirst = authenticationAccepted(firstAdmin) == 1;
+            BinaryEnvelopeListener peerListener = new BinaryEnvelopeListener();
+            peer = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), peerListener);
+            establish(peer, peerListener, peerLogin, "forced-drain-peer");
+            assertEquals(1, authenticationAccepted(firstAdmin));
+            assertEquals(1, authenticationAccepted(secondAdmin));
+
+            GatewayRuntime closing = closeFirst ? first : second;
+            int closingPort = closeFirst ? firstPort : secondPort;
+            int stableAdmin = closeFirst ? secondAdmin : firstAdmin;
+            long started = System.nanoTime();
+            closeThread = new Thread(() -> {
+                try { closing.close(); }
+                catch (Throwable failure) { closeFailure.set(failure); }
+            }, "forced-drain-timeout");
+            closeThread.start();
+            awaitProductNotReady(closingPort, Duration.ofSeconds(2));
+            closeThread.join(Duration.ofSeconds(3).toMillis());
+            assertFalse(closeThread.isAlive(), "forced drain did not terminate runtime");
+            assertNull(closeFailure.get(), "forced drain failed");
+            long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
+            assertTrue(elapsedMillis >= 900, "runtime skipped configured drain timeout");
+            assertTrue(elapsedMillis < 3_000, "runtime exceeded bounded forced drain");
+            senderListener.awaitTerminal(Duration.ofSeconds(2));
+            sender = null;
+            if (closeFirst) first = null; else second = null;
+
+            Thread.sleep(2_500);
+            BinaryEnvelopeListener replacementListener = new BinaryEnvelopeListener();
+            replacement = connectWebSocket(
+                    URI.create(proxyUrl + "/v2/windows"), replacementListener);
+            SessionEstablished rotated = resume(
+                    replacement, replacementListener, senderSession, "forced-drain-device");
+            assertEquals(senderSession.getSessionId(), rotated.getSessionId());
+            assertEquals(2, authenticationAccepted(stableAdmin));
+        } finally {
+            if (replacement != null) replacement.abort();
+            if (peer != null) peer.abort();
+            if (sender != null) sender.abort();
+            if (closeThread != null && closeThread.isAlive()) closeThread.interrupt();
+            if (second != null) second.close();
+            if (first != null) first.close();
+        }
+    }
+
+    @Test
     void composesRealV1LoginOnlyForMappedImportedAccounts() throws Exception {
         String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
         String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
@@ -3905,6 +4011,7 @@ class GatewayRuntimePostgresIntegrationTest {
     private static final class BinaryEnvelopeListener implements WebSocket.Listener {
         private final BlockingQueue<Envelope> envelopes = new LinkedBlockingQueue<>();
         private final AtomicReference<Throwable> failure = new AtomicReference<>();
+        private final CountDownLatch terminal = new CountDownLatch(1);
         private final ByteArrayOutputStream fragments = new ByteArrayOutputStream();
 
         @Override public void onOpen(WebSocket webSocket) {
@@ -3931,6 +4038,13 @@ class GatewayRuntimePostgresIntegrationTest {
 
         @Override public void onError(WebSocket webSocket, Throwable error) {
             failure.compareAndSet(null, error);
+            terminal.countDown();
+        }
+
+        @Override public CompletionStage<?> onClose(
+                WebSocket webSocket, int statusCode, String reason) {
+            terminal.countDown();
+            return null;
         }
 
         private Envelope next() throws Exception {
@@ -3950,6 +4064,11 @@ class GatewayRuntimePostgresIntegrationTest {
             Throwable error = failure.get();
             if (error != null) throw new AssertionError("WebSocket listener failed", error);
             assertNull(envelope, "duplicate V2 envelope received");
+        }
+
+        private void awaitTerminal(Duration timeout) throws Exception {
+            assertTrue(terminal.await(timeout.toMillis(), TimeUnit.MILLISECONDS),
+                    "WebSocket did not terminate after forced drain");
         }
     }
 

@@ -1511,6 +1511,19 @@ reconciliation, environment, exact source revision, and worktree state. Only a
 clean-tree result revalidated against its exact commit is baseline evidence; the
 bounded local curve is not a production-capacity claim (ADR-0374).
 
+Exercise the non-cooperative WebSocket drain branch with:
+
+```bash
+python3 tools/verify_m0.py --gateway-forced-drain
+```
+
+The disposable scenario uses a one-second drain, proves the listener withdraws
+before forced cleanup, requires runtime termination inside a bounded timing
+window, observes the old WSS terminal callback, and resumes the same durable
+session through HAProxy on the survivor. The production default remains 15
+seconds; this explicit Docker/local-service gate is excluded from `--all`
+(ADR-0375).
+
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
 consume ports while PostgreSQL supplies outbox and message repair. They also
