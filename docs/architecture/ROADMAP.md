@@ -1617,6 +1617,10 @@ Progress:
   configuration, rotation events, offline distinction, jitter/backoff, fresh
   negotiation, memory-only resume, evidence ownership, and rollback are now
   explicit. Product multi-host and reconnect-capacity evidence remain pending.
+- [x] Prove Web V2 rotates away from a WSS entry that fails the fixed
+  subprotocol or connection phase timeout, retaining bounded jitter before the
+  fallback attempt. This is handshake-failure evidence, not generic application
+  health or degraded-edge discovery.
 
 Work:
 

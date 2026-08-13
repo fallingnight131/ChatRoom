@@ -23,8 +23,9 @@ reviewed configuration/diagnostic update.
 ## State-Machine Rules
 
 1. Start at the reviewed primary entry.
-2. A synchronous connection-start failure or an established socket close moves
-   to the next entry in a circular list.
+2. A synchronous connection-start failure or socket close moves to the next
+   entry in a circular list. Phase timeout and subprotocol failure first close
+   that socket, so their eventual close follows the same transition.
 3. Every attempt retains the existing full-jitter exponential backoff and phase
    timeouts. Endpoint rotation never permits a tight retry loop.
 4. Every new socket starts a fresh protocol negotiation. An authenticated
@@ -40,8 +41,9 @@ reviewed configuration/diagnostic update.
 
 ## Required Evidence
 
-- Web tests cover constructor failure, close, wraparound, offline pause,
-  endpoint validation, jittered retry, and memory-only resume.
+- Web tests cover constructor failure, phase timeout, subprotocol failure,
+  close, wraparound, offline pause, endpoint validation, jittered retry, and
+  memory-only resume.
 - Native Windows tests cover compiled pair validation, final-binary diagnostic,
   disconnect rotation, fresh negotiation, and memory-only resume.
 - The dual-edge Java/HAProxy gate proves the destination edge and gateway can

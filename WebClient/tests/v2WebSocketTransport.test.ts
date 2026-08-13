@@ -233,11 +233,16 @@ test("fails closed on subprotocol, non-binary data, and phase timeout", () => {
   const failures: string[] = [];
   const timers = new FakeTimers();
   const socket = new FakeSocket();
+  const protocolFailureEndpoints: string[] = [];
   socket.protocol = "";
   const transport = new V2WebSocketTransport({
-    endpoint: "wss://chat.example/v2/web",
+    endpoint: "wss://edge-a.example/v2/web",
+    fallbackEndpoints: ["wss://edge-b.example/v2/web"],
     createProtocolClient: protocolFactory(),
-    createSocket: () => socket,
+    createSocket: endpoint => {
+      protocolFailureEndpoints.push(endpoint);
+      return socket;
+    },
     setTimer: timers.set,
     clearTimer: timers.clear,
     random: () => 0,
@@ -249,6 +254,10 @@ test("fails closed on subprotocol, non-binary data, and phase timeout", () => {
   socket.protocol = "chat.v2";
   socket.finishClose();
   assert.equal(timers.runOnly(), 0, "first reconnect uses bounded full jitter");
+  assert.deepEqual(protocolFailureEndpoints, [
+    "wss://edge-a.example/v2/web",
+    "wss://edge-b.example/v2/web",
+  ]);
   socket.open();
   socket.receive("not binary");
   assert.deepEqual(socket.closes.at(-1), { code: 1002, reason: "V2 WebSocket received a non-binary frame" });
@@ -256,10 +265,15 @@ test("fails closed on subprotocol, non-binary data, and phase timeout", () => {
 
   const timeoutSocket = new FakeSocket();
   const timeoutTimers = new FakeTimers();
+  const timeoutEndpoints: string[] = [];
   const timeoutTransport = new V2WebSocketTransport({
-    endpoint: "wss://chat.example/v2/web",
+    endpoint: "wss://edge-a.example/v2/web",
+    fallbackEndpoints: ["wss://edge-b.example/v2/web"],
     createProtocolClient: protocolFactory(),
-    createSocket: () => timeoutSocket,
+    createSocket: endpoint => {
+      timeoutEndpoints.push(endpoint);
+      return timeoutSocket;
+    },
     setTimer: timeoutTimers.set,
     clearTimer: timeoutTimers.clear,
     random: () => 0,
@@ -268,6 +282,12 @@ test("fails closed on subprotocol, non-binary data, and phase timeout", () => {
   timeoutTransport.start();
   assert.equal(timeoutTimers.runOnly(), 123);
   assert.deepEqual(timeoutSocket.closes.at(-1), { code: 4000, reason: "V2 connection timeout" });
+  timeoutSocket.finishClose();
+  assert.equal(timeoutTimers.runOnly(), 0);
+  assert.deepEqual(timeoutEndpoints, [
+    "wss://edge-a.example/v2/web",
+    "wss://edge-b.example/v2/web",
+  ]);
   timeoutTransport.stop();
   assert.ok(failures.includes("V2 WebSocket subprotocol mismatch"));
 });
