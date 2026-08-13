@@ -23,6 +23,7 @@ not server truth.
 | `account` | normalized login identity and password hash; never plaintext credentials |
 | `device` | Web/Windows identity plus non-authenticating legacy import provenance |
 | `device_session` | expiring/revocable session with only a SHA-256 token digest |
+| `device_revocation_audit` | immutable same-account actor/session evidence for user-requested device revocation |
 | `conversation` | canonical direct/group identity, group title, and next allocatable sequence |
 | `conversation_member` | server-authoritative membership, role, and read sequence |
 | `direct_conversation` | one canonical, ordered account pair per direct chat |

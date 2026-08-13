@@ -1299,6 +1299,16 @@ Exit criteria:
 
 Goal: grow features on top of reliable foundations.
 
+Progress:
+
+- [ ] Deliver user-managed multi-device login and device management on V2 Web
+  and Windows clients.
+  - [x] Define ADR-0321 and add V043 immutable actor/session-bound device
+    revocation audit with same-account and non-self constraints.
+  - [ ] Implement the application/persistence directory and revocation boundary.
+  - [ ] Allocate and compose the V2 protocol/gateway handlers.
+  - [ ] Add supported Web and Windows device-management UI and recovery behavior.
+
 Candidate slices:
 
 - multi-device login and device management;

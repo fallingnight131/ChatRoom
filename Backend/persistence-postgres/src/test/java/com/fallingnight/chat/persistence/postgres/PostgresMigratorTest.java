@@ -192,7 +192,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(42, first.migrate());
+        assertEquals(43, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -221,7 +221,7 @@ class PostgresMigratorTest {
                             "account_username_change_audit", "profile_image_object",
                             "account_profile_image", "group_profile_image",
                             "profile_image_change_audit", "profile_image_import_run",
-                            "profile_image_import_entry"),
+                            "profile_image_import_entry", "device_revocation_audit"),
                     applicationTables(connection));
             assertEquals(9, count("SELECT count(*) FROM pg_constraint "
                     + "WHERE connamespace = 'chat'::regnamespace AND conname IN ("
@@ -238,6 +238,17 @@ class PostgresMigratorTest {
                     + "WHERE schemaname = 'chat' AND indexname IN ("
                     + "'profile_image_import_entry_account_target_idx', "
                     + "'profile_image_import_entry_room_target_idx')"));
+            assertEquals(6, count("SELECT count(*) FROM pg_constraint "
+                    + "WHERE connamespace = 'chat'::regnamespace AND conname IN ("
+                    + "'device_revocation_target_owner', "
+                    + "'device_revocation_actor_owner', "
+                    + "'device_revocation_not_self', "
+                    + "'device_revocation_session_count', "
+                    + "'device_revocation_reason_supported', "
+                    + "'device_revocation_audit_target_device_id_key')"));
+            assertEquals(1, count("SELECT count(*) FROM pg_indexes "
+                    + "WHERE schemaname = 'chat' "
+                    + "AND indexname = 'device_revocation_audit_account_idx'"));
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
                     + "AND sequencename = 'legacy_v1_friendship_id_seq' "
