@@ -18,6 +18,7 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomJoinServic
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomLeaveService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMemberListService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettingsService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomFilesService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomAudienceService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomHistoryService;
@@ -66,6 +67,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomJoinCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomLeaveCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomMemberListCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomSettingsCodec;
+import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomFilesCodec;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomDirectoryHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomCreationEventSink;
@@ -78,6 +80,8 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMemberListEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMemberListHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomSettingsEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomSettingsHandler;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFilesEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFilesHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageHandler;
 import com.fallingnight.chat.gateway.compatibility.v1.V1JsonRoomMessageCodec;
@@ -114,6 +118,7 @@ import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomJoinAdapte
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomLeaveAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomMemberListAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomSettingsAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1RoomFilesAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1AccountProjection;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1ConversationProjection;
 import com.fallingnight.chat.persistence.postgres.PostgresLegacyV1FriendDirectoryAdapter;
@@ -150,6 +155,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
     private final LegacyV1RoomLeaveService roomLeave;
     private final LegacyV1RoomMemberListService roomMembers;
     private final LegacyV1RoomSettingsService roomSettings;
+    private final LegacyV1RoomFilesService roomFiles;
     private final LegacyV1RoomDirectoryService roomDirectory;
     private final LegacyV1RoomAudienceService roomAudience;
     private final LegacyV1RoomMessageService roomMessages;
@@ -179,6 +185,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
             LegacyV1RoomLeaveService roomLeave,
             LegacyV1RoomMemberListService roomMembers,
             LegacyV1RoomSettingsService roomSettings,
+            LegacyV1RoomFilesService roomFiles,
             LegacyV1RoomDirectoryService roomDirectory,
             LegacyV1RoomAudienceService roomAudience,
             LegacyV1RoomMessageService roomMessages,
@@ -206,6 +213,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
         this.roomLeave = Objects.requireNonNull(roomLeave, "roomLeave");
         this.roomMembers = Objects.requireNonNull(roomMembers, "roomMembers");
         this.roomSettings = Objects.requireNonNull(roomSettings, "roomSettings");
+        this.roomFiles = Objects.requireNonNull(roomFiles, "roomFiles");
         this.roomDirectory = Objects.requireNonNull(roomDirectory, "roomDirectory");
         this.roomAudience = Objects.requireNonNull(roomAudience, "roomAudience");
         this.roomMessages = Objects.requireNonNull(roomMessages, "roomMessages");
@@ -273,6 +281,8 @@ public final class V1CompatibilityModule implements AutoCloseable {
                         connections::onlineAccounts),
                 new LegacyV1RoomSettingsService(
                         new PostgresLegacyV1RoomSettingsAdapter(dataSource)),
+                new LegacyV1RoomFilesService(
+                        new PostgresLegacyV1RoomFilesAdapter(dataSource)),
                 new LegacyV1RoomDirectoryService(
                         new PostgresConversationDirectoryAdapter(dataSource), legacyConversations),
                 new LegacyV1RoomAudienceService(
@@ -324,6 +334,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
             V1RoomLeaveEventSink roomLeaveEvents,
             V1RoomMemberListEventSink roomMemberEvents,
             V1RoomSettingsEventSink roomSettingsEvents,
+            V1RoomFilesEventSink roomFilesEvents,
             V1RoomDirectoryEventSink directoryEvents,
             V1RoomMessageEventSink roomMessageEvents,
             V1RoomHistoryEventSink roomHistoryEvents,
@@ -356,6 +367,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
                         roomLeaveEvents,
                         roomMemberEvents,
                         roomSettingsEvents,
+                        roomFilesEvents,
                         directoryEvents,
                         roomMessageEvents,
                         roomHistoryEvents,
@@ -389,6 +401,7 @@ public final class V1CompatibilityModule implements AutoCloseable {
             V1RoomLeaveEventSink roomLeaveEvents,
             V1RoomMemberListEventSink roomMemberEvents,
             V1RoomSettingsEventSink roomSettingsEvents,
+            V1RoomFilesEventSink roomFilesEvents,
             V1RoomDirectoryEventSink directoryEvents,
             V1RoomMessageEventSink roomMessageEvents,
             V1RoomHistoryEventSink roomHistoryEvents,
@@ -457,6 +470,11 @@ public final class V1CompatibilityModule implements AutoCloseable {
                 new V1JsonRoomSettingsCodec(clock),
                 directoryExecutor,
                 roomSettingsEvents));
+        pipeline.addLast("v1-room-files", new V1RoomFilesHandler(
+                roomFiles,
+                new V1JsonRoomFilesCodec(clock),
+                directoryExecutor,
+                roomFilesEvents));
         pipeline.addLast("v1-room-directory", new V1RoomDirectoryHandler(
                 roomDirectory,
                 new V1JsonRoomDirectoryCodec(clock),

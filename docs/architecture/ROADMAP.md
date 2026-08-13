@@ -649,7 +649,7 @@ Progress:
     attachments, mappings, and attachment messages without local-path leakage.
   - [x] Define and implement the administrator-only canonical PostgreSQL room
     file-list projection with complete V1 mappings and exact quota usage.
-  - [ ] Compose strict `ROOM_FILES_REQ` transport handling and prove login-to-list
+  - [x] Compose strict `ROOM_FILES_REQ` transport handling and prove login-to-list
     compatibility through real PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.

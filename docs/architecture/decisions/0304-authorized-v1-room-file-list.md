@@ -37,5 +37,9 @@ non-enumerating denial.
   channel.
 - Cleared historical file messages remain visible in conversation history but
   do not appear as manageable active files.
-- The detached V1 gateway handler may serialize this application result without
-  querying storage or deciding authorization itself.
+- The detached V1 compatibility module handles strict bounded
+  `ROOM_FILES_REQ`, binds the actor to the authenticated connection, and
+  serializes this application result without querying storage or deciding
+  authorization itself. Dependency failure, executor saturation, malformed
+  owned input, and concurrent reads close the connection without leaking
+  internal details.
