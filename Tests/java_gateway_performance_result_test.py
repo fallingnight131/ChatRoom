@@ -53,10 +53,28 @@ def valid_result() -> dict:
     }
 
 
+def valid_group_result() -> dict:
+    result = copy.deepcopy(valid_result())
+    result["schemaVersion"] = 2
+    result["scenario"].update({
+        "connections": 5,
+        "receiversPerMessage": 4,
+        "conversationKind": "GROUP",
+    })
+    result["results"]["connectionSetupLatencyMicros"]["samples"] = 5
+    result["results"]["submitToAllPeersPublishedLatencyMicros"] = (
+        result["results"].pop("submitToPeerPublishLatencyMicros")
+    )
+    result["results"]["peerPublications"] = 12
+    return result
+
+
 class GatewayPerformanceEvidenceTest(unittest.TestCase):
     def test_accepts_valid_clean_evidence(self) -> None:
         self.assertEqual(REVISION, validate(
             valid_result(), REVISION, require_clean=True)["sourceRevision"])
+        self.assertEqual(2, validate(
+            valid_group_result(), REVISION, require_clean=True)["schemaVersion"])
 
     def test_rejects_semantic_mismatch_and_secret_content(self) -> None:
         mutations = []
@@ -72,6 +90,13 @@ class GatewayPerformanceEvidenceTest(unittest.TestCase):
         leak = copy.deepcopy(valid_result())
         leak["host"]["certificate"] = "/tmp/cert.pem"
         mutations.append(leak)
+        wrong_group = valid_group_result()
+        wrong_group["results"]["peerPublications"] = 11
+        mutations.append(wrong_group)
+        oversized_group = valid_group_result()
+        oversized_group["scenario"]["receiversPerMessage"] = 60
+        oversized_group["scenario"]["connections"] = 61
+        mutations.append(oversized_group)
         for mutation in mutations:
             with self.subTest(mutation=mutation):
                 with self.assertRaises(EvidenceError):

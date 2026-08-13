@@ -75,6 +75,15 @@ connections, one caught-up receiver per message, and a 256-byte text payload.
 The scenario is deliberately sequential so its latency distributions describe
 one submit/confirm/fan-out chain; it does not represent concurrent-user load.
 
+Set `--java-gateway-performance-receivers N` on the unified verifier to create a
+real GROUP conversation with one sender and `N` authenticated, caught-up WSS
+receivers (`2 <= N <= 59`). The upper bound preserves the production gateway's
+default 60-authentications-per-peer window: one sender plus 59 receivers. Group
+evidence uses schema 2, records latency until all peers have received each
+publication, and reconciles exactly
+`messageOperations * N` peer publications. Schema 1 remains the immutable
+single-peer contract so dated evidence stays verifiable.
+
 ## Evidence contract
 
 `tools/java_performance_result.py` requires:
@@ -88,11 +97,13 @@ one submit/confirm/fan-out chain; it does not represent concurrent-user load.
 - positive sequential/concurrent throughput and zero concurrent errors;
 - no JDBC URL, password, token, session, or account identity.
 
-`tools/java_gateway_performance_result.py` additionally requires exactly two
-connections and one receiver, exact setup/accept/publish sample counts, positive
-completed-chain throughput, zero errors, and no TLS material path. A missing
-acknowledgement, missing peer publication, wrong sequence, or durable database
-mismatch causes the Java process to fail before evidence is promoted.
+`tools/java_gateway_performance_result.py` requires the connection count to
+equal one sender plus all receivers, exact setup/accept/all-peer sample counts,
+positive completed-chain throughput, zero errors, and no TLS material path.
+Schema 2 also requires GROUP identity and exact aggregate peer-publication
+count. A missing acknowledgement, missing peer publication, wrong sequence, or
+durable database mismatch causes the Java process to fail before evidence is
+promoted.
 
 Results also carry `worktreeDirty`. CI requires a clean tree and exact workflow
 revision. A dirty local result remains useful for development comparison but is

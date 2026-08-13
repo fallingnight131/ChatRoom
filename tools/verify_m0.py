@@ -77,6 +77,7 @@ def verify_java_gateway_performance(args: argparse.Namespace, output: Path) -> N
         "--warmup", str(args.java_gateway_performance_warmup),
         "--messages", str(args.java_gateway_performance_messages),
         "--payload-bytes", str(args.java_gateway_performance_payload_bytes),
+        "--receivers", str(args.java_gateway_performance_receivers),
     ], ROOT)
 
 
@@ -561,6 +562,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--java-gateway-performance-warmup", type=int, default=20)
     parser.add_argument("--java-gateway-performance-messages", type=int, default=200)
     parser.add_argument("--java-gateway-performance-payload-bytes", type=int, default=256)
+    parser.add_argument("--java-gateway-performance-receivers", type=int, default=1)
     parser.add_argument(
         "--java-gateway-performance-output",
         type=Path,

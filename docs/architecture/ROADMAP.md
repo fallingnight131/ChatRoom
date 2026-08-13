@@ -1288,6 +1288,10 @@ Progress:
 - [x] Measure a reproducible bounded single-gateway TLS/WSS path with connection
   setup, submit-to-accept, caught-up peer fan-out, throughput, CPU, heap, RSS,
   zero-error, and durable sequence evidence.
+- [x] Parameterize the same production path for a bounded active GROUP with up
+  to 59 authenticated receivers under the default peer admission limit,
+  all-peer completion latency, and exact aggregate publication reconciliation
+  while preserving schema-1 evidence.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.

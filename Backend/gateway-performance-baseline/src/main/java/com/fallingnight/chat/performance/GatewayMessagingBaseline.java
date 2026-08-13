@@ -78,9 +78,12 @@ public final class GatewayMessagingBaseline {
                 configuration.password()).migrate();
 
         UUID senderAccount = UUID.randomUUID();
-        UUID peerAccount = UUID.randomUUID();
+        List<UUID> peerAccounts = new ArrayList<>(configuration.receivers());
+        for (int index = 0; index < configuration.receivers(); ++index) {
+            peerAccounts.add(UUID.randomUUID());
+        }
         UUID conversation = UUID.randomUUID();
-        seed(configuration, senderAccount, peerAccount, conversation);
+        seed(configuration, senderAccount, peerAccounts, conversation);
 
         OperatingSystemMXBean operatingSystem = (OperatingSystemMXBean)
                 ManagementFactory.getOperatingSystemMXBean();
@@ -89,20 +92,26 @@ public final class GatewayMessagingBaseline {
         long peakHeap = usedHeap();
         GatewayRuntime runtime = null;
         ClientConnection sender = null;
-        ClientConnection peer = null;
+        List<ClientConnection> peers = new ArrayList<>(configuration.receivers());
         try {
             runtime = GatewayRuntime.create(runtimeConfiguration(configuration));
             runtime.start();
             long senderSetupStart = System.nanoTime();
             sender = connectAndAuthenticate(configuration, "gateway-sender", "sender-device");
             long senderSetupMicros = elapsedMicros(senderSetupStart);
-            long peerSetupStart = System.nanoTime();
-            peer = connectAndAuthenticate(configuration, "gateway-peer", "peer-device");
-            long peerSetupMicros = elapsedMicros(peerSetupStart);
-            catchUp(peer, conversation);
+            List<Long> setupMicros = new ArrayList<>(configuration.receivers() + 1);
+            setupMicros.add(senderSetupMicros);
+            for (int index = 0; index < configuration.receivers(); ++index) {
+                long peerSetupStart = System.nanoTime();
+                ClientConnection peer = connectAndAuthenticate(
+                        configuration, "gateway-peer-" + index, "peer-device-" + index);
+                setupMicros.add(elapsedMicros(peerSetupStart));
+                catchUp(peer, conversation);
+                peers.add(peer);
+            }
 
             for (int index = 0; index < configuration.warmupOperations(); ++index) {
-                roundTrip(sender, peer, conversation, "warmup-" + index,
+                roundTrip(sender, peers, conversation, "warmup-" + index,
                         configuration.payloadBytes(), index + 1L);
             }
             List<Long> acknowledgementMicros = new ArrayList<>(configuration.messageOperations());
@@ -111,7 +120,7 @@ public final class GatewayMessagingBaseline {
             for (int index = 0; index < configuration.messageOperations(); ++index) {
                 long expectedSequence = configuration.warmupOperations() + index + 1L;
                 TimedRoundTrip result = roundTrip(
-                        sender, peer, conversation, "measured-" + index,
+                        sender, peers, conversation, "measured-" + index,
                         configuration.payloadBytes(), expectedSequence);
                 acknowledgementMicros.add(result.acknowledgementMicros());
                 fanoutMicros.add(result.fanoutMicros());
@@ -125,10 +134,10 @@ public final class GatewayMessagingBaseline {
             peakHeap = Math.max(peakHeap, usedHeap());
             write(configuration, startedAt, Duration.between(startedAt, Instant.now()),
                     cpuNanos, peakHeap, durableMessages,
-                    List.of(senderSetupMicros, peerSetupMicros),
+                    setupMicros,
                     acknowledgementMicros, fanoutMicros, measuredNanos);
         } finally {
-            if (peer != null) peer.close();
+            for (ClientConnection peer : peers) peer.close();
             if (sender != null) sender.close();
             if (runtime != null) runtime.close();
         }
@@ -181,7 +190,7 @@ public final class GatewayMessagingBaseline {
     }
 
     private static TimedRoundTrip roundTrip(
-            ClientConnection sender, ClientConnection peer, UUID conversation,
+            ClientConnection sender, List<ClientConnection> peers, UUID conversation,
             String clientMessageId, int payloadBytes, long expectedSequence) throws Exception {
         byte[] content = new byte[payloadBytes];
         java.util.Arrays.fill(content, (byte) 'm');
@@ -203,16 +212,18 @@ public final class GatewayMessagingBaseline {
                 || !accepted.getConversationId().equals(conversation.toString())) {
             throw new IllegalStateException("gateway acknowledgement did not reconcile");
         }
-        Envelope publication = peer.listener().next();
-        long fanoutMicros = elapsedMicros(started);
-        requireType(publication, MessageType.MESSAGE_TYPE_MESSAGE_PUBLISHED);
-        MessageRecord record = MessageRecord.parseFrom(publication.getPayload());
-        if (record.getConversationSequence() != expectedSequence
-                || !record.getConversationId().equals(conversation.toString())
-                || !record.getClientMessageId().equals(clientMessageId)
-                || record.getContent().size() != payloadBytes) {
-            throw new IllegalStateException("gateway live publication did not reconcile");
+        for (ClientConnection peer : peers) {
+            Envelope publication = peer.listener().next();
+            requireType(publication, MessageType.MESSAGE_TYPE_MESSAGE_PUBLISHED);
+            MessageRecord record = MessageRecord.parseFrom(publication.getPayload());
+            if (record.getConversationSequence() != expectedSequence
+                    || !record.getConversationId().equals(conversation.toString())
+                    || !record.getClientMessageId().equals(clientMessageId)
+                    || record.getContent().size() != payloadBytes) {
+                throw new IllegalStateException("gateway live publication did not reconcile");
+            }
         }
+        long fanoutMicros = elapsedMicros(started);
         return new TimedRoundTrip(acknowledgementMicros, fanoutMicros);
     }
 
@@ -282,7 +293,7 @@ public final class GatewayMessagingBaseline {
     }
 
     private static void seed(
-            Configuration configuration, UUID sender, UUID peer, UUID conversation)
+            Configuration configuration, UUID sender, List<UUID> peers, UUID conversation)
             throws SQLException {
         PGSimpleDataSource dataSource = new PGSimpleDataSource();
         dataSource.setUrl(configuration.jdbcUrl());
@@ -293,15 +304,26 @@ public final class GatewayMessagingBaseline {
             execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
                     + "password_hash) VALUES (?, 'gateway-sender', 'Gateway Sender', ?)",
                     sender, PASSWORD_HASH);
-            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
-                    + "password_hash) VALUES (?, 'gateway-peer', 'Gateway Peer', ?)",
-                    peer, PASSWORD_HASH);
-            execute(connection, "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')",
-                    conversation);
+            for (int index = 0; index < peers.size(); ++index) {
+                execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                        + "password_hash) VALUES (?, ?, ?, ?)", peers.get(index),
+                        "gateway-peer-" + index, "Gateway Peer " + index, PASSWORD_HASH);
+            }
+            if (configuration.receivers() == 1) {
+                execute(connection,
+                        "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')",
+                        conversation);
+            } else {
+                execute(connection, "INSERT INTO chat.conversation(id, kind, title) "
+                        + "VALUES (?, 'GROUP', 'Gateway Benchmark Group')", conversation);
+            }
             execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
-                    + "account_id) VALUES (?, ?)", conversation, sender);
-            execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
-                    + "account_id) VALUES (?, ?)", conversation, peer);
+                    + "account_id, role) VALUES (?, ?, ?)", conversation, sender,
+                    configuration.receivers() == 1 ? "MEMBER" : "OWNER");
+            for (UUID peer : peers) {
+                execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
+                        + "account_id) VALUES (?, ?)", conversation, peer);
+            }
             connection.commit();
         }
     }
@@ -348,7 +370,8 @@ public final class GatewayMessagingBaseline {
                 Files.newOutputStream(configuration.output()))) {
             json.useDefaultPrettyPrinter();
             json.writeStartObject();
-            json.writeNumberField("schemaVersion", 1);
+            boolean group = configuration.receivers() > 1;
+            json.writeNumberField("schemaVersion", group ? 2 : 1);
             json.writeStringField("benchmark", "java-v2-gateway-messaging");
             json.writeStringField("startedAt", startedAt.toString());
             json.writeStringField("warning", "loopback development evidence; not a capacity claim");
@@ -365,8 +388,9 @@ public final class GatewayMessagingBaseline {
             json.writeNumberField("scenarioWallSeconds", round(wall.toNanos() / 1_000_000_000.0));
             json.writeEndObject();
             json.writeObjectFieldStart("scenario");
-            json.writeNumberField("connections", 2);
-            json.writeNumberField("receiversPerMessage", 1);
+            json.writeNumberField("connections", configuration.receivers() + 1);
+            json.writeNumberField("receiversPerMessage", configuration.receivers());
+            if (group) json.writeStringField("conversationKind", "GROUP");
             json.writeNumberField("warmupOperations", configuration.warmupOperations());
             json.writeNumberField("messageOperations", configuration.messageOperations());
             json.writeNumberField("payloadBytes", configuration.payloadBytes());
@@ -375,9 +399,13 @@ public final class GatewayMessagingBaseline {
             json.writeObjectFieldStart("results");
             distribution(json, "connectionSetupLatencyMicros", setupMicros);
             distribution(json, "submitToAcceptLatencyMicros", acknowledgementMicros);
-            distribution(json, "submitToPeerPublishLatencyMicros", fanoutMicros);
+            distribution(json, group
+                    ? "submitToAllPeersPublishedLatencyMicros"
+                    : "submitToPeerPublishLatencyMicros", fanoutMicros);
             json.writeNumberField("completedMessageThroughputPerSecond",
                     throughput(configuration.messageOperations(), measuredNanos));
+            if (group) json.writeNumberField("peerPublications",
+                    (long) configuration.messageOperations() * configuration.receivers());
             json.writeNumberField("errors", 0);
             json.writeEndObject();
             json.writeEndObject();
@@ -507,7 +535,8 @@ public final class GatewayMessagingBaseline {
     private record Configuration(
             String jdbcUrl, String username, String password,
             Path certificate, Path privateKey, int gatewayPort, int adminPort,
-            Path output, int warmupOperations, int messageOperations, int payloadBytes) {
+            Path output, int warmupOperations, int messageOperations,
+            int payloadBytes, int receivers) {
         private Configuration {
             Objects.requireNonNull(jdbcUrl, "jdbcUrl");
             Objects.requireNonNull(username, "username");
@@ -524,6 +553,9 @@ public final class GatewayMessagingBaseline {
             bounded("warmup", warmupOperations, 0, 10_000);
             bounded("messages", messageOperations, 1, 100_000);
             bounded("payload bytes", payloadBytes, 1, 1_048_576);
+            // The default gateway allows 60 authentication attempts per direct peer;
+            // the sender consumes one and the benchmark must not weaken that policy.
+            bounded("receivers", receivers, 1, 59);
         }
 
         private static Configuration parse(String[] arguments) {
@@ -540,7 +572,7 @@ public final class GatewayMessagingBaseline {
             java.util.Set<String> expected = java.util.Set.of(
                     "--jdbc-url", "--username", "--password", "--certificate",
                     "--private-key", "--gateway-port", "--admin-port", "--output",
-                    "--warmup", "--messages", "--payload-bytes");
+                    "--warmup", "--messages", "--payload-bytes", "--receivers");
             if (!values.keySet().equals(expected)) {
                 throw new IllegalArgumentException("missing or unknown gateway argument");
             }
@@ -554,7 +586,8 @@ public final class GatewayMessagingBaseline {
                         Path.of(values.get("--output")),
                         Integer.parseInt(values.get("--warmup")),
                         Integer.parseInt(values.get("--messages")),
-                        Integer.parseInt(values.get("--payload-bytes")));
+                        Integer.parseInt(values.get("--payload-bytes")),
+                        Integer.parseInt(values.get("--receivers")));
             } catch (NumberFormatException exception) {
                 throw new IllegalArgumentException("gateway counts must be integers", exception);
             }

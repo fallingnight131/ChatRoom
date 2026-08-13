@@ -13,13 +13,6 @@ from typing import Any
 
 
 REVISION = re.compile(r"[0-9a-f]{40}")
-DISTRIBUTIONS = (
-    ("connectionSetupLatencyMicros", 2),
-    ("submitToAcceptLatencyMicros", "messageOperations"),
-    ("submitToPeerPublishLatencyMicros", "messageOperations"),
-)
-
-
 class EvidenceError(ValueError):
     pass
 
@@ -60,8 +53,9 @@ def validate(
     result: Any, expected_revision: str | None = None, require_clean: bool = False
 ) -> dict[str, Any]:
     root = object_value(result, "result")
-    if root.get("schemaVersion") != 1:
-        raise EvidenceError("schemaVersion must be 1")
+    schema = root.get("schemaVersion")
+    if schema not in (1, 2):
+        raise EvidenceError("schemaVersion must be 1 or 2")
     if root.get("benchmark") != "java-v2-gateway-messaging":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != "loopback development evidence; not a capacity claim":
@@ -97,8 +91,15 @@ def validate(
             "postgresPostmasterPeakRssBytes", 1)
 
     scenario = object_value(root.get("scenario"), "scenario")
-    if scenario.get("connections") != 2 or scenario.get("receiversPerMessage") != 1:
-        raise EvidenceError("gateway topology must be two connections and one receiver")
+    receivers = integer(scenario.get("receiversPerMessage"), "receiversPerMessage", 1)
+    if receivers > 59:
+        raise EvidenceError("receiversPerMessage exceeds the default peer admission window")
+    if scenario.get("connections") != receivers + 1:
+        raise EvidenceError("gateway connection count must include sender and receivers")
+    if schema == 1 and receivers != 1:
+        raise EvidenceError("schema 1 requires exactly one receiver")
+    if schema == 2 and (receivers < 2 or scenario.get("conversationKind") != "GROUP"):
+        raise EvidenceError("schema 2 requires a multi-receiver group")
     warmup = integer(scenario.get("warmupOperations"), "warmupOperations")
     messages = integer(scenario.get("messageOperations"), "messageOperations", 1)
     integer(scenario.get("payloadBytes"), "payloadBytes", 1)
@@ -106,9 +107,14 @@ def validate(
         raise EvidenceError("durable message reconciliation is invalid")
 
     results = object_value(root.get("results"), "results")
-    for distribution_name, expected in DISTRIBUTIONS:
+    distributions = (
+        ("connectionSetupLatencyMicros", receivers + 1),
+        ("submitToAcceptLatencyMicros", messages),
+        ("submitToPeerPublishLatencyMicros" if schema == 1
+         else "submitToAllPeersPublishedLatencyMicros", messages),
+    )
+    for distribution_name, samples in distributions:
         distribution = object_value(results.get(distribution_name), distribution_name)
-        samples = messages if expected == "messageOperations" else expected
         if distribution.get("samples") != samples:
             raise EvidenceError(f"{distribution_name} sample count is invalid")
         ordered = [
@@ -124,6 +130,8 @@ def validate(
            "completedMessageThroughputPerSecond", positive=True)
     if results.get("errors") != 0:
         raise EvidenceError("errors must be zero")
+    if schema == 2 and results.get("peerPublications") != messages * receivers:
+        raise EvidenceError("group peer publication count is invalid")
 
     serialized = json.dumps(root, sort_keys=True)
     for forbidden in (
