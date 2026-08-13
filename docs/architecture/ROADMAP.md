@@ -1333,7 +1333,8 @@ Progress:
   - [x] Add a transport-independent Windows device-management protocol client
     over the reviewed C++ bindings with authenticated session/request binding,
     bounded in-flight work, defensive server-projection validation, current-
-    device protection, and disconnect state abandonment.
+    device protection, positive wire timestamps, and disconnect state
+    abandonment.
   - [ ] Add the supported Windows device-management application/UI path; Web is
     implemented behind the existing V2 preview/cutover gate.
 

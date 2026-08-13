@@ -28,8 +28,10 @@ public:
         std::string targetDeviceId;
     };
     using RequestIdFactory = std::function<std::string()>;
+    using Clock = std::function<std::int64_t()>;
 
-    explicit V2DeviceManagementProtocolClient(RequestIdFactory factory = {});
+    explicit V2DeviceManagementProtocolClient(
+        RequestIdFactory factory = {}, Clock clock = {});
     void bindSession(const std::string &sessionId, const std::string &currentDeviceId);
     void clearSession();
     Command listDevices();
@@ -48,6 +50,7 @@ private:
     static std::string randomUuid();
 
     RequestIdFactory m_factory;
+    Clock m_clock;
     std::string m_sessionId;
     std::string m_currentDeviceId;
     std::unordered_map<std::string, Pending> m_pending;

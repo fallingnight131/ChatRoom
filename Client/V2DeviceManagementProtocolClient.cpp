@@ -4,6 +4,7 @@
 #include "chat/v2/device_management.pb.h"
 #include "chat/v2/envelope.pb.h"
 #include <array>
+#include <chrono>
 #include <google/protobuf/message_lite.h>
 #include <limits>
 #include <random>
@@ -31,8 +32,13 @@ T parse(const std::string &encoded) {
 }
 }
 
-V2DeviceManagementProtocolClient::V2DeviceManagementProtocolClient(RequestIdFactory factory)
-    : m_factory(factory ? std::move(factory) : randomUuid) {}
+V2DeviceManagementProtocolClient::V2DeviceManagementProtocolClient(
+        RequestIdFactory factory, Clock clock)
+    : m_factory(factory ? std::move(factory) : randomUuid),
+      m_clock(clock ? std::move(clock) : [] {
+          return std::chrono::duration_cast<std::chrono::milliseconds>(
+              std::chrono::system_clock::now().time_since_epoch()).count();
+      }) {}
 
 void V2DeviceManagementProtocolClient::bindSession(
         const std::string &sessionId, const std::string &currentDeviceId) {
@@ -84,6 +90,9 @@ V2DeviceManagementProtocolClient::command(
     envelope.set_message_type(messageType);
     envelope.set_request_id(requestId);
     envelope.set_session_id(m_sessionId);
+    const std::int64_t sentAtEpochMs = m_clock();
+    if (sentAtEpochMs <= 0) throw std::runtime_error("clock must be positive");
+    envelope.set_sent_at_epoch_ms(sentAtEpochMs);
     envelope.set_payload(payload);
     m_pending.emplace(requestId, std::move(pending));
     return {requestId, bytes(envelope)};
@@ -93,7 +102,8 @@ V2DeviceManagementProtocolClient::Event
 V2DeviceManagementProtocolClient::receive(const std::string &encoded) {
     const auto envelope = parse<chat::v2::Envelope>(encoded);
     const auto pendingPosition = m_pending.find(envelope.request_id());
-    if (envelope.protocol_version() != 2 || envelope.session_id() != m_sessionId
+    if (envelope.protocol_version() != 2 || envelope.sent_at_epoch_ms() <= 0
+            || envelope.session_id() != m_sessionId
             || pendingPosition == m_pending.end())
         throw std::runtime_error("uncorrelated response");
     const Pending pending = pendingPosition->second;

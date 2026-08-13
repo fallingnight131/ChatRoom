@@ -43,6 +43,7 @@ std::string response(int type, chat::v2::MessageKind kind, const std::string &re
     envelope.set_message_type(type);
     envelope.set_request_id(requestId);
     envelope.set_session_id(sessionId);
+    envelope.set_sent_at_epoch_ms(900);
     envelope.set_payload(serialize(payload));
     return serialize(envelope);
 }
@@ -73,11 +74,13 @@ int main() {
         "30000000-0000-4000-8000-000000000003",
         "30000000-0000-4000-8000-000000000002",
         "30000000-0000-4000-8000-000000000001"};
-    V2DeviceManagementProtocolClient client([&] {
-        const auto result = requestIds.back();
-        requestIds.pop_back();
-        return result;
-    });
+    V2DeviceManagementProtocolClient client(
+        [&] {
+            const auto result = requestIds.back();
+            requestIds.pop_back();
+            return result;
+        },
+        [] { return 800; });
 
     checkThrows([&] { client.listDevices(); },
                 "unauthenticated commands must be rejected");
@@ -93,7 +96,8 @@ int main() {
               && listEnvelope.kind() == chat::v2::MESSAGE_KIND_COMMAND
               && listEnvelope.message_type() == chat::v2::MESSAGE_TYPE_LIST_DEVICES
               && listEnvelope.request_id() == list.requestId
-              && listEnvelope.session_id() == sessionId,
+              && listEnvelope.session_id() == sessionId
+              && listEnvelope.sent_at_epoch_ms() == 800,
           "list command must bind protocol, request and session");
     chat::v2::ListDevices listPayload;
     check(listPayload.ParseFromString(listEnvelope.payload()),
@@ -109,6 +113,13 @@ int main() {
                 "cross-session responses must be rejected");
     check(client.pendingCount() == 1,
           "rejected traffic must not consume the legitimate request");
+
+    wrongSession.set_session_id(sessionId);
+    wrongSession.set_sent_at_epoch_ms(0);
+    checkThrows([&] { client.receive(serialize(wrongSession)); },
+                "responses without a positive server timestamp must be rejected");
+    check(client.pendingCount() == 1,
+          "invalid server time must not consume the legitimate request");
 
     auto duplicateDirectory = directory(currentId, targetId);
     duplicateDirectory.mutable_devices(1)->set_device_id(currentId);
