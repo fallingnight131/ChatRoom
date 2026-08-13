@@ -1,5 +1,7 @@
 #include "V2WindowsDeviceManagementTransport.h"
 
+#include "chat/v2/control.pb.h"
+#include "chat/v2/envelope.pb.h"
 #include <QRandomGenerator>
 #include <QStringList>
 #include <algorithm>
@@ -129,6 +131,30 @@ QString V2WindowsDeviceManagementTransport::revokeDevice(const QString &targetDe
     return qt(command.requestId);
 }
 
+bool V2WindowsDeviceManagementTransport::sendMessagingFrame(const QByteArray &frame) {
+    if (m_state != State::Authenticated || !m_protocol || !m_hooks.connected()
+            || frame.isEmpty() || static_cast<quint64>(frame.size()) > maximumWireBytes
+            || m_pendingMessagingRequestIds.size() >= 32)
+        return false;
+    chat::v2::Envelope envelope;
+    if (!envelope.ParseFromArray(frame.constData(), static_cast<int>(frame.size()))
+            || envelope.protocol_version() != 2
+            || envelope.kind() != chat::v2::MESSAGE_KIND_COMMAND
+            || qt(envelope.session_id()) != m_resumeSessionId
+            || envelope.request_id().empty()
+            || envelope.payload().empty()
+            || (envelope.message_type() != chat::v2::MESSAGE_TYPE_SUBMIT_MESSAGE
+                && envelope.message_type() != chat::v2::MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE
+                && envelope.message_type() != chat::v2::MESSAGE_TYPE_READ_MESSAGE_HISTORY))
+        return false;
+    const QString requestId = qt(envelope.request_id());
+    if (m_pendingMessagingRequestIds.contains(requestId)) return false;
+    m_pendingMessagingRequestIds.insert(requestId);
+    if (m_hooks.sendBinary(frame) == frame.size()) return true;
+    m_pendingMessagingRequestIds.remove(requestId);
+    return false;
+}
+
 bool V2WindowsDeviceManagementTransport::isValidEndpoint(const QUrl &endpoint) {
     return endpoint.isValid() && endpoint.scheme() == QStringLiteral("wss")
         && !endpoint.host().isEmpty() && endpoint.userInfo().isEmpty()
@@ -170,6 +196,8 @@ void V2WindowsDeviceManagementTransport::handleConnected() {
 void V2WindowsDeviceManagementTransport::handleBinary(const QByteArray &message) {
     if (!m_protocol) return;
     try {
+        if (m_state == State::Authenticated && routeAuthenticatedMessagingFrame(message))
+            return;
         const auto event = m_protocol->receive(
             std::string(message.constData(), static_cast<std::size_t>(message.size())));
         switch (event.type) {
@@ -282,10 +310,43 @@ void V2WindowsDeviceManagementTransport::transition(State state) {
 void V2WindowsDeviceManagementTransport::clearProtocol() {
     if (m_protocol) m_protocol->close();
     m_protocol.reset();
+    m_pendingMessagingRequestIds.clear();
 }
 
 void V2WindowsDeviceManagementTransport::clearResumeCredential() {
     m_resumeToken.fill('\0');
     m_resumeToken.clear();
     m_resumeSessionId.clear();
+}
+
+bool V2WindowsDeviceManagementTransport::routeAuthenticatedMessagingFrame(
+        const QByteArray &message) {
+    if (message.isEmpty() || static_cast<quint64>(message.size()) > maximumWireBytes)
+        throw std::runtime_error("invalid authenticated V2 frame size");
+    chat::v2::Envelope envelope;
+    if (!envelope.ParseFromArray(message.constData(), static_cast<int>(message.size())))
+        throw std::runtime_error("invalid authenticated V2 envelope");
+    const bool published = envelope.message_type()
+        == chat::v2::MESSAGE_TYPE_MESSAGE_PUBLISHED;
+    const bool messagingResponse = envelope.message_type()
+            == chat::v2::MESSAGE_TYPE_MESSAGE_ACCEPTED
+        || envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE;
+    const QString requestId = qt(envelope.request_id());
+    const bool correlated = m_pendingMessagingRequestIds.contains(requestId);
+    const bool messagingError = envelope.message_type()
+            == chat::v2::MESSAGE_TYPE_PROTOCOL_ERROR && correlated;
+    if (!published && !messagingResponse && !messagingError) return false;
+    if (envelope.protocol_version() != 2 || qt(envelope.session_id()) != m_resumeSessionId)
+        throw std::runtime_error("messaging frame session mismatch");
+    if (published) {
+        if (envelope.kind() != chat::v2::MESSAGE_KIND_EVENT
+                || !envelope.request_id().empty())
+            throw std::runtime_error("invalid message event envelope");
+    } else {
+        if (!correlated)
+            throw std::runtime_error("uncorrelated messaging response");
+        m_pendingMessagingRequestIds.remove(requestId);
+    }
+    emit messagingFrameReceived(message);
+    return true;
 }

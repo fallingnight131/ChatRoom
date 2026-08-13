@@ -5,6 +5,7 @@
 #include <QByteArray>
 #include <QNetworkRequest>
 #include <QObject>
+#include <QSet>
 #include <QTimer>
 #include <QUrl>
 #include <QWebSocket>
@@ -51,6 +52,7 @@ public:
     void authenticate(const QString &username, QByteArray passwordUtf8);
     QString listDevices();
     QString revokeDevice(const QString &targetDeviceId);
+    bool sendMessagingFrame(const QByteArray &frame);
     static bool isValidEndpoint(const QUrl &endpoint);
 
 signals:
@@ -61,6 +63,7 @@ signals:
     void deviceDirectory(const QString &requestId,
                          const QVector<DeviceManagementViewModel::Device> &devices);
     void deviceRevoked(const QString &requestId, const QString &targetDeviceId);
+    void messagingFrameReceived(const QByteArray &frame);
     void protocolError(const QString &requestId);
     void failure(const QString &safeReason);
 
@@ -76,6 +79,7 @@ private:
     void transition(State state);
     void clearProtocol();
     void clearResumeCredential();
+    bool routeAuthenticatedMessagingFrame(const QByteArray &message);
 
     QUrl m_endpoint;
     QString m_appVersion;
@@ -88,6 +92,7 @@ private:
     std::unique_ptr<V2WindowsSessionProtocolClient> m_protocol;
     QByteArray m_resumeToken;
     QString m_resumeSessionId;
+    QSet<QString> m_pendingMessagingRequestIds;
     QString m_timeoutReason;
     State m_state = State::Idle;
     bool m_desired = false;

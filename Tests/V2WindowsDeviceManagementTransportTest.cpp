@@ -137,6 +137,45 @@ int main(int argc, char **argv) {
               && authenticatedDevice == deviceId,
           QStringLiteral("server session authority must activate the Windows transport"));
 
+    chat::v2::Envelope messagingCommand;
+    messagingCommand.set_protocol_version(2);
+    messagingCommand.set_kind(chat::v2::MESSAGE_KIND_COMMAND);
+    messagingCommand.set_message_type(chat::v2::MESSAGE_TYPE_READ_MESSAGE_HISTORY);
+    messagingCommand.set_request_id("50000000-0000-4000-8000-000000000001");
+    messagingCommand.set_session_id(sessionId);
+    messagingCommand.set_sent_at_epoch_ms(901);
+    messagingCommand.set_payload("history-request");
+    const auto messagingBytes = serialize(messagingCommand);
+    auto wrongSessionCommand = messagingCommand;
+    wrongSessionCommand.set_session_id("40000000-0000-4000-8000-000000000002");
+    const auto wrongSessionBytes = serialize(wrongSessionCommand);
+    check(!transport.sendMessagingFrame(QByteArray(
+              wrongSessionBytes.data(), static_cast<qsizetype>(wrongSessionBytes.size()))),
+          QStringLiteral("messaging command for another session must be rejected"));
+    check(transport.sendMessagingFrame(QByteArray(
+              messagingBytes.data(), static_cast<qsizetype>(messagingBytes.size())))
+              && sent.size() == 1,
+          QStringLiteral("authenticated messaging command must share the product socket"));
+    sent.clear();
+    QByteArray routedMessagingFrame;
+    QObject::connect(&transport,
+                     &V2WindowsDeviceManagementTransport::messagingFrameReceived,
+                     [&](const QByteArray &value) { routedMessagingFrame = value; });
+    chat::v2::Envelope messagingResponse;
+    messagingResponse.set_protocol_version(2);
+    messagingResponse.set_kind(chat::v2::MESSAGE_KIND_RESPONSE);
+    messagingResponse.set_message_type(chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE);
+    messagingResponse.set_request_id(messagingCommand.request_id());
+    messagingResponse.set_session_id(sessionId);
+    messagingResponse.set_sent_at_epoch_ms(902);
+    messagingResponse.set_payload("history-page");
+    const auto messagingResponseBytes = serialize(messagingResponse);
+    socket.binaryMessageReceived(QByteArray(
+        messagingResponseBytes.data(), static_cast<qsizetype>(messagingResponseBytes.size())));
+    check(routedMessagingFrame.size() == static_cast<qsizetype>(messagingResponseBytes.size())
+              && !aborted,
+          QStringLiteral("correlated messaging response must bypass device decoding"));
+
     const QString listRequest = transport.listDevices();
     sent.clear();
     chat::v2::DeviceDirectory directory;

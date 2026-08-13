@@ -1388,6 +1388,10 @@ Progress:
   - [x] Add the detached accessible Windows Widgets reply panel with explicit
     quote/status labels, keyboard-native buttons, composer focus restoration,
     cancellation, retry, and recalled/unavailable presentation.
+  - [x] Multiplex bounded Windows messaging commands, correlated responses, and
+    live message events over the existing authenticated product WSS while
+    preserving strict device-protocol isolation and fail-closed routing
+    (ADR-0334).
   - [ ] Add the equivalent reply composition, local-cache behavior, and rendering
     to the supported Windows client.
 
