@@ -1622,6 +1622,10 @@ schema version 1 evidence but forbids adding the saturation block without a
 schema upgrade (ADR-0386).
 The first clean schema version 2 result and its limitations are retained as
 `docs/baselines/M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_SATURATION_2026-08-14.*`.
+The loopback metrics endpoint also exports the gateway-owned PostgreSQL pool's
+management-view availability, active, idle, total, configured maximum, and
+waiting-thread gauges. Sample these during a workload; an idle snapshot cannot
+exclude transient connection pressure (ADR-0387).
 
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and

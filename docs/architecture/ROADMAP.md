@@ -1641,6 +1641,11 @@ Progress:
   0, and 21.804/32.788 ms P50/P95 latency. Historical schema version 1 remains
   valid; wider resource signals and the saturation knee remain pending
   (ADR-0386).
+- [x] Export fixed-name active, idle, total, maximum, and waiting-thread gauges
+  for the gateway-owned PostgreSQL pool, including explicit management-view
+  availability without issuing a database query or changing readiness. Window-
+  bound reconnect sampling and other resource signals remain pending
+  (ADR-0387).
 
 Work:
 

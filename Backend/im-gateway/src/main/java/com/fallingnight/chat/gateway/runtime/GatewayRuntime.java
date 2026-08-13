@@ -190,6 +190,8 @@ public final class GatewayRuntime implements AutoCloseable {
                     workers::queuedCount,
                     messagingWorkers::activeCount,
                     messagingWorkers::queuedCount,
+                    () -> GatewayPostgresDataSource.snapshot(
+                            readinessDataSource, config.postgresPoolMaximum()),
                     publicReadiness,
                     distributedMetrics,
                     config.releaseIdentity());

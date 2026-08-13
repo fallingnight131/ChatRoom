@@ -1,7 +1,9 @@
 package com.fallingnight.chat.gateway.runtime;
 
+import com.fallingnight.chat.gateway.operations.PostgresPoolSnapshot;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import com.zaxxer.hikari.HikariPoolMXBean;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Duration;
@@ -48,5 +50,21 @@ public final class GatewayPostgresDataSource {
         } catch (SQLException exception) {
             return false;
         }
+    }
+
+    static PostgresPoolSnapshot snapshot(
+            HikariDataSource dataSource, int maximumConnections) {
+        Objects.requireNonNull(dataSource, "dataSource");
+        HikariPoolMXBean pool = dataSource.getHikariPoolMXBean();
+        if (pool == null) {
+            return PostgresPoolSnapshot.unavailable(maximumConnections);
+        }
+        return new PostgresPoolSnapshot(
+                true,
+                pool.getActiveConnections(),
+                pool.getIdleConnections(),
+                pool.getTotalConnections(),
+                pool.getThreadsAwaitingConnection(),
+                maximumConnections);
     }
 }

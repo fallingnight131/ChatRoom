@@ -50,6 +50,7 @@ class GatewayAdminServerTest {
                 () -> 5,
                 () -> 2,
                 () -> 3,
+                () -> new PostgresPoolSnapshot(true, 2, 1, 3, 4, 8),
                 readiness,
                 () -> "# TYPE chat_gateway_distributed_metrics_available gauge\n"
                         + "chat_gateway_distributed_metrics_available 1\n",
@@ -101,6 +102,18 @@ class GatewayAdminServerTest {
             assertTrue(metrics.body().contains("chat_gateway_messaging_workers_active 2"));
             assertTrue(metrics.body().contains("chat_gateway_messaging_queue_size 3"));
             assertTrue(metrics.body().contains(
+                    "chat_gateway_postgres_pool_metrics_available 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_postgres_connections_active 2"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_postgres_connections_idle 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_postgres_connections_total 3"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_postgres_threads_awaiting_connection 4"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_postgres_connections_maximum 8"));
+            assertTrue(metrics.body().contains(
                     "chat_gateway_device_management_total{outcome=\"revoked\"} 1"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_device_management_total{outcome=\"disconnected\"} 2"));
@@ -145,6 +158,7 @@ class GatewayAdminServerTest {
                 () -> 0,
                 () -> 0,
                 () -> 0,
+                () -> PostgresPoolSnapshot.unavailable(8),
                 readiness));
         assertThrows(IllegalArgumentException.class, () -> new GatewayAdminServer(
                 new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
@@ -157,6 +171,7 @@ class GatewayAdminServerTest {
                 () -> 0,
                 () -> 0,
                 () -> 0,
+                () -> PostgresPoolSnapshot.unavailable(8),
                 readiness));
     }
 

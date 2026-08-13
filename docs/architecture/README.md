@@ -1225,6 +1225,11 @@ committed schema version 1 history without silently extending that schema.
 The first clean schema version 2 baseline at `4d9574f8...` completed all 12
 resumes and observed 38 samples, active-worker peak 1, and queue peak 0. This is
 not a saturation knee or production-capacity result.
+ADR-0387 adds the next resource boundary to loopback operations: fixed-name
+Hikari active, idle, total, maximum, waiting-thread, and management-view
+availability gauges expose the gateway-owned PostgreSQL pool without SQL or
+identity labels. They are diagnostic only and do not change readiness or size
+the pool.
 
 ## 10. Attachment Flow
 

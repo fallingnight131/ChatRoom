@@ -36,25 +36,12 @@ public final class GatewayAdminServer implements AutoCloseable {
             IntSupplier authenticationQueuedWork,
             IntSupplier messagingActiveWorkers,
             IntSupplier messagingQueuedWork,
+            Supplier<PostgresPoolSnapshot> postgresPoolSnapshot,
             BooleanSupplier readiness) {
         this(address, workers, telemetry, messagingTelemetry, deviceManagementTelemetry,
                 attachmentCleanupTelemetry, authenticationActiveWorkers,
                 authenticationQueuedWork, messagingActiveWorkers, messagingQueuedWork,
-                readiness, () -> "", GatewayReleaseIdentity.fromEnvironment(Map.of()));
-    }
-
-    public GatewayAdminServer(
-            InetSocketAddress address, int workers, AuthenticationTelemetry telemetry,
-            MessagingTelemetry messagingTelemetry,
-            DeviceManagementTelemetry deviceManagementTelemetry,
-            AttachmentCleanupTelemetry attachmentCleanupTelemetry,
-            IntSupplier authenticationActiveWorkers, IntSupplier authenticationQueuedWork,
-            IntSupplier messagingActiveWorkers, IntSupplier messagingQueuedWork,
-            BooleanSupplier readiness, Supplier<String> distributedMetrics) {
-        this(address, workers, telemetry, messagingTelemetry, deviceManagementTelemetry,
-                attachmentCleanupTelemetry, authenticationActiveWorkers,
-                authenticationQueuedWork, messagingActiveWorkers, messagingQueuedWork,
-                readiness, distributedMetrics,
+                postgresPoolSnapshot, readiness, () -> "",
                 GatewayReleaseIdentity.fromEnvironment(Map.of()));
     }
 
@@ -65,6 +52,23 @@ public final class GatewayAdminServer implements AutoCloseable {
             AttachmentCleanupTelemetry attachmentCleanupTelemetry,
             IntSupplier authenticationActiveWorkers, IntSupplier authenticationQueuedWork,
             IntSupplier messagingActiveWorkers, IntSupplier messagingQueuedWork,
+            Supplier<PostgresPoolSnapshot> postgresPoolSnapshot,
+            BooleanSupplier readiness, Supplier<String> distributedMetrics) {
+        this(address, workers, telemetry, messagingTelemetry, deviceManagementTelemetry,
+                attachmentCleanupTelemetry, authenticationActiveWorkers,
+                authenticationQueuedWork, messagingActiveWorkers, messagingQueuedWork,
+                postgresPoolSnapshot, readiness, distributedMetrics,
+                GatewayReleaseIdentity.fromEnvironment(Map.of()));
+    }
+
+    public GatewayAdminServer(
+            InetSocketAddress address, int workers, AuthenticationTelemetry telemetry,
+            MessagingTelemetry messagingTelemetry,
+            DeviceManagementTelemetry deviceManagementTelemetry,
+            AttachmentCleanupTelemetry attachmentCleanupTelemetry,
+            IntSupplier authenticationActiveWorkers, IntSupplier authenticationQueuedWork,
+            IntSupplier messagingActiveWorkers, IntSupplier messagingQueuedWork,
+            Supplier<PostgresPoolSnapshot> postgresPoolSnapshot,
             BooleanSupplier readiness, Supplier<String> distributedMetrics,
             GatewayReleaseIdentity releaseIdentity) {
         Objects.requireNonNull(address, "address");
@@ -76,6 +80,7 @@ public final class GatewayAdminServer implements AutoCloseable {
         Objects.requireNonNull(authenticationQueuedWork, "authenticationQueuedWork");
         Objects.requireNonNull(messagingActiveWorkers, "messagingActiveWorkers");
         Objects.requireNonNull(messagingQueuedWork, "messagingQueuedWork");
+        Objects.requireNonNull(postgresPoolSnapshot, "postgresPoolSnapshot");
         Objects.requireNonNull(readiness, "readiness");
         Objects.requireNonNull(distributedMetrics, "distributedMetrics");
         Objects.requireNonNull(releaseIdentity, "releaseIdentity");
@@ -124,6 +129,7 @@ public final class GatewayAdminServer implements AutoCloseable {
                                 deviceManagementTelemetry.snapshot())
                         + PrometheusAttachmentCleanupMetrics.render(
                                 attachmentCleanupTelemetry.snapshot())
+                        + PrometheusPostgresPoolMetrics.render(postgresPoolSnapshot.get())
                         + distributedMetrics.get()));
     }
 

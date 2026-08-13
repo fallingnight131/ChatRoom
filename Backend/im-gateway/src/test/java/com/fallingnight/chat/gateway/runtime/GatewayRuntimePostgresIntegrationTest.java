@@ -1935,6 +1935,14 @@ class GatewayRuntimePostgresIntegrationTest {
             }
             assertEquals(failedConnections, authenticationAccepted(firstAdmin));
             assertEquals(survivingConnections, authenticationAccepted(secondAdmin));
+            String poolMetrics = adminMetrics(secondAdmin);
+            assertEquals(1, fixedGauge(
+                    poolMetrics, "chat_gateway_postgres_pool_metrics_available"));
+            assertEquals(4, fixedGauge(
+                    poolMetrics, "chat_gateway_postgres_connections_maximum"));
+            int totalConnections = fixedGauge(
+                    poolMetrics, "chat_gateway_postgres_connections_total");
+            assertTrue(totalConnections >= 1 && totalConnections <= 4);
 
             Files.writeString(control.resolve("haproxy-primary-stop-request"), "stop\n");
             awaitFile(control.resolve("haproxy-primary-stopped"), Duration.ofSeconds(10));
@@ -4548,10 +4556,10 @@ class GatewayRuntimePostgresIntegrationTest {
         do {
             String metrics = adminMetrics(adminPort);
             activeWorkersMaximum = Math.max(activeWorkersMaximum,
-                    authenticationGauge(metrics,
+                    fixedGauge(metrics,
                             "chat_gateway_authentication_workers_active"));
             queuedWorkMaximum = Math.max(queuedWorkMaximum,
-                    authenticationGauge(metrics,
+                    fixedGauge(metrics,
                             "chat_gateway_authentication_queue_size"));
             samples++;
             ready.countDown();
@@ -4562,10 +4570,10 @@ class GatewayRuntimePostgresIntegrationTest {
                 samples, activeWorkersMaximum, queuedWorkMaximum);
     }
 
-    private static int authenticationGauge(String metrics, String name) {
+    private static int fixedGauge(String metrics, String name) {
         var matcher = Pattern.compile(Pattern.quote(name) + " ([0-9]+)")
                 .matcher(metrics);
-        assertTrue(matcher.find(), "missing authentication gauge " + name);
+        assertTrue(matcher.find(), "missing fixed gauge " + name);
         return Integer.parseInt(matcher.group(1));
     }
 
