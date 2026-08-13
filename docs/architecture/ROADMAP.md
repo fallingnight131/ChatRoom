@@ -735,7 +735,7 @@ Progress:
   - [x] Define idempotent secure V1 registration with strict identity/display/
     password policy, clearable plaintext, pre-persistence Argon2id, atomic
     numeric compatibility mapping, and exact natural-key retry.
-  - [ ] Implement PostgreSQL registration allocation and concurrent convergence.
+  - [x] Implement PostgreSQL registration allocation and concurrent convergence.
   - [ ] Add and compose strict `REGISTER_REQ`, then prove registration-to-login,
     exact retry, username collision, and restart durability.
   - [x] Add the inactive attachment registration application port and exact

@@ -71,6 +71,8 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomDissolutio
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1PasswordChangeAccess;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1PasswordChangeIntent;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1PasswordChangePersistenceResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RegistrationIntent;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RegistrationPersistenceResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMemberListPort;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettings;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettingsPort;
@@ -141,6 +143,7 @@ import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -169,7 +172,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(35, first.migrate());
+        assertEquals(36, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -192,7 +195,8 @@ class PostgresMigratorTest {
                             "legacy_v1_room_creation", "group_admission_policy",
                             "group_lifecycle", "group_resource_policy",
                             "legacy_v1_attachment_map", "legacy_v1_room_kick_event",
-                            "legacy_v1_room_dissolution", "account_password_change_audit"),
+                            "legacy_v1_room_dissolution", "account_password_change_audit",
+                            "legacy_v1_registration_audit"),
                     applicationTables(connection));
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
@@ -1991,6 +1995,47 @@ class PostgresMigratorTest {
 
     @Test
     @Order(96)
+    void registersV1AccountsConcurrentlyWithOneStableNumericMapping() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        var adapter = new PostgresLegacyV1RegistrationAdapter(dataSource());
+        var intent = new LegacyV1RegistrationIntent("runtime_01", "Runtime User",
+                new StoredCredential.Argon2id(
+                        "$argon2id$v=19$m=65536,t=2,p=1$cnVudGltZQ$cmVnaXN0ZXJlZA"));
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2), start = new CountDownLatch(1);
+        try {
+            var task = (java.util.concurrent.Callable<LegacyV1RegistrationPersistenceResult>) () -> {
+                ready.countDown(); assertTrue(start.await(5, TimeUnit.SECONDS));
+                return adapter.register(intent);
+            };
+            Future<LegacyV1RegistrationPersistenceResult> first = executor.submit(task);
+            Future<LegacyV1RegistrationPersistenceResult> second = executor.submit(task);
+            assertTrue(ready.await(5, TimeUnit.SECONDS)); start.countDown();
+            var results = List.of(first.get(10, TimeUnit.SECONDS),
+                    second.get(10, TimeUnit.SECONDS));
+            var created = results.stream().filter(
+                    LegacyV1RegistrationPersistenceResult.Created.class::isInstance)
+                    .map(LegacyV1RegistrationPersistenceResult.Created.class::cast).toList();
+            var existing = results.stream().filter(
+                    LegacyV1RegistrationPersistenceResult.Existing.class::isInstance)
+                    .map(LegacyV1RegistrationPersistenceResult.Existing.class::cast).toList();
+            assertEquals(1, created.size()); assertEquals(1, existing.size());
+            assertEquals(created.getFirst().accountId(), existing.getFirst().accountId());
+            assertEquals(OptionalLong.of(created.getFirst().legacyUserId()),
+                    existing.getFirst().legacyUserId());
+            assertTrue(created.getFirst().legacyUserId() > 0);
+        } finally { executor.shutdownNow(); }
+        assertEquals(1, count("SELECT count(*) FROM chat.account WHERE "
+                + "username_key = 'runtime_01' AND display_name = 'Runtime User' "
+                + "AND password_scheme = 'ARGON2ID' AND legacy_password_salt IS NULL"));
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_registration_audit audit "
+                + "JOIN chat.legacy_v1_account_map mapping "
+                + "ON mapping.account_id = audit.account_id "
+                + "AND mapping.legacy_user_id = audit.legacy_user_id"));
+    }
+
+    @Test
+    @Order(97)
     void createsV1FriendRequestsWithConcurrentRetryAndReverseDetection() throws Exception {
         requireDatabase();
         truncateApplicationData();
