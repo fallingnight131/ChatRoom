@@ -1,0 +1,54 @@
+{
+  "benchmark": "java-v2-haproxy-crash-reconnect",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 536870912,
+    "os": "Mac OS X"
+  },
+  "host": {
+    "haproxyImage": "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "pythonVersion": "3.9.6"
+  },
+  "recordedAt": "2026-08-13T22:15:26.182548Z",
+  "results": {
+    "elapsedMillis": 241.435,
+    "reconnectAttempts": 6,
+    "reconnectErrors": 0,
+    "reconnectSuccesses": 6,
+    "reconnectThroughputPerSecond": 24.851,
+    "scheduledStartJitterMicros": {
+      "max": 10043,
+      "mean": 3460.5,
+      "min": 19,
+      "p50": 3427,
+      "p95": 10043,
+      "p99": 10043,
+      "samples": 6
+    },
+    "sessionResumeLatencyMicros": {
+      "max": 44200,
+      "mean": 33539.0,
+      "min": 22984,
+      "p50": 29745,
+      "p95": 44200,
+      "p99": 44200,
+      "samples": 6
+    }
+  },
+  "scenario": {
+    "connections": 12,
+    "failedGatewayConnections": 6,
+    "reconnectBatchIntervalMillis": 100,
+    "reconnectBatchSize": 2,
+    "reconnectBatches": 3,
+    "scheduledReconnectSpanMillis": 200,
+    "survivingGatewayConnections": 6
+  },
+  "schemaVersion": 1,
+  "sourceRevision": "1456ca250916f286c5309f808f6a6aedc380b3c9",
+  "warning": "local failure-recovery evidence; not a production capacity claim",
+  "worktreeDirty": false
+}

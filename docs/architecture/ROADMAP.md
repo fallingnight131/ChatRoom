@@ -1556,7 +1556,9 @@ Progress:
   scheduled 100 ms apart. Versioned JSON records exact identity rotation,
   latency, arrival jitter, successes/errors, environment, revision, and dirty
   state; a strict validator gates clean comparable evidence. This bounded local
-  curve is not a production fleet rate (ADR-0374).
+  curve recorded 6/6 successful resumes, 29.745/44.200 ms P50/P95, and 10.043
+  ms maximum scheduling jitter on the documented Mac development host; it is
+  not a production fleet rate (ADR-0374).
 
 Work:
 
