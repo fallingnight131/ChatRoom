@@ -111,9 +111,10 @@ void WindowsV2MessagingController::bindAuthenticatedSession(
                     return m_service->hydrate(conversationId);
                 },
                 [this](const QString &conversationId, const QString &targetMessageId,
-                       const QString &text, V2LocalMessageRepository::Message *message) {
+                       const QString &text, V2LocalMessageRepository::Message *message,
+                       const QList<V2LocalMessageRepository::Mention> &mentions) {
                     return m_service->stageReply(
-                        conversationId, targetMessageId, text, message);
+                        conversationId, targetMessageId, text, message, mentions);
                 },
                 [this](const QString &conversationId, const QString &clientMessageId) {
                     return m_service->retry(conversationId, clientMessageId);
@@ -131,8 +132,11 @@ void WindowsV2MessagingController::bindAuthenticatedSession(
                 [this](const QString &conversationId, const QString &clientOperationId) {
                     return m_service->retryPin(conversationId, clientOperationId);
                 },
-                [this](const QString &conversationId, const QString &messageId, const QString &text) {
-                    return m_service->editMessage(conversationId, messageId, text);
+                [this](const QString &conversationId, const QString &messageId,
+                       const QString &text,
+                       const QList<V2LocalMessageRepository::Mention> &mentions) {
+                    return m_service->editMessage(
+                        conversationId, messageId, text, mentions);
                 },
                 [this](const QString &conversationId, const QString &operationId) {
                     return m_service->retryEdit(conversationId, operationId);

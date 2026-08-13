@@ -734,9 +734,12 @@ separate outbox child table. Foreign-key cleanup, authoritative edit
 replacement, and exact retry checks preserve the body/mention atomicity from
 ADR-0342. The Windows messaging application service now maps these values at
 the protocol/storage boundary for optimistic staging, reconnect replay,
-authoritative history/live convergence, and edit conflict/rebase. View-model
-composition, rendering, accessible authoring, and capability negotiation remain
-off, so capable traffic still cannot enter the Windows product UI.
+authoritative history/live convergence, and edit conflict/rebase. The message
+ViewModel now exposes identity-preserving spans on non-recalled rows and
+accepts already-composed spans for reply/edit actions. Rendering, editor span
+maintenance, accessible authoring, and capability negotiation remain off, so
+existing Widgets still submit an empty set and capable traffic cannot yet enter
+the Windows product UI.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

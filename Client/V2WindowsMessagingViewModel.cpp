@@ -63,11 +63,14 @@ void V2WindowsMessagingViewModel::cancelReply() {
     emit focusComposerRequested();
 }
 
-bool V2WindowsMessagingViewModel::sendReply(const QString &text) {
+bool V2WindowsMessagingViewModel::sendReply(
+        const QString &text,
+        const QList<V2LocalMessageRepository::Mention> &mentions) {
     if (m_conversationId.isEmpty() || m_replyTargetMessageId.isEmpty()
             || text.trimmed().isEmpty()) return false;
     V2LocalMessageRepository::Message optimistic;
-    if (!m_stageReply(m_conversationId, m_replyTargetMessageId, text, &optimistic)) {
+    if (!m_stageReply(
+            m_conversationId, m_replyTargetMessageId, text, &optimistic, mentions)) {
         m_failure = QStringLiteral("无法发送回复");
         emit changed();
         return false;
@@ -121,11 +124,13 @@ bool V2WindowsMessagingViewModel::retryPin(const QString &clientOperationId) {
     return refresh();
 }
 
-bool V2WindowsMessagingViewModel::editMessage(const QString &messageId, const QString &text) {
+bool V2WindowsMessagingViewModel::editMessage(
+        const QString &messageId, const QString &text,
+        const QList<V2LocalMessageRepository::Mention> &mentions) {
     const auto position = std::find_if(m_rows.cbegin(), m_rows.cend(),
         [&](const Row &row) { return row.messageId == messageId && row.canEdit; });
     if (position == m_rows.cend() || text.trimmed().isEmpty()
-            || !m_edit(m_conversationId, messageId, text)) {
+            || !m_edit(m_conversationId, messageId, text, mentions)) {
         m_failure = QStringLiteral("无法编辑该消息");
         emit changed();
         return false;
@@ -171,6 +176,7 @@ void V2WindowsMessagingViewModel::project(
         row.clientMessageId = message.clientMessageId;
         row.text = message.recalled ? QStringLiteral("此消息已被撤回") : message.text;
         row.senderAccountId = message.senderAccountId;
+        if (!message.recalled) row.mentions = message.mentions;
         row.mine = message.senderAccountId == m_accountId;
         row.recalled = message.recalled;
         row.canReply = !message.recalled && !message.messageId.isEmpty()

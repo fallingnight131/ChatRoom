@@ -1407,6 +1407,11 @@ disconnect, restored from history/live records, retained through edit conflict
 and rebase, and atomically converged on ACK. The existing ViewModel callbacks
 still supply empty sets, so this boundary completion does not activate mention
 authoring or capability 4.
+`V2WindowsMessagingViewModelTest` now also locks the next presentation boundary:
+non-recalled rows retain stable mention target/span values, and reply/edit
+actions forward already-composed values without deriving identity from display
+text. The current Widgets panel keeps using the default empty collection until
+its composer and accessible picker gates are complete.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

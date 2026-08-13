@@ -32,14 +32,16 @@ int main(int argc, char **argv) {
     V2WindowsMessagingViewModel messaging(
         accountId, [&](const QString &) { return snapshot; },
         [](const QString &, const QString &, const QString &,
-           V2LocalMessageRepository::Message *) { return true; },
+           V2LocalMessageRepository::Message *,
+           const QList<V2LocalMessageRepository::Mention> &) { return true; },
         [](const QString &, const QString &) { return true; },
         [](const QString &, const QString &,
            V2LocalMessageRepository::ReactionKind) { return true; },
         [](const QString &, const QString &) { return true; },
         [](const QString &, const QString &) { return true; },
         [](const QString &, const QString &) { return true; },
-        [](const QString &, const QString &, const QString &) { return true; },
+        [](const QString &, const QString &, const QString &,
+           const QList<V2LocalMessageRepository::Mention> &) { return true; },
         [](const QString &, const QString &) { return true; },
         [](const QString &, const QString &) { return true; },
         [](const QString &) { return true; });

@@ -39,19 +39,22 @@ public:
         bool editConflict = false;
         QString editOperationId;
         QString proposedText;
+        QList<V2LocalMessageRepository::Mention> mentions;
         QVector<Reaction> reactions;
     };
     using SnapshotLoader = std::function<V2LocalMessageRepository::Snapshot(const QString &)>;
     using StageReply = std::function<bool(
         const QString &, const QString &, const QString &,
-        V2LocalMessageRepository::Message *)>;
+        V2LocalMessageRepository::Message *,
+        const QList<V2LocalMessageRepository::Mention> &)>;
     using Retry = std::function<bool(const QString &, const QString &)>;
     using SetReaction = std::function<bool(const QString &, const QString &,
         V2LocalMessageRepository::ReactionKind)>;
     using RetryReaction = std::function<bool(const QString &, const QString &)>;
     using SetPin = std::function<bool(const QString &, const QString &)>;
     using RetryPin = std::function<bool(const QString &, const QString &)>;
-    using Edit = std::function<bool(const QString &, const QString &, const QString &)>;
+    using Edit = std::function<bool(const QString &, const QString &, const QString &,
+        const QList<V2LocalMessageRepository::Mention> &)>;
     using EditOperation = std::function<bool(const QString &, const QString &)>;
     using DiscardEdit = std::function<bool(const QString &)>;
 
@@ -70,13 +73,15 @@ public:
     QString failure() const { return m_failure; }
     bool chooseReply(const QString &messageId);
     void cancelReply();
-    bool sendReply(const QString &text);
+    bool sendReply(const QString &text,
+                   const QList<V2LocalMessageRepository::Mention> &mentions = {});
     bool retry(const QString &clientMessageId);
     bool setReaction(const QString &messageId, V2LocalMessageRepository::ReactionKind reaction);
     bool retryReaction(const QString &clientOperationId);
     bool setPin(const QString &messageId);
     bool retryPin(const QString &clientOperationId);
-    bool editMessage(const QString &messageId, const QString &text);
+    bool editMessage(const QString &messageId, const QString &text,
+                     const QList<V2LocalMessageRepository::Mention> &mentions = {});
     bool retryEdit(const QString &clientOperationId);
     bool rebaseEdit(const QString &clientOperationId);
     bool discardEdit(const QString &clientOperationId);

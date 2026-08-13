@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
     snapshot.pinCommands.append(failedPin);
     V2LocalMessageRepository::EditCommand conflictEdit{conversation, reply.messageId, 0,
         QStringLiteral("本地编辑草稿"),QStringLiteral("edit-conflict-1"),
-        V2LocalMessageRepository::EditDeliveryState::Conflict};
+        V2LocalMessageRepository::EditDeliveryState::Conflict,{}};
     snapshot.editCommands.append(conflictEdit);
 
     QString stagedTarget;
@@ -70,13 +70,16 @@ int main(int argc, char **argv) {
     QString retriedPin;
     QString editedMessage;
     QString editedText;
+    QList<V2LocalMessageRepository::Mention> stagedMentions;
+    QList<V2LocalMessageRepository::Mention> editedMentions;
     QString rebasedEdit;
     QString discardedEdit;
     V2WindowsMessagingViewModel model(
         account, [&](const QString &) { return snapshot; },
         [&](const QString &, const QString &targetId, const QString &text,
-            V2LocalMessageRepository::Message *) {
-            stagedTarget = targetId; stagedText = text; return true;
+            V2LocalMessageRepository::Message *,
+            const QList<V2LocalMessageRepository::Mention> &mentions) {
+            stagedTarget = targetId; stagedText = text; stagedMentions = mentions; return true;
         },
         [&](const QString &, const QString &clientId) { retried = clientId; return true; },
         [&](const QString &, const QString &messageId,
@@ -92,9 +95,11 @@ int main(int argc, char **argv) {
         [&](const QString &, const QString &operationId) {
             retriedPin = operationId; return true;
         },
-        [&](const QString &, const QString &messageId, const QString &text) {
+        [&](const QString &, const QString &messageId, const QString &text,
+            const QList<V2LocalMessageRepository::Mention> &mentions) {
             editedMessage = messageId;
             editedText = text;
+            editedMentions = mentions;
             return true;
         },
         [](const QString &, const QString &) { return true; },
@@ -108,6 +113,10 @@ int main(int argc, char **argv) {
         });
     check(model.openConversation(conversation) && model.rows().size() == 3,
           QStringLiteral("cached conversation was not projected"));
+    snapshot.messages[1].text = QStringLiteral("@张三 reply");
+    snapshot.messages[1].mentions.append({target.senderAccountId, 0, 7});
+    check(model.refresh() && model.rows().at(1).mentions.size() == 1,
+          QStringLiteral("message row lost identity-preserving mention spans"));
     check(model.rows().at(1).replyPreview == QStringLiteral("line one line two"),
           QStringLiteral("reply preview did not resolve current target text"));
     check(model.rows().at(2).canRetry && !model.rows().at(2).canReply,
@@ -131,8 +140,10 @@ int main(int argc, char **argv) {
           QStringLiteral("edit discard lost the operation identity"));
     snapshot.editCommands.clear();
     check(model.refresh() && model.rows().at(1).canEdit
-              && model.editMessage(reply.messageId, QStringLiteral("新正文"))
-              && editedMessage == reply.messageId && editedText == QStringLiteral("新正文"),
+              && model.editMessage(reply.messageId, QStringLiteral("@张三 新正文"),
+                    {{target.senderAccountId, 0, 7}})
+              && editedMessage == reply.messageId && editedText == QStringLiteral("@张三 新正文")
+              && editedMentions.size() == 1,
           QStringLiteral("author edit action did not preserve message and content"));
     check(model.setReaction(target.messageId, V2LocalMessageRepository::ReactionKind::Like)
               && reactedMessage == target.messageId,
@@ -147,8 +158,10 @@ int main(int argc, char **argv) {
           QStringLiteral("pin retry did not preserve the operation identity"));
     check(model.chooseReply(target.messageId) && !model.replyBanner().isEmpty(),
           QStringLiteral("accepted target was not selectable"));
-    check(model.sendReply(QStringLiteral("new reply"))
-              && stagedTarget == target.messageId && stagedText == QStringLiteral("new reply")
+    check(model.sendReply(QStringLiteral("@张三 new reply"),
+              {{target.senderAccountId, 0, 7}})
+              && stagedTarget == target.messageId && stagedText == QStringLiteral("@张三 new reply")
+              && stagedMentions.size() == 1
               && model.replyTargetMessageId().isEmpty(),
           QStringLiteral("reply send did not preserve selected target or clear selection"));
     check(model.retry(failed.clientMessageId) && retried == failed.clientMessageId,

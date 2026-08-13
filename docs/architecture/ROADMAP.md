@@ -1543,6 +1543,9 @@ Progress:
       - [x] Carry Windows mentions through the application service across
         optimistic reply/edit staging, reconnect replay, authoritative history
         and live projection, edit conflict/rebase, and correlated outcomes.
+      - [x] Expose validated mention spans on Windows message rows and thread
+        already-composed spans through ViewModel reply/edit actions while
+        existing Widgets continue to supply an empty set.
       - [x] Add a default-off Windows participant-directory protocol client with
         bounded correlation, stable account cursor, strict Unicode/role/order
         validation, and disconnect abandonment.
