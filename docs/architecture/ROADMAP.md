@@ -682,6 +682,14 @@ Progress:
   - [x] Compose V1 room kicks in the detached Java compatibility module and prove
     login-to-kick, target/member effects, audit linkage, retry suppression, and
     immediate room-list exclusion through real PostgreSQL.
+  - [x] Define the strict server-bound V1 room administrative message-deletion
+    contract for selected/all/before/after modes, whole-second cutoffs, bounded
+    selections, canonical retry fingerprints, and first-commit-only effects.
+  - [ ] Implement serializable PostgreSQL V1 administrative message deletion
+    with atomic target resolution, attachment revocation, recall cleanup,
+    shared sequence allocation, durable replay event, and exact retry recovery.
+  - [ ] Add and compose the detached strict `DELETE_MSGS_REQ` handler, then prove
+    live compatibility and reconnect replay through real PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
