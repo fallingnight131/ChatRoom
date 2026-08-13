@@ -816,6 +816,12 @@ bounded worker pools so a message burst cannot consume password/session
 execution slots; both pools still share bounded PostgreSQL connections.
 The loopback metrics endpoint exposes fixed message outcome counters and current
 message-worker active/queue gauges without identity or conversation labels.
+Gateway liveness remains process-local, while readiness now also obtains and
+validates a bounded-pool PostgreSQL connection on every probe. An unavailable
+or saturated database therefore removes the instance from new load without
+terminating existing sockets; readiness recovers automatically after the pool
+can provide a valid connection, and dependency details never enter the HTTP
+response.
 The application/PostgreSQL boundary now also provides a bounded, descending
 composite-cursor directory of only the authenticated account's active
 conversations, including canonical kind, direct-peer or group display name,

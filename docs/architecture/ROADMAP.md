@@ -1312,6 +1312,10 @@ Progress:
   outcome: return a retryable redacted error, keep the connection active, retry
   the identical `clientMessageId`, and converge on the original message ID and
   sequence as a duplicate without a second live publication.
+- [x] Make gateway readiness depend on obtaining and validating a PostgreSQL
+  connection after process startup, fail closed without exposing database error
+  details, and recover automatically when the dependency is valid again while
+  keeping liveness independent.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.

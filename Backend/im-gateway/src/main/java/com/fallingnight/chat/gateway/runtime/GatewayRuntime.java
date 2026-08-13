@@ -30,12 +30,14 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 
 /** Owns the validated database, workers, admin endpoint, and product listener lifecycle. */
 public final class GatewayRuntime implements AutoCloseable {
     private static final Duration WORKER_CLOSE_TIMEOUT = Duration.ofSeconds(5);
 
     private final AtomicBoolean readiness;
+    private final BooleanSupplier dependencyReadiness;
     private final ManagedServer admin;
     private final BlockingServer product;
     private final AutoCloseable authenticationWorkers;
@@ -50,7 +52,8 @@ public final class GatewayRuntime implements AutoCloseable {
             BlockingServer product,
             AutoCloseable authenticationWorkers,
             AutoCloseable messagingWorkers,
-            AutoCloseable dataSource) {
+            AutoCloseable dataSource,
+            BooleanSupplier dependencyReadiness) {
         this.readiness = Objects.requireNonNull(readiness, "readiness");
         this.admin = Objects.requireNonNull(admin, "admin");
         this.product = Objects.requireNonNull(product, "product");
@@ -58,6 +61,8 @@ public final class GatewayRuntime implements AutoCloseable {
                 authenticationWorkers, "authenticationWorkers");
         this.messagingWorkers = Objects.requireNonNull(messagingWorkers, "messagingWorkers");
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
+        this.dependencyReadiness = Objects.requireNonNull(
+                dependencyReadiness, "dependencyReadiness");
     }
 
     public static GatewayRuntime create(GatewayRuntimeConfig config) {
@@ -138,6 +143,9 @@ public final class GatewayRuntime implements AutoCloseable {
                     deviceTelemetry,
                     deviceConnections);
             AtomicBoolean readiness = new AtomicBoolean();
+            HikariDataSource readinessDataSource = dataSource;
+            BooleanSupplier dependencyReadiness =
+                    () -> GatewayPostgresDataSource.isReady(readinessDataSource);
             adminServer = new GatewayAdminServer(
                     config.adminAddress(),
                     config.adminWorkers(),
@@ -147,14 +155,15 @@ public final class GatewayRuntime implements AutoCloseable {
                     attachmentCleanupTelemetry,
                     messagingWorkers::activeCount,
                     messagingWorkers::queuedCount,
-                    readiness::get);
+                    () -> readiness.get() && dependencyReadiness.getAsBoolean());
             return new GatewayRuntime(
                     readiness,
                     managed(adminServer),
                     blocking(productServer),
                     workers,
                     messagingWorkers,
-                    dataSource);
+                    dataSource,
+                    dependencyReadiness);
         } catch (RuntimeException exception) {
             closeQuietly(adminServer);
             closeQuietly(productServer);
@@ -173,7 +182,8 @@ public final class GatewayRuntime implements AutoCloseable {
             AutoCloseable messagingWorkers,
             AutoCloseable dataSource) {
         return new GatewayRuntime(
-                readiness, admin, product, authenticationWorkers, messagingWorkers, dataSource);
+                readiness, admin, product, authenticationWorkers, messagingWorkers, dataSource,
+                () -> true);
     }
 
     public synchronized void start() {
@@ -201,7 +211,7 @@ public final class GatewayRuntime implements AutoCloseable {
     }
 
     public boolean isReady() {
-        return readiness.get();
+        return readiness.get() && dependencyReadiness.getAsBoolean();
     }
 
     @Override

@@ -7,11 +7,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.zaxxer.hikari.HikariConfig;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.lang.reflect.Proxy;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import javax.sql.DataSource;
 
 class GatewayPostgresDataSourceTest {
     @TempDir
@@ -35,6 +39,52 @@ class GatewayPostgresDataSourceTest {
         assertTrue(config.isAutoCommit());
         assertEquals("true", config.getDataSourceProperties().getProperty("tcpKeepAlive"));
         assertFalse(config.toString().contains("database-secret"));
+    }
+
+    @Test
+    void readinessRequiresAValidConnectionAndRecoversWithoutLeakingFailure() {
+        assertTrue(GatewayPostgresDataSource.isReady(dataSource(connection(true), null)));
+        assertFalse(GatewayPostgresDataSource.isReady(dataSource(connection(false), null)));
+        assertFalse(GatewayPostgresDataSource.isReady(dataSource(
+                null, new SQLException("database-secret must stay private"))));
+    }
+
+    private static DataSource dataSource(Connection connection, SQLException failure) {
+        return (DataSource) Proxy.newProxyInstance(
+                DataSource.class.getClassLoader(),
+                new Class<?>[] {DataSource.class},
+                (proxy, method, arguments) -> {
+                    if (method.getName().equals("getConnection")) {
+                        if (failure != null) throw failure;
+                        return connection;
+                    }
+                    return defaultValue(method.getReturnType());
+                });
+    }
+
+    private static Connection connection(boolean valid) {
+        return (Connection) Proxy.newProxyInstance(
+                Connection.class.getClassLoader(),
+                new Class<?>[] {Connection.class},
+                (proxy, method, arguments) -> switch (method.getName()) {
+                    case "isValid" -> valid;
+                    case "close" -> null;
+                    case "isClosed" -> false;
+                    default -> defaultValue(method.getReturnType());
+                });
+    }
+
+    private static Object defaultValue(Class<?> type) {
+        if (!type.isPrimitive()) return null;
+        if (type == boolean.class) return false;
+        if (type == byte.class) return (byte) 0;
+        if (type == short.class) return (short) 0;
+        if (type == int.class) return 0;
+        if (type == long.class) return 0L;
+        if (type == float.class) return 0F;
+        if (type == double.class) return 0D;
+        if (type == char.class) return '\0';
+        throw new IllegalArgumentException("unsupported primitive type");
     }
 
     private GatewayRuntimeConfig runtime() throws Exception {

@@ -2,8 +2,11 @@ package com.fallingnight.chat.gateway.runtime;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Objects;
+import javax.sql.DataSource;
 
 /** Creates the owned, bounded PostgreSQL pool from already validated runtime config. */
 public final class GatewayPostgresDataSource {
@@ -36,5 +39,14 @@ public final class GatewayPostgresDataSource {
         config.setAutoCommit(true);
         config.addDataSourceProperty("tcpKeepAlive", "true");
         return config;
+    }
+
+    static boolean isReady(DataSource dataSource) {
+        Objects.requireNonNull(dataSource, "dataSource");
+        try (Connection connection = dataSource.getConnection()) {
+            return connection.isValid(1);
+        } catch (SQLException exception) {
+            return false;
+        }
     }
 }
