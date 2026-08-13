@@ -34,19 +34,22 @@ notification.
 The adapter locks the active mapped room plus actor and target memberships in a
 serializable transaction, uses compare-and-set role updates, touches the
 conversation only on change, and retries bounded serialization/deadlock
-failures. This ADR defines no wire handler or product-listener change; transport
-composition is a subsequent independently verified slice.
+failures.
+
 The detached Netty handler now owns strict bounded JSON parsing, authenticated
 actor binding, one in-flight command per connection, and bounded off-event-loop
 execution. It emits compatible `SET_ADMIN_RSP`; only a committed
 `changed=true` result may route `ADMIN_STATUS` to the active local target.
 Stable business rejection keeps the connection usable, while malformed,
-concurrent, saturated, or failed commands close generically. The handler is not
-yet composed into the compatibility module or product listener.
+concurrent, saturated, or failed commands close generically. The handler and
+PostgreSQL adapter are now composed in the detached compatibility module. Real
+PostgreSQL verification covers login, first promotion, durable role state,
+target notification, convergent retry suppression, member-directory refresh,
+and replacement-login role recovery. The product listener remains unchanged.
 
 ## Consequences
 
-- Authorization and owner invariants remain in the future serializable database
+- Authorization and owner invariants remain in the serializable database
   transaction rather than in the gateway.
 - Web and Windows retain their existing target-state command shape.
 - The Java boundary can suppress duplicate live effects without requiring a new

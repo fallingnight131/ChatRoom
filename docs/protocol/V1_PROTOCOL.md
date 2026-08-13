@@ -203,8 +203,9 @@ Promotion requires active OWNER/ADMIN authority and an active mapped target;
 demotion is ADMIN self-service, while OWNER is protected. `SET_ADMIN_RSP` adds
 stable rejection codes and a `changed` convergence flag. Only a committed role
 change may emit `ADMIN_STATUS` to the active local target; repeating the same
-target role emits no notification. The handler is not yet composed into the
-compatibility module or product listener.
+target role emits no notification. The handler is composed in the detached Java
+compatibility module and covered through real PostgreSQL login, promotion,
+retry, and reconnect tests. The product listener remains unchanged.
 
 ### Room files
 

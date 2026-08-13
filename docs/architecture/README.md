@@ -871,8 +871,10 @@ actor and exact target username enter a typed application command, while a
 serializable PostgreSQL adapter authorizes active mapped roles and performs a
 convergent compare-and-set mutation. OWNER remains protected, promotion requires
 OWNER/ADMIN, and demotion is ADMIN self-service only. Repeating an attained role
-returns `changed=false`, which the later transport slice must use to suppress
-duplicate notifications. No product listener is changed yet.
+returns `changed=false` and suppresses duplicate notifications. The detached
+compatibility module composes this path and real PostgreSQL proves
+login-to-promotion, target notification, directory refresh, and
+replacement-login role recovery. No product listener is changed yet.
 
 ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
 create-only, length, type, and SHA-256 constraints and reads checksum-enabled

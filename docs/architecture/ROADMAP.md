@@ -667,6 +667,9 @@ Progress:
   - [x] Add the detached strict V1 administrator handler with authenticated actor
     binding, bounded off-loop execution, compatible response/status projection,
     and changed-only local target notification.
+  - [x] Compose V1 administrator changes in the detached Java compatibility
+    module and prove login-to-promotion, duplicate suppression, durable member
+    projection, and replacement-login recovery through real PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-

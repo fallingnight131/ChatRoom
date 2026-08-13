@@ -23,6 +23,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMemberListEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomSettingsEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFilesEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFileDeletionEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomAdminEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendDirectoryEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1FriendRequestAcceptanceEventSink;
@@ -323,6 +324,8 @@ class GatewayRuntimePostgresIntegrationTest {
                         assertRoomReadClearsUnread(reconnected);
                         assertRoomFileDeletion(reconnected, peer,
                                 jdbcUrl, username, password);
+                        assertRoomAdminPromotion(reconnected, peer,
+                                jdbcUrl, username, password);
                         assertDirectHistoryAfterReconnect(reconnected);
                         assertDirectRecallFirst(reconnected, peer, directMessageId);
                         assertDirectRecallDuplicate(reconnected, peer, directMessageId);
@@ -376,6 +379,17 @@ class GatewayRuntimePostgresIntegrationTest {
                                 assertFalse(newPending.text().contains("15000000-0000"));
                             } finally { newPending.release(); }
                         } finally { newcomer.finishAndReleaseAll(); }
+
+                        EmbeddedChannel peerReplacement = upgradedChannel(module,
+                                Runnable::run, AuthenticationAdmissionControl.allowAll(),
+                                AuthenticationEventSink.noop());
+                        try {
+                            peerReplacement.writeInbound(loginFrame(
+                                    "imported-peer", "java-v2-test-password"));
+                            peerReplacement.runPendingTasks();
+                            ((TextWebSocketFrame) peerReplacement.readOutbound()).release();
+                            assertRoomAdminRecovered(peerReplacement);
+                        } finally { peerReplacement.finishAndReleaseAll(); }
                     } finally { reconnected.finishAndReleaseAll(); }
                 } finally {
                     peer.finishAndReleaseAll();
@@ -398,7 +412,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     response.release();
                 }
                 assertFalse(nativeV2.isActive());
-                assertEquals(7, sessionCount(jdbcUrl, username, password));
+                assertEquals(8, sessionCount(jdbcUrl, username, password));
             } finally {
                 nativeV2.finishAndReleaseAll();
             }
@@ -422,6 +436,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomSettingsEventSink.noop(),
                 V1RoomFilesEventSink.noop(),
                 V1RoomFileDeletionEventSink.noop(),
+                V1RoomAdminEventSink.noop(),
                 V1RoomDirectoryEventSink.noop(),
                 V1RoomMessageEventSink.noop(),
                 V1RoomHistoryEventSink.noop(),
@@ -869,6 +884,63 @@ class GatewayRuntimePostgresIntegrationTest {
         try {
             assertTrue(response.text().contains("\"usedFileSpace\":0"));
             assertFalse(response.text().contains("\"fileId\":501"));
+        } finally { response.release(); }
+    }
+
+    private static void assertRoomAdminPromotion(EmbeddedChannel owner,
+            EmbeddedChannel target, String url, String user, String password) throws Exception {
+        String request = "{\"type\":\"SET_ADMIN_REQ\",\"data\":{\"roomId\":7,"
+                + "\"username\":\"imported-peer\",\"isAdmin\":true}}";
+        owner.writeInbound(new TextWebSocketFrame(request)); owner.runPendingTasks();
+        TextWebSocketFrame response = owner.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"SET_ADMIN_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"changed\":true"));
+            assertTrue(response.text().contains("\"username\":\"imported-peer\""));
+            assertFalse(response.text().contains("15000000-0000"));
+        } finally { response.release(); }
+        target.runPendingTasks(); TextWebSocketFrame notification = target.readOutbound();
+        try {
+            assertTrue(notification.text().contains("\"type\":\"ADMIN_STATUS\""));
+            assertTrue(notification.text().contains("\"roomId\":7"));
+            assertTrue(notification.text().contains("\"isAdmin\":true"));
+        } finally { notification.release(); }
+        assertEquals(1, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.conversation_member member "
+                        + "JOIN chat.legacy_v1_conversation_map mapping "
+                        + "ON mapping.conversation_id = member.conversation_id "
+                        + "WHERE mapping.legacy_kind = 'ROOM' "
+                        + "AND mapping.legacy_conversation_id = 7 "
+                        + "AND member.account_id = "
+                        + "'15000000-0000-0000-0000-000000000044' "
+                        + "AND member.role = 'ADMIN' AND member.left_at IS NULL"));
+
+        owner.writeInbound(new TextWebSocketFrame(request)); owner.runPendingTasks();
+        response = owner.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"changed\":false"));
+        } finally { response.release(); }
+        target.runPendingTasks(); assertNull(target.readOutbound());
+
+        owner.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"USER_LIST_REQ\",\"data\":{\"roomId\":7}}"));
+        owner.runPendingTasks(); response = owner.readOutbound();
+        try {
+            assertEquals(2, occurrences(response.text(), "\"isAdmin\":true"));
+            assertFalse(response.text().contains("15000000-0000"));
+        } finally { response.release(); }
+    }
+
+    private static void assertRoomAdminRecovered(EmbeddedChannel channel) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"ROOM_LIST_REQ\",\"data\":{}}"));
+        channel.runPendingTasks(); TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"roomId\":7"));
+            assertTrue(response.text().contains("\"isAdmin\":true"));
+            assertFalse(response.text().contains("15000000-0000"));
         } finally { response.release(); }
     }
 
