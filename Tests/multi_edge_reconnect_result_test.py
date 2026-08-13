@@ -88,6 +88,27 @@ def event_loop_saturation():
     }
 
 
+def process_resource_saturation():
+    return {
+        "sampleIntervalMillis": 5,
+        "samples": 24,
+        "cpuTimeUnavailableSamples": 0,
+        "cpuTimeMicrosBefore": 1_000_000,
+        "cpuTimeMicrosAfter": 1_100_000,
+        "cpuTimeMicrosDelta": 100_000,
+        "heapUsedBytesBefore": 100,
+        "heapUsedBytesAfter": 120,
+        "heapUsedBytesMaximum": 150,
+        "heapCommittedBytesBefore": 200,
+        "heapCommittedBytesAfter": 220,
+        "heapMaximumBytes": 1024,
+        "uptimeMillisBefore": 10_000,
+        "uptimeMillisAfter": 10_350,
+        "uptimeMillisDelta": 350,
+        "availableProcessors": 10,
+    }
+
+
 class MultiEdgeReconnectResultTest(unittest.TestCase):
     def test_accepts_reconciled_clean_evidence(self):
         validate(evidence(), "a" * 40, require_clean=True)
@@ -111,6 +132,15 @@ class MultiEdgeReconnectResultTest(unittest.TestCase):
         value["results"]["authenticationSaturation"] = authentication_saturation()
         value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
         value["results"]["eventLoopSaturation"] = event_loop_saturation()
+        validate(value, "a" * 40, require_clean=True)
+
+    def test_accepts_process_resource_saturation_evidence(self):
+        value = evidence()
+        value["schemaVersion"] = 5
+        value["results"]["authenticationSaturation"] = authentication_saturation()
+        value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+        value["results"]["eventLoopSaturation"] = event_loop_saturation()
+        value["results"]["processResourceSaturation"] = process_resource_saturation()
         validate(value, "a" * 40, require_clean=True)
 
     def test_rejects_saturation_extension_without_schema_upgrade(self):
@@ -217,6 +247,49 @@ class MultiEdgeReconnectResultTest(unittest.TestCase):
         value["results"]["authenticationSaturation"] = authentication_saturation()
         value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
         value["results"]["eventLoopSaturation"] = event_loop_saturation()
+        with self.assertRaises(EvidenceError):
+            validate(value, "a" * 40, require_clean=True)
+
+    def test_rejects_missing_or_invalid_process_resources(self):
+        value = evidence()
+        value["schemaVersion"] = 5
+        value["results"]["authenticationSaturation"] = authentication_saturation()
+        value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+        value["results"]["eventLoopSaturation"] = event_loop_saturation()
+        with self.assertRaises(EvidenceError):
+            validate(value, "a" * 40, require_clean=True)
+
+        for mutate in (
+            lambda resource: resource.update(sampleIntervalMillis=10),
+            lambda resource: resource.update(samples=23),
+            lambda resource: resource.update(cpuTimeUnavailableSamples=1),
+            lambda resource: resource.update(cpuTimeMicrosDelta=99_999),
+            lambda resource: resource.update(heapUsedBytesMaximum=119),
+            lambda resource: resource.update(heapCommittedBytesAfter=119),
+            lambda resource: resource.update(heapMaximumBytes=199),
+            lambda resource: resource.update(uptimeMillisAfter=10_000),
+            lambda resource: resource.update(uptimeMillisDelta=349),
+            lambda resource: resource.update(availableProcessors=8),
+            lambda resource: resource.update(extraField=1),
+        ):
+            value = evidence()
+            value["schemaVersion"] = 5
+            value["results"]["authenticationSaturation"] = authentication_saturation()
+            value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+            value["results"]["eventLoopSaturation"] = event_loop_saturation()
+            resource = process_resource_saturation()
+            value["results"]["processResourceSaturation"] = resource
+            mutate(resource)
+            with self.subTest(resource=resource), self.assertRaises(EvidenceError):
+                validate(value, "a" * 40, require_clean=True)
+
+    def test_rejects_process_resource_extension_without_schema_upgrade(self):
+        value = evidence()
+        value["schemaVersion"] = 4
+        value["results"]["authenticationSaturation"] = authentication_saturation()
+        value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+        value["results"]["eventLoopSaturation"] = event_loop_saturation()
+        value["results"]["processResourceSaturation"] = process_resource_saturation()
         with self.assertRaises(EvidenceError):
             validate(value, "a" * 40, require_clean=True)
 

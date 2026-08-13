@@ -1254,6 +1254,10 @@ ADR-0391 adds portable Java process CPU time, heap used/committed/maximum,
 uptime, and processor-count gauges to loopback operations without native or
 macOS-specific dependencies. RSS, off-heap memory, GC pauses, and container
 limits remain explicit gaps.
+ADR-0392 incorporates portable process CPU time and heap state into schema
+version 5 of the shared recovery evidence. It reconciles cumulative CPU and
+uptime deltas, permits committed-heap growth, and preserves schemas 1 through 4
+as historical contracts.
 
 ## 10. Attachment Flow
 

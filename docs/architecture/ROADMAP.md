@@ -1669,6 +1669,11 @@ Progress:
   processors from Java standard management APIs without platform-native
   dependencies. Window evidence, RSS, GC pauses, and a saturation knee remain
   pending (ADR-0391).
+- [x] Upgrade new dual-edge evidence to schema version 5 and record portable
+  process CPU-time/uptime deltas plus JVM heap used endpoints/peak,
+  committed endpoints, effective maximum, and processors in the same shared
+  window. A clean schema-5 baseline, RSS, GC pauses, and a saturation knee
+  remain pending (ADR-0392).
 
 Work:
 

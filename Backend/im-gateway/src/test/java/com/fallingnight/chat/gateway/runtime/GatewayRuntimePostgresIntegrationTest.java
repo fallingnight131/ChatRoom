@@ -4585,6 +4585,18 @@ class GatewayRuntimePostgresIntegrationTest {
         long eventLoopSinceStartMaximumLagMicrosBefore = -1;
         long eventLoopSinceStartMaximumLagMicrosAfter = -1;
         long eventLoopPendingTasksMaximum = 0;
+        int processCpuTimeUnavailableSamples = 0;
+        long processCpuTimeMicrosBefore = -1;
+        long processCpuTimeMicrosAfter = -1;
+        long heapUsedBytesBefore = -1;
+        long heapUsedBytesAfter = -1;
+        long heapUsedBytesMaximum = 0;
+        long heapCommittedBytesBefore = -1;
+        long heapCommittedBytesAfter = -1;
+        long heapMaximumBytes = -1;
+        long uptimeMillisBefore = -1;
+        long uptimeMillisAfter = -1;
+        int availableProcessors = -1;
         long sampleIntervalNanos = TimeUnit.MILLISECONDS.toNanos(5);
         long nextSampleNanos = System.nanoTime();
         do {
@@ -4652,6 +4664,39 @@ class GatewayRuntimePostgresIntegrationTest {
                         fixedLongGauge(metrics,
                                 "chat_gateway_event_loop_pending_tasks"));
             }
+            if (fixedGauge(metrics,
+                    "chat_gateway_process_cpu_time_available") == 0) {
+                processCpuTimeUnavailableSamples++;
+            } else {
+                long cpuMicros = fixedSecondsMicros(
+                        metrics, "chat_gateway_process_cpu_seconds_total");
+                if (processCpuTimeMicrosBefore < 0) processCpuTimeMicrosBefore = cpuMicros;
+                processCpuTimeMicrosAfter = cpuMicros;
+            }
+            long heapUsed = fixedLongGauge(metrics, "chat_gateway_jvm_heap_used_bytes");
+            long committed = fixedLongGauge(
+                    metrics, "chat_gateway_jvm_heap_committed_bytes");
+            long maximum = fixedLongGauge(metrics, "chat_gateway_jvm_heap_maximum_bytes");
+            long uptimeMillis = fixedSecondsMillis(
+                    metrics, "chat_gateway_process_uptime_seconds");
+            int processors = fixedGauge(
+                    metrics, "chat_gateway_process_available_processors");
+            if (heapUsedBytesBefore < 0) {
+                heapUsedBytesBefore = heapUsed;
+                heapCommittedBytesBefore = committed;
+                heapMaximumBytes = maximum;
+                uptimeMillisBefore = uptimeMillis;
+                availableProcessors = processors;
+            } else {
+                assertEquals(heapMaximumBytes, maximum,
+                        "heap maximum bytes changed during reconnect sampling");
+                assertEquals(availableProcessors, processors,
+                        "available processors changed during reconnect sampling");
+            }
+            heapUsedBytesAfter = heapUsed;
+            heapUsedBytesMaximum = Math.max(heapUsedBytesMaximum, heapUsed);
+            heapCommittedBytesAfter = committed;
+            uptimeMillisAfter = uptimeMillis;
             samples++;
             ready.countDown();
             if (!running.get()) break;
@@ -4669,7 +4714,12 @@ class GatewayRuntimePostgresIntegrationTest {
                 eventLoopLatestMaximumLagMicros,
                 eventLoopSinceStartMaximumLagMicrosBefore,
                 eventLoopSinceStartMaximumLagMicrosAfter,
-                eventLoopPendingTasksMaximum);
+                eventLoopPendingTasksMaximum, processCpuTimeUnavailableSamples,
+                processCpuTimeMicrosBefore, processCpuTimeMicrosAfter,
+                heapUsedBytesBefore, heapUsedBytesAfter, heapUsedBytesMaximum,
+                heapCommittedBytesBefore, heapCommittedBytesAfter,
+                heapMaximumBytes, uptimeMillisBefore,
+                uptimeMillisAfter, availableProcessors);
     }
 
     private static int fixedGauge(String metrics, String name) {
@@ -4684,12 +4734,20 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     private static long fixedSecondsMicros(String metrics, String name) {
+        return fixedSeconds(metrics, name, 6);
+    }
+
+    private static long fixedSecondsMillis(String metrics, String name) {
+        return fixedSeconds(metrics, name, 3);
+    }
+
+    private static long fixedSeconds(String metrics, String name, int decimalPlaces) {
         var matcher = Pattern.compile(
                 Pattern.quote(name) + " ([0-9]+(?:\\.[0-9]+)?)")
                 .matcher(metrics);
         assertTrue(matcher.find(), "missing seconds gauge " + name);
         return new BigDecimal(matcher.group(1))
-                .movePointRight(6)
+                .movePointRight(decimalPlaces)
                 .setScale(0, RoundingMode.HALF_UP)
                 .longValueExact();
     }
@@ -4945,7 +5003,7 @@ class GatewayRuntimePostgresIntegrationTest {
         int batches = (affected + batchSize - 1) / batchSize;
         String json = """
                 {
-                  "schemaVersion": 4,
+                  "schemaVersion": 5,
                   "benchmark": "java-v2-haproxy-multi-edge-reconnect",
                   "warning": "local dual-edge recovery evidence; not a production capacity claim",
                   "recordedAt": "%s",
@@ -5002,6 +5060,24 @@ class GatewayRuntimePostgresIntegrationTest {
                       "sinceStartMaximumLagMicrosAfter": %d,
                       "pendingTasksMaximum": %d
                     },
+                    "processResourceSaturation": {
+                      "sampleIntervalMillis": 5,
+                      "samples": %d,
+                      "cpuTimeUnavailableSamples": %d,
+                      "cpuTimeMicrosBefore": %d,
+                      "cpuTimeMicrosAfter": %d,
+                      "cpuTimeMicrosDelta": %d,
+                      "heapUsedBytesBefore": %d,
+                      "heapUsedBytesAfter": %d,
+                      "heapUsedBytesMaximum": %d,
+                      "heapCommittedBytesBefore": %d,
+                      "heapCommittedBytesAfter": %d,
+                      "heapMaximumBytes": %d,
+                      "uptimeMillisBefore": %d,
+                      "uptimeMillisAfter": %d,
+                      "uptimeMillisDelta": %d,
+                      "availableProcessors": %d
+                    },
                     "elapsedMillis": %.3f,
                     "reconnectThroughputPerSecond": %.3f,
                     "sessionResumeLatencyMicros": %s,
@@ -5033,6 +5109,22 @@ class GatewayRuntimePostgresIntegrationTest {
                         saturation.eventLoopSinceStartMaximumLagMicrosBefore(),
                         saturation.eventLoopSinceStartMaximumLagMicrosAfter(),
                         saturation.eventLoopPendingTasksMaximum(),
+                        saturation.samples(),
+                        saturation.processCpuTimeUnavailableSamples(),
+                        saturation.processCpuTimeMicrosBefore(),
+                        saturation.processCpuTimeMicrosAfter(),
+                        saturation.processCpuTimeMicrosAfter()
+                                - saturation.processCpuTimeMicrosBefore(),
+                        saturation.heapUsedBytesBefore(),
+                        saturation.heapUsedBytesAfter(),
+                        saturation.heapUsedBytesMaximum(),
+                        saturation.heapCommittedBytesBefore(),
+                        saturation.heapCommittedBytesAfter(),
+                        saturation.heapMaximumBytes(),
+                        saturation.uptimeMillisBefore(),
+                        saturation.uptimeMillisAfter(),
+                        saturation.uptimeMillisAfter() - saturation.uptimeMillisBefore(),
+                        saturation.availableProcessors(),
                         elapsedNanos / 1_000_000.0,
                         affected * 1_000_000_000.0 / elapsedNanos,
                         distributionJson(latency), distributionJson(jitter));
@@ -5078,7 +5170,19 @@ class GatewayRuntimePostgresIntegrationTest {
             long eventLoopLatestMaximumLagMicros,
             long eventLoopSinceStartMaximumLagMicrosBefore,
             long eventLoopSinceStartMaximumLagMicrosAfter,
-            long eventLoopPendingTasksMaximum) {
+            long eventLoopPendingTasksMaximum,
+            int processCpuTimeUnavailableSamples,
+            long processCpuTimeMicrosBefore,
+            long processCpuTimeMicrosAfter,
+            long heapUsedBytesBefore,
+            long heapUsedBytesAfter,
+            long heapUsedBytesMaximum,
+            long heapCommittedBytesBefore,
+            long heapCommittedBytesAfter,
+            long heapMaximumBytes,
+            long uptimeMillisBefore,
+            long uptimeMillisAfter,
+            int availableProcessors) {
     }
 
     private static Envelope clientHello(String deviceId) {

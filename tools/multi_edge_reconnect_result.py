@@ -28,8 +28,8 @@ def validate(value: Any, expected_revision: str | None = None,
              require_clean: bool = False) -> dict[str, Any]:
     root = object_value(value, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2, 3, 4):
-        raise EvidenceError("schemaVersion must be between 1 and 4")
+    if schema not in (1, 2, 3, 4, 5):
+        raise EvidenceError("schemaVersion must be between 1 and 5")
     if root.get("benchmark") != "java-v2-haproxy-multi-edge-reconnect":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != (
@@ -167,7 +167,7 @@ def validate(value: Any, expected_revision: str | None = None,
             raise EvidenceError("PostgreSQL pool saturation exceeds bounded scenario")
     if schema < 4 and "eventLoopSaturation" in results:
         raise EvidenceError("schemaVersion below 4 cannot contain eventLoopSaturation")
-    if schema == 4:
+    if schema >= 4:
         event_loop = object_value(
             results.get("eventLoopSaturation"), "eventLoopSaturation")
         if set(event_loop) != {
@@ -213,6 +213,73 @@ def validate(value: Any, expected_revision: str | None = None,
         if (latest_lag > maximum_after or maximum_after > 5_000_000
                 or pending > 100_000):
             raise EvidenceError("event-loop saturation exceeds bounded scenario")
+    if schema < 5 and "processResourceSaturation" in results:
+        raise EvidenceError("schemaVersion below 5 cannot contain process resources")
+    if schema == 5:
+        process = object_value(
+            results.get("processResourceSaturation"), "processResourceSaturation")
+        if set(process) != {
+                "sampleIntervalMillis", "samples", "cpuTimeUnavailableSamples",
+                "cpuTimeMicrosBefore", "cpuTimeMicrosAfter", "cpuTimeMicrosDelta",
+                "heapUsedBytesBefore", "heapUsedBytesAfter", "heapUsedBytesMaximum",
+                "heapCommittedBytesBefore", "heapCommittedBytesAfter",
+                "heapMaximumBytes", "uptimeMillisBefore", "uptimeMillisAfter",
+                "uptimeMillisDelta", "availableProcessors"}:
+            raise EvidenceError("processResourceSaturation fields are invalid")
+        if process.get("sampleIntervalMillis") != 5:
+            raise EvidenceError("process resource interval must be 5 ms")
+        process_samples = integer(
+            process.get("samples"), "processResourceSaturation.samples", 2)
+        if process_samples != saturation["samples"]:
+            raise EvidenceError("process resource sample count disagrees")
+        unavailable = integer(
+            process.get("cpuTimeUnavailableSamples"),
+            "processResourceSaturation.cpuTimeUnavailableSamples", 0)
+        if unavailable != 0:
+            raise EvidenceError("process CPU time must be available for every sample")
+        cpu_before = integer(
+            process.get("cpuTimeMicrosBefore"),
+            "processResourceSaturation.cpuTimeMicrosBefore", 0)
+        cpu_after = integer(
+            process.get("cpuTimeMicrosAfter"),
+            "processResourceSaturation.cpuTimeMicrosAfter", cpu_before)
+        if process.get("cpuTimeMicrosDelta") != cpu_after - cpu_before:
+            raise EvidenceError("process CPU time reconciliation is invalid")
+        heap_before = integer(
+            process.get("heapUsedBytesBefore"),
+            "processResourceSaturation.heapUsedBytesBefore", 0)
+        heap_after = integer(
+            process.get("heapUsedBytesAfter"),
+            "processResourceSaturation.heapUsedBytesAfter", 0)
+        heap_peak = integer(
+            process.get("heapUsedBytesMaximum"),
+            "processResourceSaturation.heapUsedBytesMaximum", 0)
+        committed_before = integer(
+            process.get("heapCommittedBytesBefore"),
+            "processResourceSaturation.heapCommittedBytesBefore", 1)
+        committed_after = integer(
+            process.get("heapCommittedBytesAfter"),
+            "processResourceSaturation.heapCommittedBytesAfter", 1)
+        heap_max = integer(
+            process.get("heapMaximumBytes"),
+            "processResourceSaturation.heapMaximumBytes", 1)
+        if (heap_peak < max(heap_before, heap_after)
+                or heap_before > committed_before or heap_after > committed_after
+                or max(committed_before, committed_after) > heap_max):
+            raise EvidenceError("JVM heap resource reconciliation is invalid")
+        uptime_before = integer(
+            process.get("uptimeMillisBefore"),
+            "processResourceSaturation.uptimeMillisBefore", 1)
+        uptime_after = integer(
+            process.get("uptimeMillisAfter"),
+            "processResourceSaturation.uptimeMillisAfter", uptime_before + 1)
+        if process.get("uptimeMillisDelta") != uptime_after - uptime_before:
+            raise EvidenceError("process uptime reconciliation is invalid")
+        processors = integer(
+            process.get("availableProcessors"),
+            "processResourceSaturation.availableProcessors", 1)
+        if processors != environment["availableProcessors"]:
+            raise EvidenceError("available processor count disagrees with environment")
     return root
 
 

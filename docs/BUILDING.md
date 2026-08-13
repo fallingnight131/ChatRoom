@@ -1646,6 +1646,10 @@ Portable loopback resource metrics now expose cumulative process CPU seconds,
 CPU-time availability, JVM heap used/committed/maximum, uptime, and available
 processors. CPU percentage must be derived over a bounded wall-time window;
 RSS, GC pauses, and cgroup limits remain unmeasured (ADR-0391).
+Schema version 5 records CPU-time and uptime before/after/deltas plus heap used
+before/after/peak, committed before/after, effective maximum, and processors in
+the same shared reconnect window. Committed heap may grow and is not treated as
+an invariant (ADR-0392).
 
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
