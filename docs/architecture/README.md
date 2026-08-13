@@ -981,6 +981,14 @@ a committed message. A separate Kafka/RocketMQ/Pulsar-class broker remains
 deferred until asynchronous worker or sustained relay evidence justifies a
 second new operational dependency.
 
+V050 starts that topology without activating it. A payload-free outbox row now
+commits atomically with each new V2 message and reuses the stable message UUID
+as its initial event identity. Exact message retries create no second row. The
+claim/retry columns and availability index exist for the next relay slice, but
+no component claims or publishes them yet; other conversation event kinds still
+need their own atomic writers before distributed routing can replace the local
+router.
+
 ## 10. Attachment Flow
 
 Target flow:

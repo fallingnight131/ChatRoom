@@ -434,6 +434,7 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                 }
                 insertMentions(connection, submission.conversationId(), messageId,
                         submission.mentions());
+                insertOutbox(connection, messageId, submission.conversationId(), sequence);
                 return Optional.of(acceptedAt);
             }
         }
@@ -487,6 +488,19 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setObject(1, conversationId);
             statement.setLong(2, sequence);
+            statement.executeUpdate();
+        }
+    }
+
+    private static void insertOutbox(
+            Connection connection, UUID eventId, UUID conversationId, long sequence)
+            throws SQLException {
+        String sql = "INSERT INTO chat.conversation_event_outbox("
+                + "event_id, conversation_id, conversation_sequence) VALUES (?, ?, ?)";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, eventId);
+            statement.setObject(2, conversationId);
+            statement.setLong(3, sequence);
             statement.executeUpdate();
         }
     }

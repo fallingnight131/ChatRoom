@@ -1315,6 +1315,14 @@ proves source/destination active membership and device authority, current-text
 copy, revision conflict, exact retry, changed-request conflict, stripped reply/
 mention metadata, and history projection. The V049 storage slice by itself does
 not register type 119 or advertise capability 5.
+V050 adds an inactive, payload-free `conversation_event_outbox` with the
+conversation UUID/sequence partition identity and bounded availability,
+claim/retry, publication, and failure state. New V2 messages create one row in
+the same transaction as their message/entry/reply/mention data; exact retries
+create none. The PostgreSQL gate verifies V001-to-V050 migration, same-database
+restart, table constraints/index, concurrent idempotency, and exact outbox row
+counts. No relay, Redis connection, historical backfill, or product route is
+activated by this expand slice (ADR-0348).
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound

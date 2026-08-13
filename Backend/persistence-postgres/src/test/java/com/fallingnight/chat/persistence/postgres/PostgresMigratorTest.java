@@ -209,7 +209,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(49, first.migrate());
+        assertEquals(50, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -244,8 +244,14 @@ class PostgresMigratorTest {
                             "message_pin_operation", "message_pin", "message_pin_event",
                             "message_edit_operation", "message_edit_event",
                             "message_mention", "message_edit_event_mention",
-                            "message_forward_request"),
+                            "message_forward_request", "conversation_event_outbox"),
                     applicationTables(connection));
+            assertEquals(11, count("SELECT count(*) FROM pg_constraint "
+                    + "WHERE connamespace = 'chat'::regnamespace "
+                    + "AND conrelid = 'chat.conversation_event_outbox'::regclass"));
+            assertEquals(1, count("SELECT count(*) FROM pg_indexes "
+                    + "WHERE schemaname = 'chat' "
+                    + "AND indexname = 'conversation_event_outbox_available_idx'"));
             assertEquals(1, count("SELECT count(*) FROM information_schema.columns "
                     + "WHERE table_schema = 'chat' AND table_name = 'message' "
                     + "AND column_name = 'forwarded' AND is_nullable = 'NO'"));
@@ -473,6 +479,11 @@ class PostgresMigratorTest {
         assertEquals(raced.get(0).messageId(), raced.get(1).messageId());
         assertEquals(1, raced.get(0).conversationSequence());
         assertEquals(raced.get(0).acceptedAt(), raced.get(1).acceptedAt());
+        assertEquals(1, count("SELECT count(*) FROM chat.conversation_event_outbox"));
+        assertEquals(1, count("SELECT count(*) FROM chat.conversation_event_outbox o "
+                + "JOIN chat.message m ON m.id = o.event_id "
+                + "AND m.conversation_id = o.conversation_id "
+                + "AND m.conversation_sequence = o.conversation_sequence"));
 
         assertEquals(
                 MessageSubmissionResult.Rejected.IDEMPOTENCY_CONFLICT,
@@ -490,6 +501,7 @@ class PostgresMigratorTest {
                         conversation, account, device, "client-2", 101, new byte[] {4}));
         assertEquals(2, second.conversationSequence());
         assertEquals(2, conversationEntryCount(conversation));
+        assertEquals(2, count("SELECT count(*) FROM chat.conversation_event_outbox"));
         executeLegacyMessageMappings(
                 conversation, raced.getFirst().messageId(), second.messageId());
         PostgresLegacyV1MessageProjection legacyMessages =
@@ -535,6 +547,7 @@ class PostgresMigratorTest {
                         conversation, account, device, "client-reply", 100,
                         new byte[] {5}, Optional.of(raced.getFirst().messageId())));
         assertTrue(duplicateReply.duplicate());
+        assertEquals(3, count("SELECT count(*) FROM chat.conversation_event_outbox"));
         assertEquals(reply.reply(), duplicateReply.reply());
         assertEquals(MessageSubmissionResult.Rejected.IDEMPOTENCY_CONFLICT,
                 adapter.submit(new MessageSubmission(
@@ -564,6 +577,7 @@ class PostgresMigratorTest {
                 (MessageSubmissionResult.Accepted) adapter.submit(mentioned);
         assertEquals(4, mentionedAccepted.conversationSequence());
         assertTrue(((MessageSubmissionResult.Accepted) adapter.submit(mentioned)).duplicate());
+        assertEquals(4, count("SELECT count(*) FROM chat.conversation_event_outbox"));
         assertEquals(MessageSubmissionResult.Rejected.IDEMPOTENCY_CONFLICT,
                 adapter.submit(new MessageSubmission(
                         conversation, account, device, "client-mentioned", 1,
@@ -588,6 +602,34 @@ class PostgresMigratorTest {
                     conversation, mentionedAccepted.messageId(), account);
         }
         assertEquals(0, count("SELECT count(*) FROM chat.message_mention"));
+        assertEquals(4, count("SELECT count(*) FROM chat.conversation_event_outbox"));
+
+        UUID blockedEventId = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.conversation_event_outbox("
+                            + "event_id, conversation_id, conversation_sequence) "
+                            + "VALUES (?, ?, 5)",
+                    blockedEventId, conversation);
+        }
+        PostgresMessageAdapter conflictingOutbox =
+                new PostgresMessageAdapter(dataSource(), () -> blockedEventId);
+        assertThrows(MessagePersistenceException.class,
+                () -> conflictingOutbox.submit(new MessageSubmission(
+                        conversation, account, device, "outbox-must-rollback", 100,
+                        new byte[] {7})));
+        assertEquals(4, conversationEntryCount(conversation));
+        assertEquals(5, allConversationEntryCount(conversation));
+        assertEquals(5, count("SELECT count(*) FROM chat.conversation_event_outbox"));
+        assertEquals(0, count("SELECT count(*) FROM chat.message "
+                + "WHERE client_message_id = 'outbox-must-rollback'"));
+
+        MessageSubmissionResult.Accepted afterOutboxFailure =
+                (MessageSubmissionResult.Accepted) adapter.submit(new MessageSubmission(
+                        conversation, account, device, "after-outbox-rollback", 100,
+                        new byte[] {8}));
+        assertEquals(6, afterOutboxFailure.conversationSequence());
+        assertEquals(6, count("SELECT count(*) FROM chat.conversation_event_outbox"));
 
         UUID outsider = UUID.randomUUID();
         seedAccount(outsider, "mention-outsider");

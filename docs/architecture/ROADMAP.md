@@ -1391,6 +1391,12 @@ Progress:
   per-gateway Streams, post-registration/periodic sequence repair, and no
   independent durable broker until worker/backlog evidence justifies it
   (ADR-0348).
+- [x] Add the inactive V050 payload-free conversation-event outbox with bounded
+  claim/retry/publication state and an unpublished availability index. New V2
+  message/entry/reply/mention data commits atomically with one stable event row;
+  exact and raced retries create no additional sequence or outbox row, and an
+  injected outbox conflict rolls back the message/entry/sequence before the next
+  submission reuses that sequence.
 
 Work:
 

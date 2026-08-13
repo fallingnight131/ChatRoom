@@ -619,6 +619,26 @@ fresh proof, extends expiry, and keeps the session UUID stable. Sequential and
 concurrent reuse of the old proof is rejected. Expired-session cleanup is not
 implemented yet.
 
+## Transactional conversation-event outbox
+
+V050 begins the M5 transactional outbox expand phase. The additive
+`conversation_event_outbox` stores only a stable event UUID, canonical
+conversation UUID/sequence, availability/claim/retry timestamps, bounded
+failure code, and publication time. It deliberately stores no message body,
+identity label, Redis destination, or serialized broker payload. The
+conversation UUID is the future partition key and the foreign key keeps every
+row attached to authoritative `conversation_entry` sequence truth.
+
+New V2 message submissions use their stable message UUID as the initial event
+UUID and insert the outbox row in the same transaction as conversation entry,
+message, reply reference, and mentions. Exact idempotent retry returns the
+existing result without another sequence or outbox row; any outbox failure rolls
+back the message, conversation entry, and sequence allocation. A real
+event-identity conflict proves that rollback, after which an ordinary submission
+reuses the unconsumed sequence. This first expand slice does not backfill history,
+write outbox rows for reaction/pin/edit/recall/deletion events, claim work, or
+publish to Redis. The current single-gateway live router remains unchanged.
+
 ## Deployment and rollback
 
 Before migrating a database that owns traffic, operations must take and verify a
@@ -636,7 +656,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V049, reruns migration as a
+cluster, migrates a clean database through current V050, reruns migration as a
 simulated restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable
