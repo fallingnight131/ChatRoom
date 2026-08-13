@@ -1187,6 +1187,11 @@ The gate includes the inactive `object-storage-s3` module. Its tests use fixture
 credentials and the real AWS presigner but perform no network request. Passing
 them proves request construction and fail-closed mapping, not compatibility
 with an Amazon S3, Tencent COS, MinIO, or other real bucket.
+It also includes the detached `profile-image-codec` adapter. Its tests use only
+in-memory images and prove PNG-only bounded dimensions/pixels, deterministic
+metadata-stripping re-encoding, and malformed/non-PNG/header-bomb rejection.
+The module performs no network or database work and is not installed in either
+product listener.
 Gateway tests also drive the inactive cleanup loop through a deterministic
 manual scheduler and verify healthy cadence, capped failure backoff, recovery,
 close behavior, and fixed-cardinality `/metrics` output without starting a

@@ -118,6 +118,7 @@ independently.
 | Messaging | Message validation, idempotency, sequencing, recall, sync | File bytes |
 | Contacts | Friend requests, friendships, blocks | Online socket state |
 | Groups | Group profile, roles, moderation policy | Client view state |
+| Profile image codec | Bounded image inspection and canonical PNG encoding | Identity ownership, SQL, object credentials, or transport routing |
 | Attachments | Upload authorization and attachment metadata | Proxying normal file bytes through IM |
 | Notification | Offline push and notification preferences | Primary message truth |
 | Administration | Audit, reports, bans, operator actions | End-user authentication shortcuts |
