@@ -212,6 +212,36 @@ class V2MessagingHandlerTest {
     }
 
     @Test
+    void returnsRetryableFixedErrorWhenForwardAdmissionIsLimited() throws Exception {
+        UUID sourceConversation = UUID.fromString("70000000-0000-4000-8000-000000000007");
+        UUID targetConversation = UUID.fromString("80000000-0000-4000-8000-000000000008");
+        MessagingTelemetry telemetry = new MessagingTelemetry();
+        EmbeddedChannel channel = new EmbeddedChannel(new V2MessagingHandler(
+                submission -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
+                query -> new ConversationDirectoryPage(List.of(), Optional.empty(), false),
+                command -> MessageReactionResult.Rejected.NOT_AUTHORIZED,
+                command -> MessagePinResult.Rejected.NOT_AUTHORIZED,
+                command -> MessageEditResult.Rejected.NOT_AUTHORIZED,
+                command -> MessageForwardResult.Rejected.RATE_LIMITED,
+                Runnable::run, telemetry, ConversationLiveRouter.noop()));
+        channel.attr(V2ConnectionAttributes.AUTHENTICATED).set(
+                new AuthenticatedConnection(ACCOUNT_ID, DEVICE_ID, SESSION_ID));
+        channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(Set.of(
+                ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING));
+        try {
+            channel.writeInbound(forwardEnvelope(
+                    "forward-limited", sourceConversation, MESSAGE_ID, 3,
+                    targetConversation));
+            channel.runPendingTasks();
+            assertError(channel, ProtocolErrorCode.PROTOCOL_ERROR_CODE_RATE_LIMITED, true);
+            assertEquals(1, telemetry.snapshot().forwardRateLimited());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void filtersForwardMarkerFromHistoryWithoutCapability() throws Exception {
         StoredMessage forwarded = new StoredMessage(
                 MESSAGE_ID, CONVERSATION_ID, 1, ACCOUNT_ID, DEVICE_ID, "forwarded-1", 1,

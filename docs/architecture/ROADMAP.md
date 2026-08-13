@@ -1622,6 +1622,9 @@ Progress:
     - [x] Compose the detached Windows forward action through the ViewModel,
       authorized-directory picker, and Widgets row with an independent
       default-off UI guard; product controller and capability activation remain off.
+    - [x] Add a bounded process-local per-account forwarding admission port,
+      strict runtime limits, retryable fixed protocol rejection, and a
+      fixed-label counter before capability activation.
 
 Candidate slices:
 

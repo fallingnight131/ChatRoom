@@ -52,6 +52,9 @@ class GatewayRuntimeConfigTest {
         assertEquals(Duration.ofSeconds(30), config.authenticationTimeout());
         assertEquals(Duration.ofSeconds(120), config.authenticatedIdleTimeout());
         assertEquals(Duration.ofSeconds(30), config.authenticatedHeartbeatInterval());
+        assertEquals(Duration.ofSeconds(60), config.forwardAdmissionLimits().window());
+        assertEquals(120, config.forwardAdmissionLimits().attemptsPerAccount());
+        assertEquals(10_000, config.forwardAdmissionLimits().maximumTrackedAccounts());
         assertTrue(config.hostPolicy().allows(List.of("gateway.example.com:443")));
         assertEquals(ClientPlatform.WEB, config.endpointPolicy().expectedPlatform(
                 WebSocketEndpointPolicy.WEB_PATH,
@@ -91,6 +94,11 @@ class GatewayRuntimeConfigTest {
         messagingQueue.put("CHATROOM_GATEWAY_MESSAGING_QUEUE_CAPACITY", "0");
         assertThrows(IllegalArgumentException.class,
                 () -> GatewayRuntimeConfig.fromEnvironment(messagingQueue));
+
+        Map<String, String> forwardAttempts = requiredEnvironment();
+        forwardAttempts.put("CHATROOM_GATEWAY_FORWARD_ATTEMPTS", "0");
+        assertThrows(IllegalArgumentException.class,
+                () -> GatewayRuntimeConfig.fromEnvironment(forwardAttempts));
 
         Map<String, String> waterMarks = requiredEnvironment();
         waterMarks.put("CHATROOM_GATEWAY_WRITE_BUFFER_LOW_BYTES", "65536");

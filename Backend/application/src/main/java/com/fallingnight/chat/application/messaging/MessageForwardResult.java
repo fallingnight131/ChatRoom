@@ -16,6 +16,7 @@ public sealed interface MessageForwardResult {
     enum Rejected implements MessageForwardResult {
         NOT_AUTHORIZED,
         SOURCE_REVISION_CONFLICT,
-        IDEMPOTENCY_CONFLICT
+        IDEMPOTENCY_CONFLICT,
+        RATE_LIMITED
     }
 }

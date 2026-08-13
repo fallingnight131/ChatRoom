@@ -14,6 +14,7 @@ public record MessagingTelemetrySnapshot(
         long editDuplicates,
         long forwardAccepted,
         long forwardDuplicates,
+        long forwardRateLimited,
         long livePublished,
         long liveSlowConsumerClosed,
         long denied,

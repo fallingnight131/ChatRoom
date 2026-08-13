@@ -14,6 +14,8 @@ public interface MessagingEventSink {
 
     default void forwardAccepted(boolean duplicate) { }
 
+    default void forwardRateLimited() { }
+
     void livePublished(int count);
 
     void liveSlowConsumerClosed(int count);

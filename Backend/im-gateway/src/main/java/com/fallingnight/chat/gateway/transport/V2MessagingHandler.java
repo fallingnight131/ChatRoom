@@ -936,6 +936,11 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
     }
 
     private Envelope forwardResponse(Envelope request, MessageForwardResult result) {
+        if (result == MessageForwardResult.Rejected.RATE_LIMITED) {
+            events.forwardRateLimited();
+            return errorEnvelope(request, ProtocolErrorCode.PROTOCOL_ERROR_CODE_RATE_LIMITED,
+                    "message forwarding rate limited", true);
+        }
         if (result == MessageForwardResult.Rejected.NOT_AUTHORIZED) {
             events.denied();
             return errorEnvelope(request, ProtocolErrorCode.PROTOCOL_ERROR_CODE_NOT_AUTHORIZED,

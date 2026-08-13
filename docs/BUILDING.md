@@ -1486,6 +1486,17 @@ identities reach one callback, and default panel construction renders no
 forward action even if a callback exists. Production controller composition and
 session capability 5 remain intentionally absent, so this is not an activation
 claim.
+The Java composition root now wraps the durable PostgreSQL forwarding adapter in
+a process-local account admission port. Defaults allow 120 attempts per
+authenticated account per 60-second fixed window and retain at most 10,000
+account keys. Operators may set `CHATROOM_GATEWAY_FORWARD_WINDOW_SECONDS` (1–3600),
+`CHATROOM_GATEWAY_FORWARD_ATTEMPTS` (1–10,000), and
+`CHATROOM_GATEWAY_FORWARD_MAX_KEYS` (16–1,000,000); invalid values fail startup.
+Exhaustion or key saturation returns the standard retryable rate-limited error
+without reaching PostgreSQL and increments only the fixed
+`forward_rate_limited` messaging outcome. The limiter stores account UUID keys
+in memory but emits no identity, source, target, or body labels/logs. It is a
+single-node abuse guard; M5 distributed policy may replace it at the same port.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic

@@ -2,6 +2,7 @@ package com.fallingnight.chat.gateway.runtime;
 
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionLimits;
 import com.fallingnight.chat.gateway.transport.HttpHostPolicy;
+import com.fallingnight.chat.gateway.transport.MessageForwardAdmissionLimits;
 import com.fallingnight.chat.gateway.transport.TrustedProxyPolicy;
 import com.fallingnight.chat.gateway.transport.WebSocketEndpointPolicy;
 import java.io.IOException;
@@ -53,6 +54,7 @@ public final class GatewayRuntimeConfig {
     private final Duration authenticatedIdleTimeout;
     private final Duration authenticatedHeartbeatInterval;
     private final AuthenticationAdmissionLimits admissionLimits;
+    private final MessageForwardAdmissionLimits forwardAdmissionLimits;
 
     private GatewayRuntimeConfig(
             InetSocketAddress listenerAddress,
@@ -83,7 +85,8 @@ public final class GatewayRuntimeConfig {
             Duration authenticationTimeout,
             Duration authenticatedIdleTimeout,
             Duration authenticatedHeartbeatInterval,
-            AuthenticationAdmissionLimits admissionLimits) {
+            AuthenticationAdmissionLimits admissionLimits,
+            MessageForwardAdmissionLimits forwardAdmissionLimits) {
         this.listenerAddress = listenerAddress;
         this.adminAddress = adminAddress;
         this.tlsCertificateChain = tlsCertificateChain;
@@ -113,6 +116,7 @@ public final class GatewayRuntimeConfig {
         this.authenticatedIdleTimeout = authenticatedIdleTimeout;
         this.authenticatedHeartbeatInterval = authenticatedHeartbeatInterval;
         this.admissionLimits = admissionLimits;
+        this.forwardAdmissionLimits = forwardAdmissionLimits;
     }
 
     public static GatewayRuntimeConfig fromEnvironment(Map<String, String> environment) {
@@ -204,6 +208,13 @@ public final class GatewayRuntimeConfig {
                 integer(environment, "CHATROOM_GATEWAY_PEER_ATTEMPTS", 60, 1, 100_000),
                 integer(environment, "CHATROOM_GATEWAY_ACCOUNT_ATTEMPTS", 10, 1, 10_000),
                 integer(environment, "CHATROOM_GATEWAY_MAX_LIMIT_KEYS", 10_000, 16, 1_000_000));
+        Duration forwardWindow = seconds(
+                environment, "CHATROOM_GATEWAY_FORWARD_WINDOW_SECONDS", 60, 1, 3600);
+        MessageForwardAdmissionLimits forwardLimits = new MessageForwardAdmissionLimits(
+                forwardWindow,
+                integer(environment, "CHATROOM_GATEWAY_FORWARD_ATTEMPTS", 120, 1, 10_000),
+                integer(environment, "CHATROOM_GATEWAY_FORWARD_MAX_KEYS",
+                        10_000, 16, 1_000_000));
         return new GatewayRuntimeConfig(
                 listener,
                 admin,
@@ -233,7 +244,8 @@ public final class GatewayRuntimeConfig {
                 authenticationTimeout,
                 idleTimeout,
                 heartbeatInterval,
-                limits);
+                limits,
+                forwardLimits);
     }
 
     public InetSocketAddress listenerAddress() {
@@ -350,6 +362,10 @@ public final class GatewayRuntimeConfig {
 
     public AuthenticationAdmissionLimits admissionLimits() {
         return admissionLimits;
+    }
+
+    public MessageForwardAdmissionLimits forwardAdmissionLimits() {
+        return forwardAdmissionLimits;
     }
 
     private static String required(Map<String, String> environment, String key) {

@@ -8,6 +8,7 @@ import com.fallingnight.chat.gateway.operations.GatewayAdminServer;
 import com.fallingnight.chat.gateway.transport.AuthenticationTelemetry;
 import com.fallingnight.chat.gateway.transport.AuthenticationWorkerPool;
 import com.fallingnight.chat.gateway.transport.InMemoryAuthenticationAdmissionControl;
+import com.fallingnight.chat.gateway.transport.InMemoryMessageForwardAdmissionPort;
 import com.fallingnight.chat.gateway.transport.MessagingWorkerPool;
 import com.fallingnight.chat.gateway.transport.MessagingTelemetry;
 import com.fallingnight.chat.gateway.transport.DeviceConnectionRegistry;
@@ -80,7 +81,7 @@ public final class GatewayRuntime implements AutoCloseable {
                     new PostgresMessageReactionAdapter(dataSource);
             PostgresMessagePinAdapter pins = new PostgresMessagePinAdapter(dataSource);
             PostgresMessageEditAdapter edits = new PostgresMessageEditAdapter(dataSource);
-            PostgresMessageForwardAdapter forwards =
+            PostgresMessageForwardAdapter durableForwards =
                     new PostgresMessageForwardAdapter(dataSource);
             PostgresConversationDirectoryAdapter conversations =
                     new PostgresConversationDirectoryAdapter(dataSource);
@@ -105,6 +106,9 @@ public final class GatewayRuntime implements AutoCloseable {
                     new AttachmentCleanupTelemetry();
             InMemoryAuthenticationAdmissionControl admission =
                     new InMemoryAuthenticationAdmissionControl(config.admissionLimits(), clock);
+            InMemoryMessageForwardAdmissionPort forwards =
+                    new InMemoryMessageForwardAdmissionPort(
+                            durableForwards, config.forwardAdmissionLimits(), clock);
             workers = new AuthenticationWorkerPool(
                     config.authenticationWorkers(),
                     config.authenticationQueueCapacity(),
