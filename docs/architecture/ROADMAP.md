@@ -715,6 +715,12 @@ Progress:
     changed-only compatible effects, and fail-closed malformed/saturation paths.
   - [x] Compose the detached password handlers and prove secret-safe
     compatibility plus replacement-login recovery through real PostgreSQL.
+  - [x] Define convergent V1 room dissolution with server-bound administration,
+    canonical soft closure, durable attachment cleanup, exact retry identity,
+    and post-commit first-only compatibility effects.
+  - [ ] Implement serializable PostgreSQL room dissolution and cleanup marking.
+  - [ ] Add and compose the strict detached `DELETE_ROOM_REQ` handler, then
+    prove first-only effects and replacement-login absence through PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
