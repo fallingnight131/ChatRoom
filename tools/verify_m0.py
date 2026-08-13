@@ -126,7 +126,7 @@ def verify_protocol_bindings(skip_install: bool) -> None:
     )
     run(
         [cmake, "--build", str(cpp_build), "--target", "v2_cpp_envelope_test",
-         "--parallel"],
+         "v2_windows_device_management_protocol_test", "--parallel"],
         ROOT,
     )
     run([ctest, "--test-dir", str(cpp_build), "--output-on-failure"], ROOT)
