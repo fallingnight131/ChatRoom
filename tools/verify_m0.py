@@ -128,6 +128,7 @@ def verify_protocol_bindings(skip_install: bool) -> None:
         [cmake, "--build", str(cpp_build), "--target", "v2_cpp_envelope_test",
          "v2_windows_device_management_protocol_test", "v2_windows_session_protocol_test",
          "v2_windows_messaging_protocol_test",
+         "v2_windows_messaging_application_test",
          "v2_windows_device_management_transport_test",
          "v2_windows_device_management_controller_test", "--parallel"],
         ROOT,

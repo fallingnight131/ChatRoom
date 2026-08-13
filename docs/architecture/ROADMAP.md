@@ -1375,6 +1375,10 @@ Progress:
     atomic history-page cursors, gap-safe live merges, bounded
     optimistic/accepted rows, exact reply identity, ACK reconciliation,
     explicit retry state, and no copied quote body (ADR-0332).
+  - [x] Add detached Windows offline reply orchestration with
+    persist-before-send, same-ID reconnect replay, bounded in-flight work,
+    retryable deferral, explicit permanent-failure retry, ACK reconciliation,
+    and cursor-based history repair (ADR-0333).
   - [ ] Add the equivalent reply composition, local-cache behavior, and rendering
     to the supported Windows client.
 

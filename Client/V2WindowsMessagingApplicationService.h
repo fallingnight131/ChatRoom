@@ -1,0 +1,65 @@
+#pragma once
+
+#include "V2LocalMessageRepository.h"
+#include "V2WindowsMessagingProtocolClient.h"
+
+#include <QByteArray>
+#include <QSet>
+#include <QString>
+#include <functional>
+
+class V2WindowsMessagingApplicationService final {
+public:
+    enum class OutcomeType {
+        None, Accepted, HistoryApplied, Published, SendFailed,
+        Deferred, ProtocolFailure
+    };
+    struct Outcome {
+        OutcomeType type = OutcomeType::None;
+        QString conversationId;
+        QString clientMessageId;
+    };
+    using SendFrame = std::function<bool(const QByteArray &)>;
+    using Clock = std::function<qint64()>;
+    using ClientMessageIdFactory = std::function<QString()>;
+
+    V2WindowsMessagingApplicationService(
+        V2LocalMessageRepository *repository,
+        QString accountId,
+        QString deviceId,
+        SendFrame sendFrame,
+        Clock clock = {},
+        ClientMessageIdFactory clientMessageIdFactory = {});
+
+    bool connectSession(const QString &sessionId);
+    void disconnectSession();
+    bool connected() const { return m_connected; }
+    V2LocalMessageRepository::Snapshot hydrate(const QString &conversationId);
+    bool stageReply(const QString &conversationId, const QString &targetMessageId,
+                    const QString &text,
+                    V2LocalMessageRepository::Message *optimistic);
+    bool retry(const QString &conversationId, const QString &clientMessageId);
+    bool requestHistory(const QString &conversationId);
+    Outcome receiveFrame(const QByteArray &bytes);
+    QString lastError() const { return m_lastError; }
+
+private:
+    static QString randomUuid();
+    bool dispatch(const V2LocalMessageRepository::Message &message);
+    bool sendCommand(const V2WindowsMessagingProtocolClient::Command &command);
+    void pumpPending();
+    static V2LocalMessageRepository::Message localMessage(
+        const V2WindowsMessagingProtocolClient::Message &message);
+
+    V2LocalMessageRepository *m_repository;
+    QString m_accountId;
+    QString m_deviceId;
+    SendFrame m_sendFrame;
+    Clock m_clock;
+    ClientMessageIdFactory m_clientMessageIdFactory;
+    V2WindowsMessagingProtocolClient m_protocol;
+    QSet<QString> m_inFlightClientIds;
+    QSet<QString> m_deferredClientIds;
+    bool m_connected = false;
+    QString m_lastError;
+};

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.25)
 
 project(chat_room_v2_cpp_binding_test LANGUAGES CXX)
 
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Network WebSockets)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Network Sql WebSockets)
 include("${CMAKE_CURRENT_LIST_DIR}/../../../cmake/ChatRoomV2Protobuf.cmake")
 chatroom_configure_v2_protobuf()
 
@@ -59,6 +59,24 @@ target_include_directories(
     "${GENERATED_ROOT}"
 )
 target_link_libraries(v2_windows_messaging_protocol_test PRIVATE protobuf::libprotobuf)
+
+add_executable(
+  v2_windows_messaging_application_test
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsMessagingApplicationServiceTest.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsMessagingApplicationService.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2LocalMessageRepository.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsMessagingProtocolClient.cpp"
+  "${GENERATED_ROOT}/chat/v2/control.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/envelope.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/messaging.pb.cc"
+)
+target_compile_features(v2_windows_messaging_application_test PRIVATE cxx_std_17)
+target_include_directories(
+  v2_windows_messaging_application_test
+  PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../../Client" "${GENERATED_ROOT}")
+target_link_libraries(
+  v2_windows_messaging_application_test
+  PRIVATE Qt6::Core Qt6::Sql protobuf::libprotobuf)
 
 add_executable(
   v2_windows_session_protocol_test
@@ -199,11 +217,17 @@ endif()
 
 if(MSVC)
   target_compile_options(v2_windows_messaging_protocol_test PRIVATE /W4 /WX)
+  target_compile_options(v2_windows_messaging_application_test PRIVATE /W4 /WX)
 else()
   target_compile_options(v2_windows_messaging_protocol_test PRIVATE -Wall -Wextra -Werror)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(
       v2_windows_messaging_protocol_test PRIVATE -Wno-nullability-extension)
+  endif()
+  target_compile_options(v2_windows_messaging_application_test PRIVATE -Wall -Wextra -Werror)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(
+      v2_windows_messaging_application_test PRIVATE -Wno-nullability-extension)
   endif()
 endif()
 
@@ -214,6 +238,7 @@ add_test(
   COMMAND v2_windows_device_management_protocol_test
 )
 add_test(NAME v2_windows_messaging_protocol COMMAND v2_windows_messaging_protocol_test)
+add_test(NAME v2_windows_messaging_application COMMAND v2_windows_messaging_application_test)
 add_test(NAME v2_windows_session_protocol COMMAND v2_windows_session_protocol_test)
 add_test(
   NAME v2_windows_device_management_transport

@@ -40,6 +40,7 @@ public:
         std::uint64_t conversationSequence = 0;
         std::int64_t acceptedAtEpochMs = 0;
         bool duplicate = false;
+        bool retryable = false;
         std::vector<Message> messages;
         std::uint64_t nextSequence = 0;
         std::uint64_t latestSequence = 0;
@@ -71,6 +72,7 @@ private:
         PendingType type = PendingType::Submit;
         std::string conversationId;
         std::string clientMessageId;
+        std::uint64_t afterSequence = 0;
     };
     Command command(int messageType, const std::string &payload,
                     const std::string &clientMessageId, Pending pending);

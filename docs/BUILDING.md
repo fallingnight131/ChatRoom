@@ -1268,6 +1268,12 @@ cursors, atomic mutation-only history pages, live events that do not hide sync
 gaps, explicit failed-versus-pending replay state, and the absence of copied
 quote-body columns. This does not migrate or modify the V1 local database, and
 the repository remains detached from product UI/transport (ADR-0332).
+`v2_windows_messaging_application_test` composes the reviewed C++ codec and the
+isolated SQLite store without opening a socket. It proves persist-before-send,
+offline and reconnect replay with one client ID/target, bounded retryable
+deferral, permanent failure plus explicit retry, ACK reconciliation, and
+cursor-based atomic history merge. Recall/deletion projection, Widgets, Qt WSS,
+and product-gate composition remain pending (ADR-0333).
 Gateway tests separately verify authenticated server-bound identity,
 off-event-loop submit/history dispatch, per-connection ordering, safe denial,
 bounded saturation behavior, and isolation from the authentication worker pool.

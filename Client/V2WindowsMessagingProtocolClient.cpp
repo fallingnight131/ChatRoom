@@ -102,7 +102,7 @@ V2WindowsMessagingProtocolClient::readHistory(
     payload.set_after_sequence(afterSequence);
     payload.set_limit(limit);
     return command(chat::v2::MESSAGE_TYPE_READ_MESSAGE_HISTORY, bytes(payload), {},
-                   {PendingType::History, conversationId, {}});
+                   {PendingType::History, conversationId, {}, afterSequence});
 }
 
 V2WindowsMessagingProtocolClient::Command
@@ -204,6 +204,8 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         result.type = EventType::ProtocolError;
         result.requestId = envelope.request_id();
         result.clientMessageId = envelope.client_message_id();
+        result.conversationId = pending.conversationId;
+        result.retryable = error.retryable();
         return result;
     }
     if ((pending.type == PendingType::Submit || pending.type == PendingType::Reply)
@@ -241,7 +243,8 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         for (const auto &record : page.messages()) {
             auto message = decodeMessage(record);
             if (message.conversationId != pending.conversationId
-                    || message.conversationSequence <= previous)
+                    || message.conversationSequence <= previous
+                    || message.conversationSequence <= pending.afterSequence)
                 throw std::runtime_error("unordered history page");
             previous = message.conversationSequence;
             messages.push_back(std::move(message));
@@ -251,7 +254,8 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
             if (entry.conversation_id() != pending.conversationId
                     || entry.conversation_sequence() == 0
                     || entry.conversation_sequence() > maximumSignedSequence
-                    || entry.conversation_sequence() <= previousEntry)
+                    || entry.conversation_sequence() <= previousEntry
+                    || entry.conversation_sequence() <= pending.afterSequence)
                 throw std::runtime_error("unordered history entries");
             switch (entry.detail_case()) {
             case chat::v2::ConversationEntryRecord::kMessage: {
@@ -297,6 +301,9 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         const std::uint64_t lastSequence = previousEntry == 0 ? previous : previousEntry;
         if (lastSequence != 0 && page.next_sequence() != lastSequence)
             throw std::runtime_error("history cursor differs from last entry");
+        if (page.next_sequence() < pending.afterSequence
+                || (page.has_more() && page.next_sequence() <= pending.afterSequence))
+            throw std::runtime_error("history cursor did not advance");
         if (page.next_sequence() > page.latest_sequence())
             throw std::runtime_error("history cursor exceeds latest sequence");
         m_pending.erase(position);
