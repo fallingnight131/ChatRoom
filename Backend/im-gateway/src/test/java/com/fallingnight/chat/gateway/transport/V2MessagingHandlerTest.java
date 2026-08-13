@@ -739,6 +739,53 @@ class V2MessagingHandlerTest {
     }
 
     @Test
+    void retriesAnAmbiguousCommitWithTheSameClientMessageId() throws Exception {
+        AtomicReference<Boolean> ambiguous = new AtomicReference<>(true);
+        ArrayDeque<String> clientMessageIds = new ArrayDeque<>();
+        MessagingTelemetry telemetry = new MessagingTelemetry();
+        EmbeddedChannel channel = channel(
+                submission -> {
+                    clientMessageIds.addLast(submission.clientMessageId());
+                    if (ambiguous.getAndSet(false)) {
+                        // Models a connection failure after PostgreSQL may have committed but
+                        // before the gateway obtained a durable result.
+                        throw new IllegalStateException("ambiguous database outcome");
+                    }
+                    return new MessageSubmissionResult.Accepted(
+                            MESSAGE_ID, 7, ACCEPTED_AT, true);
+                },
+                query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
+                Runnable::run,
+                telemetry);
+        try {
+            channel.writeInbound(submitEnvelope("stable-retry-id", "same content"));
+            channel.runPendingTasks();
+            assertError(channel, ProtocolErrorCode.PROTOCOL_ERROR_CODE_INTERNAL_ERROR, true);
+
+            channel.writeInbound(submitEnvelope("stable-retry-id", "same content"));
+            channel.runPendingTasks();
+            Envelope response = channel.readOutbound();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED_VALUE,
+                    response.getMessageType());
+            MessageAccepted accepted = MessageAccepted.parseFrom(response.getPayload());
+            assertEquals(MESSAGE_ID.toString(), accepted.getMessageId());
+            assertEquals(7, accepted.getConversationSequence());
+            assertEquals(true, accepted.getDuplicate());
+            assertEquals(List.of("stable-retry-id", "stable-retry-id"),
+                    List.copyOf(clientMessageIds));
+
+            MessagingTelemetrySnapshot snapshot = telemetry.snapshot();
+            assertEquals(1, snapshot.failed());
+            assertEquals(1, snapshot.duplicates());
+            assertEquals(0, snapshot.accepted());
+            assertEquals(0, snapshot.livePublished());
+            assertEquals(true, channel.isActive());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void recordsOnlyFixedCardinalityMessagingOutcomes() {
         MessagingTelemetry telemetry = new MessagingTelemetry();
         EmbeddedChannel channel = channel(

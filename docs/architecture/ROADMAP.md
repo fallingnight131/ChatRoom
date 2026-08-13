@@ -1308,6 +1308,10 @@ Progress:
 - [x] Record a clean, commit-exact five-connection slow-consumer baseline with
   64 KiB valid text, three uninterrupted healthy receivers, one production
   closure action, exact history repair, and a post-recovery live probe.
+- [x] Add a gateway correctness gate for an ambiguous PostgreSQL submission
+  outcome: return a retryable redacted error, keep the connection active, retry
+  the identical `clientMessageId`, and converge on the original message ID and
+  sequence as a duplicate without a second live publication.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.
