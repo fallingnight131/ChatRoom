@@ -732,6 +732,12 @@ Progress:
     generic rejection, malformed closure, and saturation telemetry.
   - [x] Compose password change and prove old/new login, exact retry,
     other-session revocation, and restart durability through PostgreSQL.
+  - [x] Define idempotent secure V1 registration with strict identity/display/
+    password policy, clearable plaintext, pre-persistence Argon2id, atomic
+    numeric compatibility mapping, and exact natural-key retry.
+  - [ ] Implement PostgreSQL registration allocation and concurrent convergence.
+  - [ ] Add and compose strict `REGISTER_REQ`, then prove registration-to-login,
+    exact retry, username collision, and restart durability.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
