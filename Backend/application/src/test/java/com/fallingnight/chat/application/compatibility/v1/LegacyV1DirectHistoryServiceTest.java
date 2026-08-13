@@ -47,6 +47,14 @@ final class LegacyV1DirectHistoryServiceTest {
         assertThrows(IllegalArgumentException.class, () ->
                 new LegacyV1DirectHistoryResult.Page(9, "peer", true,
                         List.of(message(2, null), message(1, null)), 2, 2, false));
+        assertThrows(IllegalArgumentException.class, () ->
+                new LegacyV1DirectHistoryMessage(101, 1, null, 1, "client", "sender",
+                        "Sender", "file.zip", "file", 9, "file.zip", 10,
+                        true, "   ", false, Instant.EPOCH));
+        assertThrows(IllegalArgumentException.class, () ->
+                new LegacyV1DirectHistoryMessage(101, 1, null, 1, "client", "sender",
+                        "Sender", "hello", "text", -1, "", 0,
+                        false, "", false, Instant.EPOCH));
     }
 
     private static LegacyV1DirectHistoryMessage message(long sequence, Long mutation) {

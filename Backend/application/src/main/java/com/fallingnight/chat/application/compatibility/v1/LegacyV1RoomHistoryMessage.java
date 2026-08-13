@@ -50,13 +50,16 @@ public record LegacyV1RoomHistoryMessage(
         }
         boolean attachment = contentType.equals("file") || contentType.equals("image")
                 || contentType.equals("video");
-        if (attachment != (legacyFileId > 0)
+        if (legacyFileId < 0
+                || attachment != (legacyFileId > 0)
                 || legacyFileId > Integer.MAX_VALUE
                 || attachment != !fileName.isEmpty()
+                || fileSize < 0
                 || attachment != (fileSize > 0)
                 || fileSize > LegacyV1RoomFile.MAX_BYTE_SIZE
                 || fileCleared && !attachment
-                || fileCleared != !clearReason.isEmpty()
+                || fileCleared && clearReason.isBlank()
+                || !fileCleared && !clearReason.isEmpty()
                 || attachment && !content.equals(fileName)
                 || !attachment && (!contentType.equals("text") && !contentType.equals("emoji"))) {
             throw new IllegalArgumentException("room history attachment projection");

@@ -170,6 +170,8 @@ class GatewayRuntimePostgresIntegrationTest {
                 assertEquals(1, sessionCount(jdbcUrl, username, password));
                 assertEquals(V1WebLoginHandler.COMPATIBILITY_DEVICE_ID,
                         storedDeviceAlias(jdbcUrl, username, password));
+                assertDirectAttachmentHistory(imported);
+                removeDirectAttachmentCompatibilityMappings(jdbcUrl, username, password);
 
                 assertUserSearch(imported, false);
                 assertRoomSearch(imported);
@@ -738,6 +740,32 @@ class GatewayRuntimePostgresIntegrationTest {
         } finally { response.release(); }
     }
 
+    private static void assertDirectAttachmentHistory(EmbeddedChannel channel) {
+        channel.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"FRIEND_HISTORY_REQ\",\"data\":{"
+                        + "\"friendUsername\":\"native-v2\",\"count\":10,"
+                        + "\"afterSequence\":0}}"));
+        channel.runPendingTasks();
+        TextWebSocketFrame response = channel.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"FRIEND_HISTORY_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"friendshipId\":10"));
+            assertTrue(response.text().contains("\"fileId\":-601"));
+            assertTrue(response.text().contains("\"fileName\":\"direct-ready.pdf\""));
+            assertTrue(response.text().contains("\"fileSize\":222"));
+            assertTrue(response.text().contains("\"fileId\":-600"));
+            assertTrue(response.text().contains("\"fileName\":\"direct-cleared.zip\""));
+            assertTrue(response.text().contains("\"fileCleared\":true"));
+            assertTrue(response.text().contains(
+                    "\"clearReason\":\"source direct file cleared\""));
+            assertTrue(response.text().contains("\"nextSequence\":2"));
+            assertTrue(response.text().contains("\"lastSequence\":2"));
+            assertFalse(response.text().contains("73000000-0000"));
+            assertFalse(response.text().contains("legacy/friendship-10"));
+        } finally { response.release(); }
+    }
+
     private static void assertDirectRecallFirst(
             EmbeddedChannel sender, EmbeddedChannel recipient, long messageId) {
         sendDirectRecall(sender, messageId);
@@ -1186,6 +1214,135 @@ class GatewayRuntimePostgresIntegrationTest {
             }
             seedFriendDirectory(connection, imported, peer);
             seedRoomAttachment(connection, importedRoom, peer);
+            seedDirectAttachmentHistory(connection, imported, nativeV2);
+        }
+    }
+
+    private static void seedDirectAttachmentHistory(
+            Connection connection, UUID actor, UUID target) throws Exception {
+        UUID conversation = UUID.fromString("40000000-0000-0000-0000-000000000010");
+        UUID device = UUID.fromString("50000000-0000-0000-0000-000000000043");
+        try (PreparedStatement mapping = connection.prepareStatement(
+                "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, account_id) "
+                        + "VALUES (43, ?)")) {
+            mapping.setObject(1, target);
+            assertEquals(1, mapping.executeUpdate());
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("INSERT INTO chat.device(id, account_id, client_device_id, platform) "
+                    + "VALUES ('" + device + "', '" + target
+                    + "', 'attachment-peer-device', 'LEGACY')");
+            statement.execute("INSERT INTO chat.conversation(id, kind, next_sequence) VALUES ('"
+                    + conversation + "', 'DIRECT', 3)");
+            statement.execute("INSERT INTO chat.direct_conversation VALUES ('" + conversation
+                    + "', '" + actor + "', '" + target + "')");
+            statement.execute("INSERT INTO chat.conversation_member(conversation_id, "
+                    + "account_id, last_read_sequence) VALUES ('" + conversation + "', '"
+                    + actor + "', 0), ('" + conversation + "', '" + target + "', 0)");
+            statement.execute("INSERT INTO chat.legacy_v1_conversation_map(legacy_kind, "
+                    + "legacy_conversation_id, conversation_id) VALUES ('FRIENDSHIP', 10, '"
+                    + conversation + "')");
+        }
+        seedDirectAttachment(connection, conversation, target, device,
+                1, 801, 601, "direct-ready.pdf", 222, true);
+        seedDirectAttachment(connection, conversation, target, device,
+                2, 800, 600, "direct-cleared.zip", 111, false);
+    }
+
+    private static void seedDirectAttachment(Connection connection, UUID conversation,
+            UUID owner, UUID device, long sequence, long messageId, long fileId,
+            String fileName, long size, boolean ready) throws Exception {
+        UUID attachment = UUID.fromString("73000000-0000-0000-0000-"
+                + String.format("%012d", fileId));
+        UUID message = UUID.fromString("74000000-0000-0000-0000-"
+                + String.format("%012d", messageId));
+        String stateColumns = ready
+                ? "object_key, media_type, content_sha256, ready_at"
+                : "unavailable_at, unavailable_reason";
+        String stateValues = ready
+                ? "'legacy/friendship-10/file-" + fileId
+                        + "', 'application/octet-stream', decode('" + "22".repeat(32)
+                        + "', 'hex'), TIMESTAMPTZ '2026-08-09 01:02:04+00'"
+                : "TIMESTAMPTZ '2026-08-09 01:02:04+00', 'source direct file cleared'";
+        try (PreparedStatement file = connection.prepareStatement(
+                "INSERT INTO chat.attachment(id, conversation_id, owner_account_id, "
+                        + "owner_device_id, client_attachment_id, file_name, byte_size, state, "
+                        + "created_at, " + stateColumns + ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, "
+                        + "TIMESTAMPTZ '2026-08-09 01:02:03+00', " + stateValues + ")")) {
+            file.setObject(1, attachment);
+            file.setObject(2, conversation);
+            file.setObject(3, owner);
+            file.setObject(4, device);
+            file.setString(5, "legacy-direct-file-" + fileId);
+            file.setString(6, fileName);
+            file.setLong(7, size);
+            file.setString(8, ready ? "READY" : "UNAVAILABLE");
+            assertEquals(1, file.executeUpdate());
+        }
+        try (PreparedStatement entry = connection.prepareStatement(
+                "INSERT INTO chat.conversation_entry(conversation_id, "
+                        + "conversation_sequence, entry_kind, occurred_at) VALUES (?, ?, "
+                        + "'MESSAGE', TIMESTAMPTZ '2026-08-09 01:02:03+00')")) {
+            entry.setObject(1, conversation);
+            entry.setLong(2, sequence);
+            assertEquals(1, entry.executeUpdate());
+        }
+        try (PreparedStatement persisted = connection.prepareStatement(
+                "INSERT INTO chat.message(id, conversation_id, conversation_sequence, "
+                        + "sender_account_id, sender_device_id, client_message_id, "
+                        + "message_type, payload, payload_sha256, attachment_id, accepted_at) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, 2, decode('', 'hex'), decode(?, 'hex'), "
+                        + "?, TIMESTAMPTZ '2026-08-09 01:02:03+00')")) {
+            persisted.setObject(1, message);
+            persisted.setObject(2, conversation);
+            persisted.setLong(3, sequence);
+            persisted.setObject(4, owner);
+            persisted.setObject(5, device);
+            persisted.setString(6, "legacy-direct-message-" + messageId);
+            persisted.setString(7, "00".repeat(32));
+            persisted.setObject(8, attachment);
+            assertEquals(1, persisted.executeUpdate());
+        }
+        try (PreparedStatement mapping = connection.prepareStatement(
+                "INSERT INTO chat.legacy_v1_message_map(legacy_kind, legacy_message_id, "
+                        + "legacy_conversation_id, conversation_id, message_id, "
+                        + "legacy_content_type) VALUES ('FRIENDSHIP', ?, 10, ?, ?, 'file')")) {
+            mapping.setLong(1, messageId);
+            mapping.setObject(2, conversation);
+            mapping.setObject(3, message);
+            assertEquals(1, mapping.executeUpdate());
+        }
+        try (PreparedStatement mapping = connection.prepareStatement(
+                "INSERT INTO chat.legacy_v1_attachment_map(legacy_kind, legacy_file_id, "
+                        + "legacy_conversation_id, conversation_id, attachment_id) "
+                        + "VALUES ('FRIENDSHIP', ?, 10, ?, ?)")) {
+            mapping.setLong(1, fileId);
+            mapping.setObject(2, conversation);
+            mapping.setObject(3, attachment);
+            assertEquals(1, mapping.executeUpdate());
+        }
+    }
+
+    private static void removeDirectAttachmentCompatibilityMappings(
+            String url, String user, String password) throws Exception {
+        try (Connection connection = DriverManager.getConnection(url, user, password)) {
+            try (PreparedStatement membership = connection.prepareStatement(
+                    "UPDATE chat.conversation_member SET left_at = transaction_timestamp() "
+                            + "WHERE conversation_id = "
+                            + "'40000000-0000-0000-0000-000000000010' "
+                            + "AND left_at IS NULL")) {
+                assertEquals(2, membership.executeUpdate());
+            }
+            try (PreparedStatement mapping = connection.prepareStatement(
+                    "DELETE FROM chat.legacy_v1_conversation_map "
+                            + "WHERE legacy_kind = 'FRIENDSHIP' "
+                            + "AND legacy_conversation_id = 10")) {
+                assertEquals(1, mapping.executeUpdate());
+            }
+            try (PreparedStatement mapping = connection.prepareStatement(
+                    "DELETE FROM chat.legacy_v1_account_map WHERE legacy_user_id = 43")) {
+                assertEquals(1, mapping.executeUpdate());
+            }
         }
     }
 

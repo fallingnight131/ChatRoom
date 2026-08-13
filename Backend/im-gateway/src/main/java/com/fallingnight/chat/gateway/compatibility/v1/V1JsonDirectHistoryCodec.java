@@ -162,9 +162,14 @@ public final class V1JsonDirectHistoryCodec {
         generator.writeNumberField("id", message.legacyMessageId());
         generator.writeStringField("content", message.content());
         generator.writeStringField("contentType", message.contentType());
-        generator.writeStringField("fileName", "");
-        generator.writeNumberField("fileSize", 0);
-        generator.writeNumberField("fileId", 0);
+        generator.writeStringField("fileName", message.fileName());
+        generator.writeNumberField("fileSize", message.fileSize());
+        generator.writeNumberField("fileId",
+                message.legacyFileId() == 0 ? 0 : -message.legacyFileId());
+        if (message.fileCleared()) {
+            generator.writeBooleanField("fileCleared", true);
+            generator.writeStringField("clearReason", message.clearReason());
+        }
         generator.writeBooleanField("recalled", message.recalled());
         generator.writeNumberField("timestamp", message.acceptedAt().toEpochMilli());
         generator.writeStringField("sender", message.senderUsername());

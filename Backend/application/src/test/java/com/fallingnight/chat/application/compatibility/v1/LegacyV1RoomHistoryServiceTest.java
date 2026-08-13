@@ -66,6 +66,10 @@ final class LegacyV1RoomHistoryServiceTest {
         assertThrows(IllegalArgumentException.class, () ->
                 new LegacyV1RoomHistoryDeletion(1, 2, "Admin", "operation", "unknown",
                         List.of(), List.of(), 0, 0, Instant.EPOCH));
+        assertThrows(IllegalArgumentException.class, () ->
+                new LegacyV1RoomHistoryMessage(101, 1, null, 1, "client", "sender",
+                        "Sender", "file.zip", "file", 9, "file.zip", -1,
+                        false, "", false, Instant.EPOCH));
     }
 
     private static LegacyV1RoomHistoryMessage message(long sequence, Long mutation) {

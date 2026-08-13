@@ -850,6 +850,12 @@ file/message identities in V1 history. Cleared history carries only its safe
 reason; object keys, hashes, MIME evidence, provider URLs, paths and canonical
 UUIDs remain outside the compatibility response. Partial or pending attachment
 state fails the page instead of silently skipping a synchronization sequence.
+ADR-0306 applies the same complete-state rule to V1 direct history while keeping
+its historical wire quirk at the gateway boundary: PostgreSQL and application
+ports retain a positive typed FRIENDSHIP file ID, and only JSON serialization
+emits the negative `fileId` expected by existing Web and Windows clients. READY
+and UNAVAILABLE metadata preserve reconnect order without granting object access
+or exposing canonical storage identity.
 
 ADR-0099 adds an inactive `object-storage-s3` simple-PUT adapter. It signs exact
 create-only, length, type, and SHA-256 constraints and reads checksum-enabled

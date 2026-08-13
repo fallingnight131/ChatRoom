@@ -33,6 +33,10 @@ final class V1DirectHistoryHandlerTest {
             captured.set(query);
             return new LegacyV1DirectHistoryResult.Page(9, "peer", true,
                     List.of(new LegacyV1DirectHistoryMessage(
+                                    102, 2, null, 2, "client-2", "peer", "Peer",
+                                    "archive.zip", "file", 501, "archive.zip", 321,
+                                    true, "源文件已清理", false, NOW.minusSeconds(6)),
+                            new LegacyV1DirectHistoryMessage(
                             101, 1, 3L, 3, "client-1", "peer", "Peer", "hello",
                             "text", true, NOW.minusSeconds(5))), 3, 3, false);
         }, Runnable::run);
@@ -52,6 +56,12 @@ final class V1DirectHistoryHandlerTest {
                 assertTrue(response.text().contains("\"mutationSequence\":3"));
                 assertTrue(response.text().contains("\"syncSequence\":3"));
                 assertTrue(response.text().contains("\"contentType\":\"text\""));
+                assertTrue(response.text().contains("\"contentType\":\"file\""));
+                assertTrue(response.text().contains("\"fileId\":-501"));
+                assertTrue(response.text().contains("\"fileName\":\"archive.zip\""));
+                assertTrue(response.text().contains("\"fileSize\":321"));
+                assertTrue(response.text().contains("\"fileCleared\":true"));
+                assertTrue(response.text().contains("\"clearReason\":\"源文件已清理\""));
                 assertTrue(response.text().contains("\"mode\":\"sequence\""));
                 assertTrue(response.text().contains("\"hasMore\":false"));
             } finally { response.release(); }
