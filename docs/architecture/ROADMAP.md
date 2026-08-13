@@ -1628,6 +1628,9 @@ Progress:
     - [x] Lock old-client compatibility for forwarded history and live events:
       legacy peers receive ordinary copied text with identical sequence/cursor
       progress while only capability-5 peers receive the marker.
+    - [x] Add a default-deny gateway handshake policy seam that negotiates
+      capability 5 only when both an explicit server policy and the client
+      request it; product runtime policy remains off.
 
 Candidate slices:
 

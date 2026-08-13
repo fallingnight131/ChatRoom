@@ -90,6 +90,28 @@ class V2HandshakeHandlerTest {
     }
 
     @Test
+    void enablesForwardingOnlyWhenBothServerPolicyAndClientRequestIt() throws Exception {
+        EmbeddedChannel enabled = new EmbeddedChannel(
+                new V2EnvelopeDecoder(), new V2EnvelopeEncoder(),
+                new V2HandshakeHandler(
+                        Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC),
+                        () -> "connection-forwarding", true));
+        try {
+            ClientHello capable = validHello().toBuilder()
+                    .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING)
+                    .build();
+            enabled.writeInbound(clientHelloEnvelope(capable));
+            ServerHello response = ServerHello.parseFrom(readEnvelope(enabled).getPayload());
+            assertEquals(List.of(ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING),
+                    response.getEnabledCapabilitiesList());
+            assertEquals(Set.of(ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING),
+                    enabled.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get());
+        } finally {
+            enabled.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void safelyRejectsWrongFirstFrameAndCloses() throws Exception {
         Envelope wrong = clientHelloEnvelope(validHello()).toBuilder()
                 .setMessageType(99)

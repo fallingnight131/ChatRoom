@@ -149,11 +149,42 @@ public final class V2ApplicationPipeline {
             ConversationLiveRouter liveRouter,
             Duration handshakeTimeout,
             Duration authenticationTimeout) {
+        install(pipeline, authentication, sessionResume, submissions, history, directory,
+                participants, reactions, pins, edits, forwards, deviceManagement,
+                authenticationExecutor, messagingExecutor, admission, events,
+                messagingEvents, deviceEvents, deviceConnections, liveRouter,
+                handshakeTimeout, authenticationTimeout, false);
+    }
+
+    public static void install(
+            ChannelPipeline pipeline,
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            ConversationLiveRouter liveRouter,
+            Duration handshakeTimeout,
+            Duration authenticationTimeout,
+            boolean messageForwardingEnabled) {
         Objects.requireNonNull(pipeline, "pipeline");
         V2FramePipeline.install(pipeline);
         pipeline.addLast("v2-phase-timeouts", new V2ConnectionTimeoutHandler(
                 handshakeTimeout, authenticationTimeout));
-        pipeline.addLast("v2-handshake", new V2HandshakeHandler());
+        pipeline.addLast("v2-handshake", new V2HandshakeHandler(messageForwardingEnabled));
         pipeline.addLast("v2-authentication", new V2AuthenticationHandler(
                 authentication,
                 sessionResume,

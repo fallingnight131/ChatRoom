@@ -29,16 +29,29 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
 
     private final Clock clock;
     private final String connectionId;
+    private final boolean messageForwardingEnabled;
     private boolean negotiated;
 
     public V2HandshakeHandler() {
-        this(Clock.systemUTC(), () -> UUID.randomUUID().toString());
+        this(false);
+    }
+
+    public V2HandshakeHandler(boolean messageForwardingEnabled) {
+        this(Clock.systemUTC(), () -> UUID.randomUUID().toString(),
+                messageForwardingEnabled);
     }
 
     V2HandshakeHandler(Clock clock, Supplier<String> connectionIdSupplier) {
+        this(clock, connectionIdSupplier, false);
+    }
+
+    V2HandshakeHandler(
+            Clock clock, Supplier<String> connectionIdSupplier,
+            boolean messageForwardingEnabled) {
         this.clock = Objects.requireNonNull(clock, "clock");
         Objects.requireNonNull(connectionIdSupplier, "connectionIdSupplier");
         connectionId = requireConnectionId(connectionIdSupplier.get());
+        this.messageForwardingEnabled = messageForwardingEnabled;
     }
 
     @Override
@@ -126,7 +139,9 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
                         == ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS
                         || capability == ClientCapability.CLIENT_CAPABILITY_MESSAGE_PINS
                         || capability == ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS
-                        || capability == ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS)
+                        || capability == ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS
+                        || (messageForwardingEnabled && capability
+                                == ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING))
                 .toList();
         Set<ClientCapability> enabledCapabilities = Set.copyOf(enabledCapabilityList);
         context.channel().attr(V2ConnectionAttributes.ENABLED_CAPABILITIES)

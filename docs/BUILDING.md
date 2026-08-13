@@ -1505,6 +1505,12 @@ the marker without receiving any source identity. The handler rejects type 119
 before parsing or invoking the forwarding/admission port when capability 5 was
 not negotiated. Web and C++ protocol tests independently reject unexpected
 markers and keep forwarding construction default-off.
+The gateway handshake has a separate default-deny forwarding policy input.
+Capability 5 enters the connection attribute and `ServerHello` only when that
+input is true and the client explicitly requested it. Existing pipeline calls
+delegate with false, so compiling this seam cannot activate production. A later
+runtime-composition step must provide reviewed configuration explicitly; turning
+it off immediately stops new negotiations without changing stored messages.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic
