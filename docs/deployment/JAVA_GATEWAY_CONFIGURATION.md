@@ -159,6 +159,11 @@ gateway-first activation and client-first rollback contract.
 The loopback-only `/metrics` response includes fixed-cardinality messaging
 outcome counters and current message-worker active/queue gauges. It deliberately
 contains no account, device, peer, session, conversation, or message labels.
+It also reports
+`chat_gateway_messaging_slow_consumer_maximum_bytes_before_writable`, the
+process-lifetime maximum sampled immediately before an unwritable live
+subscriber is closed. This is the amount Netty reports must drain to recover
+writability, not total pending bytes, current backlog, or a capacity threshold.
 It also exposes fixed attachment-cleanup counters plus consecutive-failure and
 next-delay gauges. Those values remain zero because the M3 composition root does
 not start the cleanup loop before real-provider capability acceptance.

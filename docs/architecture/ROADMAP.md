@@ -1371,6 +1371,10 @@ Progress:
   configurable 0..300 second monotonic window, timeout forces cleanup, the
   loopback admin endpoint remains observable, and fixed lifecycle outcomes
   distinguish completion from timeout (ADR-0346).
+- [x] Add a fixed-cardinality slow-consumer backlog gauge that records the
+  process maximum bytes an unwritable channel must drain before becoming
+  writable, sampled at the existing close decision without identity labels or
+  internal Netty buffer access (ADR-0347).
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.

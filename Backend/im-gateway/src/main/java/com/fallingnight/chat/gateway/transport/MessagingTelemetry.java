@@ -1,6 +1,7 @@
 package com.fallingnight.chat.gateway.transport;
 
 import java.util.concurrent.atomic.LongAdder;
+import java.util.concurrent.atomic.LongAccumulator;
 
 /** Thread-safe messaging counters with no account, peer, or conversation labels. */
 public final class MessagingTelemetry implements MessagingEventSink {
@@ -19,6 +20,8 @@ public final class MessagingTelemetry implements MessagingEventSink {
     private final LongAdder forwardRateLimited = new LongAdder();
     private final LongAdder livePublished = new LongAdder();
     private final LongAdder liveSlowConsumerClosed = new LongAdder();
+    private final LongAccumulator liveSlowConsumerMaximumBytesBeforeWritable =
+            new LongAccumulator(Long::max, 0);
     private final LongAdder denied = new LongAdder();
     private final LongAdder conflicts = new LongAdder();
     private final LongAdder saturated = new LongAdder();
@@ -52,6 +55,12 @@ public final class MessagingTelemetry implements MessagingEventSink {
     @Override public void forwardRateLimited() { forwardRateLimited.increment(); }
     @Override public void livePublished(int count) { livePublished.add(count); }
     @Override public void liveSlowConsumerClosed(int count) { liveSlowConsumerClosed.add(count); }
+    @Override public void liveSlowConsumerBacklog(long maximumBytesBeforeWritable) {
+        if (maximumBytesBeforeWritable < 0) {
+            throw new IllegalArgumentException("slow-consumer backlog must not be negative");
+        }
+        liveSlowConsumerMaximumBytesBeforeWritable.accumulate(maximumBytesBeforeWritable);
+    }
     @Override public void denied() { denied.increment(); }
     @Override public void conflict() { conflicts.increment(); }
     @Override public void saturated() { saturated.increment(); }
@@ -63,7 +72,8 @@ public final class MessagingTelemetry implements MessagingEventSink {
                 reactionChanged.sum(), reactionNoOp.sum(), reactionDuplicates.sum(),
                 editChanged.sum(), editNoOp.sum(), editDuplicates.sum(),
                 forwardAccepted.sum(), forwardDuplicates.sum(), forwardRateLimited.sum(),
-                livePublished.sum(), liveSlowConsumerClosed.sum(), denied.sum(),
+                livePublished.sum(), liveSlowConsumerClosed.sum(),
+                liveSlowConsumerMaximumBytesBeforeWritable.get(), denied.sum(),
                 conflicts.sum(), saturated.sum(), failed.sum());
     }
 }

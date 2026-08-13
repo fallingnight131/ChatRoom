@@ -17,6 +17,7 @@ public record MessagingTelemetrySnapshot(
         long forwardRateLimited,
         long livePublished,
         long liveSlowConsumerClosed,
+        long liveSlowConsumerMaximumBytesBeforeWritable,
         long denied,
         long conflicts,
         long saturated,

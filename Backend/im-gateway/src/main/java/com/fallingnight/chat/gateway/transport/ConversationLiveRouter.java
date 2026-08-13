@@ -57,12 +57,15 @@ public interface ConversationLiveRouter {
         };
     }
 
-    record LivePublishResult(int published, int slowClosed) {
-        static final LivePublishResult NONE = new LivePublishResult(0, 0);
+    record LivePublishResult(int published, int slowClosed, long maximumBytesBeforeWritable) {
+        static final LivePublishResult NONE = new LivePublishResult(0, 0, 0);
 
         public LivePublishResult {
-            if (published < 0 || slowClosed < 0) {
+            if (published < 0 || slowClosed < 0 || maximumBytesBeforeWritable < 0) {
                 throw new IllegalArgumentException("live publication counts must not be negative");
+            }
+            if (slowClosed == 0 && maximumBytesBeforeWritable != 0) {
+                throw new IllegalArgumentException("live backlog requires a slow-consumer close");
             }
         }
     }

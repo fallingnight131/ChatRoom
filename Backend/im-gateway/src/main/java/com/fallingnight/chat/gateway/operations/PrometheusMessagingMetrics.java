@@ -32,7 +32,10 @@ public final class PrometheusMessagingMetrics {
         output.append("# TYPE chat_gateway_messaging_workers_active gauge\n")
                 .append("chat_gateway_messaging_workers_active ").append(activeWorkers).append('\n')
                 .append("# TYPE chat_gateway_messaging_queue_size gauge\n")
-                .append("chat_gateway_messaging_queue_size ").append(queuedWork).append('\n');
+                .append("chat_gateway_messaging_queue_size ").append(queuedWork).append('\n')
+                .append("# TYPE chat_gateway_messaging_slow_consumer_maximum_bytes_before_writable gauge\n")
+                .append("chat_gateway_messaging_slow_consumer_maximum_bytes_before_writable ")
+                .append(snapshot.liveSlowConsumerMaximumBytesBeforeWritable()).append('\n');
         return output.toString();
     }
 

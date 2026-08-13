@@ -576,6 +576,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                                     liveRouter.publish(publication);
                             events.livePublished(result.published());
                             events.liveSlowConsumerClosed(result.slowClosed());
+                            events.liveSlowConsumerBacklog(result.maximumBytesBeforeWritable());
                         } catch (RuntimeException exception) {
                             events.failed();
                         }
@@ -586,6 +587,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                                     liveRouter.publishReaction(reactionPublication);
                             events.livePublished(result.published());
                             events.liveSlowConsumerClosed(result.slowClosed());
+                            events.liveSlowConsumerBacklog(result.maximumBytesBeforeWritable());
                         } catch (RuntimeException exception) {
                             events.failed();
                         }
@@ -596,6 +598,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                                     liveRouter.publishPin(pinPublication);
                             events.livePublished(result.published());
                             events.liveSlowConsumerClosed(result.slowClosed());
+                            events.liveSlowConsumerBacklog(result.maximumBytesBeforeWritable());
                         } catch (RuntimeException exception) { events.failed(); }
                     }
                     if (editPublication != null) {
@@ -604,6 +607,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                                     liveRouter.publishEdit(editPublication);
                             events.livePublished(result.published());
                             events.liveSlowConsumerClosed(result.slowClosed());
+                            events.liveSlowConsumerBacklog(result.maximumBytesBeforeWritable());
                         } catch (RuntimeException exception) { events.failed(); }
                     }
                     dispatchNext(context);

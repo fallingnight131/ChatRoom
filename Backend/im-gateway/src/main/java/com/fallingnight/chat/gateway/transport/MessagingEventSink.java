@@ -20,6 +20,8 @@ public interface MessagingEventSink {
 
     void liveSlowConsumerClosed(int count);
 
+    default void liveSlowConsumerBacklog(long maximumBytesBeforeWritable) { }
+
     void denied();
 
     void conflict();

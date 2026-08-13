@@ -2042,6 +2042,13 @@ Every critical path should expose:
 - database, Redis, broker, and object-storage errors;
 - per-connection outbound queue size and slow-consumer actions.
 
+ADR-0347 adds one deliberately aggregate slow-consumer signal: the
+process-lifetime maximum bytes that an unwritable Netty channel reported it must
+drain before becoming writable. It is sampled only at the existing forced-close
+decision and carries no connection or identity labels. It is not total pending
+bytes or a portable capacity threshold, but it allows real-socket baselines to
+compare byte-watermark behavior without using message count alone.
+
 Define performance objectives from a recorded baseline and user scenario. Track
 P50/P95/P99, not averages alone. Load tests must include reconnect storms, large
 groups, slow clients, database contention, and partial infrastructure failure.

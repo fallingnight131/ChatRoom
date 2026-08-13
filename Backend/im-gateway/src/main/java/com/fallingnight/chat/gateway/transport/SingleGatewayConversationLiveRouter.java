@@ -83,6 +83,7 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
         MessageRecord record = record(message);
         int published = 0;
         int slowClosed = 0;
+        long maximumBytesBeforeWritable = 0;
         synchronized (route) {
             for (Channel channel : java.util.List.copyOf(route.channels)) {
                 AuthenticatedConnection identity = channel.attr(V2ConnectionAttributes.AUTHENTICATED).get();
@@ -91,8 +92,8 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                     continue;
                 }
                 if (!channel.isWritable()) {
-                    channel.close();
-                    route.channels.remove(channel);
+                    maximumBytesBeforeWritable = Math.max(
+                            maximumBytesBeforeWritable, closeSlowConsumer(channel, route));
                     slowClosed += 1;
                     continue;
                 }
@@ -121,7 +122,7 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
             }
             if (route.channels.isEmpty()) routes.remove(message.conversationId(), route);
         }
-        return new LivePublishResult(published, slowClosed);
+        return new LivePublishResult(published, slowClosed, maximumBytesBeforeWritable);
     }
 
     @Override
@@ -143,6 +144,7 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
         MessagingPayloadPolicy.requireValid(record);
         int published = 0;
         int slowClosed = 0;
+        long maximumBytesBeforeWritable = 0;
         synchronized (route) {
             for (Channel channel : java.util.List.copyOf(route.channels)) {
                 AuthenticatedConnection identity =
@@ -158,8 +160,8 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                     continue;
                 }
                 if (!channel.isWritable()) {
-                    channel.close();
-                    route.channels.remove(channel);
+                    maximumBytesBeforeWritable = Math.max(
+                            maximumBytesBeforeWritable, closeSlowConsumer(channel, route));
                     slowClosed += 1;
                     continue;
                 }
@@ -178,7 +180,7 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
             }
             if (route.channels.isEmpty()) routes.remove(reaction.conversationId(), route);
         }
-        return new LivePublishResult(published, slowClosed);
+        return new LivePublishResult(published, slowClosed, maximumBytesBeforeWritable);
     }
 
     @Override
@@ -197,6 +199,7 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
         MessagingPayloadPolicy.requireValid(record);
         int published = 0;
         int slowClosed = 0;
+        long maximumBytesBeforeWritable = 0;
         synchronized (route) {
             for (Channel channel : java.util.List.copyOf(route.channels)) {
                 AuthenticatedConnection identity =
@@ -210,7 +213,9 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                 if (capabilities == null || !capabilities.contains(
                         ClientCapability.CLIENT_CAPABILITY_MESSAGE_PINS)) continue;
                 if (!channel.isWritable()) {
-                    channel.close(); route.channels.remove(channel); slowClosed += 1; continue;
+                    maximumBytesBeforeWritable = Math.max(
+                            maximumBytesBeforeWritable, closeSlowConsumer(channel, route));
+                    slowClosed += 1; continue;
                 }
                 Envelope event = Envelope.newBuilder()
                         .setProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
@@ -223,7 +228,7 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
             }
             if (route.channels.isEmpty()) routes.remove(pin.conversationId(), route);
         }
-        return new LivePublishResult(published, slowClosed);
+        return new LivePublishResult(published, slowClosed, maximumBytesBeforeWritable);
     }
 
     @Override
@@ -247,6 +252,7 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
         MessagingPayloadPolicy.requireValid(record);
         int published = 0;
         int slowClosed = 0;
+        long maximumBytesBeforeWritable = 0;
         synchronized (route) {
             for (Channel channel : java.util.List.copyOf(route.channels)) {
                 AuthenticatedConnection identity =
@@ -262,7 +268,9 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                 boolean mentionsEnabled = capabilities.contains(
                         ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS);
                 if (!channel.isWritable()) {
-                    channel.close(); route.channels.remove(channel); slowClosed += 1; continue;
+                    maximumBytesBeforeWritable = Math.max(
+                            maximumBytesBeforeWritable, closeSlowConsumer(channel, route));
+                    slowClosed += 1; continue;
                 }
                 Envelope event = Envelope.newBuilder()
                         .setProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
@@ -279,7 +287,7 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
             }
             if (route.channels.isEmpty()) routes.remove(edit.conversationId(), route);
         }
-        return new LivePublishResult(published, slowClosed);
+        return new LivePublishResult(published, slowClosed, maximumBytesBeforeWritable);
     }
 
     @Override
@@ -298,6 +306,13 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
 
     int activeConversationCount() {
         return routes.size();
+    }
+
+    private static long closeSlowConsumer(Channel channel, Route route) {
+        long bytesBeforeWritable = Math.max(0, channel.bytesBeforeWritable());
+        channel.close();
+        route.channels.remove(channel);
+        return bytesBeforeWritable;
     }
 
     private void registerCleanup(Channel channel) {

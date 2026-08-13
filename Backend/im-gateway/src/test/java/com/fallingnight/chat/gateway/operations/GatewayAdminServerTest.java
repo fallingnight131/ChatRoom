@@ -29,6 +29,7 @@ class GatewayAdminServerTest {
         messaging.accepted(true);
         messaging.livePublished(2);
         messaging.liveSlowConsumerClosed(1);
+        messaging.liveSlowConsumerBacklog(196_608);
         messaging.editApplied(true, false);
         messaging.forwardAccepted(false);
         messaging.forwardAccepted(true);
@@ -63,6 +64,8 @@ class GatewayAdminServerTest {
                     "chat_gateway_messaging_total{outcome=\"live_published\"} 2"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_messaging_total{outcome=\"live_slow_consumer_closed\"} 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_messaging_slow_consumer_maximum_bytes_before_writable 196608"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_messaging_total{outcome=\"edit_changed\"} 1"));
             assertTrue(metrics.body().contains(
