@@ -65,6 +65,10 @@ Before serving preview assets:
    `CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED=true`; test authorization,
    rate-limit, offline replay, legacy-client downgrade, and disable either side.
 
+Use the gateway-first activation and client-first rollback sequence in
+[`MESSAGE_FORWARDING_ACTIVATION.md`](MESSAGE_FORWARDING_ACTIVATION.md). A Web
+build flag is immutable candidate metadata, not authority to change the gateway.
+
 Rollback by redeploying the prior immutable asset version or a build without the
 exact preview flag, then invalidate the HTML entry point according to the Web
 release cache policy. Do not delete V1 server data. Isolated V2 browser state can

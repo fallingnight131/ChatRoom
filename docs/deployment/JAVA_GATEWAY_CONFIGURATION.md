@@ -110,6 +110,10 @@ and never store populated values or credentials in the repository.
 | `CHATROOM_GATEWAY_PEER_ATTEMPTS` | `60` | `1..100000` |
 | `CHATROOM_GATEWAY_ACCOUNT_ATTEMPTS` | `10` | `1..10000` |
 | `CHATROOM_GATEWAY_MAX_LIMIT_KEYS` | `10000` | `16..1000000` |
+| `CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED` | `false` | exact `true` or `false` |
+| `CHATROOM_GATEWAY_FORWARD_WINDOW_SECONDS` | `60` | `1..3600` |
+| `CHATROOM_GATEWAY_FORWARD_ATTEMPTS` | `120` | `1..10000` per account/window |
+| `CHATROOM_GATEWAY_FORWARD_MAX_KEYS` | `10000` | `16..1000000` tracked accounts |
 
 The high write-buffer watermark must be strictly greater than the low watermark.
 Crossing it makes a Netty child channel non-writable so later messaging code can
@@ -142,6 +146,14 @@ reconnect storms, Argon2 work, queue saturation, and slow consumers.
 Authentication and messaging use separate bounded worker pools so message
 database work cannot consume password/session execution slots. Both still share
 the bounded PostgreSQL pool, so their sizes must be tuned together.
+
+Message forwarding is independently default-off. The three forwarding admission
+values are validated even while the feature is disabled so an invalid rollout
+cannot bind and later surprise an operator. Enabling it affects only new
+handshakes after a gateway restart; existing connections keep their negotiated
+capability set. Follow
+[`MESSAGE_FORWARDING_ACTIVATION.md`](MESSAGE_FORWARDING_ACTIVATION.md) for the
+gateway-first activation and client-first rollback contract.
 
 The loopback-only `/metrics` response includes fixed-cardinality messaging
 outcome counters and current message-worker active/queue gauges. It deliberately

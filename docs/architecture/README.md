@@ -759,60 +759,48 @@ Windows Release build and native interaction gate remain open.
 The current M6 slice is default-off, server-authoritative text forwarding under
 ADR-0344. Capability 5 and command type 119 identify one source message, its
 expected current revision, and one target conversation; the envelope client
-message ID remains the destination idempotency key. PostgreSQL will authorize
-both source read and destination write membership and copy current server truth
-into a new destination message. Only a `forwarded` presentation marker crosses
-the destination wire boundary: source identity, reply metadata, and mention
-spans do not. Generated bindings and structural policy exist, but gateway, Web,
-and Windows runtime paths must keep capability 5 disabled until the durable and
-client gates in the roadmap pass. V049 now adds an ordinary-message destination
-marker plus a digest-only forward outcome: the PostgreSQL adapter authorizes
-both conversations, locks current non-recalled text, rejects revision races,
-and atomically allocates the destination sequence. The authenticated handler is
-composed through the real PostgreSQL product runtime and uses the existing
-connection-local bounded messaging executor. It maps opaque authorization,
-revision, and idempotency failures, publishes only new acceptance, and filters
-the marker from unsupported history/live peers without stalling their cursor.
-Fixed-cardinality forward/duplicate and existing denial/conflict/failure/live
-counters contain no identities. The Web protocol and WebSocket transport now
-construct the bounded correlated command only for an explicitly configured
-capability-5 client and reject an unexpected inbound `forwarded` marker when
-that capability is absent. Product runtime composition still does not request
-capability 5, and gateway handshake enablement remains off, so neither Web nor
-Windows advertises or exposes forwarding yet. The isolated Web V2 cache now
-retains the presentation marker and, only while a destination send is
-unresolved, a validated local source conversation/message/revision pointer.
-Accepted server projections discard that pointer, so source identity does not
-become durable presentation data. The Web application can now stage one
-default-off forward into any authorized directory target: it hydrates that
-target's cache before mutation, copies only a local optimistic preview, clears
-mentions/reply metadata, persists before network dispatch, and reuses the same
-destination client message ID on retry. Authoritative history replaces the
-preview and suppresses an ACK-lost replay. A failed cache write prevents
-dispatch.
-The Web preview source also contains a keyboard-native, labelled target dialog,
-an explicit server-authority/privacy explanation, a forwarded marker, and
-failure/retry feedback. Both the action and its entry point are guarded by the
-application's default-false forwarding option; production Web composition does
-not set it yet.
-The Windows C++ messaging codec now has the same default-off capability-5
-boundary: an explicitly enabled instance can construct one bounded type-119
-command and correlate its `MessageAccepted`, while the normal constructor
-rejects both commands and unexpected forwarded markers. Session negotiation,
-SQLite outbox, controller, ViewModel, Widgets, and product composition remain
-unchanged and do not advertise capability 5.
-Windows local schema 7 now persists `forwarded` plus the canonical source
-conversation/message/revision triple only on unresolved outbox rows. Retry
-comparison includes that triple, malformed combinations fail validation, and
-acceptance atomically clears the private source fields while preserving the
-presentation marker. No source body, original sender, or source timestamp is
-stored as forwarding metadata.
-The Windows messaging application service now exposes an explicit default-off
-forward seam. When enabled only by tests, it resolves an accepted non-recalled
-source from local synchronized state, stages the privacy-bounded destination
-intent before type-119 dispatch, reuses normal persisted reconnect replay, and
-clears the source triple on acceptance. Its default constructor rejects the
-operation before any SQLite mutation.
+message ID is the destination idempotency key. V049 stores an ordinary-message
+destination marker plus a digest-only forward outcome. PostgreSQL authorizes
+source read and destination write membership, locks current non-recalled text,
+rejects revision races, and atomically allocates the destination sequence. Only
+the `forwarded` presentation marker crosses the destination wire boundary;
+source identity, reply metadata, and mention spans do not.
+
+The authenticated gateway handler runs through the existing connection-local
+bounded messaging executor and an additional bounded per-account forwarding
+admission port. It maps opaque authorization, revision, idempotency, and rate
+limit outcomes, publishes only new acceptance, and filters the marker from
+unsupported history/live peers without stalling their cursors. Fixed-cardinality
+signals contain no identities. Exact
+`CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED=true` enables capability 5 only
+for new connections that request it; absent or exact `false` remains disabled
+and malformed values prevent listener bind.
+
+Web uses the independent immutable build gate
+`VITE_CHAT_V2_MESSAGE_FORWARDING=true`. The same validated boolean controls
+protocol negotiation, the offline-safe IndexedDB outbox, application action,
+keyboard-native authorized-target dialog, marker presentation, and retry
+feedback. Unresolved rows retain only a validated local source triple;
+acceptance or authoritative history erases it, and ACK-lost reconnect replay
+reuses the stable destination client message ID. Missing/false keeps the entire
+path off and malformed values invalidate the preview runtime.
+
+Windows uses `CHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON`, which is rejected
+unless the Windows V2 preview build is also enabled. One compiled immutable
+value flows through session negotiation, the WSS transport, controller,
+application service, SQLite outbox, ViewModel, accessible single-target picker,
+and Widgets presentation. Schema 7 retains the private source triple only while
+the command is unresolved and clears it on acceptance. A default transport
+rejects type 119; an enabled client requires the server to echo the ordered
+fifth capability before exposing the action. The native Windows Release build
+and interaction gate remain open, so this is not yet release evidence.
+
+The cross-endpoint rollout contract is gateway-first activation and
+client-first rollback. Existing negotiated connections retain their capability
+set until disconnect, durable destination messages are never rewritten during
+disable, and V049 remains applied. The retained-evidence checklist and exact
+sequence are in
+[`MESSAGE_FORWARDING_ACTIVATION.md`](../deployment/MESSAGE_FORWARDING_ACTIVATION.md).
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

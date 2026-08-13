@@ -1646,6 +1646,9 @@ Progress:
       controllers, application service, ViewModel, and Widgets dialog; reject
       type 119 in the default transport and expose forwarding only after the
       enabled capability path is composed.
+    - [x] Document and lock the cross-endpoint activation contract, complete the
+      Java forwarding configuration reference, and require gateway-first
+      activation with client-first rollback and retained release evidence.
 
 Candidate slices:
 

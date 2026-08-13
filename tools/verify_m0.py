@@ -55,6 +55,8 @@ def verify_postgres() -> None:
 
 
 def verify_protocol_bindings(skip_install: bool) -> None:
+    run([sys.executable, str(
+        ROOT / "Tests" / "message_forwarding_activation_policy_test.py")], ROOT)
     npm = command_path("npm", "npm.cmd")
     backend = ROOT / "Backend"
     typescript = backend / "protocol-v2" / "typescript"
