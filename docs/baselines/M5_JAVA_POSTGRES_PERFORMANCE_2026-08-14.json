@@ -1,0 +1,79 @@
+{
+  "benchmark": "java-v2-postgres-messaging",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 4294967296,
+    "os": "Mac OS X",
+    "osVersion": "26.5.2",
+    "peakObservedHeapBytes": 112084296,
+    "processCpuSeconds": 3.368,
+    "scenarioWallSeconds": 4.71,
+    "vm": "OpenJDK 64-Bit Server VM"
+  },
+  "host": {
+    "javaPeakRssBytes": 305496064,
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "postgresPostmasterPeakRssBytes": 24395776,
+    "pythonVersion": "3.9.6"
+  },
+  "recordedAt": "2026-08-13T17:39:50.697008Z",
+  "results": {
+    "concurrentAppendLatencyMicros": {
+      "max": 28058,
+      "mean": 10559.228,
+      "min": 4626,
+      "p50": 9479,
+      "p95": 18171,
+      "p99": 23355,
+      "samples": 500
+    },
+    "concurrentAppendThroughputPerSecond": 753.899,
+    "concurrentErrors": 0,
+    "historyReadLatencyMicros": {
+      "max": 9439,
+      "mean": 5498.79,
+      "min": 4581,
+      "p50": 5356,
+      "p95": 6407,
+      "p99": 7392,
+      "samples": 200
+    },
+    "idempotentRetryLatencyMicros": {
+      "max": 9755,
+      "mean": 3151.06,
+      "min": 2543,
+      "p50": 2979,
+      "p95": 3932,
+      "p99": 6316,
+      "samples": 200
+    },
+    "sequentialAppendLatencyMicros": {
+      "max": 5903,
+      "mean": 3760.184,
+      "min": 3034,
+      "p50": 3689,
+      "p95": 4405,
+      "p99": 4823,
+      "samples": 500
+    },
+    "sequentialAppendThroughputPerSecond": 265.756
+  },
+  "scenario": {
+    "appendOperations": 500,
+    "concurrency": 8,
+    "concurrentOperations": 500,
+    "durableMessages": 1101,
+    "historyPageSize": 100,
+    "historyReads": 200,
+    "payloadBytes": 256,
+    "retryOperations": 200,
+    "warmupOperations": 100
+  },
+  "schemaVersion": 1,
+  "sourceRevision": "4e70de5a6c97275d8a050156cddcf4a90fd93c2e",
+  "startedAt": "2026-08-13T17:39:45.955911Z",
+  "warning": "loopback development evidence; not a capacity claim",
+  "worktreeDirty": false
+}
