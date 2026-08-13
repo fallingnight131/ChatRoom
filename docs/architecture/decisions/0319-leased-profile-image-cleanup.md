@@ -43,7 +43,9 @@ As of 2026-08-13, V041, the bounded application cleanup pass, and the PostgreSQL
 claim/release/confirm adapter are implemented and exercised against a clean,
 restarted real PostgreSQL database. The strict-key, idempotent S3 deletion
 adapter is also implemented under unit tests. Runtime worker composition and
-real-provider evidence remain inactive gates.
+real-provider evidence remain inactive gates. An explicit-start, non-overlapping
+scheduler with fixed-cardinality telemetry and capped backoff is ready for that
+future composition but is not started by the current runtime.
 
 ## Verification
 
