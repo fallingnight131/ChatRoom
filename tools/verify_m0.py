@@ -251,6 +251,7 @@ def verify_cmake_headless(jobs: int, build_root: Path) -> None:
         "DeviceManagementApplicationServiceTest",
         "WindowsV2ProductConfigurationTest",
         "WindowsV2ProductConfigurationEnabledTest",
+        "WindowsDeviceIdentityRepositoryTest",
         "--parallel", str(jobs),
     ], ROOT)
     ctest = command_path("ctest")

@@ -1419,6 +1419,10 @@ composition remains a separate change. The detached application service caps a
 pending fresh-login credential at 60 seconds, consumes it once, clears live
 directory work on disconnect, and writes neither the password nor the device
 directory to durable storage (ADR-0325).
+The V2 ClientHello uses one account-independent installation UUID from an
+owner-only atomic file under the application-local security directory. Corrupt
+or unsafe existing identity state fails closed instead of silently creating a
+new server device (ADR-0326).
 
 ## Server Password Hashing Dependency
 

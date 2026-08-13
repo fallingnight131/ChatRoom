@@ -1349,6 +1349,8 @@ Progress:
   - [x] Add a transport-independent Windows application service with one-use,
     at-most-60-second in-memory credential handoff, post-auth directory refresh,
     disconnect abandonment, and no durable security-state cache (ADR-0325).
+  - [x] Add an owner-only, atomic, fail-closed Windows installation device UUID
+    independent of accounts, cache, update rollout, and sessions (ADR-0326).
   - [ ] Add the supported Windows device-management application/UI path; Web is
     implemented behind the existing V2 preview/cutover gate.
 
