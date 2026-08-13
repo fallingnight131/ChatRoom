@@ -726,7 +726,7 @@ Progress:
   - [x] Define secure retry-convergent V1 password change with clearable secret
     ownership, current-session binding, Argon2id replacement, other-session
     revocation, non-secret audit intent, and compatible desired-state retry.
-  - [ ] Implement serializable PostgreSQL credential replacement and audit.
+  - [x] Implement serializable PostgreSQL credential replacement and audit.
   - [ ] Add and compose strict `CHANGE_PASSWORD_REQ`, then prove old/new login,
     exact retry, other-session revocation, and restart durability.
   - [x] Add the inactive attachment registration application port and exact

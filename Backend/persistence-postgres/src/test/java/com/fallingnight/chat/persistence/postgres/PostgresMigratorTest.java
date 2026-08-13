@@ -68,6 +68,9 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordSt
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordUpdateResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomDissolutionIntent;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomDissolutionResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1PasswordChangeAccess;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1PasswordChangeIntent;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1PasswordChangePersistenceResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMemberListPort;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettings;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettingsPort;
@@ -166,7 +169,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(34, first.migrate());
+        assertEquals(35, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -189,7 +192,7 @@ class PostgresMigratorTest {
                             "legacy_v1_room_creation", "group_admission_policy",
                             "group_lifecycle", "group_resource_policy",
                             "legacy_v1_attachment_map", "legacy_v1_room_kick_event",
-                            "legacy_v1_room_dissolution"),
+                            "legacy_v1_room_dissolution", "account_password_change_audit"),
                     applicationTables(connection));
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
@@ -1927,6 +1930,67 @@ class PostgresMigratorTest {
 
     @Test
     @Order(95)
+    void replacesV1PasswordsAndRevokesOtherSessionsAtomically() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID account = UUID.randomUUID(), retainedDevice = UUID.randomUUID();
+        UUID otherDevice = UUID.randomUUID(), retainedSession = UUID.randomUUID();
+        UUID otherSession = UUID.randomUUID();
+        String originalHash = "$argon2id$v=19$m=65536,t=2,p=1$b2xk$Y3JlZGVudGlhbA";
+        String replacementHash = "$argon2id$v=19$m=65536,t=2,p=1$bmV3$Y3JlZGVudGlhbA";
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'password-change-owner', 'Password Change', ?)",
+                    account, originalHash);
+            execute(connection, "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, "
+                    + "account_id) VALUES (241, ?)", account);
+            execute(connection, "INSERT INTO chat.device(id, account_id, client_device_id, "
+                    + "platform) VALUES (?, ?, 'password-retained', 'WEB'), "
+                    + "(?, ?, 'password-other', 'WINDOWS')",
+                    retainedDevice, account, otherDevice, account);
+            execute(connection, "INSERT INTO chat.device_session(id, account_id, device_id, "
+                    + "token_sha256, expires_at) VALUES (?, ?, ?, ?, "
+                    + "transaction_timestamp() + interval '1 day'), (?, ?, ?, ?, "
+                    + "transaction_timestamp() + interval '1 day')",
+                    retainedSession, account, retainedDevice, new byte[32],
+                    otherSession, account, otherDevice, filledBytes(32, (byte) 1));
+        }
+
+        var adapter = new PostgresLegacyV1PasswordChangeAdapter(dataSource());
+        assertEquals(LegacyV1PasswordChangeAccess.Rejected.SESSION_INVALID,
+                adapter.inspect(account, UUID.randomUUID()));
+        var access = assertInstanceOf(LegacyV1PasswordChangeAccess.Candidate.class,
+                adapter.inspect(account, retainedSession));
+        assertEquals(new StoredCredential.Argon2id(originalHash), access.credential());
+
+        var updated = assertInstanceOf(LegacyV1PasswordChangePersistenceResult.Updated.class,
+                adapter.replace(new LegacyV1PasswordChangeIntent(account, retainedSession,
+                        access.credential(), new StoredCredential.Argon2id(replacementHash))));
+        assertEquals(1, updated.otherSessionsRevoked());
+        assertEquals(new StoredCredential.Argon2id(replacementHash),
+                assertInstanceOf(LegacyV1PasswordChangeAccess.Candidate.class,
+                        adapter.inspect(account, retainedSession)).credential());
+        assertEquals(LegacyV1PasswordChangeAccess.Rejected.SESSION_INVALID,
+                adapter.inspect(account, otherSession));
+        assertEquals(1, count("SELECT count(*) FROM chat.device_session WHERE id = '"
+                + retainedSession + "' AND revoked_at IS NULL"));
+        assertEquals(1, count("SELECT count(*) FROM chat.device_session WHERE id = '"
+                + otherSession + "' AND revoked_at IS NOT NULL"));
+        assertEquals(1, count("SELECT count(*) FROM chat.account_password_change_audit WHERE "
+                + "account_id = '" + account + "' AND initiating_session_id = '"
+                + retainedSession + "' AND other_sessions_revoked = 1"));
+        assertEquals(updated.changedAt(), assertInstanceOf(
+                LegacyV1PasswordChangeAccess.Candidate.class,
+                adapter.inspect(account, retainedSession)).passwordChangedAt());
+
+        assertEquals(LegacyV1PasswordChangePersistenceResult.Rejected.CONCURRENT_CHANGE,
+                adapter.replace(new LegacyV1PasswordChangeIntent(account, retainedSession,
+                        access.credential(), new StoredCredential.Argon2id(replacementHash))));
+        assertEquals(1, count("SELECT count(*) FROM chat.account_password_change_audit WHERE "
+                + "account_id = '" + account + "'"));
+    }
+
+    @Test
+    @Order(96)
     void createsV1FriendRequestsWithConcurrentRetryAndReverseDetection() throws Exception {
         requireDatabase();
         truncateApplicationData();
@@ -4353,6 +4417,10 @@ class PostgresMigratorTest {
             assertTrue(result.next());
             return result.getInt(1);
         }
+    }
+
+    private static byte[] filledBytes(int length, byte value) {
+        byte[] result = new byte[length]; Arrays.fill(result, value); return result;
     }
 
     private static String storedBackupHash(UUID runId) throws SQLException {
