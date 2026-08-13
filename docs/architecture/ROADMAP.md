@@ -1346,6 +1346,9 @@ Progress:
     Protobuf/Abseil and no new installer runtime DLL (ADR-0323).
   - [x] Add fail-closed, default-off Windows V2 product configuration for one
     exact compiled `wss://authority/v2/windows` endpoint (ADR-0324).
+  - [x] Add a transport-independent Windows application service with one-use,
+    at-most-60-second in-memory credential handoff, post-auth directory refresh,
+    disconnect abandonment, and no durable security-state cache (ADR-0325).
   - [ ] Add the supported Windows device-management application/UI path; Web is
     implemented behind the existing V2 preview/cutover gate.
 

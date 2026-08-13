@@ -1415,7 +1415,10 @@ lifecycle. The Qt regression checks exact `wss://.../v2/windows` routing,
 first run downloads and builds the isolated C++ runtime. The supported Windows
 CMake product now compiles the same sources and statically links the same pinned
 runtime; it does not activate or expose the V2 screen. Application and UI
-composition remains a separate change.
+composition remains a separate change. The detached application service caps a
+pending fresh-login credential at 60 seconds, consumes it once, clears live
+directory work on disconnect, and writes neither the password nor the device
+directory to durable storage (ADR-0325).
 
 ## Server Password Hashing Dependency
 

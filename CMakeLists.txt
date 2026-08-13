@@ -199,6 +199,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
         add_library(
             chatroom_device_management_ui_core
             STATIC
+            Client/DeviceManagementApplicationService.cpp
+            Client/DeviceManagementApplicationService.h
             Client/DeviceManagementViewModel.cpp
             Client/DeviceManagementViewModel.h
         )
@@ -658,6 +660,15 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
         add_executable(DeviceManagementViewModelTest Tests/DeviceManagementViewModelTest.cpp)
         target_link_libraries(DeviceManagementViewModelTest PRIVATE chatroom_device_management_ui_core)
         add_test(NAME m6_windows_device_management_view_model COMMAND DeviceManagementViewModelTest)
+
+        add_executable(
+            DeviceManagementApplicationServiceTest
+            Tests/DeviceManagementApplicationServiceTest.cpp)
+        target_link_libraries(
+            DeviceManagementApplicationServiceTest PRIVATE chatroom_device_management_ui_core)
+        add_test(
+            NAME m6_windows_device_management_application
+            COMMAND DeviceManagementApplicationServiceTest)
 
         add_executable(
             WindowsV2ProductConfigurationTest
