@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fallingnight.chat.application.attachment.AttachmentCleanupReport;
 import com.fallingnight.chat.gateway.transport.AuthenticationTelemetry;
 import com.fallingnight.chat.gateway.transport.MessagingTelemetry;
+import com.fallingnight.chat.gateway.transport.DeviceManagementTelemetry;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -22,11 +23,14 @@ class GatewayAdminServerTest {
         GatewayReadiness readiness = new GatewayReadiness();
         AuthenticationTelemetry telemetry = new AuthenticationTelemetry();
         MessagingTelemetry messaging = new MessagingTelemetry();
+        DeviceManagementTelemetry devices = new DeviceManagementTelemetry();
         AttachmentCleanupTelemetry cleanup = new AttachmentCleanupTelemetry();
         telemetry.accepted(false);
         messaging.accepted(true);
         messaging.livePublished(2);
         messaging.liveSlowConsumerClosed(1);
+        devices.revoked(true);
+        devices.disconnected(2);
         cleanup.completed(
                 new AttachmentCleanupReport(1, 1, 1, 0, 0),
                 0,
@@ -36,6 +40,7 @@ class GatewayAdminServerTest {
                 1,
                 telemetry,
                 messaging,
+                devices,
                 cleanup,
                 () -> 2,
                 () -> 3,
@@ -57,6 +62,10 @@ class GatewayAdminServerTest {
                     "chat_gateway_messaging_total{outcome=\"live_slow_consumer_closed\"} 1"));
             assertTrue(metrics.body().contains("chat_gateway_messaging_workers_active 2"));
             assertTrue(metrics.body().contains("chat_gateway_messaging_queue_size 3"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_device_management_total{outcome=\"revoked\"} 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_device_management_total{outcome=\"disconnected\"} 2"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_attachment_cleanup_total{outcome=\"deleted\"} 1"));
             assertTrue(metrics.body().contains(
@@ -84,6 +93,7 @@ class GatewayAdminServerTest {
                 1,
                 telemetry,
                 new MessagingTelemetry(),
+                new DeviceManagementTelemetry(),
                 new AttachmentCleanupTelemetry(),
                 () -> 0,
                 () -> 0,
@@ -93,6 +103,7 @@ class GatewayAdminServerTest {
                 5,
                 telemetry,
                 new MessagingTelemetry(),
+                new DeviceManagementTelemetry(),
                 new AttachmentCleanupTelemetry(),
                 () -> 0,
                 () -> 0,

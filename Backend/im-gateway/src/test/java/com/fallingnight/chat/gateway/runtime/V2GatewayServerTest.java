@@ -6,6 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fallingnight.chat.application.identity.AuthenticationResult;
+import com.fallingnight.chat.application.identity.DeviceManagementService;
+import com.fallingnight.chat.gateway.transport.DeviceManagementEventSink;
+import com.fallingnight.chat.gateway.transport.DeviceConnectionRegistry;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
@@ -89,11 +92,14 @@ class V2GatewayServerTest {
                 query -> new com.fallingnight.chat.application.conversation
                         .ConversationDirectoryPage(
                                 java.util.List.of(), java.util.Optional.empty(), false),
+                rejectingDevices(),
                 Runnable::run,
                 Runnable::run,
                 AuthenticationAdmissionControl.allowAll(),
                 AuthenticationEventSink.noop(),
-                MessagingEventSink.noop()));
+                MessagingEventSink.noop(),
+                DeviceManagementEventSink.noop(),
+                new DeviceConnectionRegistry()));
     }
 
     private V2GatewayServer server(GatewayRuntimeConfig config, SslContext tls) {
@@ -106,12 +112,30 @@ class V2GatewayServerTest {
                 query -> new com.fallingnight.chat.application.conversation
                         .ConversationDirectoryPage(
                                 java.util.List.of(), java.util.Optional.empty(), false),
+                rejectingDevices(),
                 Runnable::run,
                 Runnable::run,
                 AuthenticationAdmissionControl.allowAll(),
                 AuthenticationEventSink.noop(),
                 MessagingEventSink.noop(),
+                DeviceManagementEventSink.noop(),
+                new DeviceConnectionRegistry(),
                 tls);
+    }
+
+    private static DeviceManagementService rejectingDevices() {
+        return new DeviceManagementService(new com.fallingnight.chat.application.identity
+                .DeviceManagementPort() {
+            @Override public com.fallingnight.chat.application.identity.DeviceDirectoryResult
+                    listActive(com.fallingnight.chat.application.identity.AuthenticatedDeviceActor actor) {
+                return com.fallingnight.chat.application.identity.DeviceDirectoryResult.Rejected.INSTANCE;
+            }
+            @Override public com.fallingnight.chat.application.identity.DeviceRevocationResult
+                    revokeOther(com.fallingnight.chat.application.identity.AuthenticatedDeviceActor actor,
+                            java.util.UUID target) {
+                return com.fallingnight.chat.application.identity.DeviceRevocationResult.Rejected.INSTANCE;
+            }
+        });
     }
 
     private GatewayRuntimeConfig config(int port) throws Exception {

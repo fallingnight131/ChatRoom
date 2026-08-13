@@ -3,11 +3,16 @@ package com.fallingnight.chat.gateway.transport;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.fallingnight.chat.application.identity.AuthenticationResult;
+import com.fallingnight.chat.application.identity.DeviceDirectoryResult;
+import com.fallingnight.chat.application.identity.DeviceManagementPort;
+import com.fallingnight.chat.application.identity.DeviceManagementService;
+import com.fallingnight.chat.application.identity.DeviceRevocationResult;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class V2ApplicationPipelineTest {
@@ -24,11 +29,25 @@ class V2ApplicationPipelineTest {
                     query -> new com.fallingnight.chat.application.conversation
                             .ConversationDirectoryPage(
                                     java.util.List.of(), java.util.Optional.empty(), false),
+                    new DeviceManagementService(new DeviceManagementPort() {
+                        @Override public DeviceDirectoryResult listActive(
+                                com.fallingnight.chat.application.identity
+                                        .AuthenticatedDeviceActor actor) {
+                            return DeviceDirectoryResult.Rejected.INSTANCE;
+                        }
+                        @Override public DeviceRevocationResult revokeOther(
+                                com.fallingnight.chat.application.identity
+                                        .AuthenticatedDeviceActor actor, UUID target) {
+                            return DeviceRevocationResult.Rejected.INSTANCE;
+                        }
+                    }),
                     Runnable::run,
                     Runnable::run,
                     AuthenticationAdmissionControl.allowAll(),
                     AuthenticationEventSink.noop(),
                     MessagingEventSink.noop(),
+                    DeviceManagementEventSink.noop(),
+                    new DeviceConnectionRegistry(),
                     ConversationLiveRouter.noop(),
                     Duration.ofSeconds(10),
                     Duration.ofSeconds(30));
@@ -43,10 +62,12 @@ class V2ApplicationPipelineTest {
                     "v2-phase-timeouts",
                     "v2-handshake",
                     "v2-authentication",
+                    "v2-device-connections",
+                    "v2-device-management",
                     "v2-messaging",
                     "v2-authenticated-heartbeat",
                     "v2-authenticated-idle-close"),
-                    names.subList(0, 11));
+                    names.subList(0, 13));
         } finally {
             channel.finishAndReleaseAll();
         }

@@ -3,6 +3,7 @@ package com.fallingnight.chat.gateway.runtime;
 import com.fallingnight.chat.application.identity.AuthenticationUseCase;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPort;
 import com.fallingnight.chat.application.identity.SessionResumeUseCase;
+import com.fallingnight.chat.application.identity.DeviceManagementService;
 import com.fallingnight.chat.application.messaging.MessageHistoryPort;
 import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
@@ -12,6 +13,8 @@ import com.fallingnight.chat.gateway.transport.GatewayConnectionLimiter;
 import com.fallingnight.chat.gateway.transport.GatewayChannelExceptionHandler;
 import com.fallingnight.chat.gateway.transport.HttpHostPolicyHandler;
 import com.fallingnight.chat.gateway.transport.MessagingEventSink;
+import com.fallingnight.chat.gateway.transport.DeviceConnectionRegistry;
+import com.fallingnight.chat.gateway.transport.DeviceManagementEventSink;
 import com.fallingnight.chat.gateway.transport.SingleGatewayConversationLiveRouter;
 import com.fallingnight.chat.gateway.transport.TrustedProxyHttpHandler;
 import com.fallingnight.chat.gateway.transport.V2EnvelopeDecoder;
@@ -61,11 +64,14 @@ public final class V2GatewayServer implements AutoCloseable {
     private final MessageSubmissionPort submissions;
     private final MessageHistoryPort history;
     private final ConversationDirectoryPort directory;
+    private final DeviceManagementService deviceManagement;
     private final Executor authenticationExecutor;
     private final Executor messagingExecutor;
     private final AuthenticationAdmissionControl admission;
     private final AuthenticationEventSink events;
     private final MessagingEventSink messagingEvents;
+    private final DeviceManagementEventSink deviceEvents;
+    private final DeviceConnectionRegistry deviceConnections;
     private final SingleGatewayConversationLiveRouter liveRouter;
     private final SslContext sslContext;
     private final GatewayConnectionLimiter connectionLimiter;
@@ -82,23 +88,17 @@ public final class V2GatewayServer implements AutoCloseable {
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
             ConversationDirectoryPort directory,
+            DeviceManagementService deviceManagement,
             Executor authenticationExecutor,
             Executor messagingExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
-            MessagingEventSink messagingEvents) {
-        this(
-                config,
-                authentication,
-                sessionResume,
-                submissions,
-                history,
-                directory,
-                authenticationExecutor,
-                messagingExecutor,
-                admission,
-                events,
-                messagingEvents,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections) {
+        this(config, authentication, sessionResume, submissions, history, directory,
+                deviceManagement, authenticationExecutor, messagingExecutor, admission,
+                events, messagingEvents, deviceEvents, deviceConnections,
                 createSslContext(config));
     }
 
@@ -109,11 +109,14 @@ public final class V2GatewayServer implements AutoCloseable {
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
             ConversationDirectoryPort directory,
+            DeviceManagementService deviceManagement,
             Executor authenticationExecutor,
             Executor messagingExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
             MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
             SslContext sslContext) {
         this.config = Objects.requireNonNull(config, "config");
         this.authentication = Objects.requireNonNull(authentication, "authentication");
@@ -121,12 +124,15 @@ public final class V2GatewayServer implements AutoCloseable {
         this.submissions = Objects.requireNonNull(submissions, "submissions");
         this.history = Objects.requireNonNull(history, "history");
         this.directory = Objects.requireNonNull(directory, "directory");
+        this.deviceManagement = Objects.requireNonNull(deviceManagement, "deviceManagement");
         this.authenticationExecutor = Objects.requireNonNull(
                 authenticationExecutor, "authenticationExecutor");
         this.messagingExecutor = Objects.requireNonNull(messagingExecutor, "messagingExecutor");
         this.admission = Objects.requireNonNull(admission, "admission");
         this.events = Objects.requireNonNull(events, "events");
         this.messagingEvents = Objects.requireNonNull(messagingEvents, "messagingEvents");
+        this.deviceEvents = Objects.requireNonNull(deviceEvents, "deviceEvents");
+        this.deviceConnections = Objects.requireNonNull(deviceConnections, "deviceConnections");
         this.liveRouter = new SingleGatewayConversationLiveRouter(java.time.Clock.systemUTC());
         this.sslContext = Objects.requireNonNull(sslContext, "sslContext");
         connectionLimiter = new GatewayConnectionLimiter(config.maximumConnections());
@@ -230,16 +236,20 @@ public final class V2GatewayServer implements AutoCloseable {
                 submissions,
                 history,
                 directory,
+                deviceManagement,
                 authenticationExecutor,
                 messagingExecutor,
                 admission,
                 events,
                 messagingEvents,
+                deviceEvents,
+                deviceConnections,
                 liveRouter,
                 config.handshakeTimeout(),
                 config.authenticationTimeout()));
         pipeline.addLast("safe-channel-error", new GatewayChannelExceptionHandler());
     }
+
 
     private WebSocketServerProtocolConfig webSocketConfig() {
         return WebSocketServerProtocolConfig.newBuilder()

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fallingnight.chat.application.identity.AuthenticationResult;
+import com.fallingnight.chat.application.identity.DeviceManagementService;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -30,6 +31,8 @@ class V2WebSocketUpgradeHandlerTest {
 
             assertNull(channel.pipeline().get(V2WebSocketUpgradeHandler.class));
             assertTrue(channel.pipeline().get(V2HandshakeHandler.class) != null);
+            assertTrue(channel.pipeline().get(V2DeviceConnectionTracker.class) != null);
+            assertTrue(channel.pipeline().get(V2DeviceManagementHandler.class) != null);
             assertTrue(channel.isActive());
         } finally {
             channel.finishAndReleaseAll();
@@ -57,12 +60,29 @@ class V2WebSocketUpgradeHandlerTest {
                 query -> new com.fallingnight.chat.application.conversation
                         .ConversationDirectoryPage(
                                 java.util.List.of(), java.util.Optional.empty(), false),
+                new DeviceManagementService(new RejectingDeviceManagementPort()),
                 Runnable::run,
                 Runnable::run,
                 AuthenticationAdmissionControl.allowAll(),
                 AuthenticationEventSink.noop(),
                 MessagingEventSink.noop(),
+                DeviceManagementEventSink.noop(),
+                new DeviceConnectionRegistry(),
+                ConversationLiveRouter.noop(),
                 handshakeTimeout,
                 Duration.ofSeconds(1));
+    }
+
+    private static final class RejectingDeviceManagementPort implements
+            com.fallingnight.chat.application.identity.DeviceManagementPort {
+        @Override public com.fallingnight.chat.application.identity.DeviceDirectoryResult
+                listActive(com.fallingnight.chat.application.identity.AuthenticatedDeviceActor actor) {
+            return com.fallingnight.chat.application.identity.DeviceDirectoryResult.Rejected.INSTANCE;
+        }
+        @Override public com.fallingnight.chat.application.identity.DeviceRevocationResult revokeOther(
+                com.fallingnight.chat.application.identity.AuthenticatedDeviceActor actor,
+                java.util.UUID target) {
+            return com.fallingnight.chat.application.identity.DeviceRevocationResult.Rejected.INSTANCE;
+        }
     }
 }

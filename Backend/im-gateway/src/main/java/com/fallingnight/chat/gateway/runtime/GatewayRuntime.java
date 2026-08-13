@@ -2,6 +2,7 @@ package com.fallingnight.chat.gateway.runtime;
 
 import com.fallingnight.chat.application.identity.AuthenticationService;
 import com.fallingnight.chat.application.identity.SessionResumeService;
+import com.fallingnight.chat.application.identity.DeviceManagementService;
 import com.fallingnight.chat.gateway.operations.AttachmentCleanupTelemetry;
 import com.fallingnight.chat.gateway.operations.GatewayAdminServer;
 import com.fallingnight.chat.gateway.transport.AuthenticationTelemetry;
@@ -9,11 +10,14 @@ import com.fallingnight.chat.gateway.transport.AuthenticationWorkerPool;
 import com.fallingnight.chat.gateway.transport.InMemoryAuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.MessagingWorkerPool;
 import com.fallingnight.chat.gateway.transport.MessagingTelemetry;
+import com.fallingnight.chat.gateway.transport.DeviceConnectionRegistry;
+import com.fallingnight.chat.gateway.transport.DeviceManagementTelemetry;
 import com.fallingnight.chat.identity.crypto.Argon2idCredentialHasher;
 import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
 import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresConversationDirectoryAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMessageAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresDeviceManagementAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
 import com.zaxxer.hikari.HikariDataSource;
 import java.time.Clock;
@@ -69,6 +73,8 @@ public final class GatewayRuntime implements AutoCloseable {
             PostgresMessageAdapter messages = new PostgresMessageAdapter(dataSource);
             PostgresConversationDirectoryAdapter conversations =
                     new PostgresConversationDirectoryAdapter(dataSource);
+            DeviceManagementService deviceManagement = new DeviceManagementService(
+                    new PostgresDeviceManagementAdapter(dataSource));
             Clock clock = Clock.systemUTC();
             AuthenticationService authentication = new AuthenticationService(
                     identity,
@@ -80,6 +86,8 @@ public final class GatewayRuntime implements AutoCloseable {
             SessionResumeService sessionResume = new SessionResumeService(identity, clock);
             AuthenticationTelemetry telemetry = new AuthenticationTelemetry();
             MessagingTelemetry messagingTelemetry = new MessagingTelemetry();
+            DeviceManagementTelemetry deviceTelemetry = new DeviceManagementTelemetry();
+            DeviceConnectionRegistry deviceConnections = new DeviceConnectionRegistry();
             AttachmentCleanupTelemetry attachmentCleanupTelemetry =
                     new AttachmentCleanupTelemetry();
             InMemoryAuthenticationAdmissionControl admission =
@@ -99,17 +107,21 @@ public final class GatewayRuntime implements AutoCloseable {
                     messages,
                     messages,
                     conversations,
+                    deviceManagement,
                     workers,
                     messagingWorkers,
                     admission,
                     telemetry,
-                    messagingTelemetry);
+                    messagingTelemetry,
+                    deviceTelemetry,
+                    deviceConnections);
             AtomicBoolean readiness = new AtomicBoolean();
             adminServer = new GatewayAdminServer(
                     config.adminAddress(),
                     config.adminWorkers(),
                     telemetry,
                     messagingTelemetry,
+                    deviceTelemetry,
                     attachmentCleanupTelemetry,
                     messagingWorkers::activeCount,
                     messagingWorkers::queuedCount,

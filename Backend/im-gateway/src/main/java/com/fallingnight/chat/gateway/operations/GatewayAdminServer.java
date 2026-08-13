@@ -2,6 +2,7 @@ package com.fallingnight.chat.gateway.operations;
 
 import com.fallingnight.chat.gateway.transport.AuthenticationTelemetry;
 import com.fallingnight.chat.gateway.transport.MessagingTelemetry;
+import com.fallingnight.chat.gateway.transport.DeviceManagementTelemetry;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -27,6 +28,7 @@ public final class GatewayAdminServer implements AutoCloseable {
             int workers,
             AuthenticationTelemetry telemetry,
             MessagingTelemetry messagingTelemetry,
+            DeviceManagementTelemetry deviceManagementTelemetry,
             AttachmentCleanupTelemetry attachmentCleanupTelemetry,
             IntSupplier messagingActiveWorkers,
             IntSupplier messagingQueuedWork,
@@ -34,6 +36,7 @@ public final class GatewayAdminServer implements AutoCloseable {
         Objects.requireNonNull(address, "address");
         Objects.requireNonNull(telemetry, "telemetry");
         Objects.requireNonNull(messagingTelemetry, "messagingTelemetry");
+        Objects.requireNonNull(deviceManagementTelemetry, "deviceManagementTelemetry");
         Objects.requireNonNull(attachmentCleanupTelemetry, "attachmentCleanupTelemetry");
         Objects.requireNonNull(messagingActiveWorkers, "messagingActiveWorkers");
         Objects.requireNonNull(messagingQueuedWork, "messagingQueuedWork");
@@ -73,6 +76,8 @@ public final class GatewayAdminServer implements AutoCloseable {
                                 messagingTelemetry.snapshot(),
                                 messagingActiveWorkers.getAsInt(),
                                 messagingQueuedWork.getAsInt())
+                        + PrometheusDeviceManagementMetrics.render(
+                                deviceManagementTelemetry.snapshot())
                         + PrometheusAttachmentCleanupMetrics.render(
                                 attachmentCleanupTelemetry.snapshot())));
     }

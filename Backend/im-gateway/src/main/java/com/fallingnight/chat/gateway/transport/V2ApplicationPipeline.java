@@ -3,6 +3,7 @@ package com.fallingnight.chat.gateway.transport;
 import com.fallingnight.chat.application.identity.AuthenticationUseCase;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPort;
 import com.fallingnight.chat.application.identity.SessionResumeUseCase;
+import com.fallingnight.chat.application.identity.DeviceManagementService;
 import com.fallingnight.chat.application.messaging.MessageHistoryPort;
 import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
 import io.netty.channel.ChannelPipeline;
@@ -21,11 +22,14 @@ public final class V2ApplicationPipeline {
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
             ConversationDirectoryPort directory,
+            DeviceManagementService deviceManagement,
             Executor authenticationExecutor,
             Executor messagingExecutor,
             AuthenticationAdmissionControl admission,
             AuthenticationEventSink events,
             MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
             ConversationLiveRouter liveRouter,
             Duration handshakeTimeout,
             Duration authenticationTimeout) {
@@ -41,6 +45,10 @@ public final class V2ApplicationPipeline {
                 admission,
                 events,
                 java.time.Clock.systemUTC()));
+        pipeline.addLast("v2-device-connections",
+                new V2DeviceConnectionTracker(deviceConnections));
+        pipeline.addLast("v2-device-management", new V2DeviceManagementHandler(
+                deviceManagement, messagingExecutor, deviceConnections, deviceEvents));
         pipeline.addLast("v2-messaging", new V2MessagingHandler(
                 submissions, history, directory, messagingExecutor, messagingEvents, liveRouter));
         pipeline.addLast("v2-authenticated-heartbeat", new V2AuthenticatedHeartbeatHandler());

@@ -1312,8 +1312,9 @@ Progress:
     and Java/C++/TypeScript golden-wire compatibility.
   - [x] Add the authenticated bounded V2 gateway handler and process-local
     post-commit target disconnect index; runtime composition remains detached.
-  - [ ] Compose the handler, PostgreSQL adapter, telemetry, and worker ownership
-    in the product gateway runtime.
+  - [x] Compose the handler, PostgreSQL adapter, fixed-cardinality telemetry,
+    process-local connection index, and bounded worker ownership in the product
+    gateway runtime.
   - [ ] Add supported Web and Windows device-management UI and recovery behavior.
 
 Candidate slices:
