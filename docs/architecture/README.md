@@ -1165,6 +1165,12 @@ generated leaf/keypairs have exact fingerprints verified through real HTTPS
 before and after reload; the old WSS tunnel finishes ordered delivery while new
 connections see only the replacement certificate. Backend gateway certificate
 and CA rotation remains a distinct trust-migration concern.
+ADR-0378 closes that backend trust gap with an expand-migrate-contract gate. The
+old-only verifier rejects the new gateway, the overlap bundle proves both old
+and new certificate generations, and the contracted verifier rejects the old
+certificate while accepting the new gateway. Former-worker WSS delivery remains
+ordered across both reloads; production multi-edge secret distribution remains
+outside this proof.
 
 ## 10. Attachment Flow
 

@@ -115,6 +115,26 @@ def generate_certificates(openssl: str, root: Path) -> None:
         fingerprints.append(hashlib.sha256(der).hexdigest())
     (root / "frontend-fingerprints").write_text(
         "\n".join(fingerprints) + "\n", encoding="utf-8")
+    next_ca_key = root / "ca-next.key"
+    next_ca_cert = root / "ca-next.crt"
+    run([openssl, "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+         "-days", "1", "-subj", "/CN=Chat HAProxy Next Test CA",
+         "-keyout", str(next_ca_key), "-out", str(next_ca_cert)], ROOT)
+    next_key = root / "gateway-next.key"
+    next_request = root / "gateway-next.csr"
+    next_certificate = root / "gateway-next.crt"
+    next_extensions = root / "gateway-next.ext"
+    next_extensions.write_text(
+        "subjectAltName=DNS:gateway.internal\nextendedKeyUsage=serverAuth\n",
+        encoding="utf-8")
+    run([openssl, "req", "-newkey", "rsa:2048", "-nodes",
+         "-subj", "/CN=gateway.internal", "-keyout", str(next_key),
+         "-out", str(next_request)], ROOT)
+    run([openssl, "x509", "-req", "-days", "1", "-in", str(next_request),
+         "-CA", str(next_ca_cert), "-CAkey", str(next_ca_key), "-CAcreateserial",
+         "-extfile", str(next_extensions), "-out", str(next_certificate)], ROOT)
+    (root / "ca-bundle.crt").write_bytes(
+        ca_cert.read_bytes() + next_ca_cert.read_bytes())
 
 
 def await_port(port: int, process: subprocess.Popen[bytes]) -> None:
@@ -164,6 +184,8 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
         shutil.copyfile(root / "frontend.pem", proxy_root / "frontend.pem")
         shutil.copyfile(root / "frontend-next.pem", proxy_root / "frontend-next.pem")
         shutil.copyfile(root / "ca.crt", proxy_root / "ca.crt")
+        shutil.copyfile(root / "ca-next.crt", proxy_root / "ca-next.crt")
+        shutil.copyfile(root / "ca-bundle.crt", proxy_root / "ca-bundle.crt")
         postgres_started = False
         redis_started = False
         gradle: subprocess.Popen[bytes] | None = None
@@ -190,6 +212,8 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
                 "CHATROOM_TEST_HAPROXY_WSS_URL": f"wss://localhost:{proxy_port}",
                 "CHATROOM_TEST_GATEWAY_CERTIFICATE": str(root / "gateway.crt"),
                 "CHATROOM_TEST_GATEWAY_PRIVATE_KEY": str(root / "gateway.key"),
+                "CHATROOM_TEST_GATEWAY_NEXT_CERTIFICATE": str(root / "gateway-next.crt"),
+                "CHATROOM_TEST_GATEWAY_NEXT_PRIVATE_KEY": str(root / "gateway-next.key"),
             })
             if extra_environment:
                 environment.update(extra_environment)
@@ -203,6 +227,7 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
             started_marker = root / "haproxy-started"
             reload_request = root / "haproxy-reload-request"
             reload_frontend = root / "haproxy-reload-frontend"
+            reload_ca = root / "haproxy-reload-ca"
             reload_marker = root / "haproxy-reloaded"
             ports: list[str] | None = None
             while gradle.poll() is None:
@@ -226,27 +251,40 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
                         IMAGE, "haproxy", "-W", "-db", "-f", "/work/haproxy.cfg",
                     ], cwd=ROOT)
                     await_port(proxy_port, proxy)
+                    time.sleep(2)
+                    if proxy.poll() is not None:
+                        raise subprocess.CalledProcessError(proxy.returncode, proxy.args)
                     started_marker.write_text("started\n", encoding="utf-8")
                 if (proxy is not None and ports is not None
                         and reload_request.is_file() and not reload_marker.exists()):
                     retained = reload_request.read_text(encoding="utf-8").strip()
-                    if retained not in ("gateway-a", "gateway-b"):
+                    if retained not in ("gateway-a", "gateway-b", "both"):
                         raise RuntimeError("HAProxy reload backend is invalid")
-                    index = 0 if retained == "gateway-a" else 1
+                    selected = ((0, "gateway-a"), (1, "gateway-b"))
+                    if retained != "both":
+                        selected = tuple(
+                            value for value in selected if value[1] == retained)
                     frontend = "frontend.pem"
                     if reload_frontend.is_file():
                         frontend = reload_frontend.read_text(encoding="utf-8").strip()
                         if frontend not in ("frontend.pem", "frontend-next.pem"):
                             raise RuntimeError("HAProxy reload frontend is invalid")
+                    backend_ca = "ca.crt"
+                    if reload_ca.is_file():
+                        backend_ca = reload_ca.read_text(encoding="utf-8").strip()
+                        if backend_ca not in ("ca.crt", "ca-bundle.crt", "ca-next.crt"):
+                            raise RuntimeError("HAProxy reload backend CA is invalid")
                     config = proxy_root / "haproxy.cfg"
-                    run([python, str(ROOT / "tools" / "render_haproxy_gateway.py"),
-                         "--bind-address", "0.0.0.0", "--bind-port", "8443",
-                         "--frontend-certificate", f"/work/{frontend}",
-                         "--backend-ca", "/work/ca.crt",
-                         "--health-host", "chat.example.com",
-                         "--gateway",
-                         f"{retained},{docker_host},{ports[index]},gateway.internal",
-                         "--output", str(config)], ROOT)
+                    render = [python, str(ROOT / "tools" / "render_haproxy_gateway.py"),
+                              "--bind-address", "0.0.0.0", "--bind-port", "8443",
+                              "--frontend-certificate", f"/work/{frontend}",
+                              "--backend-ca", f"/work/{backend_ca}",
+                              "--health-host", "chat.example.com"]
+                    for index, name in selected:
+                        render.extend(["--gateway",
+                                       f"{name},{docker_host},{ports[index]},gateway.internal"])
+                    render.extend(["--output", str(config)])
+                    run(render, ROOT)
                     run([docker, "kill", "--signal", "USR2", proxy_name], ROOT)
                     time.sleep(2)
                     if proxy.poll() is not None:

@@ -1548,6 +1548,19 @@ master-worker reload, keeps an old-certificate WSS tunnel alive for ordered
 delivery, and requires new WSS traffic to use the replacement certificate. It
 does not rotate the backend gateway CA (ADR-0377).
 
+Exercise backend gateway CA migration with:
+
+```bash
+python3 tools/verify_m0.py --gateway-backend-ca-rotation
+```
+
+The gate starts with only the old CA trusted, expands to an old-plus-new bundle,
+requires the current HAProxy worker to accept both gateway certificate
+generations, then contracts to the new CA, rejects the old certificate, and
+admits only the new gateway. Established former-worker WSS traffic must remain
+ordered across both reloads. Run it separately from
+`--all` because it requires Docker and disposable local services (ADR-0378).
+
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
 consume ports while PostgreSQL supplies outbox and message repair. They also

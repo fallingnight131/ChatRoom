@@ -1578,6 +1578,12 @@ Progress:
   enough to deliver sequence 1, and deliver sequence 2 through a new connection
   presenting the replacement certificate. Backend gateway CA rotation remains
   a separate trust-migration gate (ADR-0377).
+- [x] Rotate private HAProxy-to-gateway trust with expand-migrate-contract:
+  prove old-only trust rejects the new gateway, the overlap bundle accepts both
+  certificate generations, and contracted new-only trust rejects the old
+  certificate while admitting the new gateway. Former-worker WSS traffic
+  remains ordered across both reloads.
+  Multi-edge secret distribution remains an operations gap (ADR-0378).
 
 Work:
 

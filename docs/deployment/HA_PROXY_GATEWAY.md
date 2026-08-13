@@ -118,6 +118,24 @@ certificate worker. Production must source PEMs from the secret store, validate
 the full public chain and hostname, retain rollback material, and monitor expiry.
 Backend gateway CA rotation is not covered (ADR-0377).
 
+Verify private backend CA replacement with:
+
+```bash
+python3 tools/verify_m0.py --gateway-backend-ca-rotation
+```
+
+The gate enforces the safe order: install an old-plus-new verifier bundle,
+migrate gateway certificates while both roots are trusted, prove both paths,
+then contract HAProxy to the new root and reject the old certificate. It
+preserves established former-worker WSS traffic across both reloads and never
+disables hostname or CA verification (ADR-0378).
+
+For production, distribute the overlap bundle to every edge before presenting a
+new gateway certificate. Abort contraction while any healthy or rollback
+gateway still uses the old certificate. Retain the overlap bundle until the
+rollback window closes; CA key deletion and compromise response require a
+separate, reviewed ceremony.
+
 Before reload, validate the fully rendered deployment file with the exact
 production HAProxy binary. Roll one bounded subset of gateways at a time:
 

@@ -1404,6 +1404,160 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     @Test
+    void haproxyMigratesBackendCertificateAuthorityWithoutDroppingOldTunnel() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String redisUri = System.getenv("CHATROOM_TEST_REDIS_URI");
+        String controlValue = System.getenv("CHATROOM_TEST_HAPROXY_CONTROL_DIR");
+        String proxyUrl = System.getenv("CHATROOM_TEST_HAPROXY_WSS_URL");
+        String certificatePath = System.getenv("CHATROOM_TEST_GATEWAY_CERTIFICATE");
+        String keyPath = System.getenv("CHATROOM_TEST_GATEWAY_PRIVATE_KEY");
+        String nextCertificatePath = System.getenv(
+                "CHATROOM_TEST_GATEWAY_NEXT_CERTIFICATE");
+        String nextKeyPath = System.getenv("CHATROOM_TEST_GATEWAY_NEXT_PRIVATE_KEY");
+        Assumptions.assumeTrue(allNonBlank(jdbcUrl, username, redisUri, controlValue,
+                proxyUrl, certificatePath, keyPath, nextCertificatePath, nextKeyPath),
+                "set disposable services, HAProxy, and both gateway trust generations");
+        Path control = Path.of(controlValue);
+        new PostgresMigrator(jdbcUrl, username, "").migrate();
+        UUID accountId = UUID.randomUUID();
+        UUID peerId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        String login = "backend-ca-" + accountId;
+        String peerLogin = "backend-ca-" + peerId;
+        seedV2NetworkAccounts(jdbcUrl, username, "", accountId, peerId,
+                conversationId, login, peerLogin);
+
+        int firstPort = availablePort();
+        int firstAdmin = availablePort();
+        int secondPort = availablePort();
+        int secondAdmin = availablePort();
+        GatewayRuntime first = null;
+        GatewayRuntime second = null;
+        WebSocket sender = null;
+        WebSocket peer = null;
+        WebSocket replacement = null;
+        List<WebSocket> probes = new ArrayList<>();
+        try {
+            Map<String, String> firstEnvironment = distributedNetworkEnvironment(
+                    firstPort, firstAdmin, certificatePath, keyPath, jdbcUrl, username,
+                    redisUri, proxyAuthority(proxyUrl));
+            Map<String, String> secondEnvironment = distributedNetworkEnvironment(
+                    secondPort, secondAdmin, nextCertificatePath, nextKeyPath, jdbcUrl,
+                    username, redisUri, proxyAuthority(proxyUrl));
+            firstEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+            secondEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+            first = GatewayRuntime.create(
+                    GatewayRuntimeConfig.fromEnvironment(firstEnvironment));
+            second = GatewayRuntime.create(
+                    GatewayRuntimeConfig.fromEnvironment(secondEnvironment));
+            first.start();
+            second.start();
+            awaitReady(first);
+            awaitReady(second);
+            Files.writeString(control.resolve("gateway-ports"),
+                    firstPort + "\n" + secondPort + "\n");
+            Files.writeString(control.resolve("haproxy-start-request"), "start\n");
+            awaitFile(control.resolve("haproxy-started"), Duration.ofSeconds(10));
+
+            BinaryEnvelopeListener senderListener = new BinaryEnvelopeListener();
+            sender = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), senderListener);
+            SessionEstablished senderSession = establish(
+                    sender, senderListener, login, "backend-ca-old");
+            assertEquals(1, authenticationAccepted(firstAdmin));
+            assertEquals(0, authenticationAccepted(secondAdmin));
+            sender.sendBinary(ByteBuffer.wrap(history(
+                    senderSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    senderListener.next().getMessageType());
+
+            Files.writeString(control.resolve("haproxy-reload-ca"), "ca-bundle.crt\n");
+            Files.writeString(control.resolve("haproxy-reload-request"), "both\n");
+            awaitFile(control.resolve("haproxy-reloaded"), Duration.ofSeconds(10));
+
+            BinaryEnvelopeListener peerListener = null;
+            boolean acceptedOldCertificate = false;
+            long previousFirst = authenticationAccepted(firstAdmin);
+            long previousSecond = authenticationAccepted(secondAdmin);
+            for (int attempt = 0; attempt < 4
+                    && (!acceptedOldCertificate || peer == null); attempt++) {
+                BinaryEnvelopeListener listener = new BinaryEnvelopeListener();
+                WebSocket candidate = connectWebSocket(
+                        URI.create(proxyUrl + "/v2/windows"), listener);
+                SessionEstablished session = establish(
+                        candidate, listener, peerLogin, "backend-ca-peer-" + attempt);
+                candidate.sendBinary(ByteBuffer.wrap(history(
+                        session.getSessionId(), conversationId).toByteArray()), true).join();
+                assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                        listener.next().getMessageType());
+                long currentFirst = authenticationAccepted(firstAdmin);
+                long currentSecond = authenticationAccepted(secondAdmin);
+                acceptedOldCertificate |= currentFirst > previousFirst;
+                if (currentSecond > previousSecond && peer == null) {
+                    peer = candidate;
+                    peerListener = listener;
+                } else {
+                    probes.add(candidate);
+                }
+                previousFirst = currentFirst;
+                previousSecond = currentSecond;
+            }
+            assertTrue(acceptedOldCertificate,
+                    "expanded trust worker did not accept the old gateway certificate");
+            assertNotNull(peer,
+                    "expanded trust worker did not accept the new gateway certificate");
+            assertNotNull(peerListener);
+
+            Files.delete(control.resolve("haproxy-reload-request"));
+            Files.delete(control.resolve("haproxy-reloaded"));
+            Files.writeString(control.resolve("haproxy-reload-ca"), "ca-next.crt\n");
+            Files.writeString(control.resolve("haproxy-reload-request"), "both\n");
+            awaitFile(control.resolve("haproxy-reloaded"), Duration.ofSeconds(10));
+
+            long acceptedByFirst = authenticationAccepted(firstAdmin);
+            long acceptedBySecond = authenticationAccepted(secondAdmin);
+            BinaryEnvelopeListener replacementListener = new BinaryEnvelopeListener();
+            replacement = connectWebSocket(
+                    URI.create(proxyUrl + "/v2/windows"), replacementListener);
+            SessionEstablished replacementSession = establish(
+                    replacement, replacementListener, login, "backend-ca-new");
+            assertEquals(acceptedByFirst, authenticationAccepted(firstAdmin));
+            assertEquals(acceptedBySecond + 1, authenticationAccepted(secondAdmin));
+
+            sender.sendBinary(ByteBuffer.wrap(submit(
+                    senderSession.getSessionId(), conversationId,
+                    "backend-ca-submit-1", "backend-ca-message-1", "old trust worker")
+                    .toByteArray()), true).join();
+            MessageAccepted firstMessage = accepted(senderListener.next());
+            assertEquals(1, firstMessage.getConversationSequence());
+            assertEquals(1, published(peerListener.next(Duration.ofSeconds(10)))
+                    .getConversationSequence());
+
+            replacement.sendBinary(ByteBuffer.wrap(history(
+                    replacementSession.getSessionId(), conversationId).toByteArray()), true).join();
+            MessageHistoryPage repaired = MessageHistoryPage.parseFrom(
+                    replacementListener.next().getPayload());
+            assertEquals(firstMessage.getMessageId(), repaired.getMessages(0).getMessageId());
+            replacement.sendBinary(ByteBuffer.wrap(submit(
+                    replacementSession.getSessionId(), conversationId,
+                    "backend-ca-submit-2", "backend-ca-message-2", "new trust worker")
+                    .toByteArray()), true).join();
+            assertEquals(2, accepted(replacementListener.next()).getConversationSequence());
+            assertEquals(2, published(replacementListener.next()).getConversationSequence());
+            assertEquals(2, published(peerListener.next(Duration.ofSeconds(10)))
+                    .getConversationSequence());
+            peerListener.assertNoEnvelope(Duration.ofSeconds(1));
+        } finally {
+            if (replacement != null) replacement.abort();
+            if (peer != null) peer.abort();
+            for (WebSocket probe : probes) probe.abort();
+            if (sender != null) sender.abort();
+            if (second != null) second.close();
+            if (first != null) first.close();
+        }
+    }
+
+    @Test
     void composesRealV1LoginOnlyForMappedImportedAccounts() throws Exception {
         String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
         String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
