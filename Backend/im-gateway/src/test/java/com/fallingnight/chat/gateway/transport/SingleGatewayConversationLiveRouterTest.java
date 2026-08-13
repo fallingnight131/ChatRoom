@@ -7,15 +7,19 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
+import com.fallingnight.chat.application.messaging.MessageEditResult;
+import com.fallingnight.chat.protocol.v2.ClientCapability;
 import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.MessageKind;
 import com.fallingnight.chat.protocol.v2.MessageRecord;
 import com.fallingnight.chat.protocol.v2.MessageType;
+import com.fallingnight.chat.protocol.v2.MessageEditedRecord;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -110,6 +114,40 @@ class SingleGatewayConversationLiveRouterTest {
         });
         assertEquals(0, router.activeConversationCount());
         channel.finishAndReleaseAll();
+    }
+
+    @Test
+    void publishesChangedEditsOnlyToCapableSubscribers() throws Exception {
+        SingleGatewayConversationLiveRouter router = new SingleGatewayConversationLiveRouter(
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        EmbeddedChannel capable = authenticatedChannel();
+        EmbeddedChannel legacy = authenticatedChannel();
+        capable.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(Set.of(
+                ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS));
+        MessageHistoryQuery query = new MessageHistoryQuery(CONVERSATION, ACCOUNT, 0, 100);
+        router.readAndSubscribe(capable, query, ignored -> new MessageHistoryResult.Page(
+                List.of(), 0, 0, false));
+        router.readAndSubscribe(legacy, query, ignored -> new MessageHistoryResult.Page(
+                List.of(), 0, 0, false));
+        MessageEditResult.Applied edit = new MessageEditResult.Applied(
+                CONVERSATION, UUID.randomUUID(), ACCOUNT, 1, 1,
+                "updated".getBytes(java.nio.charset.StandardCharsets.UTF_8), "edit-live",
+                true, 1, NOW, false);
+        try {
+            assertEquals(1, router.publishEdit(edit).published());
+            Envelope event = capable.readOutbound();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_EDITED_VALUE,
+                    event.getMessageType());
+            assertEquals("updated", MessageEditedRecord.parseFrom(event.getPayload())
+                    .getContent().toStringUtf8());
+            assertNull(legacy.readOutbound());
+            assertEquals(0, router.publishEdit(new MessageEditResult.Applied(
+                    edit.conversationId(), edit.messageId(), edit.actorAccountId(), 1, 1,
+                    edit.content(), "edit-no-op", false, 0, NOW, false)).published());
+        } finally {
+            capable.finishAndReleaseAll();
+            legacy.finishAndReleaseAll();
+        }
     }
 
     private static EmbeddedChannel authenticatedChannel() {

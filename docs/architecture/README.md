@@ -673,6 +673,14 @@ bounded operation outbox, stable reconnect replay, optimistic convergence,
 correlated ACKs that do not advance the cursor, ordered history/live repair,
 and checkable accessible Widgets controls. Both ClientHello implementations
 therefore advertise the separate capability (ADR-0340).
+The server-side V2 message-edit slice is now composed end to end behind explicit
+`MESSAGE_EDITS` negotiation: PostgreSQL owns policy, revision and sequence;
+history omits unsupported or privacy-erased details without stalling cursors;
+the gateway binds authenticated identity, returns stable conflicts, routes live
+changes only to capable channels, and emits fixed-cardinality metrics. Web and
+Windows do not advertise the capability until their durable outbox, optimistic
+overlay, conflict/rebase UX, accessibility, and reconnect gates pass
+(ADR-0341).
 The next inactive V2 capability reserves revision-safe text editing. It binds
 author identity from the session, uses database time and a 15-minute window,
 requires an exact expected revision, caps successful revisions at 100, and

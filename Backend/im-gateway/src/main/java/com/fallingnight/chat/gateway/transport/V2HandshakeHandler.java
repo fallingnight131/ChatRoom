@@ -123,8 +123,9 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
                         hello.getAppVersion()));
         List<ClientCapability> enabledCapabilityList = hello.getCapabilitiesList().stream()
                 .filter(capability -> capability
-                                == ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS
-                        || capability == ClientCapability.CLIENT_CAPABILITY_MESSAGE_PINS)
+                        == ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS
+                        || capability == ClientCapability.CLIENT_CAPABILITY_MESSAGE_PINS
+                        || capability == ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS)
                 .toList();
         Set<ClientCapability> enabledCapabilities = Set.copyOf(enabledCapabilityList);
         context.channel().attr(V2ConnectionAttributes.ENABLED_CAPABILITIES)

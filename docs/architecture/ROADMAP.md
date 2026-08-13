@@ -1462,14 +1462,14 @@ Progress:
       sequence allocation, and recall/deletion body-erasure integration tests.
     - [x] Project current revision metadata and ordered edit history, retaining
       erased event identities so privacy cleanup cannot stall sequence cursors.
-  - [ ] Compose authenticated gateway mutation, capability-filtered history,
+  - [x] Compose authenticated gateway mutation, capability-filtered history,
     capable-only live fan-out, bounded telemetry, and opaque conflict paths.
     - [x] Add the default-off authenticated handler for edit command/ACK,
       permanent failure codes, current revision projection, capable history,
       privacy-erased detail omission, and cursor-safe filtered tails.
-    - [ ] Compose the PostgreSQL edit port into the runtime, publish changed
+    - [x] Compose the PostgreSQL edit port into the runtime, publish changed
       edits only to capable subscribers, add bounded telemetry, and activate
-      server negotiation after the full gateway gate passes.
+      explicit server negotiation after the full gateway gate passes.
   - [ ] Add offline-safe Web and Windows edit overlays/outboxes, explicit
     conflict/rebase UX, edited presentation, accessibility, and activation.
 

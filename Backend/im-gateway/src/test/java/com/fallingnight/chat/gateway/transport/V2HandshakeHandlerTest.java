@@ -72,9 +72,11 @@ class V2HandshakeHandlerTest {
                     .build();
             channel.writeInbound(clientHelloEnvelope(capable));
             ServerHello response = ServerHello.parseFrom(readEnvelope(channel).getPayload());
-            assertEquals(List.of(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS),
+            assertEquals(List.of(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS,
+                            ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS),
                     response.getEnabledCapabilitiesList());
-            assertEquals(Set.of(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS),
+            assertEquals(Set.of(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS,
+                            ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS),
                     channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get());
         } finally {
             channel.finishAndReleaseAll();

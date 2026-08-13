@@ -441,6 +441,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
         StoredMessage publication = null;
         MessageReactionResult.Applied reactionPublication = null;
         MessagePinResult.Applied pinPublication = null;
+        MessageEditResult.Applied editPublication = null;
         try {
             if (work instanceof SubmitWork submit) {
                 MessageSubmissionResult result = submissions.submit(submit.submission());
@@ -461,6 +462,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             } else if (work instanceof EditWork edit) {
                 MessageEditResult result = edits.edit(edit.command());
                 response = editResponse(request, result);
+                if (result instanceof MessageEditResult.Applied applied
+                        && applied.changed() && !applied.duplicate()) editPublication = applied;
             } else if (work instanceof HistoryWork read) {
                 response = historyResponse(
                         request, read.query(), liveRouter.readAndSubscribe(
@@ -479,16 +482,17 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     true));
             return;
         }
-        scheduleCompletion(context, response, publication, reactionPublication, pinPublication);
+        scheduleCompletion(context, response, publication, reactionPublication, pinPublication,
+                editPublication);
     }
 
     private void scheduleCompletion(ChannelHandlerContext context, Envelope response) {
-        scheduleCompletion(context, response, null, null, null);
+        scheduleCompletion(context, response, null, null, null, null);
     }
 
     private void scheduleCompletion(
             ChannelHandlerContext context, Envelope response, StoredMessage publication) {
-        scheduleCompletion(context, response, publication, null, null);
+        scheduleCompletion(context, response, publication, null, null, null);
     }
 
     private void scheduleCompletion(
@@ -496,7 +500,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             Envelope response,
             StoredMessage publication,
             MessageReactionResult.Applied reactionPublication,
-            MessagePinResult.Applied pinPublication) {
+            MessagePinResult.Applied pinPublication,
+            MessageEditResult.Applied editPublication) {
         if (context.executor().isShuttingDown()) {
             return;
         }
@@ -529,6 +534,14 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                         try {
                             ConversationLiveRouter.LivePublishResult result =
                                     liveRouter.publishPin(pinPublication);
+                            events.livePublished(result.published());
+                            events.liveSlowConsumerClosed(result.slowClosed());
+                        } catch (RuntimeException exception) { events.failed(); }
+                    }
+                    if (editPublication != null) {
+                        try {
+                            ConversationLiveRouter.LivePublishResult result =
+                                    liveRouter.publishEdit(editPublication);
                             events.livePublished(result.published());
                             events.liveSlowConsumerClosed(result.slowClosed());
                         } catch (RuntimeException exception) { events.failed(); }
@@ -809,6 +822,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 .setOccurredAtEpochMs(applied.occurredAt().toEpochMilli())
                 .setDuplicate(applied.duplicate()).build();
         MessagingPayloadPolicy.requireValid(payload);
+        events.editApplied(applied.changed(), applied.duplicate());
         return responseEnvelope(request, MessageType.MESSAGE_TYPE_MESSAGE_EDIT_APPLIED,
                 payload.toByteString());
     }

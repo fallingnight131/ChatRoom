@@ -6,6 +6,7 @@ import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.application.messaging.MessageReactionResult;
 import com.fallingnight.chat.application.messaging.MessagePinResult;
+import com.fallingnight.chat.application.messaging.MessageEditResult;
 import io.netty.channel.Channel;
 
 /** Single-gateway active-conversation subscription and durable event publication boundary. */
@@ -18,6 +19,8 @@ public interface ConversationLiveRouter {
     LivePublishResult publishReaction(MessageReactionResult.Applied reaction);
 
     LivePublishResult publishPin(MessagePinResult.Applied pin);
+
+    LivePublishResult publishEdit(MessageEditResult.Applied edit);
 
     void unsubscribe(Channel channel);
 
@@ -41,6 +44,11 @@ public interface ConversationLiveRouter {
 
             @Override
             public LivePublishResult publishPin(MessagePinResult.Applied pin) {
+                return LivePublishResult.NONE;
+            }
+
+            @Override
+            public LivePublishResult publishEdit(MessageEditResult.Applied edit) {
                 return LivePublishResult.NONE;
             }
 

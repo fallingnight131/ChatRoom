@@ -151,20 +151,22 @@ pins. Both default-off V2 previews now advertise the capability after completing
 their durable operation outbox, optimistic projection, ACK/history/live repair,
 target cleanup, and accessible-control gates (ADR-0340).
 
-Types 114/115/116 and `MESSAGE_EDITS` define the generated revision-safe text
-editing wire contract but remain runtime-inactive. A command carries the target, expected content
+Types 114/115/116 and `MESSAGE_EDITS` define the server-active revision-safe
+text editing wire contract. Supported product clients still keep the capability
+off until their local and UX gates pass. A command carries the target, expected content
 revision, bounded UTF-8 replacement, and stable operation ID. Only a changed
 author-owned V2 message edit increments the revision and consumes a mixed
 conversation sequence; ACKs never advance the client cursor. PostgreSQL and
 Java/C++/TypeScript lock the same bounded command bytes and structural revision
-invariants. The default-off gateway handler binds actor and device from the
+invariants. The gateway binds actor and device from the
 authenticated session, returns stable error codes 9--11 for revision/window/
 limit outcomes, includes current revision metadata, and emits only capable,
 non-erased edit history details. `next_sequence` may therefore be greater than
 the last visible detail when capability or privacy filtering hides an ordered
-entry; it must never trail a visible detail. Runtime composition, live
-filtering, telemetry, and both clients' explicit offline-conflict gates are
-still required before negotiation (ADR-0341).
+entry; it must never trail a visible detail. The runtime composes PostgreSQL,
+publishes changed edits only to capable subscribers, and exposes only fixed-
+cardinality edit counters. Both clients' explicit offline-conflict gates remain
+required before they advertise the capability (ADR-0341).
 
 `ListConversations` uses a limit of 1..100 and either no cursor or the complete
 pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are

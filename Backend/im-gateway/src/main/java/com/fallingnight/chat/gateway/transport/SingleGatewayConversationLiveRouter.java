@@ -6,6 +6,7 @@ import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.application.messaging.MessageReactionResult;
 import com.fallingnight.chat.application.messaging.MessagePinResult;
+import com.fallingnight.chat.application.messaging.MessageEditResult;
 import com.fallingnight.chat.protocol.v2.ClientCapability;
 import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.EnvelopePolicy;
@@ -13,6 +14,7 @@ import com.fallingnight.chat.protocol.v2.MessageKind;
 import com.fallingnight.chat.protocol.v2.MessageRecord;
 import com.fallingnight.chat.protocol.v2.MessageReactionChangedRecord;
 import com.fallingnight.chat.protocol.v2.MessagePinChangedRecord;
+import com.fallingnight.chat.protocol.v2.MessageEditedRecord;
 import com.fallingnight.chat.protocol.v2.MessageType;
 import com.fallingnight.chat.protocol.v2.MessagingPayloadPolicy;
 import com.google.protobuf.ByteString;
@@ -208,6 +210,54 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
     }
 
     @Override
+    public LivePublishResult publishEdit(MessageEditResult.Applied edit) {
+        Objects.requireNonNull(edit, "edit");
+        if (!edit.changed() || edit.duplicate()) return LivePublishResult.NONE;
+        Route route = routes.get(edit.conversationId());
+        if (route == null) return LivePublishResult.NONE;
+        MessageEditedRecord record = MessageEditedRecord.newBuilder()
+                .setConversationId(edit.conversationId().toString())
+                .setConversationSequence(edit.conversationSequence())
+                .setMessageId(edit.messageId().toString())
+                .setContentRevision(edit.contentRevision())
+                .setContentType(edit.contentType())
+                .setContent(ByteString.copyFrom(edit.content()))
+                .setActorAccountId(edit.actorAccountId().toString())
+                .setClientOperationId(edit.clientOperationId())
+                .setOccurredAtEpochMs(edit.occurredAt().toEpochMilli()).build();
+        MessagingPayloadPolicy.requireValid(record);
+        int published = 0;
+        int slowClosed = 0;
+        synchronized (route) {
+            for (Channel channel : java.util.List.copyOf(route.channels)) {
+                AuthenticatedConnection identity =
+                        channel.attr(V2ConnectionAttributes.AUTHENTICATED).get();
+                if (!channel.isActive() || identity == null) {
+                    route.channels.remove(channel);
+                    continue;
+                }
+                java.util.Set<ClientCapability> capabilities =
+                        channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get();
+                if (capabilities == null || !capabilities.contains(
+                        ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS)) continue;
+                if (!channel.isWritable()) {
+                    channel.close(); route.channels.remove(channel); slowClosed += 1; continue;
+                }
+                Envelope event = Envelope.newBuilder()
+                        .setProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
+                        .setKind(MessageKind.MESSAGE_KIND_EVENT)
+                        .setMessageType(MessageType.MESSAGE_TYPE_MESSAGE_EDITED_VALUE)
+                        .setSessionId(identity.sessionId().toString())
+                        .setSentAtEpochMs(clock.millis()).setPayload(record.toByteString()).build();
+                EnvelopePolicy.requireValid(event);
+                channel.writeAndFlush(event); published += 1;
+            }
+            if (route.channels.isEmpty()) routes.remove(edit.conversationId(), route);
+        }
+        return new LivePublishResult(published, slowClosed);
+    }
+
+    @Override
     public void unsubscribe(Channel channel) {
         UUID conversationId = channel.attr(ACTIVE_CONVERSATION).getAndSet(null);
         if (conversationId == null) return;
@@ -239,7 +289,10 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                 .setClientMessageId(message.clientMessageId())
                 .setContentType(message.messageType())
                 .setContent(ByteString.copyFrom(message.payload()))
-                .setAcceptedAtEpochMs(message.acceptedAt().toEpochMilli());
+                .setAcceptedAtEpochMs(message.acceptedAt().toEpochMilli())
+                .setContentRevision(message.contentRevision())
+                .setEditedAtEpochMs(message.editedAt().map(java.time.Instant::toEpochMilli)
+                        .orElse(0L));
         message.reply().ifPresent(reply -> builder.setReply(
                 com.fallingnight.chat.protocol.v2.MessageReplyReference.newBuilder()
                         .setTargetMessageId(reply.targetMessageId().toString())

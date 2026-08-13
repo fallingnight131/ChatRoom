@@ -19,6 +19,7 @@ import com.fallingnight.chat.persistence.postgres.PostgresConversationDirectoryA
 import com.fallingnight.chat.persistence.postgres.PostgresMessageAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMessageReactionAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMessagePinAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresMessageEditAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresDeviceManagementAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
 import com.zaxxer.hikari.HikariDataSource;
@@ -76,6 +77,7 @@ public final class GatewayRuntime implements AutoCloseable {
             PostgresMessageReactionAdapter reactions =
                     new PostgresMessageReactionAdapter(dataSource);
             PostgresMessagePinAdapter pins = new PostgresMessagePinAdapter(dataSource);
+            PostgresMessageEditAdapter edits = new PostgresMessageEditAdapter(dataSource);
             PostgresConversationDirectoryAdapter conversations =
                     new PostgresConversationDirectoryAdapter(dataSource);
             DeviceManagementService deviceManagement = new DeviceManagementService(
@@ -114,6 +116,7 @@ public final class GatewayRuntime implements AutoCloseable {
                     conversations,
                     reactions,
                     pins,
+                    edits,
                     deviceManagement,
                     workers,
                     messagingWorkers,
