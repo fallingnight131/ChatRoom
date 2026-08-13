@@ -11,10 +11,17 @@ enum MessageContentType {
   MESSAGE_CONTENT_TYPE_TEXT_UTF8 = 1;
 }
 
+message MessageMention {
+  string target_account_id = 1;
+  uint32 start_utf8_byte = 2;
+  uint32 length_utf8_bytes = 3;
+}
+
 message SubmitMessage {
   string conversation_id = 1;
   uint32 content_type = 2;
   bytes content = 3;
+  repeated MessageMention mentions = 4;
 }
 
 message SubmitReplyMessage {
@@ -22,6 +29,7 @@ message SubmitReplyMessage {
   string target_message_id = 2;
   uint32 content_type = 3;
   bytes content = 4;
+  repeated MessageMention mentions = 5;
 }
 
 enum MessageReactionKind {
@@ -81,6 +89,7 @@ message EditMessage {
   uint32 content_type = 4;
   bytes content = 5;
   string client_operation_id = 6;
+  repeated MessageMention mentions = 7;
 }
 
 message MessageEditApplied {
@@ -95,6 +104,7 @@ message MessageEditApplied {
   uint64 conversation_sequence = 9;
   int64 occurred_at_epoch_ms = 10;
   bool duplicate = 11;
+  repeated MessageMention mentions = 12;
 }
 
 message MessageAccepted {
@@ -124,6 +134,7 @@ message MessageRecord {
   MessageReplyReference reply = 10;
   uint32 content_revision = 11;
   int64 edited_at_epoch_ms = 12;
+  repeated MessageMention mentions = 13;
 }
 
 message MessageReplyReference {
@@ -186,6 +197,7 @@ message MessageEditedRecord {
   string actor_account_id = 7;
   string client_operation_id = 8;
   int64 occurred_at_epoch_ms = 9;
+  repeated MessageMention mentions = 10;
 }
 
 message ConversationEntryRecord {

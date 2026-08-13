@@ -223,6 +223,7 @@ enum ClientCapability : int {
   CLIENT_CAPABILITY_MESSAGE_REACTIONS = 1,
   CLIENT_CAPABILITY_MESSAGE_PINS = 2,
   CLIENT_CAPABILITY_MESSAGE_EDITS = 3,
+  CLIENT_CAPABILITY_MESSAGE_MENTIONS = 4,
   ClientCapability_INT_MIN_SENTINEL_DO_NOT_USE_ =
       ::std::numeric_limits<::int32_t>::min(),
   ClientCapability_INT_MAX_SENTINEL_DO_NOT_USE_ =
@@ -233,11 +234,11 @@ extern const uint32_t ClientCapability_internal_data_[];
 inline constexpr ClientCapability ClientCapability_MIN =
     static_cast<ClientCapability>(0);
 inline constexpr ClientCapability ClientCapability_MAX =
-    static_cast<ClientCapability>(3);
+    static_cast<ClientCapability>(4);
 [[nodiscard]] inline bool ClientCapability_IsValid(int value) {
-  return 0 <= value && value <= 3;
+  return 0 <= value && value <= 4;
 }
-inline constexpr int ClientCapability_ARRAYSIZE = 3 + 1;
+inline constexpr int ClientCapability_ARRAYSIZE = 4 + 1;
 [[nodiscard]] const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL
 ClientCapability_descriptor();
 [[nodiscard]] inline auto ProtobufInternalGetEnumDescriptor(ClientCapability) {
@@ -252,7 +253,7 @@ template <typename T>
 }
 template <>
 [[nodiscard]] inline const ::std::string& ClientCapability_Name(ClientCapability value) {
-  return ::google::protobuf::internal::NameOfDenseEnum<ClientCapability_descriptor, 0, 3>(
+  return ::google::protobuf::internal::NameOfDenseEnum<ClientCapability_descriptor, 0, 4>(
       static_cast<int>(value));
 }
 [[nodiscard]] inline bool ClientCapability_Parse(

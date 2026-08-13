@@ -685,11 +685,12 @@ const char descriptor_table_protodef_chat_2fv2_2fcontrol_2eproto[] ABSL_ATTRIBUT
     "_DEVICE_REVOKED\020\205\001*g\n\016ClientPlatform\022\037\n\033"
     "CLIENT_PLATFORM_UNSPECIFIED\020\000\022\027\n\023CLIENT_"
     "PLATFORM_WEB\020\001\022\033\n\027CLIENT_PLATFORM_WINDOW"
-    "S\020\002*\247\001\n\020ClientCapability\022!\n\035CLIENT_CAPAB"
+    "S\020\002*\317\001\n\020ClientCapability\022!\n\035CLIENT_CAPAB"
     "ILITY_UNSPECIFIED\020\000\022\'\n#CLIENT_CAPABILITY"
     "_MESSAGE_REACTIONS\020\001\022\"\n\036CLIENT_CAPABILIT"
     "Y_MESSAGE_PINS\020\002\022#\n\037CLIENT_CAPABILITY_ME"
-    "SSAGE_EDITS\020\003*\250\004\n\021ProtocolErrorCode\022#\n\037P"
+    "SSAGE_EDITS\020\003\022&\n\"CLIENT_CAPABILITY_MESSA"
+    "GE_MENTIONS\020\004*\250\004\n\021ProtocolErrorCode\022#\n\037P"
     "ROTOCOL_ERROR_CODE_UNSPECIFIED\020\000\022+\n\'PROT"
     "OCOL_ERROR_CODE_UNSUPPORTED_VERSION\020\001\0220\n"
     ",PROTOCOL_ERROR_CODE_UNSUPPORTED_MESSAGE"
@@ -710,7 +711,7 @@ static ::absl::once_flag descriptor_table_chat_2fv2_2fcontrol_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_chat_2fv2_2fcontrol_2eproto = {
     false,
     false,
-    2750,
+    2790,
     descriptor_table_protodef_chat_2fv2_2fcontrol_2eproto,
     "chat/v2/control.proto",
     &descriptor_table_chat_2fv2_2fcontrol_2eproto_once,
@@ -745,7 +746,7 @@ ClientCapability_descriptor() {
   return file_level_enum_descriptors_chat_2fv2_2fcontrol_2eproto[2];
 }
 PROTOBUF_CONSTINIT const uint32_t ClientCapability_internal_data_[] = {
-    262144u, 0u, };
+    327680u, 0u, };
 [[nodiscard]] const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL
 ProtocolErrorCode_descriptor() {
   ::google::protobuf::internal::AssignDescriptors(&descriptor_table_chat_2fv2_2fcontrol_2eproto);

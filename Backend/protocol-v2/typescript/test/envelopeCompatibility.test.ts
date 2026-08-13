@@ -14,6 +14,7 @@ import { AuthenticateSchema } from '../generated/typescript/chat/v2/authenticati
 import {
   MessageReactionKind,
   EditMessageSchema,
+  MessageMentionSchema,
   SetMessagePinSchema,
   SetMessageReactionSchema,
   SubmitMessageSchema,
@@ -29,6 +30,10 @@ const CLIENT_HELLO_GOLDEN_HEX = '0802100218012205302e312e302a086465766963652d31'
 const AUTHENTICATE_GOLDEN_HEX = '0a05616c696365120d746573742d70617373776f7264'
 const SUBMIT_MESSAGE_GOLDEN_HEX = '0a2430303030303030302d303030302d303030302d' +
   '303030302d30303030303030303030303110011a026869'
+const MENTIONED_SUBMIT_MESSAGE_GOLDEN_HEX =
+  '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
+  '10011a0740e69d8e20686922280a2430303030303030302d303030302d303030302d303030302d' +
+  '3030303030303030303030321804'
 const SUBMIT_REPLY_MESSAGE_GOLDEN_HEX =
   '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
   '122430303030303030302d303030302d303030302d303030302d303030303030303030303032' +
@@ -134,6 +139,35 @@ test('keeps the bounded SubmitMessage payload compatible across generated bindin
   assert.equal(
     Buffer.from(toBinary(SubmitMessageSchema, encoded)).toString('hex'),
     SUBMIT_MESSAGE_GOLDEN_HEX
+  )
+})
+
+test('keeps structured mention UTF-8 spans compatible across generated bindings', () => {
+  const decoded = fromBinary(
+    SubmitMessageSchema,
+    bytesFromHex(MENTIONED_SUBMIT_MESSAGE_GOLDEN_HEX)
+  )
+  assert.equal(new TextDecoder().decode(decoded.content), '@李 hi')
+  assert.deepEqual(decoded.mentions, [{
+    $typeName: 'chat.v2.MessageMention',
+    targetAccountId: '00000000-0000-0000-0000-000000000002',
+    startUtf8Byte: 0,
+    lengthUtf8Bytes: 4
+  }])
+
+  const encoded = create(SubmitMessageSchema, {
+    conversationId: '00000000-0000-0000-0000-000000000001',
+    contentType: 1,
+    content: new TextEncoder().encode('@李 hi'),
+    mentions: [create(MessageMentionSchema, {
+      targetAccountId: '00000000-0000-0000-0000-000000000002',
+      startUtf8Byte: 0,
+      lengthUtf8Bytes: 4
+    })]
+  })
+  assert.equal(
+    Buffer.from(toBinary(SubmitMessageSchema, encoded)).toString('hex'),
+    MENTIONED_SUBMIT_MESSAGE_GOLDEN_HEX
   )
 })
 

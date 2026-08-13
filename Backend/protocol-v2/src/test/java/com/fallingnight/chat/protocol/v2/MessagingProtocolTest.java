@@ -16,6 +16,10 @@ class MessagingProtocolTest {
             "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
                     + "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
                     + "180122026869";
+    private static final String MENTIONED_SUBMIT_GOLDEN =
+            "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+                    + "10011a0740e69d8e20686922280a2430303030303030302d303030302d303030302d303030302d"
+                    + "3030303030303030303030321804";
     private static final String SET_REACTION_GOLDEN =
             "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
                     + "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
@@ -65,6 +69,70 @@ class MessagingProtocolTest {
                 SubmitReplyMessage.parseFrom(HexFormat.of().parseHex(SUBMIT_REPLY_GOLDEN)));
         assertEquals(MessageKind.MESSAGE_KIND_COMMAND,
                 MessageTypeRegistry.requiredKind(MessageType.MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE));
+    }
+
+    @Test
+    void structuredMentionHasStableWireBytesAndUtf8SpanPolicy() throws Exception {
+        MessageMention mention = MessageMention.newBuilder()
+                .setTargetAccountId("00000000-0000-0000-0000-000000000002")
+                .setStartUtf8Byte(0)
+                .setLengthUtf8Bytes(4)
+                .build();
+        SubmitMessage command = SubmitMessage.newBuilder()
+                .setConversationId(CONVERSATION_ID)
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
+                .setContent(ByteString.copyFromUtf8("@李 hi"))
+                .addMentions(mention)
+                .build();
+
+        MessagingPayloadPolicy.requireValid(command, "client-mention-1");
+        assertEquals(MENTIONED_SUBMIT_GOLDEN,
+                HexFormat.of().formatHex(command.toByteArray()));
+        assertEquals(command,
+                SubmitMessage.parseFrom(HexFormat.of().parseHex(MENTIONED_SUBMIT_GOLDEN)));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(command.toBuilder()
+                        .setMentions(0, mention.toBuilder().setStartUtf8Byte(2))
+                        .build(), "client-mention-2"));
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(command.toBuilder()
+                        .setMentions(0, mention.toBuilder().setLengthUtf8Bytes(0))
+                        .build(), "client-mention-3"));
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(command.toBuilder()
+                        .setMentions(0, mention.toBuilder().setTargetAccountId("not-a-uuid"))
+                        .build(), "client-mention-4"));
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(command.toBuilder()
+                        .addMentions(mention.toBuilder().setStartUtf8Byte(0))
+                        .build(), "client-mention-5"));
+
+        SubmitMessage.Builder tooManySpans = SubmitMessage.newBuilder()
+                .setConversationId(CONVERSATION_ID)
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
+                .setContent(ByteString.copyFromUtf8("@a ".repeat(21)));
+        for (int index = 0; index < 21; index++) {
+            tooManySpans.addMentions(mention.toBuilder()
+                    .setStartUtf8Byte(index * 3)
+                    .setLengthUtf8Bytes(2));
+        }
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(tooManySpans.build(), "client-mention-6"));
+
+        SubmitMessage.Builder tooManyTargets = SubmitMessage.newBuilder()
+                .setConversationId(CONVERSATION_ID)
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
+                .setContent(ByteString.copyFromUtf8("@a ".repeat(11)));
+        for (int index = 0; index < 11; index++) {
+            tooManyTargets.addMentions(mention.toBuilder()
+                    .setTargetAccountId(String.format(
+                            "00000000-0000-0000-0000-%012d", index + 1))
+                    .setStartUtf8Byte(index * 3)
+                    .setLengthUtf8Bytes(2));
+        }
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(tooManyTargets.build(), "client-mention-7"));
     }
 
     @Test

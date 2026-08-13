@@ -2,6 +2,7 @@ package com.fallingnight.chat.protocol.v2;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,6 +13,8 @@ public final class MessagingPayloadPolicy {
     public static final int MAX_HISTORY_LIMIT = 100;
     public static final int MAX_DELETION_TARGETS = 1_000;
     public static final int MAX_CONTENT_REVISIONS = 100;
+    public static final int MAX_MENTION_SPANS = 20;
+    public static final int MAX_DISTINCT_MENTION_TARGETS = 10;
 
     private MessagingPayloadPolicy() {}
 
@@ -22,6 +25,7 @@ public final class MessagingPayloadPolicy {
             violations.add("content exceeds messaging limit");
         }
         validateContent(command.getContentType(), command.getContent(), violations);
+        validateMentions(command.getContent(), command.getMentionsList(), violations);
         requireIdentifier("clientMessageId", clientMessageId, true, violations);
         return List.copyOf(violations);
     }
@@ -35,6 +39,7 @@ public final class MessagingPayloadPolicy {
             violations.add("content exceeds messaging limit");
         }
         validateContent(command.getContentType(), command.getContent(), violations);
+        validateMentions(command.getContent(), command.getMentionsList(), violations);
         requireIdentifier("clientMessageId", clientMessageId, true, violations);
         return List.copyOf(violations);
     }
@@ -79,6 +84,7 @@ public final class MessagingPayloadPolicy {
             violations.add("expectedRevision exceeds edit limit");
         }
         validateContent(command.getContentType(), command.getContent(), violations);
+        validateMentions(command.getContent(), command.getMentionsList(), violations);
         return List.copyOf(violations);
     }
 
@@ -111,6 +117,7 @@ public final class MessagingPayloadPolicy {
         validateEditIdentity(response.getConversationId(), response.getMessageId(),
                 response.getActorAccountId(), response.getClientOperationId(), violations);
         validateContent(response.getContentType(), response.getContent(), violations);
+        validateMentions(response.getContent(), response.getMentionsList(), violations);
         if (response.getContentRevision() > MAX_CONTENT_REVISIONS
                 || (response.getChanged() && response.getContentRevision() == 0)
                 || response.getOccurredAtEpochMs() <= 0
@@ -334,6 +341,7 @@ public final class MessagingPayloadPolicy {
         validateEditIdentity(edit.getConversationId(), edit.getMessageId(),
                 edit.getActorAccountId(), edit.getClientOperationId(), violations);
         validateContent(edit.getContentType(), edit.getContent(), violations);
+        validateMentions(edit.getContent(), edit.getMentionsList(), violations);
         if (edit.getConversationSequence() <= 0 || edit.getContentRevision() < 1
                 || edit.getContentRevision() > MAX_CONTENT_REVISIONS
                 || edit.getOccurredAtEpochMs() <= 0) {
@@ -375,6 +383,7 @@ public final class MessagingPayloadPolicy {
             violations.add("message record bounds are invalid");
         }
         validateContent(message.getContentType(), message.getContent(), violations);
+        validateMentions(message.getContent(), message.getMentionsList(), violations);
         if (message.getContentRevision() > MAX_CONTENT_REVISIONS
                 || (message.getContentRevision() == 0) != (message.getEditedAtEpochMs() == 0)) {
             violations.add("message edit metadata is invalid");
@@ -426,5 +435,39 @@ public final class MessagingPayloadPolicy {
                 || !content.isValidUtf8()) {
             violations.add("contentType/content is unsupported or invalid");
         }
+    }
+
+    private static void validateMentions(
+            com.google.protobuf.ByteString content,
+            List<MessageMention> mentions,
+            List<String> violations) {
+        if (mentions.size() > MAX_MENTION_SPANS) {
+            violations.add("mentions exceed span limit");
+        }
+        byte[] body = content.toByteArray();
+        long previousEnd = 0;
+        HashSet<String> targets = new HashSet<>();
+        for (MessageMention mention : mentions) {
+            requireUuid("mention.targetAccountId", mention.getTargetAccountId(), violations);
+            targets.add(mention.getTargetAccountId());
+            long start = Integer.toUnsignedLong(mention.getStartUtf8Byte());
+            long length = Integer.toUnsignedLong(mention.getLengthUtf8Bytes());
+            long end = start + length;
+            if (length == 0 || start < previousEnd || end > body.length
+                    || !isUtf8Boundary(body, start) || !isUtf8Boundary(body, end)
+                    || start >= body.length || body[(int) start] != '@') {
+                violations.add("mention span is invalid, overlapping, or unordered");
+            }
+            previousEnd = end;
+        }
+        if (targets.size() > MAX_DISTINCT_MENTION_TARGETS) {
+            violations.add("mentions exceed distinct target limit");
+        }
+    }
+
+    private static boolean isUtf8Boundary(byte[] value, long index) {
+        return index >= 0 && index <= value.length
+                && (index == 0 || index == value.length
+                    || (value[(int) index] & 0xc0) != 0x80);
     }
 }

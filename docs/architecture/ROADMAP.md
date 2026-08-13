@@ -1476,7 +1476,7 @@ Progress:
   - [x] Define stable target identity, UTF-8 span policy, capability negotiation,
     membership authority, idempotency/edit behavior, privacy cleanup, offline
     behavior, compatibility, and staged activation (ADR-0342).
-  - [ ] Add additive generated wire fields and fixed Java/C++/TypeScript golden
+  - [x] Add additive generated wire fields and fixed Java/C++/TypeScript golden
     compatibility plus bounded structural policy while runtime paths remain off.
   - [ ] Persist and authorize mention metadata with submission, edit, history,
     live delivery, recall/deletion cleanup, and privacy erasure in PostgreSQL and

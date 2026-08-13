@@ -170,6 +170,16 @@ cardinality edit counters. Web IndexedDB and Windows SQLite preserve a separate
 optimistic overlay and exact durable command; explicit rebase rotates operation
 identity only after authoritative history repair (ADR-0341).
 
+Capability 4 permanently reserves inactive `MESSAGE_MENTIONS`. The additive
+`MessageMention` value binds one canonical target account to a nonempty,
+non-overlapping UTF-8 byte span over the exact text body; fields are present on
+new message, reply, edit, authoritative message, and ordered edit payloads.
+Structural policy caps a body at 20 spans and 10 distinct targets, requires
+ordered UTF-8 boundaries and an ASCII `@` start, and locks one Unicode payload
+across Java, TypeScript, and C++. PostgreSQL membership authority, gateway
+filtering, and both clients remain inactive, so no endpoint advertises this
+capability yet (ADR-0342).
+
 `ListConversations` uses a limit of 1..100 and either no cursor or the complete
 pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are
 ordered by that server-owned pair descending and expose canonical kind, bounded

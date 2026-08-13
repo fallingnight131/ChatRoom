@@ -22,6 +22,10 @@ constexpr char kAuthenticateGoldenHex[] =
 constexpr char kSubmitMessageGoldenHex[] =
     "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
     "10011a026869";
+constexpr char kMentionedSubmitMessageGoldenHex[] =
+    "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+    "10011a0740e69d8e20686922280a2430303030303030302d303030302d303030302d303030302d"
+    "3030303030303030303030321804";
 constexpr char kSubmitReplyMessageGoldenHex[] =
     "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
     "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
@@ -120,6 +124,19 @@ int main() {
             || submit.content() != "hi"
             || submit.SerializeAsString() != submitGolden) {
         std::cerr << "generated C++ binding changed the SubmitMessage golden payload\n";
+        return 1;
+    }
+    const std::string mentionedSubmitGolden = fromHex(kMentionedSubmitMessageGoldenHex);
+    chat::v2::SubmitMessage mentionedSubmit;
+    if (!mentionedSubmit.ParseFromString(mentionedSubmitGolden)
+            || mentionedSubmit.content() != "@\xe6\x9d\x8e hi"
+            || mentionedSubmit.mentions_size() != 1
+            || mentionedSubmit.mentions(0).target_account_id()
+                    != "00000000-0000-0000-0000-000000000002"
+            || mentionedSubmit.mentions(0).start_utf8_byte() != 0
+            || mentionedSubmit.mentions(0).length_utf8_bytes() != 4
+            || mentionedSubmit.SerializeAsString() != mentionedSubmitGolden) {
+        std::cerr << "generated C++ binding changed the MessageMention golden payload\n";
         return 1;
     }
     const std::string submitReplyGolden = fromHex(kSubmitReplyMessageGoldenHex);

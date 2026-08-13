@@ -67,6 +67,7 @@ class ControlProtocolTest {
                 .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS)
                 .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_PINS)
                 .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS)
+                .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS)
                 .build();
         ClientHelloPolicy.requireValid(capable);
         assertThrows(IllegalArgumentException.class, () ->
