@@ -1360,6 +1360,9 @@ The real Redis test also validates ADR-0353 consumption after exact trimming:
 150 appends retain conversation sequences 51–150, read as bounded 60/40 pages,
 then an empty page that preserves the last opaque stream ID. This is Redis
 position evidence only, not durable message-cursor evidence.
+Application tests for ADR-0354 prove gateway boot-lease renewal and the required
+catch-up/register/second-repair sequence, including no repair on rejected route
+publication and fail-closed removal after repair failure or backwards progress.
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound

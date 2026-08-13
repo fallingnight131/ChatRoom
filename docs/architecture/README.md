@@ -1014,6 +1014,9 @@ The same adapter can now read its boot-specific stream in bounded, non-blocking
 batches with strict hint shape validation. Redis IDs are ephemeral read
 positions only; ADR-0353 requires local authorized-subscription matching and
 PostgreSQL sequence repair before any hint affects a connected client.
+ADR-0354 encodes the route visibility race closure: catch up first, publish the
+expiring route, then repair again from the exact contiguous sequence. A failed
+or backwards second repair removes the route before surfacing failure.
 
 ## 10. Attachment Flow
 

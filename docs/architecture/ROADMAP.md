@@ -1433,6 +1433,11 @@ Progress:
   Real Redis proves exact-trimmed 51–150 retention and 60/40 reads; stream
   position is explicitly non-durable and product consumption still requires
   local subscription matching plus sequence repair (ADR-0353).
+- [x] Add the application route-registration service with a random boot lease,
+  explicit 5–60 second bounds, catch-up-before-route ordering, mandatory second
+  authoritative repair, monotonic progress validation, and fail-closed route
+  removal after repair failure. Gateway reference counting/renewal composition
+  remains default-off (ADR-0354).
 
 Work:
 
