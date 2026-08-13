@@ -27,6 +27,7 @@ public:
         bool mine = false;
         bool recalled = false;
         bool canReply = false;
+        bool canForward = false;
         bool canRetry = false;
         bool pinned = false;
         bool pinPending = false;
@@ -58,6 +59,9 @@ public:
         const QList<V2LocalMessageRepository::Mention> &)>;
     using EditOperation = std::function<bool(const QString &, const QString &)>;
     using DiscardEdit = std::function<bool(const QString &)>;
+    using StageForward = std::function<bool(
+        const QString &, const QString &, const QString &,
+        V2LocalMessageRepository::Message *)>;
 
     V2WindowsMessagingViewModel(
         QString accountId, SnapshotLoader loader, StageReply stageReply,
@@ -86,6 +90,9 @@ public:
     bool retryEdit(const QString &clientOperationId);
     bool rebaseEdit(const QString &clientOperationId);
     bool discardEdit(const QString &clientOperationId);
+    void configureForwarding(StageForward stageForward);
+    bool forwardMessage(const QString &sourceMessageId,
+                        const QString &targetConversationId);
 
 signals:
     void changed();
@@ -108,6 +115,7 @@ private:
     EditOperation m_retryEdit;
     EditOperation m_rebaseEdit;
     DiscardEdit m_discardEdit;
+    StageForward m_stageForward;
     QString m_conversationId;
     QString m_draft;
     QString m_replyTargetMessageId;

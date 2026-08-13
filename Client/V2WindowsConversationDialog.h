@@ -18,7 +18,8 @@ public:
         V2WindowsConversationDirectoryViewModel *directoryViewModel,
         V2WindowsMessagingViewModel *messagingViewModel,
         V2WindowsConversationParticipantViewModel *participantViewModel,
-        QWidget *parent = nullptr, bool mentionsEnabled = false);
+        QWidget *parent = nullptr, bool mentionsEnabled = false,
+        bool forwardingEnabled = false);
 
     QListWidget *conversationListForTest() const { return m_conversations; }
     QPushButton *refreshForTest() const { return m_refresh; }

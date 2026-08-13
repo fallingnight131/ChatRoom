@@ -1,5 +1,7 @@
 #include "V2WindowsMessagingPanel.h"
 #include "V2WindowsConversationParticipantViewModel.h"
+#include "V2WindowsConversationDirectoryViewModel.h"
+#include "V2WindowsForwardTargetDialog.h"
 #include "V2WindowsMessagingViewModel.h"
 
 #include <QApplication>
@@ -60,13 +62,43 @@ int main(int argc, char **argv) {
             ++participantRequests;
             return requestedConversation == conversation && !continuation;
         });
+    const QString targetConversation =
+        QStringLiteral("20000000-0000-4000-8000-000000000099");
+    QString forwardedSource;
+    QString forwardedMessage;
+    QString forwardedTarget;
+    model.configureForwarding(
+        [&](const QString &source, const QString &sourceMessage,
+            const QString &target, V2LocalMessageRepository::Message *) {
+            forwardedSource = source;
+            forwardedMessage = sourceMessage;
+            forwardedTarget = target;
+            return true;
+        });
+    V2WindowsConversationDirectoryViewModel directory(
+        [] { return true; }, [] { return true; }, [](const QString &) { return true; });
+    directory.applyPage({
+        {conversation, QStringLiteral("原会话"), QStringLiteral("群聊"),
+         QStringLiteral("成员"), 0},
+        {targetConversation, QStringLiteral("目标会话"), QStringLiteral("群聊"),
+         QStringLiteral("成员"), 0}}, false, false);
     model.openConversation(conversation);
     V2WindowsMessagingPanel defaultOff(&model, &participants);
     if (!defaultOff.mentionForTest()->isHidden()) {
         qCritical() << "mention control must be default-off";
         return 1;
     }
-    V2WindowsMessagingPanel panel(&model, &participants, nullptr, true);
+    const auto defaultButtons = defaultOff.findChildren<QPushButton *>(
+        QString(), Qt::FindChildrenRecursively);
+    if (std::any_of(defaultButtons.cbegin(), defaultButtons.cend(),
+            [](QPushButton *button) {
+                return button->accessibleName() == QStringLiteral("转发此消息");
+            })) {
+        qCritical() << "forward action must be default-off";
+        return 1;
+    }
+    V2WindowsMessagingPanel panel(
+        &model, &participants, nullptr, true, &directory, true);
     panel.setConversation(conversation);
     panel.show();
     if (panel.accessibleName().isEmpty()
@@ -105,6 +137,27 @@ int main(int argc, char **argv) {
     });
     if (reply == replies.cend()) {
         qCritical() << "reply action missing";
+        return 1;
+    }
+    const auto forward = std::find_if(
+        replies.cbegin(), replies.cend(), [](QPushButton *button) {
+            return button->accessibleName() == QStringLiteral("转发此消息");
+        });
+    if (forward == replies.cend()) {
+        qCritical() << "forward action missing from enabled panel";
+        return 1;
+    }
+    QTimer::singleShot(0, [&] {
+        auto *targetDialog = qobject_cast<V2WindowsForwardTargetDialog *>(
+            QApplication::activeModalWidget());
+        if (!targetDialog || targetDialog->targetListForTest()->count() != 1) return;
+        targetDialog->targetListForTest()->setCurrentRow(0);
+        targetDialog->forwardForTest()->click();
+    });
+    (*forward)->click();
+    if (forwardedSource != conversation || forwardedMessage != message.messageId
+            || forwardedTarget != targetConversation) {
+        qCritical() << "forward picker did not preserve exact message identities";
         return 1;
     }
     const auto reactionButtons = std::count_if(replies.cbegin(), replies.cend(),

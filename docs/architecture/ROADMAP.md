@@ -1619,6 +1619,9 @@ Progress:
     - [x] Add a default-off accessible Windows single-target dialog populated
       only from the authorized conversation-directory snapshot, excluding the
       source conversation and failing closed without source context.
+    - [x] Compose the detached Windows forward action through the ViewModel,
+      authorized-directory picker, and Widgets row with an independent
+      default-off UI guard; product controller and capability activation remain off.
 
 Candidate slices:
 

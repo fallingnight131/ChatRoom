@@ -1479,6 +1479,13 @@ is the already-authorized conversation-directory snapshot; PostgreSQL remains
 authoritative and rechecks both conversations when the command is eventually
 submitted. The dialog is compiled into the Windows CMake product but has no
 product action or capability activation yet.
+The ViewModel and panel tests additionally compose that dialog into an enabled
+test-only forwarding path. They prove that an accepted, non-recalled source is
+required, self-forwarding is rejected, the exact hidden source/message/target
+identities reach one callback, and default panel construction renders no
+forward action even if a callback exists. Production controller composition and
+session capability 5 remain intentionally absent, so this is not an activation
+claim.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic

@@ -1,5 +1,7 @@
 #include "V2WindowsMessagingPanel.h"
 #include "V2WindowsConversationParticipantViewModel.h"
+#include "V2WindowsConversationDirectoryViewModel.h"
+#include "V2WindowsForwardTargetDialog.h"
 #include "V2WindowsMessagingViewModel.h"
 
 #include <QHBoxLayout>
@@ -15,9 +17,12 @@
 V2WindowsMessagingPanel::V2WindowsMessagingPanel(
         V2WindowsMessagingViewModel *viewModel,
         V2WindowsConversationParticipantViewModel *participantViewModel,
-        QWidget *parent, bool mentionsEnabled)
+        QWidget *parent, bool mentionsEnabled,
+        V2WindowsConversationDirectoryViewModel *directoryViewModel,
+        bool forwardingEnabled)
     : QWidget(parent), m_viewModel(viewModel),
-      m_participantViewModel(participantViewModel), m_status(new QLabel(this)),
+      m_participantViewModel(participantViewModel),
+      m_directoryViewModel(directoryViewModel), m_status(new QLabel(this)),
       m_replyBanner(new QLabel(this)), m_messages(new QListWidget(this)),
       m_composer(new QPlainTextEdit(this)),
       m_participantPane(new QWidget(this)),
@@ -29,7 +34,8 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
       m_cancelReply(new QPushButton(QStringLiteral("取消回复"), this)),
       m_mention(new QPushButton(QStringLiteral("@ 提及"), this)),
       m_send(new QPushButton(QStringLiteral("发送回复"), this)),
-      m_mentionsEnabled(mentionsEnabled) {
+      m_mentionsEnabled(mentionsEnabled),
+      m_forwardingEnabled(forwardingEnabled && directoryViewModel) {
     Q_ASSERT(m_viewModel);
     Q_ASSERT(m_participantViewModel);
     setAccessibleName(QStringLiteral("消息和回复"));
@@ -216,6 +222,13 @@ void V2WindowsMessagingPanel::render() {
             actions->addWidget(retry);
         }
         if (message.canReply) {
+            if (m_forwardingEnabled && message.canForward) {
+                auto *forward = new QPushButton(QStringLiteral("转发"), row);
+                forward->setAccessibleName(QStringLiteral("转发此消息"));
+                connect(forward, &QPushButton::clicked, this,
+                    [this, id = message.messageId] { chooseForward(id); });
+                actions->addWidget(forward);
+            }
             auto *reply = new QPushButton(QStringLiteral("回复"), row);
             reply->setAccessibleName(QStringLiteral("回复此消息"));
             connect(reply, &QPushButton::clicked, this,
@@ -302,6 +315,15 @@ void V2WindowsMessagingPanel::render() {
     m_mention->setEnabled(
         m_mentionsEnabled && composing && !m_conversationId.isEmpty());
     m_send->setEnabled(composing && !m_composer->toPlainText().trimmed().isEmpty());
+}
+
+void V2WindowsMessagingPanel::chooseForward(const QString &messageId) {
+    if (!m_forwardingEnabled || !m_directoryViewModel
+            || m_conversationId.isEmpty() || messageId.isEmpty()) return;
+    V2WindowsForwardTargetDialog dialog(
+        m_directoryViewModel->rows(), m_conversationId, this, true);
+    if (dialog.exec() != QDialog::Accepted) return;
+    m_viewModel->forwardMessage(messageId, dialog.selectedConversationId());
 }
 
 void V2WindowsMessagingPanel::renderParticipants() {

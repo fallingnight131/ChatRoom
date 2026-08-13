@@ -19,14 +19,15 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
         V2WindowsConversationDirectoryViewModel *directoryViewModel,
         V2WindowsMessagingViewModel *messagingViewModel,
         V2WindowsConversationParticipantViewModel *participantViewModel,
-        QWidget *parent, bool mentionsEnabled)
+        QWidget *parent, bool mentionsEnabled, bool forwardingEnabled)
     : QDialog(parent), m_directoryViewModel(directoryViewModel),
       m_directoryStatus(new QLabel(this)), m_conversationTitle(new QLabel(this)),
       m_conversations(new QListWidget(this)),
       m_refresh(new QPushButton(QStringLiteral("刷新"), this)),
       m_loadMore(new QPushButton(QStringLiteral("加载更多"), this)),
       m_messagingPanel(new V2WindowsMessagingPanel(
-          messagingViewModel, participantViewModel, this, mentionsEnabled)) {
+          messagingViewModel, participantViewModel, this, mentionsEnabled,
+          directoryViewModel, forwardingEnabled)) {
     Q_ASSERT(m_directoryViewModel);
     Q_ASSERT(messagingViewModel);
     Q_ASSERT(participantViewModel);

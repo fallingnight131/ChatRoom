@@ -10,6 +10,7 @@ class QListWidgetItem;
 class QPlainTextEdit;
 class QPushButton;
 class V2WindowsConversationParticipantViewModel;
+class V2WindowsConversationDirectoryViewModel;
 class V2WindowsMessagingViewModel;
 
 class V2WindowsMessagingPanel final : public QWidget {
@@ -18,7 +19,9 @@ public:
     explicit V2WindowsMessagingPanel(
         V2WindowsMessagingViewModel *viewModel,
         V2WindowsConversationParticipantViewModel *participantViewModel,
-        QWidget *parent = nullptr, bool mentionsEnabled = false);
+        QWidget *parent = nullptr, bool mentionsEnabled = false,
+        V2WindowsConversationDirectoryViewModel *directoryViewModel = nullptr,
+        bool forwardingEnabled = false);
     void setConversation(const QString &conversationId);
     QPlainTextEdit *composerForTest() const { return m_composer; }
     QListWidget *messageListForTest() const { return m_messages; }
@@ -31,6 +34,7 @@ private:
     void render();
     void renderParticipants();
     void chooseReply(const QString &messageId);
+    void chooseForward(const QString &messageId);
     void beginEdit(const QString &messageId, const QString &text,
                    const QList<V2LocalMessageRepository::Mention> &mentions);
     void cancelComposition();
@@ -40,6 +44,7 @@ private:
     void sendReply();
     V2WindowsMessagingViewModel *m_viewModel;
     V2WindowsConversationParticipantViewModel *m_participantViewModel;
+    V2WindowsConversationDirectoryViewModel *m_directoryViewModel;
     QLabel *m_status;
     QLabel *m_replyBanner;
     QListWidget *m_messages;
@@ -59,4 +64,5 @@ private:
     QList<V2WindowsMentionComposer::Anchor> m_mentionAnchors;
     bool m_updatingComposer = false;
     bool m_mentionsEnabled = false;
+    bool m_forwardingEnabled = false;
 };

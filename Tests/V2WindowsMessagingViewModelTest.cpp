@@ -75,6 +75,9 @@ int main(int argc, char **argv) {
     QList<V2LocalMessageRepository::Mention> editedMentions;
     QString rebasedEdit;
     QString discardedEdit;
+    QString forwardedSourceConversation;
+    QString forwardedSourceMessage;
+    QString forwardedTargetConversation;
     V2WindowsMessagingViewModel model(
         account, [&](const QString &) { return snapshot; },
         [&](const QString &, const QString &targetId, const QString &text,
@@ -114,6 +117,26 @@ int main(int argc, char **argv) {
         });
     check(model.openConversation(conversation) && model.rows().size() == 3,
           QStringLiteral("cached conversation was not projected"));
+    check(!model.rows().first().canForward,
+          QStringLiteral("forwarding must remain default-off"));
+    model.configureForwarding(
+        [&](const QString &sourceConversationId, const QString &sourceMessageId,
+            const QString &targetConversationId,
+            V2LocalMessageRepository::Message *) {
+            forwardedSourceConversation = sourceConversationId;
+            forwardedSourceMessage = sourceMessageId;
+            forwardedTargetConversation = targetConversationId;
+            return true;
+        });
+    const QString forwardTarget =
+        QStringLiteral("20000000-0000-4000-8000-000000000099");
+    check(model.rows().first().canForward
+              && !model.forwardMessage(target.messageId, conversation)
+              && model.forwardMessage(target.messageId, forwardTarget)
+              && forwardedSourceConversation == conversation
+              && forwardedSourceMessage == target.messageId
+              && forwardedTargetConversation == forwardTarget,
+          QStringLiteral("forward action lost source, target, or default guard"));
     snapshot.messages[1].text = QStringLiteral("@张三 reply");
     snapshot.messages[1].mentions.append({target.senderAccountId, 0, 7});
     check(model.refresh() && model.rows().at(1).mentions.size() == 1,

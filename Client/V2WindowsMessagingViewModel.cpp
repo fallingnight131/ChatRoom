@@ -165,6 +165,37 @@ bool V2WindowsMessagingViewModel::discardEdit(const QString &operationId) {
     return refresh();
 }
 
+void V2WindowsMessagingViewModel::configureForwarding(StageForward stageForward) {
+    m_stageForward = std::move(stageForward);
+    if (!m_conversationId.isEmpty()) refresh();
+}
+
+bool V2WindowsMessagingViewModel::forwardMessage(
+        const QString &sourceMessageId, const QString &targetConversationId) {
+    const auto position = std::find_if(m_rows.cbegin(), m_rows.cend(),
+        [&](const Row &row) {
+            return row.messageId == sourceMessageId && row.canForward;
+        });
+    if (!m_stageForward || m_conversationId.isEmpty()
+            || targetConversationId.isEmpty()
+            || targetConversationId == m_conversationId
+            || position == m_rows.cend()) {
+        m_failure = QStringLiteral("无法转发该消息");
+        emit changed();
+        return false;
+    }
+    V2LocalMessageRepository::Message optimistic;
+    if (!m_stageForward(
+            m_conversationId, sourceMessageId, targetConversationId, &optimistic)) {
+        m_failure = QStringLiteral("无法转发该消息");
+        emit changed();
+        return false;
+    }
+    m_failure.clear();
+    emit changed();
+    return true;
+}
+
 void V2WindowsMessagingViewModel::project(
         const V2LocalMessageRepository::Snapshot &snapshot) {
     m_rows.clear();
@@ -181,6 +212,7 @@ void V2WindowsMessagingViewModel::project(
         row.recalled = message.recalled;
         row.canReply = !message.recalled && !message.messageId.isEmpty()
             && message.state == V2LocalMessageRepository::DeliveryState::Accepted;
+        row.canForward = row.canReply && static_cast<bool>(m_stageForward);
         row.canRetry = message.state == V2LocalMessageRepository::DeliveryState::Failed;
         row.pinned = message.pinned;
         row.edited = message.contentRevision > 0;
