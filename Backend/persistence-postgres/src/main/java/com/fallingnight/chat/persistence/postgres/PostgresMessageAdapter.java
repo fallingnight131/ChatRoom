@@ -7,6 +7,7 @@ import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.MessageReplyReference;
+import com.fallingnight.chat.application.messaging.MessageReactionKind;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
@@ -159,7 +160,10 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                        d.cutoff_epoch_ms, d.deleted_count,
                        d.operator_name_snapshot,
                        rr.target_message_id, rr.target_conversation_sequence,
-                       rr.target_sender_account_id
+                       rr.target_sender_account_id,
+                       reaction.message_id, reaction.actor_account_id,
+                       reaction.reaction, reaction.active,
+                       reaction.client_operation_id
                 FROM chat.conversation_entry ce
                 LEFT JOIN chat.message m
                   ON ce.entry_kind = 'MESSAGE'
@@ -176,6 +180,10 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                 LEFT JOIN chat.message_reply_reference rr
                   ON ce.entry_kind = 'MESSAGE'
                  AND rr.message_id = m.id
+                LEFT JOIN chat.message_reaction_event reaction
+                  ON ce.entry_kind = 'MESSAGE_REACTION_CHANGED'
+                 AND reaction.conversation_id = ce.conversation_id
+                 AND reaction.conversation_sequence = ce.conversation_sequence
                 LEFT JOIN chat.legacy_v1_deletion_event_map ldm
                   ON d.source = 'V1_IMPORT'
                  AND ldm.conversation_id = ce.conversation_id
@@ -218,6 +226,12 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                     result.getString(15), result.getString(16), result.getString(17),
                     uuidList(result.getArray(18)), result.getLong(19), result.getInt(20),
                     result.getString(21),
+                    result.getObject(3, OffsetDateTime.class).toInstant());
+            case "MESSAGE_REACTION_CHANGED" -> new ConversationHistoryEntry.Reaction(
+                    conversationId, sequence, result.getObject(25, UUID.class),
+                    result.getObject(26, UUID.class),
+                    MessageReactionKind.valueOf(result.getString(27)),
+                    result.getBoolean(28), result.getString(29),
                     result.getObject(3, OffsetDateTime.class).toInstant());
             default -> throw new SQLException("unsupported conversation entry kind");
         };

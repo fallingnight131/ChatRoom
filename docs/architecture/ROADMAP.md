@@ -1414,8 +1414,9 @@ Progress:
   - [x] Allocate permanent type-106--108 command/response/event payloads, six
     bounded reaction identities, changed-only sequence semantics, and reaction
     details in the mixed conversation history contract (ADR-0339).
-  - [ ] Persist exact reaction operations, active state, and changed events in
-    PostgreSQL under the authoritative conversation sequence.
+  - [x] Persist exact reaction operations, active state, and changed events in
+    PostgreSQL V045 under the authoritative conversation sequence, including
+    concurrent retry convergence, no-op cursor stability, and target cleanup.
   - [ ] Compose authenticated gateway mutation, history, live fan-out, bounded
     telemetry, and negative-path behavior.
   - [ ] Add offline-safe local projections, optimistic convergence, accessible

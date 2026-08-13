@@ -644,7 +644,9 @@ recalled rendering without persisting copied quote text (ADR-0330). The
 reaction wire contract adds six stable reaction identities, exact operation
 idempotency, changed-only conversation sequencing, and explicit handshake
 capability negotiation. Its PostgreSQL, gateway, local projection, and UI
-slices are not yet active, so neither Web nor Windows advertises support
+slices are separately gated. V045 now atomically persists exact operation
+results, current active state, and changed-only mixed-sequence events, but the
+gateway is not active and neither Web nor Windows advertises support
 (ADR-0339). Windows reply composition is now available only in the default-off
 V2 preview. A shared
 single-gateway router now establishes one active subscription only through the

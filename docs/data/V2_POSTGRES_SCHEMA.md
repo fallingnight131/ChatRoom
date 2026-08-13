@@ -31,6 +31,9 @@ not server truth.
 | `conversation_entry` | durable owner and kind of each allocated conversation sequence |
 | `message_recall_event` | typed recall mutation referencing its target message and actor |
 | `messages_deleted_event` | typed bulk-deletion event and bounded operation metadata |
+| `message_reaction_operation` | exact actor-scoped idempotency result, including convergent no-ops |
+| `message_reaction` | current active reaction projection per message, actor, and reaction identity |
+| `message_reaction_event` | changed-only reaction mutation in the authoritative conversation sequence |
 | `identity_import_run` | non-secret proof and reconciled counts for each committed V1 identity apply |
 | `account_display_name_change_audit` | non-secret old/new display-name audit for committed profile mutations |
 | `account_username_change_audit` | non-secret old/new login-name audit and exact-retry proof |
@@ -369,6 +372,17 @@ the original `messages` field remains a creation-message mirror for additive
 decode compatibility. The build-gated Web preview applies entries in order and
 falls back to the original field when an older compatible server omits them.
 
+V045 extends the mixed entry kind with `MESSAGE_REACTION_CHANGED`. A reaction
+transaction authorizes the active account/device/membership and locks a live,
+same-conversation message before comparing desired state. It records every
+accepted operation by `(actor_account_id, client_operation_id)`, but allocates a
+sequence and writes an event only when state changes. The active-state table is
+therefore a rebuildable projection of the changed-event history, while the
+operation table preserves exact no-op and changed retry outcomes. Removing a
+target message cascades its active reactions and changed events; a trigger also
+removes the corresponding typed conversation entries so no dangling history
+detail can be projected.
+
 ## V1 identity import boundary
 
 The identity importer first offers a repeatable-read, no-write preview. Any
@@ -413,6 +427,15 @@ ordered ascending, and returns the next applied cursor, current conversation
 high watermark, and `hasMore`. Deleted rows remain legal cursor gaps. The
 adapter is connected to authenticated V2 message commands, but no supported
 client sends product traffic to it yet.
+
+The detached reaction adapter uses the same allocation authority. Exact
+concurrent retries converge on one durable operation and changed event; the
+losing transaction rolls back any tentative state and sequence before reading
+the winner. Reusing an operation ID with a changed conversation, device,
+message, reaction, or desired state is an idempotency conflict. A desired-state
+no-op persists sequence `NULL` (projected as zero by the application) and does
+not alter the conversation watermark. Gateway dispatch remains disabled until
+capability negotiation and compatible history/live filtering are composed.
 
 ## Implemented conversation directory
 
@@ -532,7 +555,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V040, reruns migration as a simulated
+cluster, migrates a clean database through current V045, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable

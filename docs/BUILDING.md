@@ -1453,6 +1453,11 @@ with the Ubuntu runner.
 V044 additionally verifies immutable reply-reference creation from a live
 same-conversation target, exact duplicate replay, changed-target conflict,
 missing-target denial, and authoritative history projection (ADR-0329).
+V045 verifies actor-scoped reaction operation idempotency, exact concurrent
+retry convergence, durable active-state projection, changed-only sequence/event
+allocation, no-op cursor stability, mixed-history projection, opaque target and
+actor denial, and target-deletion cleanup (ADR-0339). It does not activate the
+gateway capability or a supported client feature.
 
 Generate the non-Java V2 bindings and run the Java-to-TypeScript golden-wire
 test with Node.js 22:

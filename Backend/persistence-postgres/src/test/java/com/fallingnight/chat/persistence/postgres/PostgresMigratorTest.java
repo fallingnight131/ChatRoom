@@ -96,6 +96,9 @@ import com.fallingnight.chat.application.messaging.ConversationEntryHistoryResul
 import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
+import com.fallingnight.chat.application.messaging.MessageReactionCommand;
+import com.fallingnight.chat.application.messaging.MessageReactionKind;
+import com.fallingnight.chat.application.messaging.MessageReactionResult;
 import com.fallingnight.chat.application.security.SecretBytes;
 import com.fallingnight.chat.application.profile.ProfileImageMetadataCommand;
 import com.fallingnight.chat.application.profile.ProfileImageMetadataResult;
@@ -196,7 +199,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(44, first.migrate());
+        assertEquals(45, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -226,7 +229,8 @@ class PostgresMigratorTest {
                             "account_profile_image", "group_profile_image",
                             "profile_image_change_audit", "profile_image_import_run",
                             "profile_image_import_entry", "device_revocation_audit",
-                            "message_reply_reference"),
+                            "message_reply_reference", "message_reaction_operation",
+                            "message_reaction", "message_reaction_event"),
                     applicationTables(connection));
             assertEquals(9, count("SELECT count(*) FROM pg_constraint "
                     + "WHERE connamespace = 'chat'::regnamespace AND conname IN ("
@@ -526,6 +530,98 @@ class PostgresMigratorTest {
         assertEquals(
                 MessageHistoryResult.Rejected.NOT_AUTHORIZED,
                 adapter.readAfter(new MessageHistoryQuery(conversation, account, 0, 10)));
+    }
+
+    @Test
+    @Order(13)
+    void appliesMessageReactionsIdempotentlyWithChangedOnlyOrdering() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID account = UUID.randomUUID();
+        UUID device = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID();
+        seedMessageOwner(account, device, conversation);
+        PostgresMessageAdapter messages = new PostgresMessageAdapter(dataSource());
+        MessageSubmissionResult.Accepted target =
+                (MessageSubmissionResult.Accepted) messages.submit(new MessageSubmission(
+                        conversation, account, device, "reaction-target", 100,
+                        new byte[] {1}));
+        PostgresMessageReactionAdapter reactions =
+                new PostgresMessageReactionAdapter(dataSource());
+        MessageReactionCommand add = new MessageReactionCommand(
+                conversation, target.messageId(), account, device,
+                MessageReactionKind.LOVE, true, "reaction-add");
+
+        List<MessageReactionResult.Applied> raced = raceReaction(reactions, add);
+
+        assertEquals(2, raced.size());
+        assertEquals(1, raced.stream().filter(result -> !result.duplicate()).count());
+        assertEquals(1, raced.stream().filter(MessageReactionResult.Applied::duplicate).count());
+        assertTrue(raced.stream().allMatch(MessageReactionResult.Applied::changed));
+        assertTrue(raced.stream().allMatch(result -> result.conversationSequence() == 2));
+        assertEquals(raced.getFirst().occurredAt(), raced.getLast().occurredAt());
+        assertEquals(1, count("SELECT count(*) FROM chat.message_reaction"));
+        assertEquals(1, count("SELECT count(*) FROM chat.message_reaction_event"));
+        assertEquals(1, count("SELECT count(*) FROM chat.message_reaction_operation"));
+
+        MessageReactionCommand noOp = new MessageReactionCommand(
+                conversation, target.messageId(), account, device,
+                MessageReactionKind.LOVE, true, "reaction-no-op");
+        MessageReactionResult.Applied unchanged =
+                (MessageReactionResult.Applied) reactions.set(noOp);
+        assertFalse(unchanged.changed());
+        assertEquals(0, unchanged.conversationSequence());
+        MessageReactionResult.Applied duplicateNoOp =
+                (MessageReactionResult.Applied) reactions.set(noOp);
+        assertTrue(duplicateNoOp.duplicate());
+        assertEquals(unchanged.occurredAt(), duplicateNoOp.occurredAt());
+        assertEquals(MessageReactionResult.Rejected.IDEMPOTENCY_CONFLICT,
+                reactions.set(new MessageReactionCommand(
+                        conversation, target.messageId(), account, device,
+                        MessageReactionKind.LOVE, false, "reaction-no-op")));
+        assertEquals(1, count("SELECT count(*) FROM chat.message_reaction_event"));
+
+        MessageReactionResult.Applied removed =
+                (MessageReactionResult.Applied) reactions.set(new MessageReactionCommand(
+                        conversation, target.messageId(), account, device,
+                        MessageReactionKind.LOVE, false, "reaction-remove"));
+        assertTrue(removed.changed());
+        assertEquals(3, removed.conversationSequence());
+        assertEquals(0, count("SELECT count(*) FROM chat.message_reaction"));
+        assertEquals(2, count("SELECT count(*) FROM chat.message_reaction_event"));
+        assertEquals(3, count("SELECT count(*) FROM chat.message_reaction_operation"));
+
+        ConversationEntryHistoryResult.Page history =
+                (ConversationEntryHistoryResult.Page) messages.readEntriesAfter(
+                        new MessageHistoryQuery(conversation, account, 1, 10));
+        assertEquals(List.of(2L, 3L), history.entries().stream()
+                .map(ConversationHistoryEntry::conversationSequence).toList());
+        ConversationHistoryEntry.Reaction added =
+                (ConversationHistoryEntry.Reaction) history.entries().getFirst();
+        ConversationHistoryEntry.Reaction removedEntry =
+                (ConversationHistoryEntry.Reaction) history.entries().getLast();
+        assertEquals(MessageReactionKind.LOVE, added.reaction());
+        assertTrue(added.active());
+        assertFalse(removedEntry.active());
+        assertEquals(target.messageId(), removedEntry.messageId());
+        assertEquals(3, history.nextSequence());
+        assertEquals(3, history.latestSequence());
+
+        assertEquals(MessageReactionResult.Rejected.NOT_AUTHORIZED,
+                reactions.set(new MessageReactionCommand(
+                        conversation, UUID.randomUUID(), account, device,
+                        MessageReactionKind.LIKE, true, "missing-target")));
+        assertEquals(MessageReactionResult.Rejected.NOT_AUTHORIZED,
+                reactions.set(new MessageReactionCommand(
+                        conversation, target.messageId(), UUID.randomUUID(), UUID.randomUUID(),
+                        MessageReactionKind.LIKE, true, "outsider")));
+
+        try (Connection connection = connect()) {
+            execute(connection, "DELETE FROM chat.message WHERE id = ?", target.messageId());
+        }
+        assertEquals(0, count("SELECT count(*) FROM chat.message_reaction_event"));
+        assertEquals(1, allConversationEntryCount(conversation));
+        assertEquals(3, count("SELECT count(*) FROM chat.message_reaction_operation"));
     }
 
     @Test
@@ -4149,6 +4245,33 @@ class PostgresMigratorTest {
             return List.of(
                     (MessageSubmissionResult.Accepted) futures.get(0).get(),
                     (MessageSubmissionResult.Accepted) futures.get(1).get());
+        } finally {
+            start.countDown();
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(2, TimeUnit.SECONDS));
+        }
+    }
+
+    private static List<MessageReactionResult.Applied> raceReaction(
+            PostgresMessageReactionAdapter adapter,
+            MessageReactionCommand command) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        try {
+            List<Future<MessageReactionResult>> futures =
+                    java.util.stream.IntStream.range(0, 2)
+                            .mapToObj(index -> executor.submit(() -> {
+                                ready.countDown();
+                                assertTrue(start.await(2, TimeUnit.SECONDS));
+                                return adapter.set(command);
+                            }))
+                            .toList();
+            assertTrue(ready.await(2, TimeUnit.SECONDS));
+            start.countDown();
+            return List.of(
+                    (MessageReactionResult.Applied) futures.get(0).get(),
+                    (MessageReactionResult.Applied) futures.get(1).get());
         } finally {
             start.countDown();
             executor.shutdownNow();

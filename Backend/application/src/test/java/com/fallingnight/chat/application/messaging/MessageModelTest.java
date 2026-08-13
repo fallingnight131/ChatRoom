@@ -69,4 +69,27 @@ class MessageModelTest {
                 100,
                 new byte[0]));
     }
+
+    @Test
+    void reactionModelsEnforceOperationAndChangedSequenceInvariants() {
+        MessageReactionCommand command = new MessageReactionCommand(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                MessageReactionKind.LOVE, true, "reaction-1");
+        new MessageReactionResult.Applied(
+                command.conversationId(), command.messageId(), command.actorAccountId(),
+                command.reaction(), command.active(), command.clientOperationId(),
+                true, 2, Instant.EPOCH, false);
+        new MessageReactionResult.Applied(
+                command.conversationId(), command.messageId(), command.actorAccountId(),
+                command.reaction(), command.active(), command.clientOperationId(),
+                false, 0, Instant.EPOCH, false);
+
+        assertThrows(IllegalArgumentException.class, () -> new MessageReactionCommand(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                MessageReactionKind.LIKE, true, " "));
+        assertThrows(IllegalArgumentException.class, () -> new MessageReactionResult.Applied(
+                command.conversationId(), command.messageId(), command.actorAccountId(),
+                command.reaction(), command.active(), command.clientOperationId(),
+                false, 1, Instant.EPOCH, false));
+    }
 }
