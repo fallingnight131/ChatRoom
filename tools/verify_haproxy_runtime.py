@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import shutil
 import signal
 import socket
+import ssl
 import subprocess
 import tempfile
 import time
@@ -89,6 +91,7 @@ def generate_certificates(openssl: str, root: Path) -> None:
     for name, common_name, san in (
         ("gateway", "gateway.internal", "DNS:gateway.internal"),
         ("frontend", "localhost", "DNS:localhost"),
+        ("frontend-next", "localhost", "DNS:localhost"),
     ):
         key = root / f"{name}.key"
         request = root / f"{name}.csr"
@@ -102,8 +105,16 @@ def generate_certificates(openssl: str, root: Path) -> None:
         run([openssl, "x509", "-req", "-days", "1", "-in", str(request),
              "-CA", str(ca_cert), "-CAkey", str(ca_key), "-CAcreateserial",
              "-extfile", str(extensions), "-out", str(certificate)], ROOT)
-    (root / "frontend.pem").write_bytes(
-        (root / "frontend.crt").read_bytes() + (root / "frontend.key").read_bytes())
+    for name in ("frontend", "frontend-next"):
+        (root / f"{name}.pem").write_bytes(
+            (root / f"{name}.crt").read_bytes() + (root / f"{name}.key").read_bytes())
+    fingerprints = []
+    for name in ("frontend", "frontend-next"):
+        der = ssl.PEM_cert_to_DER_cert(
+            (root / f"{name}.crt").read_text(encoding="utf-8"))
+        fingerprints.append(hashlib.sha256(der).hexdigest())
+    (root / "frontend-fingerprints").write_text(
+        "\n".join(fingerprints) + "\n", encoding="utf-8")
 
 
 def await_port(port: int, process: subprocess.Popen[bytes]) -> None:
@@ -151,6 +162,7 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
         ]) + "\n", encoding="utf-8")
         generate_certificates(openssl, root)
         shutil.copyfile(root / "frontend.pem", proxy_root / "frontend.pem")
+        shutil.copyfile(root / "frontend-next.pem", proxy_root / "frontend-next.pem")
         shutil.copyfile(root / "ca.crt", proxy_root / "ca.crt")
         postgres_started = False
         redis_started = False
@@ -190,6 +202,7 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
             ports_file = root / "gateway-ports"
             started_marker = root / "haproxy-started"
             reload_request = root / "haproxy-reload-request"
+            reload_frontend = root / "haproxy-reload-frontend"
             reload_marker = root / "haproxy-reloaded"
             ports: list[str] | None = None
             while gradle.poll() is None:
@@ -220,10 +233,15 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
                     if retained not in ("gateway-a", "gateway-b"):
                         raise RuntimeError("HAProxy reload backend is invalid")
                     index = 0 if retained == "gateway-a" else 1
+                    frontend = "frontend.pem"
+                    if reload_frontend.is_file():
+                        frontend = reload_frontend.read_text(encoding="utf-8").strip()
+                        if frontend not in ("frontend.pem", "frontend-next.pem"):
+                            raise RuntimeError("HAProxy reload frontend is invalid")
                     config = proxy_root / "haproxy.cfg"
                     run([python, str(ROOT / "tools" / "render_haproxy_gateway.py"),
                          "--bind-address", "0.0.0.0", "--bind-port", "8443",
-                         "--frontend-certificate", "/work/frontend.pem",
+                         "--frontend-certificate", f"/work/{frontend}",
                          "--backend-ca", "/work/ca.crt",
                          "--health-host", "chat.example.com",
                          "--gateway",

@@ -1572,6 +1572,12 @@ Progress:
   retained gateway, repair history, and deliver sequence 2 without duplication.
   Certificate rotation and mixed-version rollout remain separate gates
   (ADR-0376).
+- [x] Rotate the HAProxy frontend leaf/keypair through the same master-worker
+  path: verify exact SHA-256 fingerprints before and after reload using the real
+  HTTPS/ALPN product stack, preserve the former worker's authenticated WSS long
+  enough to deliver sequence 1, and deliver sequence 2 through a new connection
+  presenting the replacement certificate. Backend gateway CA rotation remains
+  a separate trust-migration gate (ADR-0377).
 
 Work:
 

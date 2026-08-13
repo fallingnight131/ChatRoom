@@ -1160,6 +1160,11 @@ stops accepting but preserves its established WSS tunnel for ordered sequence 1,
 while a new connection and sequence 2 use only the retained gateway. This proves
 same-certificate master-worker reload, not certificate rotation or mixed-version
 application compatibility.
+ADR-0377 applies the same reload path to frontend TLS material. Two independently
+generated leaf/keypairs have exact fingerprints verified through real HTTPS
+before and after reload; the old WSS tunnel finishes ordered delivery while new
+connections see only the replacement certificate. Backend gateway certificate
+and CA rotation remains a distinct trust-migration concern.
 
 ## 10. Attachment Flow
 

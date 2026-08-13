@@ -81,6 +81,7 @@ import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.sql.Connection;
@@ -92,10 +93,11 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.HashMap;
-import java.util.Base64;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -1262,6 +1264,130 @@ class GatewayRuntimePostgresIntegrationTest {
             replacement.sendBinary(ByteBuffer.wrap(submit(
                     replacementSession.getSessionId(), conversationId,
                     "reload-submit-2", "reload-message-2", "through new worker")
+                    .toByteArray()), true).join();
+            assertEquals(2, accepted(replacementListener.next()).getConversationSequence());
+            assertEquals(2, published(replacementListener.next()).getConversationSequence());
+            assertEquals(2, published(peerListener.next(Duration.ofSeconds(10)))
+                    .getConversationSequence());
+            peerListener.assertNoEnvelope(Duration.ofSeconds(1));
+        } finally {
+            if (replacement != null) replacement.abort();
+            if (peer != null) peer.abort();
+            if (sender != null) sender.abort();
+            if (second != null) second.close();
+            if (first != null) first.close();
+        }
+    }
+
+    @Test
+    void haproxyRotatesFrontendCertificateWithoutDroppingOldTunnel() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String redisUri = System.getenv("CHATROOM_TEST_REDIS_URI");
+        String controlValue = System.getenv("CHATROOM_TEST_HAPROXY_CONTROL_DIR");
+        String proxyUrl = System.getenv("CHATROOM_TEST_HAPROXY_WSS_URL");
+        String certificatePath = System.getenv("CHATROOM_TEST_GATEWAY_CERTIFICATE");
+        String keyPath = System.getenv("CHATROOM_TEST_GATEWAY_PRIVATE_KEY");
+        Assumptions.assumeTrue(allNonBlank(jdbcUrl, username, redisUri, controlValue,
+                proxyUrl, certificatePath, keyPath),
+                "set disposable services, HAProxy, and gateway TLS material");
+        Path control = Path.of(controlValue);
+        List<String> fingerprints = Files.readAllLines(
+                control.resolve("frontend-fingerprints"));
+        assertEquals(2, fingerprints.size());
+        assertFalse(fingerprints.get(0).equals(fingerprints.get(1)));
+        new PostgresMigrator(jdbcUrl, username, "").migrate();
+        UUID accountId = UUID.randomUUID();
+        UUID peerId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        String login = "certificate-rotation-" + accountId;
+        String peerLogin = "certificate-rotation-" + peerId;
+        seedV2NetworkAccounts(jdbcUrl, username, "", accountId, peerId,
+                conversationId, login, peerLogin);
+
+        int firstPort = availablePort();
+        int firstAdmin = availablePort();
+        int secondPort = availablePort();
+        int secondAdmin = availablePort();
+        GatewayRuntime first = null;
+        GatewayRuntime second = null;
+        WebSocket sender = null;
+        WebSocket peer = null;
+        WebSocket replacement = null;
+        try {
+            Map<String, String> firstEnvironment = distributedNetworkEnvironment(
+                    firstPort, firstAdmin, certificatePath, keyPath, jdbcUrl, username,
+                    redisUri, proxyAuthority(proxyUrl));
+            Map<String, String> secondEnvironment = distributedNetworkEnvironment(
+                    secondPort, secondAdmin, certificatePath, keyPath, jdbcUrl, username,
+                    redisUri, proxyAuthority(proxyUrl));
+            firstEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+            secondEnvironment.put("CHATROOM_GATEWAY_BIND_ADDRESS", "0.0.0.0");
+            first = GatewayRuntime.create(
+                    GatewayRuntimeConfig.fromEnvironment(firstEnvironment));
+            second = GatewayRuntime.create(
+                    GatewayRuntimeConfig.fromEnvironment(secondEnvironment));
+            first.start();
+            second.start();
+            awaitReady(first);
+            awaitReady(second);
+            Files.writeString(control.resolve("gateway-ports"),
+                    firstPort + "\n" + secondPort + "\n");
+            Files.writeString(control.resolve("haproxy-start-request"), "start\n");
+            awaitFile(control.resolve("haproxy-started"), Duration.ofSeconds(10));
+            assertEquals(fingerprints.get(0), proxyCertificateSha256(proxyUrl));
+
+            BinaryEnvelopeListener senderListener = new BinaryEnvelopeListener();
+            sender = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), senderListener);
+            SessionEstablished senderSession = establish(
+                    sender, senderListener, login, "certificate-device");
+            boolean senderOnFirst = authenticationAccepted(firstAdmin) == 1;
+            sender.sendBinary(ByteBuffer.wrap(history(
+                    senderSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    senderListener.next().getMessageType());
+
+            BinaryEnvelopeListener peerListener = new BinaryEnvelopeListener();
+            peer = connectWebSocket(URI.create(proxyUrl + "/v2/windows"), peerListener);
+            SessionEstablished peerSession = establish(
+                    peer, peerListener, peerLogin, "certificate-peer");
+            peer.sendBinary(ByteBuffer.wrap(history(
+                    peerSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    peerListener.next().getMessageType());
+            assertEquals(1, authenticationAccepted(firstAdmin));
+            assertEquals(1, authenticationAccepted(secondAdmin));
+
+            String retained = senderOnFirst ? "gateway-b" : "gateway-a";
+            int stableAdmin = senderOnFirst ? secondAdmin : firstAdmin;
+            Files.writeString(control.resolve("haproxy-reload-frontend"),
+                    "frontend-next.pem\n");
+            Files.writeString(control.resolve("haproxy-reload-request"), retained + "\n");
+            awaitFile(control.resolve("haproxy-reloaded"), Duration.ofSeconds(10));
+            assertEquals(fingerprints.get(1), proxyCertificateSha256(proxyUrl));
+
+            BinaryEnvelopeListener replacementListener = new BinaryEnvelopeListener();
+            replacement = connectWebSocket(
+                    URI.create(proxyUrl + "/v2/windows"), replacementListener);
+            SessionEstablished replacementSession = establish(
+                    replacement, replacementListener, login, "certificate-replacement");
+            assertEquals(2, authenticationAccepted(stableAdmin));
+
+            sender.sendBinary(ByteBuffer.wrap(submit(
+                    senderSession.getSessionId(), conversationId,
+                    "certificate-submit-1", "certificate-message-1", "old certificate tunnel")
+                    .toByteArray()), true).join();
+            MessageAccepted firstMessage = accepted(senderListener.next());
+            assertEquals(1, published(peerListener.next(Duration.ofSeconds(10)))
+                    .getConversationSequence());
+            replacement.sendBinary(ByteBuffer.wrap(history(
+                    replacementSession.getSessionId(), conversationId).toByteArray()), true).join();
+            MessageHistoryPage repaired = MessageHistoryPage.parseFrom(
+                    replacementListener.next().getPayload());
+            assertEquals(firstMessage.getMessageId(), repaired.getMessages(0).getMessageId());
+            replacement.sendBinary(ByteBuffer.wrap(submit(
+                    replacementSession.getSessionId(), conversationId,
+                    "certificate-submit-2", "certificate-message-2", "new certificate tunnel")
                     .toByteArray()), true).join();
             assertEquals(2, accepted(replacementListener.next()).getConversationSequence());
             assertEquals(2, published(replacementListener.next()).getConversationSequence());
@@ -3762,6 +3888,22 @@ class GatewayRuntimePostgresIntegrationTest {
     private static String proxyAuthority(String proxyUrl) {
         URI uri = URI.create(proxyUrl);
         return uri.getHost() + ":" + uri.getPort();
+    }
+
+    private static String proxyCertificateSha256(String proxyUrl) throws Exception {
+        URI proxy = URI.create(proxyUrl);
+        URI endpoint = new URI("https", null, proxy.getHost(), proxy.getPort(),
+                "/health/ready", null, null);
+        HttpResponse<String> response = HttpClient.newBuilder()
+                .sslContext(trustAllTls()).connectTimeout(Duration.ofSeconds(2))
+                .build().send(HttpRequest.newBuilder(
+                        endpoint)
+                        .timeout(Duration.ofSeconds(2)).GET().build(),
+                        HttpResponse.BodyHandlers.ofString());
+        byte[] certificate = response.sslSession().orElseThrow()
+                .getPeerCertificates()[0].getEncoded();
+        return HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA-256").digest(certificate));
     }
 
     private static long authenticationAccepted(int adminPort) throws Exception {

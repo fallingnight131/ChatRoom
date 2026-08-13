@@ -1536,6 +1536,18 @@ deliver an ordered message, and requires new sessions and follow-up delivery to
 use the retained gateway. It does not rotate certificates; run it separately
 from the syntax gate and outside `--all` (ADR-0376).
 
+Exercise frontend leaf/keypair rotation with:
+
+```bash
+python3 tools/verify_m0.py --gateway-load-balancer-certificate-rotation
+```
+
+The gate generates two disposable frontend certificates, verifies their exact
+SHA-256 leaf fingerprints through the real HTTPS/ALPN stack before and after
+master-worker reload, keeps an old-certificate WSS tunnel alive for ordered
+delivery, and requires new WSS traffic to use the replacement certificate. It
+does not rotate the backend gateway CA (ADR-0377).
+
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
 consume ports while PostgreSQL supplies outbox and message repair. They also

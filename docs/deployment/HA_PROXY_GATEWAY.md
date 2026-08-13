@@ -106,6 +106,18 @@ new session plus its next ordered message through the retained gateway. In
 production, validate syntax first, serialize reloads, retain the last known-good
 file, and monitor former-worker drain time (ADR-0376).
 
+Verify frontend certificate replacement with:
+
+```bash
+python3 tools/verify_m0.py --gateway-load-balancer-certificate-rotation
+```
+
+This requires exact old/new leaf fingerprints through real HTTPS, preserves an
+established old-worker WSS tunnel, and routes new WSS traffic through the new
+certificate worker. Production must source PEMs from the secret store, validate
+the full public chain and hostname, retain rollback material, and monitor expiry.
+Backend gateway CA rotation is not covered (ADR-0377).
+
 Before reload, validate the fully rendered deployment file with the exact
 production HAProxy binary. Roll one bounded subset of gateways at a time:
 
