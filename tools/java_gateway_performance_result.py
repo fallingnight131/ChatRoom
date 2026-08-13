@@ -54,8 +54,8 @@ def validate(
 ) -> dict[str, Any]:
     root = object_value(result, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2, 3, 4, 5, 6, 7):
-        raise EvidenceError("schemaVersion must be 1, 2, 3, 4, 5, 6, or 7")
+    if schema not in (1, 2, 3, 4, 5, 6, 7, 8):
+        raise EvidenceError("schemaVersion must be 1, 2, 3, 4, 5, 6, 7, or 8")
     if root.get("benchmark") != "java-v2-gateway-messaging":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != "loopback development evidence; not a capacity claim":
@@ -106,7 +106,7 @@ def validate(
         raise EvidenceError("schema 1 requires exactly one receiver")
     if schema == 2 and (receivers < 2 or scenario.get("conversationKind") != "GROUP"):
         raise EvidenceError("schema 2 requires a multi-receiver group")
-    if schema == 3 and receivers > 1 and scenario.get("conversationKind") != "GROUP":
+    if schema in (3, 8) and receivers > 1 and scenario.get("conversationKind") != "GROUP":
         raise EvidenceError("multi-receiver reconnect evidence requires GROUP identity")
     if schema == 4 and (receivers < 2 or scenario.get("conversationKind") != "GROUP"):
         raise EvidenceError("slow-consumer evidence requires a multi-receiver group")
@@ -195,7 +195,7 @@ def validate(
         raise EvidenceError("errors must be zero")
     if receivers > 1 and results.get("peerPublications") != messages * receivers:
         raise EvidenceError("group peer publication count is invalid")
-    if schema == 3:
+    if schema in (3, 8):
         rounds = integer(scenario.get("reconnectRounds"), "reconnectRounds", 1)
         if rounds > 20:
             raise EvidenceError("reconnectRounds exceeds the bounded scenario")
@@ -221,6 +221,41 @@ def validate(
                "sessionResumeThroughputPerSecond", positive=True)
         if results.get("resumeErrors") != 0:
             raise EvidenceError("resumeErrors must be zero")
+        if schema == 8:
+            connections = receivers + 1
+            batch_size = integer(
+                scenario.get("reconnectBatchSize"), "reconnectBatchSize", 1)
+            if batch_size >= connections:
+                raise EvidenceError("paced reconnect requires at least two batches")
+            interval = integer(
+                scenario.get("reconnectBatchIntervalMillis"),
+                "reconnectBatchIntervalMillis", 1)
+            if interval > 5_000:
+                raise EvidenceError("reconnect batch interval exceeds the bounded scenario")
+            batches = (connections + batch_size - 1) // batch_size
+            if scenario.get("reconnectBatchesPerRound") != batches:
+                raise EvidenceError("reconnect batch count is invalid")
+            if scenario.get("scheduledReconnectSpanMillis") != (batches - 1) * interval:
+                raise EvidenceError("scheduled reconnect span is invalid")
+            expected_batch_rate = round(1000.0 / interval, 3)
+            if scenario.get("scheduledReconnectBatchRatePerSecond") != expected_batch_rate:
+                raise EvidenceError("scheduled reconnect batch rate is invalid")
+            jitter = object_value(
+                results.get("sessionResumeArrivalJitterMicros"),
+                "sessionResumeArrivalJitterMicros")
+            if jitter.get("samples") != operations:
+                raise EvidenceError("session resume arrival jitter sample count is invalid")
+            ordered = [
+                number(jitter.get(field),
+                       f"sessionResumeArrivalJitterMicros.{field}", positive=True)
+                for field in ("min", "p50", "p95", "p99", "max")
+            ]
+            if ordered != sorted(ordered):
+                raise EvidenceError("session resume arrival jitter is not monotonic")
+            jitter_mean = number(
+                jitter.get("mean"), "sessionResumeArrivalJitterMicros.mean", positive=True)
+            if jitter_mean < ordered[0] or jitter_mean > ordered[-1]:
+                raise EvidenceError("session resume arrival jitter mean is out of range")
     if schema == 4:
         slow_distribution = object_value(
             results.get("slowConsumerHealthyPublishLatencyMicros"),

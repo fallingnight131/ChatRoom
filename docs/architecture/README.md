@@ -2060,6 +2060,11 @@ gateway and original authenticated WSS connection remain alive; liveness stays
 one durable sequence after recovery. Many-conversation, controlled
 reconnect-rate, portable socket-backlog, and longer saturation scenarios remain
 before an M5 topology ADR.
+Controlled reconnect mode schedules real session resumes in explicit batches
+from a monotonic clock and records both resume latency and launch jitter while
+preserving the production authentication admission window. It provides inputs
+for future client backoff and gateway drain policy; it is not itself a safe
+fleet reconnect rate.
 
 ## 15. Explicit Non-goals
 

@@ -84,6 +84,23 @@ def valid_reconnect_result() -> dict:
     return result
 
 
+def valid_paced_reconnect_result() -> dict:
+    result = valid_reconnect_result()
+    result["schemaVersion"] = 8
+    result["scenario"].update({
+        "reconnectBatchSize": 2,
+        "reconnectBatchIntervalMillis": 100,
+        "reconnectBatchesPerRound": 3,
+        "scheduledReconnectSpanMillis": 200,
+        "scheduledReconnectBatchRatePerSecond": 10.0,
+    })
+    result["results"]["sessionResumeArrivalJitterMicros"] = {
+        "samples": 10, "min": 1, "p50": 2, "p95": 3,
+        "p99": 4, "max": 5, "mean": 2.5,
+    }
+    return result
+
+
 def valid_slow_consumer_result() -> dict:
     result = valid_group_result()
     result["schemaVersion"] = 4
@@ -204,6 +221,8 @@ class GatewayPerformanceEvidenceTest(unittest.TestCase):
             valid_postgres_outage_result(), REVISION, require_clean=True)["schemaVersion"])
         self.assertEqual(7, validate(
             valid_active_conversations_result(), REVISION, require_clean=True)["schemaVersion"])
+        self.assertEqual(8, validate(
+            valid_paced_reconnect_result(), REVISION, require_clean=True)["schemaVersion"])
 
     def test_rejects_semantic_mismatch_and_secret_content(self) -> None:
         mutations = []
@@ -262,6 +281,9 @@ class GatewayPerformanceEvidenceTest(unittest.TestCase):
         wrong_subscriptions = valid_active_conversations_result()
         wrong_subscriptions["scenario"]["routingSubscriptions"] = 7
         mutations.append(wrong_subscriptions)
+        wrong_reconnect_batches = valid_paced_reconnect_result()
+        wrong_reconnect_batches["scenario"]["reconnectBatchesPerRound"] = 2
+        mutations.append(wrong_reconnect_batches)
         for mutation in mutations:
             with self.subTest(mutation=mutation):
                 with self.assertRaises(EvidenceError):

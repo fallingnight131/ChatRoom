@@ -114,6 +114,23 @@ safe production reconnect rate. Stale-token rejection remains a correctness
 gate in the session integration tests rather than a successful-resume latency
 sample.
 
+To measure a controlled arrival curve, combine reconnect rounds with
+`--java-gateway-performance-reconnect-batch-size B` and
+`--java-gateway-performance-reconnect-batch-interval-millis I`. Both values
+must be positive, `B` must produce at least two batches, and `I` is bounded to
+5,000 ms. Every round closes all existing sockets, then schedules batches from
+one monotonic clock at `I` millisecond intervals. Each operation still performs
+real TLS/WSS negotiation and `RESUME_SESSION` with exact identity and token
+rotation; no production limiter, timeout, or worker count is changed.
+
+Schema 8 records the batch size, interval, batches per round, scheduled span,
+scheduled batch rate, actual start-time jitter, resume latency/throughput, and
+errors. Scheduling jitter is essential: a configured batch rate is an input,
+not proof that the host launched every connection at an exact instant. The same
+`(connections * (rounds + 1)) <= 60` admission-window boundary remains in
+force. These curves can guide a future client jitter/backoff and graceful-drain
+policy, but one loopback run is not a safe fleet reconnect rate.
+
 Set `--java-gateway-performance-slow-consumer-max-messages M` (`1 <= M <= 100`)
 with at least two receivers to run the separate schema-4 slow-consumer scenario.
 The last caught-up receiver stops requesting WebSocket messages while the
@@ -231,6 +248,10 @@ Schema 7 requires 2–100 active GROUP conversations, evenly distributed
 operations, exact membership and routing-subscription counts, one activation
 sample per receiver, exact all-peer publications, and identical independently
 reconciled durable counts per conversation.
+Schema 8 retains every schema-3 resume invariant and additionally requires at
+least two scheduled batches, a bounded positive interval, exact batch count and
+scheduled span/rate, one positive arrival-jitter sample per resume, and zero
+resume errors.
 
 Results also carry `worktreeDirty`. CI requires a clean tree and exact workflow
 revision. A dirty local result remains useful for development comparison but is

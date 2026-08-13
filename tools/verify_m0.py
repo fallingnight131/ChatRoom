@@ -80,6 +80,9 @@ def verify_java_gateway_performance(args: argparse.Namespace, output: Path) -> N
         "--receivers", str(args.java_gateway_performance_receivers),
         "--active-conversations", str(args.java_gateway_performance_active_conversations),
         "--reconnect-rounds", str(args.java_gateway_performance_reconnect_rounds),
+        "--reconnect-batch-size", str(args.java_gateway_performance_reconnect_batch_size),
+        "--reconnect-batch-interval-millis",
+        str(args.java_gateway_performance_reconnect_batch_interval_millis),
         "--slow-consumer-max-messages",
         str(args.java_gateway_performance_slow_consumer_max_messages),
         "--postgres-saturation-senders",
@@ -574,6 +577,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--java-gateway-performance-receivers", type=int, default=1)
     parser.add_argument("--java-gateway-performance-active-conversations", type=int, default=1)
     parser.add_argument("--java-gateway-performance-reconnect-rounds", type=int, default=0)
+    parser.add_argument("--java-gateway-performance-reconnect-batch-size", type=int, default=0)
+    parser.add_argument(
+        "--java-gateway-performance-reconnect-batch-interval-millis", type=int, default=0)
     parser.add_argument(
         "--java-gateway-performance-slow-consumer-max-messages", type=int, default=0)
     parser.add_argument(

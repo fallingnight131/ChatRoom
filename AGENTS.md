@@ -181,7 +181,9 @@ Run what applies to the touched scope:
   disposable-PostgreSQL stop/start, liveness/readiness, and original-WSS retry
   scenario; use `--java-gateway-performance-active-conversations` for the
   separate bounded multi-GROUP subscription and per-conversation sequence
-  scenario;
+  scenario; combine `--java-gateway-performance-reconnect-batch-size` and
+  `--java-gateway-performance-reconnect-batch-interval-millis` with reconnect
+  rounds for the separate controlled-arrival resume scenario;
   none is a production-capacity claim.
 - PostgreSQL: use `python3 tools/verify_m0.py --postgres` for clean migration,
   same-database restart, checksum, and core constraint verification.

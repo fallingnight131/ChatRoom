@@ -154,6 +154,8 @@ def executable_arguments(
         "--receivers", str(args.receivers),
         "--active-conversations", str(args.active_conversations),
         "--reconnect-rounds", str(args.reconnect_rounds),
+        "--reconnect-batch-size", str(args.reconnect_batch_size),
+        "--reconnect-batch-interval-millis", str(args.reconnect_batch_interval_millis),
         "--slow-consumer-max-messages", str(args.slow_consumer_max_messages),
         "--postgres-saturation-senders", str(args.postgres_saturation_senders),
         "--postgres-outage", "1" if args.postgres_outage else "0",
@@ -170,6 +172,7 @@ def require_boundary_rejections(
         unused = Path(name) / "unused.json"
         boundary = argparse.Namespace(
             warmup=0, messages=1, payload_bytes=1, receivers=1, reconnect_rounds=0,
+            reconnect_batch_size=0, reconnect_batch_interval_millis=0,
             slow_consumer_max_messages=0, postgres_saturation_senders=0,
             postgres_outage=False, active_conversations=1)
         arguments = executable_arguments(
@@ -196,6 +199,21 @@ def require_boundary_rejections(
             raise RuntimeError("gateway baseline did not reject remote PostgreSQL")
         if unused.exists():
             raise RuntimeError("rejected gateway boundary wrote an output file")
+        boundary.reconnect_batch_size = 1
+        boundary.reconnect_batch_interval_millis = 50
+        invalid_pacing_arguments = executable_arguments(
+            executable, "jdbc:postgresql://127.0.0.1:5432/chat",
+            certificate, private_key, 9443, 9090, unused, Path(name), boundary)
+        invalid_pacing = subprocess.run(
+            invalid_pacing_arguments, cwd=BACKEND, env=environment,
+            capture_output=True, text=True, check=False
+        )
+        if (invalid_pacing.returncode == 0
+                or "paced reconnect requires rounds and at least two batches"
+                not in invalid_pacing.stderr):
+            raise RuntimeError("gateway baseline accepted pacing without reconnect rounds")
+        if unused.exists():
+            raise RuntimeError("rejected reconnect pacing wrote an output file")
 
 
 def parser() -> argparse.ArgumentParser:
@@ -207,6 +225,8 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--receivers", type=int, default=1)
     value.add_argument("--active-conversations", type=int, default=1)
     value.add_argument("--reconnect-rounds", type=int, default=0)
+    value.add_argument("--reconnect-batch-size", type=int, default=0)
+    value.add_argument("--reconnect-batch-interval-millis", type=int, default=0)
     value.add_argument("--slow-consumer-max-messages", type=int, default=0)
     value.add_argument("--postgres-saturation-senders", type=int, default=0)
     value.add_argument("--postgres-outage", action="store_true")

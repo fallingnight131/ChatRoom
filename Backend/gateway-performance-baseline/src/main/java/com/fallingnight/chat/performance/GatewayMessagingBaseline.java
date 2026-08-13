@@ -61,6 +61,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -283,11 +285,14 @@ public final class GatewayMessagingBaseline {
         List<ClientConnection> current = List.copyOf(initial);
         List<Long> latencies = new ArrayList<>(
                 current.size() * configuration.reconnectRounds());
+        List<Long> arrivalJitterMicros = new ArrayList<>(
+                current.size() * configuration.reconnectRounds());
         long measuredStart = System.nanoTime();
         for (int round = 0; round < configuration.reconnectRounds(); ++round) {
             for (ClientConnection connection : current) connection.close();
             CountDownLatch ready = new CountDownLatch(current.size());
             CountDownLatch start = new CountDownLatch(1);
+            AtomicLong roundStart = new AtomicLong();
             List<Future<ResumeAttempt>> futures = new ArrayList<>(current.size());
             try (ExecutorService executor = Executors.newFixedThreadPool(current.size())) {
                 for (int index = 0; index < current.size(); ++index) {
@@ -296,27 +301,45 @@ public final class GatewayMessagingBaseline {
                     futures.add(executor.submit(() -> {
                         ready.countDown();
                         start.await();
+                        int batch = configuration.reconnectBatchSize() == 0
+                                ? 0 : position / configuration.reconnectBatchSize();
+                        long scheduledOffsetNanos = TimeUnit.MILLISECONDS.toNanos(
+                                (long) batch * configuration.reconnectBatchIntervalMillis());
+                        waitUntil(roundStart.get() + scheduledOffsetNanos);
                         long started = System.nanoTime();
                         ClientConnection resumed = connectAndResume(configuration, previous);
-                        return new ResumeAttempt(position, resumed, elapsedMicros(started));
+                        long jitterMicros = Math.max(1L, TimeUnit.NANOSECONDS.toMicros(
+                                Math.abs(started - roundStart.get() - scheduledOffsetNanos)));
+                        return new ResumeAttempt(
+                                position, resumed, elapsedMicros(started), jitterMicros);
                     }));
                 }
                 if (!ready.await(10, TimeUnit.SECONDS)) {
                     throw new IllegalStateException("reconnect workers did not become ready");
                 }
+                roundStart.set(System.nanoTime());
                 start.countDown();
                 List<ResumeAttempt> attempts = new ArrayList<>(current.size());
                 for (Future<ResumeAttempt> future : futures) attempts.add(get(future));
                 attempts.sort(java.util.Comparator.comparingInt(ResumeAttempt::position));
                 current = attempts.stream().map(ResumeAttempt::connection).toList();
                 attempts.forEach(attempt -> latencies.add(attempt.latencyMicros()));
+                attempts.forEach(attempt -> arrivalJitterMicros.add(
+                        attempt.arrivalJitterMicros()));
             } catch (Exception exception) {
                 closeCompletedReconnects(futures);
                 throw exception;
             }
         }
         return new ReconnectResult(current, List.copyOf(latencies),
-                System.nanoTime() - measuredStart, 0);
+                List.copyOf(arrivalJitterMicros), System.nanoTime() - measuredStart, 0);
+    }
+
+    private static void waitUntil(long deadlineNanos) {
+        long remaining;
+        while ((remaining = deadlineNanos - System.nanoTime()) > 0) {
+            LockSupport.parkNanos(remaining);
+        }
     }
 
     private static void closeCompletedReconnects(List<Future<ResumeAttempt>> futures) {
@@ -1026,9 +1049,12 @@ public final class GatewayMessagingBaseline {
             boolean saturationMeasured = configuration.postgresSaturationSenders() > 0;
             boolean outageMeasured = configuration.postgresOutage();
             boolean activeConversationsMeasured = configuration.activeConversations() > 1;
-            json.writeNumberField("schemaVersion", activeConversationsMeasured
-                    ? 7 : (outageMeasured ? 6 : (saturationMeasured ? 5 : (slowConsumerMeasured
-                            ? 4 : (reconnectMeasured ? 3 : (group ? 2 : 1))))));
+            boolean pacedReconnectMeasured = configuration.reconnectBatchSize() > 0;
+            json.writeNumberField("schemaVersion", pacedReconnectMeasured
+                    ? 8 : (activeConversationsMeasured
+                            ? 7 : (outageMeasured ? 6 : (saturationMeasured ? 5
+                                    : (slowConsumerMeasured ? 4
+                                            : (reconnectMeasured ? 3 : (group ? 2 : 1)))))));
             json.writeStringField("benchmark", "java-v2-gateway-messaging");
             json.writeStringField("startedAt", startedAt.toString());
             json.writeStringField("warning", "loopback development evidence; not a capacity claim");
@@ -1068,6 +1094,21 @@ public final class GatewayMessagingBaseline {
             if (reconnectMeasured) {
                 json.writeNumberField("reconnectRounds", configuration.reconnectRounds());
                 json.writeNumberField("reconnectOperations", reconnect.latencyMicros().size());
+                if (pacedReconnectMeasured) {
+                    int connections = configuration.receivers() + 1;
+                    int batches = (connections + configuration.reconnectBatchSize() - 1)
+                            / configuration.reconnectBatchSize();
+                    json.writeNumberField("reconnectBatchSize",
+                            configuration.reconnectBatchSize());
+                    json.writeNumberField("reconnectBatchIntervalMillis",
+                            configuration.reconnectBatchIntervalMillis());
+                    json.writeNumberField("reconnectBatchesPerRound", batches);
+                    json.writeNumberField("scheduledReconnectSpanMillis",
+                            (long) (batches - 1)
+                                    * configuration.reconnectBatchIntervalMillis());
+                    json.writeNumberField("scheduledReconnectBatchRatePerSecond",
+                            round(1000.0 / configuration.reconnectBatchIntervalMillis()));
+                }
             }
             if (slowConsumerMeasured) {
                 json.writeNumberField(
@@ -1110,6 +1151,10 @@ public final class GatewayMessagingBaseline {
                 json.writeNumberField("sessionResumeThroughputPerSecond",
                         throughput(reconnect.latencyMicros().size(), reconnect.elapsedNanos()));
                 json.writeNumberField("resumeErrors", reconnect.errors());
+                if (pacedReconnectMeasured) {
+                    distribution(json, "sessionResumeArrivalJitterMicros",
+                            reconnect.arrivalJitterMicros());
+                }
             }
             if (slowConsumerMeasured) {
                 distribution(json, "slowConsumerHealthyPublishLatencyMicros",
@@ -1229,17 +1274,20 @@ public final class GatewayMessagingBaseline {
 
     private record TimedRoundTrip(long acknowledgementMicros, long fanoutMicros) {}
 
-    private record ResumeAttempt(int position, ClientConnection connection, long latencyMicros) {}
+    private record ResumeAttempt(
+            int position, ClientConnection connection, long latencyMicros,
+            long arrivalJitterMicros) {}
 
     private record ReconnectResult(
             List<ClientConnection> connections, List<Long> latencyMicros,
-            long elapsedNanos, int errors) {
+            List<Long> arrivalJitterMicros, long elapsedNanos, int errors) {
         private static final ReconnectResult NONE =
-                new ReconnectResult(List.of(), List.of(), 0, 0);
+                new ReconnectResult(List.of(), List.of(), List.of(), 0, 0);
 
         private ReconnectResult {
             connections = List.copyOf(connections);
             latencyMicros = List.copyOf(latencyMicros);
+            arrivalJitterMicros = List.copyOf(arrivalJitterMicros);
         }
     }
 
@@ -1378,6 +1426,7 @@ public final class GatewayMessagingBaseline {
             Path certificate, Path privateKey, int gatewayPort, int adminPort,
             Path output, int warmupOperations, int messageOperations,
             int payloadBytes, int receivers, int activeConversations, int reconnectRounds,
+            int reconnectBatchSize, int reconnectBatchIntervalMillis,
             int slowConsumerMaxMessages, int postgresSaturationSenders,
             boolean postgresOutage, Path postgresOutageControlDir) {
         private Configuration {
@@ -1405,6 +1454,8 @@ public final class GatewayMessagingBaseline {
             bounded("receivers", receivers, 1, 59);
             bounded("active conversations", activeConversations, 1, 100);
             bounded("reconnect rounds", reconnectRounds, 0, 20);
+            bounded("reconnect batch size", reconnectBatchSize, 0, 59);
+            bounded("reconnect batch interval millis", reconnectBatchIntervalMillis, 0, 5_000);
             bounded("slow consumer max messages", slowConsumerMaxMessages, 0, 100);
             bounded("PostgreSQL saturation senders", postgresSaturationSenders, 0, 16);
             if (postgresSaturationSenders == 1) {
@@ -1418,6 +1469,15 @@ public final class GatewayMessagingBaseline {
             if (slowConsumerMaxMessages > 0 && reconnectRounds > 0) {
                 throw new IllegalArgumentException(
                         "slow consumer and reconnect scenarios must be measured separately");
+            }
+            if ((reconnectBatchSize == 0) != (reconnectBatchIntervalMillis == 0)) {
+                throw new IllegalArgumentException(
+                        "reconnect batch size and interval must both be zero or positive");
+            }
+            if (reconnectBatchSize > 0 && (reconnectRounds == 0
+                    || reconnectBatchSize >= receivers + 1)) {
+                throw new IllegalArgumentException(
+                        "paced reconnect requires rounds and at least two batches");
             }
             if (postgresSaturationSenders > 0
                     && (slowConsumerMaxMessages > 0 || reconnectRounds > 0)) {
@@ -1465,7 +1525,8 @@ public final class GatewayMessagingBaseline {
                     "--private-key", "--gateway-port", "--admin-port", "--output",
                     "--warmup", "--messages", "--payload-bytes", "--receivers",
                     "--active-conversations",
-                    "--reconnect-rounds", "--slow-consumer-max-messages",
+                    "--reconnect-rounds", "--reconnect-batch-size",
+                    "--reconnect-batch-interval-millis", "--slow-consumer-max-messages",
                     "--postgres-saturation-senders", "--postgres-outage",
                     "--postgres-outage-control-dir");
             if (!values.keySet().equals(expected)) {
@@ -1485,6 +1546,8 @@ public final class GatewayMessagingBaseline {
                         Integer.parseInt(values.get("--receivers")),
                         Integer.parseInt(values.get("--active-conversations")),
                         Integer.parseInt(values.get("--reconnect-rounds")),
+                        Integer.parseInt(values.get("--reconnect-batch-size")),
+                        Integer.parseInt(values.get("--reconnect-batch-interval-millis")),
                         Integer.parseInt(values.get("--slow-consumer-max-messages")),
                         Integer.parseInt(values.get("--postgres-saturation-senders")),
                         parseBoolean(values.get("--postgres-outage")),

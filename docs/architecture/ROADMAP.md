@@ -1351,6 +1351,12 @@ Progress:
   WSS connections, 4,000 exact publications, all-peer P95 2.405 ms, continuous
   durability, and zero errors; no current single-gateway fan-out evidence
   justifies a broker.
+- [x] Add a schema-8 controlled reconnect-arrival scenario with explicit batch
+  size/interval, fixed scheduled span/rate, measured scheduling jitter, exact
+  session/account/device identity, token rotation, default admission-window
+  preservation, and zero-error evidence while preserving schema 1–7.
+- [ ] Record clean controlled reconnect-rate curves and use them to define
+  client backoff and rolling-drain defaults.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.
