@@ -174,7 +174,8 @@ Run what applies to the touched scope:
   GROUP fan-out and `--java-gateway-performance-reconnect-rounds` for bounded
   concurrent same-session resume. Use
   `--java-gateway-performance-slow-consumer-max-messages` only with at least two
-  receivers to verify real-socket slow-consumer isolation and history repair;
+  receivers to verify real-socket slow-consumer isolation, a positive
+  bytes-before-writable observation, and history repair;
   use `--java-gateway-performance-postgres-saturation-senders` for the separate
   disposable-database pool-saturation/readiness/idempotent-retry scenario; use
   `--java-gateway-performance-postgres-outage` for the mutually exclusive real

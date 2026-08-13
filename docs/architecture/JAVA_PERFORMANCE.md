@@ -132,7 +132,10 @@ force. These curves can guide a future client jitter/backoff and graceful-drain
 policy, but one loopback run is not a safe fleet reconnect rate.
 
 Set `--java-gateway-performance-slow-consumer-max-messages M` (`1 <= M <= 100`)
-with at least two receivers to run the separate schema-4 slow-consumer scenario.
+with at least two receivers to run the separate schema-9 slow-consumer scenario.
+Historical schema-4 evidence remains valid; schema 9 adds a mandatory positive
+`slowConsumerMaximumBytesBeforeWritable` value sampled from the production
+close path.
 The last caught-up receiver stops requesting WebSocket messages while the
 sender continues durable submissions and every other receiver must consume each
 live publication. The scenario polls the production fixed-cardinality
@@ -252,6 +255,10 @@ Schema 8 retains every schema-3 resume invariant and additionally requires at
 least two scheduled batches, a bounded positive interval, exact batch count and
 scheduled span/rate, one positive arrival-jitter sample per resume, and zero
 resume errors.
+Schema 9 retains every schema-4 slow-consumer invariant and additionally
+requires a positive aggregate byte count that the unwritable channel reported
+must drain before becoming writable. The value is not total pending bytes or a
+capacity threshold.
 
 Results also carry `worktreeDirty`. CI requires a clean tree and exact workflow
 revision. A dirty local result remains useful for development comparison but is
@@ -269,7 +276,8 @@ Before selecting distributed infrastructure, extend the harness in this order:
 1. many conversations and large active groups;
 2. broaden bounded session-resume evidence into controlled reconnect-rate and
    network-failure scenarios;
-3. extend slow-consumer evidence with portable pending-byte/backlog observation;
+3. compare schema-9 slow-consumer drain-byte observations across supported
+   deployment hosts and real network conditions;
 4. extend PostgreSQL evidence with longer pool-contention and repeated
    stop/start recovery curves;
 5. two gateways, only after an ADR defines reconstructable routing/presence

@@ -392,6 +392,13 @@ public final class GatewayMessagingBaseline {
             throw new IllegalStateException(
                     "slow consumer did not cross the production write watermark");
         }
+        long maximumBytesBeforeWritable = scalarMetric(
+                configuration,
+                "chat_gateway_messaging_slow_consumer_maximum_bytes_before_writable");
+        if (maximumBytesBeforeWritable <= 0) {
+            throw new IllegalStateException(
+                    "slow consumer closure did not expose positive drain bytes");
+        }
 
         slow.close();
         ClientConnection recovered = connectAndResume(configuration, slow);
@@ -406,7 +413,7 @@ public final class GatewayMessagingBaseline {
                     configuration.payloadBytes(), initialSequence + sent + 1L);
             return new SlowConsumerResult(
                     recovered, sent, List.copyOf(healthyLatencies),
-                    probe.fanoutMicros(), closures);
+                    probe.fanoutMicros(), closures, maximumBytesBeforeWritable);
         } catch (Exception exception) {
             recovered.close();
             throw exception;
@@ -1050,11 +1057,14 @@ public final class GatewayMessagingBaseline {
             boolean outageMeasured = configuration.postgresOutage();
             boolean activeConversationsMeasured = configuration.activeConversations() > 1;
             boolean pacedReconnectMeasured = configuration.reconnectBatchSize() > 0;
-            json.writeNumberField("schemaVersion", pacedReconnectMeasured
-                    ? 8 : (activeConversationsMeasured
-                            ? 7 : (outageMeasured ? 6 : (saturationMeasured ? 5
-                                    : (slowConsumerMeasured ? 4
-                                            : (reconnectMeasured ? 3 : (group ? 2 : 1)))))));
+            int schemaVersion = slowConsumerMeasured ? 9
+                    : (pacedReconnectMeasured ? 8
+                            : (activeConversationsMeasured ? 7
+                                    : (outageMeasured ? 6
+                                            : (saturationMeasured ? 5
+                                                    : (reconnectMeasured ? 3
+                                                            : (group ? 2 : 1))))));
+            json.writeNumberField("schemaVersion", schemaVersion);
             json.writeStringField("benchmark", "java-v2-gateway-messaging");
             json.writeStringField("startedAt", startedAt.toString());
             json.writeStringField("warning", "loopback development evidence; not a capacity claim");
@@ -1167,6 +1177,9 @@ public final class GatewayMessagingBaseline {
                 json.writeNumberField("slowConsumerRecoveredHistoryMessages",
                         slowConsumer.messagesBeforeClosure());
                 json.writeNumberField("slowConsumerClosed", slowConsumer.closures());
+                json.writeNumberField(
+                        "slowConsumerMaximumBytesBeforeWritable",
+                        slowConsumer.maximumBytesBeforeWritable());
                 json.writeNumberField("slowConsumerErrors", 0);
             }
             if (saturationMeasured) {
@@ -1296,9 +1309,10 @@ public final class GatewayMessagingBaseline {
             int messagesBeforeClosure,
             List<Long> healthyPublishLatencyMicros,
             long recoveryProbeLatencyMicros,
-            long closures) {
+            long closures,
+            long maximumBytesBeforeWritable) {
         private static final SlowConsumerResult NONE =
-                new SlowConsumerResult(null, 0, List.of(), 0, 0);
+                new SlowConsumerResult(null, 0, List.of(), 0, 0, 0);
 
         private SlowConsumerResult {
             healthyPublishLatencyMicros = List.copyOf(healthyPublishLatencyMicros);

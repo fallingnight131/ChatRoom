@@ -1375,6 +1375,10 @@ Progress:
   process maximum bytes an unwritable channel must drain before becoming
   writable, sampled at the existing close decision without identity labels or
   internal Netty buffer access (ADR-0347).
+- [x] Upgrade new real TLS slow-consumer evidence to schema 9, requiring a
+  positive production drain-byte observation while preserving historical
+  schema-4 validation, exact healthy-peer delivery, session resume, bounded
+  history repair, and the post-recovery live probe.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.

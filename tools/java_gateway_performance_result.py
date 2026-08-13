@@ -54,8 +54,8 @@ def validate(
 ) -> dict[str, Any]:
     root = object_value(result, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2, 3, 4, 5, 6, 7, 8):
-        raise EvidenceError("schemaVersion must be 1, 2, 3, 4, 5, 6, 7, or 8")
+    if schema not in (1, 2, 3, 4, 5, 6, 7, 8, 9):
+        raise EvidenceError("schemaVersion must be between 1 and 9")
     if root.get("benchmark") != "java-v2-gateway-messaging":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != "loopback development evidence; not a capacity claim":
@@ -108,7 +108,7 @@ def validate(
         raise EvidenceError("schema 2 requires a multi-receiver group")
     if schema in (3, 8) and receivers > 1 and scenario.get("conversationKind") != "GROUP":
         raise EvidenceError("multi-receiver reconnect evidence requires GROUP identity")
-    if schema == 4 and (receivers < 2 or scenario.get("conversationKind") != "GROUP"):
+    if schema in (4, 9) and (receivers < 2 or scenario.get("conversationKind") != "GROUP"):
         raise EvidenceError("slow-consumer evidence requires a multi-receiver group")
     if schema == 5 and scenario.get("conversationKind") != "GROUP":
         raise EvidenceError("PostgreSQL saturation evidence requires GROUP identity")
@@ -122,7 +122,7 @@ def validate(
     if payload_bytes > 65_536:
         raise EvidenceError("payloadBytes exceeds the UTF-8 text messaging limit")
     slow_messages = 0
-    if schema == 4:
+    if schema in (4, 9):
         slow_max = integer(
             scenario.get("slowConsumerMaxMessages"), "slowConsumerMaxMessages", 1)
         if slow_max > 100:
@@ -134,7 +134,7 @@ def validate(
             raise EvidenceError("slow consumer closure exceeded the configured message bound")
         if scenario.get("slowConsumerHealthyReceivers") != receivers - 1:
             raise EvidenceError("slow consumer healthy receiver count is invalid")
-    expected_durable = (warmup + messages + (slow_messages + 1 if schema == 4 else 0)
+    expected_durable = (warmup + messages + (slow_messages + 1 if schema in (4, 9) else 0)
                         + saturation_senders + (1 if schema == 6 else 0))
     if scenario.get("durableMessages") != expected_durable:
         raise EvidenceError("durable message reconciliation is invalid")
@@ -256,7 +256,7 @@ def validate(
                 jitter.get("mean"), "sessionResumeArrivalJitterMicros.mean", positive=True)
             if jitter_mean < ordered[0] or jitter_mean > ordered[-1]:
                 raise EvidenceError("session resume arrival jitter mean is out of range")
-    if schema == 4:
+    if schema in (4, 9):
         slow_distribution = object_value(
             results.get("slowConsumerHealthyPublishLatencyMicros"),
             "slowConsumerHealthyPublishLatencyMicros")
@@ -286,6 +286,10 @@ def validate(
             raise EvidenceError("slow consumer recovered history count is invalid")
         if results.get("slowConsumerClosed") != 1:
             raise EvidenceError("slow consumer closure count must be exactly one")
+        if schema == 9:
+            integer(
+                results.get("slowConsumerMaximumBytesBeforeWritable"),
+                "slowConsumerMaximumBytesBeforeWritable", 1)
         if results.get("slowConsumerErrors") != 0:
             raise EvidenceError("slowConsumerErrors must be zero")
     if schema == 5:

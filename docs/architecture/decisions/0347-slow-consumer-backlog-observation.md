@@ -51,11 +51,10 @@ replace sequence-history repair.
 - router tests cover unwritable closure and result invariants;
 - handler tests retain publication/closure accounting across every event type;
 - admin tests prove the fixed gauge and absence of identity labels;
-- the next slow-consumer evidence schema must require a positive real-socket
-  observation while preserving all schema-4 recovery guarantees.
+- schema-9 slow-consumer evidence requires a positive real-socket observation
+  while preserving all historical schema-4 recovery guarantees.
 
 ## Rollback
 
 Remove the result field, accumulator, and gauge. The existing unwritable close,
 counter, durable history, and client recovery behavior are unchanged.
-
