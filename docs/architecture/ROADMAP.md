@@ -705,6 +705,13 @@ Progress:
     malformed-frame closure, and explicit saturation handling.
   - [x] Compose V1 room rename and prove changed-only notification suppression
     plus replacement-login directory recovery through real PostgreSQL.
+  - [x] Define secure V1 room-password status and mutation contracts with
+    clearable plaintext ownership, shared Argon2id encoding, opaque keyed retry
+    tags, administrator authorization, and changed-only room effects.
+  - [ ] Expand canonical credentials with retry tags and implement serializable
+    PostgreSQL status/set/replace/cancel convergence with real join verification.
+  - [ ] Add and compose strict detached password status/mutation handlers, then
+    prove secret-safe compatibility and relogin recovery through PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
