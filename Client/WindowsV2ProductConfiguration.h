@@ -7,6 +7,7 @@ class WindowsV2ProductConfiguration final {
 public:
     struct Value {
         bool enabled = false;
+        bool messageForwardingEnabled = false;
         QUrl endpoint;
         QString error;
     };

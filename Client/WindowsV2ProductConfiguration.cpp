@@ -30,6 +30,10 @@ WindowsV2ProductConfiguration::Value WindowsV2ProductConfiguration::fromBuild() 
 #elif !defined(CHAT_WINDOWS_V2_WSS_URL)
     return disabled(QStringLiteral("Windows V2 build configuration is incomplete"));
 #else
-    return validate(QStringLiteral(CHAT_WINDOWS_V2_WSS_URL));
+    Value value = validate(QStringLiteral(CHAT_WINDOWS_V2_WSS_URL));
+#ifdef CHAT_WINDOWS_V2_FORWARDING_ENABLED
+    value.messageForwardingEnabled = value.enabled;
+#endif
+    return value;
 #endif
 }

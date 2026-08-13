@@ -12,6 +12,8 @@ option(CHATROOM_ENABLE_WINDOWS_UPDATES
        "Compile reviewed public Windows update trust configuration" OFF)
 option(CHATROOM_ENABLE_WINDOWS_V2_PREVIEW
        "Compile the reviewed Windows V2 preview endpoint" OFF)
+option(CHATROOM_ENABLE_WINDOWS_V2_FORWARDING
+       "Compile the default-off Windows V2 message forwarding feature" OFF)
 set(CHATROOM_WINDOWS_V2_WSS_URL "" CACHE STRING "Exact Windows V2 WSS endpoint")
 set(CHATROOM_UPDATE_CHANNEL "" CACHE STRING "Windows update channel")
 set(CHATROOM_UPDATE_MANIFEST_URL "" CACHE STRING "Windows update manifest HTTPS URL")
@@ -39,6 +41,10 @@ endif()
 if(CHATROOM_ENABLE_WINDOWS_V2_PREVIEW AND NOT CHATROOM_BUILD_WINDOWS_CLIENT)
     message(FATAL_ERROR
         "CHATROOM_ENABLE_WINDOWS_V2_PREVIEW requires CHATROOM_BUILD_WINDOWS_CLIENT=ON")
+endif()
+if(CHATROOM_ENABLE_WINDOWS_V2_FORWARDING AND NOT CHATROOM_ENABLE_WINDOWS_V2_PREVIEW)
+    message(FATAL_ERROR
+        "CHATROOM_ENABLE_WINDOWS_V2_FORWARDING requires CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON")
 endif()
 
 if(CHATROOM_BUILD_HEADLESS_SERVER)
@@ -229,6 +235,11 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                     CHAT_WINDOWS_V2_CONFIGURATION_ENABLED=1
                     CHAT_WINDOWS_V2_WSS_URL="${CHATROOM_WINDOWS_V2_WSS_URL}"
             )
+        endif()
+        if(CHATROOM_ENABLE_WINDOWS_V2_FORWARDING)
+            target_compile_definitions(
+                chatroom_windows_v2_configuration
+                PRIVATE CHAT_WINDOWS_V2_FORWARDING_ENABLED=1)
         endif()
         set_target_properties(
             chatroom_client_local_data
@@ -799,6 +810,7 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             WindowsV2ProductConfigurationEnabledTest
             PRIVATE
                 CHAT_WINDOWS_V2_CONFIGURATION_ENABLED=1
+                CHAT_WINDOWS_V2_FORWARDING_ENABLED=1
                 CHAT_WINDOWS_V2_WSS_URL="wss://chat.example.test/v2/windows")
         target_link_libraries(
             WindowsV2ProductConfigurationEnabledTest PRIVATE Qt6::Core)

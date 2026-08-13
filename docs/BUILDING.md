@@ -1526,6 +1526,13 @@ the V2 runtime invalid. The same boolean is supplied to the protocol client and
 application service, preventing a UI/protocol half-activation. A Web candidate
 still succeeds only when the gateway independently enables and negotiates
 capability 5.
+Windows now has a separate CMake configuration seam,
+`CHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON`. It is rejected unless both the
+Windows client and `CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON` are selected. The
+compiled `WindowsV2ProductConfiguration` exposes the immutable boolean; default
+and ordinary preview builds keep it false. This slice does not yet pass the
+value into session negotiation, application service, or Widgets, so setting it
+alone cannot create a half-enabled product path.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic

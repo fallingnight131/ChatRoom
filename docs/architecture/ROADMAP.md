@@ -1636,6 +1636,9 @@ Progress:
       gateway composition root and WebSocket upgrade into that handshake seam.
     - [x] Add the strict default-off Web build gate that drives protocol
       capability request and application/UI activation from one validated value.
+    - [x] Add the independent default-off Windows CMake forwarding gate, require
+      the V2 preview build, and expose one immutable product-configuration value
+      without changing runtime negotiation yet.
 
 Candidate slices:
 

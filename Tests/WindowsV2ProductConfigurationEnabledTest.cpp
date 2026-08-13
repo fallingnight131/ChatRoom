@@ -6,7 +6,7 @@
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     const auto value = WindowsV2ProductConfiguration::fromBuild();
-    if (!value.enabled || !value.error.isEmpty()
+    if (!value.enabled || !value.messageForwardingEnabled || !value.error.isEmpty()
             || value.endpoint.toString()
                 != QStringLiteral("wss://chat.example.test/v2/windows")) {
         qCritical().noquote()

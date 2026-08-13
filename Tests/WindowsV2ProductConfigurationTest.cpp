@@ -17,9 +17,11 @@ int main(int argc, char *argv[]) {
     const auto valid = Configuration::validate(
         QStringLiteral("wss://chat.example.test/v2/windows"));
     if (!check(valid.enabled && valid.error.isEmpty()
+                   && !valid.messageForwardingEnabled
                    && valid.endpoint.host() == QStringLiteral("chat.example.test"),
                QStringLiteral("valid Windows V2 endpoint was rejected"))
             || !check(!Configuration::fromBuild().enabled
+                          && !Configuration::fromBuild().messageForwardingEnabled
                           && Configuration::fromBuild().error.isEmpty(),
                       QStringLiteral("default build enabled Windows V2"))) return 1;
 
