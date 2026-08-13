@@ -58,6 +58,7 @@ test("fails closed for incomplete or unsafe preview configuration", () => {
     { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WSS_URL: "ws://chat.example/v2/web" },
     { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WSS_URL: "wss://chat.example/socket" },
     { ...ENABLED_ENVIRONMENT, VITE_CHAT_APP_VERSION: "x".repeat(65) },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_MESSAGE_FORWARDING: "TRUE" },
   ];
   for (const environment of cases) {
     const runtime = createConfiguredV2Runtime(environment, { storage: null, createUuid: () => DEVICE_ID });
@@ -75,6 +76,17 @@ test("creates an inert enabled runtime and persists a stable non-secret device i
   assert.equal(runtime.enabled && runtime.deviceIdentity, "persistent");
   assert.equal(storage.values.get(V2_DEVICE_ID_STORAGE_KEY), DEVICE_ID);
   assert.equal(runtime.enabled && runtime.application.snapshot.connectionState, "idle");
+  assert.equal(runtime.enabled && runtime.application.snapshot.forwardingEnabled, false);
+  runtime.dispose();
+});
+
+test("activates forwarding only for the exact independent build flag", () => {
+  const runtime = createConfiguredV2Runtime({
+    ...ENABLED_ENVIRONMENT,
+    VITE_CHAT_V2_MESSAGE_FORWARDING: "true",
+  }, { storage: null, createUuid: () => DEVICE_ID });
+  assert.equal(runtime.enabled, true);
+  assert.equal(runtime.enabled && runtime.application.snapshot.forwardingEnabled, true);
   runtime.dispose();
 });
 

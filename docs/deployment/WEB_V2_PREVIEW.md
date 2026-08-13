@@ -1,15 +1,17 @@
 # Web V2 Preview Build and Rollback
 
-This is an M3 engineering-preview boundary, not a production cutover. The
+This is an engineering-preview boundary, not a production cutover. The
 supported Web product remains on V1 until migration, operator rehearsal,
 observability, UI, and release gates are explicitly accepted.
 
 ## Build Configuration
 
-The preview requires all three public, compile-time Vite values:
+The preview requires three public, compile-time Vite values. Message forwarding
+has a fourth independent, default-off value:
 
 ```bash
 VITE_CHAT_V2_PREVIEW=true \
+VITE_CHAT_V2_MESSAGE_FORWARDING=false \
 VITE_CHAT_V2_WSS_URL=wss://preview-chat.example.com/v2/web \
 VITE_CHAT_APP_VERSION=2.0.0-preview.1 \
 npm run build
@@ -17,6 +19,9 @@ npm run build
 
 - `VITE_CHAT_V2_PREVIEW` must be exactly `true`. Missing, empty, `false`, or any
   other spelling keeps V2 disabled.
+- `VITE_CHAT_V2_MESSAGE_FORWARDING` is optional and disabled when missing,
+  empty, or exactly `false`. Only exact `true` enables the application action
+  and requests capability 5; any other spelling invalidates the V2 runtime.
 - `VITE_CHAT_V2_WSS_URL` must use `wss`, contain no credentials/query/fragment,
   and end at the exact `/v2/web` route. It is independent of the user-editable
   V1 host/port settings.
@@ -56,6 +61,9 @@ Before serving preview assets:
    rejection through `/preview/v2` using non-production accounts.
 6. switch the browser offline and online; verify the UI reports offline without
    retry churn, then reconnects/resumes promptly without persisting the proof.
+7. for a forwarding-enabled candidate, verify the gateway independently has
+   `CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED=true`; test authorization,
+   rate-limit, offline replay, legacy-client downgrade, and disable either side.
 
 Rollback by redeploying the prior immutable asset version or a build without the
 exact preview flag, then invalidate the HTML entry point according to the Web

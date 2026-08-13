@@ -36,6 +36,14 @@ export function createConfiguredV2Runtime(
   }
   if (flag !== true && flag !== "true") return disabled("V2 preview flag is invalid");
 
+  const forwardingFlag = environment.VITE_CHAT_V2_MESSAGE_FORWARDING;
+  if (forwardingFlag !== undefined && forwardingFlag !== false
+      && forwardingFlag !== "false" && forwardingFlag !== true
+      && forwardingFlag !== "true" && forwardingFlag !== "") {
+    return disabled("V2 message forwarding flag is invalid");
+  }
+  const forwardingEnabled = forwardingFlag === true || forwardingFlag === "true";
+
   const endpoint = stringValue(environment.VITE_CHAT_V2_WSS_URL);
   const appVersion = stringValue(environment.VITE_CHAT_APP_VERSION);
   if (!endpoint) return disabled("V2 preview endpoint is missing");
@@ -54,12 +62,14 @@ export function createConfiguredV2Runtime(
         clientDeviceId: identity.deviceId,
         enableMessageEdits: true,
         enableMessageMentions: true,
+        enableMessageForwarding: forwardingEnabled,
       }),
     });
     const application = new V2WebChatApplication({
       transport,
       cache: conversationCache,
       onChange: options.onChange,
+      enableMessageForwarding: forwardingEnabled,
     });
     return {
       enabled: true,

@@ -1634,6 +1634,8 @@ Progress:
     - [x] Thread the strict default-false
       `CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED` product setting through the
       gateway composition root and WebSocket upgrade into that handshake seam.
+    - [x] Add the strict default-off Web build gate that drives protocol
+      capability request and application/UI activation from one validated value.
 
 Candidate slices:
 

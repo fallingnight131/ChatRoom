@@ -18,6 +18,11 @@ test('keeps an accessible forwarding picker behind the application capability ga
   ]) assert.ok(view.includes(marker), `missing V2 forward UI marker: ${marker}`)
 })
 
-test('does not activate forwarding in the Web V2 runtime composition yet', () => {
+test('activates Web forwarding only through one exact default-off build flag', () => {
+  for (const marker of [
+    'VITE_CHAT_V2_MESSAGE_FORWARDING',
+    'forwardingFlag === true || forwardingFlag === "true"',
+    'enableMessageForwarding: forwardingEnabled',
+  ]) assert.ok(runtime.includes(marker), `missing Web forwarding activation marker: ${marker}`)
   assert.equal(runtime.includes('enableMessageForwarding: true'), false)
 })

@@ -316,6 +316,7 @@ is a separate, default-off build configuration:
 ```bash
 cd WebClient
 VITE_CHAT_V2_PREVIEW=true \
+VITE_CHAT_V2_MESSAGE_FORWARDING=false \
 VITE_CHAT_V2_WSS_URL=wss://preview-chat.example.com/v2/web \
 VITE_CHAT_APP_VERSION=2.0.0-preview.1 \
 npm run build
@@ -1518,6 +1519,13 @@ Changing it requires a gateway restart; existing connections retain the
 capabilities negotiated for that connection, while new connections immediately
 follow the new policy. Client product paths remain off, so enabling only this
 server setting does not expose an authoring action.
+Web runtime composition now has its own exact build-time gate,
+`VITE_CHAT_V2_MESSAGE_FORWARDING=true`. Missing, empty, or exact `false` keeps
+both the protocol capability and application action off; any other value makes
+the V2 runtime invalid. The same boolean is supplied to the protocol client and
+application service, preventing a UI/protocol half-activation. A Web candidate
+still succeeds only when the gateway independently enables and negotiates
+capability 5.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic
