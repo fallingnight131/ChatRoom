@@ -1,0 +1,81 @@
+{
+  "benchmark": "java-v2-gateway-messaging",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 4294967296,
+    "os": "Mac OS X",
+    "osVersion": "26.5.2",
+    "peakObservedHeapBytes": 287928376,
+    "processCpuSeconds": 2.795,
+    "scenarioWallSeconds": 1.212,
+    "vm": "OpenJDK 64-Bit Server VM"
+  },
+  "host": {
+    "javaPeakRssBytes": 460193792,
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "postgresPostmasterPeakRssBytes": 24395776,
+    "pythonVersion": "3.9.6"
+  },
+  "recordedAt": "2026-08-13T19:03:58.648444Z",
+  "results": {
+    "completedMessageThroughputPerSecond": 1048.097,
+    "connectionSetupLatencyMicros": {
+      "max": 256908,
+      "mean": 123461.0,
+      "min": 77838,
+      "p50": 89702,
+      "p95": 256908,
+      "p99": 256908,
+      "samples": 5
+    },
+    "conversationActivationLatencyMicros": {
+      "max": 28080,
+      "mean": 12622.25,
+      "min": 6156,
+      "p50": 7786,
+      "p95": 28080,
+      "p99": 28080,
+      "samples": 4
+    },
+    "errors": 0,
+    "peerPublications": 400,
+    "submitToAcceptLatencyMicros": {
+      "max": 1652,
+      "mean": 700.05,
+      "min": 430,
+      "p50": 665,
+      "p95": 1131,
+      "p99": 1630,
+      "samples": 100
+    },
+    "submitToAllPeersPublishedLatencyMicros": {
+      "max": 2643,
+      "mean": 941.8,
+      "min": 567,
+      "p50": 872,
+      "p95": 1483,
+      "p99": 1959,
+      "samples": 100
+    }
+  },
+  "scenario": {
+    "activeConversations": 10,
+    "connections": 5,
+    "conversationKind": "GROUP",
+    "durableMessages": 110,
+    "durableMessagesPerConversation": 11,
+    "memberships": 50,
+    "messageOperations": 100,
+    "payloadBytes": 256,
+    "receiversPerMessage": 4,
+    "routingSubscriptions": 40,
+    "warmupOperations": 10
+  },
+  "schemaVersion": 7,
+  "sourceRevision": "c4caf9ff8c2983029e0c053ff5b888a4ebd29faa",
+  "startedAt": "2026-08-13T19:03:56.783188Z",
+  "warning": "loopback development evidence; not a capacity claim",
+  "worktreeDirty": false
+}
