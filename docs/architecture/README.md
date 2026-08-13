@@ -1023,6 +1023,10 @@ for later readiness composition. It never keeps an expired lease locally valid.
 ADR-0355 adds fail-closed hint-consumer cursor semantics. Only completed local
 repair classifications advance the ephemeral Redis position; a repair failure
 stops at that hint and returns the preceding cursor for retry.
+ADR-0356 implements that local repair for the only current outbox event kind,
+new messages. Every behind connection reauthorizes through PostgreSQL using its
+server-bound account, loads the exact stable message, applies existing client
+capability filtering, and suppresses already observed sequence hints.
 
 ## 10. Attachment Flow
 

@@ -7,6 +7,8 @@ import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.application.messaging.MessageReactionResult;
 import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
+import com.fallingnight.chat.application.routing.GatewayLiveEventHint;
+import com.fallingnight.chat.application.routing.LocalConversationHintResult;
 import com.fallingnight.chat.protocol.v2.ClientCapability;
 import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.EnvelopePolicy;
@@ -34,6 +36,9 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
             AttributeKey.valueOf("v2.activeConversations");
     private static final AttributeKey<Boolean> CLEANUP_REGISTERED =
             AttributeKey.valueOf("v2.liveCleanupRegistered");
+    @SuppressWarnings("rawtypes")
+    private static final AttributeKey<java.util.Map> LIVE_MESSAGE_SEQUENCES =
+            AttributeKey.valueOf("v2.liveMessageSequences");
 
     private final ConcurrentHashMap<UUID, Route> routes = new ConcurrentHashMap<>();
     private final Clock clock;
@@ -63,6 +68,8 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                         && channel.attr(V2ConnectionAttributes.AUTHENTICATED).get() != null) {
                     route.channels.add(channel);
                     subscriptions.add(query.conversationId());
+                    liveMessageSequences(channel).merge(
+                            query.conversationId(), page.nextSequence(), Math::max);
                     registerCleanup(channel);
                 } else if (route.channels.isEmpty()) {
                     routes.remove(query.conversationId(), route);
@@ -118,11 +125,61 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                         .build();
                 EnvelopePolicy.requireValid(event);
                 channel.writeAndFlush(event);
+                liveMessageSequences(channel).merge(message.conversationId(),
+                        message.conversationSequence(), Math::max);
                 published += 1;
             }
             if (route.channels.isEmpty()) routes.remove(message.conversationId(), route);
         }
         return new LivePublishResult(published, slowClosed, maximumBytesBeforeWritable);
+    }
+
+    /** Reauthorizes and loads exact server truth for one payload-free Redis hint. */
+    public LocalConversationHintResult repairMessageHint(
+            GatewayLiveEventHint hint, MessageHistoryPort history) {
+        Objects.requireNonNull(hint, "hint");
+        Objects.requireNonNull(history, "history");
+        Route route = routes.get(hint.conversationId());
+        if (route == null) return LocalConversationHintResult.NOT_SUBSCRIBED;
+        int applied = 0;
+        int duplicates = 0;
+        synchronized (route) {
+            for (Channel channel : java.util.List.copyOf(route.channels)) {
+                AuthenticatedConnection identity =
+                        channel.attr(V2ConnectionAttributes.AUTHENTICATED).get();
+                if (!channel.isActive() || identity == null) {
+                    route.channels.remove(channel); continue;
+                }
+                long known = liveMessageSequences(channel)
+                        .getOrDefault(hint.conversationId(), 0L);
+                if (known >= hint.conversationSequence()) {
+                    duplicates++; continue;
+                }
+                MessageHistoryResult result = history.readAfter(new MessageHistoryQuery(
+                        hint.conversationId(), identity.accountId(),
+                        hint.conversationSequence() - 1, 1));
+                if (result == MessageHistoryResult.Rejected.NOT_AUTHORIZED) {
+                    route.channels.remove(channel);
+                    subscriptions(channel).remove(hint.conversationId());
+                    liveMessageSequences(channel).remove(hint.conversationId());
+                    continue;
+                }
+                MessageHistoryResult.Page page = (MessageHistoryResult.Page) result;
+                StoredMessage message = page.messages().stream()
+                        .filter(value -> value.conversationSequence()
+                                == hint.conversationSequence())
+                        .findFirst().orElseThrow(() -> new IllegalStateException(
+                                "Redis hint has no authoritative message"));
+                if (!message.messageId().equals(hint.eventId())) {
+                    throw new IllegalStateException("Redis hint event identity conflicts");
+                }
+                if (publishMessageToChannel(channel, route, message)) applied++;
+            }
+            if (route.channels.isEmpty()) routes.remove(hint.conversationId(), route);
+        }
+        if (applied > 0) return LocalConversationHintResult.APPLIED;
+        if (duplicates > 0) return LocalConversationHintResult.DUPLICATE;
+        return LocalConversationHintResult.NOT_SUBSCRIBED;
     }
 
     @Override
@@ -302,6 +359,7 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
             }
         }
         conversationIds.clear();
+        liveMessageSequences(channel).clear();
     }
 
     int activeConversationCount() {
@@ -313,6 +371,39 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
         channel.close();
         route.channels.remove(channel);
         return bytesBeforeWritable;
+    }
+
+    private boolean publishMessageToChannel(
+            Channel channel, Route route, StoredMessage message) {
+        AuthenticatedConnection identity =
+                channel.attr(V2ConnectionAttributes.AUTHENTICATED).get();
+        if (!channel.isActive() || identity == null) {
+            route.channels.remove(channel); return false;
+        }
+        if (!channel.isWritable()) {
+            closeSlowConsumer(channel, route); return false;
+        }
+        java.util.Set<ClientCapability> capabilities =
+                channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get();
+        boolean mentionsEnabled = capabilities != null && capabilities.contains(
+                ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS);
+        boolean forwardingEnabled = capabilities != null && capabilities.contains(
+                ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING);
+        MessageRecord visibleRecord = record(message).toBuilder()
+                .setForwarded(forwardingEnabled && message.forwarded()).build();
+        if (!mentionsEnabled) visibleRecord = visibleRecord.toBuilder().clearMentions().build();
+        Envelope event = Envelope.newBuilder()
+                .setProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
+                .setKind(MessageKind.MESSAGE_KIND_EVENT)
+                .setMessageType(MessageType.MESSAGE_TYPE_MESSAGE_PUBLISHED_VALUE)
+                .setSessionId(identity.sessionId().toString())
+                .setSentAtEpochMs(clock.millis())
+                .setPayload(visibleRecord.toByteString()).build();
+        EnvelopePolicy.requireValid(event);
+        channel.writeAndFlush(event);
+        liveMessageSequences(channel).merge(
+                message.conversationId(), message.conversationSequence(), Math::max);
+        return true;
     }
 
     private void registerCleanup(Channel channel) {
@@ -329,6 +420,18 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
         java.util.Set<UUID> created = ConcurrentHashMap.newKeySet();
         java.util.Set<UUID> existing =
                 (java.util.Set<UUID>) channel.attr(ACTIVE_CONVERSATIONS).setIfAbsent(created);
+        return existing == null ? created : existing;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static java.util.Map<UUID, Long> liveMessageSequences(Channel channel) {
+        java.util.Map<UUID, Long> sequences =
+                (java.util.Map<UUID, Long>) channel.attr(LIVE_MESSAGE_SEQUENCES).get();
+        if (sequences != null) return sequences;
+        java.util.Map<UUID, Long> created = new ConcurrentHashMap<>();
+        java.util.Map<UUID, Long> existing =
+                (java.util.Map<UUID, Long>) channel.attr(LIVE_MESSAGE_SEQUENCES)
+                        .setIfAbsent(created);
         return existing == null ? created : existing;
     }
 

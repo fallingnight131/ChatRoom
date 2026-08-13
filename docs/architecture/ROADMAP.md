@@ -1447,6 +1447,12 @@ Progress:
   and stop-at-first-repair-failure cursor retention so retries never skip a
   failed hint. The local authorized repair port remains the next slice
   (ADR-0355).
+- [x] Implement message-only local hint repair against authorized PostgreSQL
+  history: per-channel observed sequence, server-bound account lookup, exact
+  stable message ID/sequence matching, existing capability filtering, duplicate
+  suppression, membership-revocation route cleanup, and fail-closed conflict.
+  The adapter remains uncomposed and mixed event kinds remain out of scope until
+  they gain atomic outbox writers (ADR-0356).
 
 Work:
 

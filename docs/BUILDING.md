@@ -1371,6 +1371,11 @@ Application hint-consumer tests prove current-boot target validation, ordered
 terminal outcomes, the 1,000-entry bound, and that the first local repair
 failure retains the preceding Redis cursor rather than skipping work
 (ADR-0355).
+The local-router repair tests for ADR-0356 prove account-bound PostgreSQL
+reauthorization, exact event ID/sequence matching, payload delivery from server
+truth, per-connection duplicate suppression without another SQL read,
+membership-denial subscription removal, and conflict failure without socket
+output. This remains a message-only, default-uncomposed slice.
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound

@@ -9,6 +9,8 @@ import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
+import com.fallingnight.chat.application.routing.GatewayLiveEventHint;
+import com.fallingnight.chat.application.routing.LocalConversationHintResult;
 import com.fallingnight.chat.protocol.v2.ClientCapability;
 import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.MessageKind;
@@ -299,6 +301,71 @@ class SingleGatewayConversationLiveRouterTest {
             capable.finishAndReleaseAll();
             legacy.finishAndReleaseAll();
         }
+    }
+
+    @Test
+    void reauthorizesRedisHintsLoadsServerTruthAndDeduplicatesPerConnection() throws Exception {
+        SingleGatewayConversationLiveRouter router = new SingleGatewayConversationLiveRouter(
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        EmbeddedChannel channel = authenticatedChannel();
+        MessageHistoryQuery initial = new MessageHistoryQuery(CONVERSATION, ACCOUNT, 0, 100);
+        router.readAndSubscribe(channel, initial, ignored ->
+                new MessageHistoryResult.Page(List.of(), 0, 0, false));
+        StoredMessage authoritative = message(CONVERSATION, 1);
+        GatewayLiveEventHint hint = new GatewayLiveEventHint(UUID.randomUUID(),
+                authoritative.messageId(), CONVERSATION, 1);
+        try {
+            assertEquals(LocalConversationHintResult.APPLIED,
+                    router.repairMessageHint(hint, query -> {
+                        assertEquals(ACCOUNT, query.accountId());
+                        assertEquals(0, query.afterSequence());
+                        return new MessageHistoryResult.Page(
+                                List.of(authoritative), 1, 1, false);
+                    }));
+            assertEquals(1, MessageRecord.parseFrom(
+                    ((Envelope) channel.readOutbound()).getPayload())
+                    .getConversationSequence());
+            assertEquals(LocalConversationHintResult.DUPLICATE,
+                    router.repairMessageHint(hint,
+                            query -> { throw new AssertionError("duplicate must not query SQL"); }));
+            assertNull(channel.readOutbound());
+        } finally { channel.finishAndReleaseAll(); }
+    }
+
+    @Test
+    void removesSubscriptionWhenRedisHintReauthorizationIsDenied() {
+        SingleGatewayConversationLiveRouter router = new SingleGatewayConversationLiveRouter(
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        EmbeddedChannel channel = authenticatedChannel();
+        router.readAndSubscribe(channel,
+                new MessageHistoryQuery(CONVERSATION, ACCOUNT, 0, 100), ignored ->
+                        new MessageHistoryResult.Page(List.of(), 0, 0, false));
+        StoredMessage value = message(CONVERSATION, 1);
+        try {
+            assertEquals(LocalConversationHintResult.NOT_SUBSCRIBED,
+                    router.repairMessageHint(new GatewayLiveEventHint(UUID.randomUUID(),
+                            value.messageId(), CONVERSATION, 1), query ->
+                            MessageHistoryResult.Rejected.NOT_AUTHORIZED));
+            assertEquals(0, router.activeConversationCount());
+            assertEquals(0, router.publish(value).published());
+        } finally { channel.finishAndReleaseAll(); }
+    }
+
+    @Test
+    void retriesRedisHintWhenAuthoritativeIdentityDoesNotMatch() {
+        SingleGatewayConversationLiveRouter router = new SingleGatewayConversationLiveRouter(
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        EmbeddedChannel channel = authenticatedChannel();
+        router.readAndSubscribe(channel,
+                new MessageHistoryQuery(CONVERSATION, ACCOUNT, 0, 100), ignored ->
+                        new MessageHistoryResult.Page(List.of(), 0, 0, false));
+        try {
+            assertThrows(IllegalStateException.class, () -> router.repairMessageHint(
+                    new GatewayLiveEventHint(UUID.randomUUID(), UUID.randomUUID(),
+                            CONVERSATION, 1), query -> new MessageHistoryResult.Page(
+                            List.of(message(CONVERSATION, 1)), 1, 1, false)));
+            assertNull(channel.readOutbound());
+        } finally { channel.finishAndReleaseAll(); }
     }
 
     private static EmbeddedChannel authenticatedChannel() {
