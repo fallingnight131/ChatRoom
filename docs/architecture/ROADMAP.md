@@ -736,8 +736,10 @@ Progress:
     password policy, clearable plaintext, pre-persistence Argon2id, atomic
     numeric compatibility mapping, and exact natural-key retry.
   - [x] Implement PostgreSQL registration allocation and concurrent convergence.
-  - [ ] Add and compose strict `REGISTER_REQ`, then prove registration-to-login,
-    exact retry, username collision, and restart durability.
+  - [x] Add strict detached `REGISTER_REQ` with auth admission, clearable secret
+    decoding, bounded off-loop hashing, generic collision, and login pass-through.
+  - [ ] Compose registration and prove registration-to-login, exact retry,
+    username collision, and restart durability through PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
