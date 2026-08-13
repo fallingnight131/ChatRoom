@@ -1549,6 +1549,12 @@ Windows verification payload. The Web baseline likewise compiles an enabled
 preview into `build/m6/web-forwarding-gate` without uploading or promoting it.
 These jobs prove buildability only; signing, native interaction, deployment,
 and the activation evidence in the runbook remain separate release gates.
+The Windows binary also exposes the side-effect-free
+`--chatroom-print-v2-configuration-json` diagnostic. CI requires the ordinary
+payload to report both V2 and forwarding disabled, and requires the separate
+enabled candidate to report schema 1, the exact preview endpoint, and both
+booleans true before accepting its compile gate. The JSON contains no device,
+account, session, credential, or other secret state.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic

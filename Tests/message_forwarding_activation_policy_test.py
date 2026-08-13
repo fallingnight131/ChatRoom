@@ -67,6 +67,12 @@ def main() -> int:
         "-DCHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON",
         "--target ChatClient V2WindowsForwardTargetDialogTest",
         "m6_windows_v2_forward_target_dialog",
+        "--chatroom-print-v2-configuration-json",
+        "Forwarding Windows binary configuration evidence failed",
+    ))
+    require("Client/main.cpp", (
+        "--chatroom-print-v2-configuration-json",
+        "WindowsV2ConfigurationDiagnostic::canonicalJson",
     ))
     print("Message forwarding activation policy passed")
     return 0

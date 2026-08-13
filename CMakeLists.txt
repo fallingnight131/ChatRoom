@@ -221,6 +221,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             STATIC
             Client/WindowsDeviceIdentityRepository.cpp
             Client/WindowsDeviceIdentityRepository.h
+            Client/WindowsV2ConfigurationDiagnostic.cpp
+            Client/WindowsV2ConfigurationDiagnostic.h
             Client/WindowsV2ProductConfiguration.cpp
             Client/WindowsV2ProductConfiguration.h
         )
@@ -817,6 +819,16 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
         add_test(
             NAME m6_windows_v2_product_configuration_enabled
             COMMAND WindowsV2ProductConfigurationEnabledTest)
+
+        add_executable(
+            WindowsV2ConfigurationDiagnosticTest
+            Tests/WindowsV2ConfigurationDiagnosticTest.cpp)
+        target_link_libraries(
+            WindowsV2ConfigurationDiagnosticTest
+            PRIVATE chatroom_windows_v2_configuration)
+        add_test(
+            NAME m6_windows_v2_configuration_diagnostic
+            COMMAND WindowsV2ConfigurationDiagnosticTest)
 
         add_executable(
             WindowsDeviceIdentityRepositoryTest

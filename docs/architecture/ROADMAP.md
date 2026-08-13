@@ -1652,6 +1652,9 @@ Progress:
     - [x] Add non-published CI compile gates for a forwarding-enabled Web preview
       and Windows Release client, retaining the ordinary default-off artifacts
       and running the Windows target-dialog interaction test separately.
+    - [x] Add a side-effect-free Windows binary configuration diagnostic and
+      require CI to prove the final ordinary executable is default-off while the
+      isolated forwarding candidate contains the exact enabled configuration.
 
 Candidate slices:
 

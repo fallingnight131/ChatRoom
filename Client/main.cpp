@@ -22,6 +22,7 @@
 #include "WindowsUpdateTrustDiagnostic.h"
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
 #include "WindowsDeviceIdentityRepository.h"
+#include "WindowsV2ConfigurationDiagnostic.h"
 #include "WindowsV2ProductConfiguration.h"
 #endif
 
@@ -96,6 +97,18 @@ bool handleWindowsUpdateStartup(const WindowsUpdateRuntimePaths &paths,
 
 int main(int argc, char *argv[]) {
 #ifdef Q_OS_WIN
+#ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
+    if (argc == 2
+            && QByteArray(argv[1]) == "--chatroom-print-v2-configuration-json") {
+        QCoreApplication diagnosticApplication(argc, argv);
+        const QByteArray output = WindowsV2ConfigurationDiagnostic::canonicalJson(
+            WindowsV2ProductConfiguration::fromBuild());
+        if (std::fwrite(output.constData(), 1,
+                        static_cast<size_t>(output.size()), stdout)
+                != static_cast<size_t>(output.size())) return 2;
+        return 0;
+    }
+#endif
     if (argc == 2
             && QByteArray(argv[1]) == "--chatroom-print-update-trust-json") {
         QCoreApplication diagnosticApplication(argc, argv);
