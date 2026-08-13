@@ -1005,6 +1005,11 @@ ADR-0351 now isolates Redis behind one-minute gateway/conversation route leases
 and bounded per-gateway hint streams. The application publisher refuses partial
 target discovery and retries the whole stable event after any target failure;
 the hint contains no body and never authorizes access.
+The standalone `routing-redis` adapter implements that boundary with Lettuce,
+short expiring keys/sorted sets, atomic lease-conditional Lua operations, and
+exact-length Streams. Production configuration requires TLS and credentials;
+the module remains absent from gateway runtime composition pending TLS/ACL and
+consumer-repair gates (ADR-0352).
 
 ## 10. Attachment Flow
 

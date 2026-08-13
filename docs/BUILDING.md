@@ -1346,6 +1346,16 @@ multi-gateway target resolution, payload-free stable hints, bounded stream size,
 incomplete-target refusal, empty-route success, and whole-event retry after any
 target dependency failure. No Redis client or production composition exists in
 this slice (ADR-0351).
+`routing-redis` now supplies the default-uncomposed Lettuce adapter. Its unit
+tests enforce production `rediss://` plus authentication, redacted config text,
+bounded timeouts, and request queues. To run the standalone capability test,
+start an isolated disposable Redis and set
+`CHATROOM_TEST_REDIS_URI=redis://127.0.0.1:<port>` before
+`./gradlew :routing-redis:test --rerun-tasks`; explicit plaintext is accepted
+only for loopback test mode. The test flushes that selected database and must
+never point at shared or production Redis. It proves route lease prerequisites,
+expiry/reconnect cleanup, and exact 100-entry Stream trimming. TLS/ACL failure
+tests remain required before product composition (ADR-0352).
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound

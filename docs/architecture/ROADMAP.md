@@ -1422,6 +1422,12 @@ Progress:
   target lookup, emits payload-free stable hints to every target, retries any
   partial dependency failure, and treats an empty complete route set as durable
   success (ADR-0351).
+- [x] Add an uncomposed standalone Redis adapter using Lettuce 7.6 with required
+  production TLS/authentication, bounded command timeout/request queue,
+  lease-conditional Lua route publication, lazy stale-route cleanup, and exact
+  bounded payload-free Streams. An isolated real Redis test proves expiry,
+  reconnect, and 100-entry trimming; TLS/ACL capability remains an activation
+  gate (ADR-0352).
 
 Work:
 
