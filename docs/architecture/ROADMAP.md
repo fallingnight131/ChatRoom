@@ -1580,7 +1580,7 @@ Progress:
   - [x] Allocate default-off capability 5 and command type 119, add the
     destination `forwarded` marker, bounded structural policy, generated
     Java/TypeScript/C++ bindings, and a fixed three-language command fixture.
-  - [ ] Persist and authorize exact forwarding in PostgreSQL, then compose the
+  - [x] Persist and authorize exact forwarding in PostgreSQL, then compose the
     default-off authenticated gateway handler, history/live projection,
     privacy-safe telemetry, and capability filtering.
     - [x] Add V049 destination markers and digest-only forward outcomes plus a
@@ -1592,6 +1592,9 @@ Progress:
   - [ ] Add offline-safe Web and Windows forward outboxes, destination picker,
     presentation, accessibility, reconnect convergence, and endpoint-specific
     activation gates.
+    - [x] Add a default-off Web protocol and transport boundary with capability
+      gating, bounded command construction, stable idempotency correlation, and
+      defensive validation of the additive forwarded marker.
 
 Candidate slices:
 

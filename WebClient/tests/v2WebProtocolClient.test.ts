@@ -42,6 +42,7 @@ import {
   MessagePinAppliedSchema,
   MessagePinChangedRecordSchema,
   EditMessageSchema,
+  ForwardMessageSchema,
   MessageEditAppliedSchema,
   MessageEditedRecordSchema,
 } from "../src/protocol/v2/generated/messaging_pb";
@@ -72,7 +73,11 @@ const MESSAGE_ID = "60000000-0000-4000-8000-000000000001";
 const CLIENT_MESSAGE_ID = "client-message-1";
 const NOW = 1_800_000_000_000;
 
-function newClient(enableMessageEdits = false, enableMessageMentions = false): V2WebProtocolClient {
+function newClient(
+  enableMessageEdits = false,
+  enableMessageMentions = false,
+  enableMessageForwarding = false,
+): V2WebProtocolClient {
   let next = 0;
   return new V2WebProtocolClient({
     appVersion: "2.0.0-test",
@@ -81,6 +86,7 @@ function newClient(enableMessageEdits = false, enableMessageMentions = false): V
     now: () => NOW,
     enableMessageEdits,
     enableMessageMentions,
+    enableMessageForwarding,
   });
 }
 
@@ -117,6 +123,7 @@ function publishedMessage(options: {
     startUtf8Byte: number;
     lengthUtf8Bytes: number;
   }>;
+  forwarded?: boolean;
 } = {}): Uint8Array {
   return toBinary(EnvelopeSchema, create(EnvelopeSchema, {
     protocolVersion: 2,
@@ -135,6 +142,7 @@ function publishedMessage(options: {
       contentType: MessageContentType.TEXT_UTF8,
       content: new TextEncoder().encode(options.text ?? "live"),
       mentions: options.mentions ?? [],
+      forwarded: options.forwarded ?? false,
       acceptedAtEpochMs: BigInt(NOW),
       reply: options.replyTargetSequence === undefined ? undefined : {
         targetMessageId: "60000000-0000-4000-8000-000000000002",
@@ -324,6 +332,63 @@ test("gates and validates structured mentions on outbound and inbound messages",
   assert.equal(published.type, "message-published");
   if (published.type === "message-published") {
     assert.equal(published.value.mentions[0]?.targetAccountId, SECOND_ACCOUNT_ID);
+  }
+});
+
+test("keeps message forwarding default-off and validates capable commands and events", () => {
+  const disabled = newClient();
+  authenticate(disabled);
+  assert.throws(() => disabled.forwardMessage(
+    CONVERSATION_ID,
+    MESSAGE_ID,
+    0,
+    SECOND_CONVERSATION_ID,
+    "forward-disabled",
+  ), /not enabled/);
+  assert.throws(() => disabled.receive(publishedMessage({ forwarded: true })),
+    /without negotiated capability/);
+
+  const capabilities = [
+    ClientCapability.MESSAGE_REACTIONS,
+    ClientCapability.MESSAGE_PINS,
+    ClientCapability.MESSAGE_FORWARDING,
+  ];
+  const client = newClient(false, false, true);
+  authenticate(client, capabilities);
+  const command = decodeEnvelope(client.forwardMessage(
+    CONVERSATION_ID,
+    MESSAGE_ID,
+    3,
+    SECOND_CONVERSATION_ID,
+    "forward-message-1",
+  ));
+  assert.equal(command.messageType, MessageType.FORWARD_MESSAGE);
+  assert.equal(command.clientMessageId, "forward-message-1");
+  assert.equal(command.sessionId, SESSION_ID);
+  const forward = fromBinary(ForwardMessageSchema, command.payload);
+  assert.deepEqual({
+    sourceConversationId: forward.sourceConversationId,
+    sourceMessageId: forward.sourceMessageId,
+    expectedSourceContentRevision: forward.expectedSourceContentRevision,
+    targetConversationId: forward.targetConversationId,
+  }, {
+    sourceConversationId: CONVERSATION_ID,
+    sourceMessageId: MESSAGE_ID,
+    expectedSourceContentRevision: 3,
+    targetConversationId: SECOND_CONVERSATION_ID,
+  });
+  assert.throws(() => client.forwardMessage(
+    CONVERSATION_ID,
+    MESSAGE_ID,
+    101,
+    SECOND_CONVERSATION_ID,
+    "forward-invalid-revision",
+  ), /integer in 0\.\.100/);
+
+  const published = client.receive(publishedMessage({ forwarded: true }));
+  assert.equal(published.type, "message-published");
+  if (published.type === "message-published") {
+    assert.equal(published.value.forwarded, true);
   }
 });
 

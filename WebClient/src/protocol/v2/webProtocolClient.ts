@@ -35,6 +35,7 @@ import {
   MessagePinAppliedSchema,
   MessagePinChangedRecordSchema,
   EditMessageSchema,
+  ForwardMessageSchema,
   MessageEditAppliedSchema,
   MessageEditedRecordSchema,
   MessageReactionKind,
@@ -144,6 +145,7 @@ export interface V2WebProtocolClientOptions {
   now?: () => number;
   enableMessageEdits?: boolean;
   enableMessageMentions?: boolean;
+  enableMessageForwarding?: boolean;
 }
 
 export type V2MessageMention = Readonly<{
@@ -176,6 +178,7 @@ export class V2WebProtocolClient {
       ClientCapability.MESSAGE_PINS,
       ...(options.enableMessageEdits ? [ClientCapability.MESSAGE_EDITS] : []),
       ...(options.enableMessageMentions ? [ClientCapability.MESSAGE_MENTIONS] : []),
+      ...(options.enableMessageForwarding ? [ClientCapability.MESSAGE_FORWARDING] : []),
     ];
   }
 
@@ -358,6 +361,40 @@ export class V2WebProtocolClient {
     }));
     return this.command(
       MessageType.SUBMIT_REPLY_MESSAGE,
+      payload,
+      new Set([MessageType.MESSAGE_ACCEPTED]),
+      clientMessageId,
+    );
+  }
+
+  forwardMessage(
+    sourceConversationId: string,
+    sourceMessageId: string,
+    expectedSourceContentRevision: number,
+    targetConversationId: string,
+    clientMessageId: string,
+  ): Uint8Array {
+    this.requireState("authenticated");
+    if (!this.forwardingEnabled()) {
+      throw new Error("message forwarding was not enabled for this client");
+    }
+    requireUuid("sourceConversationId", sourceConversationId);
+    requireUuid("sourceMessageId", sourceMessageId);
+    requireUuid("targetConversationId", targetConversationId);
+    requireIdentifier("clientMessageId", clientMessageId);
+    if (!Number.isInteger(expectedSourceContentRevision)
+        || expectedSourceContentRevision < 0
+        || expectedSourceContentRevision > MAX_CONTENT_REVISIONS) {
+      throw new Error("expectedSourceContentRevision must be an integer in 0..100");
+    }
+    const payload = toBinary(ForwardMessageSchema, create(ForwardMessageSchema, {
+      sourceConversationId,
+      sourceMessageId,
+      expectedSourceContentRevision,
+      targetConversationId,
+    }));
+    return this.command(
+      MessageType.FORWARD_MESSAGE,
       payload,
       new Set([MessageType.MESSAGE_ACCEPTED]),
       clientMessageId,
@@ -767,10 +804,10 @@ export class V2WebProtocolClient {
         }
         break;
       case "message-history-page":
-        validateHistoryPage(event.value, this.mentionsEnabled());
+        validateHistoryPage(event.value, this.mentionsEnabled(), this.forwardingEnabled());
         break;
       case "message-published":
-        validateMessageRecord(event.value, this.mentionsEnabled());
+        validateMessageRecord(event.value, this.mentionsEnabled(), this.forwardingEnabled());
         break;
       case "message-reaction-applied":
         validateReactionApplied(event.value);
@@ -849,6 +886,10 @@ export class V2WebProtocolClient {
   private mentionsEnabled(): boolean {
     return this.requestedCapabilities.includes(ClientCapability.MESSAGE_MENTIONS);
   }
+
+  private forwardingEnabled(): boolean {
+    return this.requestedCapabilities.includes(ClientCapability.MESSAGE_FORWARDING);
+  }
 }
 
 function validateUploadAuthorization(value: AttachmentUploadAuthorized): void {
@@ -877,7 +918,11 @@ function correlated(bytes: Uint8Array): V2CorrelatedCommand {
   return { requestId, bytes };
 }
 
-function validateHistoryPage(page: MessageHistoryPage, allowMentions: boolean): void {
+function validateHistoryPage(
+  page: MessageHistoryPage,
+  allowMentions: boolean,
+  allowForwarding: boolean,
+): void {
   requireUuid("conversationId", page.conversationId);
   if (page.messages.length > MAX_PAGE_SIZE
       || page.entries.length > MAX_PAGE_SIZE
@@ -887,7 +932,7 @@ function validateHistoryPage(page: MessageHistoryPage, allowMentions: boolean): 
   }
   let previous = 0n;
   for (const message of page.messages) {
-    validateMessageRecord(message, allowMentions);
+    validateMessageRecord(message, allowMentions, allowForwarding);
     if (message.conversationId !== page.conversationId
         || message.conversationSequence <= previous) {
       throw new Error("invalid history message");
@@ -903,7 +948,7 @@ function validateHistoryPage(page: MessageHistoryPage, allowMentions: boolean): 
       throw new Error("invalid history entry identity");
     }
     if (entry.detail.case === "message") {
-      validateMessageRecord(entry.detail.value, allowMentions);
+      validateMessageRecord(entry.detail.value, allowMentions, allowForwarding);
       if (entry.detail.value.conversationId !== entry.conversationId
           || entry.detail.value.conversationSequence !== entry.conversationSequence) {
         throw new Error("invalid message entry detail");
@@ -1067,7 +1112,11 @@ function requireReaction(value: MessageReactionKind): void {
   }
 }
 
-function validateMessageRecord(message: MessageRecord, allowMentions: boolean): void {
+function validateMessageRecord(
+  message: MessageRecord,
+  allowMentions: boolean,
+  allowForwarding: boolean,
+): void {
   requireUuid("conversationId", message.conversationId);
   requireUuid("messageId", message.messageId);
   requireUuid("senderAccountId", message.senderAccountId);
@@ -1086,6 +1135,9 @@ function validateMessageRecord(message: MessageRecord, allowMentions: boolean): 
   try { strictDecoder.decode(message.content); }
   catch { throw new Error("message text is not valid UTF-8"); }
   requireInboundMentions(message.content, message.mentions, allowMentions);
+  if (message.forwarded && !allowForwarding) {
+    throw new Error("received forwarded message without negotiated capability");
+  }
   if (message.reply) {
     requireUuid("reply.targetMessageId", message.reply.targetMessageId);
     requireUuid("reply.targetSenderAccountId", message.reply.targetSenderAccountId);

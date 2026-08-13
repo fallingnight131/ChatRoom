@@ -1325,6 +1325,14 @@ cleared. Metrics expose only fixed `forward_accepted` and `forward_duplicate`
 outcomes plus existing fixed denial/conflict/failure counters. The handshake
 intentionally does not echo capability 5 yet, so this composed path remains
 unreachable from product clients until their durable/UI gates pass.
+The Web protocol client now has a matching default-off boundary. Only a client
+constructed to request capability 5 can create a correlated type-119 command,
+and only after exact capability negotiation and authentication. It enforces
+canonical source/destination IDs, revision 0..100, and a stable destination
+client message ID; the WebSocket transport forwards only those validated bytes.
+Default clients also reject an unexpected inbound `forwarded` marker. Product
+runtime composition still leaves capability 5 disabled while cache, outbox,
+reconnect, presentation, and accessibility gates remain open (ADR-0344).
 The application participant directory returns either a validated page or one
 fixed authorization rejection. Its PostgreSQL adapter first proves that the
 requester is an enabled active member, then pages enabled active participants

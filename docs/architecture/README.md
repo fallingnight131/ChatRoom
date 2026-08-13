@@ -756,7 +756,7 @@ requested set, and re-synchronizes both conversation and participant directories
 after resume. This is a release candidate, not Windows release evidence: the
 Windows Release build and native interaction gate remain open.
 
-The next M6 slice is default-off, server-authoritative text forwarding under
+The current M6 slice is default-off, server-authoritative text forwarding under
 ADR-0344. Capability 5 and command type 119 identify one source message, its
 expected current revision, and one target conversation; the envelope client
 message ID remains the destination idempotency key. PostgreSQL will authorize
@@ -774,8 +774,12 @@ connection-local bounded messaging executor. It maps opaque authorization,
 revision, and idempotency failures, publishes only new acceptance, and filters
 the marker from unsupported history/live peers without stalling their cursor.
 Fixed-cardinality forward/duplicate and existing denial/conflict/failure/live
-counters contain no identities. Capability 5 remains excluded from handshake
-enablement, so Web and Windows runtime advertisement is still disabled.
+counters contain no identities. The Web protocol and WebSocket transport now
+construct the bounded correlated command only for an explicitly configured
+capability-5 client and reject an unexpected inbound `forwarded` marker when
+that capability is absent. Product runtime composition still does not request
+capability 5, and gateway handshake enablement remains off, so neither Web nor
+Windows advertises or exposes forwarding yet.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

@@ -195,6 +195,22 @@ export class V2WebSocketTransport {
       conversationId, targetMessageId, clientMessageId, text, mentions));
   }
 
+  forwardMessage(
+    sourceConversationId: string,
+    sourceMessageId: string,
+    expectedSourceContentRevision: number,
+    targetConversationId: string,
+    clientMessageId: string,
+  ): void {
+    this.send(this.requireAuthenticated().forwardMessage(
+      sourceConversationId,
+      sourceMessageId,
+      expectedSourceContentRevision,
+      targetConversationId,
+      clientMessageId,
+    ));
+  }
+
   setMessageReaction(
     conversationId: string,
     messageId: string,
