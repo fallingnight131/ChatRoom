@@ -1385,9 +1385,11 @@ committed under `WebClient/src/protocol/v2/generated/` and
 from either committed tree. It then compiles those exact C++ files against
 SHA-256-pinned Protobuf 35.1 and Abseil 20250512.1 sources, requires Java,
 TypeScript, and C++ to parse/emit the same golden envelope, and runs the pure
-C++ Windows device-management protocol regression. The first run downloads and
-builds the isolated C++ runtime. The codec is not yet composed into the current
-Qt product; V2 WSS/session activation remains a separate change.
+C++ Windows device-management and session-protocol regressions. These cover
+exact-version Windows hello, fresh authentication, memory-only resume, session
+authority, and authenticated device-codec composition. The first run downloads
+and builds the isolated C++ runtime. The codecs are not yet composed into the
+current Qt product; V2 WSS lifecycle activation remains a separate change.
 
 ## Server Password Hashing Dependency
 

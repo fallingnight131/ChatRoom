@@ -1335,6 +1335,9 @@ Progress:
     bounded in-flight work, defensive server-projection validation, current-
     device protection, positive wire timestamps, and disconnect state
     abandonment.
+  - [x] Add the pure C++ Windows V2 exact-version handshake, fresh
+    authentication, memory-only resume, session-authority validation, and
+    authenticated device-codec composition; the Qt WSS lifecycle remains.
   - [ ] Add the supported Windows device-management application/UI path; Web is
     implemented behind the existing V2 preview/cutover gate.
 

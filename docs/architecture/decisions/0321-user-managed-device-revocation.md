@@ -79,9 +79,11 @@ C++ bindings. The protocol client binds every command and response to the
 authenticated session and request, caps in-flight work, rejects ambiguous
 server projections and type confusion, and abandons pending state on
 disconnect. Both remain deliberately detached: the current Windows product
-network manager is V1 JSON, so activating this screen requires the future V2
-WSS/session adapter rather than silently tunneling a V2 security command
-through V1.
+network manager is V1 JSON. A pure C++ Windows V2 session protocol now composes
+exact-version hello, fresh authentication, memory-only resume, authenticated
+session validation, and the device codec. Activating the screen still requires
+the future Qt WSS lifecycle adapter rather than silently tunneling a V2 security
+command through V1.
 
 ## Verification
 

@@ -67,6 +67,25 @@ target_link_libraries(
   PRIVATE protobuf::libprotobuf
 )
 
+add_executable(
+  v2_windows_session_protocol_test
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsSessionProtocolClientTest.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsSessionProtocolClient.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2DeviceManagementProtocolClient.cpp"
+  "${GENERATED_ROOT}/chat/v2/authentication.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/control.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/device_management.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/envelope.pb.cc"
+)
+target_compile_features(v2_windows_session_protocol_test PRIVATE cxx_std_17)
+target_include_directories(
+  v2_windows_session_protocol_test
+  PRIVATE
+    "${CMAKE_CURRENT_LIST_DIR}/../../../Client"
+    "${GENERATED_ROOT}"
+)
+target_link_libraries(v2_windows_session_protocol_test PRIVATE protobuf::libprotobuf)
+
 if(MSVC)
   target_compile_options(v2_cpp_envelope_test PRIVATE /W4 /WX)
 else()
@@ -77,6 +96,18 @@ else()
     # Abseil intentionally exposes Clang nullability annotations in public
     # headers; they are extensions, not warnings in this project's sources.
     target_compile_options(v2_cpp_envelope_test PRIVATE -Wno-nullability-extension)
+  endif()
+endif()
+
+if(MSVC)
+  target_compile_options(v2_windows_session_protocol_test PRIVATE /W4 /WX)
+else()
+  target_compile_options(v2_windows_session_protocol_test PRIVATE -Wall -Wextra -Werror)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(
+      v2_windows_session_protocol_test
+      PRIVATE -Wno-nullability-extension
+    )
   endif()
 endif()
 
@@ -101,3 +132,4 @@ add_test(
   NAME v2_windows_device_management_protocol
   COMMAND v2_windows_device_management_protocol_test
 )
+add_test(NAME v2_windows_session_protocol COMMAND v2_windows_session_protocol_test)
