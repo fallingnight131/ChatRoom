@@ -1304,6 +1304,12 @@ requester is an enabled active member, then pages enabled active participants
 by account ID without a schema migration. The disposable PostgreSQL gate covers
 departed/nonmember callers, departed-member filtering, Unicode names, and page
 continuation; gateway registration remains a separate step (ADR-0343).
+The dedicated participant handler consumes only type 117, requires an
+authenticated capability-4 session, binds the requester from channel state,
+serializes work through the bounded messaging executor, and returns fixed
+invalid, unauthorized, busy, or internal outcomes. Its unit gate covers
+successful Unicode projection and every negative boundary; product-pipeline
+composition remains the next gate (ADR-0343).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

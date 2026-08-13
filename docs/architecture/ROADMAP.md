@@ -1511,6 +1511,11 @@ Progress:
         and stable ascending account-ID pagination.
       - [ ] Register the capability-gated authenticated gateway handler with
         fixed denial and telemetry behavior.
+        - [x] Add a dedicated serialized off-event-loop handler with
+          server-bound requester identity, capability/shape checks, fixed
+          authorization denial, bounded queue, and fixed-cardinality signals.
+        - [ ] Compose the handler and PostgreSQL port into the product pipeline
+          and prove the real runtime path without activating either client.
     - [ ] Persist Web mention metadata with authoritative messages and pending
       submission/edit workflows, then add composition, rendering,
       accessibility, reconnect convergence, and Web capability activation.
