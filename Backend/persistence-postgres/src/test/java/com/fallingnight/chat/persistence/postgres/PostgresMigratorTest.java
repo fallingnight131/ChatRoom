@@ -66,6 +66,9 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRenameServ
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1NicknameChangeCommand;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1NicknameChangeResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1NicknameChangeService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1UsernameChangeCommand;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1UsernameChangeResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1UsernameChangeService;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordIntent;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordStatusResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordUpdateResult;
@@ -175,7 +178,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(37, first.migrate());
+        assertEquals(38, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -200,7 +203,8 @@ class PostgresMigratorTest {
                             "legacy_v1_attachment_map", "legacy_v1_room_kick_event",
                             "legacy_v1_room_dissolution", "account_password_change_audit",
                             "legacy_v1_registration_audit",
-                            "account_display_name_change_audit"),
+                            "account_display_name_change_audit",
+                            "account_username_change_audit"),
                     applicationTables(connection));
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
@@ -1799,6 +1803,60 @@ class PostgresMigratorTest {
                 + "' AND display_name = 'New Name'"));
         assertEquals(1, count("SELECT count(*) FROM chat.account_display_name_change_audit "
                 + "WHERE account_id = '" + owner + "'"));
+    }
+
+    @Test
+    @Order(93)
+    void changesV1UsernameWithCooldownRetryAndPeerOnlyEffects() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID owner = UUID.randomUUID(), member = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'olduser', 'Owner', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'peerusr', 'Member', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')", owner, member);
+            execute(connection, "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, "
+                    + "account_id) VALUES (215, ?), (216, ?)", owner, member);
+        }
+        LegacyV1RoomCreationResult.Created room = (LegacyV1RoomCreationResult.Created)
+                new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
+                        new LegacyV1RoomCreationIntent(owner, "username-room",
+                                "Username Room", java.util.Optional.empty()));
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
+                    + "account_id, role) VALUES (?, ?, 'MEMBER')",
+                    room.conversationId(), member);
+        }
+        var service = new LegacyV1UsernameChangeService(
+                new PostgresLegacyV1UsernameChangeAdapter(dataSource()));
+        LegacyV1UsernameChangeResult.Changed first = assertInstanceOf(
+                LegacyV1UsernameChangeResult.Changed.class,
+                service.change(new LegacyV1UsernameChangeCommand(owner, "  newuser  ")));
+        assertTrue(first.changed()); assertEquals("olduser", first.oldUsername());
+        assertEquals("newuser", first.newUsername());
+        assertEquals(1, first.roomAudiences().size());
+        assertEquals(Set.of(member), first.roomAudiences().getFirst().peerAccountIds());
+        assertFalse(first.roomAudiences().getFirst().peerAccountIds().contains(owner));
+        assertTrue(new PostgresLegacyV1AccountProjection(dataSource())
+                .findByPresentedUsername("olduser").isEmpty());
+        assertEquals(owner, new PostgresLegacyV1AccountProjection(dataSource())
+                .findByPresentedUsername("newuser").orElseThrow().accountId());
+
+        LegacyV1UsernameChangeResult.Changed retry = assertInstanceOf(
+                LegacyV1UsernameChangeResult.Changed.class,
+                service.change(new LegacyV1UsernameChangeCommand(owner, "newuser")));
+        assertFalse(retry.changed()); assertTrue(retry.roomAudiences().isEmpty());
+        assertEquals(first.changedAt(), retry.changedAt());
+        assertInstanceOf(LegacyV1UsernameChangeResult.Cooldown.class,
+                service.change(new LegacyV1UsernameChangeCommand(owner, "nextusr")));
+        assertEquals(LegacyV1UsernameChangeResult.Rejected.SAME_AS_CURRENT,
+                service.change(new LegacyV1UsernameChangeCommand(member, "peerusr")));
+        assertEquals(LegacyV1UsernameChangeResult.Rejected.USERNAME_TAKEN,
+                service.change(new LegacyV1UsernameChangeCommand(member, "newuser")));
+        assertEquals(1, count("SELECT count(*) FROM chat.account_username_change_audit "
+                + "WHERE account_id = '" + owner + "' AND old_username = 'olduser' "
+                + "AND new_username = 'newuser'"));
     }
 
     @Test
