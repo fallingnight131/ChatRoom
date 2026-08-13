@@ -145,5 +145,17 @@ class MessageModelTest {
                 command.conversationId(), command.messageId(), command.actorAccountId(),
                 1, command.contentType(), command.content(), command.clientOperationId(),
                 false, 2, Instant.EPOCH, false));
+        new ConversationHistoryEntry.Edit(
+                command.conversationId(), 3, command.messageId(), 1,
+                command.contentType(), command.content(), false, command.actorAccountId(),
+                command.clientOperationId(), Instant.EPOCH);
+        new ConversationHistoryEntry.Edit(
+                command.conversationId(), 3, command.messageId(), 1,
+                command.contentType(), new byte[0], true, command.actorAccountId(),
+                command.clientOperationId(), Instant.EPOCH);
+        assertThrows(IllegalArgumentException.class, () -> new ConversationHistoryEntry.Edit(
+                command.conversationId(), 3, command.messageId(), 1,
+                command.contentType(), command.content(), true, command.actorAccountId(),
+                command.clientOperationId(), Instant.EPOCH));
     }
 }

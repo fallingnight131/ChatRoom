@@ -754,6 +754,23 @@ class PostgresMigratorTest {
         assertTrue(raced.stream().allMatch(result -> result.conversationSequence() == 2));
         assertEquals(1, count("SELECT count(*) FROM chat.message_edit_event"));
         assertEquals(1, count("SELECT count(*) FROM chat.message_edit_operation"));
+        MessageHistoryResult.Page current = (MessageHistoryResult.Page) messages.readAfter(
+                new MessageHistoryQuery(conversation, account, 0, 10));
+        assertEquals(1, current.messages().size());
+        assertEquals(1, current.messages().getFirst().contentRevision());
+        assertTrue(current.messages().getFirst().editedAt().isPresent());
+        assertEquals("updated", new String(current.messages().getFirst().payload(),
+                java.nio.charset.StandardCharsets.UTF_8));
+        ConversationEntryHistoryResult.Page initialEdits =
+                (ConversationEntryHistoryResult.Page) messages.readEntriesAfter(
+                        new MessageHistoryQuery(conversation, account, 1, 10));
+        ConversationHistoryEntry.Edit initialEdit =
+                (ConversationHistoryEntry.Edit) initialEdits.entries().getFirst();
+        assertEquals(2, initialEdit.conversationSequence());
+        assertEquals(1, initialEdit.contentRevision());
+        assertFalse(initialEdit.contentErased());
+        assertEquals("updated", new String(initialEdit.content(),
+                java.nio.charset.StandardCharsets.UTF_8));
 
         MessageEditResult.Applied noOp = (MessageEditResult.Applied) edits.edit(
                 new MessageEditCommand(conversation, target.messageId(), account, device, 1, 1,
@@ -840,6 +857,15 @@ class PostgresMigratorTest {
                 + "','" + deleted.messageId() + "')"));
         assertEquals(2, count("SELECT count(*) FROM chat.message_edit_event "
                 + "WHERE content IS NULL AND content_erased_at IS NOT NULL"));
+        ConversationEntryHistoryResult.Page erasedHistory =
+                (ConversationEntryHistoryResult.Page) messages.readEntriesAfter(
+                        new MessageHistoryQuery(conversation, account, 1, 100));
+        assertEquals(erasedHistory.latestSequence(), erasedHistory.nextSequence());
+        assertEquals(2, erasedHistory.entries().stream()
+                .filter(ConversationHistoryEntry.Edit.class::isInstance)
+                .map(ConversationHistoryEntry.Edit.class::cast)
+                .filter(ConversationHistoryEntry.Edit::contentErased)
+                .count());
     }
 
     @Test

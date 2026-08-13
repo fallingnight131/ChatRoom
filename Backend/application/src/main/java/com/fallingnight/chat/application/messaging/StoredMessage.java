@@ -17,7 +17,9 @@ public record StoredMessage(
         int messageType,
         byte[] payload,
         Instant acceptedAt,
-        Optional<MessageReplyReference> reply) {
+        Optional<MessageReplyReference> reply,
+        int contentRevision,
+        Optional<Instant> editedAt) {
     public StoredMessage {
         Objects.requireNonNull(messageId, "messageId");
         Objects.requireNonNull(conversationId, "conversationId");
@@ -27,6 +29,7 @@ public record StoredMessage(
         Objects.requireNonNull(payload, "payload");
         Objects.requireNonNull(acceptedAt, "acceptedAt");
         reply = Objects.requireNonNull(reply, "reply");
+        editedAt = Objects.requireNonNull(editedAt, "editedAt");
         if (conversationSequence < 1 || messageType < 1) {
             throw new IllegalArgumentException("stored message identity is invalid");
         }
@@ -36,7 +39,27 @@ public record StoredMessage(
             throw new IllegalArgumentException(
                     "reply target sequence must precede stored message");
         }
+        if (contentRevision < 0 || contentRevision > MessageEditCommand.MAX_REVISION
+                || (contentRevision == 0) != editedAt.isEmpty()) {
+            throw new IllegalArgumentException("stored message edit metadata is invalid");
+        }
         payload = Arrays.copyOf(payload, payload.length);
+    }
+
+    public StoredMessage(
+            UUID messageId,
+            UUID conversationId,
+            long conversationSequence,
+            UUID senderAccountId,
+            UUID senderDeviceId,
+            String clientMessageId,
+            int messageType,
+            byte[] payload,
+            Instant acceptedAt,
+            Optional<MessageReplyReference> reply) {
+        this(messageId, conversationId, conversationSequence, senderAccountId,
+                senderDeviceId, clientMessageId, messageType, payload, acceptedAt,
+                reply, 0, Optional.empty());
     }
 
     public StoredMessage(
@@ -51,7 +74,7 @@ public record StoredMessage(
             Instant acceptedAt) {
         this(messageId, conversationId, conversationSequence, senderAccountId,
                 senderDeviceId, clientMessageId, messageType, payload, acceptedAt,
-                Optional.empty());
+                Optional.empty(), 0, Optional.empty());
     }
 
     @Override

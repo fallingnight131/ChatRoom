@@ -165,7 +165,11 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                        reaction.reaction, reaction.active,
                        reaction.client_operation_id,
                        pin.message_id, pin.actor_account_id, pin.pinned,
-                       pin.client_operation_id
+                       pin.client_operation_id,
+                       m.content_revision, m.edited_at,
+                       edit.message_id, edit.content_revision, edit.content_type,
+                       edit.content, edit.content_erased_at IS NOT NULL,
+                       edit.actor_account_id, edit.client_operation_id
                 FROM chat.conversation_entry ce
                 LEFT JOIN chat.message m
                   ON ce.entry_kind = 'MESSAGE'
@@ -190,6 +194,10 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                   ON ce.entry_kind = 'MESSAGE_PIN_CHANGED'
                  AND pin.conversation_id = ce.conversation_id
                  AND pin.conversation_sequence = ce.conversation_sequence
+                LEFT JOIN chat.message_edit_event edit
+                  ON ce.entry_kind = 'MESSAGE_EDITED'
+                 AND edit.conversation_id = ce.conversation_id
+                 AND edit.conversation_sequence = ce.conversation_sequence
                 LEFT JOIN chat.legacy_v1_deletion_event_map ldm
                   ON d.source = 'V1_IMPORT'
                  AND ldm.conversation_id = ce.conversation_id
@@ -221,7 +229,9 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                     result.getObject(5, UUID.class), result.getObject(6, UUID.class),
                     result.getString(7), result.getInt(8), result.getBytes(9),
                     result.getObject(10, OffsetDateTime.class).toInstant(),
-                    readReply(result, 22)));
+                    readReply(result, 22), result.getInt(34),
+                    Optional.ofNullable(result.getObject(35, OffsetDateTime.class))
+                            .map(OffsetDateTime::toInstant)));
             case "MESSAGE_RECALLED" -> new ConversationHistoryEntry.Recall(
                     conversationId, sequence, result.getObject(11, UUID.class),
                     result.getObject(12, UUID.class), result.getString(13),
@@ -243,6 +253,13 @@ public final class PostgresMessageAdapter implements MessageSubmissionPort, Mess
                     conversationId, sequence, result.getObject(30, UUID.class),
                     result.getObject(31, UUID.class), result.getBoolean(32),
                     result.getString(33),
+                    result.getObject(3, OffsetDateTime.class).toInstant());
+            case "MESSAGE_EDITED" -> new ConversationHistoryEntry.Edit(
+                    conversationId, sequence, result.getObject(36, UUID.class),
+                    result.getInt(37), result.getInt(38),
+                    Optional.ofNullable(result.getBytes(39)).orElseGet(() -> new byte[0]),
+                    result.getBoolean(40), result.getObject(41, UUID.class),
+                    result.getString(42),
                     result.getObject(3, OffsetDateTime.class).toInstant());
             default -> throw new SQLException("unsupported conversation entry kind");
         };

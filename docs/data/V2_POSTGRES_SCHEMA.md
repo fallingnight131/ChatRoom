@@ -533,8 +533,15 @@ non-text targets, and uses database time for the fixed 15-minute window. Exact
 concurrent retries converge through the digest-bound operation row; stale,
 expired, and revision-limit outcomes are durable, while changed edits alone
 update the current body and consume one mixed sequence. The gateway still does
-not advertise or invoke message editing; current-message and ordered-history
-projection are the next expansion step.
+not advertise or invoke message editing; authenticated gateway composition and
+capability filtering are the next expansion step.
+
+The message history adapter projects the current revision and edited timestamp
+on ordinary message records and emits ordered edit entries from the same mixed
+sequence. Privacy-erased events remain explicit bodyless application entries so
+the cursor can advance; a capable transport must omit their detail rather than
+serialize empty text. Capability negotiation and that transport filter remain
+off until the gateway slice is complete.
 
 ## Bounds and indexes
 

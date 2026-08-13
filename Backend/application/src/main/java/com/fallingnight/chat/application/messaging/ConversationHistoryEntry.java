@@ -1,6 +1,7 @@
 package com.fallingnight.chat.application.messaging;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -97,6 +98,39 @@ public sealed interface ConversationHistoryEntry {
             if (clientOperationId.isBlank()) {
                 throw new IllegalArgumentException("pin operation identity is invalid");
             }
+        }
+    }
+
+    record Edit(
+            UUID conversationId,
+            long conversationSequence,
+            UUID messageId,
+            int contentRevision,
+            int contentType,
+            byte[] content,
+            boolean contentErased,
+            UUID actorAccountId,
+            String clientOperationId,
+            Instant occurredAt) implements ConversationHistoryEntry {
+        public Edit {
+            requireIdentity(conversationId, conversationSequence, actorAccountId, "V2");
+            Objects.requireNonNull(messageId, "messageId");
+            Objects.requireNonNull(content, "content");
+            Objects.requireNonNull(clientOperationId, "clientOperationId");
+            Objects.requireNonNull(occurredAt, "occurredAt");
+            if (contentRevision < 1 || contentRevision > MessageEditCommand.MAX_REVISION
+                    || contentType != MessageEditCommand.TEXT_UTF8_CONTENT_TYPE
+                    || contentErased != (content.length == 0)
+                    || (!contentErased && content.length > MessageEditCommand.MAX_CONTENT_BYTES)
+                    || clientOperationId.isBlank()) {
+                throw new IllegalArgumentException("message edit history shape is invalid");
+            }
+            content = Arrays.copyOf(content, content.length);
+        }
+
+        @Override
+        public byte[] content() {
+            return Arrays.copyOf(content, content.length);
         }
     }
 

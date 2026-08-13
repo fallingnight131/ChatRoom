@@ -1452,7 +1452,7 @@ Progress:
     cleanup, offline conflict behavior, and staged activation (ADR-0341).
   - [x] Add the generated wire contract and fixed Java/C++/TypeScript golden
     compatibility gate while all runtime/client capability paths remain off.
-  - [ ] Persist exact edit operations, current revisions, changed-only mixed
+  - [x] Persist exact edit operations, current revisions, changed-only mixed
     history, retention cleanup, and server-authorized policy in PostgreSQL.
     - [x] Add V047 current revision metadata, digest-bound operation outcomes,
       ordered edit events with privacy erasure, and transport-neutral command/
@@ -1460,8 +1460,8 @@ Progress:
     - [x] Implement serialized PostgreSQL authority with exact concurrent
       replay, author/member/V2-origin/window/revision policy, changed-only
       sequence allocation, and recall/deletion body-erasure integration tests.
-    - [ ] Project current revision metadata and capability-filtered ordered edit
-      history without stalling sequence cursors.
+    - [x] Project current revision metadata and ordered edit history, retaining
+      erased event identities so privacy cleanup cannot stall sequence cursors.
   - [ ] Compose authenticated gateway mutation, capability-filtered history,
     capable-only live fan-out, bounded telemetry, and opaque conflict paths.
   - [ ] Add offline-safe Web and Windows edit overlays/outboxes, explicit
