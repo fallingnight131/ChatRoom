@@ -1249,6 +1249,11 @@ files manually. The C++ golden test compiles the committed Windows tree rather
 than an ignored temporary copy. Web V2 protocol tests also encode type 105 with
 the stable envelope idempotency key and reject malformed, noncanonical, or
 non-preceding server reply references before application state sees them.
+Web application/cache tests persist only reply target identity in the isolated
+V2 IndexedDB, replay the same target and client ID after sync, merge the
+authoritative server reference, and render recalled or absent targets without a
+copied quote body. The preview UI exposes keyboard buttons for reply and cancel
+while remaining behind the existing default-off gate (ADR-0330).
 Gateway tests separately verify authenticated server-bound identity,
 off-event-loop submit/history dispatch, per-connection ordering, safe denial,
 bounded saturation behavior, and isolation from the authentication worker pool.

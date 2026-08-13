@@ -59,6 +59,14 @@ class FakeTransport {
   submitText(conversationId: string, clientMessageId: string, text: string): void {
     this.calls.push(["submit", conversationId, clientMessageId, text]);
   }
+  submitReply(
+    conversationId: string,
+    targetMessageId: string,
+    clientMessageId: string,
+    text: string,
+  ): void {
+    this.calls.push(["reply", conversationId, targetMessageId, clientMessageId, text]);
+  }
   listDevices(): string {
     const requestId = `device-list-${this.calls.length}`;
     this.calls.push(["devices", requestId]);
@@ -144,6 +152,8 @@ function cachedMessage(overrides: Partial<V2ConversationCacheMessage> = {}): V2C
     contentType: "text",
     deliveryState: "accepted",
     errorCode: "",
+    availability: "available",
+    reply: null,
     ...overrides,
   };
 }
@@ -377,6 +387,73 @@ test("reconciles optimistic acceptance without skipping the contiguous history c
   application.dispose();
 });
 
+test("persists and retries an optimistic reply with one stable target and client id", async () => {
+  const transport = new FakeTransport();
+  const cache = new FakeCache();
+  cache.records.set(`${ACCOUNT_ID}:${CONVERSATION_ID}`, {
+    messages: [cachedMessage()],
+    cursorSequence: CURSOR,
+  });
+  const application = new V2WebChatApplication({
+    transport,
+    cache,
+    createClientMessageId: () => "client-reply-1",
+    now: () => NOW,
+  });
+  establish(transport);
+  directory(transport);
+  await application.openConversation(CONVERSATION_ID);
+
+  const optimistic = application.sendReply(MESSAGE_ID, "quoted answer");
+  assert.equal(optimistic.reply?.targetMessageId, MESSAGE_ID);
+  assert.deepEqual(transport.calls.at(-1), [
+    "reply", CONVERSATION_ID, MESSAGE_ID, "client-reply-1", "quoted answer",
+  ]);
+  assert.equal(cache.saves.at(-1)?.messages.at(-1)?.reply?.targetConversationSequence, CURSOR);
+
+  transport.emit(correlated({
+    type: "protocol-error",
+    value: create(ProtocolErrorSchema, {
+      code: ProtocolErrorCode.RATE_LIMITED,
+      safeMessage: "retry later",
+      retryable: true,
+    }),
+  }, "client-reply-1"));
+  assert.equal(application.retryMessage("client-reply-1"), true);
+  assert.deepEqual(transport.calls.at(-1), [
+    "reply", CONVERSATION_ID, MESSAGE_ID, "client-reply-1", "quoted answer",
+  ]);
+  transport.emit(correlated({
+    type: "message-history-page",
+    value: create(MessageHistoryPageSchema, {
+      conversationId: CONVERSATION_ID,
+      messages: [{
+        conversationId: CONVERSATION_ID,
+        messageId: SECOND_MESSAGE_ID,
+        conversationSequence: BigInt(CURSOR) + 1n,
+        senderAccountId: ACCOUNT_ID,
+        senderDeviceId: DEVICE_ID,
+        clientMessageId: "client-reply-1",
+        contentType: MessageContentType.TEXT_UTF8,
+        content: new TextEncoder().encode("quoted answer"),
+        acceptedAtEpochMs: BigInt(NOW + 1),
+        reply: {
+          targetMessageId: MESSAGE_ID,
+          targetConversationSequence: BigInt(CURSOR),
+          targetSenderAccountId: ACCOUNT_ID,
+        },
+      }],
+      nextSequence: BigInt(CURSOR) + 1n,
+      latestSequence: BigInt(CURSOR) + 1n,
+    }),
+  }));
+  const merged = application.snapshot.messages.find(
+    message => message.clientMessageId === "client-reply-1");
+  assert.equal(merged?.id, SECOND_MESSAGE_ID);
+  assert.equal(merged?.reply?.targetConversationSequence, CURSOR);
+  application.dispose();
+});
+
 test("merges contiguous live events and repairs sequence gaps through history", async () => {
   const transport = new FakeTransport();
   const cache = new FakeCache();
@@ -517,6 +594,7 @@ test("applies ordered recall and deletion entries while advancing the mixed curs
   assert.equal(application.snapshot.messages.length, 1);
   assert.equal(application.snapshot.messages[0]?.id, SECOND_MESSAGE_ID);
   assert.equal(application.snapshot.messages[0]?.content, "此消息已被撤回");
+  assert.equal(application.snapshot.messages[0]?.availability, "recalled");
   assert.equal(cache.saves.at(-1)?.cursor, "4");
   application.dispose();
 });

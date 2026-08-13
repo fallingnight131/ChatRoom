@@ -637,7 +637,11 @@ degrading a reply to a plain message, and its record metadata copies no target
 body (ADR-0328). V044 and the Java gateway now preserve a server-authored reply
 identity, serialize target validation with conversation mutations, reject
 missing/cross-conversation/recalled targets opaquely, and return the same
-reference on exact idempotent retry (ADR-0329). A shared
+reference on exact idempotent retry (ADR-0329). The default-off Web V2 product
+now composes reply selection, optimistic send, isolated IndexedDB recovery,
+fixed-target retry/replay, authoritative merge, and accessible unavailable/
+recalled rendering without persisting copied quote text (ADR-0330). Windows
+reply composition remains pending. A shared
 single-gateway router now establishes one active subscription only through the
 final authorized history page, publishes non-duplicate durable acceptance, and
 closes unwritable subscribers for reconnect repair. The Web client validates,

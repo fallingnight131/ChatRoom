@@ -9,6 +9,7 @@ export const MAX_CACHED_MESSAGES = 500
 export const MAX_V2_PENDING_MESSAGES = 100
 export const MAX_DRAFT_LENGTH = 10000
 const MAX_SIGNED_SEQUENCE = (1n << 63n) - 1n
+const CANONICAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export const NON_PERSISTED_MEDIA_FIELDS = Object.freeze([
   'imageData',
   'fileData',
@@ -54,6 +55,19 @@ export function normalizeV2Sequence(value) {
 export function sanitizeV2Message(message) {
   if (!message || typeof message !== 'object') return null
   const content = typeof message.content === 'string' ? message.content : ''
+  const replySequence = normalizeV2Sequence(message.reply?.targetConversationSequence)
+  const reply = message.reply
+    && typeof message.reply.targetMessageId === 'string'
+    && CANONICAL_UUID.test(message.reply.targetMessageId)
+    && typeof message.reply.targetSenderAccountId === 'string'
+    && CANONICAL_UUID.test(message.reply.targetSenderAccountId)
+    && replySequence !== '0'
+    ? {
+        targetMessageId: message.reply.targetMessageId,
+        targetConversationSequence: replySequence,
+        targetSenderAccountId: message.reply.targetSenderAccountId
+      }
+    : null
   return {
     conversationId: String(message.conversationId || ''),
     id: String(message.id || ''),
@@ -67,7 +81,9 @@ export function sanitizeV2Message(message) {
     deliveryState: ['sending', 'accepted', 'failed'].includes(message.deliveryState)
       ? message.deliveryState
       : 'accepted',
-    errorCode: typeof message.errorCode === 'string' ? message.errorCode : ''
+    errorCode: typeof message.errorCode === 'string' ? message.errorCode : '',
+    availability: message.availability === 'recalled' ? 'recalled' : 'available',
+    reply
   }
 }
 

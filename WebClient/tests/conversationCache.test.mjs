@@ -213,6 +213,12 @@ test('preserves exact V2 sequences without persisting secrets or media bytes', (
       content: 'hello',
       contentType: 'text',
       deliveryState: 'accepted',
+      availability: 'available',
+      reply: {
+        targetMessageId: '60000000-0000-4000-8000-000000000001',
+        targetConversationSequence: '9007199254740994',
+        targetSenderAccountId: '20000000-0000-4000-8000-000000000002'
+      },
       resumeToken: 'secret',
       bytes: new Uint8Array([1])
       }
@@ -222,6 +228,11 @@ test('preserves exact V2 sequences without persisting secrets or media bytes', (
   assert.equal(record.messages[0].id, 'old-1')
   assert.equal(record.cursorSequence, '9007199254740993')
   assert.equal(record.messages.at(-1).sequence, '9007199254740995')
+  assert.deepEqual(record.messages.at(-1).reply, {
+    targetMessageId: '60000000-0000-4000-8000-000000000001',
+    targetConversationSequence: '9007199254740994',
+    targetSenderAccountId: '20000000-0000-4000-8000-000000000002'
+  })
   assert.equal('token' in record, false)
   assert.equal('resumeToken' in record.messages.at(-1), false)
   assert.equal('bytes' in record.messages.at(-1), false)

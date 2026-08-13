@@ -12,6 +12,7 @@ const DIRECTORY_PAGE_SIZE = 50;
 const MAX_RETAINED_ACCEPTED_MESSAGES = 500;
 const MAX_PENDING_MESSAGES = 100;
 const decoder = new TextDecoder("utf-8", { fatal: true });
+const canonicalUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export interface V2ConversationCacheMessage {
   conversationId: string;
@@ -25,6 +26,12 @@ export interface V2ConversationCacheMessage {
   contentType: "text";
   deliveryState: "sending" | "accepted" | "failed";
   errorCode: string;
+  availability: "available" | "recalled";
+  reply: null | {
+    targetMessageId: string;
+    targetConversationSequence: string;
+    targetSenderAccountId: string;
+  };
 }
 
 export interface V2ConversationCacheSnapshot {
@@ -52,6 +59,12 @@ export interface V2ChatTransport {
   listConversations(limit: number, after?: { updatedAtEpochMs: bigint; conversationId: string }): void;
   readMessageHistory(conversationId: string, afterSequence: bigint, limit: number): void;
   submitText(conversationId: string, clientMessageId: string, text: string): void;
+  submitReply(
+    conversationId: string,
+    targetMessageId: string,
+    clientMessageId: string,
+    text: string,
+  ): void;
   listDevices(): string;
   revokeDevice(targetDeviceId: string): string;
 }
@@ -162,7 +175,7 @@ export class V2WebChatApplication {
       directory: this.directoryValue.map((item) => ({ ...item })),
       directoryHasMore: this.directoryHasMoreValue,
       activeConversationId: this.activeConversationIdValue,
-      messages: active?.messages.map((message) => ({ ...message })) ?? [],
+      messages: active?.messages.map(cloneMessage) ?? [],
       historyLoading: active?.loading ?? false,
       devices: this.devicesValue.map((device) => ({ ...device })),
       devicesLoading: this.devicesLoadingValue,
@@ -274,6 +287,29 @@ export class V2WebChatApplication {
   }
 
   sendText(text: string): V2ConversationCacheMessage {
+    return this.submitOptimisticText(text, null);
+  }
+
+  sendReply(targetMessageId: string, text: string): V2ConversationCacheMessage {
+    this.requireActive();
+    if (!this.activeConversationIdValue) throw new Error("no active V2 conversation");
+    const state = this.requireConversation(this.activeConversationIdValue);
+    const target = state.messages.find((message) => message.id === targetMessageId);
+    if (!target || target.deliveryState !== "accepted" || target.availability !== "available"
+        || BigInt(target.sequence) <= 0n) {
+      throw new Error("reply target is unavailable");
+    }
+    return this.submitOptimisticText(text, {
+      targetMessageId: target.id,
+      targetConversationSequence: target.sequence,
+      targetSenderAccountId: target.senderAccountId,
+    });
+  }
+
+  private submitOptimisticText(
+    text: string,
+    reply: V2ConversationCacheMessage["reply"],
+  ): V2ConversationCacheMessage {
     this.requireActive();
     if (!this.sessionValue || !this.activeConversationIdValue) throw new Error("no active V2 conversation");
     if (!text || new TextEncoder().encode(text).byteLength > 65_536) {
@@ -295,17 +331,19 @@ export class V2WebChatApplication {
       contentType: "text",
       deliveryState: "sending",
       errorCode: "",
+      availability: "available",
+      reply: reply ? { ...reply } : null,
     };
     state.messages = boundMessages([...state.messages, message]);
     try {
-      this.transport.submitText(message.conversationId, message.clientMessageId, text);
+      this.dispatchSubmission(message);
     } catch {
       message.deliveryState = "failed";
       message.errorCode = "TRANSPORT_UNAVAILABLE";
     }
     this.persist(message.conversationId);
     this.emit();
-    return { ...message };
+    return cloneMessage(message);
   }
 
   retryMessage(clientMessageId: string): boolean {
@@ -317,7 +355,7 @@ export class V2WebChatApplication {
     message.deliveryState = "sending";
     message.errorCode = "";
     try {
-      this.transport.submitText(message.conversationId, message.clientMessageId, message.content);
+      this.dispatchSubmission(message);
     } catch {
       message.deliveryState = "failed";
       message.errorCode = "TRANSPORT_UNAVAILABLE";
@@ -507,7 +545,10 @@ export class V2WebChatApplication {
         } else if (entry.detail.case === "recall") {
           const recall = entry.detail.value;
           const recalled = state.messages.find((message) => message.id === recall.messageId);
-          if (recalled) recalled.content = "此消息已被撤回";
+          if (recalled) {
+            recalled.content = "此消息已被撤回";
+            recalled.availability = "recalled";
+          }
         } else if (entry.detail.case === "deletion") {
           const deleted = new Set(entry.detail.value.messageIds);
           state.messages = state.messages.filter((message) => !deleted.has(message.id));
@@ -602,7 +643,7 @@ export class V2WebChatApplication {
     void this.cache.saveV2(
       this.sessionValue.accountId,
       conversationId,
-      state.messages.map((message) => ({ ...message })),
+      state.messages.map(cloneMessage),
       state.cursorSequence,
     ).catch(() => {
       this.lastFailureValue = "V2 cache write failed";
@@ -634,7 +675,7 @@ export class V2WebChatApplication {
       return;
     }
     try {
-      this.transport.submitText(conversationId, message.clientMessageId, message.content);
+      this.dispatchSubmission(message);
       this.replayInFlight.set(conversationId, message.clientMessageId);
     } catch {
       message.deliveryState = "failed";
@@ -664,6 +705,19 @@ export class V2WebChatApplication {
     const state = this.conversations.get(conversationId);
     if (!state) throw new Error("conversation has not been opened");
     return state;
+  }
+
+  private dispatchSubmission(message: V2ConversationCacheMessage): void {
+    if (message.reply) {
+      this.transport.submitReply(
+        message.conversationId,
+        message.reply.targetMessageId,
+        message.clientMessageId,
+        message.content,
+      );
+      return;
+    }
+    this.transport.submitText(message.conversationId, message.clientMessageId, message.content);
   }
 
   private clearDeviceState(): void {
@@ -719,6 +773,12 @@ function mapMessageRecord(record: MessageRecord): V2ConversationCacheMessage {
     contentType: "text",
     deliveryState: "accepted",
     errorCode: "",
+    availability: "available",
+    reply: record.reply ? {
+      targetMessageId: record.reply.targetMessageId,
+      targetConversationSequence: record.reply.targetConversationSequence.toString(),
+      targetSenderAccountId: record.reply.targetSenderAccountId,
+    } : null,
   };
 }
 
@@ -729,14 +789,29 @@ function normalizeCachedMessage(message: V2ConversationCacheMessage): V2Conversa
     deliveryState: message.deliveryState === "sending" || message.deliveryState === "failed"
       ? message.deliveryState
       : "accepted",
+    availability: message.availability === "recalled" ? "recalled" : "available",
+    reply: normalizeReply(message.reply),
   };
+}
+
+function normalizeReply(
+  reply: V2ConversationCacheMessage["reply"],
+): V2ConversationCacheMessage["reply"] {
+  if (!reply || !canonicalUuid.test(reply.targetMessageId)
+      || !canonicalUuid.test(reply.targetSenderAccountId)) return null;
+  const sequence = normalizeSequence(reply.targetConversationSequence);
+  return sequence === "0" ? null : { ...reply, targetConversationSequence: sequence };
+}
+
+function cloneMessage(message: V2ConversationCacheMessage): V2ConversationCacheMessage {
+  return { ...message, reply: message.reply ? { ...message.reply } : null };
 }
 
 function mergeMessages(
   existing: V2ConversationCacheMessage[],
   incoming: V2ConversationCacheMessage[],
 ): V2ConversationCacheMessage[] {
-  const merged = existing.map((message) => ({ ...message }));
+  const merged = existing.map(cloneMessage);
   for (const candidate of incoming) {
     const index = merged.findIndex((message) =>
       (message.id && message.id === candidate.id)

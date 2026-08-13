@@ -77,8 +77,17 @@
             <li v-for="message in snapshot.messages" :key="message.id || message.clientMessageId"
                 :class="['message-row', { mine: message.senderAccountId === snapshot.session.accountId }]">
               <div class="bubble">
+                <div v-if="message.reply" class="reply-reference"
+                     :aria-label="`回复：${replyPreview(message)}`">
+                  <strong>回复</strong>
+                  <span>{{ replyPreview(message) }}</span>
+                </div>
                 <p>{{ message.content }}</p>
                 <span>#{{ message.sequence }} · {{ deliveryLabel(message.deliveryState) }}</span>
+                <button v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
+                        class="reply-link" type="button" @click="startReply(message)">
+                  回复
+                </button>
                 <button v-if="message.deliveryState === 'failed'" class="retry-link" type="button"
                         @click="retryMessage(message.clientMessageId)">
                   重试
@@ -87,6 +96,13 @@
             </li>
           </ol>
           <form class="composer" @submit.prevent="sendMessage">
+            <div v-if="replyTarget" class="composer-reply" role="status">
+              <div>
+                <strong>回复消息 #{{ replyTarget.sequence }}</strong>
+                <span>{{ replyTarget.content }}</span>
+              </div>
+              <button class="icon-button" type="button" aria-label="取消回复" @click="cancelReply">×</button>
+            </div>
             <label class="visually-hidden" for="v2-message">输入消息</label>
             <textarea id="v2-message" v-model="draft" class="input" rows="2"
                       placeholder="输入消息" @keydown.enter.exact.prevent="sendMessage"></textarea>
@@ -157,6 +173,7 @@ const username = ref('')
 const password = ref('')
 const draft = ref('')
 const actionError = ref('')
+const replyTarget = ref(null)
 const authenticationPending = ref(false)
 const devicesOpen = ref(false)
 const confirmingDeviceId = ref(null)
@@ -218,6 +235,7 @@ function login() {
 
 async function openConversation(conversationId) {
   actionError.value = ''
+  replyTarget.value = null
   try { await runtimeRef.value.application.openConversation(conversationId) }
   catch (error) { actionError.value = error instanceof Error ? error.message : '无法打开会话' }
 }
@@ -232,11 +250,32 @@ function sendMessage() {
   if (!text) return
   actionError.value = ''
   try {
-    runtimeRef.value.application.sendText(text)
+    if (replyTarget.value) {
+      runtimeRef.value.application.sendReply(replyTarget.value.id, text)
+    } else {
+      runtimeRef.value.application.sendText(text)
+    }
     draft.value = ''
+    replyTarget.value = null
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : '消息发送失败'
   }
+}
+
+function startReply(message) {
+  if (!message?.id || message.deliveryState !== 'accepted' || message.availability !== 'available') return
+  replyTarget.value = { id: message.id, sequence: message.sequence, content: message.content }
+  nextTick(() => document.getElementById('v2-message')?.focus())
+}
+
+function cancelReply() {
+  replyTarget.value = null
+}
+
+function replyPreview(message) {
+  const target = snapshot.value.messages.find(item => item.id === message.reply?.targetMessageId)
+  if (!target) return '原消息暂不可用'
+  return target.availability === 'recalled' ? '原消息已撤回' : target.content
 }
 
 function retryMessage(clientMessageId) {
@@ -318,6 +357,11 @@ onUnmounted(() => {
 .device-entry:hover { background: var(--bg-hover); }.device-entry span { font-size: 12px; }
 .conversation-button { width: 100%; display: grid; gap: 4px; padding: 14px 18px; border: 0; border-bottom: 1px solid var(--border-light); text-align: left; color: var(--text-primary); background: transparent; cursor: pointer; }
 .conversation-button:hover { background: var(--bg-hover); }.conversation-button.active { background: var(--bg-active); }
+.reply-reference { margin-bottom: 6px; padding: 6px 8px; display: grid; gap: 2px; border-left: 3px solid var(--accent); border-radius: 4px; color: var(--text-secondary); background: var(--bg-primary); font-size: 12px; }
+.reply-reference span, .composer-reply span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.reply-link { margin-left: 8px; border: 0; color: var(--text-link); background: transparent; cursor: pointer; }
+.composer-reply { flex: 1 0 100%; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-left: 3px solid var(--accent); border-radius: 6px; background: var(--bg-primary); }
+.composer-reply > div { min-width: 0; display: grid; gap: 2px; }
 .conversation-button span { color: var(--text-secondary); font-size: 12px; }.empty-copy { padding: 20px; }
 .message-panel { min-width: 0; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .message-header { padding: 16px 20px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); background: var(--bg-secondary); }
@@ -325,8 +369,9 @@ onUnmounted(() => {
 .message-row { display: flex; margin-bottom: 12px; }.message-row.mine { justify-content: flex-end; }
 .bubble { max-width: min(70%, 680px); padding: 10px 12px; border-radius: 12px; background: var(--bg-bubble-other); box-shadow: var(--shadow); }
 .mine .bubble { background: var(--bg-bubble-mine); }.bubble span { display: inline-block; margin-top: 6px; color: var(--text-secondary); font-size: 11px; }
+.bubble .reply-reference span { display: block; margin-top: 0; }
 .retry-link { margin-left: 8px; border: 0; color: var(--danger); background: transparent; cursor: pointer; }
-.composer { display: flex; gap: 12px; align-items: end; padding: 14px 20px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); }
+.composer { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding: 14px 20px; border-top: 1px solid var(--border-color); background: var(--bg-secondary); }
 .composer textarea { resize: none; }.empty-state { flex: 1; display: grid; place-content: center; text-align: center; color: var(--text-secondary); }
 .action-error { position: absolute; right: 20px; bottom: 86px; padding: 8px 12px; border-radius: 8px; background: var(--bg-secondary); box-shadow: var(--shadow); }
 .dialog-backdrop { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 48%); }

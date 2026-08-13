@@ -1365,7 +1365,11 @@ Progress:
     (ADR-0329).
   - [x] Extend the Web V2 protocol/transport boundary with type-105 reply
     submission and fail-closed server reply-reference validation.
-  - [ ] Add offline/cache-safe reply composition and rendering to Web and Windows.
+  - [x] Add Web optimistic/offline reply composition, IndexedDB-safe target
+    identity, retry/replay, authoritative merge, recalled/unavailable rendering,
+    keyboard operation, and accessible cancellation (ADR-0330).
+  - [ ] Add the equivalent reply composition, local-cache behavior, and rendering
+    to the supported Windows client.
 
 Candidate slices:
 
