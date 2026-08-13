@@ -1343,7 +1343,12 @@ Progress:
 - [x] Record a clean, commit-exact 10-active-GROUP curve with five WSS
   connections, 40 retained routes, 110 independently reconciled messages, 400
   publications, 1.483 ms all-peer P95, and zero errors.
-- [ ] Record the comparable 100-active-conversation bound and large-group curve.
+- [x] Record the comparable clean 100-active-GROUP route-bound curve with five
+  WSS connections, 400 retained routes, 200 independently reconciled messages,
+  activation P95 87.599 ms, all-peer publication P95 1.060 ms, and zero errors;
+  the single-gateway measurements do not yet justify Redis or a broker.
+- [ ] Record a larger current-revision group fan-out curve independently of
+  conversation-count growth.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.

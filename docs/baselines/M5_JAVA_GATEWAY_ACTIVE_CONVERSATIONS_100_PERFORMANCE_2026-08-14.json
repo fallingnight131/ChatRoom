@@ -1,0 +1,81 @@
+{
+  "benchmark": "java-v2-gateway-messaging",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 4294967296,
+    "os": "Mac OS X",
+    "osVersion": "26.5.2",
+    "peakObservedHeapBytes": 213534696,
+    "processCpuSeconds": 3.625,
+    "scenarioWallSeconds": 1.527,
+    "vm": "OpenJDK 64-Bit Server VM"
+  },
+  "host": {
+    "javaPeakRssBytes": 450265088,
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "postgresPostmasterPeakRssBytes": 24395776,
+    "pythonVersion": "3.9.6"
+  },
+  "recordedAt": "2026-08-13T19:04:55.426993Z",
+  "results": {
+    "completedMessageThroughputPerSecond": 1484.29,
+    "connectionSetupLatencyMicros": {
+      "max": 234049,
+      "mean": 117223.0,
+      "min": 86053,
+      "p50": 87871,
+      "p95": 234049,
+      "p99": 234049,
+      "samples": 5
+    },
+    "conversationActivationLatencyMicros": {
+      "max": 87599,
+      "mean": 55037.5,
+      "min": 40680,
+      "p50": 42846,
+      "p95": 87599,
+      "p99": 87599,
+      "samples": 4
+    },
+    "errors": 0,
+    "peerPublications": 400,
+    "submitToAcceptLatencyMicros": {
+      "max": 1690,
+      "mean": 553.9,
+      "min": 343,
+      "p50": 468,
+      "p95": 924,
+      "p99": 1456,
+      "samples": 100
+    },
+    "submitToAllPeersPublishedLatencyMicros": {
+      "max": 1791,
+      "mean": 660.95,
+      "min": 432,
+      "p50": 574,
+      "p95": 1060,
+      "p99": 1645,
+      "samples": 100
+    }
+  },
+  "scenario": {
+    "activeConversations": 100,
+    "connections": 5,
+    "conversationKind": "GROUP",
+    "durableMessages": 200,
+    "durableMessagesPerConversation": 2,
+    "memberships": 500,
+    "messageOperations": 100,
+    "payloadBytes": 256,
+    "receiversPerMessage": 4,
+    "routingSubscriptions": 400,
+    "warmupOperations": 100
+  },
+  "schemaVersion": 7,
+  "sourceRevision": "bd7e30a970bd2e4024015704215739a41d9d615b",
+  "startedAt": "2026-08-13T19:04:52.397485Z",
+  "warning": "loopback development evidence; not a capacity claim",
+  "worktreeDirty": false
+}
