@@ -1272,6 +1272,13 @@ pin history-detail identity, and duplicate/unknown capability rejection. Web
 and Windows now advertise `MESSAGE_PINS`: each has completed its isolated
 durable projection, bounded operation outbox, reconnect replay, ACK/history/live
 convergence, target cleanup, and accessible-control gate (ADR-0340).
+Types 114/115/116 reserve the runtime-inactive message-edit command, response,
+and ordered event plus additive message revision metadata. Java, TypeScript,
+and C++ lock the same `EditMessage` bytes and Java validates canonical IDs,
+bounded UTF-8, operation identity, revision limits, changed-only sequencing,
+message metadata, and mixed-history detail identity. The handshake recognizes
+the capability enum but deliberately omits it from `ServerHello`; Web and
+Windows do not advertise it before their complete edit slices (ADR-0341).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

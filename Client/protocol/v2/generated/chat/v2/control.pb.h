@@ -132,6 +132,9 @@ enum MessageType : int {
   MESSAGE_TYPE_CONVERSATION_DIRECTORY_PAGE = 111,
   MESSAGE_TYPE_MESSAGE_PIN_APPLIED = 112,
   MESSAGE_TYPE_MESSAGE_PIN_CHANGED = 113,
+  MESSAGE_TYPE_EDIT_MESSAGE = 114,
+  MESSAGE_TYPE_MESSAGE_EDIT_APPLIED = 115,
+  MESSAGE_TYPE_MESSAGE_EDITED = 116,
   MESSAGE_TYPE_REGISTER_ATTACHMENT = 120,
   MESSAGE_TYPE_ATTACHMENT_REGISTERED = 121,
   MESSAGE_TYPE_AUTHORIZE_ATTACHMENT_UPLOAD = 122,
@@ -219,6 +222,7 @@ enum ClientCapability : int {
   CLIENT_CAPABILITY_UNSPECIFIED = 0,
   CLIENT_CAPABILITY_MESSAGE_REACTIONS = 1,
   CLIENT_CAPABILITY_MESSAGE_PINS = 2,
+  CLIENT_CAPABILITY_MESSAGE_EDITS = 3,
   ClientCapability_INT_MIN_SENTINEL_DO_NOT_USE_ =
       ::std::numeric_limits<::int32_t>::min(),
   ClientCapability_INT_MAX_SENTINEL_DO_NOT_USE_ =
@@ -229,11 +233,11 @@ extern const uint32_t ClientCapability_internal_data_[];
 inline constexpr ClientCapability ClientCapability_MIN =
     static_cast<ClientCapability>(0);
 inline constexpr ClientCapability ClientCapability_MAX =
-    static_cast<ClientCapability>(2);
+    static_cast<ClientCapability>(3);
 [[nodiscard]] inline bool ClientCapability_IsValid(int value) {
-  return 0 <= value && value <= 2;
+  return 0 <= value && value <= 3;
 }
-inline constexpr int ClientCapability_ARRAYSIZE = 2 + 1;
+inline constexpr int ClientCapability_ARRAYSIZE = 3 + 1;
 [[nodiscard]] const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL
 ClientCapability_descriptor();
 [[nodiscard]] inline auto ProtobufInternalGetEnumDescriptor(ClientCapability) {
@@ -248,7 +252,7 @@ template <typename T>
 }
 template <>
 [[nodiscard]] inline const ::std::string& ClientCapability_Name(ClientCapability value) {
-  return ::google::protobuf::internal::NameOfDenseEnum<ClientCapability_descriptor, 0, 2>(
+  return ::google::protobuf::internal::NameOfDenseEnum<ClientCapability_descriptor, 0, 3>(
       static_cast<int>(value));
 }
 [[nodiscard]] inline bool ClientCapability_Parse(

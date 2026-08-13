@@ -2,6 +2,7 @@ package com.fallingnight.chat.gateway.transport;
 
 import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.protocol.v2.ClientHello;
+import com.fallingnight.chat.protocol.v2.ClientCapability;
 import com.fallingnight.chat.protocol.v2.ClientHelloPolicy;
 import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.EnvelopePolicy;
@@ -17,6 +18,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Objects;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -119,8 +121,12 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
                         hello.getClientDeviceId(),
                         platform,
                         hello.getAppVersion()));
-        Set<com.fallingnight.chat.protocol.v2.ClientCapability> enabledCapabilities =
-                Set.copyOf(hello.getCapabilitiesList());
+        List<ClientCapability> enabledCapabilityList = hello.getCapabilitiesList().stream()
+                .filter(capability -> capability
+                                == ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS
+                        || capability == ClientCapability.CLIENT_CAPABILITY_MESSAGE_PINS)
+                .toList();
+        Set<ClientCapability> enabledCapabilities = Set.copyOf(enabledCapabilityList);
         context.channel().attr(V2ConnectionAttributes.ENABLED_CAPABILITIES)
                 .set(enabledCapabilities);
         long now = clock.millis();
@@ -129,7 +135,7 @@ public final class V2HandshakeHandler extends SimpleChannelInboundHandler<Envelo
                 .setConnectionId(connectionId)
                 .setServerTimeEpochMs(now)
                 .setMaximumFrameBytes(V2EnvelopeDecoder.MAX_WIRE_BYTES)
-                .addAllEnabledCapabilities(hello.getCapabilitiesList())
+                .addAllEnabledCapabilities(enabledCapabilityList)
                 .build();
         context.writeAndFlush(Envelope.newBuilder()
                 .setProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)

@@ -41,6 +41,10 @@ PROTOBUF_CONSTINIT ::google::protobuf::internal::ReflectionData
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
         // ::chat::v2::MessagePinApplied
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
+        // ::chat::v2::EditMessage
+        {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
+        // ::chat::v2::MessageEditApplied
+        {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
         // ::chat::v2::MessageAccepted
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
         // ::chat::v2::ReadMessageHistory
@@ -56,6 +60,8 @@ PROTOBUF_CONSTINIT ::google::protobuf::internal::ReflectionData
         // ::chat::v2::MessageReactionChangedRecord
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
         // ::chat::v2::MessagePinChangedRecord
+        {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
+        // ::chat::v2::MessageEditedRecord
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
         // ::chat::v2::ConversationEntryRecord
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
@@ -867,7 +873,7 @@ constexpr auto ReadMessageHistory::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[7],
+      &file_reflection_data[9],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -1108,7 +1114,7 @@ constexpr auto MessagesDeletedRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[11],
+      &file_reflection_data[13],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -1272,7 +1278,7 @@ constexpr auto MessageReplyReference::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[9],
+      &file_reflection_data[11],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -1464,7 +1470,7 @@ constexpr auto MessageRecalledRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[10],
+      &file_reflection_data[12],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -1668,7 +1674,7 @@ constexpr auto MessageReactionChangedRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[12],
+      &file_reflection_data[14],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -2090,7 +2096,7 @@ constexpr auto MessagePinChangedRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[13],
+      &file_reflection_data[15],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -2359,6 +2365,458 @@ const ::_pbi::ClassData* MessagePinApplied_get_class_data() {
 }
 }  // namespace
 #endif  // PROTOBUF_CUSTOM_VTABLE
+class MessageEditedRecord::_Internal {
+ public:
+  using HasBits = decltype(::std::declval<MessageEditedRecord>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_._has_bits_);
+};
+
+constexpr MessageEditedRecord::ParseTableT_ MessageEditedRecord::InternalGenerateParseTable_(const ::_pbi::ClassData* class_data) {
+  return ParseTableT_{
+    {
+      PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_._has_bits_),
+      0, // no _extensions_
+      9, 120,  // max_field_number, fast_idx_mask
+      offsetof(ParseTableT_, field_lookup_table),
+      4294966784,  // skipmap
+      offsetof(ParseTableT_, field_entries),
+      9,  // num_field_entries
+      0,  // num_aux_entries
+      offsetof(ParseTableT_, field_names),  // no aux_entries
+      class_data,
+      nullptr,  // post_loop_handler
+      ::_pbi::TcParser::GenericFallback,  // fallback
+      #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+      ::_pbi::TcParser::GetTable<::chat::v2::MessageEditedRecord>(),  // to_prefetch
+      #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+    }, {{
+      {::_pbi::TcParser::MiniParse, {}},
+      // string conversation_id = 1;
+      {::_pbi::TcParser::FastUS1,
+       {10, 0, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.conversation_id_)}},
+      // uint64 conversation_sequence = 2;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(MessageEditedRecord, _impl_.conversation_sequence_), 5>(),
+       {16, 5, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.conversation_sequence_)}},
+      // string message_id = 3;
+      {::_pbi::TcParser::FastUS1,
+       {26, 1, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.message_id_)}},
+      // uint32 content_revision = 4;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MessageEditedRecord, _impl_.content_revision_), 6>(),
+       {32, 6, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.content_revision_)}},
+      // uint32 content_type = 5;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MessageEditedRecord, _impl_.content_type_), 7>(),
+       {40, 7, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.content_type_)}},
+      // bytes content = 6;
+      {::_pbi::TcParser::FastBS1,
+       {50, 2, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.content_)}},
+      // string actor_account_id = 7;
+      {::_pbi::TcParser::FastUS1,
+       {58, 3, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.actor_account_id_)}},
+      // string client_operation_id = 8;
+      {::_pbi::TcParser::FastUS1,
+       {66, 4, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.client_operation_id_)}},
+      // int64 occurred_at_epoch_ms = 9;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(MessageEditedRecord, _impl_.occurred_at_epoch_ms_), 8>(),
+       {72, 8, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.occurred_at_epoch_ms_)}},
+      {::_pbi::TcParser::MiniParse, {}},
+      {::_pbi::TcParser::MiniParse, {}},
+      {::_pbi::TcParser::MiniParse, {}},
+      {::_pbi::TcParser::MiniParse, {}},
+      {::_pbi::TcParser::MiniParse, {}},
+      {::_pbi::TcParser::MiniParse, {}},
+    }}, {{
+      65535, 65535
+    }}, {{
+      // string conversation_id = 1;
+      {PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.conversation_id_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // uint64 conversation_sequence = 2;
+      {PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.conversation_sequence_), _Internal::kHasBitsOffset + 5, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt64)},
+      // string message_id = 3;
+      {PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.message_id_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // uint32 content_revision = 4;
+      {PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.content_revision_), _Internal::kHasBitsOffset + 6, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+      // uint32 content_type = 5;
+      {PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.content_type_), _Internal::kHasBitsOffset + 7, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+      // bytes content = 6;
+      {PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.content_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kBytes | ::_fl::kRepAString)},
+      // string actor_account_id = 7;
+      {PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.actor_account_id_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // string client_operation_id = 8;
+      {PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.client_operation_id_), _Internal::kHasBitsOffset + 4, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // int64 occurred_at_epoch_ms = 9;
+      {PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.occurred_at_epoch_ms_), _Internal::kHasBitsOffset + 8, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt64)},
+    }},
+    // no aux_entries
+    {{
+      "\33\17\0\12\0\0\0\20\23\0\0\0\0\0\0\0"
+      "chat.v2.MessageEditedRecord"
+      "conversation_id"
+      "message_id"
+      "actor_account_id"
+      "client_operation_id"
+    }},
+  };
+}
+
+
+inline constexpr MessageEditedRecord::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        conversation_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        message_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        content_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        actor_account_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        client_operation_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        conversation_sequence_{::uint64_t{0u}},
+        content_revision_{0u},
+        content_type_{0u},
+        occurred_at_epoch_ms_{::int64_t{0}} {}
+
+template <typename>
+constexpr MessageEditedRecord::MessageEditedRecord(::_pbi::ConstantInitialized,
+                       const ::_pbi::ClassData* PROTOBUF_NONNULL class_data)
+    : ::google::protobuf::Message(
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          class_data
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          ),
+      _impl_(internal_visibility(), ::_pbi::ConstantInitialized()) {
+}
+inline void* PROTOBUF_NONNULL MessageEditedRecord::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) MessageEditedRecord(arena);
+}
+constexpr auto MessageEditedRecord::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(MessageEditedRecord), alignof(MessageEditedRecord));
+}
+constexpr auto MessageEditedRecord::InternalGenerateClassData_(
+    const MessageLite& prototype,
+    const ::google::protobuf::internal::TcParseTableBase* tc_table) {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &prototype,
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+          &_table_.header,
+#else
+          tc_table,
+#endif
+          nullptr,  // IsInitialized
+          &MessageEditedRecord::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<MessageEditedRecord>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &MessageEditedRecord::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<MessageEditedRecord>(), &MessageEditedRecord::ByteSizeLong,
+              &MessageEditedRecord::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_._cached_size_),
+          false,
+      },
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+      &file_reflection_data[16],
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+      &::_pbi::kDescriptorMethods,
+      &descriptor_table_chat_2fv2_2fmessaging_2eproto,
+      nullptr,  // tracker
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  };
+}
+struct MessageEditedRecordGlobalsTypeInternal : ::_pbi::MessageGlobalsBase {
+  constexpr MessageEditedRecordGlobalsTypeInternal()
+      :
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+        _default(::_pbi::ConstantInitialized{},
+                 MessageEditedRecord_class_data_.base())
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+        MessageGlobalsBase(MessageEditedRecord::InternalGenerateClassData_(
+            _default, &MessageEditedRecord_globals_._table.header)),
+        _default(::_pbi::ConstantInitialized{}, GetClassData()),
+        _table(::_pbi::PrivateAccess::GenerateParseTable<MessageEditedRecord>(
+            GetClassData()))
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  {
+  }
+  ~MessageEditedRecordGlobalsTypeInternal() {}
+  union {
+    alignas(::_pbi::kMaxMessageAlignment) MessageEditedRecord _default;
+  };
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  decltype(::_pbi::PrivateAccess::GenerateParseTable<MessageEditedRecord>(
+      ::std::declval<const ::_pbi::ClassData*>())) _table;
+#endif
+};
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+static_assert(PROTOBUF_FIELD_OFFSET(MessageEditedRecordGlobalsTypeInternal, _default) ==
+              ::_pbi::MessageGlobalsBase::OffsetToDefault());
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PROTOBUF_MESSAGE_GLOBALS_CONST MessageEditedRecordGlobalsTypeInternal MessageEditedRecord_globals_
+        PROTOBUF_MESSAGE_GLOBALS_SECTION(.data.rel.ro);
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+namespace {
+const ::_pbi::ClassData* MessageEditedRecord_get_class_data() {
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  return MessageEditedRecord_globals_.GetClassData();
+#else
+  return MessageEditedRecord_class_data_.base();
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+}
+}  // namespace
+#endif  // PROTOBUF_CUSTOM_VTABLE
+class MessageEditApplied::_Internal {
+ public:
+  using HasBits = decltype(::std::declval<MessageEditApplied>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_._has_bits_);
+};
+
+constexpr MessageEditApplied::ParseTableT_ MessageEditApplied::InternalGenerateParseTable_(const ::_pbi::ClassData* class_data) {
+  return ParseTableT_{
+    {
+      PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_._has_bits_),
+      0, // no _extensions_
+      11, 120,  // max_field_number, fast_idx_mask
+      offsetof(ParseTableT_, field_lookup_table),
+      4294965248,  // skipmap
+      offsetof(ParseTableT_, field_entries),
+      11,  // num_field_entries
+      0,  // num_aux_entries
+      offsetof(ParseTableT_, field_names),  // no aux_entries
+      class_data,
+      nullptr,  // post_loop_handler
+      ::_pbi::TcParser::GenericFallback,  // fallback
+      #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+      ::_pbi::TcParser::GetTable<::chat::v2::MessageEditApplied>(),  // to_prefetch
+      #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+    }, {{
+      {::_pbi::TcParser::MiniParse, {}},
+      // string conversation_id = 1;
+      {::_pbi::TcParser::FastUS1,
+       {10, 0, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.conversation_id_)}},
+      // string message_id = 2;
+      {::_pbi::TcParser::FastUS1,
+       {18, 1, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.message_id_)}},
+      // uint32 content_revision = 3;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MessageEditApplied, _impl_.content_revision_), 5>(),
+       {24, 5, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.content_revision_)}},
+      // uint32 content_type = 4;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MessageEditApplied, _impl_.content_type_), 6>(),
+       {32, 6, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.content_type_)}},
+      // bytes content = 5;
+      {::_pbi::TcParser::FastBS1,
+       {42, 2, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.content_)}},
+      // string actor_account_id = 6;
+      {::_pbi::TcParser::FastUS1,
+       {50, 3, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.actor_account_id_)}},
+      // string client_operation_id = 7;
+      {::_pbi::TcParser::FastUS1,
+       {58, 4, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.client_operation_id_)}},
+      // bool changed = 8;
+      {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(MessageEditApplied, _impl_.changed_), 9>(),
+       {64, 9, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.changed_)}},
+      // uint64 conversation_sequence = 9;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(MessageEditApplied, _impl_.conversation_sequence_), 7>(),
+       {72, 7, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.conversation_sequence_)}},
+      // int64 occurred_at_epoch_ms = 10;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(MessageEditApplied, _impl_.occurred_at_epoch_ms_), 8>(),
+       {80, 8, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.occurred_at_epoch_ms_)}},
+      // bool duplicate = 11;
+      {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(MessageEditApplied, _impl_.duplicate_), 10>(),
+       {88, 10, 0,
+        PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.duplicate_)}},
+      {::_pbi::TcParser::MiniParse, {}},
+      {::_pbi::TcParser::MiniParse, {}},
+      {::_pbi::TcParser::MiniParse, {}},
+      {::_pbi::TcParser::MiniParse, {}},
+    }}, {{
+      65535, 65535
+    }}, {{
+      // string conversation_id = 1;
+      {PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.conversation_id_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // string message_id = 2;
+      {PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.message_id_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // uint32 content_revision = 3;
+      {PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.content_revision_), _Internal::kHasBitsOffset + 5, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+      // uint32 content_type = 4;
+      {PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.content_type_), _Internal::kHasBitsOffset + 6, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+      // bytes content = 5;
+      {PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.content_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kBytes | ::_fl::kRepAString)},
+      // string actor_account_id = 6;
+      {PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.actor_account_id_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // string client_operation_id = 7;
+      {PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.client_operation_id_), _Internal::kHasBitsOffset + 4, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // bool changed = 8;
+      {PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.changed_), _Internal::kHasBitsOffset + 9, 0, (0 | ::_fl::kFcOptional | ::_fl::kBool)},
+      // uint64 conversation_sequence = 9;
+      {PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.conversation_sequence_), _Internal::kHasBitsOffset + 7, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt64)},
+      // int64 occurred_at_epoch_ms = 10;
+      {PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.occurred_at_epoch_ms_), _Internal::kHasBitsOffset + 8, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt64)},
+      // bool duplicate = 11;
+      {PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.duplicate_), _Internal::kHasBitsOffset + 10, 0, (0 | ::_fl::kFcOptional | ::_fl::kBool)},
+    }},
+    // no aux_entries
+    {{
+      "\32\17\12\0\0\0\20\23\0\0\0\0\0\0\0\0"
+      "chat.v2.MessageEditApplied"
+      "conversation_id"
+      "message_id"
+      "actor_account_id"
+      "client_operation_id"
+    }},
+  };
+}
+
+
+inline constexpr MessageEditApplied::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        conversation_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        message_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        content_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        actor_account_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        client_operation_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        content_revision_{0u},
+        content_type_{0u},
+        conversation_sequence_{::uint64_t{0u}},
+        occurred_at_epoch_ms_{::int64_t{0}},
+        changed_{false},
+        duplicate_{false} {}
+
+template <typename>
+constexpr MessageEditApplied::MessageEditApplied(::_pbi::ConstantInitialized,
+                       const ::_pbi::ClassData* PROTOBUF_NONNULL class_data)
+    : ::google::protobuf::Message(
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          class_data
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          ),
+      _impl_(internal_visibility(), ::_pbi::ConstantInitialized()) {
+}
+inline void* PROTOBUF_NONNULL MessageEditApplied::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) MessageEditApplied(arena);
+}
+constexpr auto MessageEditApplied::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(MessageEditApplied), alignof(MessageEditApplied));
+}
+constexpr auto MessageEditApplied::InternalGenerateClassData_(
+    const MessageLite& prototype,
+    const ::google::protobuf::internal::TcParseTableBase* tc_table) {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &prototype,
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+          &_table_.header,
+#else
+          tc_table,
+#endif
+          nullptr,  // IsInitialized
+          &MessageEditApplied::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<MessageEditApplied>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &MessageEditApplied::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<MessageEditApplied>(), &MessageEditApplied::ByteSizeLong,
+              &MessageEditApplied::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_._cached_size_),
+          false,
+      },
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+      &file_reflection_data[7],
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+      &::_pbi::kDescriptorMethods,
+      &descriptor_table_chat_2fv2_2fmessaging_2eproto,
+      nullptr,  // tracker
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  };
+}
+struct MessageEditAppliedGlobalsTypeInternal : ::_pbi::MessageGlobalsBase {
+  constexpr MessageEditAppliedGlobalsTypeInternal()
+      :
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+        _default(::_pbi::ConstantInitialized{},
+                 MessageEditApplied_class_data_.base())
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+        MessageGlobalsBase(MessageEditApplied::InternalGenerateClassData_(
+            _default, &MessageEditApplied_globals_._table.header)),
+        _default(::_pbi::ConstantInitialized{}, GetClassData()),
+        _table(::_pbi::PrivateAccess::GenerateParseTable<MessageEditApplied>(
+            GetClassData()))
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  {
+  }
+  ~MessageEditAppliedGlobalsTypeInternal() {}
+  union {
+    alignas(::_pbi::kMaxMessageAlignment) MessageEditApplied _default;
+  };
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  decltype(::_pbi::PrivateAccess::GenerateParseTable<MessageEditApplied>(
+      ::std::declval<const ::_pbi::ClassData*>())) _table;
+#endif
+};
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+static_assert(PROTOBUF_FIELD_OFFSET(MessageEditAppliedGlobalsTypeInternal, _default) ==
+              ::_pbi::MessageGlobalsBase::OffsetToDefault());
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PROTOBUF_MESSAGE_GLOBALS_CONST MessageEditAppliedGlobalsTypeInternal MessageEditApplied_globals_
+        PROTOBUF_MESSAGE_GLOBALS_SECTION(.data.rel.ro);
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+namespace {
+const ::_pbi::ClassData* MessageEditApplied_get_class_data() {
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  return MessageEditApplied_globals_.GetClassData();
+#else
+  return MessageEditApplied_class_data_.base();
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+}
+}  // namespace
+#endif  // PROTOBUF_CUSTOM_VTABLE
 class MessageAccepted::_Internal {
  public:
   using HasBits = decltype(::std::declval<MessageAccepted>()._impl_._has_bits_);
@@ -2488,7 +2946,7 @@ constexpr auto MessageAccepted::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[6],
+      &file_reflection_data[8],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -2539,6 +2997,197 @@ const ::_pbi::ClassData* MessageAccepted_get_class_data() {
 }
 }  // namespace
 #endif  // PROTOBUF_CUSTOM_VTABLE
+class EditMessage::_Internal {
+ public:
+  using HasBits = decltype(::std::declval<EditMessage>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(EditMessage, _impl_._has_bits_);
+};
+
+constexpr EditMessage::ParseTableT_ EditMessage::InternalGenerateParseTable_(const ::_pbi::ClassData* class_data) {
+  return ParseTableT_{
+    {
+      PROTOBUF_FIELD_OFFSET(EditMessage, _impl_._has_bits_),
+      0, // no _extensions_
+      6, 56,  // max_field_number, fast_idx_mask
+      offsetof(ParseTableT_, field_lookup_table),
+      4294967232,  // skipmap
+      offsetof(ParseTableT_, field_entries),
+      6,  // num_field_entries
+      0,  // num_aux_entries
+      offsetof(ParseTableT_, field_names),  // no aux_entries
+      class_data,
+      nullptr,  // post_loop_handler
+      ::_pbi::TcParser::GenericFallback,  // fallback
+      #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+      ::_pbi::TcParser::GetTable<::chat::v2::EditMessage>(),  // to_prefetch
+      #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+    }, {{
+      {::_pbi::TcParser::MiniParse, {}},
+      // string conversation_id = 1;
+      {::_pbi::TcParser::FastUS1,
+       {10, 0, 0,
+        PROTOBUF_FIELD_OFFSET(EditMessage, _impl_.conversation_id_)}},
+      // string message_id = 2;
+      {::_pbi::TcParser::FastUS1,
+       {18, 1, 0,
+        PROTOBUF_FIELD_OFFSET(EditMessage, _impl_.message_id_)}},
+      // uint32 expected_revision = 3;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(EditMessage, _impl_.expected_revision_), 4>(),
+       {24, 4, 0,
+        PROTOBUF_FIELD_OFFSET(EditMessage, _impl_.expected_revision_)}},
+      // uint32 content_type = 4;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(EditMessage, _impl_.content_type_), 5>(),
+       {32, 5, 0,
+        PROTOBUF_FIELD_OFFSET(EditMessage, _impl_.content_type_)}},
+      // bytes content = 5;
+      {::_pbi::TcParser::FastBS1,
+       {42, 2, 0,
+        PROTOBUF_FIELD_OFFSET(EditMessage, _impl_.content_)}},
+      // string client_operation_id = 6;
+      {::_pbi::TcParser::FastUS1,
+       {50, 3, 0,
+        PROTOBUF_FIELD_OFFSET(EditMessage, _impl_.client_operation_id_)}},
+      {::_pbi::TcParser::MiniParse, {}},
+    }}, {{
+      65535, 65535
+    }}, {{
+      // string conversation_id = 1;
+      {PROTOBUF_FIELD_OFFSET(EditMessage, _impl_.conversation_id_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // string message_id = 2;
+      {PROTOBUF_FIELD_OFFSET(EditMessage, _impl_.message_id_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // uint32 expected_revision = 3;
+      {PROTOBUF_FIELD_OFFSET(EditMessage, _impl_.expected_revision_), _Internal::kHasBitsOffset + 4, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+      // uint32 content_type = 4;
+      {PROTOBUF_FIELD_OFFSET(EditMessage, _impl_.content_type_), _Internal::kHasBitsOffset + 5, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+      // bytes content = 5;
+      {PROTOBUF_FIELD_OFFSET(EditMessage, _impl_.content_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kBytes | ::_fl::kRepAString)},
+      // string client_operation_id = 6;
+      {PROTOBUF_FIELD_OFFSET(EditMessage, _impl_.client_operation_id_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    }},
+    // no aux_entries
+    {{
+      "\23\17\12\0\0\0\23\0"
+      "chat.v2.EditMessage"
+      "conversation_id"
+      "message_id"
+      "client_operation_id"
+    }},
+  };
+}
+
+
+inline constexpr EditMessage::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        conversation_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        message_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        content_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        client_operation_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        expected_revision_{0u},
+        content_type_{0u} {}
+
+template <typename>
+constexpr EditMessage::EditMessage(::_pbi::ConstantInitialized,
+                       const ::_pbi::ClassData* PROTOBUF_NONNULL class_data)
+    : ::google::protobuf::Message(
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          class_data
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          ),
+      _impl_(internal_visibility(), ::_pbi::ConstantInitialized()) {
+}
+inline void* PROTOBUF_NONNULL EditMessage::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) EditMessage(arena);
+}
+constexpr auto EditMessage::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(EditMessage), alignof(EditMessage));
+}
+constexpr auto EditMessage::InternalGenerateClassData_(
+    const MessageLite& prototype,
+    const ::google::protobuf::internal::TcParseTableBase* tc_table) {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &prototype,
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+          &_table_.header,
+#else
+          tc_table,
+#endif
+          nullptr,  // IsInitialized
+          &EditMessage::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<EditMessage>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &EditMessage::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<EditMessage>(), &EditMessage::ByteSizeLong,
+              &EditMessage::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(EditMessage, _impl_._cached_size_),
+          false,
+      },
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+      &file_reflection_data[6],
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+      &::_pbi::kDescriptorMethods,
+      &descriptor_table_chat_2fv2_2fmessaging_2eproto,
+      nullptr,  // tracker
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  };
+}
+struct EditMessageGlobalsTypeInternal : ::_pbi::MessageGlobalsBase {
+  constexpr EditMessageGlobalsTypeInternal()
+      :
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+        _default(::_pbi::ConstantInitialized{},
+                 EditMessage_class_data_.base())
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+        MessageGlobalsBase(EditMessage::InternalGenerateClassData_(
+            _default, &EditMessage_globals_._table.header)),
+        _default(::_pbi::ConstantInitialized{}, GetClassData()),
+        _table(::_pbi::PrivateAccess::GenerateParseTable<EditMessage>(
+            GetClassData()))
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  {
+  }
+  ~EditMessageGlobalsTypeInternal() {}
+  union {
+    alignas(::_pbi::kMaxMessageAlignment) EditMessage _default;
+  };
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  decltype(::_pbi::PrivateAccess::GenerateParseTable<EditMessage>(
+      ::std::declval<const ::_pbi::ClassData*>())) _table;
+#endif
+};
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+static_assert(PROTOBUF_FIELD_OFFSET(EditMessageGlobalsTypeInternal, _default) ==
+              ::_pbi::MessageGlobalsBase::OffsetToDefault());
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PROTOBUF_MESSAGE_GLOBALS_CONST EditMessageGlobalsTypeInternal EditMessage_globals_
+        PROTOBUF_MESSAGE_GLOBALS_SECTION(.data.rel.ro);
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+namespace {
+const ::_pbi::ClassData* EditMessage_get_class_data() {
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  return EditMessage_globals_.GetClassData();
+#else
+  return EditMessage_class_data_.base();
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+}
+}  // namespace
+#endif  // PROTOBUF_CUSTOM_VTABLE
 class MessageRecord::_Internal {
  public:
   using HasBits = decltype(::std::declval<MessageRecord>()._impl_._has_bits_);
@@ -2551,11 +3200,11 @@ constexpr MessageRecord::ParseTableT_ MessageRecord::InternalGenerateParseTable_
     {
       PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_._has_bits_),
       0, // no _extensions_
-      10, 120,  // max_field_number, fast_idx_mask
+      12, 120,  // max_field_number, fast_idx_mask
       offsetof(ParseTableT_, field_lookup_table),
-      4294966272,  // skipmap
+      4294963200,  // skipmap
       offsetof(ParseTableT_, field_entries),
-      10,  // num_field_entries
+      12,  // num_field_entries
       1,  // num_aux_entries
       offsetof(ParseTableT_, aux_entries),
       class_data,
@@ -2606,8 +3255,14 @@ constexpr MessageRecord::ParseTableT_ MessageRecord::InternalGenerateParseTable_
       {::_pbi::TcParser::FastMtS1,
        {82, 6, 0,
         PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.reply_)}},
-      {::_pbi::TcParser::MiniParse, {}},
-      {::_pbi::TcParser::MiniParse, {}},
+      // uint32 content_revision = 11;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(MessageRecord, _impl_.content_revision_), 10>(),
+       {88, 10, 0,
+        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.content_revision_)}},
+      // int64 edited_at_epoch_ms = 12;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(MessageRecord, _impl_.edited_at_epoch_ms_), 11>(),
+       {96, 11, 0,
+        PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.edited_at_epoch_ms_)}},
       {::_pbi::TcParser::MiniParse, {}},
       {::_pbi::TcParser::MiniParse, {}},
       {::_pbi::TcParser::MiniParse, {}},
@@ -2634,6 +3289,10 @@ constexpr MessageRecord::ParseTableT_ MessageRecord::InternalGenerateParseTable_
       {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.accepted_at_epoch_ms_), _Internal::kHasBitsOffset + 8, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt64)},
       // .chat.v2.MessageReplyReference reply = 10;
       {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.reply_), _Internal::kHasBitsOffset + 6, 0, (0 | ::_fl::kFcOptional | ::_fl::kMessage | ::_fl::kTvTable)},
+      // uint32 content_revision = 11;
+      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.content_revision_), _Internal::kHasBitsOffset + 10, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+      // int64 edited_at_epoch_ms = 12;
+      {PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.edited_at_epoch_ms_), _Internal::kHasBitsOffset + 11, 0, (0 | ::_fl::kFcOptional | ::_fl::kInt64)},
     }},
     {{
         #ifndef PROTOBUF_MESSAGE_GLOBALS
@@ -2680,7 +3339,9 @@ inline constexpr MessageRecord::Impl_::Impl_(
         reply_{nullptr},
         conversation_sequence_{::uint64_t{0u}},
         accepted_at_epoch_ms_{::int64_t{0}},
-        content_type_{0u} {}
+        content_type_{0u},
+        content_revision_{0u},
+        edited_at_epoch_ms_{::int64_t{0}} {}
 
 template <typename>
 constexpr MessageRecord::MessageRecord(::_pbi::ConstantInitialized,
@@ -2723,7 +3384,7 @@ constexpr auto MessageRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[8],
+      &file_reflection_data[10],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -2788,12 +3449,12 @@ constexpr ConversationEntryRecord::ParseTableT_ ConversationEntryRecord::Interna
     {
       PROTOBUF_FIELD_OFFSET(ConversationEntryRecord, _impl_._has_bits_),
       0, // no _extensions_
-      7, 8,  // max_field_number, fast_idx_mask
+      8, 8,  // max_field_number, fast_idx_mask
       offsetof(ParseTableT_, field_lookup_table),
-      4294967168,  // skipmap
+      4294967040,  // skipmap
       offsetof(ParseTableT_, field_entries),
-      7,  // num_field_entries
-      5,  // num_aux_entries
+      8,  // num_field_entries
+      6,  // num_aux_entries
       offsetof(ParseTableT_, aux_entries),
       class_data,
       nullptr,  // post_loop_handler
@@ -2827,6 +3488,8 @@ constexpr ConversationEntryRecord::ParseTableT_ ConversationEntryRecord::Interna
       {PROTOBUF_FIELD_OFFSET(ConversationEntryRecord, _impl_.detail_.reaction_), _Internal::kOneofCaseOffset + 0, 3, (0 | ::_fl::kFcOneof | ::_fl::kMessage | ::_fl::kTvTable)},
       // .chat.v2.MessagePinChangedRecord pin = 7;
       {PROTOBUF_FIELD_OFFSET(ConversationEntryRecord, _impl_.detail_.pin_), _Internal::kOneofCaseOffset + 0, 4, (0 | ::_fl::kFcOneof | ::_fl::kMessage | ::_fl::kTvTable)},
+      // .chat.v2.MessageEditedRecord edit = 8;
+      {PROTOBUF_FIELD_OFFSET(ConversationEntryRecord, _impl_.detail_.edit_), _Internal::kOneofCaseOffset + 0, 5, (0 | ::_fl::kFcOneof | ::_fl::kMessage | ::_fl::kTvTable)},
     }},
     {{
         #ifndef PROTOBUF_MESSAGE_GLOBALS
@@ -2854,9 +3517,14 @@ constexpr ConversationEntryRecord::ParseTableT_ ConversationEntryRecord::Interna
         #else
         {::_pbi::FieldAuxMessageGlobals(), &::chat::v2::MessagePinChangedRecord_globals_},
         #endif
+        #ifndef PROTOBUF_MESSAGE_GLOBALS
+        {::_pbi::TcParser::GetTable<::chat::v2::MessageEditedRecord>()},
+        #else
+        {::_pbi::FieldAuxMessageGlobals(), &::chat::v2::MessageEditedRecord_globals_},
+        #endif
     }},
     {{
-      "\37\17\0\0\0\0\0\0"
+      "\37\17\0\0\0\0\0\0\0\0\0\0\0\0\0\0"
       "chat.v2.ConversationEntryRecord"
       "conversation_id"
     }},
@@ -2916,7 +3584,7 @@ constexpr auto ConversationEntryRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[14],
+      &file_reflection_data[17],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -3118,7 +3786,7 @@ constexpr auto MessageHistoryPage::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[15],
+      &file_reflection_data[18],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -3267,6 +3935,46 @@ const ::uint32_t
         5,
         8,
         0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::chat::v2::EditMessage, _impl_._has_bits_),
+        9, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::chat::v2::EditMessage, _impl_.conversation_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::EditMessage, _impl_.message_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::EditMessage, _impl_.expected_revision_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::EditMessage, _impl_.content_type_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::EditMessage, _impl_.content_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::EditMessage, _impl_.client_operation_id_),
+        0,
+        1,
+        4,
+        5,
+        2,
+        3,
+        0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditApplied, _impl_._has_bits_),
+        14, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditApplied, _impl_.conversation_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditApplied, _impl_.message_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditApplied, _impl_.content_revision_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditApplied, _impl_.content_type_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditApplied, _impl_.content_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditApplied, _impl_.actor_account_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditApplied, _impl_.client_operation_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditApplied, _impl_.changed_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditApplied, _impl_.conversation_sequence_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditApplied, _impl_.occurred_at_epoch_ms_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditApplied, _impl_.duplicate_),
+        0,
+        1,
+        5,
+        6,
+        2,
+        3,
+        4,
+        9,
+        7,
+        8,
+        10,
+        0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageAccepted, _impl_._has_bits_),
         8, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageAccepted, _impl_.conversation_id_),
@@ -3290,7 +3998,7 @@ const ::uint32_t
         2,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_._has_bits_),
-        13, // hasbit index offset
+        15, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.conversation_id_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.message_id_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.conversation_sequence_),
@@ -3301,6 +4009,8 @@ const ::uint32_t
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.content_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.accepted_at_epoch_ms_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.reply_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.content_revision_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.edited_at_epoch_ms_),
         0,
         1,
         7,
@@ -3311,6 +4021,8 @@ const ::uint32_t
         5,
         8,
         6,
+        10,
+        11,
         0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageReplyReference, _impl_._has_bits_),
         6, // hasbit index offset
@@ -3396,10 +4108,31 @@ const ::uint32_t
         2,
         3,
         5,
+        0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditedRecord, _impl_._has_bits_),
+        12, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditedRecord, _impl_.conversation_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditedRecord, _impl_.conversation_sequence_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditedRecord, _impl_.message_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditedRecord, _impl_.content_revision_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditedRecord, _impl_.content_type_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditedRecord, _impl_.content_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditedRecord, _impl_.actor_account_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditedRecord, _impl_.client_operation_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::MessageEditedRecord, _impl_.occurred_at_epoch_ms_),
+        0,
+        5,
+        1,
+        6,
+        7,
+        2,
+        3,
+        4,
+        8,
         0x085, // bitmap
         PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationEntryRecord, _impl_._has_bits_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationEntryRecord, _impl_._oneof_case_[0]),
-        12, // hasbit index offset
+        13, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationEntryRecord, _impl_.conversation_id_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationEntryRecord, _impl_.conversation_sequence_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationEntryRecord, _impl_.detail_),
@@ -3408,8 +4141,10 @@ const ::uint32_t
         PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationEntryRecord, _impl_.detail_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationEntryRecord, _impl_.detail_),
         PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationEntryRecord, _impl_.detail_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationEntryRecord, _impl_.detail_),
         0,
         1,
+        ~0u,
         ~0u,
         ~0u,
         ~0u,
@@ -3440,16 +4175,19 @@ static const ::_pbi::MigrationSchema
         {33, sizeof(::chat::v2::MessageReactionApplied)},
         {56, sizeof(::chat::v2::SetMessagePin)},
         {67, sizeof(::chat::v2::MessagePinApplied)},
-        {88, sizeof(::chat::v2::MessageAccepted)},
-        {101, sizeof(::chat::v2::ReadMessageHistory)},
-        {110, sizeof(::chat::v2::MessageRecord)},
-        {133, sizeof(::chat::v2::MessageReplyReference)},
-        {142, sizeof(::chat::v2::MessageRecalledRecord)},
-        {157, sizeof(::chat::v2::MessagesDeletedRecord)},
-        {182, sizeof(::chat::v2::MessageReactionChangedRecord)},
-        {201, sizeof(::chat::v2::MessagePinChangedRecord)},
-        {218, sizeof(::chat::v2::ConversationEntryRecord)},
-        {237, sizeof(::chat::v2::MessageHistoryPage)},
+        {88, sizeof(::chat::v2::EditMessage)},
+        {103, sizeof(::chat::v2::MessageEditApplied)},
+        {128, sizeof(::chat::v2::MessageAccepted)},
+        {141, sizeof(::chat::v2::ReadMessageHistory)},
+        {150, sizeof(::chat::v2::MessageRecord)},
+        {177, sizeof(::chat::v2::MessageReplyReference)},
+        {186, sizeof(::chat::v2::MessageRecalledRecord)},
+        {201, sizeof(::chat::v2::MessagesDeletedRecord)},
+        {226, sizeof(::chat::v2::MessageReactionChangedRecord)},
+        {245, sizeof(::chat::v2::MessagePinChangedRecord)},
+        {262, sizeof(::chat::v2::MessageEditedRecord)},
+        {283, sizeof(::chat::v2::ConversationEntryRecord)},
+        {304, sizeof(::chat::v2::MessageHistoryPage)},
 };
 static const ::_pbi::MessageGlobalsBase* PROTOBUF_NONNULL const
     file_message_globals[] = {
@@ -3459,6 +4197,8 @@ static const ::_pbi::MessageGlobalsBase* PROTOBUF_NONNULL const
         &::chat::v2::MessageReactionApplied_globals_,
         &::chat::v2::SetMessagePin_globals_,
         &::chat::v2::MessagePinApplied_globals_,
+        &::chat::v2::EditMessage_globals_,
+        &::chat::v2::MessageEditApplied_globals_,
         &::chat::v2::MessageAccepted_globals_,
         &::chat::v2::ReadMessageHistory_globals_,
         &::chat::v2::MessageRecord_globals_,
@@ -3467,6 +4207,7 @@ static const ::_pbi::MessageGlobalsBase* PROTOBUF_NONNULL const
         &::chat::v2::MessagesDeletedRecord_globals_,
         &::chat::v2::MessageReactionChangedRecord_globals_,
         &::chat::v2::MessagePinChangedRecord_globals_,
+        &::chat::v2::MessageEditedRecord_globals_,
         &::chat::v2::ConversationEntryRecord_globals_,
         &::chat::v2::MessageHistoryPage_globals_,
 };
@@ -3497,83 +4238,103 @@ const char descriptor_table_protodef_chat_2fv2_2fmessaging_2eproto[] ABSL_ATTRIB
     "ount_id\030\004 \001(\t\022\033\n\023client_operation_id\030\005 \001"
     "(\t\022\017\n\007changed\030\006 \001(\010\022\035\n\025conversation_sequ"
     "ence\030\007 \001(\004\022\034\n\024occurred_at_epoch_ms\030\010 \001(\003"
-    "\022\021\n\tduplicate\030\t \001(\010\"\216\001\n\017MessageAccepted\022"
-    "\027\n\017conversation_id\030\001 \001(\t\022\022\n\nmessage_id\030\002"
-    " \001(\t\022\035\n\025conversation_sequence\030\003 \001(\004\022\034\n\024a"
-    "ccepted_at_epoch_ms\030\004 \001(\003\022\021\n\tduplicate\030\005"
-    " \001(\010\"T\n\022ReadMessageHistory\022\027\n\017conversati"
-    "on_id\030\001 \001(\t\022\026\n\016after_sequence\030\002 \001(\004\022\r\n\005l"
-    "imit\030\003 \001(\r\"\237\002\n\rMessageRecord\022\027\n\017conversa"
-    "tion_id\030\001 \001(\t\022\022\n\nmessage_id\030\002 \001(\t\022\035\n\025con"
-    "versation_sequence\030\003 \001(\004\022\031\n\021sender_accou"
-    "nt_id\030\004 \001(\t\022\030\n\020sender_device_id\030\005 \001(\t\022\031\n"
-    "\021client_message_id\030\006 \001(\t\022\024\n\014content_type"
-    "\030\007 \001(\r\022\017\n\007content\030\010 \001(\014\022\034\n\024accepted_at_e"
-    "poch_ms\030\t \001(\003\022-\n\005reply\030\n \001(\0132\036.chat.v2.M"
-    "essageReplyReference\"z\n\025MessageReplyRefe"
-    "rence\022\031\n\021target_message_id\030\001 \001(\t\022$\n\034targ"
-    "et_conversation_sequence\030\002 \001(\004\022 \n\030target"
-    "_sender_account_id\030\003 \001(\t\"\253\001\n\025MessageReca"
-    "lledRecord\022\027\n\017conversation_id\030\001 \001(\t\022\035\n\025c"
-    "onversation_sequence\030\002 \001(\004\022\022\n\nmessage_id"
-    "\030\003 \001(\t\022\030\n\020actor_account_id\030\004 \001(\t\022\016\n\006sour"
-    "ce\030\005 \001(\t\022\034\n\024occurred_at_epoch_ms\030\006 \001(\003\"\247"
-    "\002\n\025MessagesDeletedRecord\022\027\n\017conversation"
+    "\022\021\n\tduplicate\030\t \001(\010\"\231\001\n\013EditMessage\022\027\n\017c"
+    "onversation_id\030\001 \001(\t\022\022\n\nmessage_id\030\002 \001(\t"
+    "\022\031\n\021expected_revision\030\003 \001(\r\022\024\n\014content_t"
+    "ype\030\004 \001(\r\022\017\n\007content\030\005 \001(\014\022\033\n\023client_ope"
+    "ration_id\030\006 \001(\t\"\232\002\n\022MessageEditApplied\022\027"
+    "\n\017conversation_id\030\001 \001(\t\022\022\n\nmessage_id\030\002 "
+    "\001(\t\022\030\n\020content_revision\030\003 \001(\r\022\024\n\014content"
+    "_type\030\004 \001(\r\022\017\n\007content\030\005 \001(\014\022\030\n\020actor_ac"
+    "count_id\030\006 \001(\t\022\033\n\023client_operation_id\030\007 "
+    "\001(\t\022\017\n\007changed\030\010 \001(\010\022\035\n\025conversation_seq"
+    "uence\030\t \001(\004\022\034\n\024occurred_at_epoch_ms\030\n \001("
+    "\003\022\021\n\tduplicate\030\013 \001(\010\"\216\001\n\017MessageAccepted"
+    "\022\027\n\017conversation_id\030\001 \001(\t\022\022\n\nmessage_id\030"
+    "\002 \001(\t\022\035\n\025conversation_sequence\030\003 \001(\004\022\034\n\024"
+    "accepted_at_epoch_ms\030\004 \001(\003\022\021\n\tduplicate\030"
+    "\005 \001(\010\"T\n\022ReadMessageHistory\022\027\n\017conversat"
+    "ion_id\030\001 \001(\t\022\026\n\016after_sequence\030\002 \001(\004\022\r\n\005"
+    "limit\030\003 \001(\r\"\325\002\n\rMessageRecord\022\027\n\017convers"
+    "ation_id\030\001 \001(\t\022\022\n\nmessage_id\030\002 \001(\t\022\035\n\025co"
+    "nversation_sequence\030\003 \001(\004\022\031\n\021sender_acco"
+    "unt_id\030\004 \001(\t\022\030\n\020sender_device_id\030\005 \001(\t\022\031"
+    "\n\021client_message_id\030\006 \001(\t\022\024\n\014content_typ"
+    "e\030\007 \001(\r\022\017\n\007content\030\010 \001(\014\022\034\n\024accepted_at_"
+    "epoch_ms\030\t \001(\003\022-\n\005reply\030\n \001(\0132\036.chat.v2."
+    "MessageReplyReference\022\030\n\020content_revisio"
+    "n\030\013 \001(\r\022\032\n\022edited_at_epoch_ms\030\014 \001(\003\"z\n\025M"
+    "essageReplyReference\022\031\n\021target_message_i"
+    "d\030\001 \001(\t\022$\n\034target_conversation_sequence\030"
+    "\002 \001(\004\022 \n\030target_sender_account_id\030\003 \001(\t\""
+    "\253\001\n\025MessageRecalledRecord\022\027\n\017conversatio"
+    "n_id\030\001 \001(\t\022\035\n\025conversation_sequence\030\002 \001("
+    "\004\022\022\n\nmessage_id\030\003 \001(\t\022\030\n\020actor_account_i"
+    "d\030\004 \001(\t\022\016\n\006source\030\005 \001(\t\022\034\n\024occurred_at_e"
+    "poch_ms\030\006 \001(\003\"\247\002\n\025MessagesDeletedRecord\022"
+    "\027\n\017conversation_id\030\001 \001(\t\022\035\n\025conversation"
+    "_sequence\030\002 \001(\004\022\030\n\020actor_account_id\030\003 \001("
+    "\t\022\016\n\006source\030\004 \001(\t\022\014\n\004mode\030\005 \001(\t\022\033\n\023clien"
+    "t_operation_id\030\006 \001(\t\022\023\n\013message_ids\030\007 \003("
+    "\t\022\027\n\017cutoff_epoch_ms\030\010 \001(\003\022\025\n\rdeleted_co"
+    "unt\030\t \001(\r\022\036\n\026operator_name_snapshot\030\n \001("
+    "\t\022\034\n\024occurred_at_epoch_ms\030\013 \001(\003\"\377\001\n\034Mess"
+    "ageReactionChangedRecord\022\027\n\017conversation"
     "_id\030\001 \001(\t\022\035\n\025conversation_sequence\030\002 \001(\004"
-    "\022\030\n\020actor_account_id\030\003 \001(\t\022\016\n\006source\030\004 \001"
-    "(\t\022\014\n\004mode\030\005 \001(\t\022\033\n\023client_operation_id\030"
-    "\006 \001(\t\022\023\n\013message_ids\030\007 \003(\t\022\027\n\017cutoff_epo"
-    "ch_ms\030\010 \001(\003\022\025\n\rdeleted_count\030\t \001(\r\022\036\n\026op"
-    "erator_name_snapshot\030\n \001(\t\022\034\n\024occurred_a"
-    "t_epoch_ms\030\013 \001(\003\"\377\001\n\034MessageReactionChan"
-    "gedRecord\022\027\n\017conversation_id\030\001 \001(\t\022\035\n\025co"
-    "nversation_sequence\030\002 \001(\004\022\022\n\nmessage_id\030"
-    "\003 \001(\t\022.\n\010reaction\030\004 \001(\0162\034.chat.v2.Messag"
-    "eReactionKind\022\016\n\006active\030\005 \001(\010\022\030\n\020actor_a"
-    "ccount_id\030\006 \001(\t\022\033\n\023client_operation_id\030\007"
-    " \001(\t\022\034\n\024occurred_at_epoch_ms\030\010 \001(\003\"\312\001\n\027M"
-    "essagePinChangedRecord\022\027\n\017conversation_i"
-    "d\030\001 \001(\t\022\035\n\025conversation_sequence\030\002 \001(\004\022\022"
-    "\n\nmessage_id\030\003 \001(\t\022\016\n\006pinned\030\004 \001(\010\022\030\n\020ac"
-    "tor_account_id\030\005 \001(\t\022\033\n\023client_operation"
-    "_id\030\006 \001(\t\022\034\n\024occurred_at_epoch_ms\030\007 \001(\003\""
-    "\330\002\n\027ConversationEntryRecord\022\027\n\017conversat"
-    "ion_id\030\001 \001(\t\022\035\n\025conversation_sequence\030\002 "
-    "\001(\004\022)\n\007message\030\003 \001(\0132\026.chat.v2.MessageRe"
-    "cordH\000\0220\n\006recall\030\004 \001(\0132\036.chat.v2.Message"
-    "RecalledRecordH\000\0222\n\010deletion\030\005 \001(\0132\036.cha"
-    "t.v2.MessagesDeletedRecordH\000\0229\n\010reaction"
-    "\030\006 \001(\0132%.chat.v2.MessageReactionChangedR"
-    "ecordH\000\022/\n\003pin\030\007 \001(\0132 .chat.v2.MessagePi"
-    "nChangedRecordH\000B\010\n\006detail\"\314\001\n\022MessageHi"
-    "storyPage\022\027\n\017conversation_id\030\001 \001(\t\022(\n\010me"
-    "ssages\030\002 \003(\0132\026.chat.v2.MessageRecord\022\025\n\r"
-    "next_sequence\030\003 \001(\004\022\027\n\017latest_sequence\030\004"
-    " \001(\004\022\020\n\010has_more\030\005 \001(\010\0221\n\007entries\030\006 \003(\0132"
-    " .chat.v2.ConversationEntryRecord*^\n\022Mes"
-    "sageContentType\022$\n MESSAGE_CONTENT_TYPE_"
-    "UNSPECIFIED\020\000\022\"\n\036MESSAGE_CONTENT_TYPE_TE"
-    "XT_UTF8\020\001*\202\002\n\023MessageReactionKind\022%\n!MES"
-    "SAGE_REACTION_KIND_UNSPECIFIED\020\000\022\036\n\032MESS"
-    "AGE_REACTION_KIND_LIKE\020\001\022\036\n\032MESSAGE_REAC"
-    "TION_KIND_LOVE\020\002\022\037\n\033MESSAGE_REACTION_KIN"
-    "D_LAUGH\020\003\022#\n\037MESSAGE_REACTION_KIND_SURPR"
-    "ISED\020\004\022\035\n\031MESSAGE_REACTION_KIND_SAD\020\005\022\037\n"
-    "\033MESSAGE_REACTION_KIND_ANGRY\020\006B6\n!com.fa"
-    "llingnight.chat.protocol.v2B\017MessagingSc"
-    "hemaP\001b\006proto3"
+    "\022\022\n\nmessage_id\030\003 \001(\t\022.\n\010reaction\030\004 \001(\0162\034"
+    ".chat.v2.MessageReactionKind\022\016\n\006active\030\005"
+    " \001(\010\022\030\n\020actor_account_id\030\006 \001(\t\022\033\n\023client"
+    "_operation_id\030\007 \001(\t\022\034\n\024occurred_at_epoch"
+    "_ms\030\010 \001(\003\"\312\001\n\027MessagePinChangedRecord\022\027\n"
+    "\017conversation_id\030\001 \001(\t\022\035\n\025conversation_s"
+    "equence\030\002 \001(\004\022\022\n\nmessage_id\030\003 \001(\t\022\016\n\006pin"
+    "ned\030\004 \001(\010\022\030\n\020actor_account_id\030\005 \001(\t\022\033\n\023c"
+    "lient_operation_id\030\006 \001(\t\022\034\n\024occurred_at_"
+    "epoch_ms\030\007 \001(\003\"\367\001\n\023MessageEditedRecord\022\027"
+    "\n\017conversation_id\030\001 \001(\t\022\035\n\025conversation_"
+    "sequence\030\002 \001(\004\022\022\n\nmessage_id\030\003 \001(\t\022\030\n\020co"
+    "ntent_revision\030\004 \001(\r\022\024\n\014content_type\030\005 \001"
+    "(\r\022\017\n\007content\030\006 \001(\014\022\030\n\020actor_account_id\030"
+    "\007 \001(\t\022\033\n\023client_operation_id\030\010 \001(\t\022\034\n\024oc"
+    "curred_at_epoch_ms\030\t \001(\003\"\206\003\n\027Conversatio"
+    "nEntryRecord\022\027\n\017conversation_id\030\001 \001(\t\022\035\n"
+    "\025conversation_sequence\030\002 \001(\004\022)\n\007message\030"
+    "\003 \001(\0132\026.chat.v2.MessageRecordH\000\0220\n\006recal"
+    "l\030\004 \001(\0132\036.chat.v2.MessageRecalledRecordH"
+    "\000\0222\n\010deletion\030\005 \001(\0132\036.chat.v2.MessagesDe"
+    "letedRecordH\000\0229\n\010reaction\030\006 \001(\0132%.chat.v"
+    "2.MessageReactionChangedRecordH\000\022/\n\003pin\030"
+    "\007 \001(\0132 .chat.v2.MessagePinChangedRecordH"
+    "\000\022,\n\004edit\030\010 \001(\0132\034.chat.v2.MessageEditedR"
+    "ecordH\000B\010\n\006detail\"\314\001\n\022MessageHistoryPage"
+    "\022\027\n\017conversation_id\030\001 \001(\t\022(\n\010messages\030\002 "
+    "\003(\0132\026.chat.v2.MessageRecord\022\025\n\rnext_sequ"
+    "ence\030\003 \001(\004\022\027\n\017latest_sequence\030\004 \001(\004\022\020\n\010h"
+    "as_more\030\005 \001(\010\0221\n\007entries\030\006 \003(\0132 .chat.v2"
+    ".ConversationEntryRecord*^\n\022MessageConte"
+    "ntType\022$\n MESSAGE_CONTENT_TYPE_UNSPECIFI"
+    "ED\020\000\022\"\n\036MESSAGE_CONTENT_TYPE_TEXT_UTF8\020\001"
+    "*\202\002\n\023MessageReactionKind\022%\n!MESSAGE_REAC"
+    "TION_KIND_UNSPECIFIED\020\000\022\036\n\032MESSAGE_REACT"
+    "ION_KIND_LIKE\020\001\022\036\n\032MESSAGE_REACTION_KIND"
+    "_LOVE\020\002\022\037\n\033MESSAGE_REACTION_KIND_LAUGH\020\003"
+    "\022#\n\037MESSAGE_REACTION_KIND_SURPRISED\020\004\022\035\n"
+    "\031MESSAGE_REACTION_KIND_SAD\020\005\022\037\n\033MESSAGE_"
+    "REACTION_KIND_ANGRY\020\006B6\n!com.fallingnigh"
+    "t.chat.protocol.v2B\017MessagingSchemaP\001b\006p"
+    "roto3"
 };
 static ::absl::once_flag descriptor_table_chat_2fv2_2fmessaging_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_chat_2fv2_2fmessaging_2eproto = {
     false,
     false,
-    3574,
+    4365,
     descriptor_table_protodef_chat_2fv2_2fmessaging_2eproto,
     "chat/v2/messaging.proto",
     &descriptor_table_chat_2fv2_2fmessaging_2eproto_once,
     nullptr,
     0,
-    16,
+    19,
     schemas,
     file_message_globals,
     TableStruct_chat_2fv2_2fmessaging_2eproto::offsets,
@@ -5761,6 +6522,894 @@ void MessagePinApplied::InternalSwap(MessagePinApplied* PROTOBUF_RESTRICT PROTOB
 }
 // ===================================================================
 
+EditMessage::EditMessage(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, EditMessage_get_class_data()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:chat.v2.EditMessage)
+}
+PROTOBUF_NDEBUG_INLINE EditMessage::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    [[maybe_unused]] const ::chat::v2::EditMessage& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        conversation_id_(arena, from.conversation_id_),
+        message_id_(arena, from.message_id_),
+        content_(arena, from.content_),
+        client_operation_id_(arena, from.client_operation_id_) {}
+
+EditMessage::EditMessage(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const EditMessage& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, EditMessage_get_class_data()) {
+
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  EditMessage* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  ::memcpy(reinterpret_cast<char*>(&_impl_) +
+               offsetof(Impl_, expected_revision_),
+           reinterpret_cast<const char*>(&from._impl_) +
+               offsetof(Impl_, expected_revision_),
+           offsetof(Impl_, content_type_) -
+               offsetof(Impl_, expected_revision_) +
+               sizeof(Impl_::content_type_));
+
+  // @@protoc_insertion_point(copy_constructor:chat.v2.EditMessage)
+}
+PROTOBUF_NDEBUG_INLINE EditMessage::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        conversation_id_(arena),
+        message_id_(arena),
+        content_(arena),
+        client_operation_id_(arena) {}
+
+inline void EditMessage::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  ::memset(reinterpret_cast<char*>(&_impl_) +
+               offsetof(Impl_, expected_revision_),
+           0,
+           offsetof(Impl_, content_type_) -
+               offsetof(Impl_, expected_revision_) +
+               sizeof(Impl_::content_type_));
+}
+EditMessage::~EditMessage() {
+  // @@protoc_insertion_point(destructor:chat.v2.EditMessage)
+  SharedDtor(*this);
+}
+inline void EditMessage::SharedDtor(MessageLite& self) {
+  EditMessage& this_ = static_cast<EditMessage&>(self);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.conversation_id_.Destroy();
+  this_._impl_.message_id_.Destroy();
+  this_._impl_.content_.Destroy();
+  this_._impl_.client_operation_id_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull EditMessage_class_data_ =
+        EditMessage::InternalGenerateClassData_(EditMessage_globals_._default);
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+EditMessage::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&EditMessage_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(EditMessage_class_data_.tc_table);
+  return EditMessage_class_data_.base();
+}
+#else
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+EditMessage::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&EditMessage_globals_);
+  ::google::protobuf::internal::PrefetchToLocalCache(
+      ::google::protobuf::internal::MessageGlobalsBase::ToParseTableBase(&EditMessage_globals_));
+  return EditMessage_globals_.GetClassData();
+}
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const EditMessage::ParseTableT_
+    EditMessage::_table_ =
+        EditMessage::InternalGenerateParseTable_(EditMessage_class_data_.base());
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_NOINLINE void EditMessage::Clear() {
+// @@protoc_insertion_point(message_clear_start:chat.v2.EditMessage)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x0000000fU)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _impl_.conversation_id_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.message_id_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      _impl_.content_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      _impl_.client_operation_id_.ClearNonDefaultToEmpty();
+    }
+  }
+  if (BatchCheckHasBit(cached_has_bits, 0x00000030U)) {
+    ::memset(&_impl_.expected_revision_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.content_type_) -
+        reinterpret_cast<char*>(&_impl_.expected_revision_)) + sizeof(_impl_.content_type_));
+  }
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL EditMessage::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const EditMessage& this_ = static_cast<const EditMessage&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL EditMessage::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const EditMessage& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(serialize_to_array_start:chat.v2.EditMessage)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = this_._impl_._has_bits_[0];
+  // string conversation_id = 1;
+  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    if (!this_._internal_conversation_id().empty()) {
+      const ::std::string& _s = this_._internal_conversation_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.EditMessage.conversation_id");
+      target = stream->WriteStringMaybeAliased(1, _s, target);
+    }
+  }
+
+  // string message_id = 2;
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (!this_._internal_message_id().empty()) {
+      const ::std::string& _s = this_._internal_message_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.EditMessage.message_id");
+      target = stream->WriteStringMaybeAliased(2, _s, target);
+    }
+  }
+
+  // uint32 expected_revision = 3;
+  if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+    if (this_._internal_expected_revision() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+          3, this_._internal_expected_revision(), target);
+    }
+  }
+
+  // uint32 content_type = 4;
+  if (CheckHasBit(cached_has_bits, 0x00000020U)) {
+    if (this_._internal_content_type() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+          4, this_._internal_content_type(), target);
+    }
+  }
+
+  // bytes content = 5;
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (!this_._internal_content().empty()) {
+      const ::std::string& _s = this_._internal_content();
+      target = stream->WriteBytesMaybeAliased(5, _s, target);
+    }
+  }
+
+  // string client_operation_id = 6;
+  if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+    if (!this_._internal_client_operation_id().empty()) {
+      const ::std::string& _s = this_._internal_client_operation_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.EditMessage.client_operation_id");
+      target = stream->WriteStringMaybeAliased(6, _s, target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:chat.v2.EditMessage)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t EditMessage::ByteSizeLong(const MessageLite& base) {
+  const EditMessage& this_ = static_cast<const EditMessage&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t EditMessage::ByteSizeLong() const {
+  const EditMessage& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:chat.v2.EditMessage)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x0000003fU)) {
+    // string conversation_id = 1;
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!this_._internal_conversation_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_conversation_id());
+      }
+    }
+    // string message_id = 2;
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!this_._internal_message_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_message_id());
+      }
+    }
+    // bytes content = 5;
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (!this_._internal_content().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::BytesSize(
+                                        this_._internal_content());
+      }
+    }
+    // string client_operation_id = 6;
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      if (!this_._internal_client_operation_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_client_operation_id());
+      }
+    }
+    // uint32 expected_revision = 3;
+    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+      if (this_._internal_expected_revision() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+            this_._internal_expected_revision());
+      }
+    }
+    // uint32 content_type = 4;
+    if (CheckHasBit(cached_has_bits, 0x00000020U)) {
+      if (this_._internal_content_type() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+            this_._internal_content_type());
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void EditMessage::MergeImpl(::google::protobuf::MessageLite& to_msg,
+                      const ::google::protobuf::MessageLite& from_msg) {
+   auto* const _this = static_cast<EditMessage*>(&to_msg);
+  auto& from = static_cast<const EditMessage&>(from_msg);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    from.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(class_specific_merge_from_start:chat.v2.EditMessage)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x0000003fU)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!from._internal_conversation_id().empty()) {
+        _this->_internal_set_conversation_id(from._internal_conversation_id());
+      } else {
+        if (_this->_impl_.conversation_id_.IsDefault()) {
+          _this->_internal_set_conversation_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!from._internal_message_id().empty()) {
+        _this->_internal_set_message_id(from._internal_message_id());
+      } else {
+        if (_this->_impl_.message_id_.IsDefault()) {
+          _this->_internal_set_message_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (!from._internal_content().empty()) {
+        _this->_internal_set_content(from._internal_content());
+      } else {
+        if (_this->_impl_.content_.IsDefault()) {
+          _this->_internal_set_content("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      if (!from._internal_client_operation_id().empty()) {
+        _this->_internal_set_client_operation_id(from._internal_client_operation_id());
+      } else {
+        if (_this->_impl_.client_operation_id_.IsDefault()) {
+          _this->_internal_set_client_operation_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+      if (from._internal_expected_revision() != 0) {
+        _this->_impl_.expected_revision_ = from._impl_.expected_revision_;
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000020U)) {
+      if (from._internal_content_type() != 0) {
+        _this->_impl_.content_type_ = from._impl_.content_type_;
+      }
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+}
+
+void EditMessage::CopyFrom(const EditMessage& from) {
+  // @@protoc_insertion_point(class_specific_copy_from_start:chat.v2.EditMessage)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void EditMessage::InternalSwap(EditMessage* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.conversation_id_, &other->_impl_.conversation_id_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.message_id_, &other->_impl_.message_id_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.content_, &other->_impl_.content_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.client_operation_id_, &other->_impl_.client_operation_id_, arena);
+  ::google::protobuf::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(EditMessage, _impl_.content_type_)
+      + sizeof(EditMessage::_impl_.content_type_)
+      - PROTOBUF_FIELD_OFFSET(EditMessage, _impl_.expected_revision_)>(
+          reinterpret_cast<char*>(&_impl_.expected_revision_),
+          reinterpret_cast<char*>(&other->_impl_.expected_revision_));
+}
+
+::google::protobuf::Metadata EditMessage::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
+MessageEditApplied::MessageEditApplied(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, MessageEditApplied_get_class_data()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:chat.v2.MessageEditApplied)
+}
+PROTOBUF_NDEBUG_INLINE MessageEditApplied::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    [[maybe_unused]] const ::chat::v2::MessageEditApplied& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        conversation_id_(arena, from.conversation_id_),
+        message_id_(arena, from.message_id_),
+        content_(arena, from.content_),
+        actor_account_id_(arena, from.actor_account_id_),
+        client_operation_id_(arena, from.client_operation_id_) {}
+
+MessageEditApplied::MessageEditApplied(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const MessageEditApplied& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, MessageEditApplied_get_class_data()) {
+
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  MessageEditApplied* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  ::memcpy(reinterpret_cast<char*>(&_impl_) +
+               offsetof(Impl_, content_revision_),
+           reinterpret_cast<const char*>(&from._impl_) +
+               offsetof(Impl_, content_revision_),
+           offsetof(Impl_, duplicate_) -
+               offsetof(Impl_, content_revision_) +
+               sizeof(Impl_::duplicate_));
+
+  // @@protoc_insertion_point(copy_constructor:chat.v2.MessageEditApplied)
+}
+PROTOBUF_NDEBUG_INLINE MessageEditApplied::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        conversation_id_(arena),
+        message_id_(arena),
+        content_(arena),
+        actor_account_id_(arena),
+        client_operation_id_(arena) {}
+
+inline void MessageEditApplied::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  ::memset(reinterpret_cast<char*>(&_impl_) +
+               offsetof(Impl_, content_revision_),
+           0,
+           offsetof(Impl_, duplicate_) -
+               offsetof(Impl_, content_revision_) +
+               sizeof(Impl_::duplicate_));
+}
+MessageEditApplied::~MessageEditApplied() {
+  // @@protoc_insertion_point(destructor:chat.v2.MessageEditApplied)
+  SharedDtor(*this);
+}
+inline void MessageEditApplied::SharedDtor(MessageLite& self) {
+  MessageEditApplied& this_ = static_cast<MessageEditApplied&>(self);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.conversation_id_.Destroy();
+  this_._impl_.message_id_.Destroy();
+  this_._impl_.content_.Destroy();
+  this_._impl_.actor_account_id_.Destroy();
+  this_._impl_.client_operation_id_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull MessageEditApplied_class_data_ =
+        MessageEditApplied::InternalGenerateClassData_(MessageEditApplied_globals_._default);
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+MessageEditApplied::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&MessageEditApplied_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(MessageEditApplied_class_data_.tc_table);
+  return MessageEditApplied_class_data_.base();
+}
+#else
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+MessageEditApplied::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&MessageEditApplied_globals_);
+  ::google::protobuf::internal::PrefetchToLocalCache(
+      ::google::protobuf::internal::MessageGlobalsBase::ToParseTableBase(&MessageEditApplied_globals_));
+  return MessageEditApplied_globals_.GetClassData();
+}
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const MessageEditApplied::ParseTableT_
+    MessageEditApplied::_table_ =
+        MessageEditApplied::InternalGenerateParseTable_(MessageEditApplied_class_data_.base());
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_NOINLINE void MessageEditApplied::Clear() {
+// @@protoc_insertion_point(message_clear_start:chat.v2.MessageEditApplied)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x0000001fU)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _impl_.conversation_id_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.message_id_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      _impl_.content_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      _impl_.actor_account_id_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+      _impl_.client_operation_id_.ClearNonDefaultToEmpty();
+    }
+  }
+  if (BatchCheckHasBit(cached_has_bits, 0x000000e0U)) {
+    ::memset(&_impl_.content_revision_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.conversation_sequence_) -
+        reinterpret_cast<char*>(&_impl_.content_revision_)) + sizeof(_impl_.conversation_sequence_));
+  }
+  if (BatchCheckHasBit(cached_has_bits, 0x00000700U)) {
+    ::memset(&_impl_.occurred_at_epoch_ms_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.duplicate_) -
+        reinterpret_cast<char*>(&_impl_.occurred_at_epoch_ms_)) + sizeof(_impl_.duplicate_));
+  }
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL MessageEditApplied::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const MessageEditApplied& this_ = static_cast<const MessageEditApplied&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL MessageEditApplied::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const MessageEditApplied& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(serialize_to_array_start:chat.v2.MessageEditApplied)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = this_._impl_._has_bits_[0];
+  // string conversation_id = 1;
+  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    if (!this_._internal_conversation_id().empty()) {
+      const ::std::string& _s = this_._internal_conversation_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.MessageEditApplied.conversation_id");
+      target = stream->WriteStringMaybeAliased(1, _s, target);
+    }
+  }
+
+  // string message_id = 2;
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (!this_._internal_message_id().empty()) {
+      const ::std::string& _s = this_._internal_message_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.MessageEditApplied.message_id");
+      target = stream->WriteStringMaybeAliased(2, _s, target);
+    }
+  }
+
+  // uint32 content_revision = 3;
+  if (CheckHasBit(cached_has_bits, 0x00000020U)) {
+    if (this_._internal_content_revision() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+          3, this_._internal_content_revision(), target);
+    }
+  }
+
+  // uint32 content_type = 4;
+  if (CheckHasBit(cached_has_bits, 0x00000040U)) {
+    if (this_._internal_content_type() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+          4, this_._internal_content_type(), target);
+    }
+  }
+
+  // bytes content = 5;
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (!this_._internal_content().empty()) {
+      const ::std::string& _s = this_._internal_content();
+      target = stream->WriteBytesMaybeAliased(5, _s, target);
+    }
+  }
+
+  // string actor_account_id = 6;
+  if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+    if (!this_._internal_actor_account_id().empty()) {
+      const ::std::string& _s = this_._internal_actor_account_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.MessageEditApplied.actor_account_id");
+      target = stream->WriteStringMaybeAliased(6, _s, target);
+    }
+  }
+
+  // string client_operation_id = 7;
+  if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+    if (!this_._internal_client_operation_id().empty()) {
+      const ::std::string& _s = this_._internal_client_operation_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.MessageEditApplied.client_operation_id");
+      target = stream->WriteStringMaybeAliased(7, _s, target);
+    }
+  }
+
+  // bool changed = 8;
+  if (CheckHasBit(cached_has_bits, 0x00000200U)) {
+    if (this_._internal_changed() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteBoolToArray(
+          8, this_._internal_changed(), target);
+    }
+  }
+
+  // uint64 conversation_sequence = 9;
+  if (CheckHasBit(cached_has_bits, 0x00000080U)) {
+    if (this_._internal_conversation_sequence() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+          9, this_._internal_conversation_sequence(), target);
+    }
+  }
+
+  // int64 occurred_at_epoch_ms = 10;
+  if (CheckHasBit(cached_has_bits, 0x00000100U)) {
+    if (this_._internal_occurred_at_epoch_ms() != 0) {
+      target =
+          ::google::protobuf::internal::WireFormatLite::WriteInt64ToArrayWithField<10>(
+              stream, this_._internal_occurred_at_epoch_ms(), target);
+    }
+  }
+
+  // bool duplicate = 11;
+  if (CheckHasBit(cached_has_bits, 0x00000400U)) {
+    if (this_._internal_duplicate() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteBoolToArray(
+          11, this_._internal_duplicate(), target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:chat.v2.MessageEditApplied)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t MessageEditApplied::ByteSizeLong(const MessageLite& base) {
+  const MessageEditApplied& this_ = static_cast<const MessageEditApplied&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t MessageEditApplied::ByteSizeLong() const {
+  const MessageEditApplied& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:chat.v2.MessageEditApplied)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x000000ffU)) {
+    // string conversation_id = 1;
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!this_._internal_conversation_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_conversation_id());
+      }
+    }
+    // string message_id = 2;
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!this_._internal_message_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_message_id());
+      }
+    }
+    // bytes content = 5;
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (!this_._internal_content().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::BytesSize(
+                                        this_._internal_content());
+      }
+    }
+    // string actor_account_id = 6;
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      if (!this_._internal_actor_account_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_actor_account_id());
+      }
+    }
+    // string client_operation_id = 7;
+    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+      if (!this_._internal_client_operation_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_client_operation_id());
+      }
+    }
+    // uint32 content_revision = 3;
+    if (CheckHasBit(cached_has_bits, 0x00000020U)) {
+      if (this_._internal_content_revision() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+            this_._internal_content_revision());
+      }
+    }
+    // uint32 content_type = 4;
+    if (CheckHasBit(cached_has_bits, 0x00000040U)) {
+      if (this_._internal_content_type() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+            this_._internal_content_type());
+      }
+    }
+    // uint64 conversation_sequence = 9;
+    if (CheckHasBit(cached_has_bits, 0x00000080U)) {
+      if (this_._internal_conversation_sequence() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+            this_._internal_conversation_sequence());
+      }
+    }
+  }
+  if (BatchCheckHasBit(cached_has_bits, 0x00000700U)) {
+    // int64 occurred_at_epoch_ms = 10;
+    if (CheckHasBit(cached_has_bits, 0x00000100U)) {
+      if (this_._internal_occurred_at_epoch_ms() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+            this_._internal_occurred_at_epoch_ms());
+      }
+    }
+    // bool changed = 8;
+    if (CheckHasBit(cached_has_bits, 0x00000200U)) {
+      if (this_._internal_changed() != 0) {
+        total_size += 2;
+      }
+    }
+    // bool duplicate = 11;
+    if (CheckHasBit(cached_has_bits, 0x00000400U)) {
+      if (this_._internal_duplicate() != 0) {
+        total_size += 2;
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void MessageEditApplied::MergeImpl(::google::protobuf::MessageLite& to_msg,
+                      const ::google::protobuf::MessageLite& from_msg) {
+   auto* const _this = static_cast<MessageEditApplied*>(&to_msg);
+  auto& from = static_cast<const MessageEditApplied&>(from_msg);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    from.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(class_specific_merge_from_start:chat.v2.MessageEditApplied)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x000000ffU)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!from._internal_conversation_id().empty()) {
+        _this->_internal_set_conversation_id(from._internal_conversation_id());
+      } else {
+        if (_this->_impl_.conversation_id_.IsDefault()) {
+          _this->_internal_set_conversation_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!from._internal_message_id().empty()) {
+        _this->_internal_set_message_id(from._internal_message_id());
+      } else {
+        if (_this->_impl_.message_id_.IsDefault()) {
+          _this->_internal_set_message_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (!from._internal_content().empty()) {
+        _this->_internal_set_content(from._internal_content());
+      } else {
+        if (_this->_impl_.content_.IsDefault()) {
+          _this->_internal_set_content("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      if (!from._internal_actor_account_id().empty()) {
+        _this->_internal_set_actor_account_id(from._internal_actor_account_id());
+      } else {
+        if (_this->_impl_.actor_account_id_.IsDefault()) {
+          _this->_internal_set_actor_account_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+      if (!from._internal_client_operation_id().empty()) {
+        _this->_internal_set_client_operation_id(from._internal_client_operation_id());
+      } else {
+        if (_this->_impl_.client_operation_id_.IsDefault()) {
+          _this->_internal_set_client_operation_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000020U)) {
+      if (from._internal_content_revision() != 0) {
+        _this->_impl_.content_revision_ = from._impl_.content_revision_;
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000040U)) {
+      if (from._internal_content_type() != 0) {
+        _this->_impl_.content_type_ = from._impl_.content_type_;
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000080U)) {
+      if (from._internal_conversation_sequence() != 0) {
+        _this->_impl_.conversation_sequence_ = from._impl_.conversation_sequence_;
+      }
+    }
+  }
+  if (BatchCheckHasBit(cached_has_bits, 0x00000700U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000100U)) {
+      if (from._internal_occurred_at_epoch_ms() != 0) {
+        _this->_impl_.occurred_at_epoch_ms_ = from._impl_.occurred_at_epoch_ms_;
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000200U)) {
+      if (from._internal_changed() != 0) {
+        _this->_impl_.changed_ = from._impl_.changed_;
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000400U)) {
+      if (from._internal_duplicate() != 0) {
+        _this->_impl_.duplicate_ = from._impl_.duplicate_;
+      }
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+}
+
+void MessageEditApplied::CopyFrom(const MessageEditApplied& from) {
+  // @@protoc_insertion_point(class_specific_copy_from_start:chat.v2.MessageEditApplied)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void MessageEditApplied::InternalSwap(MessageEditApplied* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.conversation_id_, &other->_impl_.conversation_id_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.message_id_, &other->_impl_.message_id_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.content_, &other->_impl_.content_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.actor_account_id_, &other->_impl_.actor_account_id_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.client_operation_id_, &other->_impl_.client_operation_id_, arena);
+  ::google::protobuf::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.duplicate_)
+      + sizeof(MessageEditApplied::_impl_.duplicate_)
+      - PROTOBUF_FIELD_OFFSET(MessageEditApplied, _impl_.content_revision_)>(
+          reinterpret_cast<char*>(&_impl_.content_revision_),
+          reinterpret_cast<char*>(&other->_impl_.content_revision_));
+}
+
+::google::protobuf::Metadata MessageEditApplied::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
 MessageAccepted::MessageAccepted(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
 #if defined(PROTOBUF_CUSTOM_VTABLE)
     : ::google::protobuf::Message(arena, MessageAccepted_get_class_data()) {
@@ -6426,9 +8075,9 @@ MessageRecord::MessageRecord(
                offsetof(Impl_, conversation_sequence_),
            reinterpret_cast<const char*>(&from._impl_) +
                offsetof(Impl_, conversation_sequence_),
-           offsetof(Impl_, content_type_) -
+           offsetof(Impl_, edited_at_epoch_ms_) -
                offsetof(Impl_, conversation_sequence_) +
-               sizeof(Impl_::content_type_));
+               sizeof(Impl_::edited_at_epoch_ms_));
 
   // @@protoc_insertion_point(copy_constructor:chat.v2.MessageRecord)
 }
@@ -6448,9 +8097,9 @@ inline void MessageRecord::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
   ::memset(reinterpret_cast<char*>(&_impl_) +
                offsetof(Impl_, reply_),
            0,
-           offsetof(Impl_, content_type_) -
+           offsetof(Impl_, edited_at_epoch_ms_) -
                offsetof(Impl_, reply_) +
-               sizeof(Impl_::content_type_));
+               sizeof(Impl_::edited_at_epoch_ms_));
 }
 MessageRecord::~MessageRecord() {
   // @@protoc_insertion_point(destructor:chat.v2.MessageRecord)
@@ -6532,10 +8181,10 @@ PROTOBUF_NOINLINE void MessageRecord::Clear() {
     }
   }
   _impl_.conversation_sequence_ = ::uint64_t{0u};
-  if (BatchCheckHasBit(cached_has_bits, 0x00000300U)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x00000f00U)) {
     ::memset(&_impl_.accepted_at_epoch_ms_, 0, static_cast<::size_t>(
-        reinterpret_cast<char*>(&_impl_.content_type_) -
-        reinterpret_cast<char*>(&_impl_.accepted_at_epoch_ms_)) + sizeof(_impl_.content_type_));
+        reinterpret_cast<char*>(&_impl_.edited_at_epoch_ms_) -
+        reinterpret_cast<char*>(&_impl_.accepted_at_epoch_ms_)) + sizeof(_impl_.edited_at_epoch_ms_));
   }
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
@@ -6652,6 +8301,24 @@ PROTOBUF_NOINLINE void MessageRecord::Clear() {
         stream);
   }
 
+  // uint32 content_revision = 11;
+  if (CheckHasBit(cached_has_bits, 0x00000400U)) {
+    if (this_._internal_content_revision() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+          11, this_._internal_content_revision(), target);
+    }
+  }
+
+  // int64 edited_at_epoch_ms = 12;
+  if (CheckHasBit(cached_has_bits, 0x00000800U)) {
+    if (this_._internal_edited_at_epoch_ms() != 0) {
+      target =
+          ::google::protobuf::internal::WireFormatLite::WriteInt64ToArrayWithField<12>(
+              stream, this_._internal_edited_at_epoch_ms(), target);
+    }
+  }
+
   if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
     target =
         ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
@@ -6733,7 +8400,7 @@ PROTOBUF_NOINLINE void MessageRecord::Clear() {
       }
     }
   }
-  if (BatchCheckHasBit(cached_has_bits, 0x00000300U)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x00000f00U)) {
     // int64 accepted_at_epoch_ms = 9;
     if (CheckHasBit(cached_has_bits, 0x00000100U)) {
       if (this_._internal_accepted_at_epoch_ms() != 0) {
@@ -6746,6 +8413,20 @@ PROTOBUF_NOINLINE void MessageRecord::Clear() {
       if (this_._internal_content_type() != 0) {
         total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
             this_._internal_content_type());
+      }
+    }
+    // uint32 content_revision = 11;
+    if (CheckHasBit(cached_has_bits, 0x00000400U)) {
+      if (this_._internal_content_revision() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+            this_._internal_content_revision());
+      }
+    }
+    // int64 edited_at_epoch_ms = 12;
+    if (CheckHasBit(cached_has_bits, 0x00000800U)) {
+      if (this_._internal_edited_at_epoch_ms() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+            this_._internal_edited_at_epoch_ms());
       }
     }
   }
@@ -6836,7 +8517,7 @@ void MessageRecord::MergeImpl(::google::protobuf::MessageLite& to_msg,
       }
     }
   }
-  if (BatchCheckHasBit(cached_has_bits, 0x00000300U)) {
+  if (BatchCheckHasBit(cached_has_bits, 0x00000f00U)) {
     if (CheckHasBit(cached_has_bits, 0x00000100U)) {
       if (from._internal_accepted_at_epoch_ms() != 0) {
         _this->_impl_.accepted_at_epoch_ms_ = from._impl_.accepted_at_epoch_ms_;
@@ -6845,6 +8526,16 @@ void MessageRecord::MergeImpl(::google::protobuf::MessageLite& to_msg,
     if (CheckHasBit(cached_has_bits, 0x00000200U)) {
       if (from._internal_content_type() != 0) {
         _this->_impl_.content_type_ = from._impl_.content_type_;
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000400U)) {
+      if (from._internal_content_revision() != 0) {
+        _this->_impl_.content_revision_ = from._impl_.content_revision_;
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000800U)) {
+      if (from._internal_edited_at_epoch_ms() != 0) {
+        _this->_impl_.edited_at_epoch_ms_ = from._impl_.edited_at_epoch_ms_;
       }
     }
   }
@@ -6874,8 +8565,8 @@ void MessageRecord::InternalSwap(MessageRecord* PROTOBUF_RESTRICT PROTOBUF_NONNU
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.client_message_id_, &other->_impl_.client_message_id_, arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.content_, &other->_impl_.content_, arena);
   ::google::protobuf::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.content_type_)
-      + sizeof(MessageRecord::_impl_.content_type_)
+      PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.edited_at_epoch_ms_)
+      + sizeof(MessageRecord::_impl_.edited_at_epoch_ms_)
       - PROTOBUF_FIELD_OFFSET(MessageRecord, _impl_.reply_)>(
           reinterpret_cast<char*>(&_impl_.reply_),
           reinterpret_cast<char*>(&other->_impl_.reply_));
@@ -8914,6 +10605,466 @@ void MessagePinChangedRecord::InternalSwap(MessagePinChangedRecord* PROTOBUF_RES
 }
 // ===================================================================
 
+MessageEditedRecord::MessageEditedRecord(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, MessageEditedRecord_get_class_data()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:chat.v2.MessageEditedRecord)
+}
+PROTOBUF_NDEBUG_INLINE MessageEditedRecord::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    [[maybe_unused]] const ::chat::v2::MessageEditedRecord& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        conversation_id_(arena, from.conversation_id_),
+        message_id_(arena, from.message_id_),
+        content_(arena, from.content_),
+        actor_account_id_(arena, from.actor_account_id_),
+        client_operation_id_(arena, from.client_operation_id_) {}
+
+MessageEditedRecord::MessageEditedRecord(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const MessageEditedRecord& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, MessageEditedRecord_get_class_data()) {
+
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  MessageEditedRecord* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  ::memcpy(reinterpret_cast<char*>(&_impl_) +
+               offsetof(Impl_, conversation_sequence_),
+           reinterpret_cast<const char*>(&from._impl_) +
+               offsetof(Impl_, conversation_sequence_),
+           offsetof(Impl_, occurred_at_epoch_ms_) -
+               offsetof(Impl_, conversation_sequence_) +
+               sizeof(Impl_::occurred_at_epoch_ms_));
+
+  // @@protoc_insertion_point(copy_constructor:chat.v2.MessageEditedRecord)
+}
+PROTOBUF_NDEBUG_INLINE MessageEditedRecord::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        conversation_id_(arena),
+        message_id_(arena),
+        content_(arena),
+        actor_account_id_(arena),
+        client_operation_id_(arena) {}
+
+inline void MessageEditedRecord::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  ::memset(reinterpret_cast<char*>(&_impl_) +
+               offsetof(Impl_, conversation_sequence_),
+           0,
+           offsetof(Impl_, occurred_at_epoch_ms_) -
+               offsetof(Impl_, conversation_sequence_) +
+               sizeof(Impl_::occurred_at_epoch_ms_));
+}
+MessageEditedRecord::~MessageEditedRecord() {
+  // @@protoc_insertion_point(destructor:chat.v2.MessageEditedRecord)
+  SharedDtor(*this);
+}
+inline void MessageEditedRecord::SharedDtor(MessageLite& self) {
+  MessageEditedRecord& this_ = static_cast<MessageEditedRecord&>(self);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.conversation_id_.Destroy();
+  this_._impl_.message_id_.Destroy();
+  this_._impl_.content_.Destroy();
+  this_._impl_.actor_account_id_.Destroy();
+  this_._impl_.client_operation_id_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull MessageEditedRecord_class_data_ =
+        MessageEditedRecord::InternalGenerateClassData_(MessageEditedRecord_globals_._default);
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+MessageEditedRecord::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&MessageEditedRecord_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(MessageEditedRecord_class_data_.tc_table);
+  return MessageEditedRecord_class_data_.base();
+}
+#else
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+MessageEditedRecord::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&MessageEditedRecord_globals_);
+  ::google::protobuf::internal::PrefetchToLocalCache(
+      ::google::protobuf::internal::MessageGlobalsBase::ToParseTableBase(&MessageEditedRecord_globals_));
+  return MessageEditedRecord_globals_.GetClassData();
+}
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const MessageEditedRecord::ParseTableT_
+    MessageEditedRecord::_table_ =
+        MessageEditedRecord::InternalGenerateParseTable_(MessageEditedRecord_class_data_.base());
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_NOINLINE void MessageEditedRecord::Clear() {
+// @@protoc_insertion_point(message_clear_start:chat.v2.MessageEditedRecord)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x0000001fU)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _impl_.conversation_id_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.message_id_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      _impl_.content_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      _impl_.actor_account_id_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+      _impl_.client_operation_id_.ClearNonDefaultToEmpty();
+    }
+  }
+  if (BatchCheckHasBit(cached_has_bits, 0x000000e0U)) {
+    ::memset(&_impl_.conversation_sequence_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.content_type_) -
+        reinterpret_cast<char*>(&_impl_.conversation_sequence_)) + sizeof(_impl_.content_type_));
+  }
+  _impl_.occurred_at_epoch_ms_ = ::int64_t{0};
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL MessageEditedRecord::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const MessageEditedRecord& this_ = static_cast<const MessageEditedRecord&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL MessageEditedRecord::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const MessageEditedRecord& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(serialize_to_array_start:chat.v2.MessageEditedRecord)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = this_._impl_._has_bits_[0];
+  // string conversation_id = 1;
+  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    if (!this_._internal_conversation_id().empty()) {
+      const ::std::string& _s = this_._internal_conversation_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.MessageEditedRecord.conversation_id");
+      target = stream->WriteStringMaybeAliased(1, _s, target);
+    }
+  }
+
+  // uint64 conversation_sequence = 2;
+  if (CheckHasBit(cached_has_bits, 0x00000020U)) {
+    if (this_._internal_conversation_sequence() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+          2, this_._internal_conversation_sequence(), target);
+    }
+  }
+
+  // string message_id = 3;
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (!this_._internal_message_id().empty()) {
+      const ::std::string& _s = this_._internal_message_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.MessageEditedRecord.message_id");
+      target = stream->WriteStringMaybeAliased(3, _s, target);
+    }
+  }
+
+  // uint32 content_revision = 4;
+  if (CheckHasBit(cached_has_bits, 0x00000040U)) {
+    if (this_._internal_content_revision() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+          4, this_._internal_content_revision(), target);
+    }
+  }
+
+  // uint32 content_type = 5;
+  if (CheckHasBit(cached_has_bits, 0x00000080U)) {
+    if (this_._internal_content_type() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+          5, this_._internal_content_type(), target);
+    }
+  }
+
+  // bytes content = 6;
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (!this_._internal_content().empty()) {
+      const ::std::string& _s = this_._internal_content();
+      target = stream->WriteBytesMaybeAliased(6, _s, target);
+    }
+  }
+
+  // string actor_account_id = 7;
+  if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+    if (!this_._internal_actor_account_id().empty()) {
+      const ::std::string& _s = this_._internal_actor_account_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.MessageEditedRecord.actor_account_id");
+      target = stream->WriteStringMaybeAliased(7, _s, target);
+    }
+  }
+
+  // string client_operation_id = 8;
+  if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+    if (!this_._internal_client_operation_id().empty()) {
+      const ::std::string& _s = this_._internal_client_operation_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.MessageEditedRecord.client_operation_id");
+      target = stream->WriteStringMaybeAliased(8, _s, target);
+    }
+  }
+
+  // int64 occurred_at_epoch_ms = 9;
+  if (CheckHasBit(cached_has_bits, 0x00000100U)) {
+    if (this_._internal_occurred_at_epoch_ms() != 0) {
+      target =
+          ::google::protobuf::internal::WireFormatLite::WriteInt64ToArrayWithField<9>(
+              stream, this_._internal_occurred_at_epoch_ms(), target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:chat.v2.MessageEditedRecord)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t MessageEditedRecord::ByteSizeLong(const MessageLite& base) {
+  const MessageEditedRecord& this_ = static_cast<const MessageEditedRecord&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t MessageEditedRecord::ByteSizeLong() const {
+  const MessageEditedRecord& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:chat.v2.MessageEditedRecord)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x000000ffU)) {
+    // string conversation_id = 1;
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!this_._internal_conversation_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_conversation_id());
+      }
+    }
+    // string message_id = 3;
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!this_._internal_message_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_message_id());
+      }
+    }
+    // bytes content = 6;
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (!this_._internal_content().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::BytesSize(
+                                        this_._internal_content());
+      }
+    }
+    // string actor_account_id = 7;
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      if (!this_._internal_actor_account_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_actor_account_id());
+      }
+    }
+    // string client_operation_id = 8;
+    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+      if (!this_._internal_client_operation_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_client_operation_id());
+      }
+    }
+    // uint64 conversation_sequence = 2;
+    if (CheckHasBit(cached_has_bits, 0x00000020U)) {
+      if (this_._internal_conversation_sequence() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+            this_._internal_conversation_sequence());
+      }
+    }
+    // uint32 content_revision = 4;
+    if (CheckHasBit(cached_has_bits, 0x00000040U)) {
+      if (this_._internal_content_revision() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+            this_._internal_content_revision());
+      }
+    }
+    // uint32 content_type = 5;
+    if (CheckHasBit(cached_has_bits, 0x00000080U)) {
+      if (this_._internal_content_type() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+            this_._internal_content_type());
+      }
+    }
+  }
+   {
+    // int64 occurred_at_epoch_ms = 9;
+    if (CheckHasBit(cached_has_bits, 0x00000100U)) {
+      if (this_._internal_occurred_at_epoch_ms() != 0) {
+        total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+            this_._internal_occurred_at_epoch_ms());
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void MessageEditedRecord::MergeImpl(::google::protobuf::MessageLite& to_msg,
+                      const ::google::protobuf::MessageLite& from_msg) {
+   auto* const _this = static_cast<MessageEditedRecord*>(&to_msg);
+  auto& from = static_cast<const MessageEditedRecord&>(from_msg);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    from.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(class_specific_merge_from_start:chat.v2.MessageEditedRecord)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x000000ffU)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!from._internal_conversation_id().empty()) {
+        _this->_internal_set_conversation_id(from._internal_conversation_id());
+      } else {
+        if (_this->_impl_.conversation_id_.IsDefault()) {
+          _this->_internal_set_conversation_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!from._internal_message_id().empty()) {
+        _this->_internal_set_message_id(from._internal_message_id());
+      } else {
+        if (_this->_impl_.message_id_.IsDefault()) {
+          _this->_internal_set_message_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (!from._internal_content().empty()) {
+        _this->_internal_set_content(from._internal_content());
+      } else {
+        if (_this->_impl_.content_.IsDefault()) {
+          _this->_internal_set_content("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      if (!from._internal_actor_account_id().empty()) {
+        _this->_internal_set_actor_account_id(from._internal_actor_account_id());
+      } else {
+        if (_this->_impl_.actor_account_id_.IsDefault()) {
+          _this->_internal_set_actor_account_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000010U)) {
+      if (!from._internal_client_operation_id().empty()) {
+        _this->_internal_set_client_operation_id(from._internal_client_operation_id());
+      } else {
+        if (_this->_impl_.client_operation_id_.IsDefault()) {
+          _this->_internal_set_client_operation_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000020U)) {
+      if (from._internal_conversation_sequence() != 0) {
+        _this->_impl_.conversation_sequence_ = from._impl_.conversation_sequence_;
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000040U)) {
+      if (from._internal_content_revision() != 0) {
+        _this->_impl_.content_revision_ = from._impl_.content_revision_;
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000080U)) {
+      if (from._internal_content_type() != 0) {
+        _this->_impl_.content_type_ = from._impl_.content_type_;
+      }
+    }
+  }
+  if (CheckHasBit(cached_has_bits, 0x00000100U)) {
+    if (from._internal_occurred_at_epoch_ms() != 0) {
+      _this->_impl_.occurred_at_epoch_ms_ = from._impl_.occurred_at_epoch_ms_;
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+}
+
+void MessageEditedRecord::CopyFrom(const MessageEditedRecord& from) {
+  // @@protoc_insertion_point(class_specific_copy_from_start:chat.v2.MessageEditedRecord)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void MessageEditedRecord::InternalSwap(MessageEditedRecord* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.conversation_id_, &other->_impl_.conversation_id_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.message_id_, &other->_impl_.message_id_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.content_, &other->_impl_.content_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.actor_account_id_, &other->_impl_.actor_account_id_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.client_operation_id_, &other->_impl_.client_operation_id_, arena);
+  ::google::protobuf::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.occurred_at_epoch_ms_)
+      + sizeof(MessageEditedRecord::_impl_.occurred_at_epoch_ms_)
+      - PROTOBUF_FIELD_OFFSET(MessageEditedRecord, _impl_.conversation_sequence_)>(
+          reinterpret_cast<char*>(&_impl_.conversation_sequence_),
+          reinterpret_cast<char*>(&other->_impl_.conversation_sequence_));
+}
+
+::google::protobuf::Metadata MessageEditedRecord::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
 void ConversationEntryRecord::set_allocated_message(::chat::v2::MessageRecord* PROTOBUF_NULLABLE message) {
   ::google::protobuf::Arena* message_arena = GetArena();
   clear_detail();
@@ -8979,6 +11130,19 @@ void ConversationEntryRecord::set_allocated_pin(::chat::v2::MessagePinChangedRec
   }
   // @@protoc_insertion_point(field_set_allocated:chat.v2.ConversationEntryRecord.pin)
 }
+void ConversationEntryRecord::set_allocated_edit(::chat::v2::MessageEditedRecord* PROTOBUF_NULLABLE edit) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  clear_detail();
+  if (edit) {
+    ::google::protobuf::Arena* submessage_arena = edit->GetArena();
+    if (message_arena != submessage_arena) {
+      edit = ::google::protobuf::internal::GetOwnedMessage(message_arena, edit, submessage_arena);
+    }
+    set_has_edit();
+    _impl_.detail_.edit_ = edit;
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.ConversationEntryRecord.edit)
+}
 ConversationEntryRecord::ConversationEntryRecord(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
 #if defined(PROTOBUF_CUSTOM_VTABLE)
     : ::google::protobuf::Message(arena, ConversationEntryRecord_get_class_data()) {
@@ -9030,6 +11194,9 @@ ConversationEntryRecord::ConversationEntryRecord(
         break;
       case kPin:
         _impl_.detail_.pin_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.detail_.pin_);
+        break;
+      case kEdit:
+        _impl_.detail_.edit_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.detail_.edit_);
         break;
   }
 
@@ -9106,6 +11273,14 @@ void ConversationEntryRecord::clear_detail() {
         delete _impl_.detail_.pin_;
       } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
         ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.detail_.pin_);
+      }
+      break;
+    }
+    case kEdit: {
+      if (GetArena() == nullptr) {
+        delete _impl_.detail_.edit_;
+      } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
+        ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.detail_.edit_);
       }
       break;
     }
@@ -9229,6 +11404,12 @@ PROTOBUF_NOINLINE void ConversationEntryRecord::Clear() {
           stream);
       break;
     }
+    case kEdit: {
+      target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+          8, *this_._impl_.detail_.edit_, this_._impl_.detail_.edit_->GetCachedSize(), target,
+          stream);
+      break;
+    }
     default:
       break;
   }
@@ -9302,6 +11483,12 @@ PROTOBUF_NOINLINE void ConversationEntryRecord::Clear() {
     case kPin: {
       total_size += 1 +
                     ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.detail_.pin_);
+      break;
+    }
+    // .chat.v2.MessageEditedRecord edit = 8;
+    case kEdit: {
+      total_size += 1 +
+                    ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.detail_.edit_);
       break;
     }
     case DETAIL_NOT_SET: {
@@ -9392,6 +11579,14 @@ void ConversationEntryRecord::MergeImpl(::google::protobuf::MessageLite& to_msg,
           _this->_impl_.detail_.pin_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.detail_.pin_);
         } else {
           _this->_impl_.detail_.pin_->MergeFrom(*from._impl_.detail_.pin_);
+        }
+        break;
+      }
+      case kEdit: {
+        if (oneof_needs_init) {
+          _this->_impl_.detail_.edit_ = ::google::protobuf::Message::CopyConstruct(arena, *from._impl_.detail_.edit_);
+        } else {
+          _this->_impl_.detail_.edit_->MergeFrom(*from._impl_.detail_.edit_);
         }
         break;
       }

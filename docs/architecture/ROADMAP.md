@@ -1450,7 +1450,7 @@ Progress:
   - [x] Define capability negotiation, permanent type allocation, author/window/
     revision policy, V1 compatibility, ordered mutation semantics, privacy
     cleanup, offline conflict behavior, and staged activation (ADR-0341).
-  - [ ] Add the generated wire contract and fixed Java/C++/TypeScript golden
+  - [x] Add the generated wire contract and fixed Java/C++/TypeScript golden
     compatibility gate while all runtime/client capability paths remain off.
   - [ ] Persist exact edit operations, current revisions, changed-only mixed
     history, retention cleanup, and server-authorized policy in PostgreSQL.

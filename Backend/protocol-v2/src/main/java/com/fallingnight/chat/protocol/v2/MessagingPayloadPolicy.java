@@ -11,6 +11,7 @@ public final class MessagingPayloadPolicy {
     public static final int MAX_TEXT_UTF8_BYTES = 65_536;
     public static final int MAX_HISTORY_LIMIT = 100;
     public static final int MAX_DELETION_TARGETS = 1_000;
+    public static final int MAX_CONTENT_REVISIONS = 100;
 
     private MessagingPayloadPolicy() {}
 
@@ -69,6 +70,18 @@ public final class MessagingPayloadPolicy {
         return List.copyOf(violations);
     }
 
+    public static List<String> violations(EditMessage command) {
+        List<String> violations = new ArrayList<>();
+        requireUuid("conversationId", command.getConversationId(), violations);
+        requireUuid("messageId", command.getMessageId(), violations);
+        requireIdentifier("clientOperationId", command.getClientOperationId(), true, violations);
+        if (command.getExpectedRevision() > MAX_CONTENT_REVISIONS) {
+            violations.add("expectedRevision exceeds edit limit");
+        }
+        validateContent(command.getContentType(), command.getContent(), violations);
+        return List.copyOf(violations);
+    }
+
     public static void requireValid(SubmitMessage command, String clientMessageId) {
         requireNone(violations(command, clientMessageId));
     }
@@ -87,6 +100,30 @@ public final class MessagingPayloadPolicy {
 
     public static void requireValid(SetMessagePin command) {
         requireNone(violations(command));
+    }
+
+    public static void requireValid(EditMessage command) {
+        requireNone(violations(command));
+    }
+
+    public static void requireValid(MessageEditApplied response) {
+        List<String> violations = new ArrayList<>();
+        validateEditIdentity(response.getConversationId(), response.getMessageId(),
+                response.getActorAccountId(), response.getClientOperationId(), violations);
+        validateContent(response.getContentType(), response.getContent(), violations);
+        if (response.getContentRevision() > MAX_CONTENT_REVISIONS
+                || (response.getChanged() && response.getContentRevision() == 0)
+                || response.getOccurredAtEpochMs() <= 0
+                || response.getChanged() != (response.getConversationSequence() > 0)) {
+            violations.add("edit result bounds are invalid");
+        }
+        requireNone(violations);
+    }
+
+    public static void requireValid(MessageEditedRecord event) {
+        List<String> violations = new ArrayList<>();
+        validateEdit(event, violations);
+        requireNone(violations);
     }
 
     public static void requireValid(MessagePinApplied response) {
@@ -267,6 +304,14 @@ public final class MessagingPayloadPolicy {
                 }
                 violations.addAll(pinViolations);
             }
+            case EDIT -> {
+                MessageEditedRecord edit = entry.getEdit();
+                validateEdit(edit, violations);
+                if (!entry.getConversationId().equals(edit.getConversationId())
+                        || entry.getConversationSequence() != edit.getConversationSequence()) {
+                    violations.add("edit entry detail identity differs");
+                }
+            }
             case DETAIL_NOT_SET -> violations.add("history entry detail is required");
         }
     }
@@ -283,6 +328,26 @@ public final class MessagingPayloadPolicy {
                 || !supportedReaction(reaction.getReaction())) {
             violations.add("reaction entry detail is invalid");
         }
+    }
+
+    private static void validateEdit(MessageEditedRecord edit, List<String> violations) {
+        validateEditIdentity(edit.getConversationId(), edit.getMessageId(),
+                edit.getActorAccountId(), edit.getClientOperationId(), violations);
+        validateContent(edit.getContentType(), edit.getContent(), violations);
+        if (edit.getConversationSequence() <= 0 || edit.getContentRevision() < 1
+                || edit.getContentRevision() > MAX_CONTENT_REVISIONS
+                || edit.getOccurredAtEpochMs() <= 0) {
+            violations.add("edit entry detail is invalid");
+        }
+    }
+
+    private static void validateEditIdentity(
+            String conversationId, String messageId, String actorAccountId,
+            String clientOperationId, List<String> violations) {
+        requireUuid("edit.conversationId", conversationId, violations);
+        requireUuid("edit.messageId", messageId, violations);
+        requireUuid("edit.actorAccountId", actorAccountId, violations);
+        requireIdentifier("edit.clientOperationId", clientOperationId, true, violations);
     }
 
     private static boolean supportedReaction(MessageReactionKind reaction) {
@@ -310,6 +375,10 @@ public final class MessagingPayloadPolicy {
             violations.add("message record bounds are invalid");
         }
         validateContent(message.getContentType(), message.getContent(), violations);
+        if (message.getContentRevision() > MAX_CONTENT_REVISIONS
+                || (message.getContentRevision() == 0) != (message.getEditedAtEpochMs() == 0)) {
+            violations.add("message edit metadata is invalid");
+        }
         if (message.hasReply()) {
             MessageReplyReference reply = message.getReply();
             requireUuid("reply.targetMessageId", reply.getTargetMessageId(), violations);

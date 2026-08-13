@@ -13,6 +13,7 @@ import {
 import { AuthenticateSchema } from '../generated/typescript/chat/v2/authentication_pb.js'
 import {
   MessageReactionKind,
+  EditMessageSchema,
   SetMessagePinSchema,
   SetMessageReactionSchema,
   SubmitMessageSchema,
@@ -40,6 +41,10 @@ const SET_MESSAGE_PIN_GOLDEN_HEX =
   '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
   '122430303030303030302d303030302d303030302d303030302d303030303030303030303032' +
   '1801220570696e2d31'
+const EDIT_MESSAGE_GOLDEN_HEX =
+  '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
+  '122430303030303030302d303030302d303030302d303030302d303030303030303030303032' +
+  '180320012a0268693206656469742d31'
 const LIST_CONVERSATIONS_GOLDEN_HEX = '0880d095ffbc31122430303030303030302d303030302d' +
   '303030302d303030302d3030303030303030303030321819'
 const REGISTER_ATTACHMENT_GOLDEN_HEX =
@@ -195,6 +200,26 @@ test('keeps the bounded SetMessagePin payload compatible across bindings', () =>
     Buffer.from(toBinary(SetMessagePinSchema, encoded)).toString('hex'),
     SET_MESSAGE_PIN_GOLDEN_HEX
   )
+})
+
+test('keeps the revision-safe EditMessage payload compatible across bindings', () => {
+  const decoded = fromBinary(EditMessageSchema, bytesFromHex(EDIT_MESSAGE_GOLDEN_HEX))
+  assert.equal(decoded.conversationId, '00000000-0000-0000-0000-000000000001')
+  assert.equal(decoded.messageId, '00000000-0000-0000-0000-000000000002')
+  assert.equal(decoded.expectedRevision, 3)
+  assert.equal(decoded.contentType, 1)
+  assert.equal(new TextDecoder().decode(decoded.content), 'hi')
+  assert.equal(decoded.clientOperationId, 'edit-1')
+  const encoded = create(EditMessageSchema, {
+    conversationId: decoded.conversationId,
+    messageId: decoded.messageId,
+    expectedRevision: 3,
+    contentType: 1,
+    content: new TextEncoder().encode('hi'),
+    clientOperationId: 'edit-1'
+  })
+  assert.equal(Buffer.from(toBinary(EditMessageSchema, encoded)).toString('hex'),
+    EDIT_MESSAGE_GOLDEN_HEX)
 })
 
 test('keeps the composite conversation cursor compatible across bindings', () => {

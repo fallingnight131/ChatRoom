@@ -34,6 +34,10 @@ constexpr char kSetMessagePinGoldenHex[] =
     "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
     "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
     "1801220570696e2d31";
+constexpr char kEditMessageGoldenHex[] =
+    "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+    "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
+    "180320012a0268693206656469742d31";
 constexpr char kListConversationsGoldenHex[] =
     "0880d095ffbc31122430303030303030302d303030302d303030302d303030302d"
     "3030303030303030303030321819";
@@ -157,6 +161,19 @@ int main() {
         return 1;
     }
     const std::string listGolden = fromHex(kListConversationsGoldenHex);
+    const std::string editGolden = fromHex(kEditMessageGoldenHex);
+    chat::v2::EditMessage edit;
+    if (!edit.ParseFromString(editGolden)
+            || edit.conversation_id() != "00000000-0000-0000-0000-000000000001"
+            || edit.message_id() != "00000000-0000-0000-0000-000000000002"
+            || edit.expected_revision() != 3
+            || edit.content_type() != chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8
+            || edit.content() != "hi"
+            || edit.client_operation_id() != "edit-1"
+            || edit.SerializeAsString() != editGolden) {
+        std::cerr << "generated C++ binding changed the EditMessage golden payload\n";
+        return 1;
+    }
     chat::v2::ListConversations list;
     if (!list.ParseFromString(listGolden)
             || list.after_updated_at_epoch_ms() != INT64_C(1700000000000)

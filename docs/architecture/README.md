@@ -681,6 +681,12 @@ remain immutable during compatibility. Clients must persist an optimistic
 overlay separately from authoritative content, never advance cursors from an
 ACK, and expose stale revision conflicts for explicit rebase rather than
 silently overwriting another device (ADR-0341).
+The authoritative schema now allocates types 114--116, capability 3, additive
+message revision metadata, and an edit detail in mixed history. Generated Java,
+C++, and TypeScript bindings share one golden `EditMessage` payload and bounded
+structural policy. The gateway explicitly filters this known capability from
+`ServerHello`, and both clients leave it unadvertised until persistence and UI
+gates complete.
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
 single-gateway router now establishes one active subscription only through the

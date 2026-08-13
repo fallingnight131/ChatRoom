@@ -24,6 +24,10 @@ class MessagingProtocolTest {
             "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
                     + "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
                     + "1801220570696e2d31";
+    private static final String EDIT_MESSAGE_GOLDEN =
+            "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+                    + "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
+                    + "180320012a0268693206656469742d31";
 
     @Test
     void submitMessageHasStableWireBytesAndPermanentRegistryKinds() throws Exception {
@@ -148,6 +152,50 @@ class MessagingProtocolTest {
     }
 
     @Test
+    void editMutationHasStableWireBytesRevisionBoundsAndKinds() throws Exception {
+        EditMessage command = EditMessage.newBuilder()
+                .setConversationId(CONVERSATION_ID)
+                .setMessageId("00000000-0000-0000-0000-000000000002")
+                .setExpectedRevision(3)
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
+                .setContent(ByteString.copyFromUtf8("hi"))
+                .setClientOperationId("edit-1")
+                .build();
+        MessagingPayloadPolicy.requireValid(command);
+        assertEquals(EDIT_MESSAGE_GOLDEN, HexFormat.of().formatHex(command.toByteArray()));
+        assertEquals(command, EditMessage.parseFrom(HexFormat.of().parseHex(EDIT_MESSAGE_GOLDEN)));
+        assertEquals(MessageKind.MESSAGE_KIND_COMMAND,
+                MessageTypeRegistry.requiredKind(MessageType.MESSAGE_TYPE_EDIT_MESSAGE));
+        assertEquals(MessageKind.MESSAGE_KIND_RESPONSE,
+                MessageTypeRegistry.requiredKind(MessageType.MESSAGE_TYPE_MESSAGE_EDIT_APPLIED));
+        assertEquals(MessageKind.MESSAGE_KIND_EVENT,
+                MessageTypeRegistry.requiredKind(MessageType.MESSAGE_TYPE_MESSAGE_EDITED));
+
+        MessageEditApplied changed = MessageEditApplied.newBuilder()
+                .setConversationId(CONVERSATION_ID)
+                .setMessageId("00000000-0000-0000-0000-000000000002")
+                .setContentRevision(4)
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
+                .setContent(ByteString.copyFromUtf8("hi"))
+                .setActorAccountId("00000000-0000-0000-0000-000000000003")
+                .setClientOperationId("edit-1")
+                .setChanged(true)
+                .setConversationSequence(5)
+                .setOccurredAtEpochMs(1)
+                .build();
+        MessagingPayloadPolicy.requireValid(changed);
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(changed.toBuilder()
+                        .setContentRevision(101).build()));
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(changed.toBuilder()
+                        .setContentRevision(0).build()));
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(command.toBuilder()
+                        .setExpectedRevision(101).build()));
+    }
+
+    @Test
     void rejectsMalformedCommandsAndUnboundedOrOutOfOrderPages() {
         SubmitMessage invalidSubmit = SubmitMessage.newBuilder()
                 .setConversationId("not-a-uuid")
@@ -238,13 +286,28 @@ class MessagingProtocolTest {
                                         "00000000-0000-0000-0000-000000000004")
                                 .setClientOperationId("pin-history-1")
                                 .setOccurredAtEpochMs(1_700_000_000_004L)))
-                .setNextSequence(4)
-                .setLatestSequence(4)
+                .addEntries(ConversationEntryRecord.newBuilder()
+                        .setConversationId(CONVERSATION_ID)
+                        .setConversationSequence(5)
+                        .setEdit(MessageEditedRecord.newBuilder()
+                                .setConversationId(CONVERSATION_ID)
+                                .setConversationSequence(5)
+                                .setMessageId("00000000-0000-0000-0000-000000000002")
+                                .setContentRevision(1)
+                                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
+                                .setContent(ByteString.copyFromUtf8("edited"))
+                                .setActorAccountId(
+                                        "00000000-0000-0000-0000-000000000004")
+                                .setClientOperationId("edit-history-1")
+                                .setOccurredAtEpochMs(1_700_000_000_005L)))
+                .setNextSequence(5)
+                .setLatestSequence(5)
                 .build();
         MessagingPayloadPolicy.requireValid(page);
         MessagingPayloadPolicy.requireValid(page.getMessages(0));
         MessagingPayloadPolicy.requireValid(page.getEntries(2).getReaction());
         MessagingPayloadPolicy.requireValid(page.getEntries(3).getPin());
+        MessagingPayloadPolicy.requireValid(page.getEntries(4).getEdit());
         assertThrows(IllegalArgumentException.class, () ->
                 MessagingPayloadPolicy.requireValid(page.toBuilder()
                         .setEntries(2, page.getEntries(2).toBuilder()

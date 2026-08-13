@@ -495,6 +495,8 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
                     throw std::runtime_error("pin entry identity differs");
                 pinChanges.push_back(pin); break;
             }
+            case chat::v2::ConversationEntryRecord::kEdit:
+                throw std::runtime_error("edit entry received without capability");
             case chat::v2::ConversationEntryRecord::DETAIL_NOT_SET:
                 throw std::runtime_error("history entry detail is required");
             }

@@ -68,6 +68,7 @@ class V2HandshakeHandlerTest {
         try {
             ClientHello capable = validHello().toBuilder()
                     .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS)
+                    .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS)
                     .build();
             channel.writeInbound(clientHelloEnvelope(capable));
             ServerHello response = ServerHello.parseFrom(readEnvelope(channel).getPayload());

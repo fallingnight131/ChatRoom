@@ -33,7 +33,8 @@ public final class ClientHelloPolicy {
         HashSet<ClientCapability> capabilities = new HashSet<>();
         for (ClientCapability capability : hello.getCapabilitiesList()) {
             if ((capability != ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS
-                    && capability != ClientCapability.CLIENT_CAPABILITY_MESSAGE_PINS)
+                    && capability != ClientCapability.CLIENT_CAPABILITY_MESSAGE_PINS
+                    && capability != ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS)
                     || !capabilities.add(capability)) {
                 violations.add("client capability is unsupported or duplicated");
             }
