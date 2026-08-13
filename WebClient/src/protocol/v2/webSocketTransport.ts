@@ -1,4 +1,8 @@
-import type { V2WebProtocolClient, V2WebProtocolEvent } from "./webProtocolClient";
+import type {
+  V2MessageMention,
+  V2WebProtocolClient,
+  V2WebProtocolEvent,
+} from "./webProtocolClient";
 import type { MessageReactionKind } from "./generated/messaging_pb";
 
 const SUBPROTOCOL = "chat.v2";
@@ -170,8 +174,14 @@ export class V2WebSocketTransport {
     this.send(this.requireAuthenticated().readMessageHistory(conversationId, afterSequence, limit));
   }
 
-  submitText(conversationId: string, clientMessageId: string, text: string): void {
-    this.send(this.requireAuthenticated().submitText(conversationId, clientMessageId, text));
+  submitText(
+    conversationId: string,
+    clientMessageId: string,
+    text: string,
+    mentions: readonly V2MessageMention[] = [],
+  ): void {
+    this.send(this.requireAuthenticated().submitText(
+      conversationId, clientMessageId, text, mentions));
   }
 
   submitReply(
@@ -179,9 +189,10 @@ export class V2WebSocketTransport {
     targetMessageId: string,
     clientMessageId: string,
     text: string,
+    mentions: readonly V2MessageMention[] = [],
   ): void {
     this.send(this.requireAuthenticated().submitReply(
-      conversationId, targetMessageId, clientMessageId, text));
+      conversationId, targetMessageId, clientMessageId, text, mentions));
   }
 
   setMessageReaction(
@@ -215,9 +226,10 @@ export class V2WebSocketTransport {
     expectedRevision: number,
     text: string,
     clientOperationId: string,
+    mentions: readonly V2MessageMention[] = [],
   ): string {
     const command = this.requireAuthenticated().editMessage(
-      conversationId, messageId, expectedRevision, text, clientOperationId);
+      conversationId, messageId, expectedRevision, text, clientOperationId, mentions);
     this.send(command.bytes);
     return command.requestId;
   }

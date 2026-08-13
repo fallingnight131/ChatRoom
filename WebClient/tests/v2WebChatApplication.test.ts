@@ -50,6 +50,7 @@ class FakeTransport {
   state: V2WebSocketTransportState = "idle";
   observer: V2WebSocketTransportObserver | null = null;
   calls: unknown[][] = [];
+  mentionCalls: Array<{ kind: "submit" | "reply" | "edit"; mentions: unknown[] }> = [];
 
   subscribe(observer: V2WebSocketTransportObserver): () => void {
     this.observer = observer;
@@ -69,16 +70,20 @@ class FakeTransport {
   readMessageHistory(conversationId: string, afterSequence: bigint, limit: number): void {
     this.calls.push(["history", conversationId, afterSequence, limit]);
   }
-  submitText(conversationId: string, clientMessageId: string, text: string): void {
+  submitText(conversationId: string, clientMessageId: string, text: string,
+    mentions: readonly import("../src/application/v2WebChatApplication").V2ConversationMention[] = []): void {
     this.calls.push(["submit", conversationId, clientMessageId, text]);
+    this.mentionCalls.push({ kind: "submit", mentions: mentions.map((value) => ({ ...value })) });
   }
   submitReply(
     conversationId: string,
     targetMessageId: string,
     clientMessageId: string,
     text: string,
+    mentions: readonly import("../src/application/v2WebChatApplication").V2ConversationMention[] = [],
   ): void {
     this.calls.push(["reply", conversationId, targetMessageId, clientMessageId, text]);
+    this.mentionCalls.push({ kind: "reply", mentions: mentions.map((value) => ({ ...value })) });
   }
   setMessageReaction(
     conversationId: string,
@@ -99,10 +104,12 @@ class FakeTransport {
     return requestId;
   }
   editMessage(conversationId: string, messageId: string, expectedRevision: number,
-    text: string, clientOperationId: string): string {
+    text: string, clientOperationId: string,
+    mentions: readonly import("../src/application/v2WebChatApplication").V2ConversationMention[] = []): string {
     const requestId = `edit-${this.calls.length}`;
     this.calls.push(["edit", conversationId, messageId, expectedRevision, text,
       clientOperationId, requestId]);
+    this.mentionCalls.push({ kind: "edit", mentions: mentions.map((value) => ({ ...value })) });
     return requestId;
   }
   listDevices(): string {
@@ -765,6 +772,26 @@ test("contains participant denial and abandons ambiguous requests on disconnect"
   assert.equal(application.refreshParticipants(), true);
   transport.transition("reconnect-wait");
   assert.equal(application.snapshot.participantsLoading, false);
+  application.dispose();
+});
+
+test("keeps structured mention spans in optimistic submission and rejects stale spans", async () => {
+  const transport = new FakeTransport();
+  const application = new V2WebChatApplication({
+    transport,
+    cache: new FakeCache(),
+    createClientMessageId: () => "mention-client-1",
+    now: () => NOW,
+  });
+  transport.transition("authenticated"); establish(transport); directory(transport);
+  await application.openConversation(CONVERSATION_ID);
+  const mention = { targetAccountId: ACCOUNT_ID, startUtf8Byte: 0, lengthUtf8Bytes: 4 };
+  const optimistic = application.sendText("@李 hi", [mention]);
+  assert.deepEqual(optimistic.mentions, [mention]);
+  assert.deepEqual(transport.mentionCalls.at(-1), { kind: "submit", mentions: [mention] });
+  assert.throws(() => application.sendText("@李 hi", [{
+    ...mention, lengthUtf8Bytes: 2,
+  }]), /mentions do not match/);
   application.dispose();
 });
 

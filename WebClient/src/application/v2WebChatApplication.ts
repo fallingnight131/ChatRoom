@@ -129,12 +129,14 @@ export interface V2ChatTransport {
   listConversationParticipants(
     conversationId: string, limit: number, afterAccountId?: string): string;
   readMessageHistory(conversationId: string, afterSequence: bigint, limit: number): void;
-  submitText(conversationId: string, clientMessageId: string, text: string): void;
+  submitText(conversationId: string, clientMessageId: string, text: string,
+    mentions?: readonly V2ConversationMention[]): void;
   submitReply(
     conversationId: string,
     targetMessageId: string,
     clientMessageId: string,
     text: string,
+    mentions?: readonly V2ConversationMention[],
   ): void;
   setMessageReaction(
     conversationId: string,
@@ -146,7 +148,8 @@ export interface V2ChatTransport {
   setMessagePin(conversationId: string, messageId: string, pinned: boolean,
     clientOperationId: string): string;
   editMessage(conversationId: string, messageId: string, expectedRevision: number,
-    text: string, clientOperationId: string): string;
+    text: string, clientOperationId: string,
+    mentions?: readonly V2ConversationMention[]): string;
   listDevices(): string;
   revokeDevice(targetDeviceId: string): string;
 }
@@ -446,11 +449,18 @@ export class V2WebChatApplication {
       this.activeConversationIdValue, state, state.nextAccountId);
   }
 
-  sendText(text: string): V2ConversationCacheMessage {
-    return this.submitOptimisticText(text, null);
+  sendText(
+    text: string,
+    mentions: readonly V2ConversationMention[] = [],
+  ): V2ConversationCacheMessage {
+    return this.submitOptimisticText(text, null, mentions);
   }
 
-  sendReply(targetMessageId: string, text: string): V2ConversationCacheMessage {
+  sendReply(
+    targetMessageId: string,
+    text: string,
+    mentions: readonly V2ConversationMention[] = [],
+  ): V2ConversationCacheMessage {
     this.requireActive();
     if (!this.activeConversationIdValue) throw new Error("no active V2 conversation");
     const state = this.requireConversation(this.activeConversationIdValue);
@@ -463,12 +473,13 @@ export class V2WebChatApplication {
       targetMessageId: target.id,
       targetConversationSequence: target.sequence,
       targetSenderAccountId: target.senderAccountId,
-    });
+    }, mentions);
   }
 
   private submitOptimisticText(
     text: string,
     reply: V2ConversationCacheMessage["reply"],
+    mentions: readonly V2ConversationMention[],
   ): V2ConversationCacheMessage {
     this.requireActive();
     if (!this.sessionValue || !this.activeConversationIdValue) throw new Error("no active V2 conversation");
@@ -476,6 +487,7 @@ export class V2WebChatApplication {
       throw new Error("text must contain 1..65536 UTF-8 bytes");
     }
     const state = this.requireConversation(this.activeConversationIdValue);
+    const validMentions = requireComposedMentions(text, mentions);
     if (state.messages.filter((message) => message.deliveryState !== "accepted").length >= MAX_PENDING_MESSAGES) {
       throw new Error("V2 pending message limit reached");
     }
@@ -488,7 +500,7 @@ export class V2WebChatApplication {
       sequence: "0",
       acceptedAtEpochMs: this.now(),
       content: text,
-      mentions: [],
+      mentions: validMentions,
       contentType: "text",
       deliveryState: "sending",
       errorCode: "",
@@ -624,10 +636,15 @@ export class V2WebChatApplication {
     this.persist(command.conversationId); this.emit(); return command.deliveryState === "sending";
   }
 
-  editMessage(messageId: string, text: string): boolean {
+  editMessage(
+    messageId: string,
+    text: string,
+    mentions: readonly V2ConversationMention[] = [],
+  ): boolean {
     this.requireActive();
     if (!this.sessionValue || !this.activeConversationIdValue) return false;
     requireEditText(text);
+    const validMentions = requireComposedMentions(text, mentions);
     const state = this.requireConversation(this.activeConversationIdValue);
     const message = state.messages.find((value) => value.id === messageId);
     if (!message || message.senderAccountId !== this.sessionValue.accountId
@@ -642,7 +659,7 @@ export class V2WebChatApplication {
       messageId,
       expectedRevision: message.contentRevision,
       proposedContent: text,
-      proposedMentions: [],
+      proposedMentions: validMentions,
       clientOperationId: this.createClientMessageId(),
       deliveryState: "sending",
       errorCode: "",
@@ -1307,17 +1324,19 @@ export class V2WebChatApplication {
         message.reply.targetMessageId,
         message.clientMessageId,
         message.content,
+        message.mentions,
       );
       return;
     }
-    this.transport.submitText(message.conversationId, message.clientMessageId, message.content);
+    this.transport.submitText(
+      message.conversationId, message.clientMessageId, message.content, message.mentions);
   }
 
   private dispatchEdit(command: V2ConversationCacheEditCommand): void {
     try {
       command.requestId = this.transport.editMessage(
         command.conversationId, command.messageId, command.expectedRevision,
-        command.proposedContent, command.clientOperationId);
+        command.proposedContent, command.clientOperationId, command.proposedMentions);
     } catch {
       command.deliveryState = "failed";
       command.errorCode = "TRANSPORT_UNAVAILABLE";
@@ -1542,6 +1561,17 @@ function normalizeMentions(
     previousEnd = end;
   }
   return result;
+}
+
+function requireComposedMentions(
+  content: string,
+  values: readonly V2ConversationMention[],
+): V2ConversationMention[] {
+  const normalized = normalizeMentions(content, values);
+  if (normalized.length !== values.length) {
+    throw new Error("message mentions do not match the composed text");
+  }
+  return normalized;
 }
 
 function isUtf8Boundary(content: Uint8Array, index: number): boolean {

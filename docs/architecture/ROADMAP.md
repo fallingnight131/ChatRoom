@@ -1522,6 +1522,9 @@ Progress:
     - [x] Add conversation-scoped Web participant view state with bounded page
       merging, explicit refresh/load-more, fixed denial feedback, and stale or
       disconnected request abandonment while runtime activation remains off.
+    - [x] Thread validated structured mention spans through Web optimistic send,
+      reply, edit, persistence/replay, and WebSocket dispatch without activating
+      capability 4 or exposing unfinished composition UI.
     - [ ] Persist Web mention metadata with authoritative messages and pending
       submission/edit workflows, then add composition, rendering,
       accessibility, reconnect convergence, and Web capability activation.

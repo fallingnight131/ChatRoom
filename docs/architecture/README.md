@@ -714,7 +714,9 @@ boundary now provides correlated participant paging with strict account-order,
 role, display-name, bound, and cursor validation; it is not yet wired into the
 Web UI. The Web application state now holds only a bounded, conversation-scoped
 participant projection, abandons stale/disconnected requests, and treats it as
-transient picker data rather than durable identity truth.
+transient picker data rather than durable identity truth. Validated mention
+spans now flow unchanged through optimistic Web send/reply/edit records and
+their retry transport paths, while the incomplete UI and capability remain off.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

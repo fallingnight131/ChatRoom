@@ -1322,6 +1322,12 @@ pages by stable account ID, contains authorization failures, abandons ambiguous
 requests on disconnect, and ignores responses after a conversation switch.
 This state is deliberately not durable identity truth and does not activate the
 mention UI or capability (ADR-0343).
+Web application send, reply, and edit commands now accept already-composed
+mention spans, reject any span set that no longer matches the exact UTF-8 text,
+and retain the validated set in optimistic records and edit commands. Retry and
+reconnect dispatch forward those same stable spans through the WebSocket
+transport. Capability 4 remains disabled until the picker and rendering gate
+passes (ADR-0342/ADR-0343).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live
