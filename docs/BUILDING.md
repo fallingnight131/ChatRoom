@@ -1439,6 +1439,20 @@ connected only to gateway A and the caught-up receiver only to gateway B. It
 requires A's PostgreSQL/outbox commit to traverse Redis as a payload-free hint,
 B to reauthorize and load the exact message from PostgreSQL, one WSS publication,
 one published outbox row, and non-zero hint-applied telemetry on B (ADR-0369).
+The cooperative rolling scenario sends sequence 1 from A to a peer held on B,
+lets the sender complete a normal WebSocket close, drains A, verifies B remains
+ready, starts replacement C, reconnects the same device identity, restores
+sequence 1 through history, and sends sequence 2 from C to the unchanged peer on
+B. It requires exactly two messages, two published outbox rows, local and remote
+duplicate suppression, and uninterrupted B readiness. Run an individual
+scenario while diagnosing:
+
+```bash
+python3 tools/verify_redis_outage.py --scenario rolling
+```
+
+Accepted values are `outage`, `cross-gateway`, and `rolling`. The ordinary
+`--redis-outage` gate runs all three (ADR-0370).
 All owned processes and data are removed on success or failure. This gate is
 separate from `--all` because it controls local services. It is single-gateway
 dependency evidence, not load-balancer deregistration, cross-gateway failover,

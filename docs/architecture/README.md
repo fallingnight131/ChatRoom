@@ -1114,6 +1114,14 @@ subscription, re-reads the exact body from PostgreSQL, and emits one WSS event.
 The published outbox row and B's non-zero hint-applied counter prove the message
 did not arrive through the process-local router. Gateway removal and client
 placement during rolling deployment remain the next gate.
+ADR-0370 adds the first cooperative rolling-topology rehearsal. After A sends
+sequence 1 across Redis to a receiver held on B, the sending client completes a
+normal WebSocket close and A drains/removes its boot lease. B stays ready and its
+peer remains connected. Replacement C then starts, the same client device logs
+in, restores sequence 1 through authoritative history, and sends sequence 2 back
+across Redis to B exactly once. This proves same-build topology replacement and
+client recovery, not load-balancer readiness propagation, mixed-version
+compatibility, crash loss, or forced drain-timeout behavior.
 
 ## 10. Attachment Flow
 

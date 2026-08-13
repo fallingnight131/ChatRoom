@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import shutil
 import signal
@@ -17,6 +18,11 @@ ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "Backend"
 TEST_USER = "chatroom_redis_outage"
 TEST_DATABASE = "chatroom_redis_outage"
+SCENARIOS = {
+    "outage": "withdrawsReadinessAndConvergesDurableMessageAcrossRedisRestart",
+    "cross-gateway": "relaysOneProductMessageAcrossTwoRealGatewayRuntimes",
+    "rolling": "preservesPeerDeliveryWhileOneGatewayRollsToAReplacement",
+}
 
 
 def required(name: str) -> str:
@@ -79,6 +85,10 @@ def stop_process(process: subprocess.Popen[bytes]) -> None:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--scenario", action="append", choices=SCENARIOS,
+                        help="run only the selected scenario (repeatable)")
+    arguments = parser.parse_args()
     initdb = required("initdb")
     pg_ctl = required("pg_ctl")
     createdb = required("createdb")
@@ -134,15 +144,13 @@ def main() -> int:
                 "CHATROOM_TEST_REDIS_URI": f"redis://127.0.0.1:{redis_port}/0",
                 "CHATROOM_TEST_REDIS_CONTROL_DIR": str(root),
             })
-            command = [
-                str(wrapper), "--no-daemon", "--no-configuration-cache",
-                ":im-gateway:test", "--tests",
-                "*GatewayRuntimePostgresIntegrationTest."
-                "withdrawsReadinessAndConvergesDurableMessageAcrossRedisRestart",
-                "--tests", "*GatewayRuntimePostgresIntegrationTest."
-                "relaysOneProductMessageAcrossTwoRealGatewayRuntimes",
-                "--rerun-tasks",
-            ]
+            selected = arguments.scenario or list(SCENARIOS)
+            command = [str(wrapper), "--no-daemon", "--no-configuration-cache",
+                       ":im-gateway:test"]
+            for scenario in selected:
+                command.extend(["--tests", "*GatewayRuntimePostgresIntegrationTest."
+                                + SCENARIOS[scenario]])
+            command.append("--rerun-tasks")
             print("[Redis outage] running distributed product runtime gates")
             process = subprocess.Popen(command, cwd=BACKEND, env=environment)
             stop_request = root / "redis-stop-request"

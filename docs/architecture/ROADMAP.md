@@ -1521,6 +1521,13 @@ Progress:
   and load the exact body from PostgreSQL, and emit one WSS event with B's hint-
   applied telemetry proving the cross-process path. Gateway removal/reconnect
   and load-balancer behavior remain pending (ADR-0369).
+- [x] Pass a cooperative rolling-topology rehearsal: deliver sequence 1 from A
+  to a receiver held on B, let the sending client complete WebSocket close, drain
+  and remove A, keep B ready and connected, start replacement C, reconnect the
+  same device identity, repair sequence 1 from PostgreSQL history, then deliver
+  sequence 2 from C to B exactly once with two published outbox rows. Real load-
+  balancer propagation, version skew, crash loss, and forced-drain timeout remain
+  pending (ADR-0370).
 
 Work:
 

@@ -46,6 +46,8 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1UserSearchEventSink;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
+import com.fallingnight.chat.routing.redis.LettuceGatewayRoutingAdapter;
+import com.fallingnight.chat.routing.redis.RedisRoutingConfig;
 import com.fallingnight.chat.protocol.v2.Authenticate;
 import com.fallingnight.chat.protocol.v2.ClientHello;
 import com.fallingnight.chat.protocol.v2.ClientPlatform;
@@ -479,6 +481,143 @@ class GatewayRuntimePostgresIntegrationTest {
             if (peer != null) peer.abort();
             if (sender != null) sender.abort();
             if (second != null) second.close();
+            if (first != null) first.close();
+            certificate.delete();
+        }
+    }
+
+    @Test
+    void preservesPeerDeliveryWhileOneGatewayRollsToAReplacement() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String password = System.getenv().getOrDefault("CHATROOM_TEST_POSTGRES_PASSWORD", "");
+        String redisUri = System.getenv("CHATROOM_TEST_REDIS_URI");
+        Assumptions.assumeTrue(jdbcUrl != null && !jdbcUrl.isBlank()
+                && username != null && !username.isBlank()
+                && redisUri != null && !redisUri.isBlank(),
+                "set disposable PostgreSQL and Redis endpoints");
+        new PostgresMigrator(jdbcUrl, username, password).migrate();
+
+        UUID accountId = UUID.randomUUID();
+        UUID peerAccountId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        String login = "rolling-gateway-" + accountId;
+        String peerLogin = "rolling-gateway-" + peerAccountId;
+        seedV2NetworkAccounts(jdbcUrl, username, password, accountId, peerAccountId,
+                conversationId, login, peerLogin);
+
+        int firstGatewayPort = availablePort();
+        int firstAdminPort = availablePort();
+        int stableGatewayPort = availablePort();
+        int stableAdminPort = availablePort();
+        int replacementGatewayPort = availablePort();
+        int replacementAdminPort = availablePort();
+        SelfSignedCertificate certificate = new SelfSignedCertificate("localhost");
+        GatewayRuntime first = null;
+        GatewayRuntime stable = null;
+        GatewayRuntime replacement = null;
+        WebSocket sender = null;
+        WebSocket peer = null;
+        try {
+            first = GatewayRuntime.create(GatewayRuntimeConfig.fromEnvironment(
+                    distributedNetworkEnvironment(firstGatewayPort, firstAdminPort,
+                            certificate, jdbcUrl, username, redisUri)));
+            stable = GatewayRuntime.create(GatewayRuntimeConfig.fromEnvironment(
+                    distributedNetworkEnvironment(stableGatewayPort, stableAdminPort,
+                            certificate, jdbcUrl, username, redisUri)));
+            first.start();
+            stable.start();
+            awaitReady(first);
+            awaitReady(stable);
+
+            BinaryEnvelopeListener senderListener = new BinaryEnvelopeListener();
+            sender = connectWebSocket(firstGatewayPort, senderListener);
+            SessionEstablished senderSession = establish(
+                    sender, senderListener, login, "rolling-device-1");
+            BinaryEnvelopeListener peerListener = new BinaryEnvelopeListener();
+            peer = connectWebSocket(stableGatewayPort, peerListener);
+            SessionEstablished peerSession = establish(
+                    peer, peerListener, peerLogin, "rolling-device-2");
+            peer.sendBinary(ByteBuffer.wrap(history(
+                    peerSession.getSessionId(), conversationId).toByteArray()), true).join();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    peerListener.next().getMessageType());
+
+            sender.sendBinary(ByteBuffer.wrap(submit(
+                    senderSession.getSessionId(), conversationId,
+                    "rolling-submit-1", "rolling-message-1", "before replacement")
+                    .toByteArray()), true).join();
+            MessageAccepted firstAccepted = accepted(senderListener.next());
+            assertEquals(1, firstAccepted.getConversationSequence());
+            MessageRecord firstPublished = published(peerListener.next());
+            assertEquals(1, firstPublished.getConversationSequence());
+            assertEquals("before replacement", firstPublished.getContent().toStringUtf8());
+
+            sender.sendClose(WebSocket.NORMAL_CLOSURE, "gateway replacement")
+                    .get(3, TimeUnit.SECONDS);
+            sender = null;
+            first.close();
+            first = null;
+            assertTrue(stable.isReady());
+            assertReadiness(stableAdminPort, 200, "ready\n");
+
+            replacement = GatewayRuntime.create(GatewayRuntimeConfig.fromEnvironment(
+                    distributedNetworkEnvironment(replacementGatewayPort,
+                            replacementAdminPort, certificate, jdbcUrl, username, redisUri)));
+            replacement.start();
+            awaitReady(replacement);
+            BinaryEnvelopeListener replacementListener = new BinaryEnvelopeListener();
+            sender = connectWebSocket(replacementGatewayPort, replacementListener);
+            SessionEstablished replacementSession = establish(
+                    sender, replacementListener, login, "rolling-device-1");
+            sender.sendBinary(ByteBuffer.wrap(history(
+                    replacementSession.getSessionId(), conversationId).toByteArray()), true).join();
+            Envelope replacementHistory = replacementListener.next();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    replacementHistory.getMessageType());
+            MessageHistoryPage historyPage = MessageHistoryPage.parseFrom(
+                    replacementHistory.getPayload());
+            assertEquals(1, historyPage.getMessagesCount());
+            assertEquals(1, historyPage.getMessages(0).getConversationSequence());
+            assertEquals(2, activeRouteCount(redisUri, conversationId));
+
+            sender.sendBinary(ByteBuffer.wrap(submit(
+                    replacementSession.getSessionId(), conversationId,
+                    "rolling-submit-2", "rolling-message-2", "after replacement")
+                    .toByteArray()), true).join();
+            MessageAccepted secondAccepted = accepted(replacementListener.next());
+            assertEquals(2, secondAccepted.getConversationSequence());
+            MessageRecord replacementLocal = published(replacementListener.next());
+            assertEquals(secondAccepted.getMessageId(), replacementLocal.getMessageId());
+            assertEquals(2, replacementLocal.getConversationSequence());
+            awaitCount(jdbcUrl, username, password,
+                    "SELECT count(*) FROM chat.conversation_event_outbox "
+                            + "WHERE conversation_id = '" + conversationId
+                            + "' AND published_at IS NOT NULL",
+                    2, Duration.ofSeconds(10));
+            assertEquals(2, activeRouteCount(redisUri, conversationId));
+            awaitRoutingMetric(stableAdminPort, "hint_read", 2, Duration.ofSeconds(10));
+            String routingMetrics = adminMetrics(stableAdminPort);
+            assertEquals(2, routingMetric(routingMetrics, "hint_applied"),
+                    "unexpected hint classification:\n" + routingMetrics);
+            MessageRecord secondPublished = published(
+                    peerListener.next(Duration.ofSeconds(15)));
+            assertEquals(secondAccepted.getMessageId(), secondPublished.getMessageId());
+            assertEquals(2, secondPublished.getConversationSequence());
+            assertEquals("after replacement", secondPublished.getContent().toStringUtf8());
+            replacementListener.assertNoEnvelope(Duration.ofSeconds(1));
+            peerListener.assertNoEnvelope(Duration.ofSeconds(1));
+
+            assertTrue(stable.isReady());
+            assertReadiness(stableAdminPort, 200, "ready\n");
+            assertEquals(2, countQuery(jdbcUrl, username, password,
+                    "SELECT count(*) FROM chat.message WHERE conversation_id = '"
+                            + conversationId + "'"));
+        } finally {
+            if (peer != null) peer.abort();
+            if (sender != null) sender.abort();
+            if (replacement != null) replacement.close();
+            if (stable != null) stable.close();
             if (first != null) first.close();
             certificate.delete();
         }
@@ -2904,6 +3043,50 @@ class GatewayRuntimePostgresIntegrationTest {
         return environment;
     }
 
+    private static int activeRouteCount(String redisUri, UUID conversationId) {
+        try (var redis = new LettuceGatewayRoutingAdapter(new RedisRoutingConfig(
+                redisUri, Duration.ofSeconds(1), 64, true))) {
+            return redis.findConversationGateways(
+                    conversationId, Instant.now(), 64).gatewayIds().size();
+        }
+    }
+
+    private static void awaitRoutingMetric(
+            int adminPort, String name, long minimum, Duration timeout) throws Exception {
+        Pattern pattern = Pattern.compile(
+                "chat_gateway_routing_" + Pattern.quote(name) + "_total ([0-9]+)");
+        long deadline = System.nanoTime() + timeout.toNanos();
+        long observed = -1;
+        do {
+            String metrics = HttpClient.newHttpClient().send(
+                    HttpRequest.newBuilder(URI.create(
+                            "http://127.0.0.1:" + adminPort + "/metrics")).GET().build(),
+                    HttpResponse.BodyHandlers.ofString()).body();
+            var matcher = pattern.matcher(metrics);
+            if (matcher.find()) observed = Long.parseLong(matcher.group(1));
+            if (observed >= minimum) return;
+            Thread.sleep(25);
+        } while (System.nanoTime() < deadline);
+        assertTrue(observed >= minimum,
+                "routing metric " + name + " did not reach " + minimum
+                        + "; observed=" + observed);
+    }
+
+    private static String adminMetrics(int adminPort) throws Exception {
+        return HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder(URI.create(
+                        "http://127.0.0.1:" + adminPort + "/metrics")).GET().build(),
+                HttpResponse.BodyHandlers.ofString()).body();
+    }
+
+    private static long routingMetric(String metrics, String name) {
+        var matcher = Pattern.compile(
+                "chat_gateway_routing_" + Pattern.quote(name) + "_total ([0-9]+)")
+                .matcher(metrics);
+        assertTrue(matcher.find(), "missing routing metric " + name);
+        return Long.parseLong(matcher.group(1));
+    }
+
     private static void seedV2NetworkAccounts(
             String url, String user, String password, UUID accountId, UUID peerAccountId,
             UUID conversationId, String login, String peerLogin) throws Exception {
@@ -2981,13 +3164,31 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     private static Envelope submit(String sessionId, UUID conversationId) {
+        return submit(sessionId, conversationId, "submit-1", "network-message-1",
+                "network integration message");
+    }
+
+    private static Envelope submit(String sessionId, UUID conversationId,
+            String requestId, String clientMessageId, String content) {
         SubmitMessage payload = SubmitMessage.newBuilder()
                 .setConversationId(conversationId.toString())
                 .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
-                .setContent(ByteString.copyFromUtf8("network integration message"))
+                .setContent(ByteString.copyFromUtf8(content))
                 .build();
-        return command(MessageType.MESSAGE_TYPE_SUBMIT_MESSAGE, "submit-1", sessionId,
-                "network-message-1", payload.toByteString());
+        return command(MessageType.MESSAGE_TYPE_SUBMIT_MESSAGE, requestId, sessionId,
+                clientMessageId, payload.toByteString());
+    }
+
+    private static MessageAccepted accepted(Envelope envelope) throws Exception {
+        assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED_VALUE,
+                envelope.getMessageType());
+        return MessageAccepted.parseFrom(envelope.getPayload());
+    }
+
+    private static MessageRecord published(Envelope envelope) throws Exception {
+        assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_PUBLISHED_VALUE,
+                envelope.getMessageType());
+        return MessageRecord.parseFrom(envelope.getPayload());
     }
 
     private static Envelope history(String sessionId, UUID conversationId) {
@@ -3064,7 +3265,11 @@ class GatewayRuntimePostgresIntegrationTest {
         }
 
         private Envelope next() throws Exception {
-            Envelope envelope = envelopes.poll(5, TimeUnit.SECONDS);
+            return next(Duration.ofSeconds(5));
+        }
+
+        private Envelope next(Duration timeout) throws Exception {
+            Envelope envelope = envelopes.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
             Throwable error = failure.get();
             if (error != null) throw new AssertionError("WebSocket listener failed", error);
             assertNotNull(envelope, "timed out waiting for a V2 envelope");
