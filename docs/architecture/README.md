@@ -712,7 +712,9 @@ denial behavior; Web and Windows negotiation remain off pending their complete
 composition and rendering gates. The default-off Web protocol and transport
 boundary now provides correlated participant paging with strict account-order,
 role, display-name, bound, and cursor validation; it is not yet wired into the
-Web application state or UI.
+Web UI. The Web application state now holds only a bounded, conversation-scoped
+participant projection, abandons stale/disconnected requests, and treats it as
+transient picker data rather than durable identity truth.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

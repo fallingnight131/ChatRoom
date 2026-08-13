@@ -1,4 +1,9 @@
-import { ConversationKind, ConversationRole, type ConversationDirectoryRecord } from "../protocol/v2/generated/conversation_pb";
+import {
+  ConversationKind,
+  ConversationRole,
+  type ConversationDirectoryRecord,
+  type ConversationParticipantRecord,
+} from "../protocol/v2/generated/conversation_pb";
 import {
   MessageContentType,
   MessageReactionKind,
@@ -17,6 +22,8 @@ import type {
 
 const HISTORY_PAGE_SIZE = 100;
 const DIRECTORY_PAGE_SIZE = 50;
+const PARTICIPANT_PAGE_SIZE = 100;
+const MAX_RETAINED_PARTICIPANTS = 500;
 const MAX_RETAINED_ACCEPTED_MESSAGES = 500;
 const MAX_PENDING_MESSAGES = 100;
 const MAX_PENDING_REACTIONS = 8;
@@ -119,6 +126,8 @@ export interface V2ChatTransport {
   authenticate(username: string, passwordUtf8: Uint8Array): void;
   resumeSession(sessionId: string, resumeToken: Uint8Array): void;
   listConversations(limit: number, after?: { updatedAtEpochMs: bigint; conversationId: string }): void;
+  listConversationParticipants(
+    conversationId: string, limit: number, afterAccountId?: string): string;
   readMessageHistory(conversationId: string, afterSequence: bigint, limit: number): void;
   submitText(conversationId: string, clientMessageId: string, text: string): void;
   submitReply(
@@ -160,6 +169,12 @@ export interface V2ManagedDevice {
   current: boolean;
 }
 
+export interface V2ConversationParticipant {
+  accountId: string;
+  displayName: string;
+  role: "owner" | "admin" | "member";
+}
+
 export interface V2WebChatSnapshot {
   connectionState: V2WebSocketTransportState;
   session: null | {
@@ -176,6 +191,10 @@ export interface V2WebChatSnapshot {
   reactionCommands: V2ConversationCacheReactionCommand[];
   pinCommands: V2ConversationCachePinCommand[];
   editCommands: V2ConversationCacheEditCommand[];
+  participants: V2ConversationParticipant[];
+  participantsLoading: boolean;
+  participantsHasMore: boolean;
+  participantFailure: string;
   historyLoading: boolean;
   devices: V2ManagedDevice[];
   devicesLoading: boolean;
@@ -201,6 +220,14 @@ type ConversationState = {
   loading: boolean;
 };
 
+type ParticipantState = {
+  values: V2ConversationParticipant[];
+  nextAccountId: string;
+  hasMore: boolean;
+  loading: boolean;
+  failure: string;
+};
+
 export class V2WebChatApplication {
   private readonly transport: V2ChatTransport;
   private readonly cache: V2ConversationCache;
@@ -209,6 +236,7 @@ export class V2WebChatApplication {
   private readonly onChange?: (snapshot: V2WebChatSnapshot) => void;
   private readonly observers = new Set<(snapshot: V2WebChatSnapshot) => void>();
   private readonly conversations = new Map<string, ConversationState>();
+  private readonly participants = new Map<string, ParticipantState>();
   private readonly unsubscribeTransport: () => void;
   private sessionValue: V2WebChatSnapshot["session"] = null;
   private directoryValue: V2DirectoryItem[] = [];
@@ -223,6 +251,7 @@ export class V2WebChatApplication {
   private deviceFailureValue = "";
   private deviceListRequestId: string | null = null;
   private deviceRevokeRequestId: string | null = null;
+  private participantRequest: { requestId: string; conversationId: string } | null = null;
   private selectionGeneration = 0;
   private sessionGeneration = 0;
   private readonly replayedAtGeneration = new Map<string, number>();
@@ -248,6 +277,9 @@ export class V2WebChatApplication {
     const active = this.activeConversationIdValue
       ? this.conversations.get(this.activeConversationIdValue)
       : undefined;
+    const participantState = this.activeConversationIdValue
+      ? this.participants.get(this.activeConversationIdValue)
+      : undefined;
     return {
       connectionState: this.connectionStateValue,
       session: this.sessionValue ? { ...this.sessionValue } : null,
@@ -258,6 +290,10 @@ export class V2WebChatApplication {
       reactionCommands: active?.reactionCommands.map(cloneReactionCommand) ?? [],
       pinCommands: active?.pinCommands.map((value) => ({ ...value })) ?? [],
       editCommands: active?.editCommands.map(cloneEditCommand) ?? [],
+      participants: participantState?.values.map((value) => ({ ...value })) ?? [],
+      participantsLoading: participantState?.loading ?? false,
+      participantsHasMore: participantState?.hasMore ?? false,
+      participantFailure: participantState?.failure ?? "",
       historyLoading: active?.loading ?? false,
       devices: this.devicesValue.map((device) => ({ ...device })),
       devicesLoading: this.devicesLoadingValue,
@@ -344,6 +380,7 @@ export class V2WebChatApplication {
       throw new Error("conversation is not present in the authenticated directory");
     }
     const generation = ++this.selectionGeneration;
+    this.abandonParticipantRequest();
     this.activeConversationIdValue = conversationId;
     let state = this.conversations.get(conversationId);
     if (!state) {
@@ -381,6 +418,32 @@ export class V2WebChatApplication {
     if (this.disposed || generation !== this.selectionGeneration) return;
     this.transport.readMessageHistory(conversationId, BigInt(state.cursorSequence), HISTORY_PAGE_SIZE);
     this.emit();
+  }
+
+  refreshParticipants(): boolean {
+    this.requireActive();
+    if (!this.activeConversationIdValue || this.connectionStateValue !== "authenticated") {
+      return false;
+    }
+    const state: ParticipantState = {
+      values: [], nextAccountId: "", hasMore: false, loading: true, failure: "",
+    };
+    this.participants.set(this.activeConversationIdValue, state);
+    return this.requestParticipantPage(this.activeConversationIdValue, state, "");
+  }
+
+  loadMoreParticipants(): boolean {
+    this.requireActive();
+    if (!this.activeConversationIdValue || this.connectionStateValue !== "authenticated") {
+      return false;
+    }
+    const state = this.participants.get(this.activeConversationIdValue);
+    if (!state || state.loading || !state.hasMore || !state.nextAccountId
+        || state.values.length >= MAX_RETAINED_PARTICIPANTS) return false;
+    state.loading = true;
+    state.failure = "";
+    return this.requestParticipantPage(
+      this.activeConversationIdValue, state, state.nextAccountId);
   }
 
   sendText(text: string): V2ConversationCacheMessage {
@@ -653,6 +716,8 @@ export class V2WebChatApplication {
     this.directoryHasMoreValue = false;
     this.activeConversationIdValue = null;
     this.conversations.clear();
+    this.participants.clear();
+    this.participantRequest = null;
     this.clearDeviceState();
     this.replayedAtGeneration.clear();
     this.replayQueues.clear();
@@ -670,6 +735,8 @@ export class V2WebChatApplication {
     this.transport.stop();
     this.sessionValue = null;
     this.conversations.clear();
+    this.participants.clear();
+    this.participantRequest = null;
     this.clearDeviceState();
   }
 
@@ -680,7 +747,10 @@ export class V2WebChatApplication {
       this.replayQueues.clear();
       this.replayInFlight.clear();
     }
-    if (state !== "authenticated") this.resetDeviceRequests();
+    if (state !== "authenticated") {
+      this.resetDeviceRequests();
+      this.abandonParticipantRequest();
+    }
     this.emit();
   }
 
@@ -714,6 +784,8 @@ export class V2WebChatApplication {
         if (!sameSession) {
           this.activeConversationIdValue = null;
           this.conversations.clear();
+          this.participants.clear();
+          this.participantRequest = null;
           this.replayedAtGeneration.clear();
           this.clearDeviceState();
         } else if (this.activeConversationIdValue) {
@@ -735,6 +807,9 @@ export class V2WebChatApplication {
       case "conversation-directory-page":
         this.applyDirectoryPage(event.value.conversations, event.value.hasMore,
           event.value.nextUpdatedAtEpochMs, event.value.nextConversationId);
+        break;
+      case "conversation-participant-page":
+        this.applyParticipantPage(event);
         break;
       case "message-history-page":
         this.applyHistoryPage(event.value.conversationId, event.value.messages,
@@ -790,6 +865,8 @@ export class V2WebChatApplication {
         this.directoryHasMoreValue = false;
         this.activeConversationIdValue = null;
         this.conversations.clear();
+        this.participants.clear();
+        this.participantRequest = null;
         this.clearDeviceState();
         break;
       default:
@@ -813,6 +890,30 @@ export class V2WebChatApplication {
     this.directoryCursor = records.length > 0
       ? { updatedAtEpochMs: nextUpdatedAtEpochMs, conversationId: nextConversationId }
       : null;
+  }
+
+  private applyParticipantPage(
+    event: Extract<V2WebProtocolEvent, { type: "conversation-participant-page" }>,
+  ): void {
+    const pending = this.participantRequest;
+    if (!pending || event.requestId !== pending.requestId
+        || event.value.conversationId !== pending.conversationId
+        || this.activeConversationIdValue !== pending.conversationId) return;
+    this.participantRequest = null;
+    const state = this.participants.get(pending.conversationId);
+    if (!state) return;
+    const merged = new Map(state.values.map((value) => [value.accountId, value]));
+    for (const participant of event.value.participants) {
+      merged.set(participant.accountId, mapParticipant(participant));
+    }
+    state.values = [...merged.values()]
+      .sort((left, right) => left.accountId.localeCompare(right.accountId))
+      .slice(0, MAX_RETAINED_PARTICIPANTS);
+    state.nextAccountId = event.value.nextAccountId;
+    state.hasMore = event.value.hasMore
+      && state.values.length < MAX_RETAINED_PARTICIPANTS;
+    state.loading = false;
+    state.failure = "";
   }
 
   private applyHistoryPage(
@@ -1023,6 +1124,16 @@ export class V2WebChatApplication {
   }
 
   private applyProtocolError(event: Extract<V2WebProtocolEvent, { type: "protocol-error" }>): void {
+    if (event.requestId === this.participantRequest?.requestId) {
+      const pending = this.participantRequest;
+      this.participantRequest = null;
+      const state = this.participants.get(pending.conversationId);
+      if (state) {
+        state.loading = false;
+        state.failure = "无法加载会话成员";
+      }
+      return;
+    }
     if (event.requestId === this.deviceListRequestId) {
       this.deviceListRequestId = null;
       this.devicesLoadingValue = false;
@@ -1219,6 +1330,35 @@ export class V2WebChatApplication {
     this.resetDeviceRequests();
   }
 
+  private requestParticipantPage(
+    conversationId: string,
+    state: ParticipantState,
+    afterAccountId: string,
+  ): boolean {
+    this.abandonParticipantRequest();
+    state.loading = true;
+    state.failure = "";
+    try {
+      const requestId = this.transport.listConversationParticipants(
+        conversationId, PARTICIPANT_PAGE_SIZE, afterAccountId);
+      this.participantRequest = { requestId, conversationId };
+      this.emit();
+      return true;
+    } catch {
+      state.loading = false;
+      state.failure = "无法加载会话成员";
+      this.emit();
+      return false;
+    }
+  }
+
+  private abandonParticipantRequest(): void {
+    if (!this.participantRequest) return;
+    const state = this.participants.get(this.participantRequest.conversationId);
+    if (state) state.loading = false;
+    this.participantRequest = null;
+  }
+
   private resetDeviceRequests(): void {
     this.devicesLoadingValue = false;
     this.revokingDeviceIdValue = null;
@@ -1249,6 +1389,15 @@ function mapDirectoryItem(record: ConversationDirectoryRecord): V2DirectoryItem 
     latestSequence: record.latestSequence.toString(),
     lastReadSequence: record.lastReadSequence.toString(),
     updatedAtEpochMs: Number(record.updatedAtEpochMs),
+  };
+}
+
+function mapParticipant(record: ConversationParticipantRecord): V2ConversationParticipant {
+  return {
+    accountId: record.accountId,
+    displayName: record.displayName,
+    role: record.role === ConversationRole.OWNER
+      ? "owner" : record.role === ConversationRole.ADMIN ? "admin" : "member",
   };
 }
 

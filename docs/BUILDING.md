@@ -1316,6 +1316,12 @@ request and rejects unnegotiated, oversized, unordered, duplicate, malformed,
 or cursor-inconsistent type-118 data. The WebSocket transport forwards this
 command only through an authenticated capability-4 protocol client; the Web
 runtime still does not advertise capability 4 (ADR-0343).
+The Web application layer exposes a conversation-scoped, maximum-500-member
+transient view model with explicit refresh and load-more operations. It merges
+pages by stable account ID, contains authorization failures, abandons ambiguous
+requests on disconnect, and ignores responses after a conversation switch.
+This state is deliberately not durable identity truth and does not activate the
+mention UI or capability (ADR-0343).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

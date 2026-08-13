@@ -1519,6 +1519,9 @@ Progress:
     - [x] Add a default-off Web participant-directory command/response boundary
       with capability gating, request correlation, stable-cursor validation,
       bounded records, and transport forwarding.
+    - [x] Add conversation-scoped Web participant view state with bounded page
+      merging, explicit refresh/load-more, fixed denial feedback, and stale or
+      disconnected request abandonment while runtime activation remains off.
     - [ ] Persist Web mention metadata with authoritative messages and pending
       submission/edit workflows, then add composition, rendering,
       accessibility, reconnect convergence, and Web capability activation.

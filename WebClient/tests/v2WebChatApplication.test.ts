@@ -7,6 +7,7 @@ import { V2WebChatApplication, type V2ConversationCacheMessage } from "../src/ap
 import { AuthenticationRejectedSchema, SessionEstablishedSchema } from "../src/protocol/v2/generated/authentication_pb";
 import {
   ConversationDirectoryPageSchema,
+  ConversationParticipantPageSchema,
   ConversationKind,
   ConversationRole,
 } from "../src/protocol/v2/generated/conversation_pb";
@@ -60,6 +61,11 @@ class FakeTransport {
   authenticate(username: string, password: Uint8Array): void { this.calls.push(["authenticate", username, password]); }
   resumeSession(sessionId: string, token: Uint8Array): void { this.calls.push(["resume", sessionId, token]); }
   listConversations(limit: number, after?: unknown): void { this.calls.push(["directory", limit, after]); }
+  listConversationParticipants(conversationId: string, limit: number, afterAccountId = ""): string {
+    const requestId = `participants-${this.calls.length}`;
+    this.calls.push(["participants", conversationId, limit, afterAccountId, requestId]);
+    return requestId;
+  }
   readMessageHistory(conversationId: string, afterSequence: bigint, limit: number): void {
     this.calls.push(["history", conversationId, afterSequence, limit]);
   }
@@ -680,6 +686,86 @@ test("ignores stale cache completion after a rapid conversation switch and clear
   application.dispose();
   assert.equal(transport.observer, null);
   assert.deepEqual(transport.calls.at(-1), ["stop"]);
+});
+
+test("pages bounded participants and ignores responses abandoned by conversation switches", async () => {
+  const transport = new FakeTransport();
+  const application = new V2WebChatApplication({ transport, cache: new FakeCache() });
+  transport.transition("authenticated");
+  establish(transport);
+  directory(transport);
+  transport.emit(correlated({
+    type: "conversation-directory-page",
+    value: create(ConversationDirectoryPageSchema, {
+      conversations: [{
+        conversationId: SECOND_CONVERSATION_ID,
+        kind: ConversationKind.GROUP,
+        displayName: "Team",
+        role: ConversationRole.MEMBER,
+        latestSequence: 1n,
+        updatedAtEpochMs: BigInt(NOW - 1),
+      }],
+      nextUpdatedAtEpochMs: BigInt(NOW - 1),
+      nextConversationId: SECOND_CONVERSATION_ID,
+    }),
+  }));
+  await application.openConversation(CONVERSATION_ID);
+
+  assert.equal(application.refreshParticipants(), true);
+  const first = transport.calls.at(-1)!;
+  assert.deepEqual(first.slice(0, 4), ["participants", CONVERSATION_ID, 100, ""]);
+  transport.emit({
+    type: "conversation-participant-page",
+    requestId: first[4] as string,
+    clientMessageId: "",
+    value: create(ConversationParticipantPageSchema, {
+      conversationId: CONVERSATION_ID,
+      participants: [{ accountId: ACCOUNT_ID, displayName: "Alice", role: ConversationRole.OWNER }],
+      nextAccountId: ACCOUNT_ID,
+      hasMore: true,
+    }),
+  });
+  assert.equal(application.snapshot.participants[0]?.displayName, "Alice");
+  assert.equal(application.snapshot.participantsHasMore, true);
+  assert.equal(application.loadMoreParticipants(), true);
+  assert.deepEqual(transport.calls.at(-1)?.slice(0, 4),
+    ["participants", CONVERSATION_ID, 100, ACCOUNT_ID]);
+
+  const staleRequest = transport.calls.at(-1)![4] as string;
+  await application.openConversation(SECOND_CONVERSATION_ID);
+  transport.emit({
+    type: "conversation-participant-page",
+    requestId: staleRequest,
+    clientMessageId: "",
+    value: create(ConversationParticipantPageSchema, {
+      conversationId: CONVERSATION_ID,
+      participants: [{ accountId: ACCOUNT_ID, displayName: "stale", role: ConversationRole.MEMBER }],
+      nextAccountId: ACCOUNT_ID,
+    }),
+  });
+  assert.deepEqual(application.snapshot.participants, []);
+  assert.equal(application.snapshot.participantsLoading, false);
+  application.dispose();
+});
+
+test("contains participant denial and abandons ambiguous requests on disconnect", async () => {
+  const transport = new FakeTransport();
+  const application = new V2WebChatApplication({ transport, cache: new FakeCache() });
+  transport.transition("authenticated"); establish(transport); directory(transport);
+  await application.openConversation(CONVERSATION_ID);
+  assert.equal(application.refreshParticipants(), true);
+  const deniedRequest = transport.calls.at(-1)![4] as string;
+  transport.emit({
+    type: "protocol-error", requestId: deniedRequest, clientMessageId: "",
+    value: create(ProtocolErrorSchema, { code: ProtocolErrorCode.NOT_AUTHORIZED }),
+  });
+  assert.equal(application.snapshot.participantFailure, "无法加载会话成员");
+  assert.equal(application.snapshot.participantsLoading, false);
+
+  assert.equal(application.refreshParticipants(), true);
+  transport.transition("reconnect-wait");
+  assert.equal(application.snapshot.participantsLoading, false);
+  application.dispose();
 });
 
 test("surfaces generic authentication rejection without retaining session secrets", () => {
