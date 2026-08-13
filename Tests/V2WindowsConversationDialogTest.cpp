@@ -33,7 +33,16 @@ int main(int argc, char **argv) {
         accountId, [&](const QString &) { return snapshot; },
         [](const QString &, const QString &, const QString &,
            V2LocalMessageRepository::Message *) { return true; },
-        [](const QString &, const QString &) { return true; });
+        [](const QString &, const QString &) { return true; },
+        [](const QString &, const QString &,
+           V2LocalMessageRepository::ReactionKind) { return true; },
+        [](const QString &, const QString &) { return true; },
+        [](const QString &, const QString &) { return true; },
+        [](const QString &, const QString &) { return true; },
+        [](const QString &, const QString &, const QString &) { return true; },
+        [](const QString &, const QString &) { return true; },
+        [](const QString &, const QString &) { return true; },
+        [](const QString &) { return true; });
 
     int refreshCalls = 0;
     int loadMoreCalls = 0;
