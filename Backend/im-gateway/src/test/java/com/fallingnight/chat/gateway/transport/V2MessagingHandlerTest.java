@@ -109,6 +109,32 @@ class V2MessagingHandlerTest {
     }
 
     @Test
+    void requiresMentionCapabilityAndMapsStableTargetsIntoSubmission() throws Exception {
+        AtomicReference<MessageSubmission> captured = new AtomicReference<>();
+        EmbeddedChannel channel = channel(submission -> {
+            captured.set(submission);
+            return new MessageSubmissionResult.Accepted(MESSAGE_ID, 7, ACCEPTED_AT, false);
+        }, query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED, Runnable::run);
+        UUID target = UUID.fromString("60000000-0000-4000-8000-000000000006");
+        try {
+            channel.writeInbound(mentionedSubmitEnvelope("mention-1", target));
+            assertError(channel, ProtocolErrorCode.PROTOCOL_ERROR_CODE_INVALID_PAYLOAD, false);
+            assertNull(captured.get());
+
+            channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(Set.of(
+                    ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS));
+            channel.writeInbound(mentionedSubmitEnvelope("mention-1", target));
+            channel.runPendingTasks();
+            assertEquals(target, captured.get().mentions().getFirst().targetAccountId());
+            assertEquals(4, captured.get().mentions().getFirst().lengthUtf8Bytes());
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED_VALUE,
+                    ((Envelope) channel.readOutbound()).getMessageType());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void submitsReplyWithServerBoundIdentity()
             throws Exception {
         UUID target = UUID.fromString("50000000-0000-4000-8000-000000000006");
@@ -441,9 +467,13 @@ class V2MessagingHandlerTest {
     @Test
     void gatesAppliesAndFiltersMessageEditsWithStableConflictCodes() throws Exception {
         AtomicReference<MessageEditCommand> captured = new AtomicReference<>();
+        com.fallingnight.chat.application.messaging.MessageMention mention =
+                new com.fallingnight.chat.application.messaging.MessageMention(
+                        UUID.fromString("60000000-0000-4000-8000-000000000006"), 0, 4);
         ConversationHistoryEntry.Edit visible = new ConversationHistoryEntry.Edit(
-                CONVERSATION_ID, 8, MESSAGE_ID, 1, 1, ByteString.copyFromUtf8("updated")
-                        .toByteArray(), false, ACCOUNT_ID, "edit-history", ACCEPTED_AT);
+                CONVERSATION_ID, 8, MESSAGE_ID, 1, 1, ByteString.copyFromUtf8("@李 hi")
+                        .toByteArray(), false, ACCOUNT_ID, "edit-history", ACCEPTED_AT,
+                List.of(mention));
         ConversationHistoryEntry.Edit erased = new ConversationHistoryEntry.Edit(
                 CONVERSATION_ID, 9, MESSAGE_ID, 2, 1, new byte[0], true,
                 ACCOUNT_ID, "edit-erased", ACCEPTED_AT);
@@ -485,6 +515,16 @@ class V2MessagingHandlerTest {
             assertEquals(1, page.getEntriesCount());
             assertEquals(9, page.getNextSequence());
             assertEquals("edit-history", page.getEntries(0).getEdit().getClientOperationId());
+            assertEquals(0, page.getEntries(0).getEdit().getMentionsCount());
+
+            channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(Set.of(
+                    ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS,
+                    ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS));
+            channel.writeInbound(historyEnvelope(0, 10));
+            channel.runPendingTasks();
+            MessageHistoryPage capablePage = MessageHistoryPage.parseFrom(
+                    ((Envelope) channel.readOutbound()).getPayload());
+            assertEquals(1, capablePage.getEntries(0).getEdit().getMentionsCount());
 
             channel.writeInbound(editEnvelope("edit-first", 0, "updated"));
             channel.runPendingTasks();
@@ -742,6 +782,19 @@ class V2MessagingHandlerTest {
                 MessageType.MESSAGE_TYPE_SUBMIT_MESSAGE,
                 clientMessageId,
                 payload.toByteString());
+    }
+
+    private static Envelope mentionedSubmitEnvelope(String clientMessageId, UUID target) {
+        SubmitMessage payload = SubmitMessage.newBuilder()
+                .setConversationId(CONVERSATION_ID.toString())
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
+                .setContent(ByteString.copyFromUtf8("@李 hi"))
+                .addMentions(com.fallingnight.chat.protocol.v2.MessageMention.newBuilder()
+                        .setTargetAccountId(target.toString())
+                        .setStartUtf8Byte(0).setLengthUtf8Bytes(4))
+                .build();
+        return commandEnvelope(MessageType.MESSAGE_TYPE_SUBMIT_MESSAGE,
+                clientMessageId, payload.toByteString());
     }
 
     private static Envelope replyEnvelope(

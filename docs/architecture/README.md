@@ -698,10 +698,11 @@ canonical account targets plus bounded, non-overlapping UTF-8 byte spans rather
 than parsing mutable display names. The server must validate active
 same-conversation membership and bind mention metadata into submission/edit
 idempotency; recall, deletion, and edit-history privacy erasure remove it with
-the body. Capability 4 is reserved by the ADR but remains absent from generated
-schemas and unadvertised until the three generated bindings,
-PostgreSQL/gateway, offline Web/Windows storage, and accessible
-composition/rendering gates pass.
+the body. Capability 4 now exists in all generated schemas, PostgreSQL, and the
+gateway. The gateway rejects unnegotiated mention metadata and filters it from
+history/live events for unsupported peers without stalling their cursors. Web
+and Windows still leave the capability unadvertised until their offline storage
+and accessible composition/rendering gates pass.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

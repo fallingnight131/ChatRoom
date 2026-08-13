@@ -121,31 +121,43 @@ class SingleGatewayConversationLiveRouterTest {
         SingleGatewayConversationLiveRouter router = new SingleGatewayConversationLiveRouter(
                 Clock.fixed(NOW, ZoneOffset.UTC));
         EmbeddedChannel capable = authenticatedChannel();
+        EmbeddedChannel mentionCapable = authenticatedChannel();
         EmbeddedChannel legacy = authenticatedChannel();
         capable.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(Set.of(
                 ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS));
+        mentionCapable.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(Set.of(
+                ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS,
+                ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS));
         MessageHistoryQuery query = new MessageHistoryQuery(CONVERSATION, ACCOUNT, 0, 100);
         router.readAndSubscribe(capable, query, ignored -> new MessageHistoryResult.Page(
                 List.of(), 0, 0, false));
         router.readAndSubscribe(legacy, query, ignored -> new MessageHistoryResult.Page(
                 List.of(), 0, 0, false));
+        router.readAndSubscribe(mentionCapable, query, ignored -> new MessageHistoryResult.Page(
+                List.of(), 0, 0, false));
+        var mention = new com.fallingnight.chat.application.messaging.MessageMention(
+                UUID.randomUUID(), 0, 4);
         MessageEditResult.Applied edit = new MessageEditResult.Applied(
                 CONVERSATION, UUID.randomUUID(), ACCOUNT, 1, 1,
-                "updated".getBytes(java.nio.charset.StandardCharsets.UTF_8), "edit-live",
-                true, 1, NOW, false);
+                "@李 hi".getBytes(java.nio.charset.StandardCharsets.UTF_8), "edit-live",
+                true, 1, NOW, false, List.of(mention));
         try {
-            assertEquals(1, router.publishEdit(edit).published());
+            assertEquals(2, router.publishEdit(edit).published());
             Envelope event = capable.readOutbound();
             assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_EDITED_VALUE,
                     event.getMessageType());
-            assertEquals("updated", MessageEditedRecord.parseFrom(event.getPayload())
-                    .getContent().toStringUtf8());
+            assertEquals(0, MessageEditedRecord.parseFrom(event.getPayload())
+                    .getMentionsCount());
+            Envelope mentionEvent = mentionCapable.readOutbound();
+            assertEquals(1, MessageEditedRecord.parseFrom(mentionEvent.getPayload())
+                    .getMentionsCount());
             assertNull(legacy.readOutbound());
             assertEquals(0, router.publishEdit(new MessageEditResult.Applied(
                     edit.conversationId(), edit.messageId(), edit.actorAccountId(), 1, 1,
                     edit.content(), "edit-no-op", false, 0, NOW, false)).published());
         } finally {
             capable.finishAndReleaseAll();
+            mentionCapable.finishAndReleaseAll();
             legacy.finishAndReleaseAll();
         }
     }

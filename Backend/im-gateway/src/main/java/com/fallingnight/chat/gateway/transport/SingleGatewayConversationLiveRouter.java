@@ -90,13 +90,19 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                     slowClosed += 1;
                     continue;
                 }
+                java.util.Set<ClientCapability> capabilities =
+                        channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get();
+                boolean mentionsEnabled = capabilities != null && capabilities.contains(
+                        ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS);
                 Envelope event = Envelope.newBuilder()
                         .setProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
                         .setKind(MessageKind.MESSAGE_KIND_EVENT)
                         .setMessageType(MessageType.MESSAGE_TYPE_MESSAGE_PUBLISHED_VALUE)
                         .setSessionId(identity.sessionId().toString())
                         .setSentAtEpochMs(clock.millis())
-                        .setPayload(record.toByteString())
+                        .setPayload(mentionsEnabled
+                                ? record.toByteString()
+                                : record.toBuilder().clearMentions().build().toByteString())
                         .build();
                 EnvelopePolicy.requireValid(event);
                 channel.writeAndFlush(event);
@@ -224,7 +230,9 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                 .setContent(ByteString.copyFrom(edit.content()))
                 .setActorAccountId(edit.actorAccountId().toString())
                 .setClientOperationId(edit.clientOperationId())
-                .setOccurredAtEpochMs(edit.occurredAt().toEpochMilli()).build();
+                .setOccurredAtEpochMs(edit.occurredAt().toEpochMilli())
+                .addAllMentions(edit.mentions().stream()
+                        .map(V2MessagingHandler::protocolMention).toList()).build();
         MessagingPayloadPolicy.requireValid(record);
         int published = 0;
         int slowClosed = 0;
@@ -240,6 +248,8 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                         channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get();
                 if (capabilities == null || !capabilities.contains(
                         ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS)) continue;
+                boolean mentionsEnabled = capabilities.contains(
+                        ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS);
                 if (!channel.isWritable()) {
                     channel.close(); route.channels.remove(channel); slowClosed += 1; continue;
                 }
@@ -248,7 +258,11 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                         .setKind(MessageKind.MESSAGE_KIND_EVENT)
                         .setMessageType(MessageType.MESSAGE_TYPE_MESSAGE_EDITED_VALUE)
                         .setSessionId(identity.sessionId().toString())
-                        .setSentAtEpochMs(clock.millis()).setPayload(record.toByteString()).build();
+                        .setSentAtEpochMs(clock.millis())
+                        .setPayload(mentionsEnabled
+                                ? record.toByteString()
+                                : record.toBuilder().clearMentions().build().toByteString())
+                        .build();
                 EnvelopePolicy.requireValid(event);
                 channel.writeAndFlush(event); published += 1;
             }
@@ -298,6 +312,8 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                         .setTargetMessageId(reply.targetMessageId().toString())
                         .setTargetConversationSequence(reply.targetConversationSequence())
                         .setTargetSenderAccountId(reply.targetSenderAccountId().toString())));
+        message.mentions().forEach(mention ->
+                builder.addMentions(V2MessagingHandler.protocolMention(mention)));
         MessageRecord record = builder.build();
         MessagingPayloadPolicy.requireValid(record);
         return record;

@@ -69,14 +69,17 @@ class V2HandshakeHandlerTest {
             ClientHello capable = validHello().toBuilder()
                     .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS)
                     .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS)
+                    .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS)
                     .build();
             channel.writeInbound(clientHelloEnvelope(capable));
             ServerHello response = ServerHello.parseFrom(readEnvelope(channel).getPayload());
             assertEquals(List.of(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS,
-                            ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS),
+                            ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS,
+                            ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS),
                     response.getEnabledCapabilitiesList());
             assertEquals(Set.of(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS,
-                            ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS),
+                            ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS,
+                            ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS),
                     channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get());
         } finally {
             channel.finishAndReleaseAll();

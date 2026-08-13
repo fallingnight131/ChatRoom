@@ -178,7 +178,13 @@ Structural policy caps a body at 20 spans and 10 distinct targets, requires
 ordered UTF-8 boundaries and an ASCII `@` start, and locks one Unicode payload
 across Java, TypeScript, and C++. PostgreSQL membership authority, gateway
 filtering, and both clients remain inactive, so no endpoint advertises this
-capability yet (ADR-0342).
+capability yet (ADR-0342). The gateway now recognizes capability 4, rejects
+mention-bearing submit/reply/edit commands unless it was negotiated, binds
+targets/spans into the authenticated application command, and includes metadata
+only in capable history/live projections. Existing edit-capable sessions without
+mention capability still receive the current body and sequence with the mention
+field removed, so filtering cannot stall their cursor. Web and Windows continue
+to omit capability 4 until their offline storage and accessible UX gates pass.
 
 `ListConversations` uses a limit of 1..100 and either no cursor or the complete
 pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are

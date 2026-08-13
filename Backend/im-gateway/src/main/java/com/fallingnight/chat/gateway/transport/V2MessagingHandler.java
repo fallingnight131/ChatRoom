@@ -8,6 +8,7 @@ import com.fallingnight.chat.application.conversation.ConversationSummary;
 import com.fallingnight.chat.application.messaging.MessageHistoryPort;
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
+import com.fallingnight.chat.application.messaging.MessageMention;
 import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
@@ -62,6 +63,7 @@ import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
@@ -365,17 +367,20 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
         if (type == MessageType.MESSAGE_TYPE_SUBMIT_MESSAGE) {
             SubmitMessage payload = SubmitMessage.parseFrom(envelope.getPayload());
             MessagingPayloadPolicy.requireValid(payload, envelope.getClientMessageId());
+            requireMentionCapability(context, payload.getMentionsCount());
             return new SubmitWork(new MessageSubmission(
                     UUID.fromString(payload.getConversationId()),
                     identity.accountId(),
                     identity.deviceId(),
                     envelope.getClientMessageId(),
                     payload.getContentType(),
-                    payload.getContent().toByteArray()));
+                    payload.getContent().toByteArray(), Optional.empty(),
+                    mentions(payload.getMentionsList())));
         }
         if (type == MessageType.MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE) {
             SubmitReplyMessage payload = SubmitReplyMessage.parseFrom(envelope.getPayload());
             MessagingPayloadPolicy.requireValid(payload, envelope.getClientMessageId());
+            requireMentionCapability(context, payload.getMentionsCount());
             return new SubmitWork(new MessageSubmission(
                     UUID.fromString(payload.getConversationId()),
                     identity.accountId(),
@@ -383,7 +388,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     envelope.getClientMessageId(),
                     payload.getContentType(),
                     payload.getContent().toByteArray(),
-                    Optional.of(UUID.fromString(payload.getTargetMessageId()))));
+                    Optional.of(UUID.fromString(payload.getTargetMessageId())),
+                    mentions(payload.getMentionsList())));
         }
         if (type == MessageType.MESSAGE_TYPE_SET_MESSAGE_REACTION) {
             SetMessageReaction payload = SetMessageReaction.parseFrom(envelope.getPayload());
@@ -408,11 +414,13 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
         if (type == MessageType.MESSAGE_TYPE_EDIT_MESSAGE) {
             EditMessage payload = EditMessage.parseFrom(envelope.getPayload());
             MessagingPayloadPolicy.requireValid(payload);
+            requireMentionCapability(context, payload.getMentionsCount());
             return new EditWork(new MessageEditCommand(
                     UUID.fromString(payload.getConversationId()),
                     UUID.fromString(payload.getMessageId()), identity.accountId(),
                     identity.deviceId(), payload.getExpectedRevision(), payload.getContentType(),
-                    payload.getContent().toByteArray(), payload.getClientOperationId()));
+                    payload.getContent().toByteArray(), payload.getClientOperationId(),
+                    mentions(payload.getMentionsList())));
         }
         if (type == MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY) {
             ReadMessageHistory payload = ReadMessageHistory.parseFrom(envelope.getPayload());
@@ -422,7 +430,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     identity.accountId(),
                     payload.getAfterSequence(),
                     payload.getLimit()), hasReactionCapability(context), hasPinCapability(context),
-                    hasEditCapability(context));
+                    hasEditCapability(context), hasMentionCapability(context));
         }
         ListConversations payload = ListConversations.parseFrom(envelope.getPayload());
         ConversationPayloadPolicy.requireValid(payload);
@@ -468,7 +476,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 response = historyResponse(
                         request, read.query(), liveRouter.readAndSubscribe(
                                 context.channel(), read.query(), history),
-                        read.reactionsEnabled(), read.pinsEnabled(), read.editsEnabled());
+                        read.reactionsEnabled(), read.pinsEnabled(), read.editsEnabled(),
+                        read.mentionsEnabled());
             } else {
                 DirectoryWork list = (DirectoryWork) work;
                 response = directoryResponse(request, directory.list(list.query()));
@@ -571,7 +580,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 submission.messageType(),
                 submission.payload(),
                 accepted.acceptedAt(),
-                accepted.reply());
+                accepted.reply(), 0, Optional.empty(), submission.mentions());
     }
 
     private Envelope submitResponse(
@@ -614,7 +623,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessageHistoryResult result,
             boolean reactionsEnabled,
             boolean pinsEnabled,
-            boolean editsEnabled) {
+            boolean editsEnabled,
+            boolean mentionsEnabled) {
         if (result == MessageHistoryResult.Rejected.NOT_AUTHORIZED) {
             events.denied();
             return errorEnvelope(
@@ -630,14 +640,14 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 .setLatestSequence(page.latestSequence())
                 .setHasMore(page.hasMore());
         for (StoredMessage message : page.messages()) {
-            payload.addMessages(messageRecord(message));
+            payload.addMessages(messageRecord(message, mentionsEnabled));
         }
         for (ConversationHistoryEntry entry : page.entries()) {
             ConversationEntryRecord.Builder encoded = ConversationEntryRecord.newBuilder()
                     .setConversationId(entry.conversationId().toString())
                     .setConversationSequence(entry.conversationSequence());
             if (entry instanceof ConversationHistoryEntry.Message message) {
-                encoded.setMessage(messageRecord(message.value()));
+                encoded.setMessage(messageRecord(message.value(), mentionsEnabled));
             } else if (entry instanceof ConversationHistoryEntry.Recall recall) {
                 encoded.setRecall(MessageRecalledRecord.newBuilder()
                         .setConversationId(recall.conversationId().toString())
@@ -683,7 +693,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                         .setOccurredAtEpochMs(pin.occurredAt().toEpochMilli()));
             } else if (entry instanceof ConversationHistoryEntry.Edit edit) {
                 if (!editsEnabled || edit.contentErased()) continue;
-                encoded.setEdit(MessageEditedRecord.newBuilder()
+                MessageEditedRecord.Builder editRecord = MessageEditedRecord.newBuilder()
                         .setConversationId(edit.conversationId().toString())
                         .setConversationSequence(edit.conversationSequence())
                         .setMessageId(edit.messageId().toString())
@@ -692,7 +702,10 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                         .setContent(ByteString.copyFrom(edit.content()))
                         .setActorAccountId(edit.actorAccountId().toString())
                         .setClientOperationId(edit.clientOperationId())
-                        .setOccurredAtEpochMs(edit.occurredAt().toEpochMilli()));
+                        .setOccurredAtEpochMs(edit.occurredAt().toEpochMilli());
+                if (mentionsEnabled) edit.mentions().forEach(mention ->
+                        editRecord.addMentions(protocolMention(mention)));
+                encoded.setEdit(editRecord);
             }
             payload.addEntries(encoded);
         }
@@ -703,7 +716,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 request, MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE, built.toByteString());
     }
 
-    private static MessageRecord messageRecord(StoredMessage message) {
+    private static MessageRecord messageRecord(
+            StoredMessage message, boolean mentionsEnabled) {
         MessageRecord.Builder record = MessageRecord.newBuilder()
                 .setConversationId(message.conversationId().toString())
                 .setMessageId(message.messageId().toString())
@@ -721,6 +735,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                         .setTargetMessageId(reply.targetMessageId().toString())
                         .setTargetConversationSequence(reply.targetConversationSequence())
                         .setTargetSenderAccountId(reply.targetSenderAccountId().toString())));
+        if (mentionsEnabled) message.mentions().forEach(mention ->
+                record.addMentions(protocolMention(mention)));
         return record.build();
     }
 
@@ -780,6 +796,35 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS);
     }
 
+    private static boolean hasMentionCapability(ChannelHandlerContext context) {
+        java.util.Set<ClientCapability> capabilities =
+                context.channel().attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get();
+        return capabilities != null && capabilities.contains(
+                ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS);
+    }
+
+    private static void requireMentionCapability(
+            ChannelHandlerContext context, int mentionCount) {
+        if (mentionCount > 0 && !hasMentionCapability(context)) {
+            throw new IllegalArgumentException("message mentions were not negotiated");
+        }
+    }
+
+    private static List<MessageMention> mentions(
+            List<com.fallingnight.chat.protocol.v2.MessageMention> mentions) {
+        return mentions.stream().map(mention -> new MessageMention(
+                UUID.fromString(mention.getTargetAccountId()),
+                mention.getStartUtf8Byte(), mention.getLengthUtf8Bytes())).toList();
+    }
+
+    static com.fallingnight.chat.protocol.v2.MessageMention protocolMention(
+            MessageMention mention) {
+        return com.fallingnight.chat.protocol.v2.MessageMention.newBuilder()
+                .setTargetAccountId(mention.targetAccountId().toString())
+                .setStartUtf8Byte(mention.startUtf8Byte())
+                .setLengthUtf8Bytes(mention.lengthUtf8Bytes()).build();
+    }
+
     private Envelope editResponse(Envelope request, MessageEditResult result) {
         if (result == MessageEditResult.Rejected.NOT_AUTHORIZED) {
             events.denied();
@@ -809,7 +854,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     "message edit revision limit reached", false);
         }
         MessageEditResult.Applied applied = (MessageEditResult.Applied) result;
-        MessageEditApplied payload = MessageEditApplied.newBuilder()
+        MessageEditApplied.Builder payload = MessageEditApplied.newBuilder()
                 .setConversationId(applied.conversationId().toString())
                 .setMessageId(applied.messageId().toString())
                 .setContentRevision(applied.contentRevision())
@@ -820,11 +865,13 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 .setChanged(applied.changed())
                 .setConversationSequence(applied.conversationSequence())
                 .setOccurredAtEpochMs(applied.occurredAt().toEpochMilli())
-                .setDuplicate(applied.duplicate()).build();
-        MessagingPayloadPolicy.requireValid(payload);
+                .setDuplicate(applied.duplicate());
+        applied.mentions().forEach(mention -> payload.addMentions(protocolMention(mention)));
+        MessageEditApplied built = payload.build();
+        MessagingPayloadPolicy.requireValid(built);
         events.editApplied(applied.changed(), applied.duplicate());
         return responseEnvelope(request, MessageType.MESSAGE_TYPE_MESSAGE_EDIT_APPLIED,
-                payload.toByteString());
+                built.toByteString());
     }
 
     private Envelope pinResponse(Envelope request, MessagePinResult result) {
@@ -976,7 +1023,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
 
     private record HistoryWork(
             MessageHistoryQuery query, boolean reactionsEnabled, boolean pinsEnabled,
-            boolean editsEnabled)
+            boolean editsEnabled, boolean mentionsEnabled)
             implements Work {}
 
     private record ReactionWork(MessageReactionCommand command) implements Work {}
