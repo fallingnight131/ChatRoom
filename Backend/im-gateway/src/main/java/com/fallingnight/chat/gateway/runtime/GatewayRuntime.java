@@ -13,6 +13,7 @@ import com.fallingnight.chat.gateway.transport.MessagingWorkerPool;
 import com.fallingnight.chat.gateway.transport.MessagingTelemetry;
 import com.fallingnight.chat.gateway.transport.DeviceConnectionRegistry;
 import com.fallingnight.chat.gateway.transport.DeviceManagementTelemetry;
+import com.fallingnight.chat.gateway.transport.SingleGatewayConversationLiveRouter;
 import com.fallingnight.chat.identity.crypto.Argon2idCredentialHasher;
 import com.fallingnight.chat.identity.crypto.CompatibleCredentialVerifier;
 import com.fallingnight.chat.persistence.postgres.PostgresIdentityAdapter;
@@ -112,6 +113,8 @@ public final class GatewayRuntime implements AutoCloseable {
             MessagingTelemetry messagingTelemetry = new MessagingTelemetry();
             DeviceManagementTelemetry deviceTelemetry = new DeviceManagementTelemetry();
             DeviceConnectionRegistry deviceConnections = new DeviceConnectionRegistry();
+            SingleGatewayConversationLiveRouter liveRouter =
+                    new SingleGatewayConversationLiveRouter(clock);
             AttachmentCleanupTelemetry attachmentCleanupTelemetry =
                     new AttachmentCleanupTelemetry();
             InMemoryAuthenticationAdmissionControl admission =
@@ -146,7 +149,8 @@ public final class GatewayRuntime implements AutoCloseable {
                     telemetry,
                     messagingTelemetry,
                     deviceTelemetry,
-                    deviceConnections);
+                    deviceConnections,
+                    liveRouter);
             AtomicBoolean readiness = new AtomicBoolean();
             HikariDataSource readinessDataSource = dataSource;
             BooleanSupplier dependencyReadiness =

@@ -1466,6 +1466,10 @@ Progress:
   lifecycles plus their scheduler, gateway release, and Redis adapter. It gates
   readiness on the live boot lease and provides ordered partial-start rollback
   and bounded shutdown without constructing the product graph (ADR-0359).
+- [x] Move process-local live-router ownership to the Java composition root and
+  inject the same instance into the product WebSocket server, establishing the
+  shared subscription boundary required by future Redis hint repair without
+  activating distributed routing (ADR-0360).
 
 Work:
 

@@ -191,6 +191,33 @@ public final class V2GatewayServer implements AutoCloseable {
             MessageSubmissionPort submissions,
             MessageHistoryPort history,
             ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            SingleGatewayConversationLiveRouter liveRouter) {
+        this(config, authentication, sessionResume, submissions, history, directory,
+                participants, reactions, pins, edits, forwards, deviceManagement,
+                authenticationExecutor, messagingExecutor, admission, events, messagingEvents,
+                deviceEvents, deviceConnections, createSslContext(config), liveRouter);
+    }
+
+    V2GatewayServer(
+            GatewayRuntimeConfig config,
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
             MessageReactionPort reactions,
             DeviceManagementService deviceManagement,
             Executor authenticationExecutor,
@@ -256,6 +283,35 @@ public final class V2GatewayServer implements AutoCloseable {
             DeviceManagementEventSink deviceEvents,
             DeviceConnectionRegistry deviceConnections,
             SslContext sslContext) {
+        this(config, authentication, sessionResume, submissions, history, directory,
+                participants, reactions, pins, edits, forwards, deviceManagement,
+                authenticationExecutor, messagingExecutor, admission, events, messagingEvents,
+                deviceEvents, deviceConnections, sslContext,
+                new SingleGatewayConversationLiveRouter(java.time.Clock.systemUTC()));
+    }
+
+    V2GatewayServer(
+            GatewayRuntimeConfig config,
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            SslContext sslContext,
+            SingleGatewayConversationLiveRouter liveRouter) {
         this.config = Objects.requireNonNull(config, "config");
         this.authentication = Objects.requireNonNull(authentication, "authentication");
         this.sessionResume = Objects.requireNonNull(sessionResume, "sessionResume");
@@ -276,7 +332,7 @@ public final class V2GatewayServer implements AutoCloseable {
         this.messagingEvents = Objects.requireNonNull(messagingEvents, "messagingEvents");
         this.deviceEvents = Objects.requireNonNull(deviceEvents, "deviceEvents");
         this.deviceConnections = Objects.requireNonNull(deviceConnections, "deviceConnections");
-        this.liveRouter = new SingleGatewayConversationLiveRouter(java.time.Clock.systemUTC());
+        this.liveRouter = Objects.requireNonNull(liveRouter, "liveRouter");
         this.sslContext = Objects.requireNonNull(sslContext, "sslContext");
         connectionLimiter = new GatewayConnectionLimiter(config.maximumConnections());
     }

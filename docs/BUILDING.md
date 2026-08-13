@@ -1400,6 +1400,11 @@ unready until that lease is valid, and closes loops, scheduler, boot lease, and
 Redis ownership in a deterministic order. They also prove complete rollback
 after partial startup and bounded scheduler-timeout reporting. The owner is not
 constructed by `GatewayMain`.
+ADR-0360 is covered by the gateway listener and runtime tests: the Java
+composition root now injects its process-local live router into the WebSocket
+server, while compatibility/test constructors retain an isolated default. This
+is required so future Redis hint repair shares the product subscription state;
+it does not enable Redis.
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound

@@ -1043,6 +1043,11 @@ their scheduler, gateway lease release, and shared Redis adapter. It starts
 lease renewal before consumption and relay, exposes readiness only while the
 boot lease is valid, and performs bounded ordered cleanup after normal or
 partial startup. `GatewayMain` still does not construct this owner.
+ADR-0360 moves the process-local live router from hidden listener construction
+to `GatewayRuntime` ownership. The injected instance remains the product's
+single local publish/subscription authority and can later be shared with the
+PostgreSQL-backed Redis hint repair adapter. No Redis component is constructed
+by this ownership-only change.
 
 ## 10. Attachment Flow
 
