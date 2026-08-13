@@ -772,6 +772,9 @@ Progress:
       active mapped room administrators, plus serializable exact-evidence orphan
       registration that marks cleanup only while no account/group pointer refers
       to the object; verify the races and constraints against real PostgreSQL.
+    - [x] Add an inactive S3 create-only profile-image writer with exact PUT
+      length/type/SHA-256 constraints, no-overwrite precondition, checksum-
+      verified success, and exact HEAD convergence for already-present content.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-

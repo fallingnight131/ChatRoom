@@ -56,8 +56,9 @@ strict detached V1 user/room read handlers are implemented and locally tested.
 The inactive mutation service and PostgreSQL guard now also enforce preflight
 authorization, object-before-pointer ordering, and serializable unreferenced-
 object cleanup intent. They are intentionally absent from runtime composition;
-the S3 write adapter and real-provider evidence, strict V1 upload handler,
-historical import, and restart recovery remain activation gates.
+the S3 create-only write adapter is implemented but still lacks real-provider
+evidence. The strict V1 upload handler, historical import, and restart recovery
+also remain activation gates.
 
 ## Verification
 
@@ -67,6 +68,9 @@ historical import, and restart recovery remain activation gates.
   metadata/object disagreement, payload ownership/clearing, S3 404 mapping,
   checksum-enabled GET, exact length/type/hash, bounded Base64 responses, strict
   request fields, saturation, and object-key non-disclosure;
+- object-write tests cover exact create-only PUT constraints, returned checksum,
+  412-to-HEAD retry convergence, mismatched existing evidence, and provider
+  denial;
 - decoder tests must cover malformed images, metadata stripping, pixel bombs,
   timeout/memory bounds, and deterministic output;
 - PostgreSQL/object tests must cover first apply, exact retry, authorization,
