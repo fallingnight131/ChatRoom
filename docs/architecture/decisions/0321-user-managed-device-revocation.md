@@ -48,6 +48,12 @@ This foundation does not change V1 behavior and is detached until V2 protocol,
 gateway, and supported-client UI slices are implemented. Rolling back the new
 code leaves an additive unused table and the current login/session path intact.
 
+As of 2026-08-13, the transport-independent service and PostgreSQL adapter are
+implemented. The directory is capped at 100 active Web/Windows devices and
+requires exactly one current device. Revocation uses serializable retry,
+database time, all-session invalidation, immutable audit, and retained-audit
+exact retry. Protocol and client entry points remain detached.
+
 ## Verification
 
 - migrate clean and existing databases, validate restart and constraints;

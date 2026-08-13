@@ -21,6 +21,10 @@ import com.fallingnight.chat.application.attachment.AttachmentState;
 import com.fallingnight.chat.application.identity.AccountCredential;
 import com.fallingnight.chat.application.identity.ClientDescriptor;
 import com.fallingnight.chat.application.identity.ClientPlatform;
+import com.fallingnight.chat.application.identity.AuthenticatedDeviceActor;
+import com.fallingnight.chat.application.identity.DeviceDirectoryResult;
+import com.fallingnight.chat.application.identity.DeviceManagementService;
+import com.fallingnight.chat.application.identity.DeviceRevocationResult;
 import com.fallingnight.chat.application.identity.IssuedSession;
 import com.fallingnight.chat.application.identity.StoredCredential;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1FriendDirectoryState;
@@ -4403,6 +4407,141 @@ class PostgresMigratorTest {
             }
             assertTrue(plan.contains("message_conversation_history_idx"), plan);
         }
+    }
+
+    @Test
+    @Order(99)
+    void listsAndRevokesOtherDevicesWithDurableSessionBoundAudit() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID account = UUID.randomUUID(), foreignAccount = UUID.randomUUID();
+        UUID current = UUID.randomUUID(), target = UUID.randomUUID();
+        UUID legacy = UUID.randomUUID(), foreign = UUID.randomUUID();
+        UUID currentSession = UUID.randomUUID(), targetSession = UUID.randomUUID();
+        UUID targetSessionTwo = UUID.randomUUID(), foreignSession = UUID.randomUUID();
+        byte[] targetResume = new byte[32]; Arrays.fill(targetResume, (byte) 41);
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'device_owner', 'Device Owner', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'device_foreign', 'Device Foreign', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    account, foreignAccount);
+            execute(connection, "INSERT INTO chat.device(id, account_id, client_device_id, "
+                    + "platform, created_at, last_seen_at) VALUES "
+                    + "(?, ?, 'current-web', 'WEB', transaction_timestamp() - interval '2 day', "
+                    + "transaction_timestamp()), "
+                    + "(?, ?, 'lost-windows', 'WINDOWS', transaction_timestamp() - interval '3 day', "
+                    + "transaction_timestamp() - interval '1 hour'), "
+                    + "(?, ?, 'legacy-history', 'LEGACY', transaction_timestamp() - interval '4 day', "
+                    + "transaction_timestamp() - interval '4 day'), "
+                    + "(?, ?, 'foreign-web', 'WEB', transaction_timestamp(), transaction_timestamp())",
+                    current, account, target, account, legacy, account, foreign, foreignAccount);
+            execute(connection, "INSERT INTO chat.device_session(id, account_id, device_id, "
+                    + "token_sha256, created_at, expires_at) VALUES "
+                    + "(?, ?, ?, ?, transaction_timestamp(), transaction_timestamp() + interval '1 day'), "
+                    + "(?, ?, ?, ?, transaction_timestamp(), transaction_timestamp() + interval '1 day'), "
+                    + "(?, ?, ?, ?, transaction_timestamp(), transaction_timestamp() + interval '1 day'), "
+                    + "(?, ?, ?, ?, transaction_timestamp(), transaction_timestamp() + interval '1 day')",
+                    currentSession, account, current, sha256(new byte[] {1}),
+                    targetSession, account, target, sha256(targetResume),
+                    targetSessionTwo, account, target, sha256(new byte[] {2}),
+                    foreignSession, foreignAccount, foreign, sha256(new byte[] {3}));
+        }
+        var actor = new AuthenticatedDeviceActor(account, current, currentSession);
+        var service = new DeviceManagementService(
+                new PostgresDeviceManagementAdapter(dataSource()));
+        DeviceDirectoryResult.Available directory = assertInstanceOf(
+                DeviceDirectoryResult.Available.class, service.listActive(actor));
+        assertEquals(2, directory.devices().size());
+        assertEquals(1, directory.devices().stream().filter(value -> value.current()).count());
+        assertTrue(directory.devices().stream().anyMatch(value ->
+                value.deviceId().equals(target) && value.platform() == ClientPlatform.WINDOWS));
+        assertTrue(directory.devices().stream().noneMatch(value ->
+                value.deviceId().equals(legacy) || value.deviceId().equals(foreign)));
+        assertEquals(DeviceRevocationResult.Rejected.INSTANCE,
+                service.revokeOther(actor, current));
+        assertEquals(DeviceRevocationResult.Rejected.INSTANCE,
+                service.revokeOther(actor, foreign));
+
+        DeviceRevocationResult.Revoked revoked = assertInstanceOf(
+                DeviceRevocationResult.Revoked.class, service.revokeOther(actor, target));
+        assertTrue(revoked.changed()); assertEquals(2, revoked.revokedSessions());
+        assertEquals(1, count("SELECT count(*) FROM chat.device WHERE id = '" + target
+                + "' AND revoked_at = '" + revoked.revokedAt() + "'::timestamptz"));
+        assertEquals(2, count("SELECT count(*) FROM chat.device_session WHERE device_id = '"
+                + target + "' AND revoked_at = '" + revoked.revokedAt() + "'::timestamptz"));
+        assertEquals(1, count("SELECT count(*) FROM chat.device_revocation_audit WHERE id = '"
+                + revoked.auditId() + "' AND actor_device_id = '" + current
+                + "' AND actor_session_id = '" + currentSession + "'"));
+
+        DeviceRevocationResult.Revoked retry = assertInstanceOf(
+                DeviceRevocationResult.Revoked.class, service.revokeOther(actor, target));
+        assertFalse(retry.changed()); assertEquals(revoked.auditId(), retry.auditId());
+        assertEquals(revoked.revokedAt(), retry.revokedAt());
+        assertEquals(1, count("SELECT count(*) FROM chat.device_revocation_audit"));
+
+        new PostgresMigrator(URL, USER, PASSWORD).validate();
+        try (SecretBytes proof = SecretBytes.copyOf(targetResume)) {
+            assertTrue(new PostgresIdentityAdapter(dataSource()).resumeAndRotate(
+                    targetSession, proof,
+                    new ClientDescriptor("lost-windows", ClientPlatform.WINDOWS, "test"),
+                    Instant.now()).isEmpty());
+        }
+        revokeDevice(current);
+        assertEquals(DeviceDirectoryResult.Rejected.INSTANCE, service.listActive(actor));
+        assertEquals(DeviceRevocationResult.Rejected.INSTANCE,
+                service.revokeOther(actor, target));
+    }
+
+    @Test
+    @Order(99)
+    void convergesConcurrentMutualDeviceRevocationToOneAuthority() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID account = UUID.randomUUID(), first = UUID.randomUUID(), second = UUID.randomUUID();
+        UUID firstSession = UUID.randomUUID(), secondSession = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'mutual_device_owner', 'Mutual Owner', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')", account);
+            execute(connection, "INSERT INTO chat.device(id, account_id, client_device_id, "
+                    + "platform) VALUES (?, ?, 'mutual-first', 'WEB'), "
+                    + "(?, ?, 'mutual-second', 'WINDOWS')", first, account, second, account);
+            execute(connection, "INSERT INTO chat.device_session(id, account_id, device_id, "
+                    + "token_sha256, expires_at) VALUES "
+                    + "(?, ?, ?, ?, transaction_timestamp() + interval '1 day'), "
+                    + "(?, ?, ?, ?, transaction_timestamp() + interval '1 day')",
+                    firstSession, account, first, sha256(new byte[] {11}),
+                    secondSession, account, second, sha256(new byte[] {12}));
+        }
+        var service = new DeviceManagementService(
+                new PostgresDeviceManagementAdapter(dataSource()));
+        var firstActor = new AuthenticatedDeviceActor(account, first, firstSession);
+        var secondActor = new AuthenticatedDeviceActor(account, second, secondSession);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService workers = Executors.newFixedThreadPool(2);
+        try {
+            Future<DeviceRevocationResult> one = workers.submit(() -> {
+                start.await(); return service.revokeOther(firstActor, second);
+            });
+            Future<DeviceRevocationResult> two = workers.submit(() -> {
+                start.await(); return service.revokeOther(secondActor, first);
+            });
+            start.countDown();
+            List<DeviceRevocationResult> results = List.of(
+                    one.get(10, TimeUnit.SECONDS), two.get(10, TimeUnit.SECONDS));
+            assertEquals(1, results.stream().filter(value -> value
+                    instanceof DeviceRevocationResult.Revoked revoked && revoked.changed()).count());
+            assertEquals(1, results.stream().filter(value ->
+                    value == DeviceRevocationResult.Rejected.INSTANCE).count());
+        } finally {
+            workers.shutdownNow(); assertTrue(workers.awaitTermination(5, TimeUnit.SECONDS));
+        }
+        assertEquals(1, count("SELECT count(*) FROM chat.device WHERE account_id = '" + account
+                + "' AND revoked_at IS NULL"));
+        assertEquals(1, count("SELECT count(*) FROM chat.device_session WHERE account_id = '"
+                + account + "' AND revoked_at IS NULL"));
+        assertEquals(1, count("SELECT count(*) FROM chat.device_revocation_audit "
+                + "WHERE account_id = '" + account + "'"));
     }
 
     private static Set<String> applicationTables(Connection connection) throws SQLException {
