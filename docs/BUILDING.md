@@ -1278,6 +1278,11 @@ offline and reconnect replay with one client ID/target, bounded retryable
 deferral, permanent failure plus explicit retry, ACK reconciliation, and
 cursor-based atomic history merge. Recall/deletion projection, Widgets, Qt WSS,
 and product-gate composition remain pending (ADR-0333).
+`V2WindowsMessagingViewModelTest` verifies the presentation boundary independently
+through qmake and CMake: cached-first projection, newline-safe quote previews,
+reply selection and cancellation focus intent, failed-send retry eligibility,
+and explicit recalled/unavailable target labels. The ViewModel has no socket or
+SQL queries and remains detached until the Widgets/product composition slice.
 Gateway tests separately verify authenticated server-bound identity,
 off-event-loop submit/history dispatch, per-connection ordering, safe denial,
 bounded saturation behavior, and isolation from the authentication worker pool.

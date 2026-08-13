@@ -1382,6 +1382,9 @@ Progress:
   - [x] Project ordered recall/deletion mutations into Windows SQLite before
     cursor commit, erase recalled target bodies, evict deleted targets, and
     refuse new replies to recalled messages (ADR-0332/ADR-0333).
+  - [x] Add the detached Windows reply ViewModel with cached-first rows,
+    explicit normal/recalled/unavailable reference presentation, target
+    selection/cancellation, focus intent, optimistic send, and stable-ID retry.
   - [ ] Add the equivalent reply composition, local-cache behavior, and rendering
     to the supported Windows client.
 
