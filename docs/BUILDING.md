@@ -1636,6 +1636,10 @@ The loopback endpoint now also exports Netty worker probe availability/count,
 latest maximum lag, since-start maximum lag, and pending tasks. Probes run on
 each product worker at a fixed 50 ms period and are cancelled before worker-group
 shutdown; these observations do not alter readiness (ADR-0389).
+Schema version 4 dual-edge evidence reads those event-loop values in the same
+shared snapshots, reconciles probe totals before/after the window, and records
+latest-lag and pending-task peaks. The 50 ms product probe period remains
+coarser than the 5 ms admin sampling target (ADR-0390).
 
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and

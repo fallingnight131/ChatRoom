@@ -1242,6 +1242,10 @@ ADR-0389 makes the next gateway resource boundary visible: each owned Netty
 worker runs a lifecycle-bound 50 ms fixed-rate lag probe, while loopback metrics
 export latest/since-start maximum lag, aggregate samples, worker count, and
 pending tasks without per-thread labels or readiness side effects.
+ADR-0390 incorporates event-loop availability, fixed worker count, probe
+progress, lag, and pending-task observations into schema version 4 of the shared
+dual-edge recovery evidence. It preserves schema versions 1 through 3 and does
+not interpret the since-start maximum as necessarily belonging to the window.
 
 ## 10. Attachment Flow
 

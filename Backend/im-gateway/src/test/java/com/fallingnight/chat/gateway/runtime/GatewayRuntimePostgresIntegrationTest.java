@@ -72,6 +72,8 @@ import io.netty.handler.codec.http.EmptyHttpHeaders;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -4564,6 +4566,14 @@ class GatewayRuntimePostgresIntegrationTest {
         int postgresTotalConnectionsMaximum = 0;
         int postgresThreadsAwaitingConnectionMaximum = 0;
         int postgresMaximumConnections = -1;
+        int eventLoopMetricsUnavailableSamples = 0;
+        int eventLoopWorkers = -1;
+        long eventLoopProbeSamplesBefore = -1;
+        long eventLoopProbeSamplesAfter = -1;
+        long eventLoopLatestMaximumLagMicros = 0;
+        long eventLoopSinceStartMaximumLagMicrosBefore = -1;
+        long eventLoopSinceStartMaximumLagMicrosAfter = -1;
+        long eventLoopPendingTasksMaximum = 0;
         long sampleIntervalNanos = TimeUnit.MILLISECONDS.toNanos(5);
         long nextSampleNanos = System.nanoTime();
         do {
@@ -4599,6 +4609,38 @@ class GatewayRuntimePostgresIntegrationTest {
                         fixedGauge(metrics,
                                 "chat_gateway_postgres_threads_awaiting_connection"));
             }
+            if (fixedGauge(metrics,
+                    "chat_gateway_event_loop_metrics_available") == 0) {
+                eventLoopMetricsUnavailableSamples++;
+            } else {
+                int observedWorkers = fixedGauge(
+                        metrics, "chat_gateway_event_loop_workers");
+                if (eventLoopWorkers < 0) {
+                    eventLoopWorkers = observedWorkers;
+                } else {
+                    assertEquals(eventLoopWorkers, observedWorkers,
+                            "event-loop worker count changed during reconnect sampling");
+                }
+                long probeSamples = fixedLongGauge(
+                        metrics, "chat_gateway_event_loop_probe_samples_total");
+                if (eventLoopProbeSamplesBefore < 0) {
+                    eventLoopProbeSamplesBefore = probeSamples;
+                    eventLoopSinceStartMaximumLagMicrosBefore = fixedSecondsMicros(
+                            metrics, "chat_gateway_event_loop_max_lag_seconds");
+                }
+                eventLoopProbeSamplesAfter = probeSamples;
+                eventLoopSinceStartMaximumLagMicrosAfter = fixedSecondsMicros(
+                        metrics, "chat_gateway_event_loop_max_lag_seconds");
+                eventLoopLatestMaximumLagMicros = Math.max(
+                        eventLoopLatestMaximumLagMicros,
+                        fixedSecondsMicros(
+                                metrics,
+                                "chat_gateway_event_loop_latest_max_lag_seconds"));
+                eventLoopPendingTasksMaximum = Math.max(
+                        eventLoopPendingTasksMaximum,
+                        fixedLongGauge(metrics,
+                                "chat_gateway_event_loop_pending_tasks"));
+            }
             samples++;
             ready.countDown();
             if (!running.get()) break;
@@ -4610,14 +4652,35 @@ class GatewayRuntimePostgresIntegrationTest {
                 samples, activeWorkersMaximum, queuedWorkMaximum,
                 postgresMetricsUnavailableSamples, postgresActiveConnectionsMaximum,
                 postgresTotalConnectionsMaximum,
-                postgresThreadsAwaitingConnectionMaximum, postgresMaximumConnections);
+                postgresThreadsAwaitingConnectionMaximum, postgresMaximumConnections,
+                eventLoopMetricsUnavailableSamples, eventLoopWorkers,
+                eventLoopProbeSamplesBefore, eventLoopProbeSamplesAfter,
+                eventLoopLatestMaximumLagMicros,
+                eventLoopSinceStartMaximumLagMicrosBefore,
+                eventLoopSinceStartMaximumLagMicrosAfter,
+                eventLoopPendingTasksMaximum);
     }
 
     private static int fixedGauge(String metrics, String name) {
+        return Math.toIntExact(fixedLongGauge(metrics, name));
+    }
+
+    private static long fixedLongGauge(String metrics, String name) {
         var matcher = Pattern.compile(Pattern.quote(name) + " ([0-9]+)")
                 .matcher(metrics);
         assertTrue(matcher.find(), "missing fixed gauge " + name);
-        return Integer.parseInt(matcher.group(1));
+        return Long.parseLong(matcher.group(1));
+    }
+
+    private static long fixedSecondsMicros(String metrics, String name) {
+        var matcher = Pattern.compile(
+                Pattern.quote(name) + " ([0-9]+(?:\\.[0-9]+)?)")
+                .matcher(metrics);
+        assertTrue(matcher.find(), "missing seconds gauge " + name);
+        return new BigDecimal(matcher.group(1))
+                .movePointRight(6)
+                .setScale(0, RoundingMode.HALF_UP)
+                .longValueExact();
     }
 
     private static void awaitProductNotReady(int gatewayPort, Duration timeout)
@@ -4871,7 +4934,7 @@ class GatewayRuntimePostgresIntegrationTest {
         int batches = (affected + batchSize - 1) / batchSize;
         String json = """
                 {
-                  "schemaVersion": 3,
+                  "schemaVersion": 4,
                   "benchmark": "java-v2-haproxy-multi-edge-reconnect",
                   "warning": "local dual-edge recovery evidence; not a production capacity claim",
                   "recordedAt": "%s",
@@ -4915,6 +4978,19 @@ class GatewayRuntimePostgresIntegrationTest {
                       "threadsAwaitingConnectionMaximum": %d,
                       "configuredMaximumConnections": %d
                     },
+                    "eventLoopSaturation": {
+                      "sampleIntervalMillis": 5,
+                      "samples": %d,
+                      "metricsUnavailableSamples": %d,
+                      "workers": %d,
+                      "probeSamplesBefore": %d,
+                      "probeSamplesAfter": %d,
+                      "probeSamplesDelta": %d,
+                      "latestMaximumLagMicros": %d,
+                      "sinceStartMaximumLagMicrosBefore": %d,
+                      "sinceStartMaximumLagMicrosAfter": %d,
+                      "pendingTasksMaximum": %d
+                    },
                     "elapsedMillis": %.3f,
                     "reconnectThroughputPerSecond": %.3f,
                     "sessionResumeLatencyMicros": %s,
@@ -4935,6 +5011,17 @@ class GatewayRuntimePostgresIntegrationTest {
                         saturation.postgresTotalConnectionsMaximum(),
                         saturation.postgresThreadsAwaitingConnectionMaximum(),
                         saturation.postgresMaximumConnections(),
+                        saturation.samples(),
+                        saturation.eventLoopMetricsUnavailableSamples(),
+                        saturation.eventLoopWorkers(),
+                        saturation.eventLoopProbeSamplesBefore(),
+                        saturation.eventLoopProbeSamplesAfter(),
+                        saturation.eventLoopProbeSamplesAfter()
+                                - saturation.eventLoopProbeSamplesBefore(),
+                        saturation.eventLoopLatestMaximumLagMicros(),
+                        saturation.eventLoopSinceStartMaximumLagMicrosBefore(),
+                        saturation.eventLoopSinceStartMaximumLagMicrosAfter(),
+                        saturation.eventLoopPendingTasksMaximum(),
                         elapsedNanos / 1_000_000.0,
                         affected * 1_000_000_000.0 / elapsedNanos,
                         distributionJson(latency), distributionJson(jitter));
@@ -4972,7 +5059,15 @@ class GatewayRuntimePostgresIntegrationTest {
             int postgresActiveConnectionsMaximum,
             int postgresTotalConnectionsMaximum,
             int postgresThreadsAwaitingConnectionMaximum,
-            int postgresMaximumConnections) {
+            int postgresMaximumConnections,
+            int eventLoopMetricsUnavailableSamples,
+            int eventLoopWorkers,
+            long eventLoopProbeSamplesBefore,
+            long eventLoopProbeSamplesAfter,
+            long eventLoopLatestMaximumLagMicros,
+            long eventLoopSinceStartMaximumLagMicrosBefore,
+            long eventLoopSinceStartMaximumLagMicrosAfter,
+            long eventLoopPendingTasksMaximum) {
     }
 
     private static Envelope clientHello(String deviceId) {

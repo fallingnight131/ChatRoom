@@ -1657,6 +1657,11 @@ Progress:
   and export fixed-name latest/since-start maximum lag, sample count, worker
   count, pending tasks, and explicit availability. Reconnect-window event-loop
   evidence and CPU/memory signals remain pending (ADR-0389).
+- [x] Upgrade new dual-edge reconnect evidence to schema version 4, reconcile
+  Netty probe progress across the window, and record event-loop availability,
+  latest-lag, since-start-lag, and pending-task observations alongside worker
+  and PostgreSQL pressure. A clean schema-4 baseline and CPU/memory signals
+  remain pending (ADR-0390).
 
 Work:
 

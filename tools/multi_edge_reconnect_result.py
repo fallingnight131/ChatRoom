@@ -28,8 +28,8 @@ def validate(value: Any, expected_revision: str | None = None,
              require_clean: bool = False) -> dict[str, Any]:
     root = object_value(value, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2, 3):
-        raise EvidenceError("schemaVersion must be 1, 2, or 3")
+    if schema not in (1, 2, 3, 4):
+        raise EvidenceError("schemaVersion must be between 1 and 4")
     if root.get("benchmark") != "java-v2-haproxy-multi-edge-reconnect":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != (
@@ -128,7 +128,7 @@ def validate(value: Any, expected_revision: str | None = None,
             raise EvidenceError("authentication saturation exceeds bounded workload")
     if schema < 3 and "postgresPoolSaturation" in results:
         raise EvidenceError("schemaVersion below 3 cannot contain postgresPoolSaturation")
-    if schema == 3:
+    if schema >= 3:
         postgres = object_value(
             results.get("postgresPoolSaturation"), "postgresPoolSaturation")
         if set(postgres) != {
@@ -165,6 +165,54 @@ def validate(value: Any, expected_revision: str | None = None,
         if (active_connections > configured or total_connections > configured
                 or active_connections > total_connections or awaiting > affected):
             raise EvidenceError("PostgreSQL pool saturation exceeds bounded scenario")
+    if schema < 4 and "eventLoopSaturation" in results:
+        raise EvidenceError("schemaVersion below 4 cannot contain eventLoopSaturation")
+    if schema == 4:
+        event_loop = object_value(
+            results.get("eventLoopSaturation"), "eventLoopSaturation")
+        if set(event_loop) != {
+                "sampleIntervalMillis", "samples", "metricsUnavailableSamples",
+                "workers", "probeSamplesBefore", "probeSamplesAfter",
+                "probeSamplesDelta", "latestMaximumLagMicros",
+                "sinceStartMaximumLagMicrosBefore",
+                "sinceStartMaximumLagMicrosAfter", "pendingTasksMaximum"}:
+            raise EvidenceError("eventLoopSaturation fields are invalid")
+        if event_loop.get("sampleIntervalMillis") != 5:
+            raise EvidenceError("event-loop saturation interval must be 5 ms")
+        event_samples = integer(
+            event_loop.get("samples"), "eventLoopSaturation.samples", 2)
+        if event_samples != saturation["samples"]:
+            raise EvidenceError("event-loop saturation sample count disagrees")
+        unavailable = integer(
+            event_loop.get("metricsUnavailableSamples"),
+            "eventLoopSaturation.metricsUnavailableSamples", 0)
+        if unavailable != 0:
+            raise EvidenceError("event-loop metrics must be available for every sample")
+        if event_loop.get("workers") != 4:
+            raise EvidenceError("event-loop worker count does not match the scenario")
+        probes_before = integer(
+            event_loop.get("probeSamplesBefore"),
+            "eventLoopSaturation.probeSamplesBefore", 4)
+        probes_after = integer(
+            event_loop.get("probeSamplesAfter"),
+            "eventLoopSaturation.probeSamplesAfter", probes_before + 1)
+        if event_loop.get("probeSamplesDelta") != probes_after - probes_before:
+            raise EvidenceError("event-loop probe sample reconciliation is invalid")
+        latest_lag = integer(
+            event_loop.get("latestMaximumLagMicros"),
+            "eventLoopSaturation.latestMaximumLagMicros", 0)
+        maximum_before = integer(
+            event_loop.get("sinceStartMaximumLagMicrosBefore"),
+            "eventLoopSaturation.sinceStartMaximumLagMicrosBefore", 0)
+        maximum_after = integer(
+            event_loop.get("sinceStartMaximumLagMicrosAfter"),
+            "eventLoopSaturation.sinceStartMaximumLagMicrosAfter", maximum_before)
+        pending = integer(
+            event_loop.get("pendingTasksMaximum"),
+            "eventLoopSaturation.pendingTasksMaximum", 0)
+        if (latest_lag > maximum_after or maximum_after > 5_000_000
+                or pending > 100_000):
+            raise EvidenceError("event-loop saturation exceeds bounded scenario")
     return root
 
 

@@ -72,6 +72,22 @@ def postgres_pool_saturation():
     }
 
 
+def event_loop_saturation():
+    return {
+        "sampleIntervalMillis": 5,
+        "samples": 24,
+        "metricsUnavailableSamples": 0,
+        "workers": 4,
+        "probeSamplesBefore": 40,
+        "probeSamplesAfter": 68,
+        "probeSamplesDelta": 28,
+        "latestMaximumLagMicros": 500,
+        "sinceStartMaximumLagMicrosBefore": 300,
+        "sinceStartMaximumLagMicrosAfter": 700,
+        "pendingTasksMaximum": 8,
+    }
+
+
 class MultiEdgeReconnectResultTest(unittest.TestCase):
     def test_accepts_reconciled_clean_evidence(self):
         validate(evidence(), "a" * 40, require_clean=True)
@@ -87,6 +103,14 @@ class MultiEdgeReconnectResultTest(unittest.TestCase):
         value["schemaVersion"] = 3
         value["results"]["authenticationSaturation"] = authentication_saturation()
         value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+        validate(value, "a" * 40, require_clean=True)
+
+    def test_accepts_event_loop_saturation_evidence(self):
+        value = evidence()
+        value["schemaVersion"] = 4
+        value["results"]["authenticationSaturation"] = authentication_saturation()
+        value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+        value["results"]["eventLoopSaturation"] = event_loop_saturation()
         validate(value, "a" * 40, require_clean=True)
 
     def test_rejects_saturation_extension_without_schema_upgrade(self):
@@ -153,6 +177,46 @@ class MultiEdgeReconnectResultTest(unittest.TestCase):
         value["schemaVersion"] = 2
         value["results"]["authenticationSaturation"] = authentication_saturation()
         value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+        with self.assertRaises(EvidenceError):
+            validate(value, "a" * 40, require_clean=True)
+
+    def test_rejects_missing_or_invalid_event_loop_saturation(self):
+        value = evidence()
+        value["schemaVersion"] = 4
+        value["results"]["authenticationSaturation"] = authentication_saturation()
+        value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+        with self.assertRaises(EvidenceError):
+            validate(value, "a" * 40, require_clean=True)
+
+        for mutate in (
+            lambda saturation: saturation.update(sampleIntervalMillis=10),
+            lambda saturation: saturation.update(samples=23),
+            lambda saturation: saturation.update(metricsUnavailableSamples=1),
+            lambda saturation: saturation.update(workers=2),
+            lambda saturation: saturation.update(probeSamplesAfter=40),
+            lambda saturation: saturation.update(probeSamplesDelta=27),
+            lambda saturation: saturation.update(latestMaximumLagMicros=701),
+            lambda saturation: saturation.update(
+                sinceStartMaximumLagMicrosAfter=5_000_001),
+            lambda saturation: saturation.update(pendingTasksMaximum=100_001),
+            lambda saturation: saturation.update(extraField=1),
+        ):
+            value = evidence()
+            value["schemaVersion"] = 4
+            value["results"]["authenticationSaturation"] = authentication_saturation()
+            value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+            saturation = event_loop_saturation()
+            value["results"]["eventLoopSaturation"] = saturation
+            mutate(saturation)
+            with self.subTest(saturation=saturation), self.assertRaises(EvidenceError):
+                validate(value, "a" * 40, require_clean=True)
+
+    def test_rejects_event_loop_extension_without_schema_upgrade(self):
+        value = evidence()
+        value["schemaVersion"] = 3
+        value["results"]["authenticationSaturation"] = authentication_saturation()
+        value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+        value["results"]["eventLoopSaturation"] = event_loop_saturation()
         with self.assertRaises(EvidenceError):
             validate(value, "a" * 40, require_clean=True)
 
