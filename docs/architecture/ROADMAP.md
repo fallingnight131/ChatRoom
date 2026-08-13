@@ -1454,6 +1454,11 @@ Progress:
     compatibility gate while all runtime/client capability paths remain off.
   - [ ] Persist exact edit operations, current revisions, changed-only mixed
     history, retention cleanup, and server-authorized policy in PostgreSQL.
+    - [x] Add V047 current revision metadata, digest-bound operation outcomes,
+      ordered edit events with privacy erasure, and transport-neutral command/
+      result ports while runtime capability paths remain off.
+    - [ ] Implement the serialized PostgreSQL authority, filtered history, and
+      recall/deletion cleanup integration tests.
   - [ ] Compose authenticated gateway mutation, capability-filtered history,
     capable-only live fan-out, bounded telemetry, and opaque conflict paths.
   - [ ] Add offline-safe Web and Windows edit overlays/outboxes, explicit

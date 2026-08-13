@@ -201,7 +201,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(46, first.migrate());
+        assertEquals(47, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -233,8 +233,19 @@ class PostgresMigratorTest {
                             "profile_image_import_entry", "device_revocation_audit",
                             "message_reply_reference", "message_reaction_operation",
                             "message_reaction", "message_reaction_event",
-                            "message_pin_operation", "message_pin", "message_pin_event"),
+                            "message_pin_operation", "message_pin", "message_pin_event",
+                            "message_edit_operation", "message_edit_event"),
                     applicationTables(connection));
+            assertEquals(2, count("SELECT count(*) FROM information_schema.columns "
+                    + "WHERE table_schema = 'chat' AND table_name = 'message' "
+                    + "AND column_name IN ('content_revision', 'edited_at')"));
+            assertEquals(1, count("SELECT count(*) FROM pg_constraint "
+                    + "WHERE connamespace = 'chat'::regnamespace "
+                    + "AND conname = 'message_edit_event_revision_unique'"));
+            assertEquals(2, count("SELECT count(*) FROM pg_trigger "
+                    + "WHERE NOT tgisinternal AND tgname IN ("
+                    + "'message_recall_erase_edit_bodies', "
+                    + "'messages_deleted_erase_edit_bodies')"));
             assertEquals(9, count("SELECT count(*) FROM pg_constraint "
                     + "WHERE connamespace = 'chat'::regnamespace AND conname IN ("
                     + "'profile_image_import_manifest_hex', "

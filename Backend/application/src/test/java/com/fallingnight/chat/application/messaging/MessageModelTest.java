@@ -3,6 +3,7 @@ package com.fallingnight.chat.application.messaging;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -114,5 +115,35 @@ class MessageModelTest {
                 command.conversationId(), command.messageId(), command.actorAccountId(),
                 command.pinned(), command.clientOperationId(), false, 1,
                 Instant.EPOCH, false));
+    }
+
+    @Test
+    void editModelsOwnContentAndEnforceUtf8RevisionAndSequenceBounds() {
+        byte[] source = "updated".getBytes(StandardCharsets.UTF_8);
+        MessageEditCommand command = new MessageEditCommand(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                0, MessageEditCommand.TEXT_UTF8_CONTENT_TYPE, source, "edit-1");
+        source[0] = 'X';
+        assertArrayEquals("updated".getBytes(StandardCharsets.UTF_8), command.content());
+
+        MessageEditResult.Applied applied = new MessageEditResult.Applied(
+                command.conversationId(), command.messageId(), command.actorAccountId(),
+                1, command.contentType(), command.content(), command.clientOperationId(),
+                true, 2, Instant.EPOCH, false);
+        byte[] returned = applied.content();
+        returned[0] = 'X';
+        assertArrayEquals("updated".getBytes(StandardCharsets.UTF_8), applied.content());
+
+        assertThrows(IllegalArgumentException.class, () -> new MessageEditCommand(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                0, 2, new byte[] {1}, "edit-2"));
+        assertThrows(IllegalArgumentException.class, () -> new MessageEditCommand(
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                0, MessageEditCommand.TEXT_UTF8_CONTENT_TYPE,
+                new byte[] {(byte) 0xc3, (byte) 0x28}, "edit-3"));
+        assertThrows(IllegalArgumentException.class, () -> new MessageEditResult.Applied(
+                command.conversationId(), command.messageId(), command.actorAccountId(),
+                1, command.contentType(), command.content(), command.clientOperationId(),
+                false, 2, Instant.EPOCH, false));
     }
 }

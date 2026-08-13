@@ -512,6 +512,24 @@ sessions, existing DIRECT reuse, durable acceptance, first-only online notify,
 and exact retry. This remains a detached compatibility proof rather than a
 PostgreSQL product-traffic cutover.
 
+## Message edit storage foundation
+
+V047 adds revision zero defaults to existing messages and reserves
+`MESSAGE_EDITED` in the mixed conversation sequence. `message_edit_operation`
+binds an authenticated actor and stable operation ID to the target, expected
+revision, content type, and SHA-256 request digest; it deliberately does not
+retain a second copy of message text. `message_edit_event` retains only the
+resulting text needed for ordered capable-client history and can replace that
+body with an erasure timestamp without deleting the sequence identity.
+
+Recall and V2 administrative-deletion triggers erase retained edit-event bodies
+in the same transaction. The legacy mapping remains the authority for detecting
+V1-authored messages, so the main message row does not gain a denormalized source
+flag. The application command/result port validates strict UTF-8 text, the
+65,536-byte edit bound, operation IDs, revisions, and changed/sequence shape.
+The gateway still does not advertise or invoke message editing; serialized
+authorization and mutation are the next expansion step.
+
 ## Bounds and indexes
 
 - identifiers are limited to 128 characters at this storage boundary and are
@@ -556,8 +574,8 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V045, reruns migration as a simulated
-restart,
+cluster, migrates a clean database through current V047, reruns migration as a
+simulated restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable
 duplicate results without a consumed sequence, rejects conflicting reuse,
