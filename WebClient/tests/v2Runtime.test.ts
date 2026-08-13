@@ -57,6 +57,11 @@ test("fails closed for incomplete or unsafe preview configuration", () => {
     { ...ENABLED_ENVIRONMENT, VITE_CHAT_APP_VERSION: "" },
     { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WSS_URL: "ws://chat.example/v2/web" },
     { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WSS_URL: "wss://chat.example/socket" },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WSS_FALLBACK_URLS: true },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WSS_FALLBACK_URLS: "not-json" },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WSS_FALLBACK_URLS: "{}" },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WSS_FALLBACK_URLS: '["ws://edge-b.example/v2/web"]' },
+    { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_WSS_FALLBACK_URLS: '["wss://chat.example/v2/web"]' },
     { ...ENABLED_ENVIRONMENT, VITE_CHAT_APP_VERSION: "x".repeat(65) },
     { ...ENABLED_ENVIRONMENT, VITE_CHAT_V2_MESSAGE_FORWARDING: "TRUE" },
   ];
@@ -64,6 +69,15 @@ test("fails closed for incomplete or unsafe preview configuration", () => {
     const runtime = createConfiguredV2Runtime(environment, { storage: null, createUuid: () => DEVICE_ID });
     assert.equal(runtime.enabled, false);
   }
+});
+
+test("accepts a bounded build-time V2 fallback endpoint list", () => {
+  const runtime = createConfiguredV2Runtime({
+    ...ENABLED_ENVIRONMENT,
+    VITE_CHAT_V2_WSS_FALLBACK_URLS: '["wss://edge-b.example/v2/web"]',
+  }, { storage: null, createUuid: () => DEVICE_ID });
+  assert.equal(runtime.enabled, true);
+  runtime.dispose();
 });
 
 test("creates an inert enabled runtime and persists a stable non-secret device identifier", () => {

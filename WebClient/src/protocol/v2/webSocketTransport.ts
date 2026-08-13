@@ -36,6 +36,7 @@ type NetworkObserver = { onOnline(): void; onOffline(): void };
 
 export interface V2WebSocketTransportOptions {
   endpoint: string;
+  fallbackEndpoints?: readonly string[];
   createProtocolClient: () => V2WebProtocolClient;
   createSocket?: (endpoint: string, protocols: string[]) => V2WebSocketLike;
   setTimer?: (callback: () => void, delayMs: number) => TimerHandle;
@@ -60,7 +61,7 @@ export interface V2WebSocketTransportObserver {
 }
 
 export class V2WebSocketTransport {
-  private readonly endpoint: string;
+  private readonly endpoints: readonly string[];
   private readonly createProtocolClient: () => V2WebProtocolClient;
   private readonly createSocket: (endpoint: string, protocols: string[]) => V2WebSocketLike;
   private readonly setTimer: (callback: () => void, delayMs: number) => TimerHandle;
@@ -82,13 +83,14 @@ export class V2WebSocketTransport {
   private phaseTimer: TimerHandle | null = null;
   private reconnectTimer: TimerHandle | null = null;
   private reconnectAttempt = 0;
+  private endpointIndex = 0;
   private unsubscribeNetwork: (() => void) | null = null;
   private resumeCredential: { sessionId: string; token: Uint8Array } | null = null;
   private desired = false;
   private currentState: V2WebSocketTransportState = "idle";
 
   constructor(options: V2WebSocketTransportOptions) {
-    this.endpoint = requireWebEndpoint(options.endpoint);
+    this.endpoints = requireWebEndpoints(options.endpoint, options.fallbackEndpoints ?? []);
     this.createProtocolClient = options.createProtocolClient;
     this.createSocket = options.createSocket ?? ((endpoint, protocols) => new WebSocket(endpoint, protocols));
     this.setTimer = options.setTimer ?? globalThis.setTimeout;
@@ -316,9 +318,10 @@ export class V2WebSocketTransport {
     this.transition("connecting");
     let socket: V2WebSocketLike;
     try {
-      socket = this.createSocket(this.endpoint, [SUBPROTOCOL]);
+      socket = this.createSocket(this.endpoints[this.endpointIndex]!, [SUBPROTOCOL]);
     } catch {
       this.emitFailure("V2 WebSocket could not be created");
+      this.advanceEndpoint();
       this.scheduleReconnect();
       return;
     }
@@ -401,7 +404,12 @@ export class V2WebSocketTransport {
     this.socket = null;
     this.clearProtocolClient();
     if (!this.desired) return;
+    this.advanceEndpoint();
     this.scheduleReconnect();
+  }
+
+  private advanceEndpoint(): void {
+    this.endpointIndex = (this.endpointIndex + 1) % this.endpoints.length;
   }
 
   private scheduleReconnect(): void {
@@ -526,6 +534,15 @@ function requireWebEndpoint(value: string): string {
     throw new Error("V2 Web endpoint must be an exact wss:// authority/v2/web URL");
   }
   return endpoint.toString();
+}
+
+function requireWebEndpoints(primary: string, fallbacks: readonly string[]): readonly string[] {
+  if (fallbacks.length > 3) throw new Error("V2 Web endpoint list must contain at most four entries");
+  const endpoints = [primary, ...fallbacks].map(requireWebEndpoint);
+  if (new Set(endpoints).size !== endpoints.length) {
+    throw new Error("V2 Web endpoint list must not contain duplicates");
+  }
+  return endpoints;
 }
 
 function positiveDuration(field: string, value: number): number {

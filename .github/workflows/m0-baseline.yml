@@ -32,6 +32,7 @@ jobs:
           VITE_CHAT_V2_PREVIEW: "true"
           VITE_CHAT_V2_MESSAGE_FORWARDING: "true"
           VITE_CHAT_V2_WSS_URL: "wss://preview-chat.example.test/v2/web"
+          VITE_CHAT_V2_WSS_FALLBACK_URLS: '["wss://preview-chat-secondary.example.test/v2/web"]'
           VITE_CHAT_APP_VERSION: "2.0.0-ci-forwarding"
         run: npm run build -- --outDir ../build/m6/web-forwarding-gate --emptyOutDir
 

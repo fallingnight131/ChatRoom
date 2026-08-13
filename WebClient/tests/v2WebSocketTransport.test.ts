@@ -357,6 +357,51 @@ test("turns synchronous socket construction failure into a cancellable retry", (
   assert.equal(timers.tasks.size, 0);
 });
 
+test("rotates only through validated build-time fallback endpoints", () => {
+  const timers = new FakeTimers();
+  const requestedEndpoints: string[] = [];
+  const sockets: FakeSocket[] = [];
+  const transport = new V2WebSocketTransport({
+    endpoint: "wss://edge-a.example/v2/web",
+    fallbackEndpoints: ["wss://edge-b.example/v2/web"],
+    createProtocolClient: protocolFactory(),
+    createSocket: endpoint => {
+      requestedEndpoints.push(endpoint);
+      const socket = new FakeSocket();
+      sockets.push(socket);
+      return socket;
+    },
+    setTimer: timers.set,
+    clearTimer: timers.clear,
+    random: () => 0,
+  });
+
+  transport.start();
+  sockets[0]!.finishClose();
+  timers.runOnly();
+  sockets[1]!.open();
+  sockets[1]!.receive(helloResponse(sentEnvelope(sockets[1]!, 0)));
+  sockets[1]!.finishClose();
+  timers.runOnly();
+  assert.deepEqual(requestedEndpoints, [
+    "wss://edge-a.example/v2/web",
+    "wss://edge-b.example/v2/web",
+    "wss://edge-a.example/v2/web",
+  ]);
+  transport.stop();
+
+  assert.throws(() => new V2WebSocketTransport({
+    endpoint: "wss://edge-a.example/v2/web",
+    fallbackEndpoints: ["wss://edge-a.example/v2/web"],
+    createProtocolClient: protocolFactory(),
+  }), /must not contain duplicates/);
+  assert.throws(() => new V2WebSocketTransport({
+    endpoint: "wss://edge-a.example/v2/web",
+    fallbackEndpoints: ["ws://edge-b.example/v2/web"],
+    createProtocolClient: protocolFactory(),
+  }), /exact wss/);
+});
+
 test("pauses attempts while offline and reconnects immediately after browser recovery", () => {
   const network = new FakeNetwork();
   const timers = new FakeTimers();

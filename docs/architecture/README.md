@@ -1190,6 +1190,13 @@ the Java gateways remain ready, the same device session explicitly resumes on
 the secondary edge, repairs PostgreSQL history, and continues with sequence 2.
 Automatic Web/Windows endpoint selection, DNS/GSLB convergence, multi-host
 partitions, and secure production secret distribution remain unproven.
+ADR-0382 closes the first client-side part for the default-off Web V2 preview.
+An immutable build may carry one primary plus three unique exact WSS fallback
+URLs; connection failure rotates through them under the existing bounded jitter
+policy while offline events consume neither endpoint position nor retry budget.
+All authorities remain subject to build review, CSP and gateway Origin/Host
+policy. Windows parity, V1 cutover, dynamic discovery, degraded-edge eviction,
+and production multi-host evidence remain pending.
 
 ## 10. Attachment Flow
 

@@ -318,14 +318,18 @@ cd WebClient
 VITE_CHAT_V2_PREVIEW=true \
 VITE_CHAT_V2_MESSAGE_FORWARDING=false \
 VITE_CHAT_V2_WSS_URL=wss://preview-chat.example.com/v2/web \
+VITE_CHAT_V2_WSS_FALLBACK_URLS='["wss://preview-chat-secondary.example.com/v2/web"]' \
 VITE_CHAT_APP_VERSION=2.0.0-preview.1 \
 npm run build
 ```
 
-These values are public build metadata, never secrets. The enabled build emits
+These values are public build metadata, never secrets. The optional fallback
+value is a JSON list of at most three additional unique exact WSS `/v2/web`
+URLs. The transport rotates only after connection failure and retains the same
+bounded backoff and memory-only resume proof (ADR-0382). The enabled build emits
 V2 as a lazy chunk and still sends no V2 traffic until a preview UI explicitly
 starts it. See [`WEB_V2_PREVIEW.md`](deployment/WEB_V2_PREVIEW.md) for gateway
-alignment, verification, and rollback.
+alignment, CSP, verification, and rollback.
 
 ## Incremental CMake server path
 

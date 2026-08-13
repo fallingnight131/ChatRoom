@@ -13,6 +13,7 @@ has a fourth independent, default-off value:
 VITE_CHAT_V2_PREVIEW=true \
 VITE_CHAT_V2_MESSAGE_FORWARDING=false \
 VITE_CHAT_V2_WSS_URL=wss://preview-chat.example.com/v2/web \
+VITE_CHAT_V2_WSS_FALLBACK_URLS='["wss://preview-chat-secondary.example.com/v2/web"]' \
 VITE_CHAT_APP_VERSION=2.0.0-preview.1 \
 npm run build
 ```
@@ -25,6 +26,12 @@ npm run build
 - `VITE_CHAT_V2_WSS_URL` must use `wss`, contain no credentials/query/fragment,
   and end at the exact `/v2/web` route. It is independent of the user-editable
   V1 host/port settings.
+- `VITE_CHAT_V2_WSS_FALLBACK_URLS` is optional JSON containing at most three
+  additional unique URLs with the same strict route policy. A malformed,
+  duplicated, or insecure entry disables V2 before storage or network access.
+  Socket failure rotates through this immutable list; browser-offline events do
+  not consume it. Every authority must be present in CSP `connect-src`, gateway
+  Origin/Host policy, certificate operations, and monitoring (ADR-0382).
 - `VITE_CHAT_APP_VERSION` is a traceable release identifier of at most 64 UTF-8
   bytes.
 
@@ -61,7 +68,10 @@ Before serving preview assets:
    rejection through `/preview/v2` using non-production accounts.
 6. switch the browser offline and online; verify the UI reports offline without
    retry churn, then reconnects/resumes promptly without persisting the proof.
-7. for a forwarding-enabled candidate, verify the gateway independently has
+7. stop the primary edge while the browser remains online; verify the next
+   bounded retry selects a configured fallback, resumes the same page-memory
+   session, and repairs ordered history before sending pending work.
+8. for a forwarding-enabled candidate, verify the gateway independently has
    `CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED=true`; test authorization,
    rate-limit, offline replay, legacy-client downgrade, and disable either side.
 

@@ -1601,6 +1601,12 @@ Progress:
   explicitly resume the durable device session through the secondary edge,
   repair history, and deliver sequence 2 without duplication. DNS/GSLB and
   automatic client endpoint failover remain pending (ADR-0381).
+- [x] Add bounded automatic edge selection to the default-off Web V2 preview:
+  validate one primary plus at most three immutable unique WSS endpoints,
+  rotate on socket construction/close under the existing jittered backoff,
+  preserve memory-only session resume, and keep browser-offline transitions
+  outside the rotation budget. Windows parity and production discovery remain
+  pending (ADR-0382).
 
 Work:
 

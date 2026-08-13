@@ -45,6 +45,7 @@ export function createConfiguredV2Runtime(
   const forwardingEnabled = forwardingFlag === true || forwardingFlag === "true";
 
   const endpoint = stringValue(environment.VITE_CHAT_V2_WSS_URL);
+  const fallbackEndpointValue = environment.VITE_CHAT_V2_WSS_FALLBACK_URLS;
   const appVersion = stringValue(environment.VITE_CHAT_APP_VERSION);
   if (!endpoint) return disabled("V2 preview endpoint is missing");
   if (!appVersion || new TextEncoder().encode(appVersion).byteLength > 64) {
@@ -53,10 +54,12 @@ export function createConfiguredV2Runtime(
 
   const createUuid = options.createUuid ?? (() => crypto.randomUUID());
   try {
+    const fallbackEndpoints = parseFallbackEndpoints(fallbackEndpointValue);
     const storage = options.storage === undefined ? safeLocalStorage() : options.storage;
     const identity = resolveDeviceIdentity(storage, createUuid);
     const transport = new V2WebSocketTransport({
       endpoint,
+      fallbackEndpoints,
       createProtocolClient: () => new V2WebProtocolClient({
         appVersion,
         clientDeviceId: identity.deviceId,
@@ -114,6 +117,16 @@ function safeLocalStorage(): StorageLike | null {
 
 function stringValue(value: string | boolean | undefined): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function parseFallbackEndpoints(value: string | boolean | undefined): readonly string[] {
+  if (value === undefined || value === false || value === "") return [];
+  if (typeof value !== "string") throw new Error("V2 fallback endpoint list is invalid");
+  const parsed: unknown = JSON.parse(value);
+  if (!Array.isArray(parsed) || parsed.some(endpoint => typeof endpoint !== "string" || endpoint.trim() !== endpoint)) {
+    throw new Error("V2 fallback endpoint list is invalid");
+  }
+  return parsed;
 }
 
 function canonicalUuid(value: string | null): value is string {
