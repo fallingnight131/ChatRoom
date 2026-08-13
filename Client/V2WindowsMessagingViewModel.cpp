@@ -7,13 +7,17 @@
 V2WindowsMessagingViewModel::V2WindowsMessagingViewModel(
         QString accountId, SnapshotLoader loader, StageReply stageReply,
         Retry retry, SetReaction setReaction, RetryReaction retryReaction,
-        SetPin setPin, RetryPin retryPin, QObject *parent)
+        SetPin setPin, RetryPin retryPin, Edit edit, EditOperation retryEdit,
+        EditOperation rebaseEdit, DiscardEdit discardEdit, QObject *parent)
     : QObject(parent), m_accountId(std::move(accountId)), m_loader(std::move(loader)),
       m_stageReply(std::move(stageReply)), m_retry(std::move(retry)),
       m_setReaction(std::move(setReaction)), m_retryReaction(std::move(retryReaction)),
-      m_setPin(std::move(setPin)), m_retryPin(std::move(retryPin)) {
+      m_setPin(std::move(setPin)), m_retryPin(std::move(retryPin)),
+      m_edit(std::move(edit)), m_retryEdit(std::move(retryEdit)),
+      m_rebaseEdit(std::move(rebaseEdit)), m_discardEdit(std::move(discardEdit)) {
     if (m_accountId.isEmpty() || !m_loader || !m_stageReply || !m_retry
-            || !m_setReaction || !m_retryReaction || !m_setPin || !m_retryPin)
+            || !m_setReaction || !m_retryReaction || !m_setPin || !m_retryPin
+            || !m_edit || !m_retryEdit || !m_rebaseEdit || !m_discardEdit)
         throw std::invalid_argument("invalid Windows V2 messaging view model");
 }
 
@@ -117,6 +121,45 @@ bool V2WindowsMessagingViewModel::retryPin(const QString &clientOperationId) {
     return refresh();
 }
 
+bool V2WindowsMessagingViewModel::editMessage(const QString &messageId, const QString &text) {
+    const auto position = std::find_if(m_rows.cbegin(), m_rows.cend(),
+        [&](const Row &row) { return row.messageId == messageId && row.canEdit; });
+    if (position == m_rows.cend() || text.trimmed().isEmpty()
+            || !m_edit(m_conversationId, messageId, text)) {
+        m_failure = QStringLiteral("无法编辑该消息");
+        emit changed();
+        return false;
+    }
+    return refresh();
+}
+
+bool V2WindowsMessagingViewModel::retryEdit(const QString &operationId) {
+    if (!m_retryEdit(m_conversationId, operationId)) {
+        m_failure = QStringLiteral("无法重试编辑");
+        emit changed();
+        return false;
+    }
+    return refresh();
+}
+
+bool V2WindowsMessagingViewModel::rebaseEdit(const QString &operationId) {
+    if (!m_rebaseEdit(m_conversationId, operationId)) {
+        m_failure = QStringLiteral("新版本尚未同步");
+        emit changed();
+        return false;
+    }
+    return refresh();
+}
+
+bool V2WindowsMessagingViewModel::discardEdit(const QString &operationId) {
+    if (!m_discardEdit(operationId)) {
+        m_failure = QStringLiteral("无法放弃编辑草稿");
+        emit changed();
+        return false;
+    }
+    return refresh();
+}
+
 void V2WindowsMessagingViewModel::project(
         const V2LocalMessageRepository::Snapshot &snapshot) {
     m_rows.clear();
@@ -134,6 +177,23 @@ void V2WindowsMessagingViewModel::project(
             && message.state == V2LocalMessageRepository::DeliveryState::Accepted;
         row.canRetry = message.state == V2LocalMessageRepository::DeliveryState::Failed;
         row.pinned = message.pinned;
+        row.edited = message.contentRevision > 0;
+        row.canEdit = row.mine && row.canReply;
+        const auto editCommand = std::find_if(
+            snapshot.editCommands.cbegin(), snapshot.editCommands.cend(),
+            [&](const auto &item) { return item.messageId == message.messageId; });
+        if (editCommand != snapshot.editCommands.cend()) {
+            row.canEdit = false;
+            row.editOperationId = editCommand->clientOperationId;
+            row.proposedText = editCommand->proposedText;
+            row.text = editCommand->proposedText;
+            row.editPending = editCommand->state
+                == V2LocalMessageRepository::EditDeliveryState::Pending;
+            row.editFailed = editCommand->state
+                == V2LocalMessageRepository::EditDeliveryState::Failed;
+            row.editConflict = editCommand->state
+                == V2LocalMessageRepository::EditDeliveryState::Conflict;
+        }
         const auto pinCommand = std::find_if(snapshot.pinCommands.cbegin(),
             snapshot.pinCommands.cend(), [&](const auto &item) {
                 return item.messageId == message.messageId;

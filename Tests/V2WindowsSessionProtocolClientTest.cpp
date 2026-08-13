@@ -92,11 +92,13 @@ int main() {
               && helloEnvelope.session_id().empty()
               && helloPayload.platform() == chat::v2::CLIENT_PLATFORM_WINDOWS
               && helloPayload.client_device_id() == deviceId
-              && helloPayload.capabilities_size() == 2
+              && helloPayload.capabilities_size() == 3
               && helloPayload.capabilities(0)
                     == chat::v2::CLIENT_CAPABILITY_MESSAGE_REACTIONS
               && helloPayload.capabilities(1)
-                    == chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS,
+                    == chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS
+              && helloPayload.capabilities(2)
+                    == chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS,
           "hello must identify the exact capable Windows client without session authority");
 
     chat::v2::ServerHello serverHello;
@@ -106,6 +108,7 @@ int main() {
     serverHello.set_maximum_frame_bytes(1024 * 1024 + 1024);
     serverHello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_REACTIONS);
     serverHello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS);
+    serverHello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS);
     const auto helloEvent = client.receive(response(
         chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
         hello.requestId, "", serverHello));

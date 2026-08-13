@@ -116,6 +116,18 @@ void WindowsV2MessagingController::bindAuthenticatedSession(
                 },
                 [this](const QString &conversationId, const QString &clientOperationId) {
                     return m_service->retryPin(conversationId, clientOperationId);
+                },
+                [this](const QString &conversationId, const QString &messageId, const QString &text) {
+                    return m_service->editMessage(conversationId, messageId, text);
+                },
+                [this](const QString &conversationId, const QString &operationId) {
+                    return m_service->retryEdit(conversationId, operationId);
+                },
+                [this](const QString &conversationId, const QString &operationId) {
+                    return m_service->rebaseEdit(conversationId, operationId);
+                },
+                [this](const QString &operationId) {
+                    return m_service->discardEdit(operationId);
                 });
         } catch (const std::exception &exception) {
             m_viewModel.reset();

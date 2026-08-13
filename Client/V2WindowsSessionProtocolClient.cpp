@@ -88,6 +88,7 @@ V2WindowsSessionProtocolClient::createClientHello() {
     hello.set_client_device_id(m_clientDeviceId);
     hello.add_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_REACTIONS);
     hello.add_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS);
+    hello.add_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS);
     Command result = command(
         chat::v2::MESSAGE_TYPE_CLIENT_HELLO, serialize(hello),
         chat::v2::MESSAGE_TYPE_SERVER_HELLO);
@@ -211,11 +212,13 @@ V2WindowsSessionProtocolClient::receive(const std::string &bytes) {
                 || hello.server_time_epoch_ms() <= 0
                 || hello.maximum_frame_bytes() < 1
                 || hello.maximum_frame_bytes() > maximumWireBytes
-                || hello.enabled_capabilities_size() != 2
+                || hello.enabled_capabilities_size() != 3
                 || hello.enabled_capabilities(0)
                     != chat::v2::CLIENT_CAPABILITY_MESSAGE_REACTIONS
                 || hello.enabled_capabilities(1)
-                    != chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS)
+                    != chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS
+                || hello.enabled_capabilities(2)
+                    != chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS)
             throw std::runtime_error("invalid server hello");
         m_maximumFrameBytes = hello.maximum_frame_bytes();
         m_state = State::Negotiated;

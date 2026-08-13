@@ -2,6 +2,7 @@
 #include "V2WindowsMessagingViewModel.h"
 
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QLabel>
 #include <QListWidget>
 #include <QPlainTextEdit>
@@ -73,6 +74,45 @@ void V2WindowsMessagingPanel::render() {
             layout->addWidget(reference);
         }
         layout->addWidget(body);
+        if (message.edited) {
+            auto *edited = new QLabel(QStringLiteral("已编辑"), row);
+            edited->setAccessibleName(QStringLiteral("此消息已编辑"));
+            layout->addWidget(edited);
+        }
+        if (message.editPending) {
+            auto *status = new QLabel(QStringLiteral("正在保存编辑…"), row);
+            status->setAccessibleName(QStringLiteral("编辑状态：正在保存"));
+            layout->addWidget(status);
+        } else if (message.editConflict || message.editFailed) {
+            auto *status = new QLabel(message.editConflict
+                ? QStringLiteral("其他设备已修改此消息；你的编辑草稿已保留")
+                : QStringLiteral("编辑保存失败；草稿仍保存在本机"), row);
+            status->setAccessibleName(message.editConflict
+                ? QStringLiteral("编辑冲突") : QStringLiteral("编辑失败"));
+            status->setWordWrap(true);
+            layout->addWidget(status);
+            auto *editActions = new QHBoxLayout;
+            auto *retry = new QPushButton(message.editConflict
+                ? QStringLiteral("基于新版本重试") : QStringLiteral("重试编辑"), row);
+            retry->setAccessibleName(message.editConflict
+                ? QStringLiteral("基于服务器新版本重试编辑") : QStringLiteral("重试保存编辑"));
+            connect(retry, &QPushButton::clicked, m_viewModel,
+                [model = m_viewModel, id = message.editOperationId,
+                 conflict = message.editConflict] {
+                    if (conflict) model->rebaseEdit(id);
+                    else model->retryEdit(id);
+                });
+            auto *discard = new QPushButton(QStringLiteral("放弃草稿"), row);
+            discard->setAccessibleName(QStringLiteral("放弃此消息的编辑草稿"));
+            connect(discard, &QPushButton::clicked, m_viewModel,
+                [model = m_viewModel, id = message.editOperationId] {
+                    model->discardEdit(id);
+                });
+            editActions->addWidget(retry);
+            editActions->addWidget(discard);
+            editActions->addStretch();
+            layout->addLayout(editActions);
+        }
         auto *actions = new QHBoxLayout;
         if (!message.deliveryLabel.isEmpty()) {
             auto *delivery = new QLabel(message.deliveryLabel, row);
@@ -93,6 +133,21 @@ void V2WindowsMessagingPanel::render() {
             connect(reply, &QPushButton::clicked, m_viewModel,
                     [model = m_viewModel, id = message.messageId] { model->chooseReply(id); });
             actions->addWidget(reply);
+            if (message.canEdit) {
+                auto *edit = new QPushButton(QStringLiteral("编辑"), row);
+                edit->setAccessibleName(QStringLiteral("编辑此消息"));
+                connect(edit, &QPushButton::clicked, m_viewModel,
+                    [model = m_viewModel, id = message.messageId,
+                     current = message.text, row] {
+                        bool accepted = false;
+                        const QString text = QInputDialog::getMultiLineText(
+                            row, QStringLiteral("编辑消息"), QStringLiteral("消息内容"),
+                            current, &accepted);
+                        if (accepted && !text.trimmed().isEmpty())
+                            model->editMessage(id, text);
+                    });
+                actions->addWidget(edit);
+            }
             auto *pin = new QPushButton(row);
             pin->setCheckable(true);
             pin->setChecked(message.pinned);

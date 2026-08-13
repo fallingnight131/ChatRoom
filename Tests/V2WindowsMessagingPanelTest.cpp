@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
     V2LocalMessageRepository::Message message;
     message.conversationId = conversation;
     message.messageId = QStringLiteral("30000000-0000-4000-8000-000000000001");
-    message.senderAccountId = QStringLiteral("10000000-0000-4000-8000-000000000002");
+    message.senderAccountId = account;
     message.clientMessageId = QStringLiteral("remote-1");
     message.text = QStringLiteral("hello");
     message.state = V2LocalMessageRepository::DeliveryState::Accepted;
@@ -32,7 +32,11 @@ int main(int argc, char **argv) {
         },
         [](const QString &, const QString &) { return true; },
         [](const QString &, const QString &) { return true; },
-        [](const QString &, const QString &) { return true; });
+        [](const QString &, const QString &) { return true; },
+        [](const QString &, const QString &, const QString &) { return true; },
+        [](const QString &, const QString &) { return true; },
+        [](const QString &, const QString &) { return true; },
+        [](const QString &) { return true; });
     model.openConversation(conversation);
     V2WindowsMessagingPanel panel(&model);
     panel.show();
@@ -57,6 +61,9 @@ int main(int argc, char **argv) {
                 && button->accessibleName() == QStringLiteral("置顶此消息");
         });
     if (pinButtons != 1) return 1;
+    const auto editButtons = std::count_if(replies.cbegin(), replies.cend(),
+        [](QPushButton *button) { return button->accessibleName() == QStringLiteral("编辑此消息"); });
+    if (editButtons != 1) return 1;
     (*reply)->click();
     app.processEvents();
     if (!panel.cancelReplyForTest()->isVisible()

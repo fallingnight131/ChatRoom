@@ -56,6 +56,10 @@ int main(int argc, char **argv) {
     failedPin.clientOperationId = QStringLiteral("pin-failed-1");
     failedPin.state = V2LocalMessageRepository::DeliveryState::Failed;
     snapshot.pinCommands.append(failedPin);
+    V2LocalMessageRepository::EditCommand conflictEdit{conversation, reply.messageId, 0,
+        QStringLiteral("本地编辑草稿"),QStringLiteral("edit-conflict-1"),
+        V2LocalMessageRepository::EditDeliveryState::Conflict};
+    snapshot.editCommands.append(conflictEdit);
 
     QString stagedTarget;
     QString stagedText;
@@ -64,6 +68,10 @@ int main(int argc, char **argv) {
     QString retriedReaction;
     QString pinnedMessage;
     QString retriedPin;
+    QString editedMessage;
+    QString editedText;
+    QString rebasedEdit;
+    QString discardedEdit;
     V2WindowsMessagingViewModel model(
         account, [&](const QString &) { return snapshot; },
         [&](const QString &, const QString &targetId, const QString &text,
@@ -83,6 +91,20 @@ int main(int argc, char **argv) {
         },
         [&](const QString &, const QString &operationId) {
             retriedPin = operationId; return true;
+        },
+        [&](const QString &, const QString &messageId, const QString &text) {
+            editedMessage = messageId;
+            editedText = text;
+            return true;
+        },
+        [](const QString &, const QString &) { return true; },
+        [&](const QString &, const QString &operationId) {
+            rebasedEdit = operationId;
+            return true;
+        },
+        [&](const QString &operationId) {
+            discardedEdit = operationId;
+            return true;
         });
     check(model.openConversation(conversation) && model.rows().size() == 3,
           QStringLiteral("cached conversation was not projected"));
@@ -97,6 +119,21 @@ int main(int argc, char **argv) {
     check(model.rows().first().pinned && model.rows().first().pinFailed
               && model.rows().first().pinOperationId == failedPin.clientOperationId,
           QStringLiteral("pin projection and failure state were not projected"));
+    check(model.rows().at(1).editConflict
+              && model.rows().at(1).text == conflictEdit.proposedText
+              && !model.rows().at(1).canEdit,
+          QStringLiteral("edit overlay and conflict state were not projected"));
+    check(model.rebaseEdit(conflictEdit.clientOperationId)
+              && rebasedEdit == conflictEdit.clientOperationId,
+          QStringLiteral("explicit edit rebase lost the operation identity"));
+    check(model.discardEdit(conflictEdit.clientOperationId)
+              && discardedEdit == conflictEdit.clientOperationId,
+          QStringLiteral("edit discard lost the operation identity"));
+    snapshot.editCommands.clear();
+    check(model.refresh() && model.rows().at(1).canEdit
+              && model.editMessage(reply.messageId, QStringLiteral("新正文"))
+              && editedMessage == reply.messageId && editedText == QStringLiteral("新正文"),
+          QStringLiteral("author edit action did not preserve message and content"));
     check(model.setReaction(target.messageId, V2LocalMessageRepository::ReactionKind::Like)
               && reactedMessage == target.messageId,
           QStringLiteral("reaction action did not preserve the message identity"));

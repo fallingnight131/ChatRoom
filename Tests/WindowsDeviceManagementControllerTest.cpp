@@ -89,6 +89,7 @@ int main(int argc, char **argv) {
     hello.set_maximum_frame_bytes(1024 * 1024 + 1024);
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_REACTIONS);
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS);
+    hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS);
     socket.binaryMessageReceived(response(
         chat::v2::MESSAGE_TYPE_SERVER_HELLO, clientHello.request_id(), "", hello));
     if (!check(sent.size() == 1,

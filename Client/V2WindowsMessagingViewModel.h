@@ -32,6 +32,13 @@ public:
         bool pinPending = false;
         bool pinFailed = false;
         QString pinOperationId;
+        bool canEdit = false;
+        bool edited = false;
+        bool editPending = false;
+        bool editFailed = false;
+        bool editConflict = false;
+        QString editOperationId;
+        QString proposedText;
         QVector<Reaction> reactions;
     };
     using SnapshotLoader = std::function<V2LocalMessageRepository::Snapshot(const QString &)>;
@@ -44,11 +51,15 @@ public:
     using RetryReaction = std::function<bool(const QString &, const QString &)>;
     using SetPin = std::function<bool(const QString &, const QString &)>;
     using RetryPin = std::function<bool(const QString &, const QString &)>;
+    using Edit = std::function<bool(const QString &, const QString &, const QString &)>;
+    using EditOperation = std::function<bool(const QString &, const QString &)>;
+    using DiscardEdit = std::function<bool(const QString &)>;
 
     V2WindowsMessagingViewModel(
         QString accountId, SnapshotLoader loader, StageReply stageReply,
         Retry retry, SetReaction setReaction, RetryReaction retryReaction,
-        SetPin setPin, RetryPin retryPin,
+        SetPin setPin, RetryPin retryPin, Edit edit, EditOperation retryEdit,
+        EditOperation rebaseEdit, DiscardEdit discardEdit,
         QObject *parent = nullptr);
     bool openConversation(const QString &conversationId);
     bool refresh();
@@ -65,6 +76,10 @@ public:
     bool retryReaction(const QString &clientOperationId);
     bool setPin(const QString &messageId);
     bool retryPin(const QString &clientOperationId);
+    bool editMessage(const QString &messageId, const QString &text);
+    bool retryEdit(const QString &clientOperationId);
+    bool rebaseEdit(const QString &clientOperationId);
+    bool discardEdit(const QString &clientOperationId);
 
 signals:
     void changed();
@@ -83,6 +98,10 @@ private:
     RetryReaction m_retryReaction;
     SetPin m_setPin;
     RetryPin m_retryPin;
+    Edit m_edit;
+    EditOperation m_retryEdit;
+    EditOperation m_rebaseEdit;
+    DiscardEdit m_discardEdit;
     QString m_conversationId;
     QString m_draft;
     QString m_replyTargetMessageId;
