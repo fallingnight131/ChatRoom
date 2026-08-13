@@ -1536,6 +1536,9 @@ Progress:
       - [x] Add a default-off Windows participant-directory protocol client with
         bounded correlation, stable account cursor, strict Unicode/role/order
         validation, and disconnect abandonment.
+      - [x] Add a conversation-scoped Windows participant view model with a
+        500-row bound, stable account ordering, explicit refresh/load-more,
+        stale-response isolation, fixed failure, and disconnect state.
 
 Candidate slices:
 

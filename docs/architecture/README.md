@@ -720,6 +720,9 @@ controls, identity-preserving rendering, and capability-4 negotiation.
 The default-off Windows boundary can now issue and validate the same participant
 pages with stable cursor and Unicode policy, but it remains detached from the
 Windows controller, SQLite state, Widgets UI, and capability negotiation.
+Its detached Qt view model now supplies bounded conversation-scoped rows,
+loading, pagination, and fixed failure state without treating display names as
+identity; the controller and product UI still do not own it.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

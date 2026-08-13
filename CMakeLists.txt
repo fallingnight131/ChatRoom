@@ -504,6 +504,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/V2WindowsConversationDirectoryProtocolClient.h
                 Client/V2WindowsConversationParticipantProtocolClient.cpp
                 Client/V2WindowsConversationParticipantProtocolClient.h
+                Client/V2WindowsConversationParticipantViewModel.cpp
+                Client/V2WindowsConversationParticipantViewModel.h
                 Client/V2WindowsMessagingApplicationService.cpp
                 Client/V2WindowsMessagingApplicationService.h
                 Client/WindowsV2MessagingController.cpp

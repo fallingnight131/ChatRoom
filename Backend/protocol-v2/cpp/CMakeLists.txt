@@ -91,6 +91,19 @@ target_link_libraries(
   v2_windows_conversation_participant_protocol_test PRIVATE protobuf::libprotobuf)
 
 add_executable(
+  v2_windows_conversation_participant_view_model_test
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsConversationParticipantViewModelTest.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsConversationParticipantViewModel.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsConversationParticipantViewModel.h"
+)
+set_target_properties(v2_windows_conversation_participant_view_model_test PROPERTIES AUTOMOC ON)
+target_compile_features(v2_windows_conversation_participant_view_model_test PRIVATE cxx_std_17)
+target_include_directories(
+  v2_windows_conversation_participant_view_model_test
+  PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../../Client")
+target_link_libraries(v2_windows_conversation_participant_view_model_test PRIVATE Qt6::Core)
+
+add_executable(
   v2_windows_messaging_application_test
   "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsMessagingApplicationServiceTest.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsMessagingApplicationService.cpp"
@@ -288,6 +301,7 @@ if(MSVC)
   target_compile_options(v2_windows_messaging_protocol_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_conversation_directory_protocol_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_conversation_participant_protocol_test PRIVATE /W4 /WX)
+  target_compile_options(v2_windows_conversation_participant_view_model_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_messaging_application_test PRIVATE /W4 /WX)
 else()
   target_compile_options(v2_windows_messaging_protocol_test PRIVATE -Wall -Wextra -Werror)
@@ -295,6 +309,8 @@ else()
     v2_windows_conversation_directory_protocol_test PRIVATE -Wall -Wextra -Werror)
   target_compile_options(
     v2_windows_conversation_participant_protocol_test PRIVATE -Wall -Wextra -Werror)
+  target_compile_options(
+    v2_windows_conversation_participant_view_model_test PRIVATE -Wall -Wextra -Werror)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(
       v2_windows_messaging_protocol_test PRIVATE -Wno-nullability-extension)
@@ -325,6 +341,9 @@ add_test(
 add_test(
   NAME v2_windows_conversation_participant_protocol
   COMMAND v2_windows_conversation_participant_protocol_test)
+add_test(
+  NAME v2_windows_conversation_participant_view_model
+  COMMAND v2_windows_conversation_participant_view_model_test)
 add_test(NAME v2_windows_messaging_application COMMAND v2_windows_messaging_application_test)
 add_test(NAME v2_windows_session_protocol COMMAND v2_windows_session_protocol_test)
 add_test(
