@@ -100,6 +100,7 @@ import com.fallingnight.chat.application.profile.ProfileImageTarget;
 import com.fallingnight.chat.application.profile.ProfileImageReadResult;
 import com.fallingnight.chat.application.profile.ProfileImageReadTarget;
 import com.fallingnight.chat.application.profile.ProfileImageMutationAuthorization;
+import com.fallingnight.chat.application.profile.ProfileImageCleanupClaim;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ConversationImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ContactRequestImporter;
@@ -1985,6 +1986,37 @@ class PostgresMigratorTest {
         assertThrows(ConversationPersistenceException.class,
                 () -> guard.requestIfUnreferenced(new ProfileImageObjectEvidence(
                         orphan.objectKey(), 14, orphan.contentSha256(), "image/png")));
+
+        var cleanup = new PostgresProfileImageCleanupAdapter(dataSource());
+        Instant claimTime = Instant.now().plusSeconds(60);
+        ProfileImageCleanupClaim firstClaim = cleanup.claim(claimTime, claimTime,
+                claimTime, 10).stream().filter(value ->
+                        value.objectKey().equals(orphan.objectKey())).findFirst().orElseThrow();
+        assertEquals(ProfileImageMetadataResult.Rejected.OBJECT_EVIDENCE_CONFLICT,
+                adapter.commit(new ProfileImageMetadataCommand(
+                        new ProfileImageTarget.Account(owner), orphan, 32, 32)));
+        assertFalse(cleanup.release(new ProfileImageCleanupClaim(UUID.randomUUID(),
+                firstClaim.objectKey(), firstClaim.claimedAt())));
+        assertTrue(cleanup.release(firstClaim));
+        ProfileImageCleanupClaim reclaimed = cleanup.claim(claimTime, claimTime,
+                claimTime.plusSeconds(1), 10).stream().filter(value ->
+                        value.objectKey().equals(orphan.objectKey())).findFirst().orElseThrow();
+        assertNotEquals(firstClaim.claimId(), reclaimed.claimId());
+        assertTrue(cleanup.confirmDeleted(reclaimed, claimTime.plusSeconds(2)));
+        assertFalse(cleanup.confirmDeleted(reclaimed, claimTime.plusSeconds(3)));
+        assertEquals(1, count("SELECT count(*) FROM chat.profile_image_object WHERE object_key = '"
+                + orphan.objectKey() + "' AND delete_confirmed_at IS NOT NULL"));
+        ProfileImageMetadataResult.Committed revived = assertInstanceOf(
+                ProfileImageMetadataResult.Committed.class,
+                adapter.commit(new ProfileImageMetadataCommand(
+                        new ProfileImageTarget.Account(owner), orphan, 32, 32)));
+        assertTrue(revived.changed());
+        assertEquals(1, count("SELECT count(*) FROM chat.profile_image_object WHERE object_key = '"
+                + orphan.objectKey() + "' AND cleanup_requested_at IS NULL "
+                + "AND delete_claim_id IS NULL AND delete_confirmed_at IS NULL"));
+        assertTrue(cleanup.claim(claimTime.plusSeconds(10), claimTime.plusSeconds(10),
+                claimTime.plusSeconds(10), 10).stream().noneMatch(value ->
+                        value.objectKey().equals(orphan.objectKey())));
 
         UUID unmapped = UUID.randomUUID();
         try (Connection connection = connect()) {

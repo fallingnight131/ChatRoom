@@ -156,7 +156,8 @@ public final class PostgresProfileImageMetadataAdapter implements ProfileImageMe
             insert.executeUpdate();
         }
         try (PreparedStatement select = connection.prepareStatement("""
-                SELECT byte_size, content_sha256, media_type
+                SELECT byte_size, content_sha256, media_type,
+                       delete_claim_id, delete_confirmed_at
                 FROM chat.profile_image_object WHERE object_key = ? FOR UPDATE
                 """)) {
             select.setString(1, evidence.objectKey());
@@ -165,9 +166,12 @@ public final class PostgresProfileImageMetadataAdapter implements ProfileImageMe
                 boolean exact = row.getLong("byte_size") == evidence.byteSize()
                         && Arrays.equals(row.getBytes("content_sha256"), evidence.contentSha256())
                         && evidence.mediaType().equals(row.getString("media_type"));
+                boolean activelyClaimed = row.getObject("delete_claim_id") != null
+                        && row.getObject("delete_confirmed_at") == null;
                 if (row.next()) throw new SQLException("profile image object duplicated");
-                if (exact) clearCleanupState(connection, evidence.objectKey());
-                return exact;
+                if (exact && !activelyClaimed)
+                    clearCleanupState(connection, evidence.objectKey());
+                return exact && !activelyClaimed;
             }
         }
     }
@@ -176,6 +180,7 @@ public final class PostgresProfileImageMetadataAdapter implements ProfileImageMe
             throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
                 UPDATE chat.profile_image_object SET cleanup_requested_at = NULL,
+                    delete_claim_id = NULL, delete_claimed_at = NULL,
                     delete_confirmed_at = NULL WHERE object_key = ?
                 """)) {
             statement.setString(1, objectKey); requireOne(statement, "profile object revival");

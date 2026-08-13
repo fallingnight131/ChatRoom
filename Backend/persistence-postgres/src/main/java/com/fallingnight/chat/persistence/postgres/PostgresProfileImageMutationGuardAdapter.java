@@ -56,6 +56,7 @@ public final class PostgresProfileImageMutationGuardAdapter
                         UPDATE chat.profile_image_object object
                         SET cleanup_requested_at = COALESCE(
                                 object.cleanup_requested_at, transaction_timestamp()),
+                            delete_claim_id = NULL, delete_claimed_at = NULL,
                             delete_confirmed_at = NULL
                         WHERE object.object_key = ?
                           AND NOT EXISTS (

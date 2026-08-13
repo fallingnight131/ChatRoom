@@ -39,6 +39,11 @@ exceed the bounded provider timeout; token checks and idempotent delete make the
 result recoverable. Content reuse during an active claim receives a retryable
 failure rather than risking a referenced object deletion.
 
+As of 2026-08-13, V041, the bounded application cleanup pass, and the PostgreSQL
+claim/release/confirm adapter are implemented and exercised against a clean,
+restarted real PostgreSQL database. The provider deletion adapter and runtime
+worker composition remain inactive gates.
+
 ## Verification
 
 - migrate V040 data forward and validate the claim-pair constraint;

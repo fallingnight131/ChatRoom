@@ -784,6 +784,10 @@ Progress:
       inactive bounded claim-delete-confirm application service with stale-claim
       recovery, exact tokens, provider-failure release, and real PostgreSQL
       migration/constraint verification.
+    - [x] Add PostgreSQL cleanup claiming with bounded `SKIP LOCKED` batches,
+      stale-token replacement, exact release/confirmation, reference exclusion,
+      active-claim pointer rejection, and confirmed-object revival; verify the
+      complete lifecycle against real PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-

@@ -61,6 +61,8 @@ the S3 create-only write adapter and strict detached V1 upload handler are
 implemented but still lack real-provider evidence. Historical import and
 restart recovery also remain activation gates.
 
+Cleanup claim concurrency and confirmed-object revival follow ADR-0319.
+
 ## Verification
 
 - application tests cover owned byte limits, canonical PNG/dimension/digest
