@@ -790,6 +790,11 @@ mentions/reply metadata, persists before network dispatch, and reuses the same
 destination client message ID on retry. Authoritative history replaces the
 preview and suppresses an ACK-lost replay. A failed cache write prevents
 dispatch.
+The Web preview source also contains a keyboard-native, labelled target dialog,
+an explicit server-authority/privacy explanation, a forwarded marker, and
+failure/retry feedback. Both the action and its entry point are guarded by the
+application's default-false forwarding option; production Web composition does
+not set it yet.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

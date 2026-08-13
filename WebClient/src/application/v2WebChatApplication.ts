@@ -217,6 +217,7 @@ export interface V2WebChatSnapshot {
   revokingDeviceId: string | null;
   deviceFailure: string;
   lastFailure: string;
+  forwardingEnabled: boolean;
 }
 
 export interface V2WebChatApplicationOptions {
@@ -225,6 +226,7 @@ export interface V2WebChatApplicationOptions {
   createClientMessageId?: () => string;
   now?: () => number;
   onChange?: (snapshot: V2WebChatSnapshot) => void;
+  enableMessageForwarding?: boolean;
 }
 
 type ConversationState = {
@@ -250,6 +252,7 @@ export class V2WebChatApplication {
   private readonly createClientMessageId: () => string;
   private readonly now: () => number;
   private readonly onChange?: (snapshot: V2WebChatSnapshot) => void;
+  private readonly enableMessageForwarding: boolean;
   private readonly observers = new Set<(snapshot: V2WebChatSnapshot) => void>();
   private readonly conversations = new Map<string, ConversationState>();
   private readonly participants = new Map<string, ParticipantState>();
@@ -281,6 +284,7 @@ export class V2WebChatApplication {
     this.createClientMessageId = options.createClientMessageId ?? (() => crypto.randomUUID());
     this.now = options.now ?? Date.now;
     this.onChange = options.onChange;
+    this.enableMessageForwarding = options.enableMessageForwarding === true;
     this.connectionStateValue = this.transport.state;
     this.unsubscribeTransport = this.transport.subscribe({
       onStateChange: (state) => this.handleTransportState(state),
@@ -316,6 +320,7 @@ export class V2WebChatApplication {
       revokingDeviceId: this.revokingDeviceIdValue,
       deviceFailure: this.deviceFailureValue,
       lastFailure: this.lastFailureValue,
+      forwardingEnabled: this.enableMessageForwarding,
     };
   }
 
@@ -494,6 +499,7 @@ export class V2WebChatApplication {
     targetConversationId: string,
   ): Promise<V2ConversationCacheMessage> {
     this.requireActive();
+    if (!this.enableMessageForwarding) throw new Error("message forwarding is not enabled");
     const session = this.sessionValue;
     const sourceConversationId = this.activeConversationIdValue;
     if (!session || !sourceConversationId) throw new Error("no active V2 conversation");

@@ -494,6 +494,7 @@ test("persists a privacy-bounded forward before dispatch and converges authorita
   const application = new V2WebChatApplication({
     transport,
     cache,
+    enableMessageForwarding: true,
     createClientMessageId: () => "forward-client-1",
     now: () => NOW,
   });
@@ -548,6 +549,23 @@ test("persists a privacy-bounded forward before dispatch and converges authorita
   application.dispose();
 });
 
+test("keeps the application forwarding action default-off", async () => {
+  const transport = new FakeTransport();
+  const cache = new FakeCache();
+  cache.records.set(`${ACCOUNT_ID}:${CONVERSATION_ID}`, {
+    messages: [cachedMessage({ sequence: "1" })], cursorSequence: "1",
+  });
+  const application = new V2WebChatApplication({ transport, cache });
+  establish(transport);
+  directoryWithForwardTarget(transport);
+  await application.openConversation(CONVERSATION_ID);
+  assert.equal(application.snapshot.forwardingEnabled, false);
+  await assert.rejects(application.forwardMessage(MESSAGE_ID, SECOND_CONVERSATION_ID),
+    /not enabled/);
+  assert.equal(transport.calls.some((call) => call[0] === "forward"), false);
+  application.dispose();
+});
+
 test("does not dispatch a forward when its durable outbox write is unavailable", async () => {
   const transport = new FakeTransport();
   const cache = new FakeCache();
@@ -555,6 +573,7 @@ test("does not dispatch a forward when its durable outbox write is unavailable",
     messages: [cachedMessage({ sequence: "1" })], cursorSequence: "1",
   });
   const application = new V2WebChatApplication({ transport, cache,
+    enableMessageForwarding: true,
     createClientMessageId: () => "forward-cache-failure" });
   establish(transport);
   directoryWithForwardTarget(transport);

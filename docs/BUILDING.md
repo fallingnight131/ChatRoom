@@ -1345,6 +1345,13 @@ bounded stable-client-ID message replay. Authoritative history reconciles an
 ACK-lost command and removes the pointer; cache-write failure prevents network
 dispatch. Product runtime, destination picker, accessible presentation, and
 capability activation remain separate gates.
+The Web preview now includes a modal target-conversation list with native
+buttons, labelled/ described dialog semantics, Escape/backdrop close, initial
+close-button focus, a server-authority privacy explanation, a visible
+`forwarded` marker, and existing message retry feedback. The application
+snapshot hides this entry point unless its explicit default-false forwarding
+option is enabled. `v2ForwardUi.test.mjs` locks the accessibility/source gate
+and confirms the product runtime has not activated capability 5.
 The application participant directory returns either a validated page or one
 fixed authorization rejection. Its PostgreSQL adapter first proves that the
 requester is an enabled active member, then pages enabled active participants

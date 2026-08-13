@@ -1601,6 +1601,9 @@ Progress:
     - [x] Add the default-off Web application forward outbox with target-cache
       hydration, persist-before-send, stable retry identity, optimistic target
       presentation, and ACK-lost convergence through authoritative history.
+    - [x] Add a default-off accessible Web target-conversation dialog,
+      server-authority/privacy copy, forwarded presentation, retry feedback,
+      and an application-level activation guard.
 
 Candidate slices:
 

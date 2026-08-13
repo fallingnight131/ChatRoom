@@ -78,6 +78,7 @@
                 :class="['message-row', { mine: message.senderAccountId === snapshot.session.accountId, pinned: message.pinned }]">
               <div class="bubble">
                 <span v-if="message.pinned" class="pin-badge" role="status">已置顶</span>
+                <span v-if="message.forwarded" class="forwarded-badge">已转发</span>
                 <div v-if="message.reply" class="reply-reference"
                      :aria-label="`回复：${replyPreview(message)}`">
                   <strong>回复</strong>
@@ -156,6 +157,10 @@
                 </button>
                 <button v-if="canEdit(message)" class="edit-link" type="button"
                         @click="startEdit(message)">编辑</button>
+                <button v-if="snapshot.forwardingEnabled && message.deliveryState === 'accepted'
+                              && message.availability === 'available'"
+                        class="forward-link" type="button" aria-haspopup="dialog"
+                        @click="openForwardPicker(message)">转发</button>
                 <button v-if="message.deliveryState === 'failed'" class="retry-link" type="button"
                         @click="retryMessage(message.clientMessageId)">
                   重试
@@ -203,6 +208,31 @@
             <button v-if="snapshot.participantsHasMore" class="btn btn-text" type="button"
                     @click="loadMoreParticipants">加载更多成员</button>
           </section>
+          <div v-if="forwardSource" class="dialog-backdrop" @click.self="closeForwardPicker"
+               @keydown.esc="closeForwardPicker">
+            <section class="forward-dialog" role="dialog" aria-modal="true"
+                     aria-labelledby="forward-dialog-title"
+                     aria-describedby="forward-dialog-description">
+              <header>
+                <div>
+                  <h2 id="forward-dialog-title">转发到会话</h2>
+                  <p id="forward-dialog-description">服务器会复制最新的消息内容，不会暴露来源会话。</p>
+                </div>
+                <button ref="forwardCloseButton" class="icon-button" type="button"
+                        aria-label="关闭转发目标选择" @click="closeForwardPicker">×</button>
+              </header>
+              <ul role="listbox" aria-label="转发目标会话" :aria-busy="forwardPending">
+                <li v-for="conversation in snapshot.directory" :key="conversation.conversationId">
+                  <button type="button" role="option" :disabled="forwardPending"
+                          @click="chooseForwardTarget(conversation)">
+                    <strong>{{ conversation.displayName }}</strong>
+                    <span>{{ conversation.kind === 'direct' ? '私聊' : '群聊' }}</span>
+                  </button>
+                </li>
+              </ul>
+              <p v-if="forwardPending" role="status">正在保存并转发…</p>
+            </section>
+          </div>
         </template>
         <p v-if="actionError" class="action-error" role="alert">{{ actionError }}</p>
       </section>
@@ -282,6 +312,9 @@ const editDraft = ref('')
 const draftMentionAnchors = ref([])
 const editMentionAnchors = ref([])
 const mentionPickerMode = ref(null)
+const forwardSource = ref(null)
+const forwardPending = ref(false)
+const forwardCloseButton = ref(null)
 const authenticationPending = ref(false)
 const devicesOpen = ref(false)
 const confirmingDeviceId = ref(null)
@@ -291,7 +324,8 @@ const snapshot = ref({
   activeConversationId: null, messages: [], reactionCommands: [], pinCommands: [], editCommands: [],
   participants: [], participantsLoading: false, participantsHasMore: false, participantFailure: '',
   historyLoading: false, devices: [],
-  devicesLoading: false, revokingDeviceId: null, deviceFailure: '', lastFailure: ''
+  devicesLoading: false, revokingDeviceId: null, deviceFailure: '', lastFailure: '',
+  forwardingEnabled: false
 })
 let unsubscribe = null
 let startedApplication = null
@@ -356,6 +390,7 @@ async function openConversation(conversationId) {
   replyTarget.value = null
   cancelEdit()
   closeMentionPicker()
+  closeForwardPicker()
   draftMentionAnchors.value = []
   try { await runtimeRef.value.application.openConversation(conversationId) }
   catch (error) { actionError.value = error instanceof Error ? error.message : '无法打开会话' }
@@ -408,6 +443,39 @@ function retryMessage(clientMessageId) {
     if (!runtimeRef.value.application.retryMessage(clientMessageId)) actionError.value = '该消息暂时无法重试'
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : '消息重试失败'
+  }
+}
+
+function openForwardPicker(message) {
+  if (!snapshot.value.forwardingEnabled || !message?.id
+      || message.deliveryState !== 'accepted' || message.availability !== 'available') return
+  forwardSource.value = { id: message.id, content: message.content }
+  forwardPending.value = false
+  nextTick(() => forwardCloseButton.value?.focus())
+}
+
+function closeForwardPicker() {
+  if (forwardPending.value) return
+  forwardSource.value = null
+}
+
+async function chooseForwardTarget(conversation) {
+  if (!forwardSource.value || forwardPending.value) return
+  actionError.value = ''
+  forwardPending.value = true
+  try {
+    const result = await runtimeRef.value.application.forwardMessage(
+      forwardSource.value.id, conversation.conversationId)
+    if (result.deliveryState !== 'sending') {
+      actionError.value = result.errorCode === 'CACHE_UNAVAILABLE'
+        ? '无法保存转发任务，已取消发送'
+        : '转发任务暂未发送，可在目标会话中重试'
+    }
+    forwardPending.value = false
+    forwardSource.value = null
+  } catch (error) {
+    forwardPending.value = false
+    actionError.value = error instanceof Error ? error.message : '转发失败'
   }
 }
 
@@ -674,7 +742,8 @@ onUnmounted(() => {
 .reply-reference span, .composer-reply span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .reply-link { margin-left: 8px; border: 0; color: var(--text-link); background: transparent; cursor: pointer; }
 .edit-link { margin-left: 8px; border: 0; color: var(--text-link); background: transparent; cursor: pointer; }
-.edited-badge { margin-left: 6px; }
+.forward-link { margin-left: 8px; border: 0; color: var(--text-link); background: transparent; cursor: pointer; }
+.edited-badge { margin-left: 6px; }.forwarded-badge { margin-right: 6px; color: var(--accent); font-weight: 600; }
 .edit-form, .edit-state { margin-top: 8px; padding: 8px; display: grid; gap: 8px; border-radius: 8px; background: var(--bg-primary); }
 .edit-form label { font-size: 12px; font-weight: 600; }.edit-form textarea { width: 100%; resize: vertical; }
 .edit-form > div, .edit-state > div { display: flex; align-items: center; gap: 8px; }
@@ -703,6 +772,9 @@ onUnmounted(() => {
 .composer textarea { resize: none; }.empty-state { flex: 1; display: grid; place-content: center; text-align: center; color: var(--text-secondary); }
 .action-error { position: absolute; right: 20px; bottom: 86px; padding: 8px 12px; border-radius: 8px; background: var(--bg-secondary); box-shadow: var(--shadow); }
 .dialog-backdrop { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 48%); }
+.forward-dialog { width: min(480px, 100%); max-height: min(640px, calc(100vh - 40px)); overflow: auto; padding: 20px; border: 1px solid var(--border-color); border-radius: 16px; background: var(--bg-secondary); box-shadow: var(--shadow-lg); }
+.forward-dialog header { display: flex; justify-content: space-between; gap: 16px; }.forward-dialog h2 { font-size: 20px; }.forward-dialog header p { margin-top: 4px; color: var(--text-secondary); font-size: 13px; }
+.forward-dialog ul { margin-top: 14px; max-height: 360px; overflow: auto; list-style: none; }.forward-dialog li button { width: 100%; padding: 12px; display: flex; justify-content: space-between; border: 0; border-radius: 8px; color: var(--text-primary); background: transparent; cursor: pointer; }.forward-dialog li button:hover, .forward-dialog li button:focus-visible { background: var(--bg-hover); }.forward-dialog li button:disabled { opacity: .6; cursor: wait; }.forward-dialog li span { color: var(--text-secondary); }
 .device-dialog { width: min(620px, 100%); max-height: min(720px, calc(100vh - 40px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border-color); border-radius: 16px; background: var(--bg-secondary); box-shadow: var(--shadow-lg); }
 .device-dialog-header { display: flex; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 1px solid var(--border-color); }.device-dialog-header h2 { font-size: 20px; }.device-dialog-header p { margin-top: 4px; color: var(--text-secondary); font-size: 13px; }
 .icon-button { width: 36px; height: 36px; border: 0; border-radius: 8px; color: var(--text-primary); background: transparent; font-size: 24px; cursor: pointer; }.icon-button:hover { background: var(--bg-hover); }
