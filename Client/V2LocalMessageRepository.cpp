@@ -239,10 +239,57 @@ bool V2LocalMessageRepository::applyAccepted(
 
 bool V2LocalMessageRepository::mergeServerMessage(
         const QString &accountId, const Message &message, qint64 cursor) {
-    if (!canonicalUuid(accountId) || !validAccepted(message) || cursor < message.conversationSequence)
-        return fail(QStringLiteral("mergeServerMessage"), QStringLiteral("invalid server message"));
-    if (!m_database.transaction()) return fail(QStringLiteral("mergeServerMessage"), m_database.lastError().text());
-    if (!ensureConversation(accountId, message.conversationId, cursor)) { m_database.rollback(); return false; }
+    return mergeServerPage(accountId, message.conversationId, {message}, cursor);
+}
+
+bool V2LocalMessageRepository::mergeServerPage(
+        const QString &accountId, const QString &conversationId,
+        const QList<Message> &messages, qint64 nextCursor) {
+    if (!canonicalUuid(accountId) || !canonicalUuid(conversationId) || nextCursor < 0)
+        return fail(QStringLiteral("mergeServerPage"), QStringLiteral("invalid page identity"));
+    qint64 previous = 0;
+    for (const auto &message : messages) {
+        if (!validAccepted(message) || message.conversationId != conversationId
+                || message.conversationSequence <= previous
+                || message.conversationSequence > nextCursor)
+            return fail(QStringLiteral("mergeServerPage"), QStringLiteral("invalid ordered page"));
+        previous = message.conversationSequence;
+    }
+    if (!m_database.transaction())
+        return fail(QStringLiteral("mergeServerPage"), m_database.lastError().text());
+    if (!ensureConversation(accountId, conversationId, nextCursor)) {
+        m_database.rollback(); return false;
+    }
+    for (const auto &message : messages) {
+        QSqlQuery remove(m_database);
+        remove.prepare(QStringLiteral(
+            "DELETE FROM v2_messages WHERE account_id = ? AND (message_id = ? OR "
+            "(conversation_id = ? AND client_message_id = ?))"));
+        remove.addBindValue(accountId); remove.addBindValue(message.messageId);
+        remove.addBindValue(conversationId); remove.addBindValue(message.clientMessageId);
+        if (!remove.exec()) {
+            m_database.rollback();
+            return fail(QStringLiteral("mergeServerPage"), remove.lastError().text());
+        }
+        if (!insertMessage(accountId, message)) { m_database.rollback(); return false; }
+    }
+    if (!pruneAccepted(accountId, conversationId)) { m_database.rollback(); return false; }
+    if (!m_database.commit()) {
+        m_database.rollback();
+        return fail(QStringLiteral("mergeServerPage"), m_database.lastError().text());
+    }
+    m_lastError.clear(); return true;
+}
+
+bool V2LocalMessageRepository::mergeLiveMessage(
+        const QString &accountId, const Message &message) {
+    if (!canonicalUuid(accountId) || !validAccepted(message))
+        return fail(QStringLiteral("mergeLiveMessage"), QStringLiteral("invalid live message"));
+    if (!m_database.transaction())
+        return fail(QStringLiteral("mergeLiveMessage"), m_database.lastError().text());
+    if (!ensureConversation(accountId, message.conversationId, 0)) {
+        m_database.rollback(); return false;
+    }
     QSqlQuery remove(m_database);
     remove.prepare(QStringLiteral(
         "DELETE FROM v2_messages WHERE account_id = ? AND (message_id = ? OR "
@@ -251,7 +298,7 @@ bool V2LocalMessageRepository::mergeServerMessage(
     remove.addBindValue(message.conversationId); remove.addBindValue(message.clientMessageId);
     if (!remove.exec()) {
         m_database.rollback();
-        return fail(QStringLiteral("mergeServerMessage"), remove.lastError().text());
+        return fail(QStringLiteral("mergeLiveMessage"), remove.lastError().text());
     }
     if (!insertMessage(accountId, message)
             || !pruneAccepted(accountId, message.conversationId)) {
@@ -259,7 +306,7 @@ bool V2LocalMessageRepository::mergeServerMessage(
     }
     if (!m_database.commit()) {
         m_database.rollback();
-        return fail(QStringLiteral("mergeServerMessage"), m_database.lastError().text());
+        return fail(QStringLiteral("mergeLiveMessage"), m_database.lastError().text());
     }
     m_lastError.clear(); return true;
 }

@@ -138,6 +138,31 @@ int main(int argc, char *argv[]) {
                     QStringLiteral("history merge did not advance cursor"))
                 || !check(repository.loadSnapshot(bob, conversation).messages.size() == 1,
                     QStringLiteral("history merge crossed account boundary"))) return 1;
+
+        if (!check(repository.mergeServerPage(alice, conversation, {}, 10),
+                   repository.lastError())
+                || !check(repository.loadSnapshot(alice, conversation).cursor == 10,
+                    QStringLiteral("mutation-only page did not advance cursor"))) return 1;
+        auto live = authoritative;
+        live.messageId = QStringLiteral("60000000-0000-4000-8000-000000000002");
+        live.clientMessageId = QStringLiteral("remote-live-1");
+        live.conversationSequence = 11;
+        live.acceptedAtEpochMs = 1400;
+        live.createdAtEpochMs = 1400;
+        if (!check(repository.mergeLiveMessage(alice, live), repository.lastError())) return 1;
+        const auto afterLive = repository.loadSnapshot(alice, conversation);
+        if (!check(afterLive.messages.size() == 2 && afterLive.cursor == 10,
+                   QStringLiteral("live message incorrectly advanced history cursor"))) return 1;
+
+        auto invalidSecond = live;
+        invalidSecond.messageId = QStringLiteral("60000000-0000-4000-8000-000000000003");
+        invalidSecond.clientMessageId = QStringLiteral("remote-invalid-order");
+        invalidSecond.conversationSequence = 10;
+        if (!check(!repository.mergeServerPage(
+                       alice, conversation, {live, invalidSecond}, 11),
+                   QStringLiteral("unordered history page was accepted"))
+                || !check(repository.loadSnapshot(alice, conversation).cursor == 10,
+                    QStringLiteral("rejected page changed durable cursor"))) return 1;
     }
 
     const auto schema = columns(path);

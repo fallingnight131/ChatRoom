@@ -52,6 +52,9 @@ public:
                        qint64 conversationSequence, qint64 acceptedAtEpochMs);
     bool mergeServerMessage(const QString &accountId, const Message &message,
                             qint64 cursor);
+    bool mergeServerPage(const QString &accountId, const QString &conversationId,
+                         const QList<Message> &messages, qint64 nextCursor);
+    bool mergeLiveMessage(const QString &accountId, const Message &message);
     bool saveDraft(const QString &accountId, const QString &conversationId,
                    const QString &draft);
     Snapshot loadSnapshot(const QString &accountId, const QString &conversationId);

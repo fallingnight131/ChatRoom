@@ -1264,7 +1264,8 @@ SQLite, Widgets, or the product gate (ADR-0331).
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic
-cursors, explicit failed-versus-pending replay state, and the absence of copied
+cursors, atomic mutation-only history pages, live events that do not hide sync
+gaps, explicit failed-versus-pending replay state, and the absence of copied
 quote-body columns. This does not migrate or modify the V1 local database, and
 the repository remains detached from product UI/transport (ADR-0332).
 Gateway tests separately verify authenticated server-bound identity,

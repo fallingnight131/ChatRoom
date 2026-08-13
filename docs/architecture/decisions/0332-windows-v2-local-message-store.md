@@ -22,6 +22,9 @@ serialization and make rollback harder.
   account, conversation, and client message ID. Store delivery state as pending,
   failed, or accepted; reconcile ACKs into the same row and merge authoritative
   history/live records by client or server message identity.
+- Apply each history page and its continuation cursor in one SQLite transaction,
+  including mutation-only pages. Merge live events without advancing the durable
+  history cursor so a stream gap is still repaired by the next history read.
 - Persist only reply target message UUID, target sequence, and target sender
   account UUID. Never persist a copied quote body or transient transport data.
 - Preserve failed intent for explicit user retry, but replay only pending rows.
@@ -48,7 +51,8 @@ The Qt and CMake repository test covers restart recovery, UTF-8 text, drafts,
 reply identity, idempotency conflict, sender spoofing denial, account isolation,
 failure/retry selection, ACK reconciliation, no accepted-state downgrade,
 authoritative merge, monotonic cursors, absence of copied quote columns, and
-future-schema rejection.
+future-schema rejection. It also covers atomic rejection of an unordered page,
+mutation-only cursor advancement, and live-event merge without cursor movement.
 
 ## Rollback
 
