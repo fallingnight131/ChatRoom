@@ -719,8 +719,10 @@ Progress:
     canonical soft closure, durable attachment cleanup, exact retry identity,
     and post-commit first-only compatibility effects.
   - [x] Implement serializable PostgreSQL room dissolution and cleanup marking.
-  - [ ] Add and compose the strict detached `DELETE_ROOM_REQ` handler, then
-    prove first-only effects and replacement-login absence through PostgreSQL.
+  - [x] Add the strict detached `DELETE_ROOM_REQ` handler with authoritative
+    naming, post-commit first-only effects, malformed closure, and saturation.
+  - [ ] Compose room dissolution and prove first-only effects plus
+    replacement-login absence through real PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
