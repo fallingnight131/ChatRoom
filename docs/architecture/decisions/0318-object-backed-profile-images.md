@@ -62,6 +62,9 @@ implemented but still lack real-provider evidence. Historical import and
 restart recovery also remain activation gates.
 
 Cleanup claim concurrency and confirmed-object revival follow ADR-0319.
+The guarded real-provider procedure is documented in
+`docs/deployment/PROFILE_IMAGE_OBJECT_STORAGE_ACCEPTANCE.md`; implementation of
+that probe is not acceptance evidence.
 
 ## Verification
 

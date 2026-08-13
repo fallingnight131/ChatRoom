@@ -26,3 +26,10 @@ tasks.register<JavaExec>("probeAttachmentStorage") {
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass = "com.fallingnight.chat.storage.s3.S3AttachmentCapabilityProbeMain"
 }
+
+tasks.register<JavaExec>("probeProfileImageStorage") {
+    group = "verification"
+    description = "Runs the explicitly confirmed, auto-cleaning profile-image provider probe"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass = "com.fallingnight.chat.storage.s3.S3ProfileImageCapabilityProbeMain"
+}

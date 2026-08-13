@@ -21,14 +21,21 @@ public final class S3AttachmentObjectStoreRuntime
     private final S3Client client;
     private final S3Presigner presigner;
     private final S3AttachmentObjectStore delegate;
+    private final S3ProfileImageObjectWriter profileImageWriter;
+    private final S3ProfileImageObjectReader profileImageReader;
+    private final S3ProfileImageObjectDeleter profileImageDeleter;
 
     private S3AttachmentObjectStoreRuntime(
             S3Client client,
             S3Presigner presigner,
-            S3AttachmentObjectStore delegate) {
+            S3AttachmentObjectStore delegate,
+            String bucket) {
         this.client = client;
         this.presigner = presigner;
         this.delegate = delegate;
+        this.profileImageWriter = new S3ProfileImageObjectWriter(client, bucket);
+        this.profileImageReader = new S3ProfileImageObjectReader(client, bucket);
+        this.profileImageDeleter = new S3ProfileImageObjectDeleter(client, bucket);
     }
 
     public static S3AttachmentObjectStoreRuntime open(
@@ -58,7 +65,8 @@ public final class S3AttachmentObjectStoreRuntime
             return new S3AttachmentObjectStoreRuntime(
                     client, presigner,
                     new S3AttachmentObjectStore(
-                            client, presigner, config.bucket(), clock));
+                            client, presigner, config.bucket(), clock),
+                    config.bucket());
         } catch (RuntimeException exception) {
             client.close();
             throw exception;
@@ -81,6 +89,10 @@ public final class S3AttachmentObjectStoreRuntime
     public void deleteIfPresent(String objectKey) {
         delegate.deleteIfPresent(objectKey);
     }
+
+    public S3ProfileImageObjectWriter profileImageWriter() { return profileImageWriter; }
+    public S3ProfileImageObjectReader profileImageReader() { return profileImageReader; }
+    public S3ProfileImageObjectDeleter profileImageDeleter() { return profileImageDeleter; }
 
     @Override
     public void close() {

@@ -40,15 +40,16 @@ yet because the V1 compatibility route remains detached.
 
 ## Inactive attachment object-storage values
 
-The isolated `object-storage-s3` module validates the following non-secret
-values, but `GatewayRuntimeConfig` and `GatewayMain` do not read them yet. Setting
-them does not enable uploads or make a provider request.
+The isolated `object-storage-s3` module validates the following shared private-
+store non-secret values for attachments and profile images, but
+`GatewayRuntimeConfig` and `GatewayMain` do not read them yet. Setting them does
+not enable uploads or make a provider request.
 
 | Variable | Meaning |
 | --- | --- |
 | `CHATROOM_ATTACHMENT_S3_ENDPOINT` | explicit HTTPS origin; no user info, query, fragment, or path |
 | `CHATROOM_ATTACHMENT_S3_REGION` | bounded S3 signing region |
-| `CHATROOM_ATTACHMENT_S3_BUCKET` | private attachment bucket |
+| `CHATROOM_ATTACHMENT_S3_BUCKET` | private attachment/profile-image bucket |
 | `CHATROOM_ATTACHMENT_S3_PATH_STYLE` | optional exact `true` or `false`; defaults to `false` |
 
 Credentials are deliberately not parsed into this configuration. A future
@@ -60,6 +61,11 @@ The guarded operator probe and its additional explicit confirmation values are
 documented in `ATTACHMENT_OBJECT_STORAGE_ACCEPTANCE.md`. It may deliberately use
 the standard credential chain for a temporary non-production test identity;
 that exception does not change the production composition rule.
+
+The separate profile-image PUT/retry/GET/DELETE probe reuses these inactive
+values and is documented in `PROFILE_IMAGE_OBJECT_STORAGE_ACCEPTANCE.md`. Its
+explicit destructive confirmation is independent from the attachment/CORS
+probe, and neither command is run by ordinary builds or CI.
 
 ## Bounded defaults
 

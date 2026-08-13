@@ -794,6 +794,12 @@ Progress:
     - [x] Add an explicitly started, non-overlapping inactive cleanup loop with
       fixed-cardinality counters, capped exponential failure backoff, recovery
       reset, and clean cancellation; do not compose it before provider evidence.
+    - [x] Add a separately confirmed, auto-cleaning real-provider profile-image
+      probe for fresh create-only PUT, exact retry, checksum-bound GET, DELETE,
+      and final absence, with secret-safe output and a non-production runbook.
+    - [ ] Retain dated profile-image provider PASS, policy, lifecycle,
+      no-object-remains, lease/timeout, rollback, and restart evidence; this
+      destructive probe has not run in repository CI or this development host.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
