@@ -752,6 +752,9 @@ Progress:
   - [ ] Implement and compose the bounded avatar inspector, object lifecycle,
     PostgreSQL metadata/import, strict V1 handlers, and restart recovery after
     the real-provider capability gate passes.
+    - [x] Add V040 metadata-only content-addressed object registration, versioned
+      account/group pointers, non-byte audit, complete room audiences, shared-
+      reference-aware cleanup intent, and real PostgreSQL verification.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-

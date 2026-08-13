@@ -33,6 +33,10 @@ not server truth.
 | `identity_import_run` | non-secret proof and reconciled counts for each committed V1 identity apply |
 | `account_display_name_change_audit` | non-secret old/new display-name audit for committed profile mutations |
 | `account_username_change_audit` | non-secret old/new login-name audit and exact-retry proof |
+| `profile_image_object` | content-addressed private avatar object evidence and cleanup state; no bytes or public URL |
+| `account_profile_image` | versioned current avatar metadata pointer for an account |
+| `group_profile_image` | versioned current avatar metadata pointer for a GROUP |
+| `profile_image_change_audit` | non-byte account/group avatar replacement audit |
 | `legacy_v1_account_map` | temporary one-to-one V1 numeric ID to V2 account UUID compatibility projection |
 | `legacy_v1_conversation_map` | typed one-to-one V1 room/friendship ID to V2 conversation UUID projection |
 | `legacy_v1_message_map` | typed retained V1 message ID to V2 message UUID projection |
@@ -76,6 +80,17 @@ key. A same-as-current request succeeds only when the latest audit proves it is
 an exact retry. V039 widens only the audited source-name constraint so bounded
 pre-policy imported names can converge to the current `[A-Za-z0-9_]{6,20}`
 destination policy; it does not weaken new-name validation.
+
+V040 adds metadata-only object-backed profile images. The database constrains
+every key to `avatars/sha256/<exact digest>.png`, caps size/dimensions, and keeps
+versioned account/GROUP current pointers plus non-byte change audit. A
+serializable adapter rechecks enabled mapped account ownership or active room
+administration, suppresses exact-object retries, returns complete mapped room
+peer effect intent, and marks a replaced object for cleanup only when neither
+an account nor group pointer still references it. Missing V1 room mappings roll
+back object registration, pointer, audit, and cleanup intent together. Actual
+object upload/read/delete and V1 transport composition remain inactive behind
+the real-provider capability gate.
 
 V004 adds the server-owned group title and an active-membership directory index.
 Any pre-product group row is assigned a deterministic placeholder before the
@@ -511,7 +526,7 @@ unless its schema compatibility was verified.
 ## Verification
 
 `python3 tools/verify_m0.py --postgres` starts a disposable local PostgreSQL
-cluster, migrates a clean database through current V039, reruns migration as a simulated
+cluster, migrates a clean database through current V040, reruns migration as a simulated
 restart,
 validates checksums/table shape, and tests atomic sequence/entry allocation plus both
 unique conflict paths. It also races exact adapter submissions, proves stable

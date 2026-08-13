@@ -93,6 +93,10 @@ import com.fallingnight.chat.application.messaging.ConversationHistoryEntry;
 import com.fallingnight.chat.application.messaging.MessageSubmission;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.application.security.SecretBytes;
+import com.fallingnight.chat.application.profile.ProfileImageMetadataCommand;
+import com.fallingnight.chat.application.profile.ProfileImageMetadataResult;
+import com.fallingnight.chat.application.profile.ProfileImageObjectEvidence;
+import com.fallingnight.chat.application.profile.ProfileImageTarget;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ConversationImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ContactRequestImporter;
@@ -178,7 +182,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(39, first.migrate());
+        assertEquals(40, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -204,7 +208,9 @@ class PostgresMigratorTest {
                             "legacy_v1_room_dissolution", "account_password_change_audit",
                             "legacy_v1_registration_audit",
                             "account_display_name_change_audit",
-                            "account_username_change_audit"),
+                            "account_username_change_audit", "profile_image_object",
+                            "account_profile_image", "group_profile_image",
+                            "profile_image_change_audit"),
                     applicationTables(connection));
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
@@ -1857,6 +1863,112 @@ class PostgresMigratorTest {
         assertEquals(1, count("SELECT count(*) FROM chat.account_username_change_audit "
                 + "WHERE account_id = '" + owner + "' AND old_username = 'olduser' "
                 + "AND new_username = 'newuser'"));
+    }
+
+    @Test
+    @Order(93)
+    void commitsMetadataOnlyProfileImagesWithAuthorizationAndCleanupIntent()
+            throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID owner = UUID.randomUUID(), member = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'avatar_owner', 'Avatar Owner', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'avatar_member', 'Avatar Member', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')", owner, member);
+            execute(connection, "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, "
+                    + "account_id) VALUES (217, ?), (218, ?)", owner, member);
+        }
+        LegacyV1RoomCreationResult.Created room = (LegacyV1RoomCreationResult.Created)
+                new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
+                        new LegacyV1RoomCreationIntent(owner, "avatar-room", "Avatar Room",
+                                java.util.Optional.empty()));
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
+                    + "account_id, role) VALUES (?, ?, 'MEMBER')",
+                    room.conversationId(), member);
+        }
+        var adapter = new PostgresProfileImageMetadataAdapter(dataSource());
+        ProfileImageObjectEvidence firstObject = profileImageEvidence(1, 9);
+        ProfileImageMetadataResult.Committed first = assertInstanceOf(
+                ProfileImageMetadataResult.Committed.class,
+                adapter.commit(new ProfileImageMetadataCommand(
+                        new ProfileImageTarget.Account(owner), firstObject, 256, 256)));
+        assertTrue(first.changed()); assertEquals(1, first.version());
+        assertTrue(first.cleanupObjectKey().isEmpty()); assertTrue(first.roomPeerAccountIds().isEmpty());
+
+        ProfileImageMetadataResult.Committed retry = assertInstanceOf(
+                ProfileImageMetadataResult.Committed.class,
+                adapter.commit(new ProfileImageMetadataCommand(
+                        new ProfileImageTarget.Account(owner), firstObject, 256, 256)));
+        assertFalse(retry.changed()); assertEquals(first.updatedAt(), retry.updatedAt());
+        assertEquals(1, count("SELECT count(*) FROM chat.profile_image_change_audit "
+                + "WHERE target_account_id = '" + owner + "'"));
+        assertEquals(ProfileImageMetadataResult.Rejected.OBJECT_EVIDENCE_CONFLICT,
+                adapter.commit(new ProfileImageMetadataCommand(
+                        new ProfileImageTarget.Account(owner),
+                        new ProfileImageObjectEvidence(firstObject.objectKey(), 10,
+                                firstObject.contentSha256(), "image/png"), 256, 256)));
+
+        ProfileImageObjectEvidence shared = profileImageEvidence(2, 10);
+        ProfileImageMetadataResult.Committed replacement = assertInstanceOf(
+                ProfileImageMetadataResult.Committed.class,
+                adapter.commit(new ProfileImageMetadataCommand(
+                        new ProfileImageTarget.Account(owner), shared, 128, 128)));
+        assertEquals(2, replacement.version());
+        assertEquals(java.util.Optional.of(firstObject.objectKey()),
+                replacement.cleanupObjectKey());
+        assertEquals(1, count("SELECT count(*) FROM chat.profile_image_object WHERE object_key = '"
+                + firstObject.objectKey() + "' AND cleanup_requested_at IS NOT NULL "
+                + "AND delete_confirmed_at IS NULL"));
+
+        assertEquals(ProfileImageMetadataResult.Rejected.ROOM_ADMIN_REQUIRED,
+                adapter.commit(new ProfileImageMetadataCommand(
+                        new ProfileImageTarget.LegacyRoom(member, room.legacyRoomId()),
+                        shared, 128, 128)));
+        ProfileImageMetadataResult.Committed roomFirst = assertInstanceOf(
+                ProfileImageMetadataResult.Committed.class,
+                adapter.commit(new ProfileImageMetadataCommand(
+                        new ProfileImageTarget.LegacyRoom(owner, room.legacyRoomId()),
+                        shared, 128, 128)));
+        assertTrue(roomFirst.changed()); assertEquals(Set.of(member), roomFirst.roomPeerAccountIds());
+
+        ProfileImageObjectEvidence roomReplacement = profileImageEvidence(3, 11);
+        ProfileImageMetadataResult.Committed roomChanged = assertInstanceOf(
+                ProfileImageMetadataResult.Committed.class,
+                adapter.commit(new ProfileImageMetadataCommand(
+                        new ProfileImageTarget.LegacyRoom(owner, room.legacyRoomId()),
+                        roomReplacement, 64, 64)));
+        assertTrue(roomChanged.cleanupObjectKey().isEmpty());
+        assertEquals(2, roomChanged.version());
+        assertEquals(0, count("SELECT count(*) FROM chat.profile_image_object WHERE object_key = '"
+                + shared.objectKey() + "' AND cleanup_requested_at IS NOT NULL"));
+
+        UUID unmapped = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'avatar_unmapped', 'Unmapped', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')", unmapped);
+            execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
+                    + "account_id, role) VALUES (?, ?, 'MEMBER')",
+                    room.conversationId(), unmapped);
+        }
+        ProfileImageObjectEvidence blocked = profileImageEvidence(4, 12);
+        assertThrows(ConversationPersistenceException.class, () -> adapter.commit(
+                new ProfileImageMetadataCommand(
+                        new ProfileImageTarget.LegacyRoom(owner, room.legacyRoomId()),
+                        blocked, 32, 32)));
+        assertEquals(0, count("SELECT count(*) FROM chat.profile_image_object WHERE object_key = '"
+                + blocked.objectKey() + "'"));
+        assertEquals(1, count("SELECT count(*) FROM chat.group_profile_image WHERE "
+                + "conversation_id = '" + room.conversationId() + "' AND version = 2"));
+    }
+
+    private static ProfileImageObjectEvidence profileImageEvidence(int marker, long size) {
+        byte[] digest = new byte[32]; digest[31] = (byte) marker;
+        return new ProfileImageObjectEvidence(ProfileImageObjectEvidence.objectKey(digest),
+                size, digest, "image/png");
     }
 
     @Test
