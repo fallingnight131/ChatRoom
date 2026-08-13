@@ -1,0 +1,81 @@
+{
+  "benchmark": "java-v2-gateway-messaging",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 4294967296,
+    "os": "Mac OS X",
+    "osVersion": "26.5.2",
+    "peakObservedHeapBytes": 329844144,
+    "processCpuSeconds": 3.927,
+    "scenarioWallSeconds": 1.558,
+    "vm": "OpenJDK 64-Bit Server VM"
+  },
+  "host": {
+    "javaPeakRssBytes": 742391808,
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "postgresPostmasterPeakRssBytes": 24444928,
+    "pythonVersion": "3.9.6"
+  },
+  "recordedAt": "2026-08-13T18:12:59.029678Z",
+  "results": {
+    "completedMessageThroughputPerSecond": 651.982,
+    "connectionSetupLatencyMicros": {
+      "max": 242825,
+      "mean": 104015.2,
+      "min": 78580,
+      "p50": 86512,
+      "p95": 242825,
+      "p99": 242825,
+      "samples": 10
+    },
+    "errors": 0,
+    "peerPublications": 180,
+    "resumeErrors": 0,
+    "sessionResumeLatencyMicros": {
+      "max": 24590,
+      "mean": 16969.0,
+      "min": 12825,
+      "p50": 16006,
+      "p95": 24101,
+      "p99": 24590,
+      "samples": 50
+    },
+    "sessionResumeThroughputPerSecond": 494.5,
+    "submitToAcceptLatencyMicros": {
+      "max": 1576,
+      "mean": 965.8,
+      "min": 706,
+      "p50": 898,
+      "p95": 1563,
+      "p99": 1576,
+      "samples": 20
+    },
+    "submitToAllPeersPublishedLatencyMicros": {
+      "max": 2532,
+      "mean": 1517.7,
+      "min": 1146,
+      "p50": 1383,
+      "p95": 2115,
+      "p99": 2532,
+      "samples": 20
+    }
+  },
+  "scenario": {
+    "connections": 10,
+    "conversationKind": "GROUP",
+    "durableMessages": 25,
+    "messageOperations": 20,
+    "payloadBytes": 256,
+    "receiversPerMessage": 9,
+    "reconnectOperations": 50,
+    "reconnectRounds": 5,
+    "warmupOperations": 5
+  },
+  "schemaVersion": 3,
+  "sourceRevision": "159240cf787c732fcf9aea7358eb8443d510f501",
+  "startedAt": "2026-08-13T18:12:55.987482Z",
+  "warning": "loopback development evidence; not a capacity claim",
+  "worktreeDirty": false
+}

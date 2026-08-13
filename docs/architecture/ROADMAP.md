@@ -1296,6 +1296,8 @@ Progress:
   path, requiring exact session identity, per-round token rotation, exact
   operation counts, and schema-3 zero-error evidence while preserving older
   evidence contracts.
+- [x] Record a clean, commit-exact 10-connection/5-round session-resume baseline
+  without weakening the default direct-peer authentication admission window.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.
