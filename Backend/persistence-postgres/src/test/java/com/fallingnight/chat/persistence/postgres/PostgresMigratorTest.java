@@ -90,6 +90,9 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomFilesPort;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryPage;
 import com.fallingnight.chat.application.conversation.ConversationDirectoryQuery;
 import com.fallingnight.chat.application.conversation.ConversationKind;
+import com.fallingnight.chat.application.conversation.ConversationParticipantPage;
+import com.fallingnight.chat.application.conversation.ConversationParticipantQuery;
+import com.fallingnight.chat.application.conversation.ConversationParticipantResult;
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.MessageMention;
@@ -1001,6 +1004,63 @@ class PostgresMigratorTest {
         disableAccount(account);
         assertTrue(adapter.list(new ConversationDirectoryQuery(
                 account, Optional.empty(), 100)).conversations().isEmpty());
+    }
+
+    @Test
+    @Order(6)
+    void listsOnlyActiveParticipantsForAnActiveRequesterWithStableAccountCursor() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID conversation = UUID.fromString("41000000-0000-4000-8000-000000000001");
+        UUID requester = UUID.fromString("21000000-0000-4000-8000-000000000001");
+        UUID active = UUID.fromString("21000000-0000-4000-8000-000000000002");
+        UUID departed = UUID.fromString("21000000-0000-4000-8000-000000000003");
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, 'participant-requester', 'Alice', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'participant-active', '李', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, 'participant-departed', 'Former', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    requester, active, departed);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind, title) VALUES (?, 'GROUP', 'Team')",
+                    conversation);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id, role) "
+                            + "VALUES (?, ?, 'OWNER'), (?, ?, 'MEMBER'), (?, ?, 'MEMBER')",
+                    conversation, requester, conversation, active, conversation, departed);
+        }
+        leaveConversation(conversation, departed);
+
+        PostgresConversationParticipantAdapter adapter =
+                new PostgresConversationParticipantAdapter(dataSource());
+        ConversationParticipantResult.Found first = assertInstanceOf(
+                ConversationParticipantResult.Found.class,
+                adapter.list(new ConversationParticipantQuery(
+                        conversation, requester, Optional.empty(), 1)));
+        ConversationParticipantPage firstPage = first.page();
+        assertEquals(List.of(requester), firstPage.participants().stream()
+                .map(participant -> participant.accountId()).toList());
+        assertTrue(firstPage.hasMore());
+
+        ConversationParticipantResult.Found second = assertInstanceOf(
+                ConversationParticipantResult.Found.class,
+                adapter.list(new ConversationParticipantQuery(
+                        conversation, requester, firstPage.nextAccountId(), 1)));
+        assertEquals(active, second.page().participants().getFirst().accountId());
+        assertEquals("李", second.page().participants().getFirst().displayName());
+        assertFalse(second.page().hasMore());
+
+        leaveConversation(conversation, requester);
+        assertEquals(ConversationParticipantResult.Rejected.NOT_AUTHORIZED,
+                adapter.list(new ConversationParticipantQuery(
+                        conversation, requester, Optional.empty(), 100)));
+        assertEquals(ConversationParticipantResult.Rejected.NOT_AUTHORIZED,
+                adapter.list(new ConversationParticipantQuery(
+                        conversation, UUID.randomUUID(), Optional.empty(), 100)));
     }
 
     @Test

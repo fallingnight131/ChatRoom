@@ -1298,6 +1298,12 @@ gate require a canonical conversation ID, optional canonical account cursor,
 1..100 bound, ascending unique account IDs, current display-name bounds, roles,
 and a cursor equal to the last row. No runtime handler is registered until the
 authorized PostgreSQL slice passes (ADR-0343).
+The application participant directory returns either a validated page or one
+fixed authorization rejection. Its PostgreSQL adapter first proves that the
+requester is an enabled active member, then pages enabled active participants
+by account ID without a schema migration. The disposable PostgreSQL gate covers
+departed/nonmember callers, departed-member filtering, Unicode names, and page
+continuation; gateway registration remains a separate step (ADR-0343).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

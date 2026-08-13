@@ -1506,7 +1506,9 @@ Progress:
       - [x] Allocate types 117/118, add bounded participant payload policy, and
         lock the account-ID cursor across generated Java, TypeScript, and C++
         bindings without registering a runtime handler.
-      - [ ] Add the active-member-authorized application and PostgreSQL query.
+      - [x] Add bounded application page/query/result models and the
+        active-member-authorized PostgreSQL query with active-account filtering
+        and stable ascending account-ID pagination.
       - [ ] Register the capability-gated authenticated gateway handler with
         fixed denial and telemetry behavior.
     - [ ] Persist Web mention metadata with authoritative messages and pending
