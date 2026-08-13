@@ -811,6 +811,10 @@ Progress:
     - [x] Add a read-only PostgreSQL pre-provider preview for every historical
       account/room mapping, availability, empty target pointer, exact registered
       object evidence, active delete claims, and prior manifest runs.
+    - [x] Add inactive bounded upload orchestration that rechecks each unique
+      canonical object, performs create-only Provider convergence even when
+      PostgreSQL metadata already exists, and produces an exact-evidence apply
+      capability. PostgreSQL atomic apply still remains.
     - [ ] Retain dated profile-image provider PASS, policy, lifecycle,
       no-object-remains, lease/timeout, rollback, and restart evidence; this
       destructive probe has not run in repository CI or this development host.

@@ -254,7 +254,9 @@ run the read-only PostgreSQL gate before supplying any object credentials:
 ```
 
 Require `status=READY_FOR_PROVIDER_WRITES` and `issues=0`. Archive the counts of
-already registered objects and objects still requiring upload. Stop on a
+already registered objects and `provider_objects_to_verify`. Every unique object
+must still pass the Provider create-only/exact-retry operation; a PostgreSQL row
+does not prove that Provider bytes exist. Stop on a
 missing/disabled mapping, closed or wrong-kind room, existing account/room
 pointer, conflicting object metadata, active delete claim, or previously
 imported manifest. This command validates PostgreSQL only and never contacts the

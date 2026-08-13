@@ -52,8 +52,10 @@ additive expansion and does not activate Java authority or the detached V1
 avatar handlers. The read-only pre-provider planner is implemented and checks
 all account/room mappings, target availability, existing pointers, exact
 registered object evidence, active cleanup claims, and prior manifest runs.
-Provider upload and atomic apply remain incomplete. The current C++/SQLite
-runtime remains the rollback path.
+The inactive upload pass now rechecks bounded object bytes and requires exact
+create-only Provider results for every unique manifest object; database metadata
+never substitutes for Provider evidence. Atomic PostgreSQL apply remains
+incomplete. The current C++/SQLite runtime remains the rollback path.
 
 ## Verification
 

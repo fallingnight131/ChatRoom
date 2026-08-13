@@ -2094,7 +2094,7 @@ class PostgresMigratorTest {
         var missingObject = planner.preview(plan);
         assertTrue(missingObject.readyForProviderWrites());
         assertEquals(0, missingObject.objectsAlreadyRegistered());
-        assertEquals(1, missingObject.objectsToUpload());
+        assertEquals(1, missingObject.providerObjectsToVerify());
 
         try (Connection connection = connect()) {
             execute(connection, "INSERT INTO chat.profile_image_object(object_key, byte_size, "
@@ -2104,7 +2104,7 @@ class PostgresMigratorTest {
         var registered = planner.preview(plan);
         assertTrue(registered.readyForProviderWrites());
         assertEquals(1, registered.objectsAlreadyRegistered());
-        assertEquals(0, registered.objectsToUpload());
+        assertEquals(1, registered.providerObjectsToVerify());
 
         try (Connection connection = connect()) {
             execute(connection, "INSERT INTO chat.account_profile_image(account_id, object_key, "

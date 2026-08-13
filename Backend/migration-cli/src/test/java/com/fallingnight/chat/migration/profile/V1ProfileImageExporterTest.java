@@ -108,6 +108,22 @@ final class V1ProfileImageExporterTest {
         assertEquals(2, verified.entries().stream().filter(
                 VerifiedV1ProfileImageExport.Entry::present).count());
 
+        java.util.concurrent.atomic.AtomicInteger uploads =
+                new java.util.concurrent.atomic.AtomicInteger();
+        var uploaded = new V1ProfileImageObjectUploader(image -> {
+            uploads.incrementAndGet();
+            byte[] digest = image.contentSha256();
+            return new com.fallingnight.chat.application.profile.ProfileImageObjectWriteResult(
+                    new com.fallingnight.chat.application.profile.ProfileImageObjectEvidence(
+                            com.fallingnight.chat.application.profile.ProfileImageObjectEvidence
+                                    .objectKey(digest),
+                            image.pngBytes().length, digest, "image/png"), true);
+        }).upload(verified);
+        assertEquals(1, uploads.get());
+        assertEquals(1, uploaded.uniqueObjects()); assertEquals(1, uploaded.created());
+        assertEquals(verified.manifestSha256(),
+                uploaded.input().plan().manifestSha256());
+
         Files.writeString(report.destination().resolve("unexpected.txt"), "unexpected");
         assertThrows(V1ProfileImageExportException.class,
                 () -> new V1ProfileImageExportVerifier().verify(

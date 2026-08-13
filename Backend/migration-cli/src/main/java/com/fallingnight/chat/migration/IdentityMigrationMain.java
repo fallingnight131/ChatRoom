@@ -560,7 +560,7 @@ public final class IdentityMigrationMain {
         output.println("absent=" + report.absent());
         output.println("unique_objects=" + report.uniqueObjects());
         output.println("objects_already_registered=" + report.objectsAlreadyRegistered());
-        output.println("objects_to_upload=" + report.objectsToUpload());
+        output.println("provider_objects_to_verify=" + report.providerObjectsToVerify());
         output.println("issues=" + report.issues().size());
         report.issues().forEach(issue -> output.println("issue="
                 + issue.kind() + ":" + issue.legacyId() + ":" + issue.code()));

@@ -61,7 +61,7 @@ public final class PostgresV1ProfileImageImportPlanner {
                 int present = plan.presentEntries();
                 return new V1ProfileImageImportPreview(plan.manifestSha256(),
                         plan.entries().size(), present, plan.entries().size() - present,
-                        plan.uniqueObjects(), registered, plan.uniqueObjects() - registered,
+                        plan.uniqueObjects(), registered, plan.uniqueObjects(),
                         List.copyOf(issues));
             } catch (RuntimeException | SQLException exception) {
                 rollback(connection, exception); throw exception;

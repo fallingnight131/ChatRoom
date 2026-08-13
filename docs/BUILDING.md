@@ -1338,6 +1338,10 @@ hash and rejects proof/record/object/tree disagreement. Neither command uploads
 objects or writes PostgreSQL. `profile-image-preview` then repeats strict bundle
 verification and checks mappings, pointer conflicts, registered object evidence,
 cleanup claims, and prior runs without provider access or database writes.
+An inactive migration upload component rechecks every unique object immediately
+before invoking the checksum-bound create-only writer and emits an apply
+capability only when all Provider evidence is exact. It is not yet exposed as an
+operator command because atomic PostgreSQL apply is still incomplete.
 Message apply requires separate state and payload fingerprint confirmations.
 Unit tests verify the versioned proof artifact and safe output; the PostgreSQL
 verifier then exercises the ordered identity/conversation/message command
