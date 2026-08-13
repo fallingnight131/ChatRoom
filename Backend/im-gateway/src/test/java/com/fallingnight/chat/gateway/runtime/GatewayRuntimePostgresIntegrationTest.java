@@ -139,12 +139,13 @@ class GatewayRuntimePostgresIntegrationTest {
             environment.put("CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", "true");
             environment.put("CHATROOM_POSTGRES_POOL_MAXIMUM", "2");
             environment.put("CHATROOM_POSTGRES_POOL_MINIMUM_IDLE", "1");
+            configureDistributedRouting(environment);
 
             runtime = GatewayRuntime.create(
                     GatewayRuntimeConfig.fromEnvironment(environment));
             assertFalse(runtime.isReady());
             runtime.start();
-            assertTrue(runtime.isReady());
+            awaitReady(runtime);
 
             HttpResponse<String> readiness = HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(2))
@@ -158,6 +159,17 @@ class GatewayRuntimePostgresIntegrationTest {
                             HttpResponse.BodyHandlers.ofString());
             assertEquals(200, readiness.statusCode());
             assertEquals("ready\n", readiness.body());
+            if (System.getenv("CHATROOM_TEST_REDIS_URI") != null) {
+                HttpResponse<String> metrics = HttpClient.newHttpClient().send(
+                        HttpRequest.newBuilder(URI.create(
+                                "http://127.0.0.1:" + adminPort + "/metrics")).GET().build(),
+                        HttpResponse.BodyHandlers.ofString());
+                assertEquals(200, metrics.statusCode());
+                assertTrue(metrics.body().contains(
+                        "chat_gateway_distributed_metrics_available 1"));
+                assertTrue(metrics.body().contains("chat_gateway_routing_lease_valid 1"));
+                assertTrue(metrics.body().contains("chat_gateway_outbox_unpublished"));
+            }
         } finally {
             if (runtime != null) {
                 runtime.close();
@@ -206,9 +218,11 @@ class GatewayRuntimePostgresIntegrationTest {
             environment.put("CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", "true");
             environment.put("CHATROOM_POSTGRES_POOL_MAXIMUM", "4");
             environment.put("CHATROOM_POSTGRES_POOL_MINIMUM_IDLE", "1");
+            configureDistributedRouting(environment);
 
             runtime = GatewayRuntime.create(GatewayRuntimeConfig.fromEnvironment(environment));
             runtime.start();
+            awaitReady(runtime);
             BinaryEnvelopeListener listener = new BinaryEnvelopeListener();
             socket = connectWebSocket(gatewayPort, listener);
             SessionEstablished session = establish(
@@ -243,6 +257,7 @@ class GatewayRuntimePostgresIntegrationTest {
             assertEquals("network integration message", published.getContent().toStringUtf8());
             assertEquals(accountId.toString(), published.getSenderAccountId());
             assertEquals(1, published.getConversationSequence());
+            peerListener.assertNoEnvelope(Duration.ofMillis(500));
             assertEquals(1, countQuery(jdbcUrl, username, password,
                     "SELECT count(*) FROM chat.message WHERE conversation_id = '"
                             + conversationId + "' AND client_message_id = 'network-message-1'"));
@@ -2769,6 +2784,29 @@ class GatewayRuntimePostgresIntegrationTest {
             assertNotNull(envelope, "timed out waiting for a V2 envelope");
             return assertInstanceOf(Envelope.class, envelope);
         }
+
+        private void assertNoEnvelope(Duration timeout) throws Exception {
+            Envelope envelope = envelopes.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            Throwable error = failure.get();
+            if (error != null) throw new AssertionError("WebSocket listener failed", error);
+            assertNull(envelope, "duplicate V2 envelope received");
+        }
+    }
+
+    private static void configureDistributedRouting(Map<String, String> environment) {
+        String redis = System.getenv("CHATROOM_TEST_REDIS_URI");
+        if (redis == null || redis.isBlank()) return;
+        environment.put(DistributedGatewayRoutingConfig.ENABLED, "true");
+        environment.put(DistributedGatewayRoutingConfig.REDIS_URI, redis);
+        environment.put(DistributedGatewayRoutingConfig.ALLOW_INSECURE_LOOPBACK, "true");
+    }
+
+    private static void awaitReady(GatewayRuntime runtime) throws Exception {
+        long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+        while (!runtime.isReady() && System.nanoTime() < deadline) {
+            Thread.sleep(10);
+        }
+        assertTrue(runtime.isReady(), "gateway did not become ready");
     }
 
     private static int availablePort() throws Exception {

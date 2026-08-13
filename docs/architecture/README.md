@@ -1072,6 +1072,16 @@ locally observed sequence, refreshes 30-second routes every 10 seconds, and
 causes lease validity/readiness to fail closed if any refresh fails. Empty or
 unsubscribed snapshots write no conversation routes. Runtime composition is
 still not activated.
+ADR-0365 composes that graph into the Java product runtime behind the unchanged
+default-off flag. Enabled startup observes admin first, starts lease/consumer/
+relay before product admission, and reports ready only while PostgreSQL and the
+Redis lease pass are valid. Shutdown drains product connections before releasing
+routes and Redis. The admin endpoint exposes identity-free routing, relay, and
+outbox signals. A real PostgreSQL/Redis/TLS-WSS run caught and fixed a race where
+Redis repair preceded local publication: exact already-observed messages are now
+suppressed, while noncontiguous sequences never advance the server high
+watermark. Production deployment remains gated on real Redis TLS/ACL and
+multi-gateway failure/rolling evidence.
 
 ## 10. Attachment Flow
 

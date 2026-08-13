@@ -1430,6 +1430,23 @@ renewed with their observed sequence inside the gateway lease loop, individual
 failures are aggregated into lease failure, and unsubscribed/empty snapshots
 perform no further route writes. The reviewed interval is 10 seconds for a
 30-second expiry; this graph remains unstarted by the product runtime.
+ADR-0365 activates the graph only when
+`CHATROOM_GATEWAY_DISTRIBUTED_ROUTING_ENABLED=true`; the default creates no Redis
+connection or scheduler. Enabled readiness requires PostgreSQL plus a valid
+Redis lease pass. `/metrics` adds fixed route/hint, relay, and outbox gauges and
+returns `chat_gateway_distributed_metrics_available 0` if the status snapshot
+cannot be read. Shutdown drains product connections before routing resources.
+The opt-in disposable PostgreSQL+Redis gate now also runs the real TLS/WSS
+product listener, history route activation, outbox relay/hint return, and checks
+that Redis-first repair followed by local publication emits exactly one peer
+event:
+
+```bash
+CHATROOM_TEST_REDIS_URI=redis://127.0.0.1:<port> \
+  python3 tools/verify_m0.py --postgres
+```
+
+This loopback proof is not production Redis TLS/ACL or rolling-failure evidence.
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound

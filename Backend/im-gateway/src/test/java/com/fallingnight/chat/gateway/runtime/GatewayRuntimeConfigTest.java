@@ -57,6 +57,7 @@ class GatewayRuntimeConfigTest {
         assertEquals(120, config.forwardAdmissionLimits().attemptsPerAccount());
         assertEquals(10_000, config.forwardAdmissionLimits().maximumTrackedAccounts());
         assertFalse(config.messageForwardingEnabled());
+        assertFalse(config.distributedRouting().enabled());
         Map<String, String> immediateDrain = requiredEnvironment();
         immediateDrain.put("CHATROOM_GATEWAY_DRAIN_TIMEOUT_SECONDS", "0");
         assertEquals(Duration.ZERO, GatewayRuntimeConfig.fromEnvironment(immediateDrain)
@@ -65,6 +66,13 @@ class GatewayRuntimeConfigTest {
         enabledForwarding.put("CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED", "true");
         assertTrue(GatewayRuntimeConfig.fromEnvironment(enabledForwarding)
                 .messageForwardingEnabled());
+        Map<String, String> enabledRouting = requiredEnvironment();
+        enabledRouting.put(DistributedGatewayRoutingConfig.ENABLED, "true");
+        enabledRouting.put(DistributedGatewayRoutingConfig.REDIS_URI,
+                "redis://127.0.0.1:6379/0");
+        enabledRouting.put(DistributedGatewayRoutingConfig.ALLOW_INSECURE_LOOPBACK, "true");
+        assertTrue(GatewayRuntimeConfig.fromEnvironment(enabledRouting)
+                .distributedRouting().enabled());
         assertTrue(config.hostPolicy().allows(List.of("gateway.example.com:443")));
         assertEquals(ClientPlatform.WEB, config.endpointPolicy().expectedPlatform(
                 WebSocketEndpointPolicy.WEB_PATH,

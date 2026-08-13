@@ -48,7 +48,9 @@ class GatewayAdminServerTest {
                 cleanup,
                 () -> 2,
                 () -> 3,
-                readiness)) {
+                readiness,
+                () -> "# TYPE chat_gateway_distributed_metrics_available gauge\n"
+                        + "chat_gateway_distributed_metrics_available 1\n")) {
             server.start();
             assertResponse(server, "/health/live", 200, "live\n");
             assertResponse(server, "/health/ready", 503, "not_ready\n");
@@ -82,6 +84,8 @@ class GatewayAdminServerTest {
                     "chat_gateway_attachment_cleanup_total{outcome=\"deleted\"} 1"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_attachment_cleanup_next_delay_seconds 60"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_distributed_metrics_available 1"));
             assertEquals("no-store", metrics.headers()
                     .firstValue("Cache-Control").orElseThrow());
             assertEquals("nosniff", metrics.headers()

@@ -1,6 +1,7 @@
 package com.fallingnight.chat.gateway.runtime;
 
 import com.fallingnight.chat.application.routing.GatewayRouteRegistrationService;
+import com.fallingnight.chat.application.messaging.ConversationEventOutboxStatusPort;
 import com.fallingnight.chat.gateway.operations.ConversationEventRelayTelemetry;
 import com.fallingnight.chat.gateway.operations.DistributedGatewayRoutingRuntime;
 import com.fallingnight.chat.gateway.operations.GatewayLiveEventConsumerTelemetry;
@@ -14,6 +15,7 @@ public record DistributedGatewayRoutingComponents(
         DistributedGatewayRoutingRuntime runtime,
         GatewayRouteRegistrationService registration,
         DistributedConversationLiveRouter liveRouter,
+        ConversationEventOutboxStatusPort outboxStatus,
         ConversationEventRelayTelemetry relayTelemetry,
         GatewayLiveEventConsumerTelemetry consumerTelemetry) {
     public DistributedGatewayRoutingComponents {
@@ -21,6 +23,7 @@ public record DistributedGatewayRoutingComponents(
         Objects.requireNonNull(runtime, "runtime");
         Objects.requireNonNull(registration, "registration");
         Objects.requireNonNull(liveRouter, "liveRouter");
+        Objects.requireNonNull(outboxStatus, "outboxStatus");
         Objects.requireNonNull(relayTelemetry, "relayTelemetry");
         Objects.requireNonNull(consumerTelemetry, "consumerTelemetry");
     }

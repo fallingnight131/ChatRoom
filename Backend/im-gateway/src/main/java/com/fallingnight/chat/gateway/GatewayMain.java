@@ -29,7 +29,7 @@ public final class GatewayMain {
             shutdownHook = new Thread(owned::close, "chat-gateway-shutdown");
             Runtime.getRuntime().addShutdownHook(shutdownHook);
             runtime.start();
-            LOGGER.log(System.Logger.Level.INFO, "event=gateway_ready");
+            LOGGER.log(System.Logger.Level.INFO, "event=gateway_started");
             runtime.awaitTermination();
         } catch (RuntimeException exception) {
             LOGGER.log(

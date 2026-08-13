@@ -57,6 +57,7 @@ public final class GatewayRuntimeConfig {
     private final AuthenticationAdmissionLimits admissionLimits;
     private final MessageForwardAdmissionLimits forwardAdmissionLimits;
     private final boolean messageForwardingEnabled;
+    private final DistributedGatewayRoutingConfig distributedRouting;
 
     private GatewayRuntimeConfig(
             InetSocketAddress listenerAddress,
@@ -90,7 +91,8 @@ public final class GatewayRuntimeConfig {
             Duration drainTimeout,
             AuthenticationAdmissionLimits admissionLimits,
             MessageForwardAdmissionLimits forwardAdmissionLimits,
-            boolean messageForwardingEnabled) {
+            boolean messageForwardingEnabled,
+            DistributedGatewayRoutingConfig distributedRouting) {
         this.listenerAddress = listenerAddress;
         this.adminAddress = adminAddress;
         this.tlsCertificateChain = tlsCertificateChain;
@@ -123,6 +125,7 @@ public final class GatewayRuntimeConfig {
         this.admissionLimits = admissionLimits;
         this.forwardAdmissionLimits = forwardAdmissionLimits;
         this.messageForwardingEnabled = messageForwardingEnabled;
+        this.distributedRouting = Objects.requireNonNull(distributedRouting, "distributedRouting");
     }
 
     public static GatewayRuntimeConfig fromEnvironment(Map<String, String> environment) {
@@ -257,7 +260,8 @@ public final class GatewayRuntimeConfig {
                 drainTimeout,
                 limits,
                 forwardLimits,
-                messageForwardingEnabled);
+                messageForwardingEnabled,
+                DistributedGatewayRoutingConfig.fromEnvironment(environment));
     }
 
     public InetSocketAddress listenerAddress() {
@@ -386,6 +390,10 @@ public final class GatewayRuntimeConfig {
 
     public boolean messageForwardingEnabled() {
         return messageForwardingEnabled;
+    }
+
+    public DistributedGatewayRoutingConfig distributedRouting() {
+        return distributedRouting;
     }
 
     private static String required(Map<String, String> environment, String key) {

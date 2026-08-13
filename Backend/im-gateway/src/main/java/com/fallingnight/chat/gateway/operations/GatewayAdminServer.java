@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import java.util.function.IntSupplier;
+import java.util.function.Supplier;
 
 /** Loopback-only health and metrics server with bounded worker ownership. */
 public final class GatewayAdminServer implements AutoCloseable {
@@ -33,6 +34,18 @@ public final class GatewayAdminServer implements AutoCloseable {
             IntSupplier messagingActiveWorkers,
             IntSupplier messagingQueuedWork,
             BooleanSupplier readiness) {
+        this(address, workers, telemetry, messagingTelemetry, deviceManagementTelemetry,
+                attachmentCleanupTelemetry, messagingActiveWorkers, messagingQueuedWork,
+                readiness, () -> "");
+    }
+
+    public GatewayAdminServer(
+            InetSocketAddress address, int workers, AuthenticationTelemetry telemetry,
+            MessagingTelemetry messagingTelemetry,
+            DeviceManagementTelemetry deviceManagementTelemetry,
+            AttachmentCleanupTelemetry attachmentCleanupTelemetry,
+            IntSupplier messagingActiveWorkers, IntSupplier messagingQueuedWork,
+            BooleanSupplier readiness, Supplier<String> distributedMetrics) {
         Objects.requireNonNull(address, "address");
         Objects.requireNonNull(telemetry, "telemetry");
         Objects.requireNonNull(messagingTelemetry, "messagingTelemetry");
@@ -41,6 +54,7 @@ public final class GatewayAdminServer implements AutoCloseable {
         Objects.requireNonNull(messagingActiveWorkers, "messagingActiveWorkers");
         Objects.requireNonNull(messagingQueuedWork, "messagingQueuedWork");
         Objects.requireNonNull(readiness, "readiness");
+        Objects.requireNonNull(distributedMetrics, "distributedMetrics");
         if (address.getAddress() == null || !address.getAddress().isLoopbackAddress()) {
             throw new IllegalArgumentException("admin server must bind a resolved loopback address");
         }
@@ -79,7 +93,8 @@ public final class GatewayAdminServer implements AutoCloseable {
                         + PrometheusDeviceManagementMetrics.render(
                                 deviceManagementTelemetry.snapshot())
                         + PrometheusAttachmentCleanupMetrics.render(
-                                attachmentCleanupTelemetry.snapshot())));
+                                attachmentCleanupTelemetry.snapshot())
+                        + distributedMetrics.get()));
     }
 
     public void start() {

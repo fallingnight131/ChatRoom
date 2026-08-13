@@ -1489,6 +1489,13 @@ Progress:
   observed sequence and failing future distributed readiness closed if any
   renewal fails. Empty/unsubscribed snapshots produce no route writes
   (ADR-0364).
+- [x] Compose the distributed graph into `GatewayRuntime` behind its default-off
+  flag: inject the post-response router, start routing before product admission,
+  gate readiness on PostgreSQL plus Redis lease validity, drain product sockets
+  before route teardown, and expose fixed routing/outbox metrics. Real
+  PostgreSQL+Redis+TLS/WSS proves exactly-once-visible delivery across the
+  Redis-first/local-publish race; production TLS/ACL and failure gates remain
+  pending (ADR-0365).
 
 Work:
 

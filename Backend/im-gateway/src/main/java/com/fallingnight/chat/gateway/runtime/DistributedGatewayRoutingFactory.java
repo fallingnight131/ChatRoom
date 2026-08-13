@@ -18,6 +18,7 @@ import com.fallingnight.chat.gateway.transport.LocalConversationMessageHintRepai
 import com.fallingnight.chat.gateway.transport.DistributedConversationLiveRouter;
 import com.fallingnight.chat.gateway.transport.SingleGatewayConversationLiveRouter;
 import com.fallingnight.chat.persistence.postgres.PostgresConversationEventOutboxAdapter;
+import com.fallingnight.chat.persistence.postgres.PostgresConversationEventOutboxStatusAdapter;
 import com.fallingnight.chat.persistence.postgres.PostgresMessageAdapter;
 import com.fallingnight.chat.routing.redis.LettuceGatewayRoutingAdapter;
 import com.fallingnight.chat.routing.redis.RedisRoutingConfig;
@@ -127,6 +128,7 @@ public final class DistributedGatewayRoutingFactory {
             scheduler = null;
             return Optional.of(new DistributedGatewayRoutingComponents(
                     gatewayId, runtime, registration, distributedRouter,
+                    new PostgresConversationEventOutboxStatusAdapter(dataSource),
                     relayTelemetry, consumerTelemetry));
         } catch (RuntimeException exception) {
             closeAfterFailure(scheduler, resources, exception);

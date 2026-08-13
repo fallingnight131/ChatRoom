@@ -76,6 +76,31 @@ class SingleGatewayConversationLiveRouterTest {
     }
 
     @Test
+    void suppressesLocalPublicationAfterRedisRepairWonTheRace() throws Exception {
+        SingleGatewayConversationLiveRouter router = new SingleGatewayConversationLiveRouter(
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        EmbeddedChannel channel = authenticatedChannel();
+        StoredMessage stored = message(CONVERSATION, 1);
+        try {
+            router.readAndSubscribe(channel,
+                    new MessageHistoryQuery(CONVERSATION, ACCOUNT, 0, 100),
+                    ignored -> new MessageHistoryResult.Page(List.of(), 0, 0, false));
+            assertEquals(LocalConversationHintResult.APPLIED,
+                    router.repairMessageHint(new GatewayLiveEventHint(
+                            UUID.randomUUID(), stored.messageId(), CONVERSATION, 1),
+                            ignored -> new MessageHistoryResult.Page(
+                                    List.of(stored), 1, 1, false)));
+            assertEquals(0, router.publish(stored).published());
+            assertEquals(1, MessageRecord.parseFrom(
+                    ((Envelope) channel.readOutbound()).getPayload())
+                    .getConversationSequence());
+            assertNull(channel.readOutbound());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void retainsMultipleAuthorizedCaughtUpConversationSubscriptions() throws Exception {
         SingleGatewayConversationLiveRouter router = new SingleGatewayConversationLiveRouter(
                 Clock.fixed(NOW, ZoneOffset.UTC));

@@ -104,6 +104,8 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                     slowClosed += 1;
                     continue;
                 }
+                long observed = observedSequence(channel, message.conversationId());
+                if (observed >= message.conversationSequence()) continue;
                 java.util.Set<ClientCapability> capabilities =
                         channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get();
                 boolean mentionsEnabled = capabilities != null && capabilities.contains(
@@ -125,8 +127,8 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                         .build();
                 EnvelopePolicy.requireValid(event);
                 channel.writeAndFlush(event);
-                liveMessageSequences(channel).merge(message.conversationId(),
-                        message.conversationSequence(), Math::max);
+                advanceObservedSequence(channel, message.conversationId(),
+                        observed, message.conversationSequence());
                 published += 1;
             }
             if (route.channels.isEmpty()) routes.remove(message.conversationId(), route);
@@ -491,9 +493,17 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                 .setPayload(visibleRecord.toByteString()).build();
         EnvelopePolicy.requireValid(event);
         channel.writeAndFlush(event);
-        liveMessageSequences(channel).merge(
-                message.conversationId(), message.conversationSequence(), Math::max);
+        long observed = observedSequence(channel, message.conversationId());
+        advanceObservedSequence(channel, message.conversationId(),
+                observed, message.conversationSequence());
         return true;
+    }
+
+    private static void advanceObservedSequence(Channel channel, UUID conversationId,
+            long observed, long delivered) {
+        if (delivered == observed + 1) {
+            liveMessageSequences(channel).put(conversationId, delivered);
+        }
     }
 
     private void registerCleanup(Channel channel) {

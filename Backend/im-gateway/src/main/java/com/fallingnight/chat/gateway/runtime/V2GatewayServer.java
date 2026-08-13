@@ -25,6 +25,7 @@ import com.fallingnight.chat.gateway.transport.MessagingEventSink;
 import com.fallingnight.chat.gateway.transport.DeviceConnectionRegistry;
 import com.fallingnight.chat.gateway.transport.DeviceManagementEventSink;
 import com.fallingnight.chat.gateway.transport.SingleGatewayConversationLiveRouter;
+import com.fallingnight.chat.gateway.transport.ConversationLiveRouter;
 import com.fallingnight.chat.gateway.transport.TrustedProxyHttpHandler;
 import com.fallingnight.chat.gateway.transport.V2EnvelopeDecoder;
 import com.fallingnight.chat.gateway.transport.V2WebSocketUpgradeHandler;
@@ -87,7 +88,7 @@ public final class V2GatewayServer implements AutoCloseable {
     private final MessagingEventSink messagingEvents;
     private final DeviceManagementEventSink deviceEvents;
     private final DeviceConnectionRegistry deviceConnections;
-    private final SingleGatewayConversationLiveRouter liveRouter;
+    private final ConversationLiveRouter liveRouter;
     private final SslContext sslContext;
     private final GatewayConnectionLimiter connectionLimiter;
     private final ChannelGroup children = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE);
@@ -204,7 +205,7 @@ public final class V2GatewayServer implements AutoCloseable {
             MessagingEventSink messagingEvents,
             DeviceManagementEventSink deviceEvents,
             DeviceConnectionRegistry deviceConnections,
-            SingleGatewayConversationLiveRouter liveRouter) {
+            ConversationLiveRouter liveRouter) {
         this(config, authentication, sessionResume, submissions, history, directory,
                 participants, reactions, pins, edits, forwards, deviceManagement,
                 authenticationExecutor, messagingExecutor, admission, events, messagingEvents,
@@ -311,7 +312,7 @@ public final class V2GatewayServer implements AutoCloseable {
             DeviceManagementEventSink deviceEvents,
             DeviceConnectionRegistry deviceConnections,
             SslContext sslContext,
-            SingleGatewayConversationLiveRouter liveRouter) {
+            ConversationLiveRouter liveRouter) {
         this.config = Objects.requireNonNull(config, "config");
         this.authentication = Objects.requireNonNull(authentication, "authentication");
         this.sessionResume = Objects.requireNonNull(sessionResume, "sessionResume");

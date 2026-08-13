@@ -72,6 +72,35 @@ class GatewayRuntimeTest {
         assertThrows(IllegalStateException.class, runtime::awaitTermination);
     }
 
+    @Test
+    void startsDistributedRoutingBeforeProductGatesReadinessAndClosesAfterDrain() {
+        List<String> events = new ArrayList<>();
+        AtomicBoolean readiness = new AtomicBoolean();
+        AtomicBoolean routingReady = new AtomicBoolean();
+        GatewayRuntime.ManagedDependency routing = new GatewayRuntime.ManagedDependency() {
+            @Override public void start() { events.add("routing:start"); }
+            @Override public boolean ready() { return routingReady.get(); }
+            @Override public void close() { events.add("routing:close"); }
+        };
+        GatewayRuntime runtime = GatewayRuntime.forTest(readiness,
+                managed("admin", events, readiness),
+                blocking("product", events, readiness, false),
+                closeable("authentication-workers", events),
+                closeable("messaging-workers", events), closeable("database", events), routing);
+
+        runtime.start();
+        assertFalse(runtime.isReady());
+        routingReady.set(true);
+        assertTrue(runtime.isReady());
+        runtime.close();
+
+        assertEquals(List.of("admin:start:false", "routing:start", "product:start:false",
+                "product:stop-accepting:false", "product:await-drained:PT0S:false",
+                "product:close", "routing:close", "admin:close",
+                "messaging-workers:close", "authentication-workers:close", "database:close"),
+                events);
+    }
+
     private static GatewayRuntime.ManagedServer managed(
             String name, List<String> events, AtomicBoolean readiness) {
         return new GatewayRuntime.ManagedServer() {

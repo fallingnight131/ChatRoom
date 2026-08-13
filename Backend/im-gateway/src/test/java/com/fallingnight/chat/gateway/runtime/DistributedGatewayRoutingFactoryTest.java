@@ -65,6 +65,7 @@ final class DistributedGatewayRoutingFactoryTest {
         assertEquals(gatewayId, components.gatewayId());
         assertEquals(gatewayId, components.registration().gatewayId());
         assertNotNull(components.liveRouter());
+        assertNotNull(components.outboxStatus());
         assertFalse(components.runtime().readyForTraffic());
         components.runtime().close();
         assertTrue(routes.gatewayReleased);
