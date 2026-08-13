@@ -739,7 +739,11 @@ ViewModel now exposes identity-preserving spans on non-recalled rows and
 accepts already-composed spans for reply/edit actions. Rendering, editor span
 maintenance, accessible authoring, and capability negotiation remain off, so
 existing Widgets still submit an empty set and capable traffic cannot yet enter
-the Windows product UI.
+the Windows product UI. A detached Qt Core mention composer now performs
+surrogate-safe insertion and reconciliation, converts Qt UTF-16 editor offsets
+to exact protocol UTF-8 byte spans, restores persisted spans, and produces
+identity-preserving render segments. It remains a model boundary until the
+Widgets accessibility and product-flow gates are complete.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

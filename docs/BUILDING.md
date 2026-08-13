@@ -1355,6 +1355,13 @@ caller-triggered type-117 request shares the authenticated WSS, that only its
 correlated type-118 response reaches the active conversation state, and that
 disconnect abandons the projection. Widgets composition and capability 4 remain
 off (ADR-0343).
+`V2WindowsMentionComposerTest` locks the detached Windows editor model's Unicode
+contract: mention insertion cannot split a UTF-16 surrogate pair, edits outside
+a mention shift its anchor, edits inside it invalidate identity, and Qt UTF-16
+positions round-trip to the protocol's UTF-8 byte spans. It also verifies that
+render segmentation uses stored account identity instead of reparsing display
+text. Passing this Qt Core test on a macOS development host is portability
+evidence only; Windows Widgets exposure and capability 4 remain gated.
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

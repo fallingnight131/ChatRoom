@@ -261,6 +261,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             STATIC
             Client/V2WindowsMessagingViewModel.cpp
             Client/V2WindowsMessagingViewModel.h
+            Client/V2WindowsMentionComposer.cpp
+            Client/V2WindowsMentionComposer.h
         )
         set_target_properties(
             chatroom_v2_messaging_ui_core
@@ -737,6 +739,11 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             V2WindowsMessagingViewModelTest PRIVATE chatroom_v2_messaging_ui_core)
         add_test(NAME m6_windows_v2_messaging_view_model COMMAND V2WindowsMessagingViewModelTest)
         set_tests_properties(m6_windows_v2_messaging_view_model PROPERTIES TIMEOUT 30)
+        add_executable(V2WindowsMentionComposerTest Tests/V2WindowsMentionComposerTest.cpp)
+        target_link_libraries(
+            V2WindowsMentionComposerTest PRIVATE chatroom_v2_messaging_ui_core)
+        add_test(NAME m6_windows_v2_mention_composer COMMAND V2WindowsMentionComposerTest)
+        set_tests_properties(m6_windows_v2_mention_composer PROPERTIES TIMEOUT 30)
         chatroom_add_local_data_test(OutgoingMessageServiceTest v1_client_outgoing_message)
         chatroom_add_local_data_test(ConversationSyncServiceTest v1_client_conversation_sync)
         chatroom_add_local_data_test(AttachmentOutboxServiceTest v1_client_attachment_outbox)

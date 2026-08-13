@@ -1555,6 +1555,10 @@ Progress:
       - [x] Compose the participant protocol and view model into the shared
         authenticated Windows controller and WSS routing boundary, requiring an
         explicit caller while Widgets exposure and capability 4 remain off.
+      - [x] Add a framework-independent Windows mention composer with
+        surrogate-safe insertion and edit reconciliation, exact Qt UTF-16 to
+        protocol UTF-8 conversion, stored-span restore, and identity-preserving
+        render segmentation while Widgets exposure remains off.
 
 Candidate slices:
 
