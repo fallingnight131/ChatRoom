@@ -1412,6 +1412,13 @@ Plaintext `redis://` works only for localhost/127.0.0.1 with
 `CHATROOM_REDIS_ALLOW_INSECURE_LOOPBACK_FOR_TESTS=true`; this flag is test-only
 and does not activate routing without
 `CHATROOM_GATEWAY_DISTRIBUTED_ROUTING_ENABLED=true`.
+ADR-0362 factory tests prove the disabled configuration performs no dependency
+access and the enabled graph shares one Redis adapter across route, publish, and
+consume ports while PostgreSQL supplies outbox and message repair. They also
+prove boot-lease/scheduler/adapter cleanup on normal close, complete cleanup on
+partial construction, and preservation of cleanup failures as suppressed
+causes. The fixed graph remains uncalled by `GatewayRuntime`, so these settings
+still do not change product traffic.
 The following default-off gateway slice now registers type 119 behind negotiated
 capability 5 and injects the PostgreSQL adapter through the product listener,
 WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound

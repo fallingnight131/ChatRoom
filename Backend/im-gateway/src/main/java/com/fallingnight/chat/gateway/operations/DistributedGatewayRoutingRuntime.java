@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 
 /** Default-off owner for the distributed routing loops and their shared resources. */
 public final class DistributedGatewayRoutingRuntime implements AutoCloseable {
@@ -13,6 +14,7 @@ public final class DistributedGatewayRoutingRuntime implements AutoCloseable {
     private final Lifecycle lease;
     private final Lifecycle consumer;
     private final BooleanSupplier leaseValid;
+    private final Supplier<GatewayRouteLeaseTelemetrySnapshot> leaseTelemetry;
     private final BooleanSupplier releaseGateway;
     private final SchedulerOwner scheduler;
     private final AutoCloseable routingAdapter;
@@ -28,7 +30,8 @@ public final class DistributedGatewayRoutingRuntime implements AutoCloseable {
             Duration shutdownTimeout) {
         this(lifecycle(relay::start, relay), lifecycle(lease::start, lease),
                 lifecycle(consumer::start, consumer),
-                () -> lease.snapshot().leaseValid(), registration::releaseGateway,
+                () -> lease.snapshot().leaseValid(), lease::snapshot,
+                registration::releaseGateway,
                 scheduler(scheduler), routingAdapter, shutdownTimeout);
         Objects.requireNonNull(relay, "relay");
         Objects.requireNonNull(lease, "lease");
@@ -41,10 +44,22 @@ public final class DistributedGatewayRoutingRuntime implements AutoCloseable {
             Lifecycle consumer, BooleanSupplier leaseValid,
             BooleanSupplier releaseGateway, SchedulerOwner scheduler,
             AutoCloseable routingAdapter, Duration shutdownTimeout) {
+        this(relay, lease, consumer, leaseValid,
+                () -> new GatewayRouteLeaseTelemetrySnapshot(
+                        0, 0, 0, 0, leaseValid.getAsBoolean(), 0),
+                releaseGateway, scheduler, routingAdapter, shutdownTimeout);
+    }
+
+    DistributedGatewayRoutingRuntime(Lifecycle relay, Lifecycle lease,
+            Lifecycle consumer, BooleanSupplier leaseValid,
+            Supplier<GatewayRouteLeaseTelemetrySnapshot> leaseTelemetry,
+            BooleanSupplier releaseGateway, SchedulerOwner scheduler,
+            AutoCloseable routingAdapter, Duration shutdownTimeout) {
         this.relay = Objects.requireNonNull(relay, "relay");
         this.lease = Objects.requireNonNull(lease, "lease");
         this.consumer = Objects.requireNonNull(consumer, "consumer");
         this.leaseValid = Objects.requireNonNull(leaseValid, "leaseValid");
+        this.leaseTelemetry = Objects.requireNonNull(leaseTelemetry, "leaseTelemetry");
         this.releaseGateway = Objects.requireNonNull(releaseGateway, "releaseGateway");
         this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
         this.routingAdapter = Objects.requireNonNull(routingAdapter, "routingAdapter");
@@ -70,6 +85,10 @@ public final class DistributedGatewayRoutingRuntime implements AutoCloseable {
 
     public synchronized boolean readyForTraffic() {
         return started && !closed && leaseValid.getAsBoolean();
+    }
+
+    public synchronized GatewayRouteLeaseTelemetrySnapshot leaseTelemetry() {
+        return leaseTelemetry.get();
     }
 
     @Override

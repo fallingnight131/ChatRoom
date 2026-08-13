@@ -1053,6 +1053,12 @@ default; enabling it requires a Redis endpoint, production TLS/authentication,
 bounded command timeout/request queue, and redacted configuration rendering.
 Plaintext is accepted only for explicit loopback tests. The Redis adapter is now
 on the gateway runtime classpath but is still not instantiated.
+ADR-0362 establishes the only complete component factory. When disabled it
+touches no Redis, PostgreSQL, scheduler, or router dependency. When enabled it
+shares one Lettuce adapter across route/stream ports, composes PostgreSQL outbox
+relay and authoritative hint repair against the product's local router, owns
+bounded named scheduling, and closes partial construction safely. It returns
+fixed-cardinality telemetry but remains uncalled by `GatewayRuntime`.
 
 ## 10. Attachment Flow
 

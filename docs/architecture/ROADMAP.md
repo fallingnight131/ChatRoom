@@ -1474,6 +1474,11 @@ Progress:
   production Redis TLS/authentication, secret redaction, bounded command/queue
   resources, and explicit loopback-only plaintext test mode. The Redis module
   is now runtime-linkable but remains unconstructed (ADR-0361).
+- [x] Add the single default-off component factory that shares one Redis adapter
+  across routes/Streams, composes PostgreSQL outbox and authoritative local
+  repair, owns bounded named scheduling, exposes fixed telemetry, and cleans all
+  partial construction failures. `GatewayRuntime` still does not call it
+  (ADR-0362).
 
 Work:
 
