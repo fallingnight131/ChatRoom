@@ -12,6 +12,7 @@ WindowsDeviceManagementController::WindowsDeviceManagementController(
         QByteArray passwordUtf8,
         QWebSocket *socket,
         V2WindowsDeviceManagementTransport::SocketHooks hooks,
+        WindowsV2MessagingController::RepositoryFactory messagingRepositoryFactory,
         QObject *parent)
     : QObject(parent) {
     m_transport = std::make_unique<V2WindowsDeviceManagementTransport>(
@@ -27,6 +28,8 @@ WindowsDeviceManagementController::WindowsDeviceManagementController(
         [this](const QString &account, QByteArray password) {
             m_transport->authenticate(account, std::move(password));
         });
+    m_messagingController = std::make_unique<WindowsV2MessagingController>(
+        m_transport.get(), std::move(messagingRepositoryFactory));
 
     connect(m_transport.get(), &V2WindowsDeviceManagementTransport::stateChanged,
             this, [this](V2WindowsDeviceManagementTransport::State state) {
@@ -59,6 +62,16 @@ WindowsDeviceManagementController::~WindowsDeviceManagementController() {
 
 DeviceManagementViewModel *WindowsDeviceManagementController::viewModel() const {
     return m_viewModel.get();
+}
+
+V2WindowsConversationDirectoryViewModel *
+WindowsDeviceManagementController::conversationDirectoryViewModel() const {
+    return m_messagingController->directoryViewModel();
+}
+
+V2WindowsMessagingViewModel *
+WindowsDeviceManagementController::messagingViewModel() const {
+    return m_messagingController->viewModel();
 }
 
 bool WindowsDeviceManagementController::start() {

@@ -465,8 +465,6 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/V2WindowsSessionProtocolClient.h
                 Client/V2WindowsDeviceManagementTransport.cpp
                 Client/V2WindowsDeviceManagementTransport.h
-                Client/WindowsDeviceManagementController.cpp
-                Client/WindowsDeviceManagementController.h
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/authentication.pb.cc"
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/authentication.pb.h"
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/control.pb.cc"
@@ -508,6 +506,10 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/V2WindowsMessagingApplicationService.h
                 Client/WindowsV2MessagingController.cpp
                 Client/WindowsV2MessagingController.h
+                Client/WindowsDeviceManagementController.cpp
+                Client/WindowsDeviceManagementController.h
+                Client/V2WindowsConversationDirectoryViewModel.cpp
+                Client/V2WindowsConversationDirectoryViewModel.h
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/messaging.pb.cc"
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/messaging.pb.h"
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/conversation.pb.cc"

@@ -1,12 +1,15 @@
 #pragma once
 
 #include "V2WindowsDeviceManagementTransport.h"
+#include "WindowsV2MessagingController.h"
 #include <QObject>
 #include <QUrl>
 #include <memory>
 
 class DeviceManagementApplicationService;
 class DeviceManagementViewModel;
+class V2WindowsConversationDirectoryViewModel;
+class V2WindowsMessagingViewModel;
 
 class WindowsDeviceManagementController final : public QObject {
 public:
@@ -18,10 +21,13 @@ public:
         QByteArray passwordUtf8,
         QWebSocket *socket = nullptr,
         V2WindowsDeviceManagementTransport::SocketHooks hooks = {},
+        WindowsV2MessagingController::RepositoryFactory messagingRepositoryFactory = {},
         QObject *parent = nullptr);
     ~WindowsDeviceManagementController() override;
 
     DeviceManagementViewModel *viewModel() const;
+    V2WindowsConversationDirectoryViewModel *conversationDirectoryViewModel() const;
+    V2WindowsMessagingViewModel *messagingViewModel() const;
     bool start();
     void stop();
 
@@ -29,4 +35,5 @@ private:
     std::unique_ptr<V2WindowsDeviceManagementTransport> m_transport;
     std::unique_ptr<DeviceManagementViewModel> m_viewModel;
     std::unique_ptr<DeviceManagementApplicationService> m_service;
+    std::unique_ptr<WindowsV2MessagingController> m_messagingController;
 };

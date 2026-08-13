@@ -1,5 +1,6 @@
 #include "WindowsDeviceManagementController.h"
 #include "DeviceManagementViewModel.h"
+#include "V2LocalMessageRepository.h"
 
 #include "chat/v2/authentication.pb.h"
 #include "chat/v2/control.pb.h"
@@ -7,6 +8,7 @@
 #include "chat/v2/envelope.pb.h"
 #include <QCoreApplication>
 #include <QDebug>
+#include <QTemporaryDir>
 #include <google/protobuf/message_lite.h>
 #include <stdexcept>
 
@@ -49,6 +51,7 @@ QByteArray response(int type, const std::string &requestId,
 int main(int argc, char **argv) {
     QCoreApplication app(argc, argv);
     QWebSocket socket;
+    QTemporaryDir temporaryDirectory;
     QList<QByteArray> sent;
     V2WindowsDeviceManagementTransport::SocketHooks hooks;
     hooks.subprotocol = [] { return QStringLiteral("chat.v2"); };
@@ -63,7 +66,11 @@ int main(int argc, char **argv) {
     WindowsDeviceManagementController controller(
         QUrl(QStringLiteral("wss://chat.example.test/v2/windows")),
         QStringLiteral("2.0.0-test"), deviceId, QStringLiteral("user_01"),
-        QByteArrayLiteral("secret"), &socket, std::move(hooks));
+        QByteArrayLiteral("secret"), &socket, std::move(hooks),
+        [&](const QString &) {
+            return std::make_unique<V2LocalMessageRepository>(
+                temporaryDirectory.filePath(QStringLiteral("messages.sqlite")));
+        });
     if (!check(controller.start(), QStringLiteral("controller did not start"))) return 1;
     socket.connected();
     const auto clientHello = parse(sent.takeFirst());
@@ -89,9 +96,17 @@ int main(int argc, char **argv) {
     socket.binaryMessageReceived(response(
         chat::v2::MESSAGE_TYPE_SESSION_ESTABLISHED,
         authentication.request_id(), sessionId, established));
-    if (!check(sent.size() == 1 && controller.viewModel()->authenticated(),
-               QStringLiteral("session establishment did not request live devices"))) return 1;
-    const auto list = parse(sent.takeFirst());
+    if (!check(sent.size() == 2 && controller.viewModel()->authenticated(),
+               QStringLiteral("session establishment did not request devices and conversations"))) return 1;
+    chat::v2::Envelope list;
+    for (const auto &frame : std::as_const(sent)) {
+        const auto candidate = parse(frame);
+        if (candidate.message_type() == chat::v2::MESSAGE_TYPE_LIST_DEVICES)
+            list = candidate;
+    }
+    sent.clear();
+    if (!check(list.message_type() == chat::v2::MESSAGE_TYPE_LIST_DEVICES,
+               QStringLiteral("device request was not composed"))) return 1;
 
     chat::v2::DeviceDirectory directory;
     auto *current = directory.add_devices();

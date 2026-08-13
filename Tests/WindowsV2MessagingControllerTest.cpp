@@ -2,8 +2,10 @@
 
 #include "V2LocalMessageRepository.h"
 #include "V2WindowsMessagingViewModel.h"
+#include "V2WindowsConversationDirectoryViewModel.h"
 #include "chat/v2/authentication.pb.h"
 #include "chat/v2/control.pb.h"
+#include "chat/v2/conversation.pb.h"
 #include "chat/v2/envelope.pb.h"
 #include "chat/v2/messaging.pb.h"
 
@@ -111,8 +113,34 @@ int main(int argc, char **argv) {
     check(ready && controller.viewModel(),
           QStringLiteral("authentication must compose the account-isolated message runtime"));
 
+    check(sent.size() == 1,
+          QStringLiteral("authenticated runtime must request the first conversation page"));
+    command = parseEnvelope(sent.takeFirst());
+    chat::v2::ConversationDirectoryPage directoryPage;
+    auto *conversation = directoryPage.add_conversations();
+    conversation->set_conversation_id(
+        "60000000-0000-4000-8000-000000000001");
+    conversation->set_kind(chat::v2::CONVERSATION_KIND_GROUP);
+    conversation->set_display_name("Engineering");
+    conversation->set_role(chat::v2::CONVERSATION_ROLE_MEMBER);
+    conversation->set_latest_sequence(1);
+    conversation->set_last_read_sequence(0);
+    conversation->set_updated_at_epoch_ms(901);
+    directoryPage.set_next_updated_at_epoch_ms(901);
+    directoryPage.set_next_conversation_id(conversation->conversation_id());
+    socket.binaryMessageReceived(response(
+        chat::v2::MESSAGE_TYPE_CONVERSATION_DIRECTORY_PAGE,
+        chat::v2::MESSAGE_KIND_RESPONSE, command.request_id(), sessionId,
+        directoryPage));
+    check(controller.directoryViewModel()->rows().size() == 1
+              && controller.directoryViewModel()->rows().first().displayName
+                    == QStringLiteral("Engineering")
+              && controller.directoryViewModel()->rows().first().unreadCount == 1,
+          QStringLiteral("directory response must project a user-facing unread row"));
+
     const QString conversationId = QStringLiteral("60000000-0000-4000-8000-000000000001");
-    check(controller.openConversation(conversationId) && sent.size() == 1,
+    check(controller.directoryViewModel()->openConversation(conversationId)
+              && sent.size() == 1,
           QStringLiteral("opening a conversation must hydrate cache and request cursor history"));
     command = parseEnvelope(sent.takeFirst());
     chat::v2::ReadMessageHistory historyRequest;

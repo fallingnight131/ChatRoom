@@ -117,12 +117,6 @@ add_executable(
   "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsDeviceManagementTransportTest.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsDeviceManagementTransport.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsDeviceManagementTransport.h"
-  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/WindowsDeviceManagementController.cpp"
-  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/WindowsDeviceManagementController.h"
-  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/DeviceManagementApplicationService.cpp"
-  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/DeviceManagementApplicationService.h"
-  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/DeviceManagementViewModel.cpp"
-  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/DeviceManagementViewModel.h"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsSessionProtocolClient.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2DeviceManagementProtocolClient.cpp"
   "${GENERATED_ROOT}/chat/v2/authentication.pb.cc"
@@ -152,10 +146,19 @@ add_executable(
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsDeviceManagementTransport.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsSessionProtocolClient.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2DeviceManagementProtocolClient.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/WindowsV2MessagingController.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsConversationDirectoryProtocolClient.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsConversationDirectoryViewModel.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsMessagingApplicationService.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsMessagingProtocolClient.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsMessagingViewModel.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2LocalMessageRepository.cpp"
   "${GENERATED_ROOT}/chat/v2/authentication.pb.cc"
   "${GENERATED_ROOT}/chat/v2/control.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/conversation.pb.cc"
   "${GENERATED_ROOT}/chat/v2/device_management.pb.cc"
   "${GENERATED_ROOT}/chat/v2/envelope.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/messaging.pb.cc"
 )
 set_target_properties(v2_windows_device_management_controller_test PROPERTIES AUTOMOC ON)
 target_compile_features(v2_windows_device_management_controller_test PRIVATE cxx_std_17)
@@ -165,7 +168,7 @@ target_include_directories(
 )
 target_link_libraries(
   v2_windows_device_management_controller_test
-  PRIVATE Qt6::Core Qt6::Network Qt6::WebSockets protobuf::libprotobuf
+  PRIVATE Qt6::Core Qt6::Network Qt6::Sql Qt6::WebSockets protobuf::libprotobuf
 )
 
 add_executable(
@@ -173,6 +176,8 @@ add_executable(
   "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/WindowsV2MessagingControllerTest.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/WindowsV2MessagingController.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/WindowsV2MessagingController.h"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsConversationDirectoryProtocolClient.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsConversationDirectoryViewModel.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsMessagingApplicationService.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsMessagingProtocolClient.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsMessagingViewModel.cpp"
@@ -182,6 +187,7 @@ add_executable(
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2DeviceManagementProtocolClient.cpp"
   "${GENERATED_ROOT}/chat/v2/authentication.pb.cc"
   "${GENERATED_ROOT}/chat/v2/control.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/conversation.pb.cc"
   "${GENERATED_ROOT}/chat/v2/device_management.pb.cc"
   "${GENERATED_ROOT}/chat/v2/envelope.pb.cc"
   "${GENERATED_ROOT}/chat/v2/messaging.pb.cc"

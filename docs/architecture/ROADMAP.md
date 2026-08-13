@@ -1400,6 +1400,11 @@ Progress:
     composite cursor paging, user-facing names/roles/unread sequences, ordered
     response validation, disconnect abandonment, and shared-WSS routing
     (ADR-0336).
+  - [x] Compose the directory protocol and user-facing Qt projection inside the
+    actual Windows V2 product controller: authenticate once, request directory
+    and device state together, expose unread/name/kind/role rows, open cached
+    message history by authorized UUID, and preserve offline intent on reconnect
+    (ADR-0337).
   - [ ] Add the equivalent reply composition, local-cache behavior, and rendering
     to the supported Windows client.
 
