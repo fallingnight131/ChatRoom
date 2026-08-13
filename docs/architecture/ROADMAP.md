@@ -694,6 +694,11 @@ Progress:
   - [x] Compose V1 administrative message deletion and prove live compatibility,
     exact-retry suppression, file revocation, and reconnect replay through real
     PostgreSQL.
+  - [x] Define a convergent server-bound V1 room-rename contract with canonical
+    Unicode title bounds, administrator authorization, normalized durable state,
+    and changed-only live effects.
+  - [ ] Implement serializable PostgreSQL room rename, then add and compose the
+    strict detached `RENAME_ROOM_REQ` adapter with real database recovery proof.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
