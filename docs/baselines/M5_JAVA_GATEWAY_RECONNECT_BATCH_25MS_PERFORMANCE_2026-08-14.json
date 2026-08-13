@@ -1,0 +1,95 @@
+{
+  "benchmark": "java-v2-gateway-messaging",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 4294967296,
+    "os": "Mac OS X",
+    "osVersion": "26.5.2",
+    "peakObservedHeapBytes": 317798384,
+    "processCpuSeconds": 4.15,
+    "scenarioWallSeconds": 2.013,
+    "vm": "OpenJDK 64-Bit Server VM"
+  },
+  "host": {
+    "javaPeakRssBytes": 599490560,
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "postgresPostmasterPeakRssBytes": 24412160,
+    "pythonVersion": "3.9.6"
+  },
+  "recordedAt": "2026-08-13T19:12:40.040673Z",
+  "results": {
+    "completedMessageThroughputPerSecond": 648.246,
+    "connectionSetupLatencyMicros": {
+      "max": 250605,
+      "mean": 101286.1,
+      "min": 76795,
+      "p50": 81931,
+      "p95": 250605,
+      "p99": 250605,
+      "samples": 10
+    },
+    "errors": 0,
+    "peerPublications": 180,
+    "resumeErrors": 0,
+    "sessionResumeArrivalJitterMicros": {
+      "max": 10034,
+      "mean": 5476.44,
+      "min": 5,
+      "p50": 6723,
+      "p95": 10011,
+      "p99": 10034,
+      "samples": 50
+    },
+    "sessionResumeLatencyMicros": {
+      "max": 12935,
+      "mean": 6687.76,
+      "min": 4341,
+      "p50": 6448,
+      "p95": 9728,
+      "p99": 12935,
+      "samples": 50
+    },
+    "sessionResumeThroughputPerSecond": 85.994,
+    "submitToAcceptLatencyMicros": {
+      "max": 1640,
+      "mean": 951.95,
+      "min": 698,
+      "p50": 864,
+      "p95": 1140,
+      "p99": 1640,
+      "samples": 20
+    },
+    "submitToAllPeersPublishedLatencyMicros": {
+      "max": 2082,
+      "mean": 1524.3,
+      "min": 1172,
+      "p50": 1516,
+      "p95": 1795,
+      "p99": 2082,
+      "samples": 20
+    }
+  },
+  "scenario": {
+    "connections": 10,
+    "conversationKind": "GROUP",
+    "durableMessages": 25,
+    "messageOperations": 20,
+    "payloadBytes": 256,
+    "receiversPerMessage": 9,
+    "reconnectBatchIntervalMillis": 25,
+    "reconnectBatchSize": 2,
+    "reconnectBatchesPerRound": 5,
+    "reconnectOperations": 50,
+    "reconnectRounds": 5,
+    "scheduledReconnectBatchRatePerSecond": 40.0,
+    "scheduledReconnectSpanMillis": 100,
+    "warmupOperations": 5
+  },
+  "schemaVersion": 8,
+  "sourceRevision": "5eaf076bcd205b2c6fd846cf80e536be586b0f90",
+  "startedAt": "2026-08-13T19:12:36.507889Z",
+  "warning": "loopback development evidence; not a capacity claim",
+  "worktreeDirty": false
+}

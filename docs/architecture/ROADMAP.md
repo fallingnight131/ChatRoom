@@ -1358,8 +1358,14 @@ Progress:
 - [x] Record a clean 10-connection/5-round curve with two resumes per batch at
   100 ms intervals: 8.878 ms resume P50, 12.798 ms P95, about 10 ms maximum
   scheduled-start jitter, exact token rotation, and zero errors.
-- [ ] Record the comparable 25 ms curve and derive provisional client
-  backoff/rolling-drain guidance.
+- [x] Record the comparable 25 ms curve: 6.448 ms resume P50, 9.728 ms P95,
+  85.994 paced resumes per second, about 10 ms maximum scheduled-start jitter,
+  exact identity/token rotation, and zero errors.
+- [x] Retain the Web/Windows V2 full-jitter exponential reconnect policy (500 ms
+  initial ceiling, 30 second cap); the local 25/100 ms curves do not establish a
+  production fleet rate. Define the future rolling-drain order as readiness
+  removal, bounded connection drain, then randomized client reconnect, pending
+  a multi-gateway implementation and failure validation.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.
