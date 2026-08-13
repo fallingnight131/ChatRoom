@@ -1431,10 +1431,14 @@ Progress:
   - [x] Add the generated wire contract, bounded Java policy, mixed-history pin
     detail, and fixed Java/C++/TypeScript golden compatibility gate while both
     clients keep the capability disabled.
-  - [ ] Persist and route authoritative pin operations, history, and live events.
+  - [x] Persist and route authoritative pin operations, history, and live events.
     - [x] Persist exact manual outcomes, shared current state, changed-only mixed
       history, the 50-pin bound, OWNER/ADMIN group authority, and ordered
-      recall/deletion cleanup in PostgreSQL V046. Gateway routing remains next.
+      recall/deletion cleanup in PostgreSQL V046.
+    - [x] Bind pin actors to authenticated gateway identity, reject commands
+      before explicit capability negotiation, map fixed outcomes, filter mixed
+      history detail without stalling cursors, and fan out live changes only to
+      capable subscribers.
   - [ ] Add offline-safe Web and Windows projections and accessible controls.
 
 Candidate slices:

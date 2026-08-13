@@ -22,6 +22,8 @@ import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
 import com.fallingnight.chat.application.messaging.MessageReactionCommand;
 import com.fallingnight.chat.application.messaging.MessageReactionKind;
 import com.fallingnight.chat.application.messaging.MessageReactionResult;
+import com.fallingnight.chat.application.messaging.MessagePinCommand;
+import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.ClientCapability;
@@ -41,6 +43,9 @@ import com.fallingnight.chat.protocol.v2.ReadMessageHistory;
 import com.fallingnight.chat.protocol.v2.SubmitMessage;
 import com.fallingnight.chat.protocol.v2.SubmitReplyMessage;
 import com.fallingnight.chat.protocol.v2.SetMessageReaction;
+import com.fallingnight.chat.protocol.v2.SetMessagePin;
+import com.fallingnight.chat.protocol.v2.MessagePinApplied;
+import com.fallingnight.chat.protocol.v2.MessagePinChangedRecord;
 import com.google.protobuf.ByteString;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.time.Clock;
@@ -371,6 +376,63 @@ class V2MessagingHandlerTest {
     }
 
     @Test
+    void gatesAppliesPublishesAndHistoryFiltersMessagePins() throws Exception {
+        AtomicReference<MessagePinCommand> captured = new AtomicReference<>();
+        ConversationHistoryEntry.Pin pinHistory = new ConversationHistoryEntry.Pin(
+                CONVERSATION_ID, 6, MESSAGE_ID, ACCOUNT_ID, true, "pin-history", ACCEPTED_AT);
+        MessageHistoryResult.Page stored = new MessageHistoryResult.Page(
+                List.of(), List.of(pinHistory), 6, 6, false);
+        SingleGatewayConversationLiveRouter router =
+                new SingleGatewayConversationLiveRouter(CLOCK);
+        EmbeddedChannel channel = new EmbeddedChannel(new V2MessagingHandler(
+                submission -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                query -> stored,
+                query -> new ConversationDirectoryPage(List.of(), Optional.empty(), false),
+                command -> MessageReactionResult.Rejected.NOT_AUTHORIZED,
+                command -> {
+                    captured.set(command);
+                    return new MessagePinResult.Applied(
+                            command.conversationId(), command.messageId(),
+                            command.actorAccountId(), command.pinned(),
+                            command.clientOperationId(), true, 7, ACCEPTED_AT, false);
+                }, Runnable::run, MessagingEventSink.noop(), router));
+        channel.attr(V2ConnectionAttributes.AUTHENTICATED).set(
+                new AuthenticatedConnection(ACCOUNT_ID, DEVICE_ID, SESSION_ID));
+        try {
+            channel.writeInbound(pinEnvelope("pin-denied", true));
+            assertError(channel,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_UNSUPPORTED_MESSAGE_TYPE, false);
+            assertNull(captured.get());
+
+            channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(Set.of(
+                    ClientCapability.CLIENT_CAPABILITY_MESSAGE_PINS));
+            channel.writeInbound(historyEnvelope(0, 10));
+            channel.runPendingTasks();
+            MessageHistoryPage page = MessageHistoryPage.parseFrom(
+                    ((Envelope) channel.readOutbound()).getPayload());
+            assertEquals("pin-history", page.getEntries(0).getPin().getClientOperationId());
+
+            channel.writeInbound(pinEnvelope("pin-add", true));
+            channel.runPendingTasks();
+            assertEquals(ACCOUNT_ID, captured.get().actorAccountId());
+            assertEquals(DEVICE_ID, captured.get().actorDeviceId());
+            Envelope response = channel.readOutbound();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_PIN_APPLIED_VALUE,
+                    response.getMessageType());
+            MessagePinApplied applied = MessagePinApplied.parseFrom(response.getPayload());
+            assertEquals(7, applied.getConversationSequence());
+            Envelope event = channel.readOutbound();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_PIN_CHANGED_VALUE,
+                    event.getMessageType());
+            MessagePinChangedRecord changed =
+                    MessagePinChangedRecord.parseFrom(event.getPayload());
+            assertEquals("pin-add", changed.getClientOperationId());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
     void mapsExpectedDenialsWithoutClosingConnection() throws Exception {
         EmbeddedChannel channel = channel(
                 submission -> MessageSubmissionResult.Rejected.IDEMPOTENCY_CONFLICT,
@@ -668,6 +730,15 @@ class V2MessagingHandlerTest {
         return commandEnvelope(
                 MessageType.MESSAGE_TYPE_SET_MESSAGE_REACTION,
                 "",
+                payload.toByteString());
+    }
+
+    private static Envelope pinEnvelope(String operationId, boolean pinned) {
+        SetMessagePin payload = SetMessagePin.newBuilder()
+                .setConversationId(CONVERSATION_ID.toString())
+                .setMessageId(MESSAGE_ID.toString()).setPinned(pinned)
+                .setClientOperationId(operationId).build();
+        return commandEnvelope(MessageType.MESSAGE_TYPE_SET_MESSAGE_PIN, "",
                 payload.toByteString());
     }
 

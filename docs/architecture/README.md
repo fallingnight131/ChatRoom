@@ -662,7 +662,10 @@ requires group OWNER/ADMIN mutation authority. PostgreSQL V046 now stores exact
 manual outcomes (including stable limit rejection), shared current state, and
 changed-only events in the conversation sequence. Recall and V2 deletion append
 ordered automatic unpin events in the initiating transaction; gateway routing
-and offline client convergence remain mandatory before activation (ADR-0340).
+binds the actor/device to the authenticated session, requires the separate
+capability, filters legacy V2 history detail while preserving its cursor, and
+publishes live changes only to capable subscribers. Offline Web and Windows
+convergence remain mandatory before activation (ADR-0340).
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
 single-gateway router now establishes one active subscription only through the

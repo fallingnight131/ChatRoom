@@ -5,12 +5,14 @@ import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.application.messaging.MessageReactionResult;
+import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.protocol.v2.ClientCapability;
 import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.EnvelopePolicy;
 import com.fallingnight.chat.protocol.v2.MessageKind;
 import com.fallingnight.chat.protocol.v2.MessageRecord;
 import com.fallingnight.chat.protocol.v2.MessageReactionChangedRecord;
+import com.fallingnight.chat.protocol.v2.MessagePinChangedRecord;
 import com.fallingnight.chat.protocol.v2.MessageType;
 import com.fallingnight.chat.protocol.v2.MessagingPayloadPolicy;
 import com.google.protobuf.ByteString;
@@ -156,6 +158,51 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                 published += 1;
             }
             if (route.channels.isEmpty()) routes.remove(reaction.conversationId(), route);
+        }
+        return new LivePublishResult(published, slowClosed);
+    }
+
+    @Override
+    public LivePublishResult publishPin(MessagePinResult.Applied pin) {
+        Objects.requireNonNull(pin, "pin");
+        if (!pin.changed() || pin.duplicate()) return LivePublishResult.NONE;
+        Route route = routes.get(pin.conversationId());
+        if (route == null) return LivePublishResult.NONE;
+        MessagePinChangedRecord record = MessagePinChangedRecord.newBuilder()
+                .setConversationId(pin.conversationId().toString())
+                .setConversationSequence(pin.conversationSequence())
+                .setMessageId(pin.messageId().toString()).setPinned(pin.pinned())
+                .setActorAccountId(pin.actorAccountId().toString())
+                .setClientOperationId(pin.clientOperationId())
+                .setOccurredAtEpochMs(pin.occurredAt().toEpochMilli()).build();
+        MessagingPayloadPolicy.requireValid(record);
+        int published = 0;
+        int slowClosed = 0;
+        synchronized (route) {
+            for (Channel channel : java.util.List.copyOf(route.channels)) {
+                AuthenticatedConnection identity =
+                        channel.attr(V2ConnectionAttributes.AUTHENTICATED).get();
+                if (!channel.isActive() || identity == null) {
+                    route.channels.remove(channel);
+                    continue;
+                }
+                java.util.Set<ClientCapability> capabilities =
+                        channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get();
+                if (capabilities == null || !capabilities.contains(
+                        ClientCapability.CLIENT_CAPABILITY_MESSAGE_PINS)) continue;
+                if (!channel.isWritable()) {
+                    channel.close(); route.channels.remove(channel); slowClosed += 1; continue;
+                }
+                Envelope event = Envelope.newBuilder()
+                        .setProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
+                        .setKind(MessageKind.MESSAGE_KIND_EVENT)
+                        .setMessageType(MessageType.MESSAGE_TYPE_MESSAGE_PIN_CHANGED_VALUE)
+                        .setSessionId(identity.sessionId().toString())
+                        .setSentAtEpochMs(clock.millis()).setPayload(record.toByteString()).build();
+                EnvelopePolicy.requireValid(event);
+                channel.writeAndFlush(event); published += 1;
+            }
+            if (route.channels.isEmpty()) routes.remove(pin.conversationId(), route);
         }
         return new LivePublishResult(published, slowClosed);
     }

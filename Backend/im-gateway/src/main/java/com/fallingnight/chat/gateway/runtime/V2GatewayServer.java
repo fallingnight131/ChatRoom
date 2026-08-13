@@ -7,6 +7,8 @@ import com.fallingnight.chat.application.identity.DeviceManagementService;
 import com.fallingnight.chat.application.messaging.MessageHistoryPort;
 import com.fallingnight.chat.application.messaging.MessageSubmissionPort;
 import com.fallingnight.chat.application.messaging.MessageReactionPort;
+import com.fallingnight.chat.application.messaging.MessagePinPort;
+import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
 import com.fallingnight.chat.gateway.transport.GatewayConnectionLimitHandler;
@@ -66,6 +68,7 @@ public final class V2GatewayServer implements AutoCloseable {
     private final MessageHistoryPort history;
     private final ConversationDirectoryPort directory;
     private final MessageReactionPort reactions;
+    private final MessagePinPort pins;
     private final DeviceManagementService deviceManagement;
     private final Executor authenticationExecutor;
     private final Executor messagingExecutor;
@@ -100,9 +103,24 @@ public final class V2GatewayServer implements AutoCloseable {
             DeviceManagementEventSink deviceEvents,
             DeviceConnectionRegistry deviceConnections) {
         this(config, authentication, sessionResume, submissions, history, directory, reactions,
+                command -> MessagePinResult.Rejected.NOT_AUTHORIZED,
                 deviceManagement, authenticationExecutor, messagingExecutor, admission,
                 events, messagingEvents, deviceEvents, deviceConnections,
                 createSslContext(config));
+    }
+
+    public V2GatewayServer(
+            GatewayRuntimeConfig config, AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume, MessageSubmissionPort submissions,
+            MessageHistoryPort history, ConversationDirectoryPort directory,
+            MessageReactionPort reactions, MessagePinPort pins,
+            DeviceManagementService deviceManagement, Executor authenticationExecutor,
+            Executor messagingExecutor, AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events, MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents, DeviceConnectionRegistry deviceConnections) {
+        this(config, authentication, sessionResume, submissions, history, directory, reactions,
+                pins, deviceManagement, authenticationExecutor, messagingExecutor, admission,
+                events, messagingEvents, deviceEvents, deviceConnections, createSslContext(config));
     }
 
     V2GatewayServer(
@@ -122,6 +140,30 @@ public final class V2GatewayServer implements AutoCloseable {
             DeviceManagementEventSink deviceEvents,
             DeviceConnectionRegistry deviceConnections,
             SslContext sslContext) {
+        this(config, authentication, sessionResume, submissions, history, directory, reactions,
+                command -> MessagePinResult.Rejected.NOT_AUTHORIZED, deviceManagement,
+                authenticationExecutor, messagingExecutor, admission, events, messagingEvents,
+                deviceEvents, deviceConnections, sslContext);
+    }
+
+    V2GatewayServer(
+            GatewayRuntimeConfig config,
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            SslContext sslContext) {
         this.config = Objects.requireNonNull(config, "config");
         this.authentication = Objects.requireNonNull(authentication, "authentication");
         this.sessionResume = Objects.requireNonNull(sessionResume, "sessionResume");
@@ -129,6 +171,7 @@ public final class V2GatewayServer implements AutoCloseable {
         this.history = Objects.requireNonNull(history, "history");
         this.directory = Objects.requireNonNull(directory, "directory");
         this.reactions = Objects.requireNonNull(reactions, "reactions");
+        this.pins = Objects.requireNonNull(pins, "pins");
         this.deviceManagement = Objects.requireNonNull(deviceManagement, "deviceManagement");
         this.authenticationExecutor = Objects.requireNonNull(
                 authenticationExecutor, "authenticationExecutor");
@@ -242,6 +285,7 @@ public final class V2GatewayServer implements AutoCloseable {
                 history,
                 directory,
                 reactions,
+                pins,
                 deviceManagement,
                 authenticationExecutor,
                 messagingExecutor,
