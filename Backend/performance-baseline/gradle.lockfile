@@ -1,0 +1,14 @@
+# This is a Gradle generated file for dependency locking.
+# Manual edits can break the build and are not advised.
+# This file is expected to be part of source control.
+com.fasterxml.jackson.core:jackson-annotations:2.21=runtimeClasspath,testRuntimeClasspath
+com.fasterxml.jackson.core:jackson-core:2.21.4=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+com.fasterxml.jackson:jackson-bom:2.21.4=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.flywaydb:flyway-core:13.0.0=runtimeClasspath,testRuntimeClasspath
+org.flywaydb:flyway-database-postgresql:13.0.0=runtimeClasspath,testRuntimeClasspath
+org.postgresql:postgresql:42.7.11=compileClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.xerial:sqlite-jdbc:3.51.2.0=runtimeClasspath,testRuntimeClasspath
+tools.jackson.core:jackson-core:3.1.5=runtimeClasspath,testRuntimeClasspath
+tools.jackson.core:jackson-databind:3.1.5=runtimeClasspath,testRuntimeClasspath
+tools.jackson:jackson-bom:3.1.5=runtimeClasspath,testRuntimeClasspath
+empty=annotationProcessor,testAnnotationProcessor

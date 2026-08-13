@@ -2023,6 +2023,12 @@ Every critical path should expose:
 Define performance objectives from a recorded baseline and user scenario. Track
 P50/P95/P99, not averages alone. Load tests must include reconnect storms, large
 groups, slow clients, database contention, and partial infrastructure failure.
+The first Java V2 measurement isolates the durable PostgreSQL messaging adapter
+and is documented in [`JAVA_PERFORMANCE.md`](JAVA_PERFORMANCE.md). It records
+commit, retry, same-conversation contention, history, CPU, heap, and RSS evidence
+without setting a hosted-runner capacity threshold. It cannot justify Redis, a
+broker, or a scale claim by itself; the remaining gateway/failure scenarios must
+be measured before an M5 topology ADR.
 
 ## 15. Explicit Non-goals
 

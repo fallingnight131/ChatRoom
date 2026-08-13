@@ -1277,6 +1277,15 @@ Exit criteria:
 
 Goal: scale only after the modular backend and measurements justify it.
 
+Progress:
+
+- [x] Add a reproducible disposable-PostgreSQL Java V2 messaging baseline with
+  strict non-capacity evidence validation for sequential commit, idempotent
+  retry, same-conversation contention, bounded history, CPU, heap, and RSS.
+- [ ] Measure the full single-gateway TLS/WSS path, large active groups,
+  reconnect storms, slow consumers, PostgreSQL saturation, and dependency
+  failure before selecting Redis, a broker, or multi-gateway topology.
+
 Work:
 
 - move gateway routing and presence leases to Redis;
