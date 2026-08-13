@@ -118,6 +118,53 @@ int main(int argc, char *argv[]) {
                 || !check(accepted.cursor == 8,
                     QStringLiteral("ACK did not advance the monotonic cursor"))) return 1;
 
+        V2LocalMessageRepository::ReactionCommand reaction;
+        reaction.conversationId = conversation;
+        reaction.messageId = accepted.messages.first().messageId;
+        reaction.reaction = V2LocalMessageRepository::ReactionKind::Love;
+        reaction.active = true;
+        reaction.clientOperationId = QStringLiteral("reaction-operation-1");
+        if (!check(repository.stageReaction(alice, reaction), repository.lastError())) return 1;
+        auto optimisticReaction = repository.loadSnapshot(alice, conversation);
+        if (!check(optimisticReaction.reactionCommands.size() == 1
+                        && optimisticReaction.messages.first().reactions.size() == 1
+                        && optimisticReaction.messages.first().reactions.first()
+                            .actorAccountIds.contains(alice),
+                   QStringLiteral("optimistic reaction was not stored atomically"))
+                || !check(repository.pendingReactions(alice).size() == 1,
+                    QStringLiteral("reaction outbox was not restart safe"))) return 1;
+        if (!check(repository.markReactionFailed(alice, reaction.clientOperationId),
+                   repository.lastError())
+                || !check(repository.pendingReactions(alice).isEmpty(),
+                    QStringLiteral("failed reaction remained automatic work"))) return 1;
+        reaction.state = V2LocalMessageRepository::DeliveryState::Pending;
+        if (!check(repository.stageReaction(alice, reaction), repository.lastError())) return 1;
+        V2LocalMessageRepository::ReactionChange applied{
+            conversation, 9, reaction.messageId, reaction.reaction, true, alice,
+            reaction.clientOperationId, 1250};
+        if (!check(repository.applyReaction(alice, applied), repository.lastError())) return 1;
+        const auto appliedReaction = repository.loadSnapshot(alice, conversation);
+        if (!check(appliedReaction.reactionCommands.isEmpty()
+                        && appliedReaction.cursor == 9
+                        && appliedReaction.messages.first().reactions.first()
+                            .actorAccountIds.contains(alice),
+                   QStringLiteral("reaction ACK did not converge projection and cursor"))) return 1;
+
+        V2LocalMessageRepository::ReactionChange remoteReaction{
+            conversation, 10, reaction.messageId,
+            V2LocalMessageRepository::ReactionKind::Like, true, bob,
+            QStringLiteral("reaction-operation-remote"), 1300};
+        if (!check(repository.mergeServerPage(
+                       alice, conversation, {}, 10, {}, {}, {remoteReaction}),
+                   repository.lastError())) return 1;
+        const auto afterRemoteReaction = repository.loadSnapshot(alice, conversation);
+        if (!check(afterRemoteReaction.cursor == 10
+                        && afterRemoteReaction.messages.first().reactions.size() == 2,
+                   QStringLiteral("history reaction did not update durable aggregate"))
+                || !check(repository.loadSnapshot(bob, conversation).messages.first()
+                            .reactions.isEmpty(),
+                    QStringLiteral("reaction projection crossed account boundary"))) return 1;
+
         if (!check(repository.upsertPending(alice, pending), repository.lastError())) return 1;
         accepted = repository.loadSnapshot(alice, conversation);
         if (!check(accepted.messages.first().state
@@ -135,28 +182,28 @@ int main(int argc, char *argv[]) {
                         && merged.messages.first().reply.targetSenderAccountId
                             == authoritative.reply.targetSenderAccountId,
                     QStringLiteral("authoritative reply projection was not merged"))
-                || !check(merged.cursor == 9,
-                    QStringLiteral("history merge did not advance cursor"))
+                || !check(merged.cursor == 10,
+                    QStringLiteral("history merge regressed cursor"))
                 || !check(repository.loadSnapshot(bob, conversation).messages.size() == 1,
                     QStringLiteral("history merge crossed account boundary"))) return 1;
 
-        if (!check(repository.mergeServerPage(alice, conversation, {}, 10),
+        if (!check(repository.mergeServerPage(alice, conversation, {}, 11),
                    repository.lastError())
-                || !check(repository.loadSnapshot(alice, conversation).cursor == 10,
+                || !check(repository.loadSnapshot(alice, conversation).cursor == 11,
                     QStringLiteral("mutation-only page did not advance cursor"))) return 1;
         auto live = authoritative;
         live.messageId = QStringLiteral("60000000-0000-4000-8000-000000000002");
         live.clientMessageId = QStringLiteral("remote-live-1");
-        live.conversationSequence = 11;
+        live.conversationSequence = 12;
         live.acceptedAtEpochMs = 1400;
         live.createdAtEpochMs = 1400;
         if (!check(repository.mergeLiveMessage(alice, live), repository.lastError())) return 1;
         const auto afterLive = repository.loadSnapshot(alice, conversation);
-        if (!check(afterLive.messages.size() == 2 && afterLive.cursor == 10,
+        if (!check(afterLive.messages.size() == 2 && afterLive.cursor == 11,
                    QStringLiteral("live message incorrectly advanced history cursor"))) return 1;
 
         if (!check(repository.mergeServerPage(
-                       alice, conversation, {}, 11, {authoritative.messageId}, {}),
+                       alice, conversation, {}, 12, {authoritative.messageId}, {}),
                    repository.lastError())) return 1;
         const auto recalled = repository.loadSnapshot(alice, conversation);
         const auto recalledTarget = std::find_if(
@@ -166,7 +213,7 @@ int main(int argc, char *argv[]) {
                         && recalledTarget->recalled && recalledTarget->text.isEmpty(),
                    QStringLiteral("recall did not erase cached target content"))) return 1;
         if (!check(repository.mergeServerPage(
-                       alice, conversation, {}, 12, {}, {live.messageId}),
+                       alice, conversation, {}, 13, {}, {live.messageId}),
                    repository.lastError())) return 1;
         const auto afterDeletion = repository.loadSnapshot(alice, conversation);
         if (!check(std::none_of(afterDeletion.messages.cbegin(), afterDeletion.messages.cend(),
@@ -180,7 +227,7 @@ int main(int argc, char *argv[]) {
         if (!check(!repository.mergeServerPage(
                        alice, conversation, {live, invalidSecond}, 11),
                    QStringLiteral("unordered history page was accepted"))
-                || !check(repository.loadSnapshot(alice, conversation).cursor == 12,
+                || !check(repository.loadSnapshot(alice, conversation).cursor == 13,
                     QStringLiteral("rejected page changed durable cursor"))) return 1;
     }
 

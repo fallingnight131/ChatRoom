@@ -11,7 +11,7 @@
 #include <QUuid>
 #include <QDebug>
 
-namespace { constexpr int SchemaVersion = 2; }
+namespace { constexpr int SchemaVersion = 3; }
 
 V2LocalMessageRepository::V2LocalMessageRepository(const QString &databasePath)
     : m_databasePath(databasePath),
@@ -84,6 +84,24 @@ bool V2LocalMessageRepository::initialize() {
         QStringLiteral(
             "CREATE INDEX IF NOT EXISTS idx_v2_messages_order ON v2_messages("
             "account_id, conversation_id, conversation_sequence, created_at)"),
+        QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS v2_message_reactions ("
+            "account_id TEXT NOT NULL, conversation_id TEXT NOT NULL, message_id TEXT NOT NULL, "
+            "reaction INTEGER NOT NULL CHECK(reaction BETWEEN 1 AND 6), "
+            "actor_account_id TEXT NOT NULL, PRIMARY KEY(account_id, message_id, reaction, actor_account_id), "
+            "FOREIGN KEY(account_id, conversation_id) REFERENCES v2_conversations"
+            "(account_id, conversation_id) ON DELETE CASCADE)"),
+        QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS v2_reaction_commands ("
+            "account_id TEXT NOT NULL, conversation_id TEXT NOT NULL, message_id TEXT NOT NULL, "
+            "reaction INTEGER NOT NULL CHECK(reaction BETWEEN 1 AND 6), active INTEGER NOT NULL "
+            "CHECK(active IN (0, 1)), client_operation_id TEXT NOT NULL, delivery_state TEXT NOT NULL "
+            "CHECK(delivery_state IN ('pending', 'failed')), "
+            "PRIMARY KEY(account_id, client_operation_id), FOREIGN KEY(account_id, conversation_id) "
+            "REFERENCES v2_conversations(account_id, conversation_id) ON DELETE CASCADE)"),
+        QStringLiteral(
+            "CREATE INDEX IF NOT EXISTS idx_v2_reaction_commands_pending ON "
+            "v2_reaction_commands(account_id, delivery_state, conversation_id)"),
     };
     for (const auto &statement : statements) {
         if (!query.exec(statement)) {
@@ -97,13 +115,13 @@ bool V2LocalMessageRepository::initialize() {
         m_database.rollback();
         return fail(QStringLiteral("migrate"), query.lastError().text());
     }
-    if (!query.exec(QStringLiteral("PRAGMA user_version = 2"))) {
+    if (!query.exec(QStringLiteral("PRAGMA user_version = 3"))) {
         m_database.rollback();
         return fail(QStringLiteral("migrate"), query.lastError().text());
     }
     if (!m_database.commit()) return fail(QStringLiteral("migrate"), m_database.lastError().text());
     m_lastError.clear();
-    qInfo() << "[V2LocalStore] operation=initialize outcome=success schema=2";
+    qInfo() << "[V2LocalStore] operation=initialize outcome=success schema=3";
     return true;
 }
 
@@ -255,7 +273,8 @@ bool V2LocalMessageRepository::mergeServerPage(
         const QString &accountId, const QString &conversationId,
         const QList<Message> &messages, qint64 nextCursor,
         const QStringList &recalledMessageIds,
-        const QStringList &deletedMessageIds) {
+        const QStringList &deletedMessageIds,
+        const QList<ReactionChange> &reactionChanges) {
     if (!canonicalUuid(accountId) || !canonicalUuid(conversationId) || nextCursor < 0)
         return fail(QStringLiteral("mergeServerPage"), QStringLiteral("invalid page identity"));
     qint64 previous = 0;
@@ -272,6 +291,10 @@ bool V2LocalMessageRepository::mergeServerPage(
     for (const auto &messageId : deletedMessageIds)
         if (!canonicalUuid(messageId))
             return fail(QStringLiteral("mergeServerPage"), QStringLiteral("invalid deletion target"));
+    for (const auto &change : reactionChanges)
+        if (!validReactionChange(change, true) || change.conversationId != conversationId
+                || change.conversationSequence > nextCursor)
+            return fail(QStringLiteral("mergeServerPage"), QStringLiteral("invalid reaction change"));
     if (!m_database.transaction())
         return fail(QStringLiteral("mergeServerPage"), m_database.lastError().text());
     if (!ensureConversation(accountId, conversationId, nextCursor)) {
@@ -312,6 +335,27 @@ bool V2LocalMessageRepository::mergeServerPage(
             m_database.rollback();
             return fail(QStringLiteral("mergeServerPage"), deletion.lastError().text());
         }
+        QSqlQuery removeReactions(m_database);
+        removeReactions.prepare(QStringLiteral(
+            "DELETE FROM v2_message_reactions WHERE account_id = ? AND message_id = ?"));
+        removeReactions.addBindValue(accountId); removeReactions.addBindValue(messageId);
+        if (!removeReactions.exec()) {
+            m_database.rollback();
+            return fail(QStringLiteral("mergeServerPage"), removeReactions.lastError().text());
+        }
+    }
+    for (const auto &change : reactionChanges) {
+        if (!applyReactionProjection(accountId, change)) {
+            m_database.rollback(); return false;
+        }
+        QSqlQuery acknowledged(m_database);
+        acknowledged.prepare(QStringLiteral(
+            "DELETE FROM v2_reaction_commands WHERE account_id = ? AND client_operation_id = ?"));
+        acknowledged.addBindValue(accountId); acknowledged.addBindValue(change.clientOperationId);
+        if (!acknowledged.exec()) {
+            m_database.rollback();
+            return fail(QStringLiteral("mergeServerPage"), acknowledged.lastError().text());
+        }
     }
     if (!pruneAccepted(accountId, conversationId)) { m_database.rollback(); return false; }
     if (!m_database.commit()) {
@@ -348,6 +392,112 @@ bool V2LocalMessageRepository::mergeLiveMessage(
         m_database.rollback();
         return fail(QStringLiteral("mergeLiveMessage"), m_database.lastError().text());
     }
+    m_lastError.clear(); return true;
+}
+
+bool V2LocalMessageRepository::stageReaction(
+        const QString &accountId, const ReactionCommand &command) {
+    if (!canonicalUuid(accountId) || !validReactionCommand(command))
+        return fail(QStringLiteral("stageReaction"), QStringLiteral("invalid reaction command"));
+    if (!m_database.transaction())
+        return fail(QStringLiteral("stageReaction"), m_database.lastError().text());
+    QSqlQuery target(m_database);
+    target.prepare(QStringLiteral(
+        "SELECT recalled FROM v2_messages WHERE account_id = ? AND conversation_id = ? "
+        "AND message_id = ? AND delivery_state = 'accepted'"));
+    target.addBindValue(accountId); target.addBindValue(command.conversationId);
+    target.addBindValue(command.messageId);
+    if (!target.exec() || !target.next() || target.value(0).toBool()) {
+        m_database.rollback();
+        return fail(QStringLiteral("stageReaction"), QStringLiteral("reaction target unavailable"));
+    }
+    QSqlQuery existing(m_database);
+    existing.prepare(QStringLiteral(
+        "SELECT conversation_id, message_id, reaction, active FROM v2_reaction_commands "
+        "WHERE account_id = ? AND client_operation_id = ?"));
+    existing.addBindValue(accountId); existing.addBindValue(command.clientOperationId);
+    if (!existing.exec()) { m_database.rollback(); return fail(QStringLiteral("stageReaction"), existing.lastError().text()); }
+    if (existing.next()) {
+        const bool same = existing.value(0).toString() == command.conversationId
+            && existing.value(1).toString() == command.messageId
+            && existing.value(2).toInt() == static_cast<int>(command.reaction)
+            && existing.value(3).toBool() == command.active;
+        if (!same) { m_database.rollback(); return fail(QStringLiteral("stageReaction"), QStringLiteral("idempotency conflict")); }
+        QSqlQuery retry(m_database);
+        retry.prepare(QStringLiteral(
+            "UPDATE v2_reaction_commands SET delivery_state = 'pending' "
+            "WHERE account_id = ? AND client_operation_id = ?"));
+        retry.addBindValue(accountId); retry.addBindValue(command.clientOperationId);
+        if (!retry.exec()) { m_database.rollback(); return fail(QStringLiteral("stageReaction"), retry.lastError().text()); }
+    } else {
+        QSqlQuery count(m_database);
+        count.prepare(QStringLiteral(
+            "SELECT COUNT(*) FROM v2_reaction_commands WHERE account_id = ?"));
+        count.addBindValue(accountId);
+        if (!count.exec() || !count.next()
+                || count.value(0).toInt() >= MaxPendingReactionsPerAccount) {
+            m_database.rollback();
+            return fail(QStringLiteral("stageReaction"), QStringLiteral("reaction outbox limit reached"));
+        }
+        QSqlQuery insert(m_database);
+        insert.prepare(QStringLiteral(
+            "INSERT INTO v2_reaction_commands(account_id, conversation_id, message_id, reaction, "
+            "active, client_operation_id, delivery_state) VALUES(?, ?, ?, ?, ?, ?, 'pending')"));
+        insert.addBindValue(accountId); insert.addBindValue(command.conversationId);
+        insert.addBindValue(command.messageId); insert.addBindValue(static_cast<int>(command.reaction));
+        insert.addBindValue(command.active); insert.addBindValue(command.clientOperationId);
+        if (!insert.exec()) { m_database.rollback(); return fail(QStringLiteral("stageReaction"), insert.lastError().text()); }
+    }
+    ReactionChange optimistic{command.conversationId, 0, command.messageId,
+        command.reaction, command.active, accountId, command.clientOperationId, 1};
+    if (!applyReactionProjection(accountId, optimistic)) { m_database.rollback(); return false; }
+    if (!m_database.commit()) return fail(QStringLiteral("stageReaction"), m_database.lastError().text());
+    m_lastError.clear(); return true;
+}
+
+bool V2LocalMessageRepository::markReactionFailed(
+        const QString &accountId, const QString &clientOperationId) {
+    if (!canonicalUuid(accountId) || !validIdentifier(clientOperationId)) return false;
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "UPDATE v2_reaction_commands SET delivery_state = 'failed' WHERE account_id = ? "
+        "AND client_operation_id = ? AND delivery_state = 'pending'"));
+    query.addBindValue(accountId); query.addBindValue(clientOperationId);
+    if (!query.exec() || query.numRowsAffected() != 1)
+        return fail(QStringLiteral("markReactionFailed"), query.lastError().text());
+    m_lastError.clear(); return true;
+}
+
+bool V2LocalMessageRepository::applyReaction(
+        const QString &accountId, const ReactionChange &change) {
+    if (!canonicalUuid(accountId) || !validReactionChange(change, false))
+        return fail(QStringLiteral("applyReaction"), QStringLiteral("invalid reaction result"));
+    if (!m_database.transaction()) return fail(QStringLiteral("applyReaction"), m_database.lastError().text());
+    if (!applyReactionProjection(accountId, change)) { m_database.rollback(); return false; }
+    QSqlQuery command(m_database);
+    command.prepare(QStringLiteral(
+        "DELETE FROM v2_reaction_commands WHERE account_id = ? AND client_operation_id = ?"));
+    command.addBindValue(accountId); command.addBindValue(change.clientOperationId);
+    if (!command.exec() || !ensureConversation(accountId, change.conversationId,
+            change.conversationSequence)) {
+        m_database.rollback(); return fail(QStringLiteral("applyReaction"), command.lastError().text());
+    }
+    if (!m_database.commit()) return fail(QStringLiteral("applyReaction"), m_database.lastError().text());
+    m_lastError.clear(); return true;
+}
+
+bool V2LocalMessageRepository::mergeLiveReaction(
+        const QString &accountId, const ReactionChange &change) {
+    if (!canonicalUuid(accountId) || !validReactionChange(change, true))
+        return fail(QStringLiteral("mergeLiveReaction"), QStringLiteral("invalid live reaction"));
+    if (!m_database.transaction()) return fail(QStringLiteral("mergeLiveReaction"), m_database.lastError().text());
+    if (!applyReactionProjection(accountId, change)) { m_database.rollback(); return false; }
+    QSqlQuery command(m_database);
+    command.prepare(QStringLiteral(
+        "DELETE FROM v2_reaction_commands WHERE account_id = ? AND client_operation_id = ?"));
+    command.addBindValue(accountId); command.addBindValue(change.clientOperationId);
+    if (!command.exec()) { m_database.rollback(); return fail(QStringLiteral("mergeLiveReaction"), command.lastError().text()); }
+    if (!m_database.commit()) return fail(QStringLiteral("mergeLiveReaction"), m_database.lastError().text());
     m_lastError.clear(); return true;
 }
 
@@ -402,6 +552,44 @@ V2LocalMessageRepository::Snapshot V2LocalMessageRepository::loadSnapshot(
         message.hasReply = !message.reply.targetMessageId.isEmpty();
         result.messages.append(message);
     }
+    QSqlQuery reactions(m_database);
+    reactions.prepare(QStringLiteral(
+        "SELECT message_id, reaction, actor_account_id FROM v2_message_reactions "
+        "WHERE account_id = ? AND conversation_id = ? ORDER BY message_id, reaction, actor_account_id"));
+    reactions.addBindValue(accountId); reactions.addBindValue(conversationId);
+    if (!reactions.exec()) { fail(QStringLiteral("loadSnapshot"), reactions.lastError().text()); return {}; }
+    while (reactions.next()) {
+        const QString messageId = reactions.value(0).toString();
+        const auto kind = static_cast<ReactionKind>(reactions.value(1).toInt());
+        auto message = std::find_if(result.messages.begin(), result.messages.end(),
+            [&](const Message &value) { return value.messageId == messageId; });
+        if (message == result.messages.end() || !validReactionKind(kind)) continue;
+        auto aggregate = std::find_if(message->reactions.begin(), message->reactions.end(),
+            [&](const ReactionAggregate &value) { return value.reaction == kind; });
+        if (aggregate == message->reactions.end()) {
+            message->reactions.append({kind, {reactions.value(2).toString()}});
+        } else {
+            aggregate->actorAccountIds.append(reactions.value(2).toString());
+        }
+    }
+    QSqlQuery commands(m_database);
+    commands.prepare(QStringLiteral(
+        "SELECT message_id, reaction, active, client_operation_id, delivery_state "
+        "FROM v2_reaction_commands WHERE account_id = ? AND conversation_id = ? "
+        "ORDER BY rowid"));
+    commands.addBindValue(accountId); commands.addBindValue(conversationId);
+    if (!commands.exec()) { fail(QStringLiteral("loadSnapshot"), commands.lastError().text()); return {}; }
+    while (commands.next()) {
+        ReactionCommand command;
+        command.conversationId = conversationId;
+        command.messageId = commands.value(0).toString();
+        command.reaction = static_cast<ReactionKind>(commands.value(1).toInt());
+        command.active = commands.value(2).toBool();
+        command.clientOperationId = commands.value(3).toString();
+        command.state = commands.value(4).toString() == QStringLiteral("failed")
+            ? DeliveryState::Failed : DeliveryState::Pending;
+        if (validReactionCommand(command)) result.reactionCommands.append(command);
+    }
     m_lastError.clear(); return result;
 }
 
@@ -421,6 +609,27 @@ V2LocalMessageRepository::pendingSends(const QString &accountId) {
         const auto snapshot = loadSnapshot(accountId, conversation);
         for (const auto &message : snapshot.messages)
             if (message.state == DeliveryState::Pending) result.append(message);
+    }
+    m_lastError.clear(); return result;
+}
+
+QList<V2LocalMessageRepository::ReactionCommand>
+V2LocalMessageRepository::pendingReactions(const QString &accountId) {
+    QList<ReactionCommand> result;
+    if (!canonicalUuid(accountId)) return result;
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral(
+        "SELECT conversation_id, message_id, reaction, active, client_operation_id "
+        "FROM v2_reaction_commands WHERE account_id = ? AND delivery_state = 'pending' "
+        "ORDER BY rowid"));
+    query.addBindValue(accountId);
+    if (!query.exec()) { fail(QStringLiteral("pendingReactions"), query.lastError().text()); return {}; }
+    while (query.next()) {
+        ReactionCommand command;
+        command.conversationId = query.value(0).toString(); command.messageId = query.value(1).toString();
+        command.reaction = static_cast<ReactionKind>(query.value(2).toInt());
+        command.active = query.value(3).toBool(); command.clientOperationId = query.value(4).toString();
+        if (validReactionCommand(command)) result.append(command);
     }
     m_lastError.clear(); return result;
 }
@@ -467,7 +676,38 @@ bool V2LocalMessageRepository::pruneAccepted(
         "ORDER BY conversation_sequence DESC LIMIT -1 OFFSET ?)"));
     query.addBindValue(accountId); query.addBindValue(conversationId);
     query.addBindValue(MaxMessagesPerConversation);
-    return query.exec() || fail(QStringLiteral("pruneAccepted"), query.lastError().text());
+    if (!query.exec()) return fail(QStringLiteral("pruneAccepted"), query.lastError().text());
+    QSqlQuery orphaned(m_database);
+    orphaned.prepare(QStringLiteral(
+        "DELETE FROM v2_message_reactions WHERE account_id = ? AND conversation_id = ? "
+        "AND NOT EXISTS (SELECT 1 FROM v2_messages m WHERE m.account_id = ? "
+        "AND m.conversation_id = ? AND m.message_id = v2_message_reactions.message_id)"));
+    orphaned.addBindValue(accountId); orphaned.addBindValue(conversationId);
+    orphaned.addBindValue(accountId); orphaned.addBindValue(conversationId);
+    return orphaned.exec() || fail(QStringLiteral("pruneAccepted"), orphaned.lastError().text());
+}
+
+bool V2LocalMessageRepository::applyReactionProjection(
+        const QString &accountId, const ReactionChange &change) {
+    QSqlQuery query(m_database);
+    if (change.active) {
+        query.prepare(QStringLiteral(
+            "INSERT OR IGNORE INTO v2_message_reactions(account_id, conversation_id, message_id, "
+            "reaction, actor_account_id) SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM "
+            "v2_messages WHERE account_id = ? AND conversation_id = ? AND message_id = ?)"));
+        query.addBindValue(accountId); query.addBindValue(change.conversationId);
+        query.addBindValue(change.messageId); query.addBindValue(static_cast<int>(change.reaction));
+        query.addBindValue(change.actorAccountId); query.addBindValue(accountId);
+        query.addBindValue(change.conversationId); query.addBindValue(change.messageId);
+    } else {
+        query.prepare(QStringLiteral(
+            "DELETE FROM v2_message_reactions WHERE account_id = ? AND conversation_id = ? "
+            "AND message_id = ? AND reaction = ? AND actor_account_id = ?"));
+        query.addBindValue(accountId); query.addBindValue(change.conversationId);
+        query.addBindValue(change.messageId); query.addBindValue(static_cast<int>(change.reaction));
+        query.addBindValue(change.actorAccountId);
+    }
+    return query.exec() || fail(QStringLiteral("applyReactionProjection"), query.lastError().text());
 }
 
 bool V2LocalMessageRepository::canonicalUuid(const QString &value) {
@@ -517,6 +757,24 @@ bool V2LocalMessageRepository::validAccepted(const Message &message) {
         && message.state == DeliveryState::Accepted && !message.recalled
         && (!message.hasReply
             || message.reply.targetConversationSequence < message.conversationSequence);
+}
+bool V2LocalMessageRepository::validReactionKind(ReactionKind reaction) {
+    const int value = static_cast<int>(reaction);
+    return value >= static_cast<int>(ReactionKind::Like)
+        && value <= static_cast<int>(ReactionKind::Angry);
+}
+bool V2LocalMessageRepository::validReactionChange(
+        const ReactionChange &change, bool sequenceRequired) {
+    return canonicalUuid(change.conversationId) && canonicalUuid(change.messageId)
+        && validReactionKind(change.reaction) && canonicalUuid(change.actorAccountId)
+        && validIdentifier(change.clientOperationId) && change.occurredAtEpochMs > 0
+        && (sequenceRequired ? change.conversationSequence > 0
+                             : change.conversationSequence >= 0);
+}
+bool V2LocalMessageRepository::validReactionCommand(const ReactionCommand &command) {
+    return canonicalUuid(command.conversationId) && canonicalUuid(command.messageId)
+        && validReactionKind(command.reaction) && validIdentifier(command.clientOperationId)
+        && command.state != DeliveryState::Accepted;
 }
 bool V2LocalMessageRepository::fail(const QString &operation, const QString &detail) {
     m_lastError = operation + QStringLiteral(": ") + detail;
