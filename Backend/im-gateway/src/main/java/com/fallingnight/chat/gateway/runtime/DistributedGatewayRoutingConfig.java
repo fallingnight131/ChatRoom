@@ -12,18 +12,28 @@ public final class DistributedGatewayRoutingConfig {
     public static final String REDIS_URI = "CHATROOM_REDIS_ROUTING_URI";
     public static final String ALLOW_INSECURE_LOOPBACK =
             "CHATROOM_REDIS_ALLOW_INSECURE_LOOPBACK_FOR_TESTS";
+    public static final String ROUTE_LEASE_SECONDS =
+            "CHATROOM_REDIS_ROUTE_LEASE_SECONDS";
+    private static final int DEFAULT_ROUTE_LEASE_SECONDS = 30;
 
     private final RedisRoutingConfig redis;
+    private final Duration routeLease;
+    private final Duration routeRenewal;
 
-    private DistributedGatewayRoutingConfig(RedisRoutingConfig redis) {
+    private DistributedGatewayRoutingConfig(
+            RedisRoutingConfig redis, Duration routeLease, Duration routeRenewal) {
         this.redis = redis;
+        this.routeLease = Objects.requireNonNull(routeLease, "routeLease");
+        this.routeRenewal = Objects.requireNonNull(routeRenewal, "routeRenewal");
     }
 
     public static DistributedGatewayRoutingConfig fromEnvironment(
             Map<String, String> environment) {
         Objects.requireNonNull(environment, "environment");
         if (!bool(environment, ENABLED, false)) {
-            return new DistributedGatewayRoutingConfig(null);
+            return new DistributedGatewayRoutingConfig(
+                    null, Duration.ofSeconds(DEFAULT_ROUTE_LEASE_SECONDS),
+                    Duration.ofSeconds(10));
         }
         String endpoint = required(environment, REDIS_URI);
         Duration commandTimeout = Duration.ofMillis(integer(environment,
@@ -31,8 +41,14 @@ public final class DistributedGatewayRoutingConfig {
         int requestQueueSize = integer(environment,
                 "CHATROOM_REDIS_REQUEST_QUEUE_SIZE", 256, 16, 10_000);
         boolean allowInsecureLoopback = bool(environment, ALLOW_INSECURE_LOOPBACK, false);
+        int routeLeaseSeconds = integer(environment, ROUTE_LEASE_SECONDS,
+                DEFAULT_ROUTE_LEASE_SECONDS, 5, 60);
+        Duration routeLease = Duration.ofSeconds(routeLeaseSeconds);
+        Duration routeRenewal = Duration.ofSeconds(
+                Math.max(1, Math.min(10, routeLeaseSeconds / 3)));
         return new DistributedGatewayRoutingConfig(new RedisRoutingConfig(
-                endpoint, commandTimeout, requestQueueSize, allowInsecureLoopback));
+                endpoint, commandTimeout, requestQueueSize, allowInsecureLoopback),
+                routeLease, routeRenewal);
     }
 
     public boolean enabled() {
@@ -43,10 +59,20 @@ public final class DistributedGatewayRoutingConfig {
         return Optional.ofNullable(redis);
     }
 
+    public Duration routeLease() {
+        return routeLease;
+    }
+
+    public Duration routeRenewal() {
+        return routeRenewal;
+    }
+
     @Override
     public String toString() {
         return enabled()
-                ? "DistributedGatewayRoutingConfig[enabled=true,redis=" + redis + "]"
+                ? "DistributedGatewayRoutingConfig[enabled=true,redis=" + redis
+                        + ",routeLease=" + routeLease
+                        + ",routeRenewal=" + routeRenewal + "]"
                 : "DistributedGatewayRoutingConfig[enabled=false]";
     }
 

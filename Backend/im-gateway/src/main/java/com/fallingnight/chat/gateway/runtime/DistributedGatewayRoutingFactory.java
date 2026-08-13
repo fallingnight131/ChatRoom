@@ -35,8 +35,6 @@ import javax.sql.DataSource;
 
 /** Builds the complete but still default-off PostgreSQL/Redis routing component graph. */
 public final class DistributedGatewayRoutingFactory {
-    private static final Duration ROUTE_LEASE = Duration.ofSeconds(30);
-    private static final Duration ROUTE_RENEWAL = Duration.ofSeconds(10);
     private static final Duration OUTBOX_LEASE = Duration.ofSeconds(5);
     private static final int OUTBOX_BATCH_SIZE = 100;
     private static final int HINT_BATCH_SIZE = 100;
@@ -83,17 +81,20 @@ public final class DistributedGatewayRoutingFactory {
             scheduler = Objects.requireNonNull(schedulerFactory.create(), "routing scheduler");
             UUID gatewayId = Objects.requireNonNull(ids.create(), "gatewayId");
             UUID relayOwner = Objects.requireNonNull(ids.create(), "relayOwner");
+            Duration routeLease = config.routeLease();
+            Duration routeRenewal = config.routeRenewal();
 
             GatewayRouteRegistrationService registration =
                     new GatewayRouteRegistrationService(
-                            resources.routes(), gatewayId, ROUTE_LEASE, clock);
+                            resources.routes(), gatewayId, routeLease, clock);
             DistributedConversationLiveRouter distributedRouter =
                     new DistributedConversationLiveRouter(localRouter, registration);
             GatewayRouteLeaseLoop leaseLoop = new GatewayRouteLeaseLoop(
                     () -> registration.renewGateway()
                             && distributedRouter.renewActiveRoutes(),
-                    scheduler, clock, ROUTE_LEASE, ROUTE_RENEWAL,
-                    INITIAL_FAILURE_DELAY, Duration.ofSeconds(5));
+                    scheduler, clock, routeLease, routeRenewal,
+                    INITIAL_FAILURE_DELAY, minimum(
+                            Duration.ofSeconds(5), routeLease.dividedBy(2)));
 
             PostgresMessageAdapter messages = new PostgresMessageAdapter(dataSource);
             GatewayLiveEventConsumerService consumer = new GatewayLiveEventConsumerService(
@@ -149,6 +150,10 @@ public final class DistributedGatewayRoutingFactory {
         executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
         executor.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
         return executor;
+    }
+
+    private static Duration minimum(Duration first, Duration second) {
+        return first.compareTo(second) <= 0 ? first : second;
     }
 
     private static void closeAfterFailure(ScheduledExecutorService scheduler,

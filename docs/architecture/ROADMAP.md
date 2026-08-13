@@ -1503,6 +1503,11 @@ Progress:
   certificate hostname mismatch fail closed without credential disclosure.
   Redis dependency-loss/recovery and rolling multi-gateway gates remain
   pending (ADR-0366).
+- [x] Make the distributed route lease an explicit bounded runtime policy:
+  retain the 30-second lease/10-second renewal default, accept only 5–60 seconds,
+  derive a half-life-safe renewal interval, and cap retry delay inside the
+  selected lease. This enables bounded failure drills without weakening the
+  default or allowing invalid lease timing (ADR-0367).
 
 Work:
 

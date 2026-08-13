@@ -1413,6 +1413,13 @@ Plaintext `redis://` works only for localhost/127.0.0.1 with
 `CHATROOM_REDIS_ALLOW_INSECURE_LOOPBACK_FOR_TESTS=true`; this flag is test-only
 and does not activate routing without
 `CHATROOM_GATEWAY_DISTRIBUTED_ROUTING_ENABLED=true`.
+When routing is enabled, `CHATROOM_REDIS_ROUTE_LEASE_SECONDS` may override the
+30-second gateway/conversation route lease only within 5–60 seconds. The runtime
+derives a renewal interval between one and ten seconds that remains no greater
+than half the lease, and caps failure retry at half the selected lease. Leave the
+setting unset unless deployment health checks and failure drills justify a
+different expiry; the 5-second value is intended for disposable outage gates,
+not as an unreviewed production default (ADR-0367).
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
 consume ports while PostgreSQL supplies outbox and message repair. They also

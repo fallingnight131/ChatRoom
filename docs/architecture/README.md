@@ -1091,6 +1091,12 @@ Lettuce operations and fail-closed behavior for an outside key, a wrong password
 and a hostname mismatch without printing credentials. This evidence does not
 cover credential rotation, managed-service policy, Redis outage recovery,
 load-balancer withdrawal, or rolling multi-gateway availability.
+ADR-0367 makes lease timing explicit without making it arbitrary. The enabled
+runtime keeps a 30-second default and accepts only 5–60 seconds through
+`CHATROOM_REDIS_ROUTE_LEASE_SECONDS`; renewal is derived between one and ten
+seconds and never exceeds half the lease, while retry delay is capped at the
+same safety boundary. This allows fast disposable outage drills and deliberate
+production tuning while preserving the default-off graph and fail-closed expiry.
 
 ## 10. Attachment Flow
 

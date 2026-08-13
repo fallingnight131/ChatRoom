@@ -2,6 +2,7 @@ package com.fallingnight.chat.gateway.runtime;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,8 @@ final class DistributedGatewayRoutingConfigTest {
 
         assertTrue(config.enabled());
         assertTrue(config.redis().isPresent());
+        assertEquals(Duration.ofSeconds(30), config.routeLease());
+        assertEquals(Duration.ofSeconds(10), config.routeRenewal());
         assertFalse(config.toString().contains("redis-secret"));
         assertTrue(config.toString().contains("redis.internal"));
     }
@@ -73,6 +76,20 @@ final class DistributedGatewayRoutingConfigTest {
         timeout.put("CHATROOM_REDIS_COMMAND_TIMEOUT_MILLIS", "99");
         assertThrows(IllegalArgumentException.class,
                 () -> DistributedGatewayRoutingConfig.fromEnvironment(timeout));
+
+        Map<String, String> shortLease = enabledLoopback();
+        shortLease.put(DistributedGatewayRoutingConfig.ROUTE_LEASE_SECONDS, "5");
+        DistributedGatewayRoutingConfig shortConfig =
+                DistributedGatewayRoutingConfig.fromEnvironment(shortLease);
+        assertEquals(Duration.ofSeconds(5), shortConfig.routeLease());
+        assertEquals(Duration.ofSeconds(1), shortConfig.routeRenewal());
+
+        for (String value : java.util.List.of("4", "61", "five")) {
+            Map<String, String> invalidLease = enabledLoopback();
+            invalidLease.put(DistributedGatewayRoutingConfig.ROUTE_LEASE_SECONDS, value);
+            assertThrows(IllegalArgumentException.class,
+                    () -> DistributedGatewayRoutingConfig.fromEnvironment(invalidLease));
+        }
     }
 
     private static Map<String, String> enabledLoopback() {
