@@ -17,6 +17,7 @@ import com.fallingnight.chat.protocol.v2.MessageKind;
 import com.fallingnight.chat.protocol.v2.MessageRecord;
 import com.fallingnight.chat.protocol.v2.MessageType;
 import com.fallingnight.chat.protocol.v2.ReadMessageHistory;
+import com.fallingnight.chat.protocol.v2.ResumeSession;
 import com.fallingnight.chat.protocol.v2.SessionEstablished;
 import com.fallingnight.chat.protocol.v2.SubmitMessage;
 import com.google.protobuf.ByteString;
@@ -49,6 +50,11 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -130,12 +136,21 @@ public final class GatewayMessagingBaseline {
             long durableMessages = (long) configuration.warmupOperations()
                     + configuration.messageOperations();
             requireMessageState(configuration, conversation, durableMessages);
+            List<ClientConnection> activeConnections = new ArrayList<>(peers.size() + 1);
+            activeConnections.add(sender);
+            activeConnections.addAll(peers);
+            ReconnectResult reconnect = reconnect(configuration, activeConnections);
+            if (!reconnect.connections().isEmpty()) {
+                sender = reconnect.connections().getFirst();
+                peers.clear();
+                peers.addAll(reconnect.connections().subList(1, reconnect.connections().size()));
+            }
             long cpuNanos = operatingSystem.getProcessCpuTime() - cpuStart;
             peakHeap = Math.max(peakHeap, usedHeap());
             write(configuration, startedAt, Duration.between(startedAt, Instant.now()),
                     cpuNanos, peakHeap, durableMessages,
                     setupMicros,
-                    acknowledgementMicros, fanoutMicros, measuredNanos);
+                    acknowledgementMicros, fanoutMicros, measuredNanos, reconnect);
         } finally {
             for (ClientConnection peer : peers) peer.close();
             if (sender != null) sender.close();
@@ -166,10 +181,111 @@ public final class GatewayMessagingBaseline {
             if (session.getSessionId().isBlank()) {
                 throw new IllegalStateException("gateway authentication returned no session");
             }
-            return new ClientConnection(client, socket, listener, session.getSessionId());
+            return new ClientConnection(client, socket, listener, session, deviceId);
         } catch (Exception exception) {
             socket.abort();
             throw exception;
+        }
+    }
+
+    private static ClientConnection connectAndResume(
+            Configuration configuration, ClientConnection previous) throws Exception {
+        EnvelopeListener listener = new EnvelopeListener();
+        HttpClient client = HttpClient.newBuilder()
+                .sslContext(trustAllTls())
+                .connectTimeout(Duration.ofSeconds(3))
+                .build();
+        WebSocket socket = client.newWebSocketBuilder()
+                .subprotocols("chat.v2")
+                .connectTimeout(Duration.ofSeconds(3))
+                .buildAsync(URI.create("wss://localhost:" + configuration.gatewayPort()
+                        + "/v2/windows"), listener)
+                .get(5, TimeUnit.SECONDS);
+        try {
+            send(socket, clientHello(previous.deviceId()));
+            requireType(listener.next(), MessageType.MESSAGE_TYPE_SERVER_HELLO);
+            ResumeSession payload = ResumeSession.newBuilder()
+                    .setSessionId(previous.session().getSessionId())
+                    .setResumeToken(previous.session().getResumeToken())
+                    .build();
+            send(socket, command(MessageType.MESSAGE_TYPE_RESUME_SESSION,
+                    "resume-" + previous.deviceId(), "", "", payload.toByteString()));
+            Envelope response = listener.next();
+            requireType(response, MessageType.MESSAGE_TYPE_SESSION_ESTABLISHED);
+            SessionEstablished rotated = SessionEstablished.parseFrom(response.getPayload());
+            if (!rotated.getSessionId().equals(previous.session().getSessionId())
+                    || !rotated.getAccountId().equals(previous.session().getAccountId())
+                    || !rotated.getDeviceId().equals(previous.session().getDeviceId())
+                    || rotated.getResumeToken().equals(previous.session().getResumeToken())) {
+                throw new IllegalStateException("session resume did not rotate exact identity");
+            }
+            return new ClientConnection(client, socket, listener, rotated, previous.deviceId());
+        } catch (Exception exception) {
+            socket.abort();
+            throw exception;
+        }
+    }
+
+    private static ReconnectResult reconnect(
+            Configuration configuration, List<ClientConnection> initial) throws Exception {
+        if (configuration.reconnectRounds() == 0) return ReconnectResult.NONE;
+        List<ClientConnection> current = List.copyOf(initial);
+        List<Long> latencies = new ArrayList<>(
+                current.size() * configuration.reconnectRounds());
+        long measuredStart = System.nanoTime();
+        for (int round = 0; round < configuration.reconnectRounds(); ++round) {
+            for (ClientConnection connection : current) connection.close();
+            CountDownLatch ready = new CountDownLatch(current.size());
+            CountDownLatch start = new CountDownLatch(1);
+            List<Future<ResumeAttempt>> futures = new ArrayList<>(current.size());
+            try (ExecutorService executor = Executors.newFixedThreadPool(current.size())) {
+                for (int index = 0; index < current.size(); ++index) {
+                    int position = index;
+                    ClientConnection previous = current.get(index);
+                    futures.add(executor.submit(() -> {
+                        ready.countDown();
+                        start.await();
+                        long started = System.nanoTime();
+                        ClientConnection resumed = connectAndResume(configuration, previous);
+                        return new ResumeAttempt(position, resumed, elapsedMicros(started));
+                    }));
+                }
+                if (!ready.await(10, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("reconnect workers did not become ready");
+                }
+                start.countDown();
+                List<ResumeAttempt> attempts = new ArrayList<>(current.size());
+                for (Future<ResumeAttempt> future : futures) attempts.add(get(future));
+                attempts.sort(java.util.Comparator.comparingInt(ResumeAttempt::position));
+                current = attempts.stream().map(ResumeAttempt::connection).toList();
+                attempts.forEach(attempt -> latencies.add(attempt.latencyMicros()));
+            } catch (Exception exception) {
+                closeCompletedReconnects(futures);
+                throw exception;
+            }
+        }
+        return new ReconnectResult(current, List.copyOf(latencies),
+                System.nanoTime() - measuredStart, 0);
+    }
+
+    private static void closeCompletedReconnects(List<Future<ResumeAttempt>> futures) {
+        for (Future<ResumeAttempt> future : futures) {
+            if (!future.isDone() || future.isCancelled()) continue;
+            try {
+                future.get().connection().close();
+            } catch (Exception ignored) {
+                // Failed attempts own no live connection; successful ones are closed above.
+            }
+        }
+    }
+
+    private static ResumeAttempt get(Future<ResumeAttempt> future) throws Exception {
+        try {
+            return future.get(15, TimeUnit.SECONDS);
+        } catch (ExecutionException exception) {
+            Throwable cause = exception.getCause();
+            if (cause instanceof Exception checked) throw checked;
+            throw new IllegalStateException("reconnect worker failed", cause);
         }
     }
 
@@ -363,7 +479,8 @@ public final class GatewayMessagingBaseline {
             Configuration configuration, Instant startedAt, Duration wall,
             long cpuNanos, long peakHeap, long durableMessages,
             List<Long> setupMicros, List<Long> acknowledgementMicros,
-            List<Long> fanoutMicros, long measuredNanos) throws IOException {
+            List<Long> fanoutMicros, long measuredNanos, ReconnectResult reconnect)
+            throws IOException {
         Path parent = configuration.output().toAbsolutePath().getParent();
         if (parent != null) Files.createDirectories(parent);
         try (JsonGenerator json = new JsonFactory().createGenerator(
@@ -371,7 +488,8 @@ public final class GatewayMessagingBaseline {
             json.useDefaultPrettyPrinter();
             json.writeStartObject();
             boolean group = configuration.receivers() > 1;
-            json.writeNumberField("schemaVersion", group ? 2 : 1);
+            boolean reconnectMeasured = configuration.reconnectRounds() > 0;
+            json.writeNumberField("schemaVersion", reconnectMeasured ? 3 : (group ? 2 : 1));
             json.writeStringField("benchmark", "java-v2-gateway-messaging");
             json.writeStringField("startedAt", startedAt.toString());
             json.writeStringField("warning", "loopback development evidence; not a capacity claim");
@@ -395,6 +513,10 @@ public final class GatewayMessagingBaseline {
             json.writeNumberField("messageOperations", configuration.messageOperations());
             json.writeNumberField("payloadBytes", configuration.payloadBytes());
             json.writeNumberField("durableMessages", durableMessages);
+            if (reconnectMeasured) {
+                json.writeNumberField("reconnectRounds", configuration.reconnectRounds());
+                json.writeNumberField("reconnectOperations", reconnect.latencyMicros().size());
+            }
             json.writeEndObject();
             json.writeObjectFieldStart("results");
             distribution(json, "connectionSetupLatencyMicros", setupMicros);
@@ -406,6 +528,12 @@ public final class GatewayMessagingBaseline {
                     throughput(configuration.messageOperations(), measuredNanos));
             if (group) json.writeNumberField("peerPublications",
                     (long) configuration.messageOperations() * configuration.receivers());
+            if (reconnectMeasured) {
+                distribution(json, "sessionResumeLatencyMicros", reconnect.latencyMicros());
+                json.writeNumberField("sessionResumeThroughputPerSecond",
+                        throughput(reconnect.latencyMicros().size(), reconnect.elapsedNanos()));
+                json.writeNumberField("resumeErrors", reconnect.errors());
+            }
             json.writeNumberField("errors", 0);
             json.writeEndObject();
             json.writeEndObject();
@@ -477,14 +605,34 @@ public final class GatewayMessagingBaseline {
 
     private record TimedRoundTrip(long acknowledgementMicros, long fanoutMicros) {}
 
+    private record ResumeAttempt(int position, ClientConnection connection, long latencyMicros) {}
+
+    private record ReconnectResult(
+            List<ClientConnection> connections, List<Long> latencyMicros,
+            long elapsedNanos, int errors) {
+        private static final ReconnectResult NONE =
+                new ReconnectResult(List.of(), List.of(), 0, 0);
+
+        private ReconnectResult {
+            connections = List.copyOf(connections);
+            latencyMicros = List.copyOf(latencyMicros);
+        }
+    }
+
     private record ClientConnection(
-            HttpClient client, WebSocket socket, EnvelopeListener listener, String sessionId)
+            HttpClient client, WebSocket socket, EnvelopeListener listener,
+            SessionEstablished session, String deviceId)
             implements AutoCloseable {
         private ClientConnection {
             Objects.requireNonNull(client, "client");
             Objects.requireNonNull(socket, "socket");
             Objects.requireNonNull(listener, "listener");
-            Objects.requireNonNull(sessionId, "sessionId");
+            Objects.requireNonNull(session, "session");
+            Objects.requireNonNull(deviceId, "deviceId");
+        }
+
+        private String sessionId() {
+            return session.getSessionId();
         }
 
         @Override public void close() {
@@ -536,7 +684,7 @@ public final class GatewayMessagingBaseline {
             String jdbcUrl, String username, String password,
             Path certificate, Path privateKey, int gatewayPort, int adminPort,
             Path output, int warmupOperations, int messageOperations,
-            int payloadBytes, int receivers) {
+            int payloadBytes, int receivers, int reconnectRounds) {
         private Configuration {
             Objects.requireNonNull(jdbcUrl, "jdbcUrl");
             Objects.requireNonNull(username, "username");
@@ -556,6 +704,7 @@ public final class GatewayMessagingBaseline {
             // The default gateway allows 60 authentication attempts per direct peer;
             // the sender consumes one and the benchmark must not weaken that policy.
             bounded("receivers", receivers, 1, 59);
+            bounded("reconnect rounds", reconnectRounds, 0, 20);
         }
 
         private static Configuration parse(String[] arguments) {
@@ -572,7 +721,8 @@ public final class GatewayMessagingBaseline {
             java.util.Set<String> expected = java.util.Set.of(
                     "--jdbc-url", "--username", "--password", "--certificate",
                     "--private-key", "--gateway-port", "--admin-port", "--output",
-                    "--warmup", "--messages", "--payload-bytes", "--receivers");
+                    "--warmup", "--messages", "--payload-bytes", "--receivers",
+                    "--reconnect-rounds");
             if (!values.keySet().equals(expected)) {
                 throw new IllegalArgumentException("missing or unknown gateway argument");
             }
@@ -587,7 +737,8 @@ public final class GatewayMessagingBaseline {
                         Integer.parseInt(values.get("--warmup")),
                         Integer.parseInt(values.get("--messages")),
                         Integer.parseInt(values.get("--payload-bytes")),
-                        Integer.parseInt(values.get("--receivers")));
+                        Integer.parseInt(values.get("--receivers")),
+                        Integer.parseInt(values.get("--reconnect-rounds")));
             } catch (NumberFormatException exception) {
                 throw new IllegalArgumentException("gateway counts must be integers", exception);
             }

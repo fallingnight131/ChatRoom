@@ -54,8 +54,8 @@ def validate(
 ) -> dict[str, Any]:
     root = object_value(result, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2):
-        raise EvidenceError("schemaVersion must be 1 or 2")
+    if schema not in (1, 2, 3):
+        raise EvidenceError("schemaVersion must be 1, 2, or 3")
     if root.get("benchmark") != "java-v2-gateway-messaging":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != "loopback development evidence; not a capacity claim":
@@ -100,6 +100,8 @@ def validate(
         raise EvidenceError("schema 1 requires exactly one receiver")
     if schema == 2 and (receivers < 2 or scenario.get("conversationKind") != "GROUP"):
         raise EvidenceError("schema 2 requires a multi-receiver group")
+    if schema == 3 and receivers > 1 and scenario.get("conversationKind") != "GROUP":
+        raise EvidenceError("multi-receiver reconnect evidence requires GROUP identity")
     warmup = integer(scenario.get("warmupOperations"), "warmupOperations")
     messages = integer(scenario.get("messageOperations"), "messageOperations", 1)
     integer(scenario.get("payloadBytes"), "payloadBytes", 1)
@@ -110,7 +112,7 @@ def validate(
     distributions = (
         ("connectionSetupLatencyMicros", receivers + 1),
         ("submitToAcceptLatencyMicros", messages),
-        ("submitToPeerPublishLatencyMicros" if schema == 1
+        ("submitToPeerPublishLatencyMicros" if receivers == 1
          else "submitToAllPeersPublishedLatencyMicros", messages),
     )
     for distribution_name, samples in distributions:
@@ -130,8 +132,32 @@ def validate(
            "completedMessageThroughputPerSecond", positive=True)
     if results.get("errors") != 0:
         raise EvidenceError("errors must be zero")
-    if schema == 2 and results.get("peerPublications") != messages * receivers:
+    if receivers > 1 and results.get("peerPublications") != messages * receivers:
         raise EvidenceError("group peer publication count is invalid")
+    if schema == 3:
+        rounds = integer(scenario.get("reconnectRounds"), "reconnectRounds", 1)
+        if rounds > 20:
+            raise EvidenceError("reconnectRounds exceeds the bounded scenario")
+        operations = (receivers + 1) * rounds
+        if scenario.get("reconnectOperations") != operations:
+            raise EvidenceError("reconnect operation count is invalid")
+        resume = object_value(results.get("sessionResumeLatencyMicros"),
+                              "sessionResumeLatencyMicros")
+        if resume.get("samples") != operations:
+            raise EvidenceError("session resume sample count is invalid")
+        ordered = [
+            number(resume.get(field), f"sessionResumeLatencyMicros.{field}", positive=True)
+            for field in ("min", "p50", "p95", "p99", "max")
+        ]
+        if ordered != sorted(ordered):
+            raise EvidenceError("session resume percentiles are not monotonic")
+        mean = number(resume.get("mean"), "sessionResumeLatencyMicros.mean", positive=True)
+        if mean < ordered[0] or mean > ordered[-1]:
+            raise EvidenceError("session resume mean is out of range")
+        number(results.get("sessionResumeThroughputPerSecond"),
+               "sessionResumeThroughputPerSecond", positive=True)
+        if results.get("resumeErrors") != 0:
+            raise EvidenceError("resumeErrors must be zero")
 
     serialized = json.dumps(root, sort_keys=True)
     for forbidden in (

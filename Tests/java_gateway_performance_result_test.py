@@ -69,12 +69,29 @@ def valid_group_result() -> dict:
     return result
 
 
+def valid_reconnect_result() -> dict:
+    result = valid_group_result()
+    result["schemaVersion"] = 3
+    result["scenario"].update({"reconnectRounds": 2, "reconnectOperations": 10})
+    result["results"].update({
+        "sessionResumeLatencyMicros": {
+            "samples": 10, "min": 1, "p50": 2, "p95": 3,
+            "p99": 4, "max": 5, "mean": 2.5,
+        },
+        "sessionResumeThroughputPerSecond": 20.0,
+        "resumeErrors": 0,
+    })
+    return result
+
+
 class GatewayPerformanceEvidenceTest(unittest.TestCase):
     def test_accepts_valid_clean_evidence(self) -> None:
         self.assertEqual(REVISION, validate(
             valid_result(), REVISION, require_clean=True)["sourceRevision"])
         self.assertEqual(2, validate(
             valid_group_result(), REVISION, require_clean=True)["schemaVersion"])
+        self.assertEqual(3, validate(
+            valid_reconnect_result(), REVISION, require_clean=True)["schemaVersion"])
 
     def test_rejects_semantic_mismatch_and_secret_content(self) -> None:
         mutations = []
@@ -97,6 +114,9 @@ class GatewayPerformanceEvidenceTest(unittest.TestCase):
         oversized_group["scenario"]["receiversPerMessage"] = 60
         oversized_group["scenario"]["connections"] = 61
         mutations.append(oversized_group)
+        wrong_reconnect = valid_reconnect_result()
+        wrong_reconnect["scenario"]["reconnectOperations"] = 9
+        mutations.append(wrong_reconnect)
         for mutation in mutations:
             with self.subTest(mutation=mutation):
                 with self.assertRaises(EvidenceError):

@@ -1292,6 +1292,10 @@ Progress:
   to 59 authenticated receivers under the default peer admission limit,
   all-peer completion latency, and exact aggregate publication reconciliation
   while preserving schema-1 evidence.
+- [x] Add bounded concurrent same-session resume rounds to the production WSS
+  path, requiring exact session identity, per-round token rotation, exact
+  operation counts, and schema-3 zero-error evidence while preserving older
+  evidence contracts.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.

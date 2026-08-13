@@ -18,17 +18,19 @@ The first slice deliberately measures the durable messaging boundary:
 - exact durable message count, maximum sequence, and next-sequence
   reconciliation.
 
-The second slice measures one real single-gateway path with two connections:
+The gateway slices measure one real single-gateway path with bounded connections:
 
 - TLS plus `chat.v2` WebSocket negotiation and password authentication;
 - sequential submit-to-`MESSAGE_ACCEPTED` latency;
 - submit-to-caught-up-peer `MESSAGE_PUBLISHED` latency;
 - completed message/peer-publication throughput;
+- concurrent same-session resume with one unique session per connection and
+  resume-token rotation on every successful round;
 - exact durable message and conversation-sequence reconciliation.
 
-Large groups, reconnect storms, slow consumers, Redis, cross-gateway routing,
-broker delivery, and dependency failure remain separate scenarios. Do not infer
-their behavior from either bounded result.
+Many conversations, unbounded reconnect storms, slow consumers, Redis,
+cross-gateway routing, broker delivery, and dependency failure remain separate
+scenarios. Do not infer their behavior from these bounded results.
 
 The disposable PostgreSQL verification now also carries a real-network
 correctness gate: `GatewayRuntimePostgresIntegrationTest` starts the production
@@ -84,6 +86,22 @@ publication, and reconciles exactly
 `messageOperations * N` peer publications. Schema 1 remains the immutable
 single-peer contract so dated evidence stays verifiable.
 
+Set `--java-gateway-performance-reconnect-rounds R` (`1 <= R <= 20`) to close
+every authenticated connection and concurrently resume its unique server
+session in each round. The measured phase starts all clients in a round behind
+one barrier, validates the exact account/session/device identity, requires a
+new resume token, and carries the rotated token into the next round. Schema 3
+records exactly `(N + 1) * R` resume samples, their latency distribution,
+aggregate resume throughput, and zero resume errors. It retains the preceding
+message/fan-out phase as a correctness preflight and uses no new password login
+during the measured resume rounds.
+
+This scenario measures successful bounded same-host resumes. It does not inject
+network loss, reuse stale tokens, exercise client retry/backoff, or establish a
+safe production reconnect rate. Stale-token rejection remains a correctness
+gate in the session integration tests rather than a successful-resume latency
+sample.
+
 ## Evidence contract
 
 `tools/java_performance_result.py` requires:
@@ -101,9 +119,11 @@ single-peer contract so dated evidence stays verifiable.
 equal one sender plus all receivers, exact setup/accept/all-peer sample counts,
 positive completed-chain throughput, zero errors, and no TLS material path.
 Schema 2 also requires GROUP identity and exact aggregate peer-publication
-count. A missing acknowledgement, missing peer publication, wrong sequence, or
-durable database mismatch causes the Java process to fail before evidence is
-promoted.
+count. Schema 3 additionally requires bounded rounds, exact per-connection
+resume counts, a monotonic latency distribution, positive resume throughput,
+and zero resume errors. A missing acknowledgement, publication, session
+identity, token rotation, sequence, or durable database reconciliation causes
+the Java process to fail before evidence is promoted.
 
 Results also carry `worktreeDirty`. CI requires a clean tree and exact workflow
 revision. A dirty local result remains useful for development comparison but is
@@ -119,7 +139,8 @@ scenario and should report both absolute distributions and relative change.
 Before selecting distributed infrastructure, extend the harness in this order:
 
 1. many conversations and large active groups;
-2. reconnect storms and session resume;
+2. broaden bounded session-resume evidence into controlled reconnect-rate and
+   network-failure scenarios;
 3. slow/unwritable consumers and bounded queue behavior;
 4. PostgreSQL saturation and transient dependency failure;
 5. two gateways, only after an ADR defines reconstructable routing/presence

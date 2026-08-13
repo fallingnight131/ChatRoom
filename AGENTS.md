@@ -171,7 +171,8 @@ Run what applies to the touched scope:
 - Java gateway performance: use `python3 tools/verify_m0.py
   --java-gateway-performance`; it is a two-connection TLS/WSS development
   scenario by default. Use `--java-gateway-performance-receivers` for bounded
-  GROUP fan-out; neither mode is a concurrent-user or production-capacity claim.
+  GROUP fan-out and `--java-gateway-performance-reconnect-rounds` for bounded
+  concurrent same-session resume; none is a production-capacity claim.
 - PostgreSQL: use `python3 tools/verify_m0.py --postgres` for clean migration,
   same-database restart, checksum, and core constraint verification.
 - Protocol: test old-client/new-server and new-client/compatible-server paths.

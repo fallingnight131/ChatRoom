@@ -150,6 +150,7 @@ def executable_arguments(
         "--output", str(output), "--warmup", str(args.warmup),
         "--messages", str(args.messages), "--payload-bytes", str(args.payload_bytes),
         "--receivers", str(args.receivers),
+        "--reconnect-rounds", str(args.reconnect_rounds),
     ]
 
 
@@ -160,7 +161,8 @@ def require_boundary_rejections(
         prefix="chat-gateway-performance-boundary-", dir="/tmp"
     ) as name:
         unused = Path(name) / "unused.json"
-        boundary = argparse.Namespace(warmup=0, messages=1, payload_bytes=1, receivers=1)
+        boundary = argparse.Namespace(
+            warmup=0, messages=1, payload_bytes=1, receivers=1, reconnect_rounds=0)
         arguments = executable_arguments(
             executable, "jdbc:postgresql://database.example.test/chat",
             certificate, private_key, 9443, 9090, unused, boundary)
@@ -194,6 +196,7 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--messages", type=int, default=200)
     value.add_argument("--payload-bytes", type=int, default=256)
     value.add_argument("--receivers", type=int, default=1)
+    value.add_argument("--reconnect-rounds", type=int, default=0)
     return value
 
 
