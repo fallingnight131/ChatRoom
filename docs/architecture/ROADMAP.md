@@ -1498,6 +1498,11 @@ Progress:
     - [x] Extend Web V2 message and edit-intent records plus the isolated
       IndexedDB sanitizer with bounded mention metadata, authoritative edit
       replacement, deep-copy snapshots, and recall cleanup.
+    - [x] Define a capability-gated, active-member-authorized, account-ID-cursor
+      participant directory so mention composition uses current display names
+      without treating them as identity (ADR-0343).
+    - [ ] Implement the participant-directory protocol, PostgreSQL adapter, and
+      authenticated gateway handler while clients remain unactivated.
     - [ ] Persist Web mention metadata with authoritative messages and pending
       submission/edit workflows, then add composition, rendering,
       accessibility, reconnect convergence, and Web capability activation.

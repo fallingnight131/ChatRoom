@@ -693,7 +693,7 @@ message revision metadata, and mixed-history edit detail remain locked across
 generated Java, C++, and TypeScript bindings. This activates the capability only
 inside the opt-in V2 preview; it does not cut supported V1 product traffic over.
 
-The next inactive M6 slice is structured message mentions. ADR-0342 selects
+The active M6 slice is structured message mentions. ADR-0342 selects
 canonical account targets plus bounded, non-overlapping UTF-8 byte spans rather
 than parsing mutable display names. The server must validate active
 same-conversation membership and bind mention metadata into submission/edit
@@ -702,7 +702,11 @@ the body. Capability 4 now exists in all generated schemas, PostgreSQL, and the
 gateway. The gateway rejects unnegotiated mention metadata and filters it from
 history/live events for unsupported peers without stalling their cursors. Web
 and Windows still leave the capability unadvertised until their offline storage
-and accessible composition/rendering gates pass.
+and accessible composition/rendering gates pass. ADR-0343 adds the missing
+capability-gated participant directory: active members are paged by stable
+account ID and projected with current display names only after the caller's
+membership is authorized, so clients do not build incomplete UUID-only pickers
+from message history.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
