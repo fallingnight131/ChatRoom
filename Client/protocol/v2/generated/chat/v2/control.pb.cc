@@ -689,7 +689,7 @@ const char descriptor_table_protodef_chat_2fv2_2fcontrol_2eproto[] ABSL_ATTRIBUT
     "ILITY_UNSPECIFIED\020\000\022\'\n#CLIENT_CAPABILITY"
     "_MESSAGE_REACTIONS\020\001\022\"\n\036CLIENT_CAPABILIT"
     "Y_MESSAGE_PINS\020\002\022#\n\037CLIENT_CAPABILITY_ME"
-    "SSAGE_EDITS\020\003*\213\003\n\021ProtocolErrorCode\022#\n\037P"
+    "SSAGE_EDITS\020\003*\250\004\n\021ProtocolErrorCode\022#\n\037P"
     "ROTOCOL_ERROR_CODE_UNSPECIFIED\020\000\022+\n\'PROT"
     "OCOL_ERROR_CODE_UNSUPPORTED_VERSION\020\001\0220\n"
     ",PROTOCOL_ERROR_CODE_UNSUPPORTED_MESSAGE"
@@ -699,14 +699,18 @@ const char descriptor_table_protodef_chat_2fv2_2fcontrol_2eproto[] ABSL_ATTRIBUT
     "TED\020\005\022&\n\"PROTOCOL_ERROR_CODE_INTERNAL_ER"
     "ROR\020\006\022,\n(PROTOCOL_ERROR_CODE_IDEMPOTENCY"
     "_CONFLICT\020\007\022&\n\"PROTOCOL_ERROR_CODE_NOT_A"
-    "UTHORIZED\020\010B4\n!com.fallingnight.chat.pro"
-    "tocol.v2B\rControlSchemaP\001b\006proto3"
+    "UTHORIZED\020\010\0221\n-PROTOCOL_ERROR_CODE_MESSA"
+    "GE_REVISION_CONFLICT\020\t\0223\n/PROTOCOL_ERROR"
+    "_CODE_MESSAGE_EDIT_WINDOW_EXPIRED\020\n\0223\n/P"
+    "ROTOCOL_ERROR_CODE_MESSAGE_EDIT_REVISION"
+    "_LIMIT\020\013B4\n!com.fallingnight.chat.protoc"
+    "ol.v2B\rControlSchemaP\001b\006proto3"
 };
 static ::absl::once_flag descriptor_table_chat_2fv2_2fcontrol_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_chat_2fv2_2fcontrol_2eproto = {
     false,
     false,
-    2593,
+    2750,
     descriptor_table_protodef_chat_2fv2_2fcontrol_2eproto,
     "chat/v2/control.proto",
     &descriptor_table_chat_2fv2_2fcontrol_2eproto_once,
@@ -748,7 +752,7 @@ ProtocolErrorCode_descriptor() {
   return file_level_enum_descriptors_chat_2fv2_2fcontrol_2eproto[3];
 }
 PROTOBUF_CONSTINIT const uint32_t ProtocolErrorCode_internal_data_[] = {
-    589824u, 0u, };
+    786432u, 0u, };
 // ===================================================================
 
 ClientHello::ClientHello(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)

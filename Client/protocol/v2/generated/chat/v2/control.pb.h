@@ -270,6 +270,9 @@ enum ProtocolErrorCode : int {
   PROTOCOL_ERROR_CODE_INTERNAL_ERROR = 6,
   PROTOCOL_ERROR_CODE_IDEMPOTENCY_CONFLICT = 7,
   PROTOCOL_ERROR_CODE_NOT_AUTHORIZED = 8,
+  PROTOCOL_ERROR_CODE_MESSAGE_REVISION_CONFLICT = 9,
+  PROTOCOL_ERROR_CODE_MESSAGE_EDIT_WINDOW_EXPIRED = 10,
+  PROTOCOL_ERROR_CODE_MESSAGE_EDIT_REVISION_LIMIT = 11,
   ProtocolErrorCode_INT_MIN_SENTINEL_DO_NOT_USE_ =
       ::std::numeric_limits<::int32_t>::min(),
   ProtocolErrorCode_INT_MAX_SENTINEL_DO_NOT_USE_ =
@@ -280,11 +283,11 @@ extern const uint32_t ProtocolErrorCode_internal_data_[];
 inline constexpr ProtocolErrorCode ProtocolErrorCode_MIN =
     static_cast<ProtocolErrorCode>(0);
 inline constexpr ProtocolErrorCode ProtocolErrorCode_MAX =
-    static_cast<ProtocolErrorCode>(8);
+    static_cast<ProtocolErrorCode>(11);
 [[nodiscard]] inline bool ProtocolErrorCode_IsValid(int value) {
-  return 0 <= value && value <= 8;
+  return 0 <= value && value <= 11;
 }
-inline constexpr int ProtocolErrorCode_ARRAYSIZE = 8 + 1;
+inline constexpr int ProtocolErrorCode_ARRAYSIZE = 11 + 1;
 [[nodiscard]] const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL
 ProtocolErrorCode_descriptor();
 [[nodiscard]] inline auto ProtobufInternalGetEnumDescriptor(ProtocolErrorCode) {
@@ -299,7 +302,7 @@ template <typename T>
 }
 template <>
 [[nodiscard]] inline const ::std::string& ProtocolErrorCode_Name(ProtocolErrorCode value) {
-  return ::google::protobuf::internal::NameOfDenseEnum<ProtocolErrorCode_descriptor, 0, 8>(
+  return ::google::protobuf::internal::NameOfDenseEnum<ProtocolErrorCode_descriptor, 0, 11>(
       static_cast<int>(value));
 }
 [[nodiscard]] inline bool ProtocolErrorCode_Parse(

@@ -80,6 +80,16 @@ class ControlProtocolTest {
     }
 
     @Test
+    void messageEditFailuresHavePermanentStableCodes() {
+        assertEquals(9,
+                ProtocolErrorCode.PROTOCOL_ERROR_CODE_MESSAGE_REVISION_CONFLICT_VALUE);
+        assertEquals(10,
+                ProtocolErrorCode.PROTOCOL_ERROR_CODE_MESSAGE_EDIT_WINDOW_EXPIRED_VALUE);
+        assertEquals(11,
+                ProtocolErrorCode.PROTOCOL_ERROR_CODE_MESSAGE_EDIT_REVISION_LIMIT_VALUE);
+    }
+
+    @Test
     void separatesUnsupportedVersionFromStructurallyInvalidRanges() {
         ClientHello future = validHello().toBuilder()
                 .setMinimumProtocolVersion(3)

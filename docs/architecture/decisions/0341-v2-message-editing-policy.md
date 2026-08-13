@@ -65,6 +65,10 @@ behavior, and reconnect recovery through the existing sequence cursor.
   failure preserves the proposed text visibly and requires explicit user
   rebase/retry after history repair; clients must not automatically substitute a
   newer expected revision.
+- Permanently allocate protocol error codes 9, 10, and 11 for revision conflict,
+  edit-window expiry, and revision-limit exhaustion. Clients branch on these
+  codes, never on localized `safe_message` text; all three are non-retryable
+  without an explicit user action or a different command.
 - Do not advertise `MESSAGE_EDITS` from a client or enable it from the gateway
   until PostgreSQL, gateway, history/live, cache, conflict UI, accessibility,
   and reconnect gates for that endpoint pass.
