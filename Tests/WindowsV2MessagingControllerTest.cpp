@@ -12,9 +12,11 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QSet>
 #include <QTemporaryDir>
 #include <google/protobuf/message_lite.h>
 #include <stdexcept>
+#include <utility>
 
 namespace {
 int failures = 0;
@@ -78,10 +80,10 @@ int main(int argc, char **argv) {
             return std::make_unique<V2LocalMessageRepository>(
                 directory.filePath(QStringLiteral("messages.sqlite")));
         });
-    bool ready = false;
+    int readyCount = 0;
     bool unavailable = false;
     QObject::connect(&controller, &WindowsV2MessagingController::ready,
-                     [&] { ready = true; });
+                     [&] { ++readyCount; });
     QObject::connect(&controller, &WindowsV2MessagingController::unavailable,
                      [&] { unavailable = true; });
 
@@ -96,6 +98,7 @@ int main(int argc, char **argv) {
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_REACTIONS);
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS);
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS);
+    hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_MENTIONS);
     socket.binaryMessageReceived(response(
         chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
         command.request_id(), "", hello));
@@ -103,6 +106,7 @@ int main(int argc, char **argv) {
     command = parseEnvelope(sent.takeFirst());
 
     const std::string accountId = "10000000-0000-4000-8000-000000000001";
+    const std::string mentionTargetId = "10000000-0000-4000-8000-000000000002";
     const std::string sessionId = "40000000-0000-4000-8000-000000000001";
     chat::v2::SessionEstablished established;
     established.set_account_id(accountId);
@@ -114,7 +118,7 @@ int main(int argc, char **argv) {
     socket.binaryMessageReceived(response(
         chat::v2::MESSAGE_TYPE_SESSION_ESTABLISHED, chat::v2::MESSAGE_KIND_RESPONSE,
         command.request_id(), sessionId, established));
-    check(ready && controller.viewModel(),
+    check(readyCount == 1 && controller.viewModel(),
           QStringLiteral("authentication must compose the account-isolated message runtime"));
 
     check(sent.size() == 1,
@@ -188,19 +192,48 @@ int main(int argc, char **argv) {
     participant->set_account_id(accountId);
     participant->set_display_name("Test User");
     participant->set_role(chat::v2::CONVERSATION_ROLE_MEMBER);
-    participantPage.set_next_account_id(accountId);
+    participant = participantPage.add_participants();
+    participant->set_account_id(mentionTargetId);
+    participant->set_display_name("Mention Target");
+    participant->set_role(chat::v2::CONVERSATION_ROLE_MEMBER);
+    participantPage.set_next_account_id(mentionTargetId);
     socket.binaryMessageReceived(response(
         chat::v2::MESSAGE_TYPE_CONVERSATION_PARTICIPANT_PAGE,
         chat::v2::MESSAGE_KIND_RESPONSE, command.request_id(), sessionId,
         participantPage));
     check(controller.participantViewModel()->rows().size() == 1
               && controller.participantViewModel()->rows().front().accountId
-                    == QString::fromStdString(accountId),
-          QStringLiteral("participant response must reach conversation-scoped state"));
+                    == QString::fromStdString(mentionTargetId),
+          QStringLiteral("participant projection must exclude the authenticated account"));
 
-    transport.stop();
+    socket.disconnected();
     check(unavailable,
-          QStringLiteral("transport stop must abandon only in-memory messaging session state"));
+          QStringLiteral("disconnect must abandon only in-memory messaging session state"));
+    sent.clear();
+    socket.connected();
+    check(sent.size() == 1,
+          QStringLiteral("reconnect must restart capability negotiation"));
+    command = parseEnvelope(sent.takeFirst());
+    socket.binaryMessageReceived(response(
+        chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
+        command.request_id(), "", hello));
+    check(sent.size() == 1,
+          QStringLiteral("negotiated reconnect must attempt session resume"));
+    command = parseEnvelope(sent.takeFirst());
+    check(command.message_type() == chat::v2::MESSAGE_TYPE_RESUME_SESSION,
+          QStringLiteral("reconnect must use the memory-only resume credential"));
+    socket.binaryMessageReceived(response(
+        chat::v2::MESSAGE_TYPE_SESSION_ESTABLISHED, chat::v2::MESSAGE_KIND_RESPONSE,
+        command.request_id(), sessionId, established));
+    QSet<int> recoveryTypes;
+    for (const auto &frame : std::as_const(sent))
+        recoveryTypes.insert(parseEnvelope(frame).message_type());
+    check(readyCount == 2
+              && recoveryTypes.contains(chat::v2::MESSAGE_TYPE_LIST_CONVERSATIONS)
+              && recoveryTypes.contains(
+                  chat::v2::MESSAGE_TYPE_LIST_CONVERSATION_PARTICIPANTS),
+          QStringLiteral("restored session must resynchronize directory and active participants"));
+    transport.stop();
     if (failures) return 1;
     qInfo() << "[WindowsV2MessagingControllerTest] PASS";
     return 0;

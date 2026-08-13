@@ -1539,7 +1539,7 @@ Progress:
       - [x] Migrate the account-isolated Windows cache to schema 6 with
         normalized message/edit-outbox mention rows, restart-safe replay,
         idempotency checks, authoritative edit replacement, and recall/delete
-        cleanup while capability 4 remains off.
+        cleanup; this preparatory slice originally kept capability 4 off.
       - [x] Carry Windows mentions through the application service across
         optimistic reply/edit staging, reconnect replay, authoritative history
         and live projection, edit conflict/rebase, and correlated outcomes.
@@ -1567,6 +1567,12 @@ Progress:
         text and accessible plain text, and restore those same spans into the
         shared inline editor for identity-preserving edits while activation
         remains off.
+      - [x] Compose Windows capability 4 into the product source, fail closed on
+        incomplete negotiation, exclude the authenticated account from picker
+        candidates, abandon failed correlations, and refresh the active member
+        projection after session resume.
+      - [ ] Pass the activated Windows Release build and Widgets interaction
+        gate on a Windows runner before treating the endpoint as releasable.
 
 Candidate slices:
 

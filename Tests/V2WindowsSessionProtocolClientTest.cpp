@@ -92,13 +92,15 @@ int main() {
               && helloEnvelope.session_id().empty()
               && helloPayload.platform() == chat::v2::CLIENT_PLATFORM_WINDOWS
               && helloPayload.client_device_id() == deviceId
-              && helloPayload.capabilities_size() == 3
+              && helloPayload.capabilities_size() == 4
               && helloPayload.capabilities(0)
                     == chat::v2::CLIENT_CAPABILITY_MESSAGE_REACTIONS
               && helloPayload.capabilities(1)
                     == chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS
               && helloPayload.capabilities(2)
-                    == chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS,
+                    == chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS
+              && helloPayload.capabilities(3)
+                    == chat::v2::CLIENT_CAPABILITY_MESSAGE_MENTIONS,
           "hello must identify the exact capable Windows client without session authority");
 
     chat::v2::ServerHello serverHello;
@@ -109,6 +111,19 @@ int main() {
     serverHello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_REACTIONS);
     serverHello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS);
     serverHello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS);
+    serverHello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_MENTIONS);
+    Ids downgradeIds;
+    V2WindowsSessionProtocolClient downgradeClient(
+        "2.0.0-test", deviceId,
+        [&] { return downgradeIds.next(); }, [] { return 800; });
+    const auto downgradeHello = downgradeClient.createClientHello();
+    auto incompleteHello = serverHello;
+    incompleteHello.mutable_enabled_capabilities()->RemoveLast();
+    checkThrows([&] {
+        downgradeClient.receive(response(
+            chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
+            downgradeHello.requestId, "", incompleteHello));
+    }, "Windows mention UI must fail closed when capability 4 is not negotiated");
     const auto helloEvent = client.receive(response(
         chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
         hello.requestId, "", serverHello));

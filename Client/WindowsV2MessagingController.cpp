@@ -171,6 +171,8 @@ void WindowsV2MessagingController::bindAuthenticatedSession(
     }
     emit ready();
     m_directoryViewModel->refresh();
+    if (!m_participantViewModel->conversationId().isEmpty())
+        m_participantViewModel->refresh();
 }
 
 void WindowsV2MessagingController::receiveFrame(const QByteArray &frame) {
@@ -202,6 +204,8 @@ void WindowsV2MessagingController::receiveFrame(const QByteArray &frame) {
             QVector<V2WindowsConversationParticipantViewModel::Row> rows;
             rows.reserve(static_cast<qsizetype>(event.participants.size()));
             for (const auto &participant : event.participants) {
+                if (QString::fromStdString(participant.accountId) == m_accountId)
+                    continue;
                 rows.append({QString::fromStdString(participant.accountId),
                     QString::fromStdString(participant.displayName),
                     participant.role
@@ -303,6 +307,7 @@ bool WindowsV2MessagingController::requestParticipants(
                 QString::fromStdString(command.requestId), continuation);
             return true;
         }
+        m_participantProtocol->abandon(command.requestId);
     } catch (...) {}
     return false;
 }

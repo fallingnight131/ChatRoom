@@ -97,6 +97,13 @@ int main() {
     catch (...) { rejected = true; }
     check(rejected && client.pendingCount() == 1,
           "Unicode-only whitespace display names must be rejected");
+    client.abandon(next.requestId);
+    check(client.pendingCount() == 0,
+          "failed transport submission must abandon its participant correlation");
+    rejected = false;
+    try { client.receive(response(next.requestId, sessionId, page)); }
+    catch (...) { rejected = true; }
+    check(rejected, "an abandoned participant response must not be accepted later");
     client.clearSession();
     check(client.pendingCount() == 0, "disconnect must abandon participant correlations");
     if (failures) return 1;

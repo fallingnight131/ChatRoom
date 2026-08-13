@@ -82,6 +82,11 @@ V2WindowsConversationParticipantProtocolClient::list(
     return {requestId, serialize(envelope)};
 }
 
+void V2WindowsConversationParticipantProtocolClient::abandon(
+        const std::string &requestId) {
+    m_pending.erase(requestId);
+}
+
 V2WindowsConversationParticipantProtocolClient::Event
 V2WindowsConversationParticipantProtocolClient::receive(const std::string &bytes) {
     const auto envelope = parse<chat::v2::Envelope>(bytes);

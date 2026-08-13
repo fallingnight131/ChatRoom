@@ -702,7 +702,9 @@ the body. Capability 4 now exists in all generated schemas, PostgreSQL, and the
 gateway. The gateway rejects unnegotiated mention metadata and filters it from
 history/live events for unsupported peers without stalling their cursors. The
 Web V2 preview now advertises capability 4 after its offline storage and
-accessible composition/rendering gates passed; Windows remains off. ADR-0343 adds the missing
+accessible composition/rendering gates passed. Windows source activation is
+now composed but remains unreleasable until its Windows Release and interaction
+gate passes. ADR-0343 adds the missing
 capability-gated participant directory: active members are paged by stable
 account ID and projected with current display names only after the caller's
 membership is authorized, so clients do not build incomplete UUID-only pickers
@@ -717,13 +719,13 @@ spans flow unchanged through optimistic Web send/reply/edit records and their
 retry transport paths. The build-gated Web V2 preview provides a keyboard-native
 participant picker, Unicode-safe span maintenance, accessible loading/error
 controls, identity-preserving rendering, and capability-4 negotiation.
-The default-off Windows boundary can now issue and validate the same participant
+The Windows boundary issues and validates the same participant
 pages with stable cursor and Unicode policy. The authenticated Windows
 controller composes its bounded conversation-scoped view model and routes the
 type-117/type-118 command/response pair over the existing WSS transport only
-after an explicit caller activates a conversation. It remains detached from
-SQLite message state and the Widgets UI, and capability 4 remains off, so this
-integration does not expose unfinished mention behavior to the product.
+after an explicit caller opens the picker. It excludes the authenticated account
+from candidates, abandons correlations when transport submission fails, and
+refreshes the active projection after session resume.
 The Windows messaging protocol adapter also carries structured mentions through
 send, reply, edit, authoritative history, and live projections. It enforces the
 same 20-span/10-target canonical-ID, ordering, non-overlap, ASCII-`@`, and UTF-8
@@ -736,10 +738,8 @@ ADR-0342. The Windows messaging application service now maps these values at
 the protocol/storage boundary for optimistic staging, reconnect replay,
 authoritative history/live convergence, and edit conflict/rebase. The message
 ViewModel now exposes identity-preserving spans on non-recalled rows and
-accepts already-composed spans for reply/edit actions. Rendering, editor span
-maintenance, accessible authoring, and capability negotiation remain off in the
-product composition, so capable traffic cannot yet enter the Windows UI. A
-detached Qt Core mention composer now performs
+accepts already-composed spans for reply/edit actions. A detached Qt Core
+mention composer now performs
 surrogate-safe insertion and reconciliation, converts Qt UTF-16 editor offsets
 to exact protocol UTF-8 byte spans, restores persisted spans, and produces
 identity-preserving render segments. The Widgets reply editor has a default-off
@@ -750,8 +750,11 @@ send serializes it without reparsing the display name. Message rows now escape
 untrusted text before applying identity-backed mention emphasis and retain a
 plain accessible name. Author edits restore the stored spans into the shared
 inline editor, preserve them across non-overlapping changes, and submit the
-updated body and spans atomically. The product flag remains off until reconnect,
-capability, and Windows gates are complete.
+updated body and spans atomically. The Windows source now enables that UI seam
+and advertises capability 4, rejects a server that does not echo the full
+requested set, and re-synchronizes both conversation and participant directories
+after resume. This is a release candidate, not Windows release evidence: the
+Windows Release build and native interaction gate remain open.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

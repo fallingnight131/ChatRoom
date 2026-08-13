@@ -1291,8 +1291,9 @@ or unnegotiated inbound spans. Web V2 cache records also retain bounded mention
 metadata for authoritative messages and edit intents, clear it on recall, and
 discard a malformed cached set without discarding ordinary text. The composed
 Web V2 preview now advertises capability 4 after its persistence, composition,
-rendering, and accessibility gate passed. Windows remains off until its
-equivalent client gate passes (ADR-0342).
+rendering, and accessibility gate passed. Windows source now advertises the same
+capability after its client gates passed, while release remains blocked on its
+Windows Release and native Widgets interaction gate (ADR-0342).
 Types 117/118 define the capability-gated V2 conversation-participant query
 and response. Java payload policy and the Java/TypeScript/C++ compatibility
 gate require a canonical conversation ID, optional canonical account cursor,
@@ -1352,28 +1353,30 @@ stable account ID, ignores pages and failures for another conversation, and
 enters a fixed unavailable state on disconnect. Its Qt Core test runs with
 warnings-as-errors. The messaging-controller test additionally proves that a
 caller-triggered type-117 request shares the authenticated WSS, that only its
-correlated type-118 response reaches the active conversation state, and that
-disconnect abandons the projection. Widgets composition and capability 4 remain
-off (ADR-0343).
+correlated type-118 response reaches the active conversation state, filters the
+authenticated account, and that disconnect abandons the projection. Its resume
+path proves that both the conversation directory and active participant
+projection are requested again (ADR-0343).
 `V2WindowsMentionComposerTest` locks the detached Windows editor model's Unicode
 contract: mention insertion cannot split a UTF-16 surrogate pair, edits outside
 a mention shift its anchor, edits inside it invalidate identity, and Qt UTF-16
 positions round-trip to the protocol's UTF-8 byte spans. It also verifies that
 render segmentation uses stored account identity instead of reparsing display
 text. Passing this Qt Core test on a macOS development host is portability
-evidence only; Windows Widgets exposure and capability 4 remain gated.
+evidence only; it is not the required Windows product gate.
 `V2WindowsMessagingPanelTest` and `V2WindowsConversationDialogTest` additionally
 exercise the default-off Widgets authoring seam. They prove that merely opening
 a conversation does not fetch members, opening the picker explicitly requests
 the active conversation, accessible keyboard selection inserts Unicode text,
-and reply submission carries the exact account-backed UTF-8 span. The default
-product composition still hides this control until the remaining Windows
-mention gates pass.
+and reply submission carries the exact account-backed UTF-8 span. The test also
+keeps a default-off construction path so rollback can hide authoring without
+discarding additive stored metadata.
 The panel test also locks identity-preserving display and edit behavior: message
 HTML is escaped before mention emphasis, assistive technology receives the
 plain body, the highlighted segment retains its stored account target, and an
 author edit restores then resubmits the original span after an unrelated suffix
-change. These assertions do not activate capability 4.
+change. Source activation additionally requires the session protocol to request
+capability 4 and fail closed if the server omits it.
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live
@@ -1383,9 +1386,8 @@ boundary now also carries mentions through send/reply/edit and authoritative
 history/live data while enforcing 20 spans, 10 distinct canonical targets,
 ordered non-overlap, ASCII-`@` starts, and exact UTF-8 boundaries. Unicode
 negative tests prove malformed inbound data fails without consuming its request
-correlation. This is not Windows capability-4 activation: ViewModel/Widgets
-composition, rendering, accessibility, and end-to-end UI gates remain
-outstanding. It
+correlation. Source activation is covered by the separate session, controller,
+and Widgets gates; Windows Release verification remains outstanding. It
 also locks type-106/109 command identity, type-107/112 correlation, and
 uncorrelated ordered type-108/113 events. The canonical default-off Windows CMake
 product now composes this boundary with the shared authenticated Qt WSS,

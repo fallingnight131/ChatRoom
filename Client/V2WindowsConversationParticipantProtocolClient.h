@@ -34,6 +34,7 @@ public:
     void clearSession();
     Command list(const std::string &conversationId, std::uint32_t limit,
                  const std::string &afterAccountId = {});
+    void abandon(const std::string &requestId);
     Event receive(const std::string &bytes);
     std::size_t pendingCount() const { return m_pending.size(); }
 

@@ -15,6 +15,7 @@
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
     const QString account = QStringLiteral("10000000-0000-4000-8000-000000000001");
+    const QString mentionTarget = QStringLiteral("10000000-0000-4000-8000-000000000002");
     const QString conversation = QStringLiteral("20000000-0000-4000-8000-000000000001");
     V2LocalMessageRepository::Snapshot snapshot;
     V2LocalMessageRepository::Message message;
@@ -23,7 +24,7 @@ int main(int argc, char **argv) {
     message.senderAccountId = account;
     message.clientMessageId = QStringLiteral("remote-1");
     message.text = QStringLiteral("@张三😀 hello <b>x</b>");
-    message.mentions.append({account, 0,
+    message.mentions.append({mentionTarget, 0,
         static_cast<int>(QStringLiteral("@张三😀").toUtf8().size())});
     message.state = V2LocalMessageRepository::DeliveryState::Accepted;
     snapshot.messages.append(message);
@@ -78,7 +79,7 @@ int main(int argc, char **argv) {
     const auto mentionedBody = std::find_if(
         messageLabels.cbegin(), messageLabels.cend(), [&](QLabel *label) {
             return label->property("mentionTargetAccountIds").toStringList()
-                == QStringList{account};
+                == QStringList{mentionTarget};
         });
     if (mentionedBody == messageLabels.cend()
             || !(*mentionedBody)->text().contains(QStringLiteral("<span"))
@@ -158,7 +159,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     participants.applyPage(conversation, {{
-        account, QStringLiteral("张三😀"), QStringLiteral("成员")}}, false, false);
+        mentionTarget, QStringLiteral("张三😀"), QStringLiteral("成员")}}, false, false);
     app.processEvents();
     if (panel.participantListForTest()->count() != 1
             || panel.participantListForTest()->accessibleName().isEmpty()) {
@@ -175,7 +176,7 @@ int main(int argc, char **argv) {
     panel.sendForTest()->click();
     app.processEvents();
     if (submittedMentions.size() != 1
-            || submittedMentions.first().targetAccountId != account
+            || submittedMentions.first().targetAccountId != mentionTarget
             || submittedMentions.first().startUtf8Byte != 0
             || submittedMentions.first().lengthUtf8Bytes
                 != QStringLiteral("@张三😀").toUtf8().size()) {
@@ -205,7 +206,7 @@ int main(int argc, char **argv) {
     panel.sendForTest()->click();
     app.processEvents();
     if (editedMentions.size() != 1
-            || editedMentions.first().targetAccountId != account
+            || editedMentions.first().targetAccountId != mentionTarget
             || editedMentions.first().startUtf8Byte != 0
             || editedMentions.first().lengthUtf8Bytes
                 != message.mentions.first().lengthUtf8Bytes) {
