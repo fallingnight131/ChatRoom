@@ -1387,9 +1387,12 @@ SHA-256-pinned Protobuf 35.1 and Abseil 20250512.1 sources, requires Java,
 TypeScript, and C++ to parse/emit the same golden envelope, and runs the pure
 C++ Windows device-management and session-protocol regressions. These cover
 exact-version Windows hello, fresh authentication, memory-only resume, session
-authority, and authenticated device-codec composition. The first run downloads
-and builds the isolated C++ runtime. The codecs are not yet composed into the
-current Qt product; V2 WSS lifecycle activation remains a separate change.
+authority, authenticated device-codec composition, and the detached Qt WSS
+lifecycle. The Qt regression checks exact `wss://.../v2/windows` routing,
+`chat.v2` negotiation, binary framing, authentication, and Qt projection. The
+first run downloads and builds the isolated C++ runtime. These components are
+not yet linked into the current Qt product; native dependency packaging and UI
+composition remain separate changes.
 
 ## Server Password Hashing Dependency
 

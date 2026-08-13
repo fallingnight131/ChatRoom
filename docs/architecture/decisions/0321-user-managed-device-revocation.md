@@ -81,8 +81,11 @@ server projections and type confusion, and abandons pending state on
 disconnect. Both remain deliberately detached: the current Windows product
 network manager is V1 JSON. A pure C++ Windows V2 session protocol now composes
 exact-version hello, fresh authentication, memory-only resume, authenticated
-session validation, and the device codec. Activating the screen still requires
-the future Qt WSS lifecycle adapter rather than silently tunneling a V2 security
+session validation, and the device codec. A detached Qt WSS lifecycle now
+enforces the exact `wss` Windows endpoint, `chat.v2` binary subprotocol,
+phase-specific timeouts, memory-only resume, bounded jittered reconnect, and
+fail-closed response mapping. Activating the screen still requires product
+dependency/packaging composition rather than silently tunneling a V2 security
 command through V1.
 
 ## Verification

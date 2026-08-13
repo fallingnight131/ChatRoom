@@ -1338,6 +1338,9 @@ Progress:
   - [x] Add the pure C++ Windows V2 exact-version handshake, fresh
     authentication, memory-only resume, session-authority validation, and
     authenticated device-codec composition; the Qt WSS lifecycle remains.
+  - [x] Add the detached Qt WSS lifecycle for the exact Windows endpoint and
+    `chat.v2` binary subprotocol with phase timeouts, memory-only resume,
+    bounded jittered reconnect, fail-closed framing, and Qt device projection.
   - [ ] Add the supported Windows device-management application/UI path; Web is
     implemented behind the existing V2 preview/cutover gate.
 

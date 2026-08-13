@@ -10,7 +10,7 @@ permissions:
 jobs:
   backend-check:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Check out source
@@ -33,6 +33,11 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: Backend/protocol-v2/typescript/package-lock.json
+
+      - name: Install Qt Windows-adapter portability dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes qt6-base-dev qt6-websockets-dev
 
       - name: Verify Java workspace, PostgreSQL migrations, and client bindings
         run: python3 tools/verify_m0.py --java --postgres --protocol-bindings
