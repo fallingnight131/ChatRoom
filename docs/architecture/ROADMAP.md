@@ -713,7 +713,7 @@ Progress:
   - [x] Add strict detached password status/mutation handlers with clearable
     JSON secret ownership, authenticated actor binding, bounded off-loop work,
     changed-only compatible effects, and fail-closed malformed/saturation paths.
-  - [ ] Compose the detached password handlers and prove secret-safe
+  - [x] Compose the detached password handlers and prove secret-safe
     compatibility plus replacement-login recovery through real PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.

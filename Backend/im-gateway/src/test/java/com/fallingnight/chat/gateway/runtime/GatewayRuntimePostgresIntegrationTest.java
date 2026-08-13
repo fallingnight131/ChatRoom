@@ -25,6 +25,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFilesEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFileDeletionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageDeletionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomRenameEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomPasswordEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomAdminEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomKickEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
@@ -332,6 +333,8 @@ class GatewayRuntimePostgresIntegrationTest {
                                 jdbcUrl, username, password);
                         assertRoomRename(module, reconnected, peer,
                                 jdbcUrl, username, password);
+                        assertRoomPasswordSet(reconnected, peer,
+                                jdbcUrl, username, password);
                         assertRoomAdminPromotion(reconnected, peer,
                                 jdbcUrl, username, password);
                         assertDirectHistoryAfterReconnect(reconnected);
@@ -399,6 +402,9 @@ class GatewayRuntimePostgresIntegrationTest {
                             peerReplacement.runPendingTasks();
                             ((TextWebSocketFrame) peerReplacement.readOutbound()).release();
                             assertRoomAdminRecovered(peerReplacement);
+                            assertRoomPasswordRecoveredAndCancelled(
+                                    peerReplacement, reconnected,
+                                    jdbcUrl, username, password);
                         } finally { peerReplacement.finishAndReleaseAll(); }
                     } finally { reconnected.finishAndReleaseAll(); }
                 } finally {
@@ -448,6 +454,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomFileDeletionEventSink.noop(),
                 V1RoomMessageDeletionEventSink.noop(),
                 V1RoomRenameEventSink.noop(),
+                V1RoomPasswordEventSink.noop(),
                 V1RoomAdminEventSink.noop(),
                 V1RoomKickEventSink.noop(),
                 V1RoomDirectoryEventSink.noop(),
@@ -1093,6 +1100,98 @@ class GatewayRuntimePostgresIntegrationTest {
                 assertFalse(rooms.text().contains("30000000-0000"));
             } finally { rooms.release(); }
         } finally { freshMember.finishAndReleaseAll(); }
+    }
+
+    private static void assertRoomPasswordSet(EmbeddedChannel owner, EmbeddedChannel member,
+            String url, String user, String password) throws Exception {
+        String secret = "secure-room-password";
+        String request = "{\"type\":\"SET_ROOM_PASSWORD_REQ\",\"data\":{\"roomId\":7,"
+                + "\"password\":\"" + secret + "\"}}";
+        member.writeInbound(new TextWebSocketFrame(request)); member.runPendingTasks();
+        TextWebSocketFrame denied = member.readOutbound();
+        try {
+            assertTrue(denied.text().contains("\"type\":\"SET_ROOM_PASSWORD_RSP\""));
+            assertTrue(denied.text().contains("\"success\":false"));
+            assertTrue(denied.text().contains("ROOM_ADMIN_REQUIRED"));
+            assertFalse(denied.text().contains(secret));
+        } finally { denied.release(); }
+
+        owner.writeInbound(new TextWebSocketFrame(request)); owner.runPendingTasks();
+        TextWebSocketFrame response = owner.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"hasPassword\":true"));
+            assertTrue(response.text().contains("\"changed\":true"));
+            assertFalse(response.text().contains(secret));
+            assertFalse(response.text().contains("argon2"));
+        } finally { response.release(); }
+        owner.runPendingTasks(); member.runPendingTasks();
+        TextWebSocketFrame ownSystem = owner.readOutbound(), memberSystem = member.readOutbound();
+        try {
+            assertTrue(ownSystem.text().contains("已设置/修改聊天室密码"));
+            assertTrue(memberSystem.text().contains("\"type\":\"SYSTEM_MSG\""));
+            assertFalse(ownSystem.text().contains(secret));
+            assertFalse(memberSystem.text().contains(secret));
+        } finally { ownSystem.release(); memberSystem.release(); }
+
+        owner.writeInbound(new TextWebSocketFrame(request)); owner.runPendingTasks();
+        response = owner.readOutbound();
+        try { assertTrue(response.text().contains("\"changed\":false")); }
+        finally { response.release(); }
+        owner.runPendingTasks(); member.runPendingTasks();
+        assertNull(owner.readOutbound()); assertNull(member.readOutbound());
+
+        assertEquals(1, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.group_join_credential credential "
+                        + "JOIN chat.legacy_v1_conversation_map mapping "
+                        + "ON mapping.conversation_id = credential.conversation_id "
+                        + "WHERE mapping.legacy_kind = 'ROOM' "
+                        + "AND mapping.legacy_conversation_id = 7 "
+                        + "AND credential.encoded_password LIKE '$argon2id$%' "
+                        + "AND credential.password_idempotency_tag LIKE 'hmac-sha256:v1:%' "
+                        + "AND credential.encoded_password NOT LIKE '%secure-room-password%'"));
+    }
+
+    private static void assertRoomPasswordRecoveredAndCancelled(
+            EmbeddedChannel replacementAdmin, EmbeddedChannel owner,
+            String url, String user, String password) throws Exception {
+        replacementAdmin.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"GET_ROOM_PASSWORD_REQ\",\"data\":{\"roomId\":7}}"));
+        replacementAdmin.runPendingTasks(); TextWebSocketFrame status = replacementAdmin.readOutbound();
+        try {
+            assertTrue(status.text().contains("\"type\":\"GET_ROOM_PASSWORD_RSP\""));
+            assertTrue(status.text().contains("\"success\":true"));
+            assertTrue(status.text().contains("\"hasPassword\":true"));
+            assertFalse(status.text().contains("secure-room-password"));
+            assertFalse(status.text().contains("argon2"));
+        } finally { status.release(); }
+
+        String cancel = "{\"type\":\"SET_ROOM_PASSWORD_REQ\",\"data\":{"
+                + "\"roomId\":7,\"password\":\"\"}}";
+        replacementAdmin.writeInbound(new TextWebSocketFrame(cancel));
+        replacementAdmin.runPendingTasks(); TextWebSocketFrame response = replacementAdmin.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"hasPassword\":false"));
+            assertTrue(response.text().contains("\"changed\":true"));
+        } finally { response.release(); }
+        replacementAdmin.runPendingTasks(); owner.runPendingTasks();
+        TextWebSocketFrame ownSystem = replacementAdmin.readOutbound();
+        TextWebSocketFrame ownerSystem = owner.readOutbound();
+        try {
+            assertTrue(ownSystem.text().contains("已取消聊天室密码"));
+            assertTrue(ownerSystem.text().contains("已取消聊天室密码"));
+        } finally { ownSystem.release(); ownerSystem.release(); }
+
+        replacementAdmin.writeInbound(new TextWebSocketFrame(cancel));
+        replacementAdmin.runPendingTasks(); response = replacementAdmin.readOutbound();
+        try { assertTrue(response.text().contains("\"changed\":false")); }
+        finally { response.release(); }
+        assertEquals(0, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.group_join_credential credential "
+                        + "JOIN chat.legacy_v1_conversation_map mapping "
+                        + "ON mapping.conversation_id = credential.conversation_id "
+                        + "WHERE mapping.legacy_kind = 'ROOM' "
+                        + "AND mapping.legacy_conversation_id = 7"));
     }
 
     private static void assertRoomAdminPromotion(EmbeddedChannel owner,
