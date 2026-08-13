@@ -1951,6 +1951,17 @@ class GatewayRuntimePostgresIntegrationTest {
                     poolMetrics, "chat_gateway_event_loop_workers"));
             assertTrue(fixedGauge(
                     poolMetrics, "chat_gateway_event_loop_probe_samples_total") >= 4);
+            int cpuTimeAvailable = fixedGauge(
+                    poolMetrics, "chat_gateway_process_cpu_time_available");
+            assertTrue(cpuTimeAvailable == 0 || cpuTimeAvailable == 1);
+            assertTrue(fixedLongGauge(
+                    poolMetrics, "chat_gateway_jvm_heap_used_bytes") > 0);
+            assertTrue(fixedLongGauge(
+                    poolMetrics, "chat_gateway_jvm_heap_committed_bytes") > 0);
+            assertTrue(fixedLongGauge(
+                    poolMetrics, "chat_gateway_jvm_heap_maximum_bytes") > 0);
+            assertTrue(fixedGauge(
+                    poolMetrics, "chat_gateway_process_available_processors") >= 1);
 
             Files.writeString(control.resolve("haproxy-primary-stop-request"), "stop\n");
             awaitFile(control.resolve("haproxy-primary-stopped"), Duration.ofSeconds(10));

@@ -5,6 +5,7 @@ import com.fallingnight.chat.application.identity.SessionResumeService;
 import com.fallingnight.chat.application.identity.DeviceManagementService;
 import com.fallingnight.chat.gateway.operations.AttachmentCleanupTelemetry;
 import com.fallingnight.chat.gateway.operations.GatewayAdminServer;
+import com.fallingnight.chat.gateway.operations.GatewayProcessResources;
 import com.fallingnight.chat.gateway.operations.PrometheusConversationEventOutboxMetrics;
 import com.fallingnight.chat.gateway.operations.PrometheusGatewayRoutingMetrics;
 import com.fallingnight.chat.gateway.transport.AuthenticationTelemetry;
@@ -194,6 +195,7 @@ public final class GatewayRuntime implements AutoCloseable {
                     () -> GatewayPostgresDataSource.snapshot(
                             readinessDataSource, config.postgresPoolMaximum()),
                     eventLoopMetricsServer::eventLoopSnapshot,
+                    GatewayProcessResources::snapshot,
                     publicReadiness,
                     distributedMetrics,
                     config.releaseIdentity());

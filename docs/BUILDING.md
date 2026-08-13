@@ -1642,6 +1642,10 @@ latest-lag and pending-task peaks. The 50 ms product probe period remains
 coarser than the 5 ms admin sampling target (ADR-0390).
 The first clean schema version 4 result and its limitations are retained as
 `docs/baselines/M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_EVENT_LOOP_SATURATION_2026-08-14.*`.
+Portable loopback resource metrics now expose cumulative process CPU seconds,
+CPU-time availability, JVM heap used/committed/maximum, uptime, and available
+processors. CPU percentage must be derived over a bounded wall-time window;
+RSS, GC pauses, and cgroup limits remain unmeasured (ADR-0391).
 
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and

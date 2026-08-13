@@ -52,6 +52,8 @@ class GatewayAdminServerTest {
                 () -> 3,
                 () -> new PostgresPoolSnapshot(true, 2, 1, 3, 4, 8),
                 () -> new EventLoopSnapshot(true, 4, 12, 2_000_000, 7_000_000, 3),
+                () -> new ProcessResourceSnapshot(
+                        true, 2_500_000_000L, 100, 200, 400, 3_000, 8),
                 readiness,
                 () -> "# TYPE chat_gateway_distributed_metrics_available gauge\n"
                         + "chat_gateway_distributed_metrics_available 1\n",
@@ -126,6 +128,18 @@ class GatewayAdminServerTest {
             assertTrue(metrics.body().contains(
                     "chat_gateway_event_loop_pending_tasks 3"));
             assertTrue(metrics.body().contains(
+                    "chat_gateway_process_cpu_time_available 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_process_cpu_seconds_total 2.500000000"));
+            assertTrue(metrics.body().contains("chat_gateway_jvm_heap_used_bytes 100"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_jvm_heap_committed_bytes 200"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_jvm_heap_maximum_bytes 400"));
+            assertTrue(metrics.body().contains("chat_gateway_process_uptime_seconds 3.000"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_process_available_processors 8"));
+            assertTrue(metrics.body().contains(
                     "chat_gateway_device_management_total{outcome=\"revoked\"} 1"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_device_management_total{outcome=\"disconnected\"} 2"));
@@ -172,6 +186,7 @@ class GatewayAdminServerTest {
                 () -> 0,
                 () -> PostgresPoolSnapshot.unavailable(8),
                 EventLoopSnapshot::unavailable,
+                GatewayProcessResources::snapshot,
                 readiness));
         assertThrows(IllegalArgumentException.class, () -> new GatewayAdminServer(
                 new InetSocketAddress(InetAddress.getLoopbackAddress(), 0),
@@ -186,6 +201,7 @@ class GatewayAdminServerTest {
                 () -> 0,
                 () -> PostgresPoolSnapshot.unavailable(8),
                 EventLoopSnapshot::unavailable,
+                GatewayProcessResources::snapshot,
                 readiness));
     }
 

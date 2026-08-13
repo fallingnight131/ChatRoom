@@ -1250,6 +1250,10 @@ The first clean schema version 4 result at `14e03b67...` observed 28 advancing
 probe samples across four workers, 2.759 ms maximum latest lag, no pending tasks,
 and no increase from the 24.897 ms since-start maximum while all 12 sessions
 resumed. One noisy local curve remains unsuitable for an SLO.
+ADR-0391 adds portable Java process CPU time, heap used/committed/maximum,
+uptime, and processor-count gauges to loopback operations without native or
+macOS-specific dependencies. RSS, off-heap memory, GC pauses, and container
+limits remain explicit gaps.
 
 ## 10. Attachment Flow
 

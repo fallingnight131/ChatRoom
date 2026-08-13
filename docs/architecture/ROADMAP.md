@@ -1664,6 +1664,11 @@ Progress:
   resumes with 68 shared samples, 28 advancing probe samples, 2.759 ms maximum
   latest lag, no pending tasks, and an unchanged 24.897 ms since-start maximum.
   CPU/memory signals and a saturation knee remain pending (ADR-0390).
+- [x] Export portable fixed-name cumulative process CPU time, CPU-time
+  availability, JVM heap used/committed/maximum, uptime, and available
+  processors from Java standard management APIs without platform-native
+  dependencies. Window evidence, RSS, GC pauses, and a saturation knee remain
+  pending (ADR-0391).
 
 Work:
 
