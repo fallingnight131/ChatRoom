@@ -692,6 +692,17 @@ their V2 preview compositions advertise capability 3. Types 114--116, additive
 message revision metadata, and mixed-history edit detail remain locked across
 generated Java, C++, and TypeScript bindings. This activates the capability only
 inside the opt-in V2 preview; it does not cut supported V1 product traffic over.
+
+The next inactive M6 slice is structured message mentions. ADR-0342 selects
+canonical account targets plus bounded, non-overlapping UTF-8 byte spans rather
+than parsing mutable display names. The server must validate active
+same-conversation membership and bind mention metadata into submission/edit
+idempotency; recall, deletion, and edit-history privacy erasure remove it with
+the body. Capability 4 is reserved by the ADR but remains absent from generated
+schemas and unadvertised until the three generated bindings,
+PostgreSQL/gateway, offline Web/Windows storage, and accessible
+composition/rendering gates pass.
+
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
 single-gateway router now establishes one active subscription only through the

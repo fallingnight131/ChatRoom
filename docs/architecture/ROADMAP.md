@@ -1472,11 +1472,21 @@ Progress:
       explicit server negotiation after the full gateway gate passes.
   - [x] Add offline-safe Web and Windows edit overlays/outboxes, explicit
     conflict/rebase UX, edited presentation, accessibility, and activation.
+- [ ] Deliver bounded structured message mentions on V2 Web and Windows.
+  - [x] Define stable target identity, UTF-8 span policy, capability negotiation,
+    membership authority, idempotency/edit behavior, privacy cleanup, offline
+    behavior, compatibility, and staged activation (ADR-0342).
+  - [ ] Add additive generated wire fields and fixed Java/C++/TypeScript golden
+    compatibility plus bounded structural policy while runtime paths remain off.
+  - [ ] Persist and authorize mention metadata with submission, edit, history,
+    live delivery, recall/deletion cleanup, and privacy erasure in PostgreSQL and
+    the authenticated gateway.
+  - [ ] Add offline-safe Web and Windows mention composition, local persistence,
+    rendering, accessibility, and endpoint-specific capability activation.
 
 Candidate slices:
 
-- multi-device login and device management;
-- reply, quote, forward, edit policy, reactions, mentions, and pinned messages;
+- forwarding and richer structured composition;
 - group roles, invitations, join approval, mute, block, and moderation;
 - full-text search with an asynchronously rebuildable index;
 - Windows native notifications;
