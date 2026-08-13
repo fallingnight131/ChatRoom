@@ -23,6 +23,7 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMemberListEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomSettingsEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFilesEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomFileDeletionEventSink;
+import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageDeletionEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomAdminEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomKickEventSink;
 import com.fallingnight.chat.gateway.compatibility.v1.V1RoomMessageEventSink;
@@ -325,6 +326,9 @@ class GatewayRuntimePostgresIntegrationTest {
                         assertRoomReadClearsUnread(reconnected);
                         assertRoomFileDeletion(reconnected, peer,
                                 jdbcUrl, username, password);
+                        seedRuntimeRoomAttachment(jdbcUrl, username, password);
+                        assertRoomMessageDeletion(reconnected, peer,
+                                jdbcUrl, username, password);
                         assertRoomAdminPromotion(reconnected, peer,
                                 jdbcUrl, username, password);
                         assertDirectHistoryAfterReconnect(reconnected);
@@ -439,6 +443,7 @@ class GatewayRuntimePostgresIntegrationTest {
                 V1RoomSettingsEventSink.noop(),
                 V1RoomFilesEventSink.noop(),
                 V1RoomFileDeletionEventSink.noop(),
+                V1RoomMessageDeletionEventSink.noop(),
                 V1RoomAdminEventSink.noop(),
                 V1RoomKickEventSink.noop(),
                 V1RoomDirectoryEventSink.noop(),
@@ -891,6 +896,134 @@ class GatewayRuntimePostgresIntegrationTest {
         } finally { response.release(); }
     }
 
+    private static void seedRuntimeRoomAttachment(
+            String url, String user, String password) throws Exception {
+        UUID room = UUID.fromString("30000000-0000-0000-0000-000000000007");
+        UUID owner = UUID.fromString("15000000-0000-0000-0000-000000000044");
+        UUID device = UUID.fromString("50000000-0000-0000-0000-000000000044");
+        UUID attachment = UUID.fromString("71000000-0000-0000-0000-000000000502");
+        UUID message = UUID.fromString("72000000-0000-0000-0000-000000000702");
+        try (Connection connection = DriverManager.getConnection(url, user, password)) {
+            connection.setAutoCommit(false);
+            try {
+                long sequence;
+                try (PreparedStatement allocate = connection.prepareStatement(
+                        "UPDATE chat.conversation SET next_sequence = next_sequence + 1 "
+                                + "WHERE id = ? RETURNING next_sequence - 1")) {
+                    allocate.setObject(1, room);
+                    try (ResultSet row = allocate.executeQuery()) {
+                        assertTrue(row.next()); sequence = row.getLong(1);
+                    }
+                }
+                assertEquals(11, sequence);
+                execute(connection, "INSERT INTO chat.attachment(id, conversation_id, "
+                        + "owner_account_id, owner_device_id, client_attachment_id, object_key, "
+                        + "file_name, media_type, byte_size, content_sha256, state, ready_at) "
+                        + "VALUES (?, ?, ?, ?, 'runtime-room-file-502', "
+                        + "'attachments/runtime-room-file-502', 'runtime.pdf', "
+                        + "'application/pdf', 456, decode(?, 'hex'), 'READY', "
+                        + "transaction_timestamp())", attachment, room, owner, device,
+                        "33".repeat(32));
+                execute(connection, "INSERT INTO chat.conversation_entry(conversation_id, "
+                        + "conversation_sequence, entry_kind, occurred_at) "
+                        + "VALUES (?, ?, 'MESSAGE', transaction_timestamp())", room, sequence);
+                execute(connection, "INSERT INTO chat.message(id, conversation_id, "
+                        + "conversation_sequence, sender_account_id, sender_device_id, "
+                        + "client_message_id, message_type, payload, payload_sha256, "
+                        + "attachment_id) VALUES (?, ?, ?, ?, ?, 'runtime-room-message-702', "
+                        + "2, decode('', 'hex'), decode(?, 'hex'), ?)", message, room,
+                        sequence, owner, device, "00".repeat(32), attachment);
+                execute(connection, "INSERT INTO chat.legacy_v1_message_map(legacy_kind, "
+                        + "legacy_message_id, legacy_conversation_id, conversation_id, "
+                        + "message_id, legacy_content_type) VALUES "
+                        + "('ROOM', 702, 7, ?, ?, 'file')", room, message);
+                execute(connection, "INSERT INTO chat.legacy_v1_attachment_map(legacy_kind, "
+                        + "legacy_file_id, legacy_conversation_id, conversation_id, "
+                        + "attachment_id) VALUES ('ROOM', 502, 7, ?, ?)", room, attachment);
+                connection.commit();
+            } catch (Exception exception) {
+                connection.rollback(); throw exception;
+            }
+        }
+    }
+
+    private static void assertRoomMessageDeletion(EmbeddedChannel sender,
+            EmbeddedChannel recipient, String url, String user, String password) throws Exception {
+        String request = "{\"type\":\"DELETE_MSGS_REQ\",\"data\":{\"roomId\":7,"
+                + "\"mode\":\"selected\",\"messageIds\":[702],"
+                + "\"clientOperationId\":\"delete-message-702\"}}";
+        sender.writeInbound(new TextWebSocketFrame(request)); sender.runPendingTasks();
+        TextWebSocketFrame response = sender.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"type\":\"DELETE_MSGS_RSP\""));
+            assertTrue(response.text().contains("\"success\":true"));
+            assertTrue(response.text().contains("\"duplicate\":false"));
+            assertTrue(response.text().contains("\"messageIds\":[702]"));
+            assertTrue(response.text().contains("\"deletedFileIds\":[502]"));
+            assertTrue(response.text().contains("\"sequence\":12"));
+            assertFalse(response.text().contains("71000000-0000"));
+        } finally { response.release(); }
+        sender.runPendingTasks(); TextWebSocketFrame ownSystem = sender.readOutbound();
+        try { assertTrue(ownSystem.text().contains("\"type\":\"SYSTEM_MSG\"")); }
+        finally { ownSystem.release(); }
+        recipient.runPendingTasks();
+        TextWebSocketFrame deletion = recipient.readOutbound(), system = recipient.readOutbound();
+        try {
+            assertTrue(deletion.text().contains("\"type\":\"DELETE_MSGS_NOTIFY\""));
+            assertTrue(deletion.text().contains("\"messageIds\":[702]"));
+            assertTrue(deletion.text().contains("\"syncSequence\":12"));
+            assertTrue(system.text().contains("删除了 1 条消息"));
+        } finally { deletion.release(); system.release(); }
+
+        sender.writeInbound(new TextWebSocketFrame(request)); sender.runPendingTasks();
+        response = sender.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"duplicate\":true"));
+            assertTrue(response.text().contains("\"sequence\":12"));
+        } finally { response.release(); }
+        sender.runPendingTasks(); assertNull(sender.readOutbound());
+        recipient.runPendingTasks(); assertNull(recipient.readOutbound());
+
+        sender.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"DELETE_MSGS_REQ\",\"data\":{\"roomId\":7,"
+                        + "\"mode\":\"selected\",\"messageIds\":[700],"
+                        + "\"clientOperationId\":\"delete-message-702\"}}"));
+        sender.runPendingTasks(); response = sender.readOutbound();
+        try { assertTrue(response.text().contains("CLIENT_OPERATION_ID_CONFLICT")); }
+        finally { response.release(); }
+
+        assertEquals(1, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.attachment WHERE id = "
+                        + "'71000000-0000-0000-0000-000000000502' "
+                        + "AND state = 'REVOKED' AND revoked_at IS NOT NULL "
+                        + "AND object_deleted_at IS NULL"));
+        assertEquals(0, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.legacy_v1_message_map "
+                        + "WHERE legacy_kind = 'ROOM' AND legacy_message_id = 702"));
+        assertEquals(1, countQuery(url, user, password,
+                "SELECT count(*) FROM chat.messages_deleted_event deletion "
+                        + "JOIN chat.legacy_v1_deletion_event_map mapping "
+                        + "ON mapping.conversation_id = deletion.conversation_id "
+                        + "AND mapping.conversation_sequence = deletion.conversation_sequence "
+                        + "WHERE deletion.client_operation_id = 'delete-message-702' "
+                        + "AND deletion.message_ids = '[702]'::jsonb "
+                        + "AND deletion.file_ids = '[502]'::jsonb"));
+
+        sender.writeInbound(new TextWebSocketFrame(
+                "{\"type\":\"HISTORY_REQ\",\"data\":{\"roomId\":7,"
+                        + "\"count\":10,\"afterSequence\":10}}"));
+        sender.runPendingTasks(); response = sender.readOutbound();
+        try {
+            assertTrue(response.text().contains("\"eventType\":\"messagesDeleted\""));
+            assertTrue(response.text().contains("\"messageIds\":[702]"));
+            assertTrue(response.text().contains("\"deletedFileIds\":[502]"));
+            assertTrue(response.text().contains("\"sequence\":12"));
+            assertTrue(response.text().contains("\"nextSequence\":12"));
+            assertTrue(response.text().contains("\"lastSequence\":12"));
+            assertFalse(response.text().contains("runtime.pdf"));
+        } finally { response.release(); }
+    }
+
     private static void assertRoomAdminPromotion(EmbeddedChannel owner,
             EmbeddedChannel target, String url, String user, String password) throws Exception {
         String request = "{\"type\":\"SET_ADMIN_REQ\",\"data\":{\"roomId\":7,"
@@ -1325,6 +1458,15 @@ class GatewayRuntimePostgresIntegrationTest {
             count++; offset += needle.length();
         }
         return count;
+    }
+
+    private static void execute(Connection connection, String sql, Object... values)
+            throws Exception {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            for (int index = 0; index < values.length; index++)
+                statement.setObject(index + 1, values[index]);
+            assertEquals(1, statement.executeUpdate());
+        }
     }
 
     private static TextWebSocketFrame joinFrame(long roomId, String password) {

@@ -71,3 +71,9 @@ message bodies or leaking canonical IDs to V1 clients.
   and notification shapes, and first-commit-only live effects;
 - real PostgreSQL gateway evidence must prove login-to-delete and reconnect
   history replay before this slice is marked composed.
+
+The detached slice is now composed. Its real PostgreSQL acceptance path proves
+selected attachment deletion, canonical attachment revocation, first-only live
+effects, exact and conflicting retry behavior, and sequence-history replay.
+The four persistence modes and strict time boundaries are covered independently
+against the same migrated PostgreSQL schema.
