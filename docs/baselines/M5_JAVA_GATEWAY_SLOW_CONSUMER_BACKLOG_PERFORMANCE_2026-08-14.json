@@ -1,0 +1,94 @@
+{
+  "benchmark": "java-v2-gateway-messaging",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 4294967296,
+    "os": "Mac OS X",
+    "osVersion": "26.5.2",
+    "peakObservedHeapBytes": 350395088,
+    "processCpuSeconds": 3.303,
+    "scenarioWallSeconds": 1.297,
+    "vm": "OpenJDK 64-Bit Server VM"
+  },
+  "host": {
+    "javaPeakRssBytes": 552206336,
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "postgresPostmasterPeakRssBytes": 24379392,
+    "pythonVersion": "3.9.6"
+  },
+  "recordedAt": "2026-08-13T19:28:44.311684Z",
+  "results": {
+    "completedMessageThroughputPerSecond": 243.537,
+    "connectionSetupLatencyMicros": {
+      "max": 257949,
+      "mean": 126440.2,
+      "min": 79277,
+      "p50": 95196,
+      "p95": 257949,
+      "p99": 257949,
+      "samples": 5
+    },
+    "errors": 0,
+    "peerPublications": 80,
+    "slowConsumerClosed": 1,
+    "slowConsumerErrors": 0,
+    "slowConsumerHealthyPeerPublications": 48,
+    "slowConsumerHealthyPublishLatencyMicros": {
+      "max": 3842,
+      "mean": 2684.813,
+      "min": 2161,
+      "p50": 2560,
+      "p95": 3842,
+      "p99": 3842,
+      "samples": 16
+    },
+    "slowConsumerMaximumBytesBeforeWritable": 200253,
+    "slowConsumerRecoveredHistoryMessages": 16,
+    "slowConsumerRecoveryProbeLatencyMicros": {
+      "max": 2548,
+      "mean": 2548.0,
+      "min": 2548,
+      "p50": 2548,
+      "p95": 2548,
+      "p99": 2548,
+      "samples": 1
+    },
+    "submitToAcceptLatencyMicros": {
+      "max": 3828,
+      "mean": 2236.5,
+      "min": 1290,
+      "p50": 2105,
+      "p95": 3249,
+      "p99": 3828,
+      "samples": 20
+    },
+    "submitToAllPeersPublishedLatencyMicros": {
+      "max": 6200,
+      "mean": 4070.7,
+      "min": 2082,
+      "p50": 4152,
+      "p95": 5865,
+      "p99": 6200,
+      "samples": 20
+    }
+  },
+  "scenario": {
+    "connections": 5,
+    "conversationKind": "GROUP",
+    "durableMessages": 42,
+    "messageOperations": 20,
+    "payloadBytes": 65536,
+    "receiversPerMessage": 4,
+    "slowConsumerHealthyReceivers": 3,
+    "slowConsumerMaxMessages": 100,
+    "slowConsumerMessagesBeforeClosure": 16,
+    "warmupOperations": 5
+  },
+  "schemaVersion": 9,
+  "sourceRevision": "5dbeda01985b8fc26916dcf161584540c94e072e",
+  "startedAt": "2026-08-13T19:28:42.469832Z",
+  "warning": "loopback development evidence; not a capacity claim",
+  "worktreeDirty": false
+}

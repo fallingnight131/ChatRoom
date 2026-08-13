@@ -1379,6 +1379,10 @@ Progress:
   positive production drain-byte observation while preserving historical
   schema-4 validation, exact healthy-peer delivery, session resume, bounded
   history repair, and the post-recovery live probe.
+- [x] Record a clean, commit-exact five-connection schema-9 point: one closure
+  after 16 maximum-size messages, 200,253 bytes reported to restore
+  writability, 48 uninterrupted healthy-peer publications, exact 16-sequence
+  repair, restored live delivery, and zero errors.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.
