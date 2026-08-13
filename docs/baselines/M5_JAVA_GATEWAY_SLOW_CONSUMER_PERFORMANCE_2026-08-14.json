@@ -1,0 +1,93 @@
+{
+  "benchmark": "java-v2-gateway-messaging",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 4294967296,
+    "os": "Mac OS X",
+    "osVersion": "26.5.2",
+    "peakObservedHeapBytes": 209522112,
+    "processCpuSeconds": 3.535,
+    "scenarioWallSeconds": 1.26,
+    "vm": "OpenJDK 64-Bit Server VM"
+  },
+  "host": {
+    "javaPeakRssBytes": 574603264,
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "postgresPostmasterPeakRssBytes": 24428544,
+    "pythonVersion": "3.9.6"
+  },
+  "recordedAt": "2026-08-13T18:29:36.416437Z",
+  "results": {
+    "completedMessageThroughputPerSecond": 245.503,
+    "connectionSetupLatencyMicros": {
+      "max": 269215,
+      "mean": 127856.4,
+      "min": 84725,
+      "p50": 91734,
+      "p95": 269215,
+      "p99": 269215,
+      "samples": 5
+    },
+    "errors": 0,
+    "peerPublications": 80,
+    "slowConsumerClosed": 1,
+    "slowConsumerErrors": 0,
+    "slowConsumerHealthyPeerPublications": 48,
+    "slowConsumerHealthyPublishLatencyMicros": {
+      "max": 6955,
+      "mean": 3117.75,
+      "min": 2357,
+      "p50": 2700,
+      "p95": 6955,
+      "p99": 6955,
+      "samples": 16
+    },
+    "slowConsumerRecoveredHistoryMessages": 16,
+    "slowConsumerRecoveryProbeLatencyMicros": {
+      "max": 2846,
+      "mean": 2846.0,
+      "min": 2846,
+      "p50": 2846,
+      "p95": 2846,
+      "p99": 2846,
+      "samples": 1
+    },
+    "submitToAcceptLatencyMicros": {
+      "max": 3460,
+      "mean": 2204.65,
+      "min": 1296,
+      "p50": 2238,
+      "p95": 3305,
+      "p99": 3460,
+      "samples": 20
+    },
+    "submitToAllPeersPublishedLatencyMicros": {
+      "max": 6067,
+      "mean": 4039.35,
+      "min": 2245,
+      "p50": 4196,
+      "p95": 5784,
+      "p99": 6067,
+      "samples": 20
+    }
+  },
+  "scenario": {
+    "connections": 5,
+    "conversationKind": "GROUP",
+    "durableMessages": 42,
+    "messageOperations": 20,
+    "payloadBytes": 65536,
+    "receiversPerMessage": 4,
+    "slowConsumerHealthyReceivers": 3,
+    "slowConsumerMaxMessages": 100,
+    "slowConsumerMessagesBeforeClosure": 16,
+    "warmupOperations": 5
+  },
+  "schemaVersion": 4,
+  "sourceRevision": "f8592c4de8f5a4c68c4ccb2c16768ba0dec45023",
+  "startedAt": "2026-08-13T18:29:34.650636Z",
+  "warning": "loopback development evidence; not a capacity claim",
+  "worktreeDirty": false
+}

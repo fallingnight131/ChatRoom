@@ -1305,6 +1305,9 @@ Progress:
   peer delivery, observes exactly one production closure metric, resumes the
   same session, repairs every missing sequence in envelope-safe pages, and
   proves restored live delivery without lowering production write watermarks.
+- [x] Record a clean, commit-exact five-connection slow-consumer baseline with
+  64 KiB valid text, three uninterrupted healthy receivers, one production
+  closure action, exact history repair, and a post-recovery live probe.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.
