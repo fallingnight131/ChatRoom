@@ -1589,7 +1589,7 @@ Progress:
       current-text copy, and privacy-stripped history projection.
     - [x] Register the default-off capability-gated handler, capable history and
       live marker projection, bounded execution, and fixed-cardinality signals.
-  - [ ] Add offline-safe Web and Windows forward outboxes, destination picker,
+  - [x] Add offline-safe Web and Windows forward outboxes, destination picker,
     presentation, accessibility, reconnect convergence, and endpoint-specific
     activation gates.
     - [x] Add a default-off Web protocol and transport boundary with capability
@@ -1655,6 +1655,9 @@ Progress:
     - [x] Add a side-effect-free Windows binary configuration diagnostic and
       require CI to prove the final ordinary executable is default-off while the
       isolated forwarding candidate contains the exact enabled configuration.
+  - [ ] Pass the forwarding-enabled workflow on a Windows runner, retain the
+    final binary diagnostic and Widgets evidence, and complete endpoint canary
+    plus rollback rehearsal before treating forwarding as releasable.
 
 Candidate slices:
 
