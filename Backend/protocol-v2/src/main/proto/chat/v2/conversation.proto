@@ -41,3 +41,22 @@ message ConversationDirectoryPage {
   string next_conversation_id = 3;
   bool has_more = 4;
 }
+
+message ListConversationParticipants {
+  string conversation_id = 1;
+  string after_account_id = 2;
+  uint32 limit = 3;
+}
+
+message ConversationParticipantRecord {
+  string account_id = 1;
+  string display_name = 2;
+  ConversationRole role = 3;
+}
+
+message ConversationParticipantPage {
+  string conversation_id = 1;
+  repeated ConversationParticipantRecord participants = 2;
+  string next_account_id = 3;
+  bool has_more = 4;
+}

@@ -20,7 +20,10 @@ import {
   SubmitMessageSchema,
   SubmitReplyMessageSchema
 } from '../generated/typescript/chat/v2/messaging_pb.js'
-import { ListConversationsSchema } from '../generated/typescript/chat/v2/conversation_pb.js'
+import {
+  ListConversationParticipantsSchema,
+  ListConversationsSchema
+} from '../generated/typescript/chat/v2/conversation_pb.js'
 import { RegisterAttachmentSchema } from '../generated/typescript/chat/v2/attachment_pb.js'
 import { RevokeDeviceSchema } from '../generated/typescript/chat/v2/device_management_pb.js'
 
@@ -52,6 +55,9 @@ const EDIT_MESSAGE_GOLDEN_HEX =
   '180320012a0268693206656469742d31'
 const LIST_CONVERSATIONS_GOLDEN_HEX = '0880d095ffbc31122430303030303030302d303030302d' +
   '303030302d303030302d3030303030303030303030321819'
+const LIST_PARTICIPANTS_GOLDEN_HEX =
+  '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
+  '122430303030303030302d303030302d303030302d303030302d3030303030303030303030321819'
 const REGISTER_ATTACHMENT_GOLDEN_HEX =
   '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
   '12086174746163682d311a05612e747874220a746578742f706c61696e28023220' +
@@ -274,6 +280,18 @@ test('keeps the composite conversation cursor compatible across bindings', () =>
     Buffer.from(toBinary(ListConversationsSchema, encoded)).toString('hex'),
     LIST_CONVERSATIONS_GOLDEN_HEX
   )
+})
+
+test('keeps the participant account cursor compatible across bindings', () => {
+  const decoded = fromBinary(
+    ListConversationParticipantsSchema,
+    bytesFromHex(LIST_PARTICIPANTS_GOLDEN_HEX)
+  )
+  assert.equal(decoded.conversationId, '00000000-0000-0000-0000-000000000001')
+  assert.equal(decoded.afterAccountId, '00000000-0000-0000-0000-000000000002')
+  assert.equal(decoded.limit, 25)
+  assert.equal(Buffer.from(toBinary(ListConversationParticipantsSchema, decoded)).toString('hex'),
+    LIST_PARTICIPANTS_GOLDEN_HEX)
 })
 
 test('keeps bounded attachment registration compatible across bindings', () => {

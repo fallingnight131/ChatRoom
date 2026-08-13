@@ -1503,6 +1503,12 @@ Progress:
       without treating them as identity (ADR-0343).
     - [ ] Implement the participant-directory protocol, PostgreSQL adapter, and
       authenticated gateway handler while clients remain unactivated.
+      - [x] Allocate types 117/118, add bounded participant payload policy, and
+        lock the account-ID cursor across generated Java, TypeScript, and C++
+        bindings without registering a runtime handler.
+      - [ ] Add the active-member-authorized application and PostgreSQL query.
+      - [ ] Register the capability-gated authenticated gateway handler with
+        fixed denial and telemetry behavior.
     - [ ] Persist Web mention metadata with authoritative messages and pending
       submission/edit workflows, then add composition, rendering,
       accessibility, reconnect convergence, and Web capability activation.

@@ -47,6 +47,40 @@ public final class ConversationPayloadPolicy {
         }
     }
 
+    public static void requireValid(ListConversationParticipants command) {
+        if (!canonicalUuid(command.getConversationId())
+                || (!command.getAfterAccountId().isEmpty()
+                        && !canonicalUuid(command.getAfterAccountId()))
+                || command.getLimit() < 1
+                || command.getLimit() > MAX_LIMIT) {
+            throw new IllegalArgumentException("participant directory command is invalid");
+        }
+    }
+
+    public static void requireValid(ConversationParticipantPage page) {
+        if (!canonicalUuid(page.getConversationId())
+                || page.getParticipantsCount() > MAX_LIMIT
+                || (page.getHasMore() && page.getParticipantsCount() == 0)) {
+            throw new IllegalArgumentException("participant directory page bounds are invalid");
+        }
+        ConversationParticipantRecord previous = null;
+        for (ConversationParticipantRecord record : page.getParticipantsList()) {
+            requireValid(record);
+            if (previous != null
+                    && previous.getAccountId().compareTo(record.getAccountId()) >= 0) {
+                throw new IllegalArgumentException("participant directory is out of order");
+            }
+            previous = record;
+        }
+        if (previous == null) {
+            if (!page.getNextAccountId().isEmpty()) {
+                throw new IllegalArgumentException("empty participant page has a cursor");
+            }
+        } else if (!page.getNextAccountId().equals(previous.getAccountId())) {
+            throw new IllegalArgumentException("participant cursor must identify the last row");
+        }
+    }
+
     private static void requireValid(ConversationDirectoryRecord record) {
         int codePoints = record.getDisplayName().codePointCount(
                 0, record.getDisplayName().length());
@@ -64,6 +98,20 @@ public final class ConversationPayloadPolicy {
                 || record.getLastReadSequence() > record.getLatestSequence()
                 || record.getUpdatedAtEpochMs() <= 0) {
             throw new IllegalArgumentException("conversation directory record is invalid");
+        }
+    }
+
+    private static void requireValid(ConversationParticipantRecord record) {
+        int codePoints = record.getDisplayName().codePointCount(
+                0, record.getDisplayName().length());
+        int bytes = record.getDisplayName().getBytes(StandardCharsets.UTF_8).length;
+        if (!canonicalUuid(record.getAccountId())
+                || record.getRole() == ConversationRole.CONVERSATION_ROLE_UNSPECIFIED
+                || record.getRole() == ConversationRole.UNRECOGNIZED
+                || record.getDisplayName().isBlank()
+                || codePoints > MAX_DISPLAY_NAME_CODE_POINTS
+                || bytes > MAX_DISPLAY_NAME_UTF8_BYTES) {
+            throw new IllegalArgumentException("participant directory record is invalid");
         }
     }
 

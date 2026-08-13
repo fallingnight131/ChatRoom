@@ -45,6 +45,9 @@ constexpr char kEditMessageGoldenHex[] =
 constexpr char kListConversationsGoldenHex[] =
     "0880d095ffbc31122430303030303030302d303030302d303030302d303030302d"
     "3030303030303030303030321819";
+constexpr char kListParticipantsGoldenHex[] =
+    "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+    "122430303030303030302d303030302d303030302d303030302d3030303030303030303030321819";
 constexpr char kRegisterAttachmentGoldenHex[] =
     "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
     "12086174746163682d311a05612e747874220a746578742f706c61696e28023220"
@@ -198,6 +201,18 @@ int main() {
             || list.limit() != 25
             || list.SerializeAsString() != listGolden) {
         std::cerr << "generated C++ binding changed the ListConversations golden payload\n";
+        return 1;
+    }
+    const std::string participantGolden = fromHex(kListParticipantsGoldenHex);
+    chat::v2::ListConversationParticipants participants;
+    if (!participants.ParseFromString(participantGolden)
+            || participants.conversation_id()
+                    != "00000000-0000-0000-0000-000000000001"
+            || participants.after_account_id()
+                    != "00000000-0000-0000-0000-000000000002"
+            || participants.limit() != 25
+            || participants.SerializeAsString() != participantGolden) {
+        std::cerr << "generated C++ binding changed the participant cursor payload\n";
         return 1;
     }
     const std::string attachmentGolden = fromHex(kRegisterAttachmentGoldenHex);

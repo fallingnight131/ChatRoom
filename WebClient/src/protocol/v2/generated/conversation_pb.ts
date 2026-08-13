@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file chat/v2/conversation.proto.
  */
 export const file_chat_v2_conversation: GenFile = /*@__PURE__*/
-  fileDesc("ChpjaGF0L3YyL2NvbnZlcnNhdGlvbi5wcm90bxIHY2hhdC52MiJkChFMaXN0Q29udmVyc2F0aW9ucxIhChlhZnRlcl91cGRhdGVkX2F0X2Vwb2NoX21zGAEgASgDEh0KFWFmdGVyX2NvbnZlcnNhdGlvbl9pZBgCIAEoCRINCgVsaW1pdBgDIAEoDSLwAQobQ29udmVyc2F0aW9uRGlyZWN0b3J5UmVjb3JkEhcKD2NvbnZlcnNhdGlvbl9pZBgBIAEoCRInCgRraW5kGAIgASgOMhkuY2hhdC52Mi5Db252ZXJzYXRpb25LaW5kEhQKDGRpc3BsYXlfbmFtZRgDIAEoCRInCgRyb2xlGAQgASgOMhkuY2hhdC52Mi5Db252ZXJzYXRpb25Sb2xlEhcKD2xhdGVzdF9zZXF1ZW5jZRgFIAEoBBIaChJsYXN0X3JlYWRfc2VxdWVuY2UYBiABKAQSGwoTdXBkYXRlZF9hdF9lcG9jaF9tcxgHIAEoAyKqAQoZQ29udmVyc2F0aW9uRGlyZWN0b3J5UGFnZRI7Cg1jb252ZXJzYXRpb25zGAEgAygLMiQuY2hhdC52Mi5Db252ZXJzYXRpb25EaXJlY3RvcnlSZWNvcmQSIAoYbmV4dF91cGRhdGVkX2F0X2Vwb2NoX21zGAIgASgDEhwKFG5leHRfY29udmVyc2F0aW9uX2lkGAMgASgJEhAKCGhhc19tb3JlGAQgASgIKnAKEENvbnZlcnNhdGlvbktpbmQSIQodQ09OVkVSU0FUSU9OX0tJTkRfVU5TUEVDSUZJRUQQABIcChhDT05WRVJTQVRJT05fS0lORF9ESVJFQ1QQARIbChdDT05WRVJTQVRJT05fS0lORF9HUk9VUBACKo0BChBDb252ZXJzYXRpb25Sb2xlEiEKHUNPTlZFUlNBVElPTl9ST0xFX1VOU1BFQ0lGSUVEEAASGwoXQ09OVkVSU0FUSU9OX1JPTEVfT1dORVIQARIbChdDT05WRVJTQVRJT05fUk9MRV9BRE1JThACEhwKGENPTlZFUlNBVElPTl9ST0xFX01FTUJFUhADQjkKIWNvbS5mYWxsaW5nbmlnaHQuY2hhdC5wcm90b2NvbC52MkISQ29udmVyc2F0aW9uU2NoZW1hUAFiBnByb3RvMw");
+  fileDesc("ChpjaGF0L3YyL2NvbnZlcnNhdGlvbi5wcm90bxIHY2hhdC52MiJkChFMaXN0Q29udmVyc2F0aW9ucxIhChlhZnRlcl91cGRhdGVkX2F0X2Vwb2NoX21zGAEgASgDEh0KFWFmdGVyX2NvbnZlcnNhdGlvbl9pZBgCIAEoCRINCgVsaW1pdBgDIAEoDSLwAQobQ29udmVyc2F0aW9uRGlyZWN0b3J5UmVjb3JkEhcKD2NvbnZlcnNhdGlvbl9pZBgBIAEoCRInCgRraW5kGAIgASgOMhkuY2hhdC52Mi5Db252ZXJzYXRpb25LaW5kEhQKDGRpc3BsYXlfbmFtZRgDIAEoCRInCgRyb2xlGAQgASgOMhkuY2hhdC52Mi5Db252ZXJzYXRpb25Sb2xlEhcKD2xhdGVzdF9zZXF1ZW5jZRgFIAEoBBIaChJsYXN0X3JlYWRfc2VxdWVuY2UYBiABKAQSGwoTdXBkYXRlZF9hdF9lcG9jaF9tcxgHIAEoAyKqAQoZQ29udmVyc2F0aW9uRGlyZWN0b3J5UGFnZRI7Cg1jb252ZXJzYXRpb25zGAEgAygLMiQuY2hhdC52Mi5Db252ZXJzYXRpb25EaXJlY3RvcnlSZWNvcmQSIAoYbmV4dF91cGRhdGVkX2F0X2Vwb2NoX21zGAIgASgDEhwKFG5leHRfY29udmVyc2F0aW9uX2lkGAMgASgJEhAKCGhhc19tb3JlGAQgASgIImAKHExpc3RDb252ZXJzYXRpb25QYXJ0aWNpcGFudHMSFwoPY29udmVyc2F0aW9uX2lkGAEgASgJEhgKEGFmdGVyX2FjY291bnRfaWQYAiABKAkSDQoFbGltaXQYAyABKA0icgodQ29udmVyc2F0aW9uUGFydGljaXBhbnRSZWNvcmQSEgoKYWNjb3VudF9pZBgBIAEoCRIUCgxkaXNwbGF5X25hbWUYAiABKAkSJwoEcm9sZRgDIAEoDjIZLmNoYXQudjIuQ29udmVyc2F0aW9uUm9sZSKfAQobQ29udmVyc2F0aW9uUGFydGljaXBhbnRQYWdlEhcKD2NvbnZlcnNhdGlvbl9pZBgBIAEoCRI8CgxwYXJ0aWNpcGFudHMYAiADKAsyJi5jaGF0LnYyLkNvbnZlcnNhdGlvblBhcnRpY2lwYW50UmVjb3JkEhcKD25leHRfYWNjb3VudF9pZBgDIAEoCRIQCghoYXNfbW9yZRgEIAEoCCpwChBDb252ZXJzYXRpb25LaW5kEiEKHUNPTlZFUlNBVElPTl9LSU5EX1VOU1BFQ0lGSUVEEAASHAoYQ09OVkVSU0FUSU9OX0tJTkRfRElSRUNUEAESGwoXQ09OVkVSU0FUSU9OX0tJTkRfR1JPVVAQAiqNAQoQQ29udmVyc2F0aW9uUm9sZRIhCh1DT05WRVJTQVRJT05fUk9MRV9VTlNQRUNJRklFRBAAEhsKF0NPTlZFUlNBVElPTl9ST0xFX09XTkVSEAESGwoXQ09OVkVSU0FUSU9OX1JPTEVfQURNSU4QAhIcChhDT05WRVJTQVRJT05fUk9MRV9NRU1CRVIQA0I5CiFjb20uZmFsbGluZ25pZ2h0LmNoYXQucHJvdG9jb2wudjJCEkNvbnZlcnNhdGlvblNjaGVtYVABYgZwcm90bzM");
 
 /**
  * @generated from message chat.v2.ListConversations
@@ -117,6 +117,92 @@ export type ConversationDirectoryPage = Message<"chat.v2.ConversationDirectoryPa
  */
 export const ConversationDirectoryPageSchema: GenMessage<ConversationDirectoryPage> = /*@__PURE__*/
   messageDesc(file_chat_v2_conversation, 2);
+
+/**
+ * @generated from message chat.v2.ListConversationParticipants
+ */
+export type ListConversationParticipants = Message<"chat.v2.ListConversationParticipants"> & {
+  /**
+   * @generated from field: string conversation_id = 1;
+   */
+  conversationId: string;
+
+  /**
+   * @generated from field: string after_account_id = 2;
+   */
+  afterAccountId: string;
+
+  /**
+   * @generated from field: uint32 limit = 3;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message chat.v2.ListConversationParticipants.
+ * Use `create(ListConversationParticipantsSchema)` to create a new message.
+ */
+export const ListConversationParticipantsSchema: GenMessage<ListConversationParticipants> = /*@__PURE__*/
+  messageDesc(file_chat_v2_conversation, 3);
+
+/**
+ * @generated from message chat.v2.ConversationParticipantRecord
+ */
+export type ConversationParticipantRecord = Message<"chat.v2.ConversationParticipantRecord"> & {
+  /**
+   * @generated from field: string account_id = 1;
+   */
+  accountId: string;
+
+  /**
+   * @generated from field: string display_name = 2;
+   */
+  displayName: string;
+
+  /**
+   * @generated from field: chat.v2.ConversationRole role = 3;
+   */
+  role: ConversationRole;
+};
+
+/**
+ * Describes the message chat.v2.ConversationParticipantRecord.
+ * Use `create(ConversationParticipantRecordSchema)` to create a new message.
+ */
+export const ConversationParticipantRecordSchema: GenMessage<ConversationParticipantRecord> = /*@__PURE__*/
+  messageDesc(file_chat_v2_conversation, 4);
+
+/**
+ * @generated from message chat.v2.ConversationParticipantPage
+ */
+export type ConversationParticipantPage = Message<"chat.v2.ConversationParticipantPage"> & {
+  /**
+   * @generated from field: string conversation_id = 1;
+   */
+  conversationId: string;
+
+  /**
+   * @generated from field: repeated chat.v2.ConversationParticipantRecord participants = 2;
+   */
+  participants: ConversationParticipantRecord[];
+
+  /**
+   * @generated from field: string next_account_id = 3;
+   */
+  nextAccountId: string;
+
+  /**
+   * @generated from field: bool has_more = 4;
+   */
+  hasMore: boolean;
+};
+
+/**
+ * Describes the message chat.v2.ConversationParticipantPage.
+ * Use `create(ConversationParticipantPageSchema)` to create a new message.
+ */
+export const ConversationParticipantPageSchema: GenMessage<ConversationParticipantPage> = /*@__PURE__*/
+  messageDesc(file_chat_v2_conversation, 5);
 
 /**
  * @generated from enum chat.v2.ConversationKind

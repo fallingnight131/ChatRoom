@@ -1292,6 +1292,12 @@ metadata for authoritative messages and edit intents, clear it on recall, and
 discard a malformed cached set without discarding ordinary text. The composed
 Web runtime and Windows client remain off until their complete persistence and
 UX slices pass (ADR-0342).
+Types 117/118 reserve the capability-gated V2 conversation-participant query
+and response. Java payload policy and the Java/TypeScript/C++ compatibility
+gate require a canonical conversation ID, optional canonical account cursor,
+1..100 bound, ascending unique account IDs, current display-name bounds, roles,
+and a cursor equal to the last row. No runtime handler is registered until the
+authorized PostgreSQL slice passes (ADR-0343).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

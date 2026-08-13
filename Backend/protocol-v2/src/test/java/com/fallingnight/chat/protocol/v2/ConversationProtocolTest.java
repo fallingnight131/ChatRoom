@@ -12,6 +12,10 @@ class ConversationProtocolTest {
     private static final String LIST_GOLDEN =
             "0880d095ffbc31122430303030303030302d303030302d303030302d303030302d"
                     + "3030303030303030303030321819";
+    private static final String LIST_PARTICIPANTS_GOLDEN =
+            "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+                    + "122430303030303030302d303030302d303030302d303030302d"
+                    + "3030303030303030303030321819";
 
     @Test
     void listCommandHasStableWireBytesAndPermanentKinds() throws Exception {
@@ -62,6 +66,47 @@ class ConversationProtocolTest {
                         .build()));
     }
 
+    @Test
+    void participantDirectoryHasStableBytesAndAscendingAccountCursor() throws Exception {
+        ListConversationParticipants command = ListConversationParticipants.newBuilder()
+                .setConversationId(SECOND)
+                .setAfterAccountId(FIRST)
+                .setLimit(25)
+                .build();
+        ConversationPayloadPolicy.requireValid(command);
+        assertEquals(LIST_PARTICIPANTS_GOLDEN,
+                HexFormat.of().formatHex(command.toByteArray()));
+        assertEquals(command, ListConversationParticipants.parseFrom(
+                HexFormat.of().parseHex(LIST_PARTICIPANTS_GOLDEN)));
+        assertEquals(MessageKind.MESSAGE_KIND_COMMAND, MessageTypeRegistry.requiredKind(
+                MessageType.MESSAGE_TYPE_LIST_CONVERSATION_PARTICIPANTS));
+        assertEquals(MessageKind.MESSAGE_KIND_RESPONSE, MessageTypeRegistry.requiredKind(
+                MessageType.MESSAGE_TYPE_CONVERSATION_PARTICIPANT_PAGE));
+
+        ConversationParticipantRecord first = participant(SECOND, "李");
+        ConversationParticipantRecord second = participant(FIRST, "Alice");
+        ConversationParticipantPage page = ConversationParticipantPage.newBuilder()
+                .setConversationId(SECOND)
+                .addParticipants(first)
+                .addParticipants(second)
+                .setNextAccountId(FIRST)
+                .setHasMore(true)
+                .build();
+        ConversationPayloadPolicy.requireValid(page);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> ConversationPayloadPolicy.requireValid(page.toBuilder()
+                        .clearParticipants()
+                        .addParticipants(second)
+                        .addParticipants(first)
+                        .setNextAccountId(SECOND)
+                        .build()));
+        assertThrows(IllegalArgumentException.class,
+                () -> ConversationPayloadPolicy.requireValid(command.toBuilder()
+                        .setAfterAccountId("not-a-uuid")
+                        .build()));
+    }
+
     private static ConversationDirectoryRecord record(String id, long updatedAt) {
         return ConversationDirectoryRecord.newBuilder()
                 .setConversationId(id)
@@ -71,6 +116,14 @@ class ConversationProtocolTest {
                 .setLatestSequence(3)
                 .setLastReadSequence(2)
                 .setUpdatedAtEpochMs(updatedAt)
+                .build();
+    }
+
+    private static ConversationParticipantRecord participant(String id, String displayName) {
+        return ConversationParticipantRecord.newBuilder()
+                .setAccountId(id)
+                .setDisplayName(displayName)
+                .setRole(ConversationRole.CONVERSATION_ROLE_MEMBER)
                 .build();
     }
 }
