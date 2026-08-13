@@ -768,6 +768,10 @@ Progress:
       canonicalizes owned V1 bytes, requires exact content-addressed object
       evidence before pointer commit, and durably requests orphan cleanup when a
       newly created object cannot be committed.
+    - [x] Add PostgreSQL mutation preflight for enabled mapped accounts and
+      active mapped room administrators, plus serializable exact-evidence orphan
+      registration that marks cleanup only while no account/group pointer refers
+      to the object; verify the races and constraints against real PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-

@@ -53,9 +53,11 @@ remain implementation gates.
 As of 2026-08-13, the bounded PNG inspector, V040 metadata/read adapters,
 application-level private-object verification, S3 checksum-bound reader, and
 strict detached V1 user/room read handlers are implemented and locally tested.
-They are intentionally absent from runtime composition; real-provider evidence,
-write lifecycle, historical import, and restart recovery remain activation
-gates.
+The inactive mutation service and PostgreSQL guard now also enforce preflight
+authorization, object-before-pointer ordering, and serializable unreferenced-
+object cleanup intent. They are intentionally absent from runtime composition;
+the S3 write adapter and real-provider evidence, strict V1 upload handler,
+historical import, and restart recovery remain activation gates.
 
 ## Verification
 

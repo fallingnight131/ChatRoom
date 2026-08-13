@@ -99,6 +99,7 @@ import com.fallingnight.chat.application.profile.ProfileImageObjectEvidence;
 import com.fallingnight.chat.application.profile.ProfileImageTarget;
 import com.fallingnight.chat.application.profile.ProfileImageReadResult;
 import com.fallingnight.chat.application.profile.ProfileImageReadTarget;
+import com.fallingnight.chat.application.profile.ProfileImageMutationAuthorization;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1IdentityImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ConversationImporter;
 import com.fallingnight.chat.persistence.postgres.migration.PostgresV1ContactRequestImporter;
@@ -1892,6 +1893,13 @@ class PostgresMigratorTest {
                     room.conversationId(), member);
         }
         var adapter = new PostgresProfileImageMetadataAdapter(dataSource());
+        var guard = new PostgresProfileImageMutationGuardAdapter(dataSource());
+        assertEquals(ProfileImageMutationAuthorization.AUTHORIZED,
+                guard.authorize(new ProfileImageTarget.Account(owner)));
+        assertEquals(ProfileImageMutationAuthorization.AUTHORIZED,
+                guard.authorize(new ProfileImageTarget.LegacyRoom(owner, room.legacyRoomId())));
+        assertEquals(ProfileImageMutationAuthorization.ROOM_ADMIN_REQUIRED,
+                guard.authorize(new ProfileImageTarget.LegacyRoom(member, room.legacyRoomId())));
         ProfileImageObjectEvidence firstObject = profileImageEvidence(1, 9);
         ProfileImageMetadataResult.Committed first = assertInstanceOf(
                 ProfileImageMetadataResult.Committed.class,
@@ -1960,6 +1968,18 @@ class PostgresMigratorTest {
         assertEquals(0, count("SELECT count(*) FROM chat.profile_image_object WHERE object_key = '"
                 + shared.objectKey() + "' AND cleanup_requested_at IS NOT NULL"));
 
+        ProfileImageObjectEvidence orphan = profileImageEvidence(5, 13);
+        guard.requestIfUnreferenced(orphan);
+        assertEquals(1, count("SELECT count(*) FROM chat.profile_image_object WHERE object_key = '"
+                + orphan.objectKey() + "' AND cleanup_requested_at IS NOT NULL "
+                + "AND delete_confirmed_at IS NULL"));
+        guard.requestIfUnreferenced(shared);
+        assertEquals(0, count("SELECT count(*) FROM chat.profile_image_object WHERE object_key = '"
+                + shared.objectKey() + "' AND cleanup_requested_at IS NOT NULL"));
+        assertThrows(ConversationPersistenceException.class,
+                () -> guard.requestIfUnreferenced(new ProfileImageObjectEvidence(
+                        orphan.objectKey(), 14, orphan.contentSha256(), "image/png")));
+
         UUID unmapped = UUID.randomUUID();
         try (Connection connection = connect()) {
             execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
@@ -1969,6 +1989,8 @@ class PostgresMigratorTest {
                     + "account_id, role) VALUES (?, ?, 'MEMBER')",
                     room.conversationId(), unmapped);
         }
+        assertEquals(ProfileImageMutationAuthorization.ACCOUNT_UNAVAILABLE,
+                guard.authorize(new ProfileImageTarget.Account(unmapped)));
         ProfileImageObjectEvidence blocked = profileImageEvidence(4, 12);
         assertThrows(ConversationPersistenceException.class, () -> adapter.commit(
                 new ProfileImageMetadataCommand(
