@@ -44,6 +44,18 @@ public final class MessagingPayloadPolicy {
         return List.copyOf(violations);
     }
 
+    public static List<String> violations(ForwardMessage command, String clientMessageId) {
+        List<String> violations = new ArrayList<>();
+        requireUuid("sourceConversationId", command.getSourceConversationId(), violations);
+        requireUuid("sourceMessageId", command.getSourceMessageId(), violations);
+        requireUuid("targetConversationId", command.getTargetConversationId(), violations);
+        if (command.getExpectedSourceContentRevision() > MAX_CONTENT_REVISIONS) {
+            violations.add("expectedSourceContentRevision exceeds edit limit");
+        }
+        requireIdentifier("clientMessageId", clientMessageId, true, violations);
+        return List.copyOf(violations);
+    }
+
     public static List<String> violations(ReadMessageHistory command) {
         List<String> violations = new ArrayList<>();
         requireUuid("conversationId", command.getConversationId(), violations);
@@ -93,6 +105,10 @@ public final class MessagingPayloadPolicy {
     }
 
     public static void requireValid(SubmitReplyMessage command, String clientMessageId) {
+        requireNone(violations(command, clientMessageId));
+    }
+
+    public static void requireValid(ForwardMessage command, String clientMessageId) {
         requireNone(violations(command, clientMessageId));
     }
 

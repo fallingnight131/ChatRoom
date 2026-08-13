@@ -756,6 +756,17 @@ requested set, and re-synchronizes both conversation and participant directories
 after resume. This is a release candidate, not Windows release evidence: the
 Windows Release build and native interaction gate remain open.
 
+The next M6 slice is default-off, server-authoritative text forwarding under
+ADR-0344. Capability 5 and command type 119 identify one source message, its
+expected current revision, and one target conversation; the envelope client
+message ID remains the destination idempotency key. PostgreSQL will authorize
+both source read and destination write membership and copy current server truth
+into a new destination message. Only a `forwarded` presentation marker crosses
+the destination wire boundary: source identity, reply metadata, and mention
+spans do not. Generated bindings and structural policy exist, but gateway, Web,
+and Windows runtime paths must keep capability 5 disabled until the durable and
+client gates in the roadmap pass.
+
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
 single-gateway router now establishes one active subscription only through the

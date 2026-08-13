@@ -28,6 +28,7 @@ public final class MessageTypeRegistry {
                     MESSAGE_TYPE_SET_MESSAGE_REACTION,
                     MESSAGE_TYPE_SET_MESSAGE_PIN,
                     MESSAGE_TYPE_EDIT_MESSAGE,
+                    MESSAGE_TYPE_FORWARD_MESSAGE,
                     MESSAGE_TYPE_READ_MESSAGE_HISTORY ->
                     MessageKind.MESSAGE_KIND_COMMAND;
             case MESSAGE_TYPE_MESSAGE_ACCEPTED, MESSAGE_TYPE_MESSAGE_HISTORY_PAGE,

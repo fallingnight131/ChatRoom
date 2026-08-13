@@ -32,6 +32,15 @@ message SubmitReplyMessage {
   repeated MessageMention mentions = 5;
 }
 
+// Requests one new destination message whose text is copied from server truth.
+// The envelope client_message_id is the idempotency key for the new message.
+message ForwardMessage {
+  string source_conversation_id = 1;
+  string source_message_id = 2;
+  uint32 expected_source_content_revision = 3;
+  string target_conversation_id = 4;
+}
+
 enum MessageReactionKind {
   MESSAGE_REACTION_KIND_UNSPECIFIED = 0;
   MESSAGE_REACTION_KIND_LIKE = 1;
@@ -135,6 +144,7 @@ message MessageRecord {
   uint32 content_revision = 11;
   int64 edited_at_epoch_ms = 12;
   repeated MessageMention mentions = 13;
+  bool forwarded = 14;
 }
 
 message MessageReplyReference {

@@ -68,8 +68,11 @@ class ControlProtocolTest {
                 .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_PINS)
                 .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS)
                 .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS)
+                .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING)
                 .build();
         ClientHelloPolicy.requireValid(capable);
+        assertEquals(5,
+                ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING_VALUE);
         assertThrows(IllegalArgumentException.class, () ->
                 ClientHelloPolicy.requireValid(capable.toBuilder()
                         .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS)

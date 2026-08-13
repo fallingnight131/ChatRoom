@@ -14,6 +14,7 @@ import { AuthenticateSchema } from '../generated/typescript/chat/v2/authenticati
 import {
   MessageReactionKind,
   EditMessageSchema,
+  ForwardMessageSchema,
   MessageMentionSchema,
   SetMessagePinSchema,
   SetMessageReactionSchema,
@@ -53,6 +54,10 @@ const EDIT_MESSAGE_GOLDEN_HEX =
   '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
   '122430303030303030302d303030302d303030302d303030302d303030303030303030303032' +
   '180320012a0268693206656469742d31'
+const FORWARD_MESSAGE_GOLDEN_HEX =
+  '0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031' +
+  '122430303030303030302d303030302d303030302d303030302d303030303030303030303032' +
+  '1803222430303030303030302d303030302d303030302d303030302d303030303030303030303033'
 const LIST_CONVERSATIONS_GOLDEN_HEX = '0880d095ffbc31122430303030303030302d303030302d' +
   '303030302d303030302d3030303030303030303030321819'
 const LIST_PARTICIPANTS_GOLDEN_HEX =
@@ -196,6 +201,25 @@ test('keeps the bounded SubmitReplyMessage payload compatible across generated b
   assert.equal(
     Buffer.from(toBinary(SubmitReplyMessageSchema, encoded)).toString('hex'),
     SUBMIT_REPLY_MESSAGE_GOLDEN_HEX
+  )
+})
+
+test('keeps the server-authoritative ForwardMessage payload compatible across bindings', () => {
+  const decoded = fromBinary(ForwardMessageSchema, bytesFromHex(FORWARD_MESSAGE_GOLDEN_HEX))
+  assert.equal(decoded.sourceConversationId, '00000000-0000-0000-0000-000000000001')
+  assert.equal(decoded.sourceMessageId, '00000000-0000-0000-0000-000000000002')
+  assert.equal(decoded.expectedSourceContentRevision, 3)
+  assert.equal(decoded.targetConversationId, '00000000-0000-0000-0000-000000000003')
+
+  const encoded = create(ForwardMessageSchema, {
+    sourceConversationId: '00000000-0000-0000-0000-000000000001',
+    sourceMessageId: '00000000-0000-0000-0000-000000000002',
+    expectedSourceContentRevision: 3,
+    targetConversationId: '00000000-0000-0000-0000-000000000003'
+  })
+  assert.equal(
+    Buffer.from(toBinary(ForwardMessageSchema, encoded)).toString('hex'),
+    FORWARD_MESSAGE_GOLDEN_HEX
   )
 })
 

@@ -32,6 +32,10 @@ class MessagingProtocolTest {
             "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
                     + "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
                     + "180320012a0268693206656469742d31";
+    private static final String FORWARD_MESSAGE_GOLDEN =
+            "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+                    + "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
+                    + "1803222430303030303030302d303030302d303030302d303030302d303030303030303030303033";
 
     @Test
     void submitMessageHasStableWireBytesAndPermanentRegistryKinds() throws Exception {
@@ -69,6 +73,34 @@ class MessagingProtocolTest {
                 SubmitReplyMessage.parseFrom(HexFormat.of().parseHex(SUBMIT_REPLY_GOLDEN)));
         assertEquals(MessageKind.MESSAGE_KIND_COMMAND,
                 MessageTypeRegistry.requiredKind(MessageType.MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE));
+    }
+
+    @Test
+    void forwardingHasStableWireBytesBoundedRevisionAndPermanentCommandKind() throws Exception {
+        ForwardMessage command = ForwardMessage.newBuilder()
+                .setSourceConversationId(CONVERSATION_ID)
+                .setSourceMessageId("00000000-0000-0000-0000-000000000002")
+                .setExpectedSourceContentRevision(3)
+                .setTargetConversationId("00000000-0000-0000-0000-000000000003")
+                .build();
+        MessagingPayloadPolicy.requireValid(command, "client-forward-1");
+        assertEquals(FORWARD_MESSAGE_GOLDEN, HexFormat.of().formatHex(command.toByteArray()));
+        assertEquals(command,
+                ForwardMessage.parseFrom(HexFormat.of().parseHex(FORWARD_MESSAGE_GOLDEN)));
+        assertEquals(MessageKind.MESSAGE_KIND_COMMAND,
+                MessageTypeRegistry.requiredKind(MessageType.MESSAGE_TYPE_FORWARD_MESSAGE));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(command.toBuilder()
+                        .setSourceMessageId("not-a-message")
+                        .build(), "client-forward-2"));
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(command.toBuilder()
+                        .setExpectedSourceContentRevision(
+                                MessagingPayloadPolicy.MAX_CONTENT_REVISIONS + 1)
+                        .build(), "client-forward-3"));
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(command, " "));
     }
 
     @Test

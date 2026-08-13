@@ -1299,6 +1299,15 @@ and response. Java payload policy and the Java/TypeScript/C++ compatibility
 gate require a canonical conversation ID, optional canonical account cursor,
 1..100 bound, ascending unique account IDs, current display-name bounds, roles,
 and a cursor equal to the last row (ADR-0343).
+Type 119 and capability 5 reserve server-authoritative text forwarding. The
+command carries canonical source conversation/message IDs, an expected source
+revision, and one target conversation while the envelope client message ID is
+the destination idempotency key. Java, TypeScript, and C++ lock the same command
+bytes; Java additionally bounds canonical identities and revision. The
+additive `MessageRecord.forwarded` flag is presentation-only and exposes no
+source identity. All gateway and client capability-5 paths remain off until the
+PostgreSQL, projection, cache/outbox, reconnect, accessibility, and endpoint
+release gates pass (ADR-0344).
 The application participant directory returns either a validated page or one
 fixed authorization rejection. Its PostgreSQL adapter first proves that the
 requester is an enabled active member, then pages enabled active participants

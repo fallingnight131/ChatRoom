@@ -42,6 +42,10 @@ constexpr char kEditMessageGoldenHex[] =
     "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
     "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
     "180320012a0268693206656469742d31";
+constexpr char kForwardMessageGoldenHex[] =
+    "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+    "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
+    "1803222430303030303030302d303030302d303030302d303030302d303030303030303030303033";
 constexpr char kListConversationsGoldenHex[] =
     "0880d095ffbc31122430303030303030302d303030302d303030302d303030302d"
     "3030303030303030303030321819";
@@ -192,6 +196,20 @@ int main() {
             || edit.client_operation_id() != "edit-1"
             || edit.SerializeAsString() != editGolden) {
         std::cerr << "generated C++ binding changed the EditMessage golden payload\n";
+        return 1;
+    }
+    const std::string forwardGolden = fromHex(kForwardMessageGoldenHex);
+    chat::v2::ForwardMessage forward;
+    if (!forward.ParseFromString(forwardGolden)
+            || forward.source_conversation_id()
+                    != "00000000-0000-0000-0000-000000000001"
+            || forward.source_message_id()
+                    != "00000000-0000-0000-0000-000000000002"
+            || forward.expected_source_content_revision() != 3
+            || forward.target_conversation_id()
+                    != "00000000-0000-0000-0000-000000000003"
+            || forward.SerializeAsString() != forwardGolden) {
+        std::cerr << "generated C++ binding changed the ForwardMessage golden payload\n";
         return 1;
     }
     chat::v2::ListConversations list;

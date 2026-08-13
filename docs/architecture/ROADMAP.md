@@ -1573,10 +1573,23 @@ Progress:
         projection after session resume.
       - [ ] Pass the activated Windows Release build and Widgets interaction
         gate on a Windows runner before treating the endpoint as releasable.
+- [ ] Deliver server-authoritative text message forwarding on V2 Web and Windows.
+  - [x] Define single-target retry semantics, source/destination authority,
+    edit-race behavior, privacy-safe projection, compatibility, migration, and
+    staged activation (ADR-0344).
+  - [x] Allocate default-off capability 5 and command type 119, add the
+    destination `forwarded` marker, bounded structural policy, generated
+    Java/TypeScript/C++ bindings, and a fixed three-language command fixture.
+  - [ ] Persist and authorize exact forwarding in PostgreSQL, then compose the
+    default-off authenticated gateway handler, history/live projection,
+    privacy-safe telemetry, and capability filtering.
+  - [ ] Add offline-safe Web and Windows forward outboxes, destination picker,
+    presentation, accessibility, reconnect convergence, and endpoint-specific
+    activation gates.
 
 Candidate slices:
 
-- forwarding and richer structured composition;
+- richer structured composition;
 - group roles, invitations, join approval, mute, block, and moderation;
 - full-text search with an asynchronously rebuildable index;
 - Windows native notifications;
