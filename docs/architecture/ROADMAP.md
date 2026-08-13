@@ -658,6 +658,9 @@ Progress:
   - [x] Make V1 room-file deletion administrator-only, serializable,
     retry-idempotent, quota-consistent, and replayable through the shared room
     sequence with first-commit-only local notifications.
+  - [x] Define the server-bound V1 room-administrator command contract with
+    bounded target identity, convergent role state, and protected OWNER
+    semantics before adding persistence or transport.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
