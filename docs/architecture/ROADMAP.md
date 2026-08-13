@@ -688,8 +688,12 @@ Progress:
   - [x] Implement serializable PostgreSQL V1 administrative message deletion
     with atomic target resolution, attachment revocation, recall cleanup,
     shared sequence allocation, durable replay event, and exact retry recovery.
-  - [ ] Add and compose the detached strict `DELETE_MSGS_REQ` handler, then prove
-    live compatibility and reconnect replay through real PostgreSQL.
+  - [x] Add the detached strict `DELETE_MSGS_REQ` handler with authenticated
+    actor binding, bounded off-loop work, compatible response/live effects,
+    malformed-frame closure, and explicit saturation handling.
+  - [ ] Compose V1 administrative message deletion and prove live compatibility,
+    exact-retry suppression, file revocation, and reconnect replay through real
+    PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
