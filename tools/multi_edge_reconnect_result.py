@@ -27,8 +27,9 @@ EXPECTED_HAPROXY_IMAGE = (
 def validate(value: Any, expected_revision: str | None = None,
              require_clean: bool = False) -> dict[str, Any]:
     root = object_value(value, "result")
-    if root.get("schemaVersion") != 1:
-        raise EvidenceError("schemaVersion must be 1")
+    schema = root.get("schemaVersion")
+    if schema not in (1, 2):
+        raise EvidenceError("schemaVersion must be 1 or 2")
     if root.get("benchmark") != "java-v2-haproxy-multi-edge-reconnect":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != (
@@ -104,6 +105,27 @@ def validate(value: Any, expected_revision: str | None = None,
                  "sessionResumeLatencyMicros", affected)
     distribution(results.get("scheduledStartJitterMicros"),
                  "scheduledStartJitterMicros", affected)
+    if schema == 1 and "authenticationSaturation" in results:
+        raise EvidenceError("schemaVersion 1 cannot contain authenticationSaturation")
+    if schema == 2:
+        saturation = object_value(
+            results.get("authenticationSaturation"),
+            "authenticationSaturation")
+        if set(saturation) != {
+                "sampleIntervalMillis", "samples", "activeWorkersMaximum",
+                "queuedWorkMaximum"}:
+            raise EvidenceError("authenticationSaturation fields are invalid")
+        if saturation.get("sampleIntervalMillis") != 5:
+            raise EvidenceError("authentication saturation interval must be 5 ms")
+        integer(saturation.get("samples"), "authenticationSaturation.samples", 2)
+        active = integer(
+            saturation.get("activeWorkersMaximum"),
+            "authenticationSaturation.activeWorkersMaximum", 1)
+        queued = integer(
+            saturation.get("queuedWorkMaximum"),
+            "authenticationSaturation.queuedWorkMaximum", 0)
+        if active > affected or queued > affected:
+            raise EvidenceError("authentication saturation exceeds bounded workload")
     return root
 
 

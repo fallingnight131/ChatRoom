@@ -157,6 +157,9 @@ batches after primary HAProxy is force-killed. Treat the JSON only as an
 exact-revision local comparison; it does not size a production edge or gateway.
 Release comparison requires clean-tree validation with
 `tools/multi_edge_reconnect_result.py --require-clean` (ADR-0384).
+New measurements use schema version 2 and include five-millisecond, in-window
+authentication active-worker and queue-peak sampling (ADR-0386). Schema version
+1 remains supported only for already-recorded historical evidence.
 
 Before reload, validate the fully rendered deployment file with the exact
 production HAProxy binary. Roll one bounded subset of gateways at a time:

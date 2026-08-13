@@ -110,6 +110,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import javax.net.ssl.SSLContext;
@@ -1951,42 +1952,58 @@ class GatewayRuntimePostgresIntegrationTest {
             int intervalMillis = 100;
             CountDownLatch ready = new CountDownLatch(primaryClients.size());
             CountDownLatch start = new CountDownLatch(1);
+            CountDownLatch saturationSamplerReady = new CountDownLatch(1);
+            AtomicBoolean sampleSaturation = new AtomicBoolean(true);
             long[] startNanos = new long[1];
             List<ReconnectSample> samples = new ArrayList<>();
-            try (ExecutorService executor = Executors.newFixedThreadPool(primaryClients.size())) {
+            AuthenticationSaturation saturation;
+            try (ExecutorService sampler = Executors.newSingleThreadExecutor();
+                    ExecutorService executor =
+                            Executors.newFixedThreadPool(primaryClients.size())) {
+                Future<AuthenticationSaturation> saturationFuture = sampler.submit(
+                        () -> sampleAuthenticationSaturation(
+                                secondAdmin, saturationSamplerReady, sampleSaturation));
+                assertTrue(saturationSamplerReady.await(5, TimeUnit.SECONDS),
+                        "authentication saturation sampler did not start");
                 List<Future<ReconnectSample>> futures = new ArrayList<>();
-                for (int index = 0; index < primaryClients.size(); index++) {
-                    int position = index;
-                    CrashClient previous = primaryClients.get(index);
-                    futures.add(executor.submit(() -> {
-                        ready.countDown();
-                        start.await();
-                        long offset = (long) (position / batchSize) * intervalMillis;
-                        long scheduled = startNanos[0] + TimeUnit.MILLISECONDS.toNanos(offset);
-                        long remaining;
-                        while ((remaining = scheduled - System.nanoTime()) > 0) {
-                            LockSupport.parkNanos(remaining);
-                        }
-                        long began = System.nanoTime();
-                        BinaryEnvelopeListener listener = new BinaryEnvelopeListener();
-                        WebSocket socket = connectWebSocket(
-                                URI.create(secondaryUrl + "/v2/windows"), listener);
-                        SessionEstablished rotated = resume(
-                                socket, listener, previous.session(), previous.deviceId());
-                        long latency = TimeUnit.NANOSECONDS.toMicros(
-                                System.nanoTime() - began);
-                        long jitter = TimeUnit.NANOSECONDS.toMicros(
-                                Math.abs(began - scheduled));
-                        return new ReconnectSample(position, socket, rotated,
-                                Math.max(1, latency), Math.max(1, jitter));
-                    }));
+                try {
+                    for (int index = 0; index < primaryClients.size(); index++) {
+                        int position = index;
+                        CrashClient previous = primaryClients.get(index);
+                        futures.add(executor.submit(() -> {
+                            ready.countDown();
+                            start.await();
+                            long offset = (long) (position / batchSize) * intervalMillis;
+                            long scheduled = startNanos[0]
+                                    + TimeUnit.MILLISECONDS.toNanos(offset);
+                            long remaining;
+                            while ((remaining = scheduled - System.nanoTime()) > 0) {
+                                LockSupport.parkNanos(remaining);
+                            }
+                            long began = System.nanoTime();
+                            BinaryEnvelopeListener listener = new BinaryEnvelopeListener();
+                            WebSocket socket = connectWebSocket(
+                                    URI.create(secondaryUrl + "/v2/windows"), listener);
+                            SessionEstablished rotated = resume(
+                                    socket, listener, previous.session(), previous.deviceId());
+                            long latency = TimeUnit.NANOSECONDS.toMicros(
+                                    System.nanoTime() - began);
+                            long jitter = TimeUnit.NANOSECONDS.toMicros(
+                                    Math.abs(began - scheduled));
+                            return new ReconnectSample(position, socket, rotated,
+                                    Math.max(1, latency), Math.max(1, jitter));
+                        }));
+                    }
+                    assertTrue(ready.await(5, TimeUnit.SECONDS));
+                    startNanos[0] = System.nanoTime();
+                    start.countDown();
+                    for (Future<ReconnectSample> future : futures) {
+                        samples.add(future.get(10, TimeUnit.SECONDS));
+                    }
+                } finally {
+                    sampleSaturation.set(false);
                 }
-                assertTrue(ready.await(5, TimeUnit.SECONDS));
-                startNanos[0] = System.nanoTime();
-                start.countDown();
-                for (Future<ReconnectSample> future : futures) {
-                    samples.add(future.get(10, TimeUnit.SECONDS));
-                }
+                saturation = saturationFuture.get(5, TimeUnit.SECONDS);
             }
             samples.sort(Comparator.comparingInt(ReconnectSample::position));
             samples.forEach(sample -> replacements.add(sample.socket()));
@@ -1994,7 +2011,8 @@ class GatewayRuntimePostgresIntegrationTest {
                     authenticationAccepted(secondAdmin));
             writeMultiEdgeReconnectEvidence(
                     evidence, failedConnections, survivingConnections, batchSize,
-                    intervalMillis, samples, System.nanoTime() - startNanos[0]);
+                    intervalMillis, samples, saturation,
+                    System.nanoTime() - startNanos[0]);
         } finally {
             replacements.forEach(WebSocket::abort);
             primaryClients.forEach(client -> client.socket().abort());
@@ -4522,6 +4540,35 @@ class GatewayRuntimePostgresIntegrationTest {
         return Long.parseLong(matcher.group(1));
     }
 
+    private static AuthenticationSaturation sampleAuthenticationSaturation(
+            int adminPort, CountDownLatch ready, AtomicBoolean running) throws Exception {
+        int samples = 0;
+        int activeWorkersMaximum = 0;
+        int queuedWorkMaximum = 0;
+        do {
+            String metrics = adminMetrics(adminPort);
+            activeWorkersMaximum = Math.max(activeWorkersMaximum,
+                    authenticationGauge(metrics,
+                            "chat_gateway_authentication_workers_active"));
+            queuedWorkMaximum = Math.max(queuedWorkMaximum,
+                    authenticationGauge(metrics,
+                            "chat_gateway_authentication_queue_size"));
+            samples++;
+            ready.countDown();
+            if (!running.get()) break;
+            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(5));
+        } while (true);
+        return new AuthenticationSaturation(
+                samples, activeWorkersMaximum, queuedWorkMaximum);
+    }
+
+    private static int authenticationGauge(String metrics, String name) {
+        var matcher = Pattern.compile(Pattern.quote(name) + " ([0-9]+)")
+                .matcher(metrics);
+        assertTrue(matcher.find(), "missing authentication gauge " + name);
+        return Integer.parseInt(matcher.group(1));
+    }
+
     private static void awaitProductNotReady(int gatewayPort, Duration timeout)
             throws Exception {
         long deadline = System.nanoTime() + timeout.toNanos();
@@ -4763,7 +4810,8 @@ class GatewayRuntimePostgresIntegrationTest {
 
     private static void writeMultiEdgeReconnectEvidence(
             Path output, int affected, int surviving, int batchSize,
-            int intervalMillis, List<ReconnectSample> samples, long elapsedNanos)
+            int intervalMillis, List<ReconnectSample> samples,
+            AuthenticationSaturation saturation, long elapsedNanos)
             throws Exception {
         List<Long> latency = samples.stream().map(ReconnectSample::latencyMicros)
                 .sorted().toList();
@@ -4772,7 +4820,7 @@ class GatewayRuntimePostgresIntegrationTest {
         int batches = (affected + batchSize - 1) / batchSize;
         String json = """
                 {
-                  "schemaVersion": 1,
+                  "schemaVersion": 2,
                   "benchmark": "java-v2-haproxy-multi-edge-reconnect",
                   "warning": "local dual-edge recovery evidence; not a production capacity claim",
                   "recordedAt": "%s",
@@ -4801,6 +4849,12 @@ class GatewayRuntimePostgresIntegrationTest {
                     "reconnectErrors": 0,
                     "secondaryGatewayAuthenticationBefore": %d,
                     "secondaryGatewayAuthenticationAfter": %d,
+                    "authenticationSaturation": {
+                      "sampleIntervalMillis": 5,
+                      "samples": %d,
+                      "activeWorkersMaximum": %d,
+                      "queuedWorkMaximum": %d
+                    },
                     "elapsedMillis": %.3f,
                     "reconnectThroughputPerSecond": %.3f,
                     "sessionResumeLatencyMicros": %s,
@@ -4814,7 +4868,9 @@ class GatewayRuntimePostgresIntegrationTest {
                         Runtime.getRuntime().maxMemory(), affected + surviving, affected,
                         surviving, batchSize, intervalMillis, batches,
                         (batches - 1) * intervalMillis, affected, samples.size(),
-                        surviving, surviving + affected, elapsedNanos / 1_000_000.0,
+                        surviving, surviving + affected, saturation.samples(),
+                        saturation.activeWorkersMaximum(), saturation.queuedWorkMaximum(),
+                        elapsedNanos / 1_000_000.0,
                         affected * 1_000_000_000.0 / elapsedNanos,
                         distributionJson(latency), distributionJson(jitter));
         Files.writeString(output, json);
@@ -4841,6 +4897,10 @@ class GatewayRuntimePostgresIntegrationTest {
     private record ReconnectSample(
             int position, WebSocket socket, SessionEstablished session,
             long latencyMicros, long jitterMicros) {
+    }
+
+    private record AuthenticationSaturation(
+            int samples, int activeWorkersMaximum, int queuedWorkMaximum) {
     }
 
     private static Envelope clientHello(String deviceId) {

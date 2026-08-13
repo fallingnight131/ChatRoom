@@ -1615,6 +1615,11 @@ The loopback gateway metrics now include
 `chat_gateway_authentication_workers_active` and
 `chat_gateway_authentication_queue_size`; collect them during reconnect windows,
 not only before and after, when diagnosing saturation (ADR-0385).
+New dual-edge evidence uses schema version 2 and samples those gauges every
+five milliseconds from immediately before reconnect release until all reconnect
+futures finish. The strict validator retains read compatibility for historical
+schema version 1 evidence but forbids adding the saturation block without a
+schema upgrade (ADR-0386).
 
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and

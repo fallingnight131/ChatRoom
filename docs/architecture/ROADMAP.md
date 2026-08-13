@@ -1634,6 +1634,11 @@ Progress:
   runnable gateway's bounded executor on the loopback metrics endpoint, without
   identity labels or readiness side effects. In-window peak sampling and wider
   database/event-loop/resource saturation remain pending (ADR-0385).
+- [x] Upgrade new bounded dual-edge reconnect evidence to schema version 2 and
+  sample authentication worker/queue peaks every five milliseconds across the
+  recovery window. Historical schema version 1 remains valid; a clean exact-
+  revision saturation baseline and wider resource signals remain pending
+  (ADR-0386).
 
 Work:
 

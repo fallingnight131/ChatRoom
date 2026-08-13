@@ -1218,6 +1218,10 @@ operations surface: fixed-name active-worker and queued-work gauges now expose
 the bounded authentication/session-resume executor without identity labels.
 They do not alter readiness or admission and do not replace in-window sampling,
 database-pool, event-loop, CPU, or memory observations.
+ADR-0386 consumes those gauges during the dual-edge reconnect window at a fixed
+five-millisecond interval. Schema version 2 records successful sample count and
+active-worker/queued-work peaks, while the validator continues to accept the
+committed schema version 1 history without silently extending that schema.
 
 ## 10. Attachment Flow
 
