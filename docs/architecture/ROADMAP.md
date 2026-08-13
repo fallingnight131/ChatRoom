@@ -718,7 +718,7 @@ Progress:
   - [x] Define convergent V1 room dissolution with server-bound administration,
     canonical soft closure, durable attachment cleanup, exact retry identity,
     and post-commit first-only compatibility effects.
-  - [ ] Implement serializable PostgreSQL room dissolution and cleanup marking.
+  - [x] Implement serializable PostgreSQL room dissolution and cleanup marking.
   - [ ] Add and compose the strict detached `DELETE_ROOM_REQ` handler, then
     prove first-only effects and replacement-login absence through PostgreSQL.
   - [x] Add the inactive attachment registration application port and exact

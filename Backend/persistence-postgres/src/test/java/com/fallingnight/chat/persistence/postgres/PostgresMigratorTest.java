@@ -66,6 +66,8 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRenameServ
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordIntent;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordStatusResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordUpdateResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomDissolutionIntent;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomDissolutionResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMemberListPort;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettings;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettingsPort;
@@ -164,7 +166,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(33, first.migrate());
+        assertEquals(34, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -186,7 +188,8 @@ class PostgresMigratorTest {
                             "contact_request_import_run", "group_join_credential",
                             "legacy_v1_room_creation", "group_admission_policy",
                             "group_lifecycle", "group_resource_policy",
-                            "legacy_v1_attachment_map", "legacy_v1_room_kick_event"),
+                            "legacy_v1_attachment_map", "legacy_v1_room_kick_event",
+                            "legacy_v1_room_dissolution"),
                     applicationTables(connection));
             assertEquals(1, count("SELECT count(*) FROM pg_sequences "
                     + "WHERE schemaname = 'chat' "
@@ -1827,6 +1830,103 @@ class PostgresMigratorTest {
 
     @Test
     @Order(94)
+    void dissolvesV1RoomsAtomicallyAndConvergesOnlyForTheOriginalActor()
+            throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID owner = UUID.randomUUID(), admin = UUID.randomUUID(), member = UUID.randomUUID();
+        UUID device = UUID.randomUUID(), attachment = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'dissolve-owner', 'Dissolve Owner', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'dissolve-admin', 'Dissolve Admin', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'dissolve-member', 'Dissolve Member', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    owner, admin, member);
+            execute(connection, "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, "
+                    + "account_id) VALUES (231, ?), (232, ?), (233, ?)", owner, admin, member);
+            execute(connection, "INSERT INTO chat.device(id, account_id, client_device_id, platform) "
+                    + "VALUES (?, ?, 'dissolution-device', 'WEB')", device, owner);
+        }
+        LegacyV1RoomCreationResult.Created room = (LegacyV1RoomCreationResult.Created)
+                new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
+                        new LegacyV1RoomCreationIntent(owner, "dissolution-room-create",
+                                "Dissolution Room", Optional.empty()));
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
+                    + "account_id, role) VALUES (?, ?, 'ADMIN'), (?, ?, 'MEMBER')",
+                    room.conversationId(), admin, room.conversationId(), member);
+            execute(connection, "INSERT INTO chat.group_join_credential(conversation_id, "
+                    + "encoded_password, password_idempotency_tag) VALUES (?, "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$c2FsdA$aGFzaA', ?)",
+                    room.conversationId(), "hmac-sha256:v1:" + "F".repeat(43));
+            execute(connection, "INSERT INTO chat.attachment(id, conversation_id, "
+                    + "owner_account_id, owner_device_id, client_attachment_id, object_key, "
+                    + "file_name, media_type, byte_size, content_sha256, state, ready_at) "
+                    + "VALUES (?, ?, ?, ?, 'dissolution-file', 'rooms/dissolution/file', "
+                    + "'evidence.txt', 'text/plain', 8, ?, 'READY', transaction_timestamp())",
+                    attachment, room.conversationId(), owner, device, new byte[32]);
+        }
+
+        var adapter = new PostgresLegacyV1RoomDissolutionAdapter(dataSource());
+        assertEquals(LegacyV1RoomDissolutionResult.Rejected.ROOM_ADMIN_REQUIRED,
+                adapter.dissolve(new LegacyV1RoomDissolutionIntent(member, room.legacyRoomId())));
+        var first = assertInstanceOf(LegacyV1RoomDissolutionResult.Dissolved.class,
+                adapter.dissolve(new LegacyV1RoomDissolutionIntent(owner, room.legacyRoomId())));
+        assertTrue(first.changed()); assertEquals("Dissolution Room", first.roomName());
+        assertEquals(Set.of(owner, admin, member), first.affectedAccountIds());
+        assertEquals(0, count("SELECT count(*) FROM chat.conversation_member WHERE "
+                + "conversation_id = '" + room.conversationId() + "' AND left_at IS NULL"));
+        assertEquals(1, count("SELECT count(*) FROM chat.group_lifecycle WHERE "
+                + "conversation_id = '" + room.conversationId() + "' AND closed_at IS NOT NULL"));
+        assertEquals(0, count("SELECT count(*) FROM chat.group_join_credential WHERE "
+                + "conversation_id = '" + room.conversationId() + "'"));
+        assertEquals(1, count("SELECT count(*) FROM chat.attachment WHERE id = '"
+                + attachment + "' AND state = 'REVOKED' AND revoked_at IS NOT NULL "
+                + "AND object_deleted_at IS NULL"));
+        assertEquals(1, count("SELECT count(*) FROM chat.conversation WHERE id = '"
+                + room.conversationId() + "'"));
+
+        var retry = assertInstanceOf(LegacyV1RoomDissolutionResult.Dissolved.class,
+                adapter.dissolve(new LegacyV1RoomDissolutionIntent(owner, room.legacyRoomId())));
+        assertFalse(retry.changed()); assertTrue(retry.affectedAccountIds().isEmpty());
+        assertEquals(first.dissolvedAt(), retry.dissolvedAt());
+        assertEquals(LegacyV1RoomDissolutionResult.Rejected.NOT_FOUND,
+                adapter.dissolve(new LegacyV1RoomDissolutionIntent(admin, room.legacyRoomId())));
+        assertEquals(1, count("SELECT count(*) FROM chat.legacy_v1_room_dissolution WHERE "
+                + "conversation_id = '" + room.conversationId() + "' "
+                + "AND actor_account_id = '" + owner + "'"));
+
+        UUID unmapped = UUID.randomUUID();
+        LegacyV1RoomCreationResult.Created rollbackRoom =
+                (LegacyV1RoomCreationResult.Created)
+                        new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
+                                new LegacyV1RoomCreationIntent(owner,
+                                        "dissolution-rollback-create",
+                                        "Rollback Room", Optional.empty()));
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'dissolve-unmapped', 'Unmapped', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')", unmapped);
+            execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
+                    + "account_id, role) VALUES (?, ?, 'MEMBER')",
+                    rollbackRoom.conversationId(), unmapped);
+        }
+        assertThrows(ConversationPersistenceException.class, () -> adapter.dissolve(
+                new LegacyV1RoomDissolutionIntent(owner, rollbackRoom.legacyRoomId())));
+        assertEquals(1, count("SELECT count(*) FROM chat.group_lifecycle WHERE "
+                + "conversation_id = '" + rollbackRoom.conversationId()
+                + "' AND closed_at IS NULL"));
+        assertEquals(2, count("SELECT count(*) FROM chat.conversation_member WHERE "
+                + "conversation_id = '" + rollbackRoom.conversationId()
+                + "' AND left_at IS NULL"));
+        assertEquals(0, count("SELECT count(*) FROM chat.legacy_v1_room_dissolution WHERE "
+                + "conversation_id = '" + rollbackRoom.conversationId() + "'"));
+    }
+
+    @Test
+    @Order(95)
     void createsV1FriendRequestsWithConcurrentRetryAndReverseDetection() throws Exception {
         requireDatabase();
         truncateApplicationData();
