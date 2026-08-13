@@ -807,6 +807,12 @@ comparison includes that triple, malformed combinations fail validation, and
 acceptance atomically clears the private source fields while preserving the
 presentation marker. No source body, original sender, or source timestamp is
 stored as forwarding metadata.
+The Windows messaging application service now exposes an explicit default-off
+forward seam. When enabled only by tests, it resolves an accepted non-recalled
+source from local synchronized state, stages the privacy-bounded destination
+intent before type-119 dispatch, reuses normal persisted reconnect replay, and
+clears the source triple on acceptance. Its default constructor rejects the
+operation before any SQLite mutation.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

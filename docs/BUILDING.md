@@ -1459,6 +1459,12 @@ identity erasure on acceptance while retaining `forwarded`. Accepted server
 records cannot contain a source triple, and forwarding rows cannot carry reply
 or mention metadata. The schema stores no source body, original sender, or
 source timestamp.
+The Windows application-service test now composes the enabled codec and schema
+without product activation. It proves synchronized-source availability,
+persist-before-type-119 dispatch, stable destination identity, ACK convergence,
+and source-field erasure. A separate default construction rejects the action
+before creating a destination outbox row. Existing pending-send reconnect and
+denial behavior applies to forwarding through the same bounded queue.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic

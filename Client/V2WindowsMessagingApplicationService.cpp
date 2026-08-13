@@ -10,12 +10,13 @@
 V2WindowsMessagingApplicationService::V2WindowsMessagingApplicationService(
         V2LocalMessageRepository *repository, QString accountId, QString deviceId,
         SendFrame sendFrame, Clock clock,
-        ClientMessageIdFactory clientMessageIdFactory)
+        ClientMessageIdFactory clientMessageIdFactory, bool enableForwarding)
     : m_repository(repository), m_accountId(std::move(accountId)),
       m_deviceId(std::move(deviceId)), m_sendFrame(std::move(sendFrame)),
       m_clock(clock ? std::move(clock) : [] { return QDateTime::currentMSecsSinceEpoch(); }),
       m_clientMessageIdFactory(clientMessageIdFactory
-          ? std::move(clientMessageIdFactory) : randomUuid) {
+          ? std::move(clientMessageIdFactory) : randomUuid),
+      m_protocol({}, {}, enableForwarding), m_enableForwarding(enableForwarding) {
     const auto canonical = [](const QString &value) {
         const QUuid uuid(value);
         return !uuid.isNull() && uuid.toString(QUuid::WithoutBraces) == value;
@@ -23,6 +24,39 @@ V2WindowsMessagingApplicationService::V2WindowsMessagingApplicationService(
     if (!m_repository || !canonical(m_accountId) || !canonical(m_deviceId)
             || !m_sendFrame || !m_clock || !m_clientMessageIdFactory)
         throw std::invalid_argument("invalid Windows V2 messaging application service");
+}
+
+bool V2WindowsMessagingApplicationService::stageForward(
+        const QString &sourceConversationId, const QString &sourceMessageId,
+        const QString &targetConversationId, V2LocalMessageRepository::Message *optimistic) {
+    m_lastError.clear();
+    if (!m_enableForwarding) {
+        m_lastError = QStringLiteral("message forwarding is not enabled"); return false;
+    }
+    if (!optimistic) { m_lastError = QStringLiteral("missing forward output"); return false; }
+    const auto sourceSnapshot = hydrate(sourceConversationId);
+    if (!m_lastError.isEmpty()) return false;
+    const auto source = std::find_if(sourceSnapshot.messages.cbegin(), sourceSnapshot.messages.cend(),
+        [&](const auto &message) { return message.messageId == sourceMessageId
+            && message.state == V2LocalMessageRepository::DeliveryState::Accepted
+            && !message.recalled; });
+    if (source == sourceSnapshot.messages.cend()) {
+        m_lastError = QStringLiteral("forward source is unavailable"); return false;
+    }
+    V2LocalMessageRepository::Message message;
+    message.conversationId = targetConversationId; message.senderAccountId = m_accountId;
+    message.senderDeviceId = m_deviceId; message.clientMessageId = m_clientMessageIdFactory();
+    message.text = source->text; message.createdAtEpochMs = m_clock();
+    message.state = V2LocalMessageRepository::DeliveryState::Pending;
+    message.forwarded = true; message.forwardSourceConversationId = sourceConversationId;
+    message.forwardSourceMessageId = sourceMessageId;
+    message.expectedForwardSourceRevision = source->contentRevision;
+    if (!m_repository->upsertPending(m_accountId, message)) {
+        m_lastError = m_repository->lastError(); return false;
+    }
+    *optimistic = message;
+    if (m_connected) dispatch(message);
+    return true;
 }
 
 bool V2WindowsMessagingApplicationService::connectSession(const QString &sessionId) {
@@ -491,8 +525,13 @@ bool V2WindowsMessagingApplicationService::dispatch(
             mentions.push_back({mention.targetAccountId.toStdString(),
                 static_cast<std::uint32_t>(mention.startUtf8Byte),
                 static_cast<std::uint32_t>(mention.lengthUtf8Bytes)});
-        const auto command = message.hasReply
-            ? m_protocol.submitReplyText(
+        const auto command = !message.forwardSourceConversationId.isEmpty()
+            ? m_protocol.forwardMessage(
+                message.forwardSourceConversationId.toStdString(),
+                message.forwardSourceMessageId.toStdString(),
+                static_cast<std::uint32_t>(message.expectedForwardSourceRevision),
+                message.conversationId.toStdString(), message.clientMessageId.toStdString())
+            : message.hasReply ? m_protocol.submitReplyText(
                 message.conversationId.toStdString(), message.clientMessageId.toStdString(),
                 message.reply.targetMessageId.toStdString(), message.text.toStdString(), mentions)
             : m_protocol.submitText(message.conversationId.toStdString(),
@@ -605,6 +644,7 @@ V2WindowsMessagingApplicationService::localMessage(
     result.createdAtEpochMs = message.acceptedAtEpochMs;
     result.state = V2LocalMessageRepository::DeliveryState::Accepted;
     result.hasReply = message.hasReply;
+    result.forwarded = message.forwarded;
     for (const auto &mention : message.mentions)
         result.mentions.append({QString::fromStdString(mention.targetAccountId),
             static_cast<int>(mention.startUtf8Byte),

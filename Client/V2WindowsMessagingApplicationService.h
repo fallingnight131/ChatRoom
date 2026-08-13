@@ -32,7 +32,8 @@ public:
         QString deviceId,
         SendFrame sendFrame,
         Clock clock = {},
-        ClientMessageIdFactory clientMessageIdFactory = {});
+        ClientMessageIdFactory clientMessageIdFactory = {},
+        bool enableForwarding = false);
 
     bool connectSession(const QString &sessionId);
     void disconnectSession();
@@ -42,6 +43,9 @@ public:
                     const QString &text,
                     V2LocalMessageRepository::Message *optimistic,
                     const QList<V2LocalMessageRepository::Mention> &mentions = {});
+    bool stageForward(const QString &sourceConversationId, const QString &sourceMessageId,
+                      const QString &targetConversationId,
+                      V2LocalMessageRepository::Message *optimistic);
     bool retry(const QString &conversationId, const QString &clientMessageId);
     bool setReaction(const QString &conversationId, const QString &messageId,
                      V2LocalMessageRepository::ReactionKind reaction);
@@ -82,6 +86,7 @@ private:
     Clock m_clock;
     ClientMessageIdFactory m_clientMessageIdFactory;
     V2WindowsMessagingProtocolClient m_protocol;
+    bool m_enableForwarding = false;
     QSet<QString> m_inFlightClientIds;
     QSet<QString> m_deferredClientIds;
     QSet<QString> m_inFlightReactionIds;

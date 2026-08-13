@@ -1610,6 +1610,9 @@ Progress:
     - [x] Migrate the isolated Windows V2 SQLite store to retain the forwarded
       marker and unresolved local source triple, enforce retry equality across
       restart, and erase private source identity on acceptance.
+    - [x] Add the default-off Windows application-service forward path with
+      source availability checks, persist-before-send, reconnect replay,
+      stable acceptance, and authoritative marker projection.
 
 Candidate slices:
 

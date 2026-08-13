@@ -66,6 +66,7 @@ int main(int argc, char *argv[]) {
     const QString remote = QStringLiteral("10000000-0000-4000-8000-000000000002");
     const QString remoteDevice = QStringLiteral("20000000-0000-4000-8000-000000000002");
     const QString conversation = QStringLiteral("30000000-0000-4000-8000-000000000001");
+    const QString forwardTarget = QStringLiteral("30000000-0000-4000-8000-000000000002");
     const QString session1 = QStringLiteral("50000000-0000-4000-8000-000000000001");
     const QString session2 = QStringLiteral("50000000-0000-4000-8000-000000000002");
     V2LocalMessageRepository repository(directory.filePath(QStringLiteral("v2.sqlite")));
@@ -73,18 +74,26 @@ int main(int argc, char *argv[]) {
     const auto target = acceptedTarget(conversation, remote, remoteDevice);
     check(repository.mergeServerMessage(account, target, 7), repository.lastError().toStdString());
 
+    V2WindowsMessagingApplicationService disabledForwarding(
+        &repository, account, device, [](const QByteArray &) { return true; });
+    V2LocalMessageRepository::Message disabledForward;
+    check(!disabledForwarding.stageForward(
+              conversation, target.messageId, forwardTarget, &disabledForward)
+              && repository.loadSnapshot(account, forwardTarget).messages.isEmpty(),
+          "default application service must reject forwarding before persistence");
+
     QVector<QByteArray> sent;
     QList<QString> clientIds{QStringLiteral("reaction-operation-spoof"),
         QStringLiteral("edit-operation-2"),
         QStringLiteral("edit-operation-1"),
         QStringLiteral("pin-operation-1"),
-        QStringLiteral("reaction-operation-1"),
-        QStringLiteral("client-reply-2"), QStringLiteral("client-reply-1")};
+        QStringLiteral("reaction-operation-1"), QStringLiteral("client-reply-2"),
+        QStringLiteral("forward-client-1"), QStringLiteral("client-reply-1")};
     V2WindowsMessagingApplicationService service(
         &repository, account, device,
         [&](const QByteArray &frame) { sent.append(frame); return true; },
         [] { return 1500; },
-        [&] { return clientIds.takeLast(); });
+        [&] { return clientIds.takeLast(); }, true);
 
     check(service.connectSession(session1), service.lastError().toStdString());
     V2LocalMessageRepository::Message optimistic;
@@ -118,6 +127,29 @@ int main(int argc, char *argv[]) {
               && snapshot.messages.last().reply.targetMessageId == target.messageId
               && snapshot.messages.last().mentions.size() == 1,
           "ACK must reconcile the same durable optimistic reply");
+
+    V2LocalMessageRepository::Message optimisticForward;
+    check(service.stageForward(conversation, target.messageId, forwardTarget,
+                               &optimisticForward), service.lastError().toStdString());
+    const auto forwardRequest = decode(sent.last());
+    chat::v2::ForwardMessage forwardPayload;
+    check(forwardRequest.message_type() == chat::v2::MESSAGE_TYPE_FORWARD_MESSAGE
+              && forwardRequest.client_message_id() == "forward-client-1"
+              && forwardPayload.ParseFromString(forwardRequest.payload())
+              && forwardPayload.source_message_id() == target.messageId.toStdString()
+              && repository.loadSnapshot(account, forwardTarget).messages.first()
+                    .forwardSourceConversationId == conversation,
+          "forward must persist exact local source authority before type-119 dispatch");
+    chat::v2::MessageAccepted forwardAccepted;
+    forwardAccepted.set_conversation_id(forwardTarget.toStdString());
+    forwardAccepted.set_message_id("60000000-0000-4000-8000-000000000011");
+    forwardAccepted.set_conversation_sequence(1); forwardAccepted.set_accepted_at_epoch_ms(1601);
+    check(service.receiveFrame(response(forwardRequest, chat::v2::MESSAGE_TYPE_MESSAGE_ACCEPTED,
+              chat::v2::MESSAGE_KIND_RESPONSE, forwardAccepted)).type
+              == V2WindowsMessagingApplicationService::OutcomeType::Accepted
+              && repository.loadSnapshot(account, forwardTarget).messages.first()
+                    .forwardSourceConversationId.isEmpty(),
+          "forward ACK must clear private local source authority");
 
     service.disconnectSession();
     V2LocalMessageRepository::Message offline;
