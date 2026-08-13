@@ -1362,6 +1362,13 @@ positions round-trip to the protocol's UTF-8 byte spans. It also verifies that
 render segmentation uses stored account identity instead of reparsing display
 text. Passing this Qt Core test on a macOS development host is portability
 evidence only; Windows Widgets exposure and capability 4 remain gated.
+`V2WindowsMessagingPanelTest` and `V2WindowsConversationDialogTest` additionally
+exercise the default-off Widgets authoring seam. They prove that merely opening
+a conversation does not fetch members, opening the picker explicitly requests
+the active conversation, accessible keyboard selection inserts Unicode text,
+and reply submission carries the exact account-backed UTF-8 span. The default
+product composition still hides this control until the remaining Windows
+mention gates pass.
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

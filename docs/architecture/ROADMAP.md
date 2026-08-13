@@ -1559,6 +1559,10 @@ Progress:
         surrogate-safe insertion and edit reconciliation, exact Qt UTF-16 to
         protocol UTF-8 conversion, stored-span restore, and identity-preserving
         render segmentation while Widgets exposure remains off.
+      - [x] Connect the Windows reply editor to an explicit-load, keyboard-native
+        participant picker with bounded paging, fixed accessible states,
+        Unicode-safe insertion, edit reconciliation, and structured send while
+        keeping the product flag and capability 4 off.
 
 Candidate slices:
 

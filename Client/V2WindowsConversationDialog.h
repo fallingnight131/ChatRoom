@@ -7,6 +7,7 @@ class QListWidget;
 class QListWidgetItem;
 class QPushButton;
 class V2WindowsConversationDirectoryViewModel;
+class V2WindowsConversationParticipantViewModel;
 class V2WindowsMessagingPanel;
 class V2WindowsMessagingViewModel;
 
@@ -16,7 +17,8 @@ public:
     explicit V2WindowsConversationDialog(
         V2WindowsConversationDirectoryViewModel *directoryViewModel,
         V2WindowsMessagingViewModel *messagingViewModel,
-        QWidget *parent = nullptr);
+        V2WindowsConversationParticipantViewModel *participantViewModel,
+        QWidget *parent = nullptr, bool mentionsEnabled = false);
 
     QListWidget *conversationListForTest() const { return m_conversations; }
     QPushButton *refreshForTest() const { return m_refresh; }

@@ -75,6 +75,11 @@ WindowsDeviceManagementController::conversationDirectoryViewModel() const {
     return m_messagingController->directoryViewModel();
 }
 
+V2WindowsConversationParticipantViewModel *
+WindowsDeviceManagementController::conversationParticipantViewModel() const {
+    return m_messagingController->participantViewModel();
+}
+
 V2WindowsMessagingViewModel *
 WindowsDeviceManagementController::messagingViewModel() const {
     return m_messagingController->viewModel();

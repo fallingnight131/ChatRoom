@@ -9,6 +9,7 @@
 class DeviceManagementApplicationService;
 class DeviceManagementViewModel;
 class V2WindowsConversationDirectoryViewModel;
+class V2WindowsConversationParticipantViewModel;
 class V2WindowsMessagingViewModel;
 
 class WindowsDeviceManagementController final : public QObject {
@@ -28,6 +29,7 @@ public:
 
     DeviceManagementViewModel *viewModel() const;
     V2WindowsConversationDirectoryViewModel *conversationDirectoryViewModel() const;
+    V2WindowsConversationParticipantViewModel *conversationParticipantViewModel() const;
     V2WindowsMessagingViewModel *messagingViewModel() const;
     bool start();
     void stop();

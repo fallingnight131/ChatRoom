@@ -1,6 +1,7 @@
 #include "V2WindowsConversationDialog.h"
 
 #include "V2WindowsConversationDirectoryViewModel.h"
+#include "V2WindowsConversationParticipantViewModel.h"
 #include "V2WindowsMessagingPanel.h"
 #include "V2WindowsMessagingViewModel.h"
 
@@ -59,8 +60,15 @@ int main(int argc, char **argv) {
     directory.applyPage({{
         conversationId, QStringLiteral("工程群"), QStringLiteral("群聊"),
         QStringLiteral("成员"), 3}}, false, true);
+    int participantRequests = 0;
+    V2WindowsConversationParticipantViewModel participants(
+        [&](const QString &selected, bool continuation) {
+            ++participantRequests;
+            return selected == conversationId && !continuation;
+        });
 
-    V2WindowsConversationDialog dialog(&directory, &messaging);
+    V2WindowsConversationDialog dialog(
+        &directory, &messaging, &participants, nullptr, true);
     dialog.show();
     app.processEvents();
     if (!check(!dialog.accessibleName().isEmpty(),
@@ -81,6 +89,15 @@ int main(int argc, char **argv) {
             || !check(dialog.messagingPanelForTest()->isEnabled()
                           && dialog.messagingPanelForTest()->messageListForTest()->count() == 1,
                       QStringLiteral("opened conversation must render cached messages"))) return 1;
+    if (!check(participantRequests == 0,
+               QStringLiteral("opening a conversation must not prefetch picker data"))) return 1;
+    messaging.chooseReply(message.messageId);
+    app.processEvents();
+    dialog.messagingPanelForTest()->mentionForTest()->click();
+    app.processEvents();
+    if (!check(participantRequests == 1 && participants.busy(),
+               QStringLiteral("opening the mention picker must explicitly request members")))
+        return 1;
 
     dialog.loadMoreForTest()->click();
     app.processEvents();

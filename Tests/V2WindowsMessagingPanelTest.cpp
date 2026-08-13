@@ -1,4 +1,5 @@
 #include "V2WindowsMessagingPanel.h"
+#include "V2WindowsConversationParticipantViewModel.h"
 #include "V2WindowsMessagingViewModel.h"
 
 #include <QApplication>
@@ -22,11 +23,15 @@ int main(int argc, char **argv) {
     message.text = QStringLiteral("hello");
     message.state = V2LocalMessageRepository::DeliveryState::Accepted;
     snapshot.messages.append(message);
+    QList<V2LocalMessageRepository::Mention> submittedMentions;
     V2WindowsMessagingViewModel model(
         account, [&](const QString &) { return snapshot; },
         [&](const QString &, const QString &, const QString &,
             V2LocalMessageRepository::Message *,
-            const QList<V2LocalMessageRepository::Mention> &) { return true; },
+            const QList<V2LocalMessageRepository::Mention> &mentions) {
+                submittedMentions = mentions;
+                return true;
+            },
         [](const QString &, const QString &) { return true; },
         [](const QString &, const QString &, V2LocalMessageRepository::ReactionKind) {
             return true;
@@ -39,8 +44,17 @@ int main(int argc, char **argv) {
         [](const QString &, const QString &) { return true; },
         [](const QString &, const QString &) { return true; },
         [](const QString &) { return true; });
+    int participantRequests = 0;
+    V2WindowsConversationParticipantViewModel participants(
+        [&](const QString &requestedConversation, bool continuation) {
+            ++participantRequests;
+            return requestedConversation == conversation && !continuation;
+        });
     model.openConversation(conversation);
-    V2WindowsMessagingPanel panel(&model);
+    V2WindowsMessagingPanel defaultOff(&model, &participants);
+    if (!defaultOff.mentionForTest()->isHidden()) return 1;
+    V2WindowsMessagingPanel panel(&model, &participants, nullptr, true);
+    panel.setConversation(conversation);
     panel.show();
     if (panel.accessibleName().isEmpty()
             || panel.messageListForTest()->accessibleName().isEmpty()
@@ -76,6 +90,27 @@ int main(int argc, char **argv) {
     panel.cancelReplyForTest()->click();
     app.processEvents();
     if (!model.replyTargetMessageId().isEmpty()) return 1;
+    (*reply)->click();
+    panel.composerForTest()->clear();
+    panel.mentionForTest()->click();
+    app.processEvents();
+    if (participantRequests != 1 || !participants.busy()) return 1;
+    participants.applyPage(conversation, {{
+        account, QStringLiteral("张三😀"), QStringLiteral("成员")}}, false, false);
+    app.processEvents();
+    if (panel.participantListForTest()->count() != 1
+            || panel.participantListForTest()->accessibleName().isEmpty()) return 1;
+    panel.participantListForTest()->itemActivated(
+        panel.participantListForTest()->item(0));
+    app.processEvents();
+    if (panel.composerForTest()->toPlainText() != QStringLiteral("@张三😀 ")) return 1;
+    panel.sendForTest()->click();
+    app.processEvents();
+    if (submittedMentions.size() != 1
+            || submittedMentions.first().targetAccountId != account
+            || submittedMentions.first().startUtf8Byte != 0
+            || submittedMentions.first().lengthUtf8Bytes
+                != QStringLiteral("@张三😀").toUtf8().size()) return 1;
     qInfo() << "[V2WindowsMessagingPanelTest] PASS";
     return 0;
 }

@@ -1,6 +1,7 @@
 #include "V2WindowsConversationDialog.h"
 
 #include "V2WindowsConversationDirectoryViewModel.h"
+#include "V2WindowsConversationParticipantViewModel.h"
 #include "V2WindowsMessagingPanel.h"
 #include "V2WindowsMessagingViewModel.h"
 
@@ -16,15 +17,19 @@
 
 V2WindowsConversationDialog::V2WindowsConversationDialog(
         V2WindowsConversationDirectoryViewModel *directoryViewModel,
-        V2WindowsMessagingViewModel *messagingViewModel, QWidget *parent)
+        V2WindowsMessagingViewModel *messagingViewModel,
+        V2WindowsConversationParticipantViewModel *participantViewModel,
+        QWidget *parent, bool mentionsEnabled)
     : QDialog(parent), m_directoryViewModel(directoryViewModel),
       m_directoryStatus(new QLabel(this)), m_conversationTitle(new QLabel(this)),
       m_conversations(new QListWidget(this)),
       m_refresh(new QPushButton(QStringLiteral("刷新"), this)),
       m_loadMore(new QPushButton(QStringLiteral("加载更多"), this)),
-      m_messagingPanel(new V2WindowsMessagingPanel(messagingViewModel, this)) {
+      m_messagingPanel(new V2WindowsMessagingPanel(
+          messagingViewModel, participantViewModel, this, mentionsEnabled)) {
     Q_ASSERT(m_directoryViewModel);
     Q_ASSERT(messagingViewModel);
+    Q_ASSERT(participantViewModel);
     setWindowTitle(QStringLiteral("新版会话与回复（预览）"));
     setAccessibleName(QStringLiteral("新版会话与回复预览窗口"));
     setMinimumSize(900, 600);
@@ -130,6 +135,7 @@ void V2WindowsConversationDialog::markConversationOpened(
     for (const auto &row : m_directoryViewModel->rows()) {
         if (row.conversationId != conversationId) continue;
         m_conversationTitle->setText(row.displayName);
+        m_messagingPanel->setConversation(conversationId);
         m_messagingPanel->setEnabled(true);
         break;
     }
