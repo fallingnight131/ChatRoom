@@ -75,6 +75,8 @@ int main(int argc, char *argv[]) {
 
     QVector<QByteArray> sent;
     QList<QString> clientIds{QStringLiteral("reaction-operation-spoof"),
+        QStringLiteral("edit-operation-2"),
+        QStringLiteral("edit-operation-1"),
         QStringLiteral("pin-operation-1"),
         QStringLiteral("reaction-operation-1"),
         QStringLiteral("client-reply-2"), QStringLiteral("client-reply-1")};
@@ -319,6 +321,72 @@ int main(int argc, char *argv[]) {
               == V2WindowsMessagingApplicationService::OutcomeType::HistoryApplied
               && service.hydrate(conversation).cursor == 12,
           "pin history repair must authoritatively advance the durable cursor");
+    check(service.editMessage(conversation, pinTarget, QStringLiteral("我的 Windows 编辑")),
+          service.lastError().toStdString());
+    const auto editRequest = decode(sent.last());
+    chat::v2::EditMessage editPayload;
+    check(editPayload.ParseFromString(editRequest.payload())
+              && editPayload.expected_revision() == 0
+              && editPayload.client_operation_id() == "edit-operation-1",
+          "edit must persist and send one revision-safe operation");
+    chat::v2::ProtocolError conflict;
+    conflict.set_code(chat::v2::PROTOCOL_ERROR_CODE_MESSAGE_REVISION_CONFLICT);
+    conflict.set_safe_message("revision conflict");
+    const auto conflictOutcome = service.receiveFrame(response(editRequest,
+        chat::v2::MESSAGE_TYPE_PROTOCOL_ERROR, chat::v2::MESSAGE_KIND_ERROR, conflict));
+    auto conflicted = service.hydrate(conversation);
+    check(conflictOutcome.type == V2WindowsMessagingApplicationService::OutcomeType::EditConflict
+              && conflicted.editCommands.size() == 1
+              && conflicted.editCommands.first().proposedText == QStringLiteral("我的 Windows 编辑"),
+          "revision conflict must preserve the local edit overlay");
+    const auto editRepairRequest = decode(sent.last());
+    chat::v2::MessageHistoryPage editRepairPage;
+    editRepairPage.set_conversation_id(conversation.toStdString());
+    auto *editEntry = editRepairPage.add_entries();
+    editEntry->set_conversation_id(conversation.toStdString());
+    editEntry->set_conversation_sequence(13);
+    auto *remoteEdit = editEntry->mutable_edit();
+    remoteEdit->set_conversation_id(conversation.toStdString());
+    remoteEdit->set_conversation_sequence(13);
+    remoteEdit->set_message_id(pinTarget.toStdString());
+    remoteEdit->set_content_revision(1);
+    remoteEdit->set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
+    remoteEdit->set_content("other device");
+    remoteEdit->set_actor_account_id(account.toStdString());
+    remoteEdit->set_client_operation_id("edit-operation-remote");
+    remoteEdit->set_occurred_at_epoch_ms(1980);
+    editRepairPage.set_next_sequence(13); editRepairPage.set_latest_sequence(13);
+    service.receiveFrame(response(editRepairRequest, chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE,
+                                  chat::v2::MESSAGE_KIND_RESPONSE, editRepairPage));
+    check(service.rebaseEdit(conversation, QStringLiteral("edit-operation-1")),
+          service.lastError().toStdString());
+    const auto rebasedRequest = decode(sent.last());
+    check(editPayload.ParseFromString(rebasedRequest.payload())
+              && editPayload.expected_revision() == 1
+              && editPayload.client_operation_id() == "edit-operation-2"
+              && editPayload.content() == "我的 Windows 编辑",
+          "explicit rebase must rotate operation id and retain proposed text");
+    chat::v2::MessageEditApplied editApplied;
+    editApplied.set_conversation_id(conversation.toStdString());
+    editApplied.set_message_id(pinTarget.toStdString());
+    editApplied.set_content_revision(2);
+    editApplied.set_content_type(chat::v2::MESSAGE_CONTENT_TYPE_TEXT_UTF8);
+    editApplied.set_content("我的 Windows 编辑");
+    editApplied.set_actor_account_id(account.toStdString());
+    editApplied.set_client_operation_id("edit-operation-2");
+    editApplied.set_changed(true); editApplied.set_conversation_sequence(14);
+    editApplied.set_occurred_at_epoch_ms(1990);
+    const auto editOutcome = service.receiveFrame(response(rebasedRequest,
+        chat::v2::MESSAGE_TYPE_MESSAGE_EDIT_APPLIED, chat::v2::MESSAGE_KIND_RESPONSE, editApplied));
+    const auto afterEditAck = service.hydrate(conversation);
+    const auto editedMessage = std::find_if(afterEditAck.messages.cbegin(),afterEditAck.messages.cend(),
+        [&](const auto &message){ return message.messageId==pinTarget; });
+    check(editOutcome.type == V2WindowsMessagingApplicationService::OutcomeType::EditApplied
+              && afterEditAck.editCommands.isEmpty() && afterEditAck.cursor == 13
+              && editedMessage != afterEditAck.messages.cend()
+              && editedMessage->text == QStringLiteral("我的 Windows 编辑")
+              && editedMessage->contentRevision == 2,
+          "edit ACK must converge content without advancing history cursor");
     V2LocalMessageRepository::Message rejectedReply;
     check(!service.stageReply(conversation, target.messageId, QStringLiteral("too late"),
                               &rejectedReply),
