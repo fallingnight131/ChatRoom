@@ -151,10 +151,11 @@ pins. Both default-off V2 previews now advertise the capability after completing
 their durable operation outbox, optimistic projection, ACK/history/live repair,
 target cleanup, and accessible-control gates (ADR-0340).
 
-Types 114/115/116 and `MESSAGE_EDITS` define the server-active revision-safe
-text editing wire contract. Supported product clients still keep the capability
-off until their local and UX gates pass. A command carries the target, expected content
-revision, bounded UTF-8 replacement, and stable operation ID. Only a changed
+Types 114/115/116 and `MESSAGE_EDITS` define the active revision-safe text
+editing wire contract inside the default-off V2 preview. Its Web and Windows
+compositions advertise the capability after completing their local durability,
+conflict, reconnect, and accessibility gates. A command carries the target,
+expected content revision, bounded UTF-8 replacement, and stable operation ID. Only a changed
 author-owned V2 message edit increments the revision and consumes a mixed
 conversation sequence; ACKs never advance the client cursor. PostgreSQL and
 Java/C++/TypeScript lock the same bounded command bytes and structural revision
@@ -165,8 +166,9 @@ non-erased edit history details. `next_sequence` may therefore be greater than
 the last visible detail when capability or privacy filtering hides an ordered
 entry; it must never trail a visible detail. The runtime composes PostgreSQL,
 publishes changed edits only to capable subscribers, and exposes only fixed-
-cardinality edit counters. Both clients' explicit offline-conflict gates remain
-required before they advertise the capability (ADR-0341).
+cardinality edit counters. Web IndexedDB and Windows SQLite preserve a separate
+optimistic overlay and exact durable command; explicit rebase rotates operation
+identity only after authoritative history repair (ADR-0341).
 
 `ListConversations` uses a limit of 1..100 and either no cursor or the complete
 pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are

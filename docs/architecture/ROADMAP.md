@@ -1446,7 +1446,7 @@ Progress:
     - [x] Add the Windows SQLite projection and bounded outbox, optimistic
       intent, stable reconnect replay, ACK/history/live convergence, target
       cleanup, accessible Widgets controls, and capability activation.
-- [ ] Deliver revision-safe message editing on V2 Web and Windows.
+- [x] Deliver revision-safe message editing on V2 Web and Windows.
   - [x] Define capability negotiation, permanent type allocation, author/window/
     revision policy, V1 compatibility, ordered mutation semantics, privacy
     cleanup, offline conflict behavior, and staged activation (ADR-0341).
@@ -1470,7 +1470,7 @@ Progress:
     - [x] Compose the PostgreSQL edit port into the runtime, publish changed
       edits only to capable subscribers, add bounded telemetry, and activate
       explicit server negotiation after the full gateway gate passes.
-  - [ ] Add offline-safe Web and Windows edit overlays/outboxes, explicit
+  - [x] Add offline-safe Web and Windows edit overlays/outboxes, explicit
     conflict/rebase UX, edited presentation, accessibility, and activation.
 
 Candidate slices:

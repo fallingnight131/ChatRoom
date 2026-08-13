@@ -673,28 +673,25 @@ bounded operation outbox, stable reconnect replay, optimistic convergence,
 correlated ACKs that do not advance the cursor, ordered history/live repair,
 and checkable accessible Widgets controls. Both ClientHello implementations
 therefore advertise the separate capability (ADR-0340).
-The server-side V2 message-edit slice is now composed end to end behind explicit
-`MESSAGE_EDITS` negotiation: PostgreSQL owns policy, revision and sequence;
-history omits unsupported or privacy-erased details without stalling cursors;
-the gateway binds authenticated identity, returns stable conflicts, routes live
-changes only to capable channels, and emits fixed-cardinality metrics. Web and
-Windows do not advertise the capability until their durable outbox, optimistic
-overlay, conflict/rebase UX, accessibility, and reconnect gates pass
-(ADR-0341).
-The next inactive V2 capability reserves revision-safe text editing. It binds
-author identity from the session, uses database time and a 15-minute window,
-requires an exact expected revision, caps successful revisions at 100, and
-orders only changed edits in the mixed conversation sequence. V1-mapped messages
-remain immutable during compatibility. Clients must persist an optimistic
-overlay separately from authoritative content, never advance cursors from an
-ACK, and expose stale revision conflicts for explicit rebase rather than
-silently overwriting another device (ADR-0341).
-The authoritative schema now allocates types 114--116, capability 3, additive
-message revision metadata, and an edit detail in mixed history. Generated Java,
-C++, and TypeScript bindings share one golden `EditMessage` payload and bounded
-structural policy. The gateway explicitly filters this known capability from
-`ServerHello`, and both clients leave it unadvertised until persistence and UI
-gates complete.
+The default-off V2 preview now composes revision-safe message editing end to end
+behind explicit `MESSAGE_EDITS` negotiation. PostgreSQL owns policy, revision,
+database time and sequence; only changed edits consume a mixed conversation
+sequence, the fixed window is 15 minutes, and one message is capped at 100
+successful revisions. History omits unsupported or privacy-erased details
+without stalling cursors. The gateway binds authenticated identity, returns
+stable conflicts, routes live changes only to capable channels, and emits
+fixed-cardinality metrics. V1-mapped messages remain immutable during
+compatibility (ADR-0341).
+
+Web IndexedDB and Windows SQLite now keep the authoritative body separate from
+a bounded optimistic edit outbox, replay the exact operation after reconnect,
+and never advance a cursor from an ACK. A stale revision preserves the proposed
+text and requires explicit rebase or discard after history repair. Both clients
+render an edited marker and accessible author-only edit/conflict controls, so
+their V2 preview compositions advertise capability 3. Types 114--116, additive
+message revision metadata, and mixed-history edit detail remain locked across
+generated Java, C++, and TypeScript bindings. This activates the capability only
+inside the opt-in V2 preview; it does not cut supported V1 product traffic over.
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
 single-gateway router now establishes one active subscription only through the

@@ -114,6 +114,14 @@ back only to a version that can filter edit entries while preserving sequence
 cursors and project current message bodies. Applied migrations are never edited
 or removed; incompatible rollback requires restore or a reviewed forward fix.
 
+## Implementation Status
+
+As of 2026-08-13, PostgreSQL, gateway history/live routing, Web IndexedDB,
+Windows SQLite, reconnect replay, optimistic overlays, explicit conflict/rebase
+UX, and accessibility gates have passed. The Web and Windows V2 preview
+compositions therefore advertise `MESSAGE_EDITS`; V1 product traffic remains
+unchanged behind the existing preview/cutover boundary.
+
 ## Verification
 
 Require Java/C++/TypeScript golden-wire tests; clean/restart/checksum PostgreSQL

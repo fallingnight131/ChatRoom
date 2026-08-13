@@ -532,16 +532,18 @@ authorizes the active author/device, excludes V1-mapped, recalled, deleted, and
 non-text targets, and uses database time for the fixed 15-minute window. Exact
 concurrent retries converge through the digest-bound operation row; stale,
 expired, and revision-limit outcomes are durable, while changed edits alone
-update the current body and consume one mixed sequence. The gateway still does
-not advertise or invoke message editing; authenticated gateway composition and
-capability filtering are the next expansion step.
+update the current body and consume one mixed sequence. The authenticated
+gateway now composes this port behind explicit `MESSAGE_EDITS` negotiation,
+filters history detail for unsupported peers, and publishes changed edits only
+to capable live subscribers. The capability is active only in the opt-in V2
+preview; supported V1 product traffic is unchanged.
 
 The message history adapter projects the current revision and edited timestamp
 on ordinary message records and emits ordered edit entries from the same mixed
 sequence. Privacy-erased events remain explicit bodyless application entries so
 the cursor can advance; a capable transport must omit their detail rather than
-serialize empty text. Capability negotiation and that transport filter remain
-off until the gateway slice is complete.
+serialize empty text. Both gateway negotiation and the transport filter are
+covered by the completed message-edit vertical-slice gates.
 
 ## Bounds and indexes
 

@@ -39,6 +39,10 @@ V2 conversation snapshots use the isolated `chat-room-client-v2` IndexedDB
 database. The only LocalStorage value is `chat.v2.device-id`, a random non-secret
 UUID used as a stable device hint. Login credentials and rotated session-resume
 proofs remain in memory. Storage denial falls back to a page-lifetime UUID.
+Message edits use a bounded durable command outbox in the same account-scoped
+database while keeping authoritative content separate from the optimistic
+draft. Reconnect replays the exact operation; a revision conflict preserves the
+draft until the user explicitly rebases or discards it.
 
 ## Verification and Rollback
 

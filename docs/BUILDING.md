@@ -1272,13 +1272,14 @@ pin history-detail identity, and duplicate/unknown capability rejection. Web
 and Windows now advertise `MESSAGE_PINS`: each has completed its isolated
 durable projection, bounded operation outbox, reconnect replay, ACK/history/live
 convergence, target cleanup, and accessible-control gate (ADR-0340).
-Types 114/115/116 reserve the runtime-inactive message-edit command, response,
-and ordered event plus additive message revision metadata. Java, TypeScript,
-and C++ lock the same `EditMessage` bytes and Java validates canonical IDs,
-bounded UTF-8, operation identity, revision limits, changed-only sequencing,
-message metadata, and mixed-history detail identity. The handshake recognizes
-the capability enum but deliberately omits it from `ServerHello`; Web and
-Windows do not advertise it before their complete edit slices (ADR-0341).
+Types 114/115/116 define the active message-edit command, response, and ordered
+event inside the default-off V2 preview, plus additive message revision
+metadata. Java, TypeScript, and C++ lock the same `EditMessage` bytes and Java
+validates canonical IDs, bounded UTF-8, operation identity, revision limits,
+changed-only sequencing, message metadata, and mixed-history detail identity.
+The gateway and completed Web/Windows preview compositions now negotiate the
+capability only after their durability, reconnect, conflict, UI, and
+accessibility gates pass (ADR-0341).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live
@@ -1306,7 +1307,11 @@ idempotent acknowledgement, history convergence, and cursor monotonicity. Its
 independent pin projection/outbox additionally verifies optimistic desired
 state, failed retry, ACK-without-cursor-advance, ordered live convergence, and
 account isolation. The completed application/UI slices now permit the Windows
-handshake to advertise both reaction and pin capabilities.
+handshake to advertise reaction, pin, and edit capabilities. Schema 5 adds a
+separate bounded edit-command outbox and message revision metadata; tests cover
+authoritative-content separation, exact reconnect replay, ACK cursor isolation,
+history/live convergence, permanent conflict, explicit rebase with a new
+operation ID, and discard.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable
@@ -1321,7 +1326,8 @@ directory selection, and Widgets composition (ADR-0333–0338).
 through qmake and CMake: cached-first projection, newline-safe quote previews,
 reply selection and cancellation focus intent, failed-send retry eligibility,
 explicit recalled/unavailable target labels, and pin state/failure/action
-projection. The ViewModel has no socket or
+projection, and author-only edit overlays with pending, failed, and conflict
+actions. The ViewModel has no socket or
 SQL queries; the Windows product now composes it behind the runtime boundary.
 `V2WindowsMessagingPanelTest` runs the reusable Widgets panel with the Qt
 offscreen platform. It checks accessible names, keyboard-native reply/cancel/send
@@ -1329,7 +1335,9 @@ controls, composer enablement and focus flow. Six checkable reaction controls
 expose aggregate counts, caller state, pending disablement, accessible names,
 and explicit retry while a separate checkable pin control exposes shared state,
 pending disablement, accessible names, and failed-operation retry; the ViewModel
-retains no SQL or socket access. The
+retains no SQL or socket access. Edit controls use an accessible native dialog,
+show the edited marker and retained draft state, and expose explicit retry,
+rebase, and discard actions. The
 canonical Windows CMake
 product compiles it behind the default-off V2 gate; the qmake rollback remains
 V1-only. `V2WindowsConversationDialogTest` verifies accessible directory and
