@@ -22,6 +22,13 @@ reconnect storms, slow consumers, Redis, cross-gateway routing, broker delivery,
 and dependency failure remain separate scenarios. Do not infer their behavior
 from this persistence result.
 
+The disposable PostgreSQL verification now also carries a real-network
+correctness gate: `GatewayRuntimePostgresIntegrationTest` starts the production
+TLS gateway and completes Windows-endpoint `chat.v2` negotiation, password
+authentication, message submission, `MESSAGE_ACCEPTED`, and database
+reconciliation through a JDK WebSocket client. This proves the path before it is
+timed; it is not yet a load measurement.
+
 ## Run
 
 Install PostgreSQL binaries and Java 21, then execute:

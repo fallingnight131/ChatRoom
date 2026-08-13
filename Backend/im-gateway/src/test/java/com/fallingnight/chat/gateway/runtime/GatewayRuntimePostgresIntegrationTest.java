@@ -2,6 +2,8 @@ package com.fallingnight.chat.gateway.runtime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -44,6 +46,18 @@ import com.fallingnight.chat.gateway.compatibility.v1.V1UserSearchEventSink;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionControl;
 import com.fallingnight.chat.gateway.transport.AuthenticationEventSink;
 import com.fallingnight.chat.persistence.postgres.PostgresMigrator;
+import com.fallingnight.chat.protocol.v2.Authenticate;
+import com.fallingnight.chat.protocol.v2.ClientHello;
+import com.fallingnight.chat.protocol.v2.ClientPlatform;
+import com.fallingnight.chat.protocol.v2.Envelope;
+import com.fallingnight.chat.protocol.v2.EnvelopePolicy;
+import com.fallingnight.chat.protocol.v2.MessageAccepted;
+import com.fallingnight.chat.protocol.v2.MessageContentType;
+import com.fallingnight.chat.protocol.v2.MessageKind;
+import com.fallingnight.chat.protocol.v2.MessageType;
+import com.fallingnight.chat.protocol.v2.SessionEstablished;
+import com.fallingnight.chat.protocol.v2.SubmitMessage;
+import com.google.protobuf.ByteString;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -51,11 +65,16 @@ import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.EmptyHttpHeaders;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
+import java.io.ByteArrayOutputStream;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.WebSocket;
+import java.nio.ByteBuffer;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -69,7 +88,15 @@ import java.util.HashMap;
 import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
@@ -133,6 +160,88 @@ class GatewayRuntimePostgresIntegrationTest {
                 runtime.close();
                 assertFalse(runtime.isReady());
             }
+            certificate.delete();
+        }
+    }
+
+    @Test
+    void submitsAndAcknowledgesMessageThroughRealTlsWebSocket() throws Exception {
+        String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
+        String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
+        String password = System.getenv().getOrDefault("CHATROOM_TEST_POSTGRES_PASSWORD", "");
+        Assumptions.assumeTrue(jdbcUrl != null && !jdbcUrl.isBlank());
+        Assumptions.assumeTrue(username != null && !username.isBlank());
+        new PostgresMigrator(jdbcUrl, username, password).migrate();
+
+        UUID accountId = UUID.randomUUID();
+        UUID conversationId = UUID.randomUUID();
+        String login = "wss-" + accountId;
+        seedV2NetworkAccount(jdbcUrl, username, password, accountId, conversationId, login);
+
+        int gatewayPort = availablePort();
+        int adminPort = availablePort();
+        SelfSignedCertificate certificate = new SelfSignedCertificate("localhost");
+        GatewayRuntime runtime = null;
+        WebSocket socket = null;
+        try {
+            Map<String, String> environment = new HashMap<>();
+            environment.put("CHATROOM_GATEWAY_PORT", Integer.toString(gatewayPort));
+            environment.put("CHATROOM_GATEWAY_ADMIN_PORT", Integer.toString(adminPort));
+            environment.put("CHATROOM_GATEWAY_TLS_CERTIFICATE",
+                    certificate.certificate().getAbsolutePath());
+            environment.put("CHATROOM_GATEWAY_TLS_PRIVATE_KEY",
+                    certificate.privateKey().getAbsolutePath());
+            environment.put("CHATROOM_GATEWAY_ALLOWED_HOSTS", "localhost:" + gatewayPort);
+            environment.put("CHATROOM_GATEWAY_WEB_ORIGINS", "https://chat.example.com");
+            environment.put("CHATROOM_POSTGRES_URL", jdbcUrl);
+            environment.put("CHATROOM_POSTGRES_USER", username);
+            environment.put("CHATROOM_POSTGRES_PASSWORD", "test-trust-password");
+            environment.put("CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", "true");
+            environment.put("CHATROOM_POSTGRES_POOL_MAXIMUM", "4");
+            environment.put("CHATROOM_POSTGRES_POOL_MINIMUM_IDLE", "1");
+
+            runtime = GatewayRuntime.create(GatewayRuntimeConfig.fromEnvironment(environment));
+            runtime.start();
+            BinaryEnvelopeListener listener = new BinaryEnvelopeListener();
+            socket = HttpClient.newBuilder()
+                    .sslContext(trustAllTls())
+                    .connectTimeout(Duration.ofSeconds(2))
+                    .build()
+                    .newWebSocketBuilder()
+                    .subprotocols("chat.v2")
+                    .connectTimeout(Duration.ofSeconds(2))
+                    .buildAsync(URI.create(
+                            "wss://localhost:" + gatewayPort + "/v2/windows"), listener)
+                    .get(3, TimeUnit.SECONDS);
+
+            socket.sendBinary(ByteBuffer.wrap(clientHello().toByteArray()), true).join();
+            Envelope serverHello = listener.next();
+            assertEquals(MessageType.MESSAGE_TYPE_SERVER_HELLO_VALUE,
+                    serverHello.getMessageType());
+
+            socket.sendBinary(ByteBuffer.wrap(authenticate(login).toByteArray()), true).join();
+            Envelope sessionEnvelope = listener.next();
+            assertEquals(MessageType.MESSAGE_TYPE_SESSION_ESTABLISHED_VALUE,
+                    sessionEnvelope.getMessageType());
+            SessionEstablished session = SessionEstablished.parseFrom(
+                    sessionEnvelope.getPayload());
+            assertEquals(accountId.toString(), session.getAccountId());
+
+            socket.sendBinary(ByteBuffer.wrap(submit(
+                    session.getSessionId(), conversationId).toByteArray()), true).join();
+            Envelope acceptedEnvelope = listener.next();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED_VALUE,
+                    acceptedEnvelope.getMessageType());
+            MessageAccepted accepted = MessageAccepted.parseFrom(acceptedEnvelope.getPayload());
+            assertEquals(conversationId.toString(), accepted.getConversationId());
+            assertEquals(1, accepted.getConversationSequence());
+            assertFalse(accepted.getDuplicate());
+            assertEquals(1, countQuery(jdbcUrl, username, password,
+                    "SELECT count(*) FROM chat.message WHERE conversation_id = '"
+                            + conversationId + "' AND client_message_id = 'network-message-1'"));
+        } finally {
+            if (socket != null) socket.abort();
+            if (runtime != null) runtime.close();
             certificate.delete();
         }
     }
@@ -2483,6 +2592,129 @@ class GatewayRuntimePostgresIntegrationTest {
                 ResultSet result = statement.executeQuery(sql)) {
             assertTrue(result.next());
             return result.getInt(1);
+        }
+    }
+
+    private static void seedV2NetworkAccount(
+            String url, String user, String password, UUID accountId,
+            UUID conversationId, String login) throws Exception {
+        try (Connection connection = DriverManager.getConnection(url, user, password)) {
+            connection.setAutoCommit(false);
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, ?, 'Network Test', ?)",
+                    accountId, login, HASH);
+            execute(connection,
+                    "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')",
+                    conversationId);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id) "
+                            + "VALUES (?, ?)",
+                    conversationId, accountId);
+            connection.commit();
+        }
+    }
+
+    private static Envelope clientHello() {
+        ClientHello payload = ClientHello.newBuilder()
+                .setMinimumProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
+                .setMaximumProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
+                .setPlatform(ClientPlatform.CLIENT_PLATFORM_WINDOWS)
+                .setAppVersion("integration-test")
+                .setClientDeviceId("network-device-1")
+                .build();
+        return command(MessageType.MESSAGE_TYPE_CLIENT_HELLO, "hello-1", "", "",
+                payload.toByteString());
+    }
+
+    private static Envelope authenticate(String login) {
+        Authenticate payload = Authenticate.newBuilder()
+                .setUsername(login)
+                .setPasswordUtf8(ByteString.copyFromUtf8("java-v2-test-password"))
+                .build();
+        return command(MessageType.MESSAGE_TYPE_AUTHENTICATE, "auth-1", "", "",
+                payload.toByteString());
+    }
+
+    private static Envelope submit(String sessionId, UUID conversationId) {
+        SubmitMessage payload = SubmitMessage.newBuilder()
+                .setConversationId(conversationId.toString())
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
+                .setContent(ByteString.copyFromUtf8("network integration message"))
+                .build();
+        return command(MessageType.MESSAGE_TYPE_SUBMIT_MESSAGE, "submit-1", sessionId,
+                "network-message-1", payload.toByteString());
+    }
+
+    private static Envelope command(
+            MessageType type, String requestId, String sessionId,
+            String clientMessageId, ByteString payload) {
+        return Envelope.newBuilder()
+                .setProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
+                .setKind(MessageKind.MESSAGE_KIND_COMMAND)
+                .setMessageType(type.getNumber())
+                .setRequestId(requestId)
+                .setSessionId(sessionId)
+                .setClientMessageId(clientMessageId)
+                .setSentAtEpochMs(System.currentTimeMillis())
+                .setPayload(payload)
+                .build();
+    }
+
+    private static SSLContext trustAllTls() throws Exception {
+        TrustManager[] trustManagers = {new X509TrustManager() {
+            @Override public X509Certificate[] getAcceptedIssuers() {
+                return new X509Certificate[0];
+            }
+            @Override public void checkClientTrusted(
+                    X509Certificate[] chain, String authenticationType) {
+            }
+            @Override public void checkServerTrusted(
+                    X509Certificate[] chain, String authenticationType) {
+            }
+        }};
+        SSLContext context = SSLContext.getInstance("TLS");
+        context.init(null, trustManagers, new SecureRandom());
+        return context;
+    }
+
+    private static final class BinaryEnvelopeListener implements WebSocket.Listener {
+        private final BlockingQueue<Envelope> envelopes = new LinkedBlockingQueue<>();
+        private final AtomicReference<Throwable> failure = new AtomicReference<>();
+        private final ByteArrayOutputStream fragments = new ByteArrayOutputStream();
+
+        @Override public void onOpen(WebSocket webSocket) {
+            webSocket.request(1);
+        }
+
+        @Override public synchronized CompletionStage<?> onBinary(
+                WebSocket webSocket, ByteBuffer data, boolean last) {
+            byte[] bytes = new byte[data.remaining()];
+            data.get(bytes);
+            fragments.write(bytes, 0, bytes.length);
+            if (last) {
+                try {
+                    envelopes.add(Envelope.parseFrom(fragments.toByteArray()));
+                } catch (Exception exception) {
+                    failure.compareAndSet(null, exception);
+                } finally {
+                    fragments.reset();
+                }
+            }
+            webSocket.request(1);
+            return null;
+        }
+
+        @Override public void onError(WebSocket webSocket, Throwable error) {
+            failure.compareAndSet(null, error);
+        }
+
+        private Envelope next() throws Exception {
+            Envelope envelope = envelopes.poll(5, TimeUnit.SECONDS);
+            Throwable error = failure.get();
+            if (error != null) throw new AssertionError("WebSocket listener failed", error);
+            assertNotNull(envelope, "timed out waiting for a V2 envelope");
+            return assertInstanceOf(Envelope.class, envelope);
         }
     }
 
