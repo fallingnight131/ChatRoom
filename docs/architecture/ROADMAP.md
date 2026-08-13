@@ -1649,8 +1649,10 @@ Progress:
 - [x] Upgrade new reconnect evidence to schema version 3 and sample PostgreSQL
   pool availability, active/total connections, and waiting threads in the same
   target five-millisecond window as authentication saturation. Historical
-  schemas remain valid; a clean schema-3 baseline and wider resource signals
-  remain pending (ADR-0388).
+  schemas remain valid. The clean baseline at `b46768e5...` completed 12/12
+  resumes with 68 shared samples, authentication active/queue peaks 3/0, and
+  PostgreSQL active/total/waiting peaks 1/3/1 against a four-connection maximum.
+  Wider resource signals and a saturation knee remain pending (ADR-0388).
 
 Work:
 

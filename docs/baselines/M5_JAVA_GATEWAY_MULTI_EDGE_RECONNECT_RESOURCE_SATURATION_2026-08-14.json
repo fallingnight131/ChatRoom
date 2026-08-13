@@ -1,0 +1,74 @@
+{
+  "benchmark": "java-v2-haproxy-multi-edge-reconnect",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 536870912,
+    "os": "Mac OS X"
+  },
+  "host": {
+    "haproxyImage": "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "pythonVersion": "3.9.6"
+  },
+  "recordedAt": "2026-08-13T23:41:16.598875Z",
+  "results": {
+    "authenticationSaturation": {
+      "activeWorkersMaximum": 3,
+      "queuedWorkMaximum": 0,
+      "sampleIntervalMillis": 5,
+      "samples": 68
+    },
+    "elapsedMillis": 332.365,
+    "postgresPoolSaturation": {
+      "activeConnectionsMaximum": 1,
+      "configuredMaximumConnections": 4,
+      "metricsUnavailableSamples": 0,
+      "sampleIntervalMillis": 5,
+      "samples": 68,
+      "threadsAwaitingConnectionMaximum": 1,
+      "totalConnectionsMaximum": 3
+    },
+    "reconnectAttempts": 12,
+    "reconnectErrors": 0,
+    "reconnectSuccesses": 12,
+    "reconnectThroughputPerSecond": 36.105,
+    "scheduledStartJitterMicros": {
+      "max": 9331,
+      "mean": 5012.75,
+      "min": 21,
+      "p50": 5123,
+      "p95": 9331,
+      "p99": 9331,
+      "samples": 12
+    },
+    "secondaryGatewayAuthenticationAfter": 18,
+    "secondaryGatewayAuthenticationBefore": 6,
+    "sessionResumeLatencyMicros": {
+      "max": 29216,
+      "mean": 23629.333,
+      "min": 16235,
+      "p50": 23276,
+      "p95": 29216,
+      "p99": 29216,
+      "samples": 12
+    }
+  },
+  "scenario": {
+    "connections": 18,
+    "edgeProcesses": 2,
+    "failedEdgeConnections": 12,
+    "gatewayProcesses": 2,
+    "primaryEdgeKilled": true,
+    "reconnectBatchIntervalMillis": 100,
+    "reconnectBatchSize": 3,
+    "reconnectBatches": 4,
+    "scheduledReconnectSpanMillis": 300,
+    "survivingEdgeConnections": 6
+  },
+  "schemaVersion": 3,
+  "sourceRevision": "b46768e5894d381cb2fc9138e639223bee58579b",
+  "warning": "local dual-edge recovery evidence; not a production capacity claim",
+  "worktreeDirty": false
+}

@@ -1234,6 +1234,10 @@ ADR-0388 incorporates those gauges into the same reconnect-window snapshots as
 authentication saturation. Schema version 3 binds pool availability, active,
 total, waiting-thread, and configured-maximum observations to one target
 five-millisecond cadence while retaining schema versions 1 and 2 as history.
+The first clean schema version 3 result at `b46768e5...` observed 68 shared
+samples, authentication active/queue peaks 3/0, and PostgreSQL
+active/total/waiting peaks 1/3/1 while all 12 sessions resumed. The observed
+waiter is diagnostic, not a production pool-sizing conclusion.
 
 ## 10. Attachment Flow
 
