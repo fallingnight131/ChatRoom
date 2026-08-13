@@ -1327,6 +1327,9 @@ Progress:
     disconnect ambiguity recovery, server-projection validation,
     current-device protection, and explicit destructive confirmation. The
     generated-C++ V2 WSS transport adapter and product composition remain.
+  - [x] Publish reviewed Windows C++ V2 bindings from the authoritative Proto
+    task, fail regeneration on stale committed bytes, and compile that exact
+    tree in the pinned three-language golden gate (ADR-0322).
   - [ ] Add the supported Windows device-management application/UI path; Web is
     implemented behind the existing V2 preview/cutover gate.
 

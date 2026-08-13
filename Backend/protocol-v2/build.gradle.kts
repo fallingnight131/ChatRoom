@@ -52,6 +52,9 @@ abstract class GenerateClientBindings : DefaultTask() {
     @get:OutputDirectory
     abstract val webOutputDirectory: DirectoryProperty
 
+    @get:OutputDirectory
+    abstract val windowsCppOutputDirectory: DirectoryProperty
+
     @get:Inject
     abstract val execOperations: ExecOperations
 
@@ -88,6 +91,13 @@ abstract class GenerateClientBindings : DefaultTask() {
         webOutput.walkTopDown()
             .filter { it.isFile && it.extension == "ts" }
             .forEach { file -> file.writeText(file.readText().trimEnd() + "\n") }
+        val generatedCpp = output.resolve("cpp/chat/v2")
+        require(generatedCpp.isDirectory) { "generated Windows C++ V2 bindings are missing" }
+        val windowsCppOutput = windowsCppOutputDirectory.get().asFile
+        windowsCppOutput.deleteRecursively()
+        require(generatedCpp.copyRecursively(windowsCppOutput, overwrite = true)) {
+            "could not publish generated Windows C++ V2 bindings"
+        }
     }
 }
 
@@ -101,4 +111,6 @@ tasks.register<GenerateClientBindings>("generateClientBindings") {
     outputDirectory.set(layout.projectDirectory.dir("typescript/generated"))
     webOutputDirectory.set(layout.projectDirectory.dir(
         "../../WebClient/src/protocol/v2/generated"))
+    windowsCppOutputDirectory.set(layout.projectDirectory.dir(
+        "../../Client/protocol/v2/generated/chat/v2"))
 }

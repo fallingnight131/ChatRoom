@@ -60,9 +60,14 @@ def verify_protocol_bindings(skip_install: bool) -> None:
     typescript = backend / "protocol-v2" / "typescript"
     wrapper = backend / ("gradlew.bat" if os.name == "nt" else "gradlew")
     web_generated = ROOT / "WebClient" / "src" / "protocol" / "v2" / "generated"
+    windows_cpp_generated = ROOT / "Client" / "protocol" / "v2" / "generated" / "chat" / "v2"
     web_before = {
         path.name: path.read_bytes()
         for path in sorted(web_generated.glob("*_pb.ts"))
+    }
+    windows_cpp_before = {
+        path.name: path.read_bytes()
+        for path in sorted(windows_cpp_generated.glob("*.pb.*"))
     }
     if not skip_install:
         run([npm, "ci"], typescript)
@@ -102,6 +107,13 @@ def verify_protocol_bindings(skip_install: bool) -> None:
     if not web_after or web_before != web_after:
         raise RuntimeError(
             "committed Web V2 bindings are stale; regenerate and commit them")
+    windows_cpp_after = {
+        path.name: path.read_bytes()
+        for path in sorted(windows_cpp_generated.glob("*.pb.*"))
+    }
+    if not windows_cpp_after or windows_cpp_before != windows_cpp_after:
+        raise RuntimeError(
+            "committed Windows C++ V2 bindings are stale; regenerate and commit them")
     run([npm, "test"], typescript)
     cmake = command_path("cmake")
     ctest = command_path("ctest")

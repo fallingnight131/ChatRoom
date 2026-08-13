@@ -1215,10 +1215,12 @@ types 100..104 and content type 1 (bounded nonempty UTF-8 text). Type 104 is the
 uncorrelated authenticated live `MessageRecord` event. It verifies the
 fixed `SubmitMessage` golden payload in Java, generated TypeScript, and generated
 C++. It also locks the V2 conversation-directory composite cursor across all
-three generated bindings. The generation task also publishes reviewed TypeScript
-into `WebClient/src/protocol/v2/generated`; the gate snapshots those committed
-files and fails if regeneration changes them. Do not edit generated Web files
-manually. Gateway tests separately verify authenticated server-bound identity,
+three generated bindings. The generation task also publishes reviewed
+TypeScript into `WebClient/src/protocol/v2/generated` and reviewed Windows C++
+into `Client/protocol/v2/generated/chat/v2`. The gate snapshots both committed
+trees, regenerates, and fails if either changes. Do not edit generated client
+files manually. The C++ golden test compiles the committed Windows tree rather
+than an ignored temporary copy. Gateway tests separately verify authenticated server-bound identity,
 off-event-loop submit/history dispatch, per-connection ordering, safe denial,
 bounded saturation behavior, and isolation from the authentication worker pool.
 They also verify that final authorized history establishes a process-local active

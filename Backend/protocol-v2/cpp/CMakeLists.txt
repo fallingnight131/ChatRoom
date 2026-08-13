@@ -30,7 +30,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(protobuf)
 
-set(GENERATED_ROOT "${CMAKE_CURRENT_LIST_DIR}/../typescript/generated/cpp")
+set(GENERATED_ROOT "${CMAKE_CURRENT_LIST_DIR}/../../../Client/protocol/v2/generated")
 
 add_executable(
   v2_cpp_envelope_test
