@@ -1328,6 +1328,11 @@ and retain the validated set in optimistic records and edit commands. Retry and
 reconnect dispatch forward those same stable spans through the WebSocket
 transport. Capability 4 remains disabled until the picker and rendering gate
 passes (ADR-0342/ADR-0343).
+The framework-independent Web mention composer converts between editor UTF-16
+positions and protocol UTF-8 bytes, shifts spans after non-overlapping edits,
+invalidates a span when its visible token is edited, restores anchors from
+stored spans, and segments rendering without deriving identity from display
+text. Unicode-focused unit tests lock these rules (ADR-0342).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live

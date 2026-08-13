@@ -1525,6 +1525,9 @@ Progress:
     - [x] Thread validated structured mention spans through Web optimistic send,
       reply, edit, persistence/replay, and WebSocket dispatch without activating
       capability 4 or exposing unfinished composition UI.
+    - [x] Add a framework-independent Web mention composer model for Unicode
+      insertion, edit reconciliation, UTF-8 serialization, stored-span restore,
+      and identity-preserving render segmentation.
     - [ ] Persist Web mention metadata with authoritative messages and pending
       submission/edit workflows, then add composition, rendering,
       accessibility, reconnect convergence, and Web capability activation.
