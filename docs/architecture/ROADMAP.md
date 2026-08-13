@@ -764,6 +764,10 @@ Progress:
       authenticated targets, bounded off-loop reads, compatibility-only Base64,
       fixed-cardinality telemetry, and fail-closed storage-integrity handling.
       Keep them uncomposed until the real-provider capability gate passes.
+    - [x] Add inactive mutation orchestration that authorizes before image work,
+      canonicalizes owned V1 bytes, requires exact content-addressed object
+      evidence before pointer commit, and durably requests orphan cleanup when a
+      newly created object cannot be committed.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
