@@ -16,6 +16,9 @@ import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
 import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.application.messaging.MessageSubmissionResult;
+import com.fallingnight.chat.application.messaging.MessageForwardCommand;
+import com.fallingnight.chat.application.messaging.MessageForwardResult;
+import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.application.security.SecretBytes;
 import com.fallingnight.chat.protocol.v2.Authenticate;
 import com.fallingnight.chat.protocol.v2.ClientCapability;
@@ -25,6 +28,8 @@ import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.ListConversationParticipants;
 import com.fallingnight.chat.protocol.v2.MessageKind;
 import com.fallingnight.chat.protocol.v2.MessageType;
+import com.fallingnight.chat.protocol.v2.ForwardMessage;
+import com.fallingnight.chat.protocol.v2.MessageAccepted;
 import com.google.protobuf.ByteString;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -34,6 +39,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class V2ApplicationPipelineTest {
@@ -106,6 +112,9 @@ class V2ApplicationPipelineTest {
     void routesNegotiatedAuthenticatedParticipantQueryThroughProductPipeline() throws Exception {
         SecretBytes resumeToken = SecretBytes.copyOf(new byte[32]);
         EmbeddedChannel channel = new EmbeddedChannel();
+        AtomicReference<MessageForwardCommand> forwarded = new AtomicReference<>();
+        UUID sourceMessage = UUID.fromString("50000000-0000-4000-8000-000000000005");
+        UUID targetConversation = UUID.fromString("60000000-0000-4000-8000-000000000006");
         try {
             V2ApplicationPipeline.install(
                     channel.pipeline(),
@@ -127,6 +136,15 @@ class V2ApplicationPipelineTest {
                             .MessageReactionResult.Rejected.NOT_AUTHORIZED,
                     command -> MessagePinResult.Rejected.NOT_AUTHORIZED,
                     command -> MessageEditResult.Rejected.NOT_AUTHORIZED,
+                    command -> {
+                        forwarded.set(command);
+                        return new MessageForwardResult.Accepted(new StoredMessage(
+                                UUID.fromString("70000000-0000-4000-8000-000000000007"),
+                                targetConversation, 1, ACCOUNT, DEVICE,
+                                command.clientMessageId(), 1, ByteString.copyFromUtf8("copied")
+                                        .toByteArray(), Instant.parse("2026-08-13T13:01:00Z"),
+                                Optional.empty(), 0, Optional.empty(), List.of(), true), false);
+                    },
                     rejectingDevices(),
                     Runnable::run,
                     Runnable::run,
@@ -172,6 +190,21 @@ class V2ApplicationPipelineTest {
             assertEquals(CONVERSATION.toString(), page.getConversationId());
             assertEquals(ACCOUNT.toString(), page.getParticipants(0).getAccountId());
             assertEquals("Alice", page.getParticipants(0).getDisplayName());
+
+            channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(java.util.Set.of(
+                    ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS,
+                    ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING));
+            write(channel, envelope("forward", MessageType.MESSAGE_TYPE_FORWARD_MESSAGE,
+                    ForwardMessage.newBuilder()
+                            .setSourceConversationId(CONVERSATION.toString())
+                            .setSourceMessageId(sourceMessage.toString())
+                            .setTargetConversationId(targetConversation.toString())
+                            .build().toByteString(), SESSION.toString()).toBuilder()
+                    .setClientMessageId("forward-pipeline-1").build());
+            MessageAccepted accepted = MessageAccepted.parseFrom(read(channel).getPayload());
+            assertEquals(targetConversation.toString(), accepted.getConversationId());
+            assertEquals(ACCOUNT, forwarded.get().actorAccountId());
+            assertEquals(DEVICE, forwarded.get().actorDeviceId());
         } finally {
             channel.finishAndReleaseAll();
         }

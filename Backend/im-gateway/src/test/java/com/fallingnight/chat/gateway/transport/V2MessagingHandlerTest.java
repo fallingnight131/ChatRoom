@@ -26,6 +26,8 @@ import com.fallingnight.chat.application.messaging.MessagePinCommand;
 import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.application.messaging.MessageEditCommand;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
+import com.fallingnight.chat.application.messaging.MessageForwardCommand;
+import com.fallingnight.chat.application.messaging.MessageForwardResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.ClientCapability;
@@ -50,6 +52,7 @@ import com.fallingnight.chat.protocol.v2.MessagePinApplied;
 import com.fallingnight.chat.protocol.v2.MessagePinChangedRecord;
 import com.fallingnight.chat.protocol.v2.EditMessage;
 import com.fallingnight.chat.protocol.v2.MessageEditApplied;
+import com.fallingnight.chat.protocol.v2.ForwardMessage;
 import com.google.protobuf.ByteString;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.time.Clock;
@@ -154,6 +157,84 @@ class V2MessagingHandlerTest {
             assertEquals(Optional.of(target), captured.get().replyToMessageId());
             assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED_VALUE,
                     ((Envelope) channel.readOutbound()).getMessageType());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void forwardsOnlyWithCapabilityAndBindsAuthenticatedActor() throws Exception {
+        UUID sourceConversation = UUID.fromString("70000000-0000-4000-8000-000000000007");
+        UUID targetConversation = UUID.fromString("80000000-0000-4000-8000-000000000008");
+        AtomicReference<MessageForwardCommand> captured = new AtomicReference<>();
+        EmbeddedChannel channel = new EmbeddedChannel(new V2MessagingHandler(
+                submission -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                query -> MessageHistoryResult.Rejected.NOT_AUTHORIZED,
+                query -> new ConversationDirectoryPage(List.of(), Optional.empty(), false),
+                command -> MessageReactionResult.Rejected.NOT_AUTHORIZED,
+                command -> MessagePinResult.Rejected.NOT_AUTHORIZED,
+                command -> MessageEditResult.Rejected.NOT_AUTHORIZED,
+                command -> {
+                    captured.set(command);
+                    return new MessageForwardResult.Accepted(new StoredMessage(
+                            MESSAGE_ID, targetConversation, 7, ACCOUNT_ID, DEVICE_ID,
+                            command.clientMessageId(), 1,
+                            "server truth".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                            ACCEPTED_AT, Optional.empty(), 0, Optional.empty(), List.of(), true),
+                            false);
+                }, Runnable::run, MessagingEventSink.noop(), ConversationLiveRouter.noop()));
+        channel.attr(V2ConnectionAttributes.AUTHENTICATED).set(
+                new AuthenticatedConnection(ACCOUNT_ID, DEVICE_ID, SESSION_ID));
+        try {
+            Envelope request = forwardEnvelope(
+                    "forward-1", sourceConversation, MESSAGE_ID, 3, targetConversation);
+            channel.writeInbound(request);
+            assertError(channel,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_UNSUPPORTED_MESSAGE_TYPE, false);
+            assertNull(captured.get());
+
+            channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(Set.of(
+                    ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING));
+            channel.writeInbound(request);
+            channel.runPendingTasks();
+            assertEquals(ACCOUNT_ID, captured.get().actorAccountId());
+            assertEquals(DEVICE_ID, captured.get().actorDeviceId());
+            assertEquals(sourceConversation, captured.get().sourceConversationId());
+            assertEquals(targetConversation, captured.get().targetConversationId());
+            assertEquals(3, captured.get().expectedSourceContentRevision());
+            MessageAccepted accepted = MessageAccepted.parseFrom(
+                    ((Envelope) channel.readOutbound()).getPayload());
+            assertEquals(targetConversation.toString(), accepted.getConversationId());
+            assertEquals(7, accepted.getConversationSequence());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    void filtersForwardMarkerFromHistoryWithoutCapability() throws Exception {
+        StoredMessage forwarded = new StoredMessage(
+                MESSAGE_ID, CONVERSATION_ID, 1, ACCOUNT_ID, DEVICE_ID, "forwarded-1", 1,
+                "copied".getBytes(java.nio.charset.StandardCharsets.UTF_8), ACCEPTED_AT,
+                Optional.empty(), 0, Optional.empty(), List.of(), true);
+        EmbeddedChannel channel = channel(
+                submission -> MessageSubmissionResult.Rejected.NOT_AUTHORIZED,
+                query -> new MessageHistoryResult.Page(List.of(forwarded), 1, 1, false),
+                Runnable::run);
+        try {
+            channel.writeInbound(historyEnvelope(0, 10));
+            channel.runPendingTasks();
+            MessageHistoryPage legacy = MessageHistoryPage.parseFrom(
+                    ((Envelope) channel.readOutbound()).getPayload());
+            assertFalse(legacy.getMessages(0).getForwarded());
+
+            channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(Set.of(
+                    ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING));
+            channel.writeInbound(historyEnvelope(0, 10));
+            channel.runPendingTasks();
+            MessageHistoryPage capable = MessageHistoryPage.parseFrom(
+                    ((Envelope) channel.readOutbound()).getPayload());
+            assertEquals(true, capable.getMessages(0).getForwarded());
         } finally {
             channel.finishAndReleaseAll();
         }
@@ -881,6 +962,19 @@ class V2MessagingHandlerTest {
                 .build();
         return commandEnvelope(MessageType.MESSAGE_TYPE_EDIT_MESSAGE, "",
                 payload.toByteString());
+    }
+
+    private static Envelope forwardEnvelope(
+            String clientMessageId, UUID sourceConversation, UUID sourceMessage,
+            int expectedRevision, UUID targetConversation) {
+        ForwardMessage payload = ForwardMessage.newBuilder()
+                .setSourceConversationId(sourceConversation.toString())
+                .setSourceMessageId(sourceMessage.toString())
+                .setExpectedSourceContentRevision(expectedRevision)
+                .setTargetConversationId(targetConversation.toString())
+                .build();
+        return commandEnvelope(MessageType.MESSAGE_TYPE_FORWARD_MESSAGE,
+                clientMessageId, payload.toByteString());
     }
 
     private static Envelope commandEnvelope(

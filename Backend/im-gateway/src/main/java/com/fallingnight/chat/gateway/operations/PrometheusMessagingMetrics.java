@@ -20,6 +20,8 @@ public final class PrometheusMessagingMetrics {
         counter(output, "edit_changed", snapshot.editChanged());
         counter(output, "edit_noop", snapshot.editNoOp());
         counter(output, "edit_duplicate", snapshot.editDuplicates());
+        counter(output, "forward_accepted", snapshot.forwardAccepted());
+        counter(output, "forward_duplicate", snapshot.forwardDuplicates());
         counter(output, "live_published", snapshot.livePublished());
         counter(output, "live_slow_consumer_closed", snapshot.liveSlowConsumerClosed());
         counter(output, "denied", snapshot.denied());

@@ -1312,8 +1312,19 @@ V049 adds the non-null destination marker and a request table containing only a
 SHA-256 digest bound to the destination message. The PostgreSQL integration gate
 proves source/destination active membership and device authority, current-text
 copy, revision conflict, exact retry, changed-request conflict, stripped reply/
-mention metadata, and history projection. It does not register type 119 in the
-gateway or advertise capability 5.
+mention metadata, and history projection. The V049 storage slice by itself does
+not register type 119 or advertise capability 5.
+The following default-off gateway slice now registers type 119 behind negotiated
+capability 5 and injects the PostgreSQL adapter through the product listener,
+WebSocket upgrade, and authenticated pipeline. Handler tests prove server-bound
+actor/device identity, bounded queue ownership, opaque denial/revision/conflict
+mapping, acceptance correlation, and non-duplicate live publication. History
+and process-local live tests prove capable peers receive `forwarded = true`
+while legacy peers receive the same ordered message/body with the additive flag
+cleared. Metrics expose only fixed `forward_accepted` and `forward_duplicate`
+outcomes plus existing fixed denial/conflict/failure counters. The handshake
+intentionally does not echo capability 5 yet, so this composed path remains
+unreachable from product clients until their durable/UI gates pass.
 The application participant directory returns either a validated page or one
 fixed authorization rejection. Its PostgreSQL adapter first proves that the
 requester is an enabled active member, then pages enabled active participants

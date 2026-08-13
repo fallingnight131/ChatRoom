@@ -13,6 +13,8 @@ import com.fallingnight.chat.application.messaging.MessagePinPort;
 import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.application.messaging.MessageEditPort;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
+import com.fallingnight.chat.application.messaging.MessageForwardPort;
+import com.fallingnight.chat.application.messaging.MessageForwardResult;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
@@ -33,6 +35,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
     private final MessageReactionPort reactions;
     private final MessagePinPort pins;
     private final MessageEditPort edits;
+    private final MessageForwardPort forwards;
     private final DeviceManagementService deviceManagement;
     private final Executor authenticationExecutor;
     private final Executor messagingExecutor;
@@ -145,6 +148,36 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
             ConversationLiveRouter liveRouter,
             Duration handshakeTimeout,
             Duration authenticationTimeout) {
+        this(authentication, sessionResume, submissions, history, directory, participants,
+                reactions, pins, edits,
+                command -> MessageForwardResult.Rejected.NOT_AUTHORIZED,
+                deviceManagement, authenticationExecutor, messagingExecutor, admission, events,
+                messagingEvents, deviceEvents, deviceConnections, liveRouter, handshakeTimeout,
+                authenticationTimeout);
+    }
+
+    public V2WebSocketUpgradeHandler(
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            ConversationLiveRouter liveRouter,
+            Duration handshakeTimeout,
+            Duration authenticationTimeout) {
         this.authentication = Objects.requireNonNull(authentication, "authentication");
         this.sessionResume = Objects.requireNonNull(sessionResume, "sessionResume");
         this.submissions = Objects.requireNonNull(submissions, "submissions");
@@ -154,6 +187,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
         this.reactions = Objects.requireNonNull(reactions, "reactions");
         this.pins = Objects.requireNonNull(pins, "pins");
         this.edits = Objects.requireNonNull(edits, "edits");
+        this.forwards = Objects.requireNonNull(forwards, "forwards");
         this.deviceManagement = Objects.requireNonNull(deviceManagement, "deviceManagement");
         this.authenticationExecutor = Objects.requireNonNull(
                 authenticationExecutor, "authenticationExecutor");
@@ -198,6 +232,7 @@ public final class V2WebSocketUpgradeHandler extends ChannelInboundHandlerAdapte
                     reactions,
                     pins,
                     edits,
+                    forwards,
                     deviceManagement,
                     authenticationExecutor,
                     messagingExecutor,

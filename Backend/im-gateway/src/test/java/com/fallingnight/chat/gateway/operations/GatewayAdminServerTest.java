@@ -30,6 +30,8 @@ class GatewayAdminServerTest {
         messaging.livePublished(2);
         messaging.liveSlowConsumerClosed(1);
         messaging.editApplied(true, false);
+        messaging.forwardAccepted(false);
+        messaging.forwardAccepted(true);
         devices.revoked(true);
         devices.disconnected(2);
         cleanup.completed(
@@ -63,6 +65,10 @@ class GatewayAdminServerTest {
                     "chat_gateway_messaging_total{outcome=\"live_slow_consumer_closed\"} 1"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_messaging_total{outcome=\"edit_changed\"} 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_messaging_total{outcome=\"forward_accepted\"} 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_messaging_total{outcome=\"forward_duplicate\"} 1"));
             assertTrue(metrics.body().contains("chat_gateway_messaging_workers_active 2"));
             assertTrue(metrics.body().contains("chat_gateway_messaging_queue_size 3"));
             assertTrue(metrics.body().contains(

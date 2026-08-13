@@ -12,6 +12,8 @@ public interface MessagingEventSink {
 
     void editApplied(boolean changed, boolean duplicate);
 
+    default void forwardAccepted(boolean duplicate) { }
+
     void livePublished(int count);
 
     void liveSlowConsumerClosed(int count);

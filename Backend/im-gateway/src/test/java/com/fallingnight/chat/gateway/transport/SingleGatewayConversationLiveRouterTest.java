@@ -162,6 +162,35 @@ class SingleGatewayConversationLiveRouterTest {
         }
     }
 
+    @Test
+    void filtersForwardMarkerFromLegacyLiveSubscribers() throws Exception {
+        SingleGatewayConversationLiveRouter router = new SingleGatewayConversationLiveRouter(
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        EmbeddedChannel capable = authenticatedChannel();
+        EmbeddedChannel legacy = authenticatedChannel();
+        capable.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).set(Set.of(
+                ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING));
+        MessageHistoryQuery query = new MessageHistoryQuery(CONVERSATION, ACCOUNT, 0, 100);
+        router.readAndSubscribe(capable, query, ignored -> new MessageHistoryResult.Page(
+                List.of(), 0, 0, false));
+        router.readAndSubscribe(legacy, query, ignored -> new MessageHistoryResult.Page(
+                List.of(), 0, 0, false));
+        StoredMessage forwarded = new StoredMessage(
+                UUID.randomUUID(), CONVERSATION, 1, ACCOUNT, DEVICE, "forward-live", 1,
+                "copied".getBytes(java.nio.charset.StandardCharsets.UTF_8), NOW,
+                java.util.Optional.empty(), 0, java.util.Optional.empty(), List.of(), true);
+        try {
+            assertEquals(2, router.publish(forwarded).published());
+            assertEquals(true, MessageRecord.parseFrom(
+                    ((Envelope) capable.readOutbound()).getPayload()).getForwarded());
+            assertEquals(false, MessageRecord.parseFrom(
+                    ((Envelope) legacy.readOutbound()).getPayload()).getForwarded());
+        } finally {
+            capable.finishAndReleaseAll();
+            legacy.finishAndReleaseAll();
+        }
+    }
+
     private static EmbeddedChannel authenticatedChannel() {
         EmbeddedChannel channel = new EmbeddedChannel();
         channel.attr(V2ConnectionAttributes.AUTHENTICATED).set(

@@ -70,6 +70,7 @@ class V2HandshakeHandlerTest {
                     .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_REACTIONS)
                     .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS)
                     .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS)
+                    .addCapabilities(ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING)
                     .build();
             channel.writeInbound(clientHelloEnvelope(capable));
             ServerHello response = ServerHello.parseFrom(readEnvelope(channel).getPayload());
@@ -81,6 +82,8 @@ class V2HandshakeHandlerTest {
                             ClientCapability.CLIENT_CAPABILITY_MESSAGE_EDITS,
                             ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS),
                     channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get());
+            assertFalse(response.getEnabledCapabilitiesList().contains(
+                    ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING));
         } finally {
             channel.finishAndReleaseAll();
         }

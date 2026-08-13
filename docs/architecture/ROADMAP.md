@@ -1587,7 +1587,7 @@ Progress:
       transport-neutral command/result port and transactional PostgreSQL
       authority for source read, destination write, exact retry, revision race,
       current-text copy, and privacy-stripped history projection.
-    - [ ] Register the default-off capability-gated handler, capable history and
+    - [x] Register the default-off capability-gated handler, capable history and
       live marker projection, bounded execution, and fixed-cardinality signals.
   - [ ] Add offline-safe Web and Windows forward outboxes, destination picker,
     presentation, accessibility, reconnect convergence, and endpoint-specific

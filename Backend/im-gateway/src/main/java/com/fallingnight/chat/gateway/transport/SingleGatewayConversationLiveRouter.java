@@ -94,15 +94,20 @@ public final class SingleGatewayConversationLiveRouter implements ConversationLi
                         channel.attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get();
                 boolean mentionsEnabled = capabilities != null && capabilities.contains(
                         ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS);
+                boolean forwardingEnabled = capabilities != null && capabilities.contains(
+                        ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING);
+                MessageRecord visibleRecord = record.toBuilder()
+                        .setForwarded(forwardingEnabled && record.getForwarded())
+                        .build();
+                if (!mentionsEnabled) visibleRecord = visibleRecord.toBuilder()
+                        .clearMentions().build();
                 Envelope event = Envelope.newBuilder()
                         .setProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
                         .setKind(MessageKind.MESSAGE_KIND_EVENT)
                         .setMessageType(MessageType.MESSAGE_TYPE_MESSAGE_PUBLISHED_VALUE)
                         .setSessionId(identity.sessionId().toString())
                         .setSentAtEpochMs(clock.millis())
-                        .setPayload(mentionsEnabled
-                                ? record.toByteString()
-                                : record.toBuilder().clearMentions().build().toByteString())
+                        .setPayload(visibleRecord.toByteString())
                         .build();
                 EnvelopePolicy.requireValid(event);
                 channel.writeAndFlush(event);

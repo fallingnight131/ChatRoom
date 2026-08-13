@@ -23,6 +23,9 @@ import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.application.messaging.MessageEditCommand;
 import com.fallingnight.chat.application.messaging.MessageEditPort;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
+import com.fallingnight.chat.application.messaging.MessageForwardCommand;
+import com.fallingnight.chat.application.messaging.MessageForwardPort;
+import com.fallingnight.chat.application.messaging.MessageForwardResult;
 import com.fallingnight.chat.application.messaging.StoredMessage;
 import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.ConversationDirectoryRecord;
@@ -54,6 +57,7 @@ import com.fallingnight.chat.protocol.v2.MessagePinChangedRecord;
 import com.fallingnight.chat.protocol.v2.EditMessage;
 import com.fallingnight.chat.protocol.v2.MessageEditApplied;
 import com.fallingnight.chat.protocol.v2.MessageEditedRecord;
+import com.fallingnight.chat.protocol.v2.ForwardMessage;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.channel.ChannelHandlerContext;
@@ -77,6 +81,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
     private final MessageReactionPort reactions;
     private final MessagePinPort pins;
     private final MessageEditPort edits;
+    private final MessageForwardPort forwards;
     private final ConversationDirectoryPort directory;
     private final Executor executor;
     private final MessagingEventSink events;
@@ -151,7 +156,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 java.util.List.of(), Optional.empty(), false), executor, events,
                 liveRouter, command -> MessageReactionResult.Rejected.NOT_AUTHORIZED,
                 command -> MessagePinResult.Rejected.NOT_AUTHORIZED,
-                command -> MessageEditResult.Rejected.NOT_AUTHORIZED, clock);
+                command -> MessageEditResult.Rejected.NOT_AUTHORIZED,
+                command -> MessageForwardResult.Rejected.NOT_AUTHORIZED, clock);
     }
 
     V2MessagingHandler(
@@ -165,7 +171,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 ConversationLiveRouter.noop(), command ->
                         MessageReactionResult.Rejected.NOT_AUTHORIZED,
                 command -> MessagePinResult.Rejected.NOT_AUTHORIZED,
-                command -> MessageEditResult.Rejected.NOT_AUTHORIZED, clock);
+                command -> MessageEditResult.Rejected.NOT_AUTHORIZED,
+                command -> MessageForwardResult.Rejected.NOT_AUTHORIZED, clock);
     }
 
     V2MessagingHandler(
@@ -179,7 +186,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
         this(submissions, history, directory, executor, events, liveRouter,
                 command -> MessageReactionResult.Rejected.NOT_AUTHORIZED,
                 command -> MessagePinResult.Rejected.NOT_AUTHORIZED,
-                command -> MessageEditResult.Rejected.NOT_AUTHORIZED, clock);
+                command -> MessageEditResult.Rejected.NOT_AUTHORIZED,
+                command -> MessageForwardResult.Rejected.NOT_AUTHORIZED, clock);
     }
 
     public V2MessagingHandler(
@@ -192,7 +200,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             ConversationLiveRouter liveRouter) {
         this(submissions, history, directory, executor, events, liveRouter, reactions,
                 command -> MessagePinResult.Rejected.NOT_AUTHORIZED,
-                command -> MessageEditResult.Rejected.NOT_AUTHORIZED, Clock.systemUTC());
+                command -> MessageEditResult.Rejected.NOT_AUTHORIZED,
+                command -> MessageForwardResult.Rejected.NOT_AUTHORIZED, Clock.systemUTC());
     }
 
     public V2MessagingHandler(
@@ -205,7 +214,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessagingEventSink events,
             ConversationLiveRouter liveRouter) {
         this(submissions, history, directory, executor, events, liveRouter, reactions, pins,
-                command -> MessageEditResult.Rejected.NOT_AUTHORIZED, Clock.systemUTC());
+                command -> MessageEditResult.Rejected.NOT_AUTHORIZED,
+                command -> MessageForwardResult.Rejected.NOT_AUTHORIZED, Clock.systemUTC());
     }
 
     public V2MessagingHandler(
@@ -219,7 +229,23 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessagingEventSink events,
             ConversationLiveRouter liveRouter) {
         this(submissions, history, directory, executor, events, liveRouter, reactions, pins,
-                edits, Clock.systemUTC());
+                edits, command -> MessageForwardResult.Rejected.NOT_AUTHORIZED,
+                Clock.systemUTC());
+    }
+
+    public V2MessagingHandler(
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            Executor executor,
+            MessagingEventSink events,
+            ConversationLiveRouter liveRouter) {
+        this(submissions, history, directory, executor, events, liveRouter, reactions, pins,
+                edits, forwards, Clock.systemUTC());
     }
 
     private V2MessagingHandler(
@@ -232,12 +258,14 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             MessageReactionPort reactions,
             MessagePinPort pins,
             MessageEditPort edits,
+            MessageForwardPort forwards,
             Clock clock) {
         this.submissions = Objects.requireNonNull(submissions, "submissions");
         this.history = Objects.requireNonNull(history, "history");
         this.reactions = Objects.requireNonNull(reactions, "reactions");
         this.pins = Objects.requireNonNull(pins, "pins");
         this.edits = Objects.requireNonNull(edits, "edits");
+        this.forwards = Objects.requireNonNull(forwards, "forwards");
         this.directory = Objects.requireNonNull(directory, "directory");
         this.executor = Objects.requireNonNull(executor, "executor");
         this.events = Objects.requireNonNull(events, "events");
@@ -262,6 +290,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 && type != MessageType.MESSAGE_TYPE_SET_MESSAGE_REACTION
                 && type != MessageType.MESSAGE_TYPE_SET_MESSAGE_PIN
                 && type != MessageType.MESSAGE_TYPE_EDIT_MESSAGE
+                && type != MessageType.MESSAGE_TYPE_FORWARD_MESSAGE
                 && type != MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY
                 && type != MessageType.MESSAGE_TYPE_LIST_CONVERSATIONS) {
             writeError(
@@ -292,6 +321,12 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             writeError(context, envelope,
                     ProtocolErrorCode.PROTOCOL_ERROR_CODE_UNSUPPORTED_MESSAGE_TYPE,
                     "message edits were not negotiated", false);
+            return;
+        }
+        if (type == MessageType.MESSAGE_TYPE_FORWARD_MESSAGE && !hasForwardCapability(context)) {
+            writeError(context, envelope,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_UNSUPPORTED_MESSAGE_TYPE,
+                    "message forwarding was not negotiated", false);
             return;
         }
         if (envelope.getKind() != MessageKind.MESSAGE_KIND_COMMAND) {
@@ -422,6 +457,16 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     payload.getContent().toByteArray(), payload.getClientOperationId(),
                     mentions(payload.getMentionsList())));
         }
+        if (type == MessageType.MESSAGE_TYPE_FORWARD_MESSAGE) {
+            ForwardMessage payload = ForwardMessage.parseFrom(envelope.getPayload());
+            MessagingPayloadPolicy.requireValid(payload, envelope.getClientMessageId());
+            return new ForwardWork(new MessageForwardCommand(
+                    UUID.fromString(payload.getSourceConversationId()),
+                    UUID.fromString(payload.getSourceMessageId()),
+                    payload.getExpectedSourceContentRevision(),
+                    UUID.fromString(payload.getTargetConversationId()),
+                    identity.accountId(), identity.deviceId(), envelope.getClientMessageId()));
+        }
         if (type == MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY) {
             ReadMessageHistory payload = ReadMessageHistory.parseFrom(envelope.getPayload());
             MessagingPayloadPolicy.requireValid(payload);
@@ -430,7 +475,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                     identity.accountId(),
                     payload.getAfterSequence(),
                     payload.getLimit()), hasReactionCapability(context), hasPinCapability(context),
-                    hasEditCapability(context), hasMentionCapability(context));
+                    hasEditCapability(context), hasMentionCapability(context),
+                    hasForwardCapability(context));
         }
         ListConversations payload = ListConversations.parseFrom(envelope.getPayload());
         ConversationPayloadPolicy.requireValid(payload);
@@ -472,12 +518,17 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 response = editResponse(request, result);
                 if (result instanceof MessageEditResult.Applied applied
                         && applied.changed() && !applied.duplicate()) editPublication = applied;
+            } else if (work instanceof ForwardWork forward) {
+                MessageForwardResult result = forwards.forward(forward.command());
+                response = forwardResponse(request, result);
+                if (result instanceof MessageForwardResult.Accepted accepted
+                        && !accepted.duplicate()) publication = accepted.message();
             } else if (work instanceof HistoryWork read) {
                 response = historyResponse(
                         request, read.query(), liveRouter.readAndSubscribe(
                                 context.channel(), read.query(), history),
                         read.reactionsEnabled(), read.pinsEnabled(), read.editsEnabled(),
-                        read.mentionsEnabled());
+                        read.mentionsEnabled(), read.forwardingEnabled());
             } else {
                 DirectoryWork list = (DirectoryWork) work;
                 response = directoryResponse(request, directory.list(list.query()));
@@ -624,7 +675,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
             boolean reactionsEnabled,
             boolean pinsEnabled,
             boolean editsEnabled,
-            boolean mentionsEnabled) {
+            boolean mentionsEnabled,
+            boolean forwardingEnabled) {
         if (result == MessageHistoryResult.Rejected.NOT_AUTHORIZED) {
             events.denied();
             return errorEnvelope(
@@ -640,14 +692,15 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 .setLatestSequence(page.latestSequence())
                 .setHasMore(page.hasMore());
         for (StoredMessage message : page.messages()) {
-            payload.addMessages(messageRecord(message, mentionsEnabled));
+            payload.addMessages(messageRecord(message, mentionsEnabled, forwardingEnabled));
         }
         for (ConversationHistoryEntry entry : page.entries()) {
             ConversationEntryRecord.Builder encoded = ConversationEntryRecord.newBuilder()
                     .setConversationId(entry.conversationId().toString())
                     .setConversationSequence(entry.conversationSequence());
             if (entry instanceof ConversationHistoryEntry.Message message) {
-                encoded.setMessage(messageRecord(message.value(), mentionsEnabled));
+                encoded.setMessage(messageRecord(
+                        message.value(), mentionsEnabled, forwardingEnabled));
             } else if (entry instanceof ConversationHistoryEntry.Recall recall) {
                 encoded.setRecall(MessageRecalledRecord.newBuilder()
                         .setConversationId(recall.conversationId().toString())
@@ -717,7 +770,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
     }
 
     private static MessageRecord messageRecord(
-            StoredMessage message, boolean mentionsEnabled) {
+            StoredMessage message, boolean mentionsEnabled, boolean forwardingEnabled) {
         MessageRecord.Builder record = MessageRecord.newBuilder()
                 .setConversationId(message.conversationId().toString())
                 .setMessageId(message.messageId().toString())
@@ -730,7 +783,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 .setAcceptedAtEpochMs(message.acceptedAt().toEpochMilli())
                 .setContentRevision(message.contentRevision())
                 .setEditedAtEpochMs(message.editedAt().map(Instant::toEpochMilli).orElse(0L))
-                .setForwarded(message.forwarded());
+                .setForwarded(forwardingEnabled && message.forwarded());
         message.reply().ifPresent(reply -> record.setReply(
                 com.fallingnight.chat.protocol.v2.MessageReplyReference.newBuilder()
                         .setTargetMessageId(reply.targetMessageId().toString())
@@ -804,6 +857,13 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 ClientCapability.CLIENT_CAPABILITY_MESSAGE_MENTIONS);
     }
 
+    private static boolean hasForwardCapability(ChannelHandlerContext context) {
+        java.util.Set<ClientCapability> capabilities =
+                context.channel().attr(V2ConnectionAttributes.ENABLED_CAPABILITIES).get();
+        return capabilities != null && capabilities.contains(
+                ClientCapability.CLIENT_CAPABILITY_MESSAGE_FORWARDING);
+    }
+
     private static void requireMentionCapability(
             ChannelHandlerContext context, int mentionCount) {
         if (mentionCount > 0 && !hasMentionCapability(context)) {
@@ -873,6 +933,39 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
         events.editApplied(applied.changed(), applied.duplicate());
         return responseEnvelope(request, MessageType.MESSAGE_TYPE_MESSAGE_EDIT_APPLIED,
                 built.toByteString());
+    }
+
+    private Envelope forwardResponse(Envelope request, MessageForwardResult result) {
+        if (result == MessageForwardResult.Rejected.NOT_AUTHORIZED) {
+            events.denied();
+            return errorEnvelope(request, ProtocolErrorCode.PROTOCOL_ERROR_CODE_NOT_AUTHORIZED,
+                    "not authorized", false);
+        }
+        if (result == MessageForwardResult.Rejected.IDEMPOTENCY_CONFLICT) {
+            events.conflict();
+            return errorEnvelope(request,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_IDEMPOTENCY_CONFLICT,
+                    "client message id conflicts with an accepted message", false);
+        }
+        if (result == MessageForwardResult.Rejected.SOURCE_REVISION_CONFLICT) {
+            events.conflict();
+            return errorEnvelope(request,
+                    ProtocolErrorCode.PROTOCOL_ERROR_CODE_MESSAGE_REVISION_CONFLICT,
+                    "message revision conflict", false);
+        }
+        MessageForwardResult.Accepted accepted = (MessageForwardResult.Accepted) result;
+        StoredMessage message = accepted.message();
+        MessageAccepted payload = MessageAccepted.newBuilder()
+                .setConversationId(message.conversationId().toString())
+                .setMessageId(message.messageId().toString())
+                .setConversationSequence(message.conversationSequence())
+                .setAcceptedAtEpochMs(message.acceptedAt().toEpochMilli())
+                .setDuplicate(accepted.duplicate())
+                .build();
+        MessagingPayloadPolicy.requireValid(payload);
+        events.forwardAccepted(accepted.duplicate());
+        return responseEnvelope(
+                request, MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED, payload.toByteString());
     }
 
     private Envelope pinResponse(Envelope request, MessagePinResult result) {
@@ -1024,7 +1117,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
 
     private record HistoryWork(
             MessageHistoryQuery query, boolean reactionsEnabled, boolean pinsEnabled,
-            boolean editsEnabled, boolean mentionsEnabled)
+            boolean editsEnabled, boolean mentionsEnabled, boolean forwardingEnabled)
             implements Work {}
 
     private record ReactionWork(MessageReactionCommand command) implements Work {}
@@ -1032,6 +1125,8 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
     private record PinWork(MessagePinCommand command) implements Work {}
 
     private record EditWork(MessageEditCommand command) implements Work {}
+
+    private record ForwardWork(MessageForwardCommand command) implements Work {}
 
     private record DirectoryWork(ConversationDirectoryQuery query) implements Work {}
 }

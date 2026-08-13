@@ -12,6 +12,8 @@ import com.fallingnight.chat.application.messaging.MessageReactionPort;
 import com.fallingnight.chat.application.messaging.MessagePinPort;
 import com.fallingnight.chat.application.messaging.MessageEditPort;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
+import com.fallingnight.chat.application.messaging.MessageForwardPort;
+import com.fallingnight.chat.application.messaging.MessageForwardResult;
 import io.netty.channel.ChannelPipeline;
 import java.time.Duration;
 import java.util.Objects;
@@ -116,6 +118,37 @@ public final class V2ApplicationPipeline {
             ConversationLiveRouter liveRouter,
             Duration handshakeTimeout,
             Duration authenticationTimeout) {
+        install(pipeline, authentication, sessionResume, submissions, history, directory,
+                participants, reactions, pins, edits,
+                command -> MessageForwardResult.Rejected.NOT_AUTHORIZED,
+                deviceManagement, authenticationExecutor, messagingExecutor, admission,
+                events, messagingEvents, deviceEvents, deviceConnections, liveRouter,
+                handshakeTimeout, authenticationTimeout);
+    }
+
+    public static void install(
+            ChannelPipeline pipeline,
+            AuthenticationUseCase authentication,
+            SessionResumeUseCase sessionResume,
+            MessageSubmissionPort submissions,
+            MessageHistoryPort history,
+            ConversationDirectoryPort directory,
+            ConversationParticipantPort participants,
+            MessageReactionPort reactions,
+            MessagePinPort pins,
+            MessageEditPort edits,
+            MessageForwardPort forwards,
+            DeviceManagementService deviceManagement,
+            Executor authenticationExecutor,
+            Executor messagingExecutor,
+            AuthenticationAdmissionControl admission,
+            AuthenticationEventSink events,
+            MessagingEventSink messagingEvents,
+            DeviceManagementEventSink deviceEvents,
+            DeviceConnectionRegistry deviceConnections,
+            ConversationLiveRouter liveRouter,
+            Duration handshakeTimeout,
+            Duration authenticationTimeout) {
         Objects.requireNonNull(pipeline, "pipeline");
         V2FramePipeline.install(pipeline);
         pipeline.addLast("v2-phase-timeouts", new V2ConnectionTimeoutHandler(
@@ -135,8 +168,8 @@ public final class V2ApplicationPipeline {
         pipeline.addLast("v2-conversation-participants", new V2ConversationParticipantHandler(
                 participants, messagingExecutor, messagingEvents));
         pipeline.addLast("v2-messaging", new V2MessagingHandler(
-                submissions, history, directory, reactions, pins, edits, messagingExecutor,
-                messagingEvents, liveRouter));
+                submissions, history, directory, reactions, pins, edits, forwards,
+                messagingExecutor, messagingEvents, liveRouter));
         pipeline.addLast("v2-authenticated-heartbeat", new V2AuthenticatedHeartbeatHandler());
         pipeline.addLast("v2-authenticated-idle-close", new V2AuthenticatedIdleCloseHandler());
     }

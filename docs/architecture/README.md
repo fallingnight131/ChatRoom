@@ -768,9 +768,14 @@ and Windows runtime paths must keep capability 5 disabled until the durable and
 client gates in the roadmap pass. V049 now adds an ordinary-message destination
 marker plus a digest-only forward outcome: the PostgreSQL adapter authorizes
 both conversations, locks current non-recalled text, rejects revision races,
-and atomically allocates the destination sequence. History projects the marker
-without source identity. The authenticated handler and all capability-5 runtime
-advertisement remain disabled.
+and atomically allocates the destination sequence. The authenticated handler is
+composed through the real PostgreSQL product runtime and uses the existing
+connection-local bounded messaging executor. It maps opaque authorization,
+revision, and idempotency failures, publishes only new acceptance, and filters
+the marker from unsupported history/live peers without stalling their cursor.
+Fixed-cardinality forward/duplicate and existing denial/conflict/failure/live
+counters contain no identities. Capability 5 remains excluded from handshake
+enablement, so Web and Windows runtime advertisement is still disabled.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
