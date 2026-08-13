@@ -58,6 +58,8 @@ class GatewayRuntimeConfigTest {
         assertEquals(10_000, config.forwardAdmissionLimits().maximumTrackedAccounts());
         assertFalse(config.messageForwardingEnabled());
         assertFalse(config.distributedRouting().enabled());
+        assertEquals("development", config.releaseIdentity().releaseVersion());
+        assertEquals("unknown", config.releaseIdentity().sourceRevision());
         Map<String, String> immediateDrain = requiredEnvironment();
         immediateDrain.put("CHATROOM_GATEWAY_DRAIN_TIMEOUT_SECONDS", "0");
         assertEquals(Duration.ZERO, GatewayRuntimeConfig.fromEnvironment(immediateDrain)

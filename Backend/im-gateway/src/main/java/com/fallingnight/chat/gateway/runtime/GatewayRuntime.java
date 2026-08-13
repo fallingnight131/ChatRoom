@@ -189,7 +189,8 @@ public final class GatewayRuntime implements AutoCloseable {
                     messagingWorkers::activeCount,
                     messagingWorkers::queuedCount,
                     publicReadiness,
-                    distributedMetrics);
+                    distributedMetrics,
+                    config.releaseIdentity());
             return new GatewayRuntime(
                     readiness,
                     managed(adminServer),

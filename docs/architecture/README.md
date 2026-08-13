@@ -1171,6 +1171,12 @@ and new certificate generations, and the contracted verifier rejects the old
 certificate while accepting the new gateway. Former-worker WSS delivery remains
 ordered across both reloads; production multi-edge secret distribution remains
 outside this proof.
+ADR-0379 introduces the release-identity prerequisite for the remaining
+mixed-version gate. Each runtime now reports paired SemVer/source revision, its
+non-overridable V2 protocol version, and a reviewed compatibility epoch through
+exact loopback `GET /identity`. Development reports itself honestly as
+`development`/`unknown`; this identity enables, but does not itself prove, safe
+cross-revision rollout.
 
 ## 10. Attachment Flow
 

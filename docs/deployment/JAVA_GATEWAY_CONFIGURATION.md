@@ -24,6 +24,24 @@ keys, production endpoints, or certificate material.
 PEM key must be usable without an application password and protected by host
 filesystem permissions and secret delivery controls.
 
+## Release identity
+
+Production deployments set both values below from the immutable build pipeline.
+Supplying only one or using a mutable tag/reformatted revision fails before
+listener bind.
+
+| Variable | Contract |
+| --- | --- |
+| `CHATROOM_GATEWAY_RELEASE_VERSION` | canonical SemVer without build metadata, for example `1.4.0` or `1.4.0-rc.1` |
+| `CHATROOM_GATEWAY_SOURCE_REVISION` | exact lowercase 40-hex Git revision loaded by the artifact |
+| `CHATROOM_GATEWAY_COMPATIBILITY_EPOCH` | optional integer `1..1000000`, default `1`; change only through ADR |
+
+Local runs that omit both identity values report `development` and `unknown`.
+The loopback-only exact `GET /identity` endpoint returns those fields together
+with the non-overridable runtime V2 protocol version as deterministic JSON. It
+is deployment evidence, not proof of cross-version compatibility; mixed-version
+rollout still requires an explicit compatibility gate (ADR-0379).
+
 ## Detached V1 room-creation secret
 
 `CHATROOM_V1_ROOM_PASSWORD_HMAC_KEY_BASE64` is required only when composing the
@@ -167,6 +185,11 @@ writability, not total pending bytes, current backlog, or a capacity threshold.
 It also exposes fixed attachment-cleanup counters plus consecutive-failure and
 next-delay gauges. Those values remain zero because the M3 composition root does
 not start the cleanup loop before real-provider capability acceptance.
+
+The same loopback listener exposes exact GET-only `/identity` with release
+version, source revision, runtime protocol version, and compatibility epoch. It
+uses deterministic JSON plus `no-store`/`nosniff`, contains no secrets or user
+identifiers, and must not be exposed through the public edge.
 
 The process accepts no command-line configuration. On startup it validates the
 existing Flyway migration state and database pool before serving, starts the

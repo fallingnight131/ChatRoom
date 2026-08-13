@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -36,7 +37,7 @@ public final class GatewayAdminServer implements AutoCloseable {
             BooleanSupplier readiness) {
         this(address, workers, telemetry, messagingTelemetry, deviceManagementTelemetry,
                 attachmentCleanupTelemetry, messagingActiveWorkers, messagingQueuedWork,
-                readiness, () -> "");
+                readiness, () -> "", GatewayReleaseIdentity.fromEnvironment(Map.of()));
     }
 
     public GatewayAdminServer(
@@ -46,6 +47,20 @@ public final class GatewayAdminServer implements AutoCloseable {
             AttachmentCleanupTelemetry attachmentCleanupTelemetry,
             IntSupplier messagingActiveWorkers, IntSupplier messagingQueuedWork,
             BooleanSupplier readiness, Supplier<String> distributedMetrics) {
+        this(address, workers, telemetry, messagingTelemetry, deviceManagementTelemetry,
+                attachmentCleanupTelemetry, messagingActiveWorkers, messagingQueuedWork,
+                readiness, distributedMetrics,
+                GatewayReleaseIdentity.fromEnvironment(Map.of()));
+    }
+
+    public GatewayAdminServer(
+            InetSocketAddress address, int workers, AuthenticationTelemetry telemetry,
+            MessagingTelemetry messagingTelemetry,
+            DeviceManagementTelemetry deviceManagementTelemetry,
+            AttachmentCleanupTelemetry attachmentCleanupTelemetry,
+            IntSupplier messagingActiveWorkers, IntSupplier messagingQueuedWork,
+            BooleanSupplier readiness, Supplier<String> distributedMetrics,
+            GatewayReleaseIdentity releaseIdentity) {
         Objects.requireNonNull(address, "address");
         Objects.requireNonNull(telemetry, "telemetry");
         Objects.requireNonNull(messagingTelemetry, "messagingTelemetry");
@@ -55,6 +70,7 @@ public final class GatewayAdminServer implements AutoCloseable {
         Objects.requireNonNull(messagingQueuedWork, "messagingQueuedWork");
         Objects.requireNonNull(readiness, "readiness");
         Objects.requireNonNull(distributedMetrics, "distributedMetrics");
+        Objects.requireNonNull(releaseIdentity, "releaseIdentity");
         if (address.getAddress() == null || !address.getAddress().isLoopbackAddress()) {
             throw new IllegalArgumentException("admin server must bind a resolved loopback address");
         }
@@ -81,6 +97,8 @@ public final class GatewayAdminServer implements AutoCloseable {
             text(exchange, "/health/ready", ready ? 200 : 503,
                     ready ? "ready\n" : "not_ready\n");
         });
+        server.createContext("/identity", exchange -> json(
+                exchange, "/identity", 200, releaseIdentity.json()));
         server.createContext("/metrics", exchange -> text(
                 exchange,
                 "/metrics",
@@ -124,6 +142,17 @@ public final class GatewayAdminServer implements AutoCloseable {
             String expectedPath,
             int status,
             String body) throws IOException {
+        response(exchange, expectedPath, status, body, "text/plain; charset=utf-8");
+    }
+
+    private static void json(
+            HttpExchange exchange, String expectedPath, int status, String body) throws IOException {
+        response(exchange, expectedPath, status, body, "application/json; charset=utf-8");
+    }
+
+    private static void response(
+            HttpExchange exchange, String expectedPath, int status, String body,
+            String contentType) throws IOException {
         try (exchange) {
             if (!expectedPath.equals(exchange.getRequestURI().getPath())
                     || exchange.getRequestURI().getRawQuery() != null) {
@@ -136,8 +165,7 @@ public final class GatewayAdminServer implements AutoCloseable {
                 return;
             }
             byte[] encoded = body.getBytes(StandardCharsets.UTF_8);
-            exchange.getResponseHeaders().set(
-                    "Content-Type", "text/plain; charset=utf-8");
+            exchange.getResponseHeaders().set("Content-Type", contentType);
             exchange.getResponseHeaders().set("Cache-Control", "no-store");
             exchange.getResponseHeaders().set("X-Content-Type-Options", "nosniff");
             exchange.sendResponseHeaders(status, encoded.length);

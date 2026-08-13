@@ -50,9 +50,23 @@ class GatewayAdminServerTest {
                 () -> 3,
                 readiness,
                 () -> "# TYPE chat_gateway_distributed_metrics_available gauge\n"
-                        + "chat_gateway_distributed_metrics_available 1\n")) {
+                        + "chat_gateway_distributed_metrics_available 1\n",
+                new GatewayReleaseIdentity(
+                        "1.2.3", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 2, 1))) {
             server.start();
             assertResponse(server, "/health/live", 200, "live\n");
+            HttpResponse<String> identity = get(server, "/identity");
+            assertEquals(200, identity.statusCode());
+            assertEquals("{\"schemaVersion\":1,\"releaseVersion\":\"1.2.3\","
+                    + "\"sourceRevision\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\","
+                    + "\"protocolVersion\":2,\"compatibilityEpoch\":1}\n",
+                    identity.body());
+            assertEquals("application/json; charset=utf-8", identity.headers()
+                    .firstValue("Content-Type").orElseThrow());
+            assertEquals("no-store", identity.headers()
+                    .firstValue("Cache-Control").orElseThrow());
+            assertEquals("nosniff", identity.headers()
+                    .firstValue("X-Content-Type-Options").orElseThrow());
             assertResponse(server, "/health/ready", 503, "not_ready\n");
             readiness.markReady();
             assertResponse(server, "/health/ready", 200, "ready\n");
@@ -96,7 +110,13 @@ class GatewayAdminServerTest {
                     .build();
             assertEquals(405, HttpClient.newHttpClient()
                     .send(post, HttpResponse.BodyHandlers.discarding()).statusCode());
+            HttpRequest identityPost = HttpRequest.newBuilder(uri(server, "/identity"))
+                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .build();
+            assertEquals(405, HttpClient.newHttpClient()
+                    .send(identityPost, HttpResponse.BodyHandlers.discarding()).statusCode());
             assertResponse(server, "/metrics/extra", 404, "");
+            assertResponse(server, "/identity/extra", 404, "");
         }
     }
 

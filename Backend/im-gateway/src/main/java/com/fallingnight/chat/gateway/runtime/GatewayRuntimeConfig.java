@@ -1,5 +1,6 @@
 package com.fallingnight.chat.gateway.runtime;
 
+import com.fallingnight.chat.gateway.operations.GatewayReleaseIdentity;
 import com.fallingnight.chat.gateway.transport.AuthenticationAdmissionLimits;
 import com.fallingnight.chat.gateway.transport.HttpHostPolicy;
 import com.fallingnight.chat.gateway.transport.MessageForwardAdmissionLimits;
@@ -58,6 +59,7 @@ public final class GatewayRuntimeConfig {
     private final MessageForwardAdmissionLimits forwardAdmissionLimits;
     private final boolean messageForwardingEnabled;
     private final DistributedGatewayRoutingConfig distributedRouting;
+    private final GatewayReleaseIdentity releaseIdentity;
 
     private GatewayRuntimeConfig(
             InetSocketAddress listenerAddress,
@@ -92,7 +94,8 @@ public final class GatewayRuntimeConfig {
             AuthenticationAdmissionLimits admissionLimits,
             MessageForwardAdmissionLimits forwardAdmissionLimits,
             boolean messageForwardingEnabled,
-            DistributedGatewayRoutingConfig distributedRouting) {
+            DistributedGatewayRoutingConfig distributedRouting,
+            GatewayReleaseIdentity releaseIdentity) {
         this.listenerAddress = listenerAddress;
         this.adminAddress = adminAddress;
         this.tlsCertificateChain = tlsCertificateChain;
@@ -126,6 +129,7 @@ public final class GatewayRuntimeConfig {
         this.forwardAdmissionLimits = forwardAdmissionLimits;
         this.messageForwardingEnabled = messageForwardingEnabled;
         this.distributedRouting = Objects.requireNonNull(distributedRouting, "distributedRouting");
+        this.releaseIdentity = Objects.requireNonNull(releaseIdentity, "releaseIdentity");
     }
 
     public static GatewayRuntimeConfig fromEnvironment(Map<String, String> environment) {
@@ -261,11 +265,16 @@ public final class GatewayRuntimeConfig {
                 limits,
                 forwardLimits,
                 messageForwardingEnabled,
-                DistributedGatewayRoutingConfig.fromEnvironment(environment));
+                DistributedGatewayRoutingConfig.fromEnvironment(environment),
+                GatewayReleaseIdentity.fromEnvironment(environment));
     }
 
     public InetSocketAddress listenerAddress() {
         return listenerAddress;
+    }
+
+    public GatewayReleaseIdentity releaseIdentity() {
+        return releaseIdentity;
     }
 
     public InetSocketAddress adminAddress() {

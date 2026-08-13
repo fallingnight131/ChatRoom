@@ -1584,6 +1584,11 @@ Progress:
   certificate while admitting the new gateway. Former-worker WSS traffic
   remains ordered across both reloads.
   Multi-edge secret distribution remains an operations gap (ADR-0378).
+- [x] Add an immutable gateway release-identity boundary for rolling evidence:
+  strictly pair canonical SemVer with exact source revision, bind protocol
+  version to the running V2 module, carry an ADR-governed compatibility epoch,
+  and expose deterministic JSON only on loopback `GET /identity`. A two-artifact
+  mixed-version runtime gate remains pending (ADR-0379).
 
 Work:
 
