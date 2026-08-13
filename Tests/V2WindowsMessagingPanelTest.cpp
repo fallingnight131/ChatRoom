@@ -30,6 +30,8 @@ int main(int argc, char **argv) {
         [](const QString &, const QString &, V2LocalMessageRepository::ReactionKind) {
             return true;
         },
+        [](const QString &, const QString &) { return true; },
+        [](const QString &, const QString &) { return true; },
         [](const QString &, const QString &) { return true; });
     model.openConversation(conversation);
     V2WindowsMessagingPanel panel(&model);
@@ -49,6 +51,12 @@ int main(int argc, char **argv) {
                 && button->accessibleName().startsWith(QStringLiteral("消息反应"));
         });
     if (reactionButtons != 6) return 1;
+    const auto pinButtons = std::count_if(replies.cbegin(), replies.cend(),
+        [](QPushButton *button) {
+            return button->isCheckable()
+                && button->accessibleName() == QStringLiteral("置顶此消息");
+        });
+    if (pinButtons != 1) return 1;
     (*reply)->click();
     app.processEvents();
     if (!panel.cancelReplyForTest()->isVisible()

@@ -36,13 +36,18 @@ public:
         std::string clientOperationId;
         std::int64_t occurredAtEpochMs = 0;
     };
+    struct PinChange {
+        std::string conversationId; std::uint64_t conversationSequence = 0;
+        std::string messageId; bool pinned = false; std::string actorAccountId;
+        std::string clientOperationId; std::int64_t occurredAtEpochMs = 0;
+    };
     struct Command {
         std::string requestId;
         std::string clientMessageId;
         std::string bytes;
     };
     enum class EventType {
-        Accepted, HistoryPage, Published, ReactionApplied, ReactionChanged,
+        Accepted, HistoryPage, Published, ReactionApplied, ReactionChanged, PinApplied, PinChanged,
         ProtocolError
     };
     struct Event {
@@ -60,6 +65,8 @@ public:
         std::vector<std::string> deletedMessageIds;
         std::vector<ReactionChange> reactionChanges;
         ReactionChange reactionChange;
+        std::vector<PinChange> pinChanges;
+        PinChange pinChange;
         std::uint64_t nextSequence = 0;
         std::uint64_t latestSequence = 0;
         bool hasMore = false;
@@ -84,11 +91,13 @@ public:
     Command setReaction(const std::string &conversationId,
                         const std::string &messageId, ReactionKind reaction,
                         bool active, const std::string &clientOperationId);
+    Command setPin(const std::string &conversationId, const std::string &messageId,
+                   bool pinned, const std::string &clientOperationId);
     Event receive(const std::string &bytes);
     std::size_t pendingCount() const;
 
 private:
-    enum class PendingType { Submit, Reply, History, Reaction };
+    enum class PendingType { Submit, Reply, History, Reaction, Pin };
     struct Pending {
         PendingType type = PendingType::Submit;
         std::string conversationId;
@@ -97,6 +106,7 @@ private:
         std::string messageId;
         ReactionKind reaction = ReactionKind::Like;
         bool active = false;
+        bool pinned = false;
         std::string clientOperationId;
     };
     Command command(int messageType, const std::string &payload,

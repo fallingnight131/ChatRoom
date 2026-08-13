@@ -1269,15 +1269,16 @@ response, and event around the existing 110/111 directory allocation. Java,
 TypeScript, and C++ lock the same `SetMessagePin` bytes; Java policy tests also
 cover canonical identity, operation bounds, changed-only sequence semantics,
 pin history-detail identity, and duplicate/unknown capability rejection. Web
-and Windows do not advertise `MESSAGE_PINS` until persistence, gateway, cache,
-and UI gates complete (ADR-0340).
+and Windows now advertise `MESSAGE_PINS`: each has completed its isolated
+durable projection, bounded operation outbox, reconnect replay, ACK/history/live
+convergence, target cleanup, and accessible-control gate (ADR-0340).
 The `v2_windows_messaging_protocol_test` compiles the Windows C++ messaging
 boundary against that same reviewed binding tree. It verifies exact
 type-100/type-105 submission, stable ACK correlation, sequence history and live
-reply projections, mutation and reaction-detail cursor advancement, defensive
-UTF-8/reply/reaction validation, and disconnect abandonment. It now also locks
-type-106 command identity, type-107 correlation, and uncorrelated ordered
-type-108 events. The canonical default-off Windows CMake
+reply projections, mutation, reaction, and pin-detail cursor advancement,
+defensive UTF-8/reply/reaction/pin validation, and disconnect abandonment. It
+also locks type-106/109 command identity, type-107/112 correlation, and
+uncorrelated ordered type-108/113 events. The canonical default-off Windows CMake
 product now composes this boundary with the shared authenticated Qt WSS,
 account-isolated SQLite, a strict conversation directory, and Widgets surface;
 the codec test alone remains protocol-boundary evidence (ADR-0331/ADR-0334–0338).
@@ -1288,33 +1289,40 @@ cursors, atomic mutation-only history pages, live events that do not hide sync
 gaps, explicit failed-versus-pending replay state, and the absence of copied
 quote-body columns. This does not migrate or modify the V1 local database, and
 the repository remains detached from product UI/transport (ADR-0332).
-Schema 3 also verifies that ordered recall/deletion history mutations are
+Schema 4 also verifies that ordered recall/deletion history mutations are
 committed with their cursor: recalled text is erased and made non-replyable,
 while administratively deleted targets are evicted. Existing reply rows retain
 only their reference identity and can render the target as unavailable. Its
 separate reaction projection and operation outbox verify account isolation,
 persist-before-send optimistic state, restart recovery, explicit failed state,
-idempotent acknowledgement, history convergence, and cursor monotonicity. The
-completed application/UI slice is the gate that now permits the Windows
-handshake to advertise the reaction capability.
+idempotent acknowledgement, history convergence, and cursor monotonicity. Its
+independent pin projection/outbox additionally verifies optimistic desired
+state, failed retry, ACK-without-cursor-advance, ordered live convergence, and
+account isolation. The completed application/UI slices now permit the Windows
+handshake to advertise both reaction and pin capabilities.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable
 deferral, permanent failure plus explicit retry, ACK reconciliation, and
 cursor-based atomic history merge. Reaction coverage additionally proves exact
 operation replay, no-op ACK convergence, permanent failure plus explicit retry,
-and ordered history/live repair. Higher product tests cover Qt WSS routing,
+and ordered history/live repair. Pin coverage proves the same stable operation
+identity and replay boundary, optimistic convergence, ACK cursor isolation, and
+ordered live repair. Higher product tests cover Qt WSS routing,
 directory selection, and Widgets composition (ADR-0333–0338).
 `V2WindowsMessagingViewModelTest` verifies the presentation boundary independently
 through qmake and CMake: cached-first projection, newline-safe quote previews,
 reply selection and cancellation focus intent, failed-send retry eligibility,
-and explicit recalled/unavailable target labels. The ViewModel has no socket or
+explicit recalled/unavailable target labels, and pin state/failure/action
+projection. The ViewModel has no socket or
 SQL queries; the Windows product now composes it behind the runtime boundary.
 `V2WindowsMessagingPanelTest` runs the reusable Widgets panel with the Qt
 offscreen platform. It checks accessible names, keyboard-native reply/cancel/send
 controls, composer enablement and focus flow. Six checkable reaction controls
 expose aggregate counts, caller state, pending disablement, accessible names,
-and explicit retry while the ViewModel retains no SQL or socket access. The
+and explicit retry while a separate checkable pin control exposes shared state,
+pending disablement, accessible names, and failed-operation retry; the ViewModel
+retains no SQL or socket access. The
 canonical Windows CMake
 product compiles it behind the default-off V2 gate; the qmake rollback remains
 V1-only. `V2WindowsConversationDialogTest` verifies accessible directory and

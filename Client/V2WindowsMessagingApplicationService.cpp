@@ -36,6 +36,8 @@ bool V2WindowsMessagingApplicationService::connectSession(const QString &session
     m_deferredClientIds.clear();
     m_inFlightReactionIds.clear();
     m_deferredReactionIds.clear();
+    m_inFlightPinIds.clear();
+    m_deferredPinIds.clear();
     m_lastError.clear();
     pumpPending();
     return m_connected;
@@ -47,6 +49,8 @@ void V2WindowsMessagingApplicationService::disconnectSession() {
     m_deferredClientIds.clear();
     m_inFlightReactionIds.clear();
     m_deferredReactionIds.clear();
+    m_inFlightPinIds.clear();
+    m_deferredPinIds.clear();
     m_connected = false;
 }
 
@@ -164,6 +168,53 @@ bool V2WindowsMessagingApplicationService::retryReaction(
     return true;
 }
 
+bool V2WindowsMessagingApplicationService::setPin(
+        const QString &conversationId, const QString &messageId) {
+    m_lastError.clear();
+    const auto snapshot = hydrate(conversationId);
+    const auto target = std::find_if(snapshot.messages.cbegin(), snapshot.messages.cend(),
+        [&](const auto &message) {
+            return message.messageId == messageId
+                && message.state == V2LocalMessageRepository::DeliveryState::Accepted
+                && !message.recalled;
+        });
+    if (target == snapshot.messages.cend()) {
+        m_lastError = QStringLiteral("pin target unavailable");
+        return false;
+    }
+    V2LocalMessageRepository::PinCommand command;
+    command.conversationId = conversationId;
+    command.messageId = messageId;
+    command.pinned = !target->pinned;
+    command.clientOperationId = m_clientMessageIdFactory();
+    if (!m_repository->stagePin(m_accountId, command)) {
+        m_lastError = m_repository->lastError();
+        return false;
+    }
+    if (m_connected) dispatchPin(command);
+    return true;
+}
+
+bool V2WindowsMessagingApplicationService::retryPin(
+        const QString &conversationId, const QString &clientOperationId) {
+    auto snapshot = hydrate(conversationId);
+    const auto position = std::find_if(snapshot.pinCommands.cbegin(),
+        snapshot.pinCommands.cend(), [&](const auto &command) {
+            return command.clientOperationId == clientOperationId
+                && command.state == V2LocalMessageRepository::DeliveryState::Failed;
+        });
+    if (position == snapshot.pinCommands.cend()) return false;
+    auto command = *position;
+    command.state = V2LocalMessageRepository::DeliveryState::Pending;
+    if (!m_repository->stagePin(m_accountId, command)) {
+        m_lastError = m_repository->lastError();
+        return false;
+    }
+    m_deferredPinIds.remove(clientOperationId);
+    if (m_connected) dispatchPin(command);
+    return true;
+}
+
 bool V2WindowsMessagingApplicationService::requestHistory(const QString &conversationId) {
     m_lastError.clear();
     if (!m_connected) { m_lastError = QStringLiteral("messaging session is offline"); return false; }
@@ -193,7 +244,9 @@ V2WindowsMessagingApplicationService::receiveFrame(const QByteArray &bytes) {
     }
     result.conversationId = QString::fromStdString(event.conversationId);
     result.clientMessageId = QString::fromStdString(event.clientMessageId);
-    result.clientOperationId = QString::fromStdString(event.reactionChange.clientOperationId);
+    result.clientOperationId = QString::fromStdString(
+        !event.pinChange.clientOperationId.empty()
+            ? event.pinChange.clientOperationId : event.reactionChange.clientOperationId);
     if (event.type == V2WindowsMessagingProtocolClient::EventType::Accepted) {
         if (!m_repository->applyAccepted(
                 m_accountId, result.conversationId, result.clientMessageId,
@@ -209,14 +262,21 @@ V2WindowsMessagingApplicationService::receiveFrame(const QByteArray &bytes) {
     }
     if (event.type == V2WindowsMessagingProtocolClient::EventType::ProtocolError) {
         if (!result.clientOperationId.isEmpty()) {
-            m_inFlightReactionIds.remove(result.clientOperationId);
+            const bool isPin = !event.pinChange.clientOperationId.empty();
+            auto &inFlight = isPin ? m_inFlightPinIds : m_inFlightReactionIds;
+            auto &deferred = isPin ? m_deferredPinIds : m_deferredReactionIds;
+            inFlight.remove(result.clientOperationId);
             if (event.retryable) {
-                m_deferredReactionIds.insert(result.clientOperationId);
+                deferred.insert(result.clientOperationId);
                 result.type = OutcomeType::Deferred;
-            } else if (!m_repository->markReactionFailed(m_accountId, result.clientOperationId)) {
+            } else if (!(isPin
+                    ? m_repository->markPinFailed(m_accountId, result.clientOperationId)
+                    : m_repository->markReactionFailed(m_accountId, result.clientOperationId))) {
                 m_lastError = m_repository->lastError(); disconnectSession();
                 result.type = OutcomeType::ProtocolFailure;
-            } else result.type = OutcomeType::ReactionFailed;
+            } else {
+                result.type = isPin ? OutcomeType::PinFailed : OutcomeType::ReactionFailed;
+            }
             pumpPending(); return result;
         }
         if (!result.clientMessageId.isEmpty()) {
@@ -264,6 +324,30 @@ V2WindowsMessagingApplicationService::receiveFrame(const QByteArray &bytes) {
         }
         return result;
     }
+    if (event.type == V2WindowsMessagingProtocolClient::EventType::PinApplied) {
+        if (QString::fromStdString(event.pinChange.actorAccountId) != m_accountId) {
+            m_lastError = QStringLiteral("pin actor differs from authenticated account");
+            disconnectSession(); result.type = OutcomeType::ProtocolFailure; return result;
+        }
+        if (!m_repository->applyPin(m_accountId, localPin(event.pinChange))) {
+            m_lastError = m_repository->lastError(); disconnectSession();
+            result.type = OutcomeType::ProtocolFailure;
+        } else {
+            m_inFlightPinIds.remove(result.clientOperationId);
+            result.type = OutcomeType::PinApplied; pumpPending();
+        }
+        return result;
+    }
+    if (event.type == V2WindowsMessagingProtocolClient::EventType::PinChanged) {
+        if (!m_repository->mergeLivePin(m_accountId, localPin(event.pinChange))) {
+            m_lastError = m_repository->lastError(); disconnectSession();
+            result.type = OutcomeType::ProtocolFailure;
+        } else {
+            result.type = OutcomeType::PinChanged;
+            requestHistory(result.conversationId);
+        }
+        return result;
+    }
     if (event.type == V2WindowsMessagingProtocolClient::EventType::Published) {
         const auto message = localMessage(event.messages.front());
         if (!m_repository->mergeLiveMessage(m_accountId, message)) {
@@ -297,6 +381,12 @@ V2WindowsMessagingApplicationService::receiveFrame(const QByteArray &bytes) {
                 QList<V2LocalMessageRepository::ReactionChange> values;
                 for (const auto &change : event.reactionChanges)
                     values.append(localReaction(change));
+                return values;
+            }(),
+            [&] {
+                QList<V2LocalMessageRepository::PinChange> values;
+                for (const auto &change : event.pinChanges)
+                    values.append(localPin(change));
                 return values;
             }())) {
         m_lastError = m_repository->lastError();
@@ -346,6 +436,22 @@ bool V2WindowsMessagingApplicationService::dispatchReaction(
     }
 }
 
+bool V2WindowsMessagingApplicationService::dispatchPin(
+        const V2LocalMessageRepository::PinCommand &command) {
+    if (!m_connected || m_inFlightPinIds.contains(command.clientOperationId)
+            || m_deferredPinIds.contains(command.clientOperationId)) return m_connected;
+    try {
+        if (!sendCommand(m_protocol.setPin(command.conversationId.toStdString(),
+                command.messageId.toStdString(), command.pinned,
+                command.clientOperationId.toStdString()))) return false;
+        m_inFlightPinIds.insert(command.clientOperationId);
+        return true;
+    } catch (const std::exception &exception) {
+        m_lastError = QString::fromUtf8(exception.what());
+        return false;
+    }
+}
+
 bool V2WindowsMessagingApplicationService::sendCommand(
         const V2WindowsMessagingProtocolClient::Command &command) {
     const QByteArray frame(command.bytes.data(), static_cast<qsizetype>(command.bytes.size()));
@@ -365,6 +471,10 @@ void V2WindowsMessagingApplicationService::pumpPending() {
     for (const auto &reaction : m_repository->pendingReactions(m_accountId)) {
         if (!m_connected || m_protocol.pendingCount() >= 32) break;
         if (!dispatchReaction(reaction) && !m_connected) break;
+    }
+    for (const auto &pin : m_repository->pendingPins(m_accountId)) {
+        if (!m_connected || m_protocol.pendingCount() >= 32) break;
+        if (!dispatchPin(pin) && !m_connected) break;
     }
 }
 
@@ -398,6 +508,16 @@ V2WindowsMessagingApplicationService::localReaction(
         QString::fromStdString(change.messageId),
         static_cast<V2LocalMessageRepository::ReactionKind>(static_cast<int>(change.reaction)),
         change.active, QString::fromStdString(change.actorAccountId),
+        QString::fromStdString(change.clientOperationId), change.occurredAtEpochMs};
+}
+
+V2LocalMessageRepository::PinChange
+V2WindowsMessagingApplicationService::localPin(
+        const V2WindowsMessagingProtocolClient::PinChange &change) {
+    return {QString::fromStdString(change.conversationId),
+        static_cast<qint64>(change.conversationSequence),
+        QString::fromStdString(change.messageId), change.pinned,
+        QString::fromStdString(change.actorAccountId),
         QString::fromStdString(change.clientOperationId), change.occurredAtEpochMs};
 }
 

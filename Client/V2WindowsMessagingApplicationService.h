@@ -12,7 +12,8 @@ class V2WindowsMessagingApplicationService final {
 public:
     enum class OutcomeType {
         None, Accepted, HistoryApplied, Published, SendFailed,
-        ReactionApplied, ReactionChanged, ReactionFailed, Deferred, ProtocolFailure
+        ReactionApplied, ReactionChanged, ReactionFailed,
+        PinApplied, PinChanged, PinFailed, Deferred, ProtocolFailure
     };
     struct Outcome {
         OutcomeType type = OutcomeType::None;
@@ -43,6 +44,8 @@ public:
     bool setReaction(const QString &conversationId, const QString &messageId,
                      V2LocalMessageRepository::ReactionKind reaction);
     bool retryReaction(const QString &conversationId, const QString &clientOperationId);
+    bool setPin(const QString &conversationId, const QString &messageId);
+    bool retryPin(const QString &conversationId, const QString &clientOperationId);
     bool requestHistory(const QString &conversationId);
     Outcome receiveFrame(const QByteArray &bytes);
     QString lastError() const { return m_lastError; }
@@ -51,12 +54,15 @@ private:
     static QString randomUuid();
     bool dispatch(const V2LocalMessageRepository::Message &message);
     bool dispatchReaction(const V2LocalMessageRepository::ReactionCommand &command);
+    bool dispatchPin(const V2LocalMessageRepository::PinCommand &command);
     bool sendCommand(const V2WindowsMessagingProtocolClient::Command &command);
     void pumpPending();
     static V2LocalMessageRepository::Message localMessage(
         const V2WindowsMessagingProtocolClient::Message &message);
     static V2LocalMessageRepository::ReactionChange localReaction(
         const V2WindowsMessagingProtocolClient::ReactionChange &change);
+    static V2LocalMessageRepository::PinChange localPin(
+        const V2WindowsMessagingProtocolClient::PinChange &change);
 
     V2LocalMessageRepository *m_repository;
     QString m_accountId;
@@ -69,6 +75,8 @@ private:
     QSet<QString> m_deferredClientIds;
     QSet<QString> m_inFlightReactionIds;
     QSet<QString> m_deferredReactionIds;
+    QSet<QString> m_inFlightPinIds;
+    QSet<QString> m_deferredPinIds;
     bool m_connected = false;
     QString m_lastError;
 };

@@ -655,7 +655,7 @@ Windows V2 preview now also negotiates the capability and composes its isolated
 SQLite projection/outbox, exact reconnect replay, correlated ACK and ordered
 history/live convergence with six checkable, accessible Widgets controls
 (ADR-0339).
-The next inactive V2 contract reserves bounded shared message pins under a
+The active V2 contract defines bounded shared message pins under a
 separate capability. It stores only target identity, uses desired-state
 idempotency and changed-only mixed sequencing, limits active pins to 50, and
 requires group OWNER/ADMIN mutation authority. PostgreSQL V046 now stores exact
@@ -667,9 +667,12 @@ capability, filters legacy V2 history detail while preserving its cursor, and
 publishes live changes only to capable subscribers. Web now persists the shared
 projection and bounded operation outbox in IndexedDB, applies optimistic intent,
 replays stable keys after history repair, advances cursors only from ordered
-history/live events, and exposes keyboard-native pin/retry controls. Its
-ClientHello therefore advertises the capability. Windows convergence remains
-mandatory before that client activates it (ADR-0340).
+history/live events, and exposes keyboard-native pin/retry controls. Windows now
+provides the same boundary with an account-isolated SQLite projection and
+bounded operation outbox, stable reconnect replay, optimistic convergence,
+correlated ACKs that do not advance the cursor, ordered history/live repair,
+and checkable accessible Widgets controls. Both ClientHello implementations
+therefore advertise the separate capability (ADR-0340).
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
 single-gateway router now establishes one active subscription only through the

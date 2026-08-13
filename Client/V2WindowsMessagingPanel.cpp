@@ -93,6 +93,25 @@ void V2WindowsMessagingPanel::render() {
             connect(reply, &QPushButton::clicked, m_viewModel,
                     [model = m_viewModel, id = message.messageId] { model->chooseReply(id); });
             actions->addWidget(reply);
+            auto *pin = new QPushButton(row);
+            pin->setCheckable(true);
+            pin->setChecked(message.pinned);
+            pin->setEnabled(!message.pinPending);
+            pin->setText(message.pinFailed
+                ? QStringLiteral("置顶失败，重试")
+                : (message.pinned ? QStringLiteral("取消置顶") : QStringLiteral("置顶")));
+            pin->setAccessibleName(message.pinFailed
+                ? QStringLiteral("重试此消息的置顶操作")
+                : (message.pinned ? QStringLiteral("取消置顶此消息")
+                                  : QStringLiteral("置顶此消息")));
+            if (message.pinFailed) {
+                connect(pin, &QPushButton::clicked, m_viewModel,
+                    [model = m_viewModel, id = message.pinOperationId] { model->retryPin(id); });
+            } else {
+                connect(pin, &QPushButton::clicked, m_viewModel,
+                    [model = m_viewModel, id = message.messageId] { model->setPin(id); });
+            }
+            actions->addWidget(pin);
         }
         layout->addLayout(actions);
         if (message.canReply) {

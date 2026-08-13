@@ -48,12 +48,22 @@ int main(int argc, char **argv) {
     failedReaction.clientOperationId = QStringLiteral("reaction-failed-1");
     failedReaction.state = V2LocalMessageRepository::DeliveryState::Failed;
     snapshot.reactionCommands.append(failedReaction);
+    snapshot.messages[0].pinned = true;
+    V2LocalMessageRepository::PinCommand failedPin;
+    failedPin.conversationId = conversation;
+    failedPin.messageId = target.messageId;
+    failedPin.pinned = true;
+    failedPin.clientOperationId = QStringLiteral("pin-failed-1");
+    failedPin.state = V2LocalMessageRepository::DeliveryState::Failed;
+    snapshot.pinCommands.append(failedPin);
 
     QString stagedTarget;
     QString stagedText;
     QString retried;
     QString reactedMessage;
     QString retriedReaction;
+    QString pinnedMessage;
+    QString retriedPin;
     V2WindowsMessagingViewModel model(
         account, [&](const QString &) { return snapshot; },
         [&](const QString &, const QString &targetId, const QString &text,
@@ -67,6 +77,12 @@ int main(int argc, char **argv) {
         },
         [&](const QString &, const QString &operationId) {
             retriedReaction = operationId; return true;
+        },
+        [&](const QString &, const QString &messageId) {
+            pinnedMessage = messageId; return true;
+        },
+        [&](const QString &, const QString &operationId) {
+            retriedPin = operationId; return true;
         });
     check(model.openConversation(conversation) && model.rows().size() == 3,
           QStringLiteral("cached conversation was not projected"));
@@ -78,12 +94,20 @@ int main(int argc, char **argv) {
               && model.rows().first().reactions.first().mine
               && model.rows().first().reactions.at(1).failed,
           QStringLiteral("reaction aggregates and failure state were not projected"));
+    check(model.rows().first().pinned && model.rows().first().pinFailed
+              && model.rows().first().pinOperationId == failedPin.clientOperationId,
+          QStringLiteral("pin projection and failure state were not projected"));
     check(model.setReaction(target.messageId, V2LocalMessageRepository::ReactionKind::Like)
               && reactedMessage == target.messageId,
           QStringLiteral("reaction action did not preserve the message identity"));
     check(model.retryReaction(failedReaction.clientOperationId)
               && retriedReaction == failedReaction.clientOperationId,
           QStringLiteral("reaction retry did not preserve the operation identity"));
+    check(model.setPin(target.messageId) && pinnedMessage == target.messageId,
+          QStringLiteral("pin action did not preserve the message identity"));
+    check(model.retryPin(failedPin.clientOperationId)
+              && retriedPin == failedPin.clientOperationId,
+          QStringLiteral("pin retry did not preserve the operation identity"));
     check(model.chooseReply(target.messageId) && !model.replyBanner().isEmpty(),
           QStringLiteral("accepted target was not selectable"));
     check(model.sendReply(QStringLiteral("new reply"))

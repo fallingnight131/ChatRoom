@@ -165,6 +165,45 @@ int main(int argc, char *argv[]) {
                             .reactions.isEmpty(),
                     QStringLiteral("reaction projection crossed account boundary"))) return 1;
 
+        V2LocalMessageRepository::PinCommand pin;
+        pin.conversationId = conversation;
+        pin.messageId = accepted.messages.first().messageId;
+        pin.pinned = true;
+        pin.clientOperationId = QStringLiteral("pin-operation-1");
+        if (!check(repository.stagePin(alice, pin), repository.lastError())) return 1;
+        auto optimisticPin = repository.loadSnapshot(alice, conversation);
+        if (!check(optimisticPin.messages.first().pinned
+                        && optimisticPin.pinCommands.size() == 1,
+                   QStringLiteral("optimistic pin was not stored atomically"))
+                || !check(repository.pendingPins(alice).size() == 1,
+                    QStringLiteral("pin outbox was not restart safe"))) return 1;
+        if (!check(repository.markPinFailed(alice, pin.clientOperationId),
+                   repository.lastError())
+                || !check(repository.pendingPins(alice).isEmpty(),
+                    QStringLiteral("failed pin remained automatic work"))) return 1;
+        pin.state = V2LocalMessageRepository::DeliveryState::Pending;
+        if (!check(repository.stagePin(alice, pin), repository.lastError())) return 1;
+        V2LocalMessageRepository::PinChange appliedPin{
+            conversation, 10, pin.messageId, true, alice, pin.clientOperationId, 1350};
+        if (!check(repository.applyPin(alice, appliedPin), repository.lastError())) return 1;
+        const auto afterPinAck = repository.loadSnapshot(alice, conversation);
+        if (!check(afterPinAck.pinCommands.isEmpty()
+                        && afterPinAck.messages.first().pinned
+                        && afterPinAck.cursor == 9,
+                   QStringLiteral("pin ACK advanced cursor or failed to converge"))) return 1;
+        V2LocalMessageRepository::PinChange remotePin{
+            conversation, 10, pin.messageId, false, bob,
+            QStringLiteral("pin-operation-remote"), 1400};
+        if (!check(repository.mergeLivePin(alice, remotePin), repository.lastError())) return 1;
+        const auto afterRemotePin = repository.loadSnapshot(alice, conversation);
+        if (!check(afterRemotePin.cursor == 9 && !afterRemotePin.messages.first().pinned,
+                   QStringLiteral("live pin incorrectly advanced the durable history cursor"))
+                || !check(!repository.loadSnapshot(bob, conversation).messages.first().pinned,
+                    QStringLiteral("pin projection crossed account boundary"))) return 1;
+        if (!check(repository.mergeServerPage(
+                       alice, conversation, {}, 10, {}, {}, {}, {remotePin}),
+                   repository.lastError())) return 1;
+
         if (!check(repository.upsertPending(alice, pending), repository.lastError())) return 1;
         accepted = repository.loadSnapshot(alice, conversation);
         if (!check(accepted.messages.first().state
@@ -182,7 +221,7 @@ int main(int argc, char *argv[]) {
                         && merged.messages.first().reply.targetSenderAccountId
                             == authoritative.reply.targetSenderAccountId,
                     QStringLiteral("authoritative reply projection was not merged"))
-                || !check(merged.cursor == 9,
+                || !check(merged.cursor == 10,
                     QStringLiteral("history merge regressed cursor"))
                 || !check(repository.loadSnapshot(bob, conversation).messages.size() == 1,
                     QStringLiteral("history merge crossed account boundary"))) return 1;

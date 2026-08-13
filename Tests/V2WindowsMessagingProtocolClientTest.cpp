@@ -148,17 +148,30 @@ int main() {
     reaction->set_actor_account_id("30000000-0000-4000-8000-000000000001");
     reaction->set_client_operation_id("reaction-history-1");
     reaction->set_occurred_at_epoch_ms(870);
-    mutationPage.set_next_sequence(10);
-    mutationPage.set_latest_sequence(10);
+    auto *pinEntry = mutationPage.add_entries();
+    pinEntry->set_conversation_id(conversationId);
+    pinEntry->set_conversation_sequence(11);
+    auto *pinHistory = pinEntry->mutable_pin();
+    pinHistory->set_conversation_id(conversationId);
+    pinHistory->set_conversation_sequence(11);
+    pinHistory->set_message_id(replyId);
+    pinHistory->set_pinned(true);
+    pinHistory->set_actor_account_id("30000000-0000-4000-8000-000000000001");
+    pinHistory->set_client_operation_id("pin-history-1");
+    pinHistory->set_occurred_at_epoch_ms(875);
+    mutationPage.set_next_sequence(11);
+    mutationPage.set_latest_sequence(11);
     const auto mutationEvent = client.receive(envelope(
         chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE, chat::v2::MESSAGE_KIND_RESPONSE,
         mutationHistory.requestId, sessionId, {}, mutationPage));
-    check(mutationEvent.nextSequence == 10 && mutationEvent.messages.empty()
+    check(mutationEvent.nextSequence == 11 && mutationEvent.messages.empty()
               && mutationEvent.reactionChanges.size() == 1
+              && mutationEvent.pinChanges.size() == 1
+              && mutationEvent.pinChanges.front().pinned
               && mutationEvent.reactionChanges.front().messageId == replyId
               && mutationEvent.reactionChanges.front().reaction
                     == V2WindowsMessagingProtocolClient::ReactionKind::Love,
-          "mutation-only history must expose reactions and advance one ordered cursor");
+          "mutation-only history must expose reactions and pins on one ordered cursor");
 
     auto published = second;
     const auto live = client.receive(envelope(
@@ -186,7 +199,7 @@ int main() {
     reactionApplied.set_actor_account_id("30000000-0000-4000-8000-000000000001");
     reactionApplied.set_client_operation_id("reaction-operation-1");
     reactionApplied.set_changed(true);
-    reactionApplied.set_conversation_sequence(11);
+    reactionApplied.set_conversation_sequence(12);
     reactionApplied.set_occurred_at_epoch_ms(880);
     const auto reactionAck = client.receive(envelope(
         chat::v2::MESSAGE_TYPE_MESSAGE_REACTION_APPLIED, chat::v2::MESSAGE_KIND_RESPONSE,
@@ -196,7 +209,7 @@ int main() {
           "reaction response must correlate the exact operation");
     chat::v2::MessageReactionChangedRecord changed;
     changed.set_conversation_id(conversationId); changed.set_message_id(replyId);
-    changed.set_conversation_sequence(11);
+    changed.set_conversation_sequence(12);
     changed.set_reaction(chat::v2::MESSAGE_REACTION_KIND_LOVE); changed.set_active(true);
     changed.set_actor_account_id("30000000-0000-4000-8000-000000000001");
     changed.set_client_operation_id("reaction-operation-1"); changed.set_occurred_at_epoch_ms(880);
@@ -204,8 +217,49 @@ int main() {
         chat::v2::MESSAGE_TYPE_MESSAGE_REACTION_CHANGED, chat::v2::MESSAGE_KIND_EVENT,
         {}, sessionId, {}, changed));
     check(reactionLive.type == V2WindowsMessagingProtocolClient::EventType::ReactionChanged
-              && reactionLive.conversationSequence == 11,
+              && reactionLive.conversationSequence == 12,
           "capable live reaction must remain uncorrelated and ordered");
+
+    const auto pinCommand = client.setPin(
+        conversationId, replyId, true, "pin-operation-1");
+    chat::v2::Envelope pinEnvelope;
+    chat::v2::SetMessagePin pinPayload;
+    check(pinEnvelope.ParseFromString(pinCommand.bytes)
+              && pinEnvelope.message_type() == chat::v2::MESSAGE_TYPE_SET_MESSAGE_PIN
+              && pinEnvelope.client_message_id().empty()
+              && pinPayload.ParseFromString(pinEnvelope.payload())
+              && pinPayload.pinned()
+              && pinPayload.client_operation_id() == "pin-operation-1",
+          "pin command must preserve the dedicated idempotency identity");
+    chat::v2::MessagePinApplied pinApplied;
+    pinApplied.set_conversation_id(conversationId);
+    pinApplied.set_message_id(replyId);
+    pinApplied.set_pinned(true);
+    pinApplied.set_actor_account_id("30000000-0000-4000-8000-000000000001");
+    pinApplied.set_client_operation_id("pin-operation-1");
+    pinApplied.set_changed(true);
+    pinApplied.set_conversation_sequence(13);
+    pinApplied.set_occurred_at_epoch_ms(890);
+    const auto pinAck = client.receive(envelope(
+        chat::v2::MESSAGE_TYPE_MESSAGE_PIN_APPLIED, chat::v2::MESSAGE_KIND_RESPONSE,
+        pinCommand.requestId, sessionId, {}, pinApplied));
+    check(pinAck.type == V2WindowsMessagingProtocolClient::EventType::PinApplied
+              && pinAck.pinChange.clientOperationId == "pin-operation-1",
+          "pin response must correlate the exact operation");
+    chat::v2::MessagePinChangedRecord pinChanged;
+    pinChanged.set_conversation_id(conversationId);
+    pinChanged.set_message_id(replyId);
+    pinChanged.set_conversation_sequence(13);
+    pinChanged.set_pinned(true);
+    pinChanged.set_actor_account_id("30000000-0000-4000-8000-000000000001");
+    pinChanged.set_client_operation_id("pin-operation-1");
+    pinChanged.set_occurred_at_epoch_ms(890);
+    const auto pinLive = client.receive(envelope(
+        chat::v2::MESSAGE_TYPE_MESSAGE_PIN_CHANGED, chat::v2::MESSAGE_KIND_EVENT,
+        {}, sessionId, {}, pinChanged));
+    check(pinLive.type == V2WindowsMessagingProtocolClient::EventType::PinChanged
+              && pinLive.conversationSequence == 13,
+          "capable live pin must remain uncorrelated and ordered");
 
     const auto invalidHistory = client.readHistory(conversationId, 8, 10);
     auto invalidPage = page;

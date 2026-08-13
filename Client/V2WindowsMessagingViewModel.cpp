@@ -6,12 +6,14 @@
 
 V2WindowsMessagingViewModel::V2WindowsMessagingViewModel(
         QString accountId, SnapshotLoader loader, StageReply stageReply,
-        Retry retry, SetReaction setReaction, RetryReaction retryReaction, QObject *parent)
+        Retry retry, SetReaction setReaction, RetryReaction retryReaction,
+        SetPin setPin, RetryPin retryPin, QObject *parent)
     : QObject(parent), m_accountId(std::move(accountId)), m_loader(std::move(loader)),
       m_stageReply(std::move(stageReply)), m_retry(std::move(retry)),
-      m_setReaction(std::move(setReaction)), m_retryReaction(std::move(retryReaction)) {
+      m_setReaction(std::move(setReaction)), m_retryReaction(std::move(retryReaction)),
+      m_setPin(std::move(setPin)), m_retryPin(std::move(retryPin)) {
     if (m_accountId.isEmpty() || !m_loader || !m_stageReply || !m_retry
-            || !m_setReaction || !m_retryReaction)
+            || !m_setReaction || !m_retryReaction || !m_setPin || !m_retryPin)
         throw std::invalid_argument("invalid Windows V2 messaging view model");
 }
 
@@ -99,6 +101,22 @@ bool V2WindowsMessagingViewModel::retryReaction(const QString &clientOperationId
     return refresh();
 }
 
+bool V2WindowsMessagingViewModel::setPin(const QString &messageId) {
+    const auto position = std::find_if(m_rows.cbegin(), m_rows.cend(),
+        [&](const Row &row) { return row.messageId == messageId && row.canReply; });
+    if (position == m_rows.cend() || !m_setPin(m_conversationId, messageId)) {
+        m_failure = QStringLiteral("无法更新置顶状态"); emit changed(); return false;
+    }
+    return refresh();
+}
+
+bool V2WindowsMessagingViewModel::retryPin(const QString &clientOperationId) {
+    if (!m_retryPin(m_conversationId, clientOperationId)) {
+        m_failure = QStringLiteral("无法重试置顶操作"); emit changed(); return false;
+    }
+    return refresh();
+}
+
 void V2WindowsMessagingViewModel::project(
         const V2LocalMessageRepository::Snapshot &snapshot) {
     m_rows.clear();
@@ -115,6 +133,18 @@ void V2WindowsMessagingViewModel::project(
         row.canReply = !message.recalled && !message.messageId.isEmpty()
             && message.state == V2LocalMessageRepository::DeliveryState::Accepted;
         row.canRetry = message.state == V2LocalMessageRepository::DeliveryState::Failed;
+        row.pinned = message.pinned;
+        const auto pinCommand = std::find_if(snapshot.pinCommands.cbegin(),
+            snapshot.pinCommands.cend(), [&](const auto &item) {
+                return item.messageId == message.messageId;
+            });
+        if (pinCommand != snapshot.pinCommands.cend()) {
+            row.pinPending = pinCommand->state
+                == V2LocalMessageRepository::DeliveryState::Pending;
+            row.pinFailed = pinCommand->state
+                == V2LocalMessageRepository::DeliveryState::Failed;
+            row.pinOperationId = pinCommand->clientOperationId;
+        }
         if (message.state == V2LocalMessageRepository::DeliveryState::Pending)
             row.deliveryLabel = QStringLiteral("发送中…");
         else if (message.state == V2LocalMessageRepository::DeliveryState::Failed)

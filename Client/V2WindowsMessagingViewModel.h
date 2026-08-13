@@ -28,6 +28,10 @@ public:
         bool recalled = false;
         bool canReply = false;
         bool canRetry = false;
+        bool pinned = false;
+        bool pinPending = false;
+        bool pinFailed = false;
+        QString pinOperationId;
         QVector<Reaction> reactions;
     };
     using SnapshotLoader = std::function<V2LocalMessageRepository::Snapshot(const QString &)>;
@@ -38,10 +42,13 @@ public:
     using SetReaction = std::function<bool(const QString &, const QString &,
         V2LocalMessageRepository::ReactionKind)>;
     using RetryReaction = std::function<bool(const QString &, const QString &)>;
+    using SetPin = std::function<bool(const QString &, const QString &)>;
+    using RetryPin = std::function<bool(const QString &, const QString &)>;
 
     V2WindowsMessagingViewModel(
         QString accountId, SnapshotLoader loader, StageReply stageReply,
         Retry retry, SetReaction setReaction, RetryReaction retryReaction,
+        SetPin setPin, RetryPin retryPin,
         QObject *parent = nullptr);
     bool openConversation(const QString &conversationId);
     bool refresh();
@@ -56,6 +63,8 @@ public:
     bool retry(const QString &clientMessageId);
     bool setReaction(const QString &messageId, V2LocalMessageRepository::ReactionKind reaction);
     bool retryReaction(const QString &clientOperationId);
+    bool setPin(const QString &messageId);
+    bool retryPin(const QString &clientOperationId);
 
 signals:
     void changed();
@@ -72,6 +81,8 @@ private:
     Retry m_retry;
     SetReaction m_setReaction;
     RetryReaction m_retryReaction;
+    SetPin m_setPin;
+    RetryPin m_retryPin;
     QString m_conversationId;
     QString m_draft;
     QString m_replyTargetMessageId;

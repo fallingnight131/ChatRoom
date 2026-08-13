@@ -75,6 +75,7 @@ int main(int argc, char *argv[]) {
 
     QVector<QByteArray> sent;
     QList<QString> clientIds{QStringLiteral("reaction-operation-spoof"),
+        QStringLiteral("pin-operation-1"),
         QStringLiteral("reaction-operation-1"),
         QStringLiteral("client-reply-2"), QStringLiteral("client-reply-1")};
     V2WindowsMessagingApplicationService service(
@@ -250,6 +251,74 @@ int main(int argc, char *argv[]) {
               && reactedMessage != reactionSnapshot.messages.cend()
               && reactedMessage->reactions.first().actorAccountIds.contains(account),
           "reaction ACK must converge the durable optimistic operation");
+    const QString pinTarget = QStringLiteral("60000000-0000-4000-8000-000000000002");
+    check(service.setPin(conversation, pinTarget), service.lastError().toStdString());
+    const auto pinRequest = decode(sent.last());
+    auto optimisticPin = service.hydrate(conversation);
+    const auto optimisticPinnedMessage = std::find_if(
+        optimisticPin.messages.cbegin(), optimisticPin.messages.cend(),
+        [&](const auto &message) { return message.messageId == pinTarget; });
+    check(optimisticPinnedMessage != optimisticPin.messages.cend()
+              && optimisticPinnedMessage->pinned && optimisticPin.pinCommands.size() == 1,
+          "pin action must atomically project state and persist its outbox identity");
+    chat::v2::MessagePinApplied appliedPin;
+    appliedPin.set_conversation_id(conversation.toStdString());
+    appliedPin.set_message_id(pinTarget.toStdString());
+    appliedPin.set_pinned(true);
+    appliedPin.set_actor_account_id(account.toStdString());
+    appliedPin.set_client_operation_id("pin-operation-1");
+    appliedPin.set_changed(false);
+    appliedPin.set_conversation_sequence(0);
+    appliedPin.set_occurred_at_epoch_ms(1960);
+    const auto pinOutcome = service.receiveFrame(response(pinRequest,
+        chat::v2::MESSAGE_TYPE_MESSAGE_PIN_APPLIED,
+        chat::v2::MESSAGE_KIND_RESPONSE, appliedPin));
+    const auto afterPinAck = service.hydrate(conversation);
+    check(pinOutcome.type == V2WindowsMessagingApplicationService::OutcomeType::PinApplied
+              && afterPinAck.pinCommands.isEmpty() && afterPinAck.cursor == 11,
+          "pin ACK must clear the durable command without advancing the cursor");
+    chat::v2::MessagePinChangedRecord pinChanged;
+    pinChanged.set_conversation_id(conversation.toStdString());
+    pinChanged.set_conversation_sequence(12);
+    pinChanged.set_message_id(pinTarget.toStdString());
+    pinChanged.set_pinned(false);
+    pinChanged.set_actor_account_id(remote.toStdString());
+    pinChanged.set_client_operation_id("pin-operation-remote");
+    pinChanged.set_occurred_at_epoch_ms(1970);
+    chat::v2::Envelope eventContext;
+    eventContext.set_session_id(session2.toStdString());
+    const auto livePinOutcome = service.receiveFrame(response(eventContext,
+        chat::v2::MESSAGE_TYPE_MESSAGE_PIN_CHANGED,
+        chat::v2::MESSAGE_KIND_EVENT, pinChanged));
+    const auto afterLivePin = service.hydrate(conversation);
+    const auto livePinnedMessage = std::find_if(
+        afterLivePin.messages.cbegin(), afterLivePin.messages.cend(),
+        [&](const auto &message) { return message.messageId == pinTarget; });
+    check(livePinOutcome.type == V2WindowsMessagingApplicationService::OutcomeType::PinChanged
+              && afterLivePin.cursor == 11
+              && livePinnedMessage != afterLivePin.messages.cend()
+              && !livePinnedMessage->pinned,
+          "live pin event must project state without skipping durable history");
+    const auto pinRepairRequest = decode(sent.last());
+    chat::v2::ReadMessageHistory pinRepairPayload;
+    check(pinRepairPayload.ParseFromString(pinRepairRequest.payload())
+              && pinRepairPayload.after_sequence() == 11,
+          "live pin event must repair history from the durable cursor");
+    chat::v2::MessageHistoryPage pinRepairPage;
+    pinRepairPage.set_conversation_id(conversation.toStdString());
+    auto *pinEntry = pinRepairPage.add_entries();
+    pinEntry->set_conversation_id(conversation.toStdString());
+    pinEntry->set_conversation_sequence(12);
+    *pinEntry->mutable_pin() = pinChanged;
+    pinRepairPage.set_next_sequence(12);
+    pinRepairPage.set_latest_sequence(12);
+    const auto pinRepairOutcome = service.receiveFrame(response(pinRepairRequest,
+        chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE,
+        chat::v2::MESSAGE_KIND_RESPONSE, pinRepairPage));
+    check(pinRepairOutcome.type
+              == V2WindowsMessagingApplicationService::OutcomeType::HistoryApplied
+              && service.hydrate(conversation).cursor == 12,
+          "pin history repair must authoritatively advance the durable cursor");
     V2LocalMessageRepository::Message rejectedReply;
     check(!service.stageReply(conversation, target.messageId, QStringLiteral("too late"),
                               &rejectedReply),

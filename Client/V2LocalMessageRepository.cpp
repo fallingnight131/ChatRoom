@@ -11,7 +11,7 @@
 #include <QUuid>
 #include <QDebug>
 
-namespace { constexpr int SchemaVersion = 3; }
+namespace { constexpr int SchemaVersion = 4; }
 
 V2LocalMessageRepository::V2LocalMessageRepository(const QString &databasePath)
     : m_databasePath(databasePath),
@@ -102,6 +102,19 @@ bool V2LocalMessageRepository::initialize() {
         QStringLiteral(
             "CREATE INDEX IF NOT EXISTS idx_v2_reaction_commands_pending ON "
             "v2_reaction_commands(account_id, delivery_state, conversation_id)"),
+        QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS v2_message_pins (account_id TEXT NOT NULL, "
+            "conversation_id TEXT NOT NULL, message_id TEXT NOT NULL, PRIMARY KEY(account_id, "
+            "conversation_id, message_id), FOREIGN KEY(account_id, conversation_id) REFERENCES "
+            "v2_conversations(account_id, conversation_id) ON DELETE CASCADE)"),
+        QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS v2_pin_commands (account_id TEXT NOT NULL, "
+            "conversation_id TEXT NOT NULL, message_id TEXT NOT NULL, pinned INTEGER NOT NULL "
+            "CHECK(pinned IN (0,1)), client_operation_id TEXT NOT NULL, delivery_state TEXT NOT NULL "
+            "CHECK(delivery_state IN ('pending','failed')), PRIMARY KEY(account_id, client_operation_id), "
+            "FOREIGN KEY(account_id, conversation_id) REFERENCES v2_conversations(account_id, conversation_id) ON DELETE CASCADE)"),
+        QStringLiteral("CREATE INDEX IF NOT EXISTS idx_v2_pin_commands_pending ON "
+            "v2_pin_commands(account_id, delivery_state, conversation_id)"),
     };
     for (const auto &statement : statements) {
         if (!query.exec(statement)) {
@@ -115,13 +128,13 @@ bool V2LocalMessageRepository::initialize() {
         m_database.rollback();
         return fail(QStringLiteral("migrate"), query.lastError().text());
     }
-    if (!query.exec(QStringLiteral("PRAGMA user_version = 3"))) {
+    if (!query.exec(QStringLiteral("PRAGMA user_version = 4"))) {
         m_database.rollback();
         return fail(QStringLiteral("migrate"), query.lastError().text());
     }
     if (!m_database.commit()) return fail(QStringLiteral("migrate"), m_database.lastError().text());
     m_lastError.clear();
-    qInfo() << "[V2LocalStore] operation=initialize outcome=success schema=3";
+    qInfo() << "[V2LocalStore] operation=initialize outcome=success schema=4";
     return true;
 }
 
@@ -274,7 +287,8 @@ bool V2LocalMessageRepository::mergeServerPage(
         const QList<Message> &messages, qint64 nextCursor,
         const QStringList &recalledMessageIds,
         const QStringList &deletedMessageIds,
-        const QList<ReactionChange> &reactionChanges) {
+        const QList<ReactionChange> &reactionChanges,
+        const QList<PinChange> &pinChanges) {
     if (!canonicalUuid(accountId) || !canonicalUuid(conversationId) || nextCursor < 0)
         return fail(QStringLiteral("mergeServerPage"), QStringLiteral("invalid page identity"));
     qint64 previous = 0;
@@ -295,6 +309,10 @@ bool V2LocalMessageRepository::mergeServerPage(
         if (!validReactionChange(change, true) || change.conversationId != conversationId
                 || change.conversationSequence > nextCursor)
             return fail(QStringLiteral("mergeServerPage"), QStringLiteral("invalid reaction change"));
+    for (const auto &change : pinChanges)
+        if (!validPinChange(change, true) || change.conversationId != conversationId
+                || change.conversationSequence > nextCursor)
+            return fail(QStringLiteral("mergeServerPage"), QStringLiteral("invalid pin change"));
     if (!m_database.transaction())
         return fail(QStringLiteral("mergeServerPage"), m_database.lastError().text());
     if (!ensureConversation(accountId, conversationId, nextCursor)) {
@@ -324,6 +342,14 @@ bool V2LocalMessageRepository::mergeServerPage(
             m_database.rollback();
             return fail(QStringLiteral("mergeServerPage"), mutation.lastError().text());
         }
+        QSqlQuery cleanup(m_database);
+        cleanup.prepare(QStringLiteral("DELETE FROM v2_message_pins WHERE account_id=? AND conversation_id=? AND message_id=?"));
+        cleanup.addBindValue(accountId); cleanup.addBindValue(conversationId); cleanup.addBindValue(messageId);
+        if (!cleanup.exec()) { m_database.rollback(); return fail(QStringLiteral("mergeServerPage"), cleanup.lastError().text()); }
+        QSqlQuery commands(m_database);
+        commands.prepare(QStringLiteral("DELETE FROM v2_pin_commands WHERE account_id=? AND conversation_id=? AND message_id=?"));
+        commands.addBindValue(accountId); commands.addBindValue(conversationId); commands.addBindValue(messageId);
+        if (!commands.exec()) { m_database.rollback(); return fail(QStringLiteral("mergeServerPage"), commands.lastError().text()); }
     }
     QSqlQuery deletion(m_database);
     deletion.prepare(QStringLiteral(
@@ -343,6 +369,14 @@ bool V2LocalMessageRepository::mergeServerPage(
             m_database.rollback();
             return fail(QStringLiteral("mergeServerPage"), removeReactions.lastError().text());
         }
+        QSqlQuery removePins(m_database);
+        removePins.prepare(QStringLiteral("DELETE FROM v2_message_pins WHERE account_id=? AND conversation_id=? AND message_id=?"));
+        removePins.addBindValue(accountId); removePins.addBindValue(conversationId); removePins.addBindValue(messageId);
+        if (!removePins.exec()) { m_database.rollback(); return fail(QStringLiteral("mergeServerPage"), removePins.lastError().text()); }
+        QSqlQuery removePinCommands(m_database);
+        removePinCommands.prepare(QStringLiteral("DELETE FROM v2_pin_commands WHERE account_id=? AND conversation_id=? AND message_id=?"));
+        removePinCommands.addBindValue(accountId); removePinCommands.addBindValue(conversationId); removePinCommands.addBindValue(messageId);
+        if (!removePinCommands.exec()) { m_database.rollback(); return fail(QStringLiteral("mergeServerPage"), removePinCommands.lastError().text()); }
     }
     for (const auto &change : reactionChanges) {
         if (!applyReactionProjection(accountId, change)) {
@@ -356,6 +390,13 @@ bool V2LocalMessageRepository::mergeServerPage(
             m_database.rollback();
             return fail(QStringLiteral("mergeServerPage"), acknowledged.lastError().text());
         }
+    }
+    for (const auto &change : pinChanges) {
+        if (!applyPinProjection(accountId, change)) { m_database.rollback(); return false; }
+        QSqlQuery acknowledged(m_database);
+        acknowledged.prepare(QStringLiteral("DELETE FROM v2_pin_commands WHERE account_id=? AND client_operation_id=?"));
+        acknowledged.addBindValue(accountId); acknowledged.addBindValue(change.clientOperationId);
+        if (!acknowledged.exec()) { m_database.rollback(); return fail(QStringLiteral("mergeServerPage"), acknowledged.lastError().text()); }
     }
     if (!pruneAccepted(accountId, conversationId)) { m_database.rollback(); return false; }
     if (!m_database.commit()) {
@@ -500,6 +541,88 @@ bool V2LocalMessageRepository::mergeLiveReaction(
     m_lastError.clear(); return true;
 }
 
+bool V2LocalMessageRepository::stagePin(const QString &accountId, const PinCommand &command) {
+    if (!canonicalUuid(accountId) || !validPinCommand(command))
+        return fail(QStringLiteral("stagePin"), QStringLiteral("invalid pin command"));
+    if (!m_database.transaction()) return fail(QStringLiteral("stagePin"), m_database.lastError().text());
+    if (!ensureConversation(accountId, command.conversationId, 0)) { m_database.rollback(); return false; }
+    QSqlQuery target(m_database);
+    target.prepare(QStringLiteral("SELECT 1 FROM v2_messages WHERE account_id=? AND conversation_id=? AND message_id=? AND delivery_state='accepted' AND recalled=0"));
+    target.addBindValue(accountId); target.addBindValue(command.conversationId); target.addBindValue(command.messageId);
+    if (!target.exec() || !target.next()) { m_database.rollback(); return fail(QStringLiteral("stagePin"), QStringLiteral("pin target unavailable")); }
+    QSqlQuery existing(m_database);
+    existing.prepare(QStringLiteral("SELECT conversation_id,message_id,pinned FROM v2_pin_commands WHERE account_id=? AND client_operation_id=?"));
+    existing.addBindValue(accountId); existing.addBindValue(command.clientOperationId);
+    if (!existing.exec()) { m_database.rollback(); return fail(QStringLiteral("stagePin"), existing.lastError().text()); }
+    if (existing.next()) {
+        if (existing.value(0).toString()!=command.conversationId || existing.value(1).toString()!=command.messageId || existing.value(2).toBool()!=command.pinned) {
+            m_database.rollback(); return fail(QStringLiteral("stagePin"), QStringLiteral("idempotency conflict"));
+        }
+        QSqlQuery retry(m_database); retry.prepare(QStringLiteral("UPDATE v2_pin_commands SET delivery_state='pending' WHERE account_id=? AND client_operation_id=?"));
+        retry.addBindValue(accountId); retry.addBindValue(command.clientOperationId);
+        if (!retry.exec()) { m_database.rollback(); return fail(QStringLiteral("stagePin"), retry.lastError().text()); }
+    } else {
+        QSqlQuery count(m_database); count.prepare(QStringLiteral("SELECT COUNT(*) FROM v2_pin_commands WHERE account_id=?"));
+        count.addBindValue(accountId);
+        if (!count.exec() || !count.next() || count.value(0).toInt() >= MaxPendingPinsPerAccount) {
+            m_database.rollback(); return fail(QStringLiteral("stagePin"), QStringLiteral("pin outbox limit reached"));
+        }
+        QSqlQuery insert(m_database); insert.prepare(QStringLiteral("INSERT INTO v2_pin_commands(account_id,conversation_id,message_id,pinned,client_operation_id,delivery_state) VALUES(?,?,?,?,?,'pending')"));
+        insert.addBindValue(accountId); insert.addBindValue(command.conversationId); insert.addBindValue(command.messageId); insert.addBindValue(command.pinned); insert.addBindValue(command.clientOperationId);
+        if (!insert.exec()) { m_database.rollback(); return fail(QStringLiteral("stagePin"), insert.lastError().text()); }
+    }
+    PinChange optimistic{command.conversationId,0,command.messageId,command.pinned,accountId,command.clientOperationId,1};
+    if (!applyPinProjection(accountId, optimistic)) { m_database.rollback(); return false; }
+    if (!m_database.commit()) return fail(QStringLiteral("stagePin"), m_database.lastError().text());
+    m_lastError.clear(); return true;
+}
+
+bool V2LocalMessageRepository::markPinFailed(const QString &accountId, const QString &operationId) {
+    if (!canonicalUuid(accountId) || !validIdentifier(operationId))
+        return fail(QStringLiteral("markPinFailed"), QStringLiteral("invalid pin operation"));
+    QSqlQuery query(m_database);
+    query.prepare(QStringLiteral("UPDATE v2_pin_commands SET delivery_state='failed' WHERE account_id=? AND client_operation_id=? AND delivery_state='pending'"));
+    query.addBindValue(accountId); query.addBindValue(operationId);
+    if (!query.exec() || query.numRowsAffected() != 1)
+        return fail(QStringLiteral("markPinFailed"), query.lastError().text());
+    m_lastError.clear();
+    return true;
+}
+
+bool V2LocalMessageRepository::applyPin(const QString &accountId, const PinChange &change) {
+    if (!canonicalUuid(accountId) || !validPinChange(change, false))
+        return fail(QStringLiteral("applyPin"), QStringLiteral("invalid pin result"));
+    if (!m_database.transaction())
+        return fail(QStringLiteral("applyPin"), m_database.lastError().text());
+    if (!applyPinProjection(accountId, change)) { m_database.rollback(); return false; }
+    QSqlQuery command(m_database); command.prepare(QStringLiteral("DELETE FROM v2_pin_commands WHERE account_id=? AND client_operation_id=?"));
+    command.addBindValue(accountId); command.addBindValue(change.clientOperationId);
+    if (!command.exec()) {
+        m_database.rollback();
+        return fail(QStringLiteral("applyPin"), command.lastError().text());
+    }
+    if (!m_database.commit())
+        return fail(QStringLiteral("applyPin"), m_database.lastError().text());
+    m_lastError.clear(); return true;
+}
+
+bool V2LocalMessageRepository::mergeLivePin(const QString &accountId, const PinChange &change) {
+    if (!canonicalUuid(accountId) || !validPinChange(change, true))
+        return fail(QStringLiteral("mergeLivePin"), QStringLiteral("invalid live pin"));
+    if (!m_database.transaction())
+        return fail(QStringLiteral("mergeLivePin"), m_database.lastError().text());
+    if (!applyPinProjection(accountId, change)) { m_database.rollback(); return false; }
+    QSqlQuery command(m_database); command.prepare(QStringLiteral("DELETE FROM v2_pin_commands WHERE account_id=? AND client_operation_id=?"));
+    command.addBindValue(accountId); command.addBindValue(change.clientOperationId);
+    if (!command.exec()) {
+        m_database.rollback();
+        return fail(QStringLiteral("mergeLivePin"), command.lastError().text());
+    }
+    if (!m_database.commit())
+        return fail(QStringLiteral("mergeLivePin"), m_database.lastError().text());
+    m_lastError.clear(); return true;
+}
+
 bool V2LocalMessageRepository::saveDraft(
         const QString &accountId, const QString &conversationId, const QString &draft) {
     if (!canonicalUuid(accountId) || !canonicalUuid(conversationId)
@@ -571,6 +694,15 @@ V2LocalMessageRepository::Snapshot V2LocalMessageRepository::loadSnapshot(
             aggregate->actorAccountIds.append(reactions.value(2).toString());
         }
     }
+    QSqlQuery pins(m_database);
+    pins.prepare(QStringLiteral("SELECT message_id FROM v2_message_pins WHERE account_id=? AND conversation_id=?"));
+    pins.addBindValue(accountId); pins.addBindValue(conversationId);
+    if (!pins.exec()) { fail(QStringLiteral("loadSnapshot"), pins.lastError().text()); return {}; }
+    while (pins.next()) {
+        auto message = std::find_if(result.messages.begin(), result.messages.end(),
+            [&](const Message &value) { return value.messageId == pins.value(0).toString(); });
+        if (message != result.messages.end()) message->pinned = true;
+    }
     QSqlQuery commands(m_database);
     commands.prepare(QStringLiteral(
         "SELECT message_id, reaction, active, client_operation_id, delivery_state "
@@ -588,6 +720,15 @@ V2LocalMessageRepository::Snapshot V2LocalMessageRepository::loadSnapshot(
         command.state = commands.value(4).toString() == QStringLiteral("failed")
             ? DeliveryState::Failed : DeliveryState::Pending;
         if (validReactionCommand(command)) result.reactionCommands.append(command);
+    }
+    QSqlQuery pinCommands(m_database);
+    pinCommands.prepare(QStringLiteral("SELECT message_id,pinned,client_operation_id,delivery_state FROM v2_pin_commands WHERE account_id=? AND conversation_id=? ORDER BY rowid"));
+    pinCommands.addBindValue(accountId); pinCommands.addBindValue(conversationId);
+    if (!pinCommands.exec()) { fail(QStringLiteral("loadSnapshot"), pinCommands.lastError().text()); return {}; }
+    while (pinCommands.next()) {
+        PinCommand command{conversationId, pinCommands.value(0).toString(), pinCommands.value(1).toBool(),
+            pinCommands.value(2).toString(), pinCommands.value(3).toString()==QStringLiteral("failed") ? DeliveryState::Failed : DeliveryState::Pending};
+        if (validPinCommand(command)) result.pinCommands.append(command);
     }
     m_lastError.clear(); return result;
 }
@@ -629,6 +770,22 @@ V2LocalMessageRepository::pendingReactions(const QString &accountId) {
         command.reaction = static_cast<ReactionKind>(query.value(2).toInt());
         command.active = query.value(3).toBool(); command.clientOperationId = query.value(4).toString();
         if (validReactionCommand(command)) result.append(command);
+    }
+    m_lastError.clear(); return result;
+}
+
+QList<V2LocalMessageRepository::PinCommand>
+V2LocalMessageRepository::pendingPins(const QString &accountId) {
+    QList<PinCommand> result; if (!canonicalUuid(accountId)) return result;
+    QSqlQuery query(m_database); query.prepare(QStringLiteral(
+        "SELECT conversation_id,message_id,pinned,client_operation_id FROM v2_pin_commands "
+        "WHERE account_id=? AND delivery_state='pending' ORDER BY rowid"));
+    query.addBindValue(accountId);
+    if (!query.exec()) { fail(QStringLiteral("pendingPins"), query.lastError().text()); return {}; }
+    while (query.next()) {
+        PinCommand command{query.value(0).toString(), query.value(1).toString(),
+            query.value(2).toBool(), query.value(3).toString(), DeliveryState::Pending};
+        if (validPinCommand(command)) result.append(command);
     }
     m_lastError.clear(); return result;
 }
@@ -683,7 +840,15 @@ bool V2LocalMessageRepository::pruneAccepted(
         "AND m.conversation_id = ? AND m.message_id = v2_message_reactions.message_id)"));
     orphaned.addBindValue(accountId); orphaned.addBindValue(conversationId);
     orphaned.addBindValue(accountId); orphaned.addBindValue(conversationId);
-    return orphaned.exec() || fail(QStringLiteral("pruneAccepted"), orphaned.lastError().text());
+    if (!orphaned.exec()) return fail(QStringLiteral("pruneAccepted"), orphaned.lastError().text());
+    QSqlQuery orphanedPins(m_database);
+    orphanedPins.prepare(QStringLiteral(
+        "DELETE FROM v2_message_pins WHERE account_id=? AND conversation_id=? AND NOT EXISTS "
+        "(SELECT 1 FROM v2_messages m WHERE m.account_id=? AND m.conversation_id=? "
+        "AND m.message_id=v2_message_pins.message_id)"));
+    orphanedPins.addBindValue(accountId); orphanedPins.addBindValue(conversationId);
+    orphanedPins.addBindValue(accountId); orphanedPins.addBindValue(conversationId);
+    return orphanedPins.exec() || fail(QStringLiteral("pruneAccepted"), orphanedPins.lastError().text());
 }
 
 bool V2LocalMessageRepository::applyReactionProjection(
@@ -707,6 +872,26 @@ bool V2LocalMessageRepository::applyReactionProjection(
         query.addBindValue(change.actorAccountId);
     }
     return query.exec() || fail(QStringLiteral("applyReactionProjection"), query.lastError().text());
+}
+
+bool V2LocalMessageRepository::applyPinProjection(
+        const QString &accountId, const PinChange &change) {
+    QSqlQuery query(m_database);
+    if (change.pinned) {
+        query.prepare(QStringLiteral(
+            "INSERT OR IGNORE INTO v2_message_pins(account_id,conversation_id,message_id) "
+            "SELECT ?,?,? WHERE EXISTS (SELECT 1 FROM v2_messages WHERE account_id=? "
+            "AND conversation_id=? AND message_id=? AND recalled=0)"));
+        query.addBindValue(accountId); query.addBindValue(change.conversationId);
+        query.addBindValue(change.messageId); query.addBindValue(accountId);
+        query.addBindValue(change.conversationId); query.addBindValue(change.messageId);
+    } else {
+        query.prepare(QStringLiteral(
+            "DELETE FROM v2_message_pins WHERE account_id=? AND conversation_id=? AND message_id=?"));
+        query.addBindValue(accountId); query.addBindValue(change.conversationId);
+        query.addBindValue(change.messageId);
+    }
+    return query.exec() || fail(QStringLiteral("applyPinProjection"), query.lastError().text());
 }
 
 bool V2LocalMessageRepository::canonicalUuid(const QString &value) {
@@ -773,6 +958,18 @@ bool V2LocalMessageRepository::validReactionChange(
 bool V2LocalMessageRepository::validReactionCommand(const ReactionCommand &command) {
     return canonicalUuid(command.conversationId) && canonicalUuid(command.messageId)
         && validReactionKind(command.reaction) && validIdentifier(command.clientOperationId)
+        && command.state != DeliveryState::Accepted;
+}
+bool V2LocalMessageRepository::validPinChange(
+        const PinChange &change, bool sequenceRequired) {
+    return canonicalUuid(change.conversationId) && canonicalUuid(change.messageId)
+        && canonicalUuid(change.actorAccountId) && validIdentifier(change.clientOperationId)
+        && change.occurredAtEpochMs > 0 && (sequenceRequired
+            ? change.conversationSequence > 0 : change.conversationSequence >= 0);
+}
+bool V2LocalMessageRepository::validPinCommand(const PinCommand &command) {
+    return canonicalUuid(command.conversationId) && canonicalUuid(command.messageId)
+        && validIdentifier(command.clientOperationId)
         && command.state != DeliveryState::Accepted;
 }
 bool V2LocalMessageRepository::fail(const QString &operation, const QString &detail) {

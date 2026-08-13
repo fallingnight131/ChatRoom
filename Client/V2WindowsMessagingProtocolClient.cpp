@@ -140,6 +140,22 @@ V2WindowsMessagingProtocolClient::setReaction(
 }
 
 V2WindowsMessagingProtocolClient::Command
+V2WindowsMessagingProtocolClient::setPin(
+        const std::string &conversationId, const std::string &messageId,
+        bool pinned, const std::string &clientOperationId) {
+    if (!canonicalUuid(conversationId) || !canonicalUuid(messageId)
+            || !boundedIdentifier(clientOperationId, true))
+        throw std::invalid_argument("invalid pin command");
+    chat::v2::SetMessagePin payload;
+    payload.set_conversation_id(conversationId); payload.set_message_id(messageId);
+    payload.set_pinned(pinned); payload.set_client_operation_id(clientOperationId);
+    Pending pending; pending.type = PendingType::Pin; pending.conversationId = conversationId;
+    pending.messageId = messageId; pending.pinned = pinned;
+    pending.clientOperationId = clientOperationId;
+    return command(chat::v2::MESSAGE_TYPE_SET_MESSAGE_PIN, bytes(payload), {}, std::move(pending));
+}
+
+V2WindowsMessagingProtocolClient::Command
 V2WindowsMessagingProtocolClient::command(
         int messageType, const std::string &payload, const std::string &clientMessageId,
         Pending pending) {
@@ -223,6 +239,18 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
             reaction.active(), reaction.actor_account_id(), reaction.client_operation_id(),
             reaction.occurred_at_epoch_ms()};
     };
+    auto decodePin = [&](const chat::v2::MessagePinChangedRecord &pin) {
+        if (!canonicalUuid(pin.conversation_id()) || !canonicalUuid(pin.message_id())
+                || !canonicalUuid(pin.actor_account_id())
+                || !boundedIdentifier(pin.client_operation_id(), true)
+                || pin.conversation_sequence() == 0
+                || pin.conversation_sequence() > maximumSignedSequence
+                || pin.occurred_at_epoch_ms() <= 0)
+            throw std::runtime_error("invalid pin change");
+        return PinChange{pin.conversation_id(), pin.conversation_sequence(), pin.message_id(),
+            pin.pinned(), pin.actor_account_id(), pin.client_operation_id(),
+            pin.occurred_at_epoch_ms()};
+    };
 
     if (envelope.kind() == chat::v2::MESSAGE_KIND_EVENT
             && envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_PUBLISHED) {
@@ -235,6 +263,17 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         result.messageId = message.messageId;
         result.conversationSequence = message.conversationSequence;
         result.messages.push_back(std::move(message));
+        return result;
+    }
+    if (envelope.kind() == chat::v2::MESSAGE_KIND_EVENT
+            && envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_PIN_CHANGED) {
+        if (!envelope.request_id().empty() || !envelope.client_message_id().empty())
+            throw std::runtime_error("pin event must not claim request correlation");
+        Event result; result.type = EventType::PinChanged;
+        result.pinChange = decodePin(parse<chat::v2::MessagePinChangedRecord>(envelope.payload()));
+        result.conversationId = result.pinChange.conversationId;
+        result.messageId = result.pinChange.messageId;
+        result.conversationSequence = result.pinChange.conversationSequence;
         return result;
     }
     if (envelope.kind() == chat::v2::MESSAGE_KIND_EVENT
@@ -274,6 +313,11 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
             result.messageId = pending.messageId;
             result.reactionChange = {pending.conversationId, 0, pending.messageId,
                 pending.reaction, pending.active, {}, pending.clientOperationId, 0};
+        }
+        if (pending.type == PendingType::Pin) {
+            result.messageId = pending.messageId;
+            result.pinChange = {pending.conversationId, 0, pending.messageId, pending.pinned,
+                {}, pending.clientOperationId, 0};
         }
         return result;
     }
@@ -325,6 +369,26 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
             applied.client_operation_id(), applied.occurred_at_epoch_ms()};
         return result;
     }
+    if (pending.type == PendingType::Pin
+            && envelope.kind() == chat::v2::MESSAGE_KIND_RESPONSE
+            && envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_PIN_APPLIED) {
+        const auto applied = parse<chat::v2::MessagePinApplied>(envelope.payload());
+        if (applied.conversation_id() != pending.conversationId
+                || applied.message_id() != pending.messageId
+                || applied.client_operation_id() != pending.clientOperationId
+                || applied.pinned() != pending.pinned || !canonicalUuid(applied.actor_account_id())
+                || applied.occurred_at_epoch_ms() <= 0
+                || applied.conversation_sequence() > maximumSignedSequence
+                || applied.changed() != (applied.conversation_sequence() > 0))
+            throw std::runtime_error("invalid pin application");
+        m_pending.erase(position); Event result; result.type = EventType::PinApplied;
+        result.requestId = envelope.request_id(); result.conversationId = applied.conversation_id();
+        result.messageId = applied.message_id(); result.conversationSequence = applied.conversation_sequence();
+        result.pinChange = {applied.conversation_id(), applied.conversation_sequence(),
+            applied.message_id(), applied.pinned(), applied.actor_account_id(),
+            applied.client_operation_id(), applied.occurred_at_epoch_ms()};
+        return result;
+    }
     if (pending.type == PendingType::History
             && envelope.kind() == chat::v2::MESSAGE_KIND_RESPONSE
             && envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE) {
@@ -349,6 +413,7 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         std::vector<std::string> recalledMessageIds;
         std::vector<std::string> deletedMessageIds;
         std::vector<ReactionChange> reactionChanges;
+        std::vector<PinChange> pinChanges;
         for (const auto &entry : page.entries()) {
             if (entry.conversation_id() != pending.conversationId
                     || entry.conversation_sequence() == 0
@@ -423,8 +488,13 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
                     reaction.client_operation_id(), reaction.occurred_at_epoch_ms()});
                 break;
             }
-            case chat::v2::ConversationEntryRecord::kPin:
-                throw std::runtime_error("pin entry received without capability");
+            case chat::v2::ConversationEntryRecord::kPin: {
+                const auto pin = decodePin(entry.pin());
+                if (pin.conversationId != entry.conversation_id()
+                        || pin.conversationSequence != entry.conversation_sequence())
+                    throw std::runtime_error("pin entry identity differs");
+                pinChanges.push_back(pin); break;
+            }
             case chat::v2::ConversationEntryRecord::DETAIL_NOT_SET:
                 throw std::runtime_error("history entry detail is required");
             }
@@ -448,6 +518,7 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
         result.recalledMessageIds = std::move(recalledMessageIds);
         result.deletedMessageIds = std::move(deletedMessageIds);
         result.reactionChanges = std::move(reactionChanges);
+        result.pinChanges = std::move(pinChanges);
         result.nextSequence = page.next_sequence();
         result.latestSequence = page.latest_sequence();
         result.hasMore = page.has_more();

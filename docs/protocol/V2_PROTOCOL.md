@@ -144,12 +144,12 @@ and capable live events. The default-off Windows V2 preview also advertises the
 capability and converges its isolated SQLite operation outbox through the same
 three authoritative paths (ADR-0339).
 
-Types 109/112/113 and `MESSAGE_PINS` reserve the inactive pinned-message wire
+Types 109/112/113 and `MESSAGE_PINS` define the active pinned-message wire
 shape. The operation is desired-state idempotent, changed-only sequence ordered,
 contains no copied message body, and is capped by server policy at 50 active
-pins. Neither client advertises this capability yet; capable persistence,
-gateway filtering, and local projections remain required before activation
-(ADR-0340).
+pins. Both default-off V2 previews now advertise the capability after completing
+their durable operation outbox, optimistic projection, ACK/history/live repair,
+target cleanup, and accessible-control gates (ADR-0340).
 
 `ListConversations` uses a limit of 1..100 and either no cursor or the complete
 pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are

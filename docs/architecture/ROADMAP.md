@@ -1424,13 +1424,13 @@ Progress:
     aggregate rendering to the default-off Web V2 preview.
   - [x] Add the corresponding local projection, optimistic convergence,
     accessible controls, and aggregate rendering to the Windows V2 preview.
-- [ ] Deliver bounded, ordered pinned messages on V2 Web and Windows.
+- [x] Deliver bounded, ordered pinned messages on V2 Web and Windows.
   - [x] Define capability negotiation, permanent type allocation, role policy,
     a 50-pin bound, exact idempotency, mixed-sequence ordering, target cleanup,
     body-free projection, and offline cursor rules (ADR-0340).
   - [x] Add the generated wire contract, bounded Java policy, mixed-history pin
-    detail, and fixed Java/C++/TypeScript golden compatibility gate while the
-    feature remains inactive until each client completes its local slice.
+    detail, and fixed Java/C++/TypeScript golden compatibility gate, keeping
+    activation gated until each client completed its local slice.
   - [x] Persist and route authoritative pin operations, history, and live events.
     - [x] Persist exact manual outcomes, shared current state, changed-only mixed
       history, the 50-pin bound, OWNER/ADMIN group authority, and ordered
@@ -1439,10 +1439,13 @@ Progress:
       before explicit capability negotiation, map fixed outcomes, filter mixed
       history detail without stalling cursors, and fan out live changes only to
       capable subscribers.
-  - [ ] Add offline-safe Web and Windows projections and accessible controls.
+  - [x] Add offline-safe Web and Windows projections and accessible controls.
     - [x] Add the Web IndexedDB projection and bounded outbox, optimistic intent,
       ACK/history/live/reconnect convergence, target cleanup, accessible
       controls, and capability activation.
+    - [x] Add the Windows SQLite projection and bounded outbox, optimistic
+      intent, stable reconnect replay, ACK/history/live convergence, target
+      cleanup, accessible Widgets controls, and capability activation.
 
 Candidate slices:
 

@@ -31,6 +31,15 @@ public:
         QString clientOperationId;
         DeliveryState state = DeliveryState::Pending;
     };
+    struct PinChange {
+        QString conversationId; qint64 conversationSequence = 0; QString messageId;
+        bool pinned = false; QString actorAccountId; QString clientOperationId;
+        qint64 occurredAtEpochMs = 0;
+    };
+    struct PinCommand {
+        QString conversationId; QString messageId; bool pinned = false;
+        QString clientOperationId; DeliveryState state = DeliveryState::Pending;
+    };
     struct ReplyReference {
         QString targetMessageId;
         qint64 targetConversationSequence = 0;
@@ -51,12 +60,14 @@ public:
         bool hasReply = false;
         ReplyReference reply;
         QList<ReactionAggregate> reactions;
+        bool pinned = false;
     };
     struct Snapshot {
         QList<Message> messages;
         qint64 cursor = 0;
         QString draft;
         QList<ReactionCommand> reactionCommands;
+        QList<PinCommand> pinCommands;
     };
 
     static constexpr int MaxMessagesPerConversation = 500;
@@ -64,6 +75,7 @@ public:
     static constexpr int MaxTextBytes = 65536;
     static constexpr int MaxDraftLength = 10000;
     static constexpr int MaxPendingReactionsPerAccount = 256;
+    static constexpr int MaxPendingPinsPerAccount = 256;
 
     explicit V2LocalMessageRepository(const QString &databasePath);
     ~V2LocalMessageRepository();
@@ -84,17 +96,23 @@ public:
                          const QList<Message> &messages, qint64 nextCursor,
                          const QStringList &recalledMessageIds = {},
                          const QStringList &deletedMessageIds = {},
-                         const QList<ReactionChange> &reactionChanges = {});
+                         const QList<ReactionChange> &reactionChanges = {},
+                         const QList<PinChange> &pinChanges = {});
     bool mergeLiveMessage(const QString &accountId, const Message &message);
     bool stageReaction(const QString &accountId, const ReactionCommand &command);
     bool markReactionFailed(const QString &accountId, const QString &clientOperationId);
     bool applyReaction(const QString &accountId, const ReactionChange &change);
     bool mergeLiveReaction(const QString &accountId, const ReactionChange &change);
+    bool stagePin(const QString &accountId, const PinCommand &command);
+    bool markPinFailed(const QString &accountId, const QString &clientOperationId);
+    bool applyPin(const QString &accountId, const PinChange &change);
+    bool mergeLivePin(const QString &accountId, const PinChange &change);
     bool saveDraft(const QString &accountId, const QString &conversationId,
                    const QString &draft);
     Snapshot loadSnapshot(const QString &accountId, const QString &conversationId);
     QList<Message> pendingSends(const QString &accountId);
     QList<ReactionCommand> pendingReactions(const QString &accountId);
+    QList<PinCommand> pendingPins(const QString &accountId);
     QString lastError() const { return m_lastError; }
 
 private:
@@ -108,11 +126,14 @@ private:
     static bool validReactionKind(ReactionKind reaction);
     static bool validReactionChange(const ReactionChange &change, bool sequenceRequired);
     static bool validReactionCommand(const ReactionCommand &command);
+    static bool validPinChange(const PinChange &change, bool sequenceRequired);
+    static bool validPinCommand(const PinCommand &command);
     bool ensureConversation(const QString &accountId, const QString &conversationId,
                             qint64 cursor);
     bool insertMessage(const QString &accountId, const Message &message);
     bool pruneAccepted(const QString &accountId, const QString &conversationId);
     bool applyReactionProjection(const QString &accountId, const ReactionChange &change);
+    bool applyPinProjection(const QString &accountId, const PinChange &change);
     bool fail(const QString &operation, const QString &detail);
 
     QString m_databasePath;
