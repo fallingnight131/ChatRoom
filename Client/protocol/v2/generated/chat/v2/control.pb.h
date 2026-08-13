@@ -127,8 +127,11 @@ enum MessageType : int {
   MESSAGE_TYPE_SET_MESSAGE_REACTION = 106,
   MESSAGE_TYPE_MESSAGE_REACTION_APPLIED = 107,
   MESSAGE_TYPE_MESSAGE_REACTION_CHANGED = 108,
+  MESSAGE_TYPE_SET_MESSAGE_PIN = 109,
   MESSAGE_TYPE_LIST_CONVERSATIONS = 110,
   MESSAGE_TYPE_CONVERSATION_DIRECTORY_PAGE = 111,
+  MESSAGE_TYPE_MESSAGE_PIN_APPLIED = 112,
+  MESSAGE_TYPE_MESSAGE_PIN_CHANGED = 113,
   MESSAGE_TYPE_REGISTER_ATTACHMENT = 120,
   MESSAGE_TYPE_ATTACHMENT_REGISTERED = 121,
   MESSAGE_TYPE_AUTHORIZE_ATTACHMENT_UPLOAD = 122,
@@ -215,6 +218,7 @@ template <>
 enum ClientCapability : int {
   CLIENT_CAPABILITY_UNSPECIFIED = 0,
   CLIENT_CAPABILITY_MESSAGE_REACTIONS = 1,
+  CLIENT_CAPABILITY_MESSAGE_PINS = 2,
   ClientCapability_INT_MIN_SENTINEL_DO_NOT_USE_ =
       ::std::numeric_limits<::int32_t>::min(),
   ClientCapability_INT_MAX_SENTINEL_DO_NOT_USE_ =
@@ -225,11 +229,11 @@ extern const uint32_t ClientCapability_internal_data_[];
 inline constexpr ClientCapability ClientCapability_MIN =
     static_cast<ClientCapability>(0);
 inline constexpr ClientCapability ClientCapability_MAX =
-    static_cast<ClientCapability>(1);
+    static_cast<ClientCapability>(2);
 [[nodiscard]] inline bool ClientCapability_IsValid(int value) {
-  return 0 <= value && value <= 1;
+  return 0 <= value && value <= 2;
 }
-inline constexpr int ClientCapability_ARRAYSIZE = 1 + 1;
+inline constexpr int ClientCapability_ARRAYSIZE = 2 + 1;
 [[nodiscard]] const ::google::protobuf::EnumDescriptor* PROTOBUF_NONNULL
 ClientCapability_descriptor();
 [[nodiscard]] inline auto ProtobufInternalGetEnumDescriptor(ClientCapability) {
@@ -244,7 +248,7 @@ template <typename T>
 }
 template <>
 [[nodiscard]] inline const ::std::string& ClientCapability_Name(ClientCapability value) {
-  return ::google::protobuf::internal::NameOfDenseEnum<ClientCapability_descriptor, 0, 1>(
+  return ::google::protobuf::internal::NameOfDenseEnum<ClientCapability_descriptor, 0, 2>(
       static_cast<int>(value));
 }
 [[nodiscard]] inline bool ClientCapability_Parse(

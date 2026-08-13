@@ -61,6 +61,14 @@ public final class MessagingPayloadPolicy {
         return List.copyOf(violations);
     }
 
+    public static List<String> violations(SetMessagePin command) {
+        List<String> violations = new ArrayList<>();
+        requireUuid("conversationId", command.getConversationId(), violations);
+        requireUuid("messageId", command.getMessageId(), violations);
+        requireIdentifier("clientOperationId", command.getClientOperationId(), true, violations);
+        return List.copyOf(violations);
+    }
+
     public static void requireValid(SubmitMessage command, String clientMessageId) {
         requireNone(violations(command, clientMessageId));
     }
@@ -75,6 +83,35 @@ public final class MessagingPayloadPolicy {
 
     public static void requireValid(SetMessageReaction command) {
         requireNone(violations(command));
+    }
+
+    public static void requireValid(SetMessagePin command) {
+        requireNone(violations(command));
+    }
+
+    public static void requireValid(MessagePinApplied response) {
+        List<String> violations = new ArrayList<>();
+        requireUuid("conversationId", response.getConversationId(), violations);
+        requireUuid("messageId", response.getMessageId(), violations);
+        requireUuid("actorAccountId", response.getActorAccountId(), violations);
+        requireIdentifier("clientOperationId", response.getClientOperationId(), true, violations);
+        if (response.getOccurredAtEpochMs() <= 0
+                || response.getChanged() != (response.getConversationSequence() > 0)) {
+            violations.add("pin result bounds are invalid");
+        }
+        requireNone(violations);
+    }
+
+    public static void requireValid(MessagePinChangedRecord event) {
+        List<String> violations = new ArrayList<>();
+        requireUuid("conversationId", event.getConversationId(), violations);
+        requireUuid("messageId", event.getMessageId(), violations);
+        requireUuid("actorAccountId", event.getActorAccountId(), violations);
+        requireIdentifier("clientOperationId", event.getClientOperationId(), true, violations);
+        if (event.getConversationSequence() <= 0 || event.getOccurredAtEpochMs() <= 0) {
+            violations.add("pin event bounds are invalid");
+        }
+        requireNone(violations);
     }
 
     public static void requireValid(MessageReactionApplied response) {

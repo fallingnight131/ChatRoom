@@ -55,6 +55,25 @@ message MessageReactionApplied {
   bool duplicate = 10;
 }
 
+message SetMessagePin {
+  string conversation_id = 1;
+  string message_id = 2;
+  bool pinned = 3;
+  string client_operation_id = 4;
+}
+
+message MessagePinApplied {
+  string conversation_id = 1;
+  string message_id = 2;
+  bool pinned = 3;
+  string actor_account_id = 4;
+  string client_operation_id = 5;
+  bool changed = 6;
+  uint64 conversation_sequence = 7;
+  int64 occurred_at_epoch_ms = 8;
+  bool duplicate = 9;
+}
+
 message MessageAccepted {
   string conversation_id = 1;
   string message_id = 2;
@@ -122,6 +141,16 @@ message MessageReactionChangedRecord {
   int64 occurred_at_epoch_ms = 8;
 }
 
+message MessagePinChangedRecord {
+  string conversation_id = 1;
+  uint64 conversation_sequence = 2;
+  string message_id = 3;
+  bool pinned = 4;
+  string actor_account_id = 5;
+  string client_operation_id = 6;
+  int64 occurred_at_epoch_ms = 7;
+}
+
 message ConversationEntryRecord {
   string conversation_id = 1;
   uint64 conversation_sequence = 2;
@@ -130,6 +159,7 @@ message ConversationEntryRecord {
     MessageRecalledRecord recall = 4;
     MessagesDeletedRecord deletion = 5;
     MessageReactionChangedRecord reaction = 6;
+    MessagePinChangedRecord pin = 7;
   }
 }
 

@@ -69,6 +69,9 @@ reused:
 | 106 | `SetMessageReaction` | command | capable authenticated client to server; idempotent desired reaction state |
 | 107 | `MessageReactionApplied` | response | server to submitting capable client after durable decision |
 | 108 | `MessageReactionChanged` | event | server to capable active subscribers after a changed durable reaction |
+| 109 | `SetMessagePin` | command | future capable authenticated client to server; idempotent desired pin state |
+| 112 | `MessagePinApplied` | response | future correlated changed/no-op pin result |
+| 113 | `MessagePinChanged` | event | future ordered pin projection change |
 | 110 | `ListConversations` | command | authenticated client to server; bounded directory page |
 | 111 | `ConversationDirectoryPage` | response | server to authenticated active member |
 
@@ -140,6 +143,13 @@ offline-safe optimistic projection through correlated responses, mixed history,
 and capable live events. The default-off Windows V2 preview also advertises the
 capability and converges its isolated SQLite operation outbox through the same
 three authoritative paths (ADR-0339).
+
+Types 109/112/113 and `MESSAGE_PINS` reserve the inactive pinned-message wire
+shape. The operation is desired-state idempotent, changed-only sequence ordered,
+contains no copied message body, and is capped by server policy at 50 active
+pins. Neither client advertises this capability yet; capable persistence,
+gateway filtering, and local projections remain required before activation
+(ADR-0340).
 
 `ListConversations` uses a limit of 1..100 and either no cursor or the complete
 pair `(after_updated_at_epoch_ms, after_conversation_id)`. Directory records are

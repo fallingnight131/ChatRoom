@@ -423,6 +423,8 @@ V2WindowsMessagingProtocolClient::receive(const std::string &encoded) {
                     reaction.client_operation_id(), reaction.occurred_at_epoch_ms()});
                 break;
             }
+            case chat::v2::ConversationEntryRecord::kPin:
+                throw std::runtime_error("pin entry received without capability");
             case chat::v2::ConversationEntryRecord::DETAIL_NOT_SET:
                 throw std::runtime_error("history entry detail is required");
             }
