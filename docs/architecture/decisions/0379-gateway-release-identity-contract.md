@@ -31,6 +31,9 @@ the JVM actually loaded.
   suffixes, and mutation methods through the existing admin response policy.
 - Keep identity off the public product listener and out of user-facing protocol
   payloads. Deployment tooling must compare it through node-local access.
+- Export the same strictly validated values as the single-sample
+  `chat_gateway_release_info` gauge. Its four labels have one immutable value per
+  process; do not add instance, user, request, or other unbounded labels.
 
 ## Consequences
 

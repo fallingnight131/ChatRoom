@@ -69,4 +69,13 @@ public record GatewayReleaseIdentity(
                 + "\",\"protocolVersion\":" + protocolVersion
                 + ",\"compatibilityEpoch\":" + compatibilityEpoch + "}\n";
     }
+
+    public String prometheus() {
+        return "# HELP chat_gateway_release_info Immutable running gateway release identity.\n"
+                + "# TYPE chat_gateway_release_info gauge\n"
+                + "chat_gateway_release_info{release_version=\"" + releaseVersion
+                + "\",source_revision=\"" + sourceRevision
+                + "\",protocol_version=\"" + protocolVersion
+                + "\",compatibility_epoch=\"" + compatibilityEpoch + "\"} 1\n";
+    }
 }

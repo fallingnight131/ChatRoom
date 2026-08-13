@@ -75,6 +75,10 @@ class GatewayAdminServerTest {
             assertTrue(metrics.body().contains(
                     "chat_gateway_authentication_total{outcome=\"accepted\"} 1"));
             assertTrue(metrics.body().contains(
+                    "chat_gateway_release_info{release_version=\"1.2.3\","
+                            + "source_revision=\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\","
+                            + "protocol_version=\"2\",compatibility_epoch=\"1\"} 1"));
+            assertTrue(metrics.body().contains(
                     "chat_gateway_messaging_total{outcome=\"duplicate\"} 1"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_messaging_total{outcome=\"live_published\"} 2"));

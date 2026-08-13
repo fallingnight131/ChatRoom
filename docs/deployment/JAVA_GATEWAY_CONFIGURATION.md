@@ -190,6 +190,9 @@ The same loopback listener exposes exact GET-only `/identity` with release
 version, source revision, runtime protocol version, and compatibility epoch. It
 uses deterministic JSON plus `no-store`/`nosniff`, contains no secrets or user
 identifiers, and must not be exposed through the public edge.
+The loopback `/metrics` response repeats the same immutable values in
+`chat_gateway_release_info`; this permits fleet-version dashboards without
+making mutable image tags authoritative.
 
 The process accepts no command-line configuration. On startup it validates the
 existing Flyway migration state and database pool before serving, starts the

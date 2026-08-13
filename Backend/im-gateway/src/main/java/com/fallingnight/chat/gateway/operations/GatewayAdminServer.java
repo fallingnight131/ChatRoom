@@ -104,6 +104,7 @@ public final class GatewayAdminServer implements AutoCloseable {
                 "/metrics",
                 200,
                 PrometheusAuthenticationMetrics.render(telemetry.snapshot())
+                        + releaseIdentity.prometheus()
                         + PrometheusMessagingMetrics.render(
                                 messagingTelemetry.snapshot(),
                                 messagingActiveWorkers.getAsInt(),

@@ -25,6 +25,13 @@ class GatewayReleaseIdentityTest {
         assertEquals("2.3.4-rc.1", release.releaseVersion());
         assertEquals(REVISION, release.sourceRevision());
         assertEquals(7, release.compatibilityEpoch());
+        assertEquals(
+                "# HELP chat_gateway_release_info Immutable running gateway release identity.\n"
+                        + "# TYPE chat_gateway_release_info gauge\n"
+                        + "chat_gateway_release_info{release_version=\"2.3.4-rc.1\","
+                        + "source_revision=\"" + REVISION + "\",protocol_version=\"2\","
+                        + "compatibility_epoch=\"7\"} 1\n",
+                release.prometheus());
     }
 
     @Test
