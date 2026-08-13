@@ -63,6 +63,9 @@ import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMessageDel
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRenameCommand;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRenameResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomRenameService;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordIntent;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordStatusResult;
+import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomPasswordUpdateResult;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomMemberListPort;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettings;
 import com.fallingnight.chat.application.compatibility.v1.LegacyV1RoomSettingsPort;
@@ -161,7 +164,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(32, first.migrate());
+        assertEquals(33, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -1084,7 +1087,8 @@ class PostgresMigratorTest {
                 + created.get(0).conversationId() + "' AND account_id = '" + actor
                 + "' AND role = 'OWNER' AND left_at IS NULL"));
         assertEquals(1, count("SELECT count(*) FROM chat.group_join_credential WHERE conversation_id = '"
-                + created.get(0).conversationId() + "' AND encoded_password LIKE '$argon2id$%'"));
+                + created.get(0).conversationId() + "' AND encoded_password LIKE '$argon2id$%' "
+                + "AND password_idempotency_tag = '" + password.idempotencyTag() + "'"));
         assertEquals(LegacyV1RoomCreationResult.Rejected.CLIENT_REQUEST_ID_CONFLICT,
                 adapter.create(new LegacyV1RoomCreationIntent(actor, "create-race",
                         "Other Room", Optional.of(password))));
@@ -1712,6 +1716,108 @@ class PostgresMigratorTest {
         assertEquals(1, search.size()); assertEquals(room.legacyRoomId(),
                 search.getFirst().legacyRoomId());
         assertEquals("Renamed Room", search.getFirst().roomName());
+    }
+
+    @Test
+    @Order(93)
+    void updatesV1RoomPasswordsConvergentlyAndKeepsJoinCredentialAuthoritative()
+            throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID owner = UUID.randomUUID(), member = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account(id, username_key, display_name, "
+                    + "password_hash) VALUES (?, 'password-owner', 'Password Owner', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                    + "(?, 'password-member', 'Password Member', "
+                    + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')", owner, member);
+            execute(connection, "INSERT INTO chat.legacy_v1_account_map(legacy_user_id, "
+                    + "account_id) VALUES (221, ?), (222, ?)", owner, member);
+        }
+        LegacyV1RoomCreationResult.Created room = (LegacyV1RoomCreationResult.Created)
+                new PostgresLegacyV1RoomCreationAdapter(dataSource()).create(
+                        new LegacyV1RoomCreationIntent(owner, "password-room-create",
+                                "Password Room", Optional.empty()));
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.conversation_member(conversation_id, "
+                    + "account_id, role) VALUES (?, ?, 'MEMBER')",
+                    room.conversationId(), member);
+        }
+        var adapter = new PostgresLegacyV1RoomPasswordAdapter(dataSource());
+        assertEquals(LegacyV1RoomPasswordStatusResult.Rejected.ROOM_ADMIN_REQUIRED,
+                adapter.status(member, room.legacyRoomId()));
+        assertEquals(LegacyV1RoomPasswordUpdateResult.Rejected.ROOM_ADMIN_REQUIRED,
+                adapter.update(new LegacyV1RoomPasswordIntent(member,
+                        room.legacyRoomId(), Optional.empty())));
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.conversation_member SET left_at = "
+                    + "transaction_timestamp() WHERE conversation_id = ? AND account_id = ?",
+                    room.conversationId(), member);
+        }
+        var open = assertInstanceOf(LegacyV1RoomPasswordStatusResult.Authorized.class,
+                adapter.status(owner, room.legacyRoomId()));
+        assertFalse(open.hasPassword());
+
+        var firstEncoding = new LegacyV1RoomPasswordEncoding(
+                "$argon2id$v=19$m=65536,t=2,p=1$c2FsdDE$Zmlyc3Q",
+                "hmac-sha256:v1:" + "D".repeat(43));
+        var first = assertInstanceOf(LegacyV1RoomPasswordUpdateResult.Updated.class,
+                adapter.update(new LegacyV1RoomPasswordIntent(owner,
+                        room.legacyRoomId(), Optional.of(firstEncoding))));
+        assertTrue(first.changed()); assertTrue(first.hasPassword());
+        var retry = assertInstanceOf(LegacyV1RoomPasswordUpdateResult.Updated.class,
+                adapter.update(new LegacyV1RoomPasswordIntent(owner,
+                        room.legacyRoomId(), Optional.of(firstEncoding))));
+        assertFalse(retry.changed()); assertEquals(first.updatedAt(), retry.updatedAt());
+        var candidate = assertInstanceOf(LegacyV1RoomJoinAccess.Candidate.class,
+                new PostgresLegacyV1RoomJoinAdapter(dataSource())
+                        .inspect(member, room.legacyRoomId()));
+        assertEquals(Optional.of(new StoredCredential.Argon2id(firstEncoding.encodedHash())),
+                candidate.joinCredential());
+
+        var replacement = new LegacyV1RoomPasswordEncoding(
+                "$argon2id$v=19$m=65536,t=2,p=1$c2FsdDI$cmVwbGFjZWQ",
+                "hmac-sha256:v1:" + "E".repeat(43));
+        var replaced = assertInstanceOf(LegacyV1RoomPasswordUpdateResult.Updated.class,
+                adapter.update(new LegacyV1RoomPasswordIntent(owner,
+                        room.legacyRoomId(), Optional.of(replacement))));
+        assertTrue(replaced.changed()); assertTrue(replaced.hasPassword());
+        candidate = assertInstanceOf(LegacyV1RoomJoinAccess.Candidate.class,
+                new PostgresLegacyV1RoomJoinAdapter(dataSource())
+                        .inspect(member, room.legacyRoomId()));
+        assertEquals(Optional.of(new StoredCredential.Argon2id(replacement.encodedHash())),
+                candidate.joinCredential());
+
+        var cleared = assertInstanceOf(LegacyV1RoomPasswordUpdateResult.Updated.class,
+                adapter.update(new LegacyV1RoomPasswordIntent(
+                        owner, room.legacyRoomId(), Optional.empty())));
+        assertTrue(cleared.changed()); assertFalse(cleared.hasPassword());
+        var clearRetry = assertInstanceOf(LegacyV1RoomPasswordUpdateResult.Updated.class,
+                adapter.update(new LegacyV1RoomPasswordIntent(
+                        owner, room.legacyRoomId(), Optional.empty())));
+        assertFalse(clearRetry.changed()); assertFalse(clearRetry.hasPassword());
+        candidate = assertInstanceOf(LegacyV1RoomJoinAccess.Candidate.class,
+                new PostgresLegacyV1RoomJoinAdapter(dataSource())
+                        .inspect(member, room.legacyRoomId()));
+        assertEquals(Optional.empty(), candidate.joinCredential());
+
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.group_join_credential("
+                    + "conversation_id, encoded_password) VALUES (?, ?)",
+                    room.conversationId(), firstEncoding.encodedHash());
+            SQLException invalidTag = assertThrows(SQLException.class, () -> execute(connection,
+                    "UPDATE chat.group_join_credential SET password_idempotency_tag = "
+                            + "'plain-sha256' WHERE conversation_id = ?",
+                    room.conversationId()));
+            assertEquals("23514", invalidTag.getSQLState());
+        }
+        var legacyCredentialUpgrade = assertInstanceOf(
+                LegacyV1RoomPasswordUpdateResult.Updated.class,
+                adapter.update(new LegacyV1RoomPasswordIntent(owner,
+                        room.legacyRoomId(), Optional.of(firstEncoding))));
+        assertTrue(legacyCredentialUpgrade.changed());
+        assertEquals(1, count("SELECT count(*) FROM chat.group_join_credential "
+                + "WHERE conversation_id = '" + room.conversationId() + "' "
+                + "AND password_idempotency_tag = '" + firstEncoding.idempotencyTag() + "'"));
     }
 
     private static LegacyV1RoomMessageDeletionResult.Deleted deleted(

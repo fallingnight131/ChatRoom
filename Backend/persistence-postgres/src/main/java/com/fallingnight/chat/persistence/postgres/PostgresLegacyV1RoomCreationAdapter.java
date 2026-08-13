@@ -52,8 +52,10 @@ public final class PostgresLegacyV1RoomCreationAdapter implements LegacyV1RoomCr
                 insertAdmissionPolicy(connection, conversationId);
                 insertOwner(connection, conversationId, intent.actorAccountId());
                 if (intent.encodedPassword().isPresent()) {
+                    LegacyV1RoomPasswordEncoding password =
+                            intent.encodedPassword().orElseThrow();
                     insertCredential(connection, conversationId,
-                            intent.encodedPassword().orElseThrow().encodedHash());
+                            password.encodedHash(), password.idempotencyTag());
                 }
                 long legacyRoomId = nextUnusedRoomId(connection);
                 insertMapping(connection, conversationId, legacyRoomId);
@@ -164,13 +166,16 @@ public final class PostgresLegacyV1RoomCreationAdapter implements LegacyV1RoomCr
             requireOne(statement, "group admission policy");
         }
     }
-    private static void insertCredential(Connection connection, UUID conversation, String hash)
+    private static void insertCredential(Connection connection, UUID conversation,
+            String hash, String idempotencyTag)
             throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement("""
-                INSERT INTO chat.group_join_credential(conversation_id, encoded_password)
-                VALUES (?, ?)
+                INSERT INTO chat.group_join_credential(
+                    conversation_id, encoded_password, password_idempotency_tag)
+                VALUES (?, ?, ?)
                 """)) {
             statement.setObject(1, conversation); statement.setString(2, hash);
+            statement.setString(3, idempotencyTag);
             requireOne(statement, "group credential");
         }
     }
