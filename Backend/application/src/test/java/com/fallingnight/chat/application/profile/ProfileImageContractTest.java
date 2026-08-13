@@ -43,11 +43,12 @@ final class ProfileImageContractTest {
     @Test void objectEvidenceIsPrivateBoundedAndDefensive() {
         byte[] digest = new byte[32];
         ProfileImageObjectEvidence evidence = new ProfileImageObjectEvidence(
-                "avatars/sha256/00.png", 9, digest, "image/png");
+                ProfileImageObjectEvidence.objectKey(digest), 9, digest, "image/png");
         digest[0] = 1; assertEquals(0, evidence.contentSha256()[0]);
         assertThrows(IllegalArgumentException.class, () -> new ProfileImageObjectEvidence(
                 "attachments/00.png", 9, new byte[32], "image/png"));
         assertThrows(IllegalArgumentException.class, () -> new ProfileImageObjectEvidence(
-                "avatars/00.jpg", 9, new byte[32], "image/jpeg"));
+                ProfileImageObjectEvidence.objectKey(new byte[32]), 9,
+                new byte[32], "image/jpeg"));
     }
 }
