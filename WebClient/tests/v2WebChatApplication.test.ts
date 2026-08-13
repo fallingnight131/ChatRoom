@@ -85,6 +85,12 @@ class FakeTransport {
     this.calls.push(["reply", conversationId, targetMessageId, clientMessageId, text]);
     this.mentionCalls.push({ kind: "reply", mentions: mentions.map((value) => ({ ...value })) });
   }
+  forwardMessage(sourceConversationId: string, sourceMessageId: string,
+    expectedSourceContentRevision: number, targetConversationId: string,
+    clientMessageId: string): void {
+    this.calls.push(["forward", sourceConversationId, sourceMessageId,
+      expectedSourceContentRevision, targetConversationId, clientMessageId]);
+  }
   setMessageReaction(
     conversationId: string,
     messageId: string,
@@ -131,6 +137,7 @@ class FakeTransport {
 }
 
 class FakeCache {
+  available = true;
   readonly records = new Map<string, { messages: V2ConversationCacheMessage[]; cursorSequence: string;
     reactionCommands?: import("../src/application/v2WebChatApplication").V2ConversationCacheReactionCommand[];
     pinCommands?: import("../src/application/v2WebChatApplication").V2ConversationCachePinCommand[];
@@ -146,6 +153,7 @@ class FakeCache {
     reactionCommands: import("../src/application/v2WebChatApplication").V2ConversationCacheReactionCommand[] = [],
     pinCommands: import("../src/application/v2WebChatApplication").V2ConversationCachePinCommand[] = [],
     editCommands: import("../src/application/v2WebChatApplication").V2ConversationCacheEditCommand[] = []) {
+    if (!this.available) return false;
     this.saves.push({ accountId, conversationId, messages: structuredClone(messages), cursor });
     this.records.set(`${accountId}:${conversationId}`, { messages: structuredClone(messages), cursorSequence: cursor,
       reactionCommands: structuredClone(reactionCommands), pinCommands: structuredClone(pinCommands),
@@ -188,6 +196,34 @@ function directory(transport: FakeTransport, hasMore = false): void {
       nextUpdatedAtEpochMs: BigInt(NOW),
       nextConversationId: CONVERSATION_ID,
       hasMore,
+    }),
+  }));
+}
+
+function directoryWithForwardTarget(transport: FakeTransport): void {
+  transport.emit(correlated({
+    type: "conversation-directory-page",
+    value: create(ConversationDirectoryPageSchema, {
+      conversations: [
+        {
+          conversationId: CONVERSATION_ID,
+          kind: ConversationKind.DIRECT,
+          displayName: "Bob",
+          role: ConversationRole.MEMBER,
+          latestSequence: 1n,
+          updatedAtEpochMs: BigInt(NOW),
+        },
+        {
+          conversationId: SECOND_CONVERSATION_ID,
+          kind: ConversationKind.GROUP,
+          displayName: "Team",
+          role: ConversationRole.MEMBER,
+          latestSequence: 0n,
+          updatedAtEpochMs: BigInt(NOW - 1),
+        },
+      ],
+      nextUpdatedAtEpochMs: BigInt(NOW - 1),
+      nextConversationId: SECOND_CONVERSATION_ID,
     }),
   }));
 }
@@ -444,6 +480,90 @@ test("reconciles optimistic acceptance without skipping the contiguous history c
   assert.equal(application.snapshot.messages.find((message) => message.clientMessageId === "client-2")?.deliveryState, "failed");
   assert.equal(application.retryMessage("client-2"), true);
   assert.deepEqual(transport.calls.at(-1), ["submit", CONVERSATION_ID, "client-2", "retry me"]);
+  application.dispose();
+});
+
+test("persists a privacy-bounded forward before dispatch and converges authoritative history", async () => {
+  const transport = new FakeTransport();
+  const cache = new FakeCache();
+  cache.records.set(`${ACCOUNT_ID}:${CONVERSATION_ID}`, {
+    messages: [cachedMessage({ sequence: "1", content: "server source",
+      contentRevision: 2, editedAtEpochMs: NOW - 1 })],
+    cursorSequence: "1",
+  });
+  const application = new V2WebChatApplication({
+    transport,
+    cache,
+    createClientMessageId: () => "forward-client-1",
+    now: () => NOW,
+  });
+  establish(transport);
+  directoryWithForwardTarget(transport);
+  await application.openConversation(CONVERSATION_ID);
+
+  const optimistic = await application.forwardMessage(MESSAGE_ID, SECOND_CONVERSATION_ID);
+  assert.equal(optimistic.forwarded, true);
+  assert.equal(optimistic.deliveryState, "sending");
+  assert.deepEqual(optimistic.forwardSource, {
+    sourceConversationId: CONVERSATION_ID,
+    sourceMessageId: MESSAGE_ID,
+    expectedSourceContentRevision: 2,
+  });
+  assert.deepEqual(transport.calls.at(-1), ["forward", CONVERSATION_ID, MESSAGE_ID, 2,
+    SECOND_CONVERSATION_ID, "forward-client-1"]);
+  assert.equal(cache.records.get(`${ACCOUNT_ID}:${SECOND_CONVERSATION_ID}`)
+    ?.messages[0]?.clientMessageId, "forward-client-1", "intent is durable before completion");
+
+  await application.openConversation(SECOND_CONVERSATION_ID);
+  transport.emit(correlated({
+    type: "message-history-page",
+    value: create(MessageHistoryPageSchema, {
+      conversationId: SECOND_CONVERSATION_ID,
+      messages: [{
+        conversationId: SECOND_CONVERSATION_ID,
+        messageId: SECOND_MESSAGE_ID,
+        conversationSequence: 1n,
+        senderAccountId: ACCOUNT_ID,
+        senderDeviceId: DEVICE_ID,
+        clientMessageId: "forward-client-1",
+        contentType: MessageContentType.TEXT_UTF8,
+        content: new TextEncoder().encode("authoritative copy"),
+        acceptedAtEpochMs: BigInt(NOW + 1),
+        forwarded: true,
+      }],
+      nextSequence: 1n,
+      latestSequence: 1n,
+      hasMore: false,
+    }),
+  }));
+  const converged = application.snapshot.messages[0]!;
+  assert.equal(converged.deliveryState, "accepted");
+  assert.equal(converged.content, "authoritative copy");
+  assert.equal(converged.forwarded, true);
+  assert.equal(converged.forwardSource, null);
+  assert.equal(transport.calls.filter((call) => call[0] === "forward").length, 1,
+    "history convergence suppresses ACK-lost replay");
+  assert.equal(cache.records.get(`${ACCOUNT_ID}:${SECOND_CONVERSATION_ID}`)
+    ?.messages[0]?.forwardSource, null);
+  application.dispose();
+});
+
+test("does not dispatch a forward when its durable outbox write is unavailable", async () => {
+  const transport = new FakeTransport();
+  const cache = new FakeCache();
+  cache.records.set(`${ACCOUNT_ID}:${CONVERSATION_ID}`, {
+    messages: [cachedMessage({ sequence: "1" })], cursorSequence: "1",
+  });
+  const application = new V2WebChatApplication({ transport, cache,
+    createClientMessageId: () => "forward-cache-failure" });
+  establish(transport);
+  directoryWithForwardTarget(transport);
+  await application.openConversation(CONVERSATION_ID);
+  cache.available = false;
+  const result = await application.forwardMessage(MESSAGE_ID, SECOND_CONVERSATION_ID);
+  assert.equal(result.deliveryState, "failed");
+  assert.equal(result.errorCode, "CACHE_UNAVAILABLE");
+  assert.equal(transport.calls.some((call) => call[0] === "forward"), false);
   application.dispose();
 });
 

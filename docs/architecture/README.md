@@ -783,7 +783,13 @@ Windows advertises or exposes forwarding yet. The isolated Web V2 cache now
 retains the presentation marker and, only while a destination send is
 unresolved, a validated local source conversation/message/revision pointer.
 Accepted server projections discard that pointer, so source identity does not
-become durable presentation data.
+become durable presentation data. The Web application can now stage one
+default-off forward into any authorized directory target: it hydrates that
+target's cache before mutation, copies only a local optimistic preview, clears
+mentions/reply metadata, persists before network dispatch, and reuses the same
+destination client message ID on retry. Authoritative history replaces the
+preview and suppresses an ACK-lost replay. A failed cache write prevents
+dispatch.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

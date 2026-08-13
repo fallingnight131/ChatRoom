@@ -144,6 +144,13 @@ export interface V2ChatTransport {
     text: string,
     mentions?: readonly V2ConversationMention[],
   ): void;
+  forwardMessage(
+    sourceConversationId: string,
+    sourceMessageId: string,
+    expectedSourceContentRevision: number,
+    targetConversationId: string,
+    clientMessageId: string,
+  ): void;
   setMessageReaction(
     conversationId: string,
     messageId: string,
@@ -480,6 +487,84 @@ export class V2WebChatApplication {
       targetConversationSequence: target.sequence,
       targetSenderAccountId: target.senderAccountId,
     }, mentions);
+  }
+
+  async forwardMessage(
+    sourceMessageId: string,
+    targetConversationId: string,
+  ): Promise<V2ConversationCacheMessage> {
+    this.requireActive();
+    const session = this.sessionValue;
+    const sourceConversationId = this.activeConversationIdValue;
+    if (!session || !sourceConversationId) throw new Error("no active V2 conversation");
+    if (!this.directoryValue.some((item) => item.conversationId === targetConversationId)) {
+      throw new Error("target conversation is not present in the authenticated directory");
+    }
+    const sourceState = this.requireConversation(sourceConversationId);
+    const source = sourceState.messages.find((message) => message.id === sourceMessageId);
+    if (!source || source.deliveryState !== "accepted" || source.availability !== "available") {
+      throw new Error("forward source is unavailable");
+    }
+    const generation = this.sessionGeneration;
+    let targetState = this.conversations.get(targetConversationId);
+    if (!targetState) {
+      const cached = await this.cache.loadV2(session.accountId, targetConversationId);
+      if (this.disposed || this.sessionValue?.accountId !== session.accountId
+          || this.sessionGeneration !== generation) {
+        throw new Error("session changed while preparing forward");
+      }
+      targetState = hydrateConversationState(cached);
+      this.conversations.set(targetConversationId, targetState);
+    }
+    if (targetState.messages.filter((message) => message.deliveryState !== "accepted").length
+        >= MAX_PENDING_MESSAGES) throw new Error("V2 pending message limit reached");
+    const message: V2ConversationCacheMessage = {
+      conversationId: targetConversationId,
+      id: "",
+      clientMessageId: this.createClientMessageId(),
+      senderAccountId: session.accountId,
+      senderDeviceId: session.deviceId,
+      sequence: "0",
+      acceptedAtEpochMs: this.now(),
+      content: source.content,
+      mentions: [],
+      contentType: "text",
+      deliveryState: "sending",
+      errorCode: "",
+      availability: "available",
+      reply: null,
+      reactions: [],
+      pinned: false,
+      contentRevision: 0,
+      editedAtEpochMs: 0,
+      forwarded: true,
+      forwardSource: {
+        sourceConversationId,
+        sourceMessageId: source.id,
+        expectedSourceContentRevision: source.contentRevision,
+      },
+    };
+    targetState.messages = boundMessages([...targetState.messages, message]);
+    let persisted = false;
+    try {
+      persisted = await this.saveConversation(targetConversationId, targetState, session.accountId);
+    } catch { /* handled below */ }
+    if (!persisted) {
+      message.deliveryState = "failed";
+      message.errorCode = "CACHE_UNAVAILABLE";
+      this.emit();
+      return cloneMessage(message);
+    }
+    try {
+      this.dispatchSubmission(message);
+    } catch {
+      message.deliveryState = "failed";
+      message.errorCode = "TRANSPORT_UNAVAILABLE";
+      await this.saveConversation(targetConversationId, targetState, session.accountId)
+        .catch(() => false);
+    }
+    this.emit();
+    return cloneMessage(message);
   }
 
   private submitOptimisticText(
@@ -1004,6 +1089,7 @@ export class V2WebChatApplication {
     message.acceptedAtEpochMs = Number(event.value.acceptedAtEpochMs);
     message.deliveryState = "accepted";
     message.errorCode = "";
+    message.forwardSource = null;
     state.messages = boundMessages(state.messages);
     this.persist(event.value.conversationId);
     if (this.replayInFlight.get(event.value.conversationId) === event.clientMessageId) {
@@ -1224,18 +1310,26 @@ export class V2WebChatApplication {
     if (!this.sessionValue) return;
     const state = this.conversations.get(conversationId);
     if (!state) return;
-    void this.cache.saveV2(
-      this.sessionValue.accountId,
+    void this.saveConversation(conversationId, state, this.sessionValue.accountId).catch(() => {
+      this.lastFailureValue = "V2 cache write failed";
+      this.emit();
+    });
+  }
+
+  private saveConversation(
+    conversationId: string,
+    state: ConversationState,
+    accountId: string,
+  ): Promise<boolean> {
+    return this.cache.saveV2(
+      accountId,
       conversationId,
       state.messages.map(cloneMessage),
       state.cursorSequence,
       state.reactionCommands.map(cloneReactionCommand),
       state.pinCommands.map((value) => ({ ...value })),
       state.editCommands.map(cloneEditCommand),
-    ).catch(() => {
-      this.lastFailureValue = "V2 cache write failed";
-      this.emit();
-    });
+    );
   }
 
   private replayPendingAfterSync(conversationId: string, state: ConversationState): void {
@@ -1326,6 +1420,16 @@ export class V2WebChatApplication {
   }
 
   private dispatchSubmission(message: V2ConversationCacheMessage): void {
+    if (message.forwardSource) {
+      this.transport.forwardMessage(
+        message.forwardSource.sourceConversationId,
+        message.forwardSource.sourceMessageId,
+        message.forwardSource.expectedSourceContentRevision,
+        message.conversationId,
+        message.clientMessageId,
+      );
+      return;
+    }
     if (message.reply) {
       this.transport.submitReply(
         message.conversationId,
@@ -1426,6 +1530,34 @@ function mapParticipant(record: ConversationParticipantRecord): V2ConversationPa
     role: record.role === ConversationRole.OWNER
       ? "owner" : record.role === ConversationRole.ADMIN ? "admin" : "member",
   };
+}
+
+function hydrateConversationState(
+  cached: V2ConversationCacheSnapshot | null,
+): ConversationState {
+  const state: ConversationState = {
+    messages: [], reactionCommands: [], pinCommands: [], editCommands: [],
+    cursorSequence: "0", loading: false,
+  };
+  if (!cached) return state;
+  state.messages = boundMessages(cached.messages.map(normalizeCachedMessage));
+  state.reactionCommands = (cached.reactionCommands ?? [])
+    .map(normalizeReactionCommand)
+    .filter((value): value is V2ConversationCacheReactionCommand => Boolean(value));
+  state.pinCommands = (cached.pinCommands ?? [])
+    .map(normalizePinCommand)
+    .filter((value): value is V2ConversationCachePinCommand => Boolean(value));
+  for (const command of (cached.editCommands ?? [])
+    .map(normalizeEditCommand)
+    .filter((value): value is V2ConversationCacheEditCommand => Boolean(value))
+    .slice(-MAX_PENDING_EDITS)) {
+    if (!state.editCommands.some((value) => value.messageId === command.messageId
+        || value.clientOperationId === command.clientOperationId)) {
+      state.editCommands.push(command);
+    }
+  }
+  state.cursorSequence = normalizeSequence(cached.cursorSequence);
+  return state;
 }
 
 function mapMessageRecord(record: MessageRecord): V2ConversationCacheMessage {

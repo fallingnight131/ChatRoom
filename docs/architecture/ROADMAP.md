@@ -1598,6 +1598,9 @@ Progress:
     - [x] Extend the isolated Web V2 IndexedDB message model with the forwarded
       marker and a validated local-only source pointer for unresolved commands;
       confirmed projections discard that pointer.
+    - [x] Add the default-off Web application forward outbox with target-cache
+      hydration, persist-before-send, stable retry identity, optimistic target
+      presentation, and ACK-lost convergence through authoritative history.
 
 Candidate slices:
 

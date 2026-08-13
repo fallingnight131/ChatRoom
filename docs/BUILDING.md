@@ -1338,7 +1338,13 @@ and a canonical local source conversation/message/revision pointer only for an
 unresolved optimistic send. Sanitization drops malformed pointers and always
 removes the pointer from accepted projections. It stores no source content,
 server digest, credential, or temporary authorization. Dispatch/replay and UI
-activation remain separate gates.
+activation remain separate gates. The Web application boundary now hydrates a
+directory-authorized destination cache before adding an optimistic forward,
+persists the local-only source pointer before dispatch, and uses the existing
+bounded stable-client-ID message replay. Authoritative history reconciles an
+ACK-lost command and removes the pointer; cache-write failure prevents network
+dispatch. Product runtime, destination picker, accessible presentation, and
+capability activation remain separate gates.
 The application participant directory returns either a validated page or one
 fixed authorization rejection. Its PostgreSQL adapter first proves that the
 requester is an enabled active member, then pages enabled active participants
