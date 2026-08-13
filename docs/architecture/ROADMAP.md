@@ -746,6 +746,12 @@ Progress:
   - [x] Define and compose cooldown-bound V1 username change with stable account
     identity, atomic uniqueness/audit, authoritative peer audiences, exact-retry
     convergence, new-name login recovery, and old-name denial.
+  - [x] Define the object-backed user/room avatar boundary with owned V1 bytes,
+    bounded canonical image evidence, private immutable objects, metadata-only
+    PostgreSQL state, authorization, cleanup, and compatibility-only Base64.
+  - [ ] Implement and compose the bounded avatar inspector, object lifecycle,
+    PostgreSQL metadata/import, strict V1 handlers, and restart recovery after
+    the real-provider capability gate passes.
   - [x] Add the inactive attachment registration application port and exact
     PostgreSQL idempotency/authorization adapter before issuing upload grants.
   - [x] Add the inactive provider-neutral create-only upload grant and sealed-
