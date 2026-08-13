@@ -25,8 +25,9 @@ from this persistence result.
 The disposable PostgreSQL verification now also carries a real-network
 correctness gate: `GatewayRuntimePostgresIntegrationTest` starts the production
 TLS gateway and completes Windows-endpoint `chat.v2` negotiation, password
-authentication, message submission, `MESSAGE_ACCEPTED`, and database
-reconciliation through a JDK WebSocket client. This proves the path before it is
+authentication, peer history catch-up, message submission, `MESSAGE_ACCEPTED`,
+live `MESSAGE_PUBLISHED` fan-out to a second connection, and database
+reconciliation through JDK WebSocket clients. This proves the path before it is
 timed; it is not yet a load measurement.
 
 ## Run

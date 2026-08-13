@@ -53,8 +53,11 @@ import com.fallingnight.chat.protocol.v2.Envelope;
 import com.fallingnight.chat.protocol.v2.EnvelopePolicy;
 import com.fallingnight.chat.protocol.v2.MessageAccepted;
 import com.fallingnight.chat.protocol.v2.MessageContentType;
+import com.fallingnight.chat.protocol.v2.MessageHistoryPage;
 import com.fallingnight.chat.protocol.v2.MessageKind;
+import com.fallingnight.chat.protocol.v2.MessageRecord;
 import com.fallingnight.chat.protocol.v2.MessageType;
+import com.fallingnight.chat.protocol.v2.ReadMessageHistory;
 import com.fallingnight.chat.protocol.v2.SessionEstablished;
 import com.fallingnight.chat.protocol.v2.SubmitMessage;
 import com.google.protobuf.ByteString;
@@ -165,7 +168,7 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     @Test
-    void submitsAndAcknowledgesMessageThroughRealTlsWebSocket() throws Exception {
+    void submitsAcknowledgesAndFansOutThroughRealTlsWebSockets() throws Exception {
         String jdbcUrl = System.getenv("CHATROOM_TEST_POSTGRES_URL");
         String username = System.getenv("CHATROOM_TEST_POSTGRES_USER");
         String password = System.getenv().getOrDefault("CHATROOM_TEST_POSTGRES_PASSWORD", "");
@@ -174,15 +177,19 @@ class GatewayRuntimePostgresIntegrationTest {
         new PostgresMigrator(jdbcUrl, username, password).migrate();
 
         UUID accountId = UUID.randomUUID();
+        UUID peerAccountId = UUID.randomUUID();
         UUID conversationId = UUID.randomUUID();
         String login = "wss-" + accountId;
-        seedV2NetworkAccount(jdbcUrl, username, password, accountId, conversationId, login);
+        String peerLogin = "wss-" + peerAccountId;
+        seedV2NetworkAccounts(jdbcUrl, username, password, accountId, peerAccountId,
+                conversationId, login, peerLogin);
 
         int gatewayPort = availablePort();
         int adminPort = availablePort();
         SelfSignedCertificate certificate = new SelfSignedCertificate("localhost");
         GatewayRuntime runtime = null;
         WebSocket socket = null;
+        WebSocket peerSocket = null;
         try {
             Map<String, String> environment = new HashMap<>();
             environment.put("CHATROOM_GATEWAY_PORT", Integer.toString(gatewayPort));
@@ -203,29 +210,22 @@ class GatewayRuntimePostgresIntegrationTest {
             runtime = GatewayRuntime.create(GatewayRuntimeConfig.fromEnvironment(environment));
             runtime.start();
             BinaryEnvelopeListener listener = new BinaryEnvelopeListener();
-            socket = HttpClient.newBuilder()
-                    .sslContext(trustAllTls())
-                    .connectTimeout(Duration.ofSeconds(2))
-                    .build()
-                    .newWebSocketBuilder()
-                    .subprotocols("chat.v2")
-                    .connectTimeout(Duration.ofSeconds(2))
-                    .buildAsync(URI.create(
-                            "wss://localhost:" + gatewayPort + "/v2/windows"), listener)
-                    .get(3, TimeUnit.SECONDS);
-
-            socket.sendBinary(ByteBuffer.wrap(clientHello().toByteArray()), true).join();
-            Envelope serverHello = listener.next();
-            assertEquals(MessageType.MESSAGE_TYPE_SERVER_HELLO_VALUE,
-                    serverHello.getMessageType());
-
-            socket.sendBinary(ByteBuffer.wrap(authenticate(login).toByteArray()), true).join();
-            Envelope sessionEnvelope = listener.next();
-            assertEquals(MessageType.MESSAGE_TYPE_SESSION_ESTABLISHED_VALUE,
-                    sessionEnvelope.getMessageType());
-            SessionEstablished session = SessionEstablished.parseFrom(
-                    sessionEnvelope.getPayload());
+            socket = connectWebSocket(gatewayPort, listener);
+            SessionEstablished session = establish(
+                    socket, listener, login, "network-device-1");
             assertEquals(accountId.toString(), session.getAccountId());
+
+            BinaryEnvelopeListener peerListener = new BinaryEnvelopeListener();
+            peerSocket = connectWebSocket(gatewayPort, peerListener);
+            SessionEstablished peerSession = establish(
+                    peerSocket, peerListener, peerLogin, "network-device-2");
+            assertEquals(peerAccountId.toString(), peerSession.getAccountId());
+            peerSocket.sendBinary(ByteBuffer.wrap(history(
+                    peerSession.getSessionId(), conversationId).toByteArray()), true).join();
+            Envelope history = peerListener.next();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE_VALUE,
+                    history.getMessageType());
+            assertEquals(0, MessageHistoryPage.parseFrom(history.getPayload()).getMessagesCount());
 
             socket.sendBinary(ByteBuffer.wrap(submit(
                     session.getSessionId(), conversationId).toByteArray()), true).join();
@@ -236,10 +236,18 @@ class GatewayRuntimePostgresIntegrationTest {
             assertEquals(conversationId.toString(), accepted.getConversationId());
             assertEquals(1, accepted.getConversationSequence());
             assertFalse(accepted.getDuplicate());
+            Envelope publishedEnvelope = peerListener.next();
+            assertEquals(MessageType.MESSAGE_TYPE_MESSAGE_PUBLISHED_VALUE,
+                    publishedEnvelope.getMessageType());
+            MessageRecord published = MessageRecord.parseFrom(publishedEnvelope.getPayload());
+            assertEquals("network integration message", published.getContent().toStringUtf8());
+            assertEquals(accountId.toString(), published.getSenderAccountId());
+            assertEquals(1, published.getConversationSequence());
             assertEquals(1, countQuery(jdbcUrl, username, password,
                     "SELECT count(*) FROM chat.message WHERE conversation_id = '"
                             + conversationId + "' AND client_message_id = 'network-message-1'"));
         } finally {
+            if (peerSocket != null) peerSocket.abort();
             if (socket != null) socket.abort();
             if (runtime != null) runtime.close();
             certificate.delete();
@@ -2595,9 +2603,9 @@ class GatewayRuntimePostgresIntegrationTest {
         }
     }
 
-    private static void seedV2NetworkAccount(
-            String url, String user, String password, UUID accountId,
-            UUID conversationId, String login) throws Exception {
+    private static void seedV2NetworkAccounts(
+            String url, String user, String password, UUID accountId, UUID peerAccountId,
+            UUID conversationId, String login, String peerLogin) throws Exception {
         try (Connection connection = DriverManager.getConnection(url, user, password)) {
             connection.setAutoCommit(false);
             execute(connection,
@@ -2605,23 +2613,58 @@ class GatewayRuntimePostgresIntegrationTest {
                             + "VALUES (?, ?, 'Network Test', ?)",
                     accountId, login, HASH);
             execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, ?, 'Network Peer', ?)",
+                    peerAccountId, peerLogin, HASH);
+            execute(connection,
                     "INSERT INTO chat.conversation(id, kind) VALUES (?, 'DIRECT')",
                     conversationId);
             execute(connection,
                     "INSERT INTO chat.conversation_member(conversation_id, account_id) "
                             + "VALUES (?, ?)",
                     conversationId, accountId);
+            execute(connection,
+                    "INSERT INTO chat.conversation_member(conversation_id, account_id) "
+                            + "VALUES (?, ?)",
+                    conversationId, peerAccountId);
             connection.commit();
         }
     }
 
-    private static Envelope clientHello() {
+    private static WebSocket connectWebSocket(
+            int gatewayPort, BinaryEnvelopeListener listener) throws Exception {
+        return HttpClient.newBuilder()
+                .sslContext(trustAllTls())
+                .connectTimeout(Duration.ofSeconds(2))
+                .build()
+                .newWebSocketBuilder()
+                .subprotocols("chat.v2")
+                .connectTimeout(Duration.ofSeconds(2))
+                .buildAsync(URI.create(
+                        "wss://localhost:" + gatewayPort + "/v2/windows"), listener)
+                .get(3, TimeUnit.SECONDS);
+    }
+
+    private static SessionEstablished establish(
+            WebSocket socket, BinaryEnvelopeListener listener, String login, String deviceId)
+            throws Exception {
+        socket.sendBinary(ByteBuffer.wrap(clientHello(deviceId).toByteArray()), true).join();
+        assertEquals(MessageType.MESSAGE_TYPE_SERVER_HELLO_VALUE,
+                listener.next().getMessageType());
+        socket.sendBinary(ByteBuffer.wrap(authenticate(login).toByteArray()), true).join();
+        Envelope session = listener.next();
+        assertEquals(MessageType.MESSAGE_TYPE_SESSION_ESTABLISHED_VALUE,
+                session.getMessageType());
+        return SessionEstablished.parseFrom(session.getPayload());
+    }
+
+    private static Envelope clientHello(String deviceId) {
         ClientHello payload = ClientHello.newBuilder()
                 .setMinimumProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
                 .setMaximumProtocolVersion(EnvelopePolicy.PROTOCOL_VERSION)
                 .setPlatform(ClientPlatform.CLIENT_PLATFORM_WINDOWS)
                 .setAppVersion("integration-test")
-                .setClientDeviceId("network-device-1")
+                .setClientDeviceId(deviceId)
                 .build();
         return command(MessageType.MESSAGE_TYPE_CLIENT_HELLO, "hello-1", "", "",
                 payload.toByteString());
@@ -2644,6 +2687,16 @@ class GatewayRuntimePostgresIntegrationTest {
                 .build();
         return command(MessageType.MESSAGE_TYPE_SUBMIT_MESSAGE, "submit-1", sessionId,
                 "network-message-1", payload.toByteString());
+    }
+
+    private static Envelope history(String sessionId, UUID conversationId) {
+        ReadMessageHistory payload = ReadMessageHistory.newBuilder()
+                .setConversationId(conversationId.toString())
+                .setAfterSequence(0)
+                .setLimit(100)
+                .build();
+        return command(MessageType.MESSAGE_TYPE_READ_MESSAGE_HISTORY, "history-1",
+                sessionId, "", payload.toByteString());
     }
 
     private static Envelope command(
