@@ -173,7 +173,8 @@ void ChatWindow::requestApplicationQuit() {
 
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
 bool ChatWindow::configureDeviceManagement(
-        const QUrl &endpoint, const QString &deviceId, QByteArray passwordUtf8) {
+        const QUrl &endpoint, const QString &deviceId, QByteArray passwordUtf8,
+        bool enableMessageForwarding) {
     if (m_deviceManagementController || passwordUtf8.isEmpty()) {
         passwordUtf8.fill('\0');
         return false;
@@ -182,7 +183,11 @@ bool ChatWindow::configureDeviceManagement(
         m_deviceManagementController =
             std::make_unique<WindowsDeviceManagementController>(
                 endpoint, qApp->applicationVersion(), deviceId, m_username,
-                std::move(passwordUtf8));
+                std::move(passwordUtf8), nullptr,
+                V2WindowsDeviceManagementTransport::SocketHooks{},
+                WindowsV2MessagingController::RepositoryFactory{}, nullptr,
+                enableMessageForwarding);
+        m_v2MessageForwardingEnabled = enableMessageForwarding;
         connect(m_deviceManagementController.get(),
                 &WindowsDeviceManagementController::messagingReady,
                 this, [this] {
@@ -4791,7 +4796,8 @@ void ChatWindow::showV2Conversations() {
     m_v2ConversationDialog = new V2WindowsConversationDialog(
         m_deviceManagementController->conversationDirectoryViewModel(),
         m_deviceManagementController->messagingViewModel(),
-        m_deviceManagementController->conversationParticipantViewModel(), this, true);
+        m_deviceManagementController->conversationParticipantViewModel(), this, true,
+        m_v2MessageForwardingEnabled);
     m_v2ConversationDialog->setAttribute(Qt::WA_DeleteOnClose);
     connect(m_v2ConversationDialog, &QObject::destroyed, this, [this] {
         m_v2ConversationDialog = nullptr;

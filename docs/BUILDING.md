@@ -1530,14 +1530,19 @@ Windows now has a separate CMake configuration seam,
 `CHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON`. It is rejected unless both the
 Windows client and `CHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON` are selected. The
 compiled `WindowsV2ProductConfiguration` exposes the immutable boolean; default
-and ordinary preview builds keep it false. This slice does not yet pass the
-value into session negotiation, application service, or Widgets, so setting it
-alone cannot create a half-enabled product path.
-The Windows session codec and Qt WSS transport now accept the same default-false
-runtime input. The default `ClientHello` and validation remain exactly
+and ordinary preview builds keep it false. The Windows session codec and Qt WSS
+transport accept the same default-false runtime input. The default `ClientHello`
+and validation remain exactly
 capabilities 1–4. Enabled construction appends capability 5 and rejects a
-`ServerHello` that omits, reorders, or adds capabilities. This is still a
-detached seam until the product controller passes its compiled configuration.
+`ServerHello` that omits, reorders, or adds capabilities.
+The Windows product composition carries the one immutable build value from
+`main` through `ChatWindow`, the device/session controller, messaging service,
+ViewModel, and Widgets dialog. A disabled transport rejects message type 119;
+an enabled controller both negotiates capability 5 and installs the forwarding
+callback before the UI can expose it. Because the CMake option remains `OFF`,
+ordinary preview builds preserve the four-capability behavior. A Windows
+Release build with the option enabled remains the product-platform gate; a
+macOS protocol build is development evidence only.
 `V2LocalMessageRepositoryTest` exercises the separate default-off Windows V2
 SQLite store through both qmake and CMake gates. It verifies restart-safe
 pending replies, account isolation, exact ACK/history reconciliation, monotonic

@@ -147,6 +147,8 @@ bool V2WindowsDeviceManagementTransport::sendMessagingFrame(const QByteArray &fr
             || envelope.payload().empty()
             || (envelope.message_type() != chat::v2::MESSAGE_TYPE_SUBMIT_MESSAGE
                 && envelope.message_type() != chat::v2::MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE
+                && (envelope.message_type() != chat::v2::MESSAGE_TYPE_FORWARD_MESSAGE
+                    || !m_messageForwardingEnabled)
                 && envelope.message_type() != chat::v2::MESSAGE_TYPE_READ_MESSAGE_HISTORY
                 && envelope.message_type() != chat::v2::MESSAGE_TYPE_LIST_CONVERSATIONS
                 && envelope.message_type()

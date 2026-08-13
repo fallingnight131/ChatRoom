@@ -13,11 +13,12 @@ WindowsDeviceManagementController::WindowsDeviceManagementController(
         QWebSocket *socket,
         V2WindowsDeviceManagementTransport::SocketHooks hooks,
         WindowsV2MessagingController::RepositoryFactory messagingRepositoryFactory,
-        QObject *parent)
+        QObject *parent,
+        bool enableMessageForwarding)
     : QObject(parent) {
     m_transport = std::make_unique<V2WindowsDeviceManagementTransport>(
         std::move(endpoint), std::move(appVersion), std::move(deviceId),
-        socket, std::move(hooks));
+        socket, std::move(hooks), nullptr, enableMessageForwarding);
     m_viewModel = std::make_unique<DeviceManagementViewModel>(
         [this] { return m_transport->listDevices(); },
         [this](const QString &target) { return m_transport->revokeDevice(target); });
@@ -29,7 +30,8 @@ WindowsDeviceManagementController::WindowsDeviceManagementController(
             m_transport->authenticate(account, std::move(password));
         });
     m_messagingController = std::make_unique<WindowsV2MessagingController>(
-        m_transport.get(), std::move(messagingRepositoryFactory));
+        m_transport.get(), std::move(messagingRepositoryFactory), nullptr,
+        enableMessageForwarding);
     connect(m_messagingController.get(), &WindowsV2MessagingController::ready,
             this, &WindowsDeviceManagementController::messagingReady);
     connect(m_messagingController.get(), &WindowsV2MessagingController::unavailable,

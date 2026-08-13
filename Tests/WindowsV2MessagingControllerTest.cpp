@@ -74,12 +74,13 @@ int main(int argc, char **argv) {
     const QString deviceId = QStringLiteral("20000000-0000-4000-8000-000000000001");
     V2WindowsDeviceManagementTransport transport(
         QUrl(QStringLiteral("wss://chat.example.test/v2/windows")),
-        QStringLiteral("2.0.0-test"), deviceId, &socket, std::move(hooks));
+        QStringLiteral("2.0.0-test"), deviceId, &socket, std::move(hooks),
+        nullptr, true);
     WindowsV2MessagingController controller(
         &transport, [&](const QString &) {
             return std::make_unique<V2LocalMessageRepository>(
                 directory.filePath(QStringLiteral("messages.sqlite")));
-        });
+        }, nullptr, true);
     int readyCount = 0;
     bool unavailable = false;
     QObject::connect(&controller, &WindowsV2MessagingController::ready,
@@ -99,6 +100,7 @@ int main(int argc, char **argv) {
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_PINS);
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_EDITS);
     hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_MENTIONS);
+    hello.add_enabled_capabilities(chat::v2::CLIENT_CAPABILITY_MESSAGE_FORWARDING);
     socket.binaryMessageReceived(response(
         chat::v2::MESSAGE_TYPE_SERVER_HELLO, chat::v2::MESSAGE_KIND_RESPONSE,
         command.request_id(), "", hello));
@@ -134,13 +136,22 @@ int main(int argc, char **argv) {
     conversation->set_latest_sequence(1);
     conversation->set_last_read_sequence(0);
     conversation->set_updated_at_epoch_ms(901);
-    directoryPage.set_next_updated_at_epoch_ms(901);
-    directoryPage.set_next_conversation_id(conversation->conversation_id());
+    auto *forwardTarget = directoryPage.add_conversations();
+    forwardTarget->set_conversation_id(
+        "60000000-0000-4000-8000-000000000002");
+    forwardTarget->set_kind(chat::v2::CONVERSATION_KIND_DIRECT);
+    forwardTarget->set_display_name("Release");
+    forwardTarget->set_role(chat::v2::CONVERSATION_ROLE_MEMBER);
+    forwardTarget->set_latest_sequence(0);
+    forwardTarget->set_last_read_sequence(0);
+    forwardTarget->set_updated_at_epoch_ms(900);
+    directoryPage.set_next_updated_at_epoch_ms(900);
+    directoryPage.set_next_conversation_id(forwardTarget->conversation_id());
     socket.binaryMessageReceived(response(
         chat::v2::MESSAGE_TYPE_CONVERSATION_DIRECTORY_PAGE,
         chat::v2::MESSAGE_KIND_RESPONSE, command.request_id(), sessionId,
         directoryPage));
-    check(controller.directoryViewModel()->rows().size() == 1
+    check(controller.directoryViewModel()->rows().size() == 2
               && controller.directoryViewModel()->rows().first().displayName
                     == QStringLiteral("Engineering")
               && controller.directoryViewModel()->rows().first().unreadCount == 1,
@@ -175,8 +186,26 @@ int main(int argc, char **argv) {
         chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE, chat::v2::MESSAGE_KIND_RESPONSE,
         command.request_id(), sessionId, page));
     const auto rows = controller.viewModel()->rows();
-    check(rows.size() == 1 && rows.first().text == QStringLiteral("hello"),
+    check(rows.size() == 1 && rows.first().text == QStringLiteral("hello")
+              && rows.first().canForward,
           QStringLiteral("routed server history must commit before refreshing the view model"));
+
+    const QString forwardTargetId =
+        QStringLiteral("60000000-0000-4000-8000-000000000002");
+    check(controller.viewModel()->forwardMessage(
+              QStringLiteral("70000000-0000-4000-8000-000000000001"),
+              forwardTargetId)
+              && sent.size() == 1,
+          QStringLiteral("enabled product controller must stage and dispatch forwarding"));
+    command = parseEnvelope(sent.takeFirst());
+    chat::v2::ForwardMessage forwardRequest;
+    check(command.message_type() == chat::v2::MESSAGE_TYPE_FORWARD_MESSAGE
+              && forwardRequest.ParseFromString(command.payload())
+              && forwardRequest.source_conversation_id()
+                    == conversationId.toStdString()
+              && forwardRequest.target_conversation_id()
+                    == forwardTargetId.toStdString(),
+          QStringLiteral("forwarding must use the negotiated canonical request"));
 
     check(controller.participantViewModel()->activate(conversationId) && sent.size() == 1,
           QStringLiteral("participant state must explicitly trigger one bounded page"));

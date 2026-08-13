@@ -1642,6 +1642,10 @@ Progress:
     - [x] Add the Windows session/transport capability-5 negotiation seam:
       default construction requests exactly capabilities 1–4, while enabled
       construction requests and requires the ordered fifth capability.
+    - [x] Carry the single Windows product gate through the session transport,
+      controllers, application service, ViewModel, and Widgets dialog; reject
+      type 119 in the default transport and expose forwarding only after the
+      enabled capability path is composed.
 
 Candidate slices:
 

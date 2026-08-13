@@ -16,13 +16,15 @@
 WindowsV2MessagingController::WindowsV2MessagingController(
         V2WindowsDeviceManagementTransport *transport,
         RepositoryFactory repositoryFactory,
-        QObject *parent)
+        QObject *parent,
+        bool enableMessageForwarding)
     : QObject(parent), m_transport(transport),
       m_repositoryFactory(repositoryFactory ? std::move(repositoryFactory)
           : [](const QString &accountId) {
               return std::make_unique<V2LocalMessageRepository>(
                   V2LocalMessageRepository::defaultDatabasePath(accountId));
-          }) {
+          }),
+      m_messageForwardingEnabled(enableMessageForwarding) {
     if (!m_transport || !m_repositoryFactory)
         throw std::invalid_argument("invalid Windows V2 messaging controller");
     connect(m_transport, &V2WindowsDeviceManagementTransport::authenticated,
@@ -104,7 +106,9 @@ void WindowsV2MessagingController::bindAuthenticatedSession(
                 m_repository.get(), accountId, deviceId,
                 [this](const QByteArray &frame) {
                     return m_transport->sendMessagingFrame(frame);
-                });
+                }, V2WindowsMessagingApplicationService::Clock{},
+                V2WindowsMessagingApplicationService::ClientMessageIdFactory{},
+                m_messageForwardingEnabled);
             m_viewModel = std::make_unique<V2WindowsMessagingViewModel>(
                 accountId,
                 [this](const QString &conversationId) {
@@ -147,6 +151,17 @@ void WindowsV2MessagingController::bindAuthenticatedSession(
                 [this](const QString &operationId) {
                     return m_service->discardEdit(operationId);
                 });
+            if (m_messageForwardingEnabled) {
+                m_viewModel->configureForwarding(
+                    [this](const QString &sourceConversationId,
+                           const QString &sourceMessageId,
+                           const QString &targetConversationId,
+                           V2LocalMessageRepository::Message *optimistic) {
+                        return m_service->stageForward(
+                            sourceConversationId, sourceMessageId,
+                            targetConversationId, optimistic);
+                    });
+            }
         } catch (const std::exception &exception) {
             m_viewModel.reset();
             m_service.reset();

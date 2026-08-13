@@ -24,7 +24,8 @@ public:
         QWebSocket *socket = nullptr,
         V2WindowsDeviceManagementTransport::SocketHooks hooks = {},
         WindowsV2MessagingController::RepositoryFactory messagingRepositoryFactory = {},
-        QObject *parent = nullptr);
+        QObject *parent = nullptr,
+        bool enableMessageForwarding = false);
     ~WindowsDeviceManagementController() override;
 
     DeviceManagementViewModel *viewModel() const;

@@ -52,7 +52,8 @@ public:
     void requestApplicationQuit();
 #ifdef CHAT_WINDOWS_V2_PRODUCT_AVAILABLE
     bool configureDeviceManagement(
-        const QUrl &endpoint, const QString &deviceId, QByteArray passwordUtf8);
+        const QUrl &endpoint, const QString &deviceId, QByteArray passwordUtf8,
+        bool enableMessageForwarding = false);
 #endif
 
     /// 获取用户头像缓存
@@ -335,6 +336,7 @@ private:
     V2WindowsConversationDialog *m_v2ConversationDialog = nullptr;
     QAction *m_v2ConversationAction = nullptr;
     bool m_v2MessagingWasReady = false;
+    bool m_v2MessageForwardingEnabled = false;
 #endif
     RoomFileManagerDialog *m_roomFileManagerDialog = nullptr;
     QLabel       *m_avatarPreview  = nullptr;

@@ -150,6 +150,15 @@ int main(int argc, char **argv) {
     messagingCommand.set_sent_at_epoch_ms(901);
     messagingCommand.set_payload("history-request");
     const auto messagingBytes = serialize(messagingCommand);
+    auto disabledForwardCommand = messagingCommand;
+    disabledForwardCommand.set_message_type(chat::v2::MESSAGE_TYPE_FORWARD_MESSAGE);
+    disabledForwardCommand.set_request_id("50000000-0000-4000-8000-000000000009");
+    disabledForwardCommand.set_payload("forward-request");
+    const auto disabledForwardBytes = serialize(disabledForwardCommand);
+    check(!transport.sendMessagingFrame(QByteArray(
+              disabledForwardBytes.data(),
+              static_cast<qsizetype>(disabledForwardBytes.size()))),
+          QStringLiteral("default transport must reject an unnegotiated forward command"));
     auto wrongSessionCommand = messagingCommand;
     wrongSessionCommand.set_session_id("40000000-0000-4000-8000-000000000002");
     const auto wrongSessionBytes = serialize(wrongSessionCommand);

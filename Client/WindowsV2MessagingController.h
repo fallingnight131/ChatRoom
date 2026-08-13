@@ -26,7 +26,8 @@ public:
     explicit WindowsV2MessagingController(
         V2WindowsDeviceManagementTransport *transport,
         RepositoryFactory repositoryFactory = {},
-        QObject *parent = nullptr);
+        QObject *parent = nullptr,
+        bool enableMessageForwarding = false);
     ~WindowsV2MessagingController() override;
 
     V2WindowsMessagingViewModel *viewModel() const;
@@ -64,4 +65,5 @@ private:
     bool m_directoryContinuationPending = false;
     std::string m_participantCursor;
     QHash<QString, bool> m_participantRequests;
+    bool m_messageForwardingEnabled = false;
 };

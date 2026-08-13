@@ -40,6 +40,7 @@ def main() -> int:
         "WindowsDeviceIdentityRepository",
         "takePasswordUtf8()",
         "configureDeviceManagement(",
+        "v2Configuration.messageForwardingEnabled",
         "password.fill('\\0')",
     ), "Client/main.cpp")
     require(login, ("QByteArray LoginDialog::takePasswordUtf8()", "m_loginPass->clear()"),
@@ -50,7 +51,7 @@ def main() -> int:
         "m_deviceManagementController->start()",
         "m_deviceManagementController->stop()",
         "DeviceManagementDialog",
-        "conversationParticipantViewModel(), this, true);",
+        "m_v2MessageForwardingEnabled);",
     ), "Client/ChatWindow.cpp")
     require(controller, (
         "ReadyForAuthentication",
@@ -58,15 +59,17 @@ def main() -> int:
         "DeviceManagementViewModel::applyDirectory",
         "DeviceManagementViewModel::applyRevoked",
         "DeviceManagementViewModel::applyProtocolError",
+        "enableMessageForwarding",
     ), "Client/WindowsDeviceManagementController.cpp")
     require(session_protocol, (
         "CLIENT_CAPABILITY_MESSAGE_MENTIONS",
-        "hello.enabled_capabilities_size() != 4",
+        "m_messageForwardingEnabled ? 5 : 4",
     ), "Client/V2WindowsSessionProtocolClient.cpp")
     require(messaging_controller, (
         "participant.accountId) == m_accountId",
         "m_participantProtocol->abandon(command.requestId)",
         "m_participantViewModel->refresh()",
+        "configureForwarding(",
     ), "Client/WindowsV2MessagingController.cpp")
     require(panel, (
         "m_mentionsEnabled && composing",
