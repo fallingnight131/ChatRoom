@@ -1396,6 +1396,10 @@ Progress:
     account-isolated SQLite repository, offline application service, ViewModel,
     and shared product transport; abandon only volatile correlations on
     disconnect and fail the socket closed on codec corruption (ADR-0335).
+  - [x] Add a strict Windows V2 conversation-directory codec with bounded
+    composite cursor paging, user-facing names/roles/unread sequences, ordered
+    response validation, disconnect abandonment, and shared-WSS routing
+    (ADR-0336).
   - [ ] Add the equivalent reply composition, local-cache behavior, and rendering
     to the supported Windows client.
 

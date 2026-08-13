@@ -502,12 +502,16 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 STATIC
                 Client/V2WindowsMessagingProtocolClient.cpp
                 Client/V2WindowsMessagingProtocolClient.h
+                Client/V2WindowsConversationDirectoryProtocolClient.cpp
+                Client/V2WindowsConversationDirectoryProtocolClient.h
                 Client/V2WindowsMessagingApplicationService.cpp
                 Client/V2WindowsMessagingApplicationService.h
                 Client/WindowsV2MessagingController.cpp
                 Client/WindowsV2MessagingController.h
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/messaging.pb.cc"
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/messaging.pb.h"
+                "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/conversation.pb.cc"
+                "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/conversation.pb.h"
             )
             set_target_properties(
                 chatroom_windows_v2_messaging_product

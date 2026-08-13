@@ -145,7 +145,8 @@ bool V2WindowsDeviceManagementTransport::sendMessagingFrame(const QByteArray &fr
             || envelope.payload().empty()
             || (envelope.message_type() != chat::v2::MESSAGE_TYPE_SUBMIT_MESSAGE
                 && envelope.message_type() != chat::v2::MESSAGE_TYPE_SUBMIT_REPLY_MESSAGE
-                && envelope.message_type() != chat::v2::MESSAGE_TYPE_READ_MESSAGE_HISTORY))
+                && envelope.message_type() != chat::v2::MESSAGE_TYPE_READ_MESSAGE_HISTORY
+                && envelope.message_type() != chat::v2::MESSAGE_TYPE_LIST_CONVERSATIONS))
         return false;
     const QString requestId = qt(envelope.request_id());
     if (m_pendingMessagingRequestIds.contains(requestId)) return false;
@@ -335,7 +336,8 @@ bool V2WindowsDeviceManagementTransport::routeAuthenticatedMessagingFrame(
         == chat::v2::MESSAGE_TYPE_MESSAGE_PUBLISHED;
     const bool messagingResponse = envelope.message_type()
             == chat::v2::MESSAGE_TYPE_MESSAGE_ACCEPTED
-        || envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE;
+        || envelope.message_type() == chat::v2::MESSAGE_TYPE_MESSAGE_HISTORY_PAGE
+        || envelope.message_type() == chat::v2::MESSAGE_TYPE_CONVERSATION_DIRECTORY_PAGE;
     const QString requestId = qt(envelope.request_id());
     const bool correlated = m_pendingMessagingRequestIds.contains(requestId);
     const bool messagingError = envelope.message_type()

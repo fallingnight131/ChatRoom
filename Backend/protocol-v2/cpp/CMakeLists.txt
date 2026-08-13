@@ -61,6 +61,21 @@ target_include_directories(
 target_link_libraries(v2_windows_messaging_protocol_test PRIVATE protobuf::libprotobuf)
 
 add_executable(
+  v2_windows_conversation_directory_protocol_test
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsConversationDirectoryProtocolClientTest.cpp"
+  "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsConversationDirectoryProtocolClient.cpp"
+  "${GENERATED_ROOT}/chat/v2/control.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/conversation.pb.cc"
+  "${GENERATED_ROOT}/chat/v2/envelope.pb.cc"
+)
+target_compile_features(v2_windows_conversation_directory_protocol_test PRIVATE cxx_std_17)
+target_include_directories(
+  v2_windows_conversation_directory_protocol_test
+  PRIVATE "${CMAKE_CURRENT_LIST_DIR}/../../../Client" "${GENERATED_ROOT}")
+target_link_libraries(
+  v2_windows_conversation_directory_protocol_test PRIVATE protobuf::libprotobuf)
+
+add_executable(
   v2_windows_messaging_application_test
   "${CMAKE_CURRENT_LIST_DIR}/../../../Tests/V2WindowsMessagingApplicationServiceTest.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/../../../Client/V2WindowsMessagingApplicationService.cpp"
@@ -250,12 +265,18 @@ endif()
 
 if(MSVC)
   target_compile_options(v2_windows_messaging_protocol_test PRIVATE /W4 /WX)
+  target_compile_options(v2_windows_conversation_directory_protocol_test PRIVATE /W4 /WX)
   target_compile_options(v2_windows_messaging_application_test PRIVATE /W4 /WX)
 else()
   target_compile_options(v2_windows_messaging_protocol_test PRIVATE -Wall -Wextra -Werror)
+  target_compile_options(
+    v2_windows_conversation_directory_protocol_test PRIVATE -Wall -Wextra -Werror)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(
       v2_windows_messaging_protocol_test PRIVATE -Wno-nullability-extension)
+    target_compile_options(
+      v2_windows_conversation_directory_protocol_test
+      PRIVATE -Wno-nullability-extension)
   endif()
   target_compile_options(v2_windows_messaging_application_test PRIVATE -Wall -Wextra -Werror)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -271,6 +292,9 @@ add_test(
   COMMAND v2_windows_device_management_protocol_test
 )
 add_test(NAME v2_windows_messaging_protocol COMMAND v2_windows_messaging_protocol_test)
+add_test(
+  NAME v2_windows_conversation_directory_protocol
+  COMMAND v2_windows_conversation_directory_protocol_test)
 add_test(NAME v2_windows_messaging_application COMMAND v2_windows_messaging_application_test)
 add_test(NAME v2_windows_session_protocol COMMAND v2_windows_session_protocol_test)
 add_test(
