@@ -2048,9 +2048,13 @@ and verifies restored live delivery. These scenarios record latency
 distributions, throughput, CPU, heap, RSS, errors, token rotation, and durable
 reconciliation without setting a
 hosted-runner capacity threshold. They cannot justify Redis, a broker, or a
-scale claim by themselves; many-conversation, controlled reconnect-rate,
-portable socket-backlog, saturation, and dependency-failure scenarios remain before an
-M5 topology ADR.
+scale claim by themselves. The dependency scenario also performs a real stop
+and restart of only the disposable PostgreSQL process while the production
+gateway and original authenticated WSS connection remain alive; liveness stays
+200, readiness changes 503-to-200, and the same stable message ID converges on
+one durable sequence after recovery. Many-conversation, controlled
+reconnect-rate, portable socket-backlog, and longer saturation scenarios remain
+before an M5 topology ADR.
 
 ## 15. Explicit Non-goals
 

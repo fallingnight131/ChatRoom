@@ -137,6 +137,36 @@ def valid_postgres_saturation_result() -> dict:
     return result
 
 
+def valid_postgres_outage_result() -> dict:
+    result = valid_group_result()
+    result["schemaVersion"] = 6
+    result["scenario"].update({
+        "postgresOutage": True,
+        "postgresOutageRetryOnOriginalConnection": True,
+        "postgresPoolMaximum": 2,
+        "postgresConnectionTimeoutMillis": 1000,
+        "durableMessages": 5,
+    })
+    result["results"].update({
+        "postgresOutageFailureLatencyMicros": {
+            "samples": 1, "min": 1000, "p50": 1000, "p95": 1000,
+            "p99": 1000, "max": 1000, "mean": 1000.0,
+        },
+        "postgresOutageRecoveryLatencyMicros": {
+            "samples": 1, "min": 2000, "p50": 2000, "p95": 2000,
+            "p99": 2000, "max": 2000, "mean": 2000.0,
+        },
+        "postgresOutageUnavailableReadinessStatus": 503,
+        "postgresOutageAvailableLivenessStatus": 200,
+        "postgresOutageRecoveredReadinessStatus": 200,
+        "postgresOutagePeerPublications": 4,
+        "postgresOutageRetryableFailures": 1,
+        "postgresOutageConvergedRetries": 1,
+        "postgresOutageErrors": 0,
+    })
+    return result
+
+
 class GatewayPerformanceEvidenceTest(unittest.TestCase):
     def test_accepts_valid_clean_evidence(self) -> None:
         self.assertEqual(REVISION, validate(
@@ -149,6 +179,8 @@ class GatewayPerformanceEvidenceTest(unittest.TestCase):
             valid_slow_consumer_result(), REVISION, require_clean=True)["schemaVersion"])
         self.assertEqual(5, validate(
             valid_postgres_saturation_result(), REVISION, require_clean=True)["schemaVersion"])
+        self.assertEqual(6, validate(
+            valid_postgres_outage_result(), REVISION, require_clean=True)["schemaVersion"])
 
     def test_rejects_semantic_mismatch_and_secret_content(self) -> None:
         mutations = []
@@ -201,6 +233,9 @@ class GatewayPerformanceEvidenceTest(unittest.TestCase):
         ready_while_saturated["results"][
             "postgresSaturationUnavailableReadinessStatus"] = 200
         mutations.append(ready_while_saturated)
+        duplicate_outage_publication = valid_postgres_outage_result()
+        duplicate_outage_publication["results"]["postgresOutagePeerPublications"] = 5
+        mutations.append(duplicate_outage_publication)
         for mutation in mutations:
             with self.subTest(mutation=mutation):
                 with self.assertRaises(EvidenceError):

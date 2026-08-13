@@ -54,8 +54,8 @@ def validate(
 ) -> dict[str, Any]:
     root = object_value(result, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2, 3, 4, 5):
-        raise EvidenceError("schemaVersion must be 1, 2, 3, 4, or 5")
+    if schema not in (1, 2, 3, 4, 5, 6):
+        raise EvidenceError("schemaVersion must be 1, 2, 3, 4, 5, or 6")
     if root.get("benchmark") != "java-v2-gateway-messaging":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != "loopback development evidence; not a capacity claim":
@@ -112,6 +112,8 @@ def validate(
         raise EvidenceError("slow-consumer evidence requires a multi-receiver group")
     if schema == 5 and scenario.get("conversationKind") != "GROUP":
         raise EvidenceError("PostgreSQL saturation evidence requires GROUP identity")
+    if schema == 6 and receivers > 1 and scenario.get("conversationKind") != "GROUP":
+        raise EvidenceError("multi-receiver PostgreSQL outage evidence requires GROUP identity")
     warmup = integer(scenario.get("warmupOperations"), "warmupOperations")
     messages = integer(scenario.get("messageOperations"), "messageOperations", 1)
     payload_bytes = integer(scenario.get("payloadBytes"), "payloadBytes", 1)
@@ -131,7 +133,7 @@ def validate(
         if scenario.get("slowConsumerHealthyReceivers") != receivers - 1:
             raise EvidenceError("slow consumer healthy receiver count is invalid")
     expected_durable = (warmup + messages + (slow_messages + 1 if schema == 4 else 0)
-                        + saturation_senders)
+                        + saturation_senders + (1 if schema == 6 else 0))
     if scenario.get("durableMessages") != expected_durable:
         raise EvidenceError("durable message reconciliation is invalid")
 
@@ -257,6 +259,46 @@ def validate(
             raise EvidenceError("PostgreSQL saturation retries did not converge")
         if results.get("postgresSaturationErrors") != 0:
             raise EvidenceError("postgresSaturationErrors must be zero")
+    if schema == 6:
+        if scenario.get("postgresOutage") is not True:
+            raise EvidenceError("PostgreSQL outage scenario identity is missing")
+        if scenario.get("postgresOutageRetryOnOriginalConnection") is not True:
+            raise EvidenceError("PostgreSQL outage must retry on the original connection")
+        if scenario.get("postgresPoolMaximum") != 2:
+            raise EvidenceError("PostgreSQL outage pool maximum must be two")
+        if scenario.get("postgresConnectionTimeoutMillis") != 1000:
+            raise EvidenceError("PostgreSQL outage connection timeout is invalid")
+        for distribution_name in (
+            "postgresOutageFailureLatencyMicros",
+            "postgresOutageRecoveryLatencyMicros",
+        ):
+            distribution = object_value(results.get(distribution_name), distribution_name)
+            if distribution.get("samples") != 1:
+                raise EvidenceError(f"{distribution_name} sample count is invalid")
+            ordered = [
+                number(distribution.get(field), f"{distribution_name}.{field}", positive=True)
+                for field in ("min", "p50", "p95", "p99", "max")
+            ]
+            if ordered != sorted(ordered):
+                raise EvidenceError(f"{distribution_name} percentiles are not monotonic")
+            mean = number(
+                distribution.get("mean"), f"{distribution_name}.mean", positive=True)
+            if mean < ordered[0] or mean > ordered[-1]:
+                raise EvidenceError(f"{distribution_name} mean is out of range")
+        if results.get("postgresOutageUnavailableReadinessStatus") != 503:
+            raise EvidenceError("PostgreSQL outage must make readiness unavailable")
+        if results.get("postgresOutageAvailableLivenessStatus") != 200:
+            raise EvidenceError("PostgreSQL outage must preserve gateway liveness")
+        if results.get("postgresOutageRecoveredReadinessStatus") != 200:
+            raise EvidenceError("PostgreSQL outage readiness did not recover")
+        if results.get("postgresOutagePeerPublications") != receivers:
+            raise EvidenceError("PostgreSQL outage publication count is invalid")
+        if results.get("postgresOutageRetryableFailures") != 1:
+            raise EvidenceError("PostgreSQL outage must return one retryable failure")
+        if results.get("postgresOutageConvergedRetries") != 1:
+            raise EvidenceError("PostgreSQL outage retry did not converge")
+        if results.get("postgresOutageErrors") != 0:
+            raise EvidenceError("postgresOutageErrors must be zero")
 
     serialized = json.dumps(root, sort_keys=True)
     for forbidden in (

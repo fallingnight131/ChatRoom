@@ -28,9 +28,10 @@ The gateway slices measure one real single-gateway path with bounded connections
   resume-token rotation on every successful round;
 - exact durable message and conversation-sequence reconciliation.
 
-Many conversations, unbounded reconnect storms, slow consumers, Redis,
-cross-gateway routing, broker delivery, and dependency failure remain separate
-scenarios. Do not infer their behavior from these bounded results.
+Many conversations, unbounded reconnect storms, Redis, cross-gateway routing,
+and broker delivery remain separate scenarios. Slow consumers, bounded pool
+saturation, and a complete disposable-PostgreSQL stop/start have dedicated
+bounded scenarios; do not generalize them into capacity or availability claims.
 
 The disposable PostgreSQL verification now also carries a real-network
 correctness gate: `GatewayRuntimePostgresIntegrationTest` starts the production
@@ -158,8 +159,25 @@ throwaway database and is never a migration or runtime failure switch.
 This scenario records first-wave response latency, failure/retry counts,
 readiness transitions, exact publications, CPU, heap, and RSS. It proves bounded
 pool-pressure behavior, not PostgreSQL host loss, database throughput, a safe
-pool size, or production capacity. Complete server stop/start recovery remains
-a separate failure scenario.
+pool size, or production capacity.
+
+Set `--java-gateway-performance-postgres-outage` to run the mutually exclusive
+schema-6 dependency-failure scenario. The Python wrapper asks `pg_ctl` to stop
+and restart only the disposable cluster it created under `/tmp`; the production
+Java gateway process, its Hikari pool, and already authenticated WSS clients are
+not restarted. No production fault switch, test-only runtime branch, or schema
+migration is installed.
+
+While PostgreSQL is stopped, a submission on the existing sender connection
+must return the generic `messaging is temporarily unavailable` internal error
+with `retryable=true`. Gateway liveness must remain 200, readiness must be 503,
+and the authenticated socket must remain open. After PostgreSQL restarts,
+readiness must recover to 200 and the client resubmits the identical envelope
+with the same `clientMessageId` on that original socket. The scenario requires
+one non-duplicate acknowledgement, one continuous durable sequence, and exactly
+one live publication to each caught-up peer. It records outage-response and
+recovery latency, but a single loopback restart is not an availability SLO or a
+claim about production failover.
 
 ## Evidence contract
 
@@ -190,6 +208,10 @@ Schema 5 additionally requires a two-connection pool and fixed timeout/delay inp
 both initial successes and retryable failures, 503-to-200 readiness recovery,
 matching converged retries, exact unique publications, and durable sequence
 reconciliation.
+Schema 6 requires the same bounded pool/timeout identity, an original-connection
+retry marker, liveness 200 during the outage, readiness 503-to-200 recovery, one
+redacted retryable failure, one converged retry, exact peer publications, and
+one additional durable sequence.
 
 Results also carry `worktreeDirty`. CI requires a clean tree and exact workflow
 revision. A dirty local result remains useful for development comparison but is
@@ -208,8 +230,8 @@ Before selecting distributed infrastructure, extend the harness in this order:
 2. broaden bounded session-resume evidence into controlled reconnect-rate and
    network-failure scenarios;
 3. extend slow-consumer evidence with portable pending-byte/backlog observation;
-4. extend bounded PostgreSQL pool saturation into complete server stop/start
-   recovery and longer contention curves;
+4. extend PostgreSQL evidence with longer pool-contention and repeated
+   stop/start recovery curves;
 5. two gateways, only after an ADR defines reconstructable routing/presence
    ownership and measurements show the single-gateway limitation.
 

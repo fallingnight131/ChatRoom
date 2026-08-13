@@ -70,7 +70,7 @@ def verify_java_performance(args: argparse.Namespace, output: Path) -> None:
 
 
 def verify_java_gateway_performance(args: argparse.Namespace, output: Path) -> None:
-    run([
+    command = [
         sys.executable,
         str(ROOT / "tools" / "verify_java_gateway_performance.py"),
         "--output", str(output),
@@ -83,7 +83,10 @@ def verify_java_gateway_performance(args: argparse.Namespace, output: Path) -> N
         str(args.java_gateway_performance_slow_consumer_max_messages),
         "--postgres-saturation-senders",
         str(args.java_gateway_performance_postgres_saturation_senders),
-    ], ROOT)
+    ]
+    if args.java_gateway_performance_postgres_outage:
+        command.append("--postgres-outage")
+    run(command, ROOT)
 
 
 def verify_protocol_bindings(skip_install: bool) -> None:
@@ -573,6 +576,8 @@ def parse_args() -> argparse.Namespace:
         "--java-gateway-performance-slow-consumer-max-messages", type=int, default=0)
     parser.add_argument(
         "--java-gateway-performance-postgres-saturation-senders", type=int, default=0)
+    parser.add_argument(
+        "--java-gateway-performance-postgres-outage", action="store_true")
     parser.add_argument(
         "--java-gateway-performance-output",
         type=Path,

@@ -1323,6 +1323,12 @@ Progress:
 - [x] Record a clean, commit-exact 13-connection PostgreSQL pool-saturation
   baseline with eight concurrent senders, six retryable timeouts, same-ID
   convergence, 503-to-200 readiness recovery, and 32 unique peer publications.
+- [x] Add a schema-6 disposable-PostgreSQL stop/start scenario that keeps the
+  production gateway and authenticated WSS sessions alive, requires a redacted
+  retryable outage response, liveness 200/readiness 503 separation, automatic
+  readiness recovery, same-ID retry on the original connection, one durable
+  sequence, and one publication per peer.
+- [ ] Record a clean, commit-exact PostgreSQL stop/start recovery baseline.
 - [ ] Measure many conversations, large active groups, reconnect storms, slow
   consumers, PostgreSQL saturation, and dependency failure before selecting
   Redis, a broker, or multi-gateway topology.

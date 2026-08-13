@@ -12,6 +12,7 @@ import socket
 import subprocess
 import tempfile
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -140,7 +141,8 @@ def generate_certificate(openssl: str, root: Path) -> tuple[Path, Path]:
 
 def executable_arguments(
     executable: Path, jdbc_url: str, certificate: Path, private_key: Path,
-    gateway_port: int, admin_port: int, output: Path, args: argparse.Namespace,
+    gateway_port: int, admin_port: int, output: Path, control_dir: Path,
+    args: argparse.Namespace,
 ) -> list[str]:
     return [
         str(executable), "--jdbc-url", jdbc_url,
@@ -153,6 +155,8 @@ def executable_arguments(
         "--reconnect-rounds", str(args.reconnect_rounds),
         "--slow-consumer-max-messages", str(args.slow_consumer_max_messages),
         "--postgres-saturation-senders", str(args.postgres_saturation_senders),
+        "--postgres-outage", "1" if args.postgres_outage else "0",
+        "--postgres-outage-control-dir", str(control_dir),
     ]
 
 
@@ -165,10 +169,11 @@ def require_boundary_rejections(
         unused = Path(name) / "unused.json"
         boundary = argparse.Namespace(
             warmup=0, messages=1, payload_bytes=1, receivers=1, reconnect_rounds=0,
-            slow_consumer_max_messages=0, postgres_saturation_senders=0)
+            slow_consumer_max_messages=0, postgres_saturation_senders=0,
+            postgres_outage=False)
         arguments = executable_arguments(
             executable, "jdbc:postgresql://database.example.test/chat",
-            certificate, private_key, 9443, 9090, unused, boundary)
+            certificate, private_key, 9443, 9090, unused, Path(name), boundary)
         environment = os.environ.copy()
         environment.pop("CHATROOM_PERFORMANCE_CONFIRM", None)
         missing_confirmation = subprocess.run(
@@ -202,6 +207,7 @@ def parser() -> argparse.ArgumentParser:
     value.add_argument("--reconnect-rounds", type=int, default=0)
     value.add_argument("--slow-consumer-max-messages", type=int, default=0)
     value.add_argument("--postgres-saturation-senders", type=int, default=0)
+    value.add_argument("--postgres-outage", action="store_true")
     return value
 
 
@@ -254,18 +260,48 @@ def main() -> int:
             command = executable_arguments(
                 executable,
                 f"jdbc:postgresql://127.0.0.1:{postgres_port}/{TEST_DATABASE}",
-                certificate, private_key, gateway_port, admin_port, raw, args)
+                certificate, private_key, gateway_port, admin_port, raw, root, args)
             print("[GatewayPerformance] gateway-performance-baseline <bounded loopback scenario>")
             process = subprocess.Popen(command, cwd=BACKEND, env=environment)
             java_sampler = ProcessSampler(process.pid)
             java_sampler.start()
-            return_code = process.wait()
+            postgres_peak_rss = 0
+            stop_request = root / "postgres-stop-request"
+            stopped_marker = root / "postgres-stopped"
+            start_request = root / "postgres-start-request"
+            started_marker = root / "postgres-started"
+            while process.poll() is None:
+                if (args.postgres_outage and stop_request.exists()
+                        and not stopped_marker.exists()):
+                    postgres_sampler.stop()
+                    postgres_peak_rss = max(
+                        postgres_peak_rss, postgres_sampler.peak_rss_bytes)
+                    run([pg_ctl, "-D", str(data), "-m", "fast", "-w", "stop"], ROOT)
+                    started = False
+                    stopped_marker.write_text("stopped\n", encoding="utf-8")
+                if (args.postgres_outage and start_request.exists()
+                        and not started_marker.exists()):
+                    run([
+                        pg_ctl, "-D", str(data), "-l", str(log), "-o",
+                        f"-h 127.0.0.1 -p {postgres_port} -k {socket_dir}",
+                        "-w", "start",
+                    ], ROOT)
+                    started = True
+                    postmaster_pid = int((data / "postmaster.pid")
+                                         .read_text(encoding="utf-8").splitlines()[0])
+                    postgres_sampler = ProcessSampler(postmaster_pid)
+                    postgres_sampler.start()
+                    started_marker.write_text("started\n", encoding="utf-8")
+                time.sleep(0.02)
+            return_code = process.returncode
             java_sampler.stop()
             postgres_sampler.stop()
+            postgres_peak_rss = max(
+                postgres_peak_rss, postgres_sampler.peak_rss_bytes)
             if return_code != 0:
                 raise subprocess.CalledProcessError(return_code, command)
             enrich(raw, args.output.resolve(), java_sampler.peak_rss_bytes,
-                   postgres_sampler.peak_rss_bytes)
+                   postgres_peak_rss)
             print(f"[GatewayPerformance] wrote {args.output.resolve()}")
         finally:
             if started:

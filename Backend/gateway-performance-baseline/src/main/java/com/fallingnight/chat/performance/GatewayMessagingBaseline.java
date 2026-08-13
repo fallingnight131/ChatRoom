@@ -165,6 +165,12 @@ public final class GatewayMessagingBaseline {
                 durableMessages += saturationSenders.size();
                 requireMessageState(configuration, conversation, durableMessages);
             }
+            PostgresOutageResult outage = postgresOutage(
+                    configuration, sender, peers, conversation, durableMessages);
+            if (outage.measured()) {
+                durableMessages += 1L;
+                requireMessageState(configuration, conversation, durableMessages);
+            }
             List<ClientConnection> activeConnections = new ArrayList<>(peers.size() + 1);
             activeConnections.add(sender);
             activeConnections.addAll(peers);
@@ -180,7 +186,7 @@ public final class GatewayMessagingBaseline {
                     cpuNanos, peakHeap, durableMessages,
                     setupMicros,
                     acknowledgementMicros, fanoutMicros, measuredNanos, reconnect,
-                    slowConsumer, saturation);
+                    slowConsumer, saturation, outage);
         } finally {
             for (ClientConnection saturationSender : saturationSenders) {
                 saturationSender.close();
@@ -470,6 +476,91 @@ public final class GatewayMessagingBaseline {
                 accepted.getConversationSequence(), latency, true);
     }
 
+    private static PostgresOutageResult postgresOutage(
+            Configuration configuration,
+            ClientConnection sender,
+            List<ClientConnection> peers,
+            UUID conversation,
+            long initialSequence) throws Exception {
+        if (!configuration.postgresOutage()) return PostgresOutageResult.NONE;
+        signal(configuration.postgresOutageControlDir(), "postgres-stop-request");
+        awaitSignal(configuration.postgresOutageControlDir(), "postgres-stopped");
+
+        String clientMessageId = "postgres-outage-retry";
+        SubmitMessage payload = SubmitMessage.newBuilder()
+                .setConversationId(conversation.toString())
+                .setContentType(MessageContentType.MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE)
+                .setContent(ByteString.copyFromUtf8("database outage recovery"))
+                .build();
+        Envelope request = command(MessageType.MESSAGE_TYPE_SUBMIT_MESSAGE,
+                "submit-" + clientMessageId, sender.sessionId(), clientMessageId,
+                payload.toByteString());
+        long failureStarted = System.nanoTime();
+        send(sender.socket(), request);
+        Envelope failureResponse = sender.listener().next();
+        long failureMicros = elapsedMicros(failureStarted);
+        requireType(failureResponse, MessageType.MESSAGE_TYPE_PROTOCOL_ERROR);
+        ProtocolError error = ProtocolError.parseFrom(failureResponse.getPayload());
+        if (error.getCode() != ProtocolErrorCode.PROTOCOL_ERROR_CODE_INTERNAL_ERROR
+                || !error.getRetryable()
+                || !error.getSafeMessage().equals("messaging is temporarily unavailable")) {
+            throw new IllegalStateException("database outage failure was not safely retryable");
+        }
+        int unavailableStatus = readinessStatus(configuration);
+        if (unavailableStatus != 503) {
+            throw new IllegalStateException("gateway remained ready during database outage");
+        }
+        int availableLivenessStatus = livenessStatus(configuration);
+        if (availableLivenessStatus != 200) {
+            throw new IllegalStateException("database outage made gateway liveness unavailable");
+        }
+        if (sender.socket().isInputClosed() || sender.socket().isOutputClosed()) {
+            throw new IllegalStateException("database outage closed the authenticated connection");
+        }
+
+        long recoveryStarted = System.nanoTime();
+        signal(configuration.postgresOutageControlDir(), "postgres-start-request");
+        awaitSignal(configuration.postgresOutageControlDir(), "postgres-started");
+        int recoveredStatus = awaitReadiness(configuration);
+        send(sender.socket(), request);
+        Envelope retryResponse = sender.listener().next();
+        requireType(retryResponse, MessageType.MESSAGE_TYPE_MESSAGE_ACCEPTED);
+        MessageAccepted accepted = MessageAccepted.parseFrom(retryResponse.getPayload());
+        long expectedSequence = initialSequence + 1L;
+        if (accepted.getDuplicate()
+                || accepted.getConversationSequence() != expectedSequence
+                || !accepted.getConversationId().equals(conversation.toString())) {
+            throw new IllegalStateException("database outage retry did not reconcile");
+        }
+        for (ClientConnection peer : peers) {
+            Envelope publication = peer.listener().next();
+            requireType(publication, MessageType.MESSAGE_TYPE_MESSAGE_PUBLISHED);
+            MessageRecord record = MessageRecord.parseFrom(publication.getPayload());
+            if (record.getConversationSequence() != expectedSequence
+                    || !record.getConversationId().equals(conversation.toString())
+                    || !record.getClientMessageId().equals(clientMessageId)) {
+                throw new IllegalStateException("database outage publication did not reconcile");
+            }
+        }
+        return new PostgresOutageResult(
+                failureMicros, elapsedMicros(recoveryStarted), unavailableStatus,
+                availableLivenessStatus, recoveredStatus, peers.size(), 1, 1, 0);
+    }
+
+    private static void signal(Path directory, String name) throws IOException {
+        Files.writeString(directory.resolve(name), name + "\n");
+    }
+
+    private static void awaitSignal(Path directory, String name) throws Exception {
+        Path marker = directory.resolve(name);
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
+        while (System.nanoTime() < deadline) {
+            if (Files.isRegularFile(marker)) return;
+            Thread.sleep(20);
+        }
+        throw new IllegalStateException("timed out waiting for PostgreSQL control: " + name);
+    }
+
     private static void removeSaturationTrigger(Configuration configuration) throws SQLException {
         try (Connection connection = DriverManager.getConnection(
                 configuration.jdbcUrl(), configuration.username(), configuration.password());
@@ -560,8 +651,16 @@ public final class GatewayMessagingBaseline {
     }
 
     private static int readinessStatus(Configuration configuration) throws Exception {
+        return healthStatus(configuration, "/health/ready");
+    }
+
+    private static int livenessStatus(Configuration configuration) throws Exception {
+        return healthStatus(configuration, "/health/live");
+    }
+
+    private static int healthStatus(Configuration configuration, String path) throws Exception {
         HttpRequest request = HttpRequest.newBuilder(URI.create(
-                        "http://127.0.0.1:" + configuration.adminPort() + "/health/ready"))
+                        "http://127.0.0.1:" + configuration.adminPort() + path))
                 .timeout(Duration.ofSeconds(3))
                 .GET()
                 .build();
@@ -764,11 +863,16 @@ public final class GatewayMessagingBaseline {
         environment.put("CHATROOM_POSTGRES_USER", configuration.username());
         environment.put("CHATROOM_POSTGRES_PASSWORD", "disposable-trust-password");
         environment.put("CHATROOM_POSTGRES_ALLOW_INSECURE_LOCAL", "true");
-        boolean saturation = configuration.postgresSaturationSenders() > 0;
-        environment.put("CHATROOM_POSTGRES_POOL_MAXIMUM", saturation ? "2" : "8");
-        environment.put("CHATROOM_POSTGRES_POOL_MINIMUM_IDLE", saturation ? "2" : "1");
-        if (saturation) {
+        boolean databaseFailureScenario = configuration.postgresSaturationSenders() > 0
+                || configuration.postgresOutage();
+        environment.put("CHATROOM_POSTGRES_POOL_MAXIMUM",
+                databaseFailureScenario ? "2" : "8");
+        environment.put("CHATROOM_POSTGRES_POOL_MINIMUM_IDLE",
+                databaseFailureScenario ? "2" : "1");
+        if (databaseFailureScenario) {
             environment.put("CHATROOM_POSTGRES_CONNECTION_TIMEOUT_SECONDS", "1");
+        }
+        if (configuration.postgresSaturationSenders() > 0) {
             environment.put("CHATROOM_GATEWAY_MESSAGING_WORKERS",
                     Integer.toString(configuration.postgresSaturationSenders()));
             environment.put("CHATROOM_GATEWAY_MESSAGING_QUEUE_CAPACITY", "16");
@@ -881,7 +985,8 @@ public final class GatewayMessagingBaseline {
             long cpuNanos, long peakHeap, long durableMessages,
             List<Long> setupMicros, List<Long> acknowledgementMicros,
             List<Long> fanoutMicros, long measuredNanos, ReconnectResult reconnect,
-            SlowConsumerResult slowConsumer, PostgresSaturationResult saturation)
+            SlowConsumerResult slowConsumer, PostgresSaturationResult saturation,
+            PostgresOutageResult outage)
             throws IOException {
         Path parent = configuration.output().toAbsolutePath().getParent();
         if (parent != null) Files.createDirectories(parent);
@@ -893,9 +998,10 @@ public final class GatewayMessagingBaseline {
             boolean reconnectMeasured = configuration.reconnectRounds() > 0;
             boolean slowConsumerMeasured = configuration.slowConsumerMaxMessages() > 0;
             boolean saturationMeasured = configuration.postgresSaturationSenders() > 0;
-            json.writeNumberField("schemaVersion", saturationMeasured
-                    ? 5 : (slowConsumerMeasured
-                            ? 4 : (reconnectMeasured ? 3 : (group ? 2 : 1))));
+            boolean outageMeasured = configuration.postgresOutage();
+            json.writeNumberField("schemaVersion", outageMeasured
+                    ? 6 : (saturationMeasured ? 5 : (slowConsumerMeasured
+                            ? 4 : (reconnectMeasured ? 3 : (group ? 2 : 1)))));
             json.writeStringField("benchmark", "java-v2-gateway-messaging");
             json.writeStringField("startedAt", startedAt.toString());
             json.writeStringField("warning", "loopback development evidence; not a capacity claim");
@@ -938,6 +1044,12 @@ public final class GatewayMessagingBaseline {
                 json.writeNumberField("postgresPoolMaximum", 2);
                 json.writeNumberField("postgresConnectionTimeoutMillis", 1000);
                 json.writeNumberField("postgresInjectedDelayMillis", 2000);
+            }
+            if (outageMeasured) {
+                json.writeBooleanField("postgresOutage", true);
+                json.writeBooleanField("postgresOutageRetryOnOriginalConnection", true);
+                json.writeNumberField("postgresPoolMaximum", 2);
+                json.writeNumberField("postgresConnectionTimeoutMillis", 1000);
             }
             json.writeEndObject();
             json.writeObjectFieldStart("results");
@@ -983,6 +1095,25 @@ public final class GatewayMessagingBaseline {
                 json.writeNumberField("postgresSaturationConvergedRetries",
                         saturation.convergedRetries());
                 json.writeNumberField("postgresSaturationErrors", saturation.errors());
+            }
+            if (outageMeasured) {
+                distribution(json, "postgresOutageFailureLatencyMicros",
+                        List.of(outage.failureLatencyMicros()));
+                distribution(json, "postgresOutageRecoveryLatencyMicros",
+                        List.of(outage.recoveryLatencyMicros()));
+                json.writeNumberField("postgresOutageUnavailableReadinessStatus",
+                        outage.unavailableReadinessStatus());
+                json.writeNumberField("postgresOutageAvailableLivenessStatus",
+                        outage.availableLivenessStatus());
+                json.writeNumberField("postgresOutageRecoveredReadinessStatus",
+                        outage.recoveredReadinessStatus());
+                json.writeNumberField("postgresOutagePeerPublications",
+                        outage.peerPublications());
+                json.writeNumberField("postgresOutageRetryableFailures",
+                        outage.retryableFailures());
+                json.writeNumberField("postgresOutageConvergedRetries",
+                        outage.convergedRetries());
+                json.writeNumberField("postgresOutageErrors", outage.errors());
             }
             json.writeNumberField("errors", 0);
             json.writeEndObject();
@@ -1115,6 +1246,24 @@ public final class GatewayMessagingBaseline {
         }
     }
 
+    private record PostgresOutageResult(
+            long failureLatencyMicros,
+            long recoveryLatencyMicros,
+            int unavailableReadinessStatus,
+            int availableLivenessStatus,
+            int recoveredReadinessStatus,
+            long peerPublications,
+            int retryableFailures,
+            int convergedRetries,
+            int errors) {
+        private static final PostgresOutageResult NONE =
+                new PostgresOutageResult(0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+        private boolean measured() {
+            return failureLatencyMicros > 0;
+        }
+    }
+
     private record ClientConnection(
             HttpClient client, WebSocket socket, EnvelopeListener listener,
             SessionEstablished session, String deviceId)
@@ -1186,7 +1335,8 @@ public final class GatewayMessagingBaseline {
             Path certificate, Path privateKey, int gatewayPort, int adminPort,
             Path output, int warmupOperations, int messageOperations,
             int payloadBytes, int receivers, int reconnectRounds,
-            int slowConsumerMaxMessages, int postgresSaturationSenders) {
+            int slowConsumerMaxMessages, int postgresSaturationSenders,
+            boolean postgresOutage, Path postgresOutageControlDir) {
         private Configuration {
             Objects.requireNonNull(jdbcUrl, "jdbcUrl");
             Objects.requireNonNull(username, "username");
@@ -1194,8 +1344,12 @@ public final class GatewayMessagingBaseline {
             Objects.requireNonNull(certificate, "certificate");
             Objects.requireNonNull(privateKey, "privateKey");
             Objects.requireNonNull(output, "output");
+            Objects.requireNonNull(postgresOutageControlDir, "postgresOutageControlDir");
             if (!Files.isRegularFile(certificate) || !Files.isRegularFile(privateKey)) {
                 throw new IllegalArgumentException("gateway TLS files must exist");
+            }
+            if (!Files.isDirectory(postgresOutageControlDir)) {
+                throw new IllegalArgumentException("PostgreSQL outage control directory must exist");
             }
             bounded("gateway port", gatewayPort, 1, 65_535);
             bounded("admin port", adminPort, 1, 65_535);
@@ -1226,6 +1380,11 @@ public final class GatewayMessagingBaseline {
                 throw new IllegalArgumentException(
                         "PostgreSQL saturation must be measured separately");
             }
+            if (postgresOutage && (postgresSaturationSenders > 0
+                    || slowConsumerMaxMessages > 0 || reconnectRounds > 0)) {
+                throw new IllegalArgumentException(
+                        "PostgreSQL outage must be measured separately");
+            }
             long authenticationAttempts = (long) (receivers + 1) * (reconnectRounds + 1)
                     + (slowConsumerMaxMessages > 0 ? 1L : 0L)
                     + postgresSaturationSenders;
@@ -1251,7 +1410,8 @@ public final class GatewayMessagingBaseline {
                     "--private-key", "--gateway-port", "--admin-port", "--output",
                     "--warmup", "--messages", "--payload-bytes", "--receivers",
                     "--reconnect-rounds", "--slow-consumer-max-messages",
-                    "--postgres-saturation-senders");
+                    "--postgres-saturation-senders", "--postgres-outage",
+                    "--postgres-outage-control-dir");
             if (!values.keySet().equals(expected)) {
                 throw new IllegalArgumentException("missing or unknown gateway argument");
             }
@@ -1269,10 +1429,18 @@ public final class GatewayMessagingBaseline {
                         Integer.parseInt(values.get("--receivers")),
                         Integer.parseInt(values.get("--reconnect-rounds")),
                         Integer.parseInt(values.get("--slow-consumer-max-messages")),
-                        Integer.parseInt(values.get("--postgres-saturation-senders")));
+                        Integer.parseInt(values.get("--postgres-saturation-senders")),
+                        parseBoolean(values.get("--postgres-outage")),
+                        Path.of(values.get("--postgres-outage-control-dir")));
             } catch (NumberFormatException exception) {
                 throw new IllegalArgumentException("gateway counts must be integers", exception);
             }
+        }
+
+        private static boolean parseBoolean(String value) {
+            if (value.equals("1")) return true;
+            if (value.equals("0")) return false;
+            throw new IllegalArgumentException("PostgreSQL outage must be zero or one");
         }
 
         private static void bounded(String name, int value, int minimum, int maximum) {
