@@ -186,9 +186,20 @@ def run_summary_v2(run: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def run_summary_v3(run: dict[str, Any]) -> dict[str, Any]:
+    summary = run_summary_v2(run)
+    gc = run["results"]["gcCollectionActivity"]
+    summary["gcCollectionActivity"] = {
+        "collectionsDelta": gc["collectionsDelta"],
+        "collectionTimeMillisDelta": gc["collectionTimeMillisDelta"],
+    }
+    return summary
+
+
 def profile_summary_v2(profile: str, runs: list[dict[str, Any]],
-                       baseline_p95: int | None) -> dict[str, Any]:
-    summaries = [run_summary_v2(run) for run in runs]
+                       baseline_p95: int | None,
+                       summary_builder=run_summary_v2) -> dict[str, Any]:
+    summaries = [summary_builder(run) for run in runs]
     median_p50 = int(median(item["latencyP50Micros"] for item in summaries))
     median_p95 = int(median(item["latencyP95Micros"] for item in summaries))
     peak_runs = sum(item["anyPeakPressureSignal"] for item in summaries)
@@ -213,12 +224,15 @@ def profile_summary_v2(profile: str, runs: list[dict[str, Any]],
     }
 
 
-def analysis_for_v2(run_evidence: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
-    baseline = profile_summary_v2("step-12", run_evidence["step-12"], None)
+def analysis_for_v2(run_evidence: dict[str, list[dict[str, Any]]],
+                    summary_builder=run_summary_v2) -> dict[str, Any]:
+    baseline = profile_summary_v2(
+        "step-12", run_evidence["step-12"], None, summary_builder)
     summaries = [baseline]
     for profile in PROFILES[1:]:
         summaries.append(profile_summary_v2(
-            profile, run_evidence[profile], baseline["medianLatencyP95Micros"]))
+            profile, run_evidence[profile], baseline["medianLatencyP95Micros"],
+            summary_builder))
     repeated = next((item["workloadProfile"] for item in summaries
                      if item["repeatedSustainedPressureObserved"]), None)
     latency = next((item["workloadProfile"] for item in summaries
@@ -242,7 +256,7 @@ def analysis_for_v2(run_evidence: dict[str, list[dict[str, Any]]]) -> dict[str, 
 
 def build(run_evidence: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
     first = run_evidence["step-12"][0]
-    schema = 2 if first["schemaVersion"] == 7 else 1
+    schema = {6: 1, 7: 2, 8: 3}.get(first["schemaVersion"], 0)
     all_runs = [run for profile in PROFILES for run in run_evidence[profile]]
     return {
         "schemaVersion": schema,
@@ -256,8 +270,10 @@ def build(run_evidence: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
         "environment": first["environment"],
         "host": first["host"],
         "runEvidence": run_evidence,
-        "analysis": (analysis_for_v2(run_evidence) if schema == 2
-                     else analysis_for_v1(run_evidence)),
+        "analysis": (analysis_for_v1(run_evidence) if schema == 1
+                     else analysis_for_v2(
+                         run_evidence,
+                         run_summary_v3 if schema == 3 else run_summary_v2)),
     }
 
 
@@ -265,8 +281,8 @@ def validate(value: Any, expected_revision: str | None = None,
              require_clean: bool = False) -> dict[str, Any]:
     root = object_value(value, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2):
-        raise EvidenceError("ladder schemaVersion must be 1 or 2")
+    if schema not in (1, 2, 3):
+        raise EvidenceError("ladder schemaVersion must be between 1 and 3")
     if root.get("benchmark") != "java-v2-haproxy-multi-edge-reconnect-ladder":
         raise EvidenceError("ladder benchmark identity is invalid")
     if root.get("warning") != WARNING:
@@ -315,8 +331,10 @@ def validate(value: Any, expected_revision: str | None = None,
         raise EvidenceError("ladder child schema versions must not be mixed")
     if root["worktreeDirty"] != dirty:
         raise EvidenceError("ladder dirty state does not reconcile child runs")
-    expected_analysis = (analysis_for_v2(evidence) if schema == 2
-                         else analysis_for_v1(evidence))
+    expected_analysis = (analysis_for_v1(evidence) if schema == 1
+                         else analysis_for_v2(
+                             evidence,
+                             run_summary_v3 if schema == 3 else run_summary_v2))
     if root.get("analysis") != expected_analysis:
         raise EvidenceError("ladder analysis does not reconcile child runs")
     return root

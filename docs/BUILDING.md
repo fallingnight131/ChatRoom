@@ -1681,6 +1681,10 @@ The same snapshot now exports JVM GC metric availability, cumulative collection
 count, and cumulative collection elapsed seconds. Collection elapsed time is
 not stop-the-world pause time and must be interpreted only as a before/after
 counter over a bounded window (ADR-0397).
+New raw schema-8 evidence records GC collection count/time before, after, and
+exact delta in the shared reconnect window. A nine-run aggregate with uniform
+schema-8 children uses aggregate schema 3 and includes the per-run deltas.
+Collection time is still not labeled as stop-the-world pause (ADR-0398).
 Schema version 5 records CPU-time and uptime before/after/deltas plus heap used
 before/after/peak, committed before/after, effective maximum, and processors in
 the same shared reconnect window. Committed heap may grow and is not treated as

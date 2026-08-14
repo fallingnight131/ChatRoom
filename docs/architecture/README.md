@@ -1308,6 +1308,13 @@ and fail closed if any bean reports undefined data. Collection elapsed time is
 not relabeled as stop-the-world pause, and it has not yet been incorporated into
 the reconnect evidence window. Portable RSS remains unavailable through the
 selected standard JDK boundary.
+ADR-0398 incorporates those GC counters into raw evidence schema version 8 and
+aggregate schema version 3. Each run reconciles collection count/time before,
+after, and delta in the shared window; historical aggregate/raw schema pairs
+remain valid and mismatched pairs are rejected. A real `step-12` verification
+observed no counter advance across 68 available samples. That excludes observed
+collection activity in that window at JMX resolution, not every possible JVM
+pause. RSS and exact pause distribution remain gaps.
 
 ## 10. Attachment Flow
 

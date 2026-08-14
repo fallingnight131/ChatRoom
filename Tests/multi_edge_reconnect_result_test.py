@@ -122,6 +122,20 @@ def pressure_duration():
     }
 
 
+def gc_collection_activity():
+    return {
+        "sampleIntervalMillis": 5,
+        "samples": 24,
+        "metricsUnavailableSamples": 0,
+        "collectionsBefore": 10,
+        "collectionsAfter": 12,
+        "collectionsDelta": 2,
+        "collectionTimeMillisBefore": 100,
+        "collectionTimeMillisAfter": 125,
+        "collectionTimeMillisDelta": 25,
+    }
+
+
 class MultiEdgeReconnectResultTest(unittest.TestCase):
     def test_accepts_reconciled_clean_evidence(self):
         validate(evidence(), "a" * 40, require_clean=True)
@@ -246,6 +260,46 @@ class MultiEdgeReconnectResultTest(unittest.TestCase):
         value["results"]["pressureDuration"] = pressure_duration()
         with self.assertRaises(EvidenceError):
             validate(value, "a" * 40, require_clean=True)
+
+    def test_accepts_gc_collection_activity(self):
+        value = evidence()
+        value["schemaVersion"] = 8
+        value["scenario"]["workloadProfile"] = "step-12"
+        value["results"]["authenticationSaturation"] = authentication_saturation()
+        value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+        value["results"]["postgresPoolSaturation"][
+            "threadsAwaitingConnectionMaximum"] = 2
+        value["results"]["eventLoopSaturation"] = event_loop_saturation()
+        value["results"]["processResourceSaturation"] = process_resource_saturation()
+        value["results"]["pressureDuration"] = pressure_duration()
+        value["results"]["gcCollectionActivity"] = gc_collection_activity()
+        validate(value, "a" * 40, require_clean=True)
+
+    def test_rejects_invalid_gc_collection_activity(self):
+        for mutate in (
+            lambda activity: activity.update(samples=23),
+            lambda activity: activity.update(metricsUnavailableSamples=1),
+            lambda activity: activity.update(collectionsAfter=9),
+            lambda activity: activity.update(collectionsDelta=1),
+            lambda activity: activity.update(collectionTimeMillisAfter=99),
+            lambda activity: activity.update(collectionTimeMillisDelta=24),
+            lambda activity: activity.update(extraField=1),
+        ):
+            value = evidence()
+            value["schemaVersion"] = 8
+            value["scenario"]["workloadProfile"] = "step-12"
+            value["results"]["authenticationSaturation"] = authentication_saturation()
+            value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+            value["results"]["postgresPoolSaturation"][
+                "threadsAwaitingConnectionMaximum"] = 2
+            value["results"]["eventLoopSaturation"] = event_loop_saturation()
+            value["results"]["processResourceSaturation"] = process_resource_saturation()
+            value["results"]["pressureDuration"] = pressure_duration()
+            activity = gc_collection_activity()
+            value["results"]["gcCollectionActivity"] = activity
+            mutate(activity)
+            with self.subTest(activity=activity), self.assertRaises(EvidenceError):
+                validate(value, "a" * 40, require_clean=True)
 
     def test_rejects_unknown_or_drifting_workload_profile(self):
         for mutate in (

@@ -34,8 +34,8 @@ def validate(value: Any, expected_revision: str | None = None,
              require_clean: bool = False) -> dict[str, Any]:
     root = object_value(value, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2, 3, 4, 5, 6, 7):
-        raise EvidenceError("schemaVersion must be between 1 and 7")
+    if schema not in (1, 2, 3, 4, 5, 6, 7, 8):
+        raise EvidenceError("schemaVersion must be between 1 and 8")
     if root.get("benchmark") != "java-v2-haproxy-multi-edge-reconnect":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != (
@@ -331,6 +331,39 @@ def validate(value: Any, expected_revision: str | None = None,
                 raise EvidenceError(f"{prefix} duration exceeds the sample window")
             if (peak == 0) != (positive == 0) or (positive == 0) != (longest == 0):
                 raise EvidenceError(f"{prefix} peak and duration do not reconcile")
+    if schema < 8 and "gcCollectionActivity" in results:
+        raise EvidenceError("schemaVersion below 8 cannot contain GC activity")
+    if schema >= 8:
+        gc = object_value(results.get("gcCollectionActivity"), "gcCollectionActivity")
+        if set(gc) != {
+                "sampleIntervalMillis", "samples", "metricsUnavailableSamples",
+                "collectionsBefore", "collectionsAfter", "collectionsDelta",
+                "collectionTimeMillisBefore", "collectionTimeMillisAfter",
+                "collectionTimeMillisDelta"}:
+            raise EvidenceError("gcCollectionActivity fields are invalid")
+        if gc.get("sampleIntervalMillis") != 5:
+            raise EvidenceError("GC collection interval must be 5 ms")
+        gc_samples = integer(gc.get("samples"), "gcCollectionActivity.samples", 2)
+        if gc_samples != saturation["samples"]:
+            raise EvidenceError("GC collection sample count disagrees")
+        if integer(gc.get("metricsUnavailableSamples"),
+                   "gcCollectionActivity.metricsUnavailableSamples", 0) != 0:
+            raise EvidenceError("GC collection metrics must be available for every sample")
+        collections_before = integer(
+            gc.get("collectionsBefore"), "gcCollectionActivity.collectionsBefore", 0)
+        collections_after = integer(
+            gc.get("collectionsAfter"), "gcCollectionActivity.collectionsAfter",
+            collections_before)
+        if gc.get("collectionsDelta") != collections_after - collections_before:
+            raise EvidenceError("GC collection count delta does not reconcile")
+        time_before = integer(
+            gc.get("collectionTimeMillisBefore"),
+            "gcCollectionActivity.collectionTimeMillisBefore", 0)
+        time_after = integer(
+            gc.get("collectionTimeMillisAfter"),
+            "gcCollectionActivity.collectionTimeMillisAfter", time_before)
+        if gc.get("collectionTimeMillisDelta") != time_after - time_before:
+            raise EvidenceError("GC collection time delta does not reconcile")
     return root
 
 

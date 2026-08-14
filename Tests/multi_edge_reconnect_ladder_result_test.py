@@ -14,6 +14,7 @@ from Tests.multi_edge_reconnect_result_test import (  # noqa: E402
     authentication_saturation,
     event_loop_saturation,
     evidence,
+    gc_collection_activity,
     postgres_pool_saturation,
     process_resource_saturation,
 )
@@ -133,6 +134,32 @@ class MultiEdgeReconnectLadderResultTest(unittest.TestCase):
             "repeated-sustained-pressure-first-observed-at-step-24",
             value["analysis"]["conclusion"],
         )
+
+    def test_accepts_uniform_schema_8_gc_children(self):
+        runs = ladder_runs()
+        for samples in runs.values():
+            for sample in samples:
+                sample["schemaVersion"] = 8
+                sample["results"]["pressureDuration"] = {
+                    "sampleIntervalMillis": 5,
+                    "samples": 24,
+                    "authenticationQueuePositiveSamples": 0,
+                    "authenticationQueueLongestConsecutiveSamples": 0,
+                    "postgresWaitingPositiveSamples": 0,
+                    "postgresWaitingLongestConsecutiveSamples": 0,
+                    "eventLoopPendingPositiveSamples": 0,
+                    "eventLoopPendingLongestConsecutiveSamples": 0,
+                }
+                sample["results"]["gcCollectionActivity"] = gc_collection_activity()
+        value = build(runs)
+        validate(value, "a" * 40, require_clean=True)
+        self.assertEqual(3, value["schemaVersion"])
+        for profile in value["analysis"]["profiles"]:
+            for sample in profile["runs"]:
+                self.assertEqual(
+                    {"collectionsDelta": 2, "collectionTimeMillisDelta": 25},
+                    sample["gcCollectionActivity"],
+                )
 
     def test_identifies_repeated_pressure_at_lowest_observed_step(self):
         runs = ladder_runs()

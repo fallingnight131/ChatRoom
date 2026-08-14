@@ -1721,6 +1721,12 @@ Progress:
   readiness. Collection time is explicitly not labeled stop-the-world pause;
   reconnect-window deltas, exact pause evidence, and RSS remain pending
   (ADR-0397).
+- [x] Upgrade new raw reconnect evidence to schema version 8 and reconcile JVM
+  GC collection count/time before, after, and delta in the shared sampling
+  window. New nine-run aggregates use schema version 3 and retain per-run GC
+  deltas; aggregate schemas 1/2 remain paired with raw schemas 6/7. A real
+  `step-12` run observed 68 available samples and zero collection count/time
+  delta. Exact pauses and RSS remain pending (ADR-0398).
 
 Work:
 

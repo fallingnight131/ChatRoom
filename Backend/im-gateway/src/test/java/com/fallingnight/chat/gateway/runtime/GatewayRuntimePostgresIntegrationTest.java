@@ -1964,6 +1964,12 @@ class GatewayRuntimePostgresIntegrationTest {
                     poolMetrics, "chat_gateway_jvm_heap_maximum_bytes") > 0);
             assertTrue(fixedGauge(
                     poolMetrics, "chat_gateway_process_available_processors") >= 1);
+            assertEquals(1, fixedGauge(
+                    poolMetrics, "chat_gateway_jvm_gc_metrics_available"));
+            assertTrue(fixedLongGauge(
+                    poolMetrics, "chat_gateway_jvm_gc_collections_total") >= 0);
+            assertTrue(fixedSecondsMillis(
+                    poolMetrics, "chat_gateway_jvm_gc_collection_seconds_total") >= 0);
 
             Files.writeString(control.resolve("haproxy-primary-stop-request"), "stop\n");
             awaitFile(control.resolve("haproxy-primary-stopped"), Duration.ofSeconds(10));
@@ -4608,6 +4614,11 @@ class GatewayRuntimePostgresIntegrationTest {
         long uptimeMillisBefore = -1;
         long uptimeMillisAfter = -1;
         int availableProcessors = -1;
+        int gcMetricsUnavailableSamples = 0;
+        long gcCollectionsBefore = -1;
+        long gcCollectionsAfter = -1;
+        long gcCollectionTimeMillisBefore = -1;
+        long gcCollectionTimeMillisAfter = -1;
         long sampleIntervalNanos = TimeUnit.MILLISECONDS.toNanos(5);
         long nextSampleNanos = System.nanoTime();
         do {
@@ -4718,6 +4729,21 @@ class GatewayRuntimePostgresIntegrationTest {
                     metrics, "chat_gateway_process_uptime_seconds");
             int processors = fixedGauge(
                     metrics, "chat_gateway_process_available_processors");
+            if (fixedGauge(metrics,
+                    "chat_gateway_jvm_gc_metrics_available") == 0) {
+                gcMetricsUnavailableSamples++;
+            } else {
+                long collections = fixedLongGauge(
+                        metrics, "chat_gateway_jvm_gc_collections_total");
+                long collectionTimeMillis = fixedSecondsMillis(
+                        metrics, "chat_gateway_jvm_gc_collection_seconds_total");
+                if (gcCollectionsBefore < 0) {
+                    gcCollectionsBefore = collections;
+                    gcCollectionTimeMillisBefore = collectionTimeMillis;
+                }
+                gcCollectionsAfter = collections;
+                gcCollectionTimeMillisAfter = collectionTimeMillis;
+            }
             if (heapUsedBytesBefore < 0) {
                 heapUsedBytesBefore = heapUsed;
                 heapCommittedBytesBefore = committed;
@@ -4760,7 +4786,10 @@ class GatewayRuntimePostgresIntegrationTest {
                 heapUsedBytesBefore, heapUsedBytesAfter, heapUsedBytesMaximum,
                 heapCommittedBytesBefore, heapCommittedBytesAfter,
                 heapMaximumBytes, uptimeMillisBefore,
-                uptimeMillisAfter, availableProcessors);
+                uptimeMillisAfter, availableProcessors,
+                gcMetricsUnavailableSamples, gcCollectionsBefore,
+                gcCollectionsAfter, gcCollectionTimeMillisBefore,
+                gcCollectionTimeMillisAfter);
     }
 
     private static int fixedGauge(String metrics, String name) {
@@ -5044,7 +5073,7 @@ class GatewayRuntimePostgresIntegrationTest {
         int batches = (affected + batchSize - 1) / batchSize;
         String json = """
                 {
-                  "schemaVersion": 7,
+                  "schemaVersion": 8,
                   "benchmark": "java-v2-haproxy-multi-edge-reconnect",
                   "warning": "local dual-edge recovery evidence; not a production capacity claim",
                   "recordedAt": "%s",
@@ -5130,6 +5159,17 @@ class GatewayRuntimePostgresIntegrationTest {
                       "eventLoopPendingPositiveSamples": %d,
                       "eventLoopPendingLongestConsecutiveSamples": %d
                     },
+                    "gcCollectionActivity": {
+                      "sampleIntervalMillis": 5,
+                      "samples": %d,
+                      "metricsUnavailableSamples": %d,
+                      "collectionsBefore": %d,
+                      "collectionsAfter": %d,
+                      "collectionsDelta": %d,
+                      "collectionTimeMillisBefore": %d,
+                      "collectionTimeMillisAfter": %d,
+                      "collectionTimeMillisDelta": %d
+                    },
                     "elapsedMillis": %.3f,
                     "reconnectThroughputPerSecond": %.3f,
                     "sessionResumeLatencyMicros": %s,
@@ -5185,6 +5225,16 @@ class GatewayRuntimePostgresIntegrationTest {
                         saturation.postgresWaitingLongestStreak(),
                         saturation.eventLoopPendingPositiveSamples(),
                         saturation.eventLoopPendingLongestStreak(),
+                        saturation.samples(),
+                        saturation.gcMetricsUnavailableSamples(),
+                        saturation.gcCollectionsBefore(),
+                        saturation.gcCollectionsAfter(),
+                        saturation.gcCollectionsAfter()
+                                - saturation.gcCollectionsBefore(),
+                        saturation.gcCollectionTimeMillisBefore(),
+                        saturation.gcCollectionTimeMillisAfter(),
+                        saturation.gcCollectionTimeMillisAfter()
+                                - saturation.gcCollectionTimeMillisBefore(),
                         elapsedNanos / 1_000_000.0,
                         affected * 1_000_000_000.0 / elapsedNanos,
                         distributionJson(latency), distributionJson(jitter));
@@ -5264,7 +5314,12 @@ class GatewayRuntimePostgresIntegrationTest {
             long heapMaximumBytes,
             long uptimeMillisBefore,
             long uptimeMillisAfter,
-            int availableProcessors) {
+            int availableProcessors,
+            int gcMetricsUnavailableSamples,
+            long gcCollectionsBefore,
+            long gcCollectionsAfter,
+            long gcCollectionTimeMillisBefore,
+            long gcCollectionTimeMillisAfter) {
     }
 
     private static Envelope clientHello(String deviceId) {
