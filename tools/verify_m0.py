@@ -114,6 +114,11 @@ def verify_gateway_multi_edge_ladder(output: Path) -> None:
     ], ROOT)
 
 
+def verify_linux_resident_memory() -> None:
+    run([sys.executable,
+         str(ROOT / "tools" / "verify_linux_resident_memory.py")], ROOT)
+
+
 def verify_java_performance(args: argparse.Namespace, output: Path) -> None:
     run([
         sys.executable,
@@ -642,6 +647,11 @@ def parse_args() -> argparse.Namespace:
         help="run three repetitions of all fixed reconnect profiles",
     )
     parser.add_argument(
+        "--linux-rss",
+        action="store_true",
+        help="run the pinned Linux /proc resident-memory provider gate",
+    )
+    parser.add_argument(
         "--protocol-bindings",
         action="store_true",
         help="generate and verify V2 C++ and TypeScript client bindings",
@@ -788,6 +798,8 @@ def main() -> int:
             args.gateway_multi_edge_output, args.gateway_multi_edge_workload)
     if args.gateway_multi_edge_ladder_output is not None:
         verify_gateway_multi_edge_ladder(args.gateway_multi_edge_ladder_output)
+    if args.linux_rss:
+        verify_linux_resident_memory()
     if args.protocol_bindings or args.all:
         verify_protocol_bindings(args.skip_npm_ci)
     if args.db_schema or args.all:
@@ -843,6 +855,7 @@ def main() -> int:
         or args.gateway_mixed_version
         or args.gateway_multi_edge
         or args.gateway_multi_edge_ladder_output is not None
+        or args.linux_rss
         or args.db_schema
         or args.cmake_headless
         or args.password_hash
@@ -867,6 +880,7 @@ def main() -> int:
             "--gateway-mixed-version, "
             "--gateway-multi-edge, "
             "--gateway-multi-edge-ladder-output, "
+            "--linux-rss, "
             "--protocol-bindings, "
             "--db-schema, --password-hash, "
             "--cmake-headless, --v1-smoke, --v1-identity-restore, --performance, "

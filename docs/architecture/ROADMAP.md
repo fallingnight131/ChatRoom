@@ -1775,6 +1775,9 @@ Progress:
   and disposable containers. This avoids Docker Desktop bind-mount execute
   permission drift and repeated Maven availability coupling while keeping the
   gate reproducible from the macOS workstation.
+- [x] Expose the pinned Linux provider verification through the unified M0
+  runner as explicit `--linux-rss`. Keep it outside `--all` because it requires
+  Docker and may pull the pinned image/dependencies on first use.
 
 Work:
 

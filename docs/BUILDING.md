@@ -1728,7 +1728,7 @@ schema-9 reconnect ladder remains separate.
 Reproduce that isolated Linux provider gate from a POSIX development host with:
 
 ```bash
-python3 tools/verify_linux_resident_memory.py
+python3 tools/verify_m0.py --linux-rss
 ```
 
 The verifier creates or reuses the project-scoped Docker-native
