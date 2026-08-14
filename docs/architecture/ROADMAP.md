@@ -1708,6 +1708,13 @@ Progress:
   50 ms event-loop-lag and 0.8 normalized-CPU rules remain. Two of three runs
   are still required, and historical schema-1/schema-6 aggregates reproduce
   their original conclusion (ADR-0396).
+- [x] Record the clean exact-revision duration-aware ladder at `f5400819...`.
+  All nine scenarios converged. Peak signals appeared in 2/3, 2/3, and 3/3
+  runs, but sustained signals appeared in 0/3, 1/3, and 0/3; no profile met the
+  majority rule. Median P95 was 42.375, 43.137, and 78.394 ms, below the 2x
+  latency-candidate ratio. The strict conclusion is no sustained-pressure knee
+  observed within this local ladder, not safe production capacity. Gateway-child
+  RSS and GC pause evidence remain pending.
 
 Work:
 

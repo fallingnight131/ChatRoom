@@ -1640,6 +1640,8 @@ When all children use schema version 7, the aggregate uses schema version 2.
 Peak-positive runs remain visible, but queue/waiter/pending signals require two
 consecutive positive samples before they count toward the two-of-three sustained
 pressure rule. Schema-1 aggregates keep their original peak rule (ADR-0396).
+The first clean duration-aware schema-2 aggregate is retained as
+`docs/baselines/M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_DURATION_AWARE_LADDER_2026-08-14.*`.
 The loopback gateway metrics now include
 `chat_gateway_authentication_workers_active` and
 `chat_gateway_authentication_queue_size`; collect them during reconnect windows,

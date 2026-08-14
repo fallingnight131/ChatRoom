@@ -1295,6 +1295,12 @@ before authentication queue, PostgreSQL waiter, or Netty pending work counts as
 sustained; the existing 50 ms probe-delay and 0.8 normalized-CPU rules remain.
 Historical schema-1/schema-6 aggregates retain their original interpretation,
 and a schema-2 conclusion still cannot establish safe production capacity.
+The clean schema-2 ladder at `f5400819...` completed all nine scenarios. Peak
+signals appeared in 2/3, 2/3, and 3/3 runs across the fixed profiles, but only
+one `step-24` run contained a two-sample streak; no profile met the sustained
+majority and no latency candidate triggered. This reverses the peak-only local
+classification without claiming safe capacity. Independent gateway RSS and GC
+pause evidence are the next resource gaps.
 
 ## 10. Attachment Flow
 
