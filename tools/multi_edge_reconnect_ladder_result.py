@@ -166,19 +166,23 @@ def validate(value: Any, expected_revision: str | None = None,
     if tuple(evidence) != PROFILES:
         raise EvidenceError("ladder runEvidence profiles are invalid")
     dirty = False
+    child_schemas = set()
     for profile in PROFILES:
         runs = evidence.get(profile)
         if not isinstance(runs, list) or len(runs) != REPETITIONS:
             raise EvidenceError(f"{profile} must contain exactly three runs")
         for run in runs:
             validated = validate_run(run, revision, require_clean)
-            if validated["schemaVersion"] != 6:
-                raise EvidenceError("ladder child evidence must use schemaVersion 6")
+            if validated["schemaVersion"] not in (6, 7):
+                raise EvidenceError("ladder child evidence must use schemaVersion 6 or 7")
+            child_schemas.add(validated["schemaVersion"])
             if validated["scenario"]["workloadProfile"] != profile:
                 raise EvidenceError("ladder child profile placement is invalid")
             if validated["environment"] != environment or validated["host"] != host:
                 raise EvidenceError("ladder runs must share one environment identity")
             dirty = dirty or validated["worktreeDirty"]
+    if len(child_schemas) != 1:
+        raise EvidenceError("ladder child schema versions must not be mixed")
     if root["worktreeDirty"] != dirty:
         raise EvidenceError("ladder dirty state does not reconcile child runs")
     expected_analysis = analysis_for(evidence)

@@ -1632,6 +1632,10 @@ release evidence. Even a clean result is a local diagnostic, not a production
 capacity or SLO claim.
 The first clean aggregate and its limitations are retained as
 `docs/baselines/M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_WORKLOAD_LADDER_2026-08-14.*`.
+New individual runs use schema version 7 and add positive-sample counts plus
+longest consecutive streaks for authentication queue, PostgreSQL waiters, and
+Netty pending tasks. Historical schema-6 ladders remain valid; one aggregate
+cannot mix child schemas (ADR-0395).
 The loopback gateway metrics now include
 `chat_gateway_authentication_workers_active` and
 `chat_gateway_authentication_queue_size`; collect them during reconnect windows,

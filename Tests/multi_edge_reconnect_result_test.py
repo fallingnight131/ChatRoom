@@ -109,6 +109,19 @@ def process_resource_saturation():
     }
 
 
+def pressure_duration():
+    return {
+        "sampleIntervalMillis": 5,
+        "samples": 24,
+        "authenticationQueuePositiveSamples": 0,
+        "authenticationQueueLongestConsecutiveSamples": 0,
+        "postgresWaitingPositiveSamples": 2,
+        "postgresWaitingLongestConsecutiveSamples": 1,
+        "eventLoopPendingPositiveSamples": 3,
+        "eventLoopPendingLongestConsecutiveSamples": 2,
+    }
+
+
 class MultiEdgeReconnectResultTest(unittest.TestCase):
     def test_accepts_reconciled_clean_evidence(self):
         validate(evidence(), "a" * 40, require_clean=True)
@@ -173,6 +186,66 @@ class MultiEdgeReconnectResultTest(unittest.TestCase):
             value["results"]["processResourceSaturation"] = process_resource_saturation()
             with self.subTest(profile=profile):
                 validate(value, "a" * 40, require_clean=True)
+
+    def test_accepts_duration_aware_pressure_evidence(self):
+        value = evidence()
+        value["schemaVersion"] = 7
+        value["scenario"]["workloadProfile"] = "step-12"
+        value["results"]["authenticationSaturation"] = authentication_saturation()
+        value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+        value["results"]["postgresPoolSaturation"][
+            "threadsAwaitingConnectionMaximum"] = 2
+        value["results"]["eventLoopSaturation"] = event_loop_saturation()
+        value["results"]["processResourceSaturation"] = process_resource_saturation()
+        value["results"]["pressureDuration"] = pressure_duration()
+        validate(value, "a" * 40, require_clean=True)
+
+    def test_rejects_missing_or_inconsistent_pressure_duration(self):
+        for mutate in (
+            lambda duration: duration.update(samples=23),
+            lambda duration: duration.update(authenticationQueuePositiveSamples=1),
+            lambda duration: duration.update(postgresWaitingPositiveSamples=25),
+            lambda duration: duration.update(
+                postgresWaitingLongestConsecutiveSamples=3),
+            lambda duration: duration.update(eventLoopPendingPositiveSamples=0),
+            lambda duration: duration.update(extraField=1),
+        ):
+            value = evidence()
+            value["schemaVersion"] = 7
+            value["scenario"]["workloadProfile"] = "step-12"
+            value["results"]["authenticationSaturation"] = authentication_saturation()
+            value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+            value["results"]["postgresPoolSaturation"][
+                "threadsAwaitingConnectionMaximum"] = 2
+            value["results"]["eventLoopSaturation"] = event_loop_saturation()
+            value["results"]["processResourceSaturation"] = process_resource_saturation()
+            duration = pressure_duration()
+            value["results"]["pressureDuration"] = duration
+            mutate(duration)
+            with self.subTest(duration=duration), self.assertRaises(EvidenceError):
+                validate(value, "a" * 40, require_clean=True)
+
+        value = evidence()
+        value["schemaVersion"] = 7
+        value["scenario"]["workloadProfile"] = "step-12"
+        value["results"]["authenticationSaturation"] = authentication_saturation()
+        value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+        value["results"]["eventLoopSaturation"] = event_loop_saturation()
+        value["results"]["processResourceSaturation"] = process_resource_saturation()
+        with self.assertRaises(EvidenceError):
+            validate(value, "a" * 40, require_clean=True)
+
+    def test_rejects_pressure_duration_without_schema_upgrade(self):
+        value = evidence()
+        value["schemaVersion"] = 6
+        value["scenario"]["workloadProfile"] = "step-12"
+        value["results"]["authenticationSaturation"] = authentication_saturation()
+        value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+        value["results"]["eventLoopSaturation"] = event_loop_saturation()
+        value["results"]["processResourceSaturation"] = process_resource_saturation()
+        value["results"]["pressureDuration"] = pressure_duration()
+        with self.assertRaises(EvidenceError):
+            validate(value, "a" * 40, require_clean=True)
 
     def test_rejects_unknown_or_drifting_workload_profile(self):
         for mutate in (

@@ -4574,10 +4574,16 @@ class GatewayRuntimePostgresIntegrationTest {
         int samples = 0;
         int activeWorkersMaximum = 0;
         int queuedWorkMaximum = 0;
+        int authenticationQueuePositiveSamples = 0;
+        int authenticationQueueCurrentStreak = 0;
+        int authenticationQueueLongestStreak = 0;
         int postgresMetricsUnavailableSamples = 0;
         int postgresActiveConnectionsMaximum = 0;
         int postgresTotalConnectionsMaximum = 0;
         int postgresThreadsAwaitingConnectionMaximum = 0;
+        int postgresWaitingPositiveSamples = 0;
+        int postgresWaitingCurrentStreak = 0;
+        int postgresWaitingLongestStreak = 0;
         int postgresMaximumConnections = -1;
         int eventLoopMetricsUnavailableSamples = 0;
         int eventLoopWorkers = -1;
@@ -4587,6 +4593,9 @@ class GatewayRuntimePostgresIntegrationTest {
         long eventLoopSinceStartMaximumLagMicrosBefore = -1;
         long eventLoopSinceStartMaximumLagMicrosAfter = -1;
         long eventLoopPendingTasksMaximum = 0;
+        int eventLoopPendingPositiveSamples = 0;
+        int eventLoopPendingCurrentStreak = 0;
+        int eventLoopPendingLongestStreak = 0;
         int processCpuTimeUnavailableSamples = 0;
         long processCpuTimeMicrosBefore = -1;
         long processCpuTimeMicrosAfter = -1;
@@ -4606,9 +4615,18 @@ class GatewayRuntimePostgresIntegrationTest {
             activeWorkersMaximum = Math.max(activeWorkersMaximum,
                     fixedGauge(metrics,
                             "chat_gateway_authentication_workers_active"));
-            queuedWorkMaximum = Math.max(queuedWorkMaximum,
-                    fixedGauge(metrics,
-                            "chat_gateway_authentication_queue_size"));
+            int queuedWork = fixedGauge(
+                    metrics, "chat_gateway_authentication_queue_size");
+            queuedWorkMaximum = Math.max(queuedWorkMaximum, queuedWork);
+            if (queuedWork > 0) {
+                authenticationQueuePositiveSamples++;
+                authenticationQueueCurrentStreak++;
+                authenticationQueueLongestStreak = Math.max(
+                        authenticationQueueLongestStreak,
+                        authenticationQueueCurrentStreak);
+            } else {
+                authenticationQueueCurrentStreak = 0;
+            }
             int configuredMaximum = fixedGauge(
                     metrics, "chat_gateway_postgres_connections_maximum");
             if (postgresMaximumConnections < 0) {
@@ -4629,10 +4647,18 @@ class GatewayRuntimePostgresIntegrationTest {
                         postgresTotalConnectionsMaximum,
                         fixedGauge(metrics,
                                 "chat_gateway_postgres_connections_total"));
+                int waiting = fixedGauge(
+                        metrics, "chat_gateway_postgres_threads_awaiting_connection");
                 postgresThreadsAwaitingConnectionMaximum = Math.max(
-                        postgresThreadsAwaitingConnectionMaximum,
-                        fixedGauge(metrics,
-                                "chat_gateway_postgres_threads_awaiting_connection"));
+                        postgresThreadsAwaitingConnectionMaximum, waiting);
+                if (waiting > 0) {
+                    postgresWaitingPositiveSamples++;
+                    postgresWaitingCurrentStreak++;
+                    postgresWaitingLongestStreak = Math.max(
+                            postgresWaitingLongestStreak, postgresWaitingCurrentStreak);
+                } else {
+                    postgresWaitingCurrentStreak = 0;
+                }
             }
             if (fixedGauge(metrics,
                     "chat_gateway_event_loop_metrics_available") == 0) {
@@ -4661,10 +4687,19 @@ class GatewayRuntimePostgresIntegrationTest {
                         fixedSecondsMicros(
                                 metrics,
                                 "chat_gateway_event_loop_latest_max_lag_seconds"));
+                long pendingTasks = fixedLongGauge(
+                        metrics, "chat_gateway_event_loop_pending_tasks");
                 eventLoopPendingTasksMaximum = Math.max(
-                        eventLoopPendingTasksMaximum,
-                        fixedLongGauge(metrics,
-                                "chat_gateway_event_loop_pending_tasks"));
+                        eventLoopPendingTasksMaximum, pendingTasks);
+                if (pendingTasks > 0) {
+                    eventLoopPendingPositiveSamples++;
+                    eventLoopPendingCurrentStreak++;
+                    eventLoopPendingLongestStreak = Math.max(
+                            eventLoopPendingLongestStreak,
+                            eventLoopPendingCurrentStreak);
+                } else {
+                    eventLoopPendingCurrentStreak = 0;
+                }
             }
             if (fixedGauge(metrics,
                     "chat_gateway_process_cpu_time_available") == 0) {
@@ -4708,15 +4743,19 @@ class GatewayRuntimePostgresIntegrationTest {
         } while (true);
         return new ReconnectSaturation(
                 samples, activeWorkersMaximum, queuedWorkMaximum,
+                authenticationQueuePositiveSamples,
+                authenticationQueueLongestStreak,
                 postgresMetricsUnavailableSamples, postgresActiveConnectionsMaximum,
                 postgresTotalConnectionsMaximum,
                 postgresThreadsAwaitingConnectionMaximum, postgresMaximumConnections,
+                postgresWaitingPositiveSamples, postgresWaitingLongestStreak,
                 eventLoopMetricsUnavailableSamples, eventLoopWorkers,
                 eventLoopProbeSamplesBefore, eventLoopProbeSamplesAfter,
                 eventLoopLatestMaximumLagMicros,
                 eventLoopSinceStartMaximumLagMicrosBefore,
                 eventLoopSinceStartMaximumLagMicrosAfter,
-                eventLoopPendingTasksMaximum, processCpuTimeUnavailableSamples,
+                eventLoopPendingTasksMaximum, eventLoopPendingPositiveSamples,
+                eventLoopPendingLongestStreak, processCpuTimeUnavailableSamples,
                 processCpuTimeMicrosBefore, processCpuTimeMicrosAfter,
                 heapUsedBytesBefore, heapUsedBytesAfter, heapUsedBytesMaximum,
                 heapCommittedBytesBefore, heapCommittedBytesAfter,
@@ -5005,7 +5044,7 @@ class GatewayRuntimePostgresIntegrationTest {
         int batches = (affected + batchSize - 1) / batchSize;
         String json = """
                 {
-                  "schemaVersion": 6,
+                  "schemaVersion": 7,
                   "benchmark": "java-v2-haproxy-multi-edge-reconnect",
                   "warning": "local dual-edge recovery evidence; not a production capacity claim",
                   "recordedAt": "%s",
@@ -5081,6 +5120,16 @@ class GatewayRuntimePostgresIntegrationTest {
                       "uptimeMillisDelta": %d,
                       "availableProcessors": %d
                     },
+                    "pressureDuration": {
+                      "sampleIntervalMillis": 5,
+                      "samples": %d,
+                      "authenticationQueuePositiveSamples": %d,
+                      "authenticationQueueLongestConsecutiveSamples": %d,
+                      "postgresWaitingPositiveSamples": %d,
+                      "postgresWaitingLongestConsecutiveSamples": %d,
+                      "eventLoopPendingPositiveSamples": %d,
+                      "eventLoopPendingLongestConsecutiveSamples": %d
+                    },
                     "elapsedMillis": %.3f,
                     "reconnectThroughputPerSecond": %.3f,
                     "sessionResumeLatencyMicros": %s,
@@ -5129,6 +5178,13 @@ class GatewayRuntimePostgresIntegrationTest {
                         saturation.uptimeMillisAfter(),
                         saturation.uptimeMillisAfter() - saturation.uptimeMillisBefore(),
                         saturation.availableProcessors(),
+                        saturation.samples(),
+                        saturation.authenticationQueuePositiveSamples(),
+                        saturation.authenticationQueueLongestStreak(),
+                        saturation.postgresWaitingPositiveSamples(),
+                        saturation.postgresWaitingLongestStreak(),
+                        saturation.eventLoopPendingPositiveSamples(),
+                        saturation.eventLoopPendingLongestStreak(),
                         elapsedNanos / 1_000_000.0,
                         affected * 1_000_000_000.0 / elapsedNanos,
                         distributionJson(latency), distributionJson(jitter));
@@ -5178,11 +5234,15 @@ class GatewayRuntimePostgresIntegrationTest {
             int samples,
             int activeWorkersMaximum,
             int queuedWorkMaximum,
+            int authenticationQueuePositiveSamples,
+            int authenticationQueueLongestStreak,
             int postgresMetricsUnavailableSamples,
             int postgresActiveConnectionsMaximum,
             int postgresTotalConnectionsMaximum,
             int postgresThreadsAwaitingConnectionMaximum,
             int postgresMaximumConnections,
+            int postgresWaitingPositiveSamples,
+            int postgresWaitingLongestStreak,
             int eventLoopMetricsUnavailableSamples,
             int eventLoopWorkers,
             long eventLoopProbeSamplesBefore,
@@ -5191,6 +5251,8 @@ class GatewayRuntimePostgresIntegrationTest {
             long eventLoopSinceStartMaximumLagMicrosBefore,
             long eventLoopSinceStartMaximumLagMicrosAfter,
             long eventLoopPendingTasksMaximum,
+            int eventLoopPendingPositiveSamples,
+            int eventLoopPendingLongestStreak,
             int processCpuTimeUnavailableSamples,
             long processCpuTimeMicrosBefore,
             long processCpuTimeMicrosAfter,

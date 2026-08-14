@@ -1696,6 +1696,12 @@ Progress:
   below 0.171, and no latency-knee candidate was declared. Signal duration,
   RSS, GC pauses, isolated-host evidence, and production capacity remain
   unproven.
+- [x] Upgrade new raw reconnect evidence to schema version 7 and count positive
+  samples plus longest consecutive streaks for authentication queue,
+  PostgreSQL waiters, and Netty pending tasks in the existing shared 5 ms
+  window. Strict validation reconciles peaks, counts, streaks, and sample totals;
+  uniform schema-6 ladder history remains valid while mixed child schemas are
+  rejected. Duration-aware aggregate classification remains pending (ADR-0395).
 
 Work:
 

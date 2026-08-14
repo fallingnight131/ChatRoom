@@ -34,8 +34,8 @@ def validate(value: Any, expected_revision: str | None = None,
              require_clean: bool = False) -> dict[str, Any]:
     root = object_value(value, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2, 3, 4, 5, 6):
-        raise EvidenceError("schemaVersion must be between 1 and 6")
+    if schema not in (1, 2, 3, 4, 5, 6, 7):
+        raise EvidenceError("schemaVersion must be between 1 and 7")
     if root.get("benchmark") != "java-v2-haproxy-multi-edge-reconnect":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != (
@@ -296,6 +296,41 @@ def validate(value: Any, expected_revision: str | None = None,
             "processResourceSaturation.availableProcessors", 1)
         if processors != environment["availableProcessors"]:
             raise EvidenceError("available processor count disagrees with environment")
+    if schema < 7 and "pressureDuration" in results:
+        raise EvidenceError("schemaVersion below 7 cannot contain pressureDuration")
+    if schema >= 7:
+        duration = object_value(results.get("pressureDuration"), "pressureDuration")
+        if set(duration) != {
+                "sampleIntervalMillis", "samples",
+                "authenticationQueuePositiveSamples",
+                "authenticationQueueLongestConsecutiveSamples",
+                "postgresWaitingPositiveSamples",
+                "postgresWaitingLongestConsecutiveSamples",
+                "eventLoopPendingPositiveSamples",
+                "eventLoopPendingLongestConsecutiveSamples"}:
+            raise EvidenceError("pressureDuration fields are invalid")
+        if duration.get("sampleIntervalMillis") != 5:
+            raise EvidenceError("pressure duration interval must be 5 ms")
+        duration_samples = integer(
+            duration.get("samples"), "pressureDuration.samples", 2)
+        if duration_samples != saturation["samples"]:
+            raise EvidenceError("pressure duration sample count disagrees")
+        duration_pairs = (
+            ("authenticationQueue", queued),
+            ("postgresWaiting", awaiting),
+            ("eventLoopPending", pending),
+        )
+        for prefix, peak in duration_pairs:
+            positive = integer(
+                duration.get(f"{prefix}PositiveSamples"),
+                f"pressureDuration.{prefix}PositiveSamples", 0)
+            longest = integer(
+                duration.get(f"{prefix}LongestConsecutiveSamples"),
+                f"pressureDuration.{prefix}LongestConsecutiveSamples", 0)
+            if positive > duration_samples or longest > positive:
+                raise EvidenceError(f"{prefix} duration exceeds the sample window")
+            if (peak == 0) != (positive == 0) or (positive == 0) != (longest == 0):
+                raise EvidenceError(f"{prefix} peak and duration do not reconcile")
     return root
 
 

@@ -1281,6 +1281,14 @@ pressure rule first triggered at `step-24` through sampled PostgreSQL waiter
 and Netty pending-task peaks. Authentication queues remained empty and no
 latency-knee candidate was declared. Duration-aware sampling is required before
 interpreting those instantaneous peaks as sustained contention.
+ADR-0395 adds that missing raw context in schema version 7. The shared sampler
+now records positive-sample counts and longest consecutive streaks for the
+authentication queue, PostgreSQL waiters, and Netty pending tasks, with strict
+peak/count/streak reconciliation. A real `step-12` verification observed a
+PostgreSQL waiter peak of 2 in only one of 68 samples and no consecutive
+extension, demonstrating why a peak alone must not be called sustained
+pressure. Aggregate classification remains on the ADR-0394 rule until a
+versioned duration-aware successor is added.
 
 ## 10. Attachment Flow
 

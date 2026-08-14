@@ -67,6 +67,29 @@ class MultiEdgeReconnectLadderResultTest(unittest.TestCase):
             value["analysis"]["conclusion"],
         )
 
+    def test_accepts_uniform_schema_7_duration_children(self):
+        runs = ladder_runs()
+        for samples in runs.values():
+            for sample in samples:
+                sample["schemaVersion"] = 7
+                sample["results"]["pressureDuration"] = {
+                    "sampleIntervalMillis": 5,
+                    "samples": 24,
+                    "authenticationQueuePositiveSamples": 0,
+                    "authenticationQueueLongestConsecutiveSamples": 0,
+                    "postgresWaitingPositiveSamples": 0,
+                    "postgresWaitingLongestConsecutiveSamples": 0,
+                    "eventLoopPendingPositiveSamples": 0,
+                    "eventLoopPendingLongestConsecutiveSamples": 0,
+                }
+        value = build(runs)
+        validate(value, "a" * 40, require_clean=True)
+
+        value["runEvidence"]["step-48"][2]["schemaVersion"] = 6
+        value["runEvidence"]["step-48"][2]["results"].pop("pressureDuration")
+        with self.assertRaises(EvidenceError):
+            validate(value, "a" * 40, require_clean=True)
+
     def test_identifies_repeated_pressure_at_lowest_observed_step(self):
         runs = ladder_runs()
         for sample in runs["step-24"][:2]:
