@@ -1275,6 +1275,12 @@ peak queue/waiter/backlog, one-probe-period lag, or normalized CPU pressure;
 the latency heuristic requires both 2x baseline P95 and a 10 ms increase. The
 contract can report a first observed pressure step or candidate knee, but never
 safe capacity. Peak duration, RSS, GC and isolated-host evidence remain gaps.
+The clean exact-revision ladder at `af020e6c...` completed all nine scenarios.
+Its median P95 values were 42.011, 47.650, and 68.626 ms, while the majority
+pressure rule first triggered at `step-24` through sampled PostgreSQL waiter
+and Netty pending-task peaks. Authentication queues remained empty and no
+latency-knee candidate was declared. Duration-aware sampling is required before
+interpreting those instantaneous peaks as sustained contention.
 
 ## 10. Attachment Flow
 

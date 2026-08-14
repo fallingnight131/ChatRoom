@@ -1,0 +1,1206 @@
+{
+  "analysis": {
+    "conclusion": "repeated-pressure-first-observed-at-step-24",
+    "firstLatencyKneeCandidateProfile": null,
+    "firstRepeatedPressureProfile": "step-24",
+    "profiles": [
+      {
+        "affectedConnections": 12,
+        "latencyKneeCandidate": false,
+        "medianLatencyP50Micros": 19978,
+        "medianLatencyP95Micros": 42011,
+        "pressureSignalRuns": 1,
+        "repeatedPressureObserved": false,
+        "runs": [
+          {
+            "anyPressureSignal": false,
+            "authenticationActiveMaximum": 2,
+            "authenticationQueueMaximum": 0,
+            "eventLoopLatestLagMaximumMicros": 2475,
+            "eventLoopPendingTasksMaximum": 0,
+            "heapUsedMaximumBytes": 207618048,
+            "latencyP50Micros": 19793,
+            "latencyP95Micros": 44896,
+            "normalizedCpuRatio": 0.087122,
+            "postgresWaitingMaximum": 0,
+            "pressureSignals": {
+              "authenticationQueueObserved": false,
+              "cpuBusyObserved": false,
+              "eventLoopBacklogObserved": false,
+              "eventLoopProbeDelayObserved": false,
+              "postgresWaitObserved": false
+            }
+          },
+          {
+            "anyPressureSignal": false,
+            "authenticationActiveMaximum": 3,
+            "authenticationQueueMaximum": 0,
+            "eventLoopLatestLagMaximumMicros": 2390,
+            "eventLoopPendingTasksMaximum": 0,
+            "heapUsedMaximumBytes": 244884344,
+            "latencyP50Micros": 22160,
+            "latencyP95Micros": 39519,
+            "normalizedCpuRatio": 0.078873,
+            "postgresWaitingMaximum": 0,
+            "pressureSignals": {
+              "authenticationQueueObserved": false,
+              "cpuBusyObserved": false,
+              "eventLoopBacklogObserved": false,
+              "eventLoopProbeDelayObserved": false,
+              "postgresWaitObserved": false
+            }
+          },
+          {
+            "anyPressureSignal": true,
+            "authenticationActiveMaximum": 3,
+            "authenticationQueueMaximum": 0,
+            "eventLoopLatestLagMaximumMicros": 2846,
+            "eventLoopPendingTasksMaximum": 0,
+            "heapUsedMaximumBytes": 143485432,
+            "latencyP50Micros": 19978,
+            "latencyP95Micros": 42011,
+            "normalizedCpuRatio": 0.111614,
+            "postgresWaitingMaximum": 2,
+            "pressureSignals": {
+              "authenticationQueueObserved": false,
+              "cpuBusyObserved": false,
+              "eventLoopBacklogObserved": false,
+              "eventLoopProbeDelayObserved": false,
+              "postgresWaitObserved": true
+            }
+          }
+        ],
+        "workloadProfile": "step-12"
+      },
+      {
+        "affectedConnections": 24,
+        "latencyKneeCandidate": false,
+        "medianLatencyP50Micros": 32892,
+        "medianLatencyP95Micros": 47650,
+        "pressureSignalRuns": 2,
+        "repeatedPressureObserved": true,
+        "runs": [
+          {
+            "anyPressureSignal": true,
+            "authenticationActiveMaximum": 2,
+            "authenticationQueueMaximum": 0,
+            "eventLoopLatestLagMaximumMicros": 2416,
+            "eventLoopPendingTasksMaximum": 1,
+            "heapUsedMaximumBytes": 154181728,
+            "latencyP50Micros": 28710,
+            "latencyP95Micros": 47650,
+            "normalizedCpuRatio": 0.116735,
+            "postgresWaitingMaximum": 1,
+            "pressureSignals": {
+              "authenticationQueueObserved": false,
+              "cpuBusyObserved": false,
+              "eventLoopBacklogObserved": true,
+              "eventLoopProbeDelayObserved": false,
+              "postgresWaitObserved": true
+            }
+          },
+          {
+            "anyPressureSignal": false,
+            "authenticationActiveMaximum": 2,
+            "authenticationQueueMaximum": 0,
+            "eventLoopLatestLagMaximumMicros": 3131,
+            "eventLoopPendingTasksMaximum": 0,
+            "heapUsedMaximumBytes": 190082768,
+            "latencyP50Micros": 32892,
+            "latencyP95Micros": 49662,
+            "normalizedCpuRatio": 0.145616,
+            "postgresWaitingMaximum": 0,
+            "pressureSignals": {
+              "authenticationQueueObserved": false,
+              "cpuBusyObserved": false,
+              "eventLoopBacklogObserved": false,
+              "eventLoopProbeDelayObserved": false,
+              "postgresWaitObserved": false
+            }
+          },
+          {
+            "anyPressureSignal": true,
+            "authenticationActiveMaximum": 3,
+            "authenticationQueueMaximum": 0,
+            "eventLoopLatestLagMaximumMicros": 2533,
+            "eventLoopPendingTasksMaximum": 0,
+            "heapUsedMaximumBytes": 175660232,
+            "latencyP50Micros": 33797,
+            "latencyP95Micros": 43528,
+            "normalizedCpuRatio": 0.110784,
+            "postgresWaitingMaximum": 2,
+            "pressureSignals": {
+              "authenticationQueueObserved": false,
+              "cpuBusyObserved": false,
+              "eventLoopBacklogObserved": false,
+              "eventLoopProbeDelayObserved": false,
+              "postgresWaitObserved": true
+            }
+          }
+        ],
+        "workloadProfile": "step-24"
+      },
+      {
+        "affectedConnections": 48,
+        "latencyKneeCandidate": false,
+        "medianLatencyP50Micros": 45481,
+        "medianLatencyP95Micros": 68626,
+        "pressureSignalRuns": 3,
+        "repeatedPressureObserved": true,
+        "runs": [
+          {
+            "anyPressureSignal": true,
+            "authenticationActiveMaximum": 1,
+            "authenticationQueueMaximum": 0,
+            "eventLoopLatestLagMaximumMicros": 2147,
+            "eventLoopPendingTasksMaximum": 1,
+            "heapUsedMaximumBytes": 280987632,
+            "latencyP50Micros": 45481,
+            "latencyP95Micros": 90346,
+            "normalizedCpuRatio": 0.15866,
+            "postgresWaitingMaximum": 0,
+            "pressureSignals": {
+              "authenticationQueueObserved": false,
+              "cpuBusyObserved": false,
+              "eventLoopBacklogObserved": true,
+              "eventLoopProbeDelayObserved": false,
+              "postgresWaitObserved": false
+            }
+          },
+          {
+            "anyPressureSignal": true,
+            "authenticationActiveMaximum": 3,
+            "authenticationQueueMaximum": 0,
+            "eventLoopLatestLagMaximumMicros": 2751,
+            "eventLoopPendingTasksMaximum": 2,
+            "heapUsedMaximumBytes": 180075056,
+            "latencyP50Micros": 42793,
+            "latencyP95Micros": 62169,
+            "normalizedCpuRatio": 0.163889,
+            "postgresWaitingMaximum": 2,
+            "pressureSignals": {
+              "authenticationQueueObserved": false,
+              "cpuBusyObserved": false,
+              "eventLoopBacklogObserved": true,
+              "eventLoopProbeDelayObserved": false,
+              "postgresWaitObserved": true
+            }
+          },
+          {
+            "anyPressureSignal": true,
+            "authenticationActiveMaximum": 2,
+            "authenticationQueueMaximum": 0,
+            "eventLoopLatestLagMaximumMicros": 2093,
+            "eventLoopPendingTasksMaximum": 1,
+            "heapUsedMaximumBytes": 141875168,
+            "latencyP50Micros": 51678,
+            "latencyP95Micros": 68626,
+            "normalizedCpuRatio": 0.170836,
+            "postgresWaitingMaximum": 1,
+            "pressureSignals": {
+              "authenticationQueueObserved": false,
+              "cpuBusyObserved": false,
+              "eventLoopBacklogObserved": true,
+              "eventLoopProbeDelayObserved": false,
+              "postgresWaitObserved": true
+            }
+          }
+        ],
+        "workloadProfile": "step-48"
+      }
+    ],
+    "rules": {
+      "eventLoopProbeDelayMicros": 50000,
+      "latencyP95GrowthMinimumMicros": 10000,
+      "latencyP95GrowthRatio": 2.0,
+      "majorityRuns": 2,
+      "normalizedCpuBusyRatio": 0.8
+    }
+  },
+  "benchmark": "java-v2-haproxy-multi-edge-reconnect-ladder",
+  "environment": {
+    "architecture": "aarch64",
+    "availableProcessors": 10,
+    "javaVersion": "21.0.12",
+    "maximumHeapBytes": 536870912,
+    "os": "Mac OS X"
+  },
+  "host": {
+    "haproxyImage": "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047",
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "pythonVersion": "3.9.6"
+  },
+  "profileOrder": [
+    "step-12",
+    "step-24",
+    "step-48"
+  ],
+  "recordedAt": "2026-08-14T00:17:53.835281Z",
+  "repetitionsPerProfile": 3,
+  "runEvidence": {
+    "step-12": [
+      {
+        "benchmark": "java-v2-haproxy-multi-edge-reconnect",
+        "environment": {
+          "architecture": "aarch64",
+          "availableProcessors": 10,
+          "javaVersion": "21.0.12",
+          "maximumHeapBytes": 536870912,
+          "os": "Mac OS X"
+        },
+        "host": {
+          "haproxyImage": "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047",
+          "platform": "macOS-26.5.2-arm64-arm-64bit",
+          "pythonVersion": "3.9.6"
+        },
+        "recordedAt": "2026-08-14T00:15:20.573930Z",
+        "results": {
+          "authenticationSaturation": {
+            "activeWorkersMaximum": 2,
+            "queuedWorkMaximum": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 67
+          },
+          "elapsedMillis": 328.717,
+          "eventLoopSaturation": {
+            "latestMaximumLagMicros": 2475,
+            "metricsUnavailableSamples": 0,
+            "pendingTasksMaximum": 0,
+            "probeSamplesAfter": 424,
+            "probeSamplesBefore": 396,
+            "probeSamplesDelta": 28,
+            "sampleIntervalMillis": 5,
+            "samples": 67,
+            "sinceStartMaximumLagMicrosAfter": 27127,
+            "sinceStartMaximumLagMicrosBefore": 27127,
+            "workers": 4
+          },
+          "postgresPoolSaturation": {
+            "activeConnectionsMaximum": 2,
+            "configuredMaximumConnections": 4,
+            "metricsUnavailableSamples": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 67,
+            "threadsAwaitingConnectionMaximum": 0,
+            "totalConnectionsMaximum": 3
+          },
+          "processResourceSaturation": {
+            "availableProcessors": 10,
+            "cpuTimeMicrosAfter": 4396099,
+            "cpuTimeMicrosBefore": 4108598,
+            "cpuTimeMicrosDelta": 287501,
+            "cpuTimeUnavailableSamples": 0,
+            "heapCommittedBytesAfter": 427819008,
+            "heapCommittedBytesBefore": 427819008,
+            "heapMaximumBytes": 4294967296,
+            "heapUsedBytesAfter": 207618048,
+            "heapUsedBytesBefore": 190840832,
+            "heapUsedBytesMaximum": 207618048,
+            "sampleIntervalMillis": 5,
+            "samples": 67,
+            "uptimeMillisAfter": 6395,
+            "uptimeMillisBefore": 6065,
+            "uptimeMillisDelta": 330
+          },
+          "reconnectAttempts": 12,
+          "reconnectErrors": 0,
+          "reconnectSuccesses": 12,
+          "reconnectThroughputPerSecond": 36.506,
+          "scheduledStartJitterMicros": {
+            "max": 7389,
+            "mean": 4309.167,
+            "min": 11,
+            "p50": 6060,
+            "p95": 7389,
+            "p99": 7389,
+            "samples": 12
+          },
+          "secondaryGatewayAuthenticationAfter": 18,
+          "secondaryGatewayAuthenticationBefore": 6,
+          "sessionResumeLatencyMicros": {
+            "max": 44896,
+            "mean": 27107.167,
+            "min": 17523,
+            "p50": 19793,
+            "p95": 44896,
+            "p99": 44896,
+            "samples": 12
+          }
+        },
+        "scenario": {
+          "connections": 18,
+          "edgeProcesses": 2,
+          "failedEdgeConnections": 12,
+          "gatewayProcesses": 2,
+          "primaryEdgeKilled": true,
+          "reconnectBatchIntervalMillis": 100,
+          "reconnectBatchSize": 3,
+          "reconnectBatches": 4,
+          "scheduledReconnectSpanMillis": 300,
+          "survivingEdgeConnections": 6,
+          "workloadProfile": "step-12"
+        },
+        "schemaVersion": 6,
+        "sourceRevision": "af020e6c28941fff502cbda60e12920506566edb",
+        "warning": "local dual-edge recovery evidence; not a production capacity claim",
+        "worktreeDirty": false
+      },
+      {
+        "benchmark": "java-v2-haproxy-multi-edge-reconnect",
+        "environment": {
+          "architecture": "aarch64",
+          "availableProcessors": 10,
+          "javaVersion": "21.0.12",
+          "maximumHeapBytes": 536870912,
+          "os": "Mac OS X"
+        },
+        "host": {
+          "haproxyImage": "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047",
+          "platform": "macOS-26.5.2-arm64-arm-64bit",
+          "pythonVersion": "3.9.6"
+        },
+        "recordedAt": "2026-08-14T00:15:37.075746Z",
+        "results": {
+          "authenticationSaturation": {
+            "activeWorkersMaximum": 3,
+            "queuedWorkMaximum": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 68
+          },
+          "elapsedMillis": 334.201,
+          "eventLoopSaturation": {
+            "latestMaximumLagMicros": 2390,
+            "metricsUnavailableSamples": 0,
+            "pendingTasksMaximum": 0,
+            "probeSamplesAfter": 408,
+            "probeSamplesBefore": 380,
+            "probeSamplesDelta": 28,
+            "sampleIntervalMillis": 5,
+            "samples": 68,
+            "sinceStartMaximumLagMicrosAfter": 29850,
+            "sinceStartMaximumLagMicrosBefore": 29850,
+            "workers": 4
+          },
+          "postgresPoolSaturation": {
+            "activeConnectionsMaximum": 3,
+            "configuredMaximumConnections": 4,
+            "metricsUnavailableSamples": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 68,
+            "threadsAwaitingConnectionMaximum": 0,
+            "totalConnectionsMaximum": 4
+          },
+          "processResourceSaturation": {
+            "availableProcessors": 10,
+            "cpuTimeMicrosAfter": 4983515,
+            "cpuTimeMicrosBefore": 4719290,
+            "cpuTimeMicrosDelta": 264225,
+            "cpuTimeUnavailableSamples": 0,
+            "heapCommittedBytesAfter": 371195904,
+            "heapCommittedBytesBefore": 371195904,
+            "heapMaximumBytes": 4294967296,
+            "heapUsedBytesAfter": 244884344,
+            "heapUsedBytesBefore": 228107128,
+            "heapUsedBytesMaximum": 244884344,
+            "sampleIntervalMillis": 5,
+            "samples": 68,
+            "uptimeMillisAfter": 6253,
+            "uptimeMillisBefore": 5918,
+            "uptimeMillisDelta": 335
+          },
+          "reconnectAttempts": 12,
+          "reconnectErrors": 0,
+          "reconnectSuccesses": 12,
+          "reconnectThroughputPerSecond": 35.907,
+          "scheduledStartJitterMicros": {
+            "max": 9631,
+            "mean": 5227.417,
+            "min": 39,
+            "p50": 4965,
+            "p95": 9631,
+            "p99": 9631,
+            "samples": 12
+          },
+          "secondaryGatewayAuthenticationAfter": 18,
+          "secondaryGatewayAuthenticationBefore": 6,
+          "sessionResumeLatencyMicros": {
+            "max": 39519,
+            "mean": 27938.417,
+            "min": 15462,
+            "p50": 22160,
+            "p95": 39519,
+            "p99": 39519,
+            "samples": 12
+          }
+        },
+        "scenario": {
+          "connections": 18,
+          "edgeProcesses": 2,
+          "failedEdgeConnections": 12,
+          "gatewayProcesses": 2,
+          "primaryEdgeKilled": true,
+          "reconnectBatchIntervalMillis": 100,
+          "reconnectBatchSize": 3,
+          "reconnectBatches": 4,
+          "scheduledReconnectSpanMillis": 300,
+          "survivingEdgeConnections": 6,
+          "workloadProfile": "step-12"
+        },
+        "schemaVersion": 6,
+        "sourceRevision": "af020e6c28941fff502cbda60e12920506566edb",
+        "warning": "local dual-edge recovery evidence; not a production capacity claim",
+        "worktreeDirty": false
+      },
+      {
+        "benchmark": "java-v2-haproxy-multi-edge-reconnect",
+        "environment": {
+          "architecture": "aarch64",
+          "availableProcessors": 10,
+          "javaVersion": "21.0.12",
+          "maximumHeapBytes": 536870912,
+          "os": "Mac OS X"
+        },
+        "host": {
+          "haproxyImage": "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047",
+          "platform": "macOS-26.5.2-arm64-arm-64bit",
+          "pythonVersion": "3.9.6"
+        },
+        "recordedAt": "2026-08-14T00:15:53.766210Z",
+        "results": {
+          "authenticationSaturation": {
+            "activeWorkersMaximum": 3,
+            "queuedWorkMaximum": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 67
+          },
+          "elapsedMillis": 322.307,
+          "eventLoopSaturation": {
+            "latestMaximumLagMicros": 2846,
+            "metricsUnavailableSamples": 0,
+            "pendingTasksMaximum": 0,
+            "probeSamplesAfter": 420,
+            "probeSamplesBefore": 392,
+            "probeSamplesDelta": 28,
+            "sampleIntervalMillis": 5,
+            "samples": 67,
+            "sinceStartMaximumLagMicrosAfter": 43820,
+            "sinceStartMaximumLagMicrosBefore": 43820,
+            "workers": 4
+          },
+          "postgresPoolSaturation": {
+            "activeConnectionsMaximum": 1,
+            "configuredMaximumConnections": 4,
+            "metricsUnavailableSamples": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 67,
+            "threadsAwaitingConnectionMaximum": 2,
+            "totalConnectionsMaximum": 2
+          },
+          "processResourceSaturation": {
+            "availableProcessors": 10,
+            "cpuTimeMicrosAfter": 4493095,
+            "cpuTimeMicrosBefore": 4130348,
+            "cpuTimeMicrosDelta": 362747,
+            "cpuTimeUnavailableSamples": 0,
+            "heapCommittedBytesAfter": 295698432,
+            "heapCommittedBytesBefore": 295698432,
+            "heapMaximumBytes": 4294967296,
+            "heapUsedBytesAfter": 143485432,
+            "heapUsedBytesBefore": 126708216,
+            "heapUsedBytesMaximum": 143485432,
+            "sampleIntervalMillis": 5,
+            "samples": 67,
+            "uptimeMillisAfter": 6368,
+            "uptimeMillisBefore": 6043,
+            "uptimeMillisDelta": 325
+          },
+          "reconnectAttempts": 12,
+          "reconnectErrors": 0,
+          "reconnectSuccesses": 12,
+          "reconnectThroughputPerSecond": 37.232,
+          "scheduledStartJitterMicros": {
+            "max": 10014,
+            "mean": 4127.333,
+            "min": 109,
+            "p50": 774,
+            "p95": 10014,
+            "p99": 10014,
+            "samples": 12
+          },
+          "secondaryGatewayAuthenticationAfter": 18,
+          "secondaryGatewayAuthenticationBefore": 6,
+          "sessionResumeLatencyMicros": {
+            "max": 42011,
+            "mean": 25318.833,
+            "min": 18513,
+            "p50": 19978,
+            "p95": 42011,
+            "p99": 42011,
+            "samples": 12
+          }
+        },
+        "scenario": {
+          "connections": 18,
+          "edgeProcesses": 2,
+          "failedEdgeConnections": 12,
+          "gatewayProcesses": 2,
+          "primaryEdgeKilled": true,
+          "reconnectBatchIntervalMillis": 100,
+          "reconnectBatchSize": 3,
+          "reconnectBatches": 4,
+          "scheduledReconnectSpanMillis": 300,
+          "survivingEdgeConnections": 6,
+          "workloadProfile": "step-12"
+        },
+        "schemaVersion": 6,
+        "sourceRevision": "af020e6c28941fff502cbda60e12920506566edb",
+        "warning": "local dual-edge recovery evidence; not a production capacity claim",
+        "worktreeDirty": false
+      }
+    ],
+    "step-24": [
+      {
+        "benchmark": "java-v2-haproxy-multi-edge-reconnect",
+        "environment": {
+          "architecture": "aarch64",
+          "availableProcessors": 10,
+          "javaVersion": "21.0.12",
+          "maximumHeapBytes": 536870912,
+          "os": "Mac OS X"
+        },
+        "host": {
+          "haproxyImage": "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047",
+          "platform": "macOS-26.5.2-arm64-arm-64bit",
+          "pythonVersion": "3.9.6"
+        },
+        "recordedAt": "2026-08-14T00:16:11.514697Z",
+        "results": {
+          "authenticationSaturation": {
+            "activeWorkersMaximum": 2,
+            "queuedWorkMaximum": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 68
+          },
+          "elapsedMillis": 332.711,
+          "eventLoopSaturation": {
+            "latestMaximumLagMicros": 2416,
+            "metricsUnavailableSamples": 0,
+            "pendingTasksMaximum": 1,
+            "probeSamplesAfter": 496,
+            "probeSamplesBefore": 472,
+            "probeSamplesDelta": 24,
+            "sampleIntervalMillis": 5,
+            "samples": 68,
+            "sinceStartMaximumLagMicrosAfter": 5994,
+            "sinceStartMaximumLagMicrosBefore": 5994,
+            "workers": 4
+          },
+          "postgresPoolSaturation": {
+            "activeConnectionsMaximum": 1,
+            "configuredMaximumConnections": 4,
+            "metricsUnavailableSamples": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 68,
+            "threadsAwaitingConnectionMaximum": 1,
+            "totalConnectionsMaximum": 3
+          },
+          "processResourceSaturation": {
+            "availableProcessors": 10,
+            "cpuTimeMicrosAfter": 5310227,
+            "cpuTimeMicrosBefore": 4920331,
+            "cpuTimeMicrosDelta": 389896,
+            "cpuTimeUnavailableSamples": 0,
+            "heapCommittedBytesAfter": 343932928,
+            "heapCommittedBytesBefore": 343932928,
+            "heapMaximumBytes": 4294967296,
+            "heapUsedBytesAfter": 154181728,
+            "heapUsedBytesBefore": 133210208,
+            "heapUsedBytesMaximum": 154181728,
+            "sampleIntervalMillis": 5,
+            "samples": 68,
+            "uptimeMillisAfter": 7433,
+            "uptimeMillisBefore": 7099,
+            "uptimeMillisDelta": 334
+          },
+          "reconnectAttempts": 24,
+          "reconnectErrors": 0,
+          "reconnectSuccesses": 24,
+          "reconnectThroughputPerSecond": 72.135,
+          "scheduledStartJitterMicros": {
+            "max": 4988,
+            "mean": 2993.375,
+            "min": 16,
+            "p50": 4132,
+            "p95": 4225,
+            "p99": 4988,
+            "samples": 24
+          },
+          "secondaryGatewayAuthenticationAfter": 30,
+          "secondaryGatewayAuthenticationBefore": 6,
+          "sessionResumeLatencyMicros": {
+            "max": 49944,
+            "mean": 31146.542,
+            "min": 19842,
+            "p50": 28710,
+            "p95": 47650,
+            "p99": 49944,
+            "samples": 24
+          }
+        },
+        "scenario": {
+          "connections": 30,
+          "edgeProcesses": 2,
+          "failedEdgeConnections": 24,
+          "gatewayProcesses": 2,
+          "primaryEdgeKilled": true,
+          "reconnectBatchIntervalMillis": 100,
+          "reconnectBatchSize": 6,
+          "reconnectBatches": 4,
+          "scheduledReconnectSpanMillis": 300,
+          "survivingEdgeConnections": 6,
+          "workloadProfile": "step-24"
+        },
+        "schemaVersion": 6,
+        "sourceRevision": "af020e6c28941fff502cbda60e12920506566edb",
+        "warning": "local dual-edge recovery evidence; not a production capacity claim",
+        "worktreeDirty": false
+      },
+      {
+        "benchmark": "java-v2-haproxy-multi-edge-reconnect",
+        "environment": {
+          "architecture": "aarch64",
+          "availableProcessors": 10,
+          "javaVersion": "21.0.12",
+          "maximumHeapBytes": 536870912,
+          "os": "Mac OS X"
+        },
+        "host": {
+          "haproxyImage": "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047",
+          "platform": "macOS-26.5.2-arm64-arm-64bit",
+          "pythonVersion": "3.9.6"
+        },
+        "recordedAt": "2026-08-14T00:16:30.131422Z",
+        "results": {
+          "authenticationSaturation": {
+            "activeWorkersMaximum": 2,
+            "queuedWorkMaximum": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 69
+          },
+          "elapsedMillis": 337.324,
+          "eventLoopSaturation": {
+            "latestMaximumLagMicros": 3131,
+            "metricsUnavailableSamples": 0,
+            "pendingTasksMaximum": 0,
+            "probeSamplesAfter": 520,
+            "probeSamplesBefore": 492,
+            "probeSamplesDelta": 28,
+            "sampleIntervalMillis": 5,
+            "samples": 69,
+            "sinceStartMaximumLagMicrosAfter": 8505,
+            "sinceStartMaximumLagMicrosBefore": 8505,
+            "workers": 4
+          },
+          "postgresPoolSaturation": {
+            "activeConnectionsMaximum": 2,
+            "configuredMaximumConnections": 4,
+            "metricsUnavailableSamples": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 69,
+            "threadsAwaitingConnectionMaximum": 0,
+            "totalConnectionsMaximum": 3
+          },
+          "processResourceSaturation": {
+            "availableProcessors": 10,
+            "cpuTimeMicrosAfter": 5035250,
+            "cpuTimeMicrosBefore": 4540154,
+            "cpuTimeMicrosDelta": 495096,
+            "cpuTimeUnavailableSamples": 0,
+            "heapCommittedBytesAfter": 402653184,
+            "heapCommittedBytesBefore": 402653184,
+            "heapMaximumBytes": 4294967296,
+            "heapUsedBytesAfter": 190082768,
+            "heapUsedBytesBefore": 169111248,
+            "heapUsedBytesMaximum": 190082768,
+            "sampleIntervalMillis": 5,
+            "samples": 69,
+            "uptimeMillisAfter": 7721,
+            "uptimeMillisBefore": 7381,
+            "uptimeMillisDelta": 340
+          },
+          "reconnectAttempts": 24,
+          "reconnectErrors": 0,
+          "reconnectSuccesses": 24,
+          "reconnectThroughputPerSecond": 71.148,
+          "scheduledStartJitterMicros": {
+            "max": 9542,
+            "mean": 6022.75,
+            "min": 15,
+            "p50": 8273,
+            "p95": 9529,
+            "p99": 9542,
+            "samples": 24
+          },
+          "secondaryGatewayAuthenticationAfter": 30,
+          "secondaryGatewayAuthenticationBefore": 6,
+          "sessionResumeLatencyMicros": {
+            "max": 49709,
+            "mean": 33701.25,
+            "min": 19714,
+            "p50": 32892,
+            "p95": 49662,
+            "p99": 49709,
+            "samples": 24
+          }
+        },
+        "scenario": {
+          "connections": 30,
+          "edgeProcesses": 2,
+          "failedEdgeConnections": 24,
+          "gatewayProcesses": 2,
+          "primaryEdgeKilled": true,
+          "reconnectBatchIntervalMillis": 100,
+          "reconnectBatchSize": 6,
+          "reconnectBatches": 4,
+          "scheduledReconnectSpanMillis": 300,
+          "survivingEdgeConnections": 6,
+          "workloadProfile": "step-24"
+        },
+        "schemaVersion": 6,
+        "sourceRevision": "af020e6c28941fff502cbda60e12920506566edb",
+        "warning": "local dual-edge recovery evidence; not a production capacity claim",
+        "worktreeDirty": false
+      },
+      {
+        "benchmark": "java-v2-haproxy-multi-edge-reconnect",
+        "environment": {
+          "architecture": "aarch64",
+          "availableProcessors": 10,
+          "javaVersion": "21.0.12",
+          "maximumHeapBytes": 536870912,
+          "os": "Mac OS X"
+        },
+        "host": {
+          "haproxyImage": "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047",
+          "platform": "macOS-26.5.2-arm64-arm-64bit",
+          "pythonVersion": "3.9.6"
+        },
+        "recordedAt": "2026-08-14T00:16:48.489804Z",
+        "results": {
+          "authenticationSaturation": {
+            "activeWorkersMaximum": 3,
+            "queuedWorkMaximum": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 72
+          },
+          "elapsedMillis": 351.92,
+          "eventLoopSaturation": {
+            "latestMaximumLagMicros": 2533,
+            "metricsUnavailableSamples": 0,
+            "pendingTasksMaximum": 0,
+            "probeSamplesAfter": 516,
+            "probeSamplesBefore": 488,
+            "probeSamplesDelta": 28,
+            "sampleIntervalMillis": 5,
+            "samples": 72,
+            "sinceStartMaximumLagMicrosAfter": 6381,
+            "sinceStartMaximumLagMicrosBefore": 6381,
+            "workers": 4
+          },
+          "postgresPoolSaturation": {
+            "activeConnectionsMaximum": 2,
+            "configuredMaximumConnections": 4,
+            "metricsUnavailableSamples": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 72,
+            "threadsAwaitingConnectionMaximum": 2,
+            "totalConnectionsMaximum": 3
+          },
+          "processResourceSaturation": {
+            "availableProcessors": 10,
+            "cpuTimeMicrosAfter": 4895358,
+            "cpuTimeMicrosBefore": 4503181,
+            "cpuTimeMicrosDelta": 392177,
+            "cpuTimeUnavailableSamples": 0,
+            "heapCommittedBytesAfter": 337641472,
+            "heapCommittedBytesBefore": 337641472,
+            "heapMaximumBytes": 4294967296,
+            "heapUsedBytesAfter": 175660232,
+            "heapUsedBytesBefore": 159066472,
+            "heapUsedBytesMaximum": 175660232,
+            "sampleIntervalMillis": 5,
+            "samples": 72,
+            "uptimeMillisAfter": 7708,
+            "uptimeMillisBefore": 7354,
+            "uptimeMillisDelta": 354
+          },
+          "reconnectAttempts": 24,
+          "reconnectErrors": 0,
+          "reconnectSuccesses": 24,
+          "reconnectThroughputPerSecond": 68.197,
+          "scheduledStartJitterMicros": {
+            "max": 6249,
+            "mean": 3655.333,
+            "min": 49,
+            "p50": 4479,
+            "p95": 6195,
+            "p99": 6249,
+            "samples": 24
+          },
+          "secondaryGatewayAuthenticationAfter": 30,
+          "secondaryGatewayAuthenticationBefore": 6,
+          "sessionResumeLatencyMicros": {
+            "max": 48275,
+            "mean": 34744.708,
+            "min": 21477,
+            "p50": 33797,
+            "p95": 43528,
+            "p99": 48275,
+            "samples": 24
+          }
+        },
+        "scenario": {
+          "connections": 30,
+          "edgeProcesses": 2,
+          "failedEdgeConnections": 24,
+          "gatewayProcesses": 2,
+          "primaryEdgeKilled": true,
+          "reconnectBatchIntervalMillis": 100,
+          "reconnectBatchSize": 6,
+          "reconnectBatches": 4,
+          "scheduledReconnectSpanMillis": 300,
+          "survivingEdgeConnections": 6,
+          "workloadProfile": "step-24"
+        },
+        "schemaVersion": 6,
+        "sourceRevision": "af020e6c28941fff502cbda60e12920506566edb",
+        "warning": "local dual-edge recovery evidence; not a production capacity claim",
+        "worktreeDirty": false
+      }
+    ],
+    "step-48": [
+      {
+        "benchmark": "java-v2-haproxy-multi-edge-reconnect",
+        "environment": {
+          "architecture": "aarch64",
+          "availableProcessors": 10,
+          "javaVersion": "21.0.12",
+          "maximumHeapBytes": 536870912,
+          "os": "Mac OS X"
+        },
+        "host": {
+          "haproxyImage": "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047",
+          "platform": "macOS-26.5.2-arm64-arm-64bit",
+          "pythonVersion": "3.9.6"
+        },
+        "recordedAt": "2026-08-14T00:17:09.974721Z",
+        "results": {
+          "authenticationSaturation": {
+            "activeWorkersMaximum": 1,
+            "queuedWorkMaximum": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 76
+          },
+          "elapsedMillis": 368.683,
+          "eventLoopSaturation": {
+            "latestMaximumLagMicros": 2147,
+            "metricsUnavailableSamples": 0,
+            "pendingTasksMaximum": 1,
+            "probeSamplesAfter": 696,
+            "probeSamplesBefore": 664,
+            "probeSamplesDelta": 32,
+            "sampleIntervalMillis": 5,
+            "samples": 76,
+            "sinceStartMaximumLagMicrosAfter": 26023,
+            "sinceStartMaximumLagMicrosBefore": 26023,
+            "workers": 4
+          },
+          "postgresPoolSaturation": {
+            "activeConnectionsMaximum": 1,
+            "configuredMaximumConnections": 4,
+            "metricsUnavailableSamples": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 76,
+            "threadsAwaitingConnectionMaximum": 0,
+            "totalConnectionsMaximum": 3
+          },
+          "processResourceSaturation": {
+            "availableProcessors": 10,
+            "cpuTimeMicrosAfter": 6104830,
+            "cpuTimeMicrosBefore": 5511440,
+            "cpuTimeMicrosDelta": 593390,
+            "cpuTimeUnavailableSamples": 0,
+            "heapCommittedBytesAfter": 406847488,
+            "heapCommittedBytesBefore": 406847488,
+            "heapMaximumBytes": 4294967296,
+            "heapUsedBytesAfter": 280987632,
+            "heapUsedBytesBefore": 257918960,
+            "heapUsedBytesMaximum": 280987632,
+            "sampleIntervalMillis": 5,
+            "samples": 76,
+            "uptimeMillisAfter": 10046,
+            "uptimeMillisBefore": 9672,
+            "uptimeMillisDelta": 374
+          },
+          "reconnectAttempts": 48,
+          "reconnectErrors": 0,
+          "reconnectSuccesses": 48,
+          "reconnectThroughputPerSecond": 130.193,
+          "scheduledStartJitterMicros": {
+            "max": 9162,
+            "mean": 3364.146,
+            "min": 15,
+            "p50": 2219,
+            "p95": 9094,
+            "p99": 9162,
+            "samples": 48
+          },
+          "secondaryGatewayAuthenticationAfter": 54,
+          "secondaryGatewayAuthenticationBefore": 6,
+          "sessionResumeLatencyMicros": {
+            "max": 94743,
+            "mean": 50545.0,
+            "min": 23933,
+            "p50": 45481,
+            "p95": 90346,
+            "p99": 94743,
+            "samples": 48
+          }
+        },
+        "scenario": {
+          "connections": 54,
+          "edgeProcesses": 2,
+          "failedEdgeConnections": 48,
+          "gatewayProcesses": 2,
+          "primaryEdgeKilled": true,
+          "reconnectBatchIntervalMillis": 100,
+          "reconnectBatchSize": 12,
+          "reconnectBatches": 4,
+          "scheduledReconnectSpanMillis": 300,
+          "survivingEdgeConnections": 6,
+          "workloadProfile": "step-48"
+        },
+        "schemaVersion": 6,
+        "sourceRevision": "af020e6c28941fff502cbda60e12920506566edb",
+        "warning": "local dual-edge recovery evidence; not a production capacity claim",
+        "worktreeDirty": false
+      },
+      {
+        "benchmark": "java-v2-haproxy-multi-edge-reconnect",
+        "environment": {
+          "architecture": "aarch64",
+          "availableProcessors": 10,
+          "javaVersion": "21.0.12",
+          "maximumHeapBytes": 536870912,
+          "os": "Mac OS X"
+        },
+        "host": {
+          "haproxyImage": "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047",
+          "platform": "macOS-26.5.2-arm64-arm-64bit",
+          "pythonVersion": "3.9.6"
+        },
+        "recordedAt": "2026-08-14T00:17:30.436943Z",
+        "results": {
+          "authenticationSaturation": {
+            "activeWorkersMaximum": 3,
+            "queuedWorkMaximum": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 77
+          },
+          "elapsedMillis": 375.441,
+          "eventLoopSaturation": {
+            "latestMaximumLagMicros": 2751,
+            "metricsUnavailableSamples": 0,
+            "pendingTasksMaximum": 2,
+            "probeSamplesAfter": 688,
+            "probeSamplesBefore": 656,
+            "probeSamplesDelta": 32,
+            "sampleIntervalMillis": 5,
+            "samples": 77,
+            "sinceStartMaximumLagMicrosAfter": 44893,
+            "sinceStartMaximumLagMicrosBefore": 44893,
+            "workers": 4
+          },
+          "postgresPoolSaturation": {
+            "activeConnectionsMaximum": 2,
+            "configuredMaximumConnections": 4,
+            "metricsUnavailableSamples": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 77,
+            "threadsAwaitingConnectionMaximum": 2,
+            "totalConnectionsMaximum": 4
+          },
+          "processResourceSaturation": {
+            "availableProcessors": 10,
+            "cpuTimeMicrosAfter": 6186327,
+            "cpuTimeMicrosBefore": 5565187,
+            "cpuTimeMicrosDelta": 621140,
+            "cpuTimeUnavailableSamples": 0,
+            "heapCommittedBytesAfter": 343932928,
+            "heapCommittedBytesBefore": 343932928,
+            "heapMaximumBytes": 4294967296,
+            "heapUsedBytesAfter": 180075056,
+            "heapUsedBytesBefore": 158334976,
+            "heapUsedBytesMaximum": 180075056,
+            "sampleIntervalMillis": 5,
+            "samples": 77,
+            "uptimeMillisAfter": 10003,
+            "uptimeMillisBefore": 9624,
+            "uptimeMillisDelta": 379
+          },
+          "reconnectAttempts": 48,
+          "reconnectErrors": 0,
+          "reconnectSuccesses": 48,
+          "reconnectThroughputPerSecond": 127.85,
+          "scheduledStartJitterMicros": {
+            "max": 8834,
+            "mean": 3568.521,
+            "min": 18,
+            "p50": 3381,
+            "p95": 7509,
+            "p99": 8834,
+            "samples": 48
+          },
+          "secondaryGatewayAuthenticationAfter": 54,
+          "secondaryGatewayAuthenticationBefore": 6,
+          "sessionResumeLatencyMicros": {
+            "max": 66840,
+            "mean": 44228.729,
+            "min": 23945,
+            "p50": 42793,
+            "p95": 62169,
+            "p99": 66840,
+            "samples": 48
+          }
+        },
+        "scenario": {
+          "connections": 54,
+          "edgeProcesses": 2,
+          "failedEdgeConnections": 48,
+          "gatewayProcesses": 2,
+          "primaryEdgeKilled": true,
+          "reconnectBatchIntervalMillis": 100,
+          "reconnectBatchSize": 12,
+          "reconnectBatches": 4,
+          "scheduledReconnectSpanMillis": 300,
+          "survivingEdgeConnections": 6,
+          "workloadProfile": "step-48"
+        },
+        "schemaVersion": 6,
+        "sourceRevision": "af020e6c28941fff502cbda60e12920506566edb",
+        "warning": "local dual-edge recovery evidence; not a production capacity claim",
+        "worktreeDirty": false
+      },
+      {
+        "benchmark": "java-v2-haproxy-multi-edge-reconnect",
+        "environment": {
+          "architecture": "aarch64",
+          "availableProcessors": 10,
+          "javaVersion": "21.0.12",
+          "maximumHeapBytes": 536870912,
+          "os": "Mac OS X"
+        },
+        "host": {
+          "haproxyImage": "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047",
+          "platform": "macOS-26.5.2-arm64-arm-64bit",
+          "pythonVersion": "3.9.6"
+        },
+        "recordedAt": "2026-08-14T00:17:52.467642Z",
+        "results": {
+          "authenticationSaturation": {
+            "activeWorkersMaximum": 2,
+            "queuedWorkMaximum": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 76
+          },
+          "elapsedMillis": 371.237,
+          "eventLoopSaturation": {
+            "latestMaximumLagMicros": 2093,
+            "metricsUnavailableSamples": 0,
+            "pendingTasksMaximum": 1,
+            "probeSamplesAfter": 700,
+            "probeSamplesBefore": 668,
+            "probeSamplesDelta": 32,
+            "sampleIntervalMillis": 5,
+            "samples": 76,
+            "sinceStartMaximumLagMicrosAfter": 21733,
+            "sinceStartMaximumLagMicrosBefore": 21733,
+            "workers": 4
+          },
+          "postgresPoolSaturation": {
+            "activeConnectionsMaximum": 1,
+            "configuredMaximumConnections": 4,
+            "metricsUnavailableSamples": 0,
+            "sampleIntervalMillis": 5,
+            "samples": 76,
+            "threadsAwaitingConnectionMaximum": 1,
+            "totalConnectionsMaximum": 3
+          },
+          "processResourceSaturation": {
+            "availableProcessors": 10,
+            "cpuTimeMicrosAfter": 5626721,
+            "cpuTimeMicrosBefore": 4987796,
+            "cpuTimeMicrosDelta": 638925,
+            "cpuTimeUnavailableSamples": 0,
+            "heapCommittedBytesAfter": 327155712,
+            "heapCommittedBytesBefore": 327155712,
+            "heapMaximumBytes": 4294967296,
+            "heapUsedBytesAfter": 113494600,
+            "heapUsedBytesBefore": 135583712,
+            "heapUsedBytesMaximum": 141875168,
+            "sampleIntervalMillis": 5,
+            "samples": 76,
+            "uptimeMillisAfter": 10155,
+            "uptimeMillisBefore": 9781,
+            "uptimeMillisDelta": 374
+          },
+          "reconnectAttempts": 48,
+          "reconnectErrors": 0,
+          "reconnectSuccesses": 48,
+          "reconnectThroughputPerSecond": 129.297,
+          "scheduledStartJitterMicros": {
+            "max": 11331,
+            "mean": 2597.563,
+            "min": 8,
+            "p50": 2327,
+            "p95": 5647,
+            "p99": 11331,
+            "samples": 48
+          },
+          "secondaryGatewayAuthenticationAfter": 54,
+          "secondaryGatewayAuthenticationBefore": 6,
+          "sessionResumeLatencyMicros": {
+            "max": 71370,
+            "mean": 52448.813,
+            "min": 32328,
+            "p50": 51678,
+            "p95": 68626,
+            "p99": 71370,
+            "samples": 48
+          }
+        },
+        "scenario": {
+          "connections": 54,
+          "edgeProcesses": 2,
+          "failedEdgeConnections": 48,
+          "gatewayProcesses": 2,
+          "primaryEdgeKilled": true,
+          "reconnectBatchIntervalMillis": 100,
+          "reconnectBatchSize": 12,
+          "reconnectBatches": 4,
+          "scheduledReconnectSpanMillis": 300,
+          "survivingEdgeConnections": 6,
+          "workloadProfile": "step-48"
+        },
+        "schemaVersion": 6,
+        "sourceRevision": "af020e6c28941fff502cbda60e12920506566edb",
+        "warning": "local dual-edge recovery evidence; not a production capacity claim",
+        "worktreeDirty": false
+      }
+    ]
+  },
+  "schemaVersion": 1,
+  "sourceRevision": "af020e6c28941fff502cbda60e12920506566edb",
+  "warning": "local repeated reconnect ladder; not a production capacity claim",
+  "worktreeDirty": false
+}

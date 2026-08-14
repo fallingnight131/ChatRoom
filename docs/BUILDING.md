@@ -1630,6 +1630,8 @@ latency-candidate rules from ADR-0394. Its sibling directory contains the
 individual JSON files. Use a path outside the repository when producing clean
 release evidence. Even a clean result is a local diagnostic, not a production
 capacity or SLO claim.
+The first clean aggregate and its limitations are retained as
+`docs/baselines/M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_WORKLOAD_LADDER_2026-08-14.*`.
 The loopback gateway metrics now include
 `chat_gateway_authentication_workers_active` and
 `chat_gateway_authentication_queue_size`; collect them during reconnect windows,

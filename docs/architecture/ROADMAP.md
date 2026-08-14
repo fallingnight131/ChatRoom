@@ -1688,6 +1688,14 @@ Progress:
   pressure plus relative-and-absolute latency-candidate rules. The conclusion
   is explicitly a local diagnostic, never safe capacity or an SLO. A clean
   commit-exact ladder result remains pending (ADR-0394).
+- [x] Record the clean exact-revision three-by-three ladder at `af020e6c...`.
+  All nine real scenarios converged with zero reconnect errors. Median P95 rose
+  from 42.011 to 47.650 to 68.626 ms; direct pressure signals appeared in 1/3,
+  2/3, and 3/3 runs, so the strict local conclusion is first repeated pressure
+  at `step-24`. Authentication queues stayed empty, normalized CPU remained
+  below 0.171, and no latency-knee candidate was declared. Signal duration,
+  RSS, GC pauses, isolated-host evidence, and production capacity remain
+  unproven.
 
 Work:
 
