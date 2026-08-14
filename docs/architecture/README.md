@@ -1347,8 +1347,10 @@ support an RSS or capacity claim.
 The first clean aggregate-schema-4 ladder at `5c50a0b...` completed all nine
 profiles without a sustained-pressure or latency knee. Every macOS child
 reported RSS unavailable with zero byte fields, so it verifies compatibility
-and honest absence only. Linux-host positive RSS evidence remains the next
-measurement gate.
+and honest absence only. A digest-pinned Linux JDK 21 container subsequently
+passed the native `/proc/self/status` integration test with a positive,
+failure-free cached snapshot. A full Linux raw-schema-9 reconnect ladder remains
+the next RSS measurement gate.
 
 ## 10. Attachment Flow
 

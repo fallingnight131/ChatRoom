@@ -1764,6 +1764,12 @@ Progress:
   byte fields, proving schema compatibility and honest unavailability rather
   than process-memory capacity. Positive Linux-host RSS evidence remains
   pending.
+- [x] Add a Linux-only native provider integration gate to the ordinary gateway
+  test task. Linux must select `/proc/self/status` and produce a positive,
+  available, failure-free first cached snapshot; macOS skips the host-specific
+  assertion. The gate passed with one test, zero skips, and zero failures in the
+  digest-pinned Gradle 8.14.3/JDK 21 Linux image. Full Linux schema-9 reconnect
+  ladder evidence remains pending.
 
 Work:
 

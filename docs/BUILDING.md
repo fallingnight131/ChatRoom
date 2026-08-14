@@ -1713,6 +1713,17 @@ The first clean RSS-aware aggregate is retained as
 `docs/baselines/M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_RSS_AWARE_LADDER_2026-08-14.*`.
 All nine macOS runs correctly recorded RSS as unavailable/zero, so this is a
 schema and failure-semantics baseline rather than a process-memory baseline.
+The ordinary `:im-gateway:test` task includes a Linux-only native integration
+case for `/proc/self/status`. It is skipped on macOS, but on Linux it requires
+the selected provider and its first cached snapshot to be available, positive,
+and failure-free. This is provider-host evidence, not Linux client support.
+The gate was also executed from macOS through the pinned Linux image
+`gradle:8.14.3-jdk21-alpine@sha256:d20561a56ff27350ea778b8151f6af913c76e9d35b6a135f927ee16e3ce8193c`;
+the JUnit report recorded one test, zero skips, and zero failures. Use a Docker
+native Gradle cache volume rather than a macOS bind-mounted cache because Linux
+tool executables on Docker Desktop bind mounts may lose executable semantics.
+This closes native provider selection/read evidence, but a full Linux
+schema-9 reconnect ladder remains separate.
 Schema version 5 records CPU-time and uptime before/after/deltas plus heap used
 before/after/peak, committed before/after, effective maximum, and processors in
 the same shared reconnect window. Committed heap may grow and is not treated as
