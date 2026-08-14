@@ -1733,6 +1733,13 @@ Progress:
   collection time and one `step-24` run observed one collection/3 ms. No
   `step-48` run collected. Collection activity does not explain the profile
   curve; exact pauses, RSS, and production capacity remain unproven.
+- [x] Define the process RSS provider boundary: resident/working-set bytes,
+  fixed availability/bytes/age/failure metrics, a lifecycle-owned cached sampler
+  no faster than 250 ms, dependency-free Linux `/proc` first, and explicit
+  native-review gates for macOS development evidence or future Windows Java
+  server support. Product Windows client support remains separate from server
+  deployment hosts. Implementation and clean RSS-aware evidence remain pending
+  (ADR-0399).
 
 Work:
 

@@ -1687,6 +1687,11 @@ schema-8 children uses aggregate schema 3 and includes the per-run deltas.
 Collection time is still not labeled as stop-the-world pause (ADR-0398).
 The first clean GC-aware schema-3 aggregate is retained as
 `docs/baselines/M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_GC_AWARE_LADDER_2026-08-14.*`.
+RSS is intentionally absent until the ADR-0399 provider contract is
+implemented. Java 21 has no portable RSS API; `/metrics` and the reconnect
+sampler must consume a lifecycle-owned cached provider and must never launch
+`ps` or PowerShell per read. Linux, macOS development, and any Windows Java
+server provider have separate evidence gates.
 Schema version 5 records CPU-time and uptime before/after/deltas plus heap used
 before/after/peak, committed before/after, effective maximum, and processors in
 the same shared reconnect window. Committed heap may grow and is not treated as

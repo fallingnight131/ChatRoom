@@ -1320,6 +1320,13 @@ runs observed no GC counter delta; two runs each observed one collection with
 1 ms or 3 ms collection-time growth, neither at `step-48`. No sustained or
 latency knee triggered. The sparse collection activity therefore does not
 explain the local profile curve, while exact pauses and RSS remain unmeasured.
+ADR-0399 defines the missing RSS boundary without pretending Java 21 exposes a
+portable value. The contract is resident/working-set bytes plus availability,
+sample age, and failures from a lifecycle-owned cache refreshed no faster than
+250 ms. Linux `/proc` is the first dependency-free server provider; macOS local
+evidence and any future Windows Java server support require separate native
+provider review. Windows client product support does not imply Windows server
+deployment support.
 
 ## 10. Attachment Flow
 
