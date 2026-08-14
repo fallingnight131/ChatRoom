@@ -1724,6 +1724,18 @@ native Gradle cache volume rather than a macOS bind-mounted cache because Linux
 tool executables on Docker Desktop bind mounts may lose executable semantics.
 This closes native provider selection/read evidence, but a full Linux
 schema-9 reconnect ladder remains separate.
+
+Reproduce that isolated Linux provider gate from a POSIX development host with:
+
+```bash
+python3 tools/verify_linux_resident_memory.py
+```
+
+The verifier creates or reuses the project-scoped Docker-native
+`chat-room-gradle-linux` cache volume and runs only the Linux RSS integration
+test as the current non-root UID/GID. Containers are removed on exit; the
+dependency cache remains so later gates do not depend on repeated Maven
+downloads. The pinned image and dependencies may be pulled on first use.
 Schema version 5 records CPU-time and uptime before/after/deltas plus heap used
 before/after/peak, committed before/after, effective maximum, and processors in
 the same shared reconnect window. Committed heap may grow and is not treated as

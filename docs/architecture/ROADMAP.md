@@ -1770,6 +1770,11 @@ Progress:
   assertion. The gate passed with one test, zero skips, and zero failures in the
   digest-pinned Gradle 8.14.3/JDK 21 Linux image. Full Linux schema-9 reconnect
   ladder evidence remains pending.
+- [x] Automate the pinned Linux provider gate for POSIX development hosts with
+  a project-scoped Docker-native Gradle cache volume, non-root test execution,
+  and disposable containers. This avoids Docker Desktop bind-mount execute
+  permission drift and repeated Maven availability coupling while keeping the
+  gate reproducible from the macOS workstation.
 
 Work:
 
