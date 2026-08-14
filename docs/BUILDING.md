@@ -1636,6 +1636,10 @@ New individual runs use schema version 7 and add positive-sample counts plus
 longest consecutive streaks for authentication queue, PostgreSQL waiters, and
 Netty pending tasks. Historical schema-6 ladders remain valid; one aggregate
 cannot mix child schemas (ADR-0395).
+When all children use schema version 7, the aggregate uses schema version 2.
+Peak-positive runs remain visible, but queue/waiter/pending signals require two
+consecutive positive samples before they count toward the two-of-three sustained
+pressure rule. Schema-1 aggregates keep their original peak rule (ADR-0396).
 The loopback gateway metrics now include
 `chat_gateway_authentication_workers_active` and
 `chat_gateway_authentication_queue_size`; collect them during reconnect windows,

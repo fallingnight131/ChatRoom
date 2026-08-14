@@ -1702,6 +1702,12 @@ Progress:
   window. Strict validation reconciles peaks, counts, streaks, and sample totals;
   uniform schema-6 ladder history remains valid while mixed child schemas are
   rejected. Duration-aware aggregate classification remains pending (ADR-0395).
+- [x] Upgrade new repeated ladder evidence to aggregate schema version 2 and
+  separate diagnostic peaks from sustained signals. Queue/waiter/pending work
+  now requires at least two consecutive positive samples, while the existing
+  50 ms event-loop-lag and 0.8 normalized-CPU rules remain. Two of three runs
+  are still required, and historical schema-1/schema-6 aggregates reproduce
+  their original conclusion (ADR-0396).
 
 Work:
 

@@ -84,11 +84,55 @@ class MultiEdgeReconnectLadderResultTest(unittest.TestCase):
                 }
         value = build(runs)
         validate(value, "a" * 40, require_clean=True)
+        self.assertEqual(2, value["schemaVersion"])
+        self.assertEqual(
+            "no-sustained-pressure-knee-observed-within-ladder",
+            value["analysis"]["conclusion"],
+        )
 
         value["runEvidence"]["step-48"][2]["schemaVersion"] = 6
         value["runEvidence"]["step-48"][2]["results"].pop("pressureDuration")
         with self.assertRaises(EvidenceError):
             validate(value, "a" * 40, require_clean=True)
+
+    def test_duration_rule_ignores_single_samples_and_accepts_streaks(self):
+        runs = ladder_runs()
+        for samples in runs.values():
+            for sample in samples:
+                sample["schemaVersion"] = 7
+                sample["results"]["pressureDuration"] = {
+                    "sampleIntervalMillis": 5,
+                    "samples": 24,
+                    "authenticationQueuePositiveSamples": 0,
+                    "authenticationQueueLongestConsecutiveSamples": 0,
+                    "postgresWaitingPositiveSamples": 0,
+                    "postgresWaitingLongestConsecutiveSamples": 0,
+                    "eventLoopPendingPositiveSamples": 0,
+                    "eventLoopPendingLongestConsecutiveSamples": 0,
+                }
+        for sample in runs["step-24"][:2]:
+            sample["results"]["postgresPoolSaturation"][
+                "threadsAwaitingConnectionMaximum"] = 1
+            duration = sample["results"]["pressureDuration"]
+            duration["postgresWaitingPositiveSamples"] = 1
+            duration["postgresWaitingLongestConsecutiveSamples"] = 1
+        value = build(runs)
+        validate(value, "a" * 40, require_clean=True)
+        self.assertEqual(2, value["analysis"]["profiles"][1][
+            "peakPressureSignalRuns"])
+        self.assertEqual(0, value["analysis"]["profiles"][1][
+            "sustainedPressureSignalRuns"])
+
+        for sample in runs["step-24"][:2]:
+            duration = sample["results"]["pressureDuration"]
+            duration["postgresWaitingPositiveSamples"] = 2
+            duration["postgresWaitingLongestConsecutiveSamples"] = 2
+        value = build(runs)
+        validate(value, "a" * 40, require_clean=True)
+        self.assertEqual(
+            "repeated-sustained-pressure-first-observed-at-step-24",
+            value["analysis"]["conclusion"],
+        )
 
     def test_identifies_repeated_pressure_at_lowest_observed_step(self):
         runs = ladder_runs()

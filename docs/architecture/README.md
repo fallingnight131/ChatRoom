@@ -1289,6 +1289,12 @@ PostgreSQL waiter peak of 2 in only one of 68 samples and no consecutive
 extension, demonstrating why a peak alone must not be called sustained
 pressure. Aggregate classification remains on the ADR-0394 rule until a
 versioned duration-aware successor is added.
+ADR-0396 adds that successor as aggregate schema version 2. It retains
+one-sample peaks for diagnosis but requires two consecutive positive samples
+before authentication queue, PostgreSQL waiter, or Netty pending work counts as
+sustained; the existing 50 ms probe-delay and 0.8 normalized-CPU rules remain.
+Historical schema-1/schema-6 aggregates retain their original interpretation,
+and a schema-2 conclusion still cannot establish safe production capacity.
 
 ## 10. Attachment Flow
 
