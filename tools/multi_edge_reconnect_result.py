@@ -34,8 +34,8 @@ def validate(value: Any, expected_revision: str | None = None,
              require_clean: bool = False) -> dict[str, Any]:
     root = object_value(value, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2, 3, 4, 5, 6, 7, 8):
-        raise EvidenceError("schemaVersion must be between 1 and 8")
+    if schema not in (1, 2, 3, 4, 5, 6, 7, 8, 9):
+        raise EvidenceError("schemaVersion must be between 1 and 9")
     if root.get("benchmark") != "java-v2-haproxy-multi-edge-reconnect":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != (
@@ -364,6 +364,57 @@ def validate(value: Any, expected_revision: str | None = None,
             "gcCollectionActivity.collectionTimeMillisAfter", time_before)
         if gc.get("collectionTimeMillisDelta") != time_after - time_before:
             raise EvidenceError("GC collection time delta does not reconcile")
+    if schema < 9 and "residentMemoryActivity" in results:
+        raise EvidenceError("schemaVersion below 9 cannot contain resident memory")
+    if schema >= 9:
+        resident = object_value(
+            results.get("residentMemoryActivity"), "residentMemoryActivity")
+        if set(resident) != {
+                "sampleIntervalMillis", "configuredRefreshIntervalMillis", "samples",
+                "metricsUnavailableSamples", "residentBytesBefore",
+                "residentBytesAfter", "residentBytesMaximum",
+                "sampleAgeMillisMaximum", "readFailuresBefore",
+                "readFailuresAfter", "readFailuresDelta"}:
+            raise EvidenceError("residentMemoryActivity fields are invalid")
+        if resident.get("sampleIntervalMillis") != 5:
+            raise EvidenceError("resident-memory observation interval must be 5 ms")
+        if resident.get("configuredRefreshIntervalMillis") != 250:
+            raise EvidenceError("resident-memory provider interval must be 250 ms")
+        resident_samples = integer(
+            resident.get("samples"), "residentMemoryActivity.samples", 2)
+        if resident_samples != saturation["samples"]:
+            raise EvidenceError("resident-memory sample count disagrees")
+        unavailable = integer(
+            resident.get("metricsUnavailableSamples"),
+            "residentMemoryActivity.metricsUnavailableSamples", 0)
+        if unavailable > resident_samples:
+            raise EvidenceError("resident-memory unavailable samples exceed the window")
+        bytes_before = integer(
+            resident.get("residentBytesBefore"),
+            "residentMemoryActivity.residentBytesBefore", 0)
+        bytes_after = integer(
+            resident.get("residentBytesAfter"),
+            "residentMemoryActivity.residentBytesAfter", 0)
+        bytes_maximum = integer(
+            resident.get("residentBytesMaximum"),
+            "residentMemoryActivity.residentBytesMaximum", 0)
+        if bytes_maximum < max(bytes_before, bytes_after):
+            raise EvidenceError("resident-memory maximum does not cover endpoints")
+        if unavailable == resident_samples and any(
+                value != 0 for value in (bytes_before, bytes_after, bytes_maximum)):
+            raise EvidenceError("fully unavailable resident memory must remain zero")
+        if unavailable < resident_samples and bytes_maximum < 1:
+            raise EvidenceError("available resident memory must observe positive bytes")
+        integer(resident.get("sampleAgeMillisMaximum"),
+                "residentMemoryActivity.sampleAgeMillisMaximum", 0)
+        failures_before = integer(
+            resident.get("readFailuresBefore"),
+            "residentMemoryActivity.readFailuresBefore", 0)
+        failures_after = integer(
+            resident.get("readFailuresAfter"),
+            "residentMemoryActivity.readFailuresAfter", failures_before)
+        if resident.get("readFailuresDelta") != failures_after - failures_before:
+            raise EvidenceError("resident-memory failure delta does not reconcile")
     return root
 
 

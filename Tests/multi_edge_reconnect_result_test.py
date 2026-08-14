@@ -136,6 +136,38 @@ def gc_collection_activity():
     }
 
 
+def resident_memory_activity():
+    return {
+        "sampleIntervalMillis": 5,
+        "configuredRefreshIntervalMillis": 250,
+        "samples": 24,
+        "metricsUnavailableSamples": 0,
+        "residentBytesBefore": 1000,
+        "residentBytesAfter": 1200,
+        "residentBytesMaximum": 1400,
+        "sampleAgeMillisMaximum": 249,
+        "readFailuresBefore": 1,
+        "readFailuresAfter": 2,
+        "readFailuresDelta": 1,
+    }
+
+
+def schema_nine_evidence():
+    value = evidence()
+    value["schemaVersion"] = 9
+    value["scenario"]["workloadProfile"] = "step-12"
+    value["results"]["authenticationSaturation"] = authentication_saturation()
+    value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+    value["results"]["postgresPoolSaturation"][
+        "threadsAwaitingConnectionMaximum"] = 2
+    value["results"]["eventLoopSaturation"] = event_loop_saturation()
+    value["results"]["processResourceSaturation"] = process_resource_saturation()
+    value["results"]["pressureDuration"] = pressure_duration()
+    value["results"]["gcCollectionActivity"] = gc_collection_activity()
+    value["results"]["residentMemoryActivity"] = resident_memory_activity()
+    return value
+
+
 class MultiEdgeReconnectResultTest(unittest.TestCase):
     def test_accepts_reconciled_clean_evidence(self):
         validate(evidence(), "a" * 40, require_clean=True)
@@ -297,6 +329,43 @@ class MultiEdgeReconnectResultTest(unittest.TestCase):
             value["results"]["pressureDuration"] = pressure_duration()
             activity = gc_collection_activity()
             value["results"]["gcCollectionActivity"] = activity
+            mutate(activity)
+            with self.subTest(activity=activity), self.assertRaises(EvidenceError):
+                validate(value, "a" * 40, require_clean=True)
+
+    def test_accepts_available_and_fully_unavailable_resident_memory(self):
+        validate(schema_nine_evidence(), "a" * 40, require_clean=True)
+
+        value = schema_nine_evidence()
+        activity = value["results"]["residentMemoryActivity"]
+        activity.update(
+            metricsUnavailableSamples=24,
+            residentBytesBefore=0,
+            residentBytesAfter=0,
+            residentBytesMaximum=0,
+            readFailuresBefore=0,
+            readFailuresAfter=0,
+            readFailuresDelta=0,
+        )
+        validate(value, "a" * 40, require_clean=True)
+
+    def test_rejects_invalid_resident_memory_activity(self):
+        for mutate in (
+            lambda activity: activity.update(samples=23),
+            lambda activity: activity.update(configuredRefreshIntervalMillis=249),
+            lambda activity: activity.update(metricsUnavailableSamples=25),
+            lambda activity: activity.update(residentBytesMaximum=1199),
+            lambda activity: activity.update(
+                metricsUnavailableSamples=24, residentBytesMaximum=1400),
+            lambda activity: activity.update(
+                metricsUnavailableSamples=23, residentBytesBefore=0,
+                residentBytesAfter=0, residentBytesMaximum=0),
+            lambda activity: activity.update(readFailuresAfter=0),
+            lambda activity: activity.update(readFailuresDelta=0),
+            lambda activity: activity.update(extraField=1),
+        ):
+            value = schema_nine_evidence()
+            activity = value["results"]["residentMemoryActivity"]
             mutate(activity)
             with self.subTest(activity=activity), self.assertRaises(EvidenceError):
                 validate(value, "a" * 40, require_clean=True)

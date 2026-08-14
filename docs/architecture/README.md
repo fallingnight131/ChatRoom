@@ -1338,6 +1338,12 @@ age, and cumulative failures; admin scrapes perform no platform read. Runtime
 shutdown and partial-construction cleanup close the daemon sampler. Unsupported
 macOS reports unavailable/zero, while Linux availability still requires native
 host integration evidence.
+ADR-0400 carries the cached provider into reconnect evidence without confusing
+the five-millisecond observation loop with native sampling. Raw schema 9 records
+availability, configured 250 ms refresh, bytes before/after/maximum, maximum
+sample age, and failure-counter movement; aggregate schema 4 retains these per
+run. A fully unavailable macOS window is explicit valid evidence, but cannot
+support an RSS or capacity claim.
 
 ## 10. Attachment Flow
 

@@ -16,7 +16,9 @@ from Tests.multi_edge_reconnect_result_test import (  # noqa: E402
     evidence,
     gc_collection_activity,
     postgres_pool_saturation,
+    pressure_duration,
     process_resource_saturation,
+    resident_memory_activity,
 )
 
 
@@ -160,6 +162,29 @@ class MultiEdgeReconnectLadderResultTest(unittest.TestCase):
                     {"collectionsDelta": 2, "collectionTimeMillisDelta": 25},
                     sample["gcCollectionActivity"],
                 )
+
+    def test_accepts_uniform_schema_9_resident_memory_children(self):
+        runs = ladder_runs()
+        for samples in runs.values():
+            for sample in samples:
+                sample["schemaVersion"] = 9
+                sample["results"]["pressureDuration"] = pressure_duration()
+                sample["results"]["postgresPoolSaturation"][
+                    "threadsAwaitingConnectionMaximum"] = 2
+                sample["results"]["eventLoopSaturation"][
+                    "pendingTasksMaximum"] = 8
+                sample["results"]["gcCollectionActivity"] = gc_collection_activity()
+                sample["results"]["residentMemoryActivity"] = (
+                    resident_memory_activity())
+        value = build(runs)
+        validate(value, "a" * 40, require_clean=True)
+        self.assertEqual(4, value["schemaVersion"])
+        for profile in value["analysis"]["profiles"]:
+            for sample in profile["runs"]:
+                self.assertEqual(24, sample["residentMemoryActivity"][
+                    "availableSamples"])
+                self.assertEqual(1400, sample["residentMemoryActivity"][
+                    "residentBytesMaximum"])
 
     def test_identifies_repeated_pressure_at_lowest_observed_step(self):
         runs = ladder_runs()

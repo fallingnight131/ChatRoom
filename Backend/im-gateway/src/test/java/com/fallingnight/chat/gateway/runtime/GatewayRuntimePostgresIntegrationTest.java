@@ -4631,6 +4631,13 @@ class GatewayRuntimePostgresIntegrationTest {
         long gcCollectionsAfter = -1;
         long gcCollectionTimeMillisBefore = -1;
         long gcCollectionTimeMillisAfter = -1;
+        int residentMemoryUnavailableSamples = 0;
+        long residentMemoryBytesBefore = -1;
+        long residentMemoryBytesAfter = -1;
+        long residentMemoryBytesMaximum = 0;
+        long residentMemorySampleAgeMillisMaximum = 0;
+        long residentMemoryReadFailuresBefore = -1;
+        long residentMemoryReadFailuresAfter = -1;
         long sampleIntervalNanos = TimeUnit.MILLISECONDS.toNanos(5);
         long nextSampleNanos = System.nanoTime();
         do {
@@ -4756,6 +4763,37 @@ class GatewayRuntimePostgresIntegrationTest {
                 gcCollectionsAfter = collections;
                 gcCollectionTimeMillisAfter = collectionTimeMillis;
             }
+            int residentMemoryAvailable = fixedGauge(
+                    metrics, "chat_gateway_process_resident_memory_available");
+            long residentMemoryBytes = fixedLongGauge(
+                    metrics, "chat_gateway_process_resident_memory_bytes");
+            if (residentMemoryAvailable == 0) {
+                residentMemoryUnavailableSamples++;
+                assertEquals(0, residentMemoryBytes,
+                        "unavailable resident memory must report zero bytes");
+            } else {
+                assertEquals(1, residentMemoryAvailable,
+                        "resident-memory availability must be binary");
+                assertTrue(residentMemoryBytes > 0,
+                        "available resident memory must be positive");
+                residentMemoryBytesMaximum = Math.max(
+                        residentMemoryBytesMaximum, residentMemoryBytes);
+            }
+            long residentMemorySampleAgeMillis = fixedSecondsMillis(
+                    metrics,
+                    "chat_gateway_process_resident_memory_sample_age_seconds");
+            long residentMemoryReadFailures = fixedLongGauge(
+                    metrics,
+                    "chat_gateway_process_resident_memory_read_failures_total");
+            if (residentMemoryBytesBefore < 0) {
+                residentMemoryBytesBefore = residentMemoryBytes;
+                residentMemoryReadFailuresBefore = residentMemoryReadFailures;
+            }
+            residentMemoryBytesAfter = residentMemoryBytes;
+            residentMemorySampleAgeMillisMaximum = Math.max(
+                    residentMemorySampleAgeMillisMaximum,
+                    residentMemorySampleAgeMillis);
+            residentMemoryReadFailuresAfter = residentMemoryReadFailures;
             if (heapUsedBytesBefore < 0) {
                 heapUsedBytesBefore = heapUsed;
                 heapCommittedBytesBefore = committed;
@@ -4801,7 +4839,10 @@ class GatewayRuntimePostgresIntegrationTest {
                 uptimeMillisAfter, availableProcessors,
                 gcMetricsUnavailableSamples, gcCollectionsBefore,
                 gcCollectionsAfter, gcCollectionTimeMillisBefore,
-                gcCollectionTimeMillisAfter);
+                gcCollectionTimeMillisAfter, residentMemoryUnavailableSamples,
+                residentMemoryBytesBefore, residentMemoryBytesAfter,
+                residentMemoryBytesMaximum, residentMemorySampleAgeMillisMaximum,
+                residentMemoryReadFailuresBefore, residentMemoryReadFailuresAfter);
     }
 
     private static int fixedGauge(String metrics, String name) {
@@ -5085,7 +5126,7 @@ class GatewayRuntimePostgresIntegrationTest {
         int batches = (affected + batchSize - 1) / batchSize;
         String json = """
                 {
-                  "schemaVersion": 8,
+                  "schemaVersion": 9,
                   "benchmark": "java-v2-haproxy-multi-edge-reconnect",
                   "warning": "local dual-edge recovery evidence; not a production capacity claim",
                   "recordedAt": "%s",
@@ -5182,6 +5223,19 @@ class GatewayRuntimePostgresIntegrationTest {
                       "collectionTimeMillisAfter": %d,
                       "collectionTimeMillisDelta": %d
                     },
+                    "residentMemoryActivity": {
+                      "sampleIntervalMillis": 5,
+                      "configuredRefreshIntervalMillis": 250,
+                      "samples": %d,
+                      "metricsUnavailableSamples": %d,
+                      "residentBytesBefore": %d,
+                      "residentBytesAfter": %d,
+                      "residentBytesMaximum": %d,
+                      "sampleAgeMillisMaximum": %d,
+                      "readFailuresBefore": %d,
+                      "readFailuresAfter": %d,
+                      "readFailuresDelta": %d
+                    },
                     "elapsedMillis": %.3f,
                     "reconnectThroughputPerSecond": %.3f,
                     "sessionResumeLatencyMicros": %s,
@@ -5247,6 +5301,16 @@ class GatewayRuntimePostgresIntegrationTest {
                         saturation.gcCollectionTimeMillisAfter(),
                         saturation.gcCollectionTimeMillisAfter()
                                 - saturation.gcCollectionTimeMillisBefore(),
+                        saturation.samples(),
+                        saturation.residentMemoryUnavailableSamples(),
+                        saturation.residentMemoryBytesBefore(),
+                        saturation.residentMemoryBytesAfter(),
+                        saturation.residentMemoryBytesMaximum(),
+                        saturation.residentMemorySampleAgeMillisMaximum(),
+                        saturation.residentMemoryReadFailuresBefore(),
+                        saturation.residentMemoryReadFailuresAfter(),
+                        saturation.residentMemoryReadFailuresAfter()
+                                - saturation.residentMemoryReadFailuresBefore(),
                         elapsedNanos / 1_000_000.0,
                         affected * 1_000_000_000.0 / elapsedNanos,
                         distributionJson(latency), distributionJson(jitter));
@@ -5331,7 +5395,14 @@ class GatewayRuntimePostgresIntegrationTest {
             long gcCollectionsBefore,
             long gcCollectionsAfter,
             long gcCollectionTimeMillisBefore,
-            long gcCollectionTimeMillisAfter) {
+            long gcCollectionTimeMillisAfter,
+            int residentMemoryUnavailableSamples,
+            long residentMemoryBytesBefore,
+            long residentMemoryBytesAfter,
+            long residentMemoryBytesMaximum,
+            long residentMemorySampleAgeMillisMaximum,
+            long residentMemoryReadFailuresBefore,
+            long residentMemoryReadFailuresAfter) {
     }
 
     private static Envelope clientHello(String deviceId) {

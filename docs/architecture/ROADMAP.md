@@ -1752,6 +1752,12 @@ Progress:
   it, readiness is unchanged, and unsupported macOS reports unavailable/zero
   without shell commands. Linux-host available-metric and reconnect-window
   evidence remain pending (ADR-0399).
+- [x] Upgrade new dual-edge reconnect evidence to raw schema 9 and repeated
+  aggregates to schema 4. Record cached RSS availability, the configured 250 ms
+  refresh, bytes before/after/maximum, maximum sample age, and read-failure
+  movement without treating repeated cache observations as native samples.
+  Fully unavailable macOS windows remain valid and explicitly unmeasured;
+  positive Linux-host evidence remains pending (ADR-0400).
 
 Work:
 

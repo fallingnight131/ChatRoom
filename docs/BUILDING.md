@@ -1703,6 +1703,12 @@ The loopback endpoint now renders the cached RSS availability, resident bytes,
 sample age, and read-failure counter, and `GatewayRuntime` owns sampler cleanup.
 On macOS the reviewed provider remains unavailable/zero; Linux-host integration
 must prove a positive cached `VmRSS` before RSS-aware evidence is claimed.
+New raw schema-9 reconnect evidence records the configured 250 ms provider
+refresh beside the five-millisecond observation interval, unavailable samples,
+cached bytes before/after/maximum, maximum sample age, and read-failure delta.
+Aggregate schema 4 requires nine uniform raw schema-9 children and retains the
+same fields per run. Fully unavailable macOS evidence is valid only when all
+resident-byte fields remain zero (ADR-0400).
 Schema version 5 records CPU-time and uptime before/after/deltas plus heap used
 before/after/peak, committed before/after, effective maximum, and processors in
 the same shared reconnect window. Committed heap may grow and is not treated as
