@@ -54,7 +54,7 @@ class GatewayAdminServerTest {
                 () -> new EventLoopSnapshot(true, 4, 12, 2_000_000, 7_000_000, 3),
                 () -> new ProcessResourceSnapshot(
                         true, 2_500_000_000L, 100, 200, 400, 3_000, 8,
-                        true, 9, 125),
+                        true, 9, 125, true, 4, 8_192, 7_168),
                 () -> new ResidentMemorySnapshot(true, 321, 125, 2),
                 readiness,
                 () -> "# TYPE chat_gateway_distributed_metrics_available gauge\n"
@@ -145,6 +145,10 @@ class GatewayAdminServerTest {
             assertTrue(metrics.body().contains("chat_gateway_jvm_gc_collections_total 9"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_jvm_gc_collection_seconds_total 0.125"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_jvm_direct_buffer_metrics_available 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_jvm_direct_buffer_memory_used_bytes 8192"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_process_resident_memory_available 1"));
             assertTrue(metrics.body().contains(

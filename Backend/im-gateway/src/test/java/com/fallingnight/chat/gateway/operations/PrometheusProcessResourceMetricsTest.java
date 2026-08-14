@@ -11,7 +11,7 @@ class PrometheusProcessResourceMetricsTest {
         String rendered = PrometheusProcessResourceMetrics.render(
                 new ProcessResourceSnapshot(
                         true, 1_250_000_000L, 100, 200, 400, 2_500, 8,
-                        true, 12, 345));
+                        true, 12, 345, true, 3, 4_096, 3_072));
 
         assertTrue(rendered.contains("chat_gateway_process_cpu_time_available 1"));
         assertTrue(rendered.contains("chat_gateway_process_cpu_seconds_total 1.250000000"));
@@ -24,24 +24,40 @@ class PrometheusProcessResourceMetricsTest {
         assertTrue(rendered.contains("chat_gateway_jvm_gc_collections_total 12"));
         assertTrue(rendered.contains(
                 "chat_gateway_jvm_gc_collection_seconds_total 0.345"));
+        assertTrue(rendered.contains(
+                "chat_gateway_jvm_direct_buffer_metrics_available 1"));
+        assertTrue(rendered.contains("chat_gateway_jvm_direct_buffer_count 3"));
+        assertTrue(rendered.contains(
+                "chat_gateway_jvm_direct_buffer_memory_used_bytes 4096"));
+        assertTrue(rendered.contains(
+                "chat_gateway_jvm_direct_buffer_total_capacity_bytes 3072"));
     }
 
     @Test
     void rejectsImpossibleResourceSnapshots() {
         assertThrows(IllegalArgumentException.class,
                 () -> new ProcessResourceSnapshot(
-                        false, 1, 0, 0, 1, 0, 1, true, 0, 0));
+                        false, 1, 0, 0, 1, 0, 1, true, 0, 0,
+                        true, 0, 0, 0));
         assertThrows(IllegalArgumentException.class,
                 () -> new ProcessResourceSnapshot(
-                        true, 0, 201, 200, 400, 0, 1, true, 0, 0));
+                        true, 0, 201, 200, 400, 0, 1, true, 0, 0,
+                        true, 0, 0, 0));
         assertThrows(IllegalArgumentException.class,
                 () -> new ProcessResourceSnapshot(
-                        true, 0, 100, 401, 400, 0, 1, true, 0, 0));
+                        true, 0, 100, 401, 400, 0, 1, true, 0, 0,
+                        true, 0, 0, 0));
         assertThrows(IllegalArgumentException.class,
                 () -> new ProcessResourceSnapshot(
-                        true, 0, 0, 0, 1, 0, 0, true, 0, 0));
+                        true, 0, 0, 0, 1, 0, 0, true, 0, 0,
+                        true, 0, 0, 0));
         assertThrows(IllegalArgumentException.class,
                 () -> new ProcessResourceSnapshot(
-                        true, 0, 0, 0, 1, 0, 1, false, 1, 0));
+                        true, 0, 0, 0, 1, 0, 1, false, 1, 0,
+                        true, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class,
+                () -> new ProcessResourceSnapshot(
+                        true, 0, 0, 0, 1, 0, 1, true, 0, 0,
+                        false, 1, 0, 0));
     }
 }

@@ -1351,6 +1351,10 @@ and honest absence only. A digest-pinned Linux JDK 21 container subsequently
 passed the native `/proc/self/status` integration test with a positive,
 failure-free cached snapshot. A full Linux raw-schema-9 reconnect ladder remains
 the next RSS measurement gate.
+ADR-0401 adds a separate portable direct-buffer dimension from the standard
+Java buffer-pool MXBean: availability, count, estimated used bytes, and total
+capacity. It helps distinguish a major Netty/TLS off-heap category from heap
+and RSS, but deliberately does not claim complete native-memory accounting.
 
 ## 10. Attachment Flow
 

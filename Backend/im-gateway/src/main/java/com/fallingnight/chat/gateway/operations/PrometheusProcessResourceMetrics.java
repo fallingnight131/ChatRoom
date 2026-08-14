@@ -39,6 +39,18 @@ public final class PrometheusProcessResourceMetrics {
                 + "chat_gateway_jvm_gc_collection_seconds_total "
                 + String.format(Locale.ROOT, "%.3f",
                         snapshot.gcCollectionTimeMillis() / 1000.0)
+                + "\n# TYPE chat_gateway_jvm_direct_buffer_metrics_available gauge\n"
+                + "chat_gateway_jvm_direct_buffer_metrics_available "
+                + (snapshot.directBufferMetricsAvailable() ? 1 : 0)
+                + "\n# TYPE chat_gateway_jvm_direct_buffer_count gauge\n"
+                + "chat_gateway_jvm_direct_buffer_count "
+                + snapshot.directBufferCount()
+                + "\n# TYPE chat_gateway_jvm_direct_buffer_memory_used_bytes gauge\n"
+                + "chat_gateway_jvm_direct_buffer_memory_used_bytes "
+                + snapshot.directBufferMemoryUsedBytes()
+                + "\n# TYPE chat_gateway_jvm_direct_buffer_total_capacity_bytes gauge\n"
+                + "chat_gateway_jvm_direct_buffer_total_capacity_bytes "
+                + snapshot.directBufferTotalCapacityBytes()
                 + "\n";
     }
 

@@ -11,7 +11,11 @@ public record ProcessResourceSnapshot(
         int availableProcessors,
         boolean gcMetricsAvailable,
         long gcCollectionCount,
-        long gcCollectionTimeMillis) {
+        long gcCollectionTimeMillis,
+        boolean directBufferMetricsAvailable,
+        long directBufferCount,
+        long directBufferMemoryUsedBytes,
+        long directBufferTotalCapacityBytes) {
 
     public ProcessResourceSnapshot {
         if (processCpuTimeNanos < 0 || heapUsedBytes < 0 || heapCommittedBytes < 0
@@ -27,6 +31,16 @@ public record ProcessResourceSnapshot(
         if (!gcMetricsAvailable
                 && (gcCollectionCount != 0 || gcCollectionTimeMillis != 0)) {
             throw new IllegalArgumentException("unavailable GC metrics must be zero");
+        }
+        if (directBufferCount < 0 || directBufferMemoryUsedBytes < 0
+                || directBufferTotalCapacityBytes < 0) {
+            throw new IllegalArgumentException("direct-buffer gauges are invalid");
+        }
+        if (!directBufferMetricsAvailable
+                && (directBufferCount != 0 || directBufferMemoryUsedBytes != 0
+                || directBufferTotalCapacityBytes != 0)) {
+            throw new IllegalArgumentException(
+                    "unavailable direct-buffer metrics must be zero");
         }
         if (heapUsedBytes > heapCommittedBytes || heapCommittedBytes > heapMaximumBytes) {
             throw new IllegalArgumentException("JVM heap gauges are inconsistent");

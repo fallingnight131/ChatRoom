@@ -1778,6 +1778,10 @@ Progress:
 - [x] Expose the pinned Linux provider verification through the unified M0
   runner as explicit `--linux-rss`. Keep it outside `--all` because it requires
   Docker and may pull the pinned image/dependencies on first use.
+- [x] Expose portable fixed-name direct-buffer availability, count, estimated
+  used bytes, and total capacity from Java's standard buffer-pool MXBean. Keep
+  this separate from heap and RSS, and do not label it as complete native
+  memory or a capacity threshold (ADR-0401).
 
 Work:
 

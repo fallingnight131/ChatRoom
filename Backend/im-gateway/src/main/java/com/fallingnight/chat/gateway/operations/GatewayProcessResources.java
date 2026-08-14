@@ -1,5 +1,6 @@
 package com.fallingnight.chat.gateway.operations;
 
+import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryUsage;
 import java.time.Duration;
@@ -30,6 +31,30 @@ public final class GatewayProcessResources {
             gcCollections = 0;
             gcCollectionTimeMillis = 0;
         }
+        boolean directBufferMetricsAvailable = false;
+        long directBufferCount = 0;
+        long directBufferMemoryUsedBytes = 0;
+        long directBufferTotalCapacityBytes = 0;
+        for (BufferPoolMXBean pool : ManagementFactory.getPlatformMXBeans(
+                BufferPoolMXBean.class)) {
+            if (!"direct".equals(pool.getName())) continue;
+            long count = pool.getCount();
+            long memoryUsed = pool.getMemoryUsed();
+            long totalCapacity = pool.getTotalCapacity();
+            if (count < 0 || memoryUsed < 0 || totalCapacity < 0) {
+                directBufferMetricsAvailable = false;
+                directBufferCount = 0;
+                directBufferMemoryUsedBytes = 0;
+                directBufferTotalCapacityBytes = 0;
+                break;
+            }
+            directBufferMetricsAvailable = true;
+            directBufferCount = Math.addExact(directBufferCount, count);
+            directBufferMemoryUsedBytes = Math.addExact(
+                    directBufferMemoryUsedBytes, memoryUsed);
+            directBufferTotalCapacityBytes = Math.addExact(
+                    directBufferTotalCapacityBytes, totalCapacity);
+        }
         return new ProcessResourceSnapshot(
                 cpu.isPresent(),
                 cpu.map(Duration::toNanos).orElse(0L),
@@ -38,6 +63,8 @@ public final class GatewayProcessResources {
                 Runtime.getRuntime().maxMemory(),
                 ManagementFactory.getRuntimeMXBean().getUptime(),
                 Runtime.getRuntime().availableProcessors(),
-                gcMetricsAvailable, gcCollections, gcCollectionTimeMillis);
+                gcMetricsAvailable, gcCollections, gcCollectionTimeMillis,
+                directBufferMetricsAvailable, directBufferCount,
+                directBufferMemoryUsedBytes, directBufferTotalCapacityBytes);
     }
 }

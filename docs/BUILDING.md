@@ -1725,6 +1725,12 @@ tool executables on Docker Desktop bind mounts may lose executable semantics.
 This closes native provider selection/read evidence, but a full Linux
 schema-9 reconnect ladder remains separate.
 
+The loopback process-resource block also exposes standard-JDK direct-buffer
+availability, count, estimated memory used, and total capacity. These fixed
+metrics require no native library and help compare a major Netty/TLS off-heap
+category with heap and RSS. They are not total native memory, a configured
+limit, or a capacity claim (ADR-0401).
+
 Reproduce that isolated Linux provider gate from a POSIX development host with:
 
 ```bash

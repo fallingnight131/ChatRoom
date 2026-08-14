@@ -1970,6 +1970,26 @@ class GatewayRuntimePostgresIntegrationTest {
                     poolMetrics, "chat_gateway_jvm_gc_collections_total") >= 0);
             assertTrue(fixedSecondsMillis(
                     poolMetrics, "chat_gateway_jvm_gc_collection_seconds_total") >= 0);
+            int directBufferAvailable = fixedGauge(
+                    poolMetrics,
+                    "chat_gateway_jvm_direct_buffer_metrics_available");
+            assertTrue(directBufferAvailable == 0 || directBufferAvailable == 1);
+            long directBufferCount = fixedLongGauge(
+                    poolMetrics, "chat_gateway_jvm_direct_buffer_count");
+            long directBufferMemoryUsed = fixedLongGauge(
+                    poolMetrics,
+                    "chat_gateway_jvm_direct_buffer_memory_used_bytes");
+            long directBufferCapacity = fixedLongGauge(
+                    poolMetrics,
+                    "chat_gateway_jvm_direct_buffer_total_capacity_bytes");
+            assertTrue(directBufferCount >= 0);
+            assertTrue(directBufferMemoryUsed >= 0);
+            assertTrue(directBufferCapacity >= 0);
+            if (directBufferAvailable == 0) {
+                assertEquals(0, directBufferCount);
+                assertEquals(0, directBufferMemoryUsed);
+                assertEquals(0, directBufferCapacity);
+            }
             int residentMemoryAvailable = fixedGauge(
                     poolMetrics, "chat_gateway_process_resident_memory_available");
             assertTrue(residentMemoryAvailable == 0 || residentMemoryAvailable == 1);
