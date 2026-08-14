@@ -1692,6 +1692,10 @@ implemented. Java 21 has no portable RSS API; `/metrics` and the reconnect
 sampler must consume a lifecycle-owned cached provider and must never launch
 `ps` or PowerShell per read. Linux, macOS development, and any Windows Java
 server provider have separate evidence gates.
+The dependency-free provider foundation now strictly parses Linux `VmRSS` and
+caches platform reads behind a minimum 250 ms lifecycle-owned sampler. On
+unsupported hosts such as the current macOS configuration it remains explicitly
+unavailable; loopback metric composition is a later slice (ADR-0399).
 Schema version 5 records CPU-time and uptime before/after/deltas plus heap used
 before/after/peak, committed before/after, effective maximum, and processors in
 the same shared reconnect window. Committed heap may grow and is not treated as

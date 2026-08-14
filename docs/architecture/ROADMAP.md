@@ -1740,6 +1740,12 @@ Progress:
   server support. Product Windows client support remains separate from server
   deployment hosts. Implementation and clean RSS-aware evidence remain pending
   (ADR-0399).
+- [x] Implement the RSS provider foundation: strict bounded Linux
+  `/proc/self/status` `VmRSS` parsing with overflow-safe KiB conversion,
+  current-platform selection, explicit unavailable fallback, a minimum 250 ms
+  daemon sampler, cached availability/bytes/age/failure snapshots, recovery
+  after read failure, and lifecycle shutdown. Loopback metric composition and
+  Linux-host integration evidence remain pending (ADR-0399).
 
 Work:
 

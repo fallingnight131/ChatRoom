@@ -1327,6 +1327,12 @@ sample age, and failures from a lifecycle-owned cache refreshed no faster than
 evidence and any future Windows Java server support require separate native
 provider review. Windows client product support does not imply Windows server
 deployment support.
+The first ADR-0399 implementation slice now provides strict bounded Linux
+`VmRSS` parsing, overflow-safe KiB conversion, explicit unsupported fallback,
+and a lifecycle-owned daemon cache with a 250 ms minimum interval, sample age,
+failure count, and recovery. It performs no native/file read from a metrics
+snapshot call. Runtime metric composition and Linux-host integration evidence
+remain separate gates.
 
 ## 10. Attachment Flow
 
