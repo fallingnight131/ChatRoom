@@ -1877,6 +1877,8 @@ class GatewayRuntimePostgresIntegrationTest {
                 evidenceValue), "set disposable services, two edges, and evidence path");
         Path control = Path.of(controlValue);
         Path evidence = Path.of(evidenceValue);
+        MultiEdgeReconnectWorkload workload = multiEdgeReconnectWorkload(
+                System.getenv("CHATROOM_TEST_MULTI_EDGE_RECONNECT_WORKLOAD"));
         new PostgresMigrator(jdbcUrl, username, "").migrate();
 
         int firstPort = availablePort();
@@ -1899,8 +1901,8 @@ class GatewayRuntimePostgresIntegrationTest {
         List<CrashClient> survivorClients = new ArrayList<>();
         List<WebSocket> replacements = new ArrayList<>();
         try {
-            int failedConnections = 12;
-            int survivingConnections = 6;
+            int failedConnections = workload.failedConnections();
+            int survivingConnections = workload.survivingConnections();
             seedCrashAccounts(jdbcUrl, username, failedConnections + survivingConnections);
             first = startGatewayProcess(firstEnvironment, runtimeClasspath,
                     control.resolve("gateway-a.log"));
@@ -1975,8 +1977,8 @@ class GatewayRuntimePostgresIntegrationTest {
                         "secondary-edge survivor session must remain connected");
             }
 
-            int batchSize = 3;
-            int intervalMillis = 100;
+            int batchSize = workload.batchSize();
+            int intervalMillis = workload.intervalMillis();
             CountDownLatch ready = new CountDownLatch(primaryClients.size());
             CountDownLatch start = new CountDownLatch(1);
             CountDownLatch saturationSamplerReady = new CountDownLatch(1);
@@ -2037,8 +2039,8 @@ class GatewayRuntimePostgresIntegrationTest {
             assertEquals(survivingConnections + failedConnections,
                     authenticationAccepted(secondAdmin));
             writeMultiEdgeReconnectEvidence(
-                    evidence, failedConnections, survivingConnections, batchSize,
-                    intervalMillis, samples, saturation,
+                    evidence, workload.name(), failedConnections, survivingConnections,
+                    batchSize, intervalMillis, samples, saturation,
                     System.nanoTime() - startNanos[0]);
         } finally {
             replacements.forEach(WebSocket::abort);
@@ -4992,8 +4994,8 @@ class GatewayRuntimePostgresIntegrationTest {
     }
 
     private static void writeMultiEdgeReconnectEvidence(
-            Path output, int affected, int surviving, int batchSize,
-            int intervalMillis, List<ReconnectSample> samples,
+            Path output, String workloadName, int affected, int surviving,
+            int batchSize, int intervalMillis, List<ReconnectSample> samples,
             ReconnectSaturation saturation, long elapsedNanos)
             throws Exception {
         List<Long> latency = samples.stream().map(ReconnectSample::latencyMicros)
@@ -5003,7 +5005,7 @@ class GatewayRuntimePostgresIntegrationTest {
         int batches = (affected + batchSize - 1) / batchSize;
         String json = """
                 {
-                  "schemaVersion": 5,
+                  "schemaVersion": 6,
                   "benchmark": "java-v2-haproxy-multi-edge-reconnect",
                   "warning": "local dual-edge recovery evidence; not a production capacity claim",
                   "recordedAt": "%s",
@@ -5015,6 +5017,7 @@ class GatewayRuntimePostgresIntegrationTest {
                     "maximumHeapBytes": %d
                   },
                   "scenario": {
+                    "workloadProfile": "%s",
                     "edgeProcesses": 2,
                     "gatewayProcesses": 2,
                     "primaryEdgeKilled": true,
@@ -5088,7 +5091,8 @@ class GatewayRuntimePostgresIntegrationTest {
                         Instant.now(), System.getProperty("java.version"),
                         System.getProperty("os.name"), System.getProperty("os.arch"),
                         Runtime.getRuntime().availableProcessors(),
-                        Runtime.getRuntime().maxMemory(), affected + surviving, affected,
+                        Runtime.getRuntime().maxMemory(), workloadName,
+                        affected + surviving, affected,
                         surviving, batchSize, intervalMillis, batches,
                         (batches - 1) * intervalMillis, affected, samples.size(),
                         surviving, surviving + affected, saturation.samples(),
@@ -5131,6 +5135,17 @@ class GatewayRuntimePostgresIntegrationTest {
         Files.writeString(output, json);
     }
 
+    private static MultiEdgeReconnectWorkload multiEdgeReconnectWorkload(String value) {
+        String name = value == null || value.isBlank() ? "step-12" : value;
+        return switch (name) {
+            case "step-12" -> new MultiEdgeReconnectWorkload(name, 12, 6, 3, 100);
+            case "step-24" -> new MultiEdgeReconnectWorkload(name, 24, 6, 6, 100);
+            case "step-48" -> new MultiEdgeReconnectWorkload(name, 48, 6, 12, 100);
+            default -> throw new IllegalArgumentException(
+                    "unknown multi-edge reconnect workload: " + name);
+        };
+    }
+
     private static String distributionJson(List<Long> sorted) {
         long sum = sorted.stream().mapToLong(Long::longValue).sum();
         return "{\"samples\":%d,\"min\":%d,\"p50\":%d,\"p95\":%d,"
@@ -5152,6 +5167,11 @@ class GatewayRuntimePostgresIntegrationTest {
     private record ReconnectSample(
             int position, WebSocket socket, SessionEstablished session,
             long latencyMicros, long jitterMicros) {
+    }
+
+    private record MultiEdgeReconnectWorkload(
+            String name, int failedConnections, int survivingConnections,
+            int batchSize, int intervalMillis) {
     }
 
     private record ReconnectSaturation(

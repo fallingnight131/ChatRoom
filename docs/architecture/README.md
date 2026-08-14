@@ -1262,6 +1262,13 @@ The first clean schema version 5 result at `841b9680...` consumed 314.183 ms of
 gateway CPU time across 334 ms uptime and observed gateway heap used grow from
 304 to 318 MiB, with all 12 sessions resumed. The evidence distinguishes the
 measured gateway JVM from the Gradle test JVM and remains a local curve.
+ADR-0393 upgrades new evidence to schema version 6 and fixes three named
+comparison steps. Each keeps six survivor sessions and four batches scheduled
+100 ms apart, while affected sessions and batch size increase together from
+12/3 through 24/6 to 48/12. The validator rejects arbitrary or drifting
+profiles and continues to accept schemas 1 through 5. These are inputs for
+repeated local comparison, not a production capacity ladder or saturation
+knee.
 
 ## 10. Attachment Flow
 

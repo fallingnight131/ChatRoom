@@ -1599,7 +1599,8 @@ Generate the separate bounded dual-edge reconnect curve with:
 
 ```bash
 python3 tools/verify_m0.py --gateway-multi-edge \
-  --gateway-multi-edge-output /tmp/chat-room-multi-edge-reconnect.json
+  --gateway-multi-edge-output /tmp/chat-room-multi-edge-reconnect.json \
+  --gateway-multi-edge-workload step-12
 ```
 
 This variant holds six sessions on the secondary edge, kills only the primary
@@ -1611,6 +1612,12 @@ capacity or SLO claim (ADR-0384).
 The first clean exact-revision result is retained under `docs/baselines/` as
 both strict JSON and an explanatory Markdown report; future comparisons must
 retain the same pinned scenario and validator.
+New schema-6 evidence accepts only the fixed `step-12`, `step-24`, and
+`step-48` profiles. They keep six survivors and four 100 ms-spaced batches,
+while reconnect batch concentration increases from 3 to 6 to 12. Select a
+profile with `--gateway-multi-edge-workload`; the default is `step-12`.
+Individual runs are raw local observations, not a pressure knee or capacity
+claim (ADR-0393).
 The loopback gateway metrics now include
 `chat_gateway_authentication_workers_active` and
 `chat_gateway_authentication_queue_size`; collect them during reconnect windows,

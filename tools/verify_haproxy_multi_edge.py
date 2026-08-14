@@ -18,7 +18,14 @@ IMAGE = "haproxy:3.2-alpine@sha256:79799e8b2977e60802774fa53d29e6b54e045402cdd8a
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--workload", choices=("step-12", "step-24", "step-48"),
+        default="step-12",
+        help="fixed reconnect workload profile (only used with --output)",
+    )
     args = parser.parse_args()
+    if args.workload != "step-12" and args.output is None:
+        parser.error("non-default --workload requires --output")
     environment = {"CHATROOM_TEST_MULTI_EDGE": "true"}
     revision = None
     clean_at_start = None
@@ -33,6 +40,7 @@ def main() -> int:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.unlink(missing_ok=True)
         environment["CHATROOM_TEST_MULTI_EDGE_RECONNECT_EVIDENCE"] = str(output)
+        environment["CHATROOM_TEST_MULTI_EDGE_RECONNECT_WORKLOAD"] = args.workload
     method = ("haproxyMeasuresBatchedReconnectAfterPrimaryEdgeCrash"
               if args.output else "haproxySecondaryEdgeRepairsAfterPrimaryEdgeCrash")
     result = verify(method, environment)

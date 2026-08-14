@@ -143,6 +143,54 @@ class MultiEdgeReconnectResultTest(unittest.TestCase):
         value["results"]["processResourceSaturation"] = process_resource_saturation()
         validate(value, "a" * 40, require_clean=True)
 
+    def test_accepts_each_fixed_workload_profile(self):
+        workloads = {
+            "step-12": (18, 12, 6, 3),
+            "step-24": (30, 24, 6, 6),
+            "step-48": (54, 48, 6, 12),
+        }
+        for profile, (connections, affected, surviving, batch) in workloads.items():
+            value = evidence()
+            value["schemaVersion"] = 6
+            value["scenario"].update(
+                workloadProfile=profile,
+                connections=connections,
+                failedEdgeConnections=affected,
+                survivingEdgeConnections=surviving,
+                reconnectBatchSize=batch,
+            )
+            value["results"].update(
+                reconnectAttempts=affected,
+                reconnectSuccesses=affected,
+                secondaryGatewayAuthenticationBefore=surviving,
+                secondaryGatewayAuthenticationAfter=connections,
+            )
+            for field in ("sessionResumeLatencyMicros", "scheduledStartJitterMicros"):
+                value["results"][field]["samples"] = affected
+            value["results"]["authenticationSaturation"] = authentication_saturation()
+            value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+            value["results"]["eventLoopSaturation"] = event_loop_saturation()
+            value["results"]["processResourceSaturation"] = process_resource_saturation()
+            with self.subTest(profile=profile):
+                validate(value, "a" * 40, require_clean=True)
+
+    def test_rejects_unknown_or_drifting_workload_profile(self):
+        for mutate in (
+            lambda scenario: scenario.update(workloadProfile="custom"),
+            lambda scenario: scenario.update(workloadProfile="step-24"),
+            lambda scenario: scenario.update(workloadProfile="step-12",
+                                               reconnectBatchSize=6),
+        ):
+            value = evidence()
+            value["schemaVersion"] = 6
+            value["results"]["authenticationSaturation"] = authentication_saturation()
+            value["results"]["postgresPoolSaturation"] = postgres_pool_saturation()
+            value["results"]["eventLoopSaturation"] = event_loop_saturation()
+            value["results"]["processResourceSaturation"] = process_resource_saturation()
+            mutate(value["scenario"])
+            with self.subTest(scenario=value["scenario"]), self.assertRaises(EvidenceError):
+                validate(value, "a" * 40, require_clean=True)
+
     def test_rejects_saturation_extension_without_schema_upgrade(self):
         value = evidence()
         value["results"]["authenticationSaturation"] = authentication_saturation()

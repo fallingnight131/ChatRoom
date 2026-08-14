@@ -99,10 +99,10 @@ def verify_gateway_mixed_version() -> None:
     run([sys.executable, str(ROOT / "tools" / "verify_gateway_mixed_version.py")], ROOT)
 
 
-def verify_gateway_multi_edge(output: Path | None) -> None:
+def verify_gateway_multi_edge(output: Path | None, workload: str) -> None:
     command = [sys.executable, str(ROOT / "tools" / "verify_haproxy_multi_edge.py")]
     if output is not None:
-        command.extend(["--output", str(output)])
+        command.extend(["--output", str(output), "--workload", workload])
     run(command, ROOT)
 
 
@@ -623,6 +623,12 @@ def parse_args() -> argparse.Namespace:
         help="write bounded dual-edge reconnect evidence (requires --gateway-multi-edge)",
     )
     parser.add_argument(
+        "--gateway-multi-edge-workload",
+        choices=("step-12", "step-24", "step-48"),
+        default="step-12",
+        help="fixed dual-edge reconnect workload profile",
+    )
+    parser.add_argument(
         "--protocol-bindings",
         action="store_true",
         help="generate and verify V2 C++ and TypeScript client bindings",
@@ -723,6 +729,9 @@ def parse_args() -> argparse.Namespace:
         parser.error("--gateway-crash-output requires --gateway-crash")
     if args.gateway_multi_edge_output is not None and not args.gateway_multi_edge:
         parser.error("--gateway-multi-edge-output requires --gateway-multi-edge")
+    if (args.gateway_multi_edge_workload != "step-12"
+            and args.gateway_multi_edge_output is None):
+        parser.error("non-default --gateway-multi-edge-workload requires output evidence")
     return args
 
 
@@ -759,7 +768,8 @@ def main() -> int:
     if args.gateway_mixed_version:
         verify_gateway_mixed_version()
     if args.gateway_multi_edge:
-        verify_gateway_multi_edge(args.gateway_multi_edge_output)
+        verify_gateway_multi_edge(
+            args.gateway_multi_edge_output, args.gateway_multi_edge_workload)
     if args.protocol_bindings or args.all:
         verify_protocol_bindings(args.skip_npm_ci)
     if args.db_schema or args.all:

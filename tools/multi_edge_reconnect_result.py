@@ -23,13 +23,19 @@ EXPECTED_HAPROXY_IMAGE = (
     "79799e8b2977e60802774fa53d29e6b54e045402cdd8a8b9fe43923e7095a047"
 )
 
+WORKLOADS = {
+    "step-12": (18, 12, 6, 3, 100),
+    "step-24": (30, 24, 6, 6, 100),
+    "step-48": (54, 48, 6, 12, 100),
+}
+
 
 def validate(value: Any, expected_revision: str | None = None,
              require_clean: bool = False) -> dict[str, Any]:
     root = object_value(value, "result")
     schema = root.get("schemaVersion")
-    if schema not in (1, 2, 3, 4, 5):
-        raise EvidenceError("schemaVersion must be between 1 and 5")
+    if schema not in (1, 2, 3, 4, 5, 6):
+        raise EvidenceError("schemaVersion must be between 1 and 6")
     if root.get("benchmark") != "java-v2-haproxy-multi-edge-reconnect":
         raise EvidenceError("benchmark identity is invalid")
     if root.get("warning") != (
@@ -86,8 +92,18 @@ def validate(value: Any, expected_revision: str | None = None,
         raise EvidenceError("reconnect batch count is invalid")
     if scenario.get("scheduledReconnectSpanMillis") != (batches - 1) * interval:
         raise EvidenceError("scheduled reconnect span is invalid")
-    if (connections, affected, surviving, batch, interval) != (18, 12, 6, 3, 100):
-        raise EvidenceError("scenario does not match the bounded baseline")
+    bounded_scenario = (connections, affected, surviving, batch, interval)
+    if schema < 6:
+        if "workloadProfile" in scenario:
+            raise EvidenceError("schemaVersion below 6 cannot contain workloadProfile")
+        if bounded_scenario != WORKLOADS["step-12"]:
+            raise EvidenceError("scenario does not match the bounded baseline")
+    else:
+        workload = scenario.get("workloadProfile")
+        if workload not in WORKLOADS:
+            raise EvidenceError("workloadProfile is not a fixed ladder step")
+        if bounded_scenario != WORKLOADS[workload]:
+            raise EvidenceError("scenario does not match its workloadProfile")
 
     results = object_value(root.get("results"), "results")
     if results.get("reconnectAttempts") != affected:
@@ -215,7 +231,7 @@ def validate(value: Any, expected_revision: str | None = None,
             raise EvidenceError("event-loop saturation exceeds bounded scenario")
     if schema < 5 and "processResourceSaturation" in results:
         raise EvidenceError("schemaVersion below 5 cannot contain process resources")
-    if schema == 5:
+    if schema >= 5:
         process = object_value(
             results.get("processResourceSaturation"), "processResourceSaturation")
         if set(process) != {

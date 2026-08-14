@@ -1676,6 +1676,12 @@ Progress:
   observed 314.183 ms gateway CPU time across 334 ms uptime, heap used
   304-to-318 MiB, and a 318 MiB peak. RSS, GC pauses, repeated workload steps,
   and a saturation knee remain pending (ADR-0392).
+- [x] Replace the single new-evidence point with a schema-6 fixed workload
+  ladder: `step-12`, `step-24`, and `step-48` retain six survivor sessions,
+  four 100 ms-spaced batches, strict topology/resource reconciliation, and the
+  non-capacity warning while increasing each batch from 3 to 6 to 12 resumes.
+  Historical schemas 1 through 5 remain valid; repeated clean runs and a
+  pressure-onset result remain pending (ADR-0393).
 
 Work:
 

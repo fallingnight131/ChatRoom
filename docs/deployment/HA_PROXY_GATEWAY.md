@@ -160,6 +160,11 @@ Release comparison requires clean-tree validation with
 New measurements use schema version 2 and include five-millisecond, in-window
 authentication active-worker and queue-peak sampling (ADR-0386). Schema version
 1 remains supported only for already-recorded historical evidence.
+Schema version 6 adds the fixed `step-12`, `step-24`, and `step-48` comparison
+profiles selected with `--gateway-multi-edge-workload`. Each keeps four batches
+and six survivor sessions; arbitrary counts are intentionally rejected. A
+single profile result is not a production capacity or pressure-onset result
+(ADR-0393).
 
 Before reload, validate the fully rendered deployment file with the exact
 production HAProxy binary. Roll one bounded subset of gateways at a time:
