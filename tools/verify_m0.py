@@ -106,6 +106,14 @@ def verify_gateway_multi_edge(output: Path | None, workload: str) -> None:
     run(command, ROOT)
 
 
+def verify_gateway_multi_edge_ladder(output: Path) -> None:
+    run([
+        sys.executable,
+        str(ROOT / "tools" / "verify_haproxy_multi_edge_ladder.py"),
+        "--output", str(output),
+    ], ROOT)
+
+
 def verify_java_performance(args: argparse.Namespace, output: Path) -> None:
     run([
         sys.executable,
@@ -629,6 +637,11 @@ def parse_args() -> argparse.Namespace:
         help="fixed dual-edge reconnect workload profile",
     )
     parser.add_argument(
+        "--gateway-multi-edge-ladder-output",
+        type=Path,
+        help="run three repetitions of all fixed reconnect profiles",
+    )
+    parser.add_argument(
         "--protocol-bindings",
         action="store_true",
         help="generate and verify V2 C++ and TypeScript client bindings",
@@ -732,6 +745,9 @@ def parse_args() -> argparse.Namespace:
     if (args.gateway_multi_edge_workload != "step-12"
             and args.gateway_multi_edge_output is None):
         parser.error("non-default --gateway-multi-edge-workload requires output evidence")
+    if (args.gateway_multi_edge_ladder_output is not None
+            and args.gateway_multi_edge):
+        parser.error("ladder output and single multi-edge verification are mutually exclusive")
     return args
 
 
@@ -770,6 +786,8 @@ def main() -> int:
     if args.gateway_multi_edge:
         verify_gateway_multi_edge(
             args.gateway_multi_edge_output, args.gateway_multi_edge_workload)
+    if args.gateway_multi_edge_ladder_output is not None:
+        verify_gateway_multi_edge_ladder(args.gateway_multi_edge_ladder_output)
     if args.protocol_bindings or args.all:
         verify_protocol_bindings(args.skip_npm_ci)
     if args.db_schema or args.all:
@@ -824,6 +842,7 @@ def main() -> int:
         or args.gateway_backend_ca_rotation
         or args.gateway_mixed_version
         or args.gateway_multi_edge
+        or args.gateway_multi_edge_ladder_output is not None
         or args.db_schema
         or args.cmake_headless
         or args.password_hash
@@ -847,6 +866,7 @@ def main() -> int:
             "--gateway-backend-ca-rotation, "
             "--gateway-mixed-version, "
             "--gateway-multi-edge, "
+            "--gateway-multi-edge-ladder-output, "
             "--protocol-bindings, "
             "--db-schema, --password-hash, "
             "--cmake-headless, --v1-smoke, --v1-identity-restore, --performance, "

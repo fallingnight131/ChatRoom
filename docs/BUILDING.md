@@ -1618,6 +1618,18 @@ while reconnect batch concentration increases from 3 to 6 to 12. Select a
 profile with `--gateway-multi-edge-workload`; the default is `step-12`.
 Individual runs are raw local observations, not a pressure knee or capacity
 claim (ADR-0393).
+Run the fixed three-by-three ladder with:
+
+```bash
+python3 tools/verify_m0.py \
+  --gateway-multi-edge-ladder-output /tmp/chat-room-reconnect-ladder.json
+```
+
+The aggregate embeds all nine child records and applies the exact majority and
+latency-candidate rules from ADR-0394. Its sibling directory contains the
+individual JSON files. Use a path outside the repository when producing clean
+release evidence. Even a clean result is a local diagnostic, not a production
+capacity or SLO claim.
 The loopback gateway metrics now include
 `chat_gateway_authentication_workers_active` and
 `chat_gateway_authentication_queue_size`; collect them during reconnect windows,

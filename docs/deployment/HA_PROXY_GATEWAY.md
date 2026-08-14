@@ -165,6 +165,11 @@ profiles selected with `--gateway-multi-edge-workload`. Each keeps four batches
 and six survivor sessions; arbitrary counts are intentionally rejected. A
 single profile result is not a production capacity or pressure-onset result
 (ADR-0393).
+For repeated local comparison, use
+`--gateway-multi-edge-ladder-output <path>`. It runs all three profiles three
+times with fresh disposable services, embeds the nine raw records, and applies
+the fixed majority/latency-candidate rules. The conclusion remains diagnostic;
+it must not set production admission, autoscaling, or release SLOs (ADR-0394).
 
 Before reload, validate the fully rendered deployment file with the exact
 production HAProxy binary. Roll one bounded subset of gateways at a time:

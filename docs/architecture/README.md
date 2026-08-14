@@ -1269,6 +1269,12 @@ comparison steps. Each keeps six survivor sessions and four batches scheduled
 profiles and continues to accept schemas 1 through 5. These are inputs for
 repeated local comparison, not a production capacity ladder or saturation
 knee.
+ADR-0394 makes that comparison repeatable: three fresh runs of every fixed
+profile are embedded in one aggregate. A two-of-three majority is required for
+peak queue/waiter/backlog, one-probe-period lag, or normalized CPU pressure;
+the latency heuristic requires both 2x baseline P95 and a 10 ms increase. The
+contract can report a first observed pressure step or candidate knee, but never
+safe capacity. Peak duration, RSS, GC and isolated-host evidence remain gaps.
 
 ## 10. Attachment Flow
 

@@ -1682,6 +1682,12 @@ Progress:
   non-capacity warning while increasing each batch from 3 to 6 to 12 resumes.
   Historical schemas 1 through 5 remain valid; repeated clean runs and a
   pressure-onset result remain pending (ADR-0393).
+- [x] Add a self-contained repeated ladder contract: run each fixed profile
+  three times in a fresh disposable environment, retain all nine schema-6 child
+  records, require shared revision/host identity, and apply versioned majority
+  pressure plus relative-and-absolute latency-candidate rules. The conclusion
+  is explicitly a local diagnostic, never safe capacity or an SLO. A clean
+  commit-exact ladder result remains pending (ADR-0394).
 
 Work:
 
