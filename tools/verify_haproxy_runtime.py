@@ -42,11 +42,12 @@ def available_port() -> int:
         return int(probe.getsockname()[1])
 
 
-def docker_reachable_host_address() -> str:
-    """Return the host's routed IPv4 address without sending external traffic."""
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
-        probe.connect(("192.0.2.1", 9))
-        return str(probe.getsockname()[0])
+DOCKER_HOST_ALIAS = "host.docker.internal"
+
+
+def docker_host_arguments() -> list[str]:
+    """Make the Docker-supported host alias available on every engine."""
+    return ["--add-host", f"{DOCKER_HOST_ALIAS}:host-gateway"]
 
 
 def run(command: list[str], cwd: Path) -> None:
@@ -165,7 +166,7 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
     secondary_proxy_port = available_port() if multi_edge else None
     postgres_port = available_port()
     redis_port = available_port()
-    docker_host = docker_reachable_host_address()
+    docker_host = DOCKER_HOST_ALIAS
     proxy_name = f"chat-haproxy-runtime-{os.getpid()}-{proxy_port}"
     secondary_proxy_name = (f"{proxy_name}-secondary" if multi_edge else None)
 
@@ -262,6 +263,7 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
                     run(render, ROOT)
                     proxy = subprocess.Popen([
                         docker, "run", "--rm", "--name", proxy_name, "--read-only",
+                        *docker_host_arguments(),
                         "-p", f"127.0.0.1:{proxy_port}:8443",
                         "--mount", f"type=bind,src={proxy_root},dst=/work,readonly",
                         IMAGE, "haproxy", "-W", "-db", "-f", f"/work/{config_name}",
@@ -281,7 +283,7 @@ def verify(test_method: str, extra_environment: dict[str, str] | None = None) ->
                              "--output", str(secondary_config)], ROOT)
                         secondary_proxy = subprocess.Popen([
                             docker, "run", "--rm", "--name", secondary_proxy_name,
-                            "--read-only",
+                            "--read-only", *docker_host_arguments(),
                             "-p", f"127.0.0.1:{secondary_proxy_port}:8443",
                             "--mount", f"type=bind,src={proxy_root},dst=/work,readonly",
                             IMAGE, "haproxy", "-W", "-db", "-f",

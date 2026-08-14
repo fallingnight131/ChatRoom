@@ -1492,7 +1492,10 @@ TLS material, two complete Java gateways, and the same digest-pinned HAProxy
 container. It verifies least-connections placement, removal of a draining
 gateway from new-session routing, continued delivery on its existing WSS
 session, reconnect history repair, ordered follow-up delivery, and outbox
-convergence. It is intentionally excluded from `--all`; see ADR-0372.
+convergence. The container reaches the host gateways through Docker's explicit
+`host.docker.internal:host-gateway` mapping, so the gate does not depend on a
+particular macOS, Windows, or Linux host route. It is intentionally excluded
+from `--all`; see ADR-0372.
 
 Force-kill one of two independently running gateway JVMs with:
 
