@@ -1685,6 +1685,8 @@ New raw schema-8 evidence records GC collection count/time before, after, and
 exact delta in the shared reconnect window. A nine-run aggregate with uniform
 schema-8 children uses aggregate schema 3 and includes the per-run deltas.
 Collection time is still not labeled as stop-the-world pause (ADR-0398).
+The first clean GC-aware schema-3 aggregate is retained as
+`docs/baselines/M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_GC_AWARE_LADDER_2026-08-14.*`.
 Schema version 5 records CPU-time and uptime before/after/deltas plus heap used
 before/after/peak, committed before/after, effective maximum, and processors in
 the same shared reconnect window. Committed heap may grow and is not treated as

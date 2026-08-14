@@ -1315,6 +1315,11 @@ remain valid and mismatched pairs are rejected. A real `step-12` verification
 observed no counter advance across 68 available samples. That excludes observed
 collection activity in that window at JMX resolution, not every possible JVM
 pause. RSS and exact pause distribution remain gaps.
+The clean schema-3 ladder at `7e9e7ba0...` completed all nine scenarios. Seven
+runs observed no GC counter delta; two runs each observed one collection with
+1 ms or 3 ms collection-time growth, neither at `step-48`. No sustained or
+latency knee triggered. The sparse collection activity therefore does not
+explain the local profile curve, while exact pauses and RSS remain unmeasured.
 
 ## 10. Attachment Flow
 

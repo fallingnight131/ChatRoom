@@ -1727,6 +1727,12 @@ Progress:
   deltas; aggregate schemas 1/2 remain paired with raw schemas 6/7. A real
   `step-12` run observed 68 available samples and zero collection count/time
   delta. Exact pauses and RSS remain pending (ADR-0398).
+- [x] Record the clean exact-revision GC-aware schema-3 ladder at `7e9e7ba0...`.
+  All nine scenarios converged and no sustained or latency knee triggered.
+  Seven runs had zero GC delta; one `step-12` run observed one collection/1 ms
+  collection time and one `step-24` run observed one collection/3 ms. No
+  `step-48` run collected. Collection activity does not explain the profile
+  curve; exact pauses, RSS, and production capacity remain unproven.
 
 Work:
 
