@@ -1672,8 +1672,10 @@ Progress:
 - [x] Upgrade new dual-edge evidence to schema version 5 and record portable
   process CPU-time/uptime deltas plus JVM heap used endpoints/peak,
   committed endpoints, effective maximum, and processors in the same shared
-  window. A clean schema-5 baseline, RSS, GC pauses, and a saturation knee
-  remain pending (ADR-0392).
+  window. The clean baseline at `841b9680...` completed 12/12 resumes and
+  observed 314.183 ms gateway CPU time across 334 ms uptime, heap used
+  304-to-318 MiB, and a 318 MiB peak. RSS, GC pauses, repeated workload steps,
+  and a saturation knee remain pending (ADR-0392).
 
 Work:
 

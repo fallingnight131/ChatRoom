@@ -1258,6 +1258,10 @@ ADR-0392 incorporates portable process CPU time and heap state into schema
 version 5 of the shared recovery evidence. It reconciles cumulative CPU and
 uptime deltas, permits committed-heap growth, and preserves schemas 1 through 4
 as historical contracts.
+The first clean schema version 5 result at `841b9680...` consumed 314.183 ms of
+gateway CPU time across 334 ms uptime and observed gateway heap used grow from
+304 to 318 MiB, with all 12 sessions resumed. The evidence distinguishes the
+measured gateway JVM from the Gradle test JVM and remains a local curve.
 
 ## 10. Attachment Flow
 

@@ -1650,6 +1650,9 @@ Schema version 5 records CPU-time and uptime before/after/deltas plus heap used
 before/after/peak, committed before/after, effective maximum, and processors in
 the same shared reconnect window. Committed heap may grow and is not treated as
 an invariant (ADR-0392).
+The first clean schema version 5 result and its two-JVM interpretation are
+retained as
+`docs/baselines/M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_PROCESS_RESOURCE_SATURATION_2026-08-14.*`.
 
 ADR-0362 factory tests prove the disabled configuration performs no dependency
 access and the enabled graph shares one Redis adapter across route, publish, and
