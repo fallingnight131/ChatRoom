@@ -12,6 +12,24 @@ public final class GatewayProcessResources {
     public static ProcessResourceSnapshot snapshot() {
         MemoryUsage heap = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage();
         Optional<Duration> cpu = ProcessHandle.current().info().totalCpuDuration();
+        long gcCollections = 0;
+        long gcCollectionTimeMillis = 0;
+        boolean gcMetricsAvailable = true;
+        for (var collector : ManagementFactory.getGarbageCollectorMXBeans()) {
+            long collections = collector.getCollectionCount();
+            long collectionTimeMillis = collector.getCollectionTime();
+            if (collections < 0 || collectionTimeMillis < 0) {
+                gcMetricsAvailable = false;
+                break;
+            }
+            gcCollections = Math.addExact(gcCollections, collections);
+            gcCollectionTimeMillis = Math.addExact(
+                    gcCollectionTimeMillis, collectionTimeMillis);
+        }
+        if (!gcMetricsAvailable) {
+            gcCollections = 0;
+            gcCollectionTimeMillis = 0;
+        }
         return new ProcessResourceSnapshot(
                 cpu.isPresent(),
                 cpu.map(Duration::toNanos).orElse(0L),
@@ -19,6 +37,7 @@ public final class GatewayProcessResources {
                 heap.getCommitted(),
                 Runtime.getRuntime().maxMemory(),
                 ManagementFactory.getRuntimeMXBean().getUptime(),
-                Runtime.getRuntime().availableProcessors());
+                Runtime.getRuntime().availableProcessors(),
+                gcMetricsAvailable, gcCollections, gcCollectionTimeMillis);
     }
 }

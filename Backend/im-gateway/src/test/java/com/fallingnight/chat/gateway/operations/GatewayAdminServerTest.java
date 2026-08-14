@@ -53,7 +53,8 @@ class GatewayAdminServerTest {
                 () -> new PostgresPoolSnapshot(true, 2, 1, 3, 4, 8),
                 () -> new EventLoopSnapshot(true, 4, 12, 2_000_000, 7_000_000, 3),
                 () -> new ProcessResourceSnapshot(
-                        true, 2_500_000_000L, 100, 200, 400, 3_000, 8),
+                        true, 2_500_000_000L, 100, 200, 400, 3_000, 8,
+                        true, 9, 125),
                 readiness,
                 () -> "# TYPE chat_gateway_distributed_metrics_available gauge\n"
                         + "chat_gateway_distributed_metrics_available 1\n",
@@ -139,6 +140,10 @@ class GatewayAdminServerTest {
             assertTrue(metrics.body().contains("chat_gateway_process_uptime_seconds 3.000"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_process_available_processors 8"));
+            assertTrue(metrics.body().contains("chat_gateway_jvm_gc_metrics_available 1"));
+            assertTrue(metrics.body().contains("chat_gateway_jvm_gc_collections_total 9"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_jvm_gc_collection_seconds_total 0.125"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_device_management_total{outcome=\"revoked\"} 1"));
             assertTrue(metrics.body().contains(

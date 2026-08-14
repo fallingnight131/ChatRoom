@@ -1301,6 +1301,13 @@ one `step-24` run contained a two-sample streak; no profile met the sustained
 majority and no latency candidate triggered. This reverses the peak-only local
 classification without claiming safe capacity. Independent gateway RSS and GC
 pause evidence are the next resource gaps.
+ADR-0397 closes the first part without platform-native code: loopback metrics
+now export fixed-name JVM GC availability, cumulative collection count, and
+cumulative collection elapsed seconds. Values are aggregated across collectors
+and fail closed if any bean reports undefined data. Collection elapsed time is
+not relabeled as stop-the-world pause, and it has not yet been incorporated into
+the reconnect evidence window. Portable RSS remains unavailable through the
+selected standard JDK boundary.
 
 ## 10. Attachment Flow
 

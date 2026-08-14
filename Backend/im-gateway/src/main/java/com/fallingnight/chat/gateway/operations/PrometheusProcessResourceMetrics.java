@@ -28,7 +28,18 @@ public final class PrometheusProcessResourceMetrics {
                 + String.format(Locale.ROOT, "%.3f", snapshot.uptimeMillis() / 1000.0) + "\n"
                 + "# TYPE chat_gateway_process_available_processors gauge\n"
                 + "chat_gateway_process_available_processors "
-                + snapshot.availableProcessors() + "\n";
+                + snapshot.availableProcessors() + "\n"
+                + "# TYPE chat_gateway_jvm_gc_metrics_available gauge\n"
+                + "chat_gateway_jvm_gc_metrics_available "
+                + (snapshot.gcMetricsAvailable() ? 1 : 0) + "\n"
+                + "# TYPE chat_gateway_jvm_gc_collections_total counter\n"
+                + "chat_gateway_jvm_gc_collections_total "
+                + snapshot.gcCollectionCount() + "\n"
+                + "# TYPE chat_gateway_jvm_gc_collection_seconds_total counter\n"
+                + "chat_gateway_jvm_gc_collection_seconds_total "
+                + String.format(Locale.ROOT, "%.3f",
+                        snapshot.gcCollectionTimeMillis() / 1000.0)
+                + "\n";
     }
 
     private static String seconds(long nanos) {

@@ -8,7 +8,10 @@ public record ProcessResourceSnapshot(
         long heapCommittedBytes,
         long heapMaximumBytes,
         long uptimeMillis,
-        int availableProcessors) {
+        int availableProcessors,
+        boolean gcMetricsAvailable,
+        long gcCollectionCount,
+        long gcCollectionTimeMillis) {
 
     public ProcessResourceSnapshot {
         if (processCpuTimeNanos < 0 || heapUsedBytes < 0 || heapCommittedBytes < 0
@@ -17,6 +20,13 @@ public record ProcessResourceSnapshot(
         }
         if (!cpuTimeAvailable && processCpuTimeNanos != 0) {
             throw new IllegalArgumentException("unavailable CPU time must be zero");
+        }
+        if (gcCollectionCount < 0 || gcCollectionTimeMillis < 0) {
+            throw new IllegalArgumentException("GC resource gauges are invalid");
+        }
+        if (!gcMetricsAvailable
+                && (gcCollectionCount != 0 || gcCollectionTimeMillis != 0)) {
+            throw new IllegalArgumentException("unavailable GC metrics must be zero");
         }
         if (heapUsedBytes > heapCommittedBytes || heapCommittedBytes > heapMaximumBytes) {
             throw new IllegalArgumentException("JVM heap gauges are inconsistent");

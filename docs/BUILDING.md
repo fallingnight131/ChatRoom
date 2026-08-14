@@ -1676,7 +1676,11 @@ The first clean schema version 4 result and its limitations are retained as
 Portable loopback resource metrics now expose cumulative process CPU seconds,
 CPU-time availability, JVM heap used/committed/maximum, uptime, and available
 processors. CPU percentage must be derived over a bounded wall-time window;
-RSS, GC pauses, and cgroup limits remain unmeasured (ADR-0391).
+RSS, exact GC pauses, and cgroup limits remain unmeasured (ADR-0391).
+The same snapshot now exports JVM GC metric availability, cumulative collection
+count, and cumulative collection elapsed seconds. Collection elapsed time is
+not stop-the-world pause time and must be interpreted only as a before/after
+counter over a bounded window (ADR-0397).
 Schema version 5 records CPU-time and uptime before/after/deltas plus heap used
 before/after/peak, committed before/after, effective maximum, and processors in
 the same shared reconnect window. Committed heap may grow and is not treated as

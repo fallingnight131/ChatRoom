@@ -1715,6 +1715,12 @@ Progress:
   latency-candidate ratio. The strict conclusion is no sustained-pressure knee
   observed within this local ladder, not safe production capacity. Gateway-child
   RSS and GC pause evidence remain pending.
+- [x] Export portable fixed-name JVM GC availability, cumulative collection
+  count, and cumulative collection elapsed seconds from standard management
+  beans. Undefined values fail closed as unavailable/zero and do not affect
+  readiness. Collection time is explicitly not labeled stop-the-world pause;
+  reconnect-window deltas, exact pause evidence, and RSS remain pending
+  (ADR-0397).
 
 Work:
 
