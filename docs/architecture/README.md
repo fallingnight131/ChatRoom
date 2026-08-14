@@ -1344,6 +1344,11 @@ availability, configured 250 ms refresh, bytes before/after/maximum, maximum
 sample age, and failure-counter movement; aggregate schema 4 retains these per
 run. A fully unavailable macOS window is explicit valid evidence, but cannot
 support an RSS or capacity claim.
+The first clean aggregate-schema-4 ladder at `5c50a0b...` completed all nine
+profiles without a sustained-pressure or latency knee. Every macOS child
+reported RSS unavailable with zero byte fields, so it verifies compatibility
+and honest absence only. Linux-host positive RSS evidence remains the next
+measurement gate.
 
 ## 10. Attachment Flow
 

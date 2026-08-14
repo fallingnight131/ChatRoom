@@ -1758,6 +1758,12 @@ Progress:
   movement without treating repeated cache observations as native samples.
   Fully unavailable macOS windows remain valid and explicitly unmeasured;
   positive Linux-host evidence remains pending (ADR-0400).
+- [x] Retain a clean aggregate-schema-4 ladder at exact revision `5c50a0b...`.
+  All nine dual-edge scenarios completed; no sustained-pressure or latency knee
+  triggered. Every macOS child reported zero available RSS samples and zero
+  byte fields, proving schema compatibility and honest unavailability rather
+  than process-memory capacity. Positive Linux-host RSS evidence remains
+  pending.
 
 Work:
 

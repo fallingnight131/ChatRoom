@@ -1709,6 +1709,10 @@ cached bytes before/after/maximum, maximum sample age, and read-failure delta.
 Aggregate schema 4 requires nine uniform raw schema-9 children and retains the
 same fields per run. Fully unavailable macOS evidence is valid only when all
 resident-byte fields remain zero (ADR-0400).
+The first clean RSS-aware aggregate is retained as
+`docs/baselines/M5_JAVA_GATEWAY_MULTI_EDGE_RECONNECT_RSS_AWARE_LADDER_2026-08-14.*`.
+All nine macOS runs correctly recorded RSS as unavailable/zero, so this is a
+schema and failure-semantics baseline rather than a process-memory baseline.
 Schema version 5 records CPU-time and uptime before/after/deltas plus heap used
 before/after/peak, committed before/after, effective maximum, and processors in
 the same shared reconnect window. Committed heap may grow and is not treated as
