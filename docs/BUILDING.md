@@ -1698,7 +1698,11 @@ server provider have separate evidence gates.
 The dependency-free provider foundation now strictly parses Linux `VmRSS` and
 caches platform reads behind a minimum 250 ms lifecycle-owned sampler. On
 unsupported hosts such as the current macOS configuration it remains explicitly
-unavailable; loopback metric composition is a later slice (ADR-0399).
+unavailable; the provider slice deferred loopback composition (ADR-0399).
+The loopback endpoint now renders the cached RSS availability, resident bytes,
+sample age, and read-failure counter, and `GatewayRuntime` owns sampler cleanup.
+On macOS the reviewed provider remains unavailable/zero; Linux-host integration
+must prove a positive cached `VmRSS` before RSS-aware evidence is claimed.
 Schema version 5 records CPU-time and uptime before/after/deltas plus heap used
 before/after/peak, committed before/after, effective maximum, and processors in
 the same shared reconnect window. Committed heap may grow and is not treated as

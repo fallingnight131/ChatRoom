@@ -44,6 +44,7 @@ public final class GatewayAdminServer implements AutoCloseable {
                 attachmentCleanupTelemetry, authenticationActiveWorkers,
                 authenticationQueuedWork, messagingActiveWorkers, messagingQueuedWork,
                 postgresPoolSnapshot, eventLoopSnapshot, processResourceSnapshot,
+                GatewayAdminServer::unavailableResidentMemory,
                 readiness, () -> "",
                 GatewayReleaseIdentity.fromEnvironment(Map.of()));
     }
@@ -63,6 +64,7 @@ public final class GatewayAdminServer implements AutoCloseable {
                 attachmentCleanupTelemetry, authenticationActiveWorkers,
                 authenticationQueuedWork, messagingActiveWorkers, messagingQueuedWork,
                 postgresPoolSnapshot, eventLoopSnapshot, processResourceSnapshot,
+                GatewayAdminServer::unavailableResidentMemory,
                 readiness, distributedMetrics,
                 GatewayReleaseIdentity.fromEnvironment(Map.of()));
     }
@@ -77,6 +79,7 @@ public final class GatewayAdminServer implements AutoCloseable {
             Supplier<PostgresPoolSnapshot> postgresPoolSnapshot,
             Supplier<EventLoopSnapshot> eventLoopSnapshot,
             Supplier<ProcessResourceSnapshot> processResourceSnapshot,
+            Supplier<ResidentMemorySnapshot> residentMemorySnapshot,
             BooleanSupplier readiness, Supplier<String> distributedMetrics,
             GatewayReleaseIdentity releaseIdentity) {
         Objects.requireNonNull(address, "address");
@@ -91,6 +94,7 @@ public final class GatewayAdminServer implements AutoCloseable {
         Objects.requireNonNull(postgresPoolSnapshot, "postgresPoolSnapshot");
         Objects.requireNonNull(eventLoopSnapshot, "eventLoopSnapshot");
         Objects.requireNonNull(processResourceSnapshot, "processResourceSnapshot");
+        Objects.requireNonNull(residentMemorySnapshot, "residentMemorySnapshot");
         Objects.requireNonNull(readiness, "readiness");
         Objects.requireNonNull(distributedMetrics, "distributedMetrics");
         Objects.requireNonNull(releaseIdentity, "releaseIdentity");
@@ -143,11 +147,17 @@ public final class GatewayAdminServer implements AutoCloseable {
                         + PrometheusEventLoopMetrics.render(eventLoopSnapshot.get())
                         + PrometheusProcessResourceMetrics.render(
                                 processResourceSnapshot.get())
+                        + PrometheusResidentMemoryMetrics.render(
+                                residentMemorySnapshot.get())
                         + distributedMetrics.get()));
     }
 
     public void start() {
         server.start();
+    }
+
+    private static ResidentMemorySnapshot unavailableResidentMemory() {
+        return new ResidentMemorySnapshot(false, 0, 0, 0);
     }
 
     public InetSocketAddress address() {

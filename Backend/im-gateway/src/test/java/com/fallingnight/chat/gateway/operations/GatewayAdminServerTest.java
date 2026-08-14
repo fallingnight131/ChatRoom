@@ -55,6 +55,7 @@ class GatewayAdminServerTest {
                 () -> new ProcessResourceSnapshot(
                         true, 2_500_000_000L, 100, 200, 400, 3_000, 8,
                         true, 9, 125),
+                () -> new ResidentMemorySnapshot(true, 321, 125, 2),
                 readiness,
                 () -> "# TYPE chat_gateway_distributed_metrics_available gauge\n"
                         + "chat_gateway_distributed_metrics_available 1\n",
@@ -144,6 +145,14 @@ class GatewayAdminServerTest {
             assertTrue(metrics.body().contains("chat_gateway_jvm_gc_collections_total 9"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_jvm_gc_collection_seconds_total 0.125"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_process_resident_memory_available 1"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_process_resident_memory_bytes 321"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_process_resident_memory_sample_age_seconds 0.125"));
+            assertTrue(metrics.body().contains(
+                    "chat_gateway_process_resident_memory_read_failures_total 2"));
             assertTrue(metrics.body().contains(
                     "chat_gateway_device_management_total{outcome=\"revoked\"} 1"));
             assertTrue(metrics.body().contains(

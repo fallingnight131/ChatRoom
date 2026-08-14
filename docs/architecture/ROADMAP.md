@@ -1746,6 +1746,12 @@ Progress:
   daemon sampler, cached availability/bytes/age/failure snapshots, recovery
   after read failure, and lifecycle shutdown. Loopback metric composition and
   Linux-host integration evidence remain pending (ADR-0399).
+- [x] Compose the cached RSS snapshot into the loopback endpoint with fixed
+  availability, resident bytes, sample age, and read-failure metrics. The
+  sampler is owned and closed by `GatewayRuntime`, partial construction closes
+  it, readiness is unchanged, and unsupported macOS reports unavailable/zero
+  without shell commands. Linux-host available-metric and reconnect-window
+  evidence remain pending (ADR-0399).
 
 Work:
 

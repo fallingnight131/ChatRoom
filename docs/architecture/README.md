@@ -1331,8 +1331,13 @@ The first ADR-0399 implementation slice now provides strict bounded Linux
 `VmRSS` parsing, overflow-safe KiB conversion, explicit unsupported fallback,
 and a lifecycle-owned daemon cache with a 250 ms minimum interval, sample age,
 failure count, and recovery. It performs no native/file read from a metrics
-snapshot call. Runtime metric composition and Linux-host integration evidence
-remain separate gates.
+snapshot call. The subsequent composition slice connects that cache to the
+loopback metrics response and
+`GatewayRuntime` ownership. Metrics expose fixed availability, bytes, sample
+age, and cumulative failures; admin scrapes perform no platform read. Runtime
+shutdown and partial-construction cleanup close the daemon sampler. Unsupported
+macOS reports unavailable/zero, while Linux availability still requires native
+host integration evidence.
 
 ## 10. Attachment Flow
 

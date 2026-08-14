@@ -1970,6 +1970,18 @@ class GatewayRuntimePostgresIntegrationTest {
                     poolMetrics, "chat_gateway_jvm_gc_collections_total") >= 0);
             assertTrue(fixedSecondsMillis(
                     poolMetrics, "chat_gateway_jvm_gc_collection_seconds_total") >= 0);
+            int residentMemoryAvailable = fixedGauge(
+                    poolMetrics, "chat_gateway_process_resident_memory_available");
+            assertTrue(residentMemoryAvailable == 0 || residentMemoryAvailable == 1);
+            long residentMemoryBytes = fixedLongGauge(
+                    poolMetrics, "chat_gateway_process_resident_memory_bytes");
+            assertEquals(residentMemoryAvailable == 1, residentMemoryBytes > 0);
+            assertTrue(fixedSecondsMillis(
+                    poolMetrics,
+                    "chat_gateway_process_resident_memory_sample_age_seconds") >= 0);
+            assertTrue(fixedLongGauge(
+                    poolMetrics,
+                    "chat_gateway_process_resident_memory_read_failures_total") >= 0);
 
             Files.writeString(control.resolve("haproxy-primary-stop-request"), "stop\n");
             awaitFile(control.resolve("haproxy-primary-stopped"), Duration.ofSeconds(10));

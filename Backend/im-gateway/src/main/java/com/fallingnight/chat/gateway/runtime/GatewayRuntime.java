@@ -6,6 +6,7 @@ import com.fallingnight.chat.application.identity.DeviceManagementService;
 import com.fallingnight.chat.gateway.operations.AttachmentCleanupTelemetry;
 import com.fallingnight.chat.gateway.operations.GatewayAdminServer;
 import com.fallingnight.chat.gateway.operations.GatewayProcessResources;
+import com.fallingnight.chat.gateway.operations.ResidentMemorySampler;
 import com.fallingnight.chat.gateway.operations.PrometheusConversationEventOutboxMetrics;
 import com.fallingnight.chat.gateway.operations.PrometheusGatewayRoutingMetrics;
 import com.fallingnight.chat.gateway.transport.AuthenticationTelemetry;
@@ -51,6 +52,7 @@ public final class GatewayRuntime implements AutoCloseable {
     private final AutoCloseable messagingWorkers;
     private final AutoCloseable dataSource;
     private final ManagedDependency distributedRouting;
+    private final AutoCloseable residentMemorySampler;
     private final Duration drainTimeout;
     private boolean started;
     private boolean productStarted;
@@ -64,6 +66,7 @@ public final class GatewayRuntime implements AutoCloseable {
             AutoCloseable messagingWorkers,
             AutoCloseable dataSource,
             ManagedDependency distributedRouting,
+            AutoCloseable residentMemorySampler,
             BooleanSupplier dependencyReadiness,
             Duration drainTimeout) {
         this.readiness = Objects.requireNonNull(readiness, "readiness");
@@ -74,6 +77,8 @@ public final class GatewayRuntime implements AutoCloseable {
         this.messagingWorkers = Objects.requireNonNull(messagingWorkers, "messagingWorkers");
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
         this.distributedRouting = Objects.requireNonNull(distributedRouting, "distributedRouting");
+        this.residentMemorySampler = Objects.requireNonNull(
+                residentMemorySampler, "residentMemorySampler");
         this.dependencyReadiness = Objects.requireNonNull(
                 dependencyReadiness, "dependencyReadiness");
         this.drainTimeout = Objects.requireNonNull(drainTimeout, "drainTimeout");
@@ -93,6 +98,7 @@ public final class GatewayRuntime implements AutoCloseable {
         GatewayAdminServer adminServer = null;
         V2GatewayServer productServer = null;
         ManagedDependency distributedRouting = null;
+        ResidentMemorySampler residentMemorySampler = null;
         try {
             dataSource = GatewayPostgresDataSource.create(config);
             PostgresIdentityAdapter identity = new PostgresIdentityAdapter(dataSource);
@@ -181,6 +187,8 @@ public final class GatewayRuntime implements AutoCloseable {
                     productLiveRouter,
                     publicReadiness);
             V2GatewayServer eventLoopMetricsServer = productServer;
+            residentMemorySampler = ResidentMemorySampler.startDefault(Duration.ofMillis(250));
+            ResidentMemorySampler residentMemoryMetricsSampler = residentMemorySampler;
             adminServer = new GatewayAdminServer(
                     config.adminAddress(),
                     config.adminWorkers(),
@@ -196,6 +204,7 @@ public final class GatewayRuntime implements AutoCloseable {
                             readinessDataSource, config.postgresPoolMaximum()),
                     eventLoopMetricsServer::eventLoopSnapshot,
                     GatewayProcessResources::snapshot,
+                    residentMemoryMetricsSampler::snapshot,
                     publicReadiness,
                     distributedMetrics,
                     config.releaseIdentity());
@@ -207,12 +216,14 @@ public final class GatewayRuntime implements AutoCloseable {
                     messagingWorkers,
                     dataSource,
                     distributedRouting,
+                    residentMemorySampler,
                     dependencyReadiness,
                     config.drainTimeout());
         } catch (RuntimeException exception) {
             closeQuietly(adminServer);
             closeQuietly(productServer);
             closeQuietly(distributedRouting);
+            closeQuietly(residentMemorySampler);
             closeQuietly(messagingWorkers);
             closeQuietly(workers);
             closeQuietly(dataSource);
@@ -229,7 +240,7 @@ public final class GatewayRuntime implements AutoCloseable {
             AutoCloseable dataSource) {
         return new GatewayRuntime(
                 readiness, admin, product, authenticationWorkers, messagingWorkers, dataSource,
-                disabledDependency(), () -> true, Duration.ZERO);
+                disabledDependency(), () -> { }, () -> true, Duration.ZERO);
     }
 
     static GatewayRuntime forTest(
@@ -238,7 +249,7 @@ public final class GatewayRuntime implements AutoCloseable {
             AutoCloseable dataSource, ManagedDependency distributedRouting) {
         return new GatewayRuntime(readiness, admin, product, authenticationWorkers,
                 messagingWorkers, dataSource, distributedRouting,
-                distributedRouting::ready, Duration.ZERO);
+                () -> { }, distributedRouting::ready, Duration.ZERO);
     }
 
     public synchronized void start() {
@@ -282,6 +293,7 @@ public final class GatewayRuntime implements AutoCloseable {
         closeQuietly(product);
         closeQuietly(distributedRouting);
         closeQuietly(admin);
+        closeQuietly(residentMemorySampler);
         closeQuietly(messagingWorkers);
         closeQuietly(authenticationWorkers);
         closeQuietly(dataSource);
