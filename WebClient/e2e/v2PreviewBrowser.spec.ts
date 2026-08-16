@@ -4,6 +4,7 @@ import { MessageType } from "../src/protocol/v2/generated/control_pb";
 import {
   FIXTURE_CONVERSATION_ID,
   KEYBOARD_CONVERSATION_ID,
+  PEER_ACCOUNT_ID,
   createV2ProtocolFixture,
   type V2ProtocolFixtureOptions,
 } from "./fixtures/v2ProtocolFixture";
@@ -13,6 +14,7 @@ const searchCandidate = process.env.CHATROOM_V2_BROWSER_SEARCH === "true";
 const searchRollback = process.env.CHATROOM_V2_BROWSER_SEARCH_ROLLBACK === "true";
 const forwardingCandidate = process.env.CHATROOM_V2_BROWSER_FORWARDING === "true";
 const forwardingRollback = process.env.CHATROOM_V2_BROWSER_FORWARDING_ROLLBACK === "true";
+const mentionsCandidate = process.env.CHATROOM_V2_BROWSER_MENTIONS === "true";
 const FIXTURE_MESSAGE_ID = "60000000-0000-4000-8000-000000000001";
 
 async function installV2SocketFixture(
@@ -167,6 +169,62 @@ test("authenticates, synchronizes, and accepts one V2 message", async ({ page })
   expect(fixture.receivedTypes.filter(type => type === MessageType.SUBMIT_MESSAGE)).toHaveLength(1);
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain("non-secret-test-value");
   expect(socketUrls).toEqual(["wss://fixture.invalid/v2/web"]);
+});
+
+test("selects a non-self participant and sends one identity-backed Unicode mention", async ({ page }) => {
+  test.skip(!enabled || !mentionsCandidate,
+    "requires the explicit V2 structured-mention browser candidate");
+  const { fixture } = await installV2SocketFixture(page, "accept");
+
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  await page.getByLabel("用户 ID").fill("browser_v2_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await page.getByRole("button", { name: /Browser Fixture Conversation/ }).click();
+
+  const trigger = page.getByRole("button", { name: "@ 提及成员" });
+  await trigger.focus();
+  await trigger.press("Enter");
+  const picker = page.getByRole("dialog", { name: "选择要提及的成员" });
+  await expect(picker).toBeVisible();
+  const participants = picker.getByRole("listbox", { name: "会话成员" });
+  const peer = participants.getByRole("option", { name: /李雷/ });
+  await expect(peer).toBeVisible();
+  await expect(participants.getByRole("option", { name: /Browser V2 User/ })).toHaveCount(0);
+  const participantTree = await participants.ariaSnapshot();
+  expect(participantTree).toContain('- listbox "会话成员"');
+  expect(participantTree).toContain('option "李雷');
+  expect(participantTree).not.toContain("Browser V2 User");
+
+  await peer.focus();
+  await peer.press("Enter");
+  await expect(picker).toBeHidden();
+  const composer = page.getByLabel("消息内容");
+  await expect(composer).toBeFocused();
+  await expect(composer).toHaveValue("@李雷 ");
+  await composer.pressSequentially("Fixture mentioned message");
+  await composer.press("Enter");
+
+  const log = page.getByRole("log", { name: "消息记录" });
+  await expect(log.getByText("@李雷 Fixture mentioned message")).toBeVisible();
+  await expect(log.locator(".message-mention", { hasText: "@李雷" }))
+    .toHaveAttribute("title", `账号 ${PEER_ACCOUNT_ID}`);
+  await expect(page.getByLabel("消息 2：已接收")).toBeVisible();
+  expect(fixture.participantRequests).toEqual([{
+    conversationId: FIXTURE_CONVERSATION_ID,
+    afterAccountId: "",
+    limit: 100,
+  }]);
+  expect(fixture.mentionSubmissions).toEqual([{
+    text: "@李雷 Fixture mentioned message",
+    targetAccountId: PEER_ACCOUNT_ID,
+    startUtf8Byte: 0,
+    lengthUtf8Bytes: 7,
+  }]);
+  expect(fixture.receivedTypes.filter(
+    type => type === MessageType.LIST_CONVERSATION_PARTICIPANTS)).toHaveLength(1);
+  expect(fixture.receivedTypes.filter(type => type === MessageType.SUBMIT_MESSAGE)).toHaveLength(1);
 });
 
 test("activates bounded V2 search and reveals one result through the keyboard", async ({ page }) => {

@@ -1132,7 +1132,10 @@ export class V2WebChatApplication {
     const state = this.participants.get(pending.conversationId);
     if (!state) return;
     const merged = new Map(state.values.map((value) => [value.accountId, value]));
+    const ownAccountId = this.sessionValue?.accountId ?? "";
+    if (ownAccountId) merged.delete(ownAccountId);
     for (const participant of event.value.participants) {
+      if (participant.accountId === ownAccountId) continue;
       merged.set(participant.accountId, mapParticipant(participant));
     }
     state.values = [...merged.values()]

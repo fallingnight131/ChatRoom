@@ -2054,6 +2054,11 @@ Progress:
     - [x] Persist Web mention metadata with authoritative messages and pending
       submission/edit workflows, then add composition, rendering,
       accessibility, reconnect convergence, and Web capability activation.
+      - [x] Add generated-Protobuf Chromium/Firefox composition evidence that
+        returns the authenticated account in the authoritative participant
+        page, excludes self from picker candidates, inserts a Unicode display
+        token by keyboard, submits its exact identity plus half-open 7-byte
+        UTF-8 span, and preserves identity-backed rendering after acceptance.
     - [ ] Add the equivalent Windows protocol, SQLite, composition, rendering,
       accessibility, reconnect convergence, and capability activation gates.
       - [x] Extend the default-off Windows messaging protocol boundary with

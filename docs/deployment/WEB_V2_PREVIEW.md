@@ -116,6 +116,13 @@ selection, source-conversation exclusion, the one-target type-119 command,
 acceptance, and privacy-safe destination history. Rebuilding the same revision
 with forwarding disabled proves the action and command disappear. This remains
 local composition/rollback evidence below the real gateway endpoint gate.
+The standard V2 candidate's structured-mention path returns both the authenticated
+account and one Unicode-named peer through generated type 117/118 envelopes. The
+application must exclude self, expose the peer through the named keyboard-native
+listbox, and submit `@李雷` as the peer's stable account identity at UTF-8 byte
+offset 0 with length 7. Chromium and Firefox verify acceptance and identity-backed
+rendering; the deterministic fixture is not evidence of live membership
+authorization or PostgreSQL persistence.
 The fixture does not satisfy the real TLS, Origin/Host, gateway, database,
 physical network, edge-failover, or deployment checks above and must not be
 reported as release or capacity evidence.

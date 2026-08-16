@@ -22,7 +22,9 @@ import {
 import {
   ConversationDirectoryPageSchema,
   ConversationKind,
+  ConversationParticipantPageSchema,
   ConversationRole,
+  ListConversationParticipantsSchema,
   ListConversationsSchema,
 } from "../../src/protocol/v2/generated/conversation_pb";
 import {
@@ -48,7 +50,7 @@ import {
 
 const NOW = 1_800_000_000_000n;
 const ACCOUNT_ID = "20000000-0000-4000-8000-000000000001";
-const PEER_ACCOUNT_ID = "20000000-0000-4000-8000-000000000002";
+export const PEER_ACCOUNT_ID = "20000000-0000-4000-8000-000000000002";
 const PEER_DEVICE_ID = "30000000-0000-4000-8000-000000000002";
 const SESSION_ID = "40000000-0000-4000-8000-000000000001";
 export const FIXTURE_CONVERSATION_ID = "50000000-0000-4000-8000-000000000001";
@@ -75,6 +77,17 @@ export interface V2ProtocolFixture {
     beforeSequence: bigint;
     limit: number;
   }>;
+  readonly participantRequests: Array<{
+    conversationId: string;
+    afterAccountId: string;
+    limit: number;
+  }>;
+  readonly mentionSubmissions: Array<{
+    text: string;
+    targetAccountId: string;
+    startUtf8Byte: number;
+    lengthUtf8Bytes: number;
+  }>;
   readonly forwardRequests: Array<{
     sourceConversationId: string;
     sourceMessageId: string;
@@ -92,6 +105,8 @@ export function createV2ProtocolFixture(
   const receivedTypes: MessageType[] = [];
   const clientHelloAppVersions: string[] = [];
   const searchQueries: V2ProtocolFixture["searchQueries"] = [];
+  const participantRequests: V2ProtocolFixture["participantRequests"] = [];
+  const mentionSubmissions: V2ProtocolFixture["mentionSubmissions"] = [];
   const forwardRequests: V2ProtocolFixture["forwardRequests"] = [];
   let clientDeviceId = "";
   let resumed = false;
@@ -102,6 +117,8 @@ export function createV2ProtocolFixture(
     receivedTypes,
     clientHelloAppVersions,
     searchQueries,
+    participantRequests,
+    mentionSubmissions,
     forwardRequests,
     respond(raw) {
       const request = fromBinary(EnvelopeSchema, Uint8Array.from(raw));
@@ -191,6 +208,29 @@ export function createV2ProtocolFixture(
               lastSeenAtEpochMs: NOW,
               current: true,
             }] }, { sessionId: SESSION_ID });
+        case MessageType.LIST_CONVERSATION_PARTICIPANTS: {
+          const participants = fromBinary(ListConversationParticipantsSchema, request.payload);
+          requireSession(request);
+          if (participants.conversationId !== FIXTURE_CONVERSATION_ID
+              || participants.afterAccountId !== "" || participants.limit !== 100) {
+            throw new Error("unexpected V2 fixture participant request");
+          }
+          participantRequests.push({
+            conversationId: participants.conversationId,
+            afterAccountId: participants.afterAccountId,
+            limit: participants.limit,
+          });
+          return response(request, MessageType.CONVERSATION_PARTICIPANT_PAGE,
+            ConversationParticipantPageSchema, {
+              conversationId: FIXTURE_CONVERSATION_ID,
+              participants: [
+                { accountId: ACCOUNT_ID, displayName: "Browser V2 User", role: ConversationRole.MEMBER },
+                { accountId: PEER_ACCOUNT_ID, displayName: "李雷", role: ConversationRole.MEMBER },
+              ],
+              nextAccountId: PEER_ACCOUNT_ID,
+              hasMore: false,
+            }, { sessionId: SESSION_ID });
+        }
         case MessageType.READ_MESSAGE_HISTORY: {
           const history = fromBinary(ReadMessageHistorySchema, request.payload);
           requireSession(request);
@@ -310,11 +350,28 @@ export function createV2ProtocolFixture(
           const submission = fromBinary(SubmitMessageSchema, request.payload);
           requireSession(request);
           const text = new TextDecoder().decode(submission.content);
+          const mentioned = text === "@李雷 Fixture mentioned message";
           if (submission.conversationId !== FIXTURE_CONVERSATION_ID
               || submission.contentType !== MessageContentType.TEXT_UTF8
-              || !["Fixture outgoing message", "Offline queued message"].includes(text)
+              || (!mentioned && !["Fixture outgoing message", "Offline queued message"].includes(text))
               || !request.clientMessageId) {
             throw new Error("unexpected V2 fixture message submission");
+          }
+          if (mentioned) {
+            if (submission.mentions.length !== 1
+                || submission.mentions[0]?.targetAccountId !== PEER_ACCOUNT_ID
+                || submission.mentions[0]?.startUtf8Byte !== 0
+                || submission.mentions[0]?.lengthUtf8Bytes !== 7) {
+              throw new Error("unexpected V2 fixture mention span");
+            }
+            mentionSubmissions.push({
+              text,
+              targetAccountId: submission.mentions[0].targetAccountId,
+              startUtf8Byte: submission.mentions[0].startUtf8Byte,
+              lengthUtf8Bytes: submission.mentions[0].lengthUtf8Bytes,
+            });
+          } else if (submission.mentions.length !== 0) {
+            throw new Error("unexpected mentions on ordinary V2 fixture submission");
           }
           return response(request, MessageType.MESSAGE_ACCEPTED,
             MessageAcceptedSchema, {

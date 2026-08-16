@@ -38,6 +38,7 @@ import type {
 } from "../src/protocol/v2/webSocketTransport";
 
 const ACCOUNT_ID = "20000000-0000-4000-8000-000000000001";
+const SECOND_ACCOUNT_ID = "20000000-0000-4000-8000-000000000002";
 const DEVICE_ID = "30000000-0000-4000-8000-000000000001";
 const SESSION_ID = "40000000-0000-4000-8000-000000000001";
 const CONVERSATION_ID = "50000000-0000-4000-8000-000000000001";
@@ -884,16 +885,21 @@ test("pages bounded participants and ignores responses abandoned by conversation
     clientMessageId: "",
     value: create(ConversationParticipantPageSchema, {
       conversationId: CONVERSATION_ID,
-      participants: [{ accountId: ACCOUNT_ID, displayName: "Alice", role: ConversationRole.OWNER }],
-      nextAccountId: ACCOUNT_ID,
+      participants: [
+        { accountId: ACCOUNT_ID, displayName: "Current user", role: ConversationRole.OWNER },
+        { accountId: SECOND_ACCOUNT_ID, displayName: "Alice", role: ConversationRole.MEMBER },
+      ],
+      nextAccountId: SECOND_ACCOUNT_ID,
       hasMore: true,
     }),
   });
+  assert.equal(application.snapshot.participants.some(
+    participant => participant.accountId === ACCOUNT_ID), false);
   assert.equal(application.snapshot.participants[0]?.displayName, "Alice");
   assert.equal(application.snapshot.participantsHasMore, true);
   assert.equal(application.loadMoreParticipants(), true);
   assert.deepEqual(transport.calls.at(-1)?.slice(0, 4),
-    ["participants", CONVERSATION_ID, 100, ACCOUNT_ID]);
+    ["participants", CONVERSATION_ID, 100, SECOND_ACCOUNT_ID]);
 
   const staleRequest = transport.calls.at(-1)![4] as string;
   await application.openConversation(SECOND_CONVERSATION_ID);

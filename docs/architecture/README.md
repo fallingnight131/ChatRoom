@@ -2149,6 +2149,14 @@ candidate. Forwarding covers a distinct authorized target, type-119 acceptance,
 privacy-safe destination history, and a disabled rollback candidate. These
 generated-Protobuf routes remain below real gateway/PostgreSQL, endpoint-canary,
 and release evidence.
+The standard V2 candidate also exercises structured mentions through generated
+type-117/118 participant paging and type-25 submission. Its authoritative page
+deliberately includes the authenticated account, proving the application removes
+self before presenting candidates; Chromium and Firefox then select a Unicode
+display token by keyboard, send the stable target identity with the exact
+half-open UTF-8 span, accept the optimistic message, and render the identity span
+without parsing display text. This is client-composition evidence, not a live
+membership-authority or release-gateway result.
 
 ### Product consistency
 
