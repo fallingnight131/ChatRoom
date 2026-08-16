@@ -3,12 +3,15 @@
     <div class="friend-list-header">
       <span class="friend-list-title">好友列表</span>
       <div class="friend-actions-row">
-        <button class="btn-icon" @click="showAddFriend = true" title="搜索好友">🔍</button>
-        <button class="btn-icon" @click="showPending" title="好友申请">
+        <button class="btn-icon" type="button" aria-label="搜索好友" aria-haspopup="dialog"
+                :aria-expanded="showAddFriend" @click="showAddFriend = true" title="搜索好友">🔍</button>
+        <button class="btn-icon" type="button" aria-haspopup="dialog" :aria-expanded="showPendingDialog"
+                :aria-label="chatStore.hasPendingFriendReq ? '好友申请（有待处理申请）' : '好友申请'"
+                @click="showPending" title="好友申请">
           📩
-          <span v-if="chatStore.hasPendingFriendReq" class="req-dot"></span>
+          <span v-if="chatStore.hasPendingFriendReq" class="req-dot" aria-hidden="true"></span>
         </button>
-        <button class="btn-icon" @click="refreshFriends" title="刷新">🔄</button>
+        <button class="btn-icon" type="button" aria-label="刷新好友列表" @click="refreshFriends" title="刷新">🔄</button>
       </div>
     </div>
 
@@ -36,23 +39,25 @@
     </div>
 
     <!-- 添加好友弹窗 -->
-    <div class="modal-overlay" v-if="showAddFriend" @click.self="showAddFriend = false">
-      <div class="modal" style="max-width: 420px;">
-        <div class="modal-title">搜索好友</div>
-        <div class="search-row">
-          <input class="input search-input" v-model="searchKeyword"
-                 placeholder="输入用户ID或昵称搜索"
-                 @keyup.enter="doSearch" />
-          <button class="btn btn-primary" @click="doSearch" :disabled="searching">
+    <div class="modal-overlay" v-if="showAddFriend" @click.self="closeAddFriend">
+      <div ref="addFriendDialogRef" class="modal friend-dialog" role="dialog" aria-modal="true"
+           aria-labelledby="add-friend-title" tabindex="-1" @keydown="onAddFriendKeydown">
+        <div id="add-friend-title" class="modal-title">搜索好友</div>
+        <form class="search-row" @submit.prevent="doSearch">
+          <label class="visually-hidden" for="friend-search-keyword">用户 ID 或昵称</label>
+          <input id="friend-search-keyword" class="input search-input" v-model="searchKeyword"
+                 placeholder="输入用户ID或昵称搜索" />
+          <button class="btn btn-primary" type="submit" :disabled="searching || !searchKeyword.trim()">
             {{ searching ? '搜索中…' : '搜索' }}
           </button>
-        </div>
-        <div class="search-results">
+        </form>
+        <div class="search-results" aria-live="polite">
           <div v-if="searchResults === null" class="search-hint">输入关键词后点击搜索</div>
           <div v-else-if="searchResults.length === 0" class="search-hint">未找到匹配的用户</div>
           <div v-for="u in searchResults" :key="u.username" class="search-result-item">
             <div class="search-avatar-wrap">
-              <img v-if="getAvatarSrc(u.username)" :src="getAvatarSrc(u.username)" class="avatar avatar-sm" />
+              <img v-if="getAvatarSrc(u.username)" :src="getAvatarSrc(u.username)" class="avatar avatar-sm"
+                   :alt="`${u.displayName || u.username} 的头像`" />
               <div v-else class="avatar avatar-sm avatar-placeholder" :style="{ background: hashColor(u.username) }">
                 {{ (u.displayName || u.username).charAt(0) }}
               </div>
@@ -64,25 +69,27 @@
             <div class="search-user-status" v-if="u.online">
               <span class="online-dot"></span>
             </div>
-            <button v-if="isFriend(u.username)" class="btn btn-secondary btn-sm" disabled>已添加</button>
-            <button v-else class="btn btn-primary btn-sm" @click="sendRequestTo(u.username)">发送申请</button>
+            <button v-if="isFriend(u.username)" class="btn btn-secondary btn-sm" type="button" disabled>已添加</button>
+            <button v-else class="btn btn-primary btn-sm" type="button" @click="sendRequestTo(u.username)">发送申请</button>
           </div>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-secondary" @click="closeAddFriend">关闭</button>
+          <button class="btn btn-secondary" type="button" @click="closeAddFriendDialog">关闭</button>
         </div>
       </div>
     </div>
 
     <!-- 好友申请弹窗 -->
-    <div class="modal-overlay" v-if="showPendingDialog" @click.self="showPendingDialog = false">
-      <div class="modal" style="max-width: 420px;">
-        <div class="modal-title">待处理的好友申请</div>
-        <div class="search-results">
+    <div class="modal-overlay" v-if="showPendingDialog" @click.self="closePendingDialog">
+      <div ref="pendingDialogRef" class="modal friend-dialog" role="dialog" aria-modal="true"
+           aria-labelledby="pending-friend-title" tabindex="-1" @keydown="onPendingKeydown">
+        <div id="pending-friend-title" class="modal-title">待处理的好友申请</div>
+        <div class="search-results" aria-live="polite">
           <div v-if="pendingRequests.length === 0" class="search-hint">暂无待处理的好友申请</div>
           <div v-for="req in pendingRequests" :key="req.requestId" class="search-result-item">
             <div class="search-avatar-wrap">
-              <img v-if="getAvatarSrc(req.fromUsername)" :src="getAvatarSrc(req.fromUsername)" class="avatar avatar-sm" />
+              <img v-if="getAvatarSrc(req.fromUsername)" :src="getAvatarSrc(req.fromUsername)" class="avatar avatar-sm"
+                   :alt="`${req.fromDisplayName || req.fromUsername} 的头像`" />
               <div v-else class="avatar avatar-sm avatar-placeholder" :style="{ background: hashColor(req.fromUsername) }">
                 {{ (req.fromDisplayName || req.fromUsername).charAt(0) }}
               </div>
@@ -92,13 +99,13 @@
               <div class="search-username">ID: {{ req.fromUsername }}</div>
             </div>
             <div class="pending-actions">
-              <button class="btn btn-primary btn-sm" @click="acceptRequest(req)">接受</button>
-              <button class="btn btn-secondary btn-sm" @click="rejectRequest(req)">拒绝</button>
+              <button class="btn btn-primary btn-sm" type="button" @click="acceptRequest(req)">接受</button>
+              <button class="btn btn-secondary btn-sm" type="button" @click="rejectRequest(req)">拒绝</button>
             </div>
           </div>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-secondary" @click="showPendingDialog = false">关闭</button>
+          <button class="btn btn-secondary" type="button" @click="closePendingDialog">关闭</button>
         </div>
       </div>
     </div>
@@ -118,6 +125,7 @@ import { ref, reactive, inject, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '../stores/chat'
 import { useUserStore } from '../stores/user'
 import { chatWs } from '../services/websocket'
+import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 
 const chatStore = useChatStore()
 const userStore = useUserStore()
@@ -142,6 +150,23 @@ const searchKeyword = ref('')
 const searchResults = ref(null)
 const searching = ref(false)
 const pendingRequests = ref([])
+const {
+  dialogRef: addFriendDialogRef,
+  closeDialog: closeAddFriendDialog,
+  onDialogKeydown: onAddFriendKeydown,
+} = useModalKeyboardBoundary({
+  onClose: closeAddFriend,
+  initialFocusSelector: '#friend-search-keyword',
+  active: showAddFriend,
+})
+const {
+  dialogRef: pendingDialogRef,
+  closeDialog: closePendingDialog,
+  onDialogKeydown: onPendingKeydown,
+} = useModalKeyboardBoundary({
+  onClose: () => { showPendingDialog.value = false },
+  active: showPendingDialog,
+})
 
 const contextMenu = reactive({ show: false, x: 0, y: 0, friend: null })
 
@@ -151,6 +176,7 @@ function selectFriend(fr) {
 }
 
 function doSearch() {
+  if (searching.value) return
   const kw = searchKeyword.value.trim()
   if (!kw) return
   searching.value = true
@@ -158,6 +184,7 @@ function doSearch() {
 }
 
 function onSearchResults(users) {
+  if (!showAddFriend.value) return
   searching.value = false
   searchResults.value = users
 }
@@ -251,6 +278,9 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+.friend-dialog {
+  width: min(420px, calc(100vw - 32px));
 }
 .friend-list-header {
   display: flex;

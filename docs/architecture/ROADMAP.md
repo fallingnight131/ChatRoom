@@ -2310,6 +2310,8 @@ Candidate slices:
     settings while hiding operator-only controls from non-admin users.
   - [x] Apply the shared boundary and request-correlated destructive state to
     Web room-file management, including an always-available close path.
+  - [x] Extend the shared boundary to conditional dialog cycles and apply it to
+    Web friend search and pending-request surfaces with explicit V1 limits.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

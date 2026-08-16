@@ -1018,6 +1018,12 @@ terminal result. Selection and duplicate deletion are locked while that request
 is ambiguous, but close remains available so connection loss cannot trap the
 user. This is an internal Web event bridge; the existing idempotent V1 request
 and server-authoritative administrator check are unchanged.
+The shared modal boundary now also supports repeatable active/inactive cycles
+inside a long-lived component. Friend search and pending-request dialogs use
+that mode, expose named native triggers and forms, contain keyboard focus, and
+restore it on every close. Search completion received while its dialog is
+closed is ignored, but V1 user search still has no request correlation; this
+slice does not represent a stronger protocol guarantee.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

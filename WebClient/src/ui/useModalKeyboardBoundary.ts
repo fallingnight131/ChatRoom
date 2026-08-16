@@ -1,4 +1,5 @@
-import { nextTick, onMounted, onUnmounted, ref } from "vue";
+import { nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import type { Ref } from "vue";
 
 const FOCUSABLE_SELECTOR = [
   "button:not([disabled])",
@@ -27,13 +28,16 @@ export function useModalKeyboardBoundary({
   onClose,
   canClose = () => true,
   initialFocusSelector = "",
+  active,
 }: {
   onClose: () => void;
   canClose?: () => boolean;
   initialFocusSelector?: string;
+  active?: Readonly<Ref<boolean>>;
 }) {
   const dialogRef = ref<HTMLElement | null>(null);
   let previousFocus: { focus: () => void } | null = null;
+  let focusCycleActive = false;
 
   function closeDialog(): boolean {
     if (!canClose()) return false;
@@ -60,17 +64,40 @@ export function useModalKeyboardBoundary({
     (target === "first" ? focusable[0] : focusable[focusable.length - 1])?.focus();
   }
 
-  onMounted(() => {
+  function activateFocusBoundary(): void {
+    if (focusCycleActive) return;
     const active = document.activeElement as { focus?: () => void } | null;
     previousFocus = typeof active?.focus === "function" ? { focus: () => active.focus?.() } : null;
+    focusCycleActive = true;
     nextTick(() => {
       const initial = initialFocusSelector
         ? dialogRef.value?.querySelector<HTMLElement>(initialFocusSelector)
         : null;
       (initial ?? dialogRef.value)?.focus();
     });
-  });
-  onUnmounted(() => previousFocus?.focus());
+  }
+
+  function deactivateFocusBoundary(): void {
+    if (!focusCycleActive) return;
+    focusCycleActive = false;
+    const restoreTarget = previousFocus;
+    previousFocus = null;
+    restoreTarget?.focus();
+  }
+
+  if (active) {
+    const stop = watch(active, (isActive) => {
+      if (isActive) activateFocusBoundary();
+      else deactivateFocusBoundary();
+    }, { immediate: true });
+    onUnmounted(() => {
+      stop();
+      deactivateFocusBoundary();
+    });
+  } else {
+    onMounted(activateFocusBoundary);
+    onUnmounted(deactivateFocusBoundary);
+  }
 
   return { dialogRef, closeDialog, onDialogKeydown };
 }
