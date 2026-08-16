@@ -205,13 +205,13 @@
                 </button>
                 <button v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
                         class="pin-link" type="button" :aria-pressed="message.pinned"
-                        :aria-label="`${message.pinned ? '取消置顶' : '置顶'}消息 ${message.sequence}`"
+                        :aria-label="pinMessages.actionLabel(message.pinned ? pinMessages.unpin : pinMessages.pin, message.sequence)"
                         :disabled="pinPending(message)" @click="togglePin(message)">
-                  {{ message.pinned ? '取消置顶' : '置顶' }}
+                  {{ message.pinned ? pinMessages.unpin : pinMessages.pin }}
                 </button>
                 <button v-if="failedPin(message)" class="retry-link" type="button"
-                        :aria-label="`重试消息 ${message.sequence} 的置顶操作`"
-                        @click="retryPin(failedPin(message).clientOperationId)">重试置顶</button>
+                        :aria-label="pinMessages.retryLabel(message.sequence)"
+                        @click="retryPin(failedPin(message).clientOperationId)">{{ pinMessages.retry }}</button>
                 <span :aria-label="v2TimelineMessages.messageStatus(message.sequence, deliveryLabel(message.deliveryState))">
                   #{{ message.sequence }} · {{ deliveryLabel(message.deliveryState) }}
                 </span>
@@ -405,6 +405,7 @@ import {
   v2PreviewDeviceMessages,
   v2PreviewForwardMessages,
   v2PreviewMentionMessages,
+  v2PreviewPinMessages,
   v2PreviewReactionMessages,
   v2PreviewSearchMessages,
   v2PreviewShellMessages,
@@ -429,6 +430,7 @@ const composerMessages = computed(() => composerCatalogMessages(userStore.locale
 const v2ComposerMessages = computed(() => v2PreviewComposerMessages(userStore.locale))
 const deviceMessages = computed(() => v2PreviewDeviceMessages(userStore.locale))
 const mentionMessages = computed(() => v2PreviewMentionMessages(userStore.locale))
+const pinMessages = computed(() => v2PreviewPinMessages(userStore.locale))
 const reactionMessages = computed(() => v2PreviewReactionMessages(userStore.locale))
 const forwardMessages = computed(() => v2PreviewForwardMessages(userStore.locale))
 const username = ref('')
@@ -811,13 +813,13 @@ function failedPin(message) {
 }
 function togglePin(message) {
   actionError.value = ''
-  try { if (!runtimeRef.value.application.setPin(message.id)) actionError.value = '当前无法置顶这条消息' }
-  catch (error) { actionError.value = error instanceof Error ? error.message : '置顶失败' }
+  try { if (!runtimeRef.value.application.setPin(message.id)) actionError.value = pinMessages.value.unavailable }
+  catch (error) { actionError.value = error instanceof Error ? error.message : pinMessages.value.failed }
 }
 function retryPin(operationId) {
   actionError.value = ''
-  try { if (!runtimeRef.value.application.retryPin(operationId)) actionError.value = '该置顶操作暂时无法重试' }
-  catch (error) { actionError.value = error instanceof Error ? error.message : '置顶重试失败' }
+  try { if (!runtimeRef.value.application.retryPin(operationId)) actionError.value = pinMessages.value.retryUnavailable }
+  catch (error) { actionError.value = error instanceof Error ? error.message : pinMessages.value.retryFailed }
 }
 
 function editCommand(message) {

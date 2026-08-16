@@ -2080,7 +2080,10 @@ server-authoritative refresh/revoke decisions remain unchanged. Optimistic
 reactions now localize their fixed names, compound counts, retry and local
 failures while preserving protocol enums, current-account pressed state,
 per-message/per-reaction pending identity, and stable operation-ID retry. V2
-edit and pin mutations remain later slices.
+optimistic pinning now also localizes pin/unpin compound labels, failed-command
+retry, and local failures while preserving stable message identity, per-message
+pending state, accepted/available gating, and stable operation-ID retry. V2
+message editing remains the later mutation slice.
 
 ### Product consistency
 

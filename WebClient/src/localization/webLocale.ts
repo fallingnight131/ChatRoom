@@ -694,6 +694,21 @@ const v2PreviewReactionCatalog = {
   },
 } as const;
 
+const v2PreviewPinCatalog = {
+  "zh-CN": {
+    pin: "置顶", unpin: "取消置顶", actionLabel: (action: string, sequence: string) => `${action}消息 ${sequence}`,
+    retryLabel: (sequence: string) => `重试消息 ${sequence} 的置顶操作`, retry: "重试置顶",
+    unavailable: "当前无法置顶这条消息", failed: "置顶失败",
+    retryUnavailable: "该置顶操作暂时无法重试", retryFailed: "置顶重试失败",
+  },
+  "en-US": {
+    pin: "Pin", unpin: "Unpin", actionLabel: (action: string, sequence: string) => `${action} message ${sequence}`,
+    retryLabel: (sequence: string) => `Retry the pin action for message ${sequence}`, retry: "Retry pin",
+    unavailable: "This message cannot be pinned right now", failed: "Pin action failed",
+    retryUnavailable: "This pin action cannot be retried right now", retryFailed: "Pin retry failed",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -824,6 +839,10 @@ export function v2PreviewDeviceMessages(locale: WebLocale) {
 
 export function v2PreviewReactionMessages(locale: WebLocale) {
   return v2PreviewReactionCatalog[locale];
+}
+
+export function v2PreviewPinMessages(locale: WebLocale) {
+  return v2PreviewPinCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {
