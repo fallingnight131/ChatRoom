@@ -354,6 +354,30 @@ const messageAttachmentCatalog = {
   },
 } as const;
 
+const messageActionCatalog = {
+  "zh-CN": {
+    menu: "消息操作", copyText: "复制文本", previewFile: "预览文件", downloadFile: "下载文件",
+    forward: "转发到其他会话", recall: "撤回", deleteMessage: "删除此消息",
+    clearAll: "清空所有消息", deleteOlder: "删除N天前的消息", deleteRecent: "删除最近N天的消息",
+    selectForwardTarget: "请至少选择一个转发目标", forwardSubmittedPrefix: "已提交转发到 ",
+    forwardSubmittedSuffix: " 个会话", forwardFailed: "转发失败", confirmDelete: "确定删除此消息？",
+    confirmClear: "确定要清空所有聊天记录吗？\n此操作不可恢复！",
+    deleteOlderPrompt: "删除多少天前的消息：", deleteRecentPrompt: "删除最近几天的消息：",
+    invalidDays: "请输入有效的天数",
+  },
+  "en-US": {
+    menu: "Message actions", copyText: "Copy text", previewFile: "Preview file", downloadFile: "Download file",
+    forward: "Forward to other conversations", recall: "Recall", deleteMessage: "Delete this message",
+    clearAll: "Clear all messages", deleteOlder: "Delete messages older than N days",
+    deleteRecent: "Delete messages from the last N days", selectForwardTarget: "Select at least one forwarding target.",
+    forwardSubmittedPrefix: "Forward submitted to ", forwardSubmittedSuffix: " conversation(s).",
+    forwardFailed: "Forwarding failed", confirmDelete: "Delete this message?",
+    confirmClear: "Clear all chat history?\nThis action cannot be undone!",
+    deleteOlderPrompt: "Delete messages older than how many days?",
+    deleteRecentPrompt: "Delete messages from the last how many days?", invalidDays: "Enter a valid number of days.",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -416,6 +440,10 @@ export function messageTimelineMessages(locale: WebLocale) {
 
 export function messageAttachmentMessages(locale: WebLocale) {
   return messageAttachmentCatalog[locale];
+}
+
+export function messageActionMessages(locale: WebLocale) {
+  return messageActionCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

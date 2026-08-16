@@ -10,6 +10,7 @@ import {
   memberListMessages,
   messageTimelineMessages,
   messageAttachmentMessages,
+  messageActionMessages,
   persistWebLocale,
   profileMessages,
   roomListMessages,
@@ -78,6 +79,10 @@ test("persists only supported locale identifiers and keeps catalogs aligned", ()
   assert.deepEqual(
     Object.keys(messageAttachmentMessages("en-US")).sort(),
     Object.keys(messageAttachmentMessages("zh-CN")).sort(),
+  );
+  assert.deepEqual(
+    Object.keys(messageActionMessages("en-US")).sort(),
+    Object.keys(messageActionMessages("zh-CN")).sort(),
   );
 });
 

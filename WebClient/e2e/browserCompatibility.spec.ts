@@ -95,6 +95,14 @@ async function installV1ClientFixture(page: Page) {
           response = { type: "AVATAR_GET_RSP", id: `fixture-${sent.length}`,
             timestamp: Date.now(), data: { success: false,
               username: message.data.username } };
+        } else if (message.type === "HISTORY_REQ") {
+          response = { type: "HISTORY_RSP", id: `fixture-${sent.length}`,
+            timestamp: Date.now(), data: { roomId: message.data.roomId, mode: "sequence",
+              messages: [{ id: 501, clientMessageId: "browser-message-501",
+                roomId: message.data.roomId, sender: "browser_friend",
+                senderName: "Browser Gate Friend", content: "Browser fixture message",
+                contentType: "text", timestamp: Date.now(), syncSequence: 1 }],
+              events: [], nextSequence: 1, hasMore: false } };
         }
         if (response) queueMicrotask(() => this.onmessage?.({ data: JSON.stringify(response) }));
       }
@@ -445,6 +453,14 @@ test("switches the authenticated shell locale from profile and persists it", asy
   await expect(page.getByRole("region", { name: "Online members" })).toBeVisible();
   await expect(page.getByRole("toolbar", { name: "Message tools" })).toBeVisible();
   await expect(page.getByRole("log", { name: "Chat messages" })).toBeVisible();
+  await expect(page.getByText("Browser fixture message", { exact: true })).toBeVisible();
+  await page.getByText("Browser fixture message", { exact: true }).click({ button: "right" });
+  const messageActions = page.getByRole("menu", { name: "Message actions" });
+  await expect(messageActions).toBeVisible();
+  await expect(messageActions.getByRole("menuitem", { name: "Copy text" })).toBeVisible();
+  await expect(messageActions.getByRole("menuitem", { name: "Forward to other conversations" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(messageActions).toBeHidden();
   await expect(page.getByRole("textbox", { name: "Message content" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Send message" })).toBeVisible();
   await page.getByRole("button", { name: "Choose emoji" }).click();

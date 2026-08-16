@@ -90,7 +90,12 @@ announcements, and compound article summaries to catalog keys. Attachment
 source tests now cover catalog-backed image/video/file defaults, action names,
 thumbnails, expiry state, and local expired-file denials. The browser suite is
 a regression gate here; its fixture does not claim attachment-byte coverage.
-The context menu remains a separate localization slice.
+The V1 message-action slice also binds the copy, preview, download, forward,
+recall, and administrator deletion menu to the active locale, including local
+confirmation and validation feedback. Its English browser journey opens a real
+fixture message's named menu and verifies forwarding and copy actions in both
+Chromium and Firefox. The forwarding picker and file-preview dialog remain
+separate localization slices.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

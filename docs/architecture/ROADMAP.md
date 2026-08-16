@@ -2370,6 +2370,8 @@ Candidate slices:
     states, new-message history feedback, and copy announcements.
   - [x] Migrate Web V1 image/video/file cards, preview names, expiry states,
     and local expired-file preview/download/forward denials.
+  - [x] Migrate the Web V1 message action menu and its forwarding and
+    administrator confirmation/validation feedback without changing commands.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

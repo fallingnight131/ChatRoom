@@ -39,7 +39,7 @@ test('supports keyboard access to files, profiles, retry, and message actions', 
   assert.match(messages, /type="button" class="msg-video-card"/)
   assert.match(messages, /type="button" class="msg-file"/)
   assert.match(messages, /onBubbleKeydown/)
-  assert.match(messages, /role="menu" aria-label="消息操作"/)
+  assert.match(messages, /role="menu" :aria-label="actionMessages\.menu"/)
   assert.match(messages, /role="menuitem" tabindex="0"/)
   assert.match(messages, /querySelector\('\[role="menuitem"\]'\)\?\.focus\(\)/)
   assert.match(messages, /\['ArrowDown', 'ArrowUp', 'Home', 'End'\]/)

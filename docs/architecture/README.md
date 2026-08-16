@@ -2003,7 +2003,11 @@ use catalog-owned punctuation. The attachment-card slice is now migrated: image/
 defaults, preview action names, thumbnails, expiry presentation, and local
 expired-file preview/download/forward denials use catalog keys. File metadata,
 authorization, byte lifecycle, and transport behavior are unchanged; the action
-menu and preview dialog remain separate slices.
+menu's copy, preview, download, forward, recall, and administrator deletion
+labels plus local confirmation/validation feedback now also use catalog keys.
+The existing server-authoritative commands, private-conversation restrictions,
+and menu keyboard behavior are unchanged. The forwarding picker and file-preview
+dialog remain separate slices.
 
 ### Product consistency
 

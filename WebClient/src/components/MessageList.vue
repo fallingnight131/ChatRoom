@@ -156,49 +156,49 @@
     <Teleport to="body">
       <div v-if="contextMenu.show" class="context-menu-overlay"
            @click="closeMenu()" @contextmenu.prevent="closeMenu()">
-        <div ref="contextMenuElement" class="context-menu" role="menu" aria-label="消息操作"
+        <div ref="contextMenuElement" class="context-menu" role="menu" :aria-label="actionMessages.menu"
              :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
              @click.stop @keydown="onContextMenuKeydown">
           <!-- 复制可用的普通文本 -->
           <div class="context-menu-item" role="menuitem" tabindex="0"
                v-if="canCopyText(contextMenu.msg)"
                @click="copyText(contextMenu.msg)" @keydown.enter="copyText(contextMenu.msg)">
-            <span class="menu-icon">📋</span> 复制文本
+            <span class="menu-icon">📋</span> {{ actionMessages.copyText }}
           </div>
 
           <!-- 预览文件 (文件/图片/视频消息，所有人可用) -->
           <div class="context-menu-item" role="menuitem" tabindex="0"
             v-if="contextMenu.msg && isFileType(contextMenu.msg) && !contextMenu.msg.recalled"
                @click="previewFromMenu(contextMenu.msg)" @keydown.enter="previewFromMenu(contextMenu.msg)">
-            <span class="menu-icon">👁️</span> 预览文件
+            <span class="menu-icon">👁️</span> {{ actionMessages.previewFile }}
           </div>
 
           <!-- 下载文件 -->
           <div class="context-menu-item" role="menuitem" tabindex="0"
             v-if="contextMenu.msg && isFileType(contextMenu.msg) && !contextMenu.msg.recalled && !contextMenu.msg.fileCleared"
                @click="downloadFromMenu(contextMenu.msg)" @keydown.enter="downloadFromMenu(contextMenu.msg)">
-            <span class="menu-icon">⬇️</span> 下载文件
+            <span class="menu-icon">⬇️</span> {{ actionMessages.downloadFile }}
           </div>
 
           <!-- 转发 -->
           <div class="context-menu-item" role="menuitem" tabindex="0"
                v-if="contextMenu.msg && contextMenu.msg.id && !contextMenu.msg.recalled && contextMenu.msg.contentType !== 'system'"
                @click="forwardFromMenu(contextMenu.msg)" @keydown.enter="forwardFromMenu(contextMenu.msg)">
-            <span class="menu-icon">📨</span> 转发到其他会话
+            <span class="menu-icon">📨</span> {{ actionMessages.forward }}
           </div>
 
           <!-- 撤回 (自己的消息, 2分钟内) -->
           <div class="context-menu-item" role="menuitem" tabindex="0"
                v-if="canRecall(contextMenu.msg)"
                @click="recallMsg(contextMenu.msg)" @keydown.enter="recallMsg(contextMenu.msg)">
-            <span class="menu-icon">↩️</span> 撤回
+            <span class="menu-icon">↩️</span> {{ actionMessages.recall }}
           </div>
 
           <!-- 管理员: 删除此消息 -->
           <div class="context-menu-item danger" role="menuitem" tabindex="0"
                v-if="!isPrivateMode() && chatStore.isAdmin && contextMenu.msg && contextMenu.msg.id && !contextMenu.msg.recalled"
                @click="deleteMsg(contextMenu.msg)" @keydown.enter="deleteMsg(contextMenu.msg)">
-            <span class="menu-icon">🗑️</span> 删除此消息
+            <span class="menu-icon">🗑️</span> {{ actionMessages.deleteMessage }}
           </div>
 
           <!-- 管理员子菜单 -->
@@ -206,15 +206,15 @@
             <div class="context-menu-divider"></div>
             <div class="context-menu-item danger" role="menuitem" tabindex="0"
                  @click="clearAllMessages" @keydown.enter="clearAllMessages">
-              <span class="menu-icon">🧹</span> 清空所有消息
+              <span class="menu-icon">🧹</span> {{ actionMessages.clearAll }}
             </div>
             <div class="context-menu-item danger" role="menuitem" tabindex="0"
                  @click="deleteOldMessages" @keydown.enter="deleteOldMessages">
-              <span class="menu-icon">📅</span> 删除N天前的消息
+              <span class="menu-icon">📅</span> {{ actionMessages.deleteOlder }}
             </div>
             <div class="context-menu-item danger" role="menuitem" tabindex="0"
                  @click="deleteRecentMessages" @keydown.enter="deleteRecentMessages">
-              <span class="menu-icon">🕐</span> 删除最近N天的消息
+              <span class="menu-icon">🕐</span> {{ actionMessages.deleteRecent }}
             </div>
           </template>
         </div>
@@ -247,12 +247,13 @@ import ForwardDialog from './ForwardDialog.vue'
 import { calculateVirtualWindow } from '../ui/virtualWindow'
 import { copyMessageText } from '../messaging/copyMessageText'
 import { addPendingNewMessages } from '../messaging/newMessageIndicator'
-import { messageAttachmentMessages, messageTimelineMessages } from '../localization/webLocale'
+import { messageActionMessages, messageAttachmentMessages, messageTimelineMessages } from '../localization/webLocale'
 
 const userStore = useUserStore()
 const chatStore = useChatStore()
 const messages = computed(() => messageTimelineMessages(userStore.locale))
 const attachmentMessages = computed(() => messageAttachmentMessages(userStore.locale))
+const actionMessages = computed(() => messageActionMessages(userStore.locale))
 const openUserInfo = inject('openUserInfo')
 const hashColor = inject('hashColor')
 
@@ -502,17 +503,17 @@ function closeForwardDialog() {
 async function confirmForward(targets) {
   if (!forwardSourceMsg.value) return
   if (!Array.isArray(targets) || targets.length === 0) {
-    alert('请至少选择一个转发目标')
+    alert(actionMessages.value.selectForwardTarget)
     return
   }
 
   try {
     forwardSubmitting.value = true
     await chatStore.forwardMessageToTargets(forwardSourceMsg.value, targets)
-    alert(`已提交转发到 ${targets.length} 个会话`)
+    alert(`${actionMessages.value.forwardSubmittedPrefix}${targets.length}${actionMessages.value.forwardSubmittedSuffix}`)
     closeForwardDialog()
   } catch (err) {
-    alert(err?.message || '转发失败')
+    alert(err?.message || actionMessages.value.forwardFailed)
   } finally {
     forwardSubmitting.value = false
   }
@@ -523,7 +524,7 @@ function deleteMsg(msg) {
     contextMenu.value.show = false
     return
   }
-  if (msg && confirm('确定删除此消息？')) {
+  if (msg && confirm(actionMessages.value.confirmDelete)) {
     chatWs.deleteMessages(chatStore.currentRoomId, 'selected', [msg.id])
   }
   contextMenu.value.show = false
@@ -535,7 +536,7 @@ function clearAllMessages() {
     return
   }
   contextMenu.value.show = false
-  if (confirm('确定要清空所有聊天记录吗？\n此操作不可恢复！')) {
+  if (confirm(actionMessages.value.confirmClear)) {
     chatWs.deleteMessages(chatStore.currentRoomId, 'all')
   }
 }
@@ -546,10 +547,10 @@ function deleteOldMessages() {
     return
   }
   contextMenu.value.show = false
-  const days = prompt('删除多少天前的消息：', '7')
+  const days = prompt(actionMessages.value.deleteOlderPrompt, '7')
   if (days === null) return
   const n = parseInt(days)
-  if (isNaN(n) || n < 1) { alert('请输入有效的天数'); return }
+  if (isNaN(n) || n < 1) { alert(actionMessages.value.invalidDays); return }
   const cutoff = Date.now() - n * 24 * 60 * 60 * 1000
   chatWs.deleteMessages(chatStore.currentRoomId, 'before', [], cutoff)
 }
@@ -560,10 +561,10 @@ function deleteRecentMessages() {
     return
   }
   contextMenu.value.show = false
-  const days = prompt('删除最近几天的消息：', '1')
+  const days = prompt(actionMessages.value.deleteRecentPrompt, '1')
   if (days === null) return
   const n = parseInt(days)
-  if (isNaN(n) || n < 1) { alert('请输入有效的天数'); return }
+  if (isNaN(n) || n < 1) { alert(actionMessages.value.invalidDays); return }
   const cutoff = Date.now() - n * 24 * 60 * 60 * 1000
   chatWs.deleteMessages(chatStore.currentRoomId, 'after', [], cutoff)
 }
