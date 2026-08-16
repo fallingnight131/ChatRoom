@@ -89,6 +89,11 @@ import {
   type AccountBlockApplied,
   type AccountBlockDirectoryPage,
 } from "./generated/contact_pb";
+import {
+  IssueWebPushHttpCredentialSchema,
+  WebPushHttpCredentialIssuedSchema,
+  type WebPushHttpCredentialIssued,
+} from "./generated/web_push_pb";
 
 const PROTOCOL_VERSION = 2;
 const MAX_IDENTIFIER_BYTES = 128;
@@ -142,6 +147,7 @@ export type V2WebProtocolEvent = ResponseCorrelation & (
   | { type: "device-revoked"; value: DeviceRevoked }
   | { type: "account-block-applied"; value: AccountBlockApplied }
   | { type: "account-block-directory-page"; value: AccountBlockDirectoryPage }
+  | { type: "web-push-http-credential-issued"; value: WebPushHttpCredentialIssued }
   | { type: "cancelled-response"; value: undefined }
 );
 
@@ -168,6 +174,7 @@ export interface V2WebProtocolClientOptions {
   enableMessageForwarding?: boolean;
   enableMessageSearch?: boolean;
   enableAccountBlocking?: boolean;
+  enableWebPushHttpCredential?: boolean;
 }
 
 export type V2MessageMention = Readonly<{
@@ -203,6 +210,8 @@ export class V2WebProtocolClient {
       ...(options.enableMessageForwarding ? [ClientCapability.MESSAGE_FORWARDING] : []),
       ...(options.enableMessageSearch ? [ClientCapability.MESSAGE_SEARCH] : []),
       ...(options.enableAccountBlocking ? [ClientCapability.ACCOUNT_BLOCKING] : []),
+      ...(options.enableWebPushHttpCredential
+        ? [ClientCapability.WEB_PUSH_HTTP_CREDENTIAL] : []),
     ];
   }
 
@@ -693,6 +702,19 @@ export class V2WebProtocolClient {
     ));
   }
 
+  issueWebPushHttpCredential(): V2CorrelatedCommand {
+    this.requireState("authenticated");
+    if (!this.webPushHttpCredentialEnabled()) {
+      throw new Error("Web Push HTTP credentials were not enabled for this client");
+    }
+    return correlated(this.command(
+      MessageType.ISSUE_WEB_PUSH_HTTP_CREDENTIAL,
+      toBinary(IssueWebPushHttpCredentialSchema,
+        create(IssueWebPushHttpCredentialSchema, {})),
+      new Set([MessageType.WEB_PUSH_HTTP_CREDENTIAL_ISSUED]),
+    ));
+  }
+
   cancelPendingRequest(requestId: string): void {
     const pending = this.pending.get(requestId);
     if (!pending) return;
@@ -887,6 +909,8 @@ export class V2WebProtocolClient {
           return { ...correlation, type: "account-block-applied", value: fromBinary(AccountBlockAppliedSchema, envelope.payload) };
         case MessageType.ACCOUNT_BLOCK_DIRECTORY_PAGE:
           return { ...correlation, type: "account-block-directory-page", value: fromBinary(AccountBlockDirectoryPageSchema, envelope.payload) };
+        case MessageType.WEB_PUSH_HTTP_CREDENTIAL_ISSUED:
+          return { ...correlation, type: "web-push-http-credential-issued", value: fromBinary(WebPushHttpCredentialIssuedSchema, envelope.payload) };
         default:
           throw new Error("unsupported inbound message type");
       }
@@ -1040,6 +1064,19 @@ export class V2WebProtocolClient {
           throw new Error("account block directory requires negotiated account blocking");
         }
         break;
+      case "web-push-http-credential-issued": {
+        const observedAt = BigInt(this.now());
+        if (!this.webPushHttpCredentialEnabled()
+            || event.value.bearerTokenAscii.byteLength !== 43
+            || event.value.csrfTokenAscii.byteLength !== 43
+            || !asciiBase64Url(event.value.bearerTokenAscii)
+            || !asciiBase64Url(event.value.csrfTokenAscii)
+            || event.value.expiresAtEpochMs <= observedAt
+            || event.value.expiresAtEpochMs > observedAt + 3_600_000n) {
+          throw new Error("invalid Web Push HTTP credential response");
+        }
+        break;
+      }
       case "cancelled-response":
         break;
     }
@@ -1064,6 +1101,16 @@ export class V2WebProtocolClient {
   private accountBlockingEnabled(): boolean {
     return this.requestedCapabilities.includes(ClientCapability.ACCOUNT_BLOCKING);
   }
+
+  private webPushHttpCredentialEnabled(): boolean {
+    return this.requestedCapabilities.includes(ClientCapability.WEB_PUSH_HTTP_CREDENTIAL);
+  }
+}
+
+function asciiBase64Url(value: Uint8Array): boolean {
+  return value.every(byte => (byte >= 0x41 && byte <= 0x5a)
+    || (byte >= 0x61 && byte <= 0x7a)
+    || (byte >= 0x30 && byte <= 0x39) || byte === 0x2d || byte === 0x5f);
 }
 
 function validateUploadAuthorization(value: AttachmentUploadAuthorized): void {

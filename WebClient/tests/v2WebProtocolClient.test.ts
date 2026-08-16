@@ -69,6 +69,10 @@ import {
   ListAccountBlocksSchema,
   SetAccountBlockSchema,
 } from "../src/protocol/v2/generated/contact_pb";
+import {
+  IssueWebPushHttpCredentialSchema,
+  WebPushHttpCredentialIssuedSchema,
+} from "../src/protocol/v2/generated/web_push_pb";
 
 const UNKNOWN_REQUEST_ID = "10000000-0000-4000-8000-999999999999";
 const ACCOUNT_ID = "20000000-0000-4000-8000-000000000001";
@@ -87,6 +91,7 @@ function newClient(
   enableMessageForwarding = false,
   enableMessageSearch = false,
   enableAccountBlocking = false,
+  enableWebPushHttpCredential = false,
 ): V2WebProtocolClient {
   let next = 0;
   return new V2WebProtocolClient({
@@ -99,6 +104,7 @@ function newClient(
     enableMessageForwarding,
     enableMessageSearch,
     enableAccountBlocking,
+    enableWebPushHttpCredential,
   });
 }
 
@@ -235,6 +241,63 @@ test("negotiates and authenticates without retaining caller password bytes", () 
   client.close();
   assert.equal(client.state, "closed");
   assert.equal(client.session, null);
+});
+
+test("issues a correlated memory-only Web Push HTTP credential", () => {
+  const client = newClient(false, false, false, false, false, true);
+  const capabilities = [
+    ClientCapability.MESSAGE_REACTIONS,
+    ClientCapability.MESSAGE_PINS,
+    ClientCapability.WEB_PUSH_HTTP_CREDENTIAL,
+  ];
+  authenticate(client, capabilities);
+  const command = client.issueWebPushHttpCredential();
+  const envelope = decodeEnvelope(command.bytes);
+  assert.equal(envelope.messageType, MessageType.ISSUE_WEB_PUSH_HTTP_CREDENTIAL);
+  assert.equal(envelope.clientMessageId, "");
+  assert.deepEqual(fromBinary(IssueWebPushHttpCredentialSchema, envelope.payload),
+    create(IssueWebPushHttpCredentialSchema, {}));
+  const token = new TextEncoder().encode("a".repeat(43));
+  const csrf = new TextEncoder().encode("b".repeat(43));
+  const event = client.receive(response(
+    envelope,
+    MessageType.WEB_PUSH_HTTP_CREDENTIAL_ISSUED,
+    toBinary(WebPushHttpCredentialIssuedSchema,
+      create(WebPushHttpCredentialIssuedSchema, {
+        bearerTokenAscii: token,
+        csrfTokenAscii: csrf,
+        expiresAtEpochMs: BigInt(NOW + 60_000),
+      })),
+    { sessionId: SESSION_ID },
+  ));
+  assert.equal(event.type, "web-push-http-credential-issued");
+  if (event.type === "web-push-http-credential-issued") {
+    assert.deepEqual(event.value.bearerTokenAscii, token);
+    assert.deepEqual(event.value.csrfTokenAscii, csrf);
+  }
+});
+
+test("rejects Web Push credentials when disabled, malformed, or overlong-lived", () => {
+  const disabled = newClient();
+  authenticate(disabled);
+  assert.throws(() => disabled.issueWebPushHttpCredential(), /not enabled/);
+
+  const client = newClient(false, false, false, false, false, true);
+  const capabilities = [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS,
+    ClientCapability.WEB_PUSH_HTTP_CREDENTIAL];
+  authenticate(client, capabilities);
+  const command = decodeEnvelope(client.issueWebPushHttpCredential().bytes);
+  assert.throws(() => client.receive(response(
+    command,
+    MessageType.WEB_PUSH_HTTP_CREDENTIAL_ISSUED,
+    toBinary(WebPushHttpCredentialIssuedSchema,
+      create(WebPushHttpCredentialIssuedSchema, {
+        bearerTokenAscii: new TextEncoder().encode("!".repeat(43)),
+        csrfTokenAscii: new TextEncoder().encode("b".repeat(43)),
+        expiresAtEpochMs: BigInt(NOW + 3_600_001),
+      })),
+    { sessionId: SESSION_ID },
+  )), /invalid Web Push/);
 });
 
 test("encodes an explicit resume proof and accepts only the rotated session response", () => {

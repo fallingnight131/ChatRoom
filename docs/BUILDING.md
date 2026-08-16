@@ -1552,6 +1552,13 @@ ambient credentials, redirect/cache/referrer denial, canonical endpoint and key
 validation before fetch, account-free JSON, fixed status/Retry-After mapping,
 and response-body suppression. Fixture bearer/CSRF values are not a token issuer
 or production authentication claim.
+The V2 protocol/transport suite now also proves the detached live credential
+lease bridge. Capability 8 and type 136 are absent by default; an explicit client
+encodes the empty correlated command, validates the 43-byte Base64URL pair and
+bounded future expiry, and rejects disabled/malformed responses. Transport
+intercepts type 137 before general application observers, permits one operation,
+contains rejection/timeout, and clears response plus callback copies before the
+operation promise resolves. This is not default runtime or UI composition.
 The inactive HTTP-credential protocol and application boundary can be selected
 with:
 

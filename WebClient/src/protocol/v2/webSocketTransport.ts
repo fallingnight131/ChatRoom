@@ -33,6 +33,13 @@ export interface V2WebSocketLike {
 
 type TimerHandle = ReturnType<typeof globalThis.setTimeout>;
 type NetworkObserver = { onOnline(): void; onOffline(): void };
+type WebPushCredentialOperation = {
+  requestId: string;
+  timer: TimerHandle | null;
+  accept(value: Extract<V2WebProtocolEvent,
+    { type: "web-push-http-credential-issued" }>["value"]): void;
+  reject(reason: Error): void;
+};
 
 export interface V2WebSocketTransportOptions {
   endpoint: string;
@@ -45,6 +52,7 @@ export interface V2WebSocketTransportOptions {
   connectTimeoutMs?: number;
   helloTimeoutMs?: number;
   authenticationTimeoutMs?: number;
+  webPushCredentialTimeoutMs?: number;
   reconnectBaseMs?: number;
   reconnectMaximumMs?: number;
   isOnline?: () => boolean;
@@ -70,6 +78,7 @@ export class V2WebSocketTransport {
   private readonly connectTimeoutMs: number;
   private readonly helloTimeoutMs: number;
   private readonly authenticationTimeoutMs: number;
+  private readonly webPushCredentialTimeoutMs: number;
   private readonly reconnectBaseMs: number;
   private readonly reconnectMaximumMs: number;
   private readonly isOnline: () => boolean;
@@ -86,6 +95,7 @@ export class V2WebSocketTransport {
   private endpointIndex = 0;
   private unsubscribeNetwork: (() => void) | null = null;
   private resumeCredential: { sessionId: string; token: Uint8Array } | null = null;
+  private webPushCredentialOperation: WebPushCredentialOperation | null = null;
   private desired = false;
   private currentState: V2WebSocketTransportState = "idle";
 
@@ -103,6 +113,9 @@ export class V2WebSocketTransport {
     this.authenticationTimeoutMs = positiveDuration(
       "authenticationTimeoutMs",
       options.authenticationTimeoutMs ?? 15_000,
+    );
+    this.webPushCredentialTimeoutMs = positiveDuration(
+      "webPushCredentialTimeoutMs", options.webPushCredentialTimeoutMs ?? 5_000,
     );
     this.reconnectBaseMs = positiveDuration("reconnectBaseMs", options.reconnectBaseMs ?? 500);
     this.reconnectMaximumMs = positiveDuration("reconnectMaximumMs", options.reconnectMaximumMs ?? 30_000);
@@ -298,6 +311,61 @@ export class V2WebSocketTransport {
     return command.requestId;
   }
 
+  withWebPushHttpCredential<T>(
+    action: (bearerToken: Uint8Array, csrfToken: Uint8Array) => Promise<T>,
+  ): Promise<T> {
+    if (this.webPushCredentialOperation) {
+      return Promise.reject(new Error("Web Push credential operation is already active"));
+    }
+    const command = this.requireAuthenticated().issueWebPushHttpCredential();
+    return new Promise<T>((resolve, reject) => {
+      const operation: WebPushCredentialOperation = {
+        requestId: command.requestId,
+        timer: null,
+        accept: (credential) => {
+          if (operation.timer !== null) this.clearTimer(operation.timer);
+          operation.timer = null;
+          const bearer = credential.bearerTokenAscii.slice();
+          const csrf = credential.csrfTokenAscii.slice();
+          credential.bearerTokenAscii.fill(0);
+          credential.csrfTokenAscii.fill(0);
+          Promise.resolve()
+            .then(() => action(bearer, csrf))
+            .then((result) => {
+              bearer.fill(0);
+              csrf.fill(0);
+              if (this.webPushCredentialOperation === operation) {
+                this.webPushCredentialOperation = null;
+              }
+              resolve(result as T);
+            }, (reason: unknown) => {
+              bearer.fill(0);
+              csrf.fill(0);
+              if (this.webPushCredentialOperation === operation) {
+                this.webPushCredentialOperation = null;
+              }
+              reject(reason);
+            });
+        },
+        reject: (reason) => {
+          if (operation.timer !== null) this.clearTimer(operation.timer);
+          operation.timer = null;
+          if (this.webPushCredentialOperation === operation) {
+            this.webPushCredentialOperation = null;
+          }
+          reject(reason);
+        },
+      };
+      operation.timer = this.setTimer(() => {
+        operation.timer = null;
+        operation.reject(new Error("Web Push credential request timed out"));
+      }, this.webPushCredentialTimeoutMs);
+      this.webPushCredentialOperation = operation;
+      try { this.send(command.bytes); }
+      catch { operation.reject(new Error("Web Push credential request failed")); }
+    });
+  }
+
   registerAttachment(
     conversationId: string,
     clientAttachmentId: string,
@@ -426,6 +494,22 @@ export class V2WebSocketTransport {
         this.cancelPhaseTimer();
         this.clearResumeCredential();
       }
+      if (event.type === "web-push-http-credential-issued") {
+        const operation = this.webPushCredentialOperation;
+        if (!operation || operation.requestId !== event.requestId) {
+          event.value.bearerTokenAscii.fill(0);
+          event.value.csrfTokenAscii.fill(0);
+          throw new Error("unexpected Web Push credential response");
+        }
+        operation.accept(event.value);
+        return;
+      }
+      if (event.type === "protocol-error"
+          && this.webPushCredentialOperation?.requestId === event.requestId) {
+        this.webPushCredentialOperation.reject(
+          new Error("Web Push credential request was rejected"));
+        return;
+      }
       this.emitProtocolEvent(observableEvent);
     } catch {
       this.failSocket(socket, "V2 WebSocket received invalid protocol data", 1002);
@@ -512,6 +596,8 @@ export class V2WebSocketTransport {
   }
 
   private clearProtocolClient(): void {
+    this.webPushCredentialOperation?.reject(
+      new Error("Web Push credential request was interrupted"));
     this.protocolClient?.close();
     this.protocolClient = null;
   }

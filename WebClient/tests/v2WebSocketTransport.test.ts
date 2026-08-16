@@ -10,6 +10,7 @@ import {
 } from "../src/protocol/v2/generated/authentication_pb";
 import { ClientCapability, MessageType, ServerHelloSchema } from "../src/protocol/v2/generated/control_pb";
 import { EnvelopeSchema, MessageKind, type Envelope } from "../src/protocol/v2/generated/envelope_pb";
+import { WebPushHttpCredentialIssuedSchema } from "../src/protocol/v2/generated/web_push_pb";
 import { V2WebProtocolClient } from "../src/protocol/v2/webProtocolClient";
 import {
   V2WebSocketTransport,
@@ -102,7 +103,7 @@ class FakeNetwork {
   }
 }
 
-function protocolFactory(): () => V2WebProtocolClient {
+function protocolFactory(enableWebPushHttpCredential = false): () => V2WebProtocolClient {
   let connection = 0;
   return () => {
     const connectionNumber = ++connection;
@@ -112,6 +113,7 @@ function protocolFactory(): () => V2WebProtocolClient {
       clientDeviceId: "web-test-device",
       createRequestId: () => `10000000-0000-4000-${connectionNumber.toString().padStart(4, "8")}-${String(++request).padStart(12, "0")}`,
       now: () => NOW,
+      enableWebPushHttpCredential,
     });
   };
 }
@@ -139,13 +141,16 @@ function response(
   })).slice().buffer;
 }
 
-function helloResponse(request: Envelope): ArrayBuffer {
+function helloResponse(
+  request: Envelope,
+  capabilities = [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS],
+): ArrayBuffer {
   return response(request, MessageType.SERVER_HELLO, toBinary(ServerHelloSchema, create(ServerHelloSchema, {
     selectedProtocolVersion: 2,
     connectionId: "gateway-connection-1",
     serverTimeEpochMs: BigInt(NOW),
     maximumFrameBytes: 1024 * 1024 + 1024,
-    enabledCapabilities: [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS],
+    enabledCapabilities: capabilities,
   })));
 }
 
@@ -223,6 +228,60 @@ test("owns exact Web V2 upgrade, negotiation, authentication, and command sendin
   assert.equal(transport.state, "stopped");
   assert.deepEqual(socket.closes.at(-1), { code: 1000, reason: "client stopped" });
   assert.ok(states.includes("negotiating"));
+});
+
+test("contains Web Push HTTP credentials inside one transport callback", async () => {
+  const timers = new FakeTimers();
+  const socket = new FakeSocket();
+  const observableEvents: string[] = [];
+  const capabilities = [ClientCapability.MESSAGE_REACTIONS, ClientCapability.MESSAGE_PINS,
+    ClientCapability.WEB_PUSH_HTTP_CREDENTIAL];
+  const transport = new V2WebSocketTransport({
+    endpoint: "wss://chat.example/v2/web",
+    createProtocolClient: protocolFactory(true),
+    createSocket: () => socket,
+    setTimer: timers.set,
+    clearTimer: timers.clear,
+    onProtocolEvent: event => observableEvents.push(event.type),
+  });
+  transport.start();
+  socket.open();
+  socket.receive(helloResponse(sentEnvelope(socket, 0), capabilities));
+  transport.authenticate("alice", new TextEncoder().encode("password"));
+  const authentication = sentEnvelope(socket, 1);
+  socket.receive(response(authentication, MessageType.SESSION_ESTABLISHED, toBinary(
+    SessionEstablishedSchema, create(SessionEstablishedSchema, {
+      accountId: ACCOUNT_ID, deviceId: DEVICE_ID, sessionId: SESSION_ID,
+      resumeToken: new Uint8Array(32), expiresAtEpochMs: BigInt(NOW + 60_000),
+      displayName: "Alice",
+    })), SESSION_ID));
+
+  let borrowedBearer: Uint8Array | null = null;
+  let borrowedCsrf: Uint8Array | null = null;
+  const result = transport.withWebPushHttpCredential(async (bearer, csrf) => {
+    borrowedBearer = bearer;
+    borrowedCsrf = csrf;
+    assert.equal(new TextDecoder().decode(bearer), "a".repeat(43));
+    assert.equal(new TextDecoder().decode(csrf), "b".repeat(43));
+    return "uploaded";
+  });
+  const request = sentEnvelope(socket, 2);
+  assert.equal(request.messageType, MessageType.ISSUE_WEB_PUSH_HTTP_CREDENTIAL);
+  await assert.rejects(
+    transport.withWebPushHttpCredential(async () => "duplicate"), /already active/);
+  socket.receive(response(request, MessageType.WEB_PUSH_HTTP_CREDENTIAL_ISSUED, toBinary(
+    WebPushHttpCredentialIssuedSchema, create(WebPushHttpCredentialIssuedSchema, {
+      bearerTokenAscii: new TextEncoder().encode("a".repeat(43)),
+      csrfTokenAscii: new TextEncoder().encode("b".repeat(43)),
+      expiresAtEpochMs: BigInt(NOW + 60_000),
+    })), SESSION_ID));
+  assert.equal(await result, "uploaded");
+  assert.deepEqual(borrowedBearer, new Uint8Array(43));
+  assert.deepEqual(borrowedCsrf, new Uint8Array(43));
+  assert.deepEqual(observableEvents,
+    ["server-hello", "session-established"], "secret response is not a general event");
+  assert.equal(timers.tasks.size, 0);
+  transport.stop();
 });
 
 test("fails closed on subprotocol, non-binary data, and phase timeout", () => {

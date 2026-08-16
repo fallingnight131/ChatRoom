@@ -171,8 +171,9 @@ resume proof or activate a gateway/client path.
   credential-omitting, no-redirect/no-cache/no-referrer request to the exact
   HTTPS product origin. It exposes fixed outcomes and discards response bodies.
   ADR-0410 now composes the exact-gated WSS issuer, and the second server gate
-  composes the subscription route. The Web lease bridge and product composition
-  remain absent.
+  composes the subscription route. A detached Web V2 transport lease contains
+  credential issuance and clearing, while default runtime/UI composition remains
+  absent.
 - A Vite module-worker entry installs the validated event runtime, while a
   detached browser adapter requires secure Notification/ServiceWorker/
   PushManager capabilities, validates local URL/scope, registers explicitly,

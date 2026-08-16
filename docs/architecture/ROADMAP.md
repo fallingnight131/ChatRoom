@@ -2495,6 +2495,10 @@ Candidate slices:
       only under exact `CHATROOM_GATEWAY_WEB_PUSH_ENABLED=true`, retain the
       default-off path, and expose identity-free issuance counters; prove the
       path through real TLS/WSS and disposable PostgreSQL.
+    - [x] Extend the Web V2 protocol/transport with a capability-gated correlated
+      lease command that intercepts type 137 before general application events,
+      bounds response lifetime, permits one operation, and clears server and
+      callback credential buffers before resolving.
     - [ ] Add the exact-gated Web lease bridge, localized durable worker copy/UI,
       and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key

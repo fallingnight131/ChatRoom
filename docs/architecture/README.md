@@ -2095,8 +2095,12 @@ exact HTTPS origin and stable installation path with omitted ambient
 credentials, same-origin mode, no redirects, no cache, and no referrer. Only
 fixed HTTP outcomes and bounded Retry-After metadata escape; response bodies are
 cancelled and never reflected. The subscription HTTP route is now available
-behind its exact server gate, but the Web protocol lease bridge remains absent,
-so no default product client can call it yet.
+behind its exact server gate. A detached Web V2 lease bridge now requests
+capability 8 only when explicitly constructed, correlates type 136/137, validates
+the fixed Base64URL shape and one-hour server bound, intercepts the secret
+response before general application observers, and clears source and borrowed
+buffers before resolving its one active callback. No default runtime constructs
+that bridge yet, so the product still cannot call the route.
 The Web platform now has a Vite module-worker entry and a detached browser
 adapter. Capability requires a secure context plus Notification, ServiceWorker,
 and PushManager support. Registration accepts only a fixed local worker asset
@@ -2138,9 +2142,10 @@ type-136 handler on the Web WSS pipeline only under the exact-default-off flag,
 using the shared bounded messaging executor and PostgreSQL authority. Fixed,
 identity-free issuance/denial/saturation/failure counters are exposed on the
 admin metrics endpoint. A second exact gate can install the subscription HTTP
-handler only with protected key custody and the issuer enabled. The Web
-credential lease bridge and default client capability remain absent, so enabling
-the server flags alone cannot register or deliver Web Push.
+handler only with protected key custody and the issuer enabled. The detached Web
+credential lease transport exists, but the default client capability and product
+composition remain absent, so enabling the server flags alone cannot register
+or deliver Web Push.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

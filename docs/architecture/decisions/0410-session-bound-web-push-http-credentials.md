@@ -88,6 +88,12 @@ optimize lookup only as rebuildable state; PostgreSQL remains authoritative.
   disabled. Real TLS/WSS plus disposable-PostgreSQL integration proves Web-only
   negotiation, authenticated issuance, hash-only persistence, server-bound
   response identity, and the identity-free issued counter.
+- The detached Web V2 client requests capability 8 only when explicitly enabled,
+  emits one empty correlated command, validates fixed token/expiry bounds, and
+  keeps type 137 out of general application observers. Its transport lends
+  defensive copies to one callback, clears response and borrowed buffers before
+  resolving, and contains timeout/rejection. Default runtime composition remains
+  absent.
 - Rollback removes capability negotiation and handler composition first. The
   additive registry identities and migration remain; credential rows expire or
   can be erased without touching chat or subscription truth.
