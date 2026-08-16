@@ -10,7 +10,8 @@ test('exposes a labeled modal with bounded keyboard focus and trigger restoratio
     'aria-labelledby="profile-dialog-title"',
     'tabindex="-1" @keydown="onDialogKeydown"',
     'useModalKeyboardBoundary({',
-    "onClose: () => emit('close')",
+    'onClose: () => {',
+    "emit('close')",
   ]) assert.ok(source.includes(marker), `missing profile dialog marker: ${marker}`)
 })
 
@@ -21,4 +22,32 @@ test('makes avatar replacement a native keyboard action with an accessible file 
     'class="visually-hidden" tabindex="-1"',
     'aria-label="选择新头像"',
   ]) assert.ok(source.includes(marker), `missing avatar accessibility marker: ${marker}`)
+})
+
+test('associates profile fields with labels and announced feedback', () => {
+  for (const marker of [
+    '<label for="profile-display-name">',
+    'id="profile-display-name"',
+    '<label for="profile-user-id">',
+    'id="profile-user-id"',
+    'aria-describedby="profile-user-id-hint profile-user-id-feedback"',
+    'id="profile-user-id-feedback" aria-live="polite"',
+    'class="uid-error" role="alert"',
+    'class="uid-success" role="status"',
+  ]) assert.ok(source.includes(marker), `missing profile-field marker: ${marker}`)
+})
+
+test('uses a native password disclosure and clears component secrets on exit', () => {
+  for (const marker of [
+    'type="button" class="section-header" aria-controls="profile-password-panel"',
+    '<div id="profile-password-panel">',
+    ':aria-expanded="showPasswordChange" @click="togglePasswordChange"',
+    '<form v-if="showPasswordChange" id="profile-password-form"',
+    '@submit.prevent="changePassword"',
+    'autocomplete="current-password" required',
+    'autocomplete="new-password" required',
+    'type="submit" class="btn btn-primary"',
+    'if (!showPasswordChange.value) clearPasswordFields()',
+    'clearPasswordFields()\n    emit(\'close\')',
+  ]) assert.ok(source.includes(marker), `missing password-form marker: ${marker}`)
 })

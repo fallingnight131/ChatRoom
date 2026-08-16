@@ -2329,6 +2329,9 @@ Candidate slices:
   - [x] Make Web composer/upload actions explicitly named native controls and
     replace the pointer-only emoji palette with a roving keyboard grid whose
     close and selection paths restore useful focus.
+  - [x] Associate Web profile fields and feedback, replace its pointer-only
+    password disclosure with a native required form, and clear component-owned
+    password text on collapse and dialog exit.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

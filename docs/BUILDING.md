@@ -2233,7 +2233,10 @@ requires both Pinia stores to be initialized before attachment-session cleanup,
 credential clearing, and navigation.
 `profileDialogAccessibility.test.mjs` locks modal naming, focus entry/cycling/
 restoration, Escape dismissal, and the native avatar-picker action. Production
-build verification compiles the same dialog used by the V1 Web product.
+build verification compiles the same dialog used by the V1 Web product. The
+same source gate requires explicit nickname/UID label associations, announced
+UID feedback, a native required password form with password-manager hints, and
+component-password clearing on collapse and dialog close.
 The general accessibility source test additionally forbids the former clickable
 profile-header `div` and requires separate, named native profile/theme buttons.
 `modalKeyboardBoundary.test.ts` verifies focus-loop decisions independently of

@@ -24,46 +24,60 @@
 
       <!-- 昵称 -->
       <div class="input-group">
-        <label>昵称</label>
+        <label for="profile-display-name">昵称</label>
         <div class="inline-edit">
-          <input class="input" v-model="displayName" :disabled="!editingName" />
-          <button v-if="!editingName" class="btn btn-text" @click="editingName = true">编辑</button>
-          <button v-else class="btn btn-primary" @click="saveName">保存</button>
+          <input id="profile-display-name" class="input" v-model="displayName"
+                 :disabled="!editingName" autocomplete="nickname" />
+          <button v-if="!editingName" type="button" class="btn btn-text"
+                  @click="editingName = true">编辑</button>
+          <button v-else type="button" class="btn btn-primary" @click="saveName">保存</button>
         </div>
       </div>
 
       <!-- UID -->
       <div class="input-group">
-        <label>用户ID</label>
+        <label for="profile-user-id">用户ID</label>
         <div class="inline-edit">
-          <input class="input" v-model="uid" :disabled="!editingUid" />
-          <button v-if="!editingUid" class="btn btn-text" @click="editingUid = true">编辑</button>
-          <button v-else class="btn btn-primary" @click="saveUid">保存</button>
+          <input id="profile-user-id" class="input" v-model="uid" :disabled="!editingUid"
+                 aria-describedby="profile-user-id-hint profile-user-id-feedback"
+                 autocomplete="username" />
+          <button v-if="!editingUid" type="button" class="btn btn-text"
+                  @click="editingUid = true">编辑</button>
+          <button v-else type="button" class="btn btn-primary" @click="saveUid">保存</button>
         </div>
-        <div class="uid-hint">6-20位字母/数字/下划线，每月仅可修改一次</div>
-        <div v-if="uidError" class="uid-error">{{ uidError }}</div>
-        <div v-if="uidSuccess" class="uid-success">{{ uidSuccess }}</div>
+        <div id="profile-user-id-hint" class="uid-hint">6-20位字母/数字/下划线，每月仅可修改一次</div>
+        <div id="profile-user-id-feedback" aria-live="polite">
+          <div v-if="uidError" class="uid-error" role="alert">{{ uidError }}</div>
+          <div v-if="uidSuccess" class="uid-success" role="status">{{ uidSuccess }}</div>
+        </div>
       </div>
 
       <!-- 修改密码 -->
       <div class="password-section">
-        <div class="section-header" @click="showPasswordChange = !showPasswordChange">
+        <button type="button" class="section-header" aria-controls="profile-password-panel"
+                :aria-expanded="showPasswordChange" @click="togglePasswordChange">
           修改密码 {{ showPasswordChange ? '▲' : '▼' }}
-        </div>
-        <div v-if="showPasswordChange">
-          <div class="input-group">
-            <label>当前密码</label>
-            <input class="input" v-model="oldPassword" type="password" />
-          </div>
-          <div class="input-group">
-            <label>新密码</label>
-            <input class="input" v-model="newPassword" type="password" />
-          </div>
-          <div class="input-group">
-            <label>确认新密码</label>
-            <input class="input" v-model="confirmPassword" type="password" />
-          </div>
-          <button class="btn btn-primary" @click="changePassword" style="width:100%">修改密码</button>
+        </button>
+        <div id="profile-password-panel">
+          <form v-if="showPasswordChange" id="profile-password-form"
+                @submit.prevent="changePassword">
+            <div class="input-group">
+              <label for="profile-current-password">当前密码</label>
+              <input id="profile-current-password" class="input" v-model="oldPassword"
+                     type="password" autocomplete="current-password" required />
+            </div>
+            <div class="input-group">
+              <label for="profile-new-password">新密码</label>
+              <input id="profile-new-password" class="input" v-model="newPassword"
+                     type="password" autocomplete="new-password" required />
+            </div>
+            <div class="input-group">
+              <label for="profile-confirm-password">确认新密码</label>
+              <input id="profile-confirm-password" class="input" v-model="confirmPassword"
+                     type="password" autocomplete="new-password" required />
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%">修改密码</button>
+          </form>
         </div>
       </div>
 
@@ -83,8 +97,8 @@
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-danger" @click="doLogout">退出登录</button>
-        <button class="btn btn-secondary" @click="closeDialog">关闭</button>
+        <button type="button" class="btn btn-danger" @click="doLogout">退出登录</button>
+        <button type="button" class="btn btn-secondary" @click="closeDialog">关闭</button>
       </div>
     </div>
   </div>
@@ -118,7 +132,10 @@ const avatarInput = ref(null)
 const uidError = ref('')
 const uidSuccess = ref('')
 const { dialogRef, closeDialog, onDialogKeydown } = useModalKeyboardBoundary({
-  onClose: () => emit('close')
+  onClose: () => {
+    clearPasswordFields()
+    emit('close')
+  }
 })
 
 function triggerAvatarInput() {
@@ -178,6 +195,17 @@ function saveUid() {
   editingUid.value = false
 }
 
+function clearPasswordFields() {
+  oldPassword.value = ''
+  newPassword.value = ''
+  confirmPassword.value = ''
+}
+
+function togglePasswordChange() {
+  showPasswordChange.value = !showPasswordChange.value
+  if (!showPasswordChange.value) clearPasswordFields()
+}
+
 function onUidChangeRsp(msg) {
   if (msg.data.success) {
     uidError.value = ''
@@ -201,9 +229,7 @@ function changePassword() {
   }
   userStore.stagePasswordChange(newPassword.value)
   chatWs.changePassword(oldPassword.value, newPassword.value)
-  oldPassword.value = ''
-  newPassword.value = ''
-  confirmPassword.value = ''
+  clearPasswordFields()
   showPasswordChange.value = false
 }
 
@@ -270,6 +296,11 @@ onUnmounted(() => {
 }
 .section-header {
   cursor: pointer;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 8px;

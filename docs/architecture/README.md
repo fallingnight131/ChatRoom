@@ -982,6 +982,11 @@ Escape or overlay activation, and restores the previously focused trigger after
 unmount. Avatar replacement is a native button backed by an accessibly named
 file input rather than a pointer-only `div`. These are local presentation
 semantics and do not change profile authorization or upload validation.
+Nickname and account fields now have explicit label associations and announced
+UID feedback. Password editing uses a native disclosure and required form with
+browser password-manager hints; collapsing or closing the surface clears all
+component-owned current/new password fields before unmount. The server remains
+authoritative for UID and credential changes.
 The corresponding chat-shell entry is now a native dialog trigger with expanded
 state and a named avatar; it no longer wraps the theme action in a pointer-only
 click region. Theme selection remains an independently named button, so keyboard
