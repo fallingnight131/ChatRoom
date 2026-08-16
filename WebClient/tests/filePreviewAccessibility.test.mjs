@@ -31,3 +31,17 @@ test('names preview actions and each embedded content surface', () => {
     ':aria-label="`${fileName} 文本预览`"',
   ]) assert.ok(source.includes(marker), `missing preview-content marker: ${marker}`)
 })
+
+test('provides bounded native image zoom controls alongside pointer zoom', () => {
+  for (const marker of [
+    'aria-label="缩小图片"',
+    ':disabled="scale <= MIN_IMAGE_SCALE"',
+    ':aria-label="`重置图片缩放，当前 ${imageScalePercent}%`"',
+    'aria-label="放大图片"',
+    ':disabled="scale >= MAX_IMAGE_SCALE"',
+    'const MIN_IMAGE_SCALE = 0.1',
+    'const MAX_IMAGE_SCALE = 10',
+    'function adjustZoom(delta)',
+    'adjustZoom(e.deltaY > 0 ? -IMAGE_SCALE_STEP : IMAGE_SCALE_STEP)',
+  ]) assert.ok(source.includes(marker), `missing image-zoom marker: ${marker}`)
+})

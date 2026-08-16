@@ -7,6 +7,16 @@
       <div class="preview-topbar">
         <span id="file-preview-title" class="preview-filename text-ellipsis">{{ fileName }}</span>
         <div class="preview-actions">
+          <template v-if="!loading && previewType === 'image'">
+            <button type="button" class="preview-btn" aria-label="缩小图片"
+                    :disabled="scale <= MIN_IMAGE_SCALE" @click="adjustZoom(-IMAGE_SCALE_STEP)">−</button>
+            <button type="button" class="preview-zoom-reset" @click="resetZoom"
+                    :aria-label="`重置图片缩放，当前 ${imageScalePercent}%`">
+              {{ imageScalePercent }}%
+            </button>
+            <button type="button" class="preview-btn" aria-label="放大图片"
+                    :disabled="scale >= MAX_IMAGE_SCALE" @click="adjustZoom(IMAGE_SCALE_STEP)">＋</button>
+          </template>
           <button type="button" class="preview-btn" @click="download" title="下载"
                   :aria-label="`下载 ${fileName}`">
             <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -127,11 +137,15 @@ const translateY = ref(0)
 let isDragging = false
 let dragStartX = 0, dragStartY = 0
 let lastTx = 0, lastTy = 0
+const MIN_IMAGE_SCALE = 0.1
+const MAX_IMAGE_SCALE = 10
+const IMAGE_SCALE_STEP = 0.1
 
 const imageStyle = computed(() => ({
   transform: `translate(${translateX.value}px, ${translateY.value}px) scale(${scale.value})`,
   cursor: isDragging ? 'grabbing' : 'grab',
 }))
+const imageScalePercent = computed(() => Math.round(scale.value * 100))
 
 // 文件类型检测
 const VIDEO_EXTS = /\.(mp4|webm|ogg|mov|m4v|flv|avi|mkv|3gp)$/i
@@ -196,9 +210,15 @@ function resetZoom() {
   translateY.value = 0
 }
 
+function adjustZoom(delta) {
+  scale.value = Math.max(
+    MIN_IMAGE_SCALE,
+    Math.min(MAX_IMAGE_SCALE, Number((scale.value + delta).toFixed(1))),
+  )
+}
+
 function onWheel(e) {
-  const delta = e.deltaY > 0 ? -0.1 : 0.1
-  scale.value = Math.max(0.1, Math.min(10, scale.value + delta))
+  adjustZoom(e.deltaY > 0 ? -IMAGE_SCALE_STEP : IMAGE_SCALE_STEP)
 }
 
 function onDragStart(e) {
@@ -538,6 +558,20 @@ onUnmounted(() => {
 .preview-btn:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+.preview-zoom-reset {
+  min-width: 58px;
+  height: 40px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+}
+.preview-zoom-reset:hover {
+  background: rgba(255,255,255,0.25);
 }
 
 /* 加载 */

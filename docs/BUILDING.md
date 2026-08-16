@@ -2293,7 +2293,9 @@ claim resumability after page loss or replace transport/storage verification.
 Close initial focus, local Escape handling, trigger restoration, native named
 download/close actions, announced loading, and file-specific labels for image,
 video, audio, PDF, and text surfaces. It does not replace content-type, grant,
-fetch, decoding, or blob-cleanup tests.
+fetch, decoding, or blob-cleanup tests. The same gate locks named native image
+zoom-out/reset/zoom-in controls, current percentage, shared wheel/button bounds,
+and disabled controls at 10% and 1000%.
 `messageAttachmentAccessibility.test.mjs` locks native, file-named attachment
 preview buttons for loaded images, thumbnails, videos, generic files, and
 expired states, and forbids reintroducing manual Enter/Space pseudo-button
