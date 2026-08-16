@@ -7,11 +7,13 @@
 class QLabel;
 class QListWidget;
 class QListWidgetItem;
+class QLineEdit;
 class QPlainTextEdit;
 class QPushButton;
 class V2WindowsConversationParticipantViewModel;
 class V2WindowsConversationDirectoryViewModel;
 class V2WindowsMessagingViewModel;
+class V2WindowsMessageSearchViewModel;
 
 class V2WindowsMessagingPanel final : public QWidget {
     Q_OBJECT
@@ -21,7 +23,8 @@ public:
         V2WindowsConversationParticipantViewModel *participantViewModel,
         QWidget *parent = nullptr, bool mentionsEnabled = false,
         V2WindowsConversationDirectoryViewModel *directoryViewModel = nullptr,
-        bool forwardingEnabled = false);
+        bool forwardingEnabled = false,
+        V2WindowsMessageSearchViewModel *searchViewModel = nullptr);
     void setConversation(const QString &conversationId);
     QPlainTextEdit *composerForTest() const { return m_composer; }
     QListWidget *messageListForTest() const { return m_messages; }
@@ -29,10 +32,17 @@ public:
     QPushButton *cancelReplyForTest() const { return m_cancelReply; }
     QPushButton *mentionForTest() const { return m_mention; }
     QPushButton *sendForTest() const { return m_send; }
+    QLineEdit *searchInputForTest() const { return m_searchInput; }
+    QPushButton *searchButtonForTest() const { return m_searchButton; }
+    QListWidget *searchResultsForTest() const { return m_searchResults; }
 
 private:
     void render();
     void renderParticipants();
+    void renderSearch();
+    void startSearch();
+    void revealSearchResult(QListWidgetItem *item);
+    bool revealMessage(const QString &messageId);
     void chooseReply(const QString &messageId);
     void chooseForward(const QString &messageId);
     void beginEdit(const QString &messageId, const QString &text,
@@ -45,7 +55,14 @@ private:
     V2WindowsMessagingViewModel *m_viewModel;
     V2WindowsConversationParticipantViewModel *m_participantViewModel;
     V2WindowsConversationDirectoryViewModel *m_directoryViewModel;
+    V2WindowsMessageSearchViewModel *m_searchViewModel;
     QLabel *m_status;
+    QWidget *m_searchPane;
+    QLineEdit *m_searchInput;
+    QPushButton *m_searchButton;
+    QLabel *m_searchStatus;
+    QListWidget *m_searchResults;
+    QPushButton *m_searchLoadMore;
     QLabel *m_replyBanner;
     QListWidget *m_messages;
     QPlainTextEdit *m_composer;

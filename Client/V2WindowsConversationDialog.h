@@ -10,6 +10,7 @@ class V2WindowsConversationDirectoryViewModel;
 class V2WindowsConversationParticipantViewModel;
 class V2WindowsMessagingPanel;
 class V2WindowsMessagingViewModel;
+class V2WindowsMessageSearchViewModel;
 
 class V2WindowsConversationDialog final : public QDialog {
     Q_OBJECT
@@ -19,7 +20,8 @@ public:
         V2WindowsMessagingViewModel *messagingViewModel,
         V2WindowsConversationParticipantViewModel *participantViewModel,
         QWidget *parent = nullptr, bool mentionsEnabled = false,
-        bool forwardingEnabled = false);
+        bool forwardingEnabled = false,
+        V2WindowsMessageSearchViewModel *searchViewModel = nullptr);
 
     QListWidget *conversationListForTest() const { return m_conversations; }
     QPushButton *refreshForTest() const { return m_refresh; }

@@ -17,6 +17,7 @@ SOURCES += \
     ../Client/V2WindowsConversationDialog.cpp \
     ../Client/V2WindowsConversationDirectoryViewModel.cpp \
     ../Client/V2WindowsConversationParticipantViewModel.cpp \
+    ../Client/V2WindowsMessageSearchViewModel.cpp \
     ../Client/V2WindowsMessagingPanel.cpp \
     ../Client/V2WindowsForwardTargetDialog.cpp \
     ../Client/V2WindowsMentionComposer.cpp \
@@ -27,6 +28,7 @@ HEADERS += \
     ../Client/V2WindowsConversationDialog.h \
     ../Client/V2WindowsConversationDirectoryViewModel.h \
     ../Client/V2WindowsConversationParticipantViewModel.h \
+    ../Client/V2WindowsMessageSearchViewModel.h \
     ../Client/V2WindowsMessagingPanel.h \
     ../Client/V2WindowsForwardTargetDialog.h \
     ../Client/V2WindowsMentionComposer.h \

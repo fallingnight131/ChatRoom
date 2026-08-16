@@ -883,6 +883,12 @@ conversation, and projects correlated pages without a repository write. The
 ordinary controller exposes no search state. Late pages are matched against the
 captured conversation/query and disconnect clears both controller and protocol
 correlations. Widgets presentation remains separate.
+The enabled Windows conversation panel now renders a keyboard-native search
+form, accessible status, bounded result list, pagination, and stable-ID reveal.
+The entire surface is absent when the search ViewModel is absent. Revealing a
+cached hit centers the ordinary message row; an uncached hit remains only a
+validated search projection and announces that bounded context repair is
+required. The latter network repair is still a separate slice.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

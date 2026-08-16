@@ -2111,6 +2111,12 @@ shared WSS transport, and consumes type 127 into transient rows. Ordinary
 controllers expose no search ViewModel. A conversation switch changes the
 application correlation key, while disconnect clears protocol requests,
 queries, and results; neither path changes the durable history cursor.
+The enabled Windows conversation panel now exposes a native, keyboard-operable
+search field, submit button, announced status, single-selection result list,
+and bounded pagination control. Ordinary panels hide the entire surface. A
+validated hit already present in the 500-row message window is centered and
+focused by stable message ID; an uncached hit reports that context repair is
+needed without treating the search projection as durable history.
 CI compiles a separate, non-published forwarding-enabled `ChatClient` and runs
 the target-dialog Widgets test without replacing the ordinary default-off
 Windows verification payload. The Web baseline likewise compiles an enabled

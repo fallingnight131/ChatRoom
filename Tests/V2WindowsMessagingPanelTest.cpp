@@ -3,10 +3,12 @@
 #include "V2WindowsConversationDirectoryViewModel.h"
 #include "V2WindowsForwardTargetDialog.h"
 #include "V2WindowsMessagingViewModel.h"
+#include "V2WindowsMessageSearchViewModel.h"
 
 #include <QApplication>
 #include <QLabel>
 #include <QListWidget>
+#include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QTextCursor>
@@ -88,6 +90,10 @@ int main(int argc, char **argv) {
         qCritical() << "mention control must be default-off";
         return 1;
     }
+    if (defaultOff.searchInputForTest()->isVisible()) {
+        qCritical() << "search surface must be default-off";
+        return 1;
+    }
     const auto defaultButtons = defaultOff.findChildren<QPushButton *>(
         QString(), Qt::FindChildrenRecursively);
     if (std::any_of(defaultButtons.cbegin(), defaultButtons.cend(),
@@ -97,15 +103,49 @@ int main(int argc, char **argv) {
         qCritical() << "forward action must be default-off";
         return 1;
     }
+    QString searchConversation;
+    QString searchQuery;
+    V2WindowsMessageSearchViewModel search(
+        [&](const QString &selected, const QString &query, quint64, bool) {
+            searchConversation = selected;
+            searchQuery = query;
+            return true;
+        });
     V2WindowsMessagingPanel panel(
-        &model, &participants, nullptr, true, &directory, true);
+        &model, &participants, nullptr, true, &directory, true, &search);
     panel.setConversation(conversation);
     panel.show();
     if (panel.accessibleName().isEmpty()
             || panel.messageListForTest()->accessibleName().isEmpty()
             || panel.composerForTest()->accessibleName().isEmpty()
-            || panel.sendForTest()->accessibleName().isEmpty()) {
+            || panel.sendForTest()->accessibleName().isEmpty()
+            || panel.searchInputForTest()->accessibleName().isEmpty()
+            || panel.searchResultsForTest()->accessibleName().isEmpty()) {
         qCritical() << "core messaging controls lack accessible names";
+        return 1;
+    }
+    panel.searchInputForTest()->setText(QStringLiteral("张三"));
+    panel.searchButtonForTest()->click();
+    app.processEvents();
+    if (searchConversation != conversation || searchQuery != QStringLiteral("张三")) {
+        qCritical() << "search form did not submit the active conversation";
+        return 1;
+    }
+    search.applyPage(conversation, searchQuery, {{message.messageId, 1, account,
+        message.text, 900, 0, 0}}, false, 1, false);
+    app.processEvents();
+    if (panel.searchResultsForTest()->count() != 1) {
+        qCritical() << "validated transient search result was not rendered";
+        return 1;
+    }
+    panel.searchResultsForTest()->setCurrentRow(0);
+    emit panel.searchResultsForTest()->itemActivated(
+        panel.searchResultsForTest()->currentItem());
+    app.processEvents();
+    if (!panel.messageListForTest()->currentItem()
+            || panel.messageListForTest()->currentItem()->data(Qt::UserRole).toString()
+                != message.messageId) {
+        qCritical() << "keyboard search activation did not reveal a cached hit";
         return 1;
     }
     const auto messageLabels = panel.findChildren<QLabel *>();

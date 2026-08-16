@@ -4,6 +4,7 @@
 #include "V2WindowsConversationParticipantViewModel.h"
 #include "V2WindowsMessagingPanel.h"
 #include "V2WindowsMessagingViewModel.h"
+#include "V2WindowsMessageSearchViewModel.h"
 
 #include <QDialogButtonBox>
 #include <QHBoxLayout>
@@ -19,7 +20,8 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
         V2WindowsConversationDirectoryViewModel *directoryViewModel,
         V2WindowsMessagingViewModel *messagingViewModel,
         V2WindowsConversationParticipantViewModel *participantViewModel,
-        QWidget *parent, bool mentionsEnabled, bool forwardingEnabled)
+        QWidget *parent, bool mentionsEnabled, bool forwardingEnabled,
+        V2WindowsMessageSearchViewModel *searchViewModel)
     : QDialog(parent), m_directoryViewModel(directoryViewModel),
       m_directoryStatus(new QLabel(this)), m_conversationTitle(new QLabel(this)),
       m_conversations(new QListWidget(this)),
@@ -27,7 +29,7 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
       m_loadMore(new QPushButton(QStringLiteral("加载更多"), this)),
       m_messagingPanel(new V2WindowsMessagingPanel(
           messagingViewModel, participantViewModel, this, mentionsEnabled,
-          directoryViewModel, forwardingEnabled)) {
+          directoryViewModel, forwardingEnabled, searchViewModel)) {
     Q_ASSERT(m_directoryViewModel);
     Q_ASSERT(messagingViewModel);
     Q_ASSERT(participantViewModel);

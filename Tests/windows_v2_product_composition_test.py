@@ -52,7 +52,8 @@ def main() -> int:
         "m_deviceManagementController->start()",
         "m_deviceManagementController->stop()",
         "DeviceManagementDialog",
-        "m_v2MessageForwardingEnabled);",
+        "m_v2MessageForwardingEnabled,",
+        "messageSearchViewModel());",
     ), "Client/ChatWindow.cpp")
     require(controller, (
         "ReadyForAuthentication",
@@ -79,6 +80,9 @@ def main() -> int:
         "m_mentionsEnabled && composing",
         "V2WindowsMentionComposer::serialize",
         'setProperty("mentionTargetAccountIds"',
+        'setAccessibleName(QStringLiteral("搜索当前会话消息"))',
+        "V2WindowsMessageSearchViewModel::loadMore",
+        "scrollToItem(item, QAbstractItemView::PositionAtCenter)",
     ), "Client/V2WindowsMessagingPanel.cpp")
     for source in (
         "Client/WindowsDeviceManagementController.cpp",

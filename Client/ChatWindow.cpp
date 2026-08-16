@@ -4799,7 +4799,8 @@ void ChatWindow::showV2Conversations() {
         m_deviceManagementController->conversationDirectoryViewModel(),
         m_deviceManagementController->messagingViewModel(),
         m_deviceManagementController->conversationParticipantViewModel(), this, true,
-        m_v2MessageForwardingEnabled);
+        m_v2MessageForwardingEnabled,
+        m_deviceManagementController->messageSearchViewModel());
     m_v2ConversationDialog->setAttribute(Qt::WA_DeleteOnClose);
     connect(m_v2ConversationDialog, &QObject::destroyed, this, [this] {
         m_v2ConversationDialog = nullptr;

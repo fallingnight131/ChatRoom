@@ -2235,6 +2235,9 @@ Progress:
       - [x] Compose search only in an enabled authenticated Windows controller,
         route bounded queries over the shared WSS transport, project correlated
         pages in memory, and expose no search state from ordinary controllers.
+      - [x] Add the capability-gated accessible Windows Widgets search form,
+        announced status, bounded paged result list, and keyboard activation
+        that centers an already cached stable message hit.
 
 Candidate slices:
 

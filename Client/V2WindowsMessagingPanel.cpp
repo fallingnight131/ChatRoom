@@ -3,10 +3,13 @@
 #include "V2WindowsConversationDirectoryViewModel.h"
 #include "V2WindowsForwardTargetDialog.h"
 #include "V2WindowsMessagingViewModel.h"
+#include "V2WindowsMessageSearchViewModel.h"
 
 #include <QHBoxLayout>
+#include <QAccessible>
 #include <QLabel>
 #include <QListWidget>
+#include <QLineEdit>
 #include <QPalette>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -19,10 +22,17 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
         V2WindowsConversationParticipantViewModel *participantViewModel,
         QWidget *parent, bool mentionsEnabled,
         V2WindowsConversationDirectoryViewModel *directoryViewModel,
-        bool forwardingEnabled)
+        bool forwardingEnabled,
+        V2WindowsMessageSearchViewModel *searchViewModel)
     : QWidget(parent), m_viewModel(viewModel),
       m_participantViewModel(participantViewModel),
-      m_directoryViewModel(directoryViewModel), m_status(new QLabel(this)),
+      m_directoryViewModel(directoryViewModel), m_searchViewModel(searchViewModel),
+      m_status(new QLabel(this)), m_searchPane(new QWidget(this)),
+      m_searchInput(new QLineEdit(m_searchPane)),
+      m_searchButton(new QPushButton(QStringLiteral("搜索"), m_searchPane)),
+      m_searchStatus(new QLabel(m_searchPane)),
+      m_searchResults(new QListWidget(m_searchPane)),
+      m_searchLoadMore(new QPushButton(QStringLiteral("加载更多结果"), m_searchPane)),
       m_replyBanner(new QLabel(this)), m_messages(new QListWidget(this)),
       m_composer(new QPlainTextEdit(this)),
       m_participantPane(new QWidget(this)),
@@ -41,6 +51,25 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     setAccessibleName(QStringLiteral("消息和回复"));
     m_status->setAccessibleName(QStringLiteral("消息状态"));
     m_status->setWordWrap(true);
+    m_searchPane->setAccessibleName(QStringLiteral("会话消息搜索"));
+    m_searchInput->setAccessibleName(QStringLiteral("搜索当前会话消息"));
+    m_searchInput->setPlaceholderText(QStringLiteral("输入 1 至 128 字节的文字"));
+    m_searchInput->setMaxLength(128);
+    m_searchButton->setAccessibleName(QStringLiteral("提交当前会话搜索"));
+    m_searchStatus->setAccessibleName(QStringLiteral("搜索结果状态"));
+    m_searchStatus->setWordWrap(true);
+    m_searchResults->setAccessibleName(QStringLiteral("搜索结果列表"));
+    m_searchResults->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_searchLoadMore->setAccessibleName(QStringLiteral("加载更多搜索结果"));
+    auto *searchControls = new QHBoxLayout;
+    searchControls->addWidget(m_searchInput, 1);
+    searchControls->addWidget(m_searchButton);
+    auto *searchLayout = new QVBoxLayout(m_searchPane);
+    searchLayout->addLayout(searchControls);
+    searchLayout->addWidget(m_searchStatus);
+    searchLayout->addWidget(m_searchResults);
+    searchLayout->addWidget(m_searchLoadMore);
+    m_searchPane->setVisible(m_searchViewModel != nullptr);
     m_replyBanner->setAccessibleName(QStringLiteral("当前回复目标"));
     m_replyBanner->setWordWrap(true);
     m_messages->setAccessibleName(QStringLiteral("消息列表"));
@@ -80,6 +109,7 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     composerRow->addWidget(m_mention);
     composerRow->addWidget(m_send);
     auto *layout = new QVBoxLayout(this);
+    layout->addWidget(m_searchPane);
     layout->addWidget(m_status);
     layout->addWidget(m_messages, 1);
     layout->addLayout(replyHeader);
@@ -108,8 +138,21 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
             this, &V2WindowsMessagingPanel::insertParticipant);
     connect(m_composer, &QPlainTextEdit::textChanged,
             this, &V2WindowsMessagingPanel::reconcileComposer);
+    if (m_searchViewModel) {
+        connect(m_searchViewModel, &V2WindowsMessageSearchViewModel::changed,
+                this, &V2WindowsMessagingPanel::renderSearch);
+        connect(m_searchButton, &QPushButton::clicked,
+                this, &V2WindowsMessagingPanel::startSearch);
+        connect(m_searchInput, &QLineEdit::returnPressed,
+                this, &V2WindowsMessagingPanel::startSearch);
+        connect(m_searchLoadMore, &QPushButton::clicked,
+                m_searchViewModel, &V2WindowsMessageSearchViewModel::loadMore);
+        connect(m_searchResults, &QListWidget::itemActivated,
+                this, &V2WindowsMessagingPanel::revealSearchResult);
+    }
     render();
     renderParticipants();
+    renderSearch();
 }
 
 void V2WindowsMessagingPanel::setConversation(const QString &conversationId) {
@@ -123,6 +166,11 @@ void V2WindowsMessagingPanel::setConversation(const QString &conversationId) {
     m_updatingComposer = false;
     m_previousComposerText.clear();
     m_mention->setEnabled(false);
+    if (m_searchViewModel) {
+        m_searchViewModel->activate(conversationId);
+        m_searchInput->clear();
+        renderSearch();
+    }
 }
 
 void V2WindowsMessagingPanel::render() {
@@ -130,6 +178,7 @@ void V2WindowsMessagingPanel::render() {
     m_messages->clear();
     for (const auto &message : m_viewModel->rows()) {
         auto *item = new QListWidgetItem(m_messages);
+        item->setData(Qt::UserRole, message.messageId);
         auto *row = new QWidget(m_messages);
         auto *layout = new QVBoxLayout(row);
         auto *body = new QLabel(row);
@@ -315,6 +364,62 @@ void V2WindowsMessagingPanel::render() {
     m_mention->setEnabled(
         m_mentionsEnabled && composing && !m_conversationId.isEmpty());
     m_send->setEnabled(composing && !m_composer->toPlainText().trimmed().isEmpty());
+}
+
+void V2WindowsMessagingPanel::startSearch() {
+    if (!m_searchViewModel || m_conversationId.isEmpty()) return;
+    if (!m_searchViewModel->search(m_searchInput->text())) {
+        m_searchStatus->setText(QStringLiteral("请输入有效的搜索文字"));
+    }
+}
+
+void V2WindowsMessagingPanel::renderSearch() {
+    if (!m_searchViewModel) return;
+    m_searchResults->clear();
+    for (const auto &row : m_searchViewModel->rows()) {
+        auto *item = new QListWidgetItem(
+            QStringLiteral("#%1  %2").arg(row.conversationSequence).arg(row.text),
+            m_searchResults);
+        item->setData(Qt::UserRole, row.messageId);
+        item->setData(Qt::AccessibleDescriptionRole,
+                      QStringLiteral("激活以定位到该消息"));
+        item->setToolTip(row.text);
+    }
+    m_searchButton->setEnabled(!m_searchViewModel->busy());
+    m_searchInput->setEnabled(!m_searchViewModel->busy());
+    m_searchLoadMore->setEnabled(
+        !m_searchViewModel->busy() && m_searchViewModel->hasMore());
+    if (!m_searchViewModel->failure().isEmpty())
+        m_searchStatus->setText(m_searchViewModel->failure());
+    else if (m_searchViewModel->busy())
+        m_searchStatus->setText(QStringLiteral("正在搜索…"));
+    else if (!m_searchViewModel->query().isEmpty())
+        m_searchStatus->setText(QStringLiteral("已找到 %1 条结果")
+            .arg(m_searchViewModel->rows().size()));
+    else
+        m_searchStatus->setText(QStringLiteral("搜索结果仅保留在当前页面"));
+    if (m_searchPane->isVisible()) {
+        QAccessibleEvent announcement(m_searchStatus, QAccessible::Alert);
+        QAccessible::updateAccessibility(&announcement);
+    }
+}
+
+void V2WindowsMessagingPanel::revealSearchResult(QListWidgetItem *item) {
+    if (!item) return;
+    if (!revealMessage(item->data(Qt::UserRole).toString()))
+        m_searchStatus->setText(QStringLiteral("正在请求该消息附近的上下文"));
+}
+
+bool V2WindowsMessagingPanel::revealMessage(const QString &messageId) {
+    for (int row = 0; row < m_messages->count(); ++row) {
+        auto *item = m_messages->item(row);
+        if (item->data(Qt::UserRole).toString() != messageId) continue;
+        m_messages->setCurrentItem(item);
+        m_messages->scrollToItem(item, QAbstractItemView::PositionAtCenter);
+        m_messages->setFocus();
+        return true;
+    }
+    return false;
 }
 
 void V2WindowsMessagingPanel::chooseForward(const QString &messageId) {
