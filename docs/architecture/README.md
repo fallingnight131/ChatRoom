@@ -2067,8 +2067,12 @@ serialization, and the application-owned `sendText`/`sendReply` split. V2
 participant selection now also follows the locale for dialog semantics, roles,
 loading/paging, and known application failure presentation. Stable account IDs,
 application paging, Unicode/UTF-8 mention construction, roving keys, caret and
-trigger focus are unchanged. V2 edit/reaction/pin/forward mutations and device
-dialogs remain later slices.
+trigger focus are unchanged. The independently capability-gated forwarding
+slice now localizes its trigger, privacy description, stable target list,
+pending state, and durable-outbox failure feedback. It still forwards the
+stable source message ID to one stable target conversation ID, cancels when the
+outbox cannot persist, and blocks duplicate actions/dismissal while pending. V2
+edit/reaction/pin mutations and device dialogs remain later slices.
 
 ### Product consistency
 

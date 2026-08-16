@@ -167,6 +167,10 @@ presentation, loading/paging state, and known application failure adapter.
 Source contracts preserve stable account identity, application-owned paging,
 Unicode insertion and caret restoration, roving keyboard navigation, and
 trigger-focus restoration.
+The default-off V2 forwarding slice localizes its trigger, modal description,
+target kinds, pending state, and local durable-outbox feedback. Source contracts
+retain the independent capability flag, stable source/target IDs, cache-failure
+cancellation, one pending operation, dismissal blocking, and focus containment.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

@@ -15,10 +15,10 @@ test('keeps an accessible forwarding picker behind the application capability ga
     '@keydown="onForwardDialogKeydown"',
     "canClose: () => !forwardPending.value",
     "initialFocusSelector: '#forward-dialog-close'",
-    'role="listbox" aria-label="转发目标会话"',
+    'role="listbox" :aria-label="forwardMessages.targets"',
     'await runtimeRef.value.application.forwardMessage(',
     'message.forwarded',
-    '服务器会复制最新的消息内容，不会暴露来源会话',
+    'forwardMessages.description',
   ]) assert.ok(view.includes(marker), `missing V2 forward UI marker: ${marker}`)
 })
 

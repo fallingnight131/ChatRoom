@@ -641,6 +641,23 @@ const v2PreviewMentionCatalog = {
   },
 } as const;
 
+const v2PreviewForwardCatalog = {
+  "zh-CN": {
+    forward: "转发", forwardLabel: (sequence: string) => `转发消息 ${sequence}`, title: "转发到会话",
+    description: "服务器会复制最新的消息内容，不会暴露来源会话。", close: "关闭转发目标选择",
+    targets: "转发目标会话", direct: "私聊", group: "群聊", forwarding: "正在保存并转发…",
+    cacheUnavailable: "无法保存转发任务，已取消发送",
+    retryInTarget: "转发任务暂未发送，可在目标会话中重试", failed: "转发失败",
+  },
+  "en-US": {
+    forward: "Forward", forwardLabel: (sequence: string) => `Forward message ${sequence}`, title: "Forward to a conversation",
+    description: "The server copies the latest message content without exposing the source conversation.", close: "Close forwarding target picker",
+    targets: "Forwarding target conversations", direct: "Direct", group: "Group", forwarding: "Saving and forwarding…",
+    cacheUnavailable: "The forwarding task could not be saved, so sending was cancelled",
+    retryInTarget: "The forwarding task was not sent; retry it in the target conversation", failed: "Forwarding failed",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -759,6 +776,10 @@ export function v2PreviewComposerMessages(locale: WebLocale) {
 
 export function v2PreviewMentionMessages(locale: WebLocale) {
   return v2PreviewMentionCatalog[locale];
+}
+
+export function v2PreviewForwardMessages(locale: WebLocale) {
+  return v2PreviewForwardCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

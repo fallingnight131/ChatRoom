@@ -231,8 +231,8 @@
                 <button v-if="snapshot.forwardingEnabled && message.deliveryState === 'accepted'
                               && message.availability === 'available'"
                         class="forward-link" type="button" aria-haspopup="dialog"
-                        :aria-label="`转发消息 ${message.sequence}`"
-                        @click="openForwardPicker(message)">转发</button>
+                        :aria-label="forwardMessages.forwardLabel(message.sequence)"
+                        @click="openForwardPicker(message)">{{ forwardMessages.forward }}</button>
                 <button v-if="message.deliveryState === 'failed'" class="retry-link" type="button"
                         :aria-label="basicActionMessages.retryLabel"
                         @click="retryMessage(message.clientMessageId)">
@@ -309,22 +309,22 @@
                      @keydown="onForwardDialogKeydown">
               <header>
                 <div>
-                  <h2 id="forward-dialog-title">转发到会话</h2>
-                  <p id="forward-dialog-description">服务器会复制最新的消息内容，不会暴露来源会话。</p>
+                  <h2 id="forward-dialog-title">{{ forwardMessages.title }}</h2>
+                  <p id="forward-dialog-description">{{ forwardMessages.description }}</p>
                 </div>
                 <button id="forward-dialog-close" class="icon-button" type="button"
-                        aria-label="关闭转发目标选择" @click="closeForwardDialog">×</button>
+                        :aria-label="forwardMessages.close" @click="closeForwardDialog">×</button>
               </header>
-              <ul role="listbox" aria-label="转发目标会话" :aria-busy="forwardPending">
+              <ul role="listbox" :aria-label="forwardMessages.targets" :aria-busy="forwardPending">
                 <li v-for="conversation in snapshot.directory" :key="conversation.conversationId">
                   <button type="button" role="option" :disabled="forwardPending"
                           @click="chooseForwardTarget(conversation)">
                     <strong>{{ conversation.displayName }}</strong>
-                    <span>{{ conversation.kind === 'direct' ? '私聊' : '群聊' }}</span>
+                    <span>{{ conversation.kind === 'direct' ? forwardMessages.direct : forwardMessages.group }}</span>
                   </button>
                 </li>
               </ul>
-              <p v-if="forwardPending" role="status">正在保存并转发…</p>
+              <p v-if="forwardPending" role="status">{{ forwardMessages.forwarding }}</p>
             </section>
           </div>
         </template>
@@ -402,6 +402,7 @@ import {
   composerMessages as composerCatalogMessages,
   v2PreviewBasicActionMessages,
   v2PreviewComposerMessages,
+  v2PreviewForwardMessages,
   v2PreviewMentionMessages,
   v2PreviewSearchMessages,
   v2PreviewShellMessages,
@@ -425,6 +426,7 @@ const basicActionMessages = computed(() => v2PreviewBasicActionMessages(userStor
 const composerMessages = computed(() => composerCatalogMessages(userStore.locale))
 const v2ComposerMessages = computed(() => v2PreviewComposerMessages(userStore.locale))
 const mentionMessages = computed(() => v2PreviewMentionMessages(userStore.locale))
+const forwardMessages = computed(() => v2PreviewForwardMessages(userStore.locale))
 const username = ref('')
 const password = ref('')
 const draft = ref('')
@@ -739,14 +741,14 @@ async function chooseForwardTarget(conversation) {
       forwardSource.value.id, conversation.conversationId)
     if (result.deliveryState !== 'sending') {
       actionError.value = result.errorCode === 'CACHE_UNAVAILABLE'
-        ? '无法保存转发任务，已取消发送'
-        : '转发任务暂未发送，可在目标会话中重试'
+        ? forwardMessages.value.cacheUnavailable
+        : forwardMessages.value.retryInTarget
     }
     forwardPending.value = false
     forwardSource.value = null
   } catch (error) {
     forwardPending.value = false
-    actionError.value = error instanceof Error ? error.message : '转发失败'
+    actionError.value = error instanceof Error ? error.message : forwardMessages.value.failed
   }
 }
 
