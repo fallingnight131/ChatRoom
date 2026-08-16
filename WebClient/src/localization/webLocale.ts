@@ -416,6 +416,20 @@ const forwardDialogCatalog = {
   },
 } as const;
 
+const downloadPanelCatalog = {
+  "zh-CN": {
+    title: "下载管理", expand: "展开下载管理", collapse: "收起下载管理", taskSuffix: " 下载任务",
+    progressSuffix: " 下载进度", pausePrefix: "暂停下载 ", resumePrefix: "继续下载 ", cancelPrefix: "取消下载 ",
+    pause: "暂停", resume: "继续", cancel: "取消", paused: "已暂停", downloading: "下载中",
+  },
+  "en-US": {
+    title: "Downloads", expand: "Expand downloads", collapse: "Collapse downloads", taskSuffix: " download task",
+    progressSuffix: " download progress", pausePrefix: "Pause download: ", resumePrefix: "Resume download: ",
+    cancelPrefix: "Cancel download: ", pause: "Pause", resume: "Resume", cancel: "Cancel",
+    paused: "Paused", downloading: "Downloading",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -490,6 +504,10 @@ export function filePreviewMessages(locale: WebLocale) {
 
 export function forwardDialogMessages(locale: WebLocale) {
   return forwardDialogCatalog[locale];
+}
+
+export function downloadPanelMessages(locale: WebLocale) {
+  return downloadPanelCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

@@ -2016,6 +2016,11 @@ empty state, selection count, and submit state follow the active locale. It
 continues to emit only stable room IDs and usernames, preserves roving tabs and
 modal focus containment, and blocks dismissal or duplicate submission while a
 forward is pending.
+The download-management panel now follows the same locale for its region,
+collapse control, task/progress descriptions, transfer state, and actions. Its
+progress calculation and the store-owned pause, resume, and cancel commands are
+unchanged; no transfer bytes or authorization state enter the localization
+catalog.
 
 ### Product consistency
 

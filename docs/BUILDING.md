@@ -103,6 +103,11 @@ forwarding picker now localizes its tabs, search, candidate state, selection
 summary, and pending actions while retaining stable `roomId`/`username` target
 values. The English browser journey opens and closes the named picker from a
 real fixture message and verifies its disabled empty-selection submit state.
+The download-management slice localizes its region, collapse control, task and
+progress names, transfer state, and pause/resume/cancel actions. Source tests
+retain the native progress values and store-owned download command boundary;
+the browser fixture has no active download and therefore supplies regression,
+not live-transfer, evidence for this slice.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

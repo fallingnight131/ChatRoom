@@ -10,20 +10,20 @@ test('exposes download management as a named collapsible region', () => {
     'id="download-panel-title"',
     'type="button" class="dl-toggle" aria-controls="download-list"',
     ':aria-expanded="!collapsed"',
-    ":aria-label=\"collapsed ? '展开下载管理' : '收起下载管理'\"",
+    ':aria-label="collapsed ? messages.expand : messages.collapse"',
     'v-show="!collapsed" id="download-list" class="dl-list" role="list"',
-    'role="listitem" :aria-label="`${d.fileName} 下载任务`"',
+    'role="listitem" :aria-label="`${d.fileName}${messages.taskSuffix}`"',
   ]) assert.ok(source.includes(marker), `missing download-region marker: ${marker}`)
 })
 
 test('names file progress and native download actions', () => {
   for (const marker of [
     'class="progress-bar" role="progressbar"',
-    ':aria-label="`${d.fileName} 下载进度`"',
+    ':aria-label="`${d.fileName}${messages.progressSuffix}`"',
     ':aria-valuenow="percent(d)"',
-    "d.status === 'paused' ? '已暂停' : '下载中'",
-    ':aria-label="`暂停下载 ${d.fileName}`"',
-    ':aria-label="`继续下载 ${d.fileName}`"',
-    ':aria-label="`取消下载 ${d.fileName}`"',
+    "d.status === 'paused' ? messages.value.paused : messages.value.downloading",
+    ':aria-label="`${messages.pausePrefix}${d.fileName}`"',
+    ':aria-label="`${messages.resumePrefix}${d.fileName}`"',
+    ':aria-label="`${messages.cancelPrefix}${d.fileName}`"',
   ]) assert.ok(source.includes(marker), `missing download-action marker: ${marker}`)
 })

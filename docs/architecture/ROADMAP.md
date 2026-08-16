@@ -2376,6 +2376,8 @@ Candidate slices:
     without changing download, fallback, chunking, or Blob lifecycle behavior.
   - [x] Migrate the Web V1 forwarding picker while preserving stable target
     identities, modal focus containment, and pending-submit protection.
+  - [x] Migrate the Web V1 download-management panel without changing progress
+    calculation or store-owned pause/resume/cancel commands.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat
