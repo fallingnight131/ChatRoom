@@ -200,9 +200,10 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
         case MessageType.SUBMIT_MESSAGE: {
           const submission = fromBinary(SubmitMessageSchema, request.payload);
           requireSession(request);
+          const text = new TextDecoder().decode(submission.content);
           if (submission.conversationId !== FIXTURE_CONVERSATION_ID
               || submission.contentType !== MessageContentType.TEXT_UTF8
-              || new TextDecoder().decode(submission.content) !== "Fixture outgoing message"
+              || !["Fixture outgoing message", "Offline queued message"].includes(text)
               || !request.clientMessageId) {
             throw new Error("unexpected V2 fixture message submission");
           }
@@ -210,7 +211,7 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
             MessageAcceptedSchema, {
               conversationId: FIXTURE_CONVERSATION_ID,
               messageId: OUTGOING_MESSAGE_ID,
-              conversationSequence: 2n,
+              conversationSequence: resumed ? 3n : 2n,
               acceptedAtEpochMs: NOW + 1_000n,
               duplicate: false,
             }, { sessionId: SESSION_ID });

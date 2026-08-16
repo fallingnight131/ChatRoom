@@ -2424,6 +2424,9 @@ Candidate slices:
   - [x] Extend the V2 browser fixture through a controlled socket restart,
     memory-only same-session resume, and sequence-based active-history repair
     without treating the deterministic route as real network/failover evidence.
+  - [x] Verify Web V2 browser offline/online behavior: no offline retry socket,
+    retained failed optimistic text, one resumed connection, and one explicit
+    stable-identity retry to acceptance.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

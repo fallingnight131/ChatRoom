@@ -92,9 +92,11 @@ Before serving preview assets:
 The deterministic browser boundary uses Playwright WebSocket routing and exact
 generated Protobuf envelopes. It verifies the current view/application/transport
 composition without opening a real network connection, including a controlled
-socket close, memory-only session resume, and ordered history repair. It does not
-satisfy the real TLS, Origin/Host, gateway, database, network-outage/failover, or
-deployment checks above and must not be reported as release or capacity evidence.
+socket close, memory-only session resume, ordered history repair, and browser
+offline/online simulation with a single explicit optimistic-message retry. It
+does not satisfy the real TLS, Origin/Host, gateway, database, physical network,
+edge-failover, or deployment checks above and must not be reported as release or
+capacity evidence.
 
 Use the gateway-first activation and client-first rollback sequence in
 [`MESSAGE_FORWARDING_ACTIVATION.md`](MESSAGE_FORWARDING_ACTIVATION.md). A Web

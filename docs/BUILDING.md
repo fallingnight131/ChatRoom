@@ -225,10 +225,13 @@ persistence, directory/device synchronization, history rendering and accessible
 message actions, optimistic text submission, and server acceptance. Playwright
 also closes the first routed socket, verifies automatic same-session resume with
 the memory-only proof, and repairs the active conversation from sequence 1 to 2
-without clearing the visible session. It routes the socket to an in-process
+without clearing the visible session. A separate browser offline/online case
+verifies no replacement socket during the offline window, a locally visible
+failed optimistic message, one resumed socket after recovery, and one explicit
+idempotent retry to acceptance. It routes the socket to an in-process
 deterministic protocol fixture: this is real browser/application-state-machine
-evidence, but not TLS, gateway, PostgreSQL, real network/failover, deployment
-compatibility, or capacity evidence.
+evidence, but not TLS, gateway, PostgreSQL, physical network/edge failover,
+deployment compatibility, or capacity evidence.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

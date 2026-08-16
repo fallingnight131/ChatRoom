@@ -129,3 +129,35 @@ test("resumes an in-memory V2 session and repairs ordered history", async ({ pag
   expect(await page.evaluate(() => Object.keys(localStorage).filter(
     key => /session|resume|token/i.test(key)))).toEqual([]);
 });
+
+test("pauses V2 retries offline and recovers one queued message explicitly", async ({ context, page }) => {
+  test.skip(!enabled, "requires an explicit V2-enabled preview build");
+  const { fixture, sockets } = await installV2SocketFixture(page, "accept");
+
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  await page.getByLabel("用户 ID").fill("browser_v2_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await page.getByRole("button", { name: /Browser Fixture Conversation/ }).click();
+  await expect(page.getByText("已安全连接", { exact: true })).toBeVisible();
+
+  await context.setOffline(true);
+  await expect(page.getByText("网络离线", { exact: true })).toBeVisible();
+  await page.waitForTimeout(650);
+  expect(sockets).toHaveLength(1);
+
+  await page.getByLabel("消息内容").fill("Offline queued message");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await expect(page.getByRole("button", { name: "重试这条发送失败的消息" })).toBeVisible();
+  expect(fixture.receivedTypes).not.toContain(MessageType.SUBMIT_MESSAGE);
+
+  await context.setOffline(false);
+  await expect.poll(() => sockets.length).toBe(2);
+  await expect.poll(() => fixture.receivedTypes).toContain(MessageType.RESUME_SESSION);
+  await expect(page.getByText("已安全连接", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "重试这条发送失败的消息" }).click();
+  await expect(page.getByLabel("消息 3：已接收")).toBeVisible();
+  expect(fixture.receivedTypes.filter(
+    type => type === MessageType.SUBMIT_MESSAGE)).toHaveLength(1);
+});
