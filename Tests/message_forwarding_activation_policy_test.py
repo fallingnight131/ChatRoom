@@ -65,8 +65,9 @@ def main() -> int:
         "Build forwarding-enabled Windows candidate gate",
         "-DCHATROOM_ENABLE_WINDOWS_V2_PREVIEW=ON",
         "-DCHATROOM_ENABLE_WINDOWS_V2_FORWARDING=ON",
-        "--target ChatClient V2WindowsForwardTargetDialogTest",
-        "m6_windows_v2_forward_target_dialog",
+        "--target ChatClient",
+        "V2WindowsForwardTargetDialogTest",
+        "forward_target_dialog",
         "--chatroom-print-v2-configuration-json",
         "Forwarding Windows binary configuration evidence failed",
     ))
