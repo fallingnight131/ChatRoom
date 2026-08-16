@@ -6,6 +6,7 @@
 #include "V2WindowsMessageSearchViewModel.h"
 
 #include <QApplication>
+#include <QEventLoop>
 #include <QLabel>
 #include <QListWidget>
 #include <QLineEdit>
@@ -33,9 +34,12 @@ int main(int argc, char **argv) {
     message.state = V2LocalMessageRepository::DeliveryState::Accepted;
     message.forwarded = true;
     snapshot.messages.append(message);
+    snapshot.draft = QStringLiteral("restored draft");
     QList<V2LocalMessageRepository::Mention> submittedMentions;
     QList<V2LocalMessageRepository::Mention> editedMentions;
     QString submittedText;
+    QString savedDraftConversation;
+    QString savedDraft;
     int ordinarySubmitCount = 0;
     V2WindowsMessagingViewModel model(
         account, [&](const QString &) { return snapshot; },
@@ -53,6 +57,12 @@ int main(int argc, char **argv) {
                 submittedMentions = mentions;
                 return true;
             },
+        [&](const QString &selectedConversation, const QString &draft) {
+            savedDraftConversation = selectedConversation;
+            savedDraft = draft;
+            snapshot.draft = draft;
+            return true;
+        },
         [](const QString &, const QString &) { return true; },
         [](const QString &, const QString &, V2LocalMessageRepository::ReactionKind) {
             return true;
@@ -133,6 +143,19 @@ int main(int argc, char **argv) {
         &model, &participants, nullptr, true, &directory, true, &search);
     panel.setConversation(conversation);
     panel.show();
+    if (panel.composerForTest()->toPlainText() != QStringLiteral("restored draft")) {
+        qCritical() << "conversation draft was not restored";
+        return 1;
+    }
+    panel.composerForTest()->setPlainText(QStringLiteral("debounced draft"));
+    QEventLoop draftWait;
+    QTimer::singleShot(450, &draftWait, &QEventLoop::quit);
+    draftWait.exec();
+    if (savedDraftConversation != conversation
+            || savedDraft != QStringLiteral("debounced draft")) {
+        qCritical() << "conversation draft was not saved after the quiet period";
+        return 1;
+    }
     if (panel.accessibleName().isEmpty()
             || panel.messageListForTest()->accessibleName().isEmpty()
             || panel.composerForTest()->accessibleName().isEmpty()
@@ -153,6 +176,7 @@ int main(int argc, char **argv) {
     app.processEvents();
     if (ordinarySubmitCount != 1
             || submittedText != QStringLiteral("ordinary text")
+            || !savedDraft.isEmpty()
             || !panel.composerForTest()->toPlainText().isEmpty()) {
         qCritical() << "ordinary text composition did not send and clear";
         return 1;

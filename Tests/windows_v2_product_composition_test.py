@@ -76,12 +76,15 @@ def main() -> int:
         "m_participantProtocol->abandon(command.requestId)",
         "m_participantViewModel->refresh()",
         "m_service->stageText(",
+        "m_service->saveDraft(",
         "configureForwarding(",
         "V2WindowsMessageSearchProtocolClient",
         "requestSearch(",
     ), "Client/WindowsV2MessagingController.cpp")
     require(panel, (
         "m_viewModel->sendText(",
+        "m_draftSaveTimer->setInterval(400)",
+        "m_viewModel->persistDraft(",
         "m_mentionsEnabled && !m_conversationId.isEmpty()",
         "V2WindowsMentionComposer::serialize",
         'setProperty("mentionTargetAccountIds"',

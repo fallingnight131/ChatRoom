@@ -79,6 +79,9 @@ int main(int argc, char **argv) {
     QString forwardedSourceConversation;
     QString forwardedSourceMessage;
     QString forwardedTargetConversation;
+    QString savedDraftConversation;
+    QString savedDraft;
+    snapshot.draft = QStringLiteral("restored draft");
     V2WindowsMessagingViewModel model(
         account, [&](const QString &) { return snapshot; },
         [&](const QString &, const QString &text,
@@ -92,6 +95,12 @@ int main(int argc, char **argv) {
             V2LocalMessageRepository::Message *,
             const QList<V2LocalMessageRepository::Mention> &mentions) {
             stagedTarget = targetId; stagedText = text; stagedMentions = mentions; return true;
+        },
+        [&](const QString &conversationId, const QString &draft) {
+            savedDraftConversation = conversationId;
+            savedDraft = draft;
+            snapshot.draft = draft;
+            return true;
         },
         [&](const QString &, const QString &clientId) { retried = clientId; return true; },
         [&](const QString &, const QString &messageId,
@@ -125,6 +134,12 @@ int main(int argc, char **argv) {
         });
     check(model.openConversation(conversation) && model.rows().size() == 3,
           QStringLiteral("cached conversation was not projected"));
+    check(model.draft() == QStringLiteral("restored draft")
+              && model.persistDraft(conversation, QStringLiteral("changed draft"))
+              && savedDraftConversation == conversation
+              && savedDraft == QStringLiteral("changed draft")
+              && model.draft() == QStringLiteral("changed draft"),
+          QStringLiteral("conversation draft did not restore and persist"));
     check(!model.rows().first().canForward,
           QStringLiteral("forwarding must remain default-off"));
     model.configureForwarding(

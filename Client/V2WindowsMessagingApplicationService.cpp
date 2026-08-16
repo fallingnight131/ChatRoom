@@ -168,6 +168,16 @@ bool V2WindowsMessagingApplicationService::stageReply(
     return true;
 }
 
+bool V2WindowsMessagingApplicationService::saveDraft(
+        const QString &conversationId, const QString &draft) {
+    m_lastError.clear();
+    if (!m_repository->saveDraft(m_accountId, conversationId, draft)) {
+        m_lastError = m_repository->lastError();
+        return false;
+    }
+    return true;
+}
+
 bool V2WindowsMessagingApplicationService::retry(
         const QString &conversationId, const QString &clientMessageId) {
     m_lastError.clear();

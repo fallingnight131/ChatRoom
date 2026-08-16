@@ -6,18 +6,20 @@
 
 V2WindowsMessagingViewModel::V2WindowsMessagingViewModel(
         QString accountId, SnapshotLoader loader, StageText stageText,
-        StageReply stageReply,
+        StageReply stageReply, SaveDraft saveDraft,
         Retry retry, SetReaction setReaction, RetryReaction retryReaction,
         SetPin setPin, RetryPin retryPin, Edit edit, EditOperation retryEdit,
         EditOperation rebaseEdit, DiscardEdit discardEdit, QObject *parent)
     : QObject(parent), m_accountId(std::move(accountId)), m_loader(std::move(loader)),
       m_stageText(std::move(stageText)),
-      m_stageReply(std::move(stageReply)), m_retry(std::move(retry)),
+      m_stageReply(std::move(stageReply)), m_saveDraft(std::move(saveDraft)),
+      m_retry(std::move(retry)),
       m_setReaction(std::move(setReaction)), m_retryReaction(std::move(retryReaction)),
       m_setPin(std::move(setPin)), m_retryPin(std::move(retryPin)),
       m_edit(std::move(edit)), m_retryEdit(std::move(retryEdit)),
       m_rebaseEdit(std::move(rebaseEdit)), m_discardEdit(std::move(discardEdit)) {
-    if (m_accountId.isEmpty() || !m_loader || !m_stageText || !m_stageReply || !m_retry
+    if (m_accountId.isEmpty() || !m_loader || !m_stageText || !m_stageReply
+            || !m_saveDraft || !m_retry
             || !m_setReaction || !m_retryReaction || !m_setPin || !m_retryPin
             || !m_edit || !m_retryEdit || !m_rebaseEdit || !m_discardEdit)
         throw std::invalid_argument("invalid Windows V2 messaging view model");
@@ -127,7 +129,13 @@ bool V2WindowsMessagingViewModel::sendText(
         emit changed();
         return false;
     }
-    return refresh();
+    const bool draftCleared = m_saveDraft(m_conversationId, {});
+    refresh();
+    if (!draftCleared) {
+        m_failure = QStringLiteral("消息已发送，但无法清除本地草稿");
+        emit changed();
+    }
+    return true;
 }
 
 bool V2WindowsMessagingViewModel::sendReply(
@@ -144,7 +152,25 @@ bool V2WindowsMessagingViewModel::sendReply(
     }
     m_replyTargetMessageId.clear();
     m_replyBanner.clear();
-    return refresh();
+    const bool draftCleared = m_saveDraft(m_conversationId, {});
+    refresh();
+    if (!draftCleared) {
+        m_failure = QStringLiteral("回复已发送，但无法清除本地草稿");
+        emit changed();
+    }
+    return true;
+}
+
+bool V2WindowsMessagingViewModel::persistDraft(
+        const QString &conversationId, const QString &draft) {
+    if (conversationId.isEmpty() || !m_saveDraft(conversationId, draft)) {
+        m_failure = QStringLiteral("无法保存本地草稿");
+        emit changed();
+        return false;
+    }
+    if (conversationId == m_conversationId)
+        m_draft = draft.left(V2LocalMessageRepository::MaxDraftLength);
+    return true;
 }
 
 bool V2WindowsMessagingViewModel::retry(const QString &clientMessageId) {

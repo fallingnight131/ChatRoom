@@ -52,6 +52,7 @@ public:
         const QString &, const QString &, const QString &,
         V2LocalMessageRepository::Message *,
         const QList<V2LocalMessageRepository::Mention> &)>;
+    using SaveDraft = std::function<bool(const QString &, const QString &)>;
     using Retry = std::function<bool(const QString &, const QString &)>;
     using SetReaction = std::function<bool(const QString &, const QString &,
         V2LocalMessageRepository::ReactionKind)>;
@@ -68,7 +69,7 @@ public:
 
     V2WindowsMessagingViewModel(
         QString accountId, SnapshotLoader loader, StageText stageText,
-        StageReply stageReply,
+        StageReply stageReply, SaveDraft saveDraft,
         Retry retry, SetReaction setReaction, RetryReaction retryReaction,
         SetPin setPin, RetryPin retryPin, Edit edit, EditOperation retryEdit,
         EditOperation rebaseEdit, DiscardEdit discardEdit,
@@ -90,6 +91,7 @@ public:
                   const QList<V2LocalMessageRepository::Mention> &mentions = {});
     bool sendReply(const QString &text,
                    const QList<V2LocalMessageRepository::Mention> &mentions = {});
+    bool persistDraft(const QString &conversationId, const QString &draft);
     bool retry(const QString &clientMessageId);
     bool setReaction(const QString &messageId, V2LocalMessageRepository::ReactionKind reaction);
     bool retryReaction(const QString &clientOperationId);
@@ -117,6 +119,7 @@ private:
     SnapshotLoader m_loader;
     StageText m_stageText;
     StageReply m_stageReply;
+    SaveDraft m_saveDraft;
     Retry m_retry;
     SetReaction m_setReaction;
     RetryReaction m_retryReaction;

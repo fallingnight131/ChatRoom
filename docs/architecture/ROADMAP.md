@@ -2251,7 +2251,7 @@ Candidate slices:
   - [x] Add ordinary Windows text/mention composition through the existing
     SQLite outbox, optimistic projection, authenticated type-103 submission,
     and reconnect replay; reply/edit behavior and the V1 path remain unchanged.
-  - [ ] Add conversation-scoped Windows draft persistence and restore without
+  - [x] Add conversation-scoped Windows draft persistence and restore without
     storing mention display text as identity.
   - [ ] Add the remaining attachment and keyboard composition experience behind
     explicit capability and Windows product gates.

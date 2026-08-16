@@ -49,6 +49,7 @@ public:
                     const QString &text,
                     V2LocalMessageRepository::Message *optimistic,
                     const QList<V2LocalMessageRepository::Mention> &mentions = {});
+    bool saveDraft(const QString &conversationId, const QString &draft);
     bool stageForward(const QString &sourceConversationId, const QString &sourceMessageId,
                       const QString &targetConversationId,
                       V2LocalMessageRepository::Message *optimistic);

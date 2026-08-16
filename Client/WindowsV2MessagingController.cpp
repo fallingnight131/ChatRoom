@@ -250,6 +250,9 @@ void WindowsV2MessagingController::bindAuthenticatedSession(
                     return m_service->stageReply(
                         conversationId, targetMessageId, text, message, mentions);
                 },
+                [this](const QString &conversationId, const QString &draft) {
+                    return m_service->saveDraft(conversationId, draft);
+                },
                 [this](const QString &conversationId, const QString &clientMessageId) {
                     return m_service->retry(conversationId, clientMessageId);
                 },

@@ -912,6 +912,16 @@ reply/edit behavior and the V1 client path are unchanged. This reuses the
 existing V2 schema and wire contract rather than introducing a new compatibility
 surface.
 
+The same Windows preview now completes its conversation-scoped draft path.
+Widgets debounce ordinary/reply text for 400 ms and force a bounded write before
+conversation switch or panel destruction. Opening a conversation restores only
+its account-isolated text and places the caret at the end; restored display text
+does not reconstruct mention identity. Editing an existing message temporarily
+preserves the ordinary draft instead of overwriting it. Once a send is durably
+accepted into the local outbox, the draft is cleared even if immediate view
+refresh fails; a local clear failure is surfaced without retracting the already
+accepted send.
+
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,
 each established only through that conversation's final authorized history

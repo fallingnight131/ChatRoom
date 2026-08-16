@@ -10,6 +10,7 @@ class QListWidgetItem;
 class QLineEdit;
 class QPlainTextEdit;
 class QPushButton;
+class QTimer;
 class V2WindowsConversationParticipantViewModel;
 class V2WindowsConversationDirectoryViewModel;
 class V2WindowsMessagingViewModel;
@@ -25,6 +26,7 @@ public:
         V2WindowsConversationDirectoryViewModel *directoryViewModel = nullptr,
         bool forwardingEnabled = false,
         V2WindowsMessageSearchViewModel *searchViewModel = nullptr);
+    ~V2WindowsMessagingPanel() override;
     void setConversation(const QString &conversationId);
     QPlainTextEdit *composerForTest() const { return m_composer; }
     QListWidget *messageListForTest() const { return m_messages; }
@@ -51,6 +53,8 @@ private:
     void toggleParticipantPicker();
     void insertParticipant(QListWidgetItem *item);
     void reconcileComposer();
+    void flushDraft();
+    void restoreDraft();
     void sendComposition();
     V2WindowsMessagingViewModel *m_viewModel;
     V2WindowsConversationParticipantViewModel *m_participantViewModel;
@@ -75,11 +79,14 @@ private:
     QPushButton *m_cancelReply;
     QPushButton *m_mention;
     QPushButton *m_send;
+    QTimer *m_draftSaveTimer;
     QString m_conversationId;
     QString m_editTargetMessageId;
     QString m_previousComposerText;
     QString m_pendingSearchRevealMessageId;
     QList<V2WindowsMentionComposer::Anchor> m_mentionAnchors;
+    QString m_draftBeforeEdit;
+    QList<V2WindowsMentionComposer::Anchor> m_draftAnchorsBeforeEdit;
     bool m_updatingComposer = false;
     bool m_mentionsEnabled = false;
     bool m_forwardingEnabled = false;

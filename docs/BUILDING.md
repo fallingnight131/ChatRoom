@@ -2180,6 +2180,12 @@ panel now expose ordinary non-reply text and the existing accessible participant
 picker. They forward canonical target/span values without deriving identity
 from display text; offline optimistic rows use the same stable client ID during
 reconnect replay. This activates no new capability, schema, or wire type.
+The panel also restores the isolated conversation draft, saves ordinary/reply
+text after a 400 ms quiet period, flushes it on conversation switch and
+destruction, and clears it after the message reaches the SQLite outbox. Existing
+message editing preserves that draft in memory and never persists edit text as a
+new-message draft. Restart restoration intentionally carries text only: mention
+account identity must be selected again through the participant picker.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

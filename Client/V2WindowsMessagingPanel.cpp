@@ -45,6 +45,7 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
       m_cancelReply(new QPushButton(QStringLiteral("取消回复"), this)),
       m_mention(new QPushButton(QStringLiteral("@ 提及"), this)),
       m_send(new QPushButton(QStringLiteral("发送消息"), this)),
+      m_draftSaveTimer(new QTimer(this)),
       m_mentionsEnabled(mentionsEnabled),
       m_forwardingEnabled(forwardingEnabled && directoryViewModel) {
     Q_ASSERT(m_viewModel);
@@ -90,6 +91,8 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     m_mention->setVisible(m_mentionsEnabled);
     m_cancelReply->setAccessibleName(QStringLiteral("取消当前回复"));
     m_send->setAccessibleName(QStringLiteral("发送当前消息"));
+    m_draftSaveTimer->setSingleShot(true);
+    m_draftSaveTimer->setInterval(400);
 
     auto *participantButtons = new QHBoxLayout;
     participantButtons->addWidget(m_refreshParticipants);
@@ -140,6 +143,8 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
             this, &V2WindowsMessagingPanel::insertParticipant);
     connect(m_composer, &QPlainTextEdit::textChanged,
             this, &V2WindowsMessagingPanel::reconcileComposer);
+    connect(m_draftSaveTimer, &QTimer::timeout,
+            this, &V2WindowsMessagingPanel::flushDraft);
     if (m_searchViewModel) {
         connect(m_searchViewModel, &V2WindowsMessageSearchViewModel::changed,
                 this, &V2WindowsMessagingPanel::renderSearch);
@@ -157,16 +162,22 @@ V2WindowsMessagingPanel::V2WindowsMessagingPanel(
     renderSearch();
 }
 
+V2WindowsMessagingPanel::~V2WindowsMessagingPanel() {
+    flushDraft();
+}
+
 void V2WindowsMessagingPanel::setConversation(const QString &conversationId) {
     if (conversationId == m_conversationId) return;
+    flushDraft();
     m_conversationId = conversationId;
     m_editTargetMessageId.clear();
     m_participantPane->hide();
     m_mentionAnchors.clear();
     m_updatingComposer = true;
-    m_composer->clear();
+    m_composer->setPlainText(m_viewModel->draft());
+    m_composer->moveCursor(QTextCursor::End);
     m_updatingComposer = false;
-    m_previousComposerText.clear();
+    m_previousComposerText = m_composer->toPlainText();
     m_pendingSearchRevealMessageId.clear();
     m_mention->setEnabled(false);
     if (m_searchViewModel) {
@@ -489,11 +500,7 @@ void V2WindowsMessagingPanel::chooseReply(const QString &messageId) {
     if (messageId.isEmpty()) return;
     if (!m_editTargetMessageId.isEmpty()) {
         m_editTargetMessageId.clear();
-        m_mentionAnchors.clear();
-        m_updatingComposer = true;
-        m_composer->clear();
-        m_updatingComposer = false;
-        m_previousComposerText.clear();
+        restoreDraft();
     }
     m_viewModel->chooseReply(messageId);
 }
@@ -503,6 +510,9 @@ void V2WindowsMessagingPanel::beginEdit(
         const QList<V2LocalMessageRepository::Mention> &mentions) {
     try {
         const auto anchors = V2WindowsMentionComposer::restore(text, mentions);
+        flushDraft();
+        m_draftBeforeEdit = m_composer->toPlainText();
+        m_draftAnchorsBeforeEdit = m_mentionAnchors;
         m_viewModel->cancelReply();
         m_editTargetMessageId = messageId;
         m_updatingComposer = true;
@@ -522,11 +532,7 @@ void V2WindowsMessagingPanel::cancelComposition() {
     m_editTargetMessageId.clear();
     m_participantPane->hide();
     if (editing) {
-        m_updatingComposer = true;
-        m_composer->clear();
-        m_updatingComposer = false;
-        m_previousComposerText.clear();
-        m_mentionAnchors.clear();
+        restoreDraft();
     }
     m_viewModel->cancelReply();
     render();
@@ -593,6 +599,30 @@ void V2WindowsMessagingPanel::reconcileComposer() {
     }
     m_previousComposerText = next;
     m_send->setEnabled(!m_conversationId.isEmpty() && !next.trimmed().isEmpty());
+    if (!m_updatingComposer && m_editTargetMessageId.isEmpty()
+            && !m_conversationId.isEmpty())
+        m_draftSaveTimer->start();
+}
+
+void V2WindowsMessagingPanel::flushDraft() {
+    if (m_draftSaveTimer) m_draftSaveTimer->stop();
+    if (m_updatingComposer || !m_editTargetMessageId.isEmpty()
+            || m_conversationId.isEmpty())
+        return;
+    m_viewModel->persistDraft(
+        m_conversationId,
+        m_composer->toPlainText().left(V2LocalMessageRepository::MaxDraftLength));
+}
+
+void V2WindowsMessagingPanel::restoreDraft() {
+    m_updatingComposer = true;
+    m_composer->setPlainText(m_draftBeforeEdit);
+    m_composer->moveCursor(QTextCursor::End);
+    m_updatingComposer = false;
+    m_previousComposerText = m_draftBeforeEdit;
+    m_mentionAnchors = m_draftAnchorsBeforeEdit;
+    m_draftBeforeEdit.clear();
+    m_draftAnchorsBeforeEdit.clear();
 }
 
 void V2WindowsMessagingPanel::sendComposition() {
@@ -611,10 +641,18 @@ void V2WindowsMessagingPanel::sendComposition() {
             ? m_viewModel->sendReply(m_composer->toPlainText(), mentions)
             : m_viewModel->sendText(m_composer->toPlainText(), mentions);
     if (accepted) {
+        const bool editing = !m_editTargetMessageId.isEmpty();
         m_editTargetMessageId.clear();
-        m_composer->clear();
-        m_mentionAnchors.clear();
-        m_previousComposerText.clear();
+        if (editing) {
+            restoreDraft();
+        } else {
+            m_draftSaveTimer->stop();
+            m_updatingComposer = true;
+            m_composer->clear();
+            m_updatingComposer = false;
+            m_mentionAnchors.clear();
+            m_previousComposerText.clear();
+        }
         m_composer->setFocus();
     }
 }

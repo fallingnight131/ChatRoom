@@ -78,6 +78,10 @@ int main(int argc, char *argv[]) {
             &textRepository, account, device,
             [&](const QByteArray &frame) { textFrames.append(frame); return true; },
             [] { return 1400; }, [] { return QStringLiteral("client-text-1"); });
+        check(textService.saveDraft(conversation, QStringLiteral("restart draft"))
+                  && textService.hydrate(conversation).draft
+                        == QStringLiteral("restart draft"),
+              "application service must persist conversation-scoped drafts");
         check(textService.connectSession(session1), textService.lastError().toStdString());
         V2LocalMessageRepository::Message optimisticText;
         const QList<V2LocalMessageRepository::Mention> textMentions{{remote, 0, 7}};
