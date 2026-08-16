@@ -123,6 +123,10 @@ listbox, and submit `@李雷` as the peer's stable account identity at UTF-8 byt
 offset 0 with length 7. Chromium and Firefox verify acceptance and identity-backed
 rendering; the deterministic fixture is not evidence of live membership
 authorization or PostgreSQL persistence.
+An ACK-loss variant records the mention submission, suppresses its acceptance,
+restarts the socket, and returns the accepted record through sequence repair.
+The browser must converge by the stable client-message identity, retain the
+target/span projection, and emit no second type-25 command.
 The fixture does not satisfy the real TLS, Origin/Host, gateway, database,
 physical network, edge-failover, or deployment checks above and must not be
 reported as release or capacity evidence.

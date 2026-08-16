@@ -2059,6 +2059,10 @@ Progress:
         page, excludes self from picker candidates, inserts a Unicode display
         token by keyboard, submits its exact identity plus half-open 7-byte
         UTF-8 span, and preserves identity-backed rendering after acceptance.
+      - [x] Verify an ACK-lost Web mention converges through authoritative
+        history after same-session resume by stable client-message identity,
+        preserving the target/span projection without a duplicate type-25
+        submission in Chromium and Firefox.
     - [ ] Add the equivalent Windows protocol, SQLite, composition, rendering,
       accessibility, reconnect convergence, and capability activation gates.
       - [x] Extend the default-off Windows messaging protocol boundary with

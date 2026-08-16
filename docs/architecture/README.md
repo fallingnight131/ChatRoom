@@ -2157,6 +2157,10 @@ display token by keyboard, send the stable target identity with the exact
 half-open UTF-8 span, accept the optimistic message, and render the identity span
 without parsing display text. This is client-composition evidence, not a live
 membership-authority or release-gateway result.
+The mention fixture also drops the first acceptance only after recording the
+submission, closes the socket, and returns that same `client_message_id`, target,
+and span through post-resume authoritative history. Both browsers converge the
+optimistic row without another type-25 command or loss of identity rendering.
 
 ### Product consistency
 

@@ -227,6 +227,42 @@ test("selects a non-self participant and sends one identity-backed Unicode menti
   expect(fixture.receivedTypes.filter(type => type === MessageType.SUBMIT_MESSAGE)).toHaveLength(1);
 });
 
+test("repairs an ACK-lost mention from history without duplicate submission", async ({ page }) => {
+  test.skip(!enabled || !mentionsCandidate,
+    "requires the explicit V2 structured-mention browser candidate");
+  const { fixture, sockets } = await installV2SocketFixture(page, "accept", {
+    dropFirstMentionAcceptance: true,
+  });
+
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  await page.getByLabel("用户 ID").fill("browser_v2_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await page.getByRole("button", { name: /Browser Fixture Conversation/ }).click();
+  await page.getByRole("button", { name: "@ 提及成员" }).click();
+  await page.getByRole("dialog", { name: "选择要提及的成员" })
+    .getByRole("option", { name: /李雷/ }).click();
+  const composer = page.getByLabel("消息内容");
+  await composer.pressSequentially("Fixture mentioned message");
+  await composer.press("Enter");
+  await expect.poll(() => fixture.mentionSubmissions.length).toBe(1);
+
+  await sockets[0]!.close({ code: 1012, reason: "fixture dropped mention acceptance" });
+  await expect.poll(() => sockets.length).toBe(2);
+  await expect.poll(() => fixture.receivedTypes).toContain(MessageType.RESUME_SESSION);
+  await expect(page.getByText("已安全连接", { exact: true })).toBeVisible();
+
+  const log = page.getByRole("log", { name: "消息记录" });
+  await expect(log.getByText("@李雷 Fixture mentioned message")).toBeVisible();
+  await expect(log.locator(".message-mention", { hasText: "@李雷" }))
+    .toHaveAttribute("title", `账号 ${PEER_ACCOUNT_ID}`);
+  await expect(page.getByLabel("消息 2：已接收")).toBeVisible();
+  await page.waitForTimeout(250);
+  expect(fixture.mentionSubmissions).toHaveLength(1);
+  expect(fixture.receivedTypes.filter(type => type === MessageType.SUBMIT_MESSAGE)).toHaveLength(1);
+});
+
 test("activates bounded V2 search and reveals one result through the keyboard", async ({ page }) => {
   test.skip(!enabled || !searchCandidate,
     "requires the explicit V2 message-search browser candidate");

@@ -66,6 +66,7 @@ export type V2ProtocolFixtureMode = "accept" | "reject";
 
 export interface V2ProtocolFixtureOptions {
   dropFirstForwardAcceptance?: boolean;
+  dropFirstMentionAcceptance?: boolean;
 }
 
 export interface V2ProtocolFixture {
@@ -111,7 +112,9 @@ export function createV2ProtocolFixture(
   let clientDeviceId = "";
   let resumed = false;
   let forwardedClientMessageId = "";
+  let mentionedClientMessageId = "";
   let dropForwardAcceptance = options.dropFirstForwardAcceptance === true;
+  let dropMentionAcceptance = options.dropFirstMentionAcceptance === true;
 
   return {
     receivedTypes,
@@ -264,7 +267,22 @@ export function createV2ProtocolFixture(
           }
           if (history.afterSequence === 1n) {
             if (!resumed) throw new Error("history repair requires a resumed fixture session");
-            const repaired = create(MessageRecordSchema, {
+            const repaired = create(MessageRecordSchema, mentionedClientMessageId ? {
+              conversationId: FIXTURE_CONVERSATION_ID,
+              messageId: OUTGOING_MESSAGE_ID,
+              conversationSequence: 2n,
+              senderAccountId: ACCOUNT_ID,
+              senderDeviceId: clientDeviceId,
+              clientMessageId: mentionedClientMessageId,
+              contentType: MessageContentType.TEXT_UTF8,
+              content: new TextEncoder().encode("@李雷 Fixture mentioned message"),
+              mentions: [{
+                targetAccountId: PEER_ACCOUNT_ID,
+                startUtf8Byte: 0,
+                lengthUtf8Bytes: 7,
+              }],
+              acceptedAtEpochMs: NOW + 1_000n,
+            } : {
               conversationId: FIXTURE_CONVERSATION_ID,
               messageId: OUTGOING_MESSAGE_ID,
               conversationSequence: 2n,
@@ -370,6 +388,11 @@ export function createV2ProtocolFixture(
               startUtf8Byte: submission.mentions[0].startUtf8Byte,
               lengthUtf8Bytes: submission.mentions[0].lengthUtf8Bytes,
             });
+            mentionedClientMessageId = request.clientMessageId;
+            if (dropMentionAcceptance) {
+              dropMentionAcceptance = false;
+              return null;
+            }
           } else if (submission.mentions.length !== 0) {
             throw new Error("unexpected mentions on ordinary V2 fixture submission");
           }
