@@ -124,7 +124,9 @@ import com.fallingnight.chat.application.messaging.MessageEditCommand;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
 import com.fallingnight.chat.application.notification.ProtectedWebPushSubscription;
 import com.fallingnight.chat.application.notification.WebPushDeliveryPolicy;
+import com.fallingnight.chat.application.notification.WebPushNotificationIntent;
 import com.fallingnight.chat.application.notification.WebPushOutboxClaim;
+import com.fallingnight.chat.application.notification.WebPushRecipientResolution;
 import com.fallingnight.chat.application.notification.WebPushSubscriptionRegistration;
 import com.fallingnight.chat.application.notification.WebPushSubscriptionReplaceResult;
 import com.fallingnight.chat.application.notification.WebPushTerminalOutcome;
@@ -6160,6 +6162,102 @@ class PostgresMigratorTest {
         assertEquals(4, count("SELECT count(*) FROM chat.message"));
     }
 
+    @Test
+    @Order(103)
+    void reauthorizesCurrentWebPushRecipientsAndLoadsOnlyActiveProtectedSubscriptions()
+            throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID sender = UUID.randomUUID(), device = UUID.randomUUID();
+        UUID conversation = UUID.randomUUID(), mentioned = UUID.randomUUID();
+        UUID other = UUID.randomUUID(), blocked = UUID.randomUUID();
+        seedMessageOwner(sender, device, conversation);
+        seedAccount(mentioned, "push-mentioned");
+        seedAccount(other, "push-other");
+        seedAccount(blocked, "push-blocked");
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.conversation_member("
+                            + "conversation_id, account_id) VALUES (?, ?), (?, ?), (?, ?)",
+                    conversation, mentioned, conversation, other, conversation, blocked);
+        }
+        byte[] payload = "@you hi".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var messages = new PostgresMessageAdapter(
+                dataSource(), new WebPushDeliveryPolicy(true));
+        MessageSubmissionResult.Accepted accepted = accepted(messages.submit(
+                new MessageSubmission(conversation, sender, device, "push-policy", 1,
+                        payload, Optional.empty(),
+                        List.of(new MessageMention(mentioned, 0, 4)))));
+        try (Connection connection = connect()) {
+            execute(connection, "INSERT INTO chat.account_block("
+                            + "blocker_account_id, blocked_account_id) VALUES (?, ?)",
+                    blocked, sender);
+        }
+        var intent = new WebPushNotificationIntent(
+                accepted.messageId(), conversation, sender, accepted.acceptedAt(),
+                accepted.acceptedAt().plus(Duration.ofHours(24)), Set.of(mentioned));
+        var policy = new PostgresWebPushRecipientPolicyAdapter(dataSource());
+        assertEquals(WebPushRecipientResolution.Saturated.INSTANCE,
+                policy.resolve(intent, 1));
+        var complete = (WebPushRecipientResolution.Complete) policy.resolve(intent, 1000);
+        assertEquals(2, complete.recipients().size());
+        assertTrue(complete.recipients().stream().anyMatch(recipient ->
+                recipient.accountId().equals(mentioned) && recipient.mentioned()));
+        assertTrue(complete.recipients().stream().noneMatch(recipient ->
+                recipient.accountId().equals(blocked)));
+
+        disableAccount(other);
+        complete = (WebPushRecipientResolution.Complete) policy.resolve(intent, 1000);
+        assertEquals(List.of(mentioned), complete.recipients().stream()
+                .map(recipient -> recipient.accountId()).toList());
+
+        Instant observedAt = Instant.now();
+        var subscriptions = new PostgresWebPushSubscriptionAdapter(
+                dataSource(), registration -> protectedFixture(registration));
+        UUID activeInstallation = UUID.randomUUID(), expiredInstallation = UUID.randomUUID();
+        byte[] p256dh = new byte[65]; p256dh[0] = 0x04;
+        byte[] auth = new byte[16];
+        try (var active = WebPushSubscriptionRegistration.copyOf(
+                    mentioned, activeInstallation, Optional.empty(),
+                    "https://push.example.test/send/active"
+                            .getBytes(java.nio.charset.StandardCharsets.US_ASCII),
+                    p256dh, auth);
+                var expired = WebPushSubscriptionRegistration.copyOf(
+                    mentioned, expiredInstallation, Optional.of(observedAt.minusSeconds(1)),
+                    "https://push.example.test/send/expired"
+                            .getBytes(java.nio.charset.StandardCharsets.US_ASCII),
+                    p256dh, auth)) {
+            assertEquals(WebPushSubscriptionReplaceResult.REPLACED,
+                    subscriptions.replace(active));
+            assertEquals(WebPushSubscriptionReplaceResult.REPLACED,
+                    subscriptions.replace(expired));
+        }
+        ProtectedWebPushSubscription activeProtected;
+        try (var batch = subscriptions.loadActive(mentioned, observedAt)) {
+            assertEquals(1, batch.subscriptions().size());
+            activeProtected = batch.subscriptions().getFirst();
+            assertEquals(activeInstallation, activeProtected.installationId());
+        }
+        assertTrue(activeProtected.isClosed());
+
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.conversation SET next_sequence = 3 WHERE id = ?",
+                    conversation);
+            execute(connection, "INSERT INTO chat.conversation_entry("
+                            + "conversation_id, conversation_sequence, entry_kind, occurred_at) "
+                            + "VALUES (?, 2, 'MESSAGE_RECALLED', transaction_timestamp())",
+                    conversation);
+            execute(connection, "INSERT INTO chat.message_recall_event("
+                            + "conversation_id, conversation_sequence, message_id, "
+                            + "actor_account_id, source) VALUES (?, 2, ?, ?, 'V2')",
+                    conversation, accepted.messageId(), sender);
+        }
+        assertTrue(((WebPushRecipientResolution.Complete) policy.resolve(intent, 1000))
+                .recipients().isEmpty());
+        disableAccount(mentioned);
+        try (var batch = subscriptions.loadActive(mentioned, observedAt)) {
+            assertTrue(batch.subscriptions().isEmpty());
+        }
+    }
+
     private static Set<String> applicationTables(Connection connection) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
                 "SELECT table_name FROM information_schema.tables "
@@ -6270,6 +6368,20 @@ class PostgresMigratorTest {
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException(exception);
         }
+    }
+
+    private static ProtectedWebPushSubscription protectedFixture(
+            WebPushSubscriptionRegistration registration) {
+        byte[] endpointCiphertext = new byte[48];
+        Arrays.fill(endpointCiphertext,
+                (byte) registration.accountId().getLeastSignificantBits());
+        byte[] keyCiphertext = new byte[96]; Arrays.fill(keyCiphertext, (byte) 2);
+        byte[] authCiphertext = new byte[48]; Arrays.fill(authCiphertext, (byte) 3);
+        byte[] lookupTag = registration.withEndpointCopy(PostgresMigratorTest::sha256);
+        return ProtectedWebPushSubscription.copyOf(
+                registration.accountId(), registration.installationId(),
+                registration.browserExpiresAt(), "fixture-key:v1",
+                endpointCiphertext, keyCiphertext, authCiphertext, lookupTag);
     }
 
     private static PGSimpleDataSource dataSource() {

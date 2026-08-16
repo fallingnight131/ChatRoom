@@ -1,22 +1,29 @@
 package com.fallingnight.chat.persistence.postgres;
 
 import com.fallingnight.chat.application.notification.ProtectedWebPushSubscription;
+import com.fallingnight.chat.application.notification.ProtectedWebPushSubscriptionBatch;
 import com.fallingnight.chat.application.notification.WebPushCredentialProtectionPort;
 import com.fallingnight.chat.application.notification.WebPushSubscriptionPort;
 import com.fallingnight.chat.application.notification.WebPushSubscriptionRegistration;
 import com.fallingnight.chat.application.notification.WebPushSubscriptionReplaceResult;
+import com.fallingnight.chat.application.notification.WebPushProtectedSubscriptionPort;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import javax.sql.DataSource;
 
 /** Ciphertext-only PostgreSQL subscription replacement and account/install erasure. */
-public final class PostgresWebPushSubscriptionAdapter implements WebPushSubscriptionPort {
+public final class PostgresWebPushSubscriptionAdapter
+        implements WebPushSubscriptionPort, WebPushProtectedSubscriptionPort {
     public static final int MAX_SUBSCRIPTIONS_PER_ACCOUNT = 10;
     private final DataSource dataSource;
     private final WebPushCredentialProtectionPort protection;
@@ -57,6 +64,57 @@ public final class PostgresWebPushSubscriptionAdapter implements WebPushSubscrip
         } catch (SQLException exception) {
             throw new NotificationPersistenceException(
                     "Web Push subscription deletion failed", exception);
+        }
+    }
+
+    @Override
+    public ProtectedWebPushSubscriptionBatch loadActive(
+            UUID accountId, Instant observedAt) {
+        Objects.requireNonNull(accountId, "accountId");
+        Objects.requireNonNull(observedAt, "observedAt");
+        String sql = """
+                SELECT subscription.installation_id,
+                       subscription.endpoint_ciphertext,
+                       subscription.p256dh_ciphertext,
+                       subscription.auth_secret_ciphertext,
+                       subscription.endpoint_lookup_tag,
+                       subscription.encryption_key_id,
+                       subscription.browser_expires_at
+                FROM chat.web_push_subscription subscription
+                JOIN chat.account account ON account.id = subscription.account_id
+                  AND account.disabled_at IS NULL
+                WHERE subscription.account_id = ?
+                  AND (subscription.browser_expires_at IS NULL
+                       OR subscription.browser_expires_at > ?)
+                ORDER BY subscription.installation_id
+                LIMIT ?
+                """;
+        List<ProtectedWebPushSubscription> subscriptions = new ArrayList<>();
+        try (Connection connection = dataSource.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, accountId);
+            statement.setObject(2, OffsetDateTime.ofInstant(observedAt, ZoneOffset.UTC));
+            statement.setInt(3, ProtectedWebPushSubscriptionBatch.MAX_SUBSCRIPTIONS + 1);
+            try (var result = statement.executeQuery()) {
+                while (result.next()) {
+                    subscriptions.add(readProtected(accountId, result));
+                }
+            }
+            if (subscriptions.size()
+                    > ProtectedWebPushSubscriptionBatch.MAX_SUBSCRIPTIONS) {
+                closeAll(subscriptions);
+                throw new NotificationPersistenceException(
+                        "Web Push subscription quota invariant violated",
+                        new IllegalStateException("too many active subscriptions"));
+            }
+            return new ProtectedWebPushSubscriptionBatch(accountId, subscriptions);
+        } catch (SQLException | RuntimeException exception) {
+            closeAll(subscriptions);
+            if (exception instanceof NotificationPersistenceException persistence) {
+                throw persistence;
+            }
+            throw new NotificationPersistenceException(
+                    "Web Push protected subscription load failed", exception);
         }
     }
 
@@ -191,6 +249,31 @@ public final class PostgresWebPushSubscriptionAdapter implements WebPushSubscrip
             connection.rollback();
         } catch (SQLException rollbackFailure) {
             original.addSuppressed(rollbackFailure);
+        }
+    }
+
+    private static void closeAll(List<ProtectedWebPushSubscription> subscriptions) {
+        subscriptions.forEach(ProtectedWebPushSubscription::close);
+    }
+
+    private static ProtectedWebPushSubscription readProtected(
+            UUID accountId, java.sql.ResultSet result) throws SQLException {
+        byte[] endpoint = result.getBytes(2);
+        byte[] p256dh = result.getBytes(3);
+        byte[] auth = result.getBytes(4);
+        byte[] lookupTag = result.getBytes(5);
+        try {
+            return ProtectedWebPushSubscription.copyOf(
+                    accountId,
+                    result.getObject(1, UUID.class),
+                    java.util.Optional.ofNullable(result.getObject(7, OffsetDateTime.class))
+                            .map(OffsetDateTime::toInstant),
+                    result.getString(6), endpoint, p256dh, auth, lookupTag);
+        } finally {
+            Arrays.fill(endpoint, (byte) 0);
+            Arrays.fill(p256dh, (byte) 0);
+            Arrays.fill(auth, (byte) 0);
+            Arrays.fill(lookupTag, (byte) 0);
         }
     }
 }

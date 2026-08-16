@@ -1489,6 +1489,13 @@ exact default-off behavior, admission before protection/persistence, bounded
 rate-limit results, quota/availability/delete mapping, and request cleanup after
 success, denial, or persistence failure. It is not an HTTP authentication,
 Origin/CSRF, parser/body-limit, Redis rate-limit, or endpoint integration gate.
+The disposable PostgreSQL gate also verifies current Web Push recipient policy:
+complete ordered results or explicit saturation, sender/block/disabled-member
+exclusion, durable mention classification, recall suppression, active-only
+ciphertext subscription reads, immediate JDBC working-copy clearing, and batch-
+wide protected-byte closing. Mention classification is joined from PostgreSQL
+outbox truth. It does not prove provider delivery, worker scheduling, or multi-
+instance throughput.
 The gate includes the inactive `object-storage-s3` module. Its tests use fixture
 credentials and the real AWS presigner but perform no network request. Passing
 them proves request construction and fail-closed mapping, not compatibility

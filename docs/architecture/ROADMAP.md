@@ -2427,9 +2427,12 @@ Candidate slices:
       admission/rate-limit boundary, fixed outcomes, and failure-path cleanup.
     - [ ] Add the default-off Netty HTTP route with strict session/token, Origin,
       CSRF, JSON/body bounds, status mapping, and secret-free telemetry.
-    - [ ] Add complete current-policy recipient/subscription resolution and the
-      bounded provider worker with retry, invalid-subscription erasure, and
-      fixed-cardinality observability.
+    - [x] Add complete, ordered, limit+1 current-policy recipient resolution
+      from committed non-recalled messages, rechecking membership, disabled
+      accounts, bilateral block policy, mention classification, and explicit
+      saturation; load only complete active ciphertext subscription batches.
+    - [ ] Add the bounded provider worker with retry, invalid-subscription
+      erasure, recipient reauthorization, and fixed-cardinality observability.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
 - end-to-end encryption only after a separate cryptographic design, device-key

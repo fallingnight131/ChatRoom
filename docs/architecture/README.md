@@ -2003,6 +2003,17 @@ protection or persistence; fixed results represent disabled, rate-limited,
 quota, unavailable-account, replace, delete, and unchanged outcomes. Success,
 rejection, and exceptions all close request and registration secrets. No HTTP
 route, token/Origin/CSRF policy, or rate-limiter adapter is composed yet.
+The PostgreSQL notification read boundary now resolves only a committed,
+non-deleted, non-recalled source message and rechecks current active membership,
+enabled accounts, sender exclusion, and bilateral block policy. Results are
+canonical-string UUID ordered and use `limit + 1` to return explicit saturation
+instead of truncating; mention state comes only from the durable intent. The
+subscription reader returns at most the complete 10-row account quota, filters
+browser expiry and disabled accounts, exposes ciphertext only, and closes the
+whole batch as one secret lifecycle; JDBC working copies are cleared immediately
+after construction. Recipient mention state is joined from the authoritative
+notification outbox rather than trusted from a caller projection. No provider
+worker consumes it yet.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables

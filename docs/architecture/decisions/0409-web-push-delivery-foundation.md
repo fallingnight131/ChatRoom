@@ -136,6 +136,11 @@ acceptance, stall synchronization, or reduce gateway readiness.
   admission before protection, returns fixed outcomes, and closes secrets on
   every path. HTTP authentication/Origin/CSRF and rate-limit adapters remain
   uncomposed.
+- PostgreSQL recipient resolution now starts from the exact committed message,
+  rechecks current membership/account/bilateral-block/recall truth, and returns
+  a complete ordered result or explicit saturation. Active subscription reads
+  remain ciphertext-only and batch-closeable, clear JDBC copies, and derive
+  mention state from outbox truth. No provider worker is composed.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

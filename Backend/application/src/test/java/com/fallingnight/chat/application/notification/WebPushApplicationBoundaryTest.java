@@ -172,6 +172,32 @@ final class WebPushApplicationBoundaryTest {
                 committedAt.plusSeconds(1), 0));
     }
 
+    @Test
+    void requiresCompleteOrderedRecipientsAndClosesProtectedBatches() {
+        UUID firstAccount = UUID.fromString("10000000-0000-4000-8000-000000000001");
+        UUID secondAccount = UUID.fromString("20000000-0000-4000-8000-000000000001");
+        var complete = new WebPushRecipientResolution.Complete(java.util.List.of(
+                new WebPushRecipient(firstAccount, true),
+                new WebPushRecipient(secondAccount, false)));
+        assertEquals(2, complete.recipients().size());
+        assertThrows(IllegalArgumentException.class, () ->
+                new WebPushRecipientResolution.Complete(java.util.List.of(
+                        new WebPushRecipient(secondAccount, false),
+                        new WebPushRecipient(firstAccount, true))));
+
+        var protectedSubscription = ProtectedWebPushSubscription.copyOf(
+                firstAccount, INSTALLATION_ID, Optional.empty(), "fixture:v1",
+                new byte[32], new byte[96], new byte[48], new byte[32]);
+        var batch = new ProtectedWebPushSubscriptionBatch(
+                firstAccount, java.util.List.of(protectedSubscription));
+        assertEquals(1, batch.subscriptions().size());
+        assertTrue(batch.toString().contains("protectedBytes=REDACTED"));
+        batch.close();
+        assertTrue(batch.isClosed());
+        assertTrue(protectedSubscription.isClosed());
+        assertThrows(IllegalStateException.class, batch::subscriptions);
+    }
+
     private static WebPushSubscriptionCredentials credentials(
             String endpoint, byte[] p256dh, byte[] auth) {
         return WebPushSubscriptionCredentials.copyOf(
