@@ -6,8 +6,8 @@ const source = readFileSync(new URL('../src/components/RoomList.vue', import.met
 
 test('names and contains room search and creation dialogs', () => {
   for (const marker of [
-    'aria-label="搜索房间" aria-haspopup="dialog"',
-    'aria-label="创建房间" aria-haspopup="dialog"',
+    ':aria-label="messages.searchRooms" aria-haspopup="dialog"',
+    ':aria-label="messages.createRoom" aria-haspopup="dialog"',
     'aria-labelledby="room-search-title"',
     'aria-labelledby="room-create-title"',
     'initialFocusSelector: \'#room-search-keyword\'',

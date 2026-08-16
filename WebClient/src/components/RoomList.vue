@@ -1,13 +1,13 @@
 <template>
   <div class="room-list">
     <div class="room-list-header">
-      <span class="room-list-title">房间列表</span>
+      <span class="room-list-title">{{ messages.title }}</span>
       <div class="room-actions-row">
-        <button class="btn-icon" type="button" aria-label="搜索房间" aria-haspopup="dialog"
-                :aria-expanded="showSearch" @click="showSearch = true" title="搜索房间">🔍</button>
-        <button class="btn-icon" type="button" aria-label="创建房间" aria-haspopup="dialog"
-                :aria-expanded="showCreate" @click="showCreate = true" title="创建房间">➕</button>
-        <button class="btn-icon" type="button" aria-label="刷新房间列表" @click="refreshRooms" title="刷新">🔄</button>
+        <button class="btn-icon" type="button" :aria-label="messages.searchRooms" aria-haspopup="dialog"
+                :aria-expanded="showSearch" @click="showSearch = true" :title="messages.searchRooms">🔍</button>
+        <button class="btn-icon" type="button" :aria-label="messages.createRoom" aria-haspopup="dialog"
+                :aria-expanded="showCreate" @click="showCreate = true" :title="messages.createRoom">➕</button>
+        <button class="btn-icon" type="button" :aria-label="messages.refresh" @click="refreshRooms" :title="messages.refresh">🔄</button>
       </div>
     </div>
 
@@ -21,7 +21,7 @@
            @contextmenu.prevent="openRoomMenuFromPointer($event, room)">
         <span class="room-avatar-wrap">
           <img v-if="getRoomAvatarSrc(room.roomId)" :src="getRoomAvatarSrc(room.roomId)" class="avatar avatar-sm"
-               :alt="`${room.roomName} 的房间头像`" />
+               :alt="roomAvatarLabel(room.roomName)" />
           <span v-else class="avatar avatar-sm avatar-placeholder" aria-hidden="true"
                 :style="{ background: hashColor(room.roomId) }">
             {{ room.roomName.charAt(0) }}
@@ -33,7 +33,7 @@
         <span v-if="room.unread > 0" class="badge">{{ room.unread > 99 ? '99+' : room.unread }}</span>
       </button>
       <div v-if="chatStore.rooms.length === 0" class="room-empty">
-        暂无房间，点击 ➕ 创建或 🔍 搜索
+        {{ messages.empty }}
       </div>
     </div>
 
@@ -41,36 +41,36 @@
     <div class="modal-overlay" v-if="showSearch" @click.self="closeSearchDialog">
       <div ref="searchDialogRef" class="modal room-dialog" role="dialog" aria-modal="true"
            aria-labelledby="room-search-title" tabindex="-1" @keydown="onSearchKeydown">
-        <div id="room-search-title" class="modal-title">搜索房间</div>
+        <div id="room-search-title" class="modal-title">{{ messages.searchRooms }}</div>
         <form class="search-row" @submit.prevent="doSearch">
-          <label class="visually-hidden" for="room-search-keyword">房间名称或 ID</label>
+          <label class="visually-hidden" for="room-search-keyword">{{ messages.searchLabel }}</label>
           <input id="room-search-keyword" class="input search-input" v-model="searchKeyword"
-                 placeholder="输入房间名称或ID搜索" />
+                 :placeholder="messages.searchPlaceholder" />
           <button class="btn btn-primary" type="submit" :disabled="searching || !searchKeyword.trim()">
-            {{ searching ? '搜索中…' : '搜索' }}
+            {{ searching ? messages.searching : messages.search }}
           </button>
         </form>
         <div class="search-results" aria-live="polite">
-          <div v-if="searchResults === null" class="search-hint">输入关键词后点击搜索</div>
-          <div v-else-if="searchResults.length === 0" class="search-hint">未找到匹配的房间</div>
+          <div v-if="searchResults === null" class="search-hint">{{ messages.searchHint }}</div>
+          <div v-else-if="searchResults.length === 0" class="search-hint">{{ messages.noResults }}</div>
           <div v-for="r in searchResults" :key="r.roomId" class="search-result-item">
             <div class="search-avatar-wrap">
               <img v-if="getRoomAvatarSrc(r.roomId)" :src="getRoomAvatarSrc(r.roomId)" class="avatar avatar-sm"
-                   :alt="`${r.roomName} 的房间头像`" />
+                   :alt="roomAvatarLabel(r.roomName)" />
               <div v-else class="avatar avatar-sm avatar-placeholder" :style="{ background: hashColor(r.roomId) }">
                 {{ r.roomName.charAt(0) }}
               </div>
             </div>
             <div class="search-room-info">
               <div class="search-display-name text-ellipsis">{{ r.roomName }}</div>
-              <div class="search-room-id">ID: {{ r.roomId }}  ·  {{ r.memberCount }} 人</div>
+              <div class="search-room-id">{{ messages.userId }}: {{ r.roomId }} · {{ memberCountLabel(r.memberCount) }}</div>
             </div>
-            <button v-if="isRoomJoined(r.roomId)" class="btn btn-secondary btn-sm" type="button" disabled>已加入</button>
-            <button v-else class="btn btn-primary btn-sm" type="button" @click="joinSearchedRoom(r.roomId)">加入</button>
+            <button v-if="isRoomJoined(r.roomId)" class="btn btn-secondary btn-sm" type="button" disabled>{{ messages.joined }}</button>
+            <button v-else class="btn btn-primary btn-sm" type="button" @click="joinSearchedRoom(r.roomId)">{{ messages.join }}</button>
           </div>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-secondary" type="button" @click="closeSearchDialog">关闭</button>
+          <button class="btn btn-secondary" type="button" @click="closeSearchDialog">{{ messages.close }}</button>
         </div>
       </div>
     </div>
@@ -80,44 +80,48 @@
       <form ref="createDialogRef" class="modal room-dialog" role="dialog" aria-modal="true"
             aria-labelledby="room-create-title" tabindex="-1" @keydown="onCreateKeydown"
             @submit.prevent="createRoom">
-        <div id="room-create-title" class="modal-title">创建房间</div>
+        <div id="room-create-title" class="modal-title">{{ messages.createRoom }}</div>
         <div class="input-group">
-          <label for="new-room-name">房间名称</label>
+          <label for="new-room-name">{{ messages.roomName }}</label>
           <input id="new-room-name" class="input" v-model="newRoomName"
-                 placeholder="输入房间名称" required />
+                 :placeholder="messages.roomNamePlaceholder" required />
         </div>
         <div class="input-group">
-          <label for="new-room-password">密码（可选）</label>
+          <label for="new-room-password">{{ messages.optionalPassword }}</label>
           <input id="new-room-password" class="input" v-model="newRoomPassword" type="password"
-                 placeholder="留空则无密码" autocomplete="off" />
+                 :placeholder="messages.passwordPlaceholder" autocomplete="off" />
         </div>
         <div class="modal-actions">
-          <button class="btn btn-secondary" type="button" @click="closeCreateDialog">取消</button>
-          <button class="btn btn-primary" type="submit" :disabled="!newRoomName.trim()">创建</button>
+          <button class="btn btn-secondary" type="button" @click="closeCreateDialog">{{ messages.cancel }}</button>
+          <button class="btn btn-primary" type="submit" :disabled="!newRoomName.trim()">{{ messages.create }}</button>
         </div>
       </form>
     </div>
 
     <!-- 右键菜单 -->
     <div v-if="roomMenu.show" ref="roomMenuRef" class="context-menu" role="menu"
-         aria-label="房间操作" :style="{ left: roomMenu.x + 'px', top: roomMenu.y + 'px' }"
+         :aria-label="messages.menu" :style="{ left: roomMenu.x + 'px', top: roomMenu.y + 'px' }"
          @keydown="onRoomMenuKeydown">
       <button class="context-menu-item" type="button" role="menuitem"
-              @click="openContextRoomSettings">房间设置</button>
+              @click="openContextRoomSettings">{{ messages.settings }}</button>
       <button v-if="canManageRoom(roomMenu.item)" class="context-menu-item" type="button"
-              role="menuitem" @click="openContextRoomFiles">文件管理</button>
+              role="menuitem" @click="openContextRoomFiles">{{ messages.files }}</button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '../stores/chat'
+import { useUserStore } from '../stores/user'
 import { chatWs } from '../services/websocket'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 import { useKeyboardContextMenu } from '../ui/useKeyboardContextMenu'
+import { roomListMessages } from '../localization/webLocale'
 
 const chatStore = useChatStore()
+const userStore = useUserStore()
+const messages = computed(() => roomListMessages(userStore.locale))
 
 const emit = defineEmits(['room-selected', 'open-room-settings', 'open-room-files'])
 
@@ -171,6 +175,14 @@ function getRoomAvatarSrc(roomId) {
   const src = chatStore.getRoomAvatarSrc(roomId)
   if (!src) chatStore.fetchRoomAvatar(roomId)
   return src
+}
+
+function roomAvatarLabel(name) {
+  return `${messages.value.avatarPrefix}${name}${messages.value.avatarSuffix}`
+}
+
+function memberCountLabel(count) {
+  return `${count}${messages.value.memberSuffix}`
 }
 
 function selectRoom(roomId) {

@@ -73,7 +73,9 @@ chrome and complete profile surface to the same live preference, including
 stable local identity-feedback keys. Server errors stay verbatim. Feature-owned
 friend navigation is also catalog-backed; the browser gate closes the profile
 and verifies the localized friend-list heading and presence text. Room lists
-and message tools are still outside these localization slices.
+are catalog-backed as well; the same journey switches to the localized Rooms
+tab and verifies its heading without translating server-provided room names.
+Room administration/file dialogs and message tools remain outside these slices.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

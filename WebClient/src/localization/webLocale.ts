@@ -222,6 +222,33 @@ const friendListCatalog = {
   },
 } as const;
 
+const roomListCatalog = {
+  "zh-CN": {
+    title: "房间列表", searchRooms: "搜索房间", createRoom: "创建房间",
+    refresh: "刷新房间列表", empty: "暂无房间，使用创建或搜索按钮开始",
+    avatarPrefix: "", avatarSuffix: " 的房间头像", searchLabel: "房间名称或 ID",
+    searchPlaceholder: "输入房间名称或ID搜索", searching: "搜索中…", search: "搜索",
+    searchHint: "输入关键词后点击搜索", noResults: "未找到匹配的房间",
+    userId: "ID", memberSuffix: " 人", joined: "已加入", join: "加入", close: "关闭",
+    roomName: "房间名称", roomNamePlaceholder: "输入房间名称",
+    optionalPassword: "密码（可选）", passwordPlaceholder: "留空则无密码",
+    cancel: "取消", create: "创建", menu: "房间操作", settings: "房间设置",
+    files: "文件管理",
+  },
+  "en-US": {
+    title: "Room list", searchRooms: "Find rooms", createRoom: "Create room",
+    refresh: "Refresh room list", empty: "No rooms yet. Use Create room or Find rooms to get started.",
+    avatarPrefix: "Room avatar for ", avatarSuffix: "", searchLabel: "Room name or ID",
+    searchPlaceholder: "Search by room name or ID", searching: "Searching…", search: "Search",
+    searchHint: "Enter a keyword and select Search", noResults: "No matching rooms",
+    userId: "ID", memberSuffix: " members", joined: "Joined", join: "Join", close: "Close",
+    roomName: "Room name", roomNamePlaceholder: "Enter a room name",
+    optionalPassword: "Password (optional)", passwordPlaceholder: "Leave blank for no password",
+    cancel: "Cancel", create: "Create", menu: "Room actions", settings: "Room settings",
+    files: "File management",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -260,6 +287,10 @@ export function profileMessages(locale: WebLocale) {
 
 export function friendListMessages(locale: WebLocale) {
   return friendListCatalog[locale];
+}
+
+export function roomListMessages(locale: WebLocale) {
+  return roomListCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

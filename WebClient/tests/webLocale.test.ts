@@ -7,6 +7,7 @@ import {
   loginMessages,
   persistWebLocale,
   profileMessages,
+  roomListMessages,
   resolveWebLocale,
 } from "../src/localization/webLocale";
 
@@ -48,6 +49,10 @@ test("persists only supported locale identifiers and keeps catalogs aligned", ()
   assert.deepEqual(
     Object.keys(friendListMessages("en-US")).sort(),
     Object.keys(friendListMessages("zh-CN")).sort(),
+  );
+  assert.deepEqual(
+    Object.keys(roomListMessages("en-US")).sort(),
+    Object.keys(roomListMessages("zh-CN")).sort(),
   );
 });
 

@@ -437,6 +437,9 @@ test("switches the authenticated shell locale from profile and persists it", asy
   await page.keyboard.press("Escape");
   await expect(page.getByText("Friend list", { exact: true })).toBeVisible();
   await expect(page.getByText("Online", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Rooms" }).click();
+  await expect(page.getByText("Room list", { exact: true })).toBeVisible();
+  await expect(page.getByText("Browser Gate Room", { exact: true })).toBeVisible();
 });
 
 test("pauses an offline login attempt and requires explicit retry after recovery", async ({ context, page }) => {

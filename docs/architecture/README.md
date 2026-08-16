@@ -1981,8 +1981,11 @@ and session actions update from stable catalog keys. Raw server-provided profile
 errors remain verbatim. The friend sidebar is the fourth migrated slice:
 directory state, presence, search/request dialogs, context actions, and
 local destructive confirmation use the live catalog while user names and
-server data stay untouched. Room surfaces and message tools remain Chinese;
-this boundary does not claim complete product localization.
+server data stay untouched. The room sidebar is the fifth migrated slice:
+directory state, search/create forms, member counts, contextual administration,
+and accessible names use the same preference while room names, IDs, and server
+results remain data. Room settings/file management and message tools remain
+Chinese; this boundary does not claim complete product localization.
 
 ### Product consistency
 
