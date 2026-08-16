@@ -65,6 +65,8 @@ def main() -> int:
         "--target ChatClient ChatRoomUpdateLauncher",
         "WindowsV2ProductConfigurationEnabledTest",
         "V2WindowsDeviceManagementTransportTest",
+        "V2WindowsAccountBlockDirectoryDialogTest",
+        "account_block_directory_dialog",
         "Enabled Windows V2 configuration test failed",
         "CMake client version does not match canonical VERSION",
         "CMake update launcher version does not match canonical VERSION",

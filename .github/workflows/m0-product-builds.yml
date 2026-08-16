@@ -244,10 +244,11 @@ jobs:
               WindowsMessageNotificationPolicyTest `
               WindowsMessageNotificationPresenterTest `
               V2WindowsAccountBlockDialogTest `
+              V2WindowsAccountBlockDirectoryDialogTest `
               WindowsV2ConfigurationDiagnosticTest --parallel 4
           if ($LASTEXITCODE -ne 0) { throw "Forwarding Windows build failed" }
           ctest --test-dir build/m6/windows-forwarding-gate -C Release `
-            -R "^m6_windows_(v2_(device_management_transport|forward_target_dialog|message_search_view_model|messaging_controller|messaging_panel|account_block_dialog)|message_notification_(policy|presenter))$" `
+            -R "^m6_windows_(v2_(device_management_transport|forward_target_dialog|message_search_view_model|messaging_controller|messaging_panel|account_block_dialog|account_block_directory_dialog)|message_notification_(policy|presenter))$" `
             --output-on-failure
           if ($LASTEXITCODE -ne 0) { throw "Windows feature candidate tests failed" }
           $client = Get-Item build/m6/windows-forwarding-gate/Release/ChatClient.exe
