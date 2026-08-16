@@ -73,8 +73,10 @@ semantics, exclusion of the source conversation, an exact one-target type-119
 command, correlated acceptance, and a target-history projection containing the
 copied body plus only the public `forwarded` marker. The browser asserts that
 the rendered destination does not expose the source conversation or message
-identity. The rollback path verifies both the authoring action and type-119
-command are absent.
+identity. A separate controlled restart drops the first acceptance after the
+fixture has durably accepted it; session resume plus target-history repair must
+converge without a second type-119 command. The rollback path verifies both the
+authoring action and type-119 command are absent.
 
 This fixture uses no real network, gateway, or PostgreSQL. It does not prove
 server authorization, revision races, rate limiting, production observability,

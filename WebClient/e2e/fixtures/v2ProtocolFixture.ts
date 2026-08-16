@@ -62,6 +62,10 @@ const RESUME_TOKEN = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
 
 export type V2ProtocolFixtureMode = "accept" | "reject";
 
+export interface V2ProtocolFixtureOptions {
+  dropFirstForwardAcceptance?: boolean;
+}
+
 export interface V2ProtocolFixture {
   readonly receivedTypes: MessageType[];
   readonly clientHelloAppVersions: string[];
@@ -78,10 +82,13 @@ export interface V2ProtocolFixture {
     targetConversationId: string;
     clientMessageId: string;
   }>;
-  respond(bytes: number[]): number[];
+  respond(bytes: number[]): number[] | null;
 }
 
-export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2ProtocolFixture {
+export function createV2ProtocolFixture(
+  mode: V2ProtocolFixtureMode,
+  options: V2ProtocolFixtureOptions = {},
+): V2ProtocolFixture {
   const receivedTypes: MessageType[] = [];
   const clientHelloAppVersions: string[] = [];
   const searchQueries: V2ProtocolFixture["searchQueries"] = [];
@@ -89,6 +96,7 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
   let clientDeviceId = "";
   let resumed = false;
   let forwardedClientMessageId = "";
+  let dropForwardAcceptance = options.dropFirstForwardAcceptance === true;
 
   return {
     receivedTypes,
@@ -285,6 +293,10 @@ export function createV2ProtocolFixture(mode: V2ProtocolFixtureMode): V2Protocol
             targetConversationId: forward.targetConversationId,
             clientMessageId: request.clientMessageId,
           });
+          if (dropForwardAcceptance) {
+            dropForwardAcceptance = false;
+            return null;
+          }
           return response(request, MessageType.MESSAGE_ACCEPTED,
             MessageAcceptedSchema, {
               conversationId: KEYBOARD_CONVERSATION_ID,

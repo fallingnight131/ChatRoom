@@ -5,6 +5,7 @@ import {
   FIXTURE_CONVERSATION_ID,
   KEYBOARD_CONVERSATION_ID,
   createV2ProtocolFixture,
+  type V2ProtocolFixtureOptions,
 } from "./fixtures/v2ProtocolFixture";
 
 const enabled = process.env.CHATROOM_V2_BROWSER_PREVIEW === "true";
@@ -17,8 +18,9 @@ const FIXTURE_MESSAGE_ID = "60000000-0000-4000-8000-000000000001";
 async function installV2SocketFixture(
   page: import("@playwright/test").Page,
   mode: "accept" | "reject",
+  options: V2ProtocolFixtureOptions = {},
 ) {
-  const fixture = createV2ProtocolFixture(mode);
+  const fixture = createV2ProtocolFixture(mode, options);
   const socketUrls: string[] = [];
   const sockets: WebSocketRoute[] = [];
   const clientCloses: Array<{ code?: number; reason?: string }> = [];
@@ -30,7 +32,8 @@ async function installV2SocketFixture(
       if (typeof message === "string") {
         throw new Error("V2 fixture received a text WebSocket frame");
       }
-      socket.send(Buffer.from(fixture.respond(Array.from(message))));
+      const response = fixture.respond(Array.from(message));
+      if (response !== null) socket.send(Buffer.from(response));
     });
   });
   return { fixture, socketUrls, sockets, clientCloses };
@@ -310,6 +313,42 @@ test("forwards one server-authoritative message to a distinct conversation", asy
   await expect(targetLog.getByText("Fixture incoming message")).toBeVisible();
   await expect(targetLog.getByText("已转发", { exact: true })).toBeVisible();
   await expect(page.getByLabel("消息 1：已接收")).toBeVisible();
+  expect(fixture.receivedTypes.filter(type => type === MessageType.FORWARD_MESSAGE)).toHaveLength(1);
+  expect(await targetLog.innerText()).not.toContain(FIXTURE_CONVERSATION_ID);
+  expect(await targetLog.innerText()).not.toContain(FIXTURE_MESSAGE_ID);
+});
+
+test("repairs an ACK-lost forward from target history without duplicate submission", async ({ page }) => {
+  test.skip(!enabled || !forwardingCandidate,
+    "requires the explicit V2 message-forwarding browser candidate");
+  const { fixture, sockets } = await installV2SocketFixture(page, "accept", {
+    dropFirstForwardAcceptance: true,
+  });
+
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  await page.getByLabel("用户 ID").fill("browser_v2_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await page.getByRole("button", { name: /Browser Fixture Conversation/ }).click();
+  await page.getByRole("button", { name: "转发消息 1" }).click();
+  const dialog = page.getByRole("dialog", { name: "转发到会话" });
+  await dialog.getByRole("option", { name: /Keyboard Target Conversation/ }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => fixture.forwardRequests.length).toBe(1);
+
+  await sockets[0]!.close({ code: 1012, reason: "fixture dropped forward acceptance" });
+  await expect.poll(() => sockets.length).toBe(2);
+  await expect.poll(() => fixture.receivedTypes).toContain(MessageType.RESUME_SESSION);
+  await expect(page.getByText("已安全连接", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: /Keyboard Target Conversation/ }).click();
+  const targetLog = page.getByRole("log", { name: "消息记录" });
+  await expect(targetLog.getByText("Fixture incoming message")).toBeVisible();
+  await expect(targetLog.getByText("已转发", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("消息 1：已接收")).toBeVisible();
+  await page.waitForTimeout(250);
+  expect(fixture.forwardRequests).toHaveLength(1);
   expect(fixture.receivedTypes.filter(type => type === MessageType.FORWARD_MESSAGE)).toHaveLength(1);
   expect(await targetLog.innerText()).not.toContain(FIXTURE_CONVERSATION_ID);
   expect(await targetLog.innerText()).not.toContain(FIXTURE_MESSAGE_ID);

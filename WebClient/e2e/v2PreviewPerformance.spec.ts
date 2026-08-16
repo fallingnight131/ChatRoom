@@ -121,12 +121,13 @@ test.describe("Web V2 deterministic client performance", () => {
 
 async function installFixture(
   page: Page,
-  respond: (bytes: number[]) => number[],
+  respond: (bytes: number[]) => number[] | null,
 ): Promise<void> {
   await page.routeWebSocket(endpoint, socket => {
     socket.onMessage(message => {
       if (typeof message === "string") throw new Error("performance fixture received text");
-      socket.send(Buffer.from(respond(Array.from(message))));
+      const response = respond(Array.from(message));
+      if (response !== null) socket.send(Buffer.from(response));
     });
   });
 }

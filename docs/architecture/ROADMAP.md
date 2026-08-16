@@ -2182,6 +2182,9 @@ Progress:
       forwarding candidate and same-revision disabled rollback, including
       keyboard target selection, source exclusion, type-119 acceptance,
       privacy-safe target history, and post-rollback command absence.
+    - [x] Verify an ACK-lost Web forward converges through authoritative target
+      history after same-session resume without a duplicate type-119 command or
+      rendered source identity in Chromium and Firefox.
   - [ ] Pass the forwarding-enabled workflow on a Windows runner, retain the
     final binary diagnostic and Widgets evidence, and complete endpoint canary
     plus rollback rehearsal before treating forwarding as releasable.
