@@ -1985,7 +1985,11 @@ server data stay untouched. The room sidebar is the fifth migrated slice:
 directory state, search/create forms, member counts, contextual administration,
 and accessible names use the same preference while room names, IDs, and server
 results remain data. Room settings/file management and message tools remain
-Chinese; this boundary does not claim complete product localization.
+Chinese. The room member sidebar is the sixth migrated slice: live group
+counts, online/offline landmarks, administrator roles, avatar descriptions,
+and compound member action names all derive from the locale catalog without
+altering server-authoritative identity or role state. This boundary does not
+claim complete product localization.
 
 ### Product consistency
 

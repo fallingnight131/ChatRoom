@@ -18,9 +18,19 @@ test('uses named native member buttons without relying on status dots', () => {
   for (const marker of [
     'class="user-item" type="button" :aria-label="memberLabel(user, true)"',
     'class="user-item offline" type="button" :aria-label="memberLabel(user, false)"',
-    ':alt="`${user.displayName || user.username} 的头像`"',
+    ':alt="avatarLabel(user.displayName || user.username)"',
     'class="online-dot online" aria-hidden="true"',
-    "online ? '在线' : '离线'",
-    "user.isAdmin ? '，管理员' : ''",
+    'online ? messages.value.online : messages.value.offline',
+    'user.isAdmin ? `${separator}${messages.value.admin}` : \'\'',
   ]) assert.ok(source.includes(marker), `missing member action marker: ${marker}`)
+})
+
+test('renders member groups, roles, and action names from the live locale catalog', () => {
+  for (const marker of [
+    'memberListMessages(userStore.locale)',
+    '{{ onlineCountLabel }}',
+    '{{ messages.onlineMembers }}',
+    '{{ offlineCountLabel }}',
+    '{{ messages.admin }}',
+  ]) assert.ok(source.includes(marker), `missing member locale marker: ${marker}`)
 })

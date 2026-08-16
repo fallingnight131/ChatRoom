@@ -5,6 +5,7 @@ import {
   chatShellMessages,
   friendListMessages,
   loginMessages,
+  memberListMessages,
   persistWebLocale,
   profileMessages,
   roomListMessages,
@@ -53,6 +54,10 @@ test("persists only supported locale identifiers and keeps catalogs aligned", ()
   assert.deepEqual(
     Object.keys(roomListMessages("en-US")).sort(),
     Object.keys(roomListMessages("zh-CN")).sort(),
+  );
+  assert.deepEqual(
+    Object.keys(memberListMessages("en-US")).sort(),
+    Object.keys(memberListMessages("zh-CN")).sort(),
   );
 });
 

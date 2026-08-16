@@ -249,6 +249,21 @@ const roomListCatalog = {
   },
 } as const;
 
+const memberListCatalog = {
+  "zh-CN": {
+    onlineCountPrefix: "在线 ", onlineCountSuffix: "", onlineMembers: "在线成员",
+    offlineCountPrefix: "离线 ", offlineCountSuffix: "", offlineMembers: "离线成员",
+    online: "在线", offline: "离线", admin: "管理员",
+    avatarPrefix: "", avatarSuffix: " 的头像", separator: "，",
+  },
+  "en-US": {
+    onlineCountPrefix: "", onlineCountSuffix: " online", onlineMembers: "Online members",
+    offlineCountPrefix: "", offlineCountSuffix: " offline", offlineMembers: "Offline members",
+    online: "online", offline: "offline", admin: "administrator",
+    avatarPrefix: "Avatar for ", avatarSuffix: "", separator: ", ",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -291,6 +306,10 @@ export function friendListMessages(locale: WebLocale) {
 
 export function roomListMessages(locale: WebLocale) {
   return roomListCatalog[locale];
+}
+
+export function memberListMessages(locale: WebLocale) {
+  return memberListCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

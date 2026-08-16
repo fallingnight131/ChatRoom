@@ -1,19 +1,19 @@
 <template>
   <div class="user-list">
     <div class="user-list-header">
-      <span role="status" aria-live="polite">在线 {{ chatStore.onlineUsers.length }}</span>
+      <span role="status" aria-live="polite">{{ onlineCountLabel }}</span>
     </div>
 
     <!-- 在线用户 -->
     <section class="user-section" aria-labelledby="online-members-title">
-      <h2 id="online-members-title" class="visually-hidden">在线成员</h2>
+      <h2 id="online-members-title" class="visually-hidden">{{ messages.onlineMembers }}</h2>
       <ul class="member-list" role="list">
       <li v-for="user in chatStore.onlineUsers" :key="user.username">
         <button class="user-item" type="button" :aria-label="memberLabel(user, true)"
                 @click="openUserInfo(user)">
         <span class="user-avatar-wrap">
           <img v-if="getAvatarSrc(user.username)" :src="getAvatarSrc(user.username)"
-               class="avatar avatar-sm" :alt="`${user.displayName || user.username} 的头像`" />
+               class="avatar avatar-sm" :alt="avatarLabel(user.displayName || user.username)" />
           <span v-else class="avatar avatar-sm avatar-placeholder" aria-hidden="true"
                :style="{ background: hashColor(user.username) }">
             {{ (user.displayName || user.username).charAt(0) }}
@@ -23,7 +23,7 @@
         <span class="user-item-info">
           <span class="user-item-name text-ellipsis">
             {{ user.displayName }}
-            <span v-if="user.isAdmin" class="admin-badge">管理员</span>
+            <span v-if="user.isAdmin" class="admin-badge">{{ messages.admin }}</span>
           </span>
           <span class="user-item-id text-ellipsis">@{{ user.username }}</span>
         </span>
@@ -35,14 +35,14 @@
     <!-- 离线用户 -->
     <section v-if="chatStore.offlineUsers.length > 0" class="user-section"
              aria-labelledby="offline-members-title">
-      <h2 id="offline-members-title" class="section-label">离线 {{ chatStore.offlineUsers.length }}</h2>
+      <h2 id="offline-members-title" class="section-label">{{ offlineCountLabel }}</h2>
       <ul class="member-list" role="list">
       <li v-for="user in chatStore.offlineUsers" :key="user.username">
         <button class="user-item offline" type="button" :aria-label="memberLabel(user, false)"
                 @click="openUserInfo(user)">
         <span class="user-avatar-wrap">
           <img v-if="getAvatarSrc(user.username)" :src="getAvatarSrc(user.username)"
-               class="avatar avatar-sm" :alt="`${user.displayName || user.username} 的头像`" />
+               class="avatar avatar-sm" :alt="avatarLabel(user.displayName || user.username)" />
           <span v-else class="avatar avatar-sm avatar-placeholder" aria-hidden="true"
                :style="{ background: hashColor(user.username), opacity: 0.5 }">
             {{ (user.displayName || user.username).charAt(0) }}
@@ -52,7 +52,7 @@
         <span class="user-item-info">
           <span class="user-item-name text-ellipsis">
             {{ user.displayName }}
-            <span v-if="user.isAdmin" class="admin-badge">管理员</span>
+            <span v-if="user.isAdmin" class="admin-badge">{{ messages.admin }}</span>
           </span>
           <span class="user-item-id text-ellipsis">@{{ user.username }}</span>
         </span>
@@ -64,12 +64,18 @@
 </template>
 
 <script setup>
-import { inject } from 'vue'
+import { computed, inject } from 'vue'
 import { useChatStore } from '../stores/chat'
 import { useUserStore } from '../stores/user'
+import { memberListMessages } from '../localization/webLocale'
 
 const chatStore = useChatStore()
 const userStore = useUserStore()
+const messages = computed(() => memberListMessages(userStore.locale))
+const onlineCountLabel = computed(() =>
+  `${messages.value.onlineCountPrefix}${chatStore.onlineUsers.length}${messages.value.onlineCountSuffix}`)
+const offlineCountLabel = computed(() =>
+  `${messages.value.offlineCountPrefix}${chatStore.offlineUsers.length}${messages.value.offlineCountSuffix}`)
 const openUserInfo = inject('openUserInfo')
 const hashColor = inject('hashColor')
 
@@ -80,9 +86,16 @@ function getAvatarSrc(username) {
   return ''
 }
 
+function avatarLabel(name) {
+  return `${messages.value.avatarPrefix}${name}${messages.value.avatarSuffix}`
+}
+
 function memberLabel(user, online) {
   const displayName = user.displayName || user.username
-  return `${displayName}，@${user.username}，${online ? '在线' : '离线'}${user.isAdmin ? '，管理员' : ''}`
+  const separator = messages.value.separator
+  const status = online ? messages.value.online : messages.value.offline
+  const role = user.isAdmin ? `${separator}${messages.value.admin}` : ''
+  return `${displayName}${separator}@${user.username}${separator}${status}${role}`
 }
 </script>
 
