@@ -93,8 +93,17 @@ async function installV1ClientFixture(page: Page) {
               pendingFriendRequests: 0 } };
         } else if (message.type === "AVATAR_GET_REQ") {
           response = { type: "AVATAR_GET_RSP", id: `fixture-${sent.length}`,
-            timestamp: Date.now(), data: { success: false,
-              username: message.data.username } };
+            timestamp: Date.now(), data: message.data.username === "browser_friend"
+              ? { success: true, username: message.data.username,
+                avatarData: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=" }
+              : { success: false, username: message.data.username } };
+        } else if (message.type === "USER_LIST_REQ") {
+          response = { type: "USER_LIST_RSP", id: `fixture-${sent.length}`,
+            timestamp: Date.now(), data: { roomId: message.data.roomId,
+              users: [
+                { username: "browser_gate_user", displayName: "Browser Gate User", isOnline: true, isAdmin: false },
+                { username: "browser_friend", displayName: "Browser Gate Friend", isOnline: true, isAdmin: false },
+              ] } };
         } else if (message.type === "HISTORY_REQ") {
           response = { type: "HISTORY_RSP", id: `fixture-${sent.length}`,
             timestamp: Date.now(), data: { roomId: message.data.roomId, mode: "sequence",
@@ -449,8 +458,24 @@ test("switches the authenticated shell locale from profile and persists it", asy
   await expect(page.getByText("Room list", { exact: true })).toBeVisible();
   await expect(page.getByText("Browser Gate Room", { exact: true })).toBeVisible();
   await page.getByText("Browser Gate Room", { exact: true }).click();
-  await expect(page.getByText("0 online", { exact: true })).toBeVisible();
+  await expect(page.getByText("2 online", { exact: true })).toBeVisible();
   await expect(page.getByRole("region", { name: "Online members" })).toBeVisible();
+  const member = page.getByRole("button", { name: "Browser Gate Friend, @browser_friend, Online" });
+  await expect(member).toBeVisible();
+  await member.click();
+  const userInfo = page.getByRole("dialog", { name: "User information" });
+  await expect(userInfo).toBeVisible();
+  await expect(userInfo.getByText("Display name", { exact: true })).toBeVisible();
+  await expect(userInfo.getByText("Member", { exact: true })).toBeVisible();
+  const avatarTrigger = userInfo.getByRole("button", { name: "Preview Browser Gate Friend avatar" });
+  await expect(avatarTrigger).toBeVisible();
+  await avatarTrigger.click();
+  const avatarPreview = page.getByRole("dialog", { name: "Avatar preview" });
+  await expect(avatarPreview).toBeVisible();
+  await avatarPreview.getByRole("button", { name: "Close preview" }).click();
+  await expect(avatarPreview).toBeHidden();
+  await userInfo.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(userInfo).toBeHidden();
   await expect(page.getByRole("toolbar", { name: "Message tools" })).toBeVisible();
   await expect(page.getByRole("log", { name: "Chat messages" })).toBeVisible();
   await expect(page.getByText("Browser fixture message", { exact: true })).toBeVisible();

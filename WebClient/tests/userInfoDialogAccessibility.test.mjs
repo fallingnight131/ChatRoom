@@ -11,7 +11,7 @@ test('contains the user information dialog and exposes avatar preview as a nativ
     'aria-labelledby="user-info-title"',
     'tabindex="-1" @keydown="onDialogKeydown"',
     'type="button" class="avatar-preview-trigger"',
-    ':aria-label="`预览 ${userDisplayName} 的头像`"',
+    ':aria-label="`${messages.previewAvatarPrefix}${userDisplayName}${messages.avatarSuffix}`"',
     'useModalKeyboardBoundary({',
     'canClose: () => !showAvatarPreview.value',
   ]) assert.ok(userInfoSource.includes(marker), `missing user info marker: ${marker}`)
@@ -22,7 +22,7 @@ test('contains the nested avatar preview and restores focus through the shared b
     'role="dialog" aria-modal="true"',
     'aria-labelledby="avatar-preview-title"',
     '@keydown.stop="onDialogKeydown"',
-    ':alt="alt"',
+    ':alt="imageAlt"',
     'useModalKeyboardBoundary({',
     "onClose: () => emit('close')",
   ]) assert.ok(previewSource.includes(marker), `missing avatar preview marker: ${marker}`)

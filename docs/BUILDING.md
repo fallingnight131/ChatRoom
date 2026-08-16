@@ -108,6 +108,11 @@ progress names, transfer state, and pause/resume/cancel actions. Source tests
 retain the native progress values and store-owned download command boundary;
 the browser fixture has no active download and therefore supplies regression,
 not live-transfer, evidence for this slice.
+The user-information source tests bind identity labels, role/presence text,
+administrator actions, and the nested avatar preview to the locale while
+retaining the exact room-ID/username command calls. The English browser journey
+uses a fixture member and avatar to open and close both nested dialogs in
+Chromium and Firefox; it does not exercise successful administrator mutation.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

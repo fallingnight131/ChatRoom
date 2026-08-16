@@ -2378,6 +2378,8 @@ Candidate slices:
     identities, modal focus containment, and pending-submit protection.
   - [x] Migrate the Web V1 download-management panel without changing progress
     calculation or store-owned pause/resume/cancel commands.
+  - [x] Migrate Web V1 user information and nested avatar preview while
+    preserving server-authoritative room administration command identities.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

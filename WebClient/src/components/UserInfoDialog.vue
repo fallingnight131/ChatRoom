@@ -2,15 +2,15 @@
   <div class="modal-overlay" @click.self="closeDialog">
     <div ref="dialogRef" class="modal user-info-modal" role="dialog" aria-modal="true"
          aria-labelledby="user-info-title" tabindex="-1" @keydown="onDialogKeydown">
-      <div id="user-info-title" class="modal-title">用户信息</div>
+      <div id="user-info-title" class="modal-title">{{ messages.title }}</div>
 
       <div class="user-info-card">
         <!-- 头像 -->
         <div class="user-info-avatar">
           <button v-if="avatarSrc" type="button" class="avatar-preview-trigger"
-                  :aria-label="`预览 ${userDisplayName} 的头像`" @click="showAvatarPreview = true">
+                  :aria-label="`${messages.previewAvatarPrefix}${userDisplayName}${messages.avatarSuffix}`" @click="showAvatarPreview = true">
             <img :src="avatarSrc" class="avatar avatar-large-preview"
-                 :alt="`${userDisplayName} 的头像`" />
+                 :alt="`${userDisplayName}${messages.avatarSuffix}`" />
           </button>
           <div v-else class="avatar avatar-large-preview avatar-placeholder"
                :style="{ background: hashColor(props.user.username) }">
@@ -21,24 +21,24 @@
         <!-- 信息 -->
         <div class="user-detail">
           <div class="detail-row">
-            <span class="detail-label">昵称</span>
+            <span class="detail-label">{{ messages.name }}</span>
             <span class="detail-value">{{ props.user.displayName }}</span>
           </div>
           <div class="detail-row">
-            <span class="detail-label">用户ID</span>
+            <span class="detail-label">{{ messages.userId }}</span>
             <span class="detail-value">@{{ props.user.username }}</span>
           </div>
           <div class="detail-row">
-            <span class="detail-label">状态</span>
+            <span class="detail-label">{{ messages.status }}</span>
             <span class="detail-value">
               <span :class="['status-dot', props.user.isOnline ? 'online' : '']"></span>
-              {{ props.user.isOnline ? '在线' : '离线' }}
+              {{ props.user.isOnline ? messages.online : messages.offline }}
             </span>
           </div>
           <div class="detail-row">
-            <span class="detail-label">角色</span>
+            <span class="detail-label">{{ messages.role }}</span>
             <span class="detail-value">
-              {{ props.user.isAdmin ? '管理员' : '普通成员' }}
+              {{ props.user.isAdmin ? messages.admin : messages.member }}
             </span>
           </div>
         </div>
@@ -46,27 +46,27 @@
 
       <!-- 管理员操作区域 -->
       <div v-if="showAdminActions" class="admin-actions">
-        <div class="admin-actions-title">管理员操作</div>
+        <div class="admin-actions-title">{{ messages.adminActions }}</div>
         <div class="admin-actions-btns">
           <button v-if="!props.user.isAdmin" class="btn btn-secondary" type="button" @click="setAdmin">
-            设为管理员
+            {{ messages.setAdmin }}
           </button>
           <button v-else class="btn btn-secondary" type="button" @click="unsetAdmin">
-            取消管理员
+            {{ messages.unsetAdmin }}
           </button>
           <button v-if="!isSelf" class="btn btn-danger" type="button" @click="kickUser">
-            踢出聊天室
+            {{ messages.kick }}
           </button>
         </div>
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-secondary" type="button" @click="closeDialog">关闭</button>
+        <button class="btn btn-secondary" type="button" @click="closeDialog">{{ messages.close }}</button>
       </div>
     </div>
 
     <AvatarPreviewDialog v-if="showAvatarPreview && avatarSrc" :src="avatarSrc"
-                         :alt="`${userDisplayName} 的头像大图`"
+                         :alt="`${userDisplayName}${messages.largeAvatarSuffix}`"
                          @close="showAvatarPreview = false" />
   </div>
 </template>
@@ -78,6 +78,7 @@ import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
 import { chatWs } from '../services/websocket'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
+import { userInfoMessages } from '../localization/webLocale'
 
 const props = defineProps({
   user: { type: Object, required: true }
@@ -86,6 +87,7 @@ const emit = defineEmits(['close'])
 const hashColor = inject('hashColor')
 const userStore = useUserStore()
 const chatStore = useChatStore()
+const messages = computed(() => userInfoMessages(userStore.locale))
 const showAvatarPreview = ref(false)
 const { dialogRef, closeDialog, onDialogKeydown } = useModalKeyboardBoundary({
   onClose: () => emit('close'),
@@ -117,7 +119,7 @@ function unsetAdmin() {
 }
 
 function kickUser() {
-  if (confirm(`确定要将 ${props.user.displayName || props.user.username} 踢出聊天室吗？`)) {
+  if (confirm(`${messages.value.kickConfirmPrefix}${userDisplayName.value}${messages.value.kickConfirmSuffix}`)) {
     chatWs.kickUser(chatStore.currentRoomId, props.user.username)
     emit('close')
   }

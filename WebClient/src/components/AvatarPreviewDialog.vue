@@ -3,24 +3,30 @@
     <div ref="dialogRef" class="avatar-preview-card" role="dialog" aria-modal="true"
          aria-labelledby="avatar-preview-title" tabindex="-1"
          @keydown.stop="onDialogKeydown">
-      <h2 id="avatar-preview-title" class="visually-hidden">头像预览</h2>
-      <img :src="src" class="avatar-preview-image" :alt="alt" />
+      <h2 id="avatar-preview-title" class="visually-hidden">{{ messages.avatarPreview }}</h2>
+      <img :src="src" class="avatar-preview-image" :alt="imageAlt" />
       <div class="avatar-preview-actions">
-        <button class="btn btn-secondary" type="button" @click="closeDialog">关闭预览</button>
+        <button class="btn btn-secondary" type="button" @click="closeDialog">{{ messages.closePreview }}</button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
+import { useUserStore } from '../stores/user'
+import { userInfoMessages } from '../localization/webLocale'
 
-defineProps({
+const props = defineProps({
   src: { type: String, required: true },
-  alt: { type: String, default: '用户头像大图' }
+  alt: { type: String, default: '' }
 })
 
 const emit = defineEmits(['close'])
+const userStore = useUserStore()
+const messages = computed(() => userInfoMessages(userStore.locale))
+const imageAlt = computed(() => props.alt || messages.value.largeAvatar)
 const { dialogRef, closeDialog, onDialogKeydown } = useModalKeyboardBoundary({
   onClose: () => emit('close')
 })

@@ -1984,8 +1984,8 @@ local destructive confirmation use the live catalog while user names and
 server data stay untouched. The room sidebar is the fifth migrated slice:
 directory state, search/create forms, member counts, contextual administration,
 and accessible names use the same preference while room names, IDs, and server
-results remain data. Room settings/file management and message tools remain
-Chinese. The room member sidebar is the sixth migrated slice: live group
+results remain data. Room settings/file management remain later localization
+slices. The room member sidebar is the sixth migrated slice: live group
 counts, online/offline landmarks, administrator roles, avatar descriptions,
 and compound member action names all derive from the locale catalog without
 altering server-authoritative identity or role state. This boundary does not
@@ -2021,6 +2021,11 @@ collapse control, task/progress descriptions, transfer state, and actions. Its
 progress calculation and the store-owned pause, resume, and cancel commands are
 unchanged; no transfer bytes or authorization state enter the localization
 catalog.
+The user-information and nested avatar-preview dialogs now localize identity
+labels, presence and role presentation, administrator actions, confirmation,
+and preview controls. Display names and usernames remain server data, and
+administrator/kick commands continue to carry the unchanged room ID and
+username for server-side authorization.
 
 ### Product consistency
 

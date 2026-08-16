@@ -430,6 +430,25 @@ const downloadPanelCatalog = {
   },
 } as const;
 
+const userInfoCatalog = {
+  "zh-CN": {
+    title: "用户信息", previewAvatarPrefix: "预览 ", avatarSuffix: " 的头像", largeAvatarSuffix: " 的头像大图",
+    name: "昵称", userId: "用户ID", status: "状态", online: "在线", offline: "离线", role: "角色",
+    admin: "管理员", member: "普通成员", adminActions: "管理员操作", setAdmin: "设为管理员",
+    unsetAdmin: "取消管理员", kick: "踢出聊天室", close: "关闭", kickConfirmPrefix: "确定要将 ",
+    kickConfirmSuffix: " 踢出聊天室吗？", avatarPreview: "头像预览", closePreview: "关闭预览",
+    largeAvatar: "用户头像大图",
+  },
+  "en-US": {
+    title: "User information", previewAvatarPrefix: "Preview ", avatarSuffix: " avatar", largeAvatarSuffix: " large avatar",
+    name: "Display name", userId: "User ID", status: "Status", online: "Online", offline: "Offline", role: "Role",
+    admin: "Administrator", member: "Member", adminActions: "Administrator actions", setAdmin: "Make administrator",
+    unsetAdmin: "Remove administrator", kick: "Remove from room", close: "Close", kickConfirmPrefix: "Remove ",
+    kickConfirmSuffix: " from this room?", avatarPreview: "Avatar preview", closePreview: "Close preview",
+    largeAvatar: "Large user avatar",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -508,6 +527,10 @@ export function forwardDialogMessages(locale: WebLocale) {
 
 export function downloadPanelMessages(locale: WebLocale) {
   return downloadPanelCatalog[locale];
+}
+
+export function userInfoMessages(locale: WebLocale) {
+  return userInfoCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {
