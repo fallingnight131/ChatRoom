@@ -21,8 +21,8 @@
            :class="{ active: chatStore.isFriendChat && chatStore.currentFriendUsername === fr.username }"
            :aria-current="chatStore.isFriendChat && chatStore.currentFriendUsername === fr.username ? 'true' : undefined"
            @click="selectFriend(fr)"
-           @keydown="onFriendKeydown($event, fr)"
-           @contextmenu.prevent="onContextMenu($event, fr)">
+           @keydown="openFriendMenuFromKeyboard($event, fr)"
+           @contextmenu.prevent="openFriendMenuFromPointer($event, fr)">
         <span class="friend-avatar-wrap" :class="{ online: fr.isOnline }">
           <img v-if="getAvatarSrc(fr.username)" :src="getAvatarSrc(fr.username)" class="avatar avatar-sm"
                :alt="`${fr.displayName || fr.username} 的头像`" />
@@ -115,24 +115,25 @@
     </div>
 
     <!-- 右键菜单 -->
-    <div v-if="contextMenu.show" ref="contextMenuRef" class="context-menu" role="menu"
+    <div v-if="friendMenu.show" ref="friendMenuRef" class="context-menu" role="menu"
          aria-label="好友操作"
-         :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
-         @keydown="onContextMenuKeydown">
+         :style="{ left: friendMenu.x + 'px', top: friendMenu.y + 'px' }"
+         @keydown="onFriendMenuKeydown">
       <button class="context-menu-item" type="button" role="menuitem"
               @click="viewContextFriendInfo">查看信息</button>
-      <button v-if="canRemoveFriend(contextMenu.friend)" class="context-menu-item danger"
+      <button v-if="canRemoveFriend(friendMenu.item)" class="context-menu-item danger"
               type="button" role="menuitem" @click="removeContextFriend">删除好友</button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, inject, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, inject, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '../stores/chat'
 import { useUserStore } from '../stores/user'
 import { chatWs } from '../services/websocket'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
+import { useKeyboardContextMenu } from '../ui/useKeyboardContextMenu'
 
 const chatStore = useChatStore()
 const userStore = useUserStore()
@@ -175,9 +176,15 @@ const {
   active: showPendingDialog,
 })
 
-const contextMenu = reactive({ show: false, x: 0, y: 0, friend: null })
-const contextMenuRef = ref(null)
-let contextMenuInvoker = null
+const {
+  menu: friendMenu,
+  menuRef: friendMenuRef,
+  openFromPointer: openFriendMenuFromPointer,
+  openFromKeyboard: openFriendMenuFromKeyboard,
+  close: closeFriendMenu,
+  dismiss: dismissFriendMenu,
+  onKeydown: onFriendMenuKeydown,
+} = useKeyboardContextMenu()
 
 function selectFriend(fr) {
   chatStore.setCurrentFriend(fr.username)
@@ -252,65 +259,16 @@ function canRemoveFriend(fr) {
   return !!(fr && fr.username && fr.username !== userStore.username)
 }
 
-function openContextMenu(fr, invoker, x, y) {
-  contextMenu.show = true
-  contextMenu.x = x
-  contextMenu.y = y
-  contextMenu.friend = fr
-  contextMenuInvoker = invoker
-  nextTick(() => contextMenuRef.value?.querySelector('[role="menuitem"]')?.focus())
-}
-
-function onContextMenu(e, fr) {
-  openContextMenu(fr, e.currentTarget, e.clientX, e.clientY)
-}
-
-function onFriendKeydown(event, fr) {
-  if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return
-  event.preventDefault()
-  const rect = event.currentTarget.getBoundingClientRect()
-  openContextMenu(fr, event.currentTarget, rect.left + 12, rect.top + 12)
-}
-
-function closeMenu(restoreFocus = false) {
-  contextMenu.show = false
-  contextMenu.friend = null
-  const invoker = contextMenuInvoker
-  contextMenuInvoker = null
-  if (restoreFocus) nextTick(() => invoker?.focus())
-}
-
-function dismissMenu() {
-  closeMenu(false)
-}
-
 function viewContextFriendInfo() {
-  const friend = contextMenu.friend
-  closeMenu(true)
+  const friend = friendMenu.item
+  closeFriendMenu(true)
   viewFriendInfo(friend)
 }
 
 function removeContextFriend() {
-  const friend = contextMenu.friend
-  closeMenu(true)
+  const friend = friendMenu.item
+  closeFriendMenu(true)
   removeFriend(friend)
-}
-
-function onContextMenuKeydown(event) {
-  const items = [...(contextMenuRef.value?.querySelectorAll('[role="menuitem"]') || [])]
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    closeMenu(true)
-    return
-  }
-  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || items.length === 0) return
-  event.preventDefault()
-  const current = items.indexOf(document.activeElement)
-  let next = 0
-  if (event.key === 'End') next = items.length - 1
-  else if (event.key === 'ArrowUp') next = current <= 0 ? items.length - 1 : current - 1
-  else if (event.key === 'ArrowDown') next = current < 0 || current === items.length - 1 ? 0 : current + 1
-  items[next]?.focus()
 }
 
 // 监听好友申请数据
@@ -319,13 +277,13 @@ function onPendingData(requests) {
 }
 
 onMounted(() => {
-  document.addEventListener('click', dismissMenu)
+  document.addEventListener('click', dismissFriendMenu)
   chatStore.onEvent('friendPending', onPendingData)
   chatStore.onEvent('userSearchResults', onSearchResults)
   refreshFriends()
 })
 onUnmounted(() => {
-  document.removeEventListener('click', dismissMenu)
+  document.removeEventListener('click', dismissFriendMenu)
   chatStore.offEvent('friendPending', onPendingData)
   chatStore.offEvent('userSearchResults', onSearchResults)
 })

@@ -1046,6 +1046,10 @@ active conversation is exposed through `aria-current`; Context Menu or
 Shift+F10 opens a named native-action menu whose arrows and Home/End wrap,
 Escape returns focus, and pointer dismissal avoids an unexpected focus jump.
 Selection and friend-removal authorization paths are unchanged.
+That repeatable menu behavior is now owned by a typed shared UI boundary rather
+than the friend feature. Room rows consume the same boundary and are native
+buttons with `aria-current`; room settings and administrator-only file
+management are keyboard reachable without changing their server authorization.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

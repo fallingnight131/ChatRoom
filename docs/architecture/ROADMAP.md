@@ -2320,6 +2320,8 @@ Candidate slices:
     preserving pending-forward guards while keeping mentions non-modal.
   - [x] Replace pointer-only Web friend rows and actions with native keyboard
     selection plus a focus-restoring Context Menu/Shift+F10 menu.
+  - [x] Extract the typed sidebar context-menu boundary and apply it to native
+    Web room rows and their server-authoritative management actions.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

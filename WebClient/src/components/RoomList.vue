@@ -12,22 +12,26 @@
     </div>
 
     <div class="room-items">
-      <div v-for="room in chatStore.rooms" :key="room.roomId"
+      <button v-for="room in chatStore.rooms" :key="room.roomId" type="button"
            class="room-item"
            :class="{ active: room.roomId === chatStore.currentRoomId }"
+           :aria-current="room.roomId === chatStore.currentRoomId ? 'true' : undefined"
            @click="selectRoom(room.roomId)"
-           @contextmenu.prevent="onContextMenu($event, room)">
-        <div class="room-avatar-wrap">
-          <img v-if="getRoomAvatarSrc(room.roomId)" :src="getRoomAvatarSrc(room.roomId)" class="avatar avatar-sm" />
-          <div v-else class="avatar avatar-sm avatar-placeholder" :style="{ background: hashColor(room.roomId) }">
+           @keydown="openRoomMenuFromKeyboard($event, room)"
+           @contextmenu.prevent="openRoomMenuFromPointer($event, room)">
+        <span class="room-avatar-wrap">
+          <img v-if="getRoomAvatarSrc(room.roomId)" :src="getRoomAvatarSrc(room.roomId)" class="avatar avatar-sm"
+               :alt="`${room.roomName} 的房间头像`" />
+          <span v-else class="avatar avatar-sm avatar-placeholder" aria-hidden="true"
+                :style="{ background: hashColor(room.roomId) }">
             {{ room.roomName.charAt(0) }}
-          </div>
-        </div>
-        <div class="room-info">
-          <div class="room-name text-ellipsis">{{ room.roomName }}</div>
-        </div>
+          </span>
+        </span>
+        <span class="room-info">
+          <span class="room-name text-ellipsis">{{ room.roomName }}</span>
+        </span>
         <span v-if="room.unread > 0" class="badge">{{ room.unread > 99 ? '99+' : room.unread }}</span>
-      </div>
+      </button>
       <div v-if="chatStore.rooms.length === 0" class="room-empty">
         暂无房间，点击 ➕ 创建或 🔍 搜索
       </div>
@@ -95,20 +99,23 @@
     </div>
 
     <!-- 右键菜单 -->
-    <div v-if="contextMenu.show" class="context-menu"
-         :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
-         @click="contextMenu.show = false">
-      <div class="context-menu-item" @click="openRoomSettings(contextMenu.room)">房间设置</div>
-      <div v-if="canManageRoom(contextMenu.room)" class="context-menu-item" @click="openRoomFiles(contextMenu.room)">文件管理</div>
+    <div v-if="roomMenu.show" ref="roomMenuRef" class="context-menu" role="menu"
+         aria-label="房间操作" :style="{ left: roomMenu.x + 'px', top: roomMenu.y + 'px' }"
+         @keydown="onRoomMenuKeydown">
+      <button class="context-menu-item" type="button" role="menuitem"
+              @click="openContextRoomSettings">房间设置</button>
+      <button v-if="canManageRoom(roomMenu.item)" class="context-menu-item" type="button"
+              role="menuitem" @click="openContextRoomFiles">文件管理</button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, reactive } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '../stores/chat'
 import { chatWs } from '../services/websocket'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
+import { useKeyboardContextMenu } from '../ui/useKeyboardContextMenu'
 
 const chatStore = useChatStore()
 
@@ -142,7 +149,15 @@ const {
   active: showCreate,
 })
 
-const contextMenu = reactive({ show: false, x: 0, y: 0, room: null })
+const {
+  menu: roomMenu,
+  menuRef: roomMenuRef,
+  openFromPointer: openRoomMenuFromPointer,
+  openFromKeyboard: openRoomMenuFromKeyboard,
+  close: closeRoomMenu,
+  dismiss: dismissRoomMenu,
+  onKeydown: onRoomMenuKeydown,
+} = useKeyboardContextMenu()
 
 function hashColor(id) {
   let hash = 0
@@ -201,15 +216,16 @@ function canManageRoom(room) {
   return !!(room && room.isAdmin)
 }
 
-function onContextMenu(e, room) {
-  contextMenu.show = true
-  contextMenu.x = e.clientX
-  contextMenu.y = e.clientY
-  contextMenu.room = room
+function openContextRoomSettings() {
+  const room = roomMenu.item
+  closeRoomMenu(true)
+  openRoomSettings(room)
 }
 
-function closeMenu() {
-  contextMenu.show = false
+function openContextRoomFiles() {
+  const room = roomMenu.item
+  closeRoomMenu(true)
+  openRoomFiles(room)
 }
 
 // 搜索
@@ -247,11 +263,11 @@ function isRoomJoined(roomId) {
 }
 
 onMounted(() => {
-  document.addEventListener('click', closeMenu)
+  document.addEventListener('click', dismissRoomMenu)
   chatStore.onEvent('roomSearchResults', onSearchResults)
 })
 onUnmounted(() => {
-  document.removeEventListener('click', closeMenu)
+  document.removeEventListener('click', dismissRoomMenu)
   chatStore.offEvent('roomSearchResults', onSearchResults)
 })
 </script>
@@ -298,9 +314,18 @@ onUnmounted(() => {
   cursor: pointer;
   transition: background 0.15s;
   margin-bottom: 2px;
+  width: 100%;
+  border: 0;
+  text-align: left;
+  background: transparent;
+  color: inherit;
 }
 .room-item:hover {
   background: var(--bg-hover);
+}
+.room-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 .room-item.active {
   background: var(--bg-active);
@@ -313,8 +338,22 @@ onUnmounted(() => {
   min-width: 0;
 }
 .room-name {
+  display: block;
   font-size: 14px;
   color: var(--text-primary);
+}
+.context-menu-item {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+}
+.context-menu-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: var(--bg-hover);
 }
 .room-empty {
   text-align: center;
