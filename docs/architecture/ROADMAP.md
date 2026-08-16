@@ -2396,6 +2396,8 @@ Candidate slices:
     preserving availability guards, clipboard isolation, focus, and identity.
   - [x] Migrate the Web V2 reply/send composer and UTF-8 budget feedback while
     preserving structured mentions, keyboard behavior, and application calls.
+  - [x] Migrate the Web V2 participant picker while preserving stable account
+    identity, Unicode mention spans, paging, and keyboard focus ownership.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

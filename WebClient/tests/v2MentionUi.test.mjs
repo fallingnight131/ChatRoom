@@ -11,16 +11,16 @@ test('exposes keyboard-native participant selection and identity-preserving ment
     'aria-controls="v2-mention-picker"',
     ':aria-expanded="mentionPickerMode === \'draft\'"',
     'id="v2-mention-picker" ref="mentionPickerRef"',
-    'role="listbox" aria-label="会话成员"',
+    'role="listbox" :aria-label="mentionMessages.members"',
     'role="option"',
     'aria-selected="false"',
-    'aria-label="关闭成员选择器"',
+    ':aria-label="mentionMessages.close"',
     'serializeMentionAnchors(text, draftMentionAnchors.value)',
     'application.sendText(text, mentions)',
     'application.sendReply(replyTarget.value.id, text, mentions)',
     'application.editMessage(message.id, text, mentions)',
     ':title="v2TimelineMessages.accountTitle(segment.targetAccountId)"',
-    'snapshot.participantFailure',
+    'visibleParticipantFailure',
   ]) assert.ok(view.includes(marker), `missing V2 mention UI marker: ${marker}`)
 })
 

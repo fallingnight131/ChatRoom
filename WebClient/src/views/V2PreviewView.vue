@@ -279,28 +279,28 @@
                    aria-modal="false" aria-labelledby="mention-picker-title"
                    @keydown.esc="closeMentionPicker()">
             <header>
-              <strong id="mention-picker-title">选择要提及的成员</strong>
+              <strong id="mention-picker-title">{{ mentionMessages.title }}</strong>
               <button class="icon-button" type="button" data-mention-close
-                      aria-label="关闭成员选择器"
+                      :aria-label="mentionMessages.close"
                       @click="closeMentionPicker()">×</button>
             </header>
             <p v-if="snapshot.participantFailure" role="alert">
-              {{ snapshot.participantFailure }}
-              <button class="retry-link" type="button" @click="refreshParticipants">重试</button>
+              {{ visibleParticipantFailure }}
+              <button class="retry-link" type="button" @click="refreshParticipants">{{ mentionMessages.retry }}</button>
             </p>
-            <ul ref="mentionListRef" role="listbox" aria-label="会话成员"
+            <ul ref="mentionListRef" role="listbox" :aria-label="mentionMessages.members"
                 :aria-busy="snapshot.participantsLoading" @keydown="onMentionListKeydown">
               <li v-for="participant in snapshot.participants" :key="participant.accountId">
                 <button type="button" role="option" aria-selected="false"
                         @click="chooseMention(participant)">
                   <strong>{{ participant.displayName }}</strong>
-                  <span>{{ participant.role === 'owner' ? '群主' : participant.role === 'admin' ? '管理员' : '成员' }}</span>
+                  <span>{{ participant.role === 'owner' ? mentionMessages.owner : participant.role === 'admin' ? mentionMessages.admin : mentionMessages.member }}</span>
                 </button>
               </li>
             </ul>
-            <p v-if="snapshot.participantsLoading" role="status">正在加载成员…</p>
+            <p v-if="snapshot.participantsLoading" role="status">{{ mentionMessages.loading }}</p>
             <button v-if="snapshot.participantsHasMore" class="btn btn-text" type="button"
-                    @click="loadMoreParticipants">加载更多成员</button>
+                    @click="loadMoreParticipants">{{ mentionMessages.loadMore }}</button>
           </section>
           <div v-if="forwardSource" class="dialog-backdrop" @click.self="closeForwardDialog">
             <section ref="forwardDialogRef" class="forward-dialog" role="dialog" aria-modal="true"
@@ -402,6 +402,7 @@ import {
   composerMessages as composerCatalogMessages,
   v2PreviewBasicActionMessages,
   v2PreviewComposerMessages,
+  v2PreviewMentionMessages,
   v2PreviewSearchMessages,
   v2PreviewShellMessages,
   v2PreviewTimelineMessages,
@@ -423,6 +424,7 @@ const v2TimelineMessages = computed(() => v2PreviewTimelineMessages(userStore.lo
 const basicActionMessages = computed(() => v2PreviewBasicActionMessages(userStore.locale))
 const composerMessages = computed(() => composerCatalogMessages(userStore.locale))
 const v2ComposerMessages = computed(() => v2PreviewComposerMessages(userStore.locale))
+const mentionMessages = computed(() => v2PreviewMentionMessages(userStore.locale))
 const username = ref('')
 const password = ref('')
 const draft = ref('')
@@ -501,6 +503,9 @@ const visibleSearchFailure = computed(() => ({
   '无法搜索当前会话': searchMessages.value.searchFailed,
   '搜索暂不可用': searchMessages.value.unavailable,
 }[snapshot.value.searchFailure] || snapshot.value.searchFailure))
+const visibleParticipantFailure = computed(() => ({
+  '无法加载会话成员': mentionMessages.value.loadFailed,
+}[snapshot.value.participantFailure] || snapshot.value.participantFailure))
 const activeConversationName = computed(() => snapshot.value.directory.find(
   item => item.conversationId === snapshot.value.activeConversationId
 )?.displayName || shellMessages.value.conversation)
@@ -890,12 +895,12 @@ const mentionPickerOpen = computed(() => Boolean(mentionPickerMode.value))
 
 function refreshParticipants() {
   try { runtimeRef.value.application.refreshParticipants() }
-  catch (error) { actionError.value = error instanceof Error ? error.message : '无法加载成员' }
+  catch (error) { actionError.value = error instanceof Error ? error.message : mentionMessages.value.loadFailed }
 }
 
 function loadMoreParticipants() {
   try { runtimeRef.value.application.loadMoreParticipants() }
-  catch (error) { actionError.value = error instanceof Error ? error.message : '无法加载更多成员' }
+  catch (error) { actionError.value = error instanceof Error ? error.message : mentionMessages.value.loadMoreFailed }
 }
 
 function onMentionListKeydown(event) {
@@ -929,7 +934,7 @@ function chooseMention(participant) {
       element?.setSelectionRange(next.caretUtf16, next.caretUtf16)
     })
   } catch (error) {
-    actionError.value = error instanceof Error ? error.message : '无法插入成员'
+    actionError.value = error instanceof Error ? error.message : mentionMessages.value.insertFailed
   }
 }
 

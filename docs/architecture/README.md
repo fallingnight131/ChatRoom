@@ -2064,8 +2064,11 @@ The reply/send composer now also follows the locale for reply context, input,
 UTF-8 budget, mention trigger, and send controls. It reuses the shared 65,536-
 byte calculation and preserves exact Enter/Esc behavior, structured mention
 serialization, and the application-owned `sendText`/`sendReply` split. V2
-edit/reaction/pin/forward mutations, member selection, and device dialogs remain
-later slices.
+participant selection now also follows the locale for dialog semantics, roles,
+loading/paging, and known application failure presentation. Stable account IDs,
+application paging, Unicode/UTF-8 mention construction, roving keys, caret and
+trigger focus are unchanged. V2 edit/reaction/pin/forward mutations and device
+dialogs remain later slices.
 
 ### Product consistency
 

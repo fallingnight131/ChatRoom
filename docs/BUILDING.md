@@ -162,6 +162,11 @@ send, and UTF-8 budget terminology, with a small V2 catalog for reply and
 mention semantics. Source tests retain the exact Enter/Esc behavior, structured
 mention serialization, `sendText`/`sendReply` split, and shared 65,536-byte
 budget calculation.
+The V2 participant picker now localizes its non-modal dialog, server-role
+presentation, loading/paging state, and known application failure adapter.
+Source contracts preserve stable account identity, application-owned paging,
+Unicode insertion and caret restoration, roving keyboard navigation, and
+trigger-focus restoration.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

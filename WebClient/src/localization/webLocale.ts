@@ -628,6 +628,19 @@ const v2PreviewComposerCatalog = {
   },
 } as const;
 
+const v2PreviewMentionCatalog = {
+  "zh-CN": {
+    title: "选择要提及的成员", close: "关闭成员选择器", retry: "重试", members: "会话成员",
+    owner: "群主", admin: "管理员", member: "成员", loading: "正在加载成员…", loadMore: "加载更多成员",
+    loadFailed: "无法加载成员", loadMoreFailed: "无法加载更多成员", insertFailed: "无法插入成员",
+  },
+  "en-US": {
+    title: "Choose a member to mention", close: "Close member picker", retry: "Retry", members: "Conversation members",
+    owner: "Owner", admin: "Administrator", member: "Member", loading: "Loading members…", loadMore: "Load more members",
+    loadFailed: "Unable to load members", loadMoreFailed: "Unable to load more members", insertFailed: "Unable to insert the member mention",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -742,6 +755,10 @@ export function v2PreviewBasicActionMessages(locale: WebLocale) {
 
 export function v2PreviewComposerMessages(locale: WebLocale) {
   return v2PreviewComposerCatalog[locale];
+}
+
+export function v2PreviewMentionMessages(locale: WebLocale) {
+  return v2PreviewMentionCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {
