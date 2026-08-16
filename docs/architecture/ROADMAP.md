@@ -2323,14 +2323,18 @@ Candidate slices:
     authenticate/resume refresh, explicit refresh/load-more, stale response and
     disconnect containment, generic failure, and authoritative refresh after a
     mutation result; keep the UI uncomposed.
+  - [x] Expose the exact-gated Web server-authoritative block directory from a
+    global privacy entry with localized empty/loading/failure states, bounded
+    load-more, current-DIRECT status, per-row confirmed unblock, modal focus,
+    Chromium/Firefox interaction, and same-revision flag-off rollback evidence.
   - [x] Add an exact-default-off V2 gateway handler, negotiated capability,
     bounded execution, privacy-safe errors and metrics, plus real TLS/WSS and
     PostgreSQL mutation/direct-denial evidence.
   - [x] Add exact-default-off Web capability 7 composition, strict correlated
     protocol validation, unique DIRECT-participant targeting, stable explicit
     reconnect retry, localized confirmation UI, and Chromium/Firefox keyboard
-    and accessibility evidence. The result is page-memory only; a block-list
-    read model remains open.
+    and accessibility evidence. The operation and server block-list projection
+    remain page-memory only.
   - [x] Add a detached Windows C++ account-block protocol client with
     authenticated-actor and exact desired-state correlation, self-block
     rejection, stable explicit retry identity, and disconnect cleanup; keep it

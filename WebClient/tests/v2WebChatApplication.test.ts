@@ -1209,6 +1209,38 @@ test("contains account block directory denial and permits explicit refresh", () 
   application.dispose();
 });
 
+test("unblocks only a target projected by the authoritative block directory", () => {
+  const transport = new FakeTransport();
+  const operationId = "70000000-0000-4000-8000-000000000009";
+  const application = new V2WebChatApplication({
+    transport,
+    cache: new FakeCache(),
+    enableAccountBlocking: true,
+    createClientMessageId: () => operationId,
+  });
+  transport.transition("authenticated");
+  establish(transport);
+  const requestId = transport.calls.at(-1)![3] as string;
+  transport.emit({
+    requestId,
+    clientMessageId: "",
+    type: "account-block-directory-page",
+    value: create(AccountBlockDirectoryPageSchema, {
+      blocks: [{
+        targetAccountId: SECOND_ACCOUNT_ID,
+        targetDisplayName: "Bob",
+        blockedAtEpochMs: BigInt(NOW),
+      }],
+    }),
+  });
+  assert.equal(application.setAccountBlock(
+    "20000000-0000-4000-8000-000000000099", false), false);
+  assert.equal(application.setAccountBlock(SECOND_ACCOUNT_ID, false), true);
+  assert.deepEqual(transport.calls.at(-1)?.slice(0, 4),
+    ["account-block", SECOND_ACCOUNT_ID, false, operationId]);
+  application.dispose();
+});
+
 test("keeps bounded search results in memory and abandons stale pages on disconnect", async () => {
   const transport = new FakeTransport();
   const application = new V2WebChatApplication({

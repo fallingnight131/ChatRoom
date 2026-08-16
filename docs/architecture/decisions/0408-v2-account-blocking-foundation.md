@@ -75,7 +75,10 @@ server candidate without activating an incomplete client product path.
   memory only. It refreshes on authentication/resume and after a correlated
   mutation result, supports bounded explicit pagination, ignores stale response
   identities, abandons ambiguous work on disconnect, and exposes only generic
-  failure. IndexedDB does not store the block graph and the UI remains separate.
+  failure. IndexedDB does not store the block graph. The same exact gate now
+  exposes a global localized privacy dialog with bounded load-more, explicit
+  refresh, complete-page current-DIRECT state, and confirmed unblock only for a
+  server-returned row.
 - The handler binds the actor from authenticated connection state, validates
   canonical payload identities, serializes at most eight pending mutations on
   the bounded messaging executor, and clears pending work at disconnect.
@@ -117,10 +120,12 @@ server candidate without activating an incomplete client product path.
   DIRECT. It waits for the complete actor-filtered participant projection,
   names the sole target, requires confirmation, disables duplicate pending
   actions, announces result/failure state, and keeps group/ordinary paths off.
-- The Web candidate keeps the latest operation result in page memory only. It
-  does not infer durable state before a result, persist a block graph, or expose
-  a block-list read model. A fresh page labels state unknown and can issue an
-  idempotent desired-state command.
+- The Web candidate keeps both the latest operation result and at most 500
+  outgoing block-directory rows in page memory only. A fresh authenticated page
+  reads server truth; an incomplete or failed page does not infer an absent
+  target as unblocked. The global dialog can unblock a server-returned row
+  without requiring an active conversation, while new blocks still require the
+  authorized unique DIRECT participant.
 
 ## Consequences
 
@@ -129,8 +134,8 @@ transport. Existing deployments have no block rows until the default-off server
 candidate and an explicit compatible client are enabled, while direct-contact
 writes already fail closed if such rows exist. Old clients omit capability 7
 and keep their prior handshake bytes. The Web and Windows candidates are now
-present; native Windows Release interaction, real endpoint canaries, and client
-block-list projections remain separate expand-migrate-contract steps.
+present; native Windows Release interaction, real endpoint canaries, and the
+Windows block-list projection remain separate expand-migrate-contract steps.
 
 ## Verification
 
@@ -159,16 +164,20 @@ continuation consistency. Generated Java, TypeScript, and C++ bindings parse and
 re-emit the same list request bytes. Focused handler tests prove capability and
 authentication gates, actor binding, pagination serialization, generic denial,
 and page/row telemetry. The real TLS/WSS PostgreSQL gate returns the durable
-outgoing edge with its current display name through type 135. Product client
-list views remain absent, so this is server-candidate rather than product
-block-list evidence.
+outgoing edge with its current display name through type 135. The exact-gated
+Web candidate consumes this boundary; ordinary clients and the Windows list view
+remain absent.
 TypeScript protocol tests additionally prove the list primitive is default-off,
 encodes only a canonical optional cursor and bound, correlates type 135 to the
 pending request, and rejects oversized or inconsistent pages. No Web application
 or UI list projection was composed by that transport-only step. Application
 tests now prove authentication refresh, bounded merge/load-more, generic denial,
 disconnect abandonment, defensive snapshots, and authoritative refresh after a
-successful mutation; UI list presentation remains absent.
+successful mutation. Static UI/localization tests prove the global gated entry,
+native list semantics, named modal sections, explicit confirmation and bounded
+controls. Chromium and Firefox prove empty-directory authentication, block-row
+appearance, confirmed unblock/removal, focus containment, and same-revision
+flag-off rollback through generated Protobuf.
 Application tests reject oversized, unordered, duplicate, malformed-Unicode,
 and inconsistent-continuation projections. The disposable PostgreSQL gate proves
 target-ordered pagination independent of insertion order, current display-name

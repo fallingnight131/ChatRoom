@@ -702,7 +702,8 @@ edges to the current target account display name. Pages are ordered by
 row, and expose `created_at` as the authoritative block time. Inbound blockers
 are never selected. This requires no schema change. The same exact-default-off
 capability-7 gateway boundary now composes this adapter and serves bounded
-outgoing pages; Web and Windows list views remain uncomposed.
+outgoing pages. The exact-gated Web candidate consumes them in page memory; the
+Windows list view remains uncomposed.
 
 At the current additive stage, rollback means disabling/removing the unused Java
 route while V1 SQLite remains authoritative. Once PostgreSQL owns a slice,

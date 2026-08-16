@@ -1227,6 +1227,7 @@ function validateAccountBlockDirectoryPage(
         || block.targetDisplayName.trim().length === 0
         || [...block.targetDisplayName].length > 100
         || block.blockedAtEpochMs <= 0n
+        || block.blockedAtEpochMs > 8_640_000_000_000_000n
         || targets.has(block.targetAccountId)
         || (requestedAfterTargetAccountId
           && block.targetAccountId <= requestedAfterTargetAccountId)

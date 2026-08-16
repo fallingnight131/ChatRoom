@@ -57,6 +57,12 @@
             {{ shellMessages.loginDevices }}
             <span v-if="snapshot.devices.length">{{ snapshot.devices.length }}</span>
           </button>
+          <button v-if="snapshot.accountBlockingEnabled" class="device-entry" type="button"
+                  aria-haspopup="dialog" :aria-expanded="accountBlockOpen"
+                  @click="openAccountBlockDialog">
+            {{ accountBlockMessages.manage }}
+            <span v-if="snapshot.accountBlocks.length">{{ snapshot.accountBlocks.length }}</span>
+          </button>
           <div class="low-bandwidth-control">
             <label for="v2-low-bandwidth">
               <input id="v2-low-bandwidth" type="checkbox"
@@ -117,11 +123,6 @@
                       aria-controls="v2-message-search" :aria-expanded="searchOpen"
                       @click="toggleSearch">
                 {{ searchOpen ? searchMessages.closeSearch : searchMessages.openSearch }}
-              </button>
-              <button v-if="snapshot.accountBlockingEnabled && activeConversationKind === 'direct'"
-                      class="btn btn-text" type="button" aria-haspopup="dialog"
-                      :aria-expanded="accountBlockOpen" @click="openAccountBlockDialog">
-                {{ accountBlockMessages.manage }}
               </button>
             </div>
           </div>
@@ -388,6 +389,8 @@
                   :aria-label="accountBlockMessages.close" @click="closeAccountBlockDialog">×</button>
         </header>
         <div class="account-block-dialog-body">
+          <section v-if="activeConversationKind === 'direct'" class="account-block-current"
+                   :aria-label="accountBlockMessages.currentConversation">
           <p v-if="snapshot.participantsLoading" role="status">{{ accountBlockMessages.loading }}</p>
           <template v-else-if="accountBlockTarget">
             <div class="account-block-target">
@@ -428,6 +431,73 @@
             <button class="btn btn-secondary" type="button" :disabled="snapshot.participantsLoading"
                     @click="refreshParticipants">{{ accountBlockMessages.retryTarget }}</button>
           </div>
+          </section>
+
+          <section class="account-block-directory" aria-labelledby="account-block-directory-title">
+            <header>
+              <div>
+                <h3 id="account-block-directory-title">{{ accountBlockMessages.directoryTitle }}</h3>
+                <p>{{ accountBlockMessages.directoryDescription }}</p>
+              </div>
+              <button class="btn btn-secondary" type="button"
+                      :disabled="snapshot.accountBlocksLoading || snapshot.connectionState !== 'authenticated'"
+                      @click="refreshAccountBlocks">{{ accountBlockMessages.refreshDirectory }}</button>
+            </header>
+            <p v-if="snapshot.accountBlocksFailure" class="error-msg" role="alert">
+              {{ accountBlockMessages.directoryFailure }}
+            </p>
+            <p v-if="snapshot.accountBlocksLoading && snapshot.accountBlocks.length === 0" role="status">
+              {{ accountBlockMessages.loadingDirectory }}
+            </p>
+            <p v-else-if="snapshot.accountBlocks.length === 0" class="muted">
+              {{ accountBlockMessages.emptyDirectory }}
+            </p>
+            <ul v-else class="account-block-directory-list" :aria-label="accountBlockMessages.directoryTitle">
+              <li v-for="blockedAccount in snapshot.accountBlocks" :key="blockedAccount.targetAccountId">
+                <div>
+                  <strong>{{ blockedAccount.targetDisplayName }}</strong>
+                  <small>{{ blockedAccount.targetAccountId }}</small>
+                  <small>
+                    {{ accountBlockMessages.blockedAt }}
+                    <time :datetime="new Date(blockedAccount.blockedAtEpochMs).toISOString()">
+                      {{ formatAccountBlockTime(blockedAccount.blockedAtEpochMs) }}
+                    </time>
+                  </small>
+                </div>
+                <div v-if="accountBlockDirectoryConfirmation === blockedAccount.targetAccountId"
+                     class="account-block-confirm" role="group"
+                     :aria-label="accountBlockMessages.confirmUnblock">
+                  <strong>{{ accountBlockMessages.confirmUnblock }}</strong>
+                  <button class="btn btn-primary" type="button"
+                          :disabled="accountBlockAnyPending"
+                          @click="confirmDirectoryUnblock(blockedAccount)">
+                    {{ accountBlockMessages.confirm }}
+                  </button>
+                  <button class="btn btn-text" type="button"
+                          @click="accountBlockDirectoryConfirmation = null">
+                    {{ accountBlockMessages.cancel }}
+                  </button>
+                </div>
+                <button v-else-if="accountBlockCommandFor(blockedAccount.targetAccountId)?.deliveryState === 'failed'"
+                        class="btn btn-primary" type="button"
+                        :disabled="snapshot.connectionState !== 'authenticated'"
+                        @click="retryDirectoryAccountBlock(blockedAccount.targetAccountId)">
+                  {{ accountBlockMessages.retry }}
+                </button>
+                <button v-else class="btn btn-secondary" type="button"
+                        :aria-label="accountBlockMessages.unblockAccount(blockedAccount.targetDisplayName)"
+                        :disabled="accountBlockAnyPending"
+                        @click="accountBlockDirectoryConfirmation = blockedAccount.targetAccountId">
+                  {{ accountBlockMessages.unblock }}
+                </button>
+              </li>
+            </ul>
+            <button v-if="snapshot.accountBlocksHasMore" class="btn btn-secondary" type="button"
+                    :disabled="snapshot.accountBlocksLoading" @click="loadMoreAccountBlocks">
+              {{ snapshot.accountBlocksLoading
+                ? accountBlockMessages.loadingMore : accountBlockMessages.loadMore }}
+            </button>
+          </section>
         </div>
       </section>
     </div>
@@ -584,6 +654,7 @@ const notificationRequestPending = ref(false)
 const devicesOpen = ref(false)
 const accountBlockOpen = ref(false)
 const accountBlockConfirmation = ref(null)
+const accountBlockDirectoryConfirmation = ref(null)
 const confirmingDeviceId = ref(null)
 const forwardDialogActive = computed(() => Boolean(forwardSource.value))
 const {
@@ -622,7 +693,9 @@ const snapshot = ref({
   devicesLoading: false, revokingDeviceId: null, deviceFailure: '', lastFailure: '',
   forwardingEnabled: false, searchEnabled: false, searchQuery: '', searchResults: [],
   searchLoading: false, searchHasMore: false, searchFailure: '', searchContextLoading: false,
-  notificationsEnabled: false, accountBlockingEnabled: false, accountBlockCommand: null
+  notificationsEnabled: false, accountBlockingEnabled: false, accountBlockCommand: null,
+  accountBlocks: [], accountBlocksLoading: false, accountBlocksHasMore: false,
+  accountBlocksFailure: ''
 })
 const forwardTargets = computed(() => snapshot.value.directory.filter(
   conversation => conversation.conversationId !== snapshot.value.activeConversationId))
@@ -675,12 +748,23 @@ const accountBlockCommandForTarget = computed(() => {
   const command = snapshot.value.accountBlockCommand
   return command && command.targetAccountId === accountBlockTarget.value?.accountId ? command : null
 })
+const accountBlockDirectoryEntryForTarget = computed(() => snapshot.value.accountBlocks.find(
+  blockedAccount => blockedAccount.targetAccountId === accountBlockTarget.value?.accountId) || null)
 const accountBlockConfirmedState = computed(() => accountBlockCommandForTarget.value?.deliveryState === 'applied'
-  ? accountBlockCommandForTarget.value.blocked : null)
+  ? accountBlockCommandForTarget.value.blocked
+  : accountBlockDirectoryEntryForTarget.value ? true
+    : !snapshot.value.accountBlocksLoading && !snapshot.value.accountBlocksHasMore
+      && !snapshot.value.accountBlocksFailure ? false : null)
 const accountBlockPending = computed(() => accountBlockCommandForTarget.value?.deliveryState === 'sending')
+const accountBlockAnyPending = computed(() => snapshot.value.accountBlockCommand?.deliveryState === 'sending')
+const accountBlockCommandFor = targetAccountId => snapshot.value.accountBlockCommand?.targetAccountId === targetAccountId
+  ? snapshot.value.accountBlockCommand : null
 const accountBlockStatusLabel = computed(() => {
   const command = accountBlockCommandForTarget.value
-  if (!command) return accountBlockMessages.value.statusUnknown
+  if (!command) return accountBlockConfirmedState.value === true
+    ? accountBlockMessages.value.blocked
+    : accountBlockConfirmedState.value === false
+      ? accountBlockMessages.value.unblocked : accountBlockMessages.value.statusUnknown
   if (command.deliveryState === 'sending') return accountBlockMessages.value.applying
   if (command.deliveryState === 'failed') {
     return command.errorCode === 'CONNECTION_LOST'
@@ -1238,17 +1322,23 @@ function discardEdit(operationId) {
 }
 
 function openAccountBlockDialog() {
-  if (!snapshot.value.accountBlockingEnabled || activeConversationKind.value !== 'direct') return
+  if (!snapshot.value.accountBlockingEnabled) return
   accountBlockOpen.value = true
   accountBlockConfirmation.value = null
-  if (snapshot.value.participants.length !== 1 || snapshot.value.participantsHasMore) {
+  accountBlockDirectoryConfirmation.value = null
+  if (activeConversationKind.value === 'direct'
+      && (snapshot.value.participants.length !== 1 || snapshot.value.participantsHasMore)) {
     refreshParticipants()
+  }
+  if (snapshot.value.accountBlocks.length === 0 && !snapshot.value.accountBlocksLoading) {
+    refreshAccountBlocks()
   }
 }
 
 function closeAccountBlock() {
   accountBlockOpen.value = false
   accountBlockConfirmation.value = null
+  accountBlockDirectoryConfirmation.value = null
 }
 
 function confirmAccountBlock() {
@@ -1276,6 +1366,45 @@ function retryAccountBlock() {
     }
   } catch (error) {
     actionError.value = error instanceof Error ? error.message : accountBlockMessages.value.failed
+  }
+}
+
+function confirmDirectoryUnblock(blockedAccount) {
+  actionError.value = ''
+  accountBlockDirectoryConfirmation.value = null
+  try {
+    if (!runtimeRef.value.application.setAccountBlock(blockedAccount.targetAccountId, false)) {
+      actionError.value = accountBlockMessages.value.failed
+    }
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : accountBlockMessages.value.failed
+  }
+}
+
+function retryDirectoryAccountBlock(targetAccountId) {
+  const command = accountBlockCommandFor(targetAccountId)
+  if (!command) return
+  actionError.value = ''
+  try {
+    if (!runtimeRef.value.application.retryAccountBlock(command.clientOperationId)) {
+      actionError.value = accountBlockMessages.value.failed
+    }
+  } catch (error) {
+    actionError.value = error instanceof Error ? error.message : accountBlockMessages.value.failed
+  }
+}
+
+function refreshAccountBlocks() {
+  actionError.value = ''
+  if (!runtimeRef.value.application.refreshAccountBlocks()) {
+    actionError.value = accountBlockMessages.value.directoryFailure
+  }
+}
+
+function loadMoreAccountBlocks() {
+  actionError.value = ''
+  if (!runtimeRef.value.application.loadMoreAccountBlocks()) {
+    actionError.value = accountBlockMessages.value.directoryFailure
   }
 }
 
@@ -1311,6 +1440,12 @@ function shortDeviceId(deviceId) {
 
 function formatDeviceTime(epochMs) {
   return new Intl.DateTimeFormat(userStore.locale, { dateStyle: 'medium', timeStyle: 'short' }).format(epochMs)
+}
+
+function formatAccountBlockTime(epochMs) {
+  return new Intl.DateTimeFormat(userStore.locale, {
+    dateStyle: 'medium', timeStyle: 'short'
+  }).format(epochMs)
 }
 
 function deliveryLabel(state) {
@@ -1419,6 +1554,7 @@ onUnmounted(() => {
 .account-block-dialog { width: min(540px, 100%); max-height: min(680px, calc(100vh - 40px)); overflow: auto; border: 1px solid var(--border-color); border-radius: 16px; background: var(--bg-secondary); box-shadow: var(--shadow-lg); }
 .account-block-dialog-header { display: flex; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 1px solid var(--border-color); }.account-block-dialog-header h2 { font-size: 20px; }.account-block-dialog-header p { margin-top: 4px; color: var(--text-secondary); font-size: 13px; }
 .account-block-dialog-body { display: grid; gap: 14px; padding: 20px; }.account-block-target { display: grid; gap: 4px; }.account-block-target small { overflow-wrap: anywhere; color: var(--text-secondary); }.account-block-actions, .account-block-confirm { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }.account-block-confirm strong { width: 100%; }
+.account-block-current, .account-block-directory { display: grid; gap: 12px; }.account-block-directory { padding-top: 14px; border-top: 1px solid var(--border-color); }.account-block-directory > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }.account-block-directory > header p { color: var(--text-secondary); font-size: 13px; }.account-block-directory-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }.account-block-directory-list > li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--border-color); border-radius: 10px; }.account-block-directory-list > li > div:first-child { display: grid; gap: 3px; min-width: 0; }.account-block-directory-list small { overflow-wrap: anywhere; color: var(--text-secondary); }
 .device-dialog { width: min(620px, 100%); max-height: min(720px, calc(100vh - 40px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--border-color); border-radius: 16px; background: var(--bg-secondary); box-shadow: var(--shadow-lg); }
 .device-dialog-header { display: flex; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 1px solid var(--border-color); }.device-dialog-header h2 { font-size: 20px; }.device-dialog-header p { margin-top: 4px; color: var(--text-secondary); font-size: 13px; }
 .icon-button { width: 36px; height: 36px; border: 0; border-radius: 8px; color: var(--text-primary); background: transparent; font-size: 24px; cursor: pointer; }.icon-button:hover { background: var(--bg-hover); }
@@ -1428,4 +1564,5 @@ onUnmounted(() => {
 .revoke-confirm { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; font-size: 12px; }.btn-danger, .btn-danger-outline { padding: 7px 10px; }.btn-danger { color: white; background: var(--danger); }.btn-danger-outline { border: 1px solid var(--danger); color: var(--danger); background: transparent; }
 .device-dialog-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border-color); }
 @media (max-width: 720px) { .preview-header { padding: 10px 14px; }.chat-shell { grid-template-columns: 112px 1fr; }.account-block { padding: 12px; }.account-id { display: none; }.low-bandwidth-control label { align-items: flex-start; }.conversation-button { padding: 12px 10px; }.conversation-button span { display: none; }.bubble { max-width: 88%; }.composer { padding: 10px; } }
+@media (max-width: 720px) { .account-block-directory > header, .account-block-directory-list > li { align-items: stretch; flex-direction: column; } }
 </style>

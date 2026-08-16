@@ -33,6 +33,8 @@ import {
 } from "../../src/protocol/v2/generated/device_management_pb";
 import {
   AccountBlockAppliedSchema,
+  AccountBlockDirectoryPageSchema,
+  ListAccountBlocksSchema,
   SetAccountBlockSchema,
 } from "../../src/protocol/v2/generated/contact_pb";
 import {
@@ -444,6 +446,24 @@ export function createV2ProtocolFixture(
               blocked: block.blocked,
               changed: !duplicate,
               clientOperationId: block.clientOperationId,
+            }, { sessionId: SESSION_ID });
+        }
+        case MessageType.LIST_ACCOUNT_BLOCKS: {
+          const directory = fromBinary(ListAccountBlocksSchema, request.payload);
+          requireSession(request);
+          if (directory.afterTargetAccountId || directory.limit !== 100) {
+            throw new Error("unexpected V2 fixture account block directory command");
+          }
+          const blocked = accountBlockRequests.at(-1)?.blocked === true;
+          return response(request, MessageType.ACCOUNT_BLOCK_DIRECTORY_PAGE,
+            AccountBlockDirectoryPageSchema, {
+              blocks: blocked ? [{
+                targetAccountId: PEER_ACCOUNT_ID,
+                targetDisplayName: "李雷",
+                blockedAtEpochMs: NOW + 3_000n,
+              }] : [],
+              nextAfterTargetAccountId: "",
+              hasMore: false,
             }, { sessionId: SESSION_ID });
         }
         case MessageType.SUBMIT_MESSAGE: {

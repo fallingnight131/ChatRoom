@@ -9,6 +9,8 @@ test('renders account block management from the active locale catalog', () => {
     'accountBlockMessages.manage', 'accountBlockMessages.title',
     'accountBlockMessages.description', 'accountBlockMessages.confirmBlock',
     'accountBlockMessages.confirmUnblock', 'accountBlockMessages.sessionEvidence',
-    'accountBlockMessages.retry',
+    'accountBlockMessages.retry', 'accountBlockMessages.directoryTitle',
+    'accountBlockMessages.directoryDescription', 'accountBlockMessages.refreshDirectory',
+    'accountBlockMessages.emptyDirectory', 'accountBlockMessages.loadMore',
   ]) assert.ok(view.includes(fragment), `missing ${fragment}`)
 })

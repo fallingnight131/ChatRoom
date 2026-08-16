@@ -9,7 +9,7 @@ test('keeps accessible account blocking behind one exact Web capability gate', (
   for (const fragment of [
     "VITE_CHAT_V2_ACCOUNT_BLOCKING",
     'enableAccountBlocking: accountBlockingEnabled',
-    "snapshot.accountBlockingEnabled && activeConversationKind === 'direct'",
+    'v-if="snapshot.accountBlockingEnabled"',
     'aria-haspopup="dialog"',
     'aria-labelledby="account-block-dialog-title"',
     'aria-describedby="account-block-dialog-description"',
@@ -25,5 +25,17 @@ test('uses the authoritative direct participant and preserves explicit retry ide
     'application.retryAccountBlock(command.clientOperationId)',
     'accountBlockConfirmation',
     'v2PreviewAccountBlockMessages(userStore.locale)',
+  ]) assert.ok(view.includes(fragment), `missing ${fragment}`)
+})
+
+test('renders the server-authoritative block directory with explicit unblock confirmation', () => {
+  for (const fragment of [
+    'aria-labelledby="account-block-directory-title"',
+    'snapshot.accountBlocks',
+    'snapshot.accountBlocksHasMore',
+    'application.refreshAccountBlocks()',
+    'application.loadMoreAccountBlocks()',
+    'application.setAccountBlock(blockedAccount.targetAccountId, false)',
+    'accountBlockDirectoryConfirmation',
   ]) assert.ok(view.includes(fragment), `missing ${fragment}`)
 })

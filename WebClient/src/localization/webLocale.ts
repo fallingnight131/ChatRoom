@@ -688,6 +688,7 @@ const v2PreviewAccountBlockCatalog = {
   "zh-CN": {
     manage: "隐私与屏蔽", title: "管理账号屏蔽", close: "关闭账号屏蔽管理",
     description: "屏蔽后，双方不能发送新的私聊消息或好友请求；历史消息和共同群聊不会改变。",
+    currentConversation: "当前私聊对象的屏蔽状态",
     loading: "正在确认私聊对象…", targetUnavailable: "暂时无法确认此私聊的对方账号。",
     retryTarget: "重新加载", statusUnknown: "当前屏蔽状态尚未读取，可直接设置期望状态。",
     blocked: "已确认屏蔽", unblocked: "已确认未屏蔽", sessionEvidence: "此状态来自本次操作结果。",
@@ -695,10 +696,16 @@ const v2PreviewAccountBlockCatalog = {
     confirmUnblock: "确认解除屏蔽？", confirm: "确认", cancel: "取消", applying: "正在保存…",
     applied: "设置已保存", unchanged: "服务器状态已与设置一致", retry: "使用同一操作重试",
     failed: "暂时无法保存屏蔽设置，请稍后重试。", reconnect: "连接中断，恢复后可安全重试同一操作。",
+    directoryTitle: "已屏蔽账号", directoryDescription: "此列表来自服务器，不会显示谁屏蔽了你。",
+    refreshDirectory: "刷新列表", loadingDirectory: "正在加载已屏蔽账号…",
+    emptyDirectory: "暂无已屏蔽账号。", directoryFailure: "暂时无法加载已屏蔽账号。",
+    blockedAt: "屏蔽于", loadMore: "加载更多", loadingMore: "正在加载更多…",
+    unblockAccount: (name: string) => `解除屏蔽 ${name}`,
   },
   "en-US": {
     manage: "Privacy and blocking", title: "Manage account blocking", close: "Close account blocking",
     description: "Blocking stops new direct messages and contact requests in both directions. History and shared groups do not change.",
+    currentConversation: "Block status for the current direct-message participant",
     loading: "Confirming the direct-message participant…", targetUnavailable: "The other account in this direct conversation cannot be confirmed right now.",
     retryTarget: "Reload", statusUnknown: "The current block state has not been read. You can set the desired state directly.",
     blocked: "Confirmed blocked", unblocked: "Confirmed not blocked", sessionEvidence: "This status comes from the result of this session's operation.",
@@ -706,6 +713,11 @@ const v2PreviewAccountBlockCatalog = {
     confirmUnblock: "Unblock this account?", confirm: "Confirm", cancel: "Cancel", applying: "Saving…",
     applied: "Setting saved", unchanged: "The server state already matched this setting", retry: "Retry the same operation",
     failed: "The block setting could not be saved. Try again later.", reconnect: "The connection was interrupted. Retry the same operation after reconnecting.",
+    directoryTitle: "Blocked accounts", directoryDescription: "This server list shows accounts you blocked, never accounts that blocked you.",
+    refreshDirectory: "Refresh list", loadingDirectory: "Loading blocked accounts…",
+    emptyDirectory: "No blocked accounts.", directoryFailure: "Blocked accounts could not be loaded.",
+    blockedAt: "Blocked", loadMore: "Load more", loadingMore: "Loading more…",
+    unblockAccount: (name: string) => `Unblock ${name}`,
   },
 } as const;
 

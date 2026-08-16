@@ -1512,11 +1512,12 @@ npm run test:browser -- --grep 'sets direct-account block state'
 ```
 
 Chromium and Firefox verify the localized modal, contained focus, authoritative
-DIRECT participant, explicit confirmation, block/unblock results, and trigger
-focus restoration through generated Protobuf. Rebuild the same revision with
+DIRECT participant, initial empty server directory, explicit confirmation,
+block-row appearance, unblock removal, global privacy entry, and trigger focus
+restoration through generated Protobuf. Rebuild the same revision with
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=false` and run the test selected by
 `CHATROOM_V2_BROWSER_ACCOUNT_BLOCKING_ROLLBACK=true` to prove the action and
-type-128 command disappear. This fixture is not a live
+types 128/134 commands disappear. This fixture is not a live
 gateway/PostgreSQL endpoint or a release claim.
 
 The Java gate includes embedded-channel tests for the bounded V2 binary
@@ -1565,7 +1566,9 @@ protocol client now encodes type 134 and rejects uncorrelated, oversized,
 unordered, malformed-name, invalid-time, or inconsistent-cursor type-135 pages;
 the application now owns a 500-row page-memory projection, refresh/load-more,
 disconnect containment, and post-mutation authoritative refresh. UI list state
-remains uncomposed (ADR-0408).
+is now composed only in the exact-gated Web candidate: the localized modal owns
+a global entry, empty/loading/failure states, bounded load-more, and confirmed
+unblock of server-returned targets (ADR-0408).
 Web reaction tests additionally verify account-scoped IndexedDB persistence,
 stable optimistic replay after reconnect history, ACK/history/live convergence,
 bounded fixed-kind aggregates, keyboard-native controls, pressed state, and
@@ -1646,7 +1649,8 @@ consistency. The PostgreSQL gate additionally proves enabled-actor authorization
 repeatable-read current-name projection, insertion-order-independent pagination,
 outbound-only isolation, and disabled/unknown actor denial. The gateway now
 composes the adapter behind the existing exact-default-off flag and proves a
-real TLS/WSS page; client list views remain absent.
+real TLS/WSS page. The exact-gated Web candidate consumes it while the Windows
+list view remains absent.
 The application module also tests the scheduler-neutral relay pass: fixed
 publication outcomes, unexpected-exception redaction, capped exponential retry,
 duplicate-claim rejection, and fenced ownership loss. This class is not yet
@@ -2360,7 +2364,10 @@ capability, application operation, and UI absent, while any other value
 invalidates the V2 runtime. It resolves only the authorized unique non-self
 DIRECT participant, keeps one operation result in page memory, and reuses the
 same operation UUID for explicit retry. It does not provide a persisted block
-list. Windows ordinary builds remain off; the separate CMake candidate only
+list. It now also reads a bounded server-authoritative outgoing list into page
+memory and exposes refresh, load-more, current-DIRECT state, and confirmed row
+unblock through the global privacy dialog. Windows ordinary builds remain off;
+the separate CMake candidate only
 negotiates and routes the protocol until its accessible Widgets action is done.
 Web V2 browser notifications have the independent exact build-time gate
 `VITE_CHAT_V2_NOTIFICATIONS=true`. Missing, empty, or exact `false` keeps

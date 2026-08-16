@@ -644,9 +644,14 @@ export class V2WebChatApplication {
     const participants = this.activeConversationIdValue
       ? this.participants.get(this.activeConversationIdValue)
       : undefined;
-    if (directory?.kind !== "direct" || !participants || participants.loading
-        || participants.hasMore || participants.values.length !== 1
-        || participants.values[0]?.accountId !== targetAccountId) return false;
+    const authoritativeDirectoryUnblock = !blocked
+      && this.accountBlockDirectoryState.values.some(
+        (value) => value.targetAccountId === targetAccountId);
+    const authoritativeDirectTarget = directory?.kind === "direct"
+      && participants && !participants.loading && !participants.hasMore
+      && participants.values.length === 1
+      && participants.values[0]?.accountId === targetAccountId;
+    if (!authoritativeDirectoryUnblock && !authoritativeDirectTarget) return false;
     const clientOperationId = this.createClientMessageId();
     if (!canonicalUuid.test(clientOperationId)) {
       throw new Error("account block operation identity is invalid");

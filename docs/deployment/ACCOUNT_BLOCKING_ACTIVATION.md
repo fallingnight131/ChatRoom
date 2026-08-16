@@ -20,9 +20,10 @@ endpoint gates below are retained for the exact revision.
   `account_block_noop`, `account_block_directory_page`, and
   `account_block_directory_row` outcomes and no account, target, cursor,
   operation, or message labels.
-- Confirm support understands that the Web candidate has no persisted block
-  list or initial-state read. A fresh page reports unknown state until a desired-
-  state command succeeds.
+- Confirm support understands that the Web candidate keeps the server block
+  directory in page memory only. A fresh authenticated page reads it again;
+  incomplete or failed pagination leaves an absent target unknown rather than
+  claiming it is unblocked.
 - Confirm the shipped Windows diagnostic reports schema 5 with
   `accountBlockingEnabled=false`. A candidate may set it true only for the
   bounded Windows validation cohort described below.
@@ -52,13 +53,17 @@ endpoint gates below are retained for the exact revision.
    absent for rollback.
 2. Release to a bounded non-production or internal cohort only after the gateway
    canary is healthy.
-3. Verify the dialog appears only for DIRECT conversations, resolves the unique
-   authorized non-self participant, contains focus, requires confirmation, and
-   uses generic failure copy.
+3. Verify the global privacy dialog is available without an active conversation,
+   contains focus, requires confirmation, uses generic failure copy, and renders
+   only outgoing server-returned block rows. In a DIRECT conversation, verify a
+   new block resolves only the unique authorized non-self participant; other
+   conversation kinds expose no new-block target.
 4. Interrupt one in-flight operation, resume the same page-memory session, and
    explicitly retry the same operation UUID. Verify one durable desired result.
-5. Reload the page and verify it reports unknown state instead of inventing a
-   persisted projection; apply either desired state and verify convergence.
+5. Reload the page and verify it requests a fresh type-134 page, derives a known
+   state only after complete pagination, supports bounded load-more, and can
+   confirm unblock for a server-returned row. Apply either desired state and
+   verify the post-mutation directory refresh converges.
 
 ## Windows candidate activation
 

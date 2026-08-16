@@ -549,7 +549,8 @@ test("sets direct-account block state through an accessible confirmed dialog", a
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("button", { name: "关闭账号屏蔽管理" })).toBeFocused();
   await expect(dialog.getByText("李雷", { exact: true })).toBeVisible();
-  await expect(dialog.getByText("当前屏蔽状态尚未读取，可直接设置期望状态。", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("已确认未屏蔽", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("暂无已屏蔽账号。", { exact: true })).toBeVisible();
   expect(await dialog.ariaSnapshot()).toContain('- dialog "管理账号屏蔽"');
 
   await dialog.getByRole("button", { name: "屏蔽账号" }).click();
@@ -557,6 +558,8 @@ test("sets direct-account block state through an accessible confirmed dialog", a
   await expect(confirmation).toBeVisible();
   await confirmation.getByRole("button", { name: "确认" }).click();
   await expect(dialog.getByText("已确认屏蔽", { exact: true })).toBeVisible();
+  await expect(dialog.getByRole("list", { name: "已屏蔽账号" })
+    .getByText("李雷", { exact: true })).toBeVisible();
   await expect(dialog.getByText("此状态来自本次操作结果。", { exact: true })).toBeVisible();
   expect(fixture.accountBlockRequests).toHaveLength(1);
   expect(fixture.accountBlockRequests[0]).toEqual({
@@ -565,10 +568,11 @@ test("sets direct-account block state through an accessible confirmed dialog", a
     clientOperationId: expect.stringMatching(/^[0-9a-f-]{36}$/),
   });
 
-  await dialog.getByRole("button", { name: "解除屏蔽" }).click();
+  await dialog.getByRole("button", { name: "解除屏蔽 李雷", exact: true }).click();
   await dialog.getByRole("group", { name: "确认解除屏蔽？" })
     .getByRole("button", { name: "确认" }).click();
   await expect(dialog.getByText("已确认未屏蔽", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("暂无已屏蔽账号。", { exact: true })).toBeVisible();
   expect(fixture.accountBlockRequests).toHaveLength(2);
   expect(fixture.accountBlockRequests[1]?.blocked).toBe(false);
 

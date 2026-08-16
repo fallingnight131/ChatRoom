@@ -174,7 +174,9 @@ strictly validates correlation, rows, ordering, timestamps, and continuation.
 The exact-gated Web application retains a bounded page-memory projection,
 refreshes it after authentication/resume and successful mutation, and abandons
 ambiguous requests on disconnect. No Web UI or durable client cache consumes it
-yet, so ordinary clients and rollback behavior are unchanged.
+durably. The exact-gated privacy dialog now consumes the page-memory projection,
+offers bounded pagination, and permits unblock only for a server-returned target;
+ordinary clients and rollback behavior are unchanged.
 
 The Web candidate correlates every search response with one active in-memory
 request and discards pages abandoned by disconnect or conversation change.

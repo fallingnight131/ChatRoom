@@ -147,12 +147,14 @@ reserve a bounded outgoing-block directory contract. The application query and
 repeatable-read PostgreSQL adapter now reauthorize the enabled actor and return
 only target-ordered outgoing edges with current display names. The same
 exact-default-off gateway boundary now serves types 134/135 through its
-connection-serialized bounded executor and fixed page/row telemetry; Web and
-Windows list views remain uncomposed. The exact-gated Web protocol client can
+connection-serialized bounded executor and fixed page/row telemetry; the Windows
+list view remains uncomposed. The exact-gated Web protocol client can
 now request and strictly validate a correlated page. Its application boundary
 retains at most 500 page-memory rows, refreshes after authentication/resume and
-successful mutation, and contains stale/disconnected requests; the UI remains
-uncomposed and IndexedDB never stores the block graph.
+successful mutation, and contains stale/disconnected requests. Its global
+localized privacy dialog now renders the server list, bounded load-more and
+confirmed per-row unblock while deriving current-DIRECT status only from a
+complete page or operation result. IndexedDB never stores the block graph.
 
 Keep module calls in-process at first. Split a deployable service only for one of
 these reasons:
@@ -1956,11 +1958,13 @@ accepts only the unique remaining member of a DIRECT conversation. The protocol
 client binds the stable operation UUID into envelope correlation and rejects a
 result whose actor, target, desired state, or operation identity differs. A
 disconnect changes an ambiguous send to an explicit retry using the same
-operation UUID. The dialog confirms destructive intent, contains keyboard
-focus, and labels its status as page-session evidence. No block-list read model
-or browser persistence exists, so a fresh page truthfully presents status as
-unknown until a desired-state result returns. Default Web and all Windows builds
-remain unchanged.
+operation UUID. The dialog confirms destructive intent, contains keyboard focus,
+and labels its status from the current server directory or correlated operation.
+A global privacy entry now renders the bounded outgoing-only list, explicit
+refresh and load-more, plus confirmed unblock without requiring an active
+conversation. No browser persistence exists; a fresh authenticated page reads
+server truth, and an incomplete or failed page keeps absent targets unknown.
+Default Web and all ordinary Windows builds remain unchanged.
 
 The pinned V2 generator now publishes reviewed TypeScript bindings directly to
 the Web source tree, and the protocol gate rejects stale committed output. An
