@@ -2308,6 +2308,8 @@ Candidate slices:
     preview, replacing pointer-only activation and containing top-layer Escape.
   - [x] Apply the shared boundary and labeled, duplicate-safe controls to room
     settings while hiding operator-only controls from non-admin users.
+  - [x] Apply the shared boundary and request-correlated destructive state to
+    Web room-file management, including an always-available close path.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

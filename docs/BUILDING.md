@@ -2249,6 +2249,9 @@ accessible image naming, top-layer Escape containment, and focus restoration.
 `roomSettingsDialogAccessibility.test.mjs` locks modal semantics, associated
 setting labels, admin-only operator controls, duplicate-write guards, and
 component-state clearing for room passwords and developer keys.
+`roomFileManagerDialogAccessibility.test.mjs` locks selectable-table naming,
+shared modal focus behavior, one-operation deletion correlation, success and
+failure unlocking, and an always-available close path.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

@@ -1011,6 +1011,13 @@ to current room admins, matching the existing server policy, while the server
 continues to recheck both current administration and the operator key. Room
 passwords and operator keys disable account autofill; the UI clears their
 component state after capture, response, cancellation, and unmount.
+Room file management now labels its selectable table and uses the shared modal
+boundary. Web retains the V1 deletion operation ID returned by transport and
+accepts only the matching success or failure event as the current operation's
+terminal result. Selection and duplicate deletion are locked while that request
+is ambiguous, but close remains available so connection loss cannot trap the
+user. This is an internal Web event bridge; the existing idempotent V1 request
+and server-authoritative administrator check are unchanged.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

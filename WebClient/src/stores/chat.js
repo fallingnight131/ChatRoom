@@ -139,7 +139,7 @@ export const useChatStore = defineStore('chat', {
     },
 
     deleteRoomFiles(roomId, fileIds) {
-      chatWs.deleteRoomFiles(roomId, fileIds)
+      return chatWs.deleteRoomFiles(roomId, fileIds)
     },
 
     _advanceRoomSyncCursor(roomId, ...items) {
@@ -1219,6 +1219,7 @@ export const useChatStore = defineStore('chat', {
           this._emit('roomFilesDeleted', d)
           chatWs.requestRoomFiles(d.roomId)
         } else {
+          this._emit('roomFilesDeleteFailed', d)
           this._emit('error', d.error || '删除文件失败')
         }
       })
