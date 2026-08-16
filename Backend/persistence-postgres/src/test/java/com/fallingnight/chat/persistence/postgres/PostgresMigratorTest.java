@@ -122,6 +122,8 @@ import com.fallingnight.chat.application.messaging.MessagePinCommand;
 import com.fallingnight.chat.application.messaging.MessagePinResult;
 import com.fallingnight.chat.application.messaging.MessageEditCommand;
 import com.fallingnight.chat.application.messaging.MessageEditResult;
+import com.fallingnight.chat.application.notification.ProtectedWebPushSubscription;
+import com.fallingnight.chat.application.notification.WebPushSubscriptionRegistration;
 import com.fallingnight.chat.application.security.SecretBytes;
 import com.fallingnight.chat.application.profile.ProfileImageMetadataCommand;
 import com.fallingnight.chat.application.profile.ProfileImageMetadataResult;
@@ -202,6 +204,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -5900,6 +5903,57 @@ class PostgresMigratorTest {
                 + "WHERE account_id = '" + account + "'"));
     }
 
+    @Test
+    @Order(100)
+    void storesOnlyProtectedWebPushCredentialsAndTransfersEndpointOwnership() throws Exception {
+        requireDatabase(); truncateApplicationData();
+        UUID firstAccount = UUID.randomUUID(), secondAccount = UUID.randomUUID();
+        UUID firstInstall = UUID.randomUUID(), secondInstall = UUID.randomUUID();
+        seedAccount(firstAccount, "push-first");
+        seedAccount(secondAccount, "push-second");
+        byte[] endpoint = "https://push.example.test/send/shared-token"
+                .getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        byte[] p256dh = new byte[65]; p256dh[0] = 0x04;
+        byte[] auth = new byte[16]; Arrays.fill(auth, (byte) 7);
+        byte[] lookupTag = new byte[32]; Arrays.fill(lookupTag, (byte) 19);
+        AtomicReference<ProtectedWebPushSubscription> lastProtected = new AtomicReference<>();
+        var adapter = new PostgresWebPushSubscriptionAdapter(dataSource(), registration -> {
+            byte[] endpointCiphertext = new byte[48];
+            Arrays.fill(endpointCiphertext,
+                    (byte) registration.accountId().getLeastSignificantBits());
+            byte[] keyCiphertext = new byte[96]; Arrays.fill(keyCiphertext, (byte) 2);
+            byte[] authCiphertext = new byte[48]; Arrays.fill(authCiphertext, (byte) 3);
+            var value = ProtectedWebPushSubscription.copyOf(
+                    registration.accountId(), registration.installationId(),
+                    registration.browserExpiresAt(), "fixture-key:v1",
+                    endpointCiphertext, keyCiphertext, authCiphertext, lookupTag);
+            lastProtected.set(value);
+            return value;
+        });
+
+        try (var first = WebPushSubscriptionRegistration.copyOf(
+                firstAccount, firstInstall, Optional.empty(), endpoint, p256dh, auth)) {
+            adapter.replace(first);
+        }
+        assertTrue(lastProtected.get().isClosed());
+        byte[] stored = webPushEndpointCiphertext(firstAccount, firstInstall);
+        assertEquals(48, stored.length);
+        assertFalse(Arrays.equals(endpoint, stored));
+        assertEquals(0, count("SELECT count(*) FROM chat.web_push_subscription "
+                + "WHERE endpoint_ciphertext = convert_to('https://push.example.test/send/"
+                + "shared-token', 'UTF8')"));
+
+        try (var second = WebPushSubscriptionRegistration.copyOf(
+                secondAccount, secondInstall, Optional.empty(), endpoint, p256dh, auth)) {
+            adapter.replace(second);
+        }
+        assertEquals(0, webPushSubscriptionCount(firstAccount, firstInstall));
+        assertEquals(1, webPushSubscriptionCount(secondAccount, secondInstall));
+        assertFalse(adapter.delete(firstAccount, secondInstall));
+        assertTrue(adapter.delete(secondAccount, secondInstall));
+        assertFalse(adapter.delete(secondAccount, secondInstall));
+    }
+
     private static Set<String> applicationTables(Connection connection) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
                 "SELECT table_name FROM information_schema.tables "
@@ -6056,6 +6110,38 @@ class PostgresMigratorTest {
             statement.setObject(2, actor);
             SQLException exception = assertThrows(SQLException.class, statement::executeUpdate);
             assertEquals("23514", exception.getSQLState());
+        }
+    }
+
+    private static int webPushSubscriptionCount(UUID account, UUID installation)
+            throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT count(*) FROM chat.web_push_subscription "
+                                + "WHERE account_id = ? AND installation_id = ?")) {
+            statement.setObject(1, account);
+            statement.setObject(2, installation);
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                return result.getInt(1);
+            }
+        }
+    }
+
+    private static byte[] webPushEndpointCiphertext(UUID account, UUID installation)
+            throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT endpoint_ciphertext FROM chat.web_push_subscription "
+                                + "WHERE account_id = ? AND installation_id = ?")) {
+            statement.setObject(1, account);
+            statement.setObject(2, installation);
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                byte[] value = result.getBytes(1);
+                assertFalse(result.next());
+                return value;
+            }
         }
     }
 

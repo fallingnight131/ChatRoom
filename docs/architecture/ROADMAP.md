@@ -2404,8 +2404,11 @@ Candidate slices:
     bounded notification outbox with retention and concurrent claim evidence.
     - [x] Expand the schema with ciphertext-only subscriptions, a keyed endpoint
       lookup tag, and payload-free 24-hour outbox/claim/retention constraints.
-    - [ ] Add protected subscription replacement/erasure adapters and explicit
-      production key-custody/rotation composition.
+    - [x] Add protected subscription replacement/erasure adapters with
+      account/install binding, single-transaction endpoint ownership transfer,
+      ciphertext-only writes, and post-use protected-byte zeroing.
+    - [ ] Add explicit production key-custody, AEAD context, keyed lookup-tag,
+      rotation, backup/restore, and erasure composition.
     - [ ] Produce the outbox in the new-message transaction and prove bounded
       concurrent claims, idempotent replay, expiry, retention, and rollback.
   - [ ] Add authenticated HTTP subscription management and a bounded provider

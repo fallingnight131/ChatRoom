@@ -123,6 +123,37 @@ final class WebPushApplicationBoundaryTest {
                 tooManyMentions));
     }
 
+    @Test
+    void ownsAndClearsProtectedSubscriptionMaterial() throws Exception {
+        byte[] endpointCiphertext = new byte[32];
+        byte[] p256dhCiphertext = new byte[96];
+        byte[] authCiphertext = new byte[48];
+        byte[] lookupTag = new byte[32];
+        Arrays.fill(endpointCiphertext, (byte) 1);
+        var protectedSubscription = ProtectedWebPushSubscription.copyOf(
+                ACCOUNT_ID,
+                INSTALLATION_ID,
+                Optional.empty(),
+                "test-key:v1",
+                endpointCiphertext,
+                p256dhCiphertext,
+                authCiphertext,
+                lookupTag);
+        Arrays.fill(endpointCiphertext, (byte) 9);
+        AtomicReference<byte[]> retained = new AtomicReference<>();
+        int firstByte = protectedSubscription.withCopies((endpoint, key, auth, tag) -> {
+            retained.set(endpoint);
+            return Byte.toUnsignedInt(endpoint[0]);
+        });
+        assertEquals(1, firstByte);
+        assertArrayEquals(new byte[32], retained.get());
+        assertTrue(protectedSubscription.toString().contains("protectedBytes=REDACTED"));
+        protectedSubscription.close();
+        assertTrue(protectedSubscription.isClosed());
+        assertThrows(IllegalStateException.class,
+                () -> protectedSubscription.withCopies((endpoint, key, auth, tag) -> null));
+    }
+
     private static WebPushSubscriptionCredentials credentials(
             String endpoint, byte[] p256dh, byte[] auth) {
         return WebPushSubscriptionCredentials.copyOf(

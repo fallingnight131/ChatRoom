@@ -114,6 +114,10 @@ acceptance, stall synchronization, or reduce gateway readiness.
 - Migration V053 is the expand-only storage step: it accepts ciphertext-only
   subscription columns and a keyed endpoint lookup tag, and constrains the
   payload-free outbox lifetime/claim/retention shape. No writer is composed yet.
+- The detached PostgreSQL subscription adapter accepts an injected, context-
+  bound protection result, performs same-transaction endpoint ownership
+  transfer/replacement, scopes deletion by account/install, and clears protected
+  working bytes. The fixture protector is not a production key-custody claim.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

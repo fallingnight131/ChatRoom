@@ -1972,7 +1972,12 @@ provider worker, and the exact-gated Service Worker remain unimplemented and
 default-off. Migration V053 expands PostgreSQL with ciphertext-only browser
 subscriptions, a keyed endpoint lookup tag, and a payload-free notification
 outbox whose expiry, claim lifecycle, mention cardinality, and retention indexes
-are database constrained. No adapter writes either table yet.
+are database constrained. The detached subscription adapter now accepts only an
+injected protection result bound to the same account/installation/expiry, writes
+ciphertext plus a keyed endpoint tag, clears protected working copies, and
+transfers endpoint ownership or erases one account/install atomically. No
+production key-custody implementation, HTTP caller, outbox writer, or worker is
+composed.
 
 ADR-0408 now also has an exact-default-off Web candidate. Only
 `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables
