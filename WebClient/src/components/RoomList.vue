@@ -3,9 +3,11 @@
     <div class="room-list-header">
       <span class="room-list-title">房间列表</span>
       <div class="room-actions-row">
-        <button class="btn-icon" @click="showSearch = true" title="搜索房间">🔍</button>
-        <button class="btn-icon" @click="showCreate = true" title="创建房间">➕</button>
-        <button class="btn-icon" @click="refreshRooms" title="刷新">🔄</button>
+        <button class="btn-icon" type="button" aria-label="搜索房间" aria-haspopup="dialog"
+                :aria-expanded="showSearch" @click="showSearch = true" title="搜索房间">🔍</button>
+        <button class="btn-icon" type="button" aria-label="创建房间" aria-haspopup="dialog"
+                :aria-expanded="showCreate" @click="showCreate = true" title="创建房间">➕</button>
+        <button class="btn-icon" type="button" aria-label="刷新房间列表" @click="refreshRooms" title="刷新">🔄</button>
       </div>
     </div>
 
@@ -32,23 +34,25 @@
     </div>
 
     <!-- 搜索房间弹窗 -->
-    <div class="modal-overlay" v-if="showSearch" @click.self="showSearch = false">
-      <div class="modal" style="max-width: 420px;">
-        <div class="modal-title">搜索房间</div>
-        <div class="search-row">
-          <input class="input search-input" v-model="searchKeyword"
-                 placeholder="输入房间名称或ID搜索"
-                 @keyup.enter="doSearch" />
-          <button class="btn btn-primary" @click="doSearch" :disabled="searching">
+    <div class="modal-overlay" v-if="showSearch" @click.self="closeSearchDialog">
+      <div ref="searchDialogRef" class="modal room-dialog" role="dialog" aria-modal="true"
+           aria-labelledby="room-search-title" tabindex="-1" @keydown="onSearchKeydown">
+        <div id="room-search-title" class="modal-title">搜索房间</div>
+        <form class="search-row" @submit.prevent="doSearch">
+          <label class="visually-hidden" for="room-search-keyword">房间名称或 ID</label>
+          <input id="room-search-keyword" class="input search-input" v-model="searchKeyword"
+                 placeholder="输入房间名称或ID搜索" />
+          <button class="btn btn-primary" type="submit" :disabled="searching || !searchKeyword.trim()">
             {{ searching ? '搜索中…' : '搜索' }}
           </button>
-        </div>
-        <div class="search-results">
+        </form>
+        <div class="search-results" aria-live="polite">
           <div v-if="searchResults === null" class="search-hint">输入关键词后点击搜索</div>
           <div v-else-if="searchResults.length === 0" class="search-hint">未找到匹配的房间</div>
           <div v-for="r in searchResults" :key="r.roomId" class="search-result-item">
             <div class="search-avatar-wrap">
-              <img v-if="getRoomAvatarSrc(r.roomId)" :src="getRoomAvatarSrc(r.roomId)" class="avatar avatar-sm" />
+              <img v-if="getRoomAvatarSrc(r.roomId)" :src="getRoomAvatarSrc(r.roomId)" class="avatar avatar-sm"
+                   :alt="`${r.roomName} 的房间头像`" />
               <div v-else class="avatar avatar-sm avatar-placeholder" :style="{ background: hashColor(r.roomId) }">
                 {{ r.roomName.charAt(0) }}
               </div>
@@ -57,34 +61,37 @@
               <div class="search-display-name text-ellipsis">{{ r.roomName }}</div>
               <div class="search-room-id">ID: {{ r.roomId }}  ·  {{ r.memberCount }} 人</div>
             </div>
-            <button v-if="isRoomJoined(r.roomId)" class="btn btn-secondary btn-sm" disabled>已加入</button>
-            <button v-else class="btn btn-primary btn-sm" @click="joinSearchedRoom(r.roomId)">加入</button>
+            <button v-if="isRoomJoined(r.roomId)" class="btn btn-secondary btn-sm" type="button" disabled>已加入</button>
+            <button v-else class="btn btn-primary btn-sm" type="button" @click="joinSearchedRoom(r.roomId)">加入</button>
           </div>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-secondary" @click="closeSearch">关闭</button>
+          <button class="btn btn-secondary" type="button" @click="closeSearchDialog">关闭</button>
         </div>
       </div>
     </div>
 
     <!-- 创建房间弹窗 -->
-    <div class="modal-overlay" v-if="showCreate" @click.self="showCreate = false">
-      <div class="modal">
-        <div class="modal-title">创建房间</div>
+    <div class="modal-overlay" v-if="showCreate" @click.self="closeCreateDialog">
+      <form ref="createDialogRef" class="modal room-dialog" role="dialog" aria-modal="true"
+            aria-labelledby="room-create-title" tabindex="-1" @keydown="onCreateKeydown"
+            @submit.prevent="createRoom">
+        <div id="room-create-title" class="modal-title">创建房间</div>
         <div class="input-group">
-          <label>房间名称</label>
-          <input class="input" v-model="newRoomName" placeholder="输入房间名称"
-                 @keyup.enter="createRoom" />
+          <label for="new-room-name">房间名称</label>
+          <input id="new-room-name" class="input" v-model="newRoomName"
+                 placeholder="输入房间名称" required />
         </div>
         <div class="input-group">
-          <label>密码（可选）</label>
-          <input class="input" v-model="newRoomPassword" type="password" placeholder="留空则无密码" />
+          <label for="new-room-password">密码（可选）</label>
+          <input id="new-room-password" class="input" v-model="newRoomPassword" type="password"
+                 placeholder="留空则无密码" autocomplete="off" />
         </div>
         <div class="modal-actions">
-          <button class="btn btn-secondary" @click="showCreate = false">取消</button>
-          <button class="btn btn-primary" @click="createRoom">创建</button>
+          <button class="btn btn-secondary" type="button" @click="closeCreateDialog">取消</button>
+          <button class="btn btn-primary" type="submit" :disabled="!newRoomName.trim()">创建</button>
         </div>
-      </div>
+      </form>
     </div>
 
     <!-- 右键菜单 -->
@@ -98,9 +105,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, reactive, watch } from 'vue'
+import { ref, onMounted, onUnmounted, reactive } from 'vue'
 import { useChatStore } from '../stores/chat'
 import { chatWs } from '../services/websocket'
+import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 
 const chatStore = useChatStore()
 
@@ -115,6 +123,24 @@ const newRoomPassword = ref('')
 const searchKeyword = ref('')
 const searchResults = ref(null)
 const searching = ref(false)
+const {
+  dialogRef: searchDialogRef,
+  closeDialog: closeSearchDialog,
+  onDialogKeydown: onSearchKeydown,
+} = useModalKeyboardBoundary({
+  onClose: closeSearch,
+  initialFocusSelector: '#room-search-keyword',
+  active: showSearch,
+})
+const {
+  dialogRef: createDialogRef,
+  closeDialog: closeCreateDialog,
+  onDialogKeydown: onCreateKeydown,
+} = useModalKeyboardBoundary({
+  onClose: closeCreate,
+  initialFocusSelector: '#new-room-name',
+  active: showCreate,
+})
 
 const contextMenu = reactive({ show: false, x: 0, y: 0, room: null })
 
@@ -138,8 +164,16 @@ function selectRoom(roomId) {
 }
 
 function createRoom() {
-  if (!newRoomName.value.trim()) return
-  chatWs.createRoom(newRoomName.value.trim(), newRoomPassword.value)
+  const roomName = newRoomName.value.trim()
+  if (!roomName) return
+  const password = newRoomPassword.value
+  showCreate.value = false
+  newRoomName.value = ''
+  newRoomPassword.value = ''
+  chatWs.createRoom(roomName, password)
+}
+
+function closeCreate() {
   showCreate.value = false
   newRoomName.value = ''
   newRoomPassword.value = ''
@@ -180,6 +214,7 @@ function closeMenu() {
 
 // 搜索
 function doSearch() {
+  if (searching.value) return
   const kw = searchKeyword.value.trim()
   if (!kw) return
   searching.value = true
@@ -187,6 +222,7 @@ function doSearch() {
 }
 
 function onSearchResults(rooms) {
+  if (!showSearch.value) return
   searching.value = false
   searchResults.value = rooms
   // 获取搜索结果中的头像
@@ -199,6 +235,7 @@ function closeSearch() {
   showSearch.value = false
   searchKeyword.value = ''
   searchResults.value = null
+  searching.value = false
 }
 
 function joinSearchedRoom(roomId) {
@@ -225,6 +262,9 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+.room-dialog {
+  width: min(420px, calc(100vw - 32px));
 }
 .room-list-header {
   display: flex;

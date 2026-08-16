@@ -2312,6 +2312,8 @@ Candidate slices:
     Web room-file management, including an always-available close path.
   - [x] Extend the shared boundary to conditional dialog cycles and apply it to
     Web friend search and pending-request surfaces with explicit V1 limits.
+  - [x] Apply the conditional boundary and native forms to Web room search and
+    creation, clearing optional room-secret state on every exit path.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

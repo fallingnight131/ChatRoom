@@ -2255,6 +2255,9 @@ failure unlocking, and an always-available close path.
 `friendDialogAccessibility.test.mjs` locks repeatable focus cycles for
 conditionally rendered dialogs plus native, named friend search and pending-
 request controls. It does not claim V1 search-response correlation.
+`roomDialogAccessibility.test.mjs` locks named conditional room search/create
+dialogs, native forms, direct field focus, disabled account autofill for the
+optional room secret, and component-state clearing before creation transport.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

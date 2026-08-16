@@ -1024,6 +1024,12 @@ that mode, expose named native triggers and forms, contain keyboard focus, and
 restore it on every close. Search completion received while its dialog is
 closed is ignored, but V1 user search still has no request correlation; this
 slice does not represent a stronger protocol guarantee.
+Room search and creation use the same conditional boundary. Both have named
+native triggers and forms; creation labels the room name and optional secret,
+disables account-credential autofill, and clears component-owned secret state
+before calling the existing transport. Cancel, overlay, and Escape share that
+cleanup path. Closed search results are ignored, while V1 room search and room
+creation remain uncorrelated request/response flows and gain no new guarantee.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,
