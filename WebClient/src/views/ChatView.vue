@@ -99,11 +99,15 @@
 
     <!-- 被顶号提示 -->
     <div class="modal-overlay" v-if="userStore.forceOfflineReason">
-      <div class="modal" style="max-width: 380px; text-align: center;">
-        <div class="modal-title">连接已断开</div>
-        <p style="padding: 16px 20px; margin: 0; line-height: 1.6; color: white;">{{ userStore.forceOfflineReason }}</p>
+      <div ref="forceOfflineDialogRef" class="modal force-offline-dialog" role="alertdialog"
+           aria-modal="true" aria-labelledby="force-offline-title"
+           aria-describedby="force-offline-description" tabindex="-1"
+           @keydown="onForceOfflineKeydown">
+        <div id="force-offline-title" class="modal-title">连接已断开</div>
+        <p id="force-offline-description" class="force-offline-description">{{ userStore.forceOfflineReason }}</p>
         <div class="modal-actions">
-          <button class="btn btn-primary" @click="onForceOfflineConfirm">确定</button>
+          <button id="force-offline-login" class="btn btn-primary" type="button"
+                  @click="onForceOfflineConfirm">重新登录</button>
         </div>
       </div>
     </div>
@@ -112,7 +116,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, provide } from 'vue'
+import { computed, ref, onMounted, onUnmounted, provide } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
@@ -127,6 +131,7 @@ import RoomSettingsDialog from '../components/RoomSettingsDialog.vue'
 import RoomFileManagerDialog from '../components/RoomFileManagerDialog.vue'
 import UserInfoDialog from '../components/UserInfoDialog.vue'
 import RoomPasswordDialog from '../components/RoomPasswordDialog.vue'
+import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -143,6 +148,16 @@ const mobilePanel = ref('')
 const reconnecting = ref(false)
 const networkOffline = ref(typeof navigator !== 'undefined' && navigator.onLine === false)
 const activeTab = ref('friends')
+const forceOfflineActive = computed(() => !!userStore.forceOfflineReason)
+const {
+  dialogRef: forceOfflineDialogRef,
+  onDialogKeydown: onForceOfflineKeydown,
+} = useModalKeyboardBoundary({
+  onClose: () => {},
+  canClose: () => false,
+  initialFocusSelector: '#force-offline-login',
+  active: forceOfflineActive,
+})
 
 function isMobile() {
   return window.innerWidth <= 768
@@ -314,6 +329,17 @@ function onForceOfflineConfirm() {
   box-shadow: var(--shadow-md);
   font-size: 13px;
   text-align: center;
+}
+
+.force-offline-dialog {
+  width: min(380px, calc(100vw - 32px));
+  text-align: center;
+}
+.force-offline-description {
+  padding: 16px 20px;
+  margin: 0;
+  line-height: 1.6;
+  color: var(--text-primary);
 }
 
 /* 遮罩层（移动端面板展开时） */

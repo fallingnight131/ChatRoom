@@ -1030,6 +1030,11 @@ disables account-credential autofill, and clears component-owned secret state
 before calling the existing transport. Cancel, overlay, and Escape share that
 cleanup path. Closed search results are ignored, while V1 room search and room
 creation remain uncorrelated request/response flows and gain no new guarantee.
+Forced-offline state is a non-dismissible Web alert dialog rather than a normal
+closeable overlay. The server event has already disabled socket reconnection;
+focus enters and remains on its re-login boundary, and Escape cannot bypass the
+revoked session. Re-login ends the attachment session, clears in-memory account
+credentials, and navigates only after those local boundaries are clean.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,
