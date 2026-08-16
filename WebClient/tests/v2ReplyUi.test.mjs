@@ -7,10 +7,10 @@ const source = await readFile(new URL('../src/views/V2PreviewView.vue', import.m
 test('exposes keyboard-operable reply composition and unavailable target rendering', () => {
   for (const marker of [
     '@click="startReply(message)"',
-    'type="button" aria-label="取消回复"',
+    'type="button" :aria-label="v2ComposerMessages.cancelReply"',
     '@keydown.esc="cancelReplyFromKeyboard"',
     'if (!replyTarget.value) return',
-    'title="取消回复（Esc）"',
+    ':title="v2ComposerMessages.cancelReplyTitle"',
     'application.sendReply(replyTarget.value.id, text, mentions)',
     ':aria-label="basicActionMessages.replyLabel(message.sequence)"',
     'return v2TimelineMessages.value.originalUnavailable',

@@ -2059,8 +2059,13 @@ delivery state, locale-aware timestamps, and bounded new-message announcements
 without changing live-tail classification or focus restoration. Basic copy,
 reply entry, and failed-send retry controls now also follow the active locale;
 their accepted/available guards, clipboard boundary, focus behavior, and stable
-retry identity are unchanged. V2 edit/reaction/pin/forward mutations,
-composition, member selection, and device dialogs remain later slices.
+retry identity are unchanged.
+The reply/send composer now also follows the locale for reply context, input,
+UTF-8 budget, mention trigger, and send controls. It reuses the shared 65,536-
+byte calculation and preserves exact Enter/Esc behavior, structured mention
+serialization, and the application-owned `sendText`/`sendReply` split. V2
+edit/reaction/pin/forward mutations, member selection, and device dialogs remain
+later slices.
 
 ### Product consistency
 

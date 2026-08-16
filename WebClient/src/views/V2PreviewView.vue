@@ -253,26 +253,26 @@
           <form class="composer" @submit.prevent="sendMessage">
             <div v-if="replyTarget" class="composer-reply" role="status">
               <div>
-                <strong>回复消息 #{{ replyTarget.sequence }}</strong>
+                <strong>{{ v2ComposerMessages.replyingTo(replyTarget.sequence) }}</strong>
                 <span>{{ replyTarget.content }}</span>
               </div>
-              <button class="icon-button" type="button" aria-label="取消回复"
-                      title="取消回复（Esc）" @click="cancelReply">×</button>
+              <button class="icon-button" type="button" :aria-label="v2ComposerMessages.cancelReply"
+                      :title="v2ComposerMessages.cancelReplyTitle" @click="cancelReply">×</button>
             </div>
-            <label class="visually-hidden" for="v2-message">输入消息</label>
+            <label class="visually-hidden" for="v2-message">{{ composerMessages.messageContent }}</label>
             <textarea id="v2-message" :value="draft" class="input" rows="2"
-                      placeholder="输入消息" @input="updateDraft"
+                      :placeholder="composerMessages.messagePlaceholder" @input="updateDraft"
                       @keydown.enter.exact.prevent="sendMessage"
                       @keydown.esc="cancelReplyFromKeyboard"></textarea>
-            <small role="status" aria-live="polite" aria-label="消息字节数">
+            <small role="status" aria-live="polite" :aria-label="composerMessages.messageBytes">
               {{ draftBudgetLabel }}
             </small>
             <button class="btn btn-text" type="button"
                     aria-controls="v2-mention-picker" aria-haspopup="dialog"
                     :aria-expanded="mentionPickerMode === 'draft'"
-                    @click="openMentionPicker('draft', $event)">@ 提及成员</button>
-            <button class="btn btn-primary" type="submit" title="发送（Enter）"
-                    :disabled="!draft.trim() || !draftBudget.withinBudget">发送</button>
+                    @click="openMentionPicker('draft', $event)">{{ v2ComposerMessages.mentionMember }}</button>
+            <button class="btn btn-primary" type="submit" :title="v2ComposerMessages.sendTitle"
+                    :disabled="!draft.trim() || !draftBudget.withinBudget">{{ composerMessages.send }}</button>
           </form>
           <section v-if="mentionPickerOpen" id="v2-mention-picker" ref="mentionPickerRef"
                    class="mention-picker" role="dialog"
@@ -399,7 +399,9 @@ import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 import { useUserStore } from '../stores/user'
 import {
   messageTimelineMessages,
+  composerMessages as composerCatalogMessages,
   v2PreviewBasicActionMessages,
+  v2PreviewComposerMessages,
   v2PreviewSearchMessages,
   v2PreviewShellMessages,
   v2PreviewTimelineMessages,
@@ -419,6 +421,8 @@ const searchMessages = computed(() => v2PreviewSearchMessages(userStore.locale))
 const timelineMessages = computed(() => messageTimelineMessages(userStore.locale))
 const v2TimelineMessages = computed(() => v2PreviewTimelineMessages(userStore.locale))
 const basicActionMessages = computed(() => v2PreviewBasicActionMessages(userStore.locale))
+const composerMessages = computed(() => composerCatalogMessages(userStore.locale))
+const v2ComposerMessages = computed(() => v2PreviewComposerMessages(userStore.locale))
 const username = ref('')
 const password = ref('')
 const draft = ref('')
@@ -436,7 +440,10 @@ const replyTarget = ref(null)
 const editingMessageId = ref(null)
 const editDraft = ref('')
 const draftBudget = computed(() => messageTextBudget(draft.value))
-const draftBudgetLabel = computed(() => messageTextBudgetLabel(draft.value))
+const draftBudgetLabel = computed(() => draftBudget.value.withinBudget
+  ? `${draftBudget.value.bytes} / ${draftBudget.value.maximum} ${composerMessages.value.bytes}`
+  : `${composerMessages.value.overLimitPrefix}${draftBudget.value.overage} ${composerMessages.value.bytes}`
+    + `${composerMessages.value.maximumPrefix}${draftBudget.value.maximum}${composerMessages.value.maximumSuffix}`)
 const editBudget = computed(() => messageTextBudget(editDraft.value))
 const editBudgetLabel = computed(() => messageTextBudgetLabel(editDraft.value))
 const draftMentionAnchors = ref([])
@@ -658,7 +665,7 @@ function sendMessage() {
     closeMentionPicker(false)
     replyTarget.value = null
   } catch (error) {
-    actionError.value = error instanceof Error ? error.message : '消息发送失败'
+    actionError.value = error instanceof Error ? error.message : v2ComposerMessages.value.sendFailed
   }
 }
 

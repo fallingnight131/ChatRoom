@@ -615,6 +615,19 @@ const v2PreviewBasicActionCatalog = {
   },
 } as const;
 
+const v2PreviewComposerCatalog = {
+  "zh-CN": {
+    replyingTo: (sequence: string) => `回复消息 #${sequence}`, cancelReply: "取消回复",
+    cancelReplyTitle: "取消回复（Esc）", mentionMember: "@ 提及成员", sendTitle: "发送（Enter）",
+    sendFailed: "消息发送失败",
+  },
+  "en-US": {
+    replyingTo: (sequence: string) => `Replying to message #${sequence}`, cancelReply: "Cancel reply",
+    cancelReplyTitle: "Cancel reply (Esc)", mentionMember: "@ Mention member", sendTitle: "Send (Enter)",
+    sendFailed: "Message send failed",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -725,6 +738,10 @@ export function v2PreviewTimelineMessages(locale: WebLocale) {
 
 export function v2PreviewBasicActionMessages(locale: WebLocale) {
   return v2PreviewBasicActionCatalog[locale];
+}
+
+export function v2PreviewComposerMessages(locale: WebLocale) {
+  return v2PreviewComposerCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

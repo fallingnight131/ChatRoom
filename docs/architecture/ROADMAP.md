@@ -2394,6 +2394,8 @@ Candidate slices:
     feedback while preserving live-tail classification and focus ownership.
   - [x] Migrate Web V2 copy, reply entry, and failed-send retry feedback while
     preserving availability guards, clipboard isolation, focus, and identity.
+  - [x] Migrate the Web V2 reply/send composer and UTF-8 budget feedback while
+    preserving structured mentions, keyboard behavior, and application calls.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

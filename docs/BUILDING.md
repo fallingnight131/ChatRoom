@@ -157,6 +157,11 @@ The V2 basic-action slice localizes copy, reply entry, failed-send retry, and
 their browser feedback. Its source contract retains accepted/available guards,
 the shared clipboard helper, composer focus, and the original stable client
 message ID used by retry.
+The V2 reply/send composer now shares the V1 locale catalog for generic input,
+send, and UTF-8 budget terminology, with a small V2 catalog for reply and
+mention semantics. Source tests retain the exact Enter/Esc behavior, structured
+mention serialization, `sendText`/`sendReply` split, and shared 65,536-byte
+budget calculation.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and
