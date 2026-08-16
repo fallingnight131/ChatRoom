@@ -4,14 +4,24 @@
          aria-labelledby="forward-dialog-title" tabindex="-1" @keydown="onDialogKeydown">
       <div id="forward-dialog-title" class="modal-title">转发到其他会话</div>
 
-      <div class="tab-bar">
-        <button class="tab-btn" :class="{ active: activeTab === 'friends' }"
-                :aria-pressed="activeTab === 'friends'" @click="activeTab = 'friends'">
+      <div class="tab-bar" role="tablist" aria-label="转发目标类型">
+        <button ref="friendTab" type="button" class="tab-btn" role="tab"
+                id="forward-friends-tab" aria-controls="forward-friends-panel"
+                :class="{ active: activeTab === 'friends' }"
+                :aria-selected="activeTab === 'friends'"
+                :tabindex="activeTab === 'friends' ? 0 : -1"
+                @keydown="onTabKeydown($event, 'friends')"
+                @click="selectTab('friends')">
           好友
           <span class="tab-count">{{ friendCandidates.length }}</span>
         </button>
-        <button class="tab-btn" :class="{ active: activeTab === 'rooms' }"
-                :aria-pressed="activeTab === 'rooms'" @click="activeTab = 'rooms'">
+        <button ref="roomTab" type="button" class="tab-btn" role="tab"
+                id="forward-rooms-tab" aria-controls="forward-rooms-panel"
+                :class="{ active: activeTab === 'rooms' }"
+                :aria-selected="activeTab === 'rooms'"
+                :tabindex="activeTab === 'rooms' ? 0 : -1"
+                @keydown="onTabKeydown($event, 'rooms')"
+                @click="selectTab('rooms')">
           房间
           <span class="tab-count">{{ roomCandidates.length }}</span>
         </button>
@@ -36,7 +46,8 @@
       </div>
 
       <div class="list-wrap">
-        <div v-if="activeTab === 'friends'">
+        <div v-if="activeTab === 'friends'" id="forward-friends-panel"
+             role="tabpanel" aria-labelledby="forward-friends-tab">
           <label v-for="f in filteredFriendCandidates" :key="f.username" class="list-item">
             <input type="checkbox" :checked="selectedFriends.has(f.username)" @change="toggleFriend(f.username, $event.target.checked)" />
             <span class="item-main-row">
@@ -49,7 +60,8 @@
           <div v-if="filteredFriendCandidates.length === 0" class="empty">暂无可选好友</div>
         </div>
 
-        <div v-else>
+        <div v-else id="forward-rooms-panel" role="tabpanel"
+             aria-labelledby="forward-rooms-tab">
           <label v-for="r in filteredRoomCandidates" :key="r.roomId" class="list-item">
             <input type="checkbox" :checked="selectedRooms.has(r.roomId)" @change="toggleRoom(r.roomId, $event.target.checked)" />
             <span class="item-main-row">
@@ -63,8 +75,10 @@
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-secondary" :disabled="submitting" @click="closeDialog">取消</button>
-        <button class="btn btn-primary" :disabled="selectedCount === 0 || submitting" @click="submitForward">
+        <button type="button" class="btn btn-secondary" :disabled="submitting"
+                @click="closeDialog">取消</button>
+        <button type="button" class="btn btn-primary"
+                :disabled="selectedCount === 0 || submitting" @click="submitForward">
           {{ submitting ? '转发中...' : '确认转发' }}
         </button>
       </div>
@@ -85,6 +99,8 @@ const emit = defineEmits(['close', 'confirm'])
 const chatStore = useChatStore()
 
 const activeTab = ref('friends')
+const friendTab = ref(null)
+const roomTab = ref(null)
 const selectedRooms = ref(new Set())
 const selectedFriends = ref(new Set())
 const searchKeyword = ref('')
@@ -128,6 +144,19 @@ const allChecked = computed(() => {
   if (activeTab.value === 'friends') return selectedFriends.value.size === list.length
   return selectedRooms.value.size === list.length
 })
+
+function selectTab(tab, focus = false) {
+  activeTab.value = tab
+  if (focus) (tab === 'friends' ? friendTab.value : roomTab.value)?.focus()
+}
+
+function onTabKeydown(event, tab) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+  event.preventDefault()
+  if (event.key === 'Home') selectTab('friends', true)
+  else if (event.key === 'End') selectTab('rooms', true)
+  else selectTab(tab === 'friends' ? 'rooms' : 'friends', true)
+}
 
 function toggleFriend(username, checked) {
   const next = new Set(selectedFriends.value)

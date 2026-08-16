@@ -2338,6 +2338,8 @@ Candidate slices:
     and name its actions, loading state, and embedded media/document surfaces.
   - [x] Replace V1 Web message attachment pseudo-buttons with native, file-named
     preview actions for loaded, thumbnail, generic, video, and expired states.
+  - [x] Complete the V1 Web forwarding target tablist with related panels,
+    roving focus, and Left/Right/Home/End navigation while retaining submit locks.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

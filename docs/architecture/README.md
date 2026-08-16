@@ -998,6 +998,10 @@ naming, focus entry/wrap/restore, Escape handling, named search, selected tab
 state, and fail-closed dismissal/submission while a forward is pending. The
 helper owns browser focus only; each feature continues to own its business
 cancel and authorization rules.
+Its friend/room selector now exposes a complete tablist/tabpanel relationship
+with one Tab stop and Left/Right/Home/End focus movement. Selection counts,
+filters, chosen targets, pending-submit locking, and the emitted canonical target
+identities remain owned by the existing forwarding flow.
 Room-password entry is the third consumer and adds an explicit initial-focus
 target to the shared boundary. The password control is labeled, uses native
 required form submission, and disables account-credential autofill because a

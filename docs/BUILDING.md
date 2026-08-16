@@ -2242,7 +2242,8 @@ profile-header `div` and requires separate, named native profile/theme buttons.
 `modalKeyboardBoundary.test.ts` verifies focus-loop decisions independently of
 Vue rendering. Profile and forwarding source gates require the shared boundary;
 the forwarding gate also locks dialog naming, search labeling, selected-tab
-state, and pending-operation close/duplicate-submit rejection.
+state, related friend/room tabpanels, one-stop roving focus with Left/Right/Home/
+End navigation, and pending-operation close/duplicate-submit rejection.
 `roomPasswordDialogAccessibility.test.mjs` locks the shared modal boundary,
 direct input focus, label/description associations, native required submission,
 empty rejection, and component plaintext clearing before the join event.
