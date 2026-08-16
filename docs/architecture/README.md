@@ -805,6 +805,14 @@ disable, and V049 remains applied. The retained-evidence checklist and exact
 sequence are in
 [`MESSAGE_FORWARDING_ACTIVATION.md`](../deployment/MESSAGE_FORWARDING_ACTIVATION.md).
 
+ADR-0404 starts the next M6 slice with server-authoritative, per-conversation
+message search. Capability 6 and types 126/127 are reserved for bounded literal
+UTF-8 queries and descending sequence pages. Active membership is rechecked at
+query time; recalled, deleted, and non-text messages are excluded; edits replace
+the searchable body. PostgreSQL remains truth and any index remains rebuildable.
+An external search service is deferred until query evidence justifies it and
+would have to reauthorize results plus consume durable sequence checkpoints.
+
 Windows reply composition is now available only in the default-off
 V2 preview. A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

@@ -2181,12 +2181,24 @@ Progress:
   - [ ] Pass the forwarding-enabled workflow on a Windows runner, retain the
     final binary diagnostic and Widgets evidence, and complete endpoint canary
     plus rollback rehearsal before treating forwarding as releasable.
+- [ ] Deliver server-authoritative conversation message search on V2 Web and
+  Windows.
+  - [x] Define capability 6, message types 126/127, literal UTF-8 matching,
+    descending sequence pagination, current-state mutation behavior,
+    PostgreSQL authority, rebuildable-index boundaries, and staged activation
+    (ADR-0404).
+  - [ ] Add the generated wire contract and bounded application query model
+    while runtime and both clients remain off.
+  - [ ] Implement the authorized PostgreSQL query, deletion/recall/edit
+    semantics, query-plan evidence, and gateway handler behind a default-off
+    server policy.
+  - [ ] Add cache-aware, accessible Web and Windows search surfaces with
+    endpoint-specific activation and context-history repair.
 
 Candidate slices:
 
 - richer structured composition;
 - group roles, invitations, join approval, mute, block, and moderation;
-- full-text search with an asynchronously rebuildable index;
 - Windows native notifications;
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
