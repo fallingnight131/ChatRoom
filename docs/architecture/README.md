@@ -129,9 +129,11 @@ session binds the actor, and one stable client operation ID makes exact retries
 converge while conflicting reuse fails. Either direction will eventually deny
 new direct submissions and contact requests with a generic result, but blocking
 does not rewrite message history, group membership, or shared-group delivery.
-The first Java application service and persistence port are detached; PostgreSQL,
-wire capability, gateway enforcement, and Web/Windows UI remain explicit later
-gates.
+The Java application service remains detached. V052 now persists the asymmetric
+graph and immutable desired-state operation result atomically through its
+PostgreSQL port, including exact retry, conflicting operation reuse, disabled-
+account denial, and database self-edge constraints. Wire capability, gateway
+enforcement, and Web/Windows UI remain explicit later gates.
 
 Keep module calls in-process at first. Split a deployable service only for one of
 these reasons:

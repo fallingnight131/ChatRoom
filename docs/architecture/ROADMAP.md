@@ -2294,8 +2294,11 @@ Candidate slices:
     idempotent desired-state operations, pairwise direct/contact-request denial,
     and history/group non-effects in a detached Java application boundary
     (ADR-0408); persistence, wire, runtime, and clients remain off.
-  - [ ] Add the durable PostgreSQL block graph and operation ledger, then enforce
-    generic pairwise denial in direct submission and contact-request creation.
+  - [x] Add the durable PostgreSQL block graph and operation ledger with atomic
+    desired-state mutation, concurrent exact retry, opposite-direction locking,
+    conflict, disabled-account, clean migration/restart, and self-edge evidence.
+  - [ ] Enforce generic pairwise denial in direct submission and contact-request
+    creation without disclosing which side blocked.
   - [ ] Add a default-off V2 capability/wire surface and accessible Web/Windows
     block management only after migration and authorization gates pass.
 - Windows native notifications;

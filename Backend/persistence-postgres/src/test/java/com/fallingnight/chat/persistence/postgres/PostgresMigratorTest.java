@@ -94,6 +94,9 @@ import com.fallingnight.chat.application.conversation.ConversationKind;
 import com.fallingnight.chat.application.conversation.ConversationParticipantPage;
 import com.fallingnight.chat.application.conversation.ConversationParticipantQuery;
 import com.fallingnight.chat.application.conversation.ConversationParticipantResult;
+import com.fallingnight.chat.application.contact.AccountBlockIntent;
+import com.fallingnight.chat.application.contact.AccountBlockResult;
+import com.fallingnight.chat.application.contact.AccountBlockService;
 import com.fallingnight.chat.application.messaging.MessageHistoryQuery;
 import com.fallingnight.chat.application.messaging.MessageHistoryResult;
 import com.fallingnight.chat.application.messaging.MessageMention;
@@ -216,7 +219,7 @@ class PostgresMigratorTest {
     void migratesCleanDatabaseAndRestartValidatesWithoutReapplying() throws Exception {
         requireDatabase();
         PostgresMigrator first = new PostgresMigrator(URL, USER, PASSWORD);
-        assertEquals(51, first.migrate());
+        assertEquals(52, first.migrate());
         first.validate();
 
         PostgresMigrator restarted = new PostgresMigrator(URL, USER, PASSWORD);
@@ -251,7 +254,8 @@ class PostgresMigratorTest {
                             "message_pin_operation", "message_pin", "message_pin_event",
                             "message_edit_operation", "message_edit_event",
                             "message_mention", "message_edit_event_mention",
-                            "message_forward_request", "conversation_event_outbox"),
+                            "message_forward_request", "conversation_event_outbox",
+                            "account_block", "account_block_operation"),
                     applicationTables(connection));
             assertEquals(11, count("SELECT count(*) FROM pg_constraint "
                     + "WHERE connamespace = 'chat'::regnamespace "
@@ -355,6 +359,131 @@ class PostgresMigratorTest {
         proveLegacyV1MappingConstraints();
         proveLegacyV1ConversationMappingConstraints();
         proveConversationImportAuditConstraints();
+    }
+
+    @Test
+    @Order(98)
+    void persistsAsymmetricBlocksAndConvergesExactOperations() throws Exception {
+        requireDatabase();
+        truncateApplicationData();
+        UUID actor = UUID.randomUUID();
+        UUID target = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "INSERT INTO chat.account(id, username_key, display_name, password_hash) "
+                            + "VALUES (?, ?, 'Block Actor', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, ?, 'Block Target', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture'), "
+                            + "(?, ?, 'Block Other', "
+                            + "'$argon2id$v=19$m=65536,t=2,p=1$test$fixture')",
+                    actor, "block-actor-" + actor,
+                    target, "block-target-" + target,
+                    other, "block-other-" + other);
+        }
+        var service = new AccountBlockService(new PostgresAccountBlockAdapter(dataSource()));
+        UUID blockOperation = UUID.randomUUID();
+        var first = new AccountBlockResult.Applied(
+                actor, target, true, true, blockOperation);
+        assertEquals(first, service.apply(actor,
+                new AccountBlockIntent(target, true, blockOperation)));
+        assertEquals(first, service.apply(actor,
+                new AccountBlockIntent(target, true, blockOperation)));
+        assertEquals(new AccountBlockResult.OperationConflict(blockOperation),
+                service.apply(actor, new AccountBlockIntent(other, true, blockOperation)));
+        assertEquals(1, accountBlockCount(actor, target));
+
+        UUID unchangedOperation = UUID.randomUUID();
+        assertEquals(new AccountBlockResult.Applied(
+                actor, target, true, false, unchangedOperation),
+                service.apply(actor,
+                        new AccountBlockIntent(target, true, unchangedOperation)));
+
+        try (Connection connection = connect()) {
+            execute(connection,
+                    "UPDATE chat.account SET disabled_at=transaction_timestamp() WHERE id=?",
+                    target);
+        }
+        assertEquals(first, service.apply(actor,
+                new AccountBlockIntent(target, true, blockOperation)));
+        UUID unblockOperation = UUID.randomUUID();
+        assertEquals(AccountBlockResult.Rejected.TARGET_UNAVAILABLE,
+                service.apply(actor,
+                        new AccountBlockIntent(target, false, unblockOperation)));
+        assertEquals(1, accountBlockCount(actor, target));
+        try (Connection connection = connect()) {
+            execute(connection, "UPDATE chat.account SET disabled_at=NULL WHERE id=?", target);
+        }
+        assertEquals(new AccountBlockResult.Applied(
+                actor, target, false, true, unblockOperation),
+                service.apply(actor,
+                        new AccountBlockIntent(target, false, unblockOperation)));
+
+        UUID repeatedUnblock = UUID.randomUUID();
+        assertEquals(new AccountBlockResult.Applied(
+                actor, target, false, false, repeatedUnblock),
+                service.apply(actor,
+                        new AccountBlockIntent(target, false, repeatedUnblock)));
+        assertEquals(0, accountBlockCount(actor, target));
+
+        UUID concurrentOperation = UUID.randomUUID();
+        var concurrentExpected = new AccountBlockResult.Applied(
+                actor, target, true, true, concurrentOperation);
+        ExecutorService exactExecutor = Executors.newFixedThreadPool(2);
+        CountDownLatch exactReady = new CountDownLatch(2);
+        CountDownLatch exactStart = new CountDownLatch(1);
+        try {
+            java.util.concurrent.Callable<AccountBlockResult> exactTask = () -> {
+                exactReady.countDown();
+                assertTrue(exactStart.await(5, TimeUnit.SECONDS));
+                return service.apply(actor,
+                        new AccountBlockIntent(target, true, concurrentOperation));
+            };
+            Future<AccountBlockResult> left = exactExecutor.submit(exactTask);
+            Future<AccountBlockResult> right = exactExecutor.submit(exactTask);
+            assertTrue(exactReady.await(5, TimeUnit.SECONDS));
+            exactStart.countDown();
+            assertEquals(concurrentExpected, left.get(10, TimeUnit.SECONDS));
+            assertEquals(concurrentExpected, right.get(10, TimeUnit.SECONDS));
+        } finally {
+            exactExecutor.shutdownNow();
+        }
+        assertEquals(1, accountBlockCount(actor, target));
+
+        UUID actorUnblock = UUID.randomUUID();
+        UUID reverseBlock = UUID.randomUUID();
+        ExecutorService reverseExecutor = Executors.newFixedThreadPool(2);
+        CountDownLatch reverseReady = new CountDownLatch(2);
+        CountDownLatch reverseStart = new CountDownLatch(1);
+        try {
+            Future<AccountBlockResult> forward = reverseExecutor.submit(() -> {
+                reverseReady.countDown();
+                assertTrue(reverseStart.await(5, TimeUnit.SECONDS));
+                return service.apply(actor,
+                        new AccountBlockIntent(target, false, actorUnblock));
+            });
+            Future<AccountBlockResult> reverse = reverseExecutor.submit(() -> {
+                reverseReady.countDown();
+                assertTrue(reverseStart.await(5, TimeUnit.SECONDS));
+                return service.apply(target,
+                        new AccountBlockIntent(actor, true, reverseBlock));
+            });
+            assertTrue(reverseReady.await(5, TimeUnit.SECONDS));
+            reverseStart.countDown();
+            assertEquals(new AccountBlockResult.Applied(
+                    actor, target, false, true, actorUnblock),
+                    forward.get(10, TimeUnit.SECONDS));
+            assertEquals(new AccountBlockResult.Applied(
+                    target, actor, true, true, reverseBlock),
+                    reverse.get(10, TimeUnit.SECONDS));
+        } finally {
+            reverseExecutor.shutdownNow();
+        }
+        assertEquals(0, accountBlockCount(actor, target));
+        assertEquals(1, accountBlockCount(target, actor));
+        assertEquals(6, accountBlockOperationCount(actor));
+        assertAccountBlockSelfConstraint(actor);
     }
 
     @Test
@@ -5610,6 +5739,45 @@ class PostgresMigratorTest {
         dataSource.setUser(USER);
         dataSource.setPassword(PASSWORD);
         return dataSource;
+    }
+
+    private static int accountBlockCount(UUID actor, UUID target) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT count(*) FROM chat.account_block "
+                                + "WHERE blocker_account_id=? AND blocked_account_id=?")) {
+            statement.setObject(1, actor);
+            statement.setObject(2, target);
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                return result.getInt(1);
+            }
+        }
+    }
+
+    private static int accountBlockOperationCount(UUID actor) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "SELECT count(*) FROM chat.account_block_operation "
+                                + "WHERE actor_account_id=?")) {
+            statement.setObject(1, actor);
+            try (ResultSet result = statement.executeQuery()) {
+                assertTrue(result.next());
+                return result.getInt(1);
+            }
+        }
+    }
+
+    private static void assertAccountBlockSelfConstraint(UUID actor) throws SQLException {
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(
+                        "INSERT INTO chat.account_block(blocker_account_id, blocked_account_id) "
+                                + "VALUES (?, ?)")) {
+            statement.setObject(1, actor);
+            statement.setObject(2, actor);
+            SQLException exception = assertThrows(SQLException.class, statement::executeUpdate);
+            assertEquals("23514", exception.getSQLState());
+        }
     }
 
     private static void truncateApplicationData() throws SQLException {

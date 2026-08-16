@@ -27,9 +27,10 @@ wire or storage path.
   and desired state returns the original result; reusing it for different input
   is a conflict. Reapplying the already-current state succeeds with
   `changed=false`.
-- The eventual PostgreSQL transaction must make the block state and operation
-  result durable together. Durable truth must not live only in Redis or gateway
-  connection state.
+- V052 and the PostgreSQL adapter make the block state and operation result
+  durable together. New operations lock both accounts in stable UUID order,
+  require enabled accounts, and commit state plus result atomically. Durable
+  truth does not live in Redis or gateway connection state.
 - An active block in either direction denies new direct-message submissions and
   new contact requests between the pair. Denials use a generic unavailable
   result and do not disclose which side blocked. Unblocking does not restore a
@@ -37,23 +38,28 @@ wire or storage path.
 - Blocking does not delete or mutate existing message history, revoke shared
   group membership, suppress group messages, or invalidate an already-issued
   short-lived attachment grant. Those require their own explicit policies.
-- This slice adds only a detached Java application service and persistence port.
-  It adds no table, protocol message, gateway handler, V1 behavior, or client UI.
+- The Java application service and PostgreSQL adapter remain detached. This
+  slice adds no protocol message, gateway handler, V1 behavior, or client UI.
 
 ## Consequences
 
 The safety semantics and authenticated-actor boundary can evolve independently
-from transport and SQL. Product behavior remains unchanged until an
-expand-migrate-contract sequence adds durable schema, query enforcement, a
-default-off wire capability, and Web/Windows surfaces.
+from transport. Product behavior remains unchanged until later expand-migrate-
+contract steps add pairwise query enforcement, a default-off wire capability,
+and Web/Windows surfaces.
 
 ## Verification
 
 Application tests prove authenticated actor binding, stable operation identity,
 self-block rejection before persistence, null containment, and fail-closed
-correlation of adapter results.
+correlation of adapter results. The disposable PostgreSQL gate proves clean V052
+migration, same-database restart, exact retry, conflicting reuse, convergent
+no-op, concurrent exact-operation convergence, opposite-direction lock ordering,
+disabled-target denial, unblock, and the database self-edge constraint.
 
 ## Rollback
 
-Remove the detached application types, tests, and this ADR. No schema, protocol,
-runtime configuration, or client state requires migration.
+Keep the forward migration and leave the adapter uncomposed. If V052 must be
+physically removed before product activation, restore the pre-migration database
+backup rather than editing Flyway history. No protocol, runtime configuration,
+or client state requires migration.

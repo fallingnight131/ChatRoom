@@ -1565,7 +1565,7 @@ V050 adds an inactive, payload-free `conversation_event_outbox` with the
 conversation UUID/sequence partition identity and bounded availability,
 claim/retry, publication, and failure state. New V2 messages create one row in
 the same transaction as their message/entry/reply/mention data; exact retries
-create none. The PostgreSQL gate verifies V001-to-V050 migration, same-database
+create none. The PostgreSQL gate verifies V001-to-V052 migration, same-database
 restart, table constraints/index, concurrent idempotency, and exact outbox row
 counts. V051 adds the independent claim fencing token and inactive PostgreSQL
 relay port. The same gate proves per-conversation head ordering, bounded leases,
@@ -1573,6 +1573,12 @@ delayed retry, expiry reclamation, attempt increments, stale-token/wrong-owner
 rejection, and idempotent publication. No scheduler, Redis connection,
 historical backfill, or product route is activated by these expand slices
 (ADR-0348, ADR-0349).
+V052 adds the detached asymmetric account-block state and immutable operation
+ledger. The same disposable-database gate proves concurrent exact retry,
+opposite-direction lock ordering, conflicting operation reuse, convergent no-op,
+disabled-target denial, unblock, and the database self-edge constraint. Direct
+messaging, contact requests, gateway
+routing, and clients do not consume this state yet (ADR-0408).
 The application module also tests the scheduler-neutral relay pass: fixed
 publication outcomes, unexpected-exception redaction, capped exponential retry,
 duplicate-claim rejection, and fenced ownership loss. This class is not yet
