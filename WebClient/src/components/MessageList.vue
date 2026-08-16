@@ -1,7 +1,8 @@
 <template>
-  <div class="message-list" ref="listRef" @scroll="onScroll"
-       role="log" aria-live="polite" aria-relevant="additions text"
-       :aria-busy="loadingMore" aria-label="聊天消息">
+  <div class="message-list-shell">
+    <div class="message-list" ref="listRef" @scroll="onScroll" tabindex="-1"
+         role="log" aria-live="polite" aria-relevant="additions text"
+         :aria-busy="loadingMore" aria-label="聊天消息">
     <div v-if="loadingMore" class="loading-more" role="status">加载中...</div>
     <div v-if="virtualWindow.top > 0" class="virtual-spacer" aria-hidden="true"
          :style="{ height: virtualWindow.top + 'px' }"></div>
@@ -128,8 +129,18 @@
     </div>
     <div v-if="virtualWindow.bottom > 0" class="virtual-spacer" aria-hidden="true"
          :style="{ height: virtualWindow.bottom + 'px' }"></div>
-    <p class="visually-hidden" :role="copyFailed ? 'alert' : 'status'"
-       aria-live="polite" aria-atomic="true">{{ copyAnnouncement }}</p>
+      <p class="visually-hidden" :role="copyFailed ? 'alert' : 'status'"
+         aria-live="polite" aria-atomic="true">{{ copyAnnouncement }}</p>
+    </div>
+
+    <button v-if="pendingNewMessages" class="new-message-jump" type="button"
+            :aria-label="`${pendingNewMessagesLabel}，回到最新消息`"
+            @click="revealNewMessages">
+      {{ pendingNewMessagesLabel }} ↓
+    </button>
+    <p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
+      {{ pendingNewMessages ? `${pendingNewMessagesLabel}，当前仍在阅读历史消息` : '' }}
+    </p>
 
     <!-- 右键菜单 -->
     <Teleport to="body">
@@ -225,6 +236,7 @@ import FilePreview from './FilePreview.vue'
 import ForwardDialog from './ForwardDialog.vue'
 import { calculateVirtualWindow } from '../ui/virtualWindow'
 import { copyMessageText } from '../messaging/copyMessageText'
+import { addPendingNewMessages, pendingNewMessageLabel } from '../messaging/newMessageIndicator'
 
 const userStore = useUserStore()
 const chatStore = useChatStore()
@@ -254,6 +266,8 @@ const scrollTop = ref(0)
 const viewportHeight = ref(600)
 const measuredHeights = shallowRef(new Map())
 const stickToBottom = ref(true)
+const pendingNewMessages = ref(0)
+const pendingNewMessagesLabel = computed(() => pendingNewMessageLabel(pendingNewMessages.value))
 let historyAnchor = null
 let historyTimer = null
 let messageResizeObserver = null
@@ -616,6 +630,7 @@ function onScroll() {
   viewportHeight.value = listRef.value.clientHeight
   stickToBottom.value = listRef.value.scrollHeight
     - listRef.value.scrollTop - listRef.value.clientHeight < 80
+  if (stickToBottom.value) pendingNewMessages.value = 0
   if (listRef.value.scrollTop <= 2 && !loadingMore.value) {
     const msgs = props.friendMode ? chatStore.friendMessages : chatStore.messages
     if (msgs.length > 0) {
@@ -648,8 +663,15 @@ function scrollToBottom() {
       scrollTop.value = listRef.value.scrollTop
       viewportHeight.value = listRef.value.clientHeight
       stickToBottom.value = true
+      pendingNewMessages.value = 0
     }
   })
+}
+
+function revealNewMessages() {
+  pendingNewMessages.value = 0
+  scrollToBottom()
+  nextTick(() => listRef.value?.focus({ preventScroll: true }))
 }
 
 watch(() => displayMessages.value.length, async (nextLength, previousLength) => {
@@ -665,7 +687,12 @@ watch(() => displayMessages.value.length, async (nextLength, previousLength) => 
     historyTimer = null
     return
   }
-  if (stickToBottom.value) scrollToBottom()
+  if (stickToBottom.value) {
+    scrollToBottom()
+  } else if (nextLength > previousLength) {
+    pendingNewMessages.value = addPendingNewMessages(
+      pendingNewMessages.value, nextLength - previousLength)
+  }
 })
 
 watch(() => [chatStore.currentRoomId, chatStore.currentFriendUsername, props.friendMode], () => {
@@ -673,6 +700,7 @@ watch(() => [chatStore.currentRoomId, chatStore.currentFriendUsername, props.fri
   historyAnchor = null
   scrollTop.value = 0
   stickToBottom.value = true
+  pendingNewMessages.value = 0
   scrollToBottom()
 })
 
@@ -716,13 +744,39 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.message-list {
+.message-list-shell {
+  position: relative;
   flex: 1;
+  min-height: 0;
+}
+
+.message-list {
+  height: 100%;
+  box-sizing: border-box;
   overflow-y: auto;
   padding: 16px 20px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.new-message-jump {
+  position: absolute;
+  right: 20px;
+  bottom: 14px;
+  z-index: 4;
+  padding: 8px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  color: var(--text-link);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+}
+
+.new-message-jump:hover,
+.new-message-jump:focus-visible {
+  background: var(--bg-hover);
 }
 
 .loading-more {

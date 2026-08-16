@@ -2215,6 +2215,10 @@ The Web accessibility source gate also locks focus entry and cyclic Arrow/Home/
 End traversal for the V1 message menu. Escape dismisses it and restores focus
 to the message bubble that invoked Shift+F10 or the Context Menu key; pointer and
 touch dismissal do not restore a stale trigger.
+The Web new-message indicator unit test proves positive-only accumulation and
+the 99-item UI bound. Its source gate requires an accessible live-tail jump,
+focus return to the message log, and explicit reset paths; history-prepend
+anchoring remains separate and does not increment the local indicator.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable

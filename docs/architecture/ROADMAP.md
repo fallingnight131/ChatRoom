@@ -2290,6 +2290,8 @@ Candidate slices:
     preserving ordinary drafts and the browser-idiomatic Enter/Shift+Enter behavior.
   - [x] Complete V1 Web message-menu focus entry, arrow/Home/End traversal, and
     Escape dismissal with focus restoration to the invoking message.
+  - [x] Preserve Web history reading position while exposing a bounded,
+    accessible new-message counter and keyboard-operable jump to the live tail.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

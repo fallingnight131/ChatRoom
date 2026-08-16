@@ -955,6 +955,12 @@ with the Context Menu key or Shift+F10. Focus enters the first available action,
 Arrow keys wrap, Home/End reach the boundaries, and Escape closes the overlay
 and restores focus to the invoking message. Pointer dismissal does not force a
 focus jump, and touch invocation retains no stale desktop focus target.
+When a V1 Web user is reading above the live tail, appended messages no longer
+remain silent. A local-only counter accumulates at most 99 unseen additions
+without changing server read state, while history prepends continue through the
+existing scroll anchor and are not counted. Returning to the bottom, switching
+conversation, or activating the accessible jump clears the counter; keyboard
+activation restores focus to the message log after scrolling.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

@@ -18,6 +18,11 @@ test('exposes the message timeline as an announced busy-aware log', () => {
   assert.match(messages, /aria-live="polite"/)
   assert.match(messages, /:aria-busy="loadingMore"/)
   assert.match(messages, /:aria-label="messageAriaLabel\(msg\)"/)
+  assert.match(messages, /v-if="pendingNewMessages"/)
+  assert.ok(messages.includes(':aria-label="`${pendingNewMessagesLabel}，回到最新消息`"'))
+  assert.match(messages, /当前仍在阅读历史消息/)
+  assert.match(messages, /pendingNewMessages\.value = 0/)
+  assert.match(messages, /listRef\.value\?\.focus\(\{ preventScroll: true \}\)/)
 })
 
 test('announces offline and reconnecting state without relying on icons', () => {
