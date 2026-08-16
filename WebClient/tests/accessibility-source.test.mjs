@@ -44,6 +44,8 @@ test('labels composer controls and honors focus and reduced-motion preferences',
   assert.match(input, /`重新选择 \$\{command\.fileName\}`/)
   assert.match(input, /`取消发送 \$\{command\.fileName\}`/)
   assert.match(input, /aria-label="消息内容"/)
+  assert.match(input, /aria-label="消息字节数"/)
+  assert.match(input, /:disabled="!canSendText"/)
   assert.match(styles, /:focus-visible/)
   assert.match(styles, /prefers-reduced-motion: reduce/)
 })

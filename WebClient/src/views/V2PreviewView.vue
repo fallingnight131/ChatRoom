@@ -139,12 +139,16 @@
                       @submit.prevent="submitEdit(message)">
                   <label :for="`edit-${message.id}`">编辑消息</label>
                   <textarea :id="`edit-${message.id}`" :value="editDraft" class="input"
-                            rows="3" maxlength="65536" required
+                            rows="3" required
                             @input="updateEditDraft"></textarea>
+                  <small role="status" aria-live="polite" aria-label="编辑消息字节数">
+                    {{ editBudgetLabel }}
+                  </small>
                   <div>
                     <button class="btn btn-text" type="button"
                             @click="openMentionPicker('edit')">@ 提及成员</button>
-                    <button class="btn btn-primary" type="submit" :disabled="!editDraft.trim()">保存</button>
+                    <button class="btn btn-primary" type="submit"
+                            :disabled="!editDraft.trim() || !editBudget.withinBudget">保存</button>
                     <button class="btn btn-text" type="button" @click="cancelEdit">取消</button>
                   </div>
                 </form>
@@ -223,9 +227,13 @@
             <textarea id="v2-message" :value="draft" class="input" rows="2"
                       placeholder="输入消息" @input="updateDraft"
                       @keydown.enter.exact.prevent="sendMessage"></textarea>
+            <small role="status" aria-live="polite" aria-label="消息字节数">
+              {{ draftBudgetLabel }}
+            </small>
             <button class="btn btn-text" type="button"
                     aria-haspopup="dialog" @click="openMentionPicker('draft')">@ 提及成员</button>
-            <button class="btn btn-primary" type="submit" :disabled="!draft.trim()">发送</button>
+            <button class="btn btn-primary" type="submit"
+                    :disabled="!draft.trim() || !draftBudget.withinBudget">发送</button>
           </form>
           <section v-if="mentionPickerOpen" class="mention-picker" role="dialog"
                    aria-modal="false" aria-labelledby="mention-picker-title"
@@ -336,6 +344,7 @@
 import { computed, inject, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { V2_RUNTIME_KEY } from '../application/v2RuntimeKey'
 import { MessageReactionKind } from '../protocol/v2/generated/messaging_pb'
+import { messageTextBudget, messageTextBudgetLabel } from '../messaging/messageTextBudget.js'
 import {
   anchorsFromMentionSpans,
   insertMention,
@@ -354,6 +363,10 @@ const actionError = ref('')
 const replyTarget = ref(null)
 const editingMessageId = ref(null)
 const editDraft = ref('')
+const draftBudget = computed(() => messageTextBudget(draft.value))
+const draftBudgetLabel = computed(() => messageTextBudgetLabel(draft.value))
+const editBudget = computed(() => messageTextBudget(editDraft.value))
+const editBudgetLabel = computed(() => messageTextBudgetLabel(editDraft.value))
 const draftMentionAnchors = ref([])
 const editMentionAnchors = ref([])
 const mentionPickerMode = ref(null)
@@ -494,7 +507,7 @@ function loadMoreDirectory() {
 
 function sendMessage() {
   const text = draft.value
-  if (!text.trim()) return
+  if (!text.trim() || !draftBudget.value.withinBudget) return
   actionError.value = ''
   try {
     const mentions = serializeMentionAnchors(text, draftMentionAnchors.value)
@@ -662,7 +675,7 @@ function cancelEdit() {
 
 function submitEdit(message) {
   const text = editDraft.value
-  if (!text.trim()) return
+  if (!text.trim() || !editBudget.value.withinBudget) return
   actionError.value = ''
   try {
     const mentions = serializeMentionAnchors(text, editMentionAnchors.value)

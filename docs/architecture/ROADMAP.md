@@ -2280,6 +2280,8 @@ Candidate slices:
   - [x] Expose the Windows V2 composer UTF-8 byte budget accessibly and disable
     send above the authoritative 65,536-byte message limit without truncating
     the draft.
+  - [x] Apply the same shared UTF-8 byte budget to Web V1 and V2 ordinary/edit
+    composers, replacing the misleading V2 UTF-16 `maxlength` guard.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

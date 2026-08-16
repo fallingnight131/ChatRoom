@@ -931,6 +931,10 @@ submission. Its accessible status reports the actual UTF-8 byte count (rather
 than UTF-16 characters), names the overage when exceeded, and disables the same
 send action used by keyboard and mouse. Text and drafts are not truncated, so
 the user can edit back below the limit without silent data loss.
+Web now uses the same shared UTF-8 budget helper in its V1 composer and V2
+ordinary/edit forms. Enter and submit handlers recheck the budget rather than
+depending only on disabled buttons, and the previous V2 `maxlength=65536`
+character guard is removed because it did not represent the byte contract.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

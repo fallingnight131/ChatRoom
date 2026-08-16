@@ -60,11 +60,15 @@
                 @keydown.enter.exact="sendMessage"
                 @keydown.enter.shift.exact.prevent="text += '\n'"
                 rows="1"></textarea>
-      <button class="btn btn-primary send-btn" @click="sendMessage" :disabled="!text.trim()"
+      <button class="btn btn-primary send-btn" @click="sendMessage" :disabled="!canSendText"
               aria-label="发送消息">
         发送
       </button>
     </div>
+    <p class="message-budget" :class="{ 'over-budget': !textBudget.withinBudget }"
+       role="status" aria-live="polite" aria-label="消息字节数">
+      {{ textBudgetLabel }}
+    </p>
   </div>
 </template>
 
@@ -74,6 +78,7 @@ import { useUserStore } from '../stores/user'
 import { useChatStore } from '../stores/chat'
 import { chatWs, MAX_SMALL_FILE } from '../services/websocket'
 import { conversationCache } from '../persistence/conversationCache'
+import { messageTextBudget, messageTextBudgetLabel } from '../messaging/messageTextBudget.js'
 import EmojiPicker from './EmojiPicker.vue'
 
 const props = defineProps({
@@ -89,6 +94,9 @@ const fileInput = ref(null)
 const recoveryFileInput = ref(null)
 const textareaRef = ref(null)
 const replacementCommand = ref(null)
+const textBudget = computed(() => messageTextBudget(text.value))
+const textBudgetLabel = computed(() => messageTextBudgetLabel(text.value))
+const canSendText = computed(() => Boolean(text.value.trim()) && textBudget.value.withinBudget)
 let activeDraftIdentity = null
 let draftSaveTimer = null
 let draftLoadGeneration = 0
@@ -155,7 +163,7 @@ onBeforeUnmount(flushDraft)
 function sendMessage(e) {
   if (e) e.preventDefault()
   const msg = text.value.trim()
-  if (!msg) return
+  if (!msg || !textBudget.value.withinBudget) return
 
   if (props.friendMode) {
     if (!chatStore.currentFriendUsername) return
@@ -288,6 +296,16 @@ function uploadPercent(u) {
   height: 36px;
   padding: 0 20px;
   flex-shrink: 0;
+}
+.message-budget {
+  margin: 4px 0 0;
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.message-budget.over-budget {
+  color: var(--danger-color, #c62828);
+  font-weight: 600;
 }
 
 /* 上传状态 */

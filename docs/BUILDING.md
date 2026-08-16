@@ -2194,6 +2194,10 @@ The same Widgets test enters multibyte Unicode beyond 65,536 UTF-8 bytes and
 requires the accessible byte-budget label to announce the overage while the
 shared send action is disabled. The editor and persisted draft remain intact;
 this is preflight UX and does not replace repository, protocol, or server bounds.
+Web unit/source tests verify the same exact/over-limit multibyte cases and require
+both V1 and V2 send/edit handlers to recheck the shared helper. `npm run build`
+also compiles the accessible live byte labels; the old V2 UTF-16 `maxlength`
+marker is forbidden.
 `v2_windows_messaging_application_test` composes the reviewed C++ codec and the
 isolated SQLite store without opening a socket. It proves persist-before-send,
 offline and reconnect replay with one client ID/target, bounded retryable
