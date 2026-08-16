@@ -16,6 +16,8 @@ public interface MessagingEventSink {
 
     default void forwardRateLimited() { }
 
+    default void searchPage() { }
+
     void livePublished(int count);
 
     void liveSlowConsumerClosed(int count);

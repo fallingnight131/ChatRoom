@@ -822,7 +822,7 @@ public final class V2MessagingHandler extends SimpleChannelInboundHandler<Envelo
                 request, MessageType.MESSAGE_TYPE_MESSAGE_HISTORY_PAGE, built.toByteString());
     }
 
-    private static MessageRecord messageRecord(
+    static MessageRecord messageRecord(
             StoredMessage message, boolean mentionsEnabled, boolean forwardingEnabled) {
         MessageRecord.Builder record = MessageRecord.newBuilder()
                 .setConversationId(message.conversationId().toString())

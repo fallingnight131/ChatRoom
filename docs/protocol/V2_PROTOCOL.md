@@ -114,7 +114,10 @@ the same limits independently of Protobuf. Its PostgreSQL adapter now
 reauthorizes active membership in a repeatable-read snapshot, matches current
 type-1 bodies literally and case-insensitively under the database collation,
 and excludes recalled/deleted rows. Runtime dispatch and both client capability
-advertisements remain absent. Old V2 clients
+advertisements remain absent. A detached authenticated handler already enforces
+capability 6, server-bound requester identity, a bounded serialized queue, safe
+error mapping, descending response validation, and independent mention/forward
+metadata filtering; it is not installed in the product pipeline. Old V2 clients
 therefore see no new capability or unsolicited shape. The three generated
 bindings parse and re-emit one fixed mixed-language Unicode command fixture
 identically (ADR-0404).

@@ -821,6 +821,13 @@ recalled rows. Because edits replace `message.payload`, their current body is
 the only searchable revision. The existing conversation-history index remains
 eligible for the bounded ordered scan; no new index or runtime handler has been
 introduced.
+The detached gateway handler now consumes only type 126 after authentication
+and capability-6 negotiation. It binds the requester from channel identity,
+serializes at most one search with eight queued commands on the bounded
+messaging executor, maps denial/saturation/failure to fixed protocol outcomes,
+and filters mention/forward markers unless those independent capabilities were
+also negotiated. It is not installed in the product pipeline and no handshake
+currently enables capability 6.
 
 Windows reply composition is now available only in the default-off
 V2 preview. A shared

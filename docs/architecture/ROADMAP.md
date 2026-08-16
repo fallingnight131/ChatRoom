@@ -2196,8 +2196,11 @@ Progress:
       group-lifecycle authorization, literal current-text matching, descending
       sequence pages, edit replacement, recall/deletion/non-text exclusion, and
       existing history-index eligibility evidence. Runtime remains uncomposed.
+    - [x] Add the detached capability-gated authenticated search handler with
+      server-bound account identity, bounded serialized work, defensive result
+      projection, feature-metadata filtering, and fixed failure/telemetry paths.
     - [ ] Add the capability/policy-gated gateway handler, fixed-cardinality
-      telemetry, runtime composition, and real TLS/WSS authorization gate.
+      runtime composition and real TLS/WSS authorization gate.
   - [ ] Add cache-aware, accessible Web and Windows search surfaces with
     endpoint-specific activation and context-history repair.
 

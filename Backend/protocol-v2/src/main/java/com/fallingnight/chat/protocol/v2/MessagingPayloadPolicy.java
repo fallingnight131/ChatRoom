@@ -137,6 +137,37 @@ public final class MessagingPayloadPolicy {
         requireNone(violations(command));
     }
 
+    public static void requireValid(ConversationMessageSearchPage page) {
+        List<String> violations = new ArrayList<>();
+        requireUuid("conversationId", page.getConversationId(), violations);
+        if (page.getHitsCount() > MAX_SEARCH_LIMIT
+                || (page.getHasMore() && page.getHitsCount() == 0)
+                || page.getNextBeforeSequence() < 0) {
+            violations.add("search page bounds are invalid");
+        }
+        long previous = Long.MAX_VALUE;
+        for (MessageRecord hit : page.getHitsList()) {
+            try {
+                requireValid(hit);
+            } catch (IllegalArgumentException exception) {
+                violations.add("search hit is invalid");
+                continue;
+            }
+            if (!page.getConversationId().equals(hit.getConversationId())
+                    || hit.getContentType() != MessageContentType
+                            .MESSAGE_CONTENT_TYPE_TEXT_UTF8_VALUE
+                    || hit.getConversationSequence() >= previous) {
+                violations.add("search hits must be current text in descending order");
+            }
+            previous = hit.getConversationSequence();
+        }
+        long expectedCursor = page.getHitsCount() == 0 ? 0 : previous;
+        if (page.getNextBeforeSequence() != expectedCursor) {
+            violations.add("nextBeforeSequence must identify the last hit");
+        }
+        requireNone(violations);
+    }
+
     private static void validateSearchQuery(String query, List<String> violations) {
         if (!query.equals(query.strip())) {
             violations.add("literalQuery must be stripped");
