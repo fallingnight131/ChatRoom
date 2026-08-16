@@ -74,6 +74,8 @@ reused:
 | 113 | `MessagePinChanged` | event | future ordered pin projection change |
 | 110 | `ListConversations` | command | authenticated client to server; bounded directory page |
 | 111 | `ConversationDirectoryPage` | response | server to authenticated active member |
+| 126 | `SearchConversationMessages` | command | future capable authenticated client; literal per-conversation search |
+| 127 | `ConversationMessageSearchPage` | response | future correlated descending current-state results |
 
 `SubmitMessage` carries a canonical conversation UUID and a registered content
 type. Content type 1 is permanently assigned to nonempty valid UTF-8 text with a
@@ -98,6 +100,21 @@ deletion targets are translated to stable V2 message UUIDs; attachment IDs are
 not exposed before attachment migration. Authorization failures use the opaque
 `NOT_AUTHORIZED` protocol code; conflicting reuse of a client message ID uses
 `IDEMPOTENCY_CONFLICT`.
+
+Capability 6 and types 126/127 define the inactive conversation-search wire
+boundary. The command carries one canonical conversation UUID, an already
+stripped literal query of 1..128 UTF-8 bytes, a signed-server-range exclusive
+`before_sequence` (zero starts at the current tail), and a limit of 1..50. The
+response returns current `MessageRecord` hits in strictly descending sequence
+order and repeats the last hit sequence as its next cursor. Search has no
+idempotency key and never advances the ordinary synchronization cursor.
+
+The application port binds the requester account from authentication and owns
+the same limits independently of Protobuf. Runtime dispatch, PostgreSQL query,
+and both client capability advertisements remain absent. Old V2 clients
+therefore see no new capability or unsolicited shape. The three generated
+bindings parse and re-emit one fixed mixed-language Unicode command fixture
+identically (ADR-0404).
 
 After authentication, the gateway dispatches types 100 and 102 through the
 transport-independent application ports and PostgreSQL adapter. It uses only

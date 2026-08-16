@@ -131,6 +131,43 @@ class MessageModelTest {
     }
 
     @Test
+    void searchModelsNormalizeLiteralAndRequireDescendingStableHits() {
+        UUID conversationId = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+        MessageSearchQuery query = new MessageSearchQuery(
+                conversationId, accountId, "  聊天  ", 0, 25);
+        org.junit.jupiter.api.Assertions.assertEquals("聊天", query.literalQuery());
+
+        StoredMessage newest = searchHit(conversationId, 9, "聊天 one");
+        StoredMessage older = searchHit(conversationId, 4, "聊天 two");
+        MessageSearchPage page = new MessageSearchPage(
+                conversationId, List.of(newest, older), 4, true);
+        new MessageSearchResult.Found(page);
+
+        assertThrows(IllegalArgumentException.class, () -> new MessageSearchQuery(
+                conversationId, accountId, " ", 0, 25));
+        assertThrows(IllegalArgumentException.class, () -> new MessageSearchQuery(
+                conversationId, accountId, "聊".repeat(43), 0, 25));
+        assertThrows(IllegalArgumentException.class, () -> new MessageSearchQuery(
+                conversationId, accountId, "\ud800", 0, 25));
+        assertThrows(IllegalArgumentException.class, () -> new MessageSearchQuery(
+                conversationId, accountId, "x", -1, 25));
+        assertThrows(IllegalArgumentException.class, () -> new MessageSearchPage(
+                conversationId, List.of(older, newest), 9, false));
+        assertThrows(IllegalArgumentException.class, () -> new MessageSearchPage(
+                conversationId, List.of(searchHit(UUID.randomUUID(), 3, "x")), 3, false));
+        assertThrows(IllegalArgumentException.class, () -> new MessageSearchPage(
+                conversationId, List.of(), 0, true));
+    }
+
+    private static StoredMessage searchHit(UUID conversationId, long sequence, String text) {
+        return new StoredMessage(
+                UUID.randomUUID(), conversationId, sequence, UUID.randomUUID(),
+                UUID.randomUUID(), "search-" + sequence, 1,
+                text.getBytes(StandardCharsets.UTF_8), Instant.EPOCH);
+    }
+
+    @Test
     void forwardingModelsRequireBoundedIntentAndPrivacySafeProjection() {
         MessageForwardCommand command = new MessageForwardCommand(
                 UUID.randomUUID(), UUID.randomUUID(), 0, UUID.randomUUID(),

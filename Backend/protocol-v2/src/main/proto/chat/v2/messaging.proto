@@ -130,6 +130,15 @@ message ReadMessageHistory {
   uint32 limit = 3;
 }
 
+// Searches current text within one server-authorized conversation. A zero
+// cursor starts at the current tail; a positive cursor is exclusive.
+message SearchConversationMessages {
+  string conversation_id = 1;
+  string literal_query = 2;
+  uint64 before_sequence = 3;
+  uint32 limit = 4;
+}
+
 message MessageRecord {
   string conversation_id = 1;
   string message_id = 2;
@@ -230,4 +239,11 @@ message MessageHistoryPage {
   uint64 latest_sequence = 4;
   bool has_more = 5;
   repeated ConversationEntryRecord entries = 6;
+}
+
+message ConversationMessageSearchPage {
+  string conversation_id = 1;
+  repeated MessageRecord hits = 2;
+  uint64 next_before_sequence = 3;
+  bool has_more = 4;
 }

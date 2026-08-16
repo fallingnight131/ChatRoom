@@ -1,5 +1,7 @@
 package com.fallingnight.chat.protocol.v2;
 
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -15,6 +17,8 @@ public final class MessagingPayloadPolicy {
     public static final int MAX_CONTENT_REVISIONS = 100;
     public static final int MAX_MENTION_SPANS = 20;
     public static final int MAX_DISTINCT_MENTION_TARGETS = 10;
+    public static final int MAX_SEARCH_QUERY_UTF8_BYTES = 128;
+    public static final int MAX_SEARCH_LIMIT = 50;
 
     private MessagingPayloadPolicy() {}
 
@@ -68,6 +72,19 @@ public final class MessagingPayloadPolicy {
         return List.copyOf(violations);
     }
 
+    public static List<String> violations(SearchConversationMessages command) {
+        List<String> violations = new ArrayList<>();
+        requireUuid("conversationId", command.getConversationId(), violations);
+        validateSearchQuery(command.getLiteralQuery(), violations);
+        if (command.getBeforeSequence() < 0) {
+            violations.add("beforeSequence exceeds signed server range");
+        }
+        if (command.getLimit() < 1 || command.getLimit() > MAX_SEARCH_LIMIT) {
+            violations.add("limit must be in 1..50");
+        }
+        return List.copyOf(violations);
+    }
+
     public static List<String> violations(SetMessageReaction command) {
         List<String> violations = new ArrayList<>();
         requireUuid("conversationId", command.getConversationId(), violations);
@@ -114,6 +131,28 @@ public final class MessagingPayloadPolicy {
 
     public static void requireValid(ReadMessageHistory command) {
         requireNone(violations(command));
+    }
+
+    public static void requireValid(SearchConversationMessages command) {
+        requireNone(violations(command));
+    }
+
+    private static void validateSearchQuery(String query, List<String> violations) {
+        if (!query.equals(query.strip())) {
+            violations.add("literalQuery must be stripped");
+            return;
+        }
+        try {
+            int bytes = StandardCharsets.UTF_8.newEncoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .encode(java.nio.CharBuffer.wrap(query)).remaining();
+            if (bytes < 1 || bytes > MAX_SEARCH_QUERY_UTF8_BYTES) {
+                violations.add("literalQuery must contain 1..128 UTF-8 bytes");
+            }
+        } catch (CharacterCodingException exception) {
+            violations.add("literalQuery must be valid UTF-8");
+        }
     }
 
     public static void requireValid(SetMessageReaction command) {

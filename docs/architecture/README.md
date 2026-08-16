@@ -806,7 +806,8 @@ sequence are in
 [`MESSAGE_FORWARDING_ACTIVATION.md`](../deployment/MESSAGE_FORWARDING_ACTIVATION.md).
 
 ADR-0404 starts the next M6 slice with server-authoritative, per-conversation
-message search. Capability 6 and types 126/127 are reserved for bounded literal
+message search. Capability 6 and types 126/127 are allocated and locked across
+Java, TypeScript, and C++ for bounded literal
 UTF-8 queries and descending sequence pages. Active membership is rechecked at
 query time; recalled, deleted, and non-text messages are excluded; edits replace
 the searchable body. PostgreSQL remains truth and any index remains rebuildable.

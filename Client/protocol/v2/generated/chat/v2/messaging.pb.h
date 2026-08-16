@@ -68,6 +68,14 @@ extern const ::google::protobuf::internal::ClassDataFull ConversationEntryRecord
 #else
 extern const ConversationEntryRecordGlobalsTypeInternal ConversationEntryRecord_globals_;
 #endif  // PROTOBUF_MESSAGE_GLOBALS
+class ConversationMessageSearchPage;
+struct ConversationMessageSearchPageGlobalsTypeInternal;
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+extern ConversationMessageSearchPageGlobalsTypeInternal ConversationMessageSearchPage_globals_;
+extern const ::google::protobuf::internal::ClassDataFull ConversationMessageSearchPage_class_data_;
+#else
+extern const ConversationMessageSearchPageGlobalsTypeInternal ConversationMessageSearchPage_globals_;
+#endif  // PROTOBUF_MESSAGE_GLOBALS
 class EditMessage;
 struct EditMessageGlobalsTypeInternal;
 #ifndef PROTOBUF_MESSAGE_GLOBALS
@@ -195,6 +203,14 @@ extern ReadMessageHistoryGlobalsTypeInternal ReadMessageHistory_globals_;
 extern const ::google::protobuf::internal::ClassDataFull ReadMessageHistory_class_data_;
 #else
 extern const ReadMessageHistoryGlobalsTypeInternal ReadMessageHistory_globals_;
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+class SearchConversationMessages;
+struct SearchConversationMessagesGlobalsTypeInternal;
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+extern SearchConversationMessagesGlobalsTypeInternal SearchConversationMessages_globals_;
+extern const ::google::protobuf::internal::ClassDataFull SearchConversationMessages_class_data_;
+#else
+extern const SearchConversationMessagesGlobalsTypeInternal SearchConversationMessages_globals_;
 #endif  // PROTOBUF_MESSAGE_GLOBALS
 class SetMessagePin;
 struct SetMessagePinGlobalsTypeInternal;
@@ -852,6 +868,253 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED SetMessagePin final : public ::goog
 };
 // -------------------------------------------------------------------
 
+class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED SearchConversationMessages final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:chat.v2.SearchConversationMessages) */ {
+ public:
+  inline SearchConversationMessages() : SearchConversationMessages(nullptr) {}
+  ~SearchConversationMessages() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(SearchConversationMessages* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(SearchConversationMessages));
+  }
+#endif
+
+  template <typename = void>
+  explicit constexpr SearchConversationMessages(::google::protobuf::internal::ConstantInitialized,
+                           const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+                               class_data);
+
+  inline SearchConversationMessages(const SearchConversationMessages& from) : SearchConversationMessages(nullptr, from) {}
+  inline SearchConversationMessages(SearchConversationMessages&& from) noexcept : SearchConversationMessages(nullptr, ::std::move(from)) {}
+  inline SearchConversationMessages& operator=(const SearchConversationMessages& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline SearchConversationMessages& operator=(SearchConversationMessages&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  [[nodiscard]] inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  [[nodiscard]] inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL
+  mutable_unknown_fields() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL
+  GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  [[nodiscard]] static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  [[nodiscard]] static const SearchConversationMessages& default_instance() {
+    return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<SearchConversationMessages>(&SearchConversationMessages_globals_);
+  }
+  static constexpr int kIndexInFileMessages = 12;
+  friend void swap(SearchConversationMessages& a, SearchConversationMessages& b) { a.Swap(&b); }
+  inline void Swap(SearchConversationMessages* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(SearchConversationMessages* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  [[nodiscard]] SearchConversationMessages* PROTOBUF_NONNULL
+  New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<SearchConversationMessages>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const SearchConversationMessages& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const SearchConversationMessages& from) { SearchConversationMessages::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  [[nodiscard]] bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  [[nodiscard]] static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  [[nodiscard]] static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  [[nodiscard]] ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] ::size_t ByteSizeLong() const final;
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] int GetCachedSize() const {
+    return _impl_._cached_size_.Get();
+  }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(SearchConversationMessages* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "chat.v2.SearchConversationMessages"; }
+
+  explicit SearchConversationMessages(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  SearchConversationMessages(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const SearchConversationMessages& from);
+  SearchConversationMessages(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, SearchConversationMessages&& from) noexcept
+      : SearchConversationMessages(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_(
+      const MessageLite& prototype,
+      const ::google::protobuf::internal::TcParseTableBase* PROTOBUF_NULLABLE tc_table = nullptr);
+
+  [[nodiscard]] ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kConversationIdFieldNumber = 1,
+    kLiteralQueryFieldNumber = 2,
+    kBeforeSequenceFieldNumber = 3,
+    kLimitFieldNumber = 4,
+  };
+  // string conversation_id = 1;
+  void clear_conversation_id() ;
+  [[nodiscard]] const ::std::string& conversation_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_conversation_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_conversation_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_conversation_id();
+  void set_allocated_conversation_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_conversation_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_conversation_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_conversation_id();
+
+  public:
+  // string literal_query = 2;
+  void clear_literal_query() ;
+  [[nodiscard]] const ::std::string& literal_query() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_literal_query(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_literal_query();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_literal_query();
+  void set_allocated_literal_query(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_literal_query() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_literal_query(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_literal_query();
+
+  public:
+  // uint64 before_sequence = 3;
+  void clear_before_sequence() ;
+  [[nodiscard]] ::uint64_t before_sequence() const;
+  void set_before_sequence(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_before_sequence() const;
+  void _internal_set_before_sequence(::uint64_t value);
+
+  public:
+  // uint32 limit = 4;
+  void clear_limit() ;
+  [[nodiscard]] ::uint32_t limit() const;
+  void set_limit(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_limit() const;
+  void _internal_set_limit(::uint32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:chat.v2.SearchConversationMessages)
+ private:
+  class _Internal;
+  using ParseTableT_ =
+      ::google::protobuf::internal::TcParseTable<2, 4,
+                          0, 71,
+                          2>;
+  static constexpr ParseTableT_ InternalGenerateParseTable_(
+      const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL class_data);
+  friend class ::google::protobuf::internal::TcParser;
+  #ifndef PROTOBUF_MESSAGE_GLOBALS
+  static const ParseTableT_ _table_;
+  #endif
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  friend ::google::protobuf::internal::PrivateAccess;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                                    ::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const SearchConversationMessages& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::internal::ArenaStringPtr conversation_id_;
+    ::google::protobuf::internal::ArenaStringPtr literal_query_;
+    ::uint64_t before_sequence_;
+    ::uint32_t limit_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_chat_2fv2_2fmessaging_2eproto;
+};
+// -------------------------------------------------------------------
+
 class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ReadMessageHistory final : public ::google::protobuf::Message
 /* @@protoc_insertion_point(class_definition:chat.v2.ReadMessageHistory) */ {
  public:
@@ -1138,7 +1401,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessagesDeletedRecord final : publi
   [[nodiscard]] static const MessagesDeletedRecord& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessagesDeletedRecord>(&MessagesDeletedRecord_globals_);
   }
-  static constexpr int kIndexInFileMessages = 15;
+  static constexpr int kIndexInFileMessages = 16;
   friend void swap(MessagesDeletedRecord& a, MessagesDeletedRecord& b) { a.Swap(&b); }
   inline void Swap(MessagesDeletedRecord* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1506,7 +1769,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageReplyReference final : publi
   [[nodiscard]] static const MessageReplyReference& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessageReplyReference>(&MessageReplyReference_globals_);
   }
-  static constexpr int kIndexInFileMessages = 13;
+  static constexpr int kIndexInFileMessages = 14;
   friend void swap(MessageReplyReference& a, MessageReplyReference& b) { a.Swap(&b); }
   inline void Swap(MessageReplyReference* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -1741,7 +2004,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageRecalledRecord final : publi
   [[nodiscard]] static const MessageRecalledRecord& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessageRecalledRecord>(&MessageRecalledRecord_globals_);
   }
-  static constexpr int kIndexInFileMessages = 14;
+  static constexpr int kIndexInFileMessages = 15;
   friend void swap(MessageRecalledRecord& a, MessageRecalledRecord& b) { a.Swap(&b); }
   inline void Swap(MessageRecalledRecord* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2022,7 +2285,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageReactionChangedRecord final 
   [[nodiscard]] static const MessageReactionChangedRecord& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessageReactionChangedRecord>(&MessageReactionChangedRecord_globals_);
   }
-  static constexpr int kIndexInFileMessages = 16;
+  static constexpr int kIndexInFileMessages = 17;
   friend void swap(MessageReactionChangedRecord& a, MessageReactionChangedRecord& b) { a.Swap(&b); }
   inline void Swap(MessageReactionChangedRecord* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -2656,7 +2919,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessagePinChangedRecord final : pub
   [[nodiscard]] static const MessagePinChangedRecord& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessagePinChangedRecord>(&MessagePinChangedRecord_globals_);
   }
-  static constexpr int kIndexInFileMessages = 17;
+  static constexpr int kIndexInFileMessages = 18;
   friend void swap(MessagePinChangedRecord& a, MessagePinChangedRecord& b) { a.Swap(&b); }
   inline void Swap(MessagePinChangedRecord* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -4540,7 +4803,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageRecord final : public ::goog
   [[nodiscard]] static const MessageRecord& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessageRecord>(&MessageRecord_globals_);
   }
-  static constexpr int kIndexInFileMessages = 12;
+  static constexpr int kIndexInFileMessages = 13;
   friend void swap(MessageRecord& a, MessageRecord& b) { a.Swap(&b); }
   inline void Swap(MessageRecord* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -4944,7 +5207,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageEditedRecord final : public 
   [[nodiscard]] static const MessageEditedRecord& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessageEditedRecord>(&MessageEditedRecord_globals_);
   }
-  static constexpr int kIndexInFileMessages = 18;
+  static constexpr int kIndexInFileMessages = 19;
   friend void swap(MessageEditedRecord& a, MessageEditedRecord& b) { a.Swap(&b); }
   inline void Swap(MessageEditedRecord* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -5906,6 +6169,259 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED EditMessage final : public ::google
 };
 // -------------------------------------------------------------------
 
+class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ConversationMessageSearchPage final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:chat.v2.ConversationMessageSearchPage) */ {
+ public:
+  inline ConversationMessageSearchPage() : ConversationMessageSearchPage(nullptr) {}
+  ~ConversationMessageSearchPage() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(ConversationMessageSearchPage* PROTOBUF_NONNULL msg, ::std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(ConversationMessageSearchPage));
+  }
+#endif
+
+  template <typename = void>
+  explicit constexpr ConversationMessageSearchPage(::google::protobuf::internal::ConstantInitialized,
+                           const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+                               class_data);
+
+  inline ConversationMessageSearchPage(const ConversationMessageSearchPage& from) : ConversationMessageSearchPage(nullptr, from) {}
+  inline ConversationMessageSearchPage(ConversationMessageSearchPage&& from) noexcept : ConversationMessageSearchPage(nullptr, ::std::move(from)) {}
+  inline ConversationMessageSearchPage& operator=(const ConversationMessageSearchPage& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline ConversationMessageSearchPage& operator=(ConversationMessageSearchPage&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  [[nodiscard]] inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  [[nodiscard]] inline ::google::protobuf::UnknownFieldSet* PROTOBUF_NONNULL
+  mutable_unknown_fields() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL descriptor() {
+    return GetDescriptor();
+  }
+  [[nodiscard]] static const ::google::protobuf::Descriptor* PROTOBUF_NONNULL
+  GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  [[nodiscard]] static const ::google::protobuf::Reflection* PROTOBUF_NONNULL GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  [[nodiscard]] static const ConversationMessageSearchPage& default_instance() {
+    return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<ConversationMessageSearchPage>(&ConversationMessageSearchPage_globals_);
+  }
+  static constexpr int kIndexInFileMessages = 22;
+  friend void swap(ConversationMessageSearchPage& a, ConversationMessageSearchPage& b) { a.Swap(&b); }
+  inline void Swap(ConversationMessageSearchPage* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(ConversationMessageSearchPage* PROTOBUF_NONNULL other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  [[nodiscard]] ConversationMessageSearchPage* PROTOBUF_NONNULL
+  New(::google::protobuf::Arena* PROTOBUF_NULLABLE arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<ConversationMessageSearchPage>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const ConversationMessageSearchPage& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const ConversationMessageSearchPage& from) { ConversationMessageSearchPage::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(::google::protobuf::MessageLite& to_msg,
+                        const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  [[nodiscard]] bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  [[nodiscard]] static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  [[nodiscard]] static ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      const ::google::protobuf::MessageLite& msg, ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream);
+
+  public:
+  [[nodiscard]] ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] ::size_t ByteSizeLong() const final;
+  [[nodiscard]] ::uint8_t* PROTOBUF_NONNULL _InternalSerialize(
+      ::uint8_t* PROTOBUF_NONNULL target,
+      ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  [[nodiscard]] int GetCachedSize() const {
+    return _impl_._cached_size_.Get();
+  }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(ConversationMessageSearchPage* PROTOBUF_NONNULL other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "chat.v2.ConversationMessageSearchPage"; }
+
+  explicit ConversationMessageSearchPage(::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  ConversationMessageSearchPage(::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const ConversationMessageSearchPage& from);
+  ConversationMessageSearchPage(
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, ConversationMessageSearchPage&& from) noexcept
+      : ConversationMessageSearchPage(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL GetClassData() const PROTOBUF_FINAL;
+  static void* PROTOBUF_NONNULL PlacementNew_(
+      const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+      ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+  static constexpr auto InternalNewImpl_();
+
+ public:
+  static constexpr auto InternalGenerateClassData_(
+      const MessageLite& prototype,
+      const ::google::protobuf::internal::TcParseTableBase* PROTOBUF_NULLABLE tc_table = nullptr);
+
+  [[nodiscard]] ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kHitsFieldNumber = 2,
+    kConversationIdFieldNumber = 1,
+    kNextBeforeSequenceFieldNumber = 3,
+    kHasMoreFieldNumber = 4,
+  };
+  // repeated .chat.v2.MessageRecord hits = 2;
+  [[nodiscard]] int hits_size()
+      const;
+  private:
+  int _internal_hits_size() const;
+
+  public:
+  void clear_hits() ;
+  [[nodiscard]] const ::chat::v2::MessageRecord& hits(int index) const;
+  [[nodiscard]] ::chat::v2::MessageRecord* PROTOBUF_NONNULL mutable_hits(int index);
+  ::chat::v2::MessageRecord* PROTOBUF_NONNULL add_hits();
+  [[nodiscard]] const ::google::protobuf::RepeatedPtrField<::chat::v2::MessageRecord>&
+  hits() const;
+  [[nodiscard]] ::google::protobuf::RepeatedPtrField<::chat::v2::MessageRecord>* PROTOBUF_NONNULL
+  mutable_hits();
+
+  private:
+  const ::google::protobuf::RepeatedPtrField<::chat::v2::MessageRecord>& _internal_hits() const;
+  ::google::protobuf::RepeatedPtrField<::chat::v2::MessageRecord>* PROTOBUF_NONNULL _internal_mutable_hits();
+
+  public:
+  // string conversation_id = 1;
+  void clear_conversation_id() ;
+  [[nodiscard]] const ::std::string& conversation_id() const;
+  template <typename Arg_ = const ::std::string&, typename... Args_>
+  void set_conversation_id(Arg_&& arg, Args_... args);
+  ::std::string* PROTOBUF_NONNULL mutable_conversation_id();
+  [[nodiscard]] ::std::string* PROTOBUF_NULLABLE release_conversation_id();
+  void set_allocated_conversation_id(::std::string* PROTOBUF_NULLABLE value);
+
+  private:
+  const ::std::string& _internal_conversation_id() const;
+  PROTOBUF_ALWAYS_INLINE void _internal_set_conversation_id(const ::std::string& value);
+  ::std::string* PROTOBUF_NONNULL _internal_mutable_conversation_id();
+
+  public:
+  // uint64 next_before_sequence = 3;
+  void clear_next_before_sequence() ;
+  [[nodiscard]] ::uint64_t next_before_sequence() const;
+  void set_next_before_sequence(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_next_before_sequence() const;
+  void _internal_set_next_before_sequence(::uint64_t value);
+
+  public:
+  // bool has_more = 4;
+  void clear_has_more() ;
+  [[nodiscard]] bool has_more() const;
+  void set_has_more(bool value);
+
+  private:
+  bool _internal_has_more() const;
+  void _internal_set_has_more(bool value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:chat.v2.ConversationMessageSearchPage)
+ private:
+  class _Internal;
+  using ParseTableT_ =
+      ::google::protobuf::internal::TcParseTable<2, 4,
+                          1, 61,
+                          2>;
+  static constexpr ParseTableT_ InternalGenerateParseTable_(
+      const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL class_data);
+  friend class ::google::protobuf::internal::TcParser;
+  #ifndef PROTOBUF_MESSAGE_GLOBALS
+  static const ParseTableT_ _table_;
+  #endif
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  friend ::google::protobuf::internal::PrivateAccess;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                                    ::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena);
+    inline explicit Impl_(
+        ::google::protobuf::internal::InternalVisibility visibility,
+        ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+        const ConversationMessageSearchPage& from_msg);
+    ::google::protobuf::internal::HasBits<1> _has_bits_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::google::protobuf::RepeatedPtrField< ::chat::v2::MessageRecord > hits_;
+    ::google::protobuf::internal::ArenaStringPtr conversation_id_;
+    ::uint64_t next_before_sequence_;
+    bool has_more_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_chat_2fv2_2fmessaging_2eproto;
+};
+// -------------------------------------------------------------------
+
 class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ConversationEntryRecord final : public ::google::protobuf::Message
 /* @@protoc_insertion_point(class_definition:chat.v2.ConversationEntryRecord) */ {
  public:
@@ -5971,7 +6487,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED ConversationEntryRecord final : pub
     kEdit = 8,
     DETAIL_NOT_SET = 0,
   };
-  static constexpr int kIndexInFileMessages = 19;
+  static constexpr int kIndexInFileMessages = 20;
   friend void swap(ConversationEntryRecord& a, ConversationEntryRecord& b) { a.Swap(&b); }
   inline void Swap(ConversationEntryRecord* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -6336,7 +6852,7 @@ class  PROTOBUF_FUTURE_ADD_EARLY_WARN_UNUSED MessageHistoryPage final : public :
   [[nodiscard]] static const MessageHistoryPage& default_instance() {
     return *::google::protobuf::internal::MessageGlobalsBase::ToDefaultInstance<MessageHistoryPage>(&MessageHistoryPage_globals_);
   }
-  static constexpr int kIndexInFileMessages = 20;
+  static constexpr int kIndexInFileMessages = 21;
   friend void swap(MessageHistoryPage& a, MessageHistoryPage& b) { a.Swap(&b); }
   inline void Swap(MessageHistoryPage* PROTOBUF_NONNULL other) {
     if (other == this) return;
@@ -9851,6 +10367,186 @@ inline ::uint32_t ReadMessageHistory::_internal_limit() const {
   return _impl_.limit_;
 }
 inline void ReadMessageHistory::_internal_set_limit(::uint32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.limit_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// SearchConversationMessages
+
+// string conversation_id = 1;
+inline void SearchConversationMessages::clear_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.conversation_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+}
+inline const ::std::string& SearchConversationMessages::conversation_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.SearchConversationMessages.conversation_id)
+  return _internal_conversation_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void SearchConversationMessages::set_conversation_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  _impl_.conversation_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.SearchConversationMessages.conversation_id)
+}
+inline ::std::string* PROTOBUF_NONNULL SearchConversationMessages::mutable_conversation_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  ::std::string* _s = _internal_mutable_conversation_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.SearchConversationMessages.conversation_id)
+  return _s;
+}
+inline const ::std::string& SearchConversationMessages::_internal_conversation_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.conversation_id_.Get();
+}
+inline void SearchConversationMessages::_internal_set_conversation_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.conversation_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL SearchConversationMessages::_internal_mutable_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.conversation_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE SearchConversationMessages::release_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.SearchConversationMessages.conversation_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000001U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  auto* released = _impl_.conversation_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.conversation_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void SearchConversationMessages::set_allocated_conversation_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+  }
+  _impl_.conversation_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.conversation_id_.IsDefault()) {
+    _impl_.conversation_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.SearchConversationMessages.conversation_id)
+}
+
+// string literal_query = 2;
+inline void SearchConversationMessages::clear_literal_query() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.literal_query_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+}
+inline const ::std::string& SearchConversationMessages::literal_query() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.SearchConversationMessages.literal_query)
+  return _internal_literal_query();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void SearchConversationMessages::set_literal_query(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  _impl_.literal_query_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.SearchConversationMessages.literal_query)
+}
+inline ::std::string* PROTOBUF_NONNULL SearchConversationMessages::mutable_literal_query()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ::std::string* _s = _internal_mutable_literal_query();
+  // @@protoc_insertion_point(field_mutable:chat.v2.SearchConversationMessages.literal_query)
+  return _s;
+}
+inline const ::std::string& SearchConversationMessages::_internal_literal_query() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.literal_query_.Get();
+}
+inline void SearchConversationMessages::_internal_set_literal_query(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.literal_query_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL SearchConversationMessages::_internal_mutable_literal_query() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.literal_query_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE SearchConversationMessages::release_literal_query() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.SearchConversationMessages.literal_query)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  auto* released = _impl_.literal_query_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.literal_query_.Set("", GetArena());
+  }
+  return released;
+}
+inline void SearchConversationMessages::set_allocated_literal_query(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  }
+  _impl_.literal_query_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.literal_query_.IsDefault()) {
+    _impl_.literal_query_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.SearchConversationMessages.literal_query)
+}
+
+// uint64 before_sequence = 3;
+inline void SearchConversationMessages::clear_before_sequence() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.before_sequence_ = ::uint64_t{0u};
+  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+}
+inline ::uint64_t SearchConversationMessages::before_sequence() const {
+  // @@protoc_insertion_point(field_get:chat.v2.SearchConversationMessages.before_sequence)
+  return _internal_before_sequence();
+}
+inline void SearchConversationMessages::set_before_sequence(::uint64_t value) {
+  _internal_set_before_sequence(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  // @@protoc_insertion_point(field_set:chat.v2.SearchConversationMessages.before_sequence)
+}
+inline ::uint64_t SearchConversationMessages::_internal_before_sequence() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.before_sequence_;
+}
+inline void SearchConversationMessages::_internal_set_before_sequence(::uint64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.before_sequence_ = value;
+}
+
+// uint32 limit = 4;
+inline void SearchConversationMessages::clear_limit() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.limit_ = 0u;
+  ClearHasBit(_impl_._has_bits_[0], 0x00000008U);
+}
+inline ::uint32_t SearchConversationMessages::limit() const {
+  // @@protoc_insertion_point(field_get:chat.v2.SearchConversationMessages.limit)
+  return _internal_limit();
+}
+inline void SearchConversationMessages::set_limit(::uint32_t value) {
+  _internal_set_limit(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000008U);
+  // @@protoc_insertion_point(field_set:chat.v2.SearchConversationMessages.limit)
+}
+inline ::uint32_t SearchConversationMessages::_internal_limit() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.limit_;
+}
+inline void SearchConversationMessages::_internal_set_limit(::uint32_t value) {
   ::google::protobuf::internal::TSanWrite(&_impl_);
   _impl_.limit_ = value;
 }
@@ -13564,6 +14260,177 @@ inline ::google::protobuf::RepeatedPtrField<::chat::v2::ConversationEntryRecord>
 MessageHistoryPage::_internal_mutable_entries() {
   ::google::protobuf::internal::TSanRead(&_impl_);
   return &_impl_.entries_;
+}
+
+// -------------------------------------------------------------------
+
+// ConversationMessageSearchPage
+
+// string conversation_id = 1;
+inline void ConversationMessageSearchPage::clear_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.conversation_id_.ClearToEmpty();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+}
+inline const ::std::string& ConversationMessageSearchPage::conversation_id() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.ConversationMessageSearchPage.conversation_id)
+  return _internal_conversation_id();
+}
+template <typename Arg_, typename... Args_>
+PROTOBUF_ALWAYS_INLINE void ConversationMessageSearchPage::set_conversation_id(Arg_&& arg, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  _impl_.conversation_id_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:chat.v2.ConversationMessageSearchPage.conversation_id)
+}
+inline ::std::string* PROTOBUF_NONNULL ConversationMessageSearchPage::mutable_conversation_id()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  ::std::string* _s = _internal_mutable_conversation_id();
+  // @@protoc_insertion_point(field_mutable:chat.v2.ConversationMessageSearchPage.conversation_id)
+  return _s;
+}
+inline const ::std::string& ConversationMessageSearchPage::_internal_conversation_id() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.conversation_id_.Get();
+}
+inline void ConversationMessageSearchPage::_internal_set_conversation_id(const ::std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.conversation_id_.Set(value, GetArena());
+}
+inline ::std::string* PROTOBUF_NONNULL ConversationMessageSearchPage::_internal_mutable_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.conversation_id_.Mutable( GetArena());
+}
+inline ::std::string* PROTOBUF_NULLABLE ConversationMessageSearchPage::release_conversation_id() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:chat.v2.ConversationMessageSearchPage.conversation_id)
+  if (!CheckHasBit(_impl_._has_bits_[0], 0x00000002U)) {
+    return nullptr;
+  }
+  ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  auto* released = _impl_.conversation_id_.Release();
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString()) {
+    _impl_.conversation_id_.Set("", GetArena());
+  }
+  return released;
+}
+inline void ConversationMessageSearchPage::set_allocated_conversation_id(::std::string* PROTOBUF_NULLABLE value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (value != nullptr) {
+    SetHasBit(_impl_._has_bits_[0], 0x00000002U);
+  } else {
+    ClearHasBit(_impl_._has_bits_[0], 0x00000002U);
+  }
+  _impl_.conversation_id_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.conversation_id_.IsDefault()) {
+    _impl_.conversation_id_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:chat.v2.ConversationMessageSearchPage.conversation_id)
+}
+
+// repeated .chat.v2.MessageRecord hits = 2;
+inline int ConversationMessageSearchPage::_internal_hits_size() const {
+  return _internal_hits().size();
+}
+inline int ConversationMessageSearchPage::hits_size() const {
+  return _internal_hits_size();
+}
+inline void ConversationMessageSearchPage::clear_hits() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.hits_.Clear();
+  ClearHasBit(_impl_._has_bits_[0], 0x00000001U);
+}
+inline const ::chat::v2::MessageRecord& ConversationMessageSearchPage::hits(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:chat.v2.ConversationMessageSearchPage.hits)
+  return _internal_hits().Get(index);
+}
+inline ::chat::v2::MessageRecord* PROTOBUF_NONNULL ConversationMessageSearchPage::mutable_hits(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:chat.v2.ConversationMessageSearchPage.hits)
+  return _internal_mutable_hits()->Mutable(index);
+}
+inline ::chat::v2::MessageRecord* PROTOBUF_NONNULL ConversationMessageSearchPage::add_hits()
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::chat::v2::MessageRecord* _add =
+      _internal_mutable_hits()->InternalAddWithArena(
+          ::google::protobuf::MessageLite::internal_visibility(), GetArena());
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  // @@protoc_insertion_point(field_add:chat.v2.ConversationMessageSearchPage.hits)
+  return _add;
+}
+inline const ::google::protobuf::RepeatedPtrField<::chat::v2::MessageRecord>& ConversationMessageSearchPage::hits() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:chat.v2.ConversationMessageSearchPage.hits)
+  return _internal_hits();
+}
+inline ::google::protobuf::RepeatedPtrField<::chat::v2::MessageRecord>* PROTOBUF_NONNULL
+ConversationMessageSearchPage::mutable_hits() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  SetHasBit(_impl_._has_bits_[0], 0x00000001U);
+  // @@protoc_insertion_point(field_mutable_list:chat.v2.ConversationMessageSearchPage.hits)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_hits();
+}
+inline const ::google::protobuf::RepeatedPtrField<::chat::v2::MessageRecord>&
+ConversationMessageSearchPage::_internal_hits() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.hits_;
+}
+inline ::google::protobuf::RepeatedPtrField<::chat::v2::MessageRecord>* PROTOBUF_NONNULL
+ConversationMessageSearchPage::_internal_mutable_hits() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.hits_;
+}
+
+// uint64 next_before_sequence = 3;
+inline void ConversationMessageSearchPage::clear_next_before_sequence() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.next_before_sequence_ = ::uint64_t{0u};
+  ClearHasBit(_impl_._has_bits_[0], 0x00000004U);
+}
+inline ::uint64_t ConversationMessageSearchPage::next_before_sequence() const {
+  // @@protoc_insertion_point(field_get:chat.v2.ConversationMessageSearchPage.next_before_sequence)
+  return _internal_next_before_sequence();
+}
+inline void ConversationMessageSearchPage::set_next_before_sequence(::uint64_t value) {
+  _internal_set_next_before_sequence(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000004U);
+  // @@protoc_insertion_point(field_set:chat.v2.ConversationMessageSearchPage.next_before_sequence)
+}
+inline ::uint64_t ConversationMessageSearchPage::_internal_next_before_sequence() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.next_before_sequence_;
+}
+inline void ConversationMessageSearchPage::_internal_set_next_before_sequence(::uint64_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.next_before_sequence_ = value;
+}
+
+// bool has_more = 4;
+inline void ConversationMessageSearchPage::clear_has_more() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.has_more_ = false;
+  ClearHasBit(_impl_._has_bits_[0], 0x00000008U);
+}
+inline bool ConversationMessageSearchPage::has_more() const {
+  // @@protoc_insertion_point(field_get:chat.v2.ConversationMessageSearchPage.has_more)
+  return _internal_has_more();
+}
+inline void ConversationMessageSearchPage::set_has_more(bool value) {
+  _internal_set_has_more(value);
+  SetHasBit(_impl_._has_bits_[0], 0x00000008U);
+  // @@protoc_insertion_point(field_set:chat.v2.ConversationMessageSearchPage.has_more)
+}
+inline bool ConversationMessageSearchPage::_internal_has_more() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.has_more_;
+}
+inline void ConversationMessageSearchPage::_internal_set_has_more(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.has_more_ = value;
 }
 
 #ifdef __GNUC__

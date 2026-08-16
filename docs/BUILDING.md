@@ -2572,6 +2572,22 @@ make a local build appear successful.
 
 ## Full Local Verification
 
+The inactive M6 conversation-search foundation allocates capability 6 and V2
+types 126/127 without registering a runtime handler or advertising the
+capability from Web/Windows. Its protocol/application gate is:
+
+```bash
+cd Backend
+./gradlew :protocol-v2:test :application:test
+cd ..
+python3 tools/verify_m0.py --protocol-bindings
+```
+
+The binding gate regenerates and byte-compares the committed TypeScript and C++
+trees, then runs the fixed Unicode search command through Java, TypeScript, and
+C++. This is wire/model evidence only, not an authorized database search path or
+a Windows Release product gate (ADR-0404).
+
 ```bash
 python3 tools/verify_m0.py --all
 ```

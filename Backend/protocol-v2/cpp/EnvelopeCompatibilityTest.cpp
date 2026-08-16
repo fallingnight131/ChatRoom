@@ -46,6 +46,9 @@ constexpr char kForwardMessageGoldenHex[] =
     "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
     "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
     "1803222430303030303030302d303030302d303030302d303030302d303030303030303030303033";
+constexpr char kSearchMessagesGoldenHex[] =
+    "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+    "1206e8818ae5a4a918ac022019";
 constexpr char kListConversationsGoldenHex[] =
     "0880d095ffbc31122430303030303030302d303030302d303030302d303030302d"
     "3030303030303030303030321819";
@@ -210,6 +213,18 @@ int main() {
                     != "00000000-0000-0000-0000-000000000003"
             || forward.SerializeAsString() != forwardGolden) {
         std::cerr << "generated C++ binding changed the ForwardMessage golden payload\n";
+        return 1;
+    }
+    const std::string searchGolden = fromHex(kSearchMessagesGoldenHex);
+    chat::v2::SearchConversationMessages search;
+    if (!search.ParseFromString(searchGolden)
+            || search.conversation_id()
+                    != "00000000-0000-0000-0000-000000000001"
+            || search.literal_query() != "\xE8\x81\x8A\xE5\xA4\xA9"
+            || search.before_sequence() != UINT64_C(300)
+            || search.limit() != 25
+            || search.SerializeAsString() != searchGolden) {
+        std::cerr << "generated C++ binding changed the search golden payload\n";
         return 1;
     }
     chat::v2::ListConversations list;

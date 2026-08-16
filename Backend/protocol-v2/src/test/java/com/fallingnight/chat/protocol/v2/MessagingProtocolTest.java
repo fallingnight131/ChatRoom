@@ -36,6 +36,9 @@ class MessagingProtocolTest {
             "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
                     + "122430303030303030302d303030302d303030302d303030302d303030303030303030303032"
                     + "1803222430303030303030302d303030302d303030302d303030302d303030303030303030303033";
+    private static final String SEARCH_MESSAGES_GOLDEN =
+            "0a2430303030303030302d303030302d303030302d303030302d303030303030303030303031"
+                    + "1206e8818ae5a4a918ac022019";
 
     @Test
     void submitMessageHasStableWireBytesAndPermanentRegistryKinds() throws Exception {
@@ -101,6 +104,40 @@ class MessagingProtocolTest {
                         .build(), "client-forward-3"));
         assertThrows(IllegalArgumentException.class, () ->
                 MessagingPayloadPolicy.requireValid(command, " "));
+    }
+
+    @Test
+    void searchHasStableUnicodeWireBytesAndBoundedLiteralPolicy() throws Exception {
+        SearchConversationMessages command = SearchConversationMessages.newBuilder()
+                .setConversationId(CONVERSATION_ID)
+                .setLiteralQuery("聊天")
+                .setBeforeSequence(300)
+                .setLimit(25)
+                .build();
+        MessagingPayloadPolicy.requireValid(command);
+        assertEquals(SEARCH_MESSAGES_GOLDEN,
+                HexFormat.of().formatHex(command.toByteArray()));
+        assertEquals(command, SearchConversationMessages.parseFrom(
+                HexFormat.of().parseHex(SEARCH_MESSAGES_GOLDEN)));
+        assertEquals(MessageKind.MESSAGE_KIND_COMMAND, MessageTypeRegistry.requiredKind(
+                MessageType.MESSAGE_TYPE_SEARCH_CONVERSATION_MESSAGES));
+        assertEquals(MessageKind.MESSAGE_KIND_RESPONSE, MessageTypeRegistry.requiredKind(
+                MessageType.MESSAGE_TYPE_CONVERSATION_MESSAGE_SEARCH_PAGE));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(command.toBuilder()
+                        .setLiteralQuery(" 聊天 ").build()));
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(command.toBuilder()
+                        .setLiteralQuery("聊".repeat(43)).build()));
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(command.toBuilder()
+                        .setLiteralQuery("\ud800").build()));
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(command.toBuilder().setLimit(51).build()));
+        assertThrows(IllegalArgumentException.class, () ->
+                MessagingPayloadPolicy.requireValid(command.toBuilder()
+                        .setBeforeSequence(Long.MIN_VALUE).build()));
     }
 
     @Test

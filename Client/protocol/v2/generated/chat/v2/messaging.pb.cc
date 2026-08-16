@@ -53,6 +53,8 @@ PROTOBUF_CONSTINIT ::google::protobuf::internal::ReflectionData
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
         // ::chat::v2::ReadMessageHistory
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
+        // ::chat::v2::SearchConversationMessages
+        {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
         // ::chat::v2::MessageRecord
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
         // ::chat::v2::MessageReplyReference
@@ -70,6 +72,8 @@ PROTOBUF_CONSTINIT ::google::protobuf::internal::ReflectionData
         // ::chat::v2::ConversationEntryRecord
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
         // ::chat::v2::MessageHistoryPage
+        {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
+        // ::chat::v2::ConversationMessageSearchPage
         {&::_pbi::kDescriptorMethods, &::descriptor_table_chat_2fv2_2fmessaging_2eproto, /* tracker*/ nullptr,},
 };
 }  // namespace
@@ -432,6 +436,176 @@ const ::_pbi::ClassData* SetMessagePin_get_class_data() {
 }
 }  // namespace
 #endif  // PROTOBUF_CUSTOM_VTABLE
+class SearchConversationMessages::_Internal {
+ public:
+  using HasBits = decltype(::std::declval<SearchConversationMessages>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(SearchConversationMessages, _impl_._has_bits_);
+};
+
+constexpr SearchConversationMessages::ParseTableT_ SearchConversationMessages::InternalGenerateParseTable_(const ::_pbi::ClassData* class_data) {
+  return ParseTableT_{
+    {
+      PROTOBUF_FIELD_OFFSET(SearchConversationMessages, _impl_._has_bits_),
+      0, // no _extensions_
+      4, 24,  // max_field_number, fast_idx_mask
+      offsetof(ParseTableT_, field_lookup_table),
+      4294967280,  // skipmap
+      offsetof(ParseTableT_, field_entries),
+      4,  // num_field_entries
+      0,  // num_aux_entries
+      offsetof(ParseTableT_, field_names),  // no aux_entries
+      class_data,
+      nullptr,  // post_loop_handler
+      ::_pbi::TcParser::GenericFallback,  // fallback
+      #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+      ::_pbi::TcParser::GetTable<::chat::v2::SearchConversationMessages>(),  // to_prefetch
+      #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+    }, {{
+      // uint32 limit = 4;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(SearchConversationMessages, _impl_.limit_), 3>(),
+       {32, 3, 0,
+        PROTOBUF_FIELD_OFFSET(SearchConversationMessages, _impl_.limit_)}},
+      // string conversation_id = 1;
+      {::_pbi::TcParser::FastUS1,
+       {10, 0, 0,
+        PROTOBUF_FIELD_OFFSET(SearchConversationMessages, _impl_.conversation_id_)}},
+      // string literal_query = 2;
+      {::_pbi::TcParser::FastUS1,
+       {18, 1, 0,
+        PROTOBUF_FIELD_OFFSET(SearchConversationMessages, _impl_.literal_query_)}},
+      // uint64 before_sequence = 3;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(SearchConversationMessages, _impl_.before_sequence_), 2>(),
+       {24, 2, 0,
+        PROTOBUF_FIELD_OFFSET(SearchConversationMessages, _impl_.before_sequence_)}},
+    }}, {{
+      65535, 65535
+    }}, {{
+      // string conversation_id = 1;
+      {PROTOBUF_FIELD_OFFSET(SearchConversationMessages, _impl_.conversation_id_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // string literal_query = 2;
+      {PROTOBUF_FIELD_OFFSET(SearchConversationMessages, _impl_.literal_query_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // uint64 before_sequence = 3;
+      {PROTOBUF_FIELD_OFFSET(SearchConversationMessages, _impl_.before_sequence_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt64)},
+      // uint32 limit = 4;
+      {PROTOBUF_FIELD_OFFSET(SearchConversationMessages, _impl_.limit_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt32)},
+    }},
+    // no aux_entries
+    {{
+      "\42\17\15\0\0\0\0\0"
+      "chat.v2.SearchConversationMessages"
+      "conversation_id"
+      "literal_query"
+    }},
+  };
+}
+
+
+inline constexpr SearchConversationMessages::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        conversation_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        literal_query_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        before_sequence_{::uint64_t{0u}},
+        limit_{0u} {}
+
+template <typename>
+constexpr SearchConversationMessages::SearchConversationMessages(::_pbi::ConstantInitialized,
+                       const ::_pbi::ClassData* PROTOBUF_NONNULL class_data)
+    : ::google::protobuf::Message(
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          class_data
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          ),
+      _impl_(internal_visibility(), ::_pbi::ConstantInitialized()) {
+}
+inline void* PROTOBUF_NONNULL SearchConversationMessages::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) SearchConversationMessages(arena);
+}
+constexpr auto SearchConversationMessages::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(SearchConversationMessages), alignof(SearchConversationMessages));
+}
+constexpr auto SearchConversationMessages::InternalGenerateClassData_(
+    const MessageLite& prototype,
+    const ::google::protobuf::internal::TcParseTableBase* tc_table) {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &prototype,
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+          &_table_.header,
+#else
+          tc_table,
+#endif
+          nullptr,  // IsInitialized
+          &SearchConversationMessages::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<SearchConversationMessages>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &SearchConversationMessages::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<SearchConversationMessages>(), &SearchConversationMessages::ByteSizeLong,
+              &SearchConversationMessages::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(SearchConversationMessages, _impl_._cached_size_),
+          false,
+      },
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+      &file_reflection_data[12],
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+      &::_pbi::kDescriptorMethods,
+      &descriptor_table_chat_2fv2_2fmessaging_2eproto,
+      nullptr,  // tracker
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  };
+}
+struct SearchConversationMessagesGlobalsTypeInternal : ::_pbi::MessageGlobalsBase {
+  constexpr SearchConversationMessagesGlobalsTypeInternal()
+      :
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+        _default(::_pbi::ConstantInitialized{},
+                 SearchConversationMessages_class_data_.base())
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+        MessageGlobalsBase(SearchConversationMessages::InternalGenerateClassData_(
+            _default, &SearchConversationMessages_globals_._table.header)),
+        _default(::_pbi::ConstantInitialized{}, GetClassData()),
+        _table(::_pbi::PrivateAccess::GenerateParseTable<SearchConversationMessages>(
+            GetClassData()))
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  {
+  }
+  ~SearchConversationMessagesGlobalsTypeInternal() {}
+  union {
+    alignas(::_pbi::kMaxMessageAlignment) SearchConversationMessages _default;
+  };
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  decltype(::_pbi::PrivateAccess::GenerateParseTable<SearchConversationMessages>(
+      ::std::declval<const ::_pbi::ClassData*>())) _table;
+#endif
+};
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+static_assert(PROTOBUF_FIELD_OFFSET(SearchConversationMessagesGlobalsTypeInternal, _default) ==
+              ::_pbi::MessageGlobalsBase::OffsetToDefault());
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PROTOBUF_MESSAGE_GLOBALS_CONST SearchConversationMessagesGlobalsTypeInternal SearchConversationMessages_globals_
+        PROTOBUF_MESSAGE_GLOBALS_SECTION(.data.rel.ro);
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+namespace {
+const ::_pbi::ClassData* SearchConversationMessages_get_class_data() {
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  return SearchConversationMessages_globals_.GetClassData();
+#else
+  return SearchConversationMessages_class_data_.base();
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+}
+}  // namespace
+#endif  // PROTOBUF_CUSTOM_VTABLE
 class ReadMessageHistory::_Internal {
  public:
   using HasBits = decltype(::std::declval<ReadMessageHistory>()._impl_._has_bits_);
@@ -783,7 +957,7 @@ constexpr auto MessagesDeletedRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[15],
+      &file_reflection_data[16],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -947,7 +1121,7 @@ constexpr auto MessageReplyReference::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[13],
+      &file_reflection_data[14],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -1139,7 +1313,7 @@ constexpr auto MessageRecalledRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[14],
+      &file_reflection_data[15],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -1343,7 +1517,7 @@ constexpr auto MessageReactionChangedRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[16],
+      &file_reflection_data[17],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -1765,7 +1939,7 @@ constexpr auto MessagePinChangedRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[17],
+      &file_reflection_data[18],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -3136,7 +3310,7 @@ constexpr auto MessageRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[12],
+      &file_reflection_data[13],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -3372,7 +3546,7 @@ constexpr auto MessageEditedRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[18],
+      &file_reflection_data[19],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -3878,6 +4052,183 @@ const ::_pbi::ClassData* EditMessage_get_class_data() {
 }
 }  // namespace
 #endif  // PROTOBUF_CUSTOM_VTABLE
+class ConversationMessageSearchPage::_Internal {
+ public:
+  using HasBits = decltype(::std::declval<ConversationMessageSearchPage>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+      8 * PROTOBUF_FIELD_OFFSET(ConversationMessageSearchPage, _impl_._has_bits_);
+};
+
+constexpr ConversationMessageSearchPage::ParseTableT_ ConversationMessageSearchPage::InternalGenerateParseTable_(const ::_pbi::ClassData* class_data) {
+  return ParseTableT_{
+    {
+      PROTOBUF_FIELD_OFFSET(ConversationMessageSearchPage, _impl_._has_bits_),
+      0, // no _extensions_
+      4, 24,  // max_field_number, fast_idx_mask
+      offsetof(ParseTableT_, field_lookup_table),
+      4294967280,  // skipmap
+      offsetof(ParseTableT_, field_entries),
+      4,  // num_field_entries
+      1,  // num_aux_entries
+      offsetof(ParseTableT_, aux_entries),
+      class_data,
+      nullptr,  // post_loop_handler
+      ::_pbi::TcParser::GenericFallback,  // fallback
+      #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+      ::_pbi::TcParser::GetTable<::chat::v2::ConversationMessageSearchPage>(),  // to_prefetch
+      #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+    }, {{
+      // bool has_more = 4;
+      {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ConversationMessageSearchPage, _impl_.has_more_), 3>(),
+       {32, 3, 0,
+        PROTOBUF_FIELD_OFFSET(ConversationMessageSearchPage, _impl_.has_more_)}},
+      // string conversation_id = 1;
+      {::_pbi::TcParser::FastUS1,
+       {10, 1, 0,
+        PROTOBUF_FIELD_OFFSET(ConversationMessageSearchPage, _impl_.conversation_id_)}},
+      // repeated .chat.v2.MessageRecord hits = 2;
+      {::_pbi::TcParser::FastMtR1,
+       {18, 0, 0,
+        PROTOBUF_FIELD_OFFSET(ConversationMessageSearchPage, _impl_.hits_)}},
+      // uint64 next_before_sequence = 3;
+      {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(ConversationMessageSearchPage, _impl_.next_before_sequence_), 2>(),
+       {24, 2, 0,
+        PROTOBUF_FIELD_OFFSET(ConversationMessageSearchPage, _impl_.next_before_sequence_)}},
+    }}, {{
+      65535, 65535
+    }}, {{
+      // string conversation_id = 1;
+      {PROTOBUF_FIELD_OFFSET(ConversationMessageSearchPage, _impl_.conversation_id_), _Internal::kHasBitsOffset + 1, 0, (0 | ::_fl::kFcOptional | ::_fl::kUtf8String | ::_fl::kRepAString)},
+      // repeated .chat.v2.MessageRecord hits = 2;
+      {PROTOBUF_FIELD_OFFSET(ConversationMessageSearchPage, _impl_.hits_), _Internal::kHasBitsOffset + 0, 0, (0 | ::_fl::kFcRepeated | ::_fl::kMessage | ::_fl::kTvTable)},
+      // uint64 next_before_sequence = 3;
+      {PROTOBUF_FIELD_OFFSET(ConversationMessageSearchPage, _impl_.next_before_sequence_), _Internal::kHasBitsOffset + 2, 0, (0 | ::_fl::kFcOptional | ::_fl::kUInt64)},
+      // bool has_more = 4;
+      {PROTOBUF_FIELD_OFFSET(ConversationMessageSearchPage, _impl_.has_more_), _Internal::kHasBitsOffset + 3, 0, (0 | ::_fl::kFcOptional | ::_fl::kBool)},
+    }},
+    {{
+        #ifndef PROTOBUF_MESSAGE_GLOBALS
+        {::_pbi::TcParser::GetTable<::chat::v2::MessageRecord>()},
+        #else
+        {::_pbi::FieldAuxMessageGlobals(), &::chat::v2::MessageRecord_globals_},
+        #endif
+    }},
+    {{
+      "\45\17\0\0\0\0\0\0"
+      "chat.v2.ConversationMessageSearchPage"
+      "conversation_id"
+    }},
+  };
+}
+
+
+inline constexpr ConversationMessageSearchPage::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    ::_pbi::ConstantInitialized) noexcept
+      : _cached_size_{0},
+        hits_ { visibility, ::_pbi::InternalMetadataOffset::Build<
+            ::chat::v2::ConversationMessageSearchPage,
+            PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationMessageSearchPage, _impl_.hits_)>()
+         }
+        ,
+        conversation_id_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        next_before_sequence_{::uint64_t{0u}},
+        has_more_{false} {}
+
+template <typename>
+constexpr ConversationMessageSearchPage::ConversationMessageSearchPage(::_pbi::ConstantInitialized,
+                       const ::_pbi::ClassData* PROTOBUF_NONNULL class_data)
+    : ::google::protobuf::Message(
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          class_data
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          ),
+      _impl_(internal_visibility(), ::_pbi::ConstantInitialized()) {
+}
+inline void* PROTOBUF_NONNULL ConversationMessageSearchPage::PlacementNew_(
+    const void* PROTOBUF_NONNULL, void* PROTOBUF_NONNULL mem,
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena) {
+  return ::new (mem) ConversationMessageSearchPage(arena);
+}
+constexpr auto ConversationMessageSearchPage::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(ConversationMessageSearchPage), alignof(ConversationMessageSearchPage));
+}
+constexpr auto ConversationMessageSearchPage::InternalGenerateClassData_(
+    const MessageLite& prototype,
+    const ::google::protobuf::internal::TcParseTableBase* tc_table) {
+  return ::google::protobuf::internal::ClassDataFull{
+      ::google::protobuf::internal::ClassData{
+          &prototype,
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+          &_table_.header,
+#else
+          tc_table,
+#endif
+          nullptr,  // IsInitialized
+          &ConversationMessageSearchPage::MergeImpl,
+          ::google::protobuf::Message::GetNewImpl<ConversationMessageSearchPage>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+          &ConversationMessageSearchPage::SharedDtor,
+          ::google::protobuf::Message::GetClearImpl<ConversationMessageSearchPage>(), &ConversationMessageSearchPage::ByteSizeLong,
+              &ConversationMessageSearchPage::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          PROTOBUF_FIELD_OFFSET(ConversationMessageSearchPage, _impl_._cached_size_),
+          false,
+      },
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+      &file_reflection_data[22],
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+      &::_pbi::kDescriptorMethods,
+      &descriptor_table_chat_2fv2_2fmessaging_2eproto,
+      nullptr,  // tracker
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  };
+}
+struct ConversationMessageSearchPageGlobalsTypeInternal : ::_pbi::MessageGlobalsBase {
+  constexpr ConversationMessageSearchPageGlobalsTypeInternal()
+      :
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+        _default(::_pbi::ConstantInitialized{},
+                 ConversationMessageSearchPage_class_data_.base())
+#else   // !PROTOBUF_MESSAGE_GLOBALS
+        MessageGlobalsBase(ConversationMessageSearchPage::InternalGenerateClassData_(
+            _default, &ConversationMessageSearchPage_globals_._table.header)),
+        _default(::_pbi::ConstantInitialized{}, GetClassData()),
+        _table(::_pbi::PrivateAccess::GenerateParseTable<ConversationMessageSearchPage>(
+            GetClassData()))
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+  {
+  }
+  ~ConversationMessageSearchPageGlobalsTypeInternal() {}
+  union {
+    alignas(::_pbi::kMaxMessageAlignment) ConversationMessageSearchPage _default;
+  };
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  decltype(::_pbi::PrivateAccess::GenerateParseTable<ConversationMessageSearchPage>(
+      ::std::declval<const ::_pbi::ClassData*>())) _table;
+#endif
+};
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+static_assert(PROTOBUF_FIELD_OFFSET(ConversationMessageSearchPageGlobalsTypeInternal, _default) ==
+              ::_pbi::MessageGlobalsBase::OffsetToDefault());
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 PROTOBUF_MESSAGE_GLOBALS_CONST ConversationMessageSearchPageGlobalsTypeInternal ConversationMessageSearchPage_globals_
+        PROTOBUF_MESSAGE_GLOBALS_SECTION(.data.rel.ro);
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+namespace {
+const ::_pbi::ClassData* ConversationMessageSearchPage_get_class_data() {
+#ifdef PROTOBUF_MESSAGE_GLOBALS
+  return ConversationMessageSearchPage_globals_.GetClassData();
+#else
+  return ConversationMessageSearchPage_class_data_.base();
+#endif  // PROTOBUF_MESSAGE_GLOBALS
+}
+}  // namespace
+#endif  // PROTOBUF_CUSTOM_VTABLE
 class ConversationEntryRecord::_Internal {
  public:
   using HasBits = decltype(::std::declval<ConversationEntryRecord>()._impl_._has_bits_);
@@ -4027,7 +4378,7 @@ constexpr auto ConversationEntryRecord::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[19],
+      &file_reflection_data[20],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -4229,7 +4580,7 @@ constexpr auto MessageHistoryPage::InternalGenerateClassData_(
           false,
       },
 #ifdef PROTOBUF_MESSAGE_GLOBALS
-      &file_reflection_data[20],
+      &file_reflection_data[21],
 #else   // !PROTOBUF_MESSAGE_GLOBALS
       &::_pbi::kDescriptorMethods,
       &descriptor_table_chat_2fv2_2fmessaging_2eproto,
@@ -4468,6 +4819,17 @@ const ::uint32_t
         1,
         2,
         0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::chat::v2::SearchConversationMessages, _impl_._has_bits_),
+        7, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::chat::v2::SearchConversationMessages, _impl_.conversation_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::SearchConversationMessages, _impl_.literal_query_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::SearchConversationMessages, _impl_.before_sequence_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::SearchConversationMessages, _impl_.limit_),
+        0,
+        1,
+        2,
+        3,
+        0x081, // bitmap
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_._has_bits_),
         17, // hasbit index offset
         PROTOBUF_FIELD_OFFSET(::chat::v2::MessageRecord, _impl_.conversation_id_),
@@ -4642,6 +5004,17 @@ const ::uint32_t
         4,
         5,
         1,
+        0x081, // bitmap
+        PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationMessageSearchPage, _impl_._has_bits_),
+        7, // hasbit index offset
+        PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationMessageSearchPage, _impl_.conversation_id_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationMessageSearchPage, _impl_.hits_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationMessageSearchPage, _impl_.next_before_sequence_),
+        PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationMessageSearchPage, _impl_.has_more_),
+        1,
+        0,
+        2,
+        3,
 };
 
 static const ::_pbi::MigrationSchema
@@ -4658,15 +5031,17 @@ static const ::_pbi::MigrationSchema
         {129, sizeof(::chat::v2::MessageEditApplied)},
         {156, sizeof(::chat::v2::MessageAccepted)},
         {169, sizeof(::chat::v2::ReadMessageHistory)},
-        {178, sizeof(::chat::v2::MessageRecord)},
-        {209, sizeof(::chat::v2::MessageReplyReference)},
-        {218, sizeof(::chat::v2::MessageRecalledRecord)},
-        {233, sizeof(::chat::v2::MessagesDeletedRecord)},
-        {258, sizeof(::chat::v2::MessageReactionChangedRecord)},
-        {277, sizeof(::chat::v2::MessagePinChangedRecord)},
-        {294, sizeof(::chat::v2::MessageEditedRecord)},
-        {317, sizeof(::chat::v2::ConversationEntryRecord)},
-        {338, sizeof(::chat::v2::MessageHistoryPage)},
+        {178, sizeof(::chat::v2::SearchConversationMessages)},
+        {189, sizeof(::chat::v2::MessageRecord)},
+        {220, sizeof(::chat::v2::MessageReplyReference)},
+        {229, sizeof(::chat::v2::MessageRecalledRecord)},
+        {244, sizeof(::chat::v2::MessagesDeletedRecord)},
+        {269, sizeof(::chat::v2::MessageReactionChangedRecord)},
+        {288, sizeof(::chat::v2::MessagePinChangedRecord)},
+        {305, sizeof(::chat::v2::MessageEditedRecord)},
+        {328, sizeof(::chat::v2::ConversationEntryRecord)},
+        {349, sizeof(::chat::v2::MessageHistoryPage)},
+        {364, sizeof(::chat::v2::ConversationMessageSearchPage)},
 };
 static const ::_pbi::MessageGlobalsBase* PROTOBUF_NONNULL const
     file_message_globals[] = {
@@ -4682,6 +5057,7 @@ static const ::_pbi::MessageGlobalsBase* PROTOBUF_NONNULL const
         &::chat::v2::MessageEditApplied_globals_,
         &::chat::v2::MessageAccepted_globals_,
         &::chat::v2::ReadMessageHistory_globals_,
+        &::chat::v2::SearchConversationMessages_globals_,
         &::chat::v2::MessageRecord_globals_,
         &::chat::v2::MessageReplyReference_globals_,
         &::chat::v2::MessageRecalledRecord_globals_,
@@ -4691,6 +5067,7 @@ static const ::_pbi::MessageGlobalsBase* PROTOBUF_NONNULL const
         &::chat::v2::MessageEditedRecord_globals_,
         &::chat::v2::ConversationEntryRecord_globals_,
         &::chat::v2::MessageHistoryPage_globals_,
+        &::chat::v2::ConversationMessageSearchPage_globals_,
 };
 const char descriptor_table_protodef_chat_2fv2_2fmessaging_2eproto[] ABSL_ATTRIBUTE_SECTION_VARIABLE(
     protodesc_cold) = {
@@ -4746,89 +5123,95 @@ const char descriptor_table_protodef_chat_2fv2_2fmessaging_2eproto[] ABSL_ATTRIB
     "ion_sequence\030\003 \001(\004\022\034\n\024accepted_at_epoch_"
     "ms\030\004 \001(\003\022\021\n\tduplicate\030\005 \001(\010\"T\n\022ReadMessa"
     "geHistory\022\027\n\017conversation_id\030\001 \001(\t\022\026\n\016af"
-    "ter_sequence\030\002 \001(\004\022\r\n\005limit\030\003 \001(\r\"\223\003\n\rMe"
-    "ssageRecord\022\027\n\017conversation_id\030\001 \001(\t\022\022\n\n"
-    "message_id\030\002 \001(\t\022\035\n\025conversation_sequenc"
-    "e\030\003 \001(\004\022\031\n\021sender_account_id\030\004 \001(\t\022\030\n\020se"
-    "nder_device_id\030\005 \001(\t\022\031\n\021client_message_i"
-    "d\030\006 \001(\t\022\024\n\014content_type\030\007 \001(\r\022\017\n\007content"
-    "\030\010 \001(\014\022\034\n\024accepted_at_epoch_ms\030\t \001(\003\022-\n\005"
-    "reply\030\n \001(\0132\036.chat.v2.MessageReplyRefere"
-    "nce\022\030\n\020content_revision\030\013 \001(\r\022\032\n\022edited_"
-    "at_epoch_ms\030\014 \001(\003\022)\n\010mentions\030\r \003(\0132\027.ch"
-    "at.v2.MessageMention\022\021\n\tforwarded\030\016 \001(\010\""
-    "z\n\025MessageReplyReference\022\031\n\021target_messa"
-    "ge_id\030\001 \001(\t\022$\n\034target_conversation_seque"
-    "nce\030\002 \001(\004\022 \n\030target_sender_account_id\030\003 "
-    "\001(\t\"\253\001\n\025MessageRecalledRecord\022\027\n\017convers"
-    "ation_id\030\001 \001(\t\022\035\n\025conversation_sequence\030"
-    "\002 \001(\004\022\022\n\nmessage_id\030\003 \001(\t\022\030\n\020actor_accou"
-    "nt_id\030\004 \001(\t\022\016\n\006source\030\005 \001(\t\022\034\n\024occurred_"
-    "at_epoch_ms\030\006 \001(\003\"\247\002\n\025MessagesDeletedRec"
-    "ord\022\027\n\017conversation_id\030\001 \001(\t\022\035\n\025conversa"
-    "tion_sequence\030\002 \001(\004\022\030\n\020actor_account_id\030"
-    "\003 \001(\t\022\016\n\006source\030\004 \001(\t\022\014\n\004mode\030\005 \001(\t\022\033\n\023c"
-    "lient_operation_id\030\006 \001(\t\022\023\n\013message_ids\030"
-    "\007 \003(\t\022\027\n\017cutoff_epoch_ms\030\010 \001(\003\022\025\n\rdelete"
-    "d_count\030\t \001(\r\022\036\n\026operator_name_snapshot\030"
-    "\n \001(\t\022\034\n\024occurred_at_epoch_ms\030\013 \001(\003\"\377\001\n\034"
-    "MessageReactionChangedRecord\022\027\n\017conversa"
-    "tion_id\030\001 \001(\t\022\035\n\025conversation_sequence\030\002"
-    " \001(\004\022\022\n\nmessage_id\030\003 \001(\t\022.\n\010reaction\030\004 \001"
-    "(\0162\034.chat.v2.MessageReactionKind\022\016\n\006acti"
-    "ve\030\005 \001(\010\022\030\n\020actor_account_id\030\006 \001(\t\022\033\n\023cl"
-    "ient_operation_id\030\007 \001(\t\022\034\n\024occurred_at_e"
-    "poch_ms\030\010 \001(\003\"\312\001\n\027MessagePinChangedRecor"
+    "ter_sequence\030\002 \001(\004\022\r\n\005limit\030\003 \001(\r\"t\n\032Sea"
+    "rchConversationMessages\022\027\n\017conversation_"
+    "id\030\001 \001(\t\022\025\n\rliteral_query\030\002 \001(\t\022\027\n\017befor"
+    "e_sequence\030\003 \001(\004\022\r\n\005limit\030\004 \001(\r\"\223\003\n\rMess"
+    "ageRecord\022\027\n\017conversation_id\030\001 \001(\t\022\022\n\nme"
+    "ssage_id\030\002 \001(\t\022\035\n\025conversation_sequence\030"
+    "\003 \001(\004\022\031\n\021sender_account_id\030\004 \001(\t\022\030\n\020send"
+    "er_device_id\030\005 \001(\t\022\031\n\021client_message_id\030"
+    "\006 \001(\t\022\024\n\014content_type\030\007 \001(\r\022\017\n\007content\030\010"
+    " \001(\014\022\034\n\024accepted_at_epoch_ms\030\t \001(\003\022-\n\005re"
+    "ply\030\n \001(\0132\036.chat.v2.MessageReplyReferenc"
+    "e\022\030\n\020content_revision\030\013 \001(\r\022\032\n\022edited_at"
+    "_epoch_ms\030\014 \001(\003\022)\n\010mentions\030\r \003(\0132\027.chat"
+    ".v2.MessageMention\022\021\n\tforwarded\030\016 \001(\010\"z\n"
+    "\025MessageReplyReference\022\031\n\021target_message"
+    "_id\030\001 \001(\t\022$\n\034target_conversation_sequenc"
+    "e\030\002 \001(\004\022 \n\030target_sender_account_id\030\003 \001("
+    "\t\"\253\001\n\025MessageRecalledRecord\022\027\n\017conversat"
+    "ion_id\030\001 \001(\t\022\035\n\025conversation_sequence\030\002 "
+    "\001(\004\022\022\n\nmessage_id\030\003 \001(\t\022\030\n\020actor_account"
+    "_id\030\004 \001(\t\022\016\n\006source\030\005 \001(\t\022\034\n\024occurred_at"
+    "_epoch_ms\030\006 \001(\003\"\247\002\n\025MessagesDeletedRecor"
     "d\022\027\n\017conversation_id\030\001 \001(\t\022\035\n\025conversati"
-    "on_sequence\030\002 \001(\004\022\022\n\nmessage_id\030\003 \001(\t\022\016\n"
-    "\006pinned\030\004 \001(\010\022\030\n\020actor_account_id\030\005 \001(\t\022"
-    "\033\n\023client_operation_id\030\006 \001(\t\022\034\n\024occurred"
-    "_at_epoch_ms\030\007 \001(\003\"\242\002\n\023MessageEditedReco"
-    "rd\022\027\n\017conversation_id\030\001 \001(\t\022\035\n\025conversat"
-    "ion_sequence\030\002 \001(\004\022\022\n\nmessage_id\030\003 \001(\t\022\030"
-    "\n\020content_revision\030\004 \001(\r\022\024\n\014content_type"
-    "\030\005 \001(\r\022\017\n\007content\030\006 \001(\014\022\030\n\020actor_account"
-    "_id\030\007 \001(\t\022\033\n\023client_operation_id\030\010 \001(\t\022\034"
-    "\n\024occurred_at_epoch_ms\030\t \001(\003\022)\n\010mentions"
-    "\030\n \003(\0132\027.chat.v2.MessageMention\"\206\003\n\027Conv"
-    "ersationEntryRecord\022\027\n\017conversation_id\030\001"
-    " \001(\t\022\035\n\025conversation_sequence\030\002 \001(\004\022)\n\007m"
-    "essage\030\003 \001(\0132\026.chat.v2.MessageRecordH\000\0220"
-    "\n\006recall\030\004 \001(\0132\036.chat.v2.MessageRecalled"
-    "RecordH\000\0222\n\010deletion\030\005 \001(\0132\036.chat.v2.Mes"
-    "sagesDeletedRecordH\000\0229\n\010reaction\030\006 \001(\0132%"
-    ".chat.v2.MessageReactionChangedRecordH\000\022"
-    "/\n\003pin\030\007 \001(\0132 .chat.v2.MessagePinChanged"
-    "RecordH\000\022,\n\004edit\030\010 \001(\0132\034.chat.v2.Message"
-    "EditedRecordH\000B\010\n\006detail\"\314\001\n\022MessageHist"
-    "oryPage\022\027\n\017conversation_id\030\001 \001(\t\022(\n\010mess"
-    "ages\030\002 \003(\0132\026.chat.v2.MessageRecord\022\025\n\rne"
-    "xt_sequence\030\003 \001(\004\022\027\n\017latest_sequence\030\004 \001"
-    "(\004\022\020\n\010has_more\030\005 \001(\010\0221\n\007entries\030\006 \003(\0132 ."
-    "chat.v2.ConversationEntryRecord*^\n\022Messa"
-    "geContentType\022$\n MESSAGE_CONTENT_TYPE_UN"
-    "SPECIFIED\020\000\022\"\n\036MESSAGE_CONTENT_TYPE_TEXT"
-    "_UTF8\020\001*\202\002\n\023MessageReactionKind\022%\n!MESSA"
-    "GE_REACTION_KIND_UNSPECIFIED\020\000\022\036\n\032MESSAG"
-    "E_REACTION_KIND_LIKE\020\001\022\036\n\032MESSAGE_REACTI"
-    "ON_KIND_LOVE\020\002\022\037\n\033MESSAGE_REACTION_KIND_"
-    "LAUGH\020\003\022#\n\037MESSAGE_REACTION_KIND_SURPRIS"
-    "ED\020\004\022\035\n\031MESSAGE_REACTION_KIND_SAD\020\005\022\037\n\033M"
-    "ESSAGE_REACTION_KIND_ANGRY\020\006B6\n!com.fall"
-    "ingnight.chat.protocol.v2B\017MessagingSche"
-    "maP\001b\006proto3"
+    "on_sequence\030\002 \001(\004\022\030\n\020actor_account_id\030\003 "
+    "\001(\t\022\016\n\006source\030\004 \001(\t\022\014\n\004mode\030\005 \001(\t\022\033\n\023cli"
+    "ent_operation_id\030\006 \001(\t\022\023\n\013message_ids\030\007 "
+    "\003(\t\022\027\n\017cutoff_epoch_ms\030\010 \001(\003\022\025\n\rdeleted_"
+    "count\030\t \001(\r\022\036\n\026operator_name_snapshot\030\n "
+    "\001(\t\022\034\n\024occurred_at_epoch_ms\030\013 \001(\003\"\377\001\n\034Me"
+    "ssageReactionChangedRecord\022\027\n\017conversati"
+    "on_id\030\001 \001(\t\022\035\n\025conversation_sequence\030\002 \001"
+    "(\004\022\022\n\nmessage_id\030\003 \001(\t\022.\n\010reaction\030\004 \001(\016"
+    "2\034.chat.v2.MessageReactionKind\022\016\n\006active"
+    "\030\005 \001(\010\022\030\n\020actor_account_id\030\006 \001(\t\022\033\n\023clie"
+    "nt_operation_id\030\007 \001(\t\022\034\n\024occurred_at_epo"
+    "ch_ms\030\010 \001(\003\"\312\001\n\027MessagePinChangedRecord\022"
+    "\027\n\017conversation_id\030\001 \001(\t\022\035\n\025conversation"
+    "_sequence\030\002 \001(\004\022\022\n\nmessage_id\030\003 \001(\t\022\016\n\006p"
+    "inned\030\004 \001(\010\022\030\n\020actor_account_id\030\005 \001(\t\022\033\n"
+    "\023client_operation_id\030\006 \001(\t\022\034\n\024occurred_a"
+    "t_epoch_ms\030\007 \001(\003\"\242\002\n\023MessageEditedRecord"
+    "\022\027\n\017conversation_id\030\001 \001(\t\022\035\n\025conversatio"
+    "n_sequence\030\002 \001(\004\022\022\n\nmessage_id\030\003 \001(\t\022\030\n\020"
+    "content_revision\030\004 \001(\r\022\024\n\014content_type\030\005"
+    " \001(\r\022\017\n\007content\030\006 \001(\014\022\030\n\020actor_account_i"
+    "d\030\007 \001(\t\022\033\n\023client_operation_id\030\010 \001(\t\022\034\n\024"
+    "occurred_at_epoch_ms\030\t \001(\003\022)\n\010mentions\030\n"
+    " \003(\0132\027.chat.v2.MessageMention\"\206\003\n\027Conver"
+    "sationEntryRecord\022\027\n\017conversation_id\030\001 \001"
+    "(\t\022\035\n\025conversation_sequence\030\002 \001(\004\022)\n\007mes"
+    "sage\030\003 \001(\0132\026.chat.v2.MessageRecordH\000\0220\n\006"
+    "recall\030\004 \001(\0132\036.chat.v2.MessageRecalledRe"
+    "cordH\000\0222\n\010deletion\030\005 \001(\0132\036.chat.v2.Messa"
+    "gesDeletedRecordH\000\0229\n\010reaction\030\006 \001(\0132%.c"
+    "hat.v2.MessageReactionChangedRecordH\000\022/\n"
+    "\003pin\030\007 \001(\0132 .chat.v2.MessagePinChangedRe"
+    "cordH\000\022,\n\004edit\030\010 \001(\0132\034.chat.v2.MessageEd"
+    "itedRecordH\000B\010\n\006detail\"\314\001\n\022MessageHistor"
+    "yPage\022\027\n\017conversation_id\030\001 \001(\t\022(\n\010messag"
+    "es\030\002 \003(\0132\026.chat.v2.MessageRecord\022\025\n\rnext"
+    "_sequence\030\003 \001(\004\022\027\n\017latest_sequence\030\004 \001(\004"
+    "\022\020\n\010has_more\030\005 \001(\010\0221\n\007entries\030\006 \003(\0132 .ch"
+    "at.v2.ConversationEntryRecord\"\216\001\n\035Conver"
+    "sationMessageSearchPage\022\027\n\017conversation_"
+    "id\030\001 \001(\t\022$\n\004hits\030\002 \003(\0132\026.chat.v2.Message"
+    "Record\022\034\n\024next_before_sequence\030\003 \001(\004\022\020\n\010"
+    "has_more\030\004 \001(\010*^\n\022MessageContentType\022$\n "
+    "MESSAGE_CONTENT_TYPE_UNSPECIFIED\020\000\022\"\n\036ME"
+    "SSAGE_CONTENT_TYPE_TEXT_UTF8\020\001*\202\002\n\023Messa"
+    "geReactionKind\022%\n!MESSAGE_REACTION_KIND_"
+    "UNSPECIFIED\020\000\022\036\n\032MESSAGE_REACTION_KIND_L"
+    "IKE\020\001\022\036\n\032MESSAGE_REACTION_KIND_LOVE\020\002\022\037\n"
+    "\033MESSAGE_REACTION_KIND_LAUGH\020\003\022#\n\037MESSAG"
+    "E_REACTION_KIND_SURPRISED\020\004\022\035\n\031MESSAGE_R"
+    "EACTION_KIND_SAD\020\005\022\037\n\033MESSAGE_REACTION_K"
+    "IND_ANGRY\020\006B6\n!com.fallingnight.chat.pro"
+    "tocol.v2B\017MessagingSchemaP\001b\006proto3"
 };
 static ::absl::once_flag descriptor_table_chat_2fv2_2fmessaging_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_chat_2fv2_2fmessaging_2eproto = {
     false,
     false,
-    4892,
+    5155,
     descriptor_table_protodef_chat_2fv2_2fmessaging_2eproto,
     "chat/v2/messaging.proto",
     &descriptor_table_chat_2fv2_2fmessaging_2eproto_once,
     nullptr,
     0,
-    21,
+    23,
     schemas,
     file_message_globals,
     TableStruct_chat_2fv2_2fmessaging_2eproto::offsets,
@@ -9286,6 +9669,324 @@ void ReadMessageHistory::InternalSwap(ReadMessageHistory* PROTOBUF_RESTRICT PROT
 }
 // ===================================================================
 
+SearchConversationMessages::SearchConversationMessages(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, SearchConversationMessages_get_class_data()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:chat.v2.SearchConversationMessages)
+}
+PROTOBUF_NDEBUG_INLINE SearchConversationMessages::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    [[maybe_unused]] const ::chat::v2::SearchConversationMessages& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        conversation_id_(arena, from.conversation_id_),
+        literal_query_(arena, from.literal_query_) {}
+
+SearchConversationMessages::SearchConversationMessages(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const SearchConversationMessages& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, SearchConversationMessages_get_class_data()) {
+
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SearchConversationMessages* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  ::memcpy(reinterpret_cast<char*>(&_impl_) +
+               offsetof(Impl_, before_sequence_),
+           reinterpret_cast<const char*>(&from._impl_) +
+               offsetof(Impl_, before_sequence_),
+           offsetof(Impl_, limit_) -
+               offsetof(Impl_, before_sequence_) +
+               sizeof(Impl_::limit_));
+
+  // @@protoc_insertion_point(copy_constructor:chat.v2.SearchConversationMessages)
+}
+PROTOBUF_NDEBUG_INLINE SearchConversationMessages::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        conversation_id_(arena),
+        literal_query_(arena) {}
+
+inline void SearchConversationMessages::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  ::memset(reinterpret_cast<char*>(&_impl_) +
+               offsetof(Impl_, before_sequence_),
+           0,
+           offsetof(Impl_, limit_) -
+               offsetof(Impl_, before_sequence_) +
+               sizeof(Impl_::limit_));
+}
+SearchConversationMessages::~SearchConversationMessages() {
+  // @@protoc_insertion_point(destructor:chat.v2.SearchConversationMessages)
+  SharedDtor(*this);
+}
+inline void SearchConversationMessages::SharedDtor(MessageLite& self) {
+  SearchConversationMessages& this_ = static_cast<SearchConversationMessages&>(self);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.conversation_id_.Destroy();
+  this_._impl_.literal_query_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull SearchConversationMessages_class_data_ =
+        SearchConversationMessages::InternalGenerateClassData_(SearchConversationMessages_globals_._default);
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+SearchConversationMessages::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&SearchConversationMessages_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(SearchConversationMessages_class_data_.tc_table);
+  return SearchConversationMessages_class_data_.base();
+}
+#else
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+SearchConversationMessages::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&SearchConversationMessages_globals_);
+  ::google::protobuf::internal::PrefetchToLocalCache(
+      ::google::protobuf::internal::MessageGlobalsBase::ToParseTableBase(&SearchConversationMessages_globals_));
+  return SearchConversationMessages_globals_.GetClassData();
+}
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const SearchConversationMessages::ParseTableT_
+    SearchConversationMessages::_table_ =
+        SearchConversationMessages::InternalGenerateParseTable_(SearchConversationMessages_class_data_.base());
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_NOINLINE void SearchConversationMessages::Clear() {
+// @@protoc_insertion_point(message_clear_start:chat.v2.SearchConversationMessages)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _impl_.conversation_id_.ClearNonDefaultToEmpty();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.literal_query_.ClearNonDefaultToEmpty();
+    }
+  }
+  if (BatchCheckHasBit(cached_has_bits, 0x0000000cU)) {
+    ::memset(&_impl_.before_sequence_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.limit_) -
+        reinterpret_cast<char*>(&_impl_.before_sequence_)) + sizeof(_impl_.limit_));
+  }
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL SearchConversationMessages::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const SearchConversationMessages& this_ = static_cast<const SearchConversationMessages&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL SearchConversationMessages::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const SearchConversationMessages& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(serialize_to_array_start:chat.v2.SearchConversationMessages)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = this_._impl_._has_bits_[0];
+  // string conversation_id = 1;
+  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    if (!this_._internal_conversation_id().empty()) {
+      const ::std::string& _s = this_._internal_conversation_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.SearchConversationMessages.conversation_id");
+      target = stream->WriteStringMaybeAliased(1, _s, target);
+    }
+  }
+
+  // string literal_query = 2;
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (!this_._internal_literal_query().empty()) {
+      const ::std::string& _s = this_._internal_literal_query();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.SearchConversationMessages.literal_query");
+      target = stream->WriteStringMaybeAliased(2, _s, target);
+    }
+  }
+
+  // uint64 before_sequence = 3;
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (this_._internal_before_sequence() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+          3, this_._internal_before_sequence(), target);
+    }
+  }
+
+  // uint32 limit = 4;
+  if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+    if (this_._internal_limit() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+          4, this_._internal_limit(), target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:chat.v2.SearchConversationMessages)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t SearchConversationMessages::ByteSizeLong(const MessageLite& base) {
+  const SearchConversationMessages& this_ = static_cast<const SearchConversationMessages&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t SearchConversationMessages::ByteSizeLong() const {
+  const SearchConversationMessages& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:chat.v2.SearchConversationMessages)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x0000000fU)) {
+    // string conversation_id = 1;
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!this_._internal_conversation_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_conversation_id());
+      }
+    }
+    // string literal_query = 2;
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!this_._internal_literal_query().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_literal_query());
+      }
+    }
+    // uint64 before_sequence = 3;
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (this_._internal_before_sequence() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+            this_._internal_before_sequence());
+      }
+    }
+    // uint32 limit = 4;
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      if (this_._internal_limit() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+            this_._internal_limit());
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void SearchConversationMessages::MergeImpl(::google::protobuf::MessageLite& to_msg,
+                      const ::google::protobuf::MessageLite& from_msg) {
+   auto* const _this = static_cast<SearchConversationMessages*>(&to_msg);
+  auto& from = static_cast<const SearchConversationMessages&>(from_msg);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    from.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(class_specific_merge_from_start:chat.v2.SearchConversationMessages)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x0000000fU)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      if (!from._internal_conversation_id().empty()) {
+        _this->_internal_set_conversation_id(from._internal_conversation_id());
+      } else {
+        if (_this->_impl_.conversation_id_.IsDefault()) {
+          _this->_internal_set_conversation_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!from._internal_literal_query().empty()) {
+        _this->_internal_set_literal_query(from._internal_literal_query());
+      } else {
+        if (_this->_impl_.literal_query_.IsDefault()) {
+          _this->_internal_set_literal_query("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (from._internal_before_sequence() != 0) {
+        _this->_impl_.before_sequence_ = from._impl_.before_sequence_;
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      if (from._internal_limit() != 0) {
+        _this->_impl_.limit_ = from._impl_.limit_;
+      }
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+}
+
+void SearchConversationMessages::CopyFrom(const SearchConversationMessages& from) {
+  // @@protoc_insertion_point(class_specific_copy_from_start:chat.v2.SearchConversationMessages)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void SearchConversationMessages::InternalSwap(SearchConversationMessages* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.conversation_id_, &other->_impl_.conversation_id_, arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.literal_query_, &other->_impl_.literal_query_, arena);
+  ::google::protobuf::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(SearchConversationMessages, _impl_.limit_)
+      + sizeof(SearchConversationMessages::_impl_.limit_)
+      - PROTOBUF_FIELD_OFFSET(SearchConversationMessages, _impl_.before_sequence_)>(
+          reinterpret_cast<char*>(&_impl_.before_sequence_),
+          reinterpret_cast<char*>(&other->_impl_.before_sequence_));
+}
+
+::google::protobuf::Metadata SearchConversationMessages::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
 MessageRecord::MessageRecord(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
 #if defined(PROTOBUF_CUSTOM_VTABLE)
     : ::google::protobuf::Message(arena, MessageRecord_get_class_data()) {
@@ -13370,6 +14071,332 @@ void MessageHistoryPage::InternalSwap(MessageHistoryPage* PROTOBUF_RESTRICT PROT
 }
 
 ::google::protobuf::Metadata MessageHistoryPage::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
+ConversationMessageSearchPage::ConversationMessageSearchPage(::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, ConversationMessageSearchPage_get_class_data()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:chat.v2.ConversationMessageSearchPage)
+}
+PROTOBUF_NDEBUG_INLINE ConversationMessageSearchPage::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena, const Impl_& from,
+    [[maybe_unused]] const ::chat::v2::ConversationMessageSearchPage& from_msg)
+      : _has_bits_{from._has_bits_},
+        _cached_size_{0},
+        hits_ {
+          visibility, ::_pbi::InternalMetadataOffset::Build<
+              ::chat::v2::ConversationMessageSearchPage,
+              PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationMessageSearchPage, _impl_.hits_)>()
+          , from.hits_
+        }
+        ,
+        conversation_id_(arena, from.conversation_id_) {}
+
+ConversationMessageSearchPage::ConversationMessageSearchPage(
+    ::google::protobuf::Arena* PROTOBUF_NULLABLE arena,
+    const ConversationMessageSearchPage& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, ConversationMessageSearchPage_get_class_data()) {
+
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  ConversationMessageSearchPage* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  ::memcpy(reinterpret_cast<char*>(&_impl_) +
+               offsetof(Impl_, next_before_sequence_),
+           reinterpret_cast<const char*>(&from._impl_) +
+               offsetof(Impl_, next_before_sequence_),
+           offsetof(Impl_, has_more_) -
+               offsetof(Impl_, next_before_sequence_) +
+               sizeof(Impl_::has_more_));
+
+  // @@protoc_insertion_point(copy_constructor:chat.v2.ConversationMessageSearchPage)
+}
+PROTOBUF_NDEBUG_INLINE ConversationMessageSearchPage::Impl_::Impl_(
+    [[maybe_unused]] ::google::protobuf::internal::InternalVisibility visibility,
+    [[maybe_unused]] ::google::protobuf::Arena* PROTOBUF_NULLABLE arena)
+      : _cached_size_{0},
+        hits_ { visibility, ::_pbi::InternalMetadataOffset::Build<
+            ::chat::v2::ConversationMessageSearchPage,
+            PROTOBUF_FIELD_OFFSET(::chat::v2::ConversationMessageSearchPage, _impl_.hits_)>()
+         }
+        ,
+        conversation_id_(arena) {}
+
+inline void ConversationMessageSearchPage::SharedCtor(::_pb::Arena* PROTOBUF_NULLABLE arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  ::memset(reinterpret_cast<char*>(&_impl_) +
+               offsetof(Impl_, next_before_sequence_),
+           0,
+           offsetof(Impl_, has_more_) -
+               offsetof(Impl_, next_before_sequence_) +
+               sizeof(Impl_::has_more_));
+}
+ConversationMessageSearchPage::~ConversationMessageSearchPage() {
+  // @@protoc_insertion_point(destructor:chat.v2.ConversationMessageSearchPage)
+  SharedDtor(*this);
+}
+inline void ConversationMessageSearchPage::SharedDtor(MessageLite& self) {
+  ConversationMessageSearchPage& this_ = static_cast<ConversationMessageSearchPage&>(self);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.conversation_id_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const
+    ::google::protobuf::internal::ClassDataFull ConversationMessageSearchPage_class_data_ =
+        ConversationMessageSearchPage::InternalGenerateClassData_(ConversationMessageSearchPage_globals_._default);
+
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+ConversationMessageSearchPage::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&ConversationMessageSearchPage_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(ConversationMessageSearchPage_class_data_.tc_table);
+  return ConversationMessageSearchPage_class_data_.base();
+}
+#else
+PROTOBUF_ATTRIBUTE_WEAK const ::google::protobuf::internal::ClassData* PROTOBUF_NONNULL
+ConversationMessageSearchPage::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&ConversationMessageSearchPage_globals_);
+  ::google::protobuf::internal::PrefetchToLocalCache(
+      ::google::protobuf::internal::MessageGlobalsBase::ToParseTableBase(&ConversationMessageSearchPage_globals_));
+  return ConversationMessageSearchPage_globals_.GetClassData();
+}
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+#ifndef PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_CONSTINIT
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 const ConversationMessageSearchPage::ParseTableT_
+    ConversationMessageSearchPage::_table_ =
+        ConversationMessageSearchPage::InternalGenerateParseTable_(ConversationMessageSearchPage_class_data_.base());
+#endif  // !PROTOBUF_MESSAGE_GLOBALS
+PROTOBUF_NOINLINE void ConversationMessageSearchPage::Clear() {
+// @@protoc_insertion_point(message_clear_start:chat.v2.ConversationMessageSearchPage)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x00000003U)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _impl_.hits_.Clear();
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      _impl_.conversation_id_.ClearNonDefaultToEmpty();
+    }
+  }
+  if (BatchCheckHasBit(cached_has_bits, 0x0000000cU)) {
+    ::memset(&_impl_.next_before_sequence_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.has_more_) -
+        reinterpret_cast<char*>(&_impl_.next_before_sequence_)) + sizeof(_impl_.has_more_));
+  }
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::uint8_t* PROTOBUF_NONNULL ConversationMessageSearchPage::_InternalSerialize(
+    const ::google::protobuf::MessageLite& base, ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) {
+  const ConversationMessageSearchPage& this_ = static_cast<const ConversationMessageSearchPage&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::uint8_t* PROTOBUF_NONNULL ConversationMessageSearchPage::_InternalSerialize(
+    ::uint8_t* PROTOBUF_NONNULL target,
+    ::google::protobuf::io::EpsCopyOutputStream* PROTOBUF_NONNULL stream) const {
+  const ConversationMessageSearchPage& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    this_.CheckHasBitConsistency();
+  }
+  // @@protoc_insertion_point(serialize_to_array_start:chat.v2.ConversationMessageSearchPage)
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = this_._impl_._has_bits_[0];
+  // string conversation_id = 1;
+  if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+    if (!this_._internal_conversation_id().empty()) {
+      const ::std::string& _s = this_._internal_conversation_id();
+      ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+          _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "chat.v2.ConversationMessageSearchPage.conversation_id");
+      target = stream->WriteStringMaybeAliased(1, _s, target);
+    }
+  }
+
+  // repeated .chat.v2.MessageRecord hits = 2;
+  if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+    for (unsigned i = 0, n = static_cast<unsigned>(
+                             this_._internal_hits_size());
+         i < n; i++) {
+      const auto& repfield = this_._internal_hits().Get(i);
+      target =
+          ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+              2, repfield, repfield.GetCachedSize(),
+              target, stream);
+    }
+  }
+
+  // uint64 next_before_sequence = 3;
+  if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+    if (this_._internal_next_before_sequence() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+          3, this_._internal_next_before_sequence(), target);
+    }
+  }
+
+  // bool has_more = 4;
+  if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+    if (this_._internal_has_more() != 0) {
+      target = stream->EnsureSpace(target);
+      target = ::_pbi::WireFormatLite::WriteBoolToArray(
+          4, this_._internal_has_more(), target);
+    }
+  }
+
+  if (ABSL_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+    target =
+        ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+            this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:chat.v2.ConversationMessageSearchPage)
+  return target;
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+::size_t ConversationMessageSearchPage::ByteSizeLong(const MessageLite& base) {
+  const ConversationMessageSearchPage& this_ = static_cast<const ConversationMessageSearchPage&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+::size_t ConversationMessageSearchPage::ByteSizeLong() const {
+  const ConversationMessageSearchPage& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  // @@protoc_insertion_point(message_byte_size_start:chat.v2.ConversationMessageSearchPage)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void)cached_has_bits;
+
+  ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+  cached_has_bits = this_._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x0000000fU)) {
+    // repeated .chat.v2.MessageRecord hits = 2;
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      total_size += 1UL * this_._internal_hits_size();
+      for (const auto& msg : this_._internal_hits()) {
+        total_size += ::google::protobuf::internal::WireFormatLite::MessageSize(msg);
+      }
+    }
+    // string conversation_id = 1;
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!this_._internal_conversation_id().empty()) {
+        total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                        this_._internal_conversation_id());
+      }
+    }
+    // uint64 next_before_sequence = 3;
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (this_._internal_next_before_sequence() != 0) {
+        total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+            this_._internal_next_before_sequence());
+      }
+    }
+    // bool has_more = 4;
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      if (this_._internal_has_more() != 0) {
+        total_size += 2;
+      }
+    }
+  }
+  return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                             &this_._impl_._cached_size_);
+}
+
+void ConversationMessageSearchPage::MergeImpl(::google::protobuf::MessageLite& to_msg,
+                      const ::google::protobuf::MessageLite& from_msg) {
+   auto* const _this = static_cast<ConversationMessageSearchPage*>(&to_msg);
+  auto& from = static_cast<const ConversationMessageSearchPage&>(from_msg);
+  if constexpr (::_pbi::DebugHardenCheckHasBitConsistency()) {
+    from.CheckHasBitConsistency();
+  }
+  ::google::protobuf::Arena* arena = _this->GetArena();
+  // @@protoc_insertion_point(class_specific_merge_from_start:chat.v2.ConversationMessageSearchPage)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void)cached_has_bits;
+
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (BatchCheckHasBit(cached_has_bits, 0x0000000fU)) {
+    if (CheckHasBit(cached_has_bits, 0x00000001U)) {
+      _this->_internal_mutable_hits()->InternalMergeFromWithArena(
+          ::google::protobuf::MessageLite::internal_visibility(), arena,
+          from._internal_hits());
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000002U)) {
+      if (!from._internal_conversation_id().empty()) {
+        _this->_internal_set_conversation_id(from._internal_conversation_id());
+      } else {
+        if (_this->_impl_.conversation_id_.IsDefault()) {
+          _this->_internal_set_conversation_id("");
+        }
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000004U)) {
+      if (from._internal_next_before_sequence() != 0) {
+        _this->_impl_.next_before_sequence_ = from._impl_.next_before_sequence_;
+      }
+    }
+    if (CheckHasBit(cached_has_bits, 0x00000008U)) {
+      if (from._internal_has_more() != 0) {
+        _this->_impl_.has_more_ = from._impl_.has_more_;
+      }
+    }
+  }
+  _this->_impl_._has_bits_[0] |= cached_has_bits;
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+}
+
+void ConversationMessageSearchPage::CopyFrom(const ConversationMessageSearchPage& from) {
+  // @@protoc_insertion_point(class_specific_copy_from_start:chat.v2.ConversationMessageSearchPage)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void ConversationMessageSearchPage::InternalSwap(ConversationMessageSearchPage* PROTOBUF_RESTRICT PROTOBUF_NONNULL other) {
+  using ::std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _impl_.hits_.InternalSwap(&other->_impl_.hits_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.conversation_id_, &other->_impl_.conversation_id_, arena);
+  ::google::protobuf::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(ConversationMessageSearchPage, _impl_.has_more_)
+      + sizeof(ConversationMessageSearchPage::_impl_.has_more_)
+      - PROTOBUF_FIELD_OFFSET(ConversationMessageSearchPage, _impl_.next_before_sequence_)>(
+          reinterpret_cast<char*>(&_impl_.next_before_sequence_),
+          reinterpret_cast<char*>(&other->_impl_.next_before_sequence_));
+}
+
+::google::protobuf::Metadata ConversationMessageSearchPage::GetMetadata() const {
   return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
 }
 // @@protoc_insertion_point(namespace_scope)

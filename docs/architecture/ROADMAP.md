@@ -2187,7 +2187,7 @@ Progress:
     descending sequence pagination, current-state mutation behavior,
     PostgreSQL authority, rebuildable-index boundaries, and staged activation
     (ADR-0404).
-  - [ ] Add the generated wire contract and bounded application query model
+  - [x] Add the generated wire contract and bounded application query model
     while runtime and both clients remain off.
   - [ ] Implement the authorized PostgreSQL query, deletion/recall/edit
     semantics, query-plan evidence, and gateway handler behind a default-off
