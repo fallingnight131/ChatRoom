@@ -9,16 +9,8 @@ test('exposes a labeled modal with bounded keyboard focus and trigger restoratio
     'role="dialog" aria-modal="true"',
     'aria-labelledby="profile-dialog-title"',
     'tabindex="-1" @keydown="onDialogKeydown"',
-    "event.key === 'Escape'",
-    "event.key !== 'Tab'",
-    'const activeIndex = focusable.indexOf(document.activeElement)',
-    'event.shiftKey && activeIndex <= 0',
-    'activeIndex < 0 || activeIndex === focusable.length - 1',
-    'last.focus()',
-    'first.focus()',
-    'previousFocus = document.activeElement',
-    'dialogRef.value?.focus()',
-    'previousFocus.focus()',
+    'useModalKeyboardBoundary({',
+    "onClose: () => emit('close')",
   ]) assert.ok(source.includes(marker), `missing profile dialog marker: ${marker}`)
 })
 

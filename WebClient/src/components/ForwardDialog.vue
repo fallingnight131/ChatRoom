@@ -1,21 +1,26 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal forward-modal">
-      <div class="modal-title">转发到其他会话</div>
+  <div class="modal-overlay" @click.self="closeDialog">
+    <div ref="dialogRef" class="modal forward-modal" role="dialog" aria-modal="true"
+         aria-labelledby="forward-dialog-title" tabindex="-1" @keydown="onDialogKeydown">
+      <div id="forward-dialog-title" class="modal-title">转发到其他会话</div>
 
       <div class="tab-bar">
-        <button class="tab-btn" :class="{ active: activeTab === 'friends' }" @click="activeTab = 'friends'">
+        <button class="tab-btn" :class="{ active: activeTab === 'friends' }"
+                :aria-pressed="activeTab === 'friends'" @click="activeTab = 'friends'">
           好友
           <span class="tab-count">{{ friendCandidates.length }}</span>
         </button>
-        <button class="tab-btn" :class="{ active: activeTab === 'rooms' }" @click="activeTab = 'rooms'">
+        <button class="tab-btn" :class="{ active: activeTab === 'rooms' }"
+                :aria-pressed="activeTab === 'rooms'" @click="activeTab = 'rooms'">
           房间
           <span class="tab-count">{{ roomCandidates.length }}</span>
         </button>
       </div>
 
       <div class="search-row">
+        <label class="visually-hidden" for="forward-target-search">搜索转发目标</label>
         <input
+          id="forward-target-search"
           class="input"
           v-model.trim="searchKeyword"
           :placeholder="activeTab === 'friends' ? '搜索好友用户名或昵称' : '搜索房间名或房间ID'"
@@ -58,7 +63,7 @@
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-secondary" @click="$emit('close')">取消</button>
+        <button class="btn btn-secondary" :disabled="submitting" @click="closeDialog">取消</button>
         <button class="btn btn-primary" :disabled="selectedCount === 0 || submitting" @click="submitForward">
           {{ submitting ? '转发中...' : '确认转发' }}
         </button>
@@ -70,6 +75,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useChatStore } from '../stores/chat'
+import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 
 const props = defineProps({
   submitting: { type: Boolean, default: false },
@@ -82,6 +88,10 @@ const activeTab = ref('friends')
 const selectedRooms = ref(new Set())
 const selectedFriends = ref(new Set())
 const searchKeyword = ref('')
+const { dialogRef, closeDialog, onDialogKeydown } = useModalKeyboardBoundary({
+  onClose: () => emit('close'),
+  canClose: () => !props.submitting
+})
 
 const friendUnreadMap = computed(() => chatStore.friendUnread || {})
 
@@ -155,6 +165,7 @@ function toggleAll(e) {
 }
 
 function submitForward() {
+  if (props.submitting || selectedCount.value === 0) return
   const targets = []
   selectedRooms.value.forEach((roomId) => targets.push({ type: 'room', roomId }))
   selectedFriends.value.forEach((username) => targets.push({ type: 'friend', username }))

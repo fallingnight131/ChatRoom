@@ -987,6 +987,12 @@ state and a named avatar; it no longer wraps the theme action in a pointer-only
 click region. Theme selection remains an independently named button, so keyboard
 activation cannot accidentally open the profile dialog and returned modal focus
 lands on a valid control.
+The focus behavior is now owned by a shared typed Web UI boundary rather than
+copied inside profile code. V1 forwarding is the second consumer: it gains modal
+naming, focus entry/wrap/restore, Escape handling, named search, selected tab
+state, and fail-closed dismissal/submission while a forward is pending. The
+helper owns browser focus only; each feature continues to own its business
+cancel and authorization rules.
 
 A shared
 single-gateway router now retains up to 100 active subscriptions per channel,

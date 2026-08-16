@@ -2300,6 +2300,8 @@ Candidate slices:
     trigger restoration, and keyboard-native avatar replacement to Web profile.
   - [x] Replace the pointer-only Web profile trigger with a native dialog button
     and keep theme selection as a separately named native control.
+  - [x] Extract a shared typed Web modal keyboard boundary and apply it to
+    profile and V1 forwarding, including pending-forward close/submit guards.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat

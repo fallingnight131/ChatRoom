@@ -91,11 +91,12 @@
 </template>
 
 <script setup>
-import { ref, inject, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, inject, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useChatStore } from '../stores/chat'
 import { useUserStore } from '../stores/user'
 import { chatWs, MsgType } from '../services/websocket'
+import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 
 const emit = defineEmits(['close'])
 const router = useRouter()
@@ -116,38 +117,9 @@ const confirmPassword = ref('')
 const avatarInput = ref(null)
 const uidError = ref('')
 const uidSuccess = ref('')
-const dialogRef = ref(null)
-let previousFocus = null
-
-function closeDialog() {
-  emit('close')
-}
-
-function onDialogKeydown(event) {
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    closeDialog()
-    return
-  }
-  if (event.key !== 'Tab') return
-  const focusable = Array.from(dialogRef.value?.querySelectorAll(
-    'button:not([disabled]), input:not([disabled]):not([tabindex="-1"])'
-  ) || [])
-  if (!focusable.length) {
-    event.preventDefault()
-    return
-  }
-  const first = focusable[0]
-  const last = focusable[focusable.length - 1]
-  const activeIndex = focusable.indexOf(document.activeElement)
-  if (event.shiftKey && activeIndex <= 0) {
-    event.preventDefault()
-    last.focus()
-  } else if (!event.shiftKey && (activeIndex < 0 || activeIndex === focusable.length - 1)) {
-    event.preventDefault()
-    first.focus()
-  }
-}
+const { dialogRef, closeDialog, onDialogKeydown } = useModalKeyboardBoundary({
+  onClose: () => emit('close')
+})
 
 function triggerAvatarInput() {
   avatarInput.value?.click()
@@ -244,13 +216,10 @@ function doLogout() {
 }
 
 onMounted(() => {
-  previousFocus = document.activeElement
-  nextTick(() => dialogRef.value?.focus())
   chatWs.on(MsgType.CHANGE_UID_RSP, onUidChangeRsp)
 })
 onUnmounted(() => {
   chatWs.off(MsgType.CHANGE_UID_RSP, onUidChangeRsp)
-  if (typeof previousFocus?.focus === 'function') previousFocus.focus()
 })
 </script>
 
