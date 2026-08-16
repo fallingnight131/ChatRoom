@@ -17,6 +17,8 @@ const forwardingRollback = process.env.CHATROOM_V2_BROWSER_FORWARDING_ROLLBACK =
 const mentionsCandidate = process.env.CHATROOM_V2_BROWSER_MENTIONS === "true";
 const notificationsCandidate = process.env.CHATROOM_V2_BROWSER_NOTIFICATIONS === "true";
 const notificationsRollback = process.env.CHATROOM_V2_BROWSER_NOTIFICATIONS_ROLLBACK === "true";
+const accountBlockingCandidate = process.env.CHATROOM_V2_BROWSER_ACCOUNT_BLOCKING === "true";
+const accountBlockingRollback = process.env.CHATROOM_V2_BROWSER_ACCOUNT_BLOCKING_ROLLBACK === "true";
 const FIXTURE_MESSAGE_ID = "60000000-0000-4000-8000-000000000001";
 
 async function installV2SocketFixture(
@@ -526,6 +528,70 @@ test("keeps V2 search absent after the Web candidate rollback", async ({ page })
   await expect(page.getByRole("button", { name: "搜索消息" })).toHaveCount(0);
   expect(fixture.searchQueries).toEqual([]);
   expect(fixture.receivedTypes).not.toContain(MessageType.SEARCH_CONVERSATION_MESSAGES);
+});
+
+test("sets direct-account block state through an accessible confirmed dialog", async ({ page }) => {
+  test.skip(!enabled || !accountBlockingCandidate,
+    "requires the explicit V2 account-blocking browser candidate");
+  const { fixture } = await installV2SocketFixture(page, "accept");
+
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  await page.getByLabel("用户 ID").fill("browser_v2_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await page.getByRole("button", { name: /Browser Fixture Conversation/ }).click();
+
+  const trigger = page.getByRole("button", { name: "隐私与屏蔽" });
+  await trigger.focus();
+  await trigger.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "管理账号屏蔽" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "关闭账号屏蔽管理" })).toBeFocused();
+  await expect(dialog.getByText("李雷", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("当前屏蔽状态尚未读取，可直接设置期望状态。", { exact: true })).toBeVisible();
+  expect(await dialog.ariaSnapshot()).toContain('- dialog "管理账号屏蔽"');
+
+  await dialog.getByRole("button", { name: "屏蔽账号" }).click();
+  const confirmation = dialog.getByRole("group", { name: "确认屏蔽此账号？" });
+  await expect(confirmation).toBeVisible();
+  await confirmation.getByRole("button", { name: "确认" }).click();
+  await expect(dialog.getByText("已确认屏蔽", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("此状态来自本次操作结果。", { exact: true })).toBeVisible();
+  expect(fixture.accountBlockRequests).toHaveLength(1);
+  expect(fixture.accountBlockRequests[0]).toEqual({
+    targetAccountId: PEER_ACCOUNT_ID,
+    blocked: true,
+    clientOperationId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+  });
+
+  await dialog.getByRole("button", { name: "解除屏蔽" }).click();
+  await dialog.getByRole("group", { name: "确认解除屏蔽？" })
+    .getByRole("button", { name: "确认" }).click();
+  await expect(dialog.getByText("已确认未屏蔽", { exact: true })).toBeVisible();
+  expect(fixture.accountBlockRequests).toHaveLength(2);
+  expect(fixture.accountBlockRequests[1]?.blocked).toBe(false);
+
+  await dialog.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+});
+
+test("keeps account blocking absent after the Web candidate rollback", async ({ page }) => {
+  test.skip(!enabled || !accountBlockingRollback,
+    "requires the explicit V2 account-blocking rollback candidate");
+  const { fixture } = await installV2SocketFixture(page, "accept");
+
+  await page.goto("/#/preview/v2");
+  await expect(page.getByText("可登录", { exact: true })).toBeVisible();
+  await page.getByLabel("用户 ID").fill("browser_v2_user");
+  await page.getByLabel("密码").fill("non-secret-test-value");
+  await page.getByRole("button", { name: "登录" }).click();
+  await page.getByRole("button", { name: /Browser Fixture Conversation/ }).click();
+
+  await expect(page.getByRole("button", { name: "隐私与屏蔽" })).toHaveCount(0);
+  expect(fixture.accountBlockRequests).toEqual([]);
+  expect(fixture.receivedTypes).not.toContain(MessageType.SET_ACCOUNT_BLOCK);
 });
 
 test("forwards one server-authoritative message to a distinct conversation", async ({ page }) => {

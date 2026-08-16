@@ -18,6 +18,7 @@ import {
 import { ProtocolErrorCode, ProtocolErrorSchema } from "../src/protocol/v2/generated/control_pb";
 import { ClientPlatform } from "../src/protocol/v2/generated/control_pb";
 import { DeviceDirectorySchema, DeviceRevokedSchema } from "../src/protocol/v2/generated/device_management_pb";
+import { AccountBlockAppliedSchema } from "../src/protocol/v2/generated/contact_pb";
 import {
   ConversationEntryRecordSchema,
   MessageAcceptedSchema,
@@ -133,6 +134,11 @@ class FakeTransport {
     this.calls.push(["edit", conversationId, messageId, expectedRevision, text,
       clientOperationId, requestId]);
     this.mentionCalls.push({ kind: "edit", mentions: mentions.map((value) => ({ ...value })) });
+    return requestId;
+  }
+  setAccountBlock(targetAccountId: string, blocked: boolean, clientOperationId: string): string {
+    const requestId = `account-block-${this.calls.length}`;
+    this.calls.push(["account-block", targetAccountId, blocked, clientOperationId, requestId]);
     return requestId;
   }
   listDevices(): string {
@@ -1053,6 +1059,67 @@ test("contains participant denial and abandons ambiguous requests on disconnect"
   transport.transition("reconnect-wait");
   assert.equal(application.snapshot.participantsLoading, false);
   application.dispose();
+});
+
+test("binds account blocking to the unique direct participant and retries one stable operation", async () => {
+  const transport = new FakeTransport();
+  const operationId = "70000000-0000-4000-8000-000000000001";
+  const application = new V2WebChatApplication({
+    transport,
+    cache: new FakeCache(),
+    createClientMessageId: () => operationId,
+    enableAccountBlocking: true,
+  });
+  transport.transition("authenticated");
+  establish(transport);
+  directory(transport);
+  await application.openConversation(CONVERSATION_ID);
+  assert.equal(application.setAccountBlock(SECOND_ACCOUNT_ID, true), false,
+    "the view cannot guess a target before the authoritative participant page");
+  assert.equal(application.refreshParticipants(), true);
+  const participantRequest = transport.calls.at(-1)?.[4] as string;
+  transport.emit({
+    requestId: participantRequest,
+    clientMessageId: "",
+    type: "conversation-participant-page",
+    value: create(ConversationParticipantPageSchema, {
+      conversationId: CONVERSATION_ID,
+      participants: [
+        { accountId: ACCOUNT_ID, displayName: "Alice", role: ConversationRole.MEMBER },
+        { accountId: SECOND_ACCOUNT_ID, displayName: "Bob", role: ConversationRole.MEMBER },
+      ],
+      hasMore: false,
+    }),
+  });
+
+  assert.equal(application.setAccountBlock(SECOND_ACCOUNT_ID, true), true);
+  const firstCall = transport.calls.at(-1)!;
+  assert.deepEqual(firstCall.slice(0, 4), ["account-block", SECOND_ACCOUNT_ID, true, operationId]);
+  assert.equal(application.snapshot.accountBlockCommand?.deliveryState, "sending");
+
+  transport.transition("reconnect-wait");
+  assert.equal(application.snapshot.accountBlockCommand?.deliveryState, "failed");
+  transport.transition("authenticated");
+  assert.equal(application.retryAccountBlock(operationId), true);
+  const retryCall = transport.calls.at(-1)!;
+  assert.deepEqual(retryCall.slice(0, 4), ["account-block", SECOND_ACCOUNT_ID, true, operationId]);
+  const retryRequest = retryCall[4] as string;
+  transport.emit({
+    requestId: retryRequest,
+    clientMessageId: operationId,
+    type: "account-block-applied",
+    value: create(AccountBlockAppliedSchema, {
+      actorAccountId: ACCOUNT_ID,
+      targetAccountId: SECOND_ACCOUNT_ID,
+      blocked: true,
+      changed: true,
+      clientOperationId: operationId,
+    }),
+  });
+  assert.deepEqual({
+    state: application.snapshot.accountBlockCommand?.deliveryState,
+    changed: application.snapshot.accountBlockCommand?.changed,
+  }, { state: "applied", changed: true });
 });
 
 test("keeps bounded search results in memory and abandons stale pages on disconnect", async () => {

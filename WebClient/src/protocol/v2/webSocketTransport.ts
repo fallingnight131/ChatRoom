@@ -197,6 +197,13 @@ export class V2WebSocketTransport {
     return command.requestId;
   }
 
+  setAccountBlock(targetAccountId: string, blocked: boolean, clientOperationId: string): string {
+    const command = this.requireAuthenticated().setAccountBlock(
+      targetAccountId, blocked, clientOperationId);
+    this.send(command.bytes);
+    return command.requestId;
+  }
+
   submitText(
     conversationId: string,
     clientMessageId: string,

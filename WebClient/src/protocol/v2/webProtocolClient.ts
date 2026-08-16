@@ -81,6 +81,11 @@ import {
   type DeviceDirectory,
   type DeviceRevoked,
 } from "./generated/device_management_pb";
+import {
+  AccountBlockAppliedSchema,
+  SetAccountBlockSchema,
+  type AccountBlockApplied,
+} from "./generated/contact_pb";
 
 const PROTOCOL_VERSION = 2;
 const MAX_IDENTIFIER_BYTES = 128;
@@ -132,6 +137,7 @@ export type V2WebProtocolEvent = ResponseCorrelation & (
   | { type: "attachment-ready"; value: AttachmentReady }
   | { type: "device-directory"; value: DeviceDirectory }
   | { type: "device-revoked"; value: DeviceRevoked }
+  | { type: "account-block-applied"; value: AccountBlockApplied }
   | { type: "cancelled-response"; value: undefined }
 );
 
@@ -139,6 +145,11 @@ type PendingRequest = {
   expected: ReadonlySet<MessageType>;
   clientMessageId: string;
   cancelled: boolean;
+  accountBlock?: Readonly<{
+    targetAccountId: string;
+    blocked: boolean;
+    clientOperationId: string;
+  }>;
 };
 export type V2CorrelatedCommand = { requestId: string; bytes: Uint8Array };
 
@@ -151,6 +162,7 @@ export interface V2WebProtocolClientOptions {
   enableMessageMentions?: boolean;
   enableMessageForwarding?: boolean;
   enableMessageSearch?: boolean;
+  enableAccountBlocking?: boolean;
 }
 
 export type V2MessageMention = Readonly<{
@@ -185,6 +197,7 @@ export class V2WebProtocolClient {
       ...(options.enableMessageMentions ? [ClientCapability.MESSAGE_MENTIONS] : []),
       ...(options.enableMessageForwarding ? [ClientCapability.MESSAGE_FORWARDING] : []),
       ...(options.enableMessageSearch ? [ClientCapability.MESSAGE_SEARCH] : []),
+      ...(options.enableAccountBlocking ? [ClientCapability.ACCOUNT_BLOCKING] : []),
     ];
   }
 
@@ -363,6 +376,31 @@ export class V2WebProtocolClient {
         conversationId, literalQuery, beforeSequence, limit,
       })),
       new Set([MessageType.CONVERSATION_MESSAGE_SEARCH_PAGE]),
+    ));
+  }
+
+  setAccountBlock(
+    targetAccountId: string,
+    blocked: boolean,
+    clientOperationId: string,
+  ): V2CorrelatedCommand {
+    this.requireState("authenticated");
+    if (!this.accountBlockingEnabled()) {
+      throw new Error("account blocking was not enabled for this client");
+    }
+    requireUuid("targetAccountId", targetAccountId);
+    requireUuid("clientOperationId", clientOperationId);
+    if (targetAccountId === this.currentSession?.accountId) {
+      throw new Error("account block target must differ from the authenticated account");
+    }
+    return correlated(this.command(
+      MessageType.SET_ACCOUNT_BLOCK,
+      toBinary(SetAccountBlockSchema, create(SetAccountBlockSchema, {
+        targetAccountId, blocked, clientOperationId,
+      })),
+      new Set([MessageType.ACCOUNT_BLOCK_APPLIED]),
+      clientOperationId,
+      { targetAccountId, blocked, clientOperationId },
     ));
   }
 
@@ -675,6 +713,15 @@ export class V2WebProtocolClient {
     }
 
     const event = this.decodeEvent(envelope);
+    if (event.type === "account-block-applied") {
+      const expected = pending?.accountBlock;
+      if (!expected || event.value.actorAccountId !== this.currentSession?.accountId
+          || event.value.targetAccountId !== expected.targetAccountId
+          || event.value.blocked !== expected.blocked
+          || event.value.clientOperationId !== expected.clientOperationId) {
+        throw new Error("account block result does not match the authenticated request");
+      }
+    }
     if (event.type === "session-established" && envelope.sessionId !== event.value.sessionId) {
       throw new Error("established session does not match its envelope");
     }
@@ -696,6 +743,7 @@ export class V2WebProtocolClient {
     payload: Uint8Array,
     expected: ReadonlySet<MessageType>,
     clientMessageId = "",
+    accountBlock?: PendingRequest["accountBlock"],
   ): Uint8Array {
     if (payload.byteLength > MAX_PAYLOAD_BYTES) throw new Error("V2 payload exceeds the limit");
     const requestId = this.createRequestId();
@@ -719,7 +767,7 @@ export class V2WebProtocolClient {
     if (bytes.byteLength > Math.min(MAX_WIRE_BYTES, this.negotiatedMaximumFrameBytes)) {
       throw new Error("V2 frame exceeds the negotiated limit");
     }
-    this.pending.set(requestId, { expected, clientMessageId, cancelled: false });
+    this.pending.set(requestId, { expected, clientMessageId, cancelled: false, accountBlock });
     return bytes;
   }
 
@@ -800,6 +848,8 @@ export class V2WebProtocolClient {
           return { ...correlation, type: "device-directory", value: fromBinary(DeviceDirectorySchema, envelope.payload) };
         case MessageType.DEVICE_REVOKED:
           return { ...correlation, type: "device-revoked", value: fromBinary(DeviceRevokedSchema, envelope.payload) };
+        case MessageType.ACCOUNT_BLOCK_APPLIED:
+          return { ...correlation, type: "account-block-applied", value: fromBinary(AccountBlockAppliedSchema, envelope.payload) };
         default:
           throw new Error("unsupported inbound message type");
       }
@@ -937,6 +987,17 @@ export class V2WebProtocolClient {
           throw new Error("invalid device revocation");
         }
         break;
+      case "account-block-applied":
+        if (!this.accountBlockingEnabled()) {
+          throw new Error("account block result requires negotiated account blocking");
+        }
+        requireUuid("actorAccountId", event.value.actorAccountId);
+        requireUuid("targetAccountId", event.value.targetAccountId);
+        requireUuid("clientOperationId", event.value.clientOperationId);
+        if (event.value.actorAccountId === event.value.targetAccountId) {
+          throw new Error("invalid account block result");
+        }
+        break;
       case "cancelled-response":
         break;
     }
@@ -956,6 +1017,10 @@ export class V2WebProtocolClient {
 
   private searchEnabled(): boolean {
     return this.requestedCapabilities.includes(ClientCapability.MESSAGE_SEARCH);
+  }
+
+  private accountBlockingEnabled(): boolean {
+    return this.requestedCapabilities.includes(ClientCapability.ACCOUNT_BLOCKING);
   }
 }
 

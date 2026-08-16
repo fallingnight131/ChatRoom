@@ -50,6 +50,13 @@ export function createConfiguredV2Runtime(
     return disabled("V2 message search flag is invalid");
   }
   const searchEnabled = searchFlag === true || searchFlag === "true";
+  const blockingFlag = environment.VITE_CHAT_V2_ACCOUNT_BLOCKING;
+  if (blockingFlag !== undefined && blockingFlag !== false
+      && blockingFlag !== "false" && blockingFlag !== true
+      && blockingFlag !== "true" && blockingFlag !== "") {
+    return disabled("V2 account blocking flag is invalid");
+  }
+  const accountBlockingEnabled = blockingFlag === true || blockingFlag === "true";
   const notificationFlag = environment.VITE_CHAT_V2_NOTIFICATIONS;
   if (notificationFlag !== undefined && notificationFlag !== false
       && notificationFlag !== "false" && notificationFlag !== true
@@ -81,6 +88,7 @@ export function createConfiguredV2Runtime(
         enableMessageMentions: true,
         enableMessageForwarding: forwardingEnabled,
         enableMessageSearch: searchEnabled,
+        enableAccountBlocking: accountBlockingEnabled,
       }),
     });
     const application = new V2WebChatApplication({
@@ -89,6 +97,7 @@ export function createConfiguredV2Runtime(
       onChange: options.onChange,
       enableMessageForwarding: forwardingEnabled,
       enableMessageSearch: searchEnabled,
+      enableAccountBlocking: accountBlockingEnabled,
       enableNotifications: notificationsEnabled,
     });
     return {

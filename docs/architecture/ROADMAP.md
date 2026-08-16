@@ -2307,8 +2307,14 @@ Candidate slices:
   - [x] Add an exact-default-off V2 gateway handler, negotiated capability,
     bounded execution, privacy-safe errors and metrics, plus real TLS/WSS and
     PostgreSQL mutation/direct-denial evidence.
-  - [ ] Add accessible Web and Windows block management behind independent
-    product gates, including retry, reconnect, and assistive-technology paths.
+  - [x] Add exact-default-off Web capability 7 composition, strict correlated
+    protocol validation, unique DIRECT-participant targeting, stable explicit
+    reconnect retry, localized confirmation UI, and Chromium/Firefox keyboard
+    and accessibility evidence. The result is page-memory only; a block-list
+    read model remains open.
+  - [ ] Add accessible Windows block management behind its independent product
+    gate, then complete real endpoint activation/rollback evidence for both
+    supported clients.
 - Windows native notifications;
   - [x] Add a persisted-live-only notification candidate boundary and a bounded,
     privacy-safe policy that suppresses duplicates, self echoes, and the active

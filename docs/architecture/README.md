@@ -140,8 +140,9 @@ mutation service only when exact `CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true
 is supplied; it then negotiates capability 7 only with a requesting client,
 binds the actor from authentication, serializes a bounded command queue, maps
 private denials to a generic result, and exports fixed-cardinality outcomes.
-Ordinary Web and Windows clients still omit capability 7, so accessible product
-management remains a later gate.
+Default Web and Windows clients still omit capability 7. An explicit Web V2
+candidate can now request it and expose accessible direct-account management;
+Windows and real endpoint activation remain later gates.
 
 Keep module calls in-process at first. Split a deployable service only for one of
 these reasons:
@@ -1936,6 +1937,21 @@ Firefox fixtures prove this path without granting host notification permission.
 Duplicate live events, self echoes, history repair, save refusal, and a stale
 account generation do not emit candidates. The default build remains unchanged.
 
+ADR-0408 now also has an exact-default-off Web candidate. Only
+`VITE_CHAT_V2_ACCOUNT_BLOCKING=true` adds capability 7 to `ClientHello`, enables
+the application operation, and exposes the localized privacy dialog. The view
+never derives an account identity from a display name: it first loads the
+server-authorized participant page, removes the authenticated account, and
+accepts only the unique remaining member of a DIRECT conversation. The protocol
+client binds the stable operation UUID into envelope correlation and rejects a
+result whose actor, target, desired state, or operation identity differs. A
+disconnect changes an ambiguous send to an explicit retry using the same
+operation UUID. The dialog confirms destructive intent, contains keyboard
+focus, and labels its status as page-session evidence. No block-list read model
+or browser persistence exists, so a fresh page truthfully presents status as
+unknown until a desired-state result returns. Default Web and all Windows builds
+remain unchanged.
+
 The pinned V2 generator now publishes reviewed TypeScript bindings directly to
 the Web source tree, and the protocol gate rejects stale committed output. An
 additive TypeScript protocol/session state machine now validates negotiation,
@@ -2178,13 +2194,17 @@ composition defects: deep-readonly proxying of mutable application instances and
 unbound browser timer functions. The fixture is skipped for the default-off
 bundle and is not real TLS/gateway/PostgreSQL, physical network/edge failover,
 deployment-compatibility, or capacity evidence.
-Independent search and forwarding candidate builds now extend that same local
-browser boundary. Search covers capability-6 query/result/context behavior,
+Independent search, forwarding, and account-blocking candidate builds now extend
+that same local browser boundary. Search covers capability-6 query/result/context behavior,
 disconnect clearing, explicit post-resume resubmission, and a disabled rollback
 candidate. Forwarding covers a distinct authorized target, type-119 acceptance,
-privacy-safe destination history, and a disabled rollback candidate. These
+privacy-safe destination history, and a disabled rollback candidate. Account
+blocking covers the authoritative unique DIRECT participant, localized modal
+focus, explicit confirmation, types 128/129, and both desired states in Chromium
+and Firefox. These
 generated-Protobuf routes remain below real gateway/PostgreSQL, endpoint-canary,
-and release evidence.
+and release evidence. A same-revision flag-off Chromium build proves the Web
+action and command disappear again.
 The standard V2 candidate also exercises structured mentions through generated
 type-117/118 participant paging and type-25 submission. Its authoritative page
 deliberately includes the authenticated account, proving the application removes

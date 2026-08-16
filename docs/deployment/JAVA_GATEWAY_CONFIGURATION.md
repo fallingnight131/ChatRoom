@@ -131,6 +131,7 @@ and never store populated values or credentials in the repository.
 | `CHATROOM_GATEWAY_MAX_LIMIT_KEYS` | `10000` | `16..1000000` |
 | `CHATROOM_GATEWAY_MESSAGE_FORWARDING_ENABLED` | `false` | exact `true` or `false` |
 | `CHATROOM_GATEWAY_MESSAGE_SEARCH_ENABLED` | `false` | exact `true` or `false` |
+| `CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED` | `false` | exact `true` or `false` |
 | `CHATROOM_GATEWAY_FORWARD_WINDOW_SECONDS` | `60` | `1..3600` |
 | `CHATROOM_GATEWAY_FORWARD_ATTEMPTS` | `120` | `1..10000` per account/window |
 | `CHATROOM_GATEWAY_FORWARD_MAX_KEYS` | `10000` | `16..1000000` tracked accounts |
@@ -149,6 +150,15 @@ Follow
 [`MESSAGE_SEARCH_ACTIVATION.md`](MESSAGE_SEARCH_ACTIVATION.md) for the
 gateway-first activation, endpoint-specific canary, and client-first rollback
 contract.
+
+Account-block mutation remains off unless exact
+`CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true` is supplied at startup. It
+installs the bounded capability-7 handler and makes capability 7 negotiable only
+for a requesting client; missing or exact `false` leaves both absent, and any
+other value fails before listener bind. Existing block rows remain enforced by
+transactional direct-contact writes regardless of this mutation gate. Follow
+[`ACCOUNT_BLOCKING_ACTIVATION.md`](ACCOUNT_BLOCKING_ACTIVATION.md) and do not
+disable the write policy as part of route rollback.
 
 The heartbeat interval must be strictly shorter than the authenticated idle
 timeout. The gateway sends an empty WebSocket Ping only after authentication and

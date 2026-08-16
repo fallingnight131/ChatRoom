@@ -177,6 +177,8 @@ export interface V2ChatTransport {
   editMessage(conversationId: string, messageId: string, expectedRevision: number,
     text: string, clientOperationId: string,
     mentions?: readonly V2ConversationMention[]): string;
+  setAccountBlock?(
+    targetAccountId: string, blocked: boolean, clientOperationId: string): string;
   listDevices(): string;
   revokeDevice(targetDeviceId: string): string;
 }
@@ -203,6 +205,16 @@ export interface V2ConversationParticipant {
   accountId: string;
   displayName: string;
   role: "owner" | "admin" | "member";
+}
+
+export interface V2AccountBlockCommand {
+  targetAccountId: string;
+  blocked: boolean;
+  clientOperationId: string;
+  requestId: string;
+  deliveryState: "sending" | "failed" | "applied";
+  changed: boolean | null;
+  errorCode: string;
 }
 
 export interface V2WebChatSnapshot {
@@ -240,6 +252,8 @@ export interface V2WebChatSnapshot {
   searchFailure: string;
   searchContextLoading: boolean;
   notificationsEnabled: boolean;
+  accountBlockingEnabled: boolean;
+  accountBlockCommand: V2AccountBlockCommand | null;
 }
 
 export interface V2WebChatApplicationOptions {
@@ -251,6 +265,7 @@ export interface V2WebChatApplicationOptions {
   enableMessageForwarding?: boolean;
   enableMessageSearch?: boolean;
   enableNotifications?: boolean;
+  enableAccountBlocking?: boolean;
 }
 
 type ConversationState = {
@@ -288,6 +303,7 @@ export class V2WebChatApplication {
   private readonly enableMessageForwarding: boolean;
   private readonly enableMessageSearch: boolean;
   private readonly enableNotifications: boolean;
+  private readonly enableAccountBlocking: boolean;
   private readonly observers = new Set<(snapshot: V2WebChatSnapshot) => void>();
   private readonly remoteMessageObservers = new Set<(
     candidate: V2RemoteMessageNotificationCandidate) => void>();
@@ -311,6 +327,7 @@ export class V2WebChatApplication {
   private searchState: SearchState = emptySearchState();
   private searchRequest: { requestId: string; conversationId: string; append: boolean } | null = null;
   private searchContextRequest: { requestId: string; conversationId: string } | null = null;
+  private accountBlockCommandValue: V2AccountBlockCommand | null = null;
   private selectionGeneration = 0;
   private sessionGeneration = 0;
   private readonly replayedAtGeneration = new Map<string, number>();
@@ -327,6 +344,7 @@ export class V2WebChatApplication {
     this.enableMessageForwarding = options.enableMessageForwarding === true;
     this.enableMessageSearch = options.enableMessageSearch === true;
     this.enableNotifications = options.enableNotifications === true;
+    this.enableAccountBlocking = options.enableAccountBlocking === true;
     this.connectionStateValue = this.transport.state;
     this.unsubscribeTransport = this.transport.subscribe({
       onStateChange: (state) => this.handleTransportState(state),
@@ -371,6 +389,10 @@ export class V2WebChatApplication {
       searchFailure: this.searchState.failure,
       searchContextLoading: this.searchContextRequest !== null,
       notificationsEnabled: this.enableNotifications,
+      accountBlockingEnabled: this.enableAccountBlocking,
+      accountBlockCommand: this.accountBlockCommandValue
+        ? { ...this.accountBlockCommandValue }
+        : null,
     };
   }
 
@@ -581,6 +603,55 @@ export class V2WebChatApplication {
     state.failure = "";
     return this.requestParticipantPage(
       this.activeConversationIdValue, state, state.nextAccountId);
+  }
+
+  setAccountBlock(targetAccountId: string, blocked: boolean): boolean {
+    this.requireActive();
+    if (!this.enableAccountBlocking || !this.transport.setAccountBlock
+        || this.connectionStateValue !== "authenticated" || !this.sessionValue
+        || this.accountBlockCommandValue?.deliveryState === "sending"
+        || !canonicalUuid.test(targetAccountId)
+        || targetAccountId === this.sessionValue.accountId) return false;
+    const directory = this.directoryValue.find(
+      (item) => item.conversationId === this.activeConversationIdValue);
+    const participants = this.activeConversationIdValue
+      ? this.participants.get(this.activeConversationIdValue)
+      : undefined;
+    if (directory?.kind !== "direct" || !participants || participants.loading
+        || participants.hasMore || participants.values.length !== 1
+        || participants.values[0]?.accountId !== targetAccountId) return false;
+    const clientOperationId = this.createClientMessageId();
+    if (!canonicalUuid.test(clientOperationId)) {
+      throw new Error("account block operation identity is invalid");
+    }
+    this.accountBlockCommandValue = {
+      targetAccountId, blocked, clientOperationId, requestId: "",
+      deliveryState: "sending", changed: null, errorCode: "",
+    };
+    this.dispatchAccountBlock(this.accountBlockCommandValue);
+    this.emit();
+    return true;
+  }
+
+  retryAccountBlock(clientOperationId: string): boolean {
+    this.requireActive();
+    const command = this.accountBlockCommandValue;
+    if (!this.enableAccountBlocking || !command || command.deliveryState !== "failed"
+        || command.clientOperationId !== clientOperationId
+        || this.connectionStateValue !== "authenticated") return false;
+    command.deliveryState = "sending";
+    command.errorCode = "";
+    this.dispatchAccountBlock(command);
+    this.emit();
+    return true;
+  }
+
+  clearAccountBlockResult(): void {
+    this.requireActive();
+    if (this.accountBlockCommandValue?.deliveryState !== "sending") {
+      this.accountBlockCommandValue = null;
+      this.emit();
+    }
   }
 
   sendText(
@@ -956,6 +1027,7 @@ export class V2WebChatApplication {
     this.searchRequest = null;
     this.searchContextRequest = null;
     this.searchState = emptySearchState();
+    this.accountBlockCommandValue = null;
     this.clearDeviceState();
     this.replayedAtGeneration.clear();
     this.replayQueues.clear();
@@ -979,6 +1051,7 @@ export class V2WebChatApplication {
     this.searchRequest = null;
     this.searchContextRequest = null;
     this.searchState = emptySearchState();
+    this.accountBlockCommandValue = null;
     this.clearDeviceState();
   }
 
@@ -990,6 +1063,11 @@ export class V2WebChatApplication {
       this.replayInFlight.clear();
     }
     if (state !== "authenticated") {
+      if (this.accountBlockCommandValue?.deliveryState === "sending") {
+        this.accountBlockCommandValue.deliveryState = "failed";
+        this.accountBlockCommandValue.requestId = "";
+        this.accountBlockCommandValue.errorCode = "CONNECTION_LOST";
+      }
       this.resetDeviceRequests();
       this.abandonParticipantRequest();
       this.abandonSearchRequest();
@@ -1034,6 +1112,7 @@ export class V2WebChatApplication {
           this.participantRequest = null;
           this.replayedAtGeneration.clear();
           this.clearDeviceState();
+          this.accountBlockCommandValue = null;
         } else if (this.activeConversationIdValue) {
           const active = this.conversations.get(this.activeConversationIdValue);
           if (active) {
@@ -1085,6 +1164,17 @@ export class V2WebChatApplication {
       case "message-accepted":
         this.applyMessageAccepted(event);
         break;
+      case "account-block-applied":
+        if (event.requestId === this.accountBlockCommandValue?.requestId
+            && event.value.clientOperationId
+              === this.accountBlockCommandValue.clientOperationId
+            && event.value.targetAccountId === this.accountBlockCommandValue.targetAccountId
+            && event.value.blocked === this.accountBlockCommandValue.blocked) {
+          this.accountBlockCommandValue.deliveryState = "applied";
+          this.accountBlockCommandValue.changed = event.value.changed;
+          this.accountBlockCommandValue.errorCode = "";
+        }
+        break;
       case "device-directory":
         if (event.requestId !== this.deviceListRequestId) break;
         this.deviceListRequestId = null;
@@ -1121,6 +1211,7 @@ export class V2WebChatApplication {
         this.participants.clear();
         this.participantRequest = null;
         this.clearDeviceState();
+        this.accountBlockCommandValue = null;
         break;
       default:
         break;
@@ -1417,6 +1508,12 @@ export class V2WebChatApplication {
   }
 
   private applyProtocolError(event: Extract<V2WebProtocolEvent, { type: "protocol-error" }>): void {
+    if (event.requestId === this.accountBlockCommandValue?.requestId) {
+      this.accountBlockCommandValue.requestId = "";
+      this.accountBlockCommandValue.deliveryState = "failed";
+      this.accountBlockCommandValue.errorCode = `PROTOCOL_${event.value.code}`;
+      return;
+    }
     if (event.requestId === this.searchContextRequest?.requestId) {
       this.searchContextRequest = null;
       this.searchState.failure = "无法加载消息上下文";
@@ -1643,6 +1740,19 @@ export class V2WebChatApplication {
         command.conversationId, command.messageId, command.expectedRevision,
         command.proposedContent, command.clientOperationId, command.proposedMentions);
     } catch {
+      command.deliveryState = "failed";
+      command.errorCode = "TRANSPORT_UNAVAILABLE";
+    }
+  }
+
+  private dispatchAccountBlock(command: V2AccountBlockCommand): void {
+    try {
+      const setAccountBlock = this.transport.setAccountBlock;
+      if (!setAccountBlock) throw new Error("account blocking transport is unavailable");
+      command.requestId = setAccountBlock.call(
+        this.transport, command.targetAccountId, command.blocked, command.clientOperationId);
+    } catch {
+      command.requestId = "";
       command.deliveryState = "failed";
       command.errorCode = "TRANSPORT_UNAVAILABLE";
     }

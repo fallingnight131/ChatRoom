@@ -1488,9 +1488,33 @@ mapping, bounded-worker rejection, disconnect cleanup, and fixed changed/no-op
 telemetry. Product composition is absent unless exact
 `CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true` is supplied, and negotiation
 still requires a client request for capability 7. Ordinary Web and Windows
-builds do not request it. `python3 tools/verify_m0.py --postgres` additionally
+builds do not request it; an exact-gated Web candidate can. `python3
+tools/verify_m0.py --postgres` additionally
 proves the route over real TLS/WSS against a disposable PostgreSQL database,
 including durable exact retry and generic denial of a later direct message.
+
+The Web protocol/application/UI candidate is covered by `npm test`, both the
+default production build and this explicit candidate build:
+
+```bash
+cd WebClient
+VITE_CHAT_V2_PREVIEW=true \
+VITE_CHAT_V2_ACCOUNT_BLOCKING=true \
+VITE_CHAT_V2_WSS_URL=wss://fixture.invalid/v2/web \
+VITE_CHAT_APP_VERSION=2.0.0-browser-test \
+npm run build
+CHATROOM_V2_BROWSER_PREVIEW=true \
+CHATROOM_V2_BROWSER_ACCOUNT_BLOCKING=true \
+npm run test:browser -- --grep 'sets direct-account block state'
+```
+
+Chromium and Firefox verify the localized modal, contained focus, authoritative
+DIRECT participant, explicit confirmation, block/unblock results, and trigger
+focus restoration through generated Protobuf. Rebuild the same revision with
+`VITE_CHAT_V2_ACCOUNT_BLOCKING=false` and run the test selected by
+`CHATROOM_V2_BROWSER_ACCOUNT_BLOCKING_ROLLBACK=true` to prove the action and
+type-128 command disappear. This fixture is not a live
+gateway/PostgreSQL endpoint or a release claim.
 
 The Java gate includes embedded-channel tests for the bounded V2 binary
 WebSocket frame decoder, single-use ClientHello negotiation, and fresh-login
@@ -2305,9 +2329,15 @@ The Java gateway account-block route has its own exact runtime gate,
 omits both the handler and capability policy; other values fail configuration
 parsing before bind. Changing it requires a gateway restart. Connections keep
 the capabilities negotiated for their lifetime, so a disable rollout must
-restart or drain the old gateway connections. Ordinary Web and Windows clients
+restart or drain the old gateway connections. Default Web and Windows clients
 still omit capability 7, and server activation alone does not expose a product
-action.
+action. An independent Web V2 candidate uses exact
+`VITE_CHAT_V2_ACCOUNT_BLOCKING=true`; missing, empty, or exact `false` keeps the
+capability, application operation, and UI absent, while any other value
+invalidates the V2 runtime. It resolves only the authorized unique non-self
+DIRECT participant, keeps one operation result in page memory, and reuses the
+same operation UUID for explicit retry. It does not provide a persisted block
+list. Windows remains off.
 Web V2 browser notifications have the independent exact build-time gate
 `VITE_CHAT_V2_NOTIFICATIONS=true`. Missing, empty, or exact `false` keeps
 application candidate emission off; malformed values invalidate the V2 runtime.

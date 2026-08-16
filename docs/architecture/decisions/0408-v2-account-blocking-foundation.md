@@ -66,9 +66,17 @@ server candidate without activating an incomplete client product path.
   mutations without account, target, or operation labels. The durable write
   policy remains enforced by every PostgreSQL direct-contact adapter, including
   V1 compatibility, so composition cannot introduce an old-client bypass.
-- Ordinary Web and Windows builds do not request capability 7 and expose no
-  block-management UI. Server activation alone therefore creates only an
-  explicitly testable candidate, not a product feature.
+- Default Web and Windows builds do not request capability 7. An independent
+  Web V2 candidate built with exact `VITE_CHAT_V2_ACCOUNT_BLOCKING=true` requests
+  it and exposes a localized, keyboard-contained direct-account dialog. It
+  targets only the unique non-self member returned by the authorized DIRECT
+  participant page, confirms either desired state, and preserves one operation
+  UUID for explicit retry after disconnect. Windows remains off. Server or Web
+  activation alone therefore cannot create a product feature.
+- The Web candidate keeps the latest operation result in page memory only. It
+  does not infer durable state before a result, persist a block graph, or expose
+  a block-list read model. A fresh page labels state unknown and can issue an
+  idempotent desired-state command.
 
 ## Consequences
 
@@ -76,8 +84,9 @@ The safety semantics and authenticated-actor boundary remain independent from
 transport. Existing deployments have no block rows until the default-off server
 candidate and an explicit compatible client are enabled, while direct-contact
 writes already fail closed if such rows exist. Old clients omit capability 7
-and keep their prior handshake bytes. Later expand-migrate-contract steps can
-add accessible Web and Windows surfaces without changing storage enforcement.
+and keep their prior handshake bytes. The first Web candidate is now present;
+Windows composition, real endpoint canaries, and a future block-list read model
+remain separate expand-migrate-contract steps.
 
 ## Verification
 
@@ -100,6 +109,14 @@ changed/no-op telemetry. The real TLS/WSS PostgreSQL gate negotiates capability
 7 behind the exact server flag, applies a block, returns the identical exact
 retry, verifies one durable row, and then denies a new direct message with the
 generic result.
+TypeScript protocol and application tests additionally prove the default-off
+flag, strict actor/target/desired/operation correlation, authoritative unique
+DIRECT target, disconnect failure containment, and same-operation retry.
+Chromium and Firefox drive the generated-Protobuf fixture through focus entry,
+localized confirmation, block, unblock, and trigger-focus restoration. This is
+local browser-composition evidence, not a real gateway endpoint or release gate.
+A same-revision Chromium flag-off build proves the action and type-128 command
+are absent after client-first rollback.
 
 ## Rollback
 
@@ -111,5 +128,5 @@ Removing the direct-write policy while retaining rows would reopen contact
 paths, so that deeper rollback requires first proving the graph empty or
 applying an explicitly approved data policy. If V052 must be physically removed
 before product activation, restore the pre-migration database backup rather
-than editing Flyway history. Client state requires no migration because product
-clients remain off.
+than editing Flyway history. Client state requires no migration because the Web
+candidate persists no block state and default product clients remain off.

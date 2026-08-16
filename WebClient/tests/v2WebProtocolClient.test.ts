@@ -63,6 +63,10 @@ import {
   ListDevicesSchema,
   RevokeDeviceSchema,
 } from "../src/protocol/v2/generated/device_management_pb";
+import {
+  AccountBlockAppliedSchema,
+  SetAccountBlockSchema,
+} from "../src/protocol/v2/generated/contact_pb";
 
 const UNKNOWN_REQUEST_ID = "10000000-0000-4000-8000-999999999999";
 const ACCOUNT_ID = "20000000-0000-4000-8000-000000000001";
@@ -80,6 +84,7 @@ function newClient(
   enableMessageMentions = false,
   enableMessageForwarding = false,
   enableMessageSearch = false,
+  enableAccountBlocking = false,
 ): V2WebProtocolClient {
   let next = 0;
   return new V2WebProtocolClient({
@@ -91,6 +96,7 @@ function newClient(
     enableMessageMentions,
     enableMessageForwarding,
     enableMessageSearch,
+    enableAccountBlocking,
   });
 }
 
@@ -482,6 +488,62 @@ test("keeps conversation search default-off and validates descending current-sta
       })),
     { sessionId: SESSION_ID },
   )), /cursor must identify the last hit/);
+});
+
+test("keeps account blocking default-off and validates server-bound correlated results", () => {
+  const disabled = newClient();
+  authenticate(disabled);
+  assert.throws(() => disabled.setAccountBlock(
+    SECOND_ACCOUNT_ID, true, "70000000-0000-4000-8000-000000000001"), /not enabled/);
+
+  const capabilities = [
+    ClientCapability.MESSAGE_REACTIONS,
+    ClientCapability.MESSAGE_PINS,
+    ClientCapability.ACCOUNT_BLOCKING,
+  ];
+  const client = newClient(false, false, false, false, true);
+  authenticate(client, capabilities);
+  const operationId = "70000000-0000-4000-8000-000000000001";
+  const command = client.setAccountBlock(SECOND_ACCOUNT_ID, true, operationId);
+  const request = decodeEnvelope(command.bytes);
+  assert.equal(request.messageType, MessageType.SET_ACCOUNT_BLOCK);
+  assert.equal(request.clientMessageId, operationId);
+  const payload = fromBinary(SetAccountBlockSchema, request.payload);
+  assert.deepEqual({
+    targetAccountId: payload.targetAccountId,
+    blocked: payload.blocked,
+    clientOperationId: payload.clientOperationId,
+  }, { targetAccountId: SECOND_ACCOUNT_ID, blocked: true, clientOperationId: operationId });
+
+  const result = client.receive(response(
+    request,
+    MessageType.ACCOUNT_BLOCK_APPLIED,
+    toBinary(AccountBlockAppliedSchema, create(AccountBlockAppliedSchema, {
+      actorAccountId: ACCOUNT_ID,
+      targetAccountId: SECOND_ACCOUNT_ID,
+      blocked: true,
+      changed: true,
+      clientOperationId: operationId,
+    })),
+    { sessionId: SESSION_ID },
+  ));
+  assert.equal(result.type, "account-block-applied");
+
+  const mismatch = client.setAccountBlock(SECOND_ACCOUNT_ID, false,
+    "70000000-0000-4000-8000-000000000002");
+  const mismatchRequest = decodeEnvelope(mismatch.bytes);
+  assert.throws(() => client.receive(response(
+    mismatchRequest,
+    MessageType.ACCOUNT_BLOCK_APPLIED,
+    toBinary(AccountBlockAppliedSchema, create(AccountBlockAppliedSchema, {
+      actorAccountId: SECOND_ACCOUNT_ID,
+      targetAccountId: SECOND_ACCOUNT_ID,
+      blocked: false,
+      changed: true,
+      clientOperationId: "70000000-0000-4000-8000-000000000002",
+    })),
+    { sessionId: SESSION_ID },
+  )), /does not match the authenticated request/);
 });
 
 test("encodes and strictly validates the capability-gated participant directory", () => {

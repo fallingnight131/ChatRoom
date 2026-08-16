@@ -6,13 +6,14 @@ observability, UI, and release gates are explicitly accepted.
 
 ## Build Configuration
 
-The preview requires three public, compile-time Vite values. Message forwarding
-has a fourth independent, default-off value:
+The preview requires its public endpoint/version values plus independent,
+default-off compile-time feature values:
 
 ```bash
 VITE_CHAT_V2_PREVIEW=true \
 VITE_CHAT_V2_MESSAGE_FORWARDING=false \
 VITE_CHAT_V2_MESSAGE_SEARCH=false \
+VITE_CHAT_V2_ACCOUNT_BLOCKING=false \
 VITE_CHAT_V2_NOTIFICATIONS=false \
 VITE_CHAT_V2_WSS_URL=wss://preview-chat.example.com/v2/web \
 VITE_CHAT_V2_WSS_FALLBACK_URLS='["wss://preview-chat-secondary.example.com/v2/web"]' \
@@ -30,6 +31,12 @@ npm run build
   as enabled application state; any other spelling invalidates the V2 runtime.
   The enabled preview exposes bounded in-memory search and separately
   correlated context repair; keep it false outside reviewed candidates.
+- `VITE_CHAT_V2_ACCOUNT_BLOCKING` is optional and disabled when missing, empty,
+  or exactly `false`. Only exact `true` requests capability 7 and exposes the
+  direct-account privacy dialog; any other spelling invalidates V2. The view
+  targets only the authorized unique non-self DIRECT participant, confirms both
+  desired states, and keeps the latest result in page memory. It does not expose
+  a persisted block list; keep it false outside reviewed candidates.
 - `VITE_CHAT_V2_NOTIFICATIONS` is optional and disabled when missing, empty, or
   exactly `false`. Only exact `true` permits the application to emit a detached
   candidate after a remote live message is successfully saved; any other
@@ -96,6 +103,11 @@ Before serving preview assets:
    lifecycle denial, literal Unicode pagination, edit/recall/deletion current
    state, context non-persistence, late-response abandonment, and disable either
    side.
+10. for an account-blocking candidate, verify the gateway independently has
+    `CHATROOM_GATEWAY_ACCOUNT_BLOCKING_ENABLED=true`; test unique DIRECT target
+    resolution, generic denial, exact retry after connection loss, block and
+    unblock, subsequent direct-message/contact-request denial, and client-first
+    rollback. Do not present page-memory result state as a complete block list.
 
 The deterministic browser boundary uses Playwright WebSocket routing and exact
 generated Protobuf envelopes. It verifies the current view/application/transport
@@ -139,6 +151,13 @@ The participant fixture can also delay type 118. During that delay the close
 action owns focus; the first option receives focus after arrival only while that
 initial ownership remains. Chromium and Firefox separately verify automatic
 advancement and that a user-moved focus target is not overridden.
+An independently built account-blocking candidate resolves that same authorized
+DIRECT participant, opens a named focus-contained dialog, confirms both desired
+states, and exchanges generated types 128/129. Chromium and Firefox verify
+block, unblock, live status, Escape closure, and trigger-focus restoration. It
+remains local composition evidence and does not replace the real PostgreSQL/WSS
+activation checks. A same-revision Chromium rollback build with the flag false
+proves both the action and type-128 command disappear.
 The fixture does not satisfy the real TLS, Origin/Host, gateway, database,
 physical network, edge-failover, or deployment checks above and must not be
 reported as release or capacity evidence.
@@ -149,6 +168,8 @@ build flag is immutable candidate metadata, not authority to change the gateway.
 Use the same gateway-first activation and client-first rollback invariant for
 search, with its independent evidence checklist in
 [`MESSAGE_SEARCH_ACTIVATION.md`](MESSAGE_SEARCH_ACTIVATION.md).
+Use the account-block-specific safety and data-preservation sequence in
+[`ACCOUNT_BLOCKING_ACTIVATION.md`](ACCOUNT_BLOCKING_ACTIVATION.md).
 
 Rollback by redeploying the prior immutable asset version or a build without the
 exact preview flag, then invalidate the HTML entry point according to the Web

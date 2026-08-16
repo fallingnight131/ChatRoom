@@ -684,6 +684,31 @@ const v2PreviewForwardCatalog = {
   },
 } as const;
 
+const v2PreviewAccountBlockCatalog = {
+  "zh-CN": {
+    manage: "隐私与屏蔽", title: "管理账号屏蔽", close: "关闭账号屏蔽管理",
+    description: "屏蔽后，双方不能发送新的私聊消息或好友请求；历史消息和共同群聊不会改变。",
+    loading: "正在确认私聊对象…", targetUnavailable: "暂时无法确认此私聊的对方账号。",
+    retryTarget: "重新加载", statusUnknown: "当前屏蔽状态尚未读取，可直接设置期望状态。",
+    blocked: "已确认屏蔽", unblocked: "已确认未屏蔽", sessionEvidence: "此状态来自本次操作结果。",
+    block: "屏蔽账号", unblock: "解除屏蔽", confirmBlock: "确认屏蔽此账号？",
+    confirmUnblock: "确认解除屏蔽？", confirm: "确认", cancel: "取消", applying: "正在保存…",
+    applied: "设置已保存", unchanged: "服务器状态已与设置一致", retry: "使用同一操作重试",
+    failed: "暂时无法保存屏蔽设置，请稍后重试。", reconnect: "连接中断，恢复后可安全重试同一操作。",
+  },
+  "en-US": {
+    manage: "Privacy and blocking", title: "Manage account blocking", close: "Close account blocking",
+    description: "Blocking stops new direct messages and contact requests in both directions. History and shared groups do not change.",
+    loading: "Confirming the direct-message participant…", targetUnavailable: "The other account in this direct conversation cannot be confirmed right now.",
+    retryTarget: "Reload", statusUnknown: "The current block state has not been read. You can set the desired state directly.",
+    blocked: "Confirmed blocked", unblocked: "Confirmed not blocked", sessionEvidence: "This status comes from the result of this session's operation.",
+    block: "Block account", unblock: "Unblock account", confirmBlock: "Block this account?",
+    confirmUnblock: "Unblock this account?", confirm: "Confirm", cancel: "Cancel", applying: "Saving…",
+    applied: "Setting saved", unchanged: "The server state already matched this setting", retry: "Retry the same operation",
+    failed: "The block setting could not be saved. Try again later.", reconnect: "The connection was interrupted. Retry the same operation after reconnecting.",
+  },
+} as const;
+
 const v2PreviewDeviceCatalog = {
   "zh-CN": {
     title: "登录设备", description: "发现陌生设备时，可撤销它的全部登录会话。", close: "关闭登录设备",
@@ -895,6 +920,10 @@ export function localizeV2PreviewParticipantFailure(locale: WebLocale, failure: 
 
 export function v2PreviewForwardMessages(locale: WebLocale) {
   return v2PreviewForwardCatalog[locale];
+}
+
+export function v2PreviewAccountBlockMessages(locale: WebLocale) {
+  return v2PreviewAccountBlockCatalog[locale];
 }
 
 export function v2PreviewDeviceMessages(locale: WebLocale) {

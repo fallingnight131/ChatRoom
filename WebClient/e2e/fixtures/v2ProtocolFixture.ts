@@ -32,6 +32,10 @@ import {
   ListDevicesSchema,
 } from "../../src/protocol/v2/generated/device_management_pb";
 import {
+  AccountBlockAppliedSchema,
+  SetAccountBlockSchema,
+} from "../../src/protocol/v2/generated/contact_pb";
+import {
   EnvelopeSchema,
   MessageKind,
   type Envelope,
@@ -97,6 +101,11 @@ export interface V2ProtocolFixture {
     targetConversationId: string;
     clientMessageId: string;
   }>;
+  readonly accountBlockRequests: Array<{
+    targetAccountId: string;
+    blocked: boolean;
+    clientOperationId: string;
+  }>;
   respond(bytes: number[]): number[] | null;
   publishedMessage(options?: {
     messageId?: string;
@@ -117,6 +126,7 @@ export function createV2ProtocolFixture(
   const participantRequests: V2ProtocolFixture["participantRequests"] = [];
   const mentionSubmissions: V2ProtocolFixture["mentionSubmissions"] = [];
   const forwardRequests: V2ProtocolFixture["forwardRequests"] = [];
+  const accountBlockRequests: V2ProtocolFixture["accountBlockRequests"] = [];
   let clientDeviceId = "";
   let resumed = false;
   let forwardedClientMessageId = "";
@@ -132,6 +142,7 @@ export function createV2ProtocolFixture(
     participantRequests,
     mentionSubmissions,
     forwardRequests,
+    accountBlockRequests,
     publishedMessage(event = {}) {
       const conversationId = event.conversationId ?? KEYBOARD_CONVERSATION_ID;
       const conversationSequence = event.conversationSequence ?? 1n;
@@ -410,6 +421,29 @@ export function createV2ProtocolFixture(
               conversationSequence: 1n,
               acceptedAtEpochMs: NOW + 2_000n,
               duplicate: false,
+            }, { sessionId: SESSION_ID });
+        }
+        case MessageType.SET_ACCOUNT_BLOCK: {
+          const block = fromBinary(SetAccountBlockSchema, request.payload);
+          requireSession(request);
+          if (block.targetAccountId !== PEER_ACCOUNT_ID || !block.clientOperationId
+              || request.clientMessageId !== block.clientOperationId) {
+            throw new Error("unexpected V2 fixture account block command");
+          }
+          const duplicate = accountBlockRequests.some(value =>
+            value.clientOperationId === block.clientOperationId);
+          accountBlockRequests.push({
+            targetAccountId: block.targetAccountId,
+            blocked: block.blocked,
+            clientOperationId: block.clientOperationId,
+          });
+          return response(request, MessageType.ACCOUNT_BLOCK_APPLIED,
+            AccountBlockAppliedSchema, {
+              actorAccountId: ACCOUNT_ID,
+              targetAccountId: block.targetAccountId,
+              blocked: block.blocked,
+              changed: !duplicate,
+              clientOperationId: block.clientOperationId,
             }, { sessionId: SESSION_ID });
         }
         case MessageType.SUBMIT_MESSAGE: {

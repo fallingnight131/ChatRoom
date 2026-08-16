@@ -146,8 +146,13 @@ gateway handler is installed unless exact
 negotiation requires the client to request capability 7. The handler accepts
 only authenticated command envelopes, binds the actor from connection state,
 uses a bounded serialized queue, and emits fixed-cardinality changed/no-op
-outcomes. Ordinary Web and Windows clients do not request the capability, so
-old handshakes and product behavior remain unchanged.
+outcomes. Default Web and Windows clients do not request the capability. An
+explicit Web candidate can request it with exact
+`VITE_CHAT_V2_ACCOUNT_BLOCKING=true`; its protocol client rejects any correlated
+result whose authenticated actor, target, desired state, or operation ID differs
+from the request. It stores no durable block projection, so a new page treats
+current state as unknown until a desired-state result returns. Old handshakes
+and default product behavior remain unchanged.
 
 The Web candidate correlates every search response with one active in-memory
 request and discards pages abandoned by disconnect or conversation change.
