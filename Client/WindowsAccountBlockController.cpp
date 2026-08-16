@@ -26,7 +26,10 @@ WindowsAccountBlockController::WindowsAccountBlockController(
             return submit(target, blocked, operation);
         });
     m_directoryViewModel = std::make_unique<V2WindowsAccountBlockDirectoryViewModel>(
-        [this](const QString &after) { return list(after); });
+        [this](const QString &after) { return list(after); },
+        [this](const QString &target, const QString &operation) {
+            return unblockFromDirectory(target, operation);
+        });
     connect(m_transport, &V2WindowsDeviceManagementTransport::authenticated,
             this, [this](const QString &accountId, const QString &,
                          const QString &sessionId, const QString &) {
@@ -40,6 +43,11 @@ WindowsAccountBlockController::WindowsAccountBlockController(
                 || state == V2WindowsDeviceManagementTransport::State::Stopped)
             disconnectSession();
     });
+}
+
+bool WindowsAccountBlockController::unblockFromDirectory(
+        const QString &targetAccountId, const QString &clientOperationId) {
+    return submit(targetAccountId, false, clientOperationId);
 }
 
 WindowsAccountBlockController::~WindowsAccountBlockController() = default;
@@ -88,8 +96,19 @@ void WindowsAccountBlockController::receive(const QByteArray &frame) {
         const auto event = m_protocol.receive(
             std::string(frame.constData(), static_cast<std::size_t>(frame.size())));
         if (event.type == V2WindowsAccountBlockProtocolClient::EventType::Applied) {
-            m_viewModel->applyResult(qt(event.targetAccountId), event.blocked,
-                                     event.changed, qt(event.clientOperationId));
+            const QString operationId = qt(event.clientOperationId);
+            if (m_directoryViewModel->ownsOperation(operationId)) {
+                if (event.blocked)
+                    throw std::runtime_error("directory unblock returned blocked state");
+                m_directoryViewModel->applyUnblockResult(
+                    qt(event.targetAccountId), operationId);
+                m_directoryViewModel->refresh();
+            } else {
+                m_viewModel->applyResult(qt(event.targetAccountId), event.blocked,
+                                         event.changed, operationId);
+                if (m_directoryViewModel->available())
+                    m_directoryViewModel->refresh();
+            }
         } else if (event.type == V2WindowsAccountBlockProtocolClient::EventType::DirectoryPage) {
             QVector<V2WindowsAccountBlockDirectoryViewModel::Row> rows;
             rows.reserve(static_cast<qsizetype>(event.blocks.size()));
@@ -104,7 +123,11 @@ void WindowsAccountBlockController::receive(const QByteArray &frame) {
                 event.retryable ? QStringLiteral("屏蔽目录暂不可用，可重试")
                                 : QStringLiteral("无法读取屏蔽目录"));
         } else {
-            m_viewModel->applyFailure(qt(event.clientOperationId), event.retryable);
+            const QString operationId = qt(event.clientOperationId);
+            if (m_directoryViewModel->ownsOperation(operationId))
+                m_directoryViewModel->applyUnblockFailure(operationId, event.retryable);
+            else
+                m_viewModel->applyFailure(operationId, event.retryable);
         }
     } catch (...) {
         m_transport->rejectMessagingProtocol();

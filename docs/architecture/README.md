@@ -152,7 +152,9 @@ candidate now composes bounded directory refresh/load-more into a separate
 page-memory ViewModel, retaining visible rows during transient transport loss
 but clearing them at authenticated account boundaries. A feature-gated global
 Windows privacy dialog renders at most 500 of those server rows and bounded pagination without
-requiring an active conversation; row-level unblock remains disconnected. The
+requiring an active conversation. Confirmed row-level unblock reuses the same
+idempotent desired-state command, waits for the correlated server result, then
+refreshes the directory instead of treating local absence as durable truth. The
 exact-gated Web protocol client can
 now request and strictly validate a correlated page. Its application boundary
 retains at most 500 page-memory rows, refreshes after authentication/resume and

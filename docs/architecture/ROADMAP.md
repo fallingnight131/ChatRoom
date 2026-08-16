@@ -2359,8 +2359,11 @@ Candidate slices:
     account boundaries, and keep the directory detached from Widgets.
   - [x] Expose the Windows directory from a feature-gated global privacy menu
     with accessible server rows, refresh/load-more single-flight controls,
-    honest empty/error/offline states, and native Windows CI coverage. Keep
-    row-level unblock disconnected until it can reuse the idempotent mutation.
+    honest empty/error/offline states, and native Windows CI coverage.
+  - [x] Reuse the idempotent desired-state mutation for confirmed row-level
+    Windows unblock, preserve its operation ID across same-account reconnect,
+    route results independently from the DIRECT dialog, and repair from a fresh
+    server directory page after success.
   - [x] Expose an accessible Windows DIRECT-only block/unblock dialog behind the
     same immutable product gate, with authoritative target loading, confirmation,
     announced status, pending disablement, and native Windows CI coverage.

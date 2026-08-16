@@ -2492,7 +2492,10 @@ settings menu exposes a global privacy dialog with at most 500 accessible server
 refresh/load-more single-flight controls, and honest empty/error/offline state.
 The dialog's native offscreen test is compiled and run by the Windows product
 CI; macOS protocol gates continue to avoid claiming native Widgets evidence.
-Row-level unblock is not exposed from this directory yet.
+Selecting a row exposes a confirmed unblock action that reuses type 128 with
+`blocked=false`. Its operation UUID survives same-account reconnect for explicit
+retry, is cleared at account boundaries, and only removes the row after a
+strictly correlated type-129 result before requesting a fresh server page.
 
 Disabled composition returns neither account-block ViewModel and omits the
 privacy menu entry. Widgets

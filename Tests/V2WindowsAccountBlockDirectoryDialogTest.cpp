@@ -20,9 +20,21 @@ int main(int argc, char **argv) {
     const QString first = QStringLiteral("10000000-0000-4000-8000-000000000001");
     const QString second = QStringLiteral("20000000-0000-4000-8000-000000000001");
     QString requestedAfter;
+    QString unblockTarget;
+    QString unblockOperation;
+    int confirmations = 0;
     V2WindowsAccountBlockDirectoryViewModel viewModel(
-        [&](const QString &after) { requestedAfter = after; return true; });
-    V2WindowsAccountBlockDirectoryDialog dialog(&viewModel);
+        [&](const QString &after) { requestedAfter = after; return true; },
+        [&](const QString &target, const QString &operation) {
+            unblockTarget = target;
+            unblockOperation = operation;
+            return true;
+        });
+    V2WindowsAccountBlockDirectoryDialog dialog(
+        &viewModel, [&](QWidget *, const QString &displayName) {
+            ++confirmations;
+            return displayName == QStringLiteral("甲");
+        });
     dialog.show();
     application.processEvents();
     if (!check(!dialog.refreshForTest()->isEnabled()
@@ -53,9 +65,25 @@ int main(int argc, char **argv) {
                    && !dialog.loadMoreForTest()->isEnabled()
                    && dialog.statusForTest()->text().contains(QStringLiteral("2")),
                QStringLiteral("终止页没有更新目录和状态"))) return 1;
+    dialog.listForTest()->setCurrentRow(0);
+    application.processEvents();
+    if (!check(dialog.unblockForTest()->isEnabled()
+                   && !dialog.unblockForTest()->accessibleName().isEmpty(),
+               QStringLiteral("选择服务端行没有暴露可访问取消屏蔽动作"))) return 1;
+    dialog.unblockForTest()->click();
+    application.processEvents();
+    if (!check(confirmations == 1 && unblockTarget == first
+                   && !unblockOperation.isEmpty() && viewModel.mutationPending()
+                   && !dialog.unblockForTest()->isEnabled(),
+               QStringLiteral("确认取消屏蔽没有成为单一幂等操作"))) return 1;
+    viewModel.applyUnblockResult(first, unblockOperation);
+    application.processEvents();
+    if (!check(dialog.listForTest()->count() == 1
+                   && dialog.listForTest()->item(0)->data(Qt::UserRole) == second,
+               QStringLiteral("权威取消屏蔽结果没有更新可见目录"))) return 1;
     viewModel.setUnavailable();
     application.processEvents();
-    if (!check(dialog.listForTest()->count() == 2
+    if (!check(dialog.listForTest()->count() == 1
                    && !dialog.refreshForTest()->isEnabled()
                    && dialog.statusForTest()->text().contains(QStringLiteral("断开")),
                QStringLiteral("断线界面应保留可见行并禁用网络动作"))) return 1;

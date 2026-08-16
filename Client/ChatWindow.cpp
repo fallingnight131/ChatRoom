@@ -4885,7 +4885,7 @@ void ChatWindow::showAccountBlockDirectory() {
         return;
     }
     m_accountBlockDirectoryDialog =
-        new V2WindowsAccountBlockDirectoryDialog(viewModel, this);
+        new V2WindowsAccountBlockDirectoryDialog(viewModel, {}, this);
     m_accountBlockDirectoryDialog->setAttribute(Qt::WA_DeleteOnClose);
     connect(m_accountBlockDirectoryDialog, &QObject::destroyed, this, [this] {
         m_accountBlockDirectoryDialog = nullptr;

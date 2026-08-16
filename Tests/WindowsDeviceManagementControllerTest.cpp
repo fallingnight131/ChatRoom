@@ -183,8 +183,8 @@ int main(int argc, char **argv) {
                QStringLiteral("correlated account-block result was not projected"))) return 1;
 
     auto *blockDirectory = controller.accountBlockDirectoryViewModel();
-    if (!check(blockDirectory->refresh() && sent.size() == 1,
-               QStringLiteral("account-block directory refresh was not composed"))) return 1;
+    if (!check(blockDirectory->busy() && sent.size() == 1,
+               QStringLiteral("account-block mutation did not refresh server directory"))) return 1;
     const auto blockListCommand = parse(sent.takeFirst());
     chat::v2::ListAccountBlocks blockListPayload;
     if (!check(blockListCommand.message_type()
@@ -204,6 +204,36 @@ int main(int argc, char **argv) {
     if (!check(!blockDirectory->busy() && blockDirectory->rows().size() == 1
                    && blockDirectory->rows().first().targetAccountId == targetId,
                QStringLiteral("account-block directory page was not projected"))) return 1;
+    if (!check(blockDirectory->requestUnblock(targetId) && sent.size() == 1,
+               QStringLiteral("directory unblock was not composed"))) return 1;
+    const auto unblockCommand = parse(sent.takeFirst());
+    chat::v2::SetAccountBlock unblockPayload;
+    if (!check(unblockCommand.message_type()
+                    == chat::v2::MESSAGE_TYPE_SET_ACCOUNT_BLOCK
+                   && unblockPayload.ParseFromString(unblockCommand.payload())
+                   && unblockPayload.target_account_id() == targetId.toStdString()
+                   && !unblockPayload.blocked(),
+               QStringLiteral("directory unblock lost exact desired state"))) return 1;
+    chat::v2::AccountBlockApplied unblockApplied;
+    unblockApplied.set_actor_account_id(actorId.toStdString());
+    unblockApplied.set_target_account_id(targetId.toStdString());
+    unblockApplied.set_blocked(false);
+    unblockApplied.set_changed(true);
+    unblockApplied.set_client_operation_id(unblockPayload.client_operation_id());
+    socket.binaryMessageReceived(response(
+        chat::v2::MESSAGE_TYPE_ACCOUNT_BLOCK_APPLIED, unblockCommand.request_id(),
+        sessionId, unblockApplied, chat::v2::MESSAGE_KIND_RESPONSE,
+        unblockPayload.client_operation_id()));
+    if (!check(blockDirectory->rows().isEmpty() && blockDirectory->busy()
+                   && sent.size() == 1,
+               QStringLiteral("confirmed directory unblock did not repair from server"))) return 1;
+    const auto repairedList = parse(sent.takeFirst());
+    chat::v2::AccountBlockDirectoryPage emptyBlockPage;
+    socket.binaryMessageReceived(response(
+        chat::v2::MESSAGE_TYPE_ACCOUNT_BLOCK_DIRECTORY_PAGE,
+        repairedList.request_id(), sessionId, emptyBlockPage));
+    if (!check(!blockDirectory->busy() && blockDirectory->rows().isEmpty(),
+               QStringLiteral("directory unblock repair did not settle"))) return 1;
 
     chat::v2::MessageRecord published;
     published.set_conversation_id("60000000-0000-4000-8000-000000000001");

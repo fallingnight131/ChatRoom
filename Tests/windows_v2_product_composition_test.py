@@ -34,6 +34,9 @@ def main() -> int:
     conversation_dialog = (ROOT / "Client/V2WindowsConversationDialog.cpp").read_text(
         encoding="utf-8"
     )
+    block_directory_dialog = (
+        ROOT / "Client/V2WindowsAccountBlockDirectoryDialog.cpp"
+    ).read_text(encoding="utf-8")
     qmake = (ROOT / "Client/Client.pro").read_text(encoding="utf-8")
 
     for source, text in (
@@ -130,6 +133,11 @@ def main() -> int:
         "m_selectedConversationDirect",
         "m_accountBlock->setEnabled",
     ), "Client/V2WindowsConversationDialog.cpp")
+    require(block_directory_dialog, (
+        "requestUnblock",
+        "取消屏蔽所选账号",
+        "QMessageBox::question",
+    ), "Client/V2WindowsAccountBlockDirectoryDialog.cpp")
     for source in (
         "Client/WindowsDeviceManagementController.cpp",
         "Client/DeviceManagementApplicationService.cpp",

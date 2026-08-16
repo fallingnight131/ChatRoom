@@ -25,6 +25,8 @@ private:
     bool submit(const QString &targetAccountId, bool blocked,
                 const QString &clientOperationId);
     bool list(const QString &afterTargetAccountId);
+    bool unblockFromDirectory(const QString &targetAccountId,
+                              const QString &clientOperationId);
     void receive(const QByteArray &frame);
     void disconnectSession();
 

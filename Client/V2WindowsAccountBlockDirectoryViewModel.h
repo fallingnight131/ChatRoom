@@ -15,19 +15,29 @@ public:
         qint64 blockedAtEpochMs = 0;
     };
     using List = std::function<bool(const QString &afterTargetAccountId)>;
+    using Unblock = std::function<bool(
+        const QString &targetAccountId, const QString &clientOperationId)>;
 
     explicit V2WindowsAccountBlockDirectoryViewModel(
-        List list, QObject *parent = nullptr);
+        List list, Unblock unblock, QObject *parent = nullptr);
     QVector<Row> rows() const { return m_rows; }
     bool available() const { return m_available; }
     bool busy() const { return m_busy; }
     bool hasMore() const { return m_hasMore; }
     QString failure() const { return m_failure; }
+    bool mutationPending() const { return m_mutationPending; }
+    QString mutationFailure() const { return m_mutationFailure; }
 
     void bindSession(bool clearRows);
     void clearSession();
     bool refresh();
     bool loadMore();
+    bool canUnblock(const QString &targetAccountId) const;
+    bool requestUnblock(const QString &targetAccountId);
+    bool ownsOperation(const QString &clientOperationId) const;
+    void applyUnblockResult(const QString &targetAccountId,
+                            const QString &clientOperationId);
+    void applyUnblockFailure(const QString &clientOperationId, bool retryable);
     void applyPage(QVector<Row> rows, const QString &nextAfterTargetAccountId,
                    bool hasMore);
     void applyFailure(const QString &safeReason);
@@ -38,11 +48,16 @@ signals:
 
 private:
     List m_list;
+    Unblock m_unblock;
     QVector<Row> m_rows;
     QString m_nextAfterTargetAccountId;
     QString m_failure;
+    QString m_mutationTargetAccountId;
+    QString m_mutationOperationId;
+    QString m_mutationFailure;
     bool m_available = false;
     bool m_busy = false;
     bool m_appendPending = false;
     bool m_hasMore = false;
+    bool m_mutationPending = false;
 };

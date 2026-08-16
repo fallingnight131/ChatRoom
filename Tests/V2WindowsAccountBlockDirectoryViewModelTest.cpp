@@ -20,9 +20,16 @@ int main(int argc, char **argv) {
     const QString first = QStringLiteral("10000000-0000-4000-8000-000000000001");
     const QString second = QStringLiteral("20000000-0000-4000-8000-000000000001");
     QString requestedAfter;
+    QString unblockTarget;
+    QString unblockOperation;
     bool send = true;
     V2WindowsAccountBlockDirectoryViewModel viewModel(
-        [&](const QString &after) { requestedAfter = after; return send; });
+        [&](const QString &after) { requestedAfter = after; return send; },
+        [&](const QString &target, const QString &operation) {
+            unblockTarget = target;
+            unblockOperation = operation;
+            return true;
+        });
     if (!check(!viewModel.refresh(), QStringLiteral("未认证目录不能发起请求"))) return 1;
     viewModel.bindSession(true);
     if (!check(viewModel.refresh() && viewModel.busy() && requestedAfter.isEmpty(),
@@ -67,6 +74,21 @@ int main(int argc, char **argv) {
                     == V2WindowsAccountBlockDirectoryViewModel::MaxRows
                     && !viewModel.hasMore(),
                QStringLiteral("页面内目录必须在 500 行停止继续分页"))) return 1;
+    if (!check(viewModel.requestUnblock(QStringLiteral("target-0"))
+                    && unblockTarget == QStringLiteral("target-0")
+                    && !unblockOperation.isEmpty() && viewModel.mutationPending(),
+               QStringLiteral("目录取消屏蔽没有提交稳定操作"))) return 1;
+    const QString firstUnblockOperation = unblockOperation;
+    viewModel.setUnavailable();
+    viewModel.bindSession(false);
+    if (!check(viewModel.requestUnblock(QStringLiteral("target-0"))
+                    && unblockOperation == firstUnblockOperation,
+               QStringLiteral("同账号断线重试必须复用取消屏蔽操作标识"))) return 1;
+    viewModel.applyUnblockResult(QStringLiteral("target-0"), unblockOperation);
+    if (!check(viewModel.rows().size()
+                    == V2WindowsAccountBlockDirectoryViewModel::MaxRows - 1
+                    && !viewModel.ownsOperation(unblockOperation),
+               QStringLiteral("权威取消屏蔽结果没有移除目录行"))) return 1;
     viewModel.clearSession();
     if (!check(!viewModel.available() && viewModel.rows().isEmpty(),
                QStringLiteral("退出必须清除敏感目录"))) return 1;
