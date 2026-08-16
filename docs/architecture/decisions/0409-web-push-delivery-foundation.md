@@ -262,6 +262,13 @@ resume proof or activate a gateway/client path.
   VAPID mount paths, a reviewed contact subject, exact HTTPS provider origins,
   and bounded token, claim, polling, failure, shutdown, and readiness values.
   It retains paths rather than key bytes and composes no runtime resource yet.
+- A detached factory now composes the complete delivery graph while keeping it
+  stopped: PostgreSQL outbox/recipient policy, shared protected subscription
+  boundaries, RFC provider, worker/retry, owned loop, component readiness, and
+  fixed metrics. Disabled configuration touches no dependency. Enabled
+  construction owns only the separate VAPID custody and delivery runtime and
+  closes delivery before signing custody. Main gateway activation and the
+  external provider canary remain open.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

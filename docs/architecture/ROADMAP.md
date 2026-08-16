@@ -2496,6 +2496,10 @@ Candidate slices:
         the subscription gate, path-only distinct VAPID mounts, reviewed
         subject and provider origins, and bounded token/lease/batch/backoff/
         shutdown/readiness settings; keep runtime composition absent.
+      - [x] Add a detached full-graph factory composing PostgreSQL outbox/
+        recipient policy, shared protected subscriptions, RFC provider, worker,
+        retry, owned loop, readiness, and metrics; disabled mode touches no
+        dependency and cleanup stops delivery before VAPID custody.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
     - [x] Add the pure Service Worker payload boundary with exact version/field/

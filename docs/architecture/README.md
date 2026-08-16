@@ -2109,6 +2109,13 @@ absolute VAPID key paths, a reviewed `mailto:`/HTTPS subject, exact provider
 origins, and bounded token, lease, batch, polling, failure, shutdown, and
 readiness values. It contains paths rather than key bytes and rejects incomplete
 or non-exact activation. The config is not yet composed into `GatewayRuntime`.
+A detached factory now turns that config into the complete PostgreSQL recipient/
+outbox plus shared protected-subscription, RFC provider, worker, retry, loop,
+component-readiness, and metric graph. Disabled configuration constructs
+nothing; enabled construction loads and owns only the separate VAPID custody
+and delivery runtime, which remain stopped until explicitly started. Failure
+cleanup and normal close stop delivery before closing signing custody. Main
+gateway lifecycle activation and the external provider canary remain open.
 The Web client now has a pure Service Worker payload boundary. It accepts only
 schema version 1, three canonical stable UUIDs, and the structural mention
 boolean within 2 KiB; unknown fields, message text, malformed identity, and

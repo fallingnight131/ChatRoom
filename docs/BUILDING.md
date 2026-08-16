@@ -1728,6 +1728,22 @@ second shutdown, 1 minute--24 hour token life, and readiness thresholds are
 bounded. Non-exact booleans, duplicate origins, and incomplete enabled
 configuration fail startup. This contract still creates no worker or network
 request.
+The detached full delivery graph is covered by:
+
+```bash
+cd Backend
+JAVA_HOME=/path/to/jdk-21 ./gradlew --no-daemon :im-gateway:test \
+  --tests '*WebPushDeliveryComponentsFactoryTest'
+```
+
+The enabled fixture loads a real generated P-256 PKCS#8/X.509 pair under the
+mounted-file permission policy, then composes PostgreSQL outbox/recipient
+adapters, shared subscription protection ports, RFC encryption/VAPID/HTTP,
+worker policy, retry, loop resources, readiness, and metrics without starting
+them. Disabled config touches no dependency. The component owns only its VAPID
+custody and delivery runtime, closes the loop before signing custody, and never
+adds push health to core gateway readiness. `GatewayRuntime` activation and a
+real-provider canary remain open.
 The detached gateway issuance and HTTP bridge can be selected with:
 
 ```bash
