@@ -71,7 +71,9 @@ server candidate without activating an incomplete client product path.
   it and exposes a localized, keyboard-contained direct-account dialog. It
   targets only the unique non-self member returned by the authorized DIRECT
   participant page, confirms either desired state, and preserves one operation
-  UUID for explicit retry after disconnect. Windows remains off. Server or Web
+  UUID for explicit retry after disconnect. Windows remains off, but has a
+  detached C++ protocol client that validates the authenticated actor and exact
+  desired-state correlation before any product composition. Server or Web
   activation alone therefore cannot create a product feature.
 - The Web candidate keeps the latest operation result in page memory only. It
   does not infer durable state before a result, persist a block graph, or expose
@@ -85,8 +87,8 @@ transport. Existing deployments have no block rows until the default-off server
 candidate and an explicit compatible client are enabled, while direct-contact
 writes already fail closed if such rows exist. Old clients omit capability 7
 and keep their prior handshake bytes. The first Web candidate is now present;
-Windows composition, real endpoint canaries, and a future block-list read model
-remain separate expand-migrate-contract steps.
+Windows capability/UI composition, real endpoint canaries, and a future
+block-list read model remain separate expand-migrate-contract steps.
 
 ## Verification
 
@@ -117,6 +119,10 @@ localized confirmation, block, unblock, and trigger-focus restoration. This is
 local browser-composition evidence, not a real gateway endpoint or release gate.
 A same-revision Chromium flag-off build proves the action and type-128 command
 are absent after client-first rollback.
+The portable C++ binding gate additionally proves Windows request encoding,
+self-block rejection, actor/target/desired-state/operation correlation,
+same-operation explicit retry, and disconnect cleanup without claiming a native
+Windows product build.
 
 ## Rollback
 

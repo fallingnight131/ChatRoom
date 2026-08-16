@@ -241,6 +241,7 @@ def verify_protocol_bindings(skip_install: bool) -> None:
          "v2_windows_messaging_protocol_test",
          "v2_windows_attachment_protocol_test",
          "v2_windows_message_search_protocol_test",
+         "v2_windows_account_block_protocol_test",
          "v2_windows_message_search_view_model_test",
          "v2_windows_conversation_directory_protocol_test",
          "v2_windows_conversation_participant_protocol_test",

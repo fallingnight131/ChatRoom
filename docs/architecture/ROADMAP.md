@@ -2312,6 +2312,10 @@ Candidate slices:
     reconnect retry, localized confirmation UI, and Chromium/Firefox keyboard
     and accessibility evidence. The result is page-memory only; a block-list
     read model remains open.
+  - [x] Add a detached Windows C++ account-block protocol client with
+    authenticated-actor and exact desired-state correlation, self-block
+    rejection, stable explicit retry identity, and disconnect cleanup; keep it
+    absent from Windows product composition.
   - [ ] Add accessible Windows block management behind its independent product
     gate, then complete real endpoint activation/rollback evidence for both
     supported clients.

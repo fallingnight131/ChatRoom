@@ -549,6 +549,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/V2WindowsMessagingProtocolClient.h
                 Client/V2WindowsMessageSearchProtocolClient.cpp
                 Client/V2WindowsMessageSearchProtocolClient.h
+                Client/V2WindowsAccountBlockProtocolClient.cpp
+                Client/V2WindowsAccountBlockProtocolClient.h
                 Client/V2WindowsMessageSearchViewModel.cpp
                 Client/V2WindowsMessageSearchViewModel.h
                 Client/V2WindowsConversationDirectoryProtocolClient.cpp
@@ -569,6 +571,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/messaging.pb.h"
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/conversation.pb.cc"
                 "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/conversation.pb.h"
+                "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/contact.pb.cc"
+                "${CHATROOM_V2_GENERATED_ROOT}/chat/v2/contact.pb.h"
             )
             set_target_properties(
                 chatroom_windows_v2_messaging_product
