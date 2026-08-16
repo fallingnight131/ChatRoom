@@ -1453,8 +1453,10 @@ and Flyway checksums; passing it does not prove that ciphertext came from a
 production key service. The PostgreSQL integration additionally exercises the
 detached subscription adapter with a fixture protector: it proves ciphertext-
 only replacement, keyed endpoint ownership transfer, account/install-scoped
-deletion, and protected-buffer closing, not production AEAD/KMS correctness or
-key rotation. The same real-database gate proves the message adapter's default-
+deletion, protected-buffer closing, account-row serialized replacement, disabled-
+account refusal, a 10-install quota, and existing-install rotation. Quota failure
+rolls back endpoint transfer. This is not production AEAD/KMS correctness or key
+rotation. The same real-database gate proves the message adapter's default-
 off path, explicit enabled transaction outbox, stable message identity, exact
 idempotent replay, bounded mention metadata, 24-hour expiry, and forced-insert
 rollback. No gateway enables this policy, and no HTTP caller or claim worker is

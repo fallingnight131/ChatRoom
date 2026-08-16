@@ -126,6 +126,7 @@ import com.fallingnight.chat.application.notification.ProtectedWebPushSubscripti
 import com.fallingnight.chat.application.notification.WebPushDeliveryPolicy;
 import com.fallingnight.chat.application.notification.WebPushOutboxClaim;
 import com.fallingnight.chat.application.notification.WebPushSubscriptionRegistration;
+import com.fallingnight.chat.application.notification.WebPushSubscriptionReplaceResult;
 import com.fallingnight.chat.application.notification.WebPushTerminalOutcome;
 import com.fallingnight.chat.application.security.SecretBytes;
 import com.fallingnight.chat.application.profile.ProfileImageMetadataCommand;
@@ -5918,7 +5919,6 @@ class PostgresMigratorTest {
                 .getBytes(java.nio.charset.StandardCharsets.US_ASCII);
         byte[] p256dh = new byte[65]; p256dh[0] = 0x04;
         byte[] auth = new byte[16]; Arrays.fill(auth, (byte) 7);
-        byte[] lookupTag = new byte[32]; Arrays.fill(lookupTag, (byte) 19);
         AtomicReference<ProtectedWebPushSubscription> lastProtected = new AtomicReference<>();
         var adapter = new PostgresWebPushSubscriptionAdapter(dataSource(), registration -> {
             byte[] endpointCiphertext = new byte[48];
@@ -5926,6 +5926,8 @@ class PostgresMigratorTest {
                     (byte) registration.accountId().getLeastSignificantBits());
             byte[] keyCiphertext = new byte[96]; Arrays.fill(keyCiphertext, (byte) 2);
             byte[] authCiphertext = new byte[48]; Arrays.fill(authCiphertext, (byte) 3);
+            byte[] lookupTag = registration.withEndpointCopy(
+                    PostgresMigratorTest::sha256);
             var value = ProtectedWebPushSubscription.copyOf(
                     registration.accountId(), registration.installationId(),
                     registration.browserExpiresAt(), "fixture-key:v1",
@@ -5936,7 +5938,7 @@ class PostgresMigratorTest {
 
         try (var first = WebPushSubscriptionRegistration.copyOf(
                 firstAccount, firstInstall, Optional.empty(), endpoint, p256dh, auth)) {
-            adapter.replace(first);
+            assertEquals(WebPushSubscriptionReplaceResult.REPLACED, adapter.replace(first));
         }
         assertTrue(lastProtected.get().isClosed());
         byte[] stored = webPushEndpointCiphertext(firstAccount, firstInstall);
@@ -5948,13 +5950,56 @@ class PostgresMigratorTest {
 
         try (var second = WebPushSubscriptionRegistration.copyOf(
                 secondAccount, secondInstall, Optional.empty(), endpoint, p256dh, auth)) {
-            adapter.replace(second);
+            assertEquals(WebPushSubscriptionReplaceResult.REPLACED, adapter.replace(second));
         }
         assertEquals(0, webPushSubscriptionCount(firstAccount, firstInstall));
         assertEquals(1, webPushSubscriptionCount(secondAccount, secondInstall));
         assertFalse(adapter.delete(firstAccount, secondInstall));
         assertTrue(adapter.delete(secondAccount, secondInstall));
         assertFalse(adapter.delete(secondAccount, secondInstall));
+
+        List<UUID> quotaInstalls = new ArrayList<>();
+        for (int index = 0;
+                index < PostgresWebPushSubscriptionAdapter.MAX_SUBSCRIPTIONS_PER_ACCOUNT;
+                index++) {
+            UUID installation = UUID.randomUUID(); quotaInstalls.add(installation);
+            byte[] uniqueEndpoint = ("https://push.example.test/send/quota-" + index)
+                    .getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+            try (var registration = WebPushSubscriptionRegistration.copyOf(
+                    firstAccount, installation, Optional.empty(),
+                    uniqueEndpoint, p256dh, auth)) {
+                assertEquals(WebPushSubscriptionReplaceResult.REPLACED,
+                        adapter.replace(registration));
+            }
+        }
+        try (var overLimit = WebPushSubscriptionRegistration.copyOf(
+                firstAccount, UUID.randomUUID(), Optional.empty(),
+                "https://push.example.test/send/over-limit"
+                        .getBytes(java.nio.charset.StandardCharsets.US_ASCII),
+                p256dh, auth)) {
+            assertEquals(WebPushSubscriptionReplaceResult.LIMIT_REACHED,
+                    adapter.replace(overLimit));
+        }
+        assertEquals(PostgresWebPushSubscriptionAdapter.MAX_SUBSCRIPTIONS_PER_ACCOUNT,
+                count("SELECT count(*) FROM chat.web_push_subscription WHERE account_id = '"
+                        + firstAccount + "'"));
+        try (var updateExisting = WebPushSubscriptionRegistration.copyOf(
+                firstAccount, quotaInstalls.getFirst(), Optional.empty(),
+                "https://push.example.test/send/quota-updated"
+                        .getBytes(java.nio.charset.StandardCharsets.US_ASCII),
+                p256dh, auth)) {
+            assertEquals(WebPushSubscriptionReplaceResult.REPLACED,
+                    adapter.replace(updateExisting));
+        }
+        disableAccount(firstAccount);
+        try (var disabled = WebPushSubscriptionRegistration.copyOf(
+                firstAccount, quotaInstalls.getFirst(), Optional.empty(),
+                "https://push.example.test/send/disabled"
+                        .getBytes(java.nio.charset.StandardCharsets.US_ASCII),
+                p256dh, auth)) {
+            assertEquals(WebPushSubscriptionReplaceResult.ACCOUNT_UNAVAILABLE,
+                    adapter.replace(disabled));
+        }
     }
 
     @Test

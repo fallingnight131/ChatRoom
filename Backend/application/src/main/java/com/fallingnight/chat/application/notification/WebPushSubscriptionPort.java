@@ -4,7 +4,7 @@ import java.util.UUID;
 
 /** Durable authenticated subscription mutations; adapters must encrypt credentials at rest. */
 public interface WebPushSubscriptionPort {
-    void replace(WebPushSubscriptionRegistration registration);
+    WebPushSubscriptionReplaceResult replace(WebPushSubscriptionRegistration registration);
 
     boolean delete(UUID accountId, UUID installationId);
 }

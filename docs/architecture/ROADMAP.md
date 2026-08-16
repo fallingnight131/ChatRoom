@@ -2406,7 +2406,8 @@ Candidate slices:
       lookup tag, and payload-free 24-hour outbox/claim/retention constraints.
     - [x] Add protected subscription replacement/erasure adapters with
       account/install binding, single-transaction endpoint ownership transfer,
-      ciphertext-only writes, and post-use protected-byte zeroing.
+      ciphertext-only writes, post-use protected-byte zeroing, account-row
+      serialization, disabled-account refusal, and a server-side 10-install cap.
     - [x] Add an injected AES-256-GCM/HMAC-SHA256 protection adapter with
       account/install/purpose AAD, fresh nonces, separate endpoint lookup key,
       authenticated decryption, and old encryption key-ID resolution.

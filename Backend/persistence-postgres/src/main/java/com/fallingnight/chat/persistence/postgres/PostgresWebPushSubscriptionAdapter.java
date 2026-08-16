@@ -4,6 +4,7 @@ import com.fallingnight.chat.application.notification.ProtectedWebPushSubscripti
 import com.fallingnight.chat.application.notification.WebPushCredentialProtectionPort;
 import com.fallingnight.chat.application.notification.WebPushSubscriptionPort;
 import com.fallingnight.chat.application.notification.WebPushSubscriptionRegistration;
+import com.fallingnight.chat.application.notification.WebPushSubscriptionReplaceResult;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -16,6 +17,7 @@ import javax.sql.DataSource;
 
 /** Ciphertext-only PostgreSQL subscription replacement and account/install erasure. */
 public final class PostgresWebPushSubscriptionAdapter implements WebPushSubscriptionPort {
+    public static final int MAX_SUBSCRIPTIONS_PER_ACCOUNT = 10;
     private final DataSource dataSource;
     private final WebPushCredentialProtectionPort protection;
 
@@ -26,15 +28,15 @@ public final class PostgresWebPushSubscriptionAdapter implements WebPushSubscrip
     }
 
     @Override
-    public void replace(WebPushSubscriptionRegistration registration) {
+    public WebPushSubscriptionReplaceResult replace(
+            WebPushSubscriptionRegistration registration) {
         Objects.requireNonNull(registration, "registration");
         try (ProtectedWebPushSubscription protectedSubscription = Objects.requireNonNull(
                 protection.protect(registration), "protectedSubscription")) {
             requireSameBinding(registration, protectedSubscription);
-            protectedSubscription.withCopies((endpoint, p256dh, auth, lookupTag) -> {
-                replaceProtected(protectedSubscription, endpoint, p256dh, auth, lookupTag);
-                return null;
-            });
+            return protectedSubscription.withCopies((endpoint, p256dh, auth, lookupTag) ->
+                    replaceProtected(
+                            protectedSubscription, endpoint, p256dh, auth, lookupTag));
         } catch (SQLException exception) {
             throw new NotificationPersistenceException(
                     "Web Push subscription replacement failed", exception);
@@ -58,7 +60,7 @@ public final class PostgresWebPushSubscriptionAdapter implements WebPushSubscrip
         }
     }
 
-    private void replaceProtected(
+    private WebPushSubscriptionReplaceResult replaceProtected(
             ProtectedWebPushSubscription subscription,
             byte[] endpoint,
             byte[] p256dh,
@@ -67,12 +69,50 @@ public final class PostgresWebPushSubscriptionAdapter implements WebPushSubscrip
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
             try {
+                if (!lockAvailableAccount(connection, subscription.accountId())) {
+                    connection.rollback();
+                    return WebPushSubscriptionReplaceResult.ACCOUNT_UNAVAILABLE;
+                }
                 transferEndpointOwnership(connection, subscription, lookupTag);
+                if (wouldExceedAccountLimit(connection, subscription)) {
+                    connection.rollback();
+                    return WebPushSubscriptionReplaceResult.LIMIT_REACHED;
+                }
                 upsert(connection, subscription, endpoint, p256dh, auth, lookupTag);
                 connection.commit();
+                return WebPushSubscriptionReplaceResult.REPLACED;
             } catch (RuntimeException | SQLException exception) {
                 rollback(connection, exception);
                 throw exception;
+            }
+        }
+    }
+
+    private static boolean lockAvailableAccount(Connection connection, UUID accountId)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT disabled_at FROM chat.account WHERE id = ? FOR UPDATE")) {
+            statement.setObject(1, accountId);
+            try (var result = statement.executeQuery()) {
+                return result.next() && result.getObject(1) == null && !result.next();
+            }
+        }
+    }
+
+    private static boolean wouldExceedAccountLimit(
+            Connection connection, ProtectedWebPushSubscription subscription)
+            throws SQLException {
+        String sql = "SELECT count(*), count(*) FILTER (WHERE installation_id = ?) "
+                + "FROM chat.web_push_subscription WHERE account_id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setObject(1, subscription.installationId());
+            statement.setObject(2, subscription.accountId());
+            try (var result = statement.executeQuery()) {
+                if (!result.next()) throw new SQLException("Web Push quota query returned no row");
+                long count = result.getLong(1);
+                long existing = result.getLong(2);
+                if (result.next()) throw new SQLException("Web Push quota query returned many rows");
+                return existing == 0 && count >= MAX_SUBSCRIPTIONS_PER_ACCOUNT;
             }
         }
     }

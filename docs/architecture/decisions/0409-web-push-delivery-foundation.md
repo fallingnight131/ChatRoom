@@ -117,7 +117,9 @@ acceptance, stall synchronization, or reduce gateway readiness.
 - The detached PostgreSQL subscription adapter accepts an injected, context-
   bound protection result, performs same-transaction endpoint ownership
   transfer/replacement, scopes deletion by account/install, and clears protected
-  working bytes. The fixture protector is not a production key-custody claim.
+  working bytes. Account locking rejects unavailable accounts and enforces a
+  10-install server quota without blocking existing-install rotation. The
+  fixture protector is not a production key-custody claim.
 - The message adapter's ordinary constructor remains default-off. Its explicit
   enabled policy writes one payload-free row in the new-message transaction;
   duplicate replay writes none, and a forced outbox failure rolls back all

@@ -1975,7 +1975,10 @@ outbox whose expiry, claim lifecycle, mention cardinality, and retention indexes
 are database constrained. The detached subscription adapter now accepts only an
 injected protection result bound to the same account/installation/expiry, writes
 ciphertext plus a keyed endpoint tag, clears protected working copies, and
-transfers endpoint ownership or erases one account/install atomically. No
+transfers endpoint ownership or erases one account/install atomically. Account-
+row locking serializes quota decisions, disabled/missing accounts fail closed,
+and the server caps each account at 10 installations while allowing an existing
+installation to rotate credentials. No
 production key-custody implementation, HTTP caller, or worker is composed. The
 message adapter now has an explicit enabled-policy constructor that inserts one
 payload-free notification row inside the new-message
