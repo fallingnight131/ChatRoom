@@ -2067,13 +2067,18 @@ A detached identity-crypto slice now produces the provider body defined by RFC
 key and salt, an exact content-coding header, and code-owned generic identity
 payload input. The complete RFC Appendix A output is locked byte-for-byte and
 invalid key/auth shapes fail closed. This is encryption evidence only; HTTP
-delivery/status mapping, provider key custody, owned executors, readiness, and
-runtime activation remain open. A following detached signer now implements
+delivery/status mapping, owned executors, readiness, and runtime activation
+remain open. A following detached signer now implements
 the RFC 8292 VAPID assertion itself with a distinct injected P-256 key: exact
 provider-origin `aud`, bounded `exp`, reviewed contact-URI `sub`, ES256 raw JOSE
 signature, X9.62 public key parameter, and an owned redacted/clearable
-Authorization value. Mounted-file custody, token reuse policy, and transport
-remain open.
+Authorization value. A strict file adapter now loads separate bounded PKCS#8/X.509 DER
+mounts, rejects links and group/other access, verifies that the public/private
+pair matches, clears file/signature buffers, exposes only defensive public-key
+copies, and closes the signer. Because the OpenJDK EC provider can refuse
+physical `Destroyable` erasure, process termination is still required for
+file-key rollback; stronger custody remains an HSM/KMS concern. HTTP transport,
+token reuse policy, and runtime composition remain open.
 The Web client now has a pure Service Worker payload boundary. It accepts only
 schema version 1, three canonical stable UUIDs, and the structural mention
 boolean within 2 KiB; unknown fields, message text, malformed identity, and

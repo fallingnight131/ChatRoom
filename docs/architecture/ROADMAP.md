@@ -2470,6 +2470,10 @@ Candidate slices:
         reviewed contact URI, ES256-to-raw-JOSE conversion, X9.62 public key,
         and owned redacted/clearable Authorization bytes; custody/HTTP remain
         open.
+      - [x] Add strict mounted-file PKCS#8/X.509 VAPID custody with bounded
+        regular-file/no-symlink/POSIX checks, matching-pair proof, defensive
+        public-key export, DER/signature clearing, closed-state refusal, and
+        an explicit JCA best-effort-destroy/HSM limitation.
   - [ ] Add the exact-gated Service Worker and Web opt-in/out experience, then
     pass Chromium/Firefox and real-provider activation/rollback gates.
     - [x] Add the pure Service Worker payload boundary with exact version/field/

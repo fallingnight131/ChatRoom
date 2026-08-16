@@ -7,6 +7,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.Signature;
 import java.security.AlgorithmParameters;
+import javax.security.auth.DestroyFailedException;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
@@ -19,14 +20,14 @@ import java.util.Base64;
 import java.util.Objects;
 
 /** RFC 8292 ES256 VAPID signer. The signing key is distinct from RFC 8291 ephemeral keys. */
-public final class Rfc8292VapidSigner {
+public final class Rfc8292VapidSigner implements AutoCloseable {
     public static final Duration MAX_TOKEN_LIFETIME = Duration.ofHours(24);
     private static final byte[] JWT_HEADER =
             "{\"typ\":\"JWT\",\"alg\":\"ES256\"}".getBytes(StandardCharsets.US_ASCII);
 
     private final ECPrivateKey privateKey;
-    private final byte[] encodedPublicKey;
-    private final byte[] encodedSubject;
+    private byte[] encodedPublicKey;
+    private byte[] encodedSubject;
     private final Clock clock;
     private final Duration lifetime;
 
@@ -47,7 +48,8 @@ public final class Rfc8292VapidSigner {
         }
     }
 
-    public Rfc8292VapidAuthorization sign(URI pushEndpoint) {
+    public synchronized Rfc8292VapidAuthorization sign(URI pushEndpoint) {
+        ensureOpen();
         String audience = requireAudience(pushEndpoint);
         Instant now = clock.instant();
         long expiry;
@@ -83,8 +85,28 @@ public final class Rfc8292VapidSigner {
         }
     }
 
-    public byte[] publicKeyCopy() {
+    public synchronized byte[] publicKeyCopy() {
+        ensureOpen();
         return encodedPublicKey.clone();
+    }
+
+    public synchronized boolean isClosed() {
+        return encodedPublicKey == null;
+    }
+
+    @Override
+    public synchronized void close() {
+        if (encodedPublicKey == null) return;
+        Arrays.fill(encodedPublicKey, (byte) 0);
+        Arrays.fill(encodedSubject, (byte) 0);
+        encodedPublicKey = null;
+        encodedSubject = null;
+        try { privateKey.destroy(); }
+        catch (DestroyFailedException exception) { /* JCA providers may not support physical key destruction */ }
+    }
+
+    private void ensureOpen() {
+        if (encodedPublicKey == null) throw new IllegalStateException("VAPID signer is closed");
     }
 
     private static String requireSubject(URI subject) {

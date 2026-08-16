@@ -220,6 +220,14 @@ resume proof or activate a gateway/client path.
   JOSE form, and supplies the unpadded X9.62 public key as `k`. Authorization
   bytes use redacted, closeable copy ownership. Mounted-file signing-key
   custody, reuse/cache policy, HTTP transport, and composition remain open.
+- Mounted-file VAPID custody now loads distinct bounded PKCS#8 private and X.509
+  public DER files with no-follow regular-file and owner-only POSIX policy,
+  verifies the pair through a local signature, validates exact P-256, clears
+  input/challenge/signature buffers, exports only a defensive public-key copy,
+  and closes signing access. JCA provider key destruction is best-effort because
+  OpenJDK EC keys can reject `Destroyable.destroy()`; an HSM/KMS provider is
+  required for a stronger physical-erasure claim, and file-key rollback includes
+  process termination. Provider HTTP and runtime composition remain open.
 - application tests for eligibility, self/duplicate suppression, current-policy
   reauthorization, expiry, stable outbox identity, and no inline provider call;
 - PostgreSQL migration/restart/constraint, concurrent claim, exact retry,

@@ -1639,7 +1639,16 @@ exact ES256 JWT header/claims, provider-origin audience normalization, bounded
 expiry, `mailto:`/HTTPS contact policy, raw 64-byte JOSE signature verification,
 unpadded X9.62 P-256 public key encoding, redacted rendering, copy clearing, and
 closed-state refusal. It returns an owned Authorization value and still has no
-file-key loader, HTTP request, token cache, or runtime composition.
+HTTP request, token cache, or runtime composition.
+Mounted-file VAPID custody now accepts separate PKCS#8 private and X.509 public
+DER paths, each a bounded regular non-symlink POSIX file that is owner-readable
+and inaccessible to group/others. It proves the pair by signing/verifying a
+fixed in-memory challenge, validates exact P-256 through the signer, clears DER
+and signature buffers, exports the public application-server key defensively,
+and refuses signing after close. JCA private-key destruction is best-effort:
+OpenJDK providers may reject `Destroyable.destroy()`, so stronger physical key
+erasure remains an HSM/KMS provider requirement and process shutdown remains
+part of file-key rollback. No key files or key material belong in the repo.
 The detached gateway issuance and HTTP bridge can be selected with:
 
 ```bash

@@ -54,6 +54,10 @@ final class Rfc8292VapidSignerTest {
         verifier.update((parts[0] + "." + parts[1]).getBytes(StandardCharsets.US_ASCII));
         assertTrue(verifier.verify(joseToDer(Base64.getUrlDecoder().decode(parts[2]))));
         java.util.Arrays.fill(ascii, (byte) 0);
+        signer.close();
+        assertTrue(signer.isClosed());
+        assertThrows(IllegalStateException.class,
+                () -> signer.sign(URI.create("https://push.example/path")));
     }
 
     @Test
