@@ -478,6 +478,57 @@ const roomFileManagerCatalog = {
   },
 } as const;
 
+const roomSettingsCatalog = {
+  "zh-CN": {
+    title: "房间设置", avatarSuffix: " 的房间头像", roomName: "房间名称", roomId: "房间ID",
+    administrator: "管理员", yes: "是", no: "否", maxFileSize: "单文件最大", totalFileSpace: "总文件空间",
+    maxFileCount: "文件数量上限", maxMembers: "聊天室最大人数", roomAvatar: "房间头像", selectImage: "选择图片",
+    selectNewAvatar: "选择新的房间头像", uploading: "上传中…", renameRoom: "重命名房间", newName: "新名称",
+    modify: "修改", roomPassword: "房间密码", passwordPlaceholder: "留空则取消密码", set: "设置",
+    checkStatus: "检查状态", passwordSet: "已设置密码（不可查看，可直接重设）", passwordNone: "当前未设置密码",
+    manageMembers: "管理成员", selectUser: "选择用户...", adminBadge: "[管理员]", unsetAdmin: "取消管理员",
+    setAdmin: "设为管理员", kick: "踢出", messageManagement: "消息管理", clearAll: "清空所有消息",
+    danger: "危险操作", deleteRoom: "删除房间", limitsTitle: "限制设置（需开发者秘钥）",
+    maxFileSizeGb: "单文件最大(GB)", totalFileSpaceGb: "总文件空间(GB)", developerKey: "开发者秘钥",
+    developerKeyPlaceholder: "输入开发者秘钥后可保存限制", saveLimits: "保存限制", leaveRoom: "退出房间", close: "关闭",
+    avatarTooLarge: "头像太大，请选择更小的图片", avatarSaved: "聊天室头像修改成功", nameSaved: "聊天室名称修改成功",
+    passwordSaved: "聊天室密码设置成功", passwordRemoved: "聊天室密码已取消", limitsSaved: "房间限制修改成功",
+    limitsPositive: "限制值必须大于0", totalTooSmall: "总文件空间不能小于单文件最大值",
+    developerKeyRequired: "请输入开发者秘钥", cleanupPrefix: "调整限制将清理 ", cleanupFileSuffix: " 个历史文件。\n",
+    cleanupAfterPrefix: "清理后预计保留 ", cleanupAfterMiddle: " 个文件，约 ", cleanupAfterSuffix: " GB。\n",
+    cleanupExpiry: "被清理文件会在聊天中保留记录，但状态显示为“文件已过期或被清除”。\n\n是否继续？",
+    kickPrefix: "确定踢出 ", kickSuffix: " ？", clearConfirm: "确定清空所有消息？此操作不可撤销。",
+    deletePrefix: "确定删除房间 \"", deleteSuffix: "\" ？此操作不可撤销。", leavePrefix: "确定退出房间 \"",
+    leaveSuffix: "\" ？",
+  },
+  "en-US": {
+    title: "Room settings", avatarSuffix: " room avatar", roomName: "Room name", roomId: "Room ID",
+    administrator: "Administrator", yes: "Yes", no: "No", maxFileSize: "Maximum file size",
+    totalFileSpace: "Total file storage", maxFileCount: "Maximum file count", maxMembers: "Maximum room members",
+    roomAvatar: "Room avatar", selectImage: "Choose image", selectNewAvatar: "Choose a new room avatar",
+    uploading: "Uploading…", renameRoom: "Rename room", newName: "New name", modify: "Update",
+    roomPassword: "Room password", passwordPlaceholder: "Leave empty to remove the password", set: "Set",
+    checkStatus: "Check status", passwordSet: "Password is set (hidden; it can be replaced)",
+    passwordNone: "No password is currently set", manageMembers: "Manage members", selectUser: "Select a user...",
+    adminBadge: "[Administrator]", unsetAdmin: "Remove administrator", setAdmin: "Make administrator", kick: "Remove",
+    messageManagement: "Message management", clearAll: "Clear all messages", danger: "Dangerous actions",
+    deleteRoom: "Delete room", limitsTitle: "Limits (developer key required)", maxFileSizeGb: "Maximum file size (GB)",
+    totalFileSpaceGb: "Total file storage (GB)", developerKey: "Developer key",
+    developerKeyPlaceholder: "Enter the developer key to save limits", saveLimits: "Save limits",
+    leaveRoom: "Leave room", close: "Close", avatarTooLarge: "The avatar is too large. Choose a smaller image.",
+    avatarSaved: "Room avatar updated", nameSaved: "Room name updated", passwordSaved: "Room password set",
+    passwordRemoved: "Room password removed", limitsSaved: "Room limits updated", limitsPositive: "Limits must be greater than zero.",
+    totalTooSmall: "Total file storage cannot be smaller than the maximum file size.",
+    developerKeyRequired: "Enter the developer key.", cleanupPrefix: "Changing these limits will clear ",
+    cleanupFileSuffix: " historical file(s).\n", cleanupAfterPrefix: "After cleanup, approximately ",
+    cleanupAfterMiddle: " file(s) and ", cleanupAfterSuffix: " GB will remain.\n",
+    cleanupExpiry: "Cleared files remain in chat history and appear as expired or removed.\n\nContinue?",
+    kickPrefix: "Remove ", kickSuffix: " from the room?", clearConfirm: "Clear all messages? This cannot be undone.",
+    deletePrefix: "Delete room \"", deleteSuffix: "\"? This cannot be undone.", leavePrefix: "Leave room \"",
+    leaveSuffix: "\"?",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -568,6 +619,10 @@ export function roomPasswordMessages(locale: WebLocale) {
 
 export function roomFileManagerMessages(locale: WebLocale) {
   return roomFileManagerCatalog[locale];
+}
+
+export function roomSettingsMessages(locale: WebLocale) {
+  return roomSettingsCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

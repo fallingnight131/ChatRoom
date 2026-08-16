@@ -493,6 +493,15 @@ test("switches the authenticated shell locale from profile and persists it", asy
   await expect(fileManager.getByText("File", { exact: true })).toBeVisible();
   await fileManager.getByRole("button", { name: "Close", exact: true }).click();
   await expect(fileManager).toBeHidden();
+  await page.getByRole("button", { name: "Open room settings" }).click();
+  const roomSettings = page.getByRole("dialog", { name: "Room settings" });
+  await expect(roomSettings).toBeVisible();
+  await expect(roomSettings.getByText("Room ID", { exact: true })).toBeVisible();
+  await expect(roomSettings.getByLabel("Room password")).toBeVisible();
+  await expect(roomSettings.getByLabel("Developer key")).toBeVisible();
+  await expect(roomSettings.getByRole("button", { name: "Delete room" })).toBeVisible();
+  await roomSettings.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(roomSettings).toBeHidden();
   await expect(page.getByRole("toolbar", { name: "Message tools" })).toBeVisible();
   await expect(page.getByRole("log", { name: "Chat messages" })).toBeVisible();
   await expect(page.getByText("Browser fixture message", { exact: true })).toBeVisible();

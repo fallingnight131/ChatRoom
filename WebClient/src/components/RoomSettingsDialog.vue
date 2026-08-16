@@ -3,44 +3,44 @@
     <div ref="dialogRef" class="modal room-settings-modal" role="dialog" aria-modal="true"
          aria-labelledby="room-settings-title" tabindex="-1" :aria-busy="hasPendingOperation"
          @keydown="onDialogKeydown">
-      <div id="room-settings-title" class="modal-title">房间设置</div>
+      <div id="room-settings-title" class="modal-title">{{ messages.title }}</div>
 
       <div class="setting-info">
         <div class="room-avatar-section">
           <div class="room-avatar-display">
             <img v-if="roomAvatarSrc" :src="roomAvatarSrc" class="avatar avatar-lg"
-                 :alt="`${chatStore.currentRoomName} 的房间头像`" />
+                 :alt="`${chatStore.currentRoomName}${messages.avatarSuffix}`" />
             <div v-else class="avatar avatar-lg avatar-placeholder" :style="{ background: hashColor(chatStore.currentRoomId) }">
               {{ (chatStore.currentRoomName || '').charAt(0) }}
             </div>
           </div>
           <div class="room-basic-info">
             <div class="info-row">
-              <span class="info-label">房间名称</span>
+              <span class="info-label">{{ messages.roomName }}</span>
               <span class="info-value">{{ chatStore.currentRoomName }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">房间ID</span>
+              <span class="info-label">{{ messages.roomId }}</span>
               <span class="info-value">{{ chatStore.currentRoomId }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">管理员</span>
-              <span class="info-value">{{ chatStore.isAdmin ? '是' : '否' }}</span>
+              <span class="info-label">{{ messages.administrator }}</span>
+              <span class="info-value">{{ chatStore.isAdmin ? messages.yes : messages.no }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">单文件最大</span>
+              <span class="info-label">{{ messages.maxFileSize }}</span>
               <span class="info-value">{{ formatGB(roomLimits.maxFileSize) }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">总文件空间</span>
+              <span class="info-label">{{ messages.totalFileSpace }}</span>
               <span class="info-value">{{ formatGB(roomLimits.totalFileSpace) }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">文件数量上限</span>
+              <span class="info-label">{{ messages.maxFileCount }}</span>
               <span class="info-value">{{ roomLimits.maxFileCount }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">聊天室最大人数</span>
+              <span class="info-label">{{ messages.maxMembers }}</span>
               <span class="info-value">{{ roomLimits.maxMembers }}</span>
             </div>
           </div>
@@ -51,118 +51,118 @@
       <template v-if="chatStore.isAdmin">
         <!-- 房间头像 -->
         <div class="setting-section">
-          <div class="setting-label">房间头像</div>
+          <div class="setting-label">{{ messages.roomAvatar }}</div>
           <div class="inline-edit">
             <button class="btn btn-secondary" type="button" :disabled="pendingAvatarUpload"
-                    @click="selectRoomAvatar">选择图片</button>
+                    @click="selectRoomAvatar">{{ messages.selectImage }}</button>
             <input ref="avatarFileInput" type="file" accept="image/*" class="visually-hidden"
-                   tabindex="-1" aria-label="选择新的房间头像" @change="onAvatarFileSelected" />
-            <span v-if="avatarUploading" class="upload-hint" role="status">上传中…</span>
+                   tabindex="-1" :aria-label="messages.selectNewAvatar" @change="onAvatarFileSelected" />
+            <span v-if="avatarUploading" class="upload-hint" role="status">{{ messages.uploading }}</span>
           </div>
         </div>
 
         <!-- 重命名 -->
         <div class="setting-section">
-          <label class="setting-label" for="room-new-name">重命名房间</label>
+          <label class="setting-label" for="room-new-name">{{ messages.renameRoom }}</label>
           <div class="inline-edit">
-            <input id="room-new-name" class="input" v-model="newName" placeholder="新名称"
+            <input id="room-new-name" class="input" v-model="newName" :placeholder="messages.newName"
                    :disabled="pendingRename" />
             <button class="btn btn-primary" type="button" :disabled="pendingRename || !newName.trim()"
-                    @click="renameRoom">修改</button>
+                    @click="renameRoom">{{ messages.modify }}</button>
           </div>
         </div>
 
         <!-- 密码管理 -->
         <div class="setting-section">
-          <label class="setting-label" for="room-settings-password">房间密码</label>
+          <label class="setting-label" for="room-settings-password">{{ messages.roomPassword }}</label>
           <div class="inline-edit">
             <input id="room-settings-password" class="input" v-model="roomPassword" type="password"
-                   placeholder="留空则取消密码" autocomplete="off"
+                   :placeholder="messages.passwordPlaceholder" autocomplete="off"
                    :disabled="pendingPasswordSave" />
             <button class="btn btn-primary" type="button" :disabled="pendingPasswordSave"
-                    @click="setPassword">设置</button>
+                    @click="setPassword">{{ messages.set }}</button>
             <button class="btn btn-text" type="button" :disabled="pendingPasswordSave"
-                    @click="checkPasswordStatus">检查状态</button>
+                    @click="checkPasswordStatus">{{ messages.checkStatus }}</button>
           </div>
           <div v-if="hasRoomPassword !== null" class="password-display" role="status">
-            {{ hasRoomPassword ? '已设置密码（不可查看，可直接重设）' : '当前未设置密码' }}
+            {{ hasRoomPassword ? messages.passwordSet : messages.passwordNone }}
           </div>
         </div>
 
         <!-- 管理成员 -->
         <div class="setting-section">
-          <label class="setting-label" for="room-member-select">管理成员</label>
+          <label class="setting-label" for="room-member-select">{{ messages.manageMembers }}</label>
           <div class="member-actions">
             <select id="room-member-select" class="input" v-model="selectedUser" style="flex:1">
-              <option value="">选择用户...</option>
+              <option value="">{{ messages.selectUser }}</option>
               <option v-for="u in chatStore.users" :key="u.username" :value="u.username">
                 {{ u.displayName }} (@{{ u.username }})
-                {{ u.isAdmin ? '[管理员]' : '' }}
+                {{ u.isAdmin ? messages.adminBadge : '' }}
               </option>
             </select>
             <button class="btn btn-secondary" type="button" @click="toggleAdmin" :disabled="!selectedUser">
-              {{ isSelectedAdmin ? '取消管理员' : '设为管理员' }}
+              {{ isSelectedAdmin ? messages.unsetAdmin : messages.setAdmin }}
             </button>
-            <button class="btn btn-danger" type="button" @click="kickUser" :disabled="!selectedUser">踢出</button>
+            <button class="btn btn-danger" type="button" @click="kickUser" :disabled="!selectedUser">{{ messages.kick }}</button>
           </div>
         </div>
 
         <!-- 消息管理 -->
         <div class="setting-section">
-          <div class="setting-label">消息管理</div>
-          <button class="btn btn-danger" type="button" @click="clearAllMessages">清空所有消息</button>
+          <div class="setting-label">{{ messages.messageManagement }}</div>
+          <button class="btn btn-danger" type="button" @click="clearAllMessages">{{ messages.clearAll }}</button>
         </div>
 
         <!-- 危险操作 -->
         <div class="setting-section danger-zone">
-          <div class="setting-label" style="color:var(--danger)">危险操作</div>
-          <button class="btn btn-danger" type="button" @click="deleteRoom">删除房间</button>
+          <div class="setting-label" style="color:var(--danger)">{{ messages.danger }}</div>
+          <button class="btn btn-danger" type="button" @click="deleteRoom">{{ messages.deleteRoom }}</button>
         </div>
       </template>
 
       <div v-if="chatStore.isAdmin" class="setting-section">
-        <div class="setting-label">限制设置（需开发者秘钥）</div>
+        <div class="setting-label">{{ messages.limitsTitle }}</div>
         <div class="limit-grid">
           <div class="limit-row">
-            <label class="limit-key" for="room-max-file-size">单文件最大(GB)</label>
+            <label class="limit-key" for="room-max-file-size">{{ messages.maxFileSizeGb }}</label>
             <input id="room-max-file-size" class="input" v-model.number="maxFileSize" type="number"
                    min="1" max="10240" step="0.1" :disabled="pendingSaveLimits" />
           </div>
           <div class="limit-row">
-            <label class="limit-key" for="room-total-file-space">总文件空间(GB)</label>
+            <label class="limit-key" for="room-total-file-space">{{ messages.totalFileSpaceGb }}</label>
             <input id="room-total-file-space" class="input" v-model.number="totalFileSpace" type="number"
                    min="1" max="10240" step="1" :disabled="pendingSaveLimits" />
           </div>
         </div>
         <div class="limit-grid" style="margin-top:8px">
           <div class="limit-row">
-            <label class="limit-key" for="room-max-file-count">文件数量上限</label>
+            <label class="limit-key" for="room-max-file-count">{{ messages.maxFileCount }}</label>
             <input id="room-max-file-count" class="input" v-model.number="maxFileCount" type="number"
                    min="1" max="1000000" :disabled="pendingSaveLimits" />
           </div>
           <div class="limit-row">
-            <label class="limit-key" for="room-max-members">聊天室最大人数</label>
+            <label class="limit-key" for="room-max-members">{{ messages.maxMembers }}</label>
             <input id="room-max-members" class="input" v-model.number="maxMembers" type="number"
                    min="2" max="1000000" :disabled="pendingSaveLimits" />
           </div>
         </div>
         <div class="limit-grid" style="margin-top:8px">
           <div class="limit-row">
-            <label class="limit-key" for="room-developer-key">开发者秘钥</label>
+            <label class="limit-key" for="room-developer-key">{{ messages.developerKey }}</label>
             <input id="room-developer-key" class="input" v-model="developerKey" type="password"
-                   placeholder="输入开发者秘钥后可保存限制" autocomplete="off"
+                   :placeholder="messages.developerKeyPlaceholder" autocomplete="off"
                    :disabled="pendingSaveLimits" />
           </div>
         </div>
         <div class="inline-edit" style="margin-top:8px">
           <button class="btn btn-primary" type="button" :disabled="pendingSaveLimits"
-                  @click="setRoomLimits">保存限制</button>
+                  @click="setRoomLimits">{{ messages.saveLimits }}</button>
         </div>
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-danger" type="button" @click="leaveRoom">退出房间</button>
-        <button class="btn btn-secondary" type="button" @click="closeDialog">关闭</button>
+        <button class="btn btn-danger" type="button" @click="leaveRoom">{{ messages.leaveRoom }}</button>
+        <button class="btn btn-secondary" type="button" @click="closeDialog">{{ messages.close }}</button>
       </div>
     </div>
   </div>
@@ -171,11 +171,15 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '../stores/chat'
+import { useUserStore } from '../stores/user'
 import { chatWs } from '../services/websocket'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
+import { roomSettingsMessages } from '../localization/webLocale'
 
 const emit = defineEmits(['close'])
 const chatStore = useChatStore()
+const userStore = useUserStore()
+const messages = computed(() => roomSettingsMessages(userStore.locale))
 
 const newName = ref('')
 const roomPassword = ref('')
@@ -249,7 +253,7 @@ function onAvatarFileSelected(e) {
 
     // 检查大小 < 256KB
     if (base64.length > 256 * 1024 * 1.37) {
-      alert('头像太大，请选择更小的图片')
+      alert(messages.value.avatarTooLarge)
       return
     }
     avatarUploading.value = true
@@ -263,7 +267,7 @@ function onRoomAvatarUploaded(data) {
   avatarUploading.value = false
   if (!pendingAvatarUpload.value) return
   pendingAvatarUpload.value = false
-  alert('聊天室头像修改成功')
+  alert(messages.value.avatarSaved)
 }
 
 function onRoomAvatarUploadFailed() {
@@ -283,7 +287,7 @@ function renameRoom() {
 function onRoomRenamed() {
   if (!pendingRename.value) return
   pendingRename.value = false
-  alert('聊天室名称修改成功')
+  alert(messages.value.nameSaved)
 }
 
 function onRoomRenameFailed() {
@@ -301,7 +305,7 @@ function onRoomPasswordSaved(data) {
   if (!pendingPasswordSave.value) return
   pendingPasswordSave.value = false
   const hasPassword = !!data?.hasPassword
-  alert(hasPassword ? '聊天室密码设置成功' : '聊天室密码已取消')
+  alert(hasPassword ? messages.value.passwordSaved : messages.value.passwordRemoved)
 }
 
 function onRoomPasswordSaveFailed() {
@@ -322,9 +326,9 @@ function onRoomSettingsNeedConfirm(data) {
   const afterCount = summary.afterFileCount || 0
   const afterSpaceGB = ((summary.afterUsedSpace || 0) / 1024 / 1024 / 1024).toFixed(2)
   const ok = confirm(
-    `调整限制将清理 ${clearCount} 个历史文件。\n` +
-    `清理后预计保留 ${afterCount} 个文件，约 ${afterSpaceGB} GB。\n` +
-    `被清理文件会在聊天中保留记录，但状态显示为“文件已过期或被清除”。\n\n是否继续？`
+    `${messages.value.cleanupPrefix}${clearCount}${messages.value.cleanupFileSuffix}` +
+    `${messages.value.cleanupAfterPrefix}${afterCount}${messages.value.cleanupAfterMiddle}${afterSpaceGB}${messages.value.cleanupAfterSuffix}` +
+    messages.value.cleanupExpiry
   )
   if (!ok) {
     pendingSaveLimits.value = false
@@ -348,7 +352,7 @@ function onRoomSettingsSaved() {
   if (!pendingSaveLimits.value) return
   pendingSaveLimits.value = false
   pendingDeveloperKey.value = ''
-  alert('房间限制修改成功')
+  alert(messages.value.limitsSaved)
 }
 
 function onRoomSettingsFailed() {
@@ -359,15 +363,15 @@ function onRoomSettingsFailed() {
 function setRoomLimits() {
   if (pendingSaveLimits.value) return
   if (maxFileSize.value <= 0 || totalFileSpace.value <= 0 || maxFileCount.value <= 0 || maxMembers.value <= 0) {
-    alert('限制值必须大于0')
+    alert(messages.value.limitsPositive)
     return
   }
   if (totalFileSpace.value < maxFileSize.value) {
-    alert('总文件空间不能小于单文件最大值')
+    alert(messages.value.totalTooSmall)
     return
   }
   if (!developerKey.value.trim()) {
-    alert('请输入开发者秘钥')
+    alert(messages.value.developerKeyRequired)
     return
   }
   pendingSaveLimits.value = true
@@ -395,27 +399,27 @@ function toggleAdmin() {
 
 function kickUser() {
   if (!selectedUser.value) return
-  if (confirm(`确定踢出 ${selectedUser.value} ？`)) {
+  if (confirm(`${messages.value.kickPrefix}${selectedUser.value}${messages.value.kickSuffix}`)) {
     chatWs.kickUser(chatStore.currentRoomId, selectedUser.value)
     selectedUser.value = ''
   }
 }
 
 function clearAllMessages() {
-  if (confirm('确定清空所有消息？此操作不可撤销。')) {
+  if (confirm(messages.value.clearConfirm)) {
     chatWs.deleteMessages(chatStore.currentRoomId, 'all')
   }
 }
 
 function deleteRoom() {
-  if (confirm(`确定删除房间 "${chatStore.currentRoomName}" ？此操作不可撤销。`)) {
+  if (confirm(`${messages.value.deletePrefix}${chatStore.currentRoomName}${messages.value.deleteSuffix}`)) {
     chatWs.deleteRoom(chatStore.currentRoomId, chatStore.currentRoomName)
     emit('close')
   }
 }
 
 function leaveRoom() {
-  if (confirm(`确定退出房间 "${chatStore.currentRoomName}" ？`)) {
+  if (confirm(`${messages.value.leavePrefix}${chatStore.currentRoomName}${messages.value.leaveSuffix}`)) {
     chatWs.leaveRoom(chatStore.currentRoomId)
     emit('close')
   }

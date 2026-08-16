@@ -124,6 +124,12 @@ and confirmation to the locale while retaining room/file IDs and exact
 administrator-only dialog through the real room context menu and displays one
 fixture response file in Chromium and Firefox. It deliberately does not confirm
 or claim an end-to-end destructive deletion.
+The room-settings source tests bind its complete metadata, administrator,
+password, member, danger, and developer-limit surfaces to the locale while
+retaining autofill denial, secret clearing, duplicate-write guards, and exact
+server command identities. The English browser journey opens the administrator
+dialog and verifies its room ID, password/developer-key fields, and delete-room
+action in Chromium and Firefox, then closes without issuing a mutation.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

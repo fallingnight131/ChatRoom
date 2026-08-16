@@ -1984,8 +1984,7 @@ local destructive confirmation use the live catalog while user names and
 server data stay untouched. The room sidebar is the fifth migrated slice:
 directory state, search/create forms, member counts, contextual administration,
 and accessible names use the same preference while room names, IDs, and server
-results remain data. Room settings remain a later localization slice. The room
-member sidebar is the sixth migrated slice: live group
+results remain data. The room member sidebar is the sixth migrated slice: live group
 counts, online/offline landmarks, administrator roles, avatar descriptions,
 and compound member action names all derive from the locale catalog without
 altering server-authoritative identity or role state. This boundary does not
@@ -2037,6 +2036,13 @@ confirmation. File names, timestamps, room/file IDs, server usage values, and
 operation IDs remain data. One correlated delete may be pending at a time, and
 only its matching success/failure unlocks the dialog; server-side authorization
 and deletion semantics are unchanged.
+The complete room-settings dialog now follows the locale across room metadata,
+avatar/name/password controls, member administration, history and room danger
+actions, limit forms, cleanup summaries, validation, and success feedback.
+Passwords and developer keys remain component memory only and are cleared on
+send/unmount; pending guards still reject duplicate writes. Room, user, and
+operation identities plus all authoritative permission and mutation decisions
+remain on the existing server boundary.
 
 ### Product consistency
 

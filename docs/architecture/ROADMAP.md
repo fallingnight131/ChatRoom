@@ -2384,6 +2384,8 @@ Candidate slices:
     parent prompt state without changing the server room identity or transport.
   - [x] Migrate Web V1 room-file management while preserving server IDs,
     destructive confirmation, and operation-ID response correlation.
+  - [x] Migrate the complete Web V1 room-settings surface while preserving
+    secret clearing, duplicate-write guards, confirmations, and command IDs.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat
