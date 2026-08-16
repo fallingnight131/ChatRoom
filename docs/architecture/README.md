@@ -1657,7 +1657,11 @@ ACK, history/repair, mutation, search, and self-echo paths remain silent. A
 portable policy remembers a bounded stable-message set, suppresses the currently
 visible conversation, and emits only a generic privacy-safe summary with an
 optional structured-mention title. Native Windows presentation and activation
-routing remain a separate default-off adapter and Windows Release gate.
+routing remain a separate default-off adapter and Windows Release gate. The
+disconnected presenter now consumes those decisions through injected platform
+and navigation ports. The tray adapter retains only the newest activation
+identity and consumes it once on a notification click, preventing a stale click
+from reopening an older conversation; product composition remains off.
 
 The first extracted application boundary is `OutgoingMessageService` under
 ADR-0025. It owns stable text/emoji submission intent, restart recovery gates,

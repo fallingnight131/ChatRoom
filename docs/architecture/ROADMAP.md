@@ -2253,8 +2253,11 @@ Candidate slices:
   - [x] Add a persisted-live-only notification candidate boundary and a bounded,
     privacy-safe policy that suppresses duplicates, self echoes, and the active
     visible conversation (ADR-0405); native presentation remains disconnected.
-  - [ ] Add a default-off Windows platform presenter with stable-conversation
-    activation routing and native Release interaction evidence.
+  - [x] Add a disconnected Windows platform presenter, extend the tray adapter
+    with one-shot stable-conversation activation, and prove routing without
+    activating product behavior.
+  - [ ] Compose the presenter behind a default-off product gate and retain
+    native Windows Release presentation and activation evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key
   lifecycle, backup/recovery policy, and independent review;
 - accessibility, localization, keyboard navigation, and low-bandwidth modes;

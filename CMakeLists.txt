@@ -295,6 +295,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             Client/V2WindowsMentionComposer.h
             Client/WindowsMessageNotificationPolicy.cpp
             Client/WindowsMessageNotificationPolicy.h
+            Client/WindowsMessageNotificationPresenter.cpp
+            Client/WindowsMessageNotificationPresenter.h
         )
         set_target_properties(
             chatroom_v2_messaging_ui_core
@@ -787,6 +789,16 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
             COMMAND WindowsMessageNotificationPolicyTest)
         set_tests_properties(
             m6_windows_message_notification_policy PROPERTIES TIMEOUT 30)
+        add_executable(
+            WindowsMessageNotificationPresenterTest
+            Tests/WindowsMessageNotificationPresenterTest.cpp)
+        target_link_libraries(
+            WindowsMessageNotificationPresenterTest PRIVATE chatroom_v2_messaging_ui_core)
+        add_test(
+            NAME m6_windows_message_notification_presenter
+            COMMAND WindowsMessageNotificationPresenterTest)
+        set_tests_properties(
+            m6_windows_message_notification_presenter PROPERTIES TIMEOUT 30)
         if(CHATROOM_BUILD_WINDOWS_CLIENT)
             add_executable(
                 V2WindowsDeviceManagementTransportTest

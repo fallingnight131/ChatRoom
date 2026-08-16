@@ -7,6 +7,8 @@
 #include <QApplication>
 #include <QStyle>
 
+#include <utility>
+
 TrayManager::TrayManager(QMainWindow *mainWindow, QObject *parent)
     : QObject(parent ? parent : mainWindow)
     , m_mainWindow(mainWindow)
@@ -35,6 +37,11 @@ TrayManager::TrayManager(QMainWindow *mainWindow, QObject *parent)
     m_trayIcon->setContextMenu(m_trayMenu);
 
     connect(m_trayIcon, &QSystemTrayIcon::activated, this, &TrayManager::onTrayActivated);
+    connect(m_trayIcon, &QSystemTrayIcon::messageClicked, this, [this] {
+        const QString activationId = std::exchange(
+            m_notificationActivationId, QString{});
+        if (!activationId.isEmpty()) emit notificationActivated(activationId);
+    });
 
     m_trayIcon->show();
 }
@@ -43,8 +50,11 @@ bool TrayManager::isAvailable() const {
     return m_trayIcon != nullptr;
 }
 
-void TrayManager::showNotification(const QString &title, const QString &message) {
+void TrayManager::showNotification(
+        const QString &title, const QString &message,
+        const QString &activationId) {
     if (m_trayIcon) {
+        m_notificationActivationId = activationId;
         m_trayIcon->showMessage(title, message, QSystemTrayIcon::Information, 3000);
     }
 }

@@ -13,7 +13,11 @@ public:
     explicit TrayManager(QMainWindow *mainWindow, QObject *parent = nullptr);
 
     bool isAvailable() const;
-    void showNotification(const QString &title, const QString &message);
+    void showNotification(const QString &title, const QString &message,
+                          const QString &activationId = {});
+
+signals:
+    void notificationActivated(const QString &activationId);
 
 private slots:
     void onTrayActivated(int reason);
@@ -22,4 +26,5 @@ private:
     QSystemTrayIcon *m_trayIcon = nullptr;
     QMenu           *m_trayMenu = nullptr;
     QMainWindow     *m_mainWindow = nullptr;
+    QString          m_notificationActivationId;
 };

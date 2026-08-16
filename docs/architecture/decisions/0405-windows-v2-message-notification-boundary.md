@@ -41,6 +41,13 @@ will consume policy decisions, invoke the reviewed notification channel, and
 route activation back to the stable conversation ID. That adapter must remain
 replaceable and must fail without affecting chat delivery.
 
+The next disconnected slice adds that presenter boundary and extends the
+existing tray adapter with a single one-shot activation identity. A newer
+notification replaces the older activation target, and a click consumes the
+target before routing. It is deliberately not composed into the V2 controller
+or product configuration until the default-off gate and Windows Release
+interaction test exist.
+
 ## Consequences
 
 The notification decision is deterministic and testable on a macOS development
