@@ -46,6 +46,7 @@ EXPECTED_SECURITY_HEADERS = {
     "Cross-Origin-Resource-Policy": "same-origin",
     "Permissions-Policy": "camera=(), geolocation=(), microphone=(), payment=(), usb=()",
     "Referrer-Policy": "no-referrer",
+    "Service-Worker-Allowed": "/",
     "Strict-Transport-Security": "max-age=31536000",
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",

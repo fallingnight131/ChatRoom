@@ -105,7 +105,11 @@ async function activate(
 
 function requireOrigin(value: string): string {
   const parsed = new URL(value);
-  if (parsed.protocol !== "https:" || parsed.origin !== value) throw new Error("invalid origin");
+  const loopbackDevelopment = parsed.protocol === "http:"
+    && (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost" || parsed.hostname === "[::1]");
+  if ((parsed.protocol !== "https:" && !loopbackDevelopment) || parsed.origin !== value) {
+    throw new Error("invalid origin");
+  }
   return value;
 }
 

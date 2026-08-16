@@ -1585,6 +1585,25 @@ Chinese copy. No account, conversation, message, credential, endpoint, or
 notification payload is stored in this locale bridge. Locale persistence starts
 alongside (not before awaiting) the explicit enable action, so the native
 permission request retains its user-gesture boundary.
+The generated worker is a self-contained classic script. Because its hashed URL
+is under `/assets/` while the reviewed product scope is `/`, Web delivery must
+return `Service-Worker-Allowed: /`; this header is now part of the exact release
+response-policy baseline and the Vite preview parity configuration. The bounded
+entry lifecycle can be exercised in the standards-defined loopback secure
+context with:
+
+```bash
+cd WebClient
+CHATROOM_WEB_PUSH_WORKER_BROWSER_GATE=true \
+CHATROOM_BROWSER_BASE_URL=http://localhost:4173 \
+npm run test:browser -- e2e/webPushBrowser.spec.ts
+```
+
+It discovers the single full worker artifact (excluding Vite's URL-export
+shim), proves zero prior registrations, registers and activates the root-scoped
+worker in Chromium and Firefox, verifies the exact script URL, then unregisters
+it and erases the locale cache. This is real browser lifecycle evidence, not a
+PushManager subscription, host notification, or provider-delivery claim.
 The inactive HTTP-credential protocol and application boundary can be selected
 with:
 

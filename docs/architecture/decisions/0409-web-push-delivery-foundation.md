@@ -173,12 +173,16 @@ resume proof or activate a gateway/client path.
   credential issuance and clearing. The exact Web candidate composes the lazy
   worker/browser/controller/HTTP boundary only for a persistent installation,
   while default runtime and UI composition remain absent.
-- A Vite module-worker entry installs the validated event runtime, while a
+- A Vite-bundled classic-worker entry installs the validated event runtime, while a
   detached browser adapter requires secure Notification/ServiceWorker/
   PushManager capabilities, validates local URL/scope, registers explicitly,
   reuses current subscription state, and requests only user-visible push with a
   copied public key. Vite may emit its inert asset, but the default app never
-  resolves/registers it or touches PushManager.
+  resolves/registers it or touches PushManager. Because the hashed script lives
+  below `/assets/` and owns the reviewed root scope, the release response policy
+  requires `Service-Worker-Allowed: /`. A loopback secure-context gate now proves
+  actual Chromium/Firefox registration, activation, exact script identity,
+  unregistration, and locale-cache cleanup; it is not provider-delivery proof.
 - The exact candidate view now owns an explicit, localized opt-in/out control.
   It starts locale persistence alongside the user-gesture permission request
   and stores only a validated `zh-CN`/`en-US` identifier in versioned same-origin

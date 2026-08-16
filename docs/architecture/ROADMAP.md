@@ -2477,7 +2477,7 @@ Candidate slices:
       lived bearer/CSRF credential lease per mutation, local subscription/key
       validation, hardened fetch options, fixed status mapping, retry metadata,
       and response-body disposal without diagnostic reflection.
-    - [x] Add a Vite module-worker entry plus browser adapter with secure-context
+    - [x] Add a Vite-bundled classic-worker entry plus browser adapter with secure-context
       capability checks, fixed path/scope validation, explicit module
       registration, existing-subscription lookup, and user-visible PushManager
       subscription using a defensive VAPID-key copy.
@@ -2511,6 +2511,10 @@ Candidate slices:
       origin Cache Storage and resolve code-owned generic worker copy inside
       each push lifetime, with storage/malformed fallback and no identity,
       endpoint, payload, or credential persistence.
+    - [x] Add the root-scope `Service-Worker-Allowed` release invariant and a
+      loopback secure-context Chromium/Firefox gate proving exact worker
+      discovery, registration, activation, unregistration, and locale-cache
+      cleanup without claiming PushManager or provider delivery.
     - [ ] Add the exact-gated Web lease bridge, localized durable worker copy/UI,
       and browser evidence.
 - end-to-end encryption only after a separate cryptographic design, device-key

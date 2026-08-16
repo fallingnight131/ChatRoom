@@ -14,7 +14,7 @@ interface ServiceWorkerRegistrationLike {
 }
 
 interface ServiceWorkerContainerLike {
-  register(url: string, options: { scope: string; type: "module" }): Promise<ServiceWorkerRegistrationLike>;
+  register(url: string, options: { scope: string }): Promise<ServiceWorkerRegistrationLike>;
   getRegistration(scope: string): Promise<ServiceWorkerRegistrationLike | undefined>;
 }
 
@@ -49,7 +49,7 @@ export function createWebPushBrowserAdapter(options: {
     async registerWorker() {
       if (!options.serviceWorker) throw new Error("Service Worker unavailable");
       registration = await options.serviceWorker.register(await resolveWorkerUrl(),
-        { scope, type: "module" });
+        { scope });
     },
     async currentSubscription() {
       return (await resolveRegistration())?.pushManager.getSubscription() ?? null;

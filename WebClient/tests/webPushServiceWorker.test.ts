@@ -69,3 +69,15 @@ test("resolves durable localized copy inside the push lifetime", async () => {
   await pending;
   assert.deepEqual(shown, ["本地化消息"]);
 });
+
+test("permits only HTTPS or a standards-defined loopback development origin", () => {
+  const scope = {
+    registration: { async showNotification() {} },
+    clients: { async matchAll() { return []; }, async openWindow() {} },
+    addEventListener() {},
+  };
+  assert.doesNotThrow(() => installWebPushServiceWorker(scope,
+    { messageTitle: "", mentionTitle: "", body: "" }, "http://localhost:4173"));
+  assert.throws(() => installWebPushServiceWorker(scope,
+    { messageTitle: "", mentionTitle: "", body: "" }, "http://chat.example"), /invalid origin/);
+});

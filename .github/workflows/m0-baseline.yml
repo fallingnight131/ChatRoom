@@ -87,6 +87,23 @@ jobs:
           npm run build
           npm run test:browser -- --grep "keeps account blocking absent"
 
+      - name: Build exact Web Push browser candidate
+        working-directory: WebClient
+        env:
+          VITE_CHAT_V2_PREVIEW: "true"
+          VITE_CHAT_V2_WEB_PUSH: "true"
+          VITE_CHAT_V2_WEB_PUSH_PUBLIC_KEY: "BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          VITE_CHAT_V2_WSS_URL: "wss://fixture.invalid/v2/web"
+          VITE_CHAT_APP_VERSION: "2.0.0-ci-web-push"
+        run: npm run build
+
+      - name: Verify Web Push worker entry in Chromium and Firefox
+        working-directory: WebClient
+        env:
+          CHATROOM_WEB_PUSH_WORKER_BROWSER_GATE: "true"
+          CHATROOM_BROWSER_BASE_URL: "http://localhost:4173"
+        run: npm run test:browser -- e2e/webPushBrowser.spec.ts
+
       - name: Restore ordinary Web candidate
         working-directory: WebClient
         run: npm run build

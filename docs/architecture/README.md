@@ -2103,17 +2103,17 @@ buffers before resolving its one active callback. No default runtime constructs
 that bridge. Exact `VITE_CHAT_V2_WEB_PUSH=true` now constructs it only with a
 valid public uncompressed P-256 application-server key, an exact HTTPS page
 origin, and a persistent browser installation identity. The same gate lazily
-resolves the reviewed module-worker asset and composes the subscription
+resolves the reviewed worker asset and composes the subscription
 controller/HTTP adapter; denied browser storage leaves capability 8 absent to
 avoid an orphan installation. The V2 view presents that candidate as a separate
 localized offline-notification preference: permission remains behind an
 explicit native button, server mutation remains authenticated, pending and
 fixed failure states are announced accessibly, and no contact or message body
 appears in its copy. The default build still constructs no push UI.
-The Web platform now has a Vite module-worker entry and a detached browser
+The Web platform now has a Vite-bundled classic-worker entry and a detached browser
 adapter. Capability requires a secure context plus Notification, ServiceWorker,
 and PushManager support. Registration accepts only a fixed local worker asset
-path and reviewed local scope, uses module mode, reuses an existing registration
+path and reviewed local scope, reuses an existing registration
 subscription, and passes `userVisibleOnly: true` with a defensive VAPID public-
 key copy. The entry installs the already-tested push/click runtime with generic
 fallback copy. Vite may emit the inert hashed worker asset in an ordinary build,
@@ -2123,7 +2123,11 @@ validated `zh-CN`/`en-US` identifier through a versioned same-origin Cache
 Storage entry. The worker resolves code-owned generic copy inside the push
 lifetime and falls back to Chinese when storage or content is unavailable; it
 never stores account, message, endpoint, or credential data in that bridge.
-Chromium/Firefox browser evidence remains open.
+The release policy and preview now supply `Service-Worker-Allowed: /`, because
+the hashed `/assets/` script owns the reviewed root scope. A loopback secure-
+context Playwright gate proves actual registration, activation, exact script
+identity, unregistration, and locale-cache cleanup in Chromium and Firefox.
+PushManager/provider delivery evidence remains open.
 
 ADR-0410 defines the missing Web Push HTTP credential issuance boundary without
 reusing the WSS resume proof. Capability 8 and permanent types 136/137 carry an

@@ -3,7 +3,7 @@ import test from "node:test";
 import { createWebPushBrowserAdapter } from "../src/platform/webPushBrowserAdapter";
 import type { BrowserPushSubscription } from "../src/platform/webPushSubscriptionController";
 
-test("registers one module worker and creates a user-visible subscription with a key copy", async () => {
+test("registers one bundled worker and creates a user-visible subscription with a key copy", async () => {
   const calls: unknown[] = []; let subscription: BrowserPushSubscription | null = null;
   const created = { toJSON: () => ({}), async unsubscribe() { return true; } };
   const registration = { pushManager: {
@@ -31,7 +31,7 @@ test("registers one module worker and creates a user-visible subscription with a
   assert.notEqual(options.applicationServerKey, key);
   assert.deepEqual(options.applicationServerKey, key);
   assert.deepEqual(calls[0], { url: "/assets/web-push-worker.js",
-    options: { scope: "/", type: "module" } });
+    options: { scope: "/" } });
 });
 
 test("fails closed without secure Service Worker and PushManager capabilities", () => {
