@@ -149,6 +149,10 @@ status/results, paging, and known application failure adapters. It preserves
 the 128-byte application validation, bounded result retention, context lookup,
 and keyboard focus behavior; the same enabled-build command is required as
 compile evidence until an authenticated V2 browser fixture exists.
+The V2 read-only timeline slice additionally localizes the log landmark,
+immutable pinned/forwarded/reply/edit markers, delivery states, locale-aware
+timestamps, and bounded new-message announcements. Tail classification and
+focus restoration remain unchanged and continue to have source-level tests.
 
 The protected `.github/workflows/m4-web-browser-support-matrix.yml` gate uses
 six dedicated x86_64 Linux hosts for current/previous branded Chrome, Edge, and

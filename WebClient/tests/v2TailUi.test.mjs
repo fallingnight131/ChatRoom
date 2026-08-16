@@ -9,7 +9,7 @@ test('follows only the V2 live tail and exposes bounded pending-message feedback
     'classifyV2TailUpdate(previous, next)',
     '@scroll="onMessageListScroll"',
     'v-if="pendingNewMessages"',
-    ':aria-label="`${pendingNewMessagesLabel}，回到最新消息`"',
+    ':aria-label="`${pendingNewMessagesLabel}${timelineMessages.backToLatestSuffix}`"',
     'messageListRef.value?.focus({ preventScroll: true })',
   ]) assert.ok(source.includes(marker), `missing V2 tail UI marker: ${marker}`)
 })

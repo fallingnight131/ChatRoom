@@ -579,6 +579,23 @@ const v2PreviewSearchCatalog = {
   },
 } as const;
 
+const v2PreviewTimelineCatalog = {
+  "zh-CN": {
+    history: "消息记录", pinned: "已置顶", forwarded: "已转发", reply: "回复", edited: "已编辑",
+    replyLabel: (preview: string) => `回复：${preview}`, accountTitle: (accountId: string) => `账号 ${accountId}`,
+    messageStatus: (sequence: string, state: string) => `消息 ${sequence}：${state}`,
+    accepted: "已接收", sending: "发送中", failed: "发送失败",
+    originalUnavailable: "原消息暂不可用", originalRecalled: "原消息已撤回",
+  },
+  "en-US": {
+    history: "Message history", pinned: "Pinned", forwarded: "Forwarded", reply: "Reply", edited: "Edited",
+    replyLabel: (preview: string) => `Reply: ${preview}`, accountTitle: (accountId: string) => `Account ${accountId}`,
+    messageStatus: (sequence: string, state: string) => `Message ${sequence}: ${state}`,
+    accepted: "Received", sending: "Sending", failed: "Send failed",
+    originalUnavailable: "Original message is temporarily unavailable", originalRecalled: "Original message was recalled",
+  },
+} as const;
+
 export type LoginMessageKey = keyof typeof loginCatalog["zh-CN"];
 
 export function resolveWebLocale(storage: WebLocaleStorage | null | undefined): WebLocale {
@@ -681,6 +698,10 @@ export function v2PreviewShellMessages(locale: WebLocale) {
 
 export function v2PreviewSearchMessages(locale: WebLocale) {
   return v2PreviewSearchCatalog[locale];
+}
+
+export function v2PreviewTimelineMessages(locale: WebLocale) {
+  return v2PreviewTimelineCatalog[locale];
 }
 
 export function applyDocumentLocale(locale: WebLocale, root?: { lang: string } | null): void {

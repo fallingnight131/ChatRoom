@@ -19,7 +19,7 @@ test('exposes keyboard-native participant selection and identity-preserving ment
     'application.sendText(text, mentions)',
     'application.sendReply(replyTarget.value.id, text, mentions)',
     'application.editMessage(message.id, text, mentions)',
-    ':title="`账号 ${segment.targetAccountId}`"',
+    ':title="v2TimelineMessages.accountTitle(segment.targetAccountId)"',
     'snapshot.participantFailure',
   ]) assert.ok(view.includes(marker), `missing V2 mention UI marker: ${marker}`)
 })

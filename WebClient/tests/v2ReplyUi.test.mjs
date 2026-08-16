@@ -12,7 +12,7 @@ test('exposes keyboard-operable reply composition and unavailable target renderi
     'if (!replyTarget.value) return',
     'title="取消回复（Esc）"',
     'application.sendReply(replyTarget.value.id, text, mentions)',
-    "return '原消息暂不可用'",
-    "target.availability === 'recalled' ? '原消息已撤回'",
+    'return v2TimelineMessages.value.originalUnavailable',
+    'target.availability === \'recalled\' ? v2TimelineMessages.value.originalRecalled',
   ]) assert.ok(source.includes(marker), `missing V2 reply UI marker: ${marker}`)
 })

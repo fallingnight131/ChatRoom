@@ -8,5 +8,5 @@ test('exposes keyboard-native optimistic pin controls and retry feedback', async
   assert.match(source, /:disabled="pinPending\(message\)"/)
   assert.match(source, /application\.setPin\(message\.id\)/)
   assert.match(source, /application\.retryPin\(operationId\)/)
-  assert.match(source, /role="status">已置顶/)
+  assert.match(source, /role="status">{{ v2TimelineMessages\.pinned }}/)
 })

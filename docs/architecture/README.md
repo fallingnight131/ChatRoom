@@ -2053,8 +2053,11 @@ identity, or V1 initial asset graph. The capability-gated search slice now also
 localizes its controls, live status, result count/list and paging plus a bounded
 adapter for known application failures. Search still delegates byte validation,
 bounded retention, context loading and sync ownership to the V2 application;
-the view does not advance a sequence cursor. V2 timeline actions, composition,
-member/forwarding, and device dialogs remain later slices.
+the view does not advance a sequence cursor. The read-only timeline slice now
+localizes its log landmark, immutable message markers, reply fallbacks,
+delivery state, locale-aware timestamps, and bounded new-message announcements
+without changing live-tail classification or focus restoration. V2 mutation
+actions, composition, member/forwarding, and device dialogs remain later slices.
 
 ### Product consistency
 

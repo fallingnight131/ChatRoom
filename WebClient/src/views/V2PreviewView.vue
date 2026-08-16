@@ -123,26 +123,26 @@
           <div class="message-timeline">
           <ol ref="messageListRef" class="message-list" role="log" aria-live="polite"
               tabindex="-1" @scroll="onMessageListScroll"
-              :aria-busy="snapshot.historyLoading" aria-label="消息记录">
+              :aria-busy="snapshot.historyLoading" :aria-label="v2TimelineMessages.history">
             <li v-for="message in snapshot.messages" :key="message.id || message.clientMessageId"
                 :id="message.id ? `v2-message-${message.id}` : undefined" tabindex="-1"
                 :class="['message-row', { mine: message.senderAccountId === snapshot.session.accountId, pinned: message.pinned }]">
               <div class="bubble">
-                <span v-if="message.pinned" class="pin-badge" role="status">已置顶</span>
-                <span v-if="message.forwarded" class="forwarded-badge">已转发</span>
+                <span v-if="message.pinned" class="pin-badge" role="status">{{ v2TimelineMessages.pinned }}</span>
+                <span v-if="message.forwarded" class="forwarded-badge">{{ v2TimelineMessages.forwarded }}</span>
                 <div v-if="message.reply" class="reply-reference"
-                     :aria-label="`回复：${replyPreview(message)}`">
-                  <strong>回复</strong>
+                     :aria-label="v2TimelineMessages.replyLabel(replyPreview(message))">
+                  <strong>{{ v2TimelineMessages.reply }}</strong>
                   <span>{{ replyPreview(message) }}</span>
                 </div>
                 <p class="message-content">
                   <template v-for="(segment, index) in messageSegments(message)" :key="index">
                     <span v-if="segment.kind === 'mention'" class="message-mention"
-                          :title="`账号 ${segment.targetAccountId}`">{{ segment.text }}</span>
+                          :title="v2TimelineMessages.accountTitle(segment.targetAccountId)">{{ segment.text }}</span>
                     <template v-else>{{ segment.text }}</template>
                   </template>
                 </p>
-                <span v-if="message.contentRevision > 0" class="edited-badge">已编辑</span>
+                <span v-if="message.contentRevision > 0" class="edited-badge">{{ v2TimelineMessages.edited }}</span>
                 <form v-if="editingMessageId === message.id" class="edit-form"
                       @submit.prevent="submitEdit(message)">
                   <label :for="`edit-${message.id}`">编辑消息</label>
@@ -212,7 +212,7 @@
                 <button v-if="failedPin(message)" class="retry-link" type="button"
                         :aria-label="`重试消息 ${message.sequence} 的置顶操作`"
                         @click="retryPin(failedPin(message).clientOperationId)">重试置顶</button>
-                <span :aria-label="`消息 ${message.sequence}：${deliveryLabel(message.deliveryState)}`">
+                <span :aria-label="v2TimelineMessages.messageStatus(message.sequence, deliveryLabel(message.deliveryState))">
                   #{{ message.sequence }} · {{ deliveryLabel(message.deliveryState) }}
                 </span>
                 <button v-if="message.deliveryState === 'accepted' && message.availability === 'available'"
@@ -242,12 +242,12 @@
             </li>
           </ol>
           <button v-if="pendingNewMessages" class="new-message-jump" type="button"
-                  :aria-label="`${pendingNewMessagesLabel}，回到最新消息`"
+                  :aria-label="`${pendingNewMessagesLabel}${timelineMessages.backToLatestSuffix}`"
                   @click="revealNewMessages">
             {{ pendingNewMessagesLabel }} ↓
           </button>
           <p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">
-            {{ pendingNewMessages ? `${pendingNewMessagesLabel}，当前仍在阅读历史消息` : '' }}
+            {{ pendingNewMessages ? `${pendingNewMessagesLabel}${timelineMessages.readingHistorySuffix}` : '' }}
           </p>
           </div>
           <form class="composer" @submit.prevent="sendMessage">
@@ -393,11 +393,16 @@ import { V2_RUNTIME_KEY } from '../application/v2RuntimeKey'
 import { MessageReactionKind } from '../protocol/v2/generated/messaging_pb'
 import { messageTextBudget, messageTextBudgetLabel } from '../messaging/messageTextBudget.js'
 import { copyMessageText } from '../messaging/copyMessageText.js'
-import { addPendingNewMessages, pendingNewMessageLabel } from '../messaging/newMessageIndicator.js'
+import { addPendingNewMessages } from '../messaging/newMessageIndicator.js'
 import { classifyV2TailUpdate } from '../messaging/v2TailActivity'
 import { useModalKeyboardBoundary } from '../ui/useModalKeyboardBoundary'
 import { useUserStore } from '../stores/user'
-import { v2PreviewSearchMessages, v2PreviewShellMessages } from '../localization/webLocale'
+import {
+  messageTimelineMessages,
+  v2PreviewSearchMessages,
+  v2PreviewShellMessages,
+  v2PreviewTimelineMessages,
+} from '../localization/webLocale'
 import {
   anchorsFromMentionSpans,
   insertMention,
@@ -410,6 +415,8 @@ const runtimeRef = inject(V2_RUNTIME_KEY)
 const userStore = useUserStore()
 const shellMessages = computed(() => v2PreviewShellMessages(userStore.locale))
 const searchMessages = computed(() => v2PreviewSearchMessages(userStore.locale))
+const timelineMessages = computed(() => messageTimelineMessages(userStore.locale))
+const v2TimelineMessages = computed(() => v2PreviewTimelineMessages(userStore.locale))
 const username = ref('')
 const password = ref('')
 const draft = ref('')
@@ -420,7 +427,9 @@ const copyAnnouncement = ref('')
 const messageListRef = ref(null)
 const followingMessageTail = ref(true)
 const pendingNewMessages = ref(0)
-const pendingNewMessagesLabel = computed(() => pendingNewMessageLabel(pendingNewMessages.value))
+const pendingNewMessagesLabel = computed(() => pendingNewMessages.value > 0
+  ? `${pendingNewMessages.value >= 99 ? '99+' : pendingNewMessages.value}${timelineMessages.value.newMessagesSuffix}`
+  : '')
 const replyTarget = ref(null)
 const editingMessageId = ref(null)
 const editDraft = ref('')
@@ -682,8 +691,8 @@ async function copyMessage(message) {
 
 function replyPreview(message) {
   const target = snapshot.value.messages.find(item => item.id === message.reply?.targetMessageId)
-  if (!target) return '原消息暂不可用'
-  return target.availability === 'recalled' ? '原消息已撤回' : target.content
+  if (!target) return v2TimelineMessages.value.originalUnavailable
+  return target.availability === 'recalled' ? v2TimelineMessages.value.originalRecalled : target.content
 }
 
 function retryMessage(clientMessageId) {
@@ -975,11 +984,12 @@ function shortDeviceId(deviceId) {
 }
 
 function formatDeviceTime(epochMs) {
-  return new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(epochMs)
+  return new Intl.DateTimeFormat(userStore.locale, { dateStyle: 'medium', timeStyle: 'short' }).format(epochMs)
 }
 
 function deliveryLabel(state) {
-  return state === 'accepted' ? '已接收' : state === 'sending' ? '发送中' : '发送失败'
+  return state === 'accepted' ? v2TimelineMessages.value.accepted
+    : state === 'sending' ? v2TimelineMessages.value.sending : v2TimelineMessages.value.failed
 }
 
 onMounted(() => attachRuntime(runtimeRef?.value))

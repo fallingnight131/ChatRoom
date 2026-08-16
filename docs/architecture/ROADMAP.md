@@ -2390,6 +2390,8 @@ Candidate slices:
     connection state, conversation directory, and empty message panel.
   - [x] Migrate the capability-gated Web V2 conversation-search surface while
     preserving byte validation, bounded results, context lookup, and focus.
+  - [x] Migrate the Web V2 read-only timeline semantics and bounded new-message
+    feedback while preserving live-tail classification and focus ownership.
   - [ ] Complete localization catalogs, broader keyboard navigation, screen-
     reader interaction evidence, and explicit low-bandwidth behavior.
 - voice/video through a dedicated real-time media architecture, not the chat
