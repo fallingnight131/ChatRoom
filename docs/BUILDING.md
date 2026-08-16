@@ -2431,12 +2431,12 @@ type 128 at the Qt transport. Enabled construction appends capability 7 after
 the independently optional forwarding and search capabilities and rejects an
 inexact `ServerHello`. Account commands and correlated type-129/error responses
 use a dedicated bounded transport route, so the messaging controller cannot
-misinterpret contact-policy payloads. This seam does not expose a Widgets action
-or persist a block graph; accessible management remains a separate gate.
+misinterpret contact-policy payloads. It does not persist a block graph; the
+Widgets action is composed only by the later guarded boundary below.
 The detached Windows account-block ViewModel additionally accepts only an
-authoritative DIRECT marker plus a complete, non-paginated two-member projection
-for the same active conversation. It derives the unique non-self target from the
-authenticated actor, reports initial state as unknown, and retains one operation
+authoritative DIRECT marker plus a complete, non-paginated participant
+projection containing exactly one row after the authenticated actor is filtered.
+It reports initial state as unknown and retains one operation
 UUID solely for explicit same-desired-state retry after disconnect. Target
 changes, session changes, and invalid projections clear that page-memory state;
 there is no SQLite block graph or inferred durable status.
@@ -2445,8 +2445,14 @@ ViewModel, binds both from the authenticated server session, sends only through
 the isolated type-128 route, and applies only strictly correlated type-129 or
 protocol-error results. Socket loss clears protocol correlations while leaving
 the same actor's failed page-memory operation available for explicit retry after
-resume. Disabled composition returns no account-block ViewModel. Widgets still
-does not expose this application boundary.
+resume. Disabled composition returns no account-block ViewModel. Widgets
+exposes this boundary only when that ViewModel exists and the authoritative
+directory row is DIRECT. The modal action waits for a complete participant
+projection, names the target, announces unknown/pending/applied/failure state,
+requires native confirmation, and offers both block and unblock. Group rows and
+ordinary builds cannot enable the action. The injected-confirmation Widgets test
+locks target loading, accessible names, pending disablement, correlated status,
+and group suppression; it is a native Windows CI gate.
 CI compiles a separate, non-published
 forwarding/search/notification/account-blocking-enabled `ChatClient`. It runs
 transport, forwarding-dialog, search-state,

@@ -29,7 +29,6 @@ int main(int argc, char **argv) {
         });
     viewModel.bindSession(actor);
     const QVector<V2WindowsConversationParticipantViewModel::Row> direct{
-        {actor, QStringLiteral("我"), QStringLiteral("成员")},
         {target, QStringLiteral("测试用户"), QStringLiteral("成员")}};
     if (!check(!viewModel.activateDirectConversation(
                     conversation, conversation, direct, false, false),

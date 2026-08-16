@@ -155,7 +155,6 @@ int main(int argc, char **argv) {
     const QString targetId = QStringLiteral("10000000-0000-4000-8000-000000000002");
     const QString directId = QStringLiteral("60000000-0000-4000-8000-000000000001");
     const QVector<V2WindowsConversationParticipantViewModel::Row> participants{
-        {actorId, QStringLiteral("我"), QStringLiteral("成员")},
         {targetId, QStringLiteral("对方"), QStringLiteral("成员")}};
     if (!check(blockViewModel->activateDirectConversation(
                     directId, directId, participants, false, true)

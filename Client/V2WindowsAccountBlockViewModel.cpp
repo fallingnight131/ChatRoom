@@ -1,6 +1,5 @@
 #include "V2WindowsAccountBlockViewModel.h"
 
-#include <QSet>
 #include <QUuid>
 #include <stdexcept>
 #include <utility>
@@ -47,29 +46,14 @@ bool V2WindowsAccountBlockViewModel::activateDirectConversation(
         bool hasMore, bool direct) {
     if (m_actorAccountId.isEmpty() || conversationId.isEmpty()
             || participantConversationId != conversationId || hasMore || !direct
-            || participants.size() != 2) {
+            || participants.size() != 1) {
         resetTarget(QStringLiteral("仅可管理成员信息完整的私聊对象"));
         return false;
     }
-    QSet<QString> identities;
-    QString targetAccountId;
-    QString targetDisplayName;
-    bool actorFound = false;
-    for (const auto &participant : participants) {
-        if (participant.accountId.isEmpty()
-                || identities.contains(participant.accountId)) {
-            resetTarget(QStringLiteral("私聊成员信息无效，请刷新后重试"));
-            return false;
-        }
-        identities.insert(participant.accountId);
-        if (participant.accountId == m_actorAccountId) {
-            actorFound = true;
-        } else {
-            targetAccountId = participant.accountId;
-            targetDisplayName = participant.displayName;
-        }
-    }
-    if (!actorFound || targetAccountId.isEmpty()) {
+    const auto &participant = participants.first();
+    const QString targetAccountId = participant.accountId;
+    const QString targetDisplayName = participant.displayName;
+    if (targetAccountId.isEmpty() || targetAccountId == m_actorAccountId) {
         resetTarget(QStringLiteral("私聊成员信息无效，请刷新后重试"));
         return false;
     }

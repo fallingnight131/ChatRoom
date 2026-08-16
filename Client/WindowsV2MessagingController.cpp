@@ -472,7 +472,7 @@ void WindowsV2MessagingController::receiveFrame(const QByteArray &frame) {
                                ? QStringLiteral("群主")
                                : item.role == V2WindowsConversationDirectoryProtocolClient::Role::Admin
                                    ? QStringLiteral("管理员") : QStringLiteral("成员"),
-                    static_cast<qint64>(unread)});
+                    static_cast<qint64>(unread), direct});
             }
             m_directoryViewModel->applyPage(
                 std::move(rows), m_directoryContinuationPending, event.hasMore);

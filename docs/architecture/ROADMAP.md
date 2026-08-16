@@ -2320,14 +2320,16 @@ Candidate slices:
     diagnostic schema 5, exact session negotiation, and an isolated bounded Qt
     transport route; do not expose a Widgets action yet.
   - [x] Add a detached Windows account-block ViewModel that resolves exactly
-    one non-self target from a complete two-member DIRECT projection, keeps
+    one non-self target from a complete actor-filtered DIRECT projection, keeps
     state in memory only, and preserves operation identity for explicit retry.
   - [x] Compose the enabled Windows account-block protocol and ViewModel from
     authenticated session state through the isolated Qt route, with default-off
     absence and same-operation reconnect retry; keep Widgets disconnected.
-  - [ ] Add accessible Windows block management behind its independent product
-    gate, then complete real endpoint activation/rollback evidence for both
-    supported clients.
+  - [x] Expose an accessible Windows DIRECT-only block/unblock dialog behind the
+    same immutable product gate, with authoritative target loading, confirmation,
+    announced status, pending disablement, and native Windows CI coverage.
+  - [ ] Complete real endpoint activation/rollback evidence for both supported
+    clients and retain native Windows Release interaction evidence.
 - Windows native notifications;
   - [x] Add a persisted-live-only notification candidate boundary and a bounded,
     privacy-safe policy that suppresses duplicates, self echoes, and the active

@@ -14,6 +14,7 @@ public:
         QString kindLabel;
         QString roleLabel;
         qint64 unreadCount = 0;
+        bool direct = false;
     };
     using Action = std::function<bool()>;
     using OpenConversation = std::function<bool(const QString &)>;

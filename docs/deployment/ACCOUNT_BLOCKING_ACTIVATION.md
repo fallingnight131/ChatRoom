@@ -2,9 +2,11 @@
 
 This checklist activates the capability-7 candidate without treating it as a
 complete block-list product or weakening the transactional direct-contact
-policy. It applies to the Java gateway and the default-off Web V2 preview.
-Windows now has a separately compiled protocol/transport candidate, but it has
-no accessible product action and must remain disabled during this procedure.
+policy. It applies to the Java gateway and the independent default-off Web and
+Windows V2 candidates. Windows has a separately compiled
+protocol/transport/Widgets candidate. It
+must remain internal until the native Windows Release interaction and real
+endpoint gates below are retained for the exact revision.
 
 ## Preconditions
 
@@ -21,8 +23,8 @@ no accessible product action and must remain disabled during this procedure.
   list or initial-state read. A fresh page reports unknown state until a desired-
   state command succeeds.
 - Confirm the shipped Windows diagnostic reports schema 5 with
-  `accountBlockingEnabled=false`. A compile-only candidate may set it true for
-  protocol tests, but must not be distributed or included in the rollout.
+  `accountBlockingEnabled=false`. A candidate may set it true only for the
+  bounded Windows validation cohort described below.
 
 ## Gateway-first activation
 
@@ -54,6 +56,21 @@ no accessible product action and must remain disabled during this procedure.
 5. Reload the page and verify it reports unknown state instead of inventing a
    persisted projection; apply either desired state and verify convergence.
 
+## Windows candidate activation
+
+1. Build an unsigned/internal candidate with the reviewed preview endpoint and
+   `CHATROOM_ENABLE_WINDOWS_V2_ACCOUNT_BLOCKING=ON`; retain a same-revision build
+   without that option for rollback.
+2. On native Windows, require the account-block dialog CI test plus clean-host
+   launch. Verify ordinary and group conversations do not expose an enabled
+   action, while a DIRECT conversation waits for its authoritative participant.
+3. Against the gateway canary, confirm block, unblock, generic denial, one
+   interrupted same-operation retry, keyboard-only navigation, screen-reader
+   names/status, and focus return to the conversation window.
+4. Retain diagnostic schema 5, gateway telemetry, database desired state, and
+   client-first rollback evidence for the exact binary. Until these checks pass,
+   do not distribute the candidate outside the bounded validation cohort.
+
 ## Rollback
 
 Rollback clients first: move the Web deployment pointer to immutable assets
@@ -61,7 +78,7 @@ without `VITE_CHAT_V2_ACCOUNT_BLOCKING=true`. Existing negotiated connections
 may retain capability 7 until the old page/socket closes, so drain the candidate
 cohort before declaring the client path disabled.
 
-If a Windows compile candidate was used in a test environment, replace it with
+If a Windows candidate was used in a test environment, replace it with
 the same-revision build made without
 `CHATROOM_ENABLE_WINDOWS_V2_ACCOUNT_BLOCKING=ON`, verify diagnostic schema 5
 reports false, and close its existing V2 connections.
@@ -73,6 +90,7 @@ must continue denying new direct contact. Removing that enforcement requires a
 separate approved data policy or a verified empty graph; never delete rows or
 rewrite Flyway history as an operational rollback.
 
-This procedure is candidate evidence, not public Web support or a capacity
-claim. Production activation still requires the normal Web endpoint, CSP,
-health-window, staged rollout, and immutable rollback gates.
+This procedure is candidate evidence, not public Web/Windows support or a
+capacity claim. Production activation still requires the normal Web endpoint,
+CSP, health-window, staged rollout, immutable rollback, and signed clean-host
+Windows release gates.

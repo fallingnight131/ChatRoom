@@ -2,6 +2,8 @@
 
 #include "V2WindowsConversationDirectoryViewModel.h"
 #include "V2WindowsConversationParticipantViewModel.h"
+#include "V2WindowsAccountBlockDialog.h"
+#include "V2WindowsAccountBlockViewModel.h"
 #include "V2WindowsMessagingPanel.h"
 #include "V2WindowsMessagingViewModel.h"
 #include "V2WindowsMessageSearchViewModel.h"
@@ -21,12 +23,16 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
         V2WindowsMessagingViewModel *messagingViewModel,
         V2WindowsConversationParticipantViewModel *participantViewModel,
         QWidget *parent, bool mentionsEnabled, bool forwardingEnabled,
-        V2WindowsMessageSearchViewModel *searchViewModel)
+        V2WindowsMessageSearchViewModel *searchViewModel,
+        V2WindowsAccountBlockViewModel *accountBlockViewModel)
     : QDialog(parent), m_directoryViewModel(directoryViewModel),
+      m_participantViewModel(participantViewModel),
+      m_accountBlockViewModel(accountBlockViewModel),
       m_directoryStatus(new QLabel(this)), m_conversationTitle(new QLabel(this)),
       m_conversations(new QListWidget(this)),
       m_refresh(new QPushButton(QStringLiteral("刷新"), this)),
       m_loadMore(new QPushButton(QStringLiteral("加载更多"), this)),
+      m_accountBlock(new QPushButton(QStringLiteral("屏蔽管理"), this)),
       m_messagingPanel(new V2WindowsMessagingPanel(
           messagingViewModel, participantViewModel, this, mentionsEnabled,
           directoryViewModel, forwardingEnabled, searchViewModel)) {
@@ -47,6 +53,9 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
     m_loadMore->setAccessibleName(QStringLiteral("加载更多新版会话"));
     m_conversationTitle->setAccessibleName(QStringLiteral("当前新版会话"));
     m_conversationTitle->setText(QStringLiteral("请选择会话"));
+    m_accountBlock->setAccessibleName(QStringLiteral("管理当前私聊账号屏蔽状态"));
+    m_accountBlock->setVisible(m_accountBlockViewModel != nullptr);
+    m_accountBlock->setEnabled(false);
     m_messagingPanel->setEnabled(false);
 
     auto *directoryButtons = new QHBoxLayout;
@@ -61,7 +70,10 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
 
     auto *messagePane = new QWidget(this);
     auto *messageLayout = new QVBoxLayout(messagePane);
-    messageLayout->addWidget(m_conversationTitle);
+    auto *messageHeader = new QHBoxLayout;
+    messageHeader->addWidget(m_conversationTitle, 1);
+    messageHeader->addWidget(m_accountBlock);
+    messageLayout->addLayout(messageHeader);
     messageLayout->addWidget(m_messagingPanel, 1);
 
     auto *splitter = new QSplitter(Qt::Horizontal, this);
@@ -90,6 +102,14 @@ V2WindowsConversationDialog::V2WindowsConversationDialog(
     connect(m_directoryViewModel,
             &V2WindowsConversationDirectoryViewModel::conversationOpened,
             this, &V2WindowsConversationDialog::markConversationOpened);
+    connect(m_accountBlock, &QPushButton::clicked, this, [this] {
+        if (!m_accountBlockViewModel || m_selectedConversationId.isEmpty()
+                || !m_selectedConversationDirect) return;
+        V2WindowsAccountBlockDialog dialog(
+            m_accountBlockViewModel, m_participantViewModel, {}, this);
+        dialog.setConversation(m_selectedConversationId, true);
+        dialog.exec();
+    });
     renderDirectory();
 }
 
@@ -138,6 +158,8 @@ void V2WindowsConversationDialog::markConversationOpened(
     for (const auto &row : m_directoryViewModel->rows()) {
         if (row.conversationId != conversationId) continue;
         m_conversationTitle->setText(row.displayName);
+        m_selectedConversationDirect = row.direct;
+        m_accountBlock->setEnabled(m_accountBlockViewModel && row.direct);
         m_messagingPanel->setConversation(conversationId);
         m_messagingPanel->setEnabled(true);
         break;

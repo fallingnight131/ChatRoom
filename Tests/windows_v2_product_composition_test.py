@@ -31,6 +31,9 @@ def main() -> int:
         encoding="utf-8"
     )
     panel = (ROOT / "Client/V2WindowsMessagingPanel.cpp").read_text(encoding="utf-8")
+    conversation_dialog = (ROOT / "Client/V2WindowsConversationDialog.cpp").read_text(
+        encoding="utf-8"
+    )
     qmake = (ROOT / "Client/Client.pro").read_text(encoding="utf-8")
 
     for source, text in (
@@ -71,8 +74,9 @@ def main() -> int:
         "m_deviceManagementController->stop()",
         "DeviceManagementDialog",
         "m_v2MessageForwardingEnabled,",
-        "messageSearchViewModel());",
+        "messageSearchViewModel(),",
         "WindowsMessageNotificationPresenter",
+        "accountBlockViewModel()",
         "TrayManager::notificationActivated",
     ), "Client/ChatWindow.cpp")
     require(controller, (
@@ -119,6 +123,11 @@ def main() -> int:
         "V2WindowsMessageSearchViewModel::loadMore",
         "scrollToItem(item, QAbstractItemView::PositionAtCenter)",
     ), "Client/V2WindowsMessagingPanel.cpp")
+    require(conversation_dialog, (
+        "V2WindowsAccountBlockDialog",
+        "m_selectedConversationDirect",
+        "m_accountBlock->setEnabled",
+    ), "Client/V2WindowsConversationDialog.cpp")
     for source in (
         "Client/WindowsDeviceManagementController.cpp",
         "Client/DeviceManagementApplicationService.cpp",

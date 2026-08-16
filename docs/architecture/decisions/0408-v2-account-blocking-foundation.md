@@ -71,25 +71,31 @@ server candidate without activating an incomplete client product path.
   it and exposes a localized, keyboard-contained direct-account dialog. It
   targets only the unique non-self member returned by the authorized DIRECT
   participant page, confirms either desired state, and preserves one operation
-  UUID for explicit retry after disconnect. Windows remains off, but has a
-  detached C++ protocol client that validates the authenticated actor and exact
-  desired-state correlation before any product composition. Server or Web
-  activation alone therefore cannot create a product feature.
+  UUID for explicit retry after disconnect. Ordinary Windows builds remain off;
+  the independent candidate described below validates the authenticated actor
+  and exact desired-state correlation before exposing its guarded product path.
+  Server or either client activation alone therefore cannot create the complete
+  product feature.
 - An independent Windows CMake gate now carries capability 7 through immutable
   binary configuration, exact handshake validation, and an isolated bounded Qt
   transport route for types 128/129 and their correlated errors. It remains
-  default-off and exposes no Widgets action yet; diagnostic schema 5 makes that
-  absence or candidate presence observable without account or session data.
-- A detached Windows ViewModel accepts only a complete two-member participant
-  projection for the active DIRECT conversation, derives the sole non-self
-  target from the authenticated actor, labels initial state unknown, and keeps
+  default-off; diagnostic schema 5 makes its absence or candidate presence
+  observable without account or session data.
+- A detached Windows ViewModel accepts only a complete actor-filtered
+  participant projection with exactly one row for the active DIRECT
+  conversation, labels initial state unknown, and keeps
   the operation UUID only for explicit same-desired-state retry. It has no
-  database dependency and is not yet exposed by Widgets.
+  database dependency.
 - The enabled Windows device controller binds that protocol/ViewModel pair only
   from the server-established actor and session, sends through the isolated Qt
   route, and applies strictly correlated results. Disconnect clears protocol
   requests while retaining the same actor's explicit retry intent in page
   memory. Default composition constructs no account-block controller.
+- The Windows conversation surface exposes a native modal only when the
+  immutable gate produced a ViewModel and the authorized directory row is
+  DIRECT. It waits for the complete actor-filtered participant projection,
+  names the sole target, requires confirmation, disables duplicate pending
+  actions, announces result/failure state, and keeps group/ordinary paths off.
 - The Web candidate keeps the latest operation result in page memory only. It
   does not infer durable state before a result, persist a block graph, or expose
   a block-list read model. A fresh page labels state unknown and can issue an
@@ -101,9 +107,9 @@ The safety semantics and authenticated-actor boundary remain independent from
 transport. Existing deployments have no block rows until the default-off server
 candidate and an explicit compatible client are enabled, while direct-contact
 writes already fail closed if such rows exist. Old clients omit capability 7
-and keep their prior handshake bytes. The first Web candidate is now present;
-Windows accessible UI/application composition, real endpoint canaries, and a
-future block-list read model remain separate expand-migrate-contract steps.
+and keep their prior handshake bytes. The Web and Windows candidates are now
+present; native Windows Release interaction, real endpoint canaries, and a future
+block-list read model remain separate expand-migrate-contract steps.
 
 ## Verification
 
@@ -150,6 +156,11 @@ The composed controller test negotiates capability 7, binds the authenticated
 actor, submits type 128 from an authoritative target projection, and routes a
 correlated type 129 result. Configuration and composition guards keep ordinary
 construction absent.
+The native Windows CI gate builds the guarded dialog and verifies authoritative
+target loading, accessible names, confirmation, pending disablement, correlated
+status announcement, and group suppression. A macOS portability build is not
+Windows product evidence; native Windows Release interaction and real-endpoint
+activation/rollback evidence remain required.
 
 ## Rollback
 
@@ -161,5 +172,5 @@ Removing the direct-write policy while retaining rows would reopen contact
 paths, so that deeper rollback requires first proving the graph empty or
 applying an explicitly approved data policy. If V052 must be physically removed
 before product activation, restore the pre-migration database backup rather
-than editing Flyway history. Client state requires no migration because the Web
-candidate persists no block state and default product clients remain off.
+than editing Flyway history. Client state requires no migration because neither
+candidate persists a block graph and ordinary product builds remain off.

@@ -656,6 +656,8 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 Client/V2WindowsForwardTargetDialog.h
                 Client/V2WindowsConversationDialog.cpp
                 Client/V2WindowsConversationDialog.h
+                Client/V2WindowsAccountBlockDialog.cpp
+                Client/V2WindowsAccountBlockDialog.h
                 Client/resources/resources.qrc
                 "${CMAKE_CURRENT_BINARY_DIR}/generated/ChatClient.rc"
             )
@@ -893,6 +895,22 @@ if(CHATROOM_BUILD_HEADLESS_SERVER)
                 COMMAND V2WindowsMessagingPanelTest)
             set_tests_properties(
                 m6_windows_v2_messaging_panel PROPERTIES TIMEOUT 30)
+            add_executable(
+                V2WindowsAccountBlockDialogTest
+                Tests/V2WindowsAccountBlockDialogTest.cpp
+                Client/V2WindowsAccountBlockDialog.cpp
+                Client/V2WindowsAccountBlockDialog.h)
+            set_target_properties(
+                V2WindowsAccountBlockDialogTest PROPERTIES AUTOMOC ON)
+            target_link_libraries(
+                V2WindowsAccountBlockDialogTest
+                PRIVATE Qt6::Widgets chatroom_windows_v2_messaging_product)
+            add_test(
+                NAME m6_windows_v2_account_block_dialog
+                COMMAND V2WindowsAccountBlockDialogTest)
+            set_tests_properties(
+                m6_windows_v2_account_block_dialog
+                PROPERTIES TIMEOUT 30 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         endif()
         add_executable(V2WindowsMentionComposerTest Tests/V2WindowsMentionComposerTest.cpp)
         target_link_libraries(
